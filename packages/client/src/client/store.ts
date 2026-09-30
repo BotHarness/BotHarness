@@ -67,12 +67,10 @@ export interface ChannelReplyPreview {
   body: string;
 }
 
-export interface ChannelAttachmentRef {
-  hash: string;
-  name: string;
-  mime: string;
-  size: number;
-}
+export type ChannelAttachmentRef = { name: string; mime: string; size: number } & (
+  | { fileId: string; hash?: never }
+  | { hash: string; fileId?: never }
+);
 
 export interface ToolApprovalRequestCard {
   sessionId: string;

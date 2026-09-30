@@ -728,6 +728,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       modelReadiness,
       states: core.states,
       channels: core.channels,
+      attachments: core.attachments,
       ownership: core.ownership,
       memory: core.memory,
       ...(core.usage === undefined ? {} : { usage: core.usage }),
@@ -849,7 +850,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         }),
       'botharness: current Memory file download',
     );
-    const attachmentHttp = createAttachmentHttp(core.attachments);
+    const attachmentHttp = createAttachmentHttp(core.attachments, core.channels);
     connectionCtx.effect(
       () =>
         connection.fetch.register({
@@ -908,6 +909,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     'agent/created',
     ({ agent }) => {
       activity.handleAgentCreated(agent.session);
+      core.usage?.primeSession(agent.session.id, agent.session.snapshotEvents());
       const owner = core.ownership.resolve(agent.session.id);
       if (owner !== undefined) {
         installBotSubagentModelTools(
@@ -927,6 +929,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     { global: true },
   );
   activity.rebuild(dshSessions.list());
+  for (const session of dshSessions.list())
+    core.usage?.primeSession(session.id, session.snapshotEvents());
   if (core.usage !== undefined) {
     const usage = core.usage;
 
@@ -956,7 +960,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       void usage.rebuild(tracked, readUsageLog).then(
         (report) => {
           ctx.logger.info(
-            `botharness: usage projection rebuilt (${report.folded} turns, ${report.failed} failed sessions)`,
+            `botharness: usage projection rebuilt (${report.folded} attempts, ${report.failed} failed sessions)`,
           );
         },
         (error: unknown) => {

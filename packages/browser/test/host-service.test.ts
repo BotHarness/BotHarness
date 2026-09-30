@@ -45,6 +45,7 @@ async function setup() {
         opened.push({ slug, profile, reuse });
         return { tabId: `${slug}-${profile || 'default'}`, url, title: 'Work' };
       },
+      click: async (tabId: string) => ({ tabId, url: 'https://example.com', title: 'Work' }),
       listTabs: async () =>
         [...profiles].map(([owner, profile]) => ({
           targetId: `${owner}-${profile || 'default'}`,
@@ -111,7 +112,7 @@ async function setup() {
         .fetch(new Request(`http://localhost/api/browser/observation?slug=${slug}`))
     ).json();
   }
-  return { service, profiles, routes, opened, open, observation };
+  return { service, profiles, routes, opened, open, observation, scopes };
 }
 
 describe('published Browser Host service', () => {
@@ -132,5 +133,32 @@ describe('published Browser Host service', () => {
     await h.open('bot-a');
     expect(h.opened.at(-1)).toEqual({ slug: 'bot-a', profile: 'work', reuse: undefined });
     expect(await h.observation('bot-a')).toMatchObject({ focused: 'bot-a-work' });
+  });
+  it('keeps another Bot usable while the resumed Bot needs a fresh observation', async () => {
+    const h = await setup();
+    await h.open('bot-a');
+    await h.open('bot-b');
+    for (const active of [true, false]) {
+      await h.routes.get('/api/browser/takeover')!.fetch(
+        new Request('http://localhost/api/browser/takeover', {
+          method: 'POST',
+          body: JSON.stringify({ slug: 'bot-a', active }),
+        }),
+      );
+    }
+    const click = (slug: string) =>
+      h.scopes
+        .get(slug)!
+        .get('browser_click')!
+        .execute({ ref: 'e1' }, {
+          agent: { id: slug },
+          signal: new AbortController().signal,
+        } as ToolRunContext);
+    await expect(click('bot-a')).rejects.toThrow(/Resume.*browser_observe/);
+    await expect(click('bot-b')).resolves.toBeDefined();
+    expect(await h.observation('bot-b')).toMatchObject({
+      focused: 'bot-b-default',
+      takeover: false,
+    });
   });
 });

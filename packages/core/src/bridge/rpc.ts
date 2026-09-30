@@ -484,6 +484,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.workspaceOptions({}));
   }
 
+  messageAttachmentTarget(
+    channelId: string,
+    messageId: string,
+    fileId: string,
+  ): { target: MemoryFileTarget } {
+    return unwrap(this.methods.messageAttachmentTarget({ channelId, messageId, fileId }));
+  }
+
   workspaceFileTarget(
     slug: string,
     grantId: string,
@@ -735,6 +743,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'assignments',
   'assignment',
   'workspaceOptions',
+  'messageAttachmentTarget',
   'workspaceFileTarget',
   'grants',
   'grantCreate',

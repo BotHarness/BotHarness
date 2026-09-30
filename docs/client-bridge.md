@@ -144,3 +144,7 @@ Windows 与 WSL 的 `~/.config/botharness/dev.env` 分属不同的用户目录�
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
 - 六态 Activity 的独立实时性与未来 Channel SSE 的慢消费者背压策略（#141 首个切片只覆盖选中 Channel 的已提交消息）。
 - `@PersonaBot` 提及 token 的 appearance 与序列化（依赖 `@deepseek-ai/dsh-client-ui-input-trigger` 的 `ReferenceInsert` 限制）。
+
+## 8. 新消息附件的真实文件
+
+`messageAttachmentTarget({channelId,messageId,fileId})` 由 Messaging 校验当前消息归属并返回 `{target:{path,relativePath,kind:'file'}}`，供 Human Client 使用现有 DSH 原生能力。下载 GET `/api/botharness/attachment?channelId=...&messageId=...&fileId=...` 每次验证同样归属，并以 `no-store` 返回当前字节；单独路径、文件名或 hash 不能启动新附件。旧 hash GET 仍可读 CAS，不能打开编辑。POST upload 的可选 `uploadId` 是 Composer item UUID，响应新 `{fileId,name,mime,size}`。上传重试回执不覆盖外部编辑。消息读取投影当前元数据，发送幂等比较稳定身份与名称。详见[文件指南](file-open.zh.md)。

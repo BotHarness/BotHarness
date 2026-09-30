@@ -1,3 +1,5 @@
+import { createMessageAttachmentFiles } from './message-files.js';
+import type { ChannelStore } from '../channels/store.js';
 import { ChannelAttachmentError, safeAttachmentName, type AttachmentStore } from './store.js';
 
 export const CHANNEL_ATTACHMENT_PATH = '/api/botharness/attachment';
@@ -20,7 +22,7 @@ async function* chunks(body: ReadableStream<Uint8Array> | null): AsyncIterable<U
 function filenameDisposition(name: string, inline: boolean): string {
   const safe = safeAttachmentName(name);
   const ascii = safe.replace(/[^\x20-\x7e]|["\\]/gu, '_');
-  return `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
+  return `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(safe).replace(/['()*]/gu, (char) => '%' + char.charCodeAt(0).toString(16))}`;
 }
 
 function errorResponse(error: unknown): Response {
@@ -39,6 +41,7 @@ function errorResponse(error: unknown): Response {
 
 export function createAttachmentHttp(
   store: AttachmentStore,
+  channels?: ChannelStore,
 ): (request: Request) => Promise<Response> {
   return async (request) => {
     const url = new URL(request.url);
@@ -56,6 +59,9 @@ export function createAttachmentHttp(
           data: chunks(request.body),
           ...(url.searchParams.has('name') ? { name: url.searchParams.get('name') ?? '' } : {}),
           signal: request.signal,
+          ...(url.searchParams.has('uploadId')
+            ? { uploadId: url.searchParams.get('uploadId') ?? '' }
+            : {}),
         });
         return Response.json(
           { attachment: ref },
@@ -69,13 +75,26 @@ export function createAttachmentHttp(
     }
     if (request.method === 'GET') {
       const hash = url.searchParams.get('hash');
-      if (hash === null) return new Response('hash is required', { status: 400 });
+      const fileId = url.searchParams.get('fileId');
+      const channelId = url.searchParams.get('channelId');
+      const messageId = url.searchParams.get('messageId');
+      if (
+        fileId !== null &&
+        (hash !== null || channelId === null || messageId === null || channels === undefined)
+      )
+        return new Response('message ownership is required', { status: 400 });
+      if (fileId === null && (hash === null || !hash.startsWith('sha256:')))
+        return new Response('legacy hash or message attachment is required', { status: 400 });
       try {
-        const { ref, body } = await store.download(
-          hash,
-          url.searchParams.get('name') ?? undefined,
-          request.signal,
-        );
+        const { ref, body } =
+          fileId === null
+            ? await store.download(hash!, url.searchParams.get('name') ?? undefined, request.signal)
+            : await createMessageAttachmentFiles(channels!, store).download(
+                channelId!,
+                messageId!,
+                fileId,
+                request.signal,
+              );
         const image = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(ref.mime);
         return new Response(body, {
           headers: {
@@ -83,7 +102,7 @@ export function createAttachmentHttp(
             'content-length': String(ref.size),
             'content-disposition': filenameDisposition(ref.name, image),
             'x-content-type-options': 'nosniff',
-            'cache-control': 'private, max-age=3600',
+            'cache-control': fileId === null ? 'private, max-age=3600' : 'no-store',
           },
         });
       } catch (error) {

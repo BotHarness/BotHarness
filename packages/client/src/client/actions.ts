@@ -10,6 +10,7 @@ import {
   authorizeMessaging,
   revokeMessaging,
   sendMessaging,
+  loadMessageAttachmentTarget,
 } from './bridge.js';
 import {
   applyRosterBatch,
@@ -234,6 +235,23 @@ export interface BridgeActions {
   dismissFailedMessage(channelId: string, messageId: string): boolean;
   openSession(sessionId: string): void;
   refreshSessions(slug: string): Promise<void>;
+  messageAttachmentTarget(
+    channelId: string,
+    messageId: string,
+    fileId: string,
+  ): Promise<HostFileTarget>;
+  messageAttachmentApplications(
+    channelId: string,
+    messageId: string,
+    fileId: string,
+  ): Promise<HostFileOptions>;
+  messageAttachmentOpen(
+    channelId: string,
+    messageId: string,
+    fileId: string,
+    choice: HostFileOpen,
+  ): Promise<void>;
+  messageAttachmentDownload(channelId: string, messageId: string, fileId: string): Promise<void>;
   workspaceFileTarget(slug: string, grantId: string): Promise<HostFileTarget>;
   workspaceFileApplications(slug: string, grantId: string): Promise<HostFileOptions>;
   workspaceFileOpen(slug: string, grantId: string, choice: HostFileOpen): Promise<void>;
@@ -1170,6 +1188,36 @@ export function createActions(
           hasNewer: page.hasNewer,
         },
       });
+    },
+    messageAttachmentTarget: (channelId, messageId, fileId) =>
+      loadMessageAttachmentTarget(call, channelId, messageId, fileId),
+    async messageAttachmentApplications(channelId, messageId, fileId) {
+      const target = await loadMessageAttachmentTarget(call, channelId, messageId, fileId);
+      return (
+        folderAccess?.nativeFiles?.applications(target) ?? { available: false, applications: [] }
+      );
+    },
+    async messageAttachmentOpen(channelId, messageId, fileId, choice) {
+      if (openingFile) throw new Error('A Host file open is already in progress');
+      openingFile = true;
+      try {
+        const target = await loadMessageAttachmentTarget(call, channelId, messageId, fileId);
+        if (folderAccess?.nativeFiles === undefined)
+          throw new Error('DSH Host opening is unavailable');
+        await folderAccess.nativeFiles.open(target, choice);
+      } finally {
+        openingFile = false;
+      }
+    },
+    async messageAttachmentDownload(channelId, messageId, fileId) {
+      const target = await loadMessageAttachmentTarget(call, channelId, messageId, fileId);
+      const anchor = document.createElement('a');
+      anchor.href =
+        '/api/botharness/attachment?' + new URLSearchParams({ channelId, messageId, fileId });
+      anchor.download = target.relativePath;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
     },
     workspaceFileTarget: (slug, grantId) => loadWorkspaceFileTarget(call, slug, grantId),
     async workspaceFileApplications(slug, grantId) {

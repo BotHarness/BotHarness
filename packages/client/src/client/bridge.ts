@@ -551,10 +551,16 @@ function parseAuthor(value: unknown): ChannelAuthor | undefined {
 export function parseChannelAttachment(value: unknown): ChannelAttachmentRef | undefined {
   const record = asRecord(value);
   if (record === undefined) return undefined;
-  const { hash, name, mime, size } = record;
+  const { hash, fileId, name, mime, size } = record;
   if (
-    typeof hash !== 'string' ||
-    !/^sha256:[0-9a-f]{64}$/u.test(hash) ||
+    !(
+      (typeof hash === 'string' && /^sha256:[0-9a-f]{64}$/u.test(hash) && fileId === undefined) ||
+      (typeof fileId === 'string' &&
+        /^file:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(
+          fileId,
+        ) &&
+        hash === undefined)
+    ) ||
     typeof name !== 'string' ||
     name.length === 0 ||
     name.length > 180 ||
@@ -566,19 +572,29 @@ export function parseChannelAttachment(value: unknown): ChannelAttachmentRef | u
     size < 0
   )
     return undefined;
-  return { hash, name, mime, size };
+  return typeof fileId === 'string'
+    ? { fileId, name, mime, size }
+    : { hash: hash as string, name, mime, size };
 }
 
-export function channelAttachmentUrl(ref: ChannelAttachmentRef): string {
+export function channelAttachmentUrl(
+  ref: ChannelAttachmentRef,
+  owner?: { channelId: string; messageId: string },
+): string {
+  if (ref.fileId !== undefined) {
+    if (owner === undefined) throw new Error('Message ownership is required for real attachments');
+    return '/api/botharness/attachment?' + new URLSearchParams({ ...owner, fileId: ref.fileId });
+  }
   return `/api/botharness/attachment?hash=${encodeURIComponent(ref.hash)}&name=${encodeURIComponent(ref.name)}`;
 }
 
 export async function uploadChannelAttachment(
   file: File,
   signal?: AbortSignal,
+  uploadId?: string,
 ): Promise<ChannelAttachmentRef> {
   const response = await fetch(
-    `/api/botharness/attachment/upload?name=${encodeURIComponent(file.name)}`,
+    `/api/botharness/attachment/upload?${new URLSearchParams({ name: file.name, ...(uploadId === undefined ? {} : { uploadId }) })}`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/octet-stream' },
@@ -2439,4 +2455,23 @@ export async function sendMessaging(
   if (!record || !asRecord(record['intent']))
     throw new BridgeCallError('invalid-response', 'Invalid intent');
   return record['intent'] as OutboxIntent;
+}
+
+export async function loadMessageAttachmentTarget(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+  fileId: string,
+): Promise<HostFileTarget> {
+  const response = asRecord(
+    await unwrap(call, 'messageAttachmentTarget', { channelId, messageId, fileId }),
+  );
+  const target = asRecord(response?.['target']);
+  if (
+    typeof target?.['path'] !== 'string' ||
+    typeof target['relativePath'] !== 'string' ||
+    target['kind'] !== 'file'
+  )
+    throw new Error('Invalid message attachment target');
+  return { path: target['path'], relativePath: target['relativePath'], kind: 'file' };
 }

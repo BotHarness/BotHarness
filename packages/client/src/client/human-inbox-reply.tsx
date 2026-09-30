@@ -208,7 +208,7 @@ export function HumanInboxReply({
                     )}
                   </p>
                   {message.attachments?.map((attachment) => (
-                    <p key={attachment.hash}>{attachment.name}</p>
+                    <p key={attachment.fileId ?? attachment.hash}>{attachment.name}</p>
                   ))}
                 </div>
               </article>

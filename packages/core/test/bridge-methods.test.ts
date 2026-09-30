@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -68,6 +68,7 @@ function setup(
         : { modelReadiness: createModelRouteReadiness(registry, modelCatalog) }),
       states,
       channels,
+      attachments,
       ownership,
       roster: createRosterStore(),
       ...(grants === undefined ? {} : { grants }),
@@ -860,7 +861,7 @@ describe('bridge methods', () => {
     const bad = await methods.channelSend({
       channelId: 'dm-ada',
       body: '',
-      attachments: [{ ...ref, size: 999 }],
+      attachments: [{ ...ref, name: 'forged.txt' }],
     });
     expect(bad).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
     expect(channels.readMessages('dm-ada')).toHaveLength(2);
@@ -1932,4 +1933,48 @@ describe('bridge methods', () => {
     expect(cleared.value.bot.avatar).toBeUndefined();
     expect(registry.get('ada')?.avatar).toBeUndefined();
   });
+});
+
+it('resolves attachment identity within its current message and keeps resend idempotency after an external save', async () => {
+  const { attachments, channels, methods } = setup();
+  const channel = channels.createGroup({ name: 'Files', members: [] });
+  const ref = await attachments.upload({
+    data: (async function* () {
+      yield Buffer.from('source');
+    })(),
+    name: 'notes.txt',
+  });
+  const intent = {
+    channelId: channel.id,
+    messageId: 'human-00000000-0000-4000-8000-000000000000',
+    body: '',
+    attachments: [ref],
+  };
+  const result = await methods.channelSend(intent);
+  expect(result.ok).toBe(true);
+  const target = methods.messageAttachmentTarget({
+    channelId: channel.id,
+    messageId: 'human-00000000-0000-4000-8000-000000000000',
+    fileId: ref.fileId,
+  });
+  expect(target.ok).toBe(true);
+  if (!target.ok) throw new Error('Expected owner target');
+  writeFileSync(target.value.target.path, 'saved with different size');
+  const retry = await methods.channelSend(intent);
+  expect(retry.ok).toBe(true);
+  expect(channels.revision(channel.id)).toBe(1);
+  expect(
+    methods.messageAttachmentTarget({
+      channelId: channel.id,
+      messageId: 'wrong',
+      fileId: ref.fileId,
+    }).ok,
+  ).toBe(false);
+  expect(
+    methods.messageAttachmentTarget({
+      channelId: channel.id,
+      messageId: 'human-00000000-0000-4000-8000-000000000000',
+      fileId: ref.hash,
+    }).ok,
+  ).toBe(false);
 });

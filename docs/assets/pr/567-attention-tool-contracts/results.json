@@ -1,0 +1,1733 @@
+{
+  "baseRevision": "37abf58f",
+  "baselineRuntimeSource": "9908f43793960f86a1cad8b422a47b4fed4a9d65",
+  "units": "JSON.stringify UTF-16 code units; definition includes name, description and compiled parameters",
+  "measurements": [
+    {
+      "name": "group_attention_get",
+      "schemaBefore": 130,
+      "schemaAfter": 130,
+      "definitionBefore": 345,
+      "definitionAfter": 408
+    },
+    {
+      "name": "group_attention_set",
+      "schemaBefore": 420,
+      "schemaAfter": 420,
+      "definitionBefore": 732,
+      "definitionAfter": 984
+    },
+    {
+      "name": "source_attention_get",
+      "schemaBefore": 33,
+      "schemaAfter": 33,
+      "definitionBefore": 300,
+      "definitionAfter": 364
+    },
+    {
+      "name": "source_attention_set",
+      "schemaBefore": 518,
+      "schemaAfter": 596,
+      "definitionBefore": 825,
+      "definitionAfter": 1280
+    },
+    {
+      "name": "source_attention_reset",
+      "schemaBefore": 175,
+      "schemaAfter": 221,
+      "definitionBefore": 398,
+      "definitionAfter": 656
+    }
+  ],
+  "before": {
+    "stage": "before",
+    "dshVersion": "0.2.0-rc.1",
+    "verified": {
+      "allFiveTools": true,
+      "defaultSourceClass": true,
+      "invalidCombinationRejected": false,
+      "sourceReset": true,
+      "channelOverrideSurvivesSourceReset": true,
+      "humanOverrideThroughNativeUI": true,
+      "botRereadsHumanActor": true,
+      "changedRevisionAndTime": true
+    },
+    "invalidCall": {
+      "tool": "source_attention_set",
+      "args": {
+        "digestCount": 9,
+        "sourceClass": "group-ordinary",
+        "wake": "mentions"
+      },
+      "error": false,
+      "result": {
+        "sourceClass": "group-ordinary",
+        "admission": "admit",
+        "wake": "mentions",
+        "delivery": "steer",
+        "digestCount": 7,
+        "digestIntervalSeconds": 45,
+        "revision": 3,
+        "lastActor": {
+          "kind": "bot",
+          "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+        },
+        "changedAt": "2026-09-30T19:28:31.827Z",
+        "overrideActive": true,
+        "recentWakeCount": 0
+      }
+    },
+    "botGroup": {
+      "channelId": "group-qa567-attention",
+      "mode": "digest",
+      "count": 9,
+      "intervalSeconds": 60,
+      "revision": 1,
+      "lastActor": {
+        "kind": "bot",
+        "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+      },
+      "changedAt": "2026-09-30T19:28:33.381Z"
+    },
+    "humanReread": {
+      "channelId": "group-qa567-attention",
+      "mode": "digest",
+      "count": 11,
+      "intervalSeconds": 90,
+      "revision": 2,
+      "lastActor": {
+        "kind": "human"
+      },
+      "changedAt": "2026-09-30T19:46:35.331Z"
+    },
+    "sourceRulesAfterReset": [
+      {
+        "sourceClass": "human-dm",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:26.260Z",
+        "overrideActive": false,
+        "recentWakeCount": 1
+      },
+      {
+        "sourceClass": "bot-dm",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:28.812Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-mention",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:28.812Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-ordinary",
+        "admission": "admit",
+        "wake": "digest",
+        "delivery": "steer",
+        "digestCount": 5,
+        "digestIntervalSeconds": 30,
+        "revision": 4,
+        "lastActor": {
+          "kind": "bot",
+          "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+        },
+        "changedAt": "2026-09-30T19:28:34.534Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-invite",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:28.812Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-join-request",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:28.812Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-join-decision",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:28.812Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "assignment-report",
+        "admission": "admit",
+        "wake": "conditional",
+        "delivery": "steer",
+        "revision": 3,
+        "lastActor": {
+          "kind": "bot",
+          "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+        },
+        "changedAt": "2026-09-30T19:28:34.525Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "assignment-lifecycle",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:28.812Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      }
+    ],
+    "toolCalls": [
+      {
+        "tool": "source_attention_get",
+        "args": {},
+        "error": false,
+        "result": {
+          "policies": [
+            {
+              "sourceClass": "human-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:26.260Z",
+              "overrideActive": false,
+              "recentWakeCount": 1
+            },
+            {
+              "sourceClass": "bot-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-mention",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-ordinary",
+              "admission": "admit",
+              "wake": "digest",
+              "delivery": "steer",
+              "digestCount": 5,
+              "digestIntervalSeconds": 30,
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-invite",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-request",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-decision",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-report",
+              "admission": "admit",
+              "wake": "conditional",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-lifecycle",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            }
+          ]
+        }
+      },
+      {
+        "tool": "source_attention_set",
+        "args": {
+          "wake": "immediate"
+        },
+        "error": false,
+        "result": {
+          "sourceClass": "assignment-report",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 2,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+          },
+          "changedAt": "2026-09-30T19:28:30.391Z",
+          "overrideActive": true,
+          "recentWakeCount": 0
+        }
+      },
+      {
+        "tool": "source_attention_set",
+        "args": {
+          "sourceClass": "group-ordinary",
+          "wake": "digest",
+          "digestCount": 7,
+          "digestIntervalSeconds": 45
+        },
+        "error": false,
+        "result": {
+          "sourceClass": "group-ordinary",
+          "admission": "admit",
+          "wake": "digest",
+          "delivery": "steer",
+          "digestCount": 7,
+          "digestIntervalSeconds": 45,
+          "revision": 2,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+          },
+          "changedAt": "2026-09-30T19:28:30.403Z",
+          "overrideActive": true,
+          "recentWakeCount": 0
+        }
+      },
+      {
+        "tool": "source_attention_set",
+        "args": {
+          "digestCount": 9,
+          "sourceClass": "group-ordinary",
+          "wake": "mentions"
+        },
+        "error": false,
+        "result": {
+          "sourceClass": "group-ordinary",
+          "admission": "admit",
+          "wake": "mentions",
+          "delivery": "steer",
+          "digestCount": 7,
+          "digestIntervalSeconds": 45,
+          "revision": 3,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+          },
+          "changedAt": "2026-09-30T19:28:31.827Z",
+          "overrideActive": true,
+          "recentWakeCount": 0
+        }
+      },
+      {
+        "tool": "group_attention_set",
+        "args": {
+          "channel_id": "group-qa567-attention",
+          "mode": "digest",
+          "count": 9,
+          "interval_seconds": 60
+        },
+        "error": false,
+        "result": {
+          "channelId": "group-qa567-attention",
+          "mode": "digest",
+          "count": 9,
+          "intervalSeconds": 60,
+          "revision": 1,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+          },
+          "changedAt": "2026-09-30T19:28:33.381Z"
+        }
+      },
+      {
+        "tool": "group_attention_get",
+        "args": {
+          "channel_id": "group-qa567-attention"
+        },
+        "error": false,
+        "result": {
+          "channelId": "group-qa567-attention",
+          "mode": "digest",
+          "count": 9,
+          "intervalSeconds": 60,
+          "revision": 1,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+          },
+          "changedAt": "2026-09-30T19:28:33.381Z"
+        }
+      },
+      {
+        "tool": "source_attention_reset",
+        "args": {},
+        "error": false,
+        "result": {
+          "sourceClass": "assignment-report",
+          "admission": "admit",
+          "wake": "conditional",
+          "delivery": "steer",
+          "revision": 3,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+          },
+          "changedAt": "2026-09-30T19:28:34.525Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        }
+      },
+      {
+        "tool": "source_attention_reset",
+        "args": {
+          "sourceClass": "group-ordinary"
+        },
+        "error": false,
+        "result": {
+          "sourceClass": "group-ordinary",
+          "admission": "admit",
+          "wake": "digest",
+          "delivery": "steer",
+          "digestCount": 5,
+          "digestIntervalSeconds": 30,
+          "revision": 4,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+          },
+          "changedAt": "2026-09-30T19:28:34.534Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        }
+      },
+      {
+        "tool": "source_attention_get",
+        "args": {},
+        "error": false,
+        "result": {
+          "policies": [
+            {
+              "sourceClass": "human-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:26.260Z",
+              "overrideActive": false,
+              "recentWakeCount": 1
+            },
+            {
+              "sourceClass": "bot-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-mention",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-ordinary",
+              "admission": "admit",
+              "wake": "digest",
+              "delivery": "steer",
+              "digestCount": 5,
+              "digestIntervalSeconds": 30,
+              "revision": 4,
+              "lastActor": {
+                "kind": "bot",
+                "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+              },
+              "changedAt": "2026-09-30T19:28:34.534Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-invite",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-request",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-decision",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-report",
+              "admission": "admit",
+              "wake": "conditional",
+              "delivery": "steer",
+              "revision": 3,
+              "lastActor": {
+                "kind": "bot",
+                "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+              },
+              "changedAt": "2026-09-30T19:28:34.525Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-lifecycle",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            }
+          ]
+        }
+      },
+      {
+        "tool": "group_attention_get",
+        "args": {
+          "channel_id": "group-qa567-attention"
+        },
+        "error": false,
+        "result": {
+          "channelId": "group-qa567-attention",
+          "mode": "digest",
+          "count": 9,
+          "intervalSeconds": 60,
+          "revision": 1,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+          },
+          "changedAt": "2026-09-30T19:28:33.381Z"
+        }
+      },
+      {
+        "tool": "group_attention_get",
+        "args": {
+          "channel_id": "group-qa567-attention"
+        },
+        "error": false,
+        "result": {
+          "channelId": "group-qa567-attention",
+          "mode": "digest",
+          "count": 11,
+          "intervalSeconds": 90,
+          "revision": 2,
+          "lastActor": {
+            "kind": "human"
+          },
+          "changedAt": "2026-09-30T19:46:35.331Z"
+        }
+      },
+      {
+        "tool": "source_attention_get",
+        "args": {},
+        "error": false,
+        "result": {
+          "policies": [
+            {
+              "sourceClass": "human-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:26.260Z",
+              "overrideActive": false,
+              "recentWakeCount": 1
+            },
+            {
+              "sourceClass": "bot-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-mention",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-ordinary",
+              "admission": "admit",
+              "wake": "digest",
+              "delivery": "steer",
+              "digestCount": 5,
+              "digestIntervalSeconds": 30,
+              "revision": 4,
+              "lastActor": {
+                "kind": "bot",
+                "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+              },
+              "changedAt": "2026-09-30T19:28:34.534Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-invite",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-request",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-decision",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-report",
+              "admission": "admit",
+              "wake": "conditional",
+              "delivery": "steer",
+              "revision": 3,
+              "lastActor": {
+                "kind": "bot",
+                "botSlug": "bot-db7214567d1f47fc8691f59592e33aa6"
+              },
+              "changedAt": "2026-09-30T19:28:34.525Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-lifecycle",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:28.812Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            }
+          ]
+        }
+      }
+    ],
+    "driverFailuresRetained": [
+      "Initial driver used a nonexistent channelGet RPC; recovered already committed QA through channels without rerunning model changes.",
+      "Initial UI driver did not wait for the dialog to become visible or replace complete numeric input values. Those fixture-only writes are retained in audit history; final native UI input was asserted 11/90 before saving."
+    ]
+  },
+  "after": {
+    "stage": "after",
+    "dshVersion": "0.2.0-rc.1",
+    "verified": {
+      "allFiveTools": true,
+      "defaultSourceClass": true,
+      "invalidCombinationRejected": true,
+      "sourceReset": true,
+      "channelOverrideSurvivesSourceReset": true,
+      "humanOverrideThroughNativeUI": true,
+      "botRereadsHumanActor": true,
+      "changedRevisionAndTime": true
+    },
+    "invalidCall": {
+      "tool": "source_attention_set",
+      "args": {
+        "digestCount": 9,
+        "sourceClass": "group-ordinary",
+        "wake": "mentions"
+      },
+      "error": true,
+      "result": "Error: Only Group digest wake accepts digest parameters"
+    },
+    "botGroup": {
+      "channelId": "group-qa567-attention",
+      "mode": "digest",
+      "count": 9,
+      "intervalSeconds": 60,
+      "revision": 1,
+      "lastActor": {
+        "kind": "bot",
+        "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+      },
+      "changedAt": "2026-09-30T19:28:27.815Z"
+    },
+    "humanReread": {
+      "channelId": "group-qa567-attention",
+      "mode": "digest",
+      "count": 11,
+      "intervalSeconds": 90,
+      "revision": 3,
+      "lastActor": {
+        "kind": "human"
+      },
+      "changedAt": "2026-09-30T19:45:57.353Z"
+    },
+    "sourceRulesAfterReset": [
+      {
+        "sourceClass": "human-dm",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:20.013Z",
+        "overrideActive": false,
+        "recentWakeCount": 1
+      },
+      {
+        "sourceClass": "bot-dm",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:22.409Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-mention",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:22.410Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-ordinary",
+        "admission": "admit",
+        "wake": "digest",
+        "delivery": "steer",
+        "digestCount": 5,
+        "digestIntervalSeconds": 30,
+        "revision": 3,
+        "lastActor": {
+          "kind": "bot",
+          "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+        },
+        "changedAt": "2026-09-30T19:28:31.262Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-invite",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:22.410Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-join-request",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:22.410Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "group-join-decision",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:22.410Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "assignment-report",
+        "admission": "admit",
+        "wake": "conditional",
+        "delivery": "steer",
+        "revision": 3,
+        "lastActor": {
+          "kind": "bot",
+          "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+        },
+        "changedAt": "2026-09-30T19:28:30.178Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      },
+      {
+        "sourceClass": "assignment-lifecycle",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-09-30T19:28:22.410Z",
+        "overrideActive": false,
+        "recentWakeCount": 0
+      }
+    ],
+    "toolCalls": [
+      {
+        "tool": "source_attention_get",
+        "args": {},
+        "error": false,
+        "result": {
+          "policies": [
+            {
+              "sourceClass": "human-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:20.013Z",
+              "overrideActive": false,
+              "recentWakeCount": 1
+            },
+            {
+              "sourceClass": "bot-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.409Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-mention",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-ordinary",
+              "admission": "admit",
+              "wake": "digest",
+              "delivery": "steer",
+              "digestCount": 5,
+              "digestIntervalSeconds": 30,
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-invite",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-request",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-decision",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-report",
+              "admission": "admit",
+              "wake": "conditional",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-lifecycle",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            }
+          ]
+        }
+      },
+      {
+        "tool": "source_attention_set",
+        "args": {
+          "wake": "immediate"
+        },
+        "error": false,
+        "result": {
+          "sourceClass": "assignment-report",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 2,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:23.635Z",
+          "overrideActive": true,
+          "recentWakeCount": 0
+        }
+      },
+      {
+        "tool": "source_attention_set",
+        "args": {
+          "sourceClass": "group-ordinary",
+          "wake": "digest",
+          "digestCount": 7,
+          "digestIntervalSeconds": 45
+        },
+        "error": false,
+        "result": {
+          "sourceClass": "group-ordinary",
+          "admission": "admit",
+          "wake": "digest",
+          "delivery": "steer",
+          "digestCount": 7,
+          "digestIntervalSeconds": 45,
+          "revision": 2,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:24.935Z",
+          "overrideActive": true,
+          "recentWakeCount": 0
+        }
+      },
+      {
+        "tool": "source_attention_set",
+        "args": {
+          "digestCount": 9,
+          "sourceClass": "group-ordinary",
+          "wake": "mentions"
+        },
+        "error": true,
+        "result": "Error: Only Group digest wake accepts digest parameters"
+      },
+      {
+        "tool": "group_attention_set",
+        "args": {
+          "channel_id": "group-qa567-attention",
+          "mode": "digest",
+          "count": 9,
+          "interval_seconds": 60
+        },
+        "error": false,
+        "result": {
+          "channelId": "group-qa567-attention",
+          "mode": "digest",
+          "count": 9,
+          "intervalSeconds": 60,
+          "revision": 1,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:27.815Z"
+        }
+      },
+      {
+        "tool": "group_attention_get",
+        "args": {
+          "channel_id": "group-qa567-attention"
+        },
+        "error": false,
+        "result": {
+          "channelId": "group-qa567-attention",
+          "mode": "digest",
+          "count": 9,
+          "intervalSeconds": 60,
+          "revision": 1,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:27.815Z"
+        }
+      },
+      {
+        "tool": "source_attention_reset",
+        "args": {},
+        "error": false,
+        "result": {
+          "sourceClass": "assignment-report",
+          "admission": "admit",
+          "wake": "conditional",
+          "delivery": "steer",
+          "revision": 3,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:30.178Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        }
+      },
+      {
+        "tool": "source_attention_reset",
+        "args": {
+          "sourceClass": "group-ordinary"
+        },
+        "error": false,
+        "result": {
+          "sourceClass": "group-ordinary",
+          "admission": "admit",
+          "wake": "digest",
+          "delivery": "steer",
+          "digestCount": 5,
+          "digestIntervalSeconds": 30,
+          "revision": 3,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:31.262Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        }
+      },
+      {
+        "tool": "source_attention_get",
+        "args": {},
+        "error": false,
+        "result": {
+          "policies": [
+            {
+              "sourceClass": "human-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:20.013Z",
+              "overrideActive": false,
+              "recentWakeCount": 1
+            },
+            {
+              "sourceClass": "bot-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.409Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-mention",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-ordinary",
+              "admission": "admit",
+              "wake": "digest",
+              "delivery": "steer",
+              "digestCount": 5,
+              "digestIntervalSeconds": 30,
+              "revision": 3,
+              "lastActor": {
+                "kind": "bot",
+                "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+              },
+              "changedAt": "2026-09-30T19:28:31.262Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-invite",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-request",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-decision",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-report",
+              "admission": "admit",
+              "wake": "conditional",
+              "delivery": "steer",
+              "revision": 3,
+              "lastActor": {
+                "kind": "bot",
+                "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+              },
+              "changedAt": "2026-09-30T19:28:30.178Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-lifecycle",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            }
+          ]
+        }
+      },
+      {
+        "tool": "group_attention_get",
+        "args": {
+          "channel_id": "group-qa567-attention"
+        },
+        "error": false,
+        "result": {
+          "channelId": "group-qa567-attention",
+          "mode": "digest",
+          "count": 9,
+          "intervalSeconds": 60,
+          "revision": 1,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:27.815Z"
+        }
+      },
+      {
+        "tool": "group_attention_get",
+        "args": {
+          "channel_id": "group-qa567-attention"
+        },
+        "error": false,
+        "result": {
+          "channelId": "group-qa567-attention",
+          "mode": "digest",
+          "count": 11,
+          "intervalSeconds": 90,
+          "revision": 3,
+          "lastActor": {
+            "kind": "human"
+          },
+          "changedAt": "2026-09-30T19:45:57.353Z"
+        }
+      },
+      {
+        "tool": "source_attention_get",
+        "args": {},
+        "error": false,
+        "result": {
+          "policies": [
+            {
+              "sourceClass": "human-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:20.013Z",
+              "overrideActive": false,
+              "recentWakeCount": 1
+            },
+            {
+              "sourceClass": "bot-dm",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.409Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-mention",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-ordinary",
+              "admission": "admit",
+              "wake": "digest",
+              "delivery": "steer",
+              "digestCount": 5,
+              "digestIntervalSeconds": 30,
+              "revision": 3,
+              "lastActor": {
+                "kind": "bot",
+                "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+              },
+              "changedAt": "2026-09-30T19:28:31.262Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-invite",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-request",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "group-join-decision",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-report",
+              "admission": "admit",
+              "wake": "conditional",
+              "delivery": "steer",
+              "revision": 3,
+              "lastActor": {
+                "kind": "bot",
+                "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+              },
+              "changedAt": "2026-09-30T19:28:30.178Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            },
+            {
+              "sourceClass": "assignment-lifecycle",
+              "admission": "admit",
+              "wake": "immediate",
+              "delivery": "steer",
+              "revision": 1,
+              "lastActor": {
+                "kind": "built-in"
+              },
+              "changedAt": "2026-09-30T19:28:22.410Z",
+              "overrideActive": false,
+              "recentWakeCount": 0
+            }
+          ]
+        }
+      }
+    ],
+    "driverFailuresRetained": [
+      "Initial driver used a nonexistent channelGet RPC; recovered already committed QA through channels without rerunning model changes.",
+      "Initial UI driver did not wait for the dialog to become visible or replace complete numeric input values. Those fixture-only writes are retained in audit history; final native UI input was asserted 11/90 before saving."
+    ]
+  },
+  "validation": {
+    "focusedTestsPassed": 24,
+    "fullRecheckPassed": 1478,
+    "fullSkipped": 1,
+    "firstFullRun": {
+      "passed": 1477,
+      "failed": 1,
+      "skipped": 1,
+      "failure": "Existing human-dm-steer short-message fold timed out at 15000ms. Standalone recheck 4/4 and complete unmodified suite recheck passed; this PR does not claim a fix for the timeout."
+    },
+    "typecheck": "passed",
+    "lint": "passed with existing warnings",
+    "format": "passed",
+    "build": "passed",
+    "docsPages": 258,
+    "font": "Regenerated after documentation sync with unchanged final output."
+  },
+  "screenshots": {
+    "viewport": "1440x1200",
+    "theme": "dark",
+    "locale": "Chinese",
+    "nativePixelsUnmodified": true,
+    "notes": "Different isolated synthetic Bots have different IDs, names, avatars, timestamps and reply wording. Earlier driver attempts did not retain a visible dialog and did not replace all input text. Final successful operation used native menu mouse clicks, input visibility waits, fixed viewport capture and locator.fill, with exact values asserted before saving. Failed captures are not success evidence."
+  },
+  "pinnedSchemaDecision": "DSH 0.2.0-rc.1 assertSupportedJsonSchema and defineTool were checked directly: integer is enforced; minimum/maximum/if/then are not in the supported subset. Keep the combined Tool with the complete matrix and atomic runtime refusal; no unsupported schema keywords.",
+  "postMainIntegration": {
+    "sourceRevision": "ad7deea124131af1bec9a981f601cbf2c17860c4",
+    "mainRevision": "bf0fdfc85aa7b7cc71b126c09df5039b509bd961",
+    "validation": {
+      "testsPassed": 1489,
+      "testsSkipped": 1,
+      "testFilesPassed": 187,
+      "testFilesSkipped": 1,
+      "typecheck": "passed",
+      "lint": "passed with existing warnings",
+      "format": "passed",
+      "build": "passed",
+      "releaseLedgers": "passed",
+      "docsPages": 258
+    },
+    "realModelReread": {
+      "group": {
+        "channelId": "group-qa567-attention",
+        "mode": "digest",
+        "count": 11,
+        "intervalSeconds": 90,
+        "revision": 3,
+        "lastActor": {
+          "kind": "human"
+        },
+        "changedAt": "2026-09-30T19:45:57.353Z"
+      },
+      "sourcePolicies": [
+        {
+          "sourceClass": "human-dm",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:20.013Z",
+          "overrideActive": false,
+          "recentWakeCount": 2
+        },
+        {
+          "sourceClass": "bot-dm",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.409Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-mention",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-ordinary",
+          "admission": "admit",
+          "wake": "digest",
+          "delivery": "steer",
+          "digestCount": 5,
+          "digestIntervalSeconds": 30,
+          "revision": 3,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:31.262Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-invite",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-join-request",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-join-decision",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "assignment-report",
+          "admission": "admit",
+          "wake": "conditional",
+          "delivery": "steer",
+          "revision": 3,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:30.178Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "assignment-lifecycle",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        }
+      ],
+      "nativeDSHHostRestart": true,
+      "persistedHumanActorAndValuesVerified": true
+    }
+  }
+}

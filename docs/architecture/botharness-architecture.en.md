@@ -18,7 +18,7 @@ Hidden Channel is application-defined reversible roster presentation state: it d
 
 Current Channel Chat live delivery follows ADR-0054: each committed message is written to the current durable authority before a process-local notification carrying that Channel's monotonic revision. The Host's opaque-cursor timeline exposes latest, older, newer, and around windows; after a reply quote locates old history, ordinary downward scrolling continues through newer pages to the latest committed message. The Client receives committed messages for the selected Channel over authenticated `/api/botharness/stream` SSE. Reconnects replay from the log; a gap re-reads the snapshot. The same connection carries process-only `channel/draft` previews of the Orchestrator's explicit `channel_send` arguments; drafts have no Channel revision, never replay from history, and disappear on commit or abandonment. Human sends use a Client-generated idempotency key: a failed local bubble remains available for restoring its text and attachments to the composer, while a response-loss retry with the same id can produce only one durable append. Ordinary Orchestrator finals and Assignment output are not Channel messages. When #46 migrates Messaging, a database transaction commit replaces the current NDJSON append as the publication boundary.
 
-Channel attachment bytes live in a profile-scoped content-addressed store while messages persist only `{hash,name,mime,size}` references. Upload, inline display, and download use authenticated exact Fetch routes. An Orchestrator reads an image on demand through `channel_read_image` with `channel_id + message_id + hash`; trusted Host code first verifies PersonaBot membership, that the message references the exact hash, a supported image MIME, and the size limit, then commits the verified bytes to the DSH attachment service for model input. Historical images are not injected into every prompt, and the model never receives internal profile paths.
+New Channel attachments (#576, ADR-0100) are independent profile-managed real files referenced as `{fileId,name,mime,size}`. Message queries project current MIME/size without changing the immutable Source Event envelope. Legacy `{hash,name,mime,size}` still reads integrity-checked CAS bytes and has no direct editor action. Composer upload keys and Human message IDs make transfer/send retries idempotent. Authenticated upload retains its exact Fetch route; current downloads validate `channelId + messageId + fileId` and use `no-store`. Human chips reuse DSH-native actions. `channel_read_image` accepts `attachment_id` (fileId) or legacy `hash`; trusted Host code checks current membership, message ownership, current MIME and size before passing image bytes to DSH, with no model-visible Host paths. Reference-aware cleanup protects identities in every retained Source Event; no automatic retention is enabled. See the [file guide](../file-open.md).
 
 The root [`CONTEXT.md`](/dev/design/context) is the single product glossary. [BotHarness Runtime Architecture](/dev/design/bot-runtime) focuses on how PersonaBot, Bot Inbox, Orchestrator, Assignment, and DSH execution relate. DSH/Cordis terminology and Plugin-development decisions live under `/dsh` and are not redefined here.
 
@@ -127,7 +127,7 @@ flowchart TB
 
 Usage is an application-defined retained statistic derived from the actual provider/model and reported token buckets of DSH Session attempts. Trusted Session ownership attributes Orchestrator, Assignment, and DSH Subagent calls to a PersonaBot. A multi-model Turn contributes to each exact route, and absent provider usage is unknown rather than zero. The daily `(bot, day, execution role, provider, model)` aggregate is folded idempotently; deleting an ordinary Session preserves its totals, so reconciliation cannot clear the table or recount surviving evidence over retained history. A thorough PersonaBot purge removes its identifiable usage (ADR-0094, #39).
 
-The first runnable slice (#499) extends the existing bounded 26-week `profileActivity` query with actual provider/model day rows, nullable reported buckets, and a provider-reported total that may remain known when an individual cache bucket is absent. Profile selects a Host-local day and displays observed usage independently of its allowed Model Plan. Retention after Session deletion and attribution within multi-model Turns remain follow-up slices (#502, #503).
+The first runnable slice (#499) extends the existing bounded 26-week `profileActivity` query with actual provider/model day rows, nullable reported buckets, and a provider-reported total that may remain known when an individual cache bucket is absent. Profile selects a Host-local day and displays observed usage independently of its allowed Model Plan. The per-attempt slice (#503) folds each append-only Assistant settlement independently, uses its successful source or logged dispatch route for failed attempts, and separates trusted Orchestrator, Assignment and Subagent ownership in Profile. Session sequence numbers deduplicate live notifications and replay snapshots; surface replacements do not create usage. Session-deletion retention remains #502.
 
 A deployment-local Model Preset is a reusable template. Applying one copies an independent PersonaBot Model Plan snapshot, so later edits to the template do not alter existing Bots. The plan fixes the Orchestrator provider/model/reasoning effort and defines exact Assignment routes with allowed and default efforts plus a default route. Host execution boundaries validate selections while DSH SessionEvents record actual calls. Orchestrator changes start after the current Turn; existing Assignments keep their routes until explicitly switched under the current plan. A new DSH Subagent inherits an allowed parent route or uses the current Assignment default and informs its parent. Missing or ambiguous routes stop for Human repair. Model configuration travels in an identity-preserving Profile Backup, not in SoulSnapshot or PersonaBot Export (ADR-0027, ADR-0093, #488). Profile will offer a compact preset switch above activity charts and detailed plan editing below them; model usage remains separate from model permission.
 
@@ -141,7 +141,7 @@ Authorized ordinary Workspace paths reuse the same Client menu (#575). The Clien
 
 Native actions operate on the serving Host computer; Tailscale and Cloudflare Tunnel provide connectivity without proving browser co-location. Menus identify the Host, explain unavailable capability, and offer Copy Host path. Current files also offer authenticated full-byte download to the browser device, including binary and oversized files whose internal preview is bounded; downloaded edits do not automatically return to the Host. This slice excludes directory downloads and historical exports. Workspace and message-file owners remain subsequent slices, not generic arbitrary-path callers.
 
-The current attachment paragraphs above describe the hash-addressed implementation. ADR-0100's accepted target makes each independent upload a real Host destination file with its safe filename and extension, independent identity and current mutable bytes. Explicit reuse of one identity shares edits; equal-byte independent uploads do not. Source Event envelopes and file references remain immutable while future reads use the file's current content. External saves do not create attachment revisions, archives, Inbox admissions or Bot wakes. Migration must establish those independent files before in-place editor actions are offered; directly editing a shared CAS object does not implement the target. Memory Git history and other CAS data retain their own semantics.
+New attachments implement ADR-0100's real destination semantics: independent equal-byte uploads stay independent, explicit identity reuse shares edits, and later message reads/previews/downloads use current bytes. External saves produce no attachment versions, Source Revisions, notifications, Inbox admissions or Bot wakes. Missing files are unavailable and never reconstructed. Legacy CAS migration remains #577; Memory Git behavior and other CAS data retain their own semantics.
 
 ## 3 · Host boot, migration, and recovery
 
@@ -217,6 +217,8 @@ A Bot-to-Bot DM is a real `dm` Channel with two PersonaBot participants. Bot A s
 
 Selecting `@B` in Human–A DM supplies B's stable ID and bounded description to A's prompt; it neither wakes B nor changes DM membership. Only a later explicit A-to-B send reaches B's Inbox. In a Group Channel, a Human or joined Bot may `@` joined Bots; one Source Event yields independent Inbox Admissions for the recipients. A Bot may create a Group Channel and invite other Bots; an invitation grants no membership before acceptance, and Group invitation auto-accept defaults on in Bot mode, where the Host accepts on the invited Bot's behalf without a wake (ADR-0073). A Bot's per-Channel attention preference — all, digest (the default), mentions, or silent — belongs to the Bot, which may also tune its digest count and interval; the Human can override it, and the Bot manages the rest of its attention policy the same way (ADR-0074, ADR-0076). The Bot creator can manage Bot members and Group settings, while the Human retains override authority and exclusive whole-Channel deletion. #254 is the first Human-authored Group mention slice; #278 organizes the later collaboration tracers.
 
+The five application-defined attention Tools consume the existing per-Bot source policy and Channel preference Providers. `source_attention_set` defaults omitted `sourceClass` to `assignment-report`, accepting only `conditional|immediate` without digest arguments; `group-ordinary` accepts `immediate|digest|mentions|silent`, with digest arguments accepted only for `digest`. Count and interval use integer schemas with Host-enforced bounds 1–100 and 1–3600 seconds; omitted digest values preserve effective settings. Per-Channel `group_attention_set` retains optional digest settings in every mode. Source reset restores the built-in rule without clearing Channel overrides or changing historical Admissions. Read/edit/reset results preserve effective values, revision, last actor/time and the bounded seven-day source wake count; invalid combinations fail before policy writes.
+
 The Orchestrator's application-defined channel_list query derives the PersonaBot identity from Session ownership and returns only its joined Group, Human DM, and Bot DM Channels. It filters by name, type, or stable member Bot IDs with bounded cursor pages and current member identities. The result is an authorized Consumer of canonical Channel records, not a second membership directory. A Bot may use a returned stable Channel ID in channel_send, which rechecks membership at send time. The application-defined channel_read query checks membership and filters the full ordered history of one Channel by text, author, and date before returning a bounded cursor page; reply previews still resolve from their original messages.
 
 In the Group sidebar, Members lists only current members. Group management owns the Human controls for a bounded, Host-validated raster avatar and Group name, Human-origin invitations, member removal, pending join decisions, and whole-Channel disbanding. Human invitations use the same Channel invitation fact and Bot Inbox Admission as Bot invitations, with a distinct Human actor; the invited Bot gains Group access only after acceptance.
@@ -255,6 +257,8 @@ Temporarily disabling Browser Access revokes the Agent-scope tool registrations 
 
 Changing the assigned browser profile calls the existing Browser Provider reset command through its application-defined Host service. The switching Bot loses its old process-local current/owned tab records and Pause state before using the newly selected runtime; Browser Access and Session authorization remain separate. Other Bots’ ownership and the old profile’s browser data remain intact. The reset records a bounded lifecycle diagnostic and does not persist or adopt old targets when switching back.
 
+Pause/Resume invalidates that Bot’s actionable observation in the existing process-local Provider state. Page clicks (refs or coordinates), typing, keys, scrolling and upload require a successful observation begun after the current control transition while Pause is inactive; a failed read, a read during Pause or an older in-flight read cannot satisfy that requirement. Screenshots do not satisfy it. Open and tab management remain available to recover a missing page, while Access cycling retains the requirement and explicit Profile reset starts new ownership. Other Bots remain independent.
+
 ```mermaid
 flowchart LR
   Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
@@ -285,7 +289,8 @@ flowchart TB
   subgraph Profile["One DSH profile"]
     DB[("botharness.db<br/>operational authority")]
     Files["Optional Memory repositories<br/>Markdown · Git authority"]
-    CAS["Attachment / Soul CAS bytes"]
+    Attachments["Attachment files + identity records"]
+    CAS["Legacy attachment / Soul CAS bytes"]
     DSHS["DSH SessionPersistence<br/>transcripts · execution"]
     Creds["DSH credentials / settings"]
   end
@@ -297,6 +302,7 @@ flowchart TB
 
   DB --> Barrier
   Files --> Barrier
+  Attachments --> Barrier
   CAS --> Barrier
   DSHS -.->|"adapter-supported facets"| Barrier
   Creds -.->|"declarations only; never secrets"| Barrier
@@ -305,13 +311,16 @@ flowchart TB
   Stage --> Target
 ```
 
-| Data                           | Authority                            | Portability                                                              |
-| ------------------------------ | ------------------------------------ | ------------------------------------------------------------------------ |
-| operational facts              | `$DSH_HOME/botharness/botharness.db` | consistent SQLite snapshot in a manual profile backup                    |
-| optional Memory repositories   | Git-backed Memory Provider           | selected SoulSnapshot / PersonaBot Export / profile backup               |
-| attachments / Soul bytes       | content-addressed files              | dependency-closed selected bytes                                         |
-| Session transcript / execution | DSH SessionPersistence               | only through a verified DSH export adapter; otherwise explicitly omitted |
-| credentials and DSH settings   | DSH services                         | never copied; restore creates suspended rebind requests                  |
+| Data                           | Authority                                               | Portability                                                              |
+| ------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------ |
+| operational facts              | `$DSH_HOME/botharness/botharness.db`                    | consistent SQLite snapshot in a manual profile backup                    |
+| optional Memory repositories   | Git-backed Memory Provider                              | selected SoulSnapshot / PersonaBot Export / profile backup               |
+| attachments                    | real files plus identity records; legacy CAS until #577 | current referenced files and records                                     |
+| Soul bytes                     | content-addressed files                                 | dependency-closed selected bytes                                         |
+| Session transcript / execution | DSH SessionPersistence                                  | only through a verified DSH export adapter; otherwise explicitly omitted |
+| credentials and DSH settings   | DSH services                                            | never copied; restore creates suspended rebind requests                  |
+
+The diagram includes current attachment destinations and their identity records; legacy CAS still serves old references. Future Backup/Export and explicit Purge must include current referenced files and mappings, preserve shared identities and protect retained references. An explicit export captures current bytes without continuous attachment history.
 
 v1 has only two backup actions: Export Profile produces one self-contained `.botharness-backup`, and Import Profile selects one file. There is no automatic backup, scheduler, catalog, retention, or incremental chain. Restore always validates in isolated staging. A restored PersonaBot stays cold, provider authorities stay suspended, and Workspace/model/plugin dependencies must be resolved on the target before a Human explicitly activates it.
 
