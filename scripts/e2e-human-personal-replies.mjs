@@ -65,14 +65,16 @@ const inbox = async () => {
       .find((node) => node.textContent?.trim() === '继续')
       ?.click(),
   );
-  await delay(500);
-  await page.evaluate(() => {
-    if (!document.querySelector('.bh-human-inbox-entry'))
+  try {
+    await page.waitForSelector('.bh-human-inbox-entry', { timeout: 8000 });
+  } catch {
+    await page.evaluate(() =>
       [...document.querySelectorAll('button')]
         .find((node) => node.textContent?.includes('Bot 模式'))
-        ?.click();
-  });
-  await page.waitForSelector('.bh-human-inbox-entry');
+        ?.click(),
+    );
+    await page.waitForSelector('.bh-human-inbox-entry');
+  }
   await page.evaluate(() => document.querySelector('.bh-human-inbox-entry')?.click());
   await page.waitForSelector('.bh-human-inbox-tabs');
   await delay(900);
@@ -149,6 +151,8 @@ try {
     await page.bringToFront();
     if (mode === 'restart') {
       assert.equal(before.items.find((item) => item.messageId === scene.reply.id)?.isUnread, false);
+      const result = JSON.parse(readFileSync(resolve(out, 'result.json'), 'utf8'));
+      save('result', { ...result, restart: true });
       console.log('RESTART VERIFIED: canonical personal reply and read position');
     } else {
       await inbox();
