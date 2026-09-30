@@ -10,8 +10,8 @@ import {
   authorizeMessaging,
   revokeMessaging,
   sendMessaging,
+  loadMessageAttachmentTarget,
 } from './bridge.js';
-import { loadMessageAttachmentTarget } from './bridge.js';
 import {
   applyRosterBatch,
   assignRosterChannel,

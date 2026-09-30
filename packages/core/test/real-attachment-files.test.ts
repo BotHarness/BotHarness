@@ -1,3 +1,4 @@
+import { boundModelPage, readModelContent } from '../src/runtime/channel-model-read.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -77,6 +78,18 @@ for (const sqlite of [false, true])
         const current = { ...first, size: 35 };
         expect(channels.message(channel.id, 'first')?.attachments).toEqual([current]);
         expect(channels.message(channel.id, 'shared')?.attachments).toEqual([current]);
+        const view = {
+          channelId: channel.id,
+          channelName: channel.name,
+          message: channels.message(channel.id, 'first')!,
+        };
+        const page = JSON.parse(boundModelPage({ messages: [view] }, () => undefined).output);
+        expect(page.messages[0].message.attachments).toEqual([current]);
+        const content = JSON.parse(readModelContent(view).output);
+        expect(JSON.parse(content.content).message.attachments).toEqual([current]);
+        expect(JSON.stringify(page)).not.toContain(files.rootDir);
+        expect(content.content).not.toContain(files.rootDir);
+
         expect(channels.message(channel.id, 'independent')?.attachments).toEqual([independent]);
         expect(
           channels.readMessages(channel.id).find((entry) => entry.id === 'first')?.attachments,

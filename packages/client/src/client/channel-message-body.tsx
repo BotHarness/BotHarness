@@ -59,7 +59,6 @@ function SessionFailureNotice({
   nativeChatT,
 }: {
   message: ChannelMessage;
-  channelId?: string | undefined;
   t: BotHarnessTranslate;
   nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {

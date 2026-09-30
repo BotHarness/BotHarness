@@ -153,7 +153,77 @@ try {
       .find((e) => ['Continue', '继续'].includes(e.textContent.trim()))
       ?.click(),
   );
-  if (phase === 'prepare') {
+  if (phase === 'image') {
+    const imageSource = join(local, 'image-qa.png');
+    const data = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 320;
+      canvas.height = 160;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'navy';
+      ctx.fillRect(0, 0, 320, 160);
+      ctx.fillStyle = 'white';
+      ctx.font = '22px sans-serif';
+      ctx.fillText('Current file image QA', 24, 84);
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    writeFileSync(imageSource, Buffer.from(data, 'base64'));
+    const { channel } = await rpc('channelCreate', { name: 'Image File Actions QA', members: [] });
+    await page.reload({ waitUntil: 'networkidle2' });
+    await page.click('button[aria-label="Bot 模式"],button[aria-label="Bot mode"]');
+    await clickText('.bh-root button', 'Image File Actions QA');
+    await page.waitForSelector('input.bh-composer-file-input');
+    await page.waitForNetworkIdle({ idleTime: 500 });
+    await attach(imageSource);
+    await page.waitForFunction(
+      () => document.querySelector('img.bh-message-image')?.naturalWidth === 320,
+    );
+    const message = (await rpc('channelTimeline', { channelId: channel.id })).page.entries.find(
+      (entry) => entry.attachments?.[0]?.name === 'image-qa.png',
+    );
+    const ref = message.attachments[0];
+    assert.equal(ref.mime, 'image/png');
+    const prefix = ref.fileId === undefined ? 'before-image' : 'after-image';
+    const clip = { x: 280, y: 0, width: 1160, height: 960 };
+    await page.screenshot({ path: join(out, prefix + '-dark.png'), clip });
+    const href = await page.$eval('a.bh-message-image-link', (anchor) => anchor.href);
+    const imageRead = await page.evaluate(async (u) => {
+      const response = await fetch(u);
+      const data = new Uint8Array(await response.arrayBuffer());
+      return {
+        status: response.status,
+        mime: response.headers.get('content-type'),
+        bytes: Array.from(data),
+      };
+    }, href);
+    assert.equal(imageRead.status, 200);
+    assert.equal(imageRead.mime, 'image/png');
+    assert.deepEqual(Buffer.from(imageRead.bytes), readFileSync(imageSource));
+    const popupPromise = browser.waitForTarget((target) => target.url() === href);
+    await page.click('a.bh-message-image-link');
+    const preview = await (await popupPromise).page();
+    await preview.waitForFunction(() => document.querySelector('img')?.naturalWidth === 320);
+    await preview.close();
+    await page.bringToFront();
+    await page.click('a.bh-message-image-link', { button: 'right' });
+    await page.waitForSelector('[role="menu"]');
+    if (ref.fileId !== undefined) await menuReady();
+    await page.screenshot({ path: join(out, prefix + '-menu-dark.png'), clip });
+    await page.keyboard.press('Escape');
+    if (ref.fileId !== undefined) {
+      await page.click('button[aria-label="文件操作: image-qa.png"]');
+      await menuReady();
+      assert.ok(
+        (await page.$eval('[role="menu"]', (menu) => menu.textContent)).includes('显示文件位置'),
+      );
+      await page.keyboard.press('Escape');
+    }
+    console.log(
+      'PASS ' +
+        prefix +
+        ': actual PNG picker, MIME, byte-preserving inline display and preview, image context/More menus.',
+    );
+  } else if (phase === 'prepare') {
     mkdirSync(dirname(source), { recursive: true });
     writeFileSync(source, initial);
     for (let index = 0; index < 2; index += 1) {
