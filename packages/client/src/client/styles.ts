@@ -1822,6 +1822,17 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   align-self: flex-start;
   margin-top: 4px;
 }
+ .bh-im-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+}
+.bh-im-field textarea { min-height: 80px; resize: vertical; }
+.bh-im-outcome { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; overflow-wrap: anywhere; }
+.bh-im-field select,
+.bh-im-field textarea,
 .bh-profile-policy-select,
 .bh-profile-policy-digest input {
   width: 100%;

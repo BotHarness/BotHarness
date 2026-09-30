@@ -1057,6 +1057,38 @@ const USAGE_REPORT_COMPLETENESS_MIGRATION: SchemaMigration = {
   },
 };
 
+const MESSAGING_OUTBOUND_MIGRATION: SchemaMigration = {
+  generation: 38,
+  module: 'messaging',
+  description: 'Persist external account bindings, proactive grants and one-attempt Outbox facts',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_bindings (
+        id TEXT PRIMARY KEY, bot_slug TEXT NOT NULL, provider_id TEXT NOT NULL,
+        platform TEXT NOT NULL, account_ref TEXT NOT NULL, fingerprint TEXT NOT NULL,
+        created_at TEXT NOT NULL, revoked_at TEXT
+      );
+      CREATE UNIQUE INDEX messaging_binding_account ON messaging_bindings(provider_id, account_ref) WHERE revoked_at IS NULL;
+      CREATE UNIQUE INDEX messaging_binding_principal ON messaging_bindings(provider_id, fingerprint) WHERE revoked_at IS NULL;
+      CREATE UNIQUE INDEX messaging_binding_bot_platform ON messaging_bindings(bot_slug, platform) WHERE revoked_at IS NULL;
+      CREATE TABLE messaging_grants (
+        id TEXT PRIMARY KEY, binding_id TEXT NOT NULL REFERENCES messaging_bindings(id),
+        bot_slug TEXT NOT NULL, revision INTEGER NOT NULL, created_at TEXT NOT NULL,
+        revoked_at TEXT, body TEXT NOT NULL
+      );
+      CREATE TABLE messaging_outbox (
+        id TEXT PRIMARY KEY, bot_slug TEXT NOT NULL, grant_id TEXT NOT NULL REFERENCES messaging_grants(id),
+        request_id TEXT NOT NULL UNIQUE, state TEXT NOT NULL, created_at TEXT NOT NULL, body TEXT NOT NULL
+      );
+      CREATE INDEX messaging_outbox_history ON messaging_outbox(bot_slug, created_at DESC);
+      CREATE TABLE messaging_outbox_attempts (
+        intent_id TEXT PRIMARY KEY REFERENCES messaging_outbox(id), started_at TEXT NOT NULL,
+        state TEXT NOT NULL, finished_at TEXT, reason TEXT
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1094,4 +1126,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   MEMORY_RECOVERY_CHECKPOINT_MIGRATION,
   ASSIGNMENT_MODEL_ROUTE_MIGRATION,
   USAGE_REPORT_COMPLETENESS_MIGRATION,
+  MESSAGING_OUTBOUND_MIGRATION,
 ]);

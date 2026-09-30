@@ -10,9 +10,11 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Human Inbox shows direct Group replies to the local Human in a personal view, with Bot/Channel filters, exact source navigation and inline replies. Nearby messages appear chronologically with author, avatar and time; personal replies and other unread messages share one canonical unread count ([#548](https://github.com/BotHarness/BotHarness/issues/548)).
+- Added a PersonaBot Profile IM connection flow for explicit account and destination grants, durable send records and honest unknown outcomes; external sends require the compatible public dsh-im contract and remain disabled with legacy services ([#117](https://github.com/BotHarness/BotHarness/issues/117), [ADR-0101](docs/adr/0101-external-grants-require-authenticated-accounts-and-checked-targets.md)).
 - Human Inbox lets a Human inspect an unread Group or PersonaBot DM message with nearby context and reply inline; unavailable sources are rejected and failed attempts retain the draft ([#547](https://github.com/BotHarness/BotHarness/issues/547)).
 - PersonaBot Profile shows daily usage by the provider/model actually called, with separate input, output, cache-read and cache-write tokens, provider-reported totals, and explicit unknown buckets when a provider omits usage ([#499](https://github.com/BotHarness/BotHarness/issues/499)).
 - Humans can open the current Memory Repository, nested directories and files on the Host through DSH application menus, reveal a file, copy its Host path, or download its full current bytes to the browser device; ordinary file selection still uses the reader ([#574](https://github.com/BotHarness/BotHarness/issues/574), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
+- Humans can click or right-click an authorized Workspace path to open its current Host directory with a detected application or copy its path; the Host checks the current Workspace Grant and registry identity without changing Grants, Session cwd, or access ([#575](https://github.com/BotHarness/BotHarness/issues/575), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
 
 - Human Inbox groups unread Group and PersonaBot DM messages by Channel, shows their deduplicated message count on the sidebar entry, and marks a captured message read only when opened or explicitly acknowledged; pending actions keep a separate indicator ([#546](https://github.com/BotHarness/BotHarness/issues/546), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md)).
 - A PersonaBot's message delivery is settable per source in Profile: for Human DM, Bot DM, and Group mention rules a Human chooses whether a message arriving during an active turn folds into it (`steer`, the unchanged default) or queues as its own turn (`turn`), and already queued messages keep their revision ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
@@ -185,6 +187,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Browser Access can be disabled and re-enabled without losing a PersonaBot’s existing work tabs or current page; tools remain unavailable while Access is off ([#591](https://github.com/BotHarness/BotHarness/issues/591)).
 
 - Fixed Open Bot Browser to reveal the owned preview tab and restore minimized windows, reusing one owned blank tab when no live work remains ([#584](https://github.com/BotHarness/BotHarness/issues/584)).
 

@@ -26,6 +26,7 @@ import type {
 } from './bridge.js';
 import { errorMessage } from './bridge.js';
 import { MemoryFileActionButton } from './memory-file-actions.js';
+import { WorkspaceFileActionButton } from './workspace-file-actions.js';
 import { Modal } from './modal.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -502,6 +503,15 @@ export function WorkspaceGrantsEntry({
             key={grant.id}
             name={grant.workspaceTitle}
             path={grant.workspacePath}
+            pathAction={
+              <WorkspaceFileActionButton
+                actions={actions}
+                slug={botSlug}
+                grantId={grant.id}
+                text={grant.workspacePath}
+                t={t}
+              />
+            }
             disabled={busy !== undefined}
             removeLabel={t('grant.removeFolder') + ': ' + grant.workspaceTitle}
             remove={() =>

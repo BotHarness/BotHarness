@@ -1,0 +1,34 @@
+{
+  "result": "PASS",
+  "testedCodeRevision": "53b800b120ddcec1ed4cf5183a09c84f4358c556",
+  "baseRevision": "768c2eef",
+  "dshVersion": "0.2.0-rc.1",
+  "platform": "macOS",
+  "checks": {
+    "lint": "PASS",
+    "format": "PASS",
+    "typecheck": "PASS",
+    "build": "PASS",
+    "releaseLedgers": "PASS",
+    "chineseOgFont": "PASS - generated output unchanged",
+    "fullTests": {
+      "passed": 1432,
+      "skipped": 1,
+      "skipReason": "Existing Browser controls E2E requires BROWSER_E2E=1"
+    },
+    "focusedTests": {
+      "passed": 95
+    },
+    "realWorkspaceE2E": "PASS again after final rebuild and Host restart",
+    "realCopyOnlyFallback": "PASS - task Profile restored",
+    "realMemoryRegression": "PASS"
+  },
+  "nativeWindowProof": {
+    "Finder": "Correct Workspace directory and README URL observed independently through Computer Use",
+    "VSCode": "Correct Workspace Explorer directory and README URL observed independently through Computer Use"
+  },
+  "limitations": [
+    "Paused real QA Bot has zero owned Sessions; nonempty Orchestrator and Assignment cwd preservation is checked with the real automated ownership store",
+    "Windows, Linux and deployed Tailscale/Cloudflare Tunnel unverified"
+  ]
+}

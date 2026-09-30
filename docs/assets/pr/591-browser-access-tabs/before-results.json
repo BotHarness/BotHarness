@@ -1,0 +1,22 @@
+{
+  "baseline": true,
+  "current": "1CCCA5B926BFE8B0488FD60E061C57A5",
+  "preview": "82F19C38B28EED3F3E26480E5A684C57",
+  "foreign": "E443A03169C4D4FF34BB14998E01D98F",
+  "accessOffRefused": true,
+  "restored": {
+    "focused": null,
+    "tabs": []
+  },
+  "opened": {
+    "ok": true,
+    "tabId": "FA3897831FA7D6CB4AE8722EF453A803"
+  },
+  "addedTargets": [
+    {
+      "targetId": "FA3897831FA7D6CB4AE8722EF453A803",
+      "url": "about:blank"
+    }
+  ],
+  "modelOpenObservePassed": true
+}
