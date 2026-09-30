@@ -103,6 +103,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Group creation and invitation Tools now return compact Channel, invitation and invitee references with the actual decision state; accepting or declining no longer copies the full Group record into the model context, and declines still grant no Group access ([#562](https://github.com/BotHarness/BotHarness/issues/562)).
+
 - Group rename and member-removal Tools acknowledge the committed Channel, name, outcome, and affected Bot without copying avatars or unrelated Group state into the model context; an unexpectedly missing rename result now fails explicitly ([#561](https://github.com/BotHarness/BotHarness/issues/561)).
 
 - Browser Pause now explains that the Human can always use the local browser window directly; paused tool refusals point to Resume and a fresh observation, while page reading remains available ([#495](https://github.com/BotHarness/BotHarness/issues/495)).
