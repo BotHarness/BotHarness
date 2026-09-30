@@ -18,6 +18,76 @@ function adapter(): BotAgentAdapter {
 }
 
 describe('Human attention projection', () => {
+  it('groups visible unread Source Events by Channel and preserves the read boundary', async () => {
+    const home = createTempRoot('botharness-human-unread-');
+    const core = createCore({ dshHome: home, agents: adapter() });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessage(group.id, {
+        id: 'own',
+        at: '2026-09-26T01:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'Start',
+      });
+      await core.channels.appendMessage(group.id, {
+        id: 'first',
+        at: '2026-09-26T01:01:00.000Z',
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'First',
+      });
+      await core.channels.appendMessage(group.id, {
+        id: 'second',
+        at: '2026-09-26T01:02:00.000Z',
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'Second',
+      });
+      await core.channels.appendMessage(dm.id, {
+        id: 'dm-one',
+        at: '2026-09-26T01:03:00.000Z',
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'DM',
+      });
+      expect(core.humanAttention.list({ category: 'unread' }).items).toMatchObject([
+        { kind: 'channel-unread', channelId: dm.id, unreadCount: 1, messageId: 'dm-one' },
+        { kind: 'channel-unread', channelId: group.id, unreadCount: 2, messageId: 'second' },
+      ]);
+      expect(core.humanAttention.status()).toMatchObject({ unreadCount: 3 });
+      const methods = createBridgeMethods({ ...core });
+      expect(methods.humanAttentionStatus({})).toEqual({
+        ok: true,
+        value: { unreadCount: 3, hasAction: false },
+      });
+      expect(methods.humanAttention({ category: 'unread' })).toMatchObject({
+        ok: true,
+        value: {
+          items: [
+            { channelId: dm.id, unreadCount: 1 },
+            { channelId: group.id, unreadCount: 2 },
+          ],
+        },
+      });
+      expect(methods.humanAttention({ category: 'unknown' })).toMatchObject({ ok: false });
+      await core.channels.markRead(group.id, 'first');
+      expect(
+        core.humanAttention.list({ category: 'unread', channelId: group.id }).items,
+      ).toMatchObject([{ unreadCount: 1, messageId: 'second' }]);
+      await core.channels.appendMessage(group.id, {
+        id: 'third',
+        at: '2026-09-26T01:04:00.000Z',
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'Third',
+      });
+      await core.channels.markRead(group.id, 'second');
+      expect(
+        core.humanAttention.list({ category: 'unread', channelId: group.id }).items,
+      ).toMatchObject([{ unreadCount: 1, messageId: 'third' }]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
   it('finds pending Group join requests, resolves one, and survives restart', async () => {
     const home = createTempRoot('botharness-human-attention-');
     const core = createCore({ dshHome: home, agents: adapter() });
@@ -34,6 +104,7 @@ describe('Human attention projection', () => {
         requesterBotCreatedAt: ada.record.createdAt,
       });
       const methods = createBridgeMethods({ ...core });
+      expect(core.humanAttention.status()).toEqual({ unreadCount: 0, hasAction: true });
       expect(methods.humanAttention({ category: 'action' })).toMatchObject({
         ok: true,
         value: {
@@ -66,9 +137,10 @@ describe('Human attention projection', () => {
         author: { kind: 'bot', slug: 'ada' },
         body: 'Here is the report.',
       });
-      expect(core.humanAttention.list({ category: 'info' }).items).toMatchObject([
-        { kind: 'bot-dm-message', botSlug: 'ada', channelId: dm.id, messageId: 'bot-reply-1' },
+      expect(core.humanAttention.list({ category: 'unread' }).items).toMatchObject([
+        { kind: 'channel-unread', botSlug: 'ada', channelId: dm.id, messageId: 'bot-reply-1' },
       ]);
+      expect(core.humanAttention.list({ category: 'info' }).items).toEqual([]);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
@@ -77,9 +149,9 @@ describe('Human attention projection', () => {
     try {
       expect(resumed.channels.get(groupId)?.members).toContain('ada');
       expect(resumed.humanAttention.list({ category: 'action' }).items).toEqual([]);
-      expect(resumed.humanAttention.list({ category: 'info' }).items).toHaveLength(1);
+      expect(resumed.humanAttention.list({ category: 'unread' }).items).toHaveLength(1);
       await resumed.channels.markRead('dm-ada', 'bot-reply-1');
-      expect(resumed.humanAttention.list({ category: 'info' }).items).toEqual([]);
+      expect(resumed.humanAttention.list({ category: 'unread' }).items).toEqual([]);
     } finally {
       await resumed.runtime.close();
       resumed.operationalDatabase.close();
@@ -91,18 +163,20 @@ describe('Human attention projection', () => {
     const core = createCore({ dshHome: home, agents: adapter() });
     try {
       core.registry.create({ slug: 'ada', displayName: 'Ada' });
-      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
-      for (const index of [0, 1, 2])
-        await core.channels.appendMessage(dm.id, {
+      const groups = [0, 1, 2].map((index) =>
+        core.channels.createGroup({ name: 'Team ' + index, members: ['ada'] }),
+      );
+      for (const [index, group] of groups.entries())
+        await core.channels.appendMessage(group.id, {
           id: 'report-' + index,
           at: new Date(Date.UTC(2026, 8, 26, 2, 0, index)).toISOString(),
           author: { kind: 'bot', slug: 'ada' },
           body: 'Report ' + index,
         });
-      const first = core.humanAttention.list({ category: 'info', limit: 1 });
+      const first = core.humanAttention.list({ category: 'unread', limit: 1 });
       expect(first.nextCursor).toBeDefined();
       const second = core.humanAttention.list({
-        category: 'info',
+        category: 'unread',
         limit: 1,
         cursor: first.nextCursor!,
       });
@@ -111,27 +185,29 @@ describe('Human attention projection', () => {
         core.humanAttention.list({ category: 'action', cursor: first.nextCursor! }),
       ).toThrow('Human attention cursor is invalid for these filters');
       expect(
-        core.humanAttention.list({ category: 'info', channelId: 'group-other' }).items,
+        core.humanAttention.list({ category: 'unread', channelId: 'group-other' }).items,
       ).toEqual([]);
-      const oldest = core.humanAttention.list({ category: 'info', sort: 'oldest', limit: 1 });
+      const oldest = core.humanAttention.list({ category: 'unread', sort: 'oldest', limit: 1 });
       expect(oldest.items[0]?.messageId).toBe('report-0');
       expect(oldest.nextCursor).toBeDefined();
       expect(
         core.humanAttention.list({
-          category: 'info',
+          category: 'unread',
           sort: 'oldest',
           limit: 1,
           cursor: oldest.nextCursor!,
         }).items[0]?.messageId,
       ).toBe('report-1');
       expect(() =>
-        core.humanAttention.list({ category: 'info', cursor: oldest.nextCursor! }),
+        core.humanAttention.list({ category: 'unread', cursor: oldest.nextCursor! }),
       ).toThrow('Human attention cursor is invalid for these filters');
       expect(
-        core.humanAttention.list({ category: 'info', botSlug: 'ada', channelId: dm.id }).items,
-      ).toHaveLength(3);
+        core.humanAttention.list({ category: 'unread', botSlug: 'ada', channelId: groups[0]!.id })
+          .items,
+      ).toHaveLength(1);
       expect(
-        core.humanAttention.list({ category: 'info', botSlug: 'bea', channelId: dm.id }).items,
+        core.humanAttention.list({ category: 'unread', botSlug: 'bea', channelId: groups[0]!.id })
+          .items,
       ).toEqual([]);
     } finally {
       await core.runtime.close();

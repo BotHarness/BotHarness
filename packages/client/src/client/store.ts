@@ -194,7 +194,7 @@ export interface OwnedSessionSummary {
   assignmentAccessMode?: 'workspace-write' | 'danger-full-access';
 }
 
-export type HumanInboxCategory = 'action' | 'info';
+export type HumanInboxCategory = 'action' | 'info' | 'unread';
 export type HumanInboxSort = 'newest' | 'oldest';
 
 export interface HumanInboxFilters {
@@ -215,7 +215,8 @@ export interface HumanAttentionItem {
     | 'assignment-waiting-human'
     | 'assignment-blocked'
     | 'assignment-report'
-    | 'bot-message-needs-repair';
+    | 'bot-message-needs-repair'
+    | 'channel-unread';
   createdAt: string;
   channelId?: string;
   channelName?: string;
@@ -225,6 +226,7 @@ export interface HumanAttentionItem {
   messageId?: string;
   assignmentSessionId?: string;
   sourceEventId?: string;
+  unreadCount?: number;
 }
 
 export interface HumanAttentionPage {
@@ -234,6 +236,8 @@ export interface HumanAttentionPage {
 
 export interface HumanInboxState {
   status: ClientStatus;
+  unreadCount: number;
+  hasAction: boolean;
   category: HumanInboxCategory;
   botSlug: string | undefined;
   channelId: string | undefined;
@@ -406,6 +410,8 @@ function initialBotInbox(): BotInboxState {
 function initialHumanInbox(): HumanInboxState {
   return {
     status: 'idle',
+    unreadCount: 0,
+    hasAction: false,
     category: 'action',
     botSlug: undefined,
     channelId: undefined,

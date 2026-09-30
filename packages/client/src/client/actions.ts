@@ -32,6 +32,7 @@ import {
   type WorkspaceGrantView,
   loadBotAttention,
   loadHumanAttention,
+  loadHumanAttentionStatus,
   ignoreHumanAssignmentReport,
   loadSessions,
   loadBots,
@@ -161,6 +162,7 @@ export interface BridgeActions {
   openBot(slug: string): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
   openHumanInbox(): Promise<void>;
+  refreshHumanInboxStatus(): Promise<void>;
   refreshHumanInbox(category?: HumanInboxCategory): Promise<void>;
   setHumanInboxFilters(filters: HumanInboxFilters): Promise<void>;
   loadMoreHumanInbox(): Promise<void>;
@@ -502,6 +504,16 @@ export function createActions(
   let humanInboxHeadSeq = 0;
   let humanInboxPageSeq = 0;
   let humanInboxScopeVersion = 0;
+  let humanInboxStatusSeq = 0;
+  const refreshHumanInboxStatus = async (): Promise<void> => {
+    const requestSeq = ++humanInboxStatusSeq;
+    try {
+      const status = await loadHumanAttentionStatus(call);
+      if (requestSeq === humanInboxStatusSeq) clientStore.setHumanInbox(status);
+    } catch {
+      return;
+    }
+  };
   const loadHumanInboxFor = async (
     category: HumanInboxCategory,
     selection: ConversationSelection,
@@ -776,10 +788,12 @@ export function createActions(
     },
     openHumanInbox() {
       clientStore.select({ kind: 'inbox' });
+      void refreshHumanInboxStatus();
       const selection = currentSelection();
       if (selection?.kind !== 'inbox') return Promise.resolve();
       return loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection);
     },
+    refreshHumanInboxStatus,
     refreshHumanInbox(category) {
       const selection = currentSelection();
       if (selection?.kind !== 'inbox') return Promise.resolve();
@@ -789,6 +803,7 @@ export function createActions(
         humanInboxScopeVersion += 1;
         clientStore.setHumanInbox({
           category: nextCategory,
+          botSlug: nextCategory === 'unread' ? undefined : prior.botSlug,
           channelId: undefined,
           status: 'loading',
           items: [],
@@ -837,8 +852,10 @@ export function createActions(
     openChannel(channelId) {
       return openChannelById(channelId);
     },
-    markRead(channelId, messageId) {
-      return markReadPosition(call, channelId, messageId);
+    async markRead(channelId, messageId) {
+      await markReadPosition(call, channelId, messageId);
+      await refreshHumanInboxStatus();
+      if (currentSelection()?.kind === 'inbox') await actions.refreshHumanInbox();
     },
     async loadOlder(channelId) {
       const snapshot = clientStore.getSnapshot();
