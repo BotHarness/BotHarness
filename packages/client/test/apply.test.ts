@@ -93,6 +93,13 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false, wit
         };
       },
     },
+    remote: {
+      session: {
+        canOpenWorkspacePath: async () => ({ ok: true, value: false }),
+        workspacePathApplications: async () => ({ ok: true, value: [] }),
+        openWorkspacePath: async () => ({ ok: true, value: { opened: true } }),
+      },
+    },
     connection: {
       rpc: {
         call: async () => ({ ok: true, value: { bots: [], channels: [] } }),

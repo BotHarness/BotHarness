@@ -121,6 +121,7 @@ describe('bridge typert service', () => {
       'userQuestionAnswer',
       'sessions',
       'sessionOwner',
+      'memoryFileTarget',
       'memorySnapshot',
       'memoryFile',
       'memoryHistory',
