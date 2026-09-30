@@ -103,6 +103,7 @@
 
 ### Changed
 
+- 入群邀请默认由 Host 自动接受，无需唤醒受邀 PersonaBot；Human 可在 Bot 设置中关闭自动接受，保留 Bot 自行决定的流程，已解决的邀请在重投或重启后不会再次唤醒（[#371](https://github.com/BotHarness/BotHarness/issues/371)、[ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)）。
 - 并入 steer 或 harvest 的待处理上下文现在按**总字符预算**、以到达顺序（最旧优先，不再按每轮抽样条数）选取：短消息突发（例如直播间评论）会在预算内尽可能多地并入，而不是最多 20 条；超出预算的消息保持 pending 留待后续回合（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。
 - Human 私聊消息现在默认在下一个安全 step 注入正在运行的 Orchestrator 回合（steer），并且该私聊里仍在待处理的消息会一并纳入同一次注入（对齐群聊直接提及的上下文收割）；Bot 私聊消息同样如此。没有活动回合时行为不变（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。
 - Windows 隔离 DSH 开发实例现可一次性安全导入 WSL 中已有的 DeepSeek 开发密钥，让两个环境的真实模型验收共用同一份本机凭据（[#115](https://github.com/BotHarness/BotHarness/issues/115)、[AX 指南](docs/client-bridge.md)）。

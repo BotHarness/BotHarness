@@ -12,6 +12,7 @@ describe('@botharness/ui host half', () => {
     const defaults = Config({});
     expect(defaults.botIcon.get()).toBe('mascot');
     expect(defaults.developerMode.get()).toBe(false);
+    expect(defaults.autoAcceptGroupInvites.get()).toBe(true);
     expect(defaults.motionPreference.get()).toBe('system');
     expect(defaults.sortMode.get()).toBe('updated');
     expect(defaults.sortModes.get()).toEqual({});
@@ -43,5 +44,29 @@ describe('@botharness/ui host half', () => {
       apply({ inject } as never);
     }).not.toThrow();
     expect(inject).toHaveBeenCalledWith(['settings'], expect.any(Function));
+  });
+});
+
+describe('Host Group invitation policy binding', () => {
+  it('binds the native volatile setting for the lifetime of its Fiber', () => {
+    const config = Config({ autoAcceptGroupInvites: false });
+    const dispose = vi.fn();
+    const configureGroupInvitations = vi.fn((read: () => boolean) => {
+      expect(read()).toBe(false);
+      return dispose;
+    });
+    const effects: unknown[] = [];
+    const ctx = {
+      inject: (deps: string[], callback: (child: unknown) => unknown) => {
+        if (deps.includes('botharness'))
+          callback({
+            botharness: { configureGroupInvitations },
+            effect: (factory: () => unknown) => effects.push(factory()),
+          });
+      },
+    };
+    apply(ctx as never, config);
+    expect(configureGroupInvitations).toHaveBeenCalledOnce();
+    expect(effects[0]).toBe(dispose);
   });
 });

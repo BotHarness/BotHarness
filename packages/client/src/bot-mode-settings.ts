@@ -12,6 +12,10 @@ export const BOT_MODE_ICON_FIELD = 'botIcon';
 
 export const BOT_MODE_DEVELOPER_FIELD = 'developerMode';
 
+export const BOT_MODE_GROUP_AUTO_ACCEPT_FIELD = 'autoAcceptGroupInvites';
+
+export const DEFAULT_BOT_MODE_GROUP_AUTO_ACCEPT = true;
+
 export const BOT_MODE_SORT_MODES = ['updated', 'manual'] as const;
 
 export const BOT_MODE_MOTION_PREFERENCES = ['system', 'reduce', 'full'] as const;
@@ -45,6 +49,7 @@ export function isBotModeIcon(value: unknown): value is BotModeIcon {
 }
 
 export interface BotModeSettings {
+  autoAcceptGroupInvites?: boolean;
   developerMode: boolean;
   motionPreference: BotModeMotionPreference;
   botIcon: BotModeIcon;

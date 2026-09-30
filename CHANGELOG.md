@@ -103,6 +103,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Group invitations now default to automatic acceptance without waking the invited PersonaBot; Bot settings can keep invitations pending for its own decision, and resolved invitations cannot wake again after redelivery or restart ([#371](https://github.com/BotHarness/BotHarness/issues/371), [ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)).
 - Pending context folded into a steer or harvest is now selected by the total character budget in arrival order (oldest first, no per-turn row sampling), so bursts of short messages — such as live chat comments — fold as many messages as the budget allows instead of at most twenty; messages beyond the budget stay pending for later turns ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Human DM messages now steer an active Orchestrator turn at its next safe step by default — and any messages still pending in that DM are claimed into the same steer, mirroring the Group mention context harvest; bot-DM messages steer the same way. When no turn is running the behavior is unchanged ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Isolated Windows DSH development instances can safely adopt an existing WSL DeepSeek dev key once, so real model QA uses the same machine-local credential across both environments ([#115](https://github.com/BotHarness/BotHarness/issues/115), [AX guide](docs/client-bridge.md)).

@@ -32,6 +32,7 @@ function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
   return {
     motionPreference: 'system',
     botIcon: 'mascot' as const,
+    autoAcceptGroupInvites: true,
     developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',
@@ -48,6 +49,7 @@ function renderSection(
   setMotionPreference: (preference: string) => void = () => undefined,
   setBotIcon: (icon: string) => void = () => undefined,
   setDeveloperMode: (enabled: boolean) => void = () => undefined,
+  setAutoAcceptGroupInvites: (enabled: boolean) => void = () => undefined,
 ): string {
   return renderToStaticMarkup(
     createElement(BotSettingsSection, {
@@ -59,6 +61,7 @@ function renderSection(
       setMotionPreference: setMotionPreference as never,
       setBotIcon: setBotIcon as never,
       setDeveloperMode: setDeveloperMode as never,
+      setAutoAcceptGroupInvites: setAutoAcceptGroupInvites as never,
     } as never),
   );
 }
@@ -184,4 +187,14 @@ describe('BotHarness settings section', () => {
     expect(cards).toHaveLength(4);
     expect(cards.filter((card) => card.includes('data-selected="true"'))).toHaveLength(1);
   });
+});
+
+it('shows default Group auto-accept and writes its native switch', () => {
+  const set = vi.fn();
+  const markup = renderSection(snapshot(), undefined, undefined, undefined, undefined, set);
+  expect(markup).toContain('自动接受入群邀请');
+  const control = captured.switches.find((item) => item['label'] === '自动接受入群邀请')!;
+  expect(control).toMatchObject({ checked: true, disabled: false });
+  (control['onChange'] as (enabled: boolean) => void)(false);
+  expect(set).toHaveBeenCalledWith(false);
 });

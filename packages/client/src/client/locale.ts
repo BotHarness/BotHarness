@@ -30,6 +30,9 @@ export const zh = {
   'sort.row.title': 'Bot 列表排序',
   'sort.row.description': '设置 Bot 模式列表的默认排序方式',
   'sort.row.memory': '仅当前会话生效，不会保存',
+  'groupAutoAccept.row.title': '自动接受入群邀请',
+  'groupAutoAccept.row.description':
+    '直接加入受邀群聊，不唤醒 Bot。关闭后由受邀 Bot 决定是否加入。',
   'developer.row.title': '开发者模式',
   'developer.row.description': '显示工作区授权的历史和高级选项',
   'roster.menu.label': '更多',
@@ -729,6 +732,9 @@ export const en = {
   'sort.row.title': 'Bot list sorting',
   'sort.row.description': 'Default order for the Bot mode list',
   'sort.row.memory': 'Applies in this session only; not saved',
+  'groupAutoAccept.row.title': 'Auto-accept Group invitations',
+  'groupAutoAccept.row.description':
+    'Join invited Groups without waking the Bot. When off, the invited Bot decides whether to join.',
   'developer.row.title': 'Developer mode',
   'developer.row.description': 'Show workspace access history and advanced options',
   'roster.menu.label': 'More',

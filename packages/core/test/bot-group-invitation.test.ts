@@ -20,7 +20,7 @@ function adapter(onRun: (run: OrchestratorAgentRun) => Promise<void>): BotAgentA
 describe('Bot Group invitation tracer', () => {
   it('lets Human set a bounded avatar and invite a Bot without granting early Group access', async () => {
     const home = createTempRoot('botharness-group-human-invite-');
-    const core = createCore({ dshHome: home });
+    const core = createCore({ autoAcceptGroupInvitations: () => false, dshHome: home });
     try {
       core.registry.create({ slug: 'bea', displayName: 'Bea' });
       core.registry.create({ slug: 'cee', displayName: 'Cee' });
@@ -100,6 +100,7 @@ describe('Bot Group invitation tracer', () => {
     let inviteCee = '';
     let core: ReturnType<typeof createCore>;
     core = createCore({
+      autoAcceptGroupInvitations: () => false,
       dshHome: home,
       agents: adapter(async (run) => {
         runs.push(run.bot.slug);
@@ -197,6 +198,7 @@ describe('Bot Group invitation tracer', () => {
     const home = createTempRoot('botharness-group-owner-');
     let groupId = '';
     const core = createCore({
+      autoAcceptGroupInvitations: () => false,
       dshHome: home,
       agents: adapter(async (run) => {
         expect(run.bot.slug).toBe('ada');
@@ -252,7 +254,7 @@ describe('Bot Group invitation tracer', () => {
 
   it('lets Human cancel invitations, remove joined Bots, rename, and delete the Group', async () => {
     const home = createTempRoot('botharness-group-human-');
-    const core = createCore({ dshHome: home });
+    const core = createCore({ autoAcceptGroupInvitations: () => false, dshHome: home });
     try {
       for (const slug of ['ada', 'bea', 'cee'])
         core.registry.create({ slug, displayName: slug.toUpperCase() });
@@ -323,7 +325,10 @@ describe('Bot Group invitation tracer', () => {
   });
 
   it('closes pending invite admissions when Human removes their inviter', async () => {
-    const core = createCore({ dshHome: createTempRoot('botharness-group-remove-inviter-') });
+    const core = createCore({
+      autoAcceptGroupInvitations: () => false,
+      dshHome: createTempRoot('botharness-group-remove-inviter-'),
+    });
     try {
       for (const slug of ['ada', 'bea', 'cee'])
         core.registry.create({ slug, displayName: slug.toUpperCase() });
@@ -360,7 +365,7 @@ describe('Bot Group invitation tracer', () => {
 
   it('recovers a pending invitation after restart and rejects archived or cancelled targets', async () => {
     const home = createTempRoot('botharness-group-invite-restart-');
-    const first = createCore({ dshHome: home });
+    const first = createCore({ autoAcceptGroupInvitations: () => false, dshHome: home });
     for (const slug of ['ada', 'bea', 'cee'])
       first.registry.create({ slug, displayName: slug.toUpperCase() });
     const group = first.channels.createGroup({
@@ -399,6 +404,7 @@ describe('Bot Group invitation tracer', () => {
     first.operationalDatabase.close();
     const runs: string[] = [];
     const resumed = createCore({
+      autoAcceptGroupInvitations: () => false,
       dshHome: home,
       agents: adapter(async (run) => {
         runs.push(run.bot.slug);

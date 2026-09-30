@@ -80,6 +80,7 @@ export function BotSettingsSection({
   setSortMode,
   setBotIcon,
   setDeveloperMode,
+  setAutoAcceptGroupInvites,
 }: BotSettingsSectionProps): ReactElement {
   const prefs = useBotModePrefs((value) => value);
   const [motionOpen, setMotionOpen] = useState(false);
@@ -206,6 +207,18 @@ export function BotSettingsSection({
           checked={prefs.developerMode}
           onChange={setDeveloperMode}
           label={t('developer.row.title')}
+        />
+      </div>
+      <div className="bh-settings-row bh-group-auto-accept-row">
+        <div className="bh-settings-row-text">
+          <div className="bh-settings-row-title">{t('groupAutoAccept.row.title')}</div>
+          <div className="bh-settings-row-desc">{t('groupAutoAccept.row.description')}</div>
+        </div>
+        <Switch
+          checked={prefs.autoAcceptGroupInvites}
+          onChange={setAutoAcceptGroupInvites}
+          disabled={prefs.status !== 'ready' || prefs.mode !== 'host'}
+          label={t('groupAutoAccept.row.title')}
         />
       </div>
       {renderSlot('botharness.settings.item', {}) as unknown as ReactNode}

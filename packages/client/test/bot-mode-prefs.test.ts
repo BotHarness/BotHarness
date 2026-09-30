@@ -30,6 +30,7 @@ function fakeHost(initial: Partial<BotModeScopeSnapshot> = {}) {
     status: 'ready',
     value: {
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       motionPreference: 'system',
       sortMode: 'updated',
@@ -66,12 +67,28 @@ function fakeHost(initial: Partial<BotModeScopeSnapshot> = {}) {
 }
 
 describe('BOT-mode policy store', () => {
+  it('persists Group auto-accept only through a writable Host and restores a rejected value', async () => {
+    const prefs = new BotModePrefs();
+    prefs.setAutoAcceptGroupInvites(false);
+    expect(prefs.source.getSnapshot().autoAcceptGroupInvites).toBe(true);
+    const scope = fakeHost();
+    prefs.attach(scope.host);
+    prefs.setAutoAcceptGroupInvites(false);
+    expect(scope.set).toHaveBeenCalledWith('autoAcceptGroupInvites', false);
+    scope.push({ value: { ...scope.host.getSnapshot().value!, autoAcceptGroupInvites: false } });
+    expect(prefs.source.getSnapshot().autoAcceptGroupInvites).toBe(false);
+    scope.host.set = async () => false;
+    prefs.setAutoAcceptGroupInvites(true);
+    await vi.waitFor(() => expect(prefs.source.getSnapshot().autoAcceptGroupInvites).toBe(false));
+  });
+
   it('starts on the default without pretending persistence', () => {
     const prefs = new BotModePrefs();
 
     expect(prefs.source.getSnapshot()).toEqual({
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -85,6 +102,7 @@ describe('BOT-mode policy store', () => {
     const scope = fakeHost({
       value: {
         botIcon: 'mascot' as const,
+        autoAcceptGroupInvites: true,
         developerMode: false,
         motionPreference: 'reduce',
         sortMode: 'manual',
@@ -98,6 +116,7 @@ describe('BOT-mode policy store', () => {
     expect(prefs.source.getSnapshot()).toEqual({
       motionPreference: 'reduce',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'reduce',
       sortMode: 'manual',
@@ -109,6 +128,7 @@ describe('BOT-mode policy store', () => {
     scope.push({
       value: {
         botIcon: 'mascot' as const,
+        autoAcceptGroupInvites: true,
         developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
@@ -142,6 +162,7 @@ describe('BOT-mode policy store', () => {
     expect(prefs.source.getSnapshot()).toMatchObject({
       motionPreference: 'reduce',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'reduce',
     });
@@ -165,6 +186,7 @@ describe('BOT-mode policy store', () => {
     scope.push({
       value: {
         botIcon: 'mascot',
+        autoAcceptGroupInvites: true,
         developerMode: true,
         motionPreference: 'system',
         sortMode: 'updated',
@@ -200,6 +222,7 @@ describe('BOT-mode policy store', () => {
     const snapshot = {
       motionPreference: 'system' as const,
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full' as const,
       sortMode: 'updated' as const,
@@ -268,6 +291,7 @@ describe('BOT-mode policy store', () => {
     scope.push({
       value: {
         botIcon: 'mascot' as const,
+        autoAcceptGroupInvites: true,
         developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
@@ -352,6 +376,7 @@ describe('legacy roster.json sort migration', () => {
     const scope = fakeHost({
       value: {
         botIcon: 'mascot' as const,
+        autoAcceptGroupInvites: true,
         developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
@@ -412,6 +437,7 @@ describe('roster migration sort-mode remap', () => {
       value: {
         motionPreference: 'system',
         botIcon: 'mascot' as const,
+        autoAcceptGroupInvites: true,
         developerMode: false,
         sortMode: 'updated',
         sortModes: { 'section-1': 'manual' },
@@ -485,6 +511,7 @@ describe('roster migration sort-mode remap', () => {
       value: {
         motionPreference: 'system',
         botIcon: 'mascot' as const,
+        autoAcceptGroupInvites: true,
         developerMode: false,
         sortMode: 'updated',
         sortModes: { 'section-1': 'manual' },
