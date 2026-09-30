@@ -466,9 +466,13 @@ _Avoid_: wake policy, inferred step state, message priority
 One Orchestrator turn that consumes a bounded, fair selection from the ready attention set — immediate items, due digest batches, and passive notices — instead of one turn per event. When a Group Channel enters the turn, the selection can also include its pending non-silent Inbox context, reserving space for the trigger, nearby messages, and oldest pending messages. Unselected items remain pending; a steered direct address joins the running turn instead.
 _Avoid_: per-event queue, wake storm, batch (bare)
 
+**Activity Center**:
+The Human's Bot-mode entry for cross-PersonaBot and cross-Channel work, with an operational Overview and a personal Human Inbox. It summarizes existing facts without becoming another authority for messages, usage, or Session activity.
+_Avoid_: Human Inbox (for the whole entry), dashboard list
+
 **Human Inbox**:
-A Human-level attention projection that classifies Channel Attention and PersonaBot Attention as either action-required or informational. It references their owning facts and does not copy Channel content or flatten every Bot Inbox item into Human work.
-_Avoid_: notifications, dashboard list
+The personal attention view inside Activity Center: unresolved Human actions, mentions and replies, unread Channel activity, informational updates, and handled history. It references the owning facts without copying Channel content or flattening every Bot Inbox event into Human work.
+_Avoid_: notifications, Bot Inbox, dashboard list
 
 **Channel Attention**:
 A Human Inbox item caused by Channel activity such as an unread message, mention, or reply; it references the owning Source Event and may be ignored unless classified action-required.
