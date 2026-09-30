@@ -24,6 +24,11 @@ export const CSS =
   --bh-chart-output: var(--dsw-alias-state-warn-primary);
   --bh-chart-read-dim: color-mix(in srgb, var(--bh-accent) 38%, transparent);
   /* @bh-profile-chart-aliases:end */
+  /* @bh-inbox-reply-aliases:start — DSH has no radius tokens; 8px matches
+     its measured project row and 6px matches its compact native controls. */
+  --bh-inbox-radius-panel: 8px;
+  --bh-inbox-radius-control: 6px;
+  /* @bh-inbox-reply-aliases:end */
   font: 13px/1.5 var(--dsw-font-family);
   color: var(--dsw-alias-label-primary);
 }
@@ -4526,7 +4531,7 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   margin: 12px 0;
   padding: 12px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
+  border-radius: var(--bh-inbox-radius-panel);
 }
 .bh-human-inbox-reply-header,
 .bh-human-inbox-reply-actions {
@@ -4537,7 +4542,7 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 }
 .bh-human-inbox-reply-header h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: inherit;
   font-weight: 600;
 }
 .bh-human-inbox-reply p {
@@ -4566,7 +4571,7 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   resize: vertical;
   padding: 8px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 6px;
+  border-radius: var(--bh-inbox-radius-control);
   background: var(--dsw-alias-bg-base);
   color: var(--dsw-alias-label-primary);
   font: inherit;
@@ -4579,7 +4584,7 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 }
 .bh-human-inbox-reply button {
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--bh-inbox-radius-control);
   padding: 5px 8px;
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);

@@ -29,7 +29,7 @@ export function HumanInboxReply({
   const loading = useRef<AbortController>();
   const attempt = useRef<{ body: string; id: string }>();
   const submitting = useRef(false);
-  const sourceRead = useRef(false);
+  const readMessages = useRef(new Set<string>());
 
   const reload = async (): Promise<void> => {
     loading.current?.abort();
@@ -53,15 +53,25 @@ export function HumanInboxReply({
       if (typeof IntersectionObserver === 'undefined') return;
       const observer = new IntersectionObserver(
         (entries) => {
-          if (!entries.some((entry) => entry.isIntersecting) || sourceRead.current) return;
-          sourceRead.current = true;
-          void actions.markRead(channelId, messageId).catch(() => {
-            sourceRead.current = false;
-          });
+          for (const entry of entries) {
+            const visibleId = entry.target.getAttribute('data-message-id');
+            if (
+              !entry.isIntersecting ||
+              entry.intersectionRatio < 0.5 ||
+              visibleId === null ||
+              readMessages.current.has(visibleId)
+            )
+              continue;
+            readMessages.current.add(visibleId);
+            void actions.markRead(channelId, visibleId).catch(() => {
+              readMessages.current.delete(visibleId);
+            });
+          }
         },
         { threshold: 0.5 },
       );
-      observer.observe(element);
+      for (const message of element.querySelectorAll('[data-message-id]'))
+        observer.observe(message);
       return () => observer.disconnect();
     },
     [actions, channelId, messageId],
@@ -96,6 +106,12 @@ export function HumanInboxReply({
       ? botName(message.author.slug)
       : t(message.author.kind === 'human' ? 'humanInbox.reply.you' : 'humanInbox.reply.system');
   const target = context?.find((message) => message.id === messageId);
+  const openSource = (id: string): void => {
+    void actions.openChannelAtMessage(channelId, id).catch(() => {
+      setContext(undefined);
+      setContextError(true);
+    });
+  };
 
   return (
     <section
@@ -114,12 +130,8 @@ export function HumanInboxReply({
           {t(contextError ? 'humanInbox.reply.unavailable' : 'humanInbox.loading')}
         </p>
       ) : (
-        <>
-          <div
-            className="bh-human-inbox-reply-source"
-            ref={visibleSource}
-            data-message-id={messageId}
-          >
+        <div ref={visibleSource}>
+          <div className="bh-human-inbox-reply-source" data-message-id={messageId}>
             <strong>{author(target)}</strong>
             <p>{target.body}</p>
             {target.attachments?.map((attachment) => (
@@ -131,13 +143,13 @@ export function HumanInboxReply({
             {context
               ?.filter((message) => message.id !== messageId)
               .map((message) => (
-                <div key={message.id}>
+                <div key={message.id} data-message-id={message.id}>
                   <strong>{author(message)}</strong>
                   <p>{message.body}</p>
                 </div>
               ))}
           </details>
-        </>
+        </div>
       )}
       {sent === undefined ? (
         <form
@@ -160,15 +172,7 @@ export function HumanInboxReply({
             <button type="button" disabled={sending} onClick={() => void reload()}>
               {t('humanInbox.reply.refresh')}
             </button>
-            <button
-              type="button"
-              disabled={sending}
-              onClick={() =>
-                void actions
-                  .openChannelAtMessage(channelId, messageId)
-                  .catch(() => setContextError(true))
-              }
-            >
+            <button type="button" disabled={sending} onClick={() => openSource(messageId)}>
               {t('humanInbox.open')}
             </button>
             <button
@@ -185,14 +189,7 @@ export function HumanInboxReply({
         <div role="status">
           <strong>{t('humanInbox.reply.sent')}</strong>
           <p>{sent.body}</p>
-          <button
-            type="button"
-            onClick={() =>
-              void actions
-                .openChannelAtMessage(channelId, sent.id)
-                .catch(() => setContextError(true))
-            }
-          >
+          <button type="button" onClick={() => openSource(sent.id)}>
             {t('humanInbox.open')}
           </button>
         </div>

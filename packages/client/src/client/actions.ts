@@ -587,7 +587,16 @@ export function createActions(
   const openChannelById = async (channelId: string, messageId?: string): Promise<void> => {
     const snapshot = clientStore.getSnapshot();
     const channel = snapshot.channels.find((candidate) => candidate.id === channelId);
-    if (channel === undefined) return;
+    if (channel === undefined) {
+      if (messageId !== undefined) throw new Error('Source Channel is no longer available');
+      return;
+    }
+    const requestedFrom = currentSelection();
+    const sourcePage =
+      messageId === undefined
+        ? undefined
+        : await loadTimelinePage(call, channelId, { direction: 'around', around: messageId });
+    if (sourcePage !== undefined && currentSelection() !== requestedFrom) return;
     const selection: ConversationSelection = { kind: 'channel', channelId };
     clientStore.select(selection, { deferConversation: messageId !== undefined });
     const active = currentSelection();
@@ -616,13 +625,10 @@ export function createActions(
     });
     try {
       const { page, revision, focusMessageId } =
-        messageId === undefined
+        sourcePage === undefined
           ? await loadOpeningTimeline(channelId)
           : {
-              ...(await loadTimelinePage(call, channelId, {
-                direction: 'around',
-                around: messageId,
-              })),
+              ...sourcePage,
               focusMessageId: messageId,
             };
       const failures = remainingFailures(channelId, page.entries);

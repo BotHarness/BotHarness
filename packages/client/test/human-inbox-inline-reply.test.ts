@@ -17,12 +17,23 @@ import { store } from '../src/client/store.js';
 describe('Human Inbox inline reply', () => {
   it('keeps the captured source and draft across refresh and failure, and retries one reply id', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-    let seeSource: (() => void) | undefined;
+    let seeMessage: ((id: string) => void) | undefined;
     vi.stubGlobal(
       'IntersectionObserver',
       class {
-        constructor(callback: (entries: Array<{ isIntersecting: boolean }>) => void) {
-          seeSource = () => callback([{ isIntersecting: true }]);
+        constructor(
+          callback: (
+            entries: Array<{ isIntersecting: boolean; intersectionRatio: number; target: Element }>,
+          ) => void,
+        ) {
+          seeMessage = (id) =>
+            callback([
+              {
+                isIntersecting: true,
+                intersectionRatio: 1,
+                target: document.querySelector('[data-message-id="' + id + '"]')!,
+              },
+            ]);
         }
         observe() {}
         disconnect() {}
@@ -57,6 +68,12 @@ describe('Human Inbox inline reply', () => {
                   at: '2026-09-30T12:01:00Z',
                   author: { kind: 'bot', slug: 'ada' },
                   body: 'The launch plan is ready.',
+                },
+                {
+                  id: 'newer',
+                  at: '2026-09-30T12:01:30Z',
+                  author: { kind: 'bot', slug: 'ada' },
+                  body: 'New release check update.',
                 },
               ],
               olderCursor: null,
@@ -134,7 +151,7 @@ describe('Human Inbox inline reply', () => {
         );
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
       });
-      await act(async () => seeSource?.());
+      await act(async () => seeMessage?.('source'));
       expect(requests.find((request) => request.endpoint === 'channelMarkRead')?.payload).toEqual({
         channelId: 'group-team',
         messageId: 'source',
@@ -143,7 +160,24 @@ describe('Human Inbox inline reply', () => {
       expect(container.querySelector('.bh-human-inbox-reply-source')?.textContent).toContain(
         'The launch plan is ready.',
       );
+      expect(
+        requests.some(
+          (request) =>
+            request.endpoint === 'channelMarkRead' && request.payload['messageId'] === 'newer',
+        ),
+      ).toBe(false);
+      await act(async () => {
+        container.querySelector('.bh-human-inbox-reply-context')?.setAttribute('open', '');
+        seeMessage?.('newer');
+      });
+      expect(
+        requests.filter((request) => request.endpoint === 'channelMarkRead').at(-1)?.payload,
+      ).toEqual({ channelId: 'group-team', messageId: 'newer' });
       failContext = true;
+      await act(async () => button('查看来源')?.click());
+      expect(store.getSnapshot().selection).toEqual({ kind: 'inbox' });
+      expect(container.querySelector('textarea')?.value).toBe('Launch Friday.');
+      expect(container.textContent).toContain('来源已不可用');
       await act(async () => button('刷新上下文')?.click());
       expect(container.textContent).toContain('来源已不可用');
       expect(container.querySelector('textarea')?.value).toBe('Launch Friday.');

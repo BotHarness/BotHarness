@@ -498,7 +498,8 @@ describe('bridge actions', () => {
     const opening = actions.openChannelAtMessage('group-team', 'm-captured');
     await vi.waitFor(() => expect(resolveAround).toBeDefined());
     expect(frames).not.toContainEqual({ status: 'ready', messageIds: ['m-new'] });
-    expect(clientStore.getSnapshot().conversation.status).toBe('loading');
+    expect(clientStore.getSnapshot().selection).toEqual({ kind: 'channel', channelId: 'dm-ada' });
+    expect(clientStore.getSnapshot().conversation.status).toBe('ready');
     resolveAround!({
       revision: 3,
       page: {
