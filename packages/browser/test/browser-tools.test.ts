@@ -479,6 +479,76 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     await call('browser_click', { ref: 'e1' });
   });
 
+  it.each(['authorization', 'access', 'pause', 'resume'] as const)(
+    'audits an immediate %s refusal exactly once without dispatching the action',
+    async (guard) => {
+      const h = harness({ access: true, auto: guard !== 'authorization' });
+      h.created();
+      const name = guard === 'authorization' ? 'browser_open' : 'browser_click';
+      const definition = h.state.definitions.get(name)!;
+      if (guard !== 'authorization') {
+        await h.state.definitions
+          .get('browser_open')!
+          .execute({ url: 'https://example.com' }, execution('browser_open'));
+      }
+      h.audits.length = 0;
+      if (guard === 'access') {
+        h.setAccess(false);
+        await h.provider.reconcileBot('bot-a');
+      } else if (guard === 'pause' || guard === 'resume') {
+        h.provider.setTakeover('bot-a', true);
+        if (guard === 'resume') h.provider.setTakeover('bot-a', false);
+      }
+      await expect(
+        definition.execute(
+          guard === 'authorization' ? { url: 'https://example.com' } : { ref: 'e1' },
+          execution(name),
+        ),
+      ).rejects.toThrow();
+      expect(h.audits).toHaveLength(1);
+      expect(h.audits[0]).toMatchObject({
+        botSlug: 'bot-a',
+        sessionId: 'session-a',
+        rootRole: 'orchestrator',
+        tool: name,
+        outcome: 'error',
+      });
+      expect(h.audits[0]?.error).toMatch(
+        /not authorized|Access is off|Pause is active|Resume requires/,
+      );
+      expect(h.audits[0]?.durationMs).toBeGreaterThanOrEqual(0);
+      expect(h.runtime.click).not.toHaveBeenCalled();
+      if (guard === 'authorization') expect(h.runtime.open).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [
+      'browser_type',
+      { ref: 'e1', text: 'QA_PRIVATE_TYPED_MARKER' },
+      'chars=23',
+      'QA_PRIVATE_TYPED_MARKER',
+    ],
+    [
+      'browser_upload',
+      { path: '/tmp/private-qa-path/upload.txt' },
+      'file=upload.txt',
+      '/tmp/private-qa-path',
+    ],
+  ])('redacts an immediately refused %s attempt', async (name, args, summary, privateValue) => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    h.provider.setTakeover('bot-a', true);
+    await expect(h.state.definitions.get(name)!.execute(args, execution(name))).rejects.toThrow(
+      /Pause is active/,
+    );
+    expect(h.audits).toHaveLength(1);
+    expect(h.audits[0]?.summary).toContain(summary);
+    expect(JSON.stringify(h.audits)).not.toContain(privateValue);
+    expect(h.runtime.type).not.toHaveBeenCalled();
+    expect(h.runtime.uploadFile).not.toHaveBeenCalled();
+  });
+
   it.each(['pause', 'access'] as const)(
     'refuses a queued action when %s changes before execution',
     async (guard) => {
@@ -523,6 +593,8 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       await first;
       await refused;
       expect(h.runtime.click).toHaveBeenCalledTimes(1);
+      expect(h.audits).toHaveLength(3);
+      expect(h.audits.filter((event) => event.outcome === 'error')).toHaveLength(1);
       expect(h.runtime.open).toHaveBeenCalledTimes(1);
       expect(h.audits.at(-1)).toMatchObject({
         tool: guard === 'pause' ? 'browser_click' : 'browser_open',
@@ -622,7 +694,8 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     await expect(
       h.state.definitions.get('browser_click')!.execute({ ref: 'e1' }, execution('browser_click')),
     ).rejects.toThrow(/stale/);
-    expect(h.audits.at(-1)?.outcome).toBe('error');
+    expect(h.audits).toHaveLength(2);
+    expect(h.audits.map((event) => event.outcome)).toEqual(['ok', 'error']);
   });
 
   it('pauses interaction tools under Browser Pause while observe stays read-only', async () => {
@@ -755,7 +828,11 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
         .execute({ url: 'https://example.com' }, execution('browser_open')),
     ).rejects.toThrow(/Browser Access is off/);
     expect(h.runtime.open).not.toHaveBeenCalled();
-    expect(h.audits).toHaveLength(0);
+    expect(h.audits).toHaveLength(1);
+    expect(h.audits[0]).toMatchObject({
+      outcome: 'error',
+      error: 'Browser Access is off for this PersonaBot',
+    });
   });
 
   it('serializes one Bot’s actions while it is busy', async () => {
