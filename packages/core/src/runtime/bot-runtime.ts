@@ -136,6 +136,7 @@ export interface OrchestratorAssignmentAccess {
     mode: AssignmentRequestMode;
     text: string;
     answerTo?: string;
+    model?: ModelRoute;
   }): AssignmentRequestOutcome;
   stop(sessionId: string): Promise<AssignmentSummary>;
 }
@@ -3553,7 +3554,13 @@ class BotRuntimeImplementation implements BotRuntime {
 
   #requestAssignment(
     bot: PersonaBotRecord,
-    input: { sessionId: string; mode: AssignmentRequestMode; text: string; answerTo?: string },
+    input: {
+      sessionId: string;
+      mode: AssignmentRequestMode;
+      text: string;
+      answerTo?: string;
+      model?: ModelRoute;
+    },
   ): AssignmentRequestOutcome {
     const row = this.#assignmentRow(bot.slug, input.sessionId);
     if (row === undefined) throw new Error(`Unknown Assignment Session: ${input.sessionId}`);
@@ -3583,6 +3590,15 @@ class BotRuntimeImplementation implements BotRuntime {
         `Assignment Session ${input.sessionId} has no open ask ${input.answerTo}; inspect it before answering`,
       );
     }
+    let modelRoute = modelRouteFromRow(row);
+    if (input.model !== undefined) {
+      if (!isAssignmentModelChoice(input.model))
+        throw new Error('Assignment model choice is invalid');
+      const plan = this.#registry.get(bot.slug)?.modelPlan ?? bot.modelPlan;
+      if (plan === undefined)
+        throw new Error('Apply a Model Preset before choosing an Assignment model');
+      modelRoute = selectAssignmentRoute(plan, input.model);
+    }
     if (row.open_ask_source_event_id !== null) {
       this.#database.transaction(
         (database) => {
@@ -3597,7 +3613,20 @@ class BotRuntimeImplementation implements BotRuntime {
         ['assignments'],
       );
     }
-    const modelRoute = modelRouteFromRow(row);
+    if (input.model !== undefined) {
+      this.#database.transaction(
+        (database) => {
+          database
+            .prepare(
+              `UPDATE assignments
+                  SET model_route_json = ?, updated_at = ?
+                WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`,
+            )
+            .run(JSON.stringify(modelRoute), at, input.sessionId, bot.slug);
+        },
+        ['assignments'],
+      );
+    }
     const run: AssignmentAgentRun = {
       sessionId: input.sessionId,
       bot,

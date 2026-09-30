@@ -5,7 +5,7 @@ import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it } from 'vitest';
 
 import { createDshBotAgentAdapter } from '../src/runtime/dsh-bot-agent-adapter.js';
-import type { OrchestratorAgentRun } from '../src/runtime/bot-runtime.js';
+import type { AssignmentAgentRun, OrchestratorAgentRun } from '../src/runtime/bot-runtime.js';
 import { FakeAgentHost, FAKE_BOT as BOT } from './dsh-agent-host-fixture.js';
 
 const ASSIGNMENT = {
@@ -49,6 +49,7 @@ describe('DSH Bot Agent adapter', () => {
   it('dispatches Group attention Tools only during the owning Orchestrator run', async () => {
     const calls: Array<Promise<unknown>> = [];
     const writes: unknown[] = [];
+    const assignmentRequests: unknown[] = [];
     const rejectedSourceCalls: Array<Promise<{ ok: boolean; error?: string }>> = [];
     const current = {
       mode: 'digest' as const,
@@ -91,6 +92,36 @@ describe('DSH Bot Agent adapter', () => {
             ),
           );
           calls.push(sourceReset.execute({ sourceClass: 'group-ordinary' }, {} as ToolRunContext));
+          const sendAssignment = tools.find((tool) => tool.name === 'send_assignment_request');
+          if (sendAssignment === undefined)
+            throw new Error('Assignment request Tool not registered');
+          calls.push(
+            sendAssignment.execute(
+              {
+                session_id: 'assignment-1',
+                text: 'Continue',
+                provider: 'deepseek',
+                model: 'pro',
+                reasoning_effort: 'off',
+              },
+              {} as ToolRunContext,
+            ),
+          );
+          rejectedSourceCalls.push(
+            sendAssignment
+              .execute(
+                {
+                  session_id: 'assignment-1',
+                  text: 'Reject',
+                  provider: 'deepseek',
+                },
+                {} as ToolRunContext,
+              )
+              .then(
+                () => ({ ok: true }),
+                (error) => ({ ok: false, error: String(error) }),
+              ),
+          );
           for (const call of [
             sourceSet.execute({ sourceClass: 'human-dm', wake: 'immediate' }, {} as ToolRunContext),
             sourceReset.execute({ sourceClass: 'group-mention' }, {} as ToolRunContext),
@@ -206,7 +237,16 @@ describe('DSH Bot Agent adapter', () => {
         list: () => [],
         inspect: () => undefined,
         stop: async () => ASSIGNMENT,
-        request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
+        request: (input) => {
+          assignmentRequests.push(input);
+          return {
+            assignment: {
+              ...ASSIGNMENT,
+              ...(input.model === undefined ? {} : { modelRoute: input.model }),
+            },
+            delivery: 'followup',
+          };
+        },
       },
     });
     expect((await Promise.all(calls)).map((value) => JSON.parse(String(value)))).toMatchObject([
@@ -223,6 +263,10 @@ describe('DSH Bot Agent adapter', () => {
         revision: 2,
       },
       { sourceClass: 'group-ordinary', wake: 'digest', revision: 3 },
+      {
+        sessionId: 'assignment-1',
+        modelRoute: { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' },
+      },
     ]);
     expect(writes).toEqual([
       {
@@ -233,8 +277,20 @@ describe('DSH Bot Agent adapter', () => {
       },
     ]);
     expect(await Promise.all(rejectedSourceCalls)).toEqual([
+      {
+        ok: false,
+        error: expect.stringContaining('provider and model must be specified together'),
+      },
       { ok: false, error: expect.stringContaining('must be one of') },
       { ok: false, error: expect.stringContaining('must be one of') },
+    ]);
+    expect(assignmentRequests).toEqual([
+      {
+        sessionId: 'assignment-1',
+        mode: 'next-turn',
+        text: 'Continue',
+        model: { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' },
+      },
     ]);
     const write = host.scopes
       .get('orchestrator-ada')
@@ -825,7 +881,7 @@ describe('DSH Bot Agent adapter', () => {
       orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
     });
-    await adapter.runAssignment({
+    const selected: AssignmentAgentRun = {
       sessionId: 'assignment-selected',
       bot: {
         ...BOT,
@@ -853,11 +909,29 @@ describe('DSH Bot Agent adapter', () => {
         presetRevision: 0,
       },
       report: async (input) => ({ ...input, at: BOT.createdAt }),
-    });
+    };
+    await adapter.runAssignment(selected);
     expect(host.createOptions[0]?.agentOptions).toEqual({
       provider: 'deepseek',
       model: 'flash',
       reasoningEffort: 'low',
+    });
+    expect(await host.selectedModel('assignment-selected')).toEqual({
+      provider: 'deepseek',
+      model: 'flash',
+      reasoningEffort: 'low',
+    });
+    const delivery = adapter.requestAssignment({
+      ...selected,
+      purpose: 'Continue on Pro',
+      resume: true,
+      modelRoute: { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' },
+    });
+    if (delivery.delivery === 'followup') await delivery.done;
+    expect(await host.selectedModel('assignment-selected')).toEqual({
+      provider: 'deepseek',
+      model: 'pro',
+      reasoningEffort: 'off',
     });
     await adapter.close();
   });
