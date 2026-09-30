@@ -109,19 +109,22 @@ for (let attempt = 0; attempt < 240; attempt += 1) {
   await new Promise((done) => setTimeout(done, 1000));
 }
 if (!confirmed) throw new Error('Real Orchestrator, Assignment and child calls did not settle');
+let settled = false;
 for (let attempt = 0; attempt < 30; attempt += 1) {
   await new Promise((done) => setTimeout(done, 1000));
   const next = await rpc('profileActivity', { channelId });
-  const idle = (await rpc('get', { slug: bot.slug })).bot.state;
+  const idle = (await rpc('list')).bots.find((item) => item.slug === bot.slug)?.aggregateState;
   if (
     JSON.stringify(next.modelUsageRows) === JSON.stringify(activity.modelUsageRows) &&
-    idle !== 'running'
+    idle === 'idle'
   ) {
     activity = next;
+    settled = true;
     break;
   }
   activity = next;
 }
+if (!settled) throw new Error('Bot did not become idle with stable reported usage');
 const rows = activity.modelUsageRows;
 for (const [purpose, expected] of [
   ['orchestrator', route],
@@ -315,6 +318,44 @@ try {
     {},
     route.model,
   );
+  const coordinated = await page.$('.bh-usage-details');
+  if (process.env.BH_E2E_EXPECT_COORDINATED && !coordinated)
+    throw new Error('Coordinated charts not rendered');
+  let presentation;
+  if (coordinated) {
+    const modelTotals = new Map();
+    for (const row of rows) {
+      const name = `${row.provider} / ${row.model}`;
+      modelTotals.set(name, (modelTotals.get(name) ?? 0) + row.totalTokens);
+    }
+    presentation = await page.$eval('.bh-model-usage', (element) => ({
+      collapsed: !element.querySelector('details').open,
+      charts: element.querySelectorAll('.bh-profile-bar-chart').length,
+      preset: element.querySelector('select').value,
+      models: [...element.querySelectorAll('.bh-usage-model-label')].map((row) => ({
+        label: row.querySelector('span').getAttribute('title'),
+        total: row.querySelector('strong').textContent,
+      })),
+      hasRoles: /Orchestrator|Assignment|DSH (子代理|Subagent)/u.test(element.textContent),
+    }));
+    if (
+      !presentation.collapsed ||
+      presentation.charts !== 2 ||
+      presentation.preset !== '182' ||
+      presentation.hasRoles
+    )
+      throw new Error('The default usage overview does not hide execution details');
+    if (
+      presentation.models.length !== modelTotals.size ||
+      presentation.models.some(
+        (row) => row.total.replace(/[^0-9]/gu, '') !== String(modelTotals.get(row.label.trim())),
+      )
+    )
+      throw new Error('Overview model totals do not merge execution roles correctly');
+    await page.$eval('.bh-usage-details summary', (element) => element.focus());
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('.bh-model-usage-route');
+  }
   const text = await page.$eval(
     '.bh-profile-view .bh-model-usage',
     (element) => element.textContent,
@@ -329,7 +370,18 @@ try {
   await page.evaluate(() =>
     document.querySelector('.bh-model-usage')?.scrollIntoView({ block: 'center' }),
   );
-  await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
+  if (coordinated) {
+    await page.$eval('.bh-usage-details summary', (element) => element.click());
+    await page.waitForFunction(() => !document.querySelector('.bh-usage-details').open);
+  }
+  await page.evaluate(() => {
+    document.activeElement?.blur();
+    document.body.removeAttribute('data-ds-dark-theme');
+    document
+      .querySelector('.bh-model-usage')
+      ?.closest('.bh-profile-card')
+      ?.scrollIntoView({ block: 'center' });
+  });
   await page.screenshot({ path: screenshot });
   const measured = await page.$eval('.bh-profile-view', (element) => ({
     width: element.getBoundingClientRect().width,
@@ -345,6 +397,85 @@ try {
   if (dark === light) throw new Error('Native theme did not change');
   await page.screenshot({ path: screenshot.replace(/\.png$/u, '-dark.png') });
   await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
+  if (coordinated) {
+    await page.$eval('.bh-usage-details summary', (element) => element.click());
+    await page.waitForSelector('.bh-model-usage-route');
+    await page.evaluate(() =>
+      document
+        .querySelector('.bh-model-usage')
+        ?.closest('.bh-profile-card')
+        ?.scrollIntoView({ block: 'start' }),
+    );
+    await page.evaluate(() => {
+      const view = document.querySelector('.bh-profile-view');
+      view.scrollTop = Math.max(0, view.scrollTop - 80);
+    });
+    await page.screenshot({ path: screenshot.replace(/\.png$/u, '-details.png') });
+    await page.select('.bh-model-usage select', '1');
+    const todayTotal = await page.$eval(
+      '.bh-model-usage .bh-profile-card-total',
+      (element) => element.textContent,
+    );
+    if (
+      !todayTotal.includes(
+        rows
+          .filter((row) => row.day === activity.today)
+          .reduce((sum, row) => sum + row.totalTokens, 0)
+          .toLocaleString(),
+      )
+    )
+      throw new Error('Today did not preserve the real fixture total');
+    await page.select('.bh-model-usage select', 'custom');
+    const recordedDays = new Set(rows.map((row) => row.day));
+    let emptyDay = await page.$eval('.bh-model-usage-range input', (element) => element.min);
+    while (recordedDays.has(emptyDay) && emptyDay <= activity.today) {
+      const [year, month, day] = emptyDay.split('-').map(Number);
+      const next = new Date(year, month - 1, day + 1);
+      emptyDay = `${next.getFullYear()}-${`${next.getMonth() + 1}`.padStart(2, '0')}-${`${next.getDate()}`.padStart(2, '0')}`;
+    }
+    if (emptyDay <= activity.today) {
+      await page.$$eval(
+        '.bh-model-usage-range input',
+        (inputs, day) => {
+          for (const input of inputs) {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(
+              input,
+              day,
+            );
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        },
+        emptyDay,
+      );
+      await page.waitForSelector('.bh-model-usage .bh-profile-empty');
+      if (await page.$('.bh-model-usage .bh-profile-bar-chart'))
+        throw new Error('Empty range left stale charts');
+      await page.screenshot({ path: screenshot.replace(/\.png$/u, '-empty.png') });
+      presentation.emptyRange = true;
+    }
+    await page.select('.bh-model-usage select', '182');
+    await page.waitForSelector('.bh-usage-model-label');
+    await page.setViewport({ width: 1040, height: 1050 });
+    await page.evaluate(() =>
+      document
+        .querySelector('.bh-model-usage')
+        ?.closest('.bh-profile-card')
+        ?.scrollIntoView({ block: 'start' }),
+    );
+    await page.evaluate(() => {
+      const view = document.querySelector('.bh-profile-view');
+      view.scrollTop = Math.max(0, view.scrollTop - 80);
+    });
+    await page.screenshot({ path: screenshot.replace(/\.png$/u, '-narrow.png') });
+    const overflow = await page.$eval(
+      '.bh-model-usage',
+      (element) => element.scrollWidth > element.clientWidth + 1,
+    );
+    if (overflow) throw new Error('The narrow Profile overflows');
+    presentation.rangeSwitch = true;
+    presentation.keyboardDetails = true;
+    presentation.narrowNoOverflow = true;
+  }
   await page.reload({ waitUntil: 'domcontentloaded' });
   const refreshed = await rpc('profileActivity', { channelId });
   if (JSON.stringify(refreshed.modelUsageRows) !== JSON.stringify(activity.modelUsageRows))
@@ -356,6 +487,7 @@ try {
       rows,
       native,
       measured,
+      presentation,
       screenshot,
     }),
   );

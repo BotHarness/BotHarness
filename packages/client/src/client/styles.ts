@@ -2085,9 +2085,39 @@ button.bh-profile-heat-cell:focus-visible {
   gap: 8px;
   color: var(--dsw-alias-label-secondary);
 }
+.bh-model-usage-header select { width: auto; }
+.bh-model-usage-header label { white-space: nowrap; }
 .bh-model-usage-header input {
   width: auto;
 }
+.bh-model-usage-overview {
+  border-top: 0;
+  padding-top: 0;
+}
+.bh-model-usage-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.bh-model-usage-range label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bh-model-usage-range input { width: auto; }
+.bh-usage-daily, .bh-usage-models { display: grid; gap: 12px; }
+.bh-usage-axis-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.bh-usage-model-plot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; }
+.bh-usage-model-label { height: 64px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-size: 12px; }
+.bh-usage-model-label span { line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-usage-model-label strong { font-variant-numeric: tabular-nums; }
+.bh-usage-details summary { cursor: pointer; padding: 12px 0; color: var(--dsw-alias-label-secondary); }
+.bh-usage-details summary:hover, .bh-usage-details summary:focus-visible { color: var(--dsw-alias-label-primary); }
+.bh-usage-details > div { display: grid; gap: 12px; }
+.bh-usage-table-scroll { overflow-x: auto; }
+.bh-usage-day-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bh-usage-day-table th, .bh-usage-day-table td { padding: 8px; text-align: left; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--dsw-alias-border-l2); }
+.bh-usage-day-table caption { text-align: left; padding-bottom: 8px; color: var(--dsw-alias-label-secondary); }
 .bh-model-usage-route {
   display: flex;
   flex-direction: column;
