@@ -1,0 +1,18 @@
+{
+  "baseline": false,
+  "modelOpenObservePassed": true,
+  "oldCurrent": "EF2C88CE3781036CFD08B44F775CCF46",
+  "oldReference": "260A125B25CA41BC6006D20B48303ABD",
+  "switched": {
+    "focused": null,
+    "takeover": false,
+    "tabs": []
+  },
+  "openError": false,
+  "openText": "[{\"type\":\"text\",\"text\":\"Opened http://127.0.0.1:32002/work — Named profile work. Call browser_observe to read the page.\"}]",
+  "peerCurrent": "83684CEF7C33B3557439E976EA61FD64",
+  "newCurrent": "920CC4FDE637F90B6D0201DAC36871A0",
+  "isolatedSignIn": true,
+  "workCompleted": true,
+  "accessCycleRetainedCurrent": true
+}

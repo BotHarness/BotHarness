@@ -239,6 +239,8 @@ The authenticated Human Open Bot Browser action goes through the same process-lo
 
 Temporarily disabling Browser Access revokes the Agent-scope tool registrations and refuses queued actions while preserving the Provider’s process-local owned/current tabs; re-enabling restores tools against the same work page. Explicit stop/reset clears this bookkeeping; this continuity applies within the same browser profile, and no ownership is persisted across Host restarts.
 
+Changing the assigned browser profile calls the existing Browser Provider reset command through its application-defined Host service. The switching Bot loses its old process-local current/owned tab records and Pause state before using the newly selected runtime; Browser Access and Session authorization remain separate. Other Bots’ ownership and the old profile’s browser data remain intact. The reset records a bounded lifecycle diagnostic and does not persist or adopt old targets when switching back.
+
 ```mermaid
 flowchart LR
   Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
