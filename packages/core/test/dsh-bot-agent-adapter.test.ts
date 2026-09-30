@@ -19,6 +19,7 @@ const ASSIGNMENT = {
 const groupTools = {
   list: () => ({ channels: [] }),
   query: () => ({ messages: [] }),
+  readModel: () => JSON.stringify({ messages: [] }),
   createGroup: (): never => {
     throw new Error('unexpected Group creation');
   },

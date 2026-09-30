@@ -28,6 +28,7 @@ import {
 import { ChannelReplyTargetError, MAX_MESSAGE_PAGE } from '../channels/store.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelMessageQueryOptions, ChannelStore } from '../channels/store.js';
+import { boundModelPage, readModelContent } from './channel-model-read.js';
 import type { AttachmentStore } from '../attachments/store.js';
 import {
   attachOperationalModule,
@@ -213,6 +214,16 @@ export interface ChannelListPage {
   nextCursor?: string;
 }
 
+export type ChannelQueryInput = ChannelMessageQueryOptions & {
+  channelId?: string;
+  scope?: 'channel' | 'joined';
+};
+
+export interface ChannelQueryPage {
+  messages: ChannelMessageView[];
+  nextCursor?: string;
+}
+
 export interface OrchestratorChannelAccess {
   list(input?: ChannelListInput): ChannelListPage;
   read(input?: { channelId?: string; before?: string; limit?: number }): ChannelMessageView[];
@@ -222,15 +233,8 @@ export interface OrchestratorChannelAccess {
     ignoredAt: string;
     alreadyIgnored: boolean;
   };
-  query(
-    input?: ChannelMessageQueryOptions & {
-      channelId?: string;
-      scope?: 'channel' | 'joined';
-    },
-  ): {
-    messages: ChannelMessageView[];
-    nextCursor?: string;
-  };
+  query(input?: ChannelQueryInput): ChannelQueryPage;
+  readModel(input?: ChannelQueryInput & { messageId?: string; contentCursor?: string }): string;
   readAttachment?(input: {
     channelId?: string;
     messageId: string;
@@ -2559,6 +2563,150 @@ class BotRuntimeImplementation implements BotRuntime {
   ): OrchestratorChannelAccess {
     const resolve = (requested?: string): ChannelRecord =>
       this.#requireMembership(botSlug, requested ?? defaultChannelId);
+    const contentProgress = new Map<string, number>();
+    const queryPage = (input: ChannelQueryInput = {}): ChannelQueryPage => {
+      if (input.scope !== undefined && input.scope !== 'channel' && input.scope !== 'joined') {
+        throw new Error('channel_read: invalid scope');
+      }
+      if (input.scope !== 'joined') {
+        const channel = resolve(input.channelId);
+        const page = this.#channels.queryMessages(channel.id, input);
+        const messages = page.messages.map((message) => ({
+          channelId: channel.id,
+          channelName: channel.name,
+          message,
+        }));
+        return {
+          messages,
+          ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
+        };
+      }
+      if (input.channelId !== undefined) {
+        throw new Error('channel_read: channel_id cannot be combined with joined scope');
+      }
+      const text = requireNonBlank(input.text ?? '', 'Cross-Channel text query');
+      const channels = this.#channels
+        .list()
+        .filter((channel) => this.#isMember(botSlug, channel))
+        .sort((left, right) => left.id.localeCompare(right.id));
+      const filter = createHash('sha256')
+        .update(
+          JSON.stringify({
+            channelIds: channels.map((channel) => channel.id),
+            text: text.toLowerCase(),
+            authorBotId: input.authorBotId,
+            authorKind: input.authorKind,
+            from: input.from,
+            to: input.to,
+          }),
+        )
+        .digest('hex')
+        .slice(0, 16);
+      type SortKey = { at: string; channelId: string; messageId: string };
+      const descending = (left: string, right: string): number =>
+        right < left ? -1 : right > left ? 1 : 0;
+      const compare = (left: SortKey, right: SortKey): number =>
+        Date.parse(right.at) - Date.parse(left.at) ||
+        descending(left.channelId, right.channelId) ||
+        descending(left.messageId, right.messageId);
+      let after: SortKey | undefined;
+      if (input.cursor !== undefined) {
+        try {
+          const decoded: unknown = JSON.parse(
+            Buffer.from(input.cursor, 'base64url').toString('utf8'),
+          );
+          if (
+            typeof decoded !== 'object' ||
+            decoded === null ||
+            !('filter' in decoded) ||
+            decoded.filter !== filter ||
+            !('at' in decoded) ||
+            typeof decoded.at !== 'string' ||
+            !('channelId' in decoded) ||
+            typeof decoded.channelId !== 'string' ||
+            !('messageId' in decoded) ||
+            typeof decoded.messageId !== 'string'
+          )
+            throw new Error('invalid');
+          after = { at: decoded.at, channelId: decoded.channelId, messageId: decoded.messageId };
+        } catch {
+          throw new Error('channel_read: invalid cursor');
+        }
+      }
+      const {
+        cursor: _cursor,
+        scope: _scope,
+        channelId: _channelId,
+        limit: _limit,
+        ...filters
+      } = input;
+      const limit = Math.max(1, Math.min(Math.floor(input.limit ?? 20), MAX_MESSAGE_PAGE));
+      const afterTo =
+        after !== undefined && Number.isFinite(Date.parse(after.at)) ? after.at : undefined;
+      if (
+        afterTo !== undefined &&
+        filters.from !== undefined &&
+        Date.parse(filters.from) > Date.parse(afterTo)
+      )
+        return { messages: [] };
+      const found: ChannelMessageView[] = [];
+      for (const channel of channels) {
+        let cursor: string | undefined;
+        do {
+          const page = this.#channels.queryMessages(channel.id, {
+            ...filters,
+            text,
+            ...(afterTo !== undefined && filters.to === undefined ? { to: afterTo } : {}),
+            orderBy: 'time',
+            ...(cursor === undefined ? {} : { cursor }),
+            limit: MAX_MESSAGE_PAGE,
+          });
+          for (const message of page.messages) {
+            const key = { at: message.at, channelId: channel.id, messageId: message.id };
+            if (after !== undefined && compare(key, after) <= 0) continue;
+            found.push({ channelId: channel.id, channelName: channel.name, message });
+          }
+          found.sort((left, right) =>
+            compare(
+              { at: left.message.at, channelId: left.channelId, messageId: left.message.id },
+              { at: right.message.at, channelId: right.channelId, messageId: right.message.id },
+            ),
+          );
+          found.length = Math.min(found.length, limit + 1);
+          cursor = page.nextCursor;
+          const tail = page.messages.at(-1);
+          const worst = found[limit];
+          if (
+            cursor !== undefined &&
+            tail !== undefined &&
+            worst !== undefined &&
+            compare(
+              { at: tail.at, channelId: channel.id, messageId: tail.id },
+              { at: worst.message.at, channelId: worst.channelId, messageId: worst.message.id },
+            ) >= 0
+          )
+            break;
+        } while (cursor !== undefined);
+      }
+      const page = found;
+      const messages = page.slice(0, limit);
+      const last = messages.at(-1);
+      return {
+        messages,
+        ...(page.length <= limit || last === undefined
+          ? {}
+          : {
+              nextCursor: Buffer.from(
+                JSON.stringify({
+                  at: last.message.at,
+                  channelId: last.channelId,
+                  messageId: last.message.id,
+                  filter,
+                }),
+              ).toString('base64url'),
+            }),
+      };
+    };
     return {
       list: (input = {}) => {
         if (input.type !== undefined && input.type !== 'group' && input.type !== 'dm') {
@@ -2945,149 +3093,35 @@ class BotRuntimeImplementation implements BotRuntime {
         return messages;
       },
       query: (input = {}) => {
-        if (input.scope !== undefined && input.scope !== 'channel' && input.scope !== 'joined') {
-          throw new Error('channel_read: invalid scope');
+        const page = queryPage(input);
+        this.#observeReadMessages(botSlug, page.messages, readAdmissions);
+        return page;
+      },
+      readModel: (input = {}) => {
+        if (input.messageId !== undefined) {
+          const { channelId, messageId, contentCursor, ...filters } = input;
+          if (Object.values(filters).some((value) => value !== undefined))
+            throw new Error('channel_read: message_id cannot be combined with query filters');
+          const channel = resolve(channelId);
+          const message = this.#channels.message(channel.id, messageId);
+          if (message === undefined) throw new Error('channel_read: message not found');
+          const view = { channelId: channel.id, channelName: channel.name, message };
+          const chunk = readModelContent(view, contentCursor);
+          const previous = contentProgress.get(chunk.hash) ?? 0;
+          const progress = chunk.start <= previous ? Math.max(previous, chunk.end) : previous;
+          contentProgress.set(chunk.hash, progress);
+          if (progress === chunk.total) this.#observeReadMessages(botSlug, [view], readAdmissions);
+          return chunk.output;
         }
-        if (input.scope !== 'joined') {
-          const channel = resolve(input.channelId);
-          const page = this.#channels.queryMessages(channel.id, input);
-          const messages = page.messages.map((message) => ({
-            channelId: channel.id,
-            channelName: channel.name,
-            message,
-          }));
-          this.#observeReadMessages(botSlug, messages, readAdmissions);
-          return {
-            messages,
-            ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
-          };
-        }
-        if (input.channelId !== undefined) {
-          throw new Error('channel_read: channel_id cannot be combined with joined scope');
-        }
-        const text = requireNonBlank(input.text ?? '', 'Cross-Channel text query');
-        const channels = this.#channels
-          .list()
-          .filter((channel) => this.#isMember(botSlug, channel))
-          .sort((left, right) => left.id.localeCompare(right.id));
-        const filter = createHash('sha256')
-          .update(
-            JSON.stringify({
-              channelIds: channels.map((channel) => channel.id),
-              text: text.toLowerCase(),
-              authorBotId: input.authorBotId,
-              authorKind: input.authorKind,
-              from: input.from,
-              to: input.to,
-            }),
-          )
-          .digest('hex')
-          .slice(0, 16);
-        type SortKey = { at: string; channelId: string; messageId: string };
-        const descending = (left: string, right: string): number =>
-          right < left ? -1 : right > left ? 1 : 0;
-        const compare = (left: SortKey, right: SortKey): number =>
-          Date.parse(right.at) - Date.parse(left.at) ||
-          descending(left.channelId, right.channelId) ||
-          descending(left.messageId, right.messageId);
-        let after: SortKey | undefined;
-        if (input.cursor !== undefined) {
-          try {
-            const decoded: unknown = JSON.parse(
-              Buffer.from(input.cursor, 'base64url').toString('utf8'),
-            );
-            if (
-              typeof decoded !== 'object' ||
-              decoded === null ||
-              !('filter' in decoded) ||
-              decoded.filter !== filter ||
-              !('at' in decoded) ||
-              typeof decoded.at !== 'string' ||
-              !('channelId' in decoded) ||
-              typeof decoded.channelId !== 'string' ||
-              !('messageId' in decoded) ||
-              typeof decoded.messageId !== 'string'
-            )
-              throw new Error('invalid');
-            after = { at: decoded.at, channelId: decoded.channelId, messageId: decoded.messageId };
-          } catch {
-            throw new Error('channel_read: invalid cursor');
-          }
-        }
-        const {
-          cursor: _cursor,
-          scope: _scope,
-          channelId: _channelId,
-          limit: _limit,
-          ...filters
-        } = input;
-        const limit = Math.max(1, Math.min(Math.floor(input.limit ?? 20), MAX_MESSAGE_PAGE));
-        const afterTo =
-          after !== undefined && Number.isFinite(Date.parse(after.at)) ? after.at : undefined;
-        if (
-          afterTo !== undefined &&
-          filters.from !== undefined &&
-          Date.parse(filters.from) > Date.parse(afterTo)
-        )
-          return { messages: [] };
-        const found: ChannelMessageView[] = [];
-        for (const channel of channels) {
-          let cursor: string | undefined;
-          do {
-            const page = this.#channels.queryMessages(channel.id, {
-              ...filters,
-              text,
-              ...(afterTo !== undefined && filters.to === undefined ? { to: afterTo } : {}),
-              orderBy: 'time',
-              ...(cursor === undefined ? {} : { cursor }),
-              limit: MAX_MESSAGE_PAGE,
-            });
-            for (const message of page.messages) {
-              const key = { at: message.at, channelId: channel.id, messageId: message.id };
-              if (after !== undefined && compare(key, after) <= 0) continue;
-              found.push({ channelId: channel.id, channelName: channel.name, message });
-            }
-            found.sort((left, right) =>
-              compare(
-                { at: left.message.at, channelId: left.channelId, messageId: left.message.id },
-                { at: right.message.at, channelId: right.channelId, messageId: right.message.id },
-              ),
-            );
-            found.length = Math.min(found.length, limit + 1);
-            cursor = page.nextCursor;
-            const tail = page.messages.at(-1);
-            const worst = found[limit];
-            if (
-              cursor !== undefined &&
-              tail !== undefined &&
-              worst !== undefined &&
-              compare(
-                { at: tail.at, channelId: channel.id, messageId: tail.id },
-                { at: worst.message.at, channelId: worst.channelId, messageId: worst.message.id },
-              ) >= 0
-            )
-              break;
-          } while (cursor !== undefined);
-        }
-        const page = found;
-        const messages = page.slice(0, limit);
-        const last = messages.at(-1);
-        this.#observeReadMessages(botSlug, messages, readAdmissions);
-        return {
-          messages,
-          ...(page.length <= limit || last === undefined
-            ? {}
-            : {
-                nextCursor: Buffer.from(
-                  JSON.stringify({
-                    at: last.message.at,
-                    channelId: last.channelId,
-                    messageId: last.message.id,
-                    filter,
-                  }),
-                ).toString('base64url'),
-              }),
-        };
+        if (input.contentCursor !== undefined)
+          throw new Error('channel_read: content_cursor requires message_id');
+        const page = queryPage(input);
+        const bounded = boundModelPage(
+          page,
+          (count) => queryPage({ ...input, limit: count }).nextCursor,
+        );
+        this.#observeReadMessages(botSlug, bounded.included, readAdmissions);
+        return bounded.output;
       },
       readAttachment: async (input) => {
         const channel = resolve(input.channelId);
