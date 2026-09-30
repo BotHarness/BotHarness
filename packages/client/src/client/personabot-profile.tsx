@@ -130,6 +130,7 @@ export function ProfileView({
     useState<BotSourcePolicyEdit['sourceClass']>();
   const [sourceWakeDraft, setSourceWakeDraft] =
     useState<BotSourcePolicyView['wake']>('conditional');
+  const [sourceDeliveryDraft, setSourceDeliveryDraft] = useState<'steer' | 'turn'>('steer');
   const [digestCountDraft, setDigestCountDraft] = useState(5);
   const [digestIntervalDraft, setDigestIntervalDraft] = useState(30);
   const [sourcePolicyBusy, setSourcePolicyBusy] = useState(false);
@@ -198,6 +199,16 @@ export function ProfileView({
         await actions.setBotSourcePolicy(bot.slug, {
           sourceClass: 'assignment-report',
           wake: sourceWakeDraft,
+        });
+      } else if (
+        editingSourcePolicy === 'human-dm' ||
+        editingSourcePolicy === 'bot-dm' ||
+        editingSourcePolicy === 'group-mention'
+      ) {
+        await actions.setBotSourcePolicy(bot.slug, {
+          sourceClass: editingSourcePolicy,
+          wake: 'immediate',
+          delivery: sourceDeliveryDraft,
         });
       } else {
         if (
@@ -460,6 +471,18 @@ export function ProfileView({
                               ? t('sourcePolicy.admitSilent')
                               : t('sourcePolicy.admitImmediate')}
                     </span>
+                    {(policy.sourceClass === 'human-dm' ||
+                      policy.sourceClass === 'bot-dm' ||
+                      policy.sourceClass === 'group-mention') && (
+                      <span>
+                        {'· '}
+                        {t(
+                          policy.delivery === 'turn'
+                            ? 'sourcePolicy.deliveryTurn'
+                            : 'sourcePolicy.deliverySteer',
+                        )}
+                      </span>
+                    )}
                     {policy.sourceClass === 'group-ordinary' && (
                       <span className="bh-note">{t('sourcePolicy.groupOverride')}</span>
                     )}
@@ -483,11 +506,15 @@ export function ProfileView({
                       {new Date(policy.changedAt).toLocaleString()}
                     </span>
                     {(policy.sourceClass === 'assignment-report' ||
-                      policy.sourceClass === 'group-ordinary') && (
+                      policy.sourceClass === 'group-ordinary' ||
+                      policy.sourceClass === 'human-dm' ||
+                      policy.sourceClass === 'bot-dm' ||
+                      policy.sourceClass === 'group-mention') && (
                       <Button
                         variant="outline"
                         onClick={() => {
                           setSourceWakeDraft(policy.wake);
+                          setSourceDeliveryDraft(policy.delivery);
                           setDigestCountDraft(policy.digestCount ?? 5);
                           setDigestIntervalDraft(policy.digestIntervalSeconds ?? 30);
                           setSourcePolicySaveError(false);
@@ -514,12 +541,16 @@ export function ProfileView({
           title={t(
             editingSourcePolicy === 'group-ordinary'
               ? 'sourcePolicy.groupEditTitle'
-              : 'sourcePolicy.editTitle',
+              : editingSourcePolicy === 'assignment-report'
+                ? 'sourcePolicy.editTitle'
+                : 'sourcePolicy.immediateEditTitle',
           )}
           description={t(
             editingSourcePolicy === 'group-ordinary'
               ? 'sourcePolicy.groupEditDescription'
-              : 'sourcePolicy.editDescription',
+              : editingSourcePolicy === 'assignment-report'
+                ? 'sourcePolicy.editDescription'
+                : 'sourcePolicy.immediateEditDescription',
           )}
           footer={
             <>
@@ -540,33 +571,50 @@ export function ProfileView({
             </>
           }
         >
-          <select
-            className="bh-profile-policy-select"
-            aria-label={t(
-              editingSourcePolicy === 'group-ordinary'
-                ? 'sourcePolicy.groupEditTitle'
-                : 'sourcePolicy.editTitle',
-            )}
-            value={sourceWakeDraft}
-            disabled={sourcePolicyBusy}
-            onChange={(event) =>
-              setSourceWakeDraft(event.target.value as BotSourcePolicyView['wake'])
-            }
-          >
-            {editingSourcePolicy === 'assignment-report' ? (
-              <>
-                <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
-                <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
-              </>
-            ) : (
-              <>
-                <option value="immediate">{t('sourcePolicy.groupAllOption')}</option>
-                <option value="digest">{t('sourcePolicy.groupDigestOption')}</option>
-                <option value="mentions">{t('sourcePolicy.groupMentionsOption')}</option>
-                <option value="silent">{t('sourcePolicy.groupSilentOption')}</option>
-              </>
-            )}
-          </select>
+          {editingSourcePolicy === 'human-dm' ||
+          editingSourcePolicy === 'bot-dm' ||
+          editingSourcePolicy === 'group-mention' ? (
+            <select
+              className="bh-profile-policy-select"
+              aria-label={t('sourcePolicy.immediateEditTitle')}
+              value={sourceDeliveryDraft}
+              disabled={sourcePolicyBusy}
+              onChange={(event) =>
+                setSourceDeliveryDraft(event.target.value === 'turn' ? 'turn' : 'steer')
+              }
+            >
+              <option value="steer">{t('sourcePolicy.deliverySteerOption')}</option>
+              <option value="turn">{t('sourcePolicy.deliveryTurnOption')}</option>
+            </select>
+          ) : (
+            <select
+              className="bh-profile-policy-select"
+              aria-label={t(
+                editingSourcePolicy === 'group-ordinary'
+                  ? 'sourcePolicy.groupEditTitle'
+                  : 'sourcePolicy.editTitle',
+              )}
+              value={sourceWakeDraft}
+              disabled={sourcePolicyBusy}
+              onChange={(event) =>
+                setSourceWakeDraft(event.target.value as BotSourcePolicyView['wake'])
+              }
+            >
+              {editingSourcePolicy === 'assignment-report' ? (
+                <>
+                  <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
+                  <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
+                </>
+              ) : (
+                <>
+                  <option value="immediate">{t('sourcePolicy.groupAllOption')}</option>
+                  <option value="digest">{t('sourcePolicy.groupDigestOption')}</option>
+                  <option value="mentions">{t('sourcePolicy.groupMentionsOption')}</option>
+                  <option value="silent">{t('sourcePolicy.groupSilentOption')}</option>
+                </>
+              )}
+            </select>
+          )}
           {editingSourcePolicy === 'group-ordinary' && sourceWakeDraft === 'digest' && (
             <div className="bh-profile-policy-digest">
               <label>

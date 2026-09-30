@@ -362,9 +362,6 @@ describe('per-PersonaBot source policy defaults', () => {
         }),
       ).toMatchObject({ ok: false });
       const protectedClasses = [
-        'human-dm',
-        'bot-dm',
-        'group-mention',
         'group-invite',
         'group-join-request',
         'group-join-decision',
@@ -383,6 +380,19 @@ describe('per-PersonaBot source policy defaults', () => {
         expect(unchangedRules.find((rule) => rule.sourceClass === sourceClass)).toMatchObject({
           revision: 1,
         });
+      const editableImmediate = ['human-dm', 'bot-dm', 'group-mention'];
+      for (const sourceClass of editableImmediate) {
+        expect(
+          methods.botSourcePolicySet({ slug: 'ada', sourceClass, delivery: 'turn' }),
+        ).toMatchObject({
+          ok: true,
+          value: { policy: { sourceClass, wake: 'immediate', delivery: 'turn' } },
+        });
+        expect(methods.botSourcePolicyReset({ slug: 'ada', sourceClass })).toMatchObject({
+          ok: true,
+          value: { policy: { sourceClass, delivery: 'steer' } },
+        });
+      }
       expect(unchangedRules.find((rule) => rule.sourceClass === 'group-ordinary')).toMatchObject({
         revision: 3,
       });
