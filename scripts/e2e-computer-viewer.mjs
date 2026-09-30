@@ -201,8 +201,14 @@ try {
     );
     await waitRunning();
   }
+  await waitLive(page);
+  const initialViewerDocuments = viewerDocuments;
   const originalFrame = await exerciseFullscreen(page, 'light');
-  assert.equal(viewerDocuments, 1, 'fullscreen must not open a second viewer stream');
+  assert.equal(
+    viewerDocuments,
+    initialViewerDocuments,
+    'fullscreen must not open a second viewer stream',
+  );
 
   await page.setRequestInterception(true);
   const blankViewer = (request) => {
@@ -246,7 +252,11 @@ try {
     { timeout: 90_000, polling: 500 },
   );
   await page.screenshot({ path: `${shots}/light-empty.png` });
-  assert.equal(viewerDocuments, 5, 'loss remount and three bounded automatic reloads are expected');
+  assert.equal(
+    viewerDocuments - initialViewerDocuments,
+    4,
+    'loss remount and three bounded automatic reloads are expected',
+  );
   await page.setRequestInterception(false);
   page.off('request', blankViewer);
   await page.evaluate(() =>

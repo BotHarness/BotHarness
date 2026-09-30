@@ -5,7 +5,6 @@ export default defineConfig({
   oxc: { jsx: { runtime: 'automatic', importSource: 'react' } },
   resolve: { alias: { '@': fileURLToPath(new URL('./apps/docs/src', import.meta.url)) } },
   test: {
-    // Git-backed fixtures and the docs build contend when test files run together.
     fileParallelism: false,
     testTimeout: 15_000,
     include: [
