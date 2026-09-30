@@ -18,6 +18,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools';
 import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
 import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 
+import type { GroupInvitation, GroupJoinRequest } from '../channels/channel.js';
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import {
   assignmentModelsOf,
@@ -36,9 +37,33 @@ import type {
 
 function groupCommandResult(
   channel: { id: string; name: string },
-  outcome: 'renamed' | 'member-removed',
+  outcome: 'created' | 'renamed' | 'member-removed',
 ) {
   return { channelId: channel.id, name: channel.name, outcome };
+}
+
+function groupInvitationResult(
+  channelId: string,
+  invitation: Pick<GroupInvitation, 'id' | 'targetBotSlug' | 'status'>,
+) {
+  return {
+    channelId,
+    inviteId: invitation.id,
+    inviteeBotId: invitation.targetBotSlug,
+    outcome: invitation.status,
+  };
+}
+
+function groupJoinResult(
+  channelId: string,
+  request: Pick<GroupJoinRequest, 'id' | 'requesterBotSlug' | 'status'>,
+) {
+  return {
+    channelId,
+    requestId: request.id,
+    requesterBotId: request.requesterBotSlug,
+    outcome: request.status,
+  };
 }
 
 const ROLE_PROMPT_ORDER = 10_350;
@@ -1162,7 +1187,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_create: Orchestrator run is unavailable');
-            return JSON.stringify(active.run.channels.createGroup(args.name));
+            return JSON.stringify(
+              groupCommandResult(active.run.channels.createGroup(args.name), 'created'),
+            );
           },
         }),
       );
@@ -1183,12 +1210,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_invite_bot: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.inviteGroup({
-                channelId: args.channel_id,
-                targetBotSlug: args.bot_id,
-              }),
-            );
+            const invitation = active.run.channels.inviteGroup({
+              channelId: args.channel_id,
+              targetBotSlug: args.bot_id,
+            });
+            return JSON.stringify(groupInvitationResult(args.channel_id, invitation));
           },
         }),
       );
@@ -1216,12 +1242,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_invite_respond: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.respondToGroupInvite({
-                invitationId: args.invite_id,
-                accept: args.accept,
-              }),
-            );
+            const result = active.run.channels.respondToGroupInvite({
+              invitationId: args.invite_id,
+              accept: args.accept,
+            });
+            return JSON.stringify({
+              ...groupInvitationResult(result.channel.id, result.invitation),
+              name: result.channel.name,
+            });
           },
         }),
       );
@@ -1248,9 +1276,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               active.run.channels.requestGroupJoin === undefined
             )
               throw new Error('group_join_request: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.requestGroupJoin({ channelId: args.channel_id }),
-            );
+            const request = active.run.channels.requestGroupJoin({ channelId: args.channel_id });
+            return JSON.stringify(groupJoinResult(args.channel_id, request));
           },
         }),
       );
@@ -1275,13 +1302,15 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               active.run.channels.decideGroupJoin === undefined
             )
               throw new Error('group_join_decide: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.decideGroupJoin({
-                channelId: args.channel_id,
-                requestId: args.request_id,
-                accept: args.accept,
-              }),
-            );
+            const result = active.run.channels.decideGroupJoin({
+              channelId: args.channel_id,
+              requestId: args.request_id,
+              accept: args.accept,
+            });
+            return JSON.stringify({
+              ...groupJoinResult(result.channel.id, result.request),
+              name: result.channel.name,
+            });
           },
         }),
       );

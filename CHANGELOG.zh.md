@@ -104,6 +104,10 @@
 
 ### Changed
 
+- Group 入群申请和决定工具现在仅返回简短的 Channel、申请及申请者引用和实际状态；仍须批准后才能访问群，不再把完整群记录或内部身份时间戳复制进模型上下文（[#563](https://github.com/BotHarness/BotHarness/issues/563)）。
+
+- Group 创建与邀请工具现在仅返回简短的 Channel、邀请及目标 Bot 引用和实际决定状态；接受或拒绝时不再把完整群记录复制进模型上下文，拒绝仍不授予群访问权限（[#562](https://github.com/BotHarness/BotHarness/issues/562)）。
+
 - Group 改名与移除成员工具现在仅确认已提交的 Channel、群名、结果和受影响的 Bot，不再把头像或无关群状态复制进模型上下文；改名持久化意外未返回记录时会明确失败（[#561](https://github.com/BotHarness/BotHarness/issues/561)）。
 
 - Browser Pause 现在明确说明 Human 始终可以直接操作本地浏览器窗口；暂停后的工具拒绝提示先「继续」再重新观察，暂停期间仍可读取页面（[#495](https://github.com/BotHarness/BotHarness/issues/495)）。
@@ -174,6 +178,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- Browser 每次重新观察都会以独立的 ref 替换上一次标记，旧 ref 不再因页面变化而误点另一个控件；role-less 点击目标在重复观察时仍会出现，旧 ref 返回可读的重新观察提示（[#579](https://github.com/BotHarness/BotHarness/issues/579)）。
 
 - PersonaBot 的旧模型选择仅在匹配唯一可用 provider 时迁移；有歧义或不可用的路由会停止新请求，并引导 Human 在 Profile 修复模型预设，不会自动切换 provider（[#500](https://github.com/BotHarness/BotHarness/issues/500)）。
 - 排队的 Browser 动作在真正开始执行时重新检查 Browser Pause 和 Browser Access；Human 暂停或关闭权限会拦截已在队列等待的动作，暂停期间仍可观察页面（[#569](https://github.com/BotHarness/BotHarness/issues/569)）。
