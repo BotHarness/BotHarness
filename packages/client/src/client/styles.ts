@@ -2105,6 +2105,12 @@ button.bh-profile-heat-cell:focus-visible {
   gap: 8px;
 }
 .bh-model-usage-range input { width: auto; }
+.bh-usage-model-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.bh-usage-grouping { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }
+.bh-usage-grouping button { border: 0; border-radius: 6px; padding: 4px 10px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }
+.bh-usage-grouping button[aria-pressed="true"] { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+.bh-usage-grouping button:hover { color: var(--dsw-alias-label-primary); }
+.bh-usage-grouping button:focus-visible { outline: 2px solid var(--bh-accent); outline-offset: 2px; }
 .bh-usage-daily, .bh-usage-models, .bh-usage-cache { display: grid; gap: 12px; }
 .bh-usage-axis-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--dsw-alias-label-secondary); }
 .bh-usage-model-plot { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }

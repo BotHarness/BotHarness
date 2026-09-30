@@ -13,8 +13,6 @@ import { useProfileChartTokens } from './profile-chart-theme.js';
 export type UsageSummary = Omit<ProfileModelUsageRow, 'day' | 'purpose' | 'provider' | 'model'> & {
   key: string;
   label: string;
-  model?: string;
-  provider?: string;
 };
 type UsageSeries = 'cached' | 'uncached' | 'output' | 'unclassified';
 type ChartDatum = UsageSummary & { series?: UsageSeries; tokens?: number; ratio?: number };
@@ -235,7 +233,7 @@ export function UsageChart({
             <UsageMeasures row={row} t={t} />
             {kind === 'cache' ? (
               <span>
-                {t('profile.usage.cacheRatio')}: <CacheRatio row={row} t={t} />
+                {t('profile.usage.cachedShare')}: <CacheRatio row={row} t={t} />
               </span>
             ) : null}
           </div>

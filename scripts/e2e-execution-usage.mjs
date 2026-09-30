@@ -329,7 +329,7 @@ try {
     const weekStartDate = new Date(year, month - 1, day - 6);
     const weekStart = `${weekStartDate.getFullYear()}-${`${weekStartDate.getMonth() + 1}`.padStart(2, '0')}-${`${weekStartDate.getDate()}`.padStart(2, '0')}`;
     for (const row of rows.filter((row) => row.day >= weekStart && row.day <= activity.today)) {
-      const name = `${row.provider} / ${row.model}`;
+      const name = row.model;
       modelTotals.set(name, (modelTotals.get(name) ?? 0) + row.totalTokens);
       const aggregate = modelBuckets.get(name) ?? { input: 0, cache: 0, output: 0, total: 0 };
       aggregate.input += row.inputTokens + row.cacheReadTokens + row.cacheWriteTokens;
@@ -342,6 +342,7 @@ try {
       collapsed: !element.querySelector('details').open,
       charts: element.querySelectorAll('.bh-profile-bar-chart').length,
       preset: element.querySelector('select').value,
+      grouping: element.querySelector('.bh-usage-grouping [aria-pressed="true"]').dataset.group,
       models: [...element.querySelectorAll('.bh-usage-model-label')].map((row) => ({
         label: row.querySelector('span').getAttribute('title'),
         total: row.querySelector('strong').textContent,
@@ -359,6 +360,7 @@ try {
       !presentation.collapsed ||
       presentation.charts !== 3 ||
       presentation.preset !== '7' ||
+      presentation.grouping !== 'model' ||
       presentation.hasRoles
     )
       throw new Error('The default usage overview does not hide execution details');
@@ -443,6 +445,80 @@ try {
         ?.scrollIntoView({ block: 'center' }),
     );
     presentation.cacheTooltip = true;
+    await page.$eval('.bh-usage-grouping [data-group="provider"]', (element) => element.focus());
+    await page.keyboard.press('Space');
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('.bh-usage-grouping [data-group="provider"]')
+          .getAttribute('aria-pressed') === 'true',
+    );
+    const providers = await page.$$eval('.bh-usage-model-label', (labels) =>
+      labels.map((element) => ({
+        label: element.querySelector('span').getAttribute('title'),
+        total: element.querySelector('strong').textContent,
+        measures: [...element.querySelectorAll('.bh-usage-measures dd')].map(
+          (entry) => entry.textContent,
+        ),
+      })),
+    );
+    const expectedProviders = new Map();
+    const [year, month, day] = activity.today.split('-').map(Number);
+    const week = new Date(year, month - 1, day - 6);
+    const start = `${week.getFullYear()}-${`${week.getMonth() + 1}`.padStart(2, '0')}-${`${week.getDate()}`.padStart(2, '0')}`;
+    for (const row of rows.filter((row) => row.day >= start && row.day <= activity.today)) {
+      const value = expectedProviders.get(row.provider) ?? {
+        total: 0,
+        input: 0,
+        cache: 0,
+        output: 0,
+      };
+      value.total += row.totalTokens;
+      value.input += row.inputTokens + row.cacheReadTokens + row.cacheWriteTokens;
+      value.cache += row.cacheReadTokens;
+      value.output += row.outputTokens;
+      expectedProviders.set(row.provider, value);
+    }
+    if (providers.length !== expectedProviders.size)
+      throw new Error('Provider grouping did not merge its models');
+    for (const row of providers) {
+      const value = expectedProviders.get(row.label);
+      const percent = (part, total) =>
+        `${((part / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+      const measures = [
+        value.input.toLocaleString(),
+        `${value.cache.toLocaleString()} · ${percent(value.cache, value.input)}`,
+        `${value.output.toLocaleString()} · ${percent(value.output, value.total)}`,
+      ];
+      if (
+        row.total.replace(/[^0-9]/gu, '') !== String(value.total) ||
+        JSON.stringify(row.measures) !== JSON.stringify(measures)
+      )
+        throw new Error(
+          'Provider totals or weighted percentages differ from the same actual calls',
+        );
+    }
+    const providerText = await page.$eval('.bh-model-usage', (element) => element.textContent);
+    if (presentation.models.some((entry) => providerText.includes(entry.label)))
+      throw new Error('Provider view nests individual model labels');
+    await page.evaluate(() => {
+      document.activeElement?.blur();
+      document
+        .querySelector('.bh-model-usage')
+        ?.closest('.bh-profile-card')
+        ?.scrollIntoView({ block: 'center' });
+    });
+    await page.screenshot({ path: screenshot.replace(/\.png$/u, '-provider.png') });
+    await page.$eval('.bh-usage-grouping [data-group="model"]', (element) => element.click());
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('.bh-usage-grouping [data-group="model"]')
+          .getAttribute('aria-pressed') === 'true',
+    );
+    await page.evaluate(() => document.activeElement?.blur());
+    presentation.providers = providers;
+    presentation.groupSwitch = true;
   }
   const measured = await page.$eval('.bh-profile-view', (element) => ({
     width: element.getBoundingClientRect().width,

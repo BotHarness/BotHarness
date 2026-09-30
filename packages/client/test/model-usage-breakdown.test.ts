@@ -71,7 +71,7 @@ async function openDetails(container: HTMLElement) {
 }
 
 describe('coordinated actual-model usage', () => {
-  it('merges roles by exact provider/model by default and synchronizes both charts and details to one range', async () => {
+  it('merges roles and providers by model by default and synchronizes charts and details to one range', async () => {
     const { container, cleanup } = await renderUsage([
       base,
       { ...base, provider: 'provider-b', cacheWriteTokens: null, totalTokens: 150 },
@@ -102,13 +102,13 @@ describe('coordinated actual-model usage', () => {
         '2026-09-242026-09-30',
       );
       expect(container.querySelectorAll('.bh-profile-bar-chart')).toHaveLength(3);
-      expect(container.querySelectorAll('.bh-usage-model-label')).toHaveLength(2);
+      expect(container.querySelectorAll('.bh-usage-model-label')).toHaveLength(1);
       expect(container.querySelector('.bh-usage-model-labels')?.textContent).toContain(
-        '405 tokens',
+        '555 tokens',
       );
       expect(container.textContent).toContain('Selected period: 555 tokens');
-      expect(container.textContent).toContain('provider-a');
-      expect(container.textContent).toContain('provider-b');
+      expect(container.textContent).not.toContain('provider-a');
+      expect(container.textContent).not.toContain('provider-b');
       expect(container.querySelector<HTMLDetailsElement>('details')?.open).toBe(false);
       expect(container.textContent).not.toContain('Orchestrator');
       expect(container.textContent).not.toContain('Assignment');
@@ -131,7 +131,7 @@ describe('coordinated actual-model usage', () => {
       await choose(container, '1');
       expect(container.textContent).toContain('Selected period: 355 tokens');
       expect(container.querySelector('.bh-usage-model-labels')?.textContent).toContain(
-        '205 tokens',
+        '355 tokens',
       );
       expect(container.querySelectorAll('.bh-usage-day-table tbody tr')).toHaveLength(1);
       expect(container.querySelector('.bh-usage-axis-labels')?.textContent).toBe(
@@ -199,7 +199,7 @@ describe('coordinated actual-model usage', () => {
         outputTokens: 5,
         totalTokens: 100,
       },
-      { ...base, provider: 'provider-b' },
+      { ...base, provider: 'provider-b', model: 'another-model' },
     ]);
     try {
       const model = container.querySelector('.bh-usage-model-label')!;
@@ -217,6 +217,58 @@ describe('coordinated actual-model usage', () => {
       expect(today[1]?.textContent).toBe('10 · 8.7%');
       expect(today[2]?.textContent).toBe('40 · 25.8%');
       expect(container.querySelector('.bh-usage-cache-label')?.textContent).toContain('8.7%');
+    } finally {
+      await cleanup();
+    }
+  });
+  it('switches model and provider summaries without nesting the other dimension or changing period totals', async () => {
+    const { container, cleanup } = await renderUsage([
+      base,
+      { ...base, provider: 'provider-b' },
+      {
+        ...base,
+        model: 'other-model',
+        purpose: 'assignment',
+        inputTokens: 10,
+        cacheReadTokens: 5,
+        cacheWriteTokens: 0,
+        outputTokens: 5,
+        totalTokens: 20,
+      },
+    ]);
+    try {
+      expect(container.querySelector('[data-group="model"]')?.getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+      expect(container.querySelector('.bh-usage-model-labels')?.textContent).toContain(
+        '310 tokens',
+      );
+      expect(container.textContent).not.toContain('provider-a');
+      expect(container.textContent).not.toContain('provider-b');
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('[data-group="provider"]')!.click();
+      });
+      expect(container.querySelector('[data-group="provider"]')?.getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+      const labels = container.querySelector('.bh-usage-model-labels')!.textContent!;
+      expect(labels).toContain('provider-a175 tokens');
+      expect(labels).toContain('provider-b155 tokens');
+      expect(container.textContent).not.toContain('shared-name');
+      expect(container.textContent).not.toContain('other-model');
+      expect(container.querySelector('.bh-usage-cache')?.textContent).toContain(
+        'Cache ratio by provider',
+      );
+      expect(container.querySelectorAll('.bh-usage-cache-label')).toHaveLength(2);
+      expect(container.textContent).toContain('Selected period: 330 tokens');
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('[data-group="model"]')!.click();
+      });
+      expect(container.querySelector('.bh-usage-model-labels')?.textContent).toContain(
+        '310 tokens',
+      );
+      expect(container.textContent).not.toContain('provider-a');
+      expect(container.textContent).toContain('Selected period: 330 tokens');
     } finally {
       await cleanup();
     }

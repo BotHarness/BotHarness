@@ -30,7 +30,7 @@ function sumBucket(left: number | null, right: number | null): number | null {
 
 function summaries(
   rows: readonly ProfileModelUsageRow[],
-  group: (row: ProfileModelUsageRow) => Pick<UsageSummary, 'key' | 'label' | 'model' | 'provider'>,
+  group: (row: ProfileModelUsageRow) => Pick<UsageSummary, 'key' | 'label'>,
 ): UsageSummary[] {
   const result = new Map<string, UsageSummary>();
   for (const row of rows) {
@@ -87,6 +87,7 @@ export function ModelUsageBreakdown({
   const [customStart, setStart] = useState(firstDay);
   const [customEnd, setEnd] = useState(today);
   const [expanded, setExpanded] = useState(false);
+  const [grouping, setGrouping] = useState<'model' | 'provider'>('model');
   const start =
     preset === 'custom'
       ? customStart
@@ -100,10 +101,8 @@ export function ModelUsageBreakdown({
     start <= end;
   const selected = valid ? rows.filter((row) => row.day >= start && row.day <= end) : [];
   const models = summaries(selected, (row) => ({
-    key: JSON.stringify([row.provider, row.model]),
-    label: `${row.provider} / ${row.model}`,
-    model: row.model,
-    provider: row.provider,
+    key: row[grouping],
+    label: row[grouping],
   }));
   models.sort(
     (left, right) =>
@@ -143,7 +142,7 @@ export function ModelUsageBreakdown({
   return (
     <section
       className="bh-model-usage bh-model-usage-overview"
-      aria-label={t('profile.usage.byModel')}
+      aria-label={t('profile.card.tokens')}
     >
       <div className="bh-model-usage-header">
         <label>
@@ -223,35 +222,68 @@ export function ModelUsageBreakdown({
                 </div>
               </div>
               <div className="bh-usage-models">
-                <strong>{t('profile.usage.byModel')}</strong>
+                <div className="bh-usage-model-heading">
+                  <strong>
+                    {t(grouping === 'model' ? 'profile.usage.byModel' : 'profile.usage.byProvider')}
+                  </strong>
+                  <div
+                    className="bh-usage-grouping"
+                    role="group"
+                    aria-label={t('profile.usage.grouping')}
+                  >
+                    <button
+                      type="button"
+                      data-group="model"
+                      aria-pressed={grouping === 'model'}
+                      onClick={() => setGrouping('model')}
+                    >
+                      {t('profile.usage.models')}
+                    </button>
+                    <button
+                      type="button"
+                      data-group="provider"
+                      aria-pressed={grouping === 'provider'}
+                      onClick={() => setGrouping('provider')}
+                    >
+                      {t('profile.usage.providers')}
+                    </button>
+                  </div>
+                </div>
                 <UsageLegend rows={models} t={t} />
                 <div className="bh-usage-model-plot">
                   <div className="bh-usage-model-labels">
                     {models.map((row) => (
                       <div className="bh-usage-model-label" key={row.key}>
-                        <span title={row.label}>{row.model}</span>
-                        <span className="bh-note" title={row.provider}>
-                          {row.provider}
-                        </span>
+                        <span title={row.label}>{row.label}</span>
                         <strong>{count(row.totalTokens)} tokens</strong>
                         <UsageMeasures row={row} t={t} />
                       </div>
                     ))}
                   </div>
-                  <UsageChart rows={models} kind="model" label={t('profile.usage.byModel')} t={t} />
+                  <UsageChart
+                    rows={models}
+                    kind="model"
+                    label={t(
+                      grouping === 'model' ? 'profile.usage.byModel' : 'profile.usage.byProvider',
+                    )}
+                    t={t}
+                  />
                 </div>
               </div>
               <div className="bh-usage-cache">
-                <strong>{t('profile.usage.cacheRatio')}</strong>
+                <strong>
+                  {t(
+                    grouping === 'model'
+                      ? 'profile.usage.cacheRatio'
+                      : 'profile.usage.providerCacheRatio',
+                  )}
+                </strong>
                 <p className="bh-note">{t('profile.usage.ratioDescription')}</p>
                 <div className="bh-usage-model-plot">
                   <div>
                     {models.map((row) => (
                       <div className="bh-usage-cache-label" key={row.key}>
-                        <span title={row.label}>{row.model}</span>
-                        <span className="bh-note" title={row.provider}>
-                          {row.provider}
-                        </span>
+                        <span title={row.label}>{row.label}</span>
                         <CacheRatio row={row} t={t} />
                       </div>
                     ))}
@@ -260,7 +292,11 @@ export function ModelUsageBreakdown({
                     <UsageChart
                       rows={models}
                       kind="cache"
-                      label={t('profile.usage.cacheRatio')}
+                      label={t(
+                        grouping === 'model'
+                          ? 'profile.usage.cacheRatio'
+                          : 'profile.usage.providerCacheRatio',
+                      )}
                       t={t}
                     />
                     <div className="bh-usage-axis-labels">
