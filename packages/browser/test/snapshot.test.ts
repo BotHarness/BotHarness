@@ -53,13 +53,22 @@ describe('browser observe snapshot', () => {
     outside.textContent = 'plain';
     document.body.append(outside);
 
+    const editor = document.createElement('div');
+    editor.setAttribute('contenteditable', 'true');
+    const toolbarItem = document.createElement('div');
+    toolbarItem.style.cursor = 'pointer';
+    editor.append(toolbarItem);
+    document.body.append(editor);
+
     const snapshot = runSnapshot();
     const roles = snapshot.elements.map((element) => `${element.role}:${element.name}`);
     expect(roles).toContain('a:Example');
     expect(roles).toContain('clickable:icon');
     expect(roles).not.toContain('clickable:');
-    expect(snapshot.elements.filter((element) => element.role === 'clickable')).toHaveLength(1);
+    expect(snapshot.elements.filter((element) => element.role === 'clickable')).toHaveLength(2);
+    expect(roles).toContain('clickable:div @80,30');
     expect(outside.hasAttribute('data-botharness-ref')).toBe(false);
+    expect(toolbarItem.hasAttribute('data-botharness-ref')).toBe(true);
 
     vi.restoreAllMocks();
   });

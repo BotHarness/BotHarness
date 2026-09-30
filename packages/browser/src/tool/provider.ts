@@ -308,7 +308,11 @@ export function createBrowserToolProvider(
           { type: 'image', data: shot.data, mimeType: shot.mimeType },
           {
             type: 'text',
-            text: saved === undefined ? 'Screenshot captured.' : `Screenshot saved to ${saved}`,
+            text:
+              (saved === undefined ? 'Screenshot captured.' : `Screenshot saved to ${saved}`) +
+              (shot.viewport === undefined
+                ? ''
+                : ` (viewport ${shot.viewport.width}x${shot.viewport.height}; image coordinates map 1:1 to browser_click x/y)`),
           },
         ],
       };
