@@ -122,6 +122,14 @@ export function apply(ctx: Context, config: BrowserConfig): void {
   });
   ctx.provide('botharnessBrowserTools', {
     reconcileBot: (slug: string) => provider.reconcileBot(slug),
+    resetBot: (slug: string) => {
+      const started = Date.now();
+      provider.resetBot(slug);
+      diagnostics.record(
+        'lifecycle',
+        `initiator=profile-assignment phase=reset-tabs slug=${slug} durationMs=${Date.now() - started}`,
+      );
+    },
     ownsTool: (name: string) => ownsBrowserTool(name),
     needsAuthorization: (sessionId: string) => provider.needsAuthorization(sessionId),
     markAuthorized: (sessionId: string) => provider.markAuthorized(sessionId),

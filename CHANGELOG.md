@@ -189,6 +189,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Changing a PersonaBot’s Browser Profile clears its previous tab selection and Pause state, so work can start in the newly assigned profile without resuming unrelated old-profile work ([#595](https://github.com/BotHarness/BotHarness/issues/595)).
+
 - Browser Access can be disabled and re-enabled without losing a PersonaBot’s existing work tabs or current page; tools remain unavailable while Access is off ([#591](https://github.com/BotHarness/BotHarness/issues/591)).
 
 - Fixed Open Bot Browser to reveal the owned preview tab and restore minimized windows, reusing one owned blank tab when no live work remains ([#584](https://github.com/BotHarness/BotHarness/issues/584)).
