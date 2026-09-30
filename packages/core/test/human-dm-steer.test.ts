@@ -241,4 +241,88 @@ describe('Human DM steering', () => {
       core.operationalDatabase.close();
     }
   });
+
+  it('folds many short pending Human DM messages up to the character budget', async () => {
+    const home = createTempRoot('botharness-dm-burst-');
+    let markStarted = (): void => undefined;
+    let releaseTurn = (): void => undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      releaseTurn = resolve;
+    });
+    const steered: string[] = [];
+    let allowSteer = false;
+    const agents: BotAgentAdapter = {
+      async runOrchestrator() {
+        markStarted();
+        await released;
+      },
+      steerOrchestrator(_botSlug, text) {
+        if (!allowSteer) return false;
+        steered.push(text);
+        return true;
+      },
+      async runAssignment() {},
+      requestAssignment() {
+        throw new Error('No Assignment expected');
+      },
+      async close() {},
+    };
+    const core = createCore({ dshHome: home, agents });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessage(dm.id, {
+        id: 'dm-0',
+        at: '2026-09-25T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'Start',
+      });
+      const first = core.runtime.admitDmMessage({
+        channelId: dm.id,
+        messageId: 'dm-0',
+        body: 'Start',
+      });
+      expect(first.admitted).toBe(true);
+      await started;
+      for (let index = 0; index < 30; index += 1) {
+        const id = `dm-burst-${index}`;
+        const body = `SHORT-${index}`;
+        await core.channels.appendMessage(dm.id, {
+          id,
+          at: `2026-09-25T00:01:${String(index).padStart(2, '0')}.000Z`,
+          author: { kind: 'human' },
+          body,
+        });
+        expect(
+          core.runtime.admitDmMessage({ channelId: dm.id, messageId: id, body }).admitted,
+        ).toBe(true);
+      }
+      allowSteer = true;
+      await core.channels.appendMessage(dm.id, {
+        id: 'dm-trigger',
+        at: '2026-09-25T00:02:00.000Z',
+        author: { kind: 'human' },
+        body: 'TRIGGER',
+      });
+      expect(
+        core.runtime.admitDmMessage({ channelId: dm.id, messageId: 'dm-trigger', body: 'TRIGGER' })
+          .admitted,
+      ).toBe(true);
+      expect(steered).toHaveLength(1);
+      expect(steered[0]).toContain('TRIGGER');
+      expect(steered[0]).toContain('SHORT-0');
+      expect(steered[0]).toContain('SHORT-29');
+      expect(steered[0]).toContain('pending DM context');
+      expect(steered[0]).not.toContain('remain pending for later turns');
+      releaseTurn();
+      await core.runtime.whenIdle();
+    } finally {
+      releaseTurn();
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
 });

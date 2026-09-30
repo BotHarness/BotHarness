@@ -100,6 +100,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Pending context folded into a steer or harvest is now selected by the total character budget in arrival order (oldest first, no per-turn row sampling), so bursts of short messages — such as live chat comments — fold as many messages as the budget allows instead of at most twenty; messages beyond the budget stay pending for later turns ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Human DM messages now steer an active Orchestrator turn at its next safe step by default — and any messages still pending in that DM are claimed into the same steer, mirroring the Group mention context harvest; bot-DM messages steer the same way. When no turn is running the behavior is unchanged ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Isolated Windows DSH development instances can safely adopt an existing WSL DeepSeek dev key once, so real model QA uses the same machine-local credential across both environments ([#115](https://github.com/BotHarness/BotHarness/issues/115), [AX guide](docs/client-bridge.md)).
 - The Computer entry's Access switch moved into the collapsible header and, like the Browser entry, the section cannot expand while access is off ([#493](https://github.com/BotHarness/BotHarness/issues/493)).

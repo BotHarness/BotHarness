@@ -433,8 +433,6 @@ interface GroupPromptBudget {
 const GROUP_PROMPT_CHARACTER_BUDGET = 24_000;
 const DM_CONTEXT_CHARACTER_BUDGET = 8_000;
 const GROUP_PROMPT_CHANNEL_LIMIT = 100;
-const GROUP_CONTEXT_OLDEST_LIMIT = 10;
-const GROUP_CONTEXT_RECENT_LIMIT = 10;
 const GROUP_CONTEXT_BODY_LIMIT = 1_000;
 
 interface InboxUnit {
@@ -981,29 +979,18 @@ class BotRuntimeImplementation implements BotRuntime {
     const columns = `SELECT a.source_event_id, e.message_id, e.body, e.created_at,
       json_extract(e.payload_json, '$.author.kind') AS author_kind,
       json_extract(e.payload_json, '$.author.slug') AS author_slug`;
-    const oldest = database
+    const candidates = database
       .prepare(`${columns} ${base} ORDER BY e.created_at, e.rowid LIMIT ?`)
       .all(
         botSlug,
         reason,
         channelId,
         excludeSourceEventId,
-        GROUP_CONTEXT_OLDEST_LIMIT,
+        GROUP_PROMPT_CHANNEL_LIMIT,
       ) as unknown as DigestRow[];
-    const newest = database
-      .prepare(`${columns} ${base} ORDER BY e.created_at DESC, e.rowid DESC LIMIT ?`)
-      .all(
-        botSlug,
-        reason,
-        channelId,
-        excludeSourceEventId,
-        GROUP_CONTEXT_RECENT_LIMIT,
-      ) as unknown as DigestRow[];
-    const candidates = new Map<string, DigestRow>();
-    for (const row of [...oldest, ...newest]) candidates.set(row.source_event_id, row);
     const rows: DigestRow[] = [];
     let characters = 0;
-    for (const row of candidates.values()) {
+    for (const row of candidates) {
       const cost = Math.min(row.body.length, GROUP_CONTEXT_BODY_LIMIT) + 80;
       if (
         rows.length >= GROUP_PROMPT_CHANNEL_LIMIT ||
@@ -1014,7 +1001,6 @@ class BotRuntimeImplementation implements BotRuntime {
       characters += cost;
     }
     if (rows.length === 0) return undefined;
-    rows.sort((left, right) => left.created_at.localeCompare(right.created_at));
     const context = { channelId, rows, omittedCount: total.count - rows.length };
     for (const row of rows)
       database
@@ -1749,23 +1735,11 @@ class BotRuntimeImplementation implements BotRuntime {
     const columns = `SELECT a.source_event_id, e.message_id, e.body, e.created_at,
       json_extract(e.payload_json, '$.author.kind') AS author_kind,
       json_extract(e.payload_json, '$.author.slug') AS author_slug`;
-    const oldest = database
+    const candidates = database
       .prepare(`${columns} ${base} ORDER BY e.created_at, e.rowid LIMIT ?`)
-      .all(botSlug, channelId, GROUP_CONTEXT_OLDEST_LIMIT) as unknown as DigestRow[];
-    const newest = database
-      .prepare(`${columns} ${base} ORDER BY e.created_at DESC, e.rowid DESC LIMIT ?`)
-      .all(botSlug, channelId, GROUP_CONTEXT_RECENT_LIMIT) as unknown as DigestRow[];
-    const candidates = new Map<string, DigestRow>();
-
-    for (const row of [
-      ...oldest.slice(0, 1),
-      ...newest.slice(0, 1),
-      ...oldest.slice(1),
-      ...newest.slice(1),
-    ])
-      candidates.set(row.source_event_id, row);
+      .all(botSlug, channelId, GROUP_PROMPT_CHANNEL_LIMIT) as unknown as DigestRow[];
     const rows: DigestRow[] = [];
-    for (const row of candidates.values()) {
+    for (const row of candidates) {
       if (alreadyIncluded + rows.length >= GROUP_PROMPT_CHANNEL_LIMIT) break;
       const candidateContext = {
         channelId,
@@ -1776,7 +1750,6 @@ class BotRuntimeImplementation implements BotRuntime {
       rows.push(row);
     }
     if (rows.length === 0) return undefined;
-    rows.sort((a, b) => a.created_at.localeCompare(b.created_at));
     const context = { channelId, rows, omittedCount: total.count - rows.length };
     budget.remainingCharacters -= this.#groupContextSection(context).length;
     budget.includedByChannel.set(channelId, alreadyIncluded + rows.length);
