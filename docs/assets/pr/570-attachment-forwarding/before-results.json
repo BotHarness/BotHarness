@@ -1,0 +1,160 @@
+{
+  "stage": "before",
+  "dshVersion": "0.2.0-rc.1",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash"
+  },
+  "measurements": {
+    "compiledSchemaCharacters": 864,
+    "compiledToolMetadataCharacters": 1143,
+    "forwardAcknowledgementCharacters": 90,
+    "defaultAcknowledgementCharacters": 58
+  },
+  "verified": {
+    "actualModelImageInspection": true,
+    "nativeImageBlock": true,
+    "trustedFourFieldsUnchanged": true,
+    "attachmentOnlySend": true,
+    "exactlyOneCommittedMessage": true,
+    "downloadedBytesIdentical": true,
+    "HumanOpensCommittedImage": true,
+    "noModelHostPath": true,
+    "baselineAcknowledgementOmitsChannel": true
+  },
+  "compiledSchema": {
+    "name": "channel_send",
+    "description": "Send one message as this PersonaBot to a joined Channel. Omit channel_id to use the inbound Channel. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "string",
+          "description": "Message body; may be empty when attachments are present."
+        },
+        "attachments": {
+          "type": "array",
+          "description": "Optional references returned by Channel attachment uploads or reads.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "hash": {
+                "type": "string"
+              },
+              "fileId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "mime": {
+                "type": "string"
+              },
+              "size": {
+                "type": "number"
+              }
+            },
+            "required": ["name", "mime", "size"]
+          }
+        },
+        "channel_id": {
+          "type": "string",
+          "description": "Channel id; defaults to the inbound Channel."
+        },
+        "reply_to": {
+          "type": "string",
+          "description": "Optional message id to reply to in that same Channel."
+        },
+        "mention_bot_ids": {
+          "type": "array",
+          "description": "Stable IDs of joined PersonaBots to mention in a Group Channel; do not repeat their names in body.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["body"]
+    }
+  },
+  "toolSequence": [
+    {
+      "tool": "channel_read",
+      "args": {},
+      "outputCharacters": 692,
+      "contentTypes": ["text"]
+    },
+    {
+      "tool": "channel_list",
+      "args": {
+        "name": "group-qa570-forwarded-images-before"
+      },
+      "outputCharacters": 15,
+      "contentTypes": ["text"]
+    },
+    {
+      "tool": "channel_list",
+      "args": {},
+      "outputCharacters": 485,
+      "contentTypes": ["text"]
+    },
+    {
+      "tool": "channel_read_image",
+      "args": {
+        "channel_id": "dm-bot-66e95bafd27a454e9b2bb7ee2b3631ba",
+        "message_id": "ab628af7-e804-4ada-97d6-16db24a0f47a",
+        "attachment_id": "file:2b2f32d5-8cb5-4135-95ef-eeae77465d00"
+      },
+      "outputCharacters": 105,
+      "contentTypes": ["text", "image"]
+    },
+    {
+      "tool": "channel_send",
+      "args": {
+        "channel_id": "group-qa570-forwarded-images-before",
+        "body": "",
+        "attachments": [
+          {
+            "name": "qa570-blue-circle-orange-square.png",
+            "mime": "image/png",
+            "size": 11689,
+            "fileId": "file:2b2f32d5-8cb5-4135-95ef-eeae77465d00"
+          }
+        ]
+      },
+      "outputCharacters": 90,
+      "contentTypes": ["text"]
+    },
+    {
+      "tool": "channel_send",
+      "args": {
+        "body": "[synthetic QA report]"
+      },
+      "outputCharacters": 58,
+      "contentTypes": ["text"]
+    }
+  ],
+  "forwardAcknowledgement": "Sent Channel message bot-48a48ac4960f736795f4ab2466af2b37d6309f8c4d1173a864442218c03e0564.",
+  "defaultAcknowledgement": "Sent Channel message 38ceb959-ad63-4e28-9e14-0c719ca3bdd7.",
+  "committed": {
+    "channelId": "group-qa570-forwarded-images-before",
+    "messageId": "bot-48a48ac4960f736795f4ab2466af2b37d6309f8c4d1173a864442218c03e0564",
+    "attachment": {
+      "fileId": "file:2b2f32d5-8cb5-4135-95ef-eeae77465d00",
+      "name": "qa570-blue-circle-orange-square.png",
+      "mime": "image/png",
+      "size": 11689
+    }
+  },
+  "humanOpen": {
+    "nativeImageOpened": true,
+    "width": 480,
+    "height": 300,
+    "destination": "group-qa570-forwarded-images-before",
+    "messageId": "bot-48a48ac4960f736795f4ab2466af2b37d6309f8c4d1173a864442218c03e0564"
+  },
+  "driverNotes": [
+    "Initial isolated launches selected occupied ports and failed before model execution; existing processes were preserved, and both profiles were relaunched on independently verified free ports."
+  ],
+  "testData": "Synthetic 480 x 300 blue circle and orange square, uploaded through the authenticated Human attachment endpoint; no new model upload Tool."
+}

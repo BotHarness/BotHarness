@@ -85,14 +85,19 @@ export function createAttachmentHttp(
         return new Response('message ownership is required', { status: 400 });
       if (fileId === null && (hash === null || !hash.startsWith('sha256:')))
         return new Response('legacy hash or message attachment is required', { status: 400 });
+      if (hash !== null && channels !== undefined && (channelId === null || messageId === null))
+        return new Response(
+          'Legacy attachment requires its owning message; refresh the message for fileId',
+          { status: 400, headers: { 'cache-control': 'no-store' } },
+        );
       try {
         const { ref, body } =
-          fileId === null
+          channels === undefined || channelId === null || messageId === null
             ? await store.download(hash!, url.searchParams.get('name') ?? undefined, request.signal)
             : await createMessageAttachmentFiles(channels!, store).download(
                 channelId!,
                 messageId!,
-                fileId,
+                fileId ?? hash!,
                 request.signal,
               );
         const image = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(ref.mime);
@@ -102,7 +107,7 @@ export function createAttachmentHttp(
             'content-length': String(ref.size),
             'content-disposition': filenameDisposition(ref.name, image),
             'x-content-type-options': 'nosniff',
-            'cache-control': fileId === null ? 'private, max-age=3600' : 'no-store',
+            'cache-control': channels === undefined ? 'private, max-age=3600' : 'no-store',
           },
         });
       } catch (error) {

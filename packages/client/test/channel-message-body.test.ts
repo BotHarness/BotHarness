@@ -30,6 +30,7 @@ function render(
   return renderToStaticMarkup(
     createElement(ChannelMessageBody, {
       message: { id: 'm1', at: '2026-09-19T00:00:00.000Z', author, body, ...options },
+      channelId: 'channel-owner',
       t: zhTranslate,
     }),
   );
@@ -285,6 +286,34 @@ describe('Channel message body', () => {
     expect(markup).toContain('class="bh-message-file-name" title="report.pdf"');
     expect(markup).not.toContain('▤');
     expect(markup).toContain('/api/botharness/attachment?hash=');
+    expect(markup).toContain('channelId=channel-owner');
+    expect(markup).toContain('messageId=m1');
+  });
+
+  it('does not emit an unowned legacy attachment URL when channel context is absent', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelMessageBody, {
+        message: {
+          id: 'unowned',
+          at: '2026-09-19T00:00:00.000Z',
+          author: { kind: 'human' },
+          body: '',
+          attachments: [
+            { hash: `sha256:${'a'.repeat(64)}`, name: 'photo.png', mime: 'image/png', size: 123 },
+            {
+              hash: `sha256:${'b'.repeat(64)}`,
+              name: 'report.pdf',
+              mime: 'application/pdf',
+              size: 456,
+            },
+          ],
+        },
+        t: zhTranslate,
+      }),
+    );
+    expect(markup).toContain('photo.png');
+    expect(markup).toContain('report.pdf');
+    expect(markup).not.toContain('/api/botharness/attachment?');
   });
 
   it('routes Bot and bridged messages to the public DSH Markdown renderer', () => {

@@ -1,0 +1,36 @@
+{
+  "verifiedAt": "2026-09-30T19:56:47.701Z",
+  "layer": "independent Lark receipt reads",
+  "sources": [
+    {
+      "source": 1,
+      "marker": "[BH78 ROOT]",
+      "exactReceiptReturned": true,
+      "sameGroup": true,
+      "sameThread": true,
+      "authenticatedApplicationSender": true,
+      "ackContentMatches": true,
+      "notDeleted": true
+    },
+    {
+      "source": 2,
+      "marker": "[BH78 TOPIC]",
+      "exactReceiptReturned": true,
+      "sameGroup": true,
+      "sameThread": true,
+      "authenticatedApplicationSender": true,
+      "ackContentMatches": true,
+      "notDeleted": true
+    },
+    {
+      "source": 3,
+      "marker": "[BH78 ROOT]",
+      "exactReceiptReturned": true,
+      "sameGroup": true,
+      "sameThread": true,
+      "authenticatedApplicationSender": true,
+      "ackContentMatches": true,
+      "notDeleted": true
+    }
+  ]
+}
