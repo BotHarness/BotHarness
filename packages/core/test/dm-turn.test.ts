@@ -9,6 +9,7 @@ import { FakeAgentHost } from './dsh-agent-host-fixture.js';
 import { createTempRoot } from './helpers.js';
 
 const contexts: Context[] = [];
+const persistedSessions = new Map<string, Set<string>>();
 
 beforeEach(() => {
   vi.stubEnv('DSH_HOME', createTempRoot('botharness-dm-turn-'));
@@ -20,6 +21,7 @@ afterEach(async () => {
     if (ctx !== undefined) await ctx.fiber.dispose();
   }
   vi.unstubAllEnvs();
+  persistedSessions.clear();
 });
 
 interface Harness {
@@ -33,10 +35,15 @@ function startHarness(): Harness {
   const dshHome = process.env['DSH_HOME'] ?? '';
   const ctx = new Context();
   contexts.push(ctx);
+  const stored = persistedSessions.get(dshHome) ?? new Set<string>();
+  persistedSessions.set(dshHome, stored);
   const host = new FakeAgentHost(
     { kind: 'completed' },
     {
-      onAgentCreated: (agent) => ctx.emit('agent/created', { agent } as never),
+      onAgentCreated: (agent) => {
+        for (const session of host.sessions) stored.add(session.id);
+        ctx.emit('agent/created', { agent } as never);
+      },
       onSessionEvent: (session, event) =>
         ctx.emit('session/event', session as never, event as never),
     },
@@ -44,6 +51,9 @@ function startHarness(): Harness {
   ctx.provide('tools', { register: () => () => undefined, guard: () => () => undefined });
   ctx.provide('systemPrompt', { section: () => () => undefined });
   ctx.provide('sessions', { list: () => host.sessions });
+  ctx.provide('sessionPersistence', {
+    stat: async (id: string) => (stored.has(id) ? {} : undefined),
+  } as never);
   ctx.provide('agents', host as never);
   ctx.provide('workspaceRegistry', {
     get: (id: string) =>

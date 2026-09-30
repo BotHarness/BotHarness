@@ -174,6 +174,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Legacy PersonaBot model choices migrate only when one available provider matches; ambiguous or unavailable routes stop new requests and direct the Human to repair the Model Preset in Profile, without switching providers ([#500](https://github.com/BotHarness/BotHarness/issues/500)).
 - Queued Browser actions recheck Browser Pause and Browser Access when execution starts, so a Human pause or revoked access blocks actions already waiting behind another operation while paused observation remains available ([#569](https://github.com/BotHarness/BotHarness/issues/569)).
 
 - Screenshots report the image size next to the viewport, so coordinate clicks state the exact conversion when the device scale factor is not 1 (for example 2x on Retina), and the viewport guard now uses exclusive bounds ([#538](https://github.com/BotHarness/BotHarness/issues/538)).
