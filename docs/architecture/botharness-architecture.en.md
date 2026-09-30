@@ -251,6 +251,8 @@ Temporarily disabling Browser Access revokes the Agent-scope tool registrations 
 
 Changing the assigned browser profile calls the existing Browser Provider reset command through its application-defined Host service. The switching Bot loses its old process-local current/owned tab records and Pause state before using the newly selected runtime; Browser Access and Session authorization remain separate. Other Bots’ ownership and the old profile’s browser data remain intact. The reset records a bounded lifecycle diagnostic and does not persist or adopt old targets when switching back.
 
+Pause/Resume invalidates that Bot’s actionable observation in the existing process-local Provider state. Page clicks (refs or coordinates), typing, keys, scrolling and upload require a successful observation begun after the current control transition while Pause is inactive; a failed read, a read during Pause or an older in-flight read cannot satisfy that requirement. Screenshots do not satisfy it. Open and tab management remain available to recover a missing page, while Access cycling retains the requirement and explicit Profile reset starts new ownership. Other Bots remain independent.
+
 ```mermaid
 flowchart LR
   Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
