@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "layer": "public dshIm provider contract; not PersonaBot integration",
+  "runtime": {
+    "runId": "538dd7fa-a09d-4782-b96a-a1f14f9317ce",
+    "probeSha256": "3d5037d264a22d97bbe63fdee3b2d4d628749ecca4c7f34b7b9f550e4926ea7d",
+    "node": "v24.21.0"
+  },
+  "verifiedAt": "2026-09-30T19:56:06.456Z",
+  "profile": {
+    "dsh": "0.2.0-rc.1",
+    "providerSource": "19d88f14bf85d74d4abf035a0c749d0b4a640257",
+    "sdk": "1.73.0"
+  },
+  "checks": {
+    "authenticatedAccount": true,
+    "publicExclusiveConsumer": true,
+    "staleGroupRefused": true,
+    "groupRootCheckedReply": true,
+    "staleTopicRefused": true,
+    "existingTopicCheckedReply": true,
+    "consumerDisposed": false
+  },
+  "errors": [
+    {
+      "phase": "acquire",
+      "code": "unknown-bot"
+    },
+    {
+      "phase": "acquire",
+      "code": "unknown-bot"
+    }
+  ],
+  "sources": [
+    {
+      "source": 1,
+      "acceptedInCurrentRun": false,
+      "marker": "[BH78 ROOT]",
+      "group": "group",
+      "exactAuthorizedGroup": true,
+      "exactAuthorizedActor": true,
+      "authenticatedMention": true,
+      "threadPresent": false,
+      "rootPresent": false,
+      "parentPresent": false,
+      "deliveryCount": 1,
+      "committedBeforeAcceptance": true,
+      "outcome": "provider-accepted",
+      "providerReceipt": true
+    },
+    {
+      "source": 2,
+      "acceptedInCurrentRun": false,
+      "marker": "[BH78 TOPIC]",
+      "group": "group",
+      "exactAuthorizedGroup": true,
+      "exactAuthorizedActor": true,
+      "authenticatedMention": true,
+      "threadPresent": true,
+      "rootPresent": true,
+      "parentPresent": true,
+      "deliveryCount": 1,
+      "committedBeforeAcceptance": true,
+      "outcome": "provider-accepted",
+      "providerReceipt": true
+    },
+    {
+      "source": 3,
+      "acceptedInCurrentRun": true,
+      "marker": "[BH78 ROOT]",
+      "group": "group",
+      "exactAuthorizedGroup": true,
+      "exactAuthorizedActor": true,
+      "authenticatedMention": true,
+      "threadPresent": false,
+      "rootPresent": false,
+      "parentPresent": false,
+      "deliveryCount": 1,
+      "committedBeforeAcceptance": true,
+      "outcome": "provider-accepted",
+      "providerReceipt": true
+    }
+  ],
+  "limitations": [
+    "No PersonaBot Inbox/Orchestrator or Outbox integration is claimed.",
+    "Provider receipt means accepted, not delivered/read.",
+    "No durable replay cursor, cross-brand permissions or multi-Bot support is claimed."
+  ]
+}
