@@ -75,9 +75,10 @@ function setup() {
         },
         { type: 'step/end', time, data: { turn: 1, step: 2 } },
       );
-    for (const event of events) usage.handleSessionEvent('actual-session', event);
+    for (const [seq, event] of events.entries())
+      usage.handleSessionEvent('actual-session', { ...event, seq });
   };
-  return { methods, channels, dm, fold, time };
+  return { methods, channels, dm, fold, time, usage, ownership };
 }
 
 describe('observed model usage through the Profile query', () => {
@@ -162,7 +163,7 @@ describe('observed model usage through the Profile query', () => {
     });
   });
 
-  it('does not assign incomplete multi-route usage to one successful route', () => {
+  it('separates incomplete multi-route usage into its actual routes', () => {
     const { methods, dm, fold } = setup();
     fold(
       {
@@ -178,13 +179,22 @@ describe('observed model usage through the Profile query', () => {
     const result = methods.profileActivity({ channelId: dm.id });
     if (!result.ok) throw new Error(result.error.message);
     expect(result.value.modelUsageRows[0]).toMatchObject({
-      provider: 'mixed',
-      model: 'mixed',
+      provider: 'actual-provider',
+      model: 'actual-model',
+      inputTokens: 100,
+      outputTokens: 40,
+      cacheReadTokens: 10,
+      cacheWriteTokens: 5,
+      totalTokens: 155,
+    });
+    expect(result.value.modelUsageRows[1]).toMatchObject({
+      provider: 'actual-provider',
+      model: 'other-model',
       inputTokens: null,
-      outputTokens: null,
-      cacheReadTokens: null,
-      cacheWriteTokens: null,
-      totalTokens: null,
+      outputTokens: 40,
+      cacheReadTokens: 10,
+      cacheWriteTokens: 5,
+      totalTokens: 155,
     });
   });
 
@@ -202,6 +212,250 @@ describe('observed model usage through the Profile query', () => {
       cacheWriteTokens: null,
       totalTokens: null,
     });
+  });
+
+  it('counts failed and retried settlements by their dispatched routes without a completed Turn', () => {
+    const { methods, dm, usage, time } = setup();
+    const report = {
+      inputTokens: 2,
+      outputTokens: 3,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      totalTokens: 5,
+    };
+    const events: DshSessionEvent[] = [
+      {
+        seq: 0,
+        type: 'request/header',
+        time,
+        data: { header: { config: { provider: 'failed-provider', model: 'failed-model' } } },
+      },
+      {
+        seq: 1,
+        type: 'assistant/attempt',
+        time,
+        data: { stream: [{ chunk: { type: 'usage', usage: report } }] },
+      },
+      { seq: 2, type: 'llm/retry', time, data: { turn: 1, step: 1 } },
+      {
+        seq: 3,
+        type: 'request/context',
+        time,
+        data: { provider: 'success-provider', model: 'success-model' },
+      },
+      {
+        seq: 4,
+        type: 'assistant/message',
+        time,
+        surfaceOp: 'append',
+        data: {
+          message: { source: { provider: 'success-provider', model: 'success-model' } },
+          usage: report,
+        },
+      },
+    ];
+    for (const event of events) usage.handleSessionEvent('actual-session', event);
+    for (const event of events) usage.handleSessionEvent('actual-session', event);
+    const result = methods.profileActivity({ channelId: dm.id });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.modelUsageRows).toHaveLength(2);
+    expect(result.value.modelUsageRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provider: 'failed-provider',
+          model: 'failed-model',
+          totalTokens: 5,
+        }),
+        expect.objectContaining({
+          provider: 'success-provider',
+          model: 'success-model',
+          totalTokens: 5,
+        }),
+      ]),
+    );
+    usage.handleSessionEvent('actual-session', {
+      ...events[4]!,
+      seq: 5,
+      surfaceOp: { op: 'replace', startSeq: 4, endSeq: 4 },
+    });
+    const after = methods.profileActivity({ channelId: dm.id });
+    if (!after.ok) throw new Error(after.error.message);
+    expect(after.value.modelUsageRows).toEqual(result.value.modelUsageRows);
+  });
+
+  it('uses only trusted ownership for root, Assignment and Subagent usage', () => {
+    const { methods, dm, usage, ownership, time } = setup();
+    ownership.claim({
+      sessionId: 'assignment',
+      botSlug: 'ada',
+      rootRole: 'assignment',
+      at: new Date(time).toISOString(),
+    });
+    ownership.claim({
+      sessionId: 'child',
+      botSlug: 'ada',
+      rootRole: 'assignment',
+      provenance: 'subagent',
+      parentSessionId: 'assignment',
+      at: new Date(time).toISOString(),
+    });
+    const event: DshSessionEvent = {
+      seq: 1,
+      type: 'assistant/message',
+      time,
+      data: {
+        message: { source: { provider: 'provider', model: 'model' } },
+        usage: { inputTokens: 1, outputTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      },
+    };
+    for (const sessionId of ['actual-session', 'assignment', 'child', 'unowned'])
+      usage.handleSessionEvent(sessionId, event);
+    const result = methods.profileActivity({ channelId: dm.id });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.modelUsageRows.map((row) => row.purpose).sort()).toEqual([
+      'assignment',
+      'orchestrator',
+      'subagent',
+    ]);
+    expect(result.value.modelUsageRows.every((row) => row.totalTokens === 3)).toBe(true);
+  });
+
+  it('retains unknown failed attempts independently of a successful route', () => {
+    const { methods, dm, usage, fold, time } = setup();
+    usage.handleSessionEvent('actual-session', {
+      seq: 100,
+      type: 'assistant/attempt',
+      time,
+      data: { stream: [] },
+    });
+    fold({
+      inputTokens: 100,
+      outputTokens: 40,
+      cacheReadTokens: 10,
+      cacheWriteTokens: 5,
+      totalTokens: 155,
+    });
+    const result = methods.profileActivity({ channelId: dm.id });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.modelUsageRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provider: 'actual-provider',
+          model: 'actual-model',
+          totalTokens: 155,
+        }),
+        expect.objectContaining({
+          provider: 'unknown',
+          model: 'unknown',
+          inputTokens: null,
+          outputTokens: null,
+          totalTokens: null,
+        }),
+      ]),
+    );
+  });
+
+  it('primes the persisted request route on resume and keeps independent unknown buckets', () => {
+    const { methods, dm, usage, time } = setup();
+    usage.primeSession('actual-session', [
+      {
+        seq: 0,
+        type: 'request/context',
+        time,
+        data: { provider: 'resumed-provider', model: 'resumed-model' },
+      },
+    ]);
+    usage.handleSessionEvent('actual-session', {
+      seq: 1,
+      type: 'assistant/attempt',
+      time,
+      data: {
+        stream: [
+          { chunk: { type: 'usage', usage: { inputTokens: 7, outputTokens: 2, totalTokens: 12 } } },
+        ],
+      },
+    });
+    usage.handleSessionEvent('actual-session', {
+      seq: 2,
+      type: 'assistant/attempt',
+      time,
+      data: {
+        stream: [
+          {
+            chunk: {
+              type: 'usage',
+              usage: {
+                inputTokens: 0,
+                outputTokens: 0,
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+                totalTokens: 0,
+              },
+            },
+          },
+        ],
+      },
+    });
+    const result = methods.profileActivity({ channelId: dm.id });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.modelUsageRows).toEqual([
+      expect.objectContaining({
+        provider: 'resumed-provider',
+        model: 'resumed-model',
+        inputTokens: 7,
+        outputTokens: 2,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        totalTokens: 12,
+      }),
+    ]);
+  });
+
+  it('attributes a late settlement to the route preceding its durable sequence', () => {
+    const { methods, dm, usage, time } = setup();
+    usage.primeSession('actual-session', [
+      {
+        seq: 0,
+        type: 'request/context',
+        time,
+        data: { provider: 'earlier', model: 'earlier-model' },
+      },
+      { seq: 2, type: 'request/context', time, data: { provider: 'later', model: 'later-model' } },
+    ]);
+    usage.handleSessionEvent('actual-session', {
+      seq: 1,
+      type: 'assistant/attempt',
+      time,
+      data: {
+        stream: [
+          {
+            chunk: {
+              type: 'usage',
+              usage: { inputTokens: 1, outputTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 },
+            },
+          },
+        ],
+      },
+    });
+    const result = methods.profileActivity({ channelId: dm.id });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.modelUsageRows).toEqual([
+      expect.objectContaining({ provider: 'earlier', model: 'earlier-model', totalTokens: 3 }),
+    ]);
+  });
+
+  it('marks invalid explicit provider counts unknown without replacing them with a computed total', () => {
+    const { methods, dm, fold } = setup();
+    fold({
+      inputTokens: 100,
+      outputTokens: 40,
+      cacheReadTokens: 10,
+      cacheWriteTokens: 5,
+      totalTokens: -1,
+    });
+    const result = methods.profileActivity({ channelId: dm.id });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.modelUsageRows[0]).toMatchObject({ totalTokens: null, inputTokens: 100 });
   });
 
   it('rejects a non-DM channel rather than exposing other usage', () => {

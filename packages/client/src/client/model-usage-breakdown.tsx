@@ -40,7 +40,7 @@ export function ModelUsageBreakdown({
   const routes = new Map<string, ProfileModelUsageRow>();
   for (const row of rows) {
     if (row.day !== day) continue;
-    const key = JSON.stringify([row.provider, row.model]);
+    const key = JSON.stringify([row.purpose, row.provider, row.model]);
     const previous = routes.get(key);
     if (previous === undefined) routes.set(key, { ...row });
     else
@@ -88,6 +88,15 @@ export function ModelUsageBreakdown({
                   <strong>
                     {row.provider} / {row.model}
                   </strong>
+                  <span className="bh-note">
+                    {row.purpose === 'orchestrator'
+                      ? t('sessions.role.orchestrator')
+                      : row.purpose === 'assignment'
+                        ? t('sessions.role.assignment')
+                        : row.purpose === 'subagent'
+                          ? t('profile.usage.subagent')
+                          : row.purpose}
+                  </span>
                   <dl className="bh-model-usage-buckets">
                     {bucketKeys.map((bucket, index) => (
                       <div key={bucket}>

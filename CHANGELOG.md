@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBot model usage now separates Orchestrator, Assignment and DSH Subagent calls by actual provider/model, including reported failed and retried attempts; missing reports remain unknown ([#503](https://github.com/BotHarness/BotHarness/issues/503), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
+
 - Human Inbox shows direct Group replies to the local Human in a personal view, with Bot/Channel filters, exact source navigation and inline replies. Nearby messages appear chronologically with author, avatar and time; personal replies and other unread messages share one canonical unread count ([#548](https://github.com/BotHarness/BotHarness/issues/548)).
 - Added a PersonaBot Profile IM connection flow for explicit account and destination grants, durable send records and honest unknown outcomes; external sends require the compatible public dsh-im contract and remain disabled with legacy services ([#117](https://github.com/BotHarness/BotHarness/issues/117), [ADR-0101](docs/adr/0101-external-grants-require-authenticated-accounts-and-checked-targets.md)).
 - Human Inbox lets a Human inspect an unread Group or PersonaBot DM message with nearby context and reply inline; unavailable sources are rejected and failed attempts retain the draft ([#547](https://github.com/BotHarness/BotHarness/issues/547)).

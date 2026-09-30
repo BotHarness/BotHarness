@@ -32,6 +32,8 @@ describe('actual model usage breakdown', () => {
       base,
       { ...base, provider: 'provider-b', cacheWriteTokens: null, totalTokens: 150 },
       { ...base, day: '2026-09-29', totalTokens: 200 },
+      { ...base, purpose: 'assignment', totalTokens: 20 },
+      { ...base, purpose: 'subagent', totalTokens: 30 },
     ];
     const container = document.createElement('div');
     document.body.append(container);
@@ -48,11 +50,14 @@ describe('actual model usage breakdown', () => {
           }),
         ),
       );
-      expect(container.querySelectorAll('.bh-model-usage-route')).toHaveLength(2);
+      expect(container.querySelectorAll('.bh-model-usage-route')).toHaveLength(4);
       expect(container.textContent).toContain('provider-a / shared-name');
       expect(container.textContent).toContain('provider-b / shared-name');
-      expect(container.textContent).toContain('Day total: 305 tokens');
+      expect(container.textContent).toContain('Day total: 355 tokens');
       expect(container.textContent).toContain('Unknown');
+      expect(container.textContent).toContain('Orchestrator');
+      expect(container.textContent).toContain('Assignment');
+      expect(container.textContent).toContain('DSH Subagent');
       const input = container.querySelector<HTMLInputElement>('input')!;
       await act(async () => {
         Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!.call(

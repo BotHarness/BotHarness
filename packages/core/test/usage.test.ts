@@ -1,19 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
-
-vi.mock('@deepseek-ai/dsh-token-meter/client', () => ({
-  deriveTurnTokenUsage: (events: readonly { type: string }[]) => {
-    if (events[0]?.type !== 'turn/start' || events.at(-1)?.type !== 'turn/end') return undefined;
-    if (!events.some((event) => event.type === 'assistant/message')) return undefined;
-    return {
-      uncachedInputTokens: 100,
-      outputTokens: 40,
-      totalTokens: 155,
-      cacheReadTokens: 10,
-      cacheWriteTokens: 5,
-      routes: [{ provider: 'deepseek', model: 'deepseek-chat' }],
-    };
-  },
-}));
+import { describe, expect, it } from 'vitest';
 
 import { mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
@@ -23,8 +8,27 @@ import { createTempRoot, createTestOwnership, trackTestOwner } from './helpers.j
 const SINCE = '2000-01-01T00:00:00.000Z';
 const TURN_END = Date.parse('2026-09-29T03:00:00.000Z');
 
-function event(type: string, time: number): { type: string; time: number; data: unknown } {
-  return { type, time, data: {} };
+let seq = 0;
+function event(type: string, time: number) {
+  return {
+    type,
+    time,
+    seq: seq++,
+    data:
+      type === 'assistant/message'
+        ? {
+            message: { source: { provider: 'deepseek', model: 'deepseek-chat' } },
+            usage: {
+              inputTokens: 100,
+              outputTokens: 40,
+              cacheReadTokens: 10,
+              cacheWriteTokens: 5,
+              totalTokens: 155,
+            },
+            stream: [],
+          }
+        : {},
+  };
 }
 
 function usageProjection(seeded: Parameters<typeof createTestOwnership>[0]) {
@@ -75,7 +79,7 @@ describe('Usage projection', () => {
     expect(usage.activity('ada', SINCE)).toHaveLength(1);
   });
 
-  it('keeps fork and subagent provenance as the bucket purpose', () => {
+  it('attributes fork-owned work to its trusted root role', () => {
     const { usage, ownership } = usageProjection({
       'session-root': { botSlug: 'ada', rootRole: 'orchestrator' },
     });
@@ -94,7 +98,7 @@ describe('Usage projection', () => {
     expect(usage.activity('ada', SINCE)).toEqual([
       {
         day: expectedDay(TURN_END),
-        purpose: 'fork',
+        purpose: 'assignment',
         provider: 'deepseek',
         model: 'deepseek-chat',
         inputTokens: 100,
@@ -146,7 +150,7 @@ describe('Usage projection', () => {
     expect(ordered).toEqual([
       {
         day: expectedDay(TURN_END),
-        purpose: 'fork',
+        purpose: 'assignment',
         provider: 'deepseek',
         model: 'deepseek-chat',
         inputTokens: 100,
