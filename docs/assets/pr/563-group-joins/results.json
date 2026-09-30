@@ -1,0 +1,125 @@
+{
+  "baselineRevision": "9a694aeab455cf60af8e070e2bd04b9444e0cd98",
+  "dshVersion": "0.2.0-rc.1",
+  "measurement": "Actual rendered Tool text length in JavaScript UTF-16 code units; not token counts.",
+  "fixture": "Separate fresh Profiles; same two synthetic Bot names, two Group names, padded valid PNG avatars and creator silent policy. Bot/request IDs are generated per Profile. Human selected references were committed through the production channelSend bridge; actual model Tools requested, discovered and decided membership.",
+  "before": [
+    {
+      "tool": "group_join_request",
+      "outcome": "pending",
+      "characters": 223,
+      "keys": ["id", "requesterBotSlug", "requesterBotCreatedAt", "status", "createdAt"]
+    },
+    {
+      "tool": "group_join_request",
+      "outcome": "pending",
+      "characters": 223,
+      "keys": ["id", "requesterBotSlug", "requesterBotCreatedAt", "status", "createdAt"]
+    },
+    {
+      "tool": "group_join_decide",
+      "outcome": "accepted",
+      "characters": 9201,
+      "keys": ["channel", "request"]
+    },
+    {
+      "tool": "group_join_decide",
+      "outcome": "declined",
+      "characters": 9164,
+      "keys": ["channel", "request"]
+    }
+  ],
+  "after": [
+    {
+      "tool": "group_join_decide",
+      "outcome": "accepted",
+      "characters": 197,
+      "keys": ["channelId", "requestId", "requesterBotId", "outcome", "name"],
+      "acknowledgement": {
+        "channelId": "group-qa-563-accept",
+        "requestId": "group-join-79e737e4-c7b6-46cb-ad45-98bce95745e5",
+        "requesterBotId": "bot-cd23af1d5939481ba77f451f2f54636b",
+        "outcome": "accepted",
+        "name": "QA 563 accept"
+      }
+    },
+    {
+      "tool": "group_join_decide",
+      "outcome": "declined",
+      "characters": 199,
+      "keys": ["channelId", "requestId", "requesterBotId", "outcome", "name"],
+      "acknowledgement": {
+        "channelId": "group-qa-563-decline",
+        "requestId": "group-join-7b700979-ba9c-4a0c-be9b-573689cec736",
+        "requesterBotId": "bot-cd23af1d5939481ba77f451f2f54636b",
+        "outcome": "declined",
+        "name": "QA 563 decline"
+      }
+    },
+    {
+      "tool": "group_join_request",
+      "outcome": "pending",
+      "characters": 173,
+      "keys": ["channelId", "requestId", "requesterBotId", "outcome"],
+      "acknowledgement": {
+        "channelId": "group-qa-563-accept",
+        "requestId": "group-join-79e737e4-c7b6-46cb-ad45-98bce95745e5",
+        "requesterBotId": "bot-cd23af1d5939481ba77f451f2f54636b",
+        "outcome": "pending"
+      }
+    },
+    {
+      "tool": "group_join_request",
+      "outcome": "pending",
+      "characters": 174,
+      "keys": ["channelId", "requestId", "requesterBotId", "outcome"],
+      "acknowledgement": {
+        "channelId": "group-qa-563-decline",
+        "requestId": "group-join-7b700979-ba9c-4a0c-be9b-573689cec736",
+        "requesterBotId": "bot-cd23af1d5939481ba77f451f2f54636b",
+        "outcome": "pending"
+      }
+    }
+  ],
+  "flow": {
+    "stage": "after",
+    "owner": "bot-077499bb341c41c299751ba0cf7c6881",
+    "peer": "bot-cd23af1d5939481ba77f451f2f54636b",
+    "ownerDm": "dm-bot-077499bb341c41c299751ba0cf7c6881",
+    "peerDm": "dm-bot-cd23af1d5939481ba77f451f2f54636b",
+    "acceptGroup": "group-qa-563-accept",
+    "declineGroup": "group-qa-563-decline",
+    "acceptedMembers": [
+      "bot-077499bb341c41c299751ba0cf7c6881",
+      "bot-cd23af1d5939481ba77f451f2f54636b"
+    ],
+    "declinedMembers": ["bot-077499bb341c41c299751ba0cf7c6881"],
+    "acceptedStatus": "accepted",
+    "declinedStatus": "declined",
+    "groupExchange": true
+  },
+  "restart": {
+    "restartVerified": true,
+    "acceptedStatus": "accepted",
+    "declinedStatus": "declined",
+    "acceptedMembers": [
+      "bot-077499bb341c41c299751ba0cf7c6881",
+      "bot-cd23af1d5939481ba77f451f2f54636b"
+    ],
+    "declinedMembers": ["bot-077499bb341c41c299751ba0cf7c6881"],
+    "avatarsPreserved": true,
+    "groupMessagePreserved": true,
+    "selectedReferencesPreserved": true
+  },
+  "verification": {
+    "focusedPassed": 14,
+    "fullPassed": 1385,
+    "fullSkipped": 1,
+    "lint": "passed with existing warnings",
+    "format": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "changelog": "passed"
+  },
+  "captureNote": "Initial native screenshot waits timed out and were retained locally. Published captures were inspected after Channel and Session views loaded. The capture harness now clicks sidebar buttons sequentially; no product fix for startup timing is claimed."
+}

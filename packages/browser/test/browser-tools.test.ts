@@ -362,7 +362,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     ).rejects.toThrow(/call browser_open/);
   });
 
-  it('pauses actions and screenshots under a Human takeover while observe stays read-only', async () => {
+  it('pauses actions and screenshots under Browser Pause while observe stays read-only', async () => {
     const h = harness({ access: true, auto: true });
     h.created();
     await h.state.definitions
@@ -374,10 +374,10 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       h.state.definitions
         .get('browser_open')!
         .execute({ url: 'https://example.org' }, execution('browser_open')),
-    ).rejects.toThrow(/Takeover is active/);
+    ).rejects.toThrow(/Browser Pause is active.*Resume.*browser_observe/);
     await expect(
       h.state.definitions.get('browser_screenshot')!.execute({}, execution('browser_screenshot')),
-    ).rejects.toThrow(/Takeover is active/);
+    ).rejects.toThrow(/Browser Pause is active.*Resume.*browser_observe/);
     const observed = await h.state.definitions
       .get('browser_observe')!
       .execute({}, execution('browser_observe'));
@@ -388,6 +388,65 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       .execute({}, execution('browser_screenshot'));
     expect(h.runtime.captureScreenshot).toHaveBeenCalledTimes(1);
   });
+
+  it.each(['pause', 'access'] as const)(
+    'refuses a queued action when %s changes before execution',
+    async (guard) => {
+      const h = harness({ access: true, auto: true });
+      h.created();
+      await h.state.definitions
+        .get('browser_open')!
+        .execute({ url: 'https://example.com' }, execution('browser_open'));
+      let release: () => void = () => undefined;
+      let entered: () => void = () => undefined;
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const blocked = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      h.runtime.click = vi.fn(async () => {
+        entered();
+        await blocked;
+        return { tabId: 'tab-1', url: 'https://example.com/', title: 'Example Domain' };
+      });
+      const click = h.state.definitions.get('browser_click')!;
+      const first = click.execute({ ref: 'e1' }, execution('browser_click'));
+      await started;
+      const queued =
+        guard === 'pause'
+          ? click.execute({ ref: 'e2' }, execution('browser_click'))
+          : h.state.definitions
+              .get('browser_open')!
+              .execute({ url: 'https://example.org' }, execution('browser_open'));
+      await Promise.resolve();
+      await Promise.resolve();
+      if (guard === 'pause') h.provider.setTakeover('bot-a', true);
+      else {
+        h.setAccess(false);
+        h.provider.reconcileBot('bot-a');
+      }
+      const refused = expect(queued).rejects.toThrow(
+        guard === 'pause' ? /Browser Pause is active/ : /Browser Access is off/,
+      );
+      release();
+      await first;
+      await refused;
+      expect(h.runtime.click).toHaveBeenCalledTimes(1);
+      expect(h.runtime.open).toHaveBeenCalledTimes(1);
+      expect(h.audits.at(-1)).toMatchObject({
+        tool: guard === 'pause' ? 'browser_click' : 'browser_open',
+        outcome: 'error',
+      });
+      if (guard === 'pause') {
+        await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+        h.provider.setTakeover('bot-a', false);
+        await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+        await click.execute({ ref: 'e1' }, execution('browser_click'));
+        expect(h.runtime.click).toHaveBeenCalledTimes(2);
+      }
+    },
+  );
 
   it('clicks observed refs, redacts typed text, and clamps scroll and wait', async () => {
     const h = harness({ access: true, auto: true });
@@ -476,7 +535,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.audits.at(-1)?.outcome).toBe('error');
   });
 
-  it('pauses interaction tools under a Human takeover while observe stays read-only', async () => {
+  it('pauses interaction tools under Browser Pause while observe stays read-only', async () => {
     const h = harness({ access: true, auto: true });
     h.created();
     await h.state.definitions
@@ -485,7 +544,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     h.provider.setTakeover('bot-a', true);
     await expect(
       h.state.definitions.get('browser_click')!.execute({ ref: 'e3' }, execution('browser_click')),
-    ).rejects.toThrow(/Takeover is active/);
+    ).rejects.toThrow(/Browser Pause is active.*Resume.*browser_observe/);
     await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
   });
 
@@ -638,5 +697,99 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.state.registered()).toEqual([]);
     await h.provider.dispose();
     expect(h.runtimes.stopAll).toHaveBeenCalled();
+  });
+});
+
+describe('Human Browser window reveal', () => {
+  async function ownedTabs(h: Harness) {
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    await h.state.definitions
+      .get('browser_tabs')!
+      .execute({ action: 'open', url: 'https://example.org' }, execution('browser_tabs'));
+    vi.mocked(h.runtime.openWindow).mockImplementation(async (tabId) => ({
+      tabId: tabId ?? 'tab-9',
+      url: 'about:blank',
+      title: '',
+    }));
+  }
+
+  it('reveals the manually previewed owned tab without changing the Bot pointer', async () => {
+    const h = harness({ access: true, auto: true });
+    await ownedTabs(h);
+    h.provider.setTakeover('bot-a', true);
+    await expect(h.provider.openForHuman('bot-a', 'tab-1')).resolves.toMatchObject({
+      tabId: 'tab-1',
+    });
+    expect(h.provider.currentTab('bot-a')).toBe('tab-2');
+    expect(h.runtime.openWindow).toHaveBeenCalledWith('tab-1');
+    expect(h.provider.isTakeover('bot-a')).toBe(true);
+  });
+
+  it('ignores a foreign requested target and reveals the current owned tab', async () => {
+    const h = harness({ access: true, auto: true });
+    await ownedTabs(h);
+    await h.provider.openForHuman('bot-a', 'foreign');
+    expect(h.runtime.openWindow).toHaveBeenCalledWith('tab-2');
+    expect(h.provider.ownsTab('bot-a', 'foreign')).toBe(false);
+  });
+
+  it('prunes closed tabs and reuses a live owned fallback', async () => {
+    const h = harness({ access: true, auto: true });
+    await ownedTabs(h);
+    vi.mocked(h.runtime.listTabs).mockResolvedValue([
+      { targetId: 'foreign', url: 'https://example.net/', title: 'Foreign' },
+      { targetId: 'tab-1', url: 'https://example.com/', title: 'Example' },
+    ]);
+    await h.provider.openForHuman('bot-a', 'tab-2');
+    expect(h.runtime.openWindow).toHaveBeenCalledWith('tab-1');
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+    expect(h.provider.ownsTab('bot-a', 'foreign')).toBe(false);
+  });
+
+  it('adopts a single blank target and reuses it across concurrent Human opens with Access off', async () => {
+    const h = harness({ access: false });
+    vi.mocked(h.runtime.listTabs).mockImplementation(async () =>
+      h.provider.ownsTab('bot-a', 'tab-9')
+        ? [{ targetId: 'tab-9', url: 'about:blank', title: '' }]
+        : [],
+    );
+    vi.mocked(h.runtime.openWindow).mockImplementation(async (tabId) => ({
+      tabId: tabId ?? 'tab-9',
+      url: 'about:blank',
+      title: '',
+    }));
+    const opened = await Promise.all(
+      Array.from({ length: 3 }, () => h.provider.openForHuman('bot-a')),
+    );
+    expect(opened.map((tab) => tab.tabId)).toEqual(['tab-9', 'tab-9', 'tab-9']);
+    expect(vi.mocked(h.runtime.openWindow).mock.calls).toEqual([[undefined], ['tab-9'], ['tab-9']]);
+    expect(h.provider.currentTab('bot-a')).toBe('tab-9');
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+  });
+
+  it('replaces the last closed owned tab without adopting a live foreign target', async () => {
+    const h = harness({ access: true, auto: true });
+    await ownedTabs(h);
+    vi.mocked(h.runtime.listTabs).mockResolvedValue([
+      { targetId: 'foreign', url: 'https://example.net/', title: 'Foreign' },
+    ]);
+    await h.provider.openForHuman('bot-a');
+    expect(h.runtime.openWindow).toHaveBeenCalledWith(undefined);
+    expect(h.provider.currentTab('bot-a')).toBe('tab-9');
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+  });
+
+  it('leaves ownership unchanged when the runtime cannot list tabs', async () => {
+    const h = harness({ access: true, auto: true });
+    await ownedTabs(h);
+    vi.mocked(h.runtime.listTabs).mockRejectedValue(new Error('CDP unavailable'));
+    await expect(h.provider.openForHuman('bot-a')).rejects.toThrow('CDP unavailable');
+    expect(h.provider.currentTab('bot-a')).toBe('tab-2');
+    expect(h.provider.tabCount('bot-a')).toBe(2);
+    expect(h.runtime.openWindow).not.toHaveBeenCalled();
   });
 });

@@ -258,9 +258,45 @@ describe('runtime lifecycle', () => {
     expect(observation.elements).toEqual([{ ref: 'e1', role: 'a', name: 'More' }]);
     expect(runtime.currentUrl()).toBe('https://example.com/');
 
+    expect(client.calls.map((call) => call.method)).not.toContain('Target.activateTarget');
+    expect(client.calls.map((call) => call.method)).not.toContain('Page.bringToFront');
     await runtime.stop();
     expect(runtime.isRunning()).toBe(false);
     expect(child.proc.kill).toHaveBeenCalled();
+  });
+
+  it('reveals the existing Human tab and restores a minimized window without a new target', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const client = fakeClient();
+    const send = client.send;
+    client.send = vi.fn(async (method, params, sessionId) => {
+      if (method === 'Browser.getWindowForTarget') {
+        return { windowId: 7, bounds: { windowState: 'minimized' } };
+      }
+      return send(method, params, sessionId);
+    });
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'darwin',
+      env: {},
+      fileExists: (path) => path.includes('Google Chrome.app'),
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await expect(runtime.openWindow('tab-2')).resolves.toMatchObject({
+      tabId: 'tab-2',
+      title: 'Example',
+    });
+    expect(client.send).toHaveBeenCalledWith('Browser.setWindowBounds', {
+      windowId: 7,
+      bounds: { windowState: 'normal' },
+    });
+    expect(client.send).toHaveBeenCalledWith('Target.activateTarget', { targetId: 'tab-2' });
+    expect(client.send).toHaveBeenCalledWith('Page.bringToFront', {}, 'session-1');
+    expect(client.calls.some((call) => call.method === 'Target.createTarget')).toBe(false);
   });
 
   it('opens the Human sign-in window', async () => {

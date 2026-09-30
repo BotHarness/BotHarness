@@ -10,7 +10,8 @@ export const zh = {
   'entry.view.follow': '跟随 Bot',
   'entry.view.pause': '暂停 Bot',
   'entry.view.resume': '继续',
-  'entry.view.paused': '已暂停 · 你可以直接操作浏览器窗口',
+  'entry.view.paused': '此 Bot 的浏览器动作与模型截图已暂停；仍可读取页面',
+  'entry.view.pauseHint': '你始终可以直接操作浏览器窗口；暂停只让此 Bot 停手。',
   'entry.view.open': '打开 Bot 浏览器',
   'entry.view.stop': '停止',
   'entry.view.opening': '正在打开…',
@@ -31,7 +32,10 @@ export const en: Record<BrowserKey, string> = {
   'entry.view.follow': 'Follow the Bot',
   'entry.view.pause': 'Pause Bot',
   'entry.view.resume': 'Resume',
-  'entry.view.paused': 'Paused · you can use the browser window directly',
+  'entry.view.paused':
+    'This Bot’s actions and model screenshots are paused; page reading remains available',
+  'entry.view.pauseHint':
+    'You can always use the browser window directly; pausing only stops this Bot from acting.',
   'entry.view.open': 'Open Bot Browser',
   'entry.view.stop': 'Stop',
   'entry.view.opening': 'Opening…',

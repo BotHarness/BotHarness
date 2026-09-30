@@ -60,6 +60,8 @@ import {
   type PersonaBotModelPlan,
 } from '../models/presets.js';
 import type { ModelCatalog, ModelCatalogEntry } from '../models/catalog.js';
+import type { ModelPlanState, ModelRouteReadiness } from '../models/readiness.js';
+import { MemoryFileError, type MemoryFileTarget } from '../memory/file-actions.js';
 import { MemoryPathError } from '../memory/jail.js';
 import {
   WorkspaceGrantError,
@@ -141,6 +143,18 @@ export interface ProfileActivityTokensDay extends ProfileTokenBuckets {
   day: string;
 }
 
+export interface ProfileModelUsageRow {
+  day: string;
+  purpose: string;
+  provider: string;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  totalTokens: number | null;
+}
+
 export interface ProfileActivity {
   slug: string;
   weeks: number;
@@ -151,6 +165,8 @@ export interface ProfileActivity {
   memoryCommits: ProfileActivityDay[];
   tokens: ProfileActivityTokensDay[];
   tokenTotals: ProfileTokenBuckets;
+  modelUsageRows: ProfileModelUsageRow[];
+  modelUsageStatus: 'ready' | 'unavailable';
 }
 
 export interface ChannelListItem extends ChannelRecord {
@@ -186,7 +202,7 @@ export interface BridgeMethods {
   modelPresetCreate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
   modelPresetUpdate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
   modelPresetApply(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
-  modelPlan(payload: unknown): BridgeResult<{ plan?: PersonaBotModelPlan }>;
+  modelPlan(payload: unknown): Promise<BridgeResult<ModelPlanState>>;
   modelPlanCustomize(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   modelPlanAssignmentsSet(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
@@ -237,6 +253,7 @@ export interface BridgeMethods {
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
   sessionOwner(payload: unknown): BridgeResult<{ owner: OwnedSessionBot | null }>;
+  memoryFileTarget(payload: unknown): BridgeResult<{ target: MemoryFileTarget }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
   memoryFile(
     payload: unknown,
@@ -278,6 +295,7 @@ export interface BridgeMethodsDeps {
   registry: PersonaBotRegistry;
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
+  modelReadiness?: ModelRouteReadiness;
   states: BotStateTracker;
   channels: ChannelStore;
   ownership: SessionOwnership;
@@ -574,6 +592,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (error instanceof MemoryAcceptError) {
         return { ok: false, error: { code: error.code, message: error.message } };
       }
+      if (error instanceof MemoryFileError)
+        return { ok: false, error: { code: error.code, message: error.message } };
       if (error instanceof MemoryPathError) return invalidInput(error.message);
       throw error;
     }
@@ -738,11 +758,18 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(error instanceof Error ? error.message : String(error));
       }
     },
-    modelPlan(payload) {
+    async modelPlan(payload) {
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
       const bot = deps.registry.get(slug);
       if (bot === undefined) return unknownBot(slug);
+      if (deps.modelReadiness !== undefined) {
+        try {
+          return { ok: true, value: await deps.modelReadiness.inspect(slug) };
+        } catch (failure) {
+          return invalidInput(failure instanceof Error ? failure.message : String(failure));
+        }
+      }
       return { ok: true, value: bot.modelPlan === undefined ? {} : { plan: bot.modelPlan } };
     },
     async modelPlanCustomize(payload) {
@@ -1082,7 +1109,6 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const channel = deps.channels.get(channelId);
       if (bot === undefined || bot.paused === true) return unknownBot(botSlug);
       if (channel?.type !== 'group') return unknownChannel(channelId);
-      if (channel.members.includes(botSlug)) return invalidInput('PersonaBot is already a member');
       const dm = deps.channels.getOrCreateDm(bot.slug, bot.displayName);
       if (dm === undefined) return invalidInput('Invitee DM is unavailable');
       try {
@@ -2029,6 +2055,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         },
       };
     },
+    memoryFileTarget(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const path = source['path'];
+      if (slug === undefined || typeof path !== 'string')
+        return invalidInput('slug and path are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      return memoryCall(() => ({ target: deps.memory!.fileTarget(slug, path) }));
+    },
     memorySnapshot(payload) {
       const scope = dmMemory(payload);
       if (!('botSlug' in scope)) return scope;
@@ -2216,6 +2251,23 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             left.day.localeCompare(right.day),
           ),
           tokenTotals,
+          modelUsageRows: usageRows.map((row) => ({
+            day: row.day,
+            purpose: row.purpose,
+            provider: row.provider,
+            model: row.model,
+            inputTokens: (row.unknownBuckets?.inputTokens ?? 0) > 0 ? null : row.inputTokens,
+            outputTokens: (row.unknownBuckets?.outputTokens ?? 0) > 0 ? null : row.outputTokens,
+            cacheReadTokens:
+              (row.unknownBuckets?.cacheReadTokens ?? 0) > 0 ? null : row.cacheReadTokens,
+            cacheWriteTokens:
+              (row.unknownBuckets?.cacheWriteTokens ?? 0) > 0 ? null : row.cacheWriteTokens,
+            totalTokens:
+              row.totalTokens === undefined
+                ? row.inputTokens + row.outputTokens + row.cacheReadTokens + row.cacheWriteTokens
+                : row.totalTokens,
+          })),
+          modelUsageStatus: deps.usage === undefined ? 'unavailable' : 'ready',
         },
       };
     },

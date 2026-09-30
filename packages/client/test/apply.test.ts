@@ -66,6 +66,7 @@ function fakeScope(): FakeScope {
       status: 'ready',
       value: {
         botIcon: 'mascot' as const,
+        autoAcceptGroupInvites: true,
         developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
@@ -90,6 +91,13 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false, wit
         return () => {
           disposed.push(spec);
         };
+      },
+    },
+    remote: {
+      session: {
+        canOpenWorkspacePath: async () => ({ ok: true, value: false }),
+        workspacePathApplications: async () => ({ ok: true, value: [] }),
+        openWorkspacePath: async () => ({ ok: true, value: { opened: true } }),
       },
     },
     connection: {

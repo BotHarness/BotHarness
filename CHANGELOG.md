@@ -10,6 +10,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Human Inbox lets a Human inspect an unread Group or PersonaBot DM message with nearby context and reply inline; unavailable sources are rejected and failed attempts retain the draft ([#547](https://github.com/BotHarness/BotHarness/issues/547)).
+- PersonaBot Profile shows daily usage by the provider/model actually called, with separate input, output, cache-read and cache-write tokens, provider-reported totals, and explicit unknown buckets when a provider omits usage ([#499](https://github.com/BotHarness/BotHarness/issues/499)).
+- Humans can open the current Memory Repository, nested directories and files on the Host through DSH application menus, reveal a file, copy its Host path, or download its full current bytes to the browser device; ordinary file selection still uses the reader ([#574](https://github.com/BotHarness/BotHarness/issues/574), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
+
 - Human Inbox groups unread Group and PersonaBot DM messages by Channel, shows their deduplicated message count on the sidebar entry, and marks a captured message read only when opened or explicitly acknowledged; pending actions keep a separate indicator ([#546](https://github.com/BotHarness/BotHarness/issues/546), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md)).
 - A PersonaBot's message delivery is settable per source in Profile: for Human DM, Bot DM, and Group mention rules a Human chooses whether a message arriving during an active turn folds into it (`steer`, the unchanged default) or queues as its own turn (`turn`), and already queued messages keep their revision ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Group Channels now open a Group Profile from the chat header, with a daily heatmap of committed messages and a per-author breakdown; pinned Group cards appear in its popover ([#424](https://github.com/BotHarness/BotHarness/issues/424), [ADR-0085](docs/adr/0085-personabot-profile-is-a-popover-and-a-channel-body-view.md)).
@@ -104,6 +107,17 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Group invitations now default to automatic acceptance without waking the invited PersonaBot; Bot settings can keep invitations pending for its own decision, and resolved invitations cannot wake again after redelivery or restart ([#371](https://github.com/BotHarness/BotHarness/issues/371), [ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)).
+- Channel discovery and history Tools now enumerate supported filters and explain joined-search, author, date and legacy page-size behavior; exact lookups with no accessible match report it explicitly without revealing hidden Channels ([#564](https://github.com/BotHarness/BotHarness/issues/564)).
+
+- Group join request and decision Tools now return compact Channel, request and requester references with the actual state, preserving approval-only access without copying full Group records or internal identity timestamps into model context ([#563](https://github.com/BotHarness/BotHarness/issues/563)).
+
+- Group creation and invitation Tools now return compact Channel, invitation and invitee references with the actual decision state; accepting or declining no longer copies the full Group record into the model context, and declines still grant no Group access ([#562](https://github.com/BotHarness/BotHarness/issues/562)).
+
+- Group rename and member-removal Tools acknowledge the committed Channel, name, outcome, and affected Bot without copying avatars or unrelated Group state into the model context; an unexpectedly missing rename result now fails explicitly ([#561](https://github.com/BotHarness/BotHarness/issues/561)).
+
+- Browser Pause now explains that the Human can always use the local browser window directly; paused tool refusals point to Resume and a fresh observation, while page reading remains available ([#495](https://github.com/BotHarness/BotHarness/issues/495)).
+
 - Pending context folded into a steer or harvest is now selected by the total character budget in arrival order (oldest first, no per-turn row sampling), so bursts of short messages — such as live chat comments — fold as many messages as the budget allows instead of at most twenty; messages beyond the budget stay pending for later turns ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Human DM messages now steer an active Orchestrator turn at its next safe step by default — and any messages still pending in that DM are claimed into the same steer, mirroring the Group mention context harvest; bot-DM messages steer the same way. When no turn is running the behavior is unchanged ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Isolated Windows DSH development instances can safely adopt an existing WSL DeepSeek dev key once, so real model QA uses the same machine-local credential across both environments ([#115](https://github.com/BotHarness/BotHarness/issues/115), [AX guide](docs/client-bridge.md)).
@@ -171,6 +185,13 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed Open Bot Browser to reveal the owned preview tab and restore minimized windows, reusing one owned blank tab when no live work remains ([#584](https://github.com/BotHarness/BotHarness/issues/584)).
+
+- Fresh Browser observations replace the previous refs with an independent namespace, so an older ref cannot click a different control after page changes; role-less click targets stay visible on repeated observations and stale refs retain the readable re-observe refusal ([#579](https://github.com/BotHarness/BotHarness/issues/579)).
+
+- Legacy PersonaBot model choices migrate only when one available provider matches; ambiguous or unavailable routes stop new requests and direct the Human to repair the Model Preset in Profile, without switching providers ([#500](https://github.com/BotHarness/BotHarness/issues/500)).
+- Queued Browser actions recheck Browser Pause and Browser Access when execution starts, so a Human pause or revoked access blocks actions already waiting behind another operation while paused observation remains available ([#569](https://github.com/BotHarness/BotHarness/issues/569)).
+
 - Screenshots report the image size next to the viewport, so coordinate clicks state the exact conversion when the device scale factor is not 1 (for example 2x on Retina), and the viewport guard now uses exclusive bounds ([#538](https://github.com/BotHarness/BotHarness/issues/538)).
 
 - Browser observation now finds role-less toolbar controls inside editor containers and gives unlabelled ones position-tagged names (`div @x,y`); coordinate clicks outside the viewport fail with a re-screenshot instruction, and screenshots report their viewport size so coordinates map 1:1 ([#530](https://github.com/BotHarness/BotHarness/issues/530)).
@@ -180,6 +201,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - The Bot Browser launches without the automation marker (`navigator.webdriver` is false), so Human sign-in on sites that reject automated browsers, such as Google and X, works ([#483](https://github.com/BotHarness/BotHarness/issues/483), [ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md)).
 - PersonaBot activity heatmap tooltips now stay beside the hovered or focused day in wide and compact Profiles ([#478](https://github.com/BotHarness/BotHarness/issues/478)).
 - The Computer viewer now connects to current Selkies desktops through their `/api/websockets` endpoint while retaining the older paths, so a started desktop no longer stays on the connecting screen ([#451](https://github.com/BotHarness/BotHarness/issues/451)).
+- Channel composers now accept pasted images and files through the existing attachment queue, show images as square previews with a full-size lightbox, and keep other files in compact type-labelled chips before and after sending; the add-media button and placeholder are easier to see in light and dark themes ([#433](https://github.com/BotHarness/BotHarness/issues/433)).
 - The docked Channel sidebar now stays in place while switching Channels or opening a PersonaBot DM, so the Channel body no longer shifts while the next conversation loads ([#430](https://github.com/BotHarness/BotHarness/issues/430)).
 - Previously opened Channels now show cached history and sidebar data immediately while refreshing in the background; first visits show skeleton placeholders in the Channel body, app sidebar, and Channel sidebar ([#434](https://github.com/BotHarness/BotHarness/issues/434)).
 - The Channel composer now shows the blank line immediately after one Shift+Enter and stays steady when a long single line reaches its wrap width ([#393](https://github.com/BotHarness/BotHarness/issues/393)).
@@ -215,6 +237,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Defined native file-open menus for Memory, later Workspaces and message attachments, with truthful Host targets and ordinary editable destination files without attachment version retention or edit-triggered Bot wakes; attachment migration remains subsequent work ([ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md), [#572](https://github.com/BotHarness/BotHarness/issues/572)).
 - Defined Activity Center as an operational Overview plus a personal Human Inbox for Channel unread, mentions, and inline actions; a Human's all-Bot Group mention reuses ordinary direct-mention delivery. Runtime behavior is unchanged ([#126](https://github.com/BotHarness/BotHarness/issues/126), [#541](https://github.com/BotHarness/BotHarness/issues/541), [#542](https://github.com/BotHarness/BotHarness/issues/542), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md), [ADR-0099](docs/adr/0099-human-all-bot-mention-expands-to-direct-mentions.md)).
 - Defined deployment-local Model Presets as per-PersonaBot snapshots and retained per-model token statistics across ordinary Session deletion; implementation follows in separate runtime slices ([#488](https://github.com/BotHarness/BotHarness/issues/488), [#39](https://github.com/BotHarness/BotHarness/issues/39), [ADR-0093](docs/adr/0093-model-presets-are-local-snapshots.md), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
 - Documented the in-harness Client interaction contracts for Channel continuity, roster moves, DSH shell integration, and HMR; runtime behavior is unchanged ([guide](docs/architecture/client-interaction-contracts.md), [#452](https://github.com/BotHarness/BotHarness/issues/452)).
@@ -246,6 +269,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 Consolidated the implemented foundation and public documentation that preceded DeepSeekBot's first release; this is development history, not a released or installable version.
 
 ### Added
+
+- Humans can open the current Memory Repository, nested directories and files on the Host through DSH application menus, reveal a file, copy its Host path, or download its full current bytes to the browser device; ordinary file selection still uses the reader ([#574](https://github.com/BotHarness/BotHarness/issues/574), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
 
 - PersonaBot creation now offers an empty Memory Repository or an HTTPS/SSH Git import. The Host checks Git, clones into staging with its existing credentials, and only creates the Bot after a successful clone; failed imports leave no Bot ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 - Added durable PersonaBot identity, file-based Memory tools, and the BOT-mode creation flow ([#22](https://github.com/BotHarness/BotHarness/pull/22), [#98](https://github.com/BotHarness/BotHarness/pull/98)).

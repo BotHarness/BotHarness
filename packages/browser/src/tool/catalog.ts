@@ -58,7 +58,10 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        ref: { type: 'string', description: 'Element ref from browser_observe, e.g. e3' },
+        ref: {
+          type: 'string',
+          description: 'Exact element ref copied from the latest browser_observe',
+        },
         x: { type: 'number', description: 'Viewport CSS x from the latest screenshot' },
         y: { type: 'number', description: 'Viewport CSS y from the latest screenshot' },
       },
@@ -76,7 +79,10 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        ref: { type: 'string', description: 'Element ref from browser_observe, e.g. e3' },
+        ref: {
+          type: 'string',
+          description: 'Exact element ref copied from the latest browser_observe',
+        },
         text: { type: 'string', description: 'Text to enter' },
       },
       required: ['ref', 'text'],
@@ -171,11 +177,13 @@ export function browserToolName(raw: string): string {
 
 export const BROWSER_GUIDANCE = `You can browse the web through this profile's shared Bot Browser — a real browser window owned by BotHarness, shared by every PersonaBot of this profile. Other PersonaBots may be browsing at the same time: stay inside the tabs you opened.
 
-Observe before you act. Call \`browser_open\` to open a page (it reuses your current tab) and \`browser_observe\` to read it; element refs belong to that exact observation. Elements listed with role \`clickable\` are role-less click targets (icons, custom buttons) and take refs like any other. Act with \`browser_click\`, \`browser_type\`, \`browser_press_key\`, and \`browser_scroll\` on those refs; when a target has no ref at all, take \`browser_screenshot\` and click by x/y coordinates. A stale ref is a contract, not an obstacle: re-observe and retry. Re-observe after navigation, after a refusal, and after any Human input.
+Observe before you act. Call \`browser_open\` to open a page (it reuses your current tab) and \`browser_observe\` to read it; element refs belong to that exact observation. Every new observation replaces its previous refs; copy the returned ref exactly rather than constructing one. Elements listed with role \`clickable\` are role-less click targets (icons, custom buttons) and take refs like any other. Act with \`browser_click\`, \`browser_type\`, \`browser_press_key\`, and \`browser_scroll\` on those refs; when a target has no ref at all, take \`browser_screenshot\` and click by x/y coordinates. A stale ref is a contract, not an obstacle: re-observe and retry. Re-observe after navigation, after a refusal, and after any Human input.
 
 You may keep several tabs in your own Bot Browser window with \`browser_tabs\` (list, open, select, close); observe and act on the current tab, and select another one before reading it. The Human can close your tabs at any time; when a call reports a missing tab, list your tabs and select one, or open a new one.
 
 \`browser_upload\` attaches a Host file (for example a path returned by \`browser_screenshot\`) to a page's file input without the system dialog; uploading is an externally visible action, so confirm with the Human first.
+
+The Human can always operate the local Bot Browser window directly. Pause Bot stops only your browser actions and model-facing screenshots; browser_observe remains available. When Browser Pause refuses an action, wait for the Human to Resume, then re-observe before acting. Never bypass a pause with another tool.
 
 Credentials are the Human's. The Bot Browser has its own persistent profile; when a page asks for a login, tell the Human in the chat what to log in to, then wait — the Human signs in through the Bot Browser entry. Never type passwords, API keys, or recovery codes.
 

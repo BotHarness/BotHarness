@@ -78,7 +78,7 @@ export interface BotBrowserRuntime {
       }
     | undefined
   >;
-  openWindow(): Promise<BrowserTab>;
+  openWindow(targetId?: string): Promise<BrowserTab>;
   currentUrl(): string | undefined;
   binaryPath(): string | undefined;
   stop(): Promise<void>;
@@ -220,6 +220,10 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
 }
 
 export const SNAPSHOT_SCRIPT = `(() => {
+  for (const el of document.querySelectorAll('[data-botharness-ref]')) {
+    el.removeAttribute('data-botharness-ref');
+  }
+  const observationId = Array.from(crypto.getRandomValues(new Uint32Array(4)), (part) => part.toString(36).padStart(7, '0')).join('');
   const elements = [];
   const cap = 250;
   const nameOf = (el) => {
@@ -228,7 +232,7 @@ export const SNAPSHOT_SCRIPT = `(() => {
   };
   const add = (el, role, fallbackName) => {
     if (elements.length >= cap) return false;
-    const ref = 'e' + (elements.length + 1);
+    const ref = 'e' + observationId + '_' + (elements.length + 1);
     el.setAttribute('data-botharness-ref', ref);
     elements.push({ ref: ref, role: role, name: nameOf(el) || fallbackName || '' });
     return true;
@@ -754,15 +758,30 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return data === undefined ? undefined : withMeta(data);
   };
 
-  const openWindow = async (): Promise<BrowserTab> => {
+  const openWindow = async (existingTargetId?: string): Promise<BrowserTab> => {
     await ensure();
     const live = client;
     if (live === undefined) throw new Error('The Bot Browser is not running');
-    const created = await live.send('Target.createTarget', { url: 'about:blank', newWindow: true });
-    const targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
-    if (targetId === '') throw new Error('The Bot Browser did not open a window');
-    await attach(targetId);
-    return { tabId: targetId, url: 'about:blank', title: '' };
+    let targetId = existingTargetId;
+    if (targetId === undefined) {
+      const created = await live.send('Target.createTarget', {
+        url: 'about:blank',
+        newWindow: true,
+      });
+      targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
+      if (targetId === '') throw new Error('The Bot Browser did not open a window');
+    }
+    const sessionId = await attach(targetId);
+    const window = await live.send('Browser.getWindowForTarget', { targetId });
+    if (asObject(window['bounds'])?.['windowState'] === 'minimized') {
+      await live.send('Browser.setWindowBounds', {
+        windowId: window['windowId'],
+        bounds: { windowState: 'normal' },
+      });
+    }
+    await live.send('Target.activateTarget', { targetId });
+    await live.send('Page.bringToFront', {}, sessionId);
+    return { tabId: targetId, ...(await tabInfo(targetId)) };
   };
 
   const stop = async (): Promise<void> => {

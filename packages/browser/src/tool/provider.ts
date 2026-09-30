@@ -10,6 +10,7 @@ import { basename } from 'node:path';
 import { BROWSER_GUIDANCE, BROWSER_TOOLS, browserToolName } from './catalog.js';
 import { saveScreenshot } from '../screenshots.js';
 import type { BotBrowserRuntimes } from '../runtimes.js';
+import type { BrowserTab } from '../runtime/browser.js';
 
 export const BROWSER_PROMPT_SECTION = 'botharness:browser';
 
@@ -57,6 +58,7 @@ export interface BrowserToolProvider {
   reconcileAll(): Promise<void>;
   isTakeover(slug: string): boolean;
   setTakeover(slug: string, active: boolean): boolean;
+  openForHuman(slug: string, requestedTabId?: string): Promise<BrowserTab>;
   currentTab(slug: string): string | undefined;
   ownsTab(slug: string, targetId: string): boolean;
   listTabs(
@@ -204,6 +206,17 @@ export function createBrowserToolProvider(
     throw new Error('Browser action is not authorized for this session');
   };
 
+  const assertExecutionAllowed = (raw: string, slug: string): void => {
+    if (core().registry?.get(slug)?.browserAccess !== true) {
+      throw new Error('Browser Access is off for this PersonaBot');
+    }
+    if (raw !== 'observe' && takeovers.has(slug)) {
+      throw new Error(
+        'Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting',
+      );
+    }
+  };
+
   const runTool = async (
     raw: string,
     args: Record<string, unknown>,
@@ -264,7 +277,7 @@ export function createBrowserToolProvider(
     if (raw === 'screenshot') {
       if (takeovers.has(slug)) {
         throw new Error(
-          'Browser Takeover is active for this PersonaBot; the Human is driving the Bot Browser',
+          'Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting',
         );
       }
       const state = botTabs(slug);
@@ -491,17 +504,13 @@ export function createBrowserToolProvider(
           call: async (args, execution) => {
             await authorize(execution, sessionId);
             onActivity(slug);
-            if (core().registry?.get(slug)?.browserAccess !== true) {
-              throw new Error('Browser Access is off for this PersonaBot');
-            }
-            if (spec.raw !== 'observe' && takeovers.has(slug)) {
-              throw new Error(
-                'Browser Takeover is active for this PersonaBot; the Human is driving the Bot Browser',
-              );
-            }
+            assertExecutionAllowed(spec.raw, slug);
             const started = Date.now();
             try {
-              const result = await serialize(slug, () => runTool(spec.raw, args, slug));
+              const result = await serialize(slug, () => {
+                assertExecutionAllowed(spec.raw, slug);
+                return runTool(spec.raw, args, slug);
+              });
               record(
                 slug,
                 sessionId,
@@ -608,6 +617,37 @@ export function createBrowserToolProvider(
       else takeovers.delete(slug);
       note(`takeover ${active ? 'on' : 'off'} slug=${slug}`);
       return takeovers.has(slug);
+    },
+
+    openForHuman(slug, requestedTabId) {
+      return serialize(slug, async () => {
+        if (disposed) throw new Error('The Browser Provider is disposed');
+        const started = Date.now();
+        const state = botTabs(slug);
+        state.lastActivity = started;
+        onActivity(slug);
+        const runtime = runtimes.for(slug);
+        await runtime.ensure();
+        const live = new Set((await runtime.listTabs()).map((tab) => tab.targetId));
+        for (const targetId of state.owned) {
+          if (!live.has(targetId)) state.owned.delete(targetId);
+        }
+        if (state.current !== undefined && !state.owned.has(state.current)) {
+          state.current = undefined;
+        }
+        const targetId =
+          requestedTabId !== undefined && state.owned.has(requestedTabId)
+            ? requestedTabId
+            : (state.current ?? state.owned.values().next().value);
+        const tab = await runtime.openWindow(targetId);
+        state.owned.add(tab.tabId);
+        state.current ??= tab.tabId;
+        state.lastActivity = Date.now();
+        note(
+          `human window ${targetId === undefined ? 'created' : 'revealed'} slug=${slug} durationMs=${Date.now() - started}`,
+        );
+        return tab;
+      });
     },
 
     currentTab(slug) {

@@ -1,3 +1,4 @@
+import type { HostFileTarget } from './host-file-actions.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
 
@@ -108,8 +109,24 @@ export async function loadModelPlan(
   call: BridgeCall,
   slug: string,
 ): Promise<ModelPlanView | undefined> {
+  return (await loadModelPlanState(call, slug)).plan;
+}
+
+export interface ModelPlanStateView {
+  plan?: ModelPlanView;
+  repair?: {
+    code: 'legacy-ambiguous' | 'legacy-missing' | 'route-unavailable';
+    message: string;
+    legacyModel?: string;
+  };
+}
+
+export async function loadModelPlanState(
+  call: BridgeCall,
+  slug: string,
+): Promise<ModelPlanStateView> {
   const value = asRecord(await unwrap(call, 'modelPlan', { slug }));
-  return value?.['plan'] as ModelPlanView | undefined;
+  return value === undefined ? {} : (value as ModelPlanStateView);
 }
 
 export async function createModelPreset(
@@ -1895,6 +1912,18 @@ export interface ProfileActivityTokensDay extends ProfileTokenBuckets {
   day: string;
 }
 
+export interface ProfileModelUsageRow {
+  day: string;
+  purpose: string;
+  provider: string;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  totalTokens: number | null;
+}
+
 export interface ProfileActivity {
   slug: string;
   weeks: number;
@@ -1904,6 +1933,8 @@ export interface ProfileActivity {
   memoryCommits: ProfileActivityDay[];
   tokens: ProfileActivityTokensDay[];
   tokenTotals: ProfileTokenBuckets;
+  modelUsageRows?: ProfileModelUsageRow[];
+  modelUsageStatus?: 'ready' | 'unavailable';
 }
 
 export interface GroupProfileAuthorActivity {
@@ -1960,6 +1991,22 @@ export async function loadMemorySnapshot(
   )
     throw new Error('invalid Memory snapshot');
   return snapshot as unknown as MemorySnapshot;
+}
+
+export async function loadMemoryFileTarget(
+  call: BridgeCall,
+  slug: string,
+  path: string,
+): Promise<HostFileTarget> {
+  const response = asRecord(await unwrap(call, 'memoryFileTarget', { slug, path }));
+  const target = asRecord(response?.['target']);
+  if (
+    typeof target?.['path'] !== 'string' ||
+    typeof target['relativePath'] !== 'string' ||
+    !['file', 'directory'].includes(String(target['kind']))
+  )
+    throw new Error('Invalid Memory file target');
+  return target as unknown as HostFileTarget;
 }
 
 export async function loadMemoryFile(
@@ -2102,7 +2149,31 @@ export async function loadProfileActivity(
       const entry = asRecord(value);
       return typeof entry?.['day'] === 'string' && isTokenBuckets(entry);
     }) ||
-    !isTokenBuckets(response['tokenTotals'])
+    !isTokenBuckets(response['tokenTotals']) ||
+    (response['modelUsageRows'] !== undefined &&
+      (!Array.isArray(response['modelUsageRows']) ||
+        !response['modelUsageRows'].every((value) => {
+          const row = asRecord(value);
+          return (
+            row !== undefined &&
+            typeof row['day'] === 'string' &&
+            typeof row['purpose'] === 'string' &&
+            typeof row['provider'] === 'string' &&
+            typeof row['model'] === 'string' &&
+            [
+              'inputTokens',
+              'outputTokens',
+              'cacheReadTokens',
+              'cacheWriteTokens',
+              'totalTokens',
+            ].every(
+              (key) =>
+                row[key] === null || (Number.isSafeInteger(row[key]) && (row[key] as number) >= 0),
+            )
+          );
+        }))) ||
+    (response['modelUsageStatus'] !== undefined &&
+      !['ready', 'unavailable'].includes(String(response['modelUsageStatus'])))
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;

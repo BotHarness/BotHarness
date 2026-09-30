@@ -18,6 +18,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools';
 import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
 import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 
+import type { GroupInvitation, GroupJoinRequest } from '../channels/channel.js';
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import {
   assignmentModelsOf,
@@ -33,6 +34,37 @@ import type {
   BotAgentAdapter,
   OrchestratorAgentRun,
 } from './bot-runtime.js';
+
+function groupCommandResult(
+  channel: { id: string; name: string },
+  outcome: 'created' | 'renamed' | 'member-removed',
+) {
+  return { channelId: channel.id, name: channel.name, outcome };
+}
+
+function groupInvitationResult(
+  channelId: string,
+  invitation: Pick<GroupInvitation, 'id' | 'targetBotSlug' | 'status'>,
+) {
+  return {
+    channelId,
+    inviteId: invitation.id,
+    inviteeBotId: invitation.targetBotSlug,
+    outcome: invitation.status,
+  };
+}
+
+function groupJoinResult(
+  channelId: string,
+  request: Pick<GroupJoinRequest, 'id' | 'requesterBotSlug' | 'status'>,
+) {
+  return {
+    channelId,
+    requestId: request.id,
+    requesterBotId: request.requesterBotSlug,
+    outcome: request.status,
+  };
+}
 
 const ROLE_PROMPT_ORDER = 10_350;
 const CHANNEL_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
@@ -73,6 +105,12 @@ export interface DshBotAgentAdapterOptions {
   agents: DshAgentHost;
   defaultModel: DshDefaultModelHost;
   resolveModelPlan?: (botSlug: string) => PersonaBotModelPlan | undefined;
+  hasSession?: (sessionId: string) => Promise<boolean>;
+  prepareModelRoute?: (
+    botSlug: string,
+    role: 'orchestrator' | 'assignment',
+    retainedRoute?: ModelRoute,
+  ) => Promise<void>;
 
   resolveAgentPresets?: () => DshAgentPresetHost | undefined;
 
@@ -116,9 +154,10 @@ function agentOptions(
         : { reasoningEffort: ReasoningEffortId(route.reasoningEffort) }),
     };
   }
-  return run.bot.model === undefined
-    ? defaultSelection
-    : { ...defaultSelection, model: run.bot.model };
+  if (run.bot.model !== undefined) {
+    throw new Error('Legacy Bot model requires provider selection in PersonaBot Profile');
+  }
+  return defaultSelection;
 }
 
 function createMeta(
@@ -155,7 +194,18 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
   const reason = turnEnd.data.reason;
   if (reason.kind === 'completed') return;
   if (reason.kind === 'error') {
-    const failure = new Error(`${reason.error.code}: ${reason.error.message}`);
+    const routeNeedsRepair =
+      [
+        'MISSING_CREDENTIAL',
+        'INVALID_CREDENTIAL',
+        'NO_ADAPTER',
+        'MODEL_NOT_FOUND',
+        'UNSUPPORTED_REASONING_EFFORT',
+      ].includes(reason.error.code) ||
+      ('status' in reason.error && (reason.error.status === 401 || reason.error.status === 403));
+    const failure = new Error(
+      `${reason.error.code}: ${reason.error.message}${routeNeedsRepair ? '. Open PersonaBot Profile and select an available Model Preset or repair the DSH provider credential before retrying.' : ''}`,
+    );
     if ('status' in reason.error && typeof reason.error.status === 'number') {
       Object.assign(failure, { status: reason.error.status });
     }
@@ -168,6 +218,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #agents: DshAgentHost;
   readonly #defaultModel: DshDefaultModelHost;
   readonly #resolveModelPlan: ((botSlug: string) => PersonaBotModelPlan | undefined) | undefined;
+  readonly #prepareModelRoute: DshBotAgentAdapterOptions['prepareModelRoute'];
+  readonly #hasSession: DshBotAgentAdapterOptions['hasSession'];
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #defaultAgentPreset: string | undefined;
   readonly #authorizeBorrow:
@@ -196,6 +248,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#agents = options.agents;
     this.#defaultModel = options.defaultModel;
     this.#resolveModelPlan = options.resolveModelPlan;
+    this.#prepareModelRoute = options.prepareModelRoute;
+    this.#hasSession = options.hasSession;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
     this.#authorizeBorrow = options.authorizeBorrow;
@@ -228,6 +282,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       },
     });
     try {
+      await this.#prepareModelRoute?.(run.bot.slug, 'orchestrator');
       const handle = await this.#orchestratorHandle(run);
       const selection = this.#orchestratorSelections.get(run.sessionId);
       if (selection !== undefined) {
@@ -310,6 +365,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     const entry: ActiveRun = { role: 'assignment', run, reported: false };
     this.#runs.set(run.sessionId, entry);
     try {
+      await this.#prepareModelRoute?.(run.bot.slug, 'assignment', run.modelRoute);
       const handle = await this.#assignmentHandle(run);
       this.#selectAssignmentModel(run);
       if (this.#stopping.has(run.sessionId)) return;
@@ -855,16 +911,24 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           description:
             'List Channels this PersonaBot currently belongs to, including Group, Human DM, and Bot DM Channels and their current Bot members. Filter by name, type, or stable member Bot IDs; use channel_id for one exact Channel.',
           parameters: {
-            channel_id: { type: 'string', description: 'Exact Channel id to inspect.' },
+            channel_id: {
+              type: 'string',
+              description:
+                'Exact Channel ID; an empty lookup reports no-accessible-match without revealing hidden existence.',
+            },
             name: { type: 'string', description: 'Case-insensitive Channel name substring.' },
-            type: { type: 'string', description: 'Channel type: group or dm.' },
+            type: { type: 'string', enum: ['group', 'dm'], description: 'Channel type.' },
             member_bot_ids: {
               type: 'array',
               items: { type: 'string' },
               description: 'Require all of these stable PersonaBot IDs as current members.',
             },
-            cursor: { type: 'string', description: 'Opaque nextCursor from the prior page.' },
-            limit: { type: 'number', description: 'Page size from 1 to 100.' },
+            cursor: { type: 'string', description: 'Opaque nextCursor; reuse the same filters.' },
+            limit: {
+              type: 'number',
+              description:
+                'Default 20; floor and clamp to 1–100. Fractions and out-of-range numbers remain valid.',
+            },
           },
           output: {
             schema: { type: 'string' },
@@ -875,15 +939,18 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator') {
               throw new Error('channel_list: Orchestrator run is unavailable');
             }
+            const result = active.run.channels.list({
+              ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
+              ...(args.name === undefined ? {} : { name: args.name }),
+              ...(args.type === undefined ? {} : { type: args.type }),
+              ...(args.member_bot_ids === undefined ? {} : { memberBotIds: args.member_bot_ids }),
+              ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
+              ...(args.limit === undefined ? {} : { limit: args.limit }),
+            });
             return JSON.stringify(
-              active.run.channels.list({
-                ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
-                ...(args.name === undefined ? {} : { name: args.name }),
-                ...(args.type === undefined ? {} : { type: args.type as 'group' | 'dm' }),
-                ...(args.member_bot_ids === undefined ? {} : { memberBotIds: args.member_bot_ids }),
-                ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-                ...(args.limit === undefined ? {} : { limit: args.limit }),
-              }),
+              args.channel_id !== undefined && result.channels.length === 0
+                ? { ...result, outcome: 'no-accessible-match' }
+                : result,
             );
           },
         }),
@@ -892,7 +959,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'channel_read',
           description:
-            'Query the full history of a joined Channel. Filter by text, author, or date; follow nextCursor for older results. Omit channel_id to use the Channel that triggered this turn.',
+            'Query joined Channel history or search across joined Channels; follow nextCursor with unchanged filters.',
           parameters: {
             channel_id: {
               type: 'string',
@@ -900,19 +967,38 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             },
             scope: {
               type: 'string',
-              description:
-                'Use joined with text to search all currently joined Channels; otherwise query one Channel.',
+              enum: ['channel', 'joined'],
+              description: 'Default channel. Joined requires nonblank text and forbids channel_id.',
             },
-            text: { type: 'string', description: 'Case-insensitive body substring.' },
-            author_bot_id: { type: 'string', description: 'Stable author PersonaBot ID.' },
+            text: {
+              type: 'string',
+              description: 'Trimmed, case-insensitive body substring.',
+            },
+            author_bot_id: {
+              type: 'string',
+              description: 'Stable Bot author ID; author_kind must be bot or omitted.',
+            },
             author_kind: {
               type: 'string',
-              description: 'Author kind: human, bot, bridged, or system.',
+              enum: ['human', 'bot', 'bridged', 'system'],
+              description: 'Author kind; only bot is compatible with author_bot_id.',
             },
-            from: { type: 'string', description: 'Inclusive ISO timestamp lower bound.' },
-            to: { type: 'string', description: 'Inclusive ISO timestamp upper bound.' },
-            cursor: { type: 'string', description: 'Opaque nextCursor from the prior page.' },
-            limit: { type: 'number', description: 'Page size from 1 to 200.' },
+            from: {
+              type: 'string',
+              description:
+                'Inclusive timestamp lower bound; YYYY-MM-DD starts at UTC midnight. Invalid or reversed ranges fail.',
+            },
+            to: {
+              type: 'string',
+              description:
+                'Inclusive timestamp upper bound; YYYY-MM-DD includes the whole UTC day.',
+            },
+            cursor: { type: 'string', description: 'Opaque nextCursor; reuse the same filters.' },
+            limit: {
+              type: 'number',
+              description:
+                'Default 20; floor and clamp to 1–200. Fractions and out-of-range numbers remain valid.',
+            },
           },
           output: {
             schema: { type: 'string' },
@@ -926,12 +1012,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             return JSON.stringify(
               active.run.channels.query({
                 ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
-                ...(args.scope === undefined ? {} : { scope: args.scope as 'channel' | 'joined' }),
+                ...(args.scope === undefined ? {} : { scope: args.scope }),
                 ...(args.text === undefined ? {} : { text: args.text }),
                 ...(args.author_bot_id === undefined ? {} : { authorBotId: args.author_bot_id }),
-                ...(args.author_kind === undefined
-                  ? {}
-                  : { authorKind: args.author_kind as 'human' | 'bot' | 'bridged' | 'system' }),
+                ...(args.author_kind === undefined ? {} : { authorKind: args.author_kind }),
                 ...(args.from === undefined ? {} : { from: args.from }),
                 ...(args.to === undefined ? {} : { to: args.to }),
                 ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
@@ -1131,7 +1215,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_create: Orchestrator run is unavailable');
-            return JSON.stringify(active.run.channels.createGroup(args.name));
+            return JSON.stringify(
+              groupCommandResult(active.run.channels.createGroup(args.name), 'created'),
+            );
           },
         }),
       );
@@ -1152,12 +1238,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_invite_bot: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.inviteGroup({
-                channelId: args.channel_id,
-                targetBotSlug: args.bot_id,
-              }),
-            );
+            const invitation = active.run.channels.inviteGroup({
+              channelId: args.channel_id,
+              targetBotSlug: args.bot_id,
+            });
+            return JSON.stringify(groupInvitationResult(args.channel_id, invitation));
           },
         }),
       );
@@ -1185,12 +1270,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_invite_respond: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.respondToGroupInvite({
-                invitationId: args.invite_id,
-                accept: args.accept,
-              }),
-            );
+            const result = active.run.channels.respondToGroupInvite({
+              invitationId: args.invite_id,
+              accept: args.accept,
+            });
+            return JSON.stringify({
+              ...groupInvitationResult(result.channel.id, result.invitation),
+              name: result.channel.name,
+            });
           },
         }),
       );
@@ -1217,9 +1304,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               active.run.channels.requestGroupJoin === undefined
             )
               throw new Error('group_join_request: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.requestGroupJoin({ channelId: args.channel_id }),
-            );
+            const request = active.run.channels.requestGroupJoin({ channelId: args.channel_id });
+            return JSON.stringify(groupJoinResult(args.channel_id, request));
           },
         }),
       );
@@ -1244,13 +1330,15 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               active.run.channels.decideGroupJoin === undefined
             )
               throw new Error('group_join_decide: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.decideGroupJoin({
-                channelId: args.channel_id,
-                requestId: args.request_id,
-                accept: args.accept,
-              }),
-            );
+            const result = active.run.channels.decideGroupJoin({
+              channelId: args.channel_id,
+              requestId: args.request_id,
+              accept: args.accept,
+            });
+            return JSON.stringify({
+              ...groupJoinResult(result.channel.id, result.request),
+              name: result.channel.name,
+            });
           },
         }),
       );
@@ -1270,12 +1358,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_rename: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.renameGroup({
-                channelId: args.channel_id,
-                name: args.name,
-              }),
-            );
+            const channel = active.run.channels.renameGroup({
+              channelId: args.channel_id,
+              name: args.name,
+            });
+            return JSON.stringify(groupCommandResult(channel, 'renamed'));
           },
         }),
       );
@@ -1299,12 +1386,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_remove_member: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.removeGroupMember({
-                channelId: args.channel_id,
-                botSlug: args.bot_id,
-              }),
-            );
+            const channel = active.run.channels.removeGroupMember({
+              channelId: args.channel_id,
+              botSlug: args.bot_id,
+            });
+            return JSON.stringify({
+              ...groupCommandResult(channel, 'member-removed'),
+              memberBotId: args.bot_id,
+            });
           },
         }),
       );
@@ -1643,7 +1732,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       this.#ensureWorkspace,
       this.#defaultAgentPreset,
     );
-    const handle = run.resume
+    const resume =
+      run.resume && (this.#hasSession === undefined || (await this.#hasSession(run.sessionId)));
+    const handle = resume
       ? await this.#agents.resume({
           resumeSessionId: SessionId(run.sessionId),
           ...options,
@@ -1792,14 +1883,16 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       this.#assignmentSelections.set(run.sessionId, selection);
       return borrowed;
     }
-    const handle =
-      run.resume === true
-        ? await this.#agents.resume({
-            resumeSessionId: SessionId(run.sessionId),
-            agentOptions: resolvedAgentOptions,
-            setup: createOptions.setup!,
-          })
-        : await this.#agents.create(createOptions);
+    const resume =
+      run.resume === true &&
+      (this.#hasSession === undefined || (await this.#hasSession(run.sessionId)));
+    const handle = resume
+      ? await this.#agents.resume({
+          resumeSessionId: SessionId(run.sessionId),
+          agentOptions: resolvedAgentOptions,
+          setup: createOptions.setup!,
+        })
+      : await this.#agents.create(createOptions);
     this.#handles.set(run.sessionId, handle);
     this.#assignmentSelections.set(run.sessionId, selection);
     return handle;

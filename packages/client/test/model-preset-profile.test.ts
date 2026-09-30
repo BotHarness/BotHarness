@@ -28,6 +28,107 @@ function translate(key: string, params?: Record<string, unknown>): string {
 }
 
 describe('Model Preset Profile', () => {
+  it.each([false, true])(
+    'refreshes repair guidance after Assignment updates (resolved: %s)',
+    async (resolved) => {
+      Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+      const route = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
+      let plan = {
+        revision: 1,
+        sourcePresetId: '',
+        sourcePresetName: '',
+        orchestrator: route,
+        assignmentDefault: route,
+        appliedAt: '',
+      };
+      const repair = { code: 'route-unavailable', message: 'Orchestrator route cannot run' };
+      let updated = false;
+      const modelPlanState = vi.fn(async () => ({
+        plan,
+        repair: updated && resolved ? undefined : repair,
+      }));
+      const actions = {
+        modelPlanState,
+        modelPresets: vi.fn(async () => []),
+        modelCatalog: vi.fn(async () => [
+          {
+            provider: 'deepseek',
+            providerName: 'DeepSeek',
+            model: 'flash',
+            modelName: 'Flash',
+            efforts: [{ id: 'low', name: 'Low' }],
+          },
+        ]),
+        setModelPlanAssignments: vi.fn(async () => {
+          updated = true;
+          plan = { ...plan, revision: 2 };
+          return plan;
+        }),
+      } as unknown as BridgeActions;
+      const container = document.createElement('div');
+      document.body.append(container);
+      const root = createRoot(container);
+      try {
+        await act(async () =>
+          root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
+        );
+        const details = container.querySelector<HTMLDetailsElement>('details')!;
+        await act(async () => {
+          details.open = true;
+          details.dispatchEvent(new Event('toggle'));
+        });
+        const before = modelPlanState.mock.calls.length;
+        const save = Array.from(container.querySelectorAll('button')).find(
+          (button) => button.textContent === 'Save Assignment model choices',
+        )!;
+        await act(async () => save.click());
+        expect(modelPlanState.mock.calls.length).toBeGreaterThan(before);
+        expect(container.querySelector('[role="alert"]')?.textContent ?? '').toContain(
+          resolved ? '' : 'The current model cannot run',
+        );
+        if (resolved) expect(container.querySelector('[role="alert"]')).toBeNull();
+        expect(container.querySelector('summary')?.textContent).toContain(
+          resolved ? 'Revision 2' : 'Select an available model',
+        );
+      } finally {
+        await act(async () => root.unmount());
+        container.remove();
+      }
+    },
+  );
+
+  it('explains an ambiguous legacy model before the settings are expanded', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const actions = {
+      modelPlanState: vi.fn(async () => ({
+        repair: {
+          code: 'legacy-ambiguous',
+          legacyModel: 'shared-model',
+          message: 'Choose a provider',
+        },
+      })),
+      modelPresets: vi.fn(async () => []),
+    } as unknown as BridgeActions;
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
+      );
+      expect(container.querySelector('details')?.open).toBe(false);
+      expect(container.querySelector('summary')?.textContent).toContain(
+        'Select an available model',
+      );
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        'shared-model matches multiple providers',
+      );
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it('keeps a switched plan and its custom draft when an older detail load finishes later', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const high = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
@@ -52,7 +153,7 @@ describe('Model Preset Profile', () => {
     });
     let planReads = 0;
     const actions = {
-      modelPlan: vi.fn(async () => (++planReads === 2 ? staleLoad : plan)),
+      modelPlanState: vi.fn(async () => ({ plan: await (++planReads === 2 ? staleLoad : plan) })),
       modelPresets: vi.fn(async () => presets),
       modelCatalog: vi.fn(async () => [
         {
@@ -201,6 +302,7 @@ describe('Model Preset Profile', () => {
     const modelPlan = vi.fn(async () => plan);
     const actions = {
       modelPlan,
+      modelPlanState: vi.fn(async () => ({ plan: await modelPlan() })),
       modelPresets: vi.fn(async () => presets),
       modelCatalog: vi.fn(async () => [
         {

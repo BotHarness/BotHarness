@@ -58,6 +58,7 @@ export interface GroupInvitation {
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   createdAt: string;
   respondedAt?: string;
+  respondedBy?: 'bot' | 'profile-policy';
 }
 
 export function isGroupAvatar(value: unknown): value is string {

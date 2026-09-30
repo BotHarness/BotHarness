@@ -9,7 +9,12 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     ...props
   }: PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement> & { icon?: unknown }>) =>
     createElement('button', props, children),
+  FileTypeIcon: ({ path }: { path: string }) =>
+    createElement('span', { 'data-file-type-icon': path }),
+  IconCloseOutlineRegular: () => null,
+  IconPaperclipOutlineRegular: () => null,
   IconSendOutlineRegular: () => null,
+  ImageLightbox: () => null,
 }));
 
 import {
@@ -142,6 +147,42 @@ describe('Channel composer', () => {
 
     const ready = render('ready');
     expect(ready.match(/<button class="bh-send-btn"[^>]*>/u)?.[0]).not.toContain('disabled');
+  });
+
+  it('renders image previews and document files as distinct attachment shapes', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelComposer, {
+        value: '',
+        placeholder: 'Message Ada',
+        sending: false,
+        attachments: [
+          {
+            id: 'image-1',
+            file: new File(['image'], 'capture.png', { type: 'image/png' }),
+            status: 'ready',
+          },
+          {
+            id: 'document-1',
+            file: new File(['document'], 'a-very-long-report-name-that-needs-truncation.docx', {
+              type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            }),
+            status: 'uploading',
+          },
+        ],
+        onChange: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain('class="bh-composer-image-attachment"');
+    expect(markup).toContain('class="bh-composer-image-preview"');
+    expect(markup).toContain('aria-haspopup="dialog"');
+    expect(markup).toContain('class="bh-composer-file-attachment"');
+    expect(markup).toContain(
+      'data-file-type-icon="a-very-long-report-name-that-needs-truncation.docx"',
+    );
+    expect(markup).toContain('class="bh-composer-attachment-name"');
+    expect(markup).toContain('上传中');
   });
 
   it('submits plain Enter but preserves multiline and IME input', () => {

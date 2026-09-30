@@ -63,6 +63,11 @@ export interface PersonaBotRegistry {
   setBrowserAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserProfile(slug: string, profile: string): UpdatePersonaBotResult;
   applyModelPreset(slug: string, preset: ModelPreset): UpdatePersonaBotResult;
+  migrateLegacyModel(
+    slug: string,
+    expectedModel: string,
+    route: ModelRoute,
+  ): UpdatePersonaBotResult;
   customizeModelPlan(
     slug: string,
     orchestrator: PersonaBotModelPlan['orchestrator'],
@@ -372,6 +377,24 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         appliedAt: now().toISOString(),
       };
       record.modelPlan = plan;
+      delete record.model;
+      write(record);
+      return { ok: true, record };
+    },
+    migrateLegacyModel(slug, expectedModel, route) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (record.modelPlan !== undefined) return { ok: true, record };
+      if (record.model !== expectedModel) return { ok: false, reason: 'invalid-input' };
+      record.modelPlan = {
+        revision: 1,
+        sourcePresetId: '',
+        sourcePresetName: '',
+        orchestrator: { ...route },
+        assignmentDefault: { ...route },
+        appliedAt: now().toISOString(),
+      };
+      delete record.model;
       write(record);
       return { ok: true, record };
     },

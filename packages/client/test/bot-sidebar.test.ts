@@ -105,6 +105,7 @@ function stubActions(): BridgeActions {
     modelCatalog: vi.fn(async () => []),
     modelPresets: vi.fn(async () => []),
     modelPlan: vi.fn(async () => undefined),
+    modelPlanState: vi.fn(async () => ({})),
     createModelPreset: vi.fn(async () => {
       throw new Error('unexpected Model Preset creation');
     }),
@@ -158,6 +159,10 @@ function stubActions(): BridgeActions {
     dismissFailedMessage: vi.fn(() => false),
     openSession: vi.fn(() => undefined),
     refreshSessions: vi.fn(async () => undefined),
+    memoryFileTarget: vi.fn(),
+    memoryFileApplications: vi.fn(),
+    memoryFileOpen: vi.fn(),
+    memoryFileDownload: vi.fn(),
     memorySnapshot: vi.fn(async () => ({ head: null, files: [], provisional: false })),
     memoryFile: vi.fn(async () => undefined),
     memoryHistory: vi.fn(async () => []),
@@ -301,6 +306,7 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
 let prefs: BotModePrefsSnapshot = {
   motionPreference: 'system',
   botIcon: 'mascot' as const,
+  autoAcceptGroupInvites: true,
   developerMode: false,
   effectiveMotion: 'full',
   sortMode: 'updated',
@@ -360,6 +366,7 @@ beforeEach(() => {
   prefs = {
     motionPreference: 'system',
     botIcon: 'mascot' as const,
+    autoAcceptGroupInvites: true,
     developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',
@@ -777,6 +784,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
@@ -819,6 +827,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -902,6 +911,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -915,6 +925,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
@@ -944,6 +955,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -958,6 +970,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',

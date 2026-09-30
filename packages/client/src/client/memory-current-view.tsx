@@ -3,6 +3,7 @@ import type { BridgeActions } from './actions.js';
 import type { MemoryWorkingChange, MemoryWorkingDiff } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { MemoryDiffFile, MemoryViewIconButton } from './memory-reader-parts.js';
+import { MemoryFileActionButton } from './memory-file-actions.js';
 import { channelSidebarPrefs } from './channel-sidebar-prefs.js';
 import { memoryChangeBadge } from './memory-working-presentation.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -18,9 +19,10 @@ export function MemoryFileView({
   actions,
   channelId,
   path,
+  botSlug,
   onClose,
   t,
-}: CommonProps & { path: string }): ReactElement {
+}: CommonProps & { path: string; botSlug?: string | undefined }): ReactElement {
   const [revision, setRevision] = useState(0);
   const [file, setFile] = useState<Awaited<ReturnType<BridgeActions['memoryFile']>>>();
   const [error, setError] = useState<string>();
@@ -81,7 +83,22 @@ export function MemoryFileView({
     >
       <div className="bh-memory-commit-header">
         <MemoryViewIconButton action="backToChat" onClick={onClose} t={t} />
-        <strong>{path}</strong>
+        <strong>
+          {botSlug === undefined ? (
+            path
+          ) : (
+            <MemoryFileActionButton
+              actions={actions}
+              slug={botSlug}
+              path={path}
+              text={path}
+              t={t}
+            />
+          )}
+        </strong>
+        {botSlug === undefined ? null : (
+          <MemoryFileActionButton actions={actions} slug={botSlug} path={path} t={t} />
+        )}
         <MemoryViewIconButton
           action="refresh"
           onClick={() => setRevision((value) => value + 1)}

@@ -1,0 +1,99 @@
+{
+  "mode": "after",
+  "ownedCurrent": "B5FA5E6849FEF1D667B4D5ADB8FC9CDE",
+  "ownedPreview": "229425EC4469E68A5B2411BE80A71F37",
+  "initialTargets": [
+    {
+      "targetId": "229425EC4469E68A5B2411BE80A71F37",
+      "url": "http://127.0.0.1:31999/preview"
+    },
+    {
+      "targetId": "E54D7AD7D9E13C25F9120757925F08F9",
+      "url": "about:blank"
+    },
+    {
+      "targetId": "B5FA5E6849FEF1D667B4D5ADB8FC9CDE",
+      "url": "http://127.0.0.1:31999/"
+    }
+  ],
+  "addedTargets": [],
+  "open": {
+    "request": "{\"slug\":\"bot-5aeda873a1d0420b9bcac9357c679724\",\"tab\":\"229425EC4469E68A5B2411BE80A71F37\"}",
+    "response": {
+      "ok": true,
+      "tabId": "229425EC4469E68A5B2411BE80A71F37"
+    }
+  },
+  "visibility": "visible",
+  "pointerPreserved": true,
+  "followed": {
+    "request": "{\"slug\":\"bot-5aeda873a1d0420b9bcac9357c679724\"}",
+    "response": {
+      "ok": true,
+      "tabId": "B5FA5E6849FEF1D667B4D5ADB8FC9CDE"
+    }
+  },
+  "repeated": [
+    {
+      "ok": true,
+      "tabId": "B5FA5E6849FEF1D667B4D5ADB8FC9CDE"
+    },
+    {
+      "ok": true,
+      "tabId": "B5FA5E6849FEF1D667B4D5ADB8FC9CDE"
+    },
+    {
+      "ok": true,
+      "tabId": "B5FA5E6849FEF1D667B4D5ADB8FC9CDE"
+    }
+  ],
+  "closedFallback": {
+    "ok": true,
+    "tabId": "229425EC4469E68A5B2411BE80A71F37"
+  },
+  "cold": {
+    "opened": {
+      "request": "{\"slug\":\"bot-a607fe589b9143db85335cd21f4c88d1\"}",
+      "response": {
+        "ok": true,
+        "tabId": "2189059D57B64E5BF2D2FFCFB7A86DAC"
+      }
+    },
+    "concurrent": [
+      {
+        "ok": true,
+        "tabId": "2189059D57B64E5BF2D2FFCFB7A86DAC"
+      },
+      {
+        "ok": true,
+        "tabId": "2189059D57B64E5BF2D2FFCFB7A86DAC"
+      },
+      {
+        "ok": true,
+        "tabId": "2189059D57B64E5BF2D2FFCFB7A86DAC"
+      }
+    ],
+    "replacement": [
+      {
+        "ok": true,
+        "tabId": "643CFD33935305E0FF3D59C7D2AD0F92"
+      },
+      {
+        "ok": true,
+        "tabId": "643CFD33935305E0FF3D59C7D2AD0F92"
+      },
+      {
+        "ok": true,
+        "tabId": "643CFD33935305E0FF3D59C7D2AD0F92"
+      }
+    ]
+  },
+  "emptyFallback": {
+    "ok": true,
+    "tabId": "9296BA9EA39E1BDCD57BD964ADC03A0F"
+  },
+  "themes": {
+    "dark": true,
+    "light": true
+  }
+}

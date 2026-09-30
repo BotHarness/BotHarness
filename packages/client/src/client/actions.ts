@@ -38,6 +38,7 @@ import {
   loadBots,
   loadMemorySnapshot,
   loadMemoryFile,
+  loadMemoryFileTarget,
   loadMemoryHistory,
   loadMemoryDiff,
   loadMemoryGitGraph,
@@ -47,6 +48,8 @@ import {
   loadModelCatalog,
   loadModelPresets,
   loadModelPlan,
+  loadModelPlanState,
+  type ModelPlanStateView,
   createModelPreset,
   updateModelPreset,
   applyModelPreset,
@@ -121,6 +124,14 @@ import type {
   UserQuestionAnswerItem,
 } from './store.js';
 
+import {
+  memoryDownloadUrl,
+  type HostFileTarget,
+  type HostFileOptions,
+  type HostFileOpen,
+  type NativeHostFiles,
+} from './host-file-actions.js';
+
 export interface HostDirectoryListing {
   path: string;
   home: string;
@@ -133,6 +144,7 @@ export interface BridgeActions {
   modelCatalog(): Promise<ModelCatalogEntryView[]>;
   modelPresets(): Promise<ModelPresetView[]>;
   modelPlan(slug: string): Promise<ModelPlanView | undefined>;
+  modelPlanState(slug: string): Promise<ModelPlanStateView>;
   createModelPreset(
     name: string,
     orchestrator: ModelRouteView,
@@ -190,6 +202,10 @@ export interface BridgeActions {
   dismissFailedMessage(channelId: string, messageId: string): boolean;
   openSession(sessionId: string): void;
   refreshSessions(slug: string): Promise<void>;
+  memoryFileTarget(slug: string, path: string): Promise<HostFileTarget>;
+  memoryFileApplications(slug: string, path: string): Promise<HostFileOptions>;
+  memoryFileOpen(slug: string, path: string, choice: HostFileOpen): Promise<void>;
+  memoryFileDownload(slug: string, path: string): Promise<void>;
   memorySnapshot(channelId: string): Promise<MemorySnapshot>;
   memoryFile(
     channelId: string,
@@ -356,8 +372,10 @@ export function createActions(
     listDirectory?(path?: string, signal?: AbortSignal): Promise<HostDirectoryListing>;
     createWorkspace(input: { path: string }): Promise<{ workspaceId: string }>;
     openSession?(sessionId: string): void;
+    nativeFiles?: NativeHostFiles;
   },
 ): BridgeActions {
+  let openingFile = false;
   const failedByChannel = new Map<string, ChannelMessage[]>();
   const localFailedFor = (id: string): ChannelMessage[] => failedByChannel.get(id) ?? [];
   const remainingFailures = (
@@ -657,6 +675,7 @@ export function createActions(
     modelCatalog: () => loadModelCatalog(call),
     modelPresets: () => loadModelPresets(call),
     modelPlan: (slug) => loadModelPlan(call, slug),
+    modelPlanState: (slug) => loadModelPlanState(call, slug),
     createModelPreset: (name, orchestrator, assignmentDefault) =>
       createModelPreset(call, name, orchestrator, assignmentDefault),
     updateModelPreset: (id, expectedRevision, name, orchestrator, assignmentDefault) =>
@@ -1115,6 +1134,35 @@ export function createActions(
           hasNewer: page.hasNewer,
         },
       });
+    },
+    memoryFileTarget: (slug, path) => loadMemoryFileTarget(call, slug, path),
+    async memoryFileApplications(slug, path) {
+      const target = await loadMemoryFileTarget(call, slug, path);
+      return (
+        folderAccess?.nativeFiles?.applications(target) ?? { available: false, applications: [] }
+      );
+    },
+    async memoryFileOpen(slug, path, choice) {
+      if (openingFile) throw new Error('A Host file open is already in progress');
+      openingFile = true;
+      try {
+        const target = await loadMemoryFileTarget(call, slug, path);
+        if (folderAccess?.nativeFiles === undefined)
+          throw new Error('DSH Host opening is unavailable');
+        await folderAccess.nativeFiles.open(target, choice);
+      } finally {
+        openingFile = false;
+      }
+    },
+    async memoryFileDownload(slug, path) {
+      const target = await loadMemoryFileTarget(call, slug, path);
+      if (target.kind !== 'file') throw new Error('Only files can be downloaded');
+      const anchor = document.createElement('a');
+      anchor.href = memoryDownloadUrl(slug, path);
+      anchor.download = path.split('/').at(-1) ?? '';
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
     },
     memorySnapshot: (channelId) => loadMemorySnapshot(call, channelId),
     memoryFile: (channelId, path) => loadMemoryFile(call, channelId, path),

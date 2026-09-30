@@ -2674,12 +2674,7 @@ class BotRuntimeImplementation implements BotRuntime {
           !channel.members.includes(botSlug)
         )
           throw new Error('Only the Bot Group owner may invite');
-        if (
-          target === undefined ||
-          target.paused === true ||
-          target.slug === botSlug ||
-          channel.members.includes(target.slug)
-        )
+        if (target === undefined || target.paused === true || target.slug === botSlug)
           throw new Error('Invitee must be another active nonmember PersonaBot');
         const botCausation = this.#botCausation(sourceEventId);
         if (botCausation.hop > MAX_BOT_HOPS) throw new Error('Bot collaboration hop limit reached');
@@ -2796,7 +2791,9 @@ class BotRuntimeImplementation implements BotRuntime {
           throw new Error('Only the Bot Group owner may rename');
         const name = requireNonBlank(input.name, 'Group name').slice(0, 120);
         beforeSend();
-        return this.#channels.rename(channel.id, name)!;
+        const renamed = this.#channels.rename(channel.id, name);
+        if (renamed === undefined) throw new Error('Group rename did not return a Channel');
+        return renamed;
       },
       removeGroupMember: (input) => {
         const channel = this.#channels.get(input.channelId);

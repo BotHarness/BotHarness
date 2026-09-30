@@ -176,7 +176,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
-        let body: { slug?: unknown } = {};
+        let body: { slug?: unknown; tab?: unknown } = {};
         try {
           body = (await request.json()) as typeof body;
         } catch {
@@ -188,8 +188,9 @@ export function apply(ctx: Context, config: BrowserConfig): void {
         runtimes.touch(slug);
         provider.touch(slug);
         try {
-          await runtimes.for(slug).openWindow();
-          return json({ ok: true });
+          const requested = typeof body.tab === 'string' && body.tab !== '' ? body.tab : undefined;
+          const tab = await provider.openForHuman(slug, requested);
+          return json({ ok: true, tabId: tab.tabId });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);
         }

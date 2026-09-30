@@ -1,8 +1,10 @@
+import type { MemoryFileTarget } from '../memory/file-actions.js';
 import type { Context } from '@deepseek-ai/cordis';
 import { RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 
 import type { PersonaBotPatch } from '../bots/persona-bot.js';
 import type { ModelCatalogEntry } from '../models/catalog.js';
+import type { ModelPlanState } from '../models/readiness.js';
 import type {
   AssignmentModelOption,
   ModelPreset,
@@ -150,8 +152,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.modelPresetApply({ slug, presetId }));
   }
 
-  modelPlan(slug: string): { plan?: PersonaBotModelPlan } {
-    return unwrap(this.methods.modelPlan({ slug }));
+  modelPlan(slug: string): Promise<ModelPlanState> {
+    return unwrapAsync(this.methods.modelPlan({ slug }));
   }
 
   modelPlanCustomize(
@@ -504,6 +506,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.sessionOwner({ sessionId }));
   }
 
+  memoryFileTarget(slug: string, path: string): { target: MemoryFileTarget } {
+    return unwrap(this.methods.memoryFileTarget({ slug, path }));
+  }
+
   memorySnapshot(channelId: string): { snapshot: MemoryAcceptedSnapshot } {
     return unwrap(this.methods.memorySnapshot({ channelId }));
   }
@@ -688,6 +694,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'userQuestionAnswer',
   'sessions',
   'sessionOwner',
+  'memoryFileTarget',
   'memorySnapshot',
   'memoryFile',
   'memoryHistory',
