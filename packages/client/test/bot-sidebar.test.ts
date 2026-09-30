@@ -155,6 +155,10 @@ function stubActions(): BridgeActions {
     loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     openChannelAtMessage: vi.fn(async () => undefined),
+    humanInboxContext: vi.fn(async () => []),
+    replyFromHumanInbox: vi.fn(async () => {
+      throw new Error('No reply expected');
+    }),
     loadOlder: vi.fn(async () => undefined),
     loadNewer: vi.fn(async () => undefined),
     openLatest: vi.fn(async () => undefined),
@@ -164,6 +168,13 @@ function stubActions(): BridgeActions {
     dismissFailedMessage: vi.fn(() => false),
     openSession: vi.fn(() => undefined),
     refreshSessions: vi.fn(async () => undefined),
+    workspaceFileTarget: async () => ({
+      path: '/workspace',
+      relativePath: '',
+      kind: 'directory' as const,
+    }),
+    workspaceFileApplications: async () => ({ available: false, applications: [] }),
+    workspaceFileOpen: async () => {},
     memoryFileTarget: vi.fn(),
     memoryFileApplications: vi.fn(),
     memoryFileOpen: vi.fn(),

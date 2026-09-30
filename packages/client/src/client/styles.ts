@@ -24,6 +24,11 @@ export const CSS =
   --bh-chart-output: var(--dsw-alias-state-warn-primary);
   --bh-chart-read-dim: color-mix(in srgb, var(--bh-accent) 38%, transparent);
   /* @bh-profile-chart-aliases:end */
+  /* @bh-inbox-reply-aliases:start — DSH has no radius tokens; 8px matches
+     its measured project row and 6px matches its compact native controls. */
+  --bh-inbox-radius-panel: 8px;
+  --bh-inbox-radius-control: 6px;
+  /* @bh-inbox-reply-aliases:end */
   font: 13px/1.5 var(--dsw-font-family);
   color: var(--dsw-alias-label-primary);
 }
@@ -4687,6 +4692,82 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   gap: 16px;
   padding: 16px 0;
   border-bottom: 1px solid var(--dsw-alias-border-l3);
+}
+.bh-human-inbox-reply {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--bh-inbox-radius-panel);
+}
+.bh-human-inbox-reply-header,
+.bh-human-inbox-reply-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bh-human-inbox-reply-header h2 {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+.bh-human-inbox-reply p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 6px 0;
+}
+.bh-human-inbox-reply-source,
+.bh-human-inbox-reply-context {
+  margin: 12px 0;
+}
+.bh-human-inbox-reply-context {
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-human-inbox-reply-context > div {
+  margin-top: 8px;
+}
+.bh-human-inbox-reply form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bh-human-inbox-reply textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--bh-inbox-radius-control);
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  line-height: 1.5;
+}
+.bh-human-inbox-reply-actions {
+  justify-content: flex-end;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.bh-human-inbox-reply button {
+  border: 0;
+  border-radius: var(--bh-inbox-radius-control);
+  padding: 5px 8px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.bh-human-inbox-reply button:hover {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+.bh-human-inbox-reply button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.bh-human-inbox-reply textarea:focus-visible,
+.bh-human-inbox-reply button:focus-visible {
+  outline: 2px solid var(--bh-accent);
+  outline-offset: 2px;
 }
 .bh-human-inbox-row-main {
   min-width: 0;

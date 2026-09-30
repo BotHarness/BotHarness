@@ -484,6 +484,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.workspaceOptions({}));
   }
 
+  workspaceFileTarget(
+    slug: string,
+    grantId: string,
+  ): { target: { path: string; relativePath: ''; kind: 'directory' } } {
+    return unwrap(this.methods.workspaceFileTarget({ slug, grantId }));
+  }
+
   grants(slug: string): { grants: WorkspaceGrant[] } {
     return unwrap(this.methods.grants({ slug }));
   }
@@ -728,6 +735,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'assignments',
   'assignment',
   'workspaceOptions',
+  'workspaceFileTarget',
   'grants',
   'grantCreate',
   'grantRevoke',

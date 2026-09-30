@@ -52,6 +52,7 @@ import {
   loadMemorySnapshot,
   loadMemoryFile,
   loadMemoryFileTarget,
+  loadWorkspaceFileTarget,
   loadMemoryHistory,
   loadMemoryDiff,
   loadMemoryGitGraph,
@@ -213,6 +214,17 @@ export interface BridgeActions {
   loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
   openChannelAtMessage(channelId: string, messageId: string): Promise<void>;
+  humanInboxContext(
+    channelId: string,
+    messageId: string,
+    signal?: AbortSignal,
+  ): Promise<ChannelMessage[]>;
+  replyFromHumanInbox(
+    channelId: string,
+    messageId: string,
+    body: string,
+    clientMessageId: string,
+  ): Promise<ChannelMessage>;
   loadOlder(channelId: string): Promise<void>;
   loadNewer(channelId: string): Promise<void>;
   openLatest(channelId: string): Promise<void>;
@@ -222,6 +234,9 @@ export interface BridgeActions {
   dismissFailedMessage(channelId: string, messageId: string): boolean;
   openSession(sessionId: string): void;
   refreshSessions(slug: string): Promise<void>;
+  workspaceFileTarget(slug: string, grantId: string): Promise<HostFileTarget>;
+  workspaceFileApplications(slug: string, grantId: string): Promise<HostFileOptions>;
+  workspaceFileOpen(slug: string, grantId: string, choice: HostFileOpen): Promise<void>;
   memoryFileTarget(slug: string, path: string): Promise<HostFileTarget>;
   memoryFileApplications(slug: string, path: string): Promise<HostFileOptions>;
   memoryFileOpen(slug: string, path: string, choice: HostFileOpen): Promise<void>;
@@ -625,7 +640,16 @@ export function createActions(
   const openChannelById = async (channelId: string, messageId?: string): Promise<void> => {
     const snapshot = clientStore.getSnapshot();
     const channel = snapshot.channels.find((candidate) => candidate.id === channelId);
-    if (channel === undefined) return;
+    if (channel === undefined) {
+      if (messageId !== undefined) throw new Error('Source Channel is no longer available');
+      return;
+    }
+    const requestedFrom = currentSelection();
+    const sourcePage =
+      messageId === undefined
+        ? undefined
+        : await loadTimelinePage(call, channelId, { direction: 'around', around: messageId });
+    if (sourcePage !== undefined && currentSelection() !== requestedFrom) return;
     const selection: ConversationSelection = { kind: 'channel', channelId };
     clientStore.select(selection, { deferConversation: messageId !== undefined });
     const active = currentSelection();
@@ -654,13 +678,10 @@ export function createActions(
     });
     try {
       const { page, revision, focusMessageId } =
-        messageId === undefined
+        sourcePage === undefined
           ? await loadOpeningTimeline(channelId)
           : {
-              ...(await loadTimelinePage(call, channelId, {
-                direction: 'around',
-                around: messageId,
-              })),
+              ...sourcePage,
               focusMessageId: messageId,
             };
       const failures = remainingFailures(channelId, page.entries);
@@ -915,6 +936,45 @@ export function createActions(
     openChannelAtMessage(channelId, messageId) {
       return openChannelById(channelId, messageId);
     },
+    async humanInboxContext(channelId, messageId, signal) {
+      const { page } = await loadTimelinePage(
+        call,
+        channelId,
+        {
+          direction: 'around',
+          around: messageId,
+          olderLimit: 2,
+          newerLimit: 2,
+        },
+        signal,
+      );
+      if (
+        !page.entries.some(
+          (message) => message.id === messageId && !message.pending && !message.failed,
+        )
+      )
+        throw new Error('Source message is no longer available');
+      return page.entries;
+    },
+    async replyFromHumanInbox(channelId, messageId, body, clientMessageId) {
+      const text = body.trim();
+      const message = await sendChannelMessage(
+        call,
+        channelId,
+        text,
+        messageId,
+        undefined,
+        clientMessageId,
+      );
+      if (
+        message.id !== clientMessageId ||
+        message.replyTo !== messageId ||
+        message.body !== text ||
+        message.author.kind !== 'human'
+      )
+        throw new Error('Channel reply could not be confirmed');
+      return message;
+    },
     async markRead(channelId, messageId) {
       await markReadPosition(call, channelId, messageId);
       await refreshHumanInboxStatus();
@@ -1109,6 +1169,25 @@ export function createActions(
           hasNewer: page.hasNewer,
         },
       });
+    },
+    workspaceFileTarget: (slug, grantId) => loadWorkspaceFileTarget(call, slug, grantId),
+    async workspaceFileApplications(slug, grantId) {
+      const target = await loadWorkspaceFileTarget(call, slug, grantId);
+      return (
+        folderAccess?.nativeFiles?.applications(target) ?? { available: false, applications: [] }
+      );
+    },
+    async workspaceFileOpen(slug, grantId, choice) {
+      if (openingFile) throw new Error('A Host file open is already in progress');
+      openingFile = true;
+      try {
+        const target = await loadWorkspaceFileTarget(call, slug, grantId);
+        if (folderAccess?.nativeFiles === undefined)
+          throw new Error('DSH Host opening is unavailable');
+        await folderAccess.nativeFiles.open(target, choice);
+      } finally {
+        openingFile = false;
+      }
     },
     memoryFileTarget: (slug, path) => loadMemoryFileTarget(call, slug, path),
     async memoryFileApplications(slug, path) {

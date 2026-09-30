@@ -254,6 +254,9 @@ export interface BridgeMethods {
   workspaceOptions(
     payload: unknown,
   ): BridgeResult<{ workspaces: { id: string; path: string; title: string }[] }>;
+  workspaceFileTarget(
+    payload: unknown,
+  ): BridgeResult<{ target: { path: string; relativePath: ''; kind: 'directory' } }>;
   grants(payload: unknown): BridgeResult<{ grants: WorkspaceGrant[] }>;
   grantCreate(payload: unknown): Promise<BridgeResult<{ grant: WorkspaceGrant }>>;
   grantRevoke(payload: unknown): BridgeResult<{ grant: WorkspaceGrant }>;
@@ -1387,7 +1390,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         })
         .safeParse(source);
       if (!parsed.success) return invalidInput('invalid channelTimeline payload');
-      const page = deps.channels.readTimeline(channelId, parsed.data);
+      const page = deps.channels.readHumanTimeline(channelId, parsed.data);
       if (page === undefined) return invalidInput('invalid or expired timeline anchor');
       return { ok: true, value: { page, revision: deps.channels.revision(channelId) } };
     },
@@ -1537,6 +1540,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channel === undefined) return unknownChannel(channelId);
       if (channel.type === 'dm' && channel.botSlug === undefined)
         return invalidInput('Bot-to-Bot DMs are read-only for Human');
+      if (
+        replyTo !== undefined &&
+        deps.channels.readHumanTimeline(channelId, {
+          direction: 'around',
+          around: replyTo,
+          olderLimit: 0,
+          newerLimit: 0,
+        }) === undefined
+      )
+        return invalidInput('Reply target must exist in this Channel');
       const memorySwitchTarget = source['memorySwitchTarget'];
       if (
         memorySwitchTarget !== undefined &&
@@ -1924,6 +1937,30 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         if (error instanceof WorkspaceGrantError) {
           return { ok: false, error: { code: error.code, message: error.message } };
         }
+        throw error;
+      }
+    },
+    workspaceFileTarget(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const grantId = asNonBlank(source, 'grantId');
+      if (slug === undefined || grantId === undefined)
+        return invalidInput('slug and grantId are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.grants === undefined)
+        return {
+          ok: false,
+          error: { code: 'unavailable', message: 'Workspace Grants are unavailable' },
+        };
+      try {
+        const grant = deps.grants.requireActive(slug, grantId);
+        return {
+          ok: true,
+          value: { target: { path: grant.workspacePath, relativePath: '', kind: 'directory' } },
+        };
+      } catch (error) {
+        if (error instanceof WorkspaceGrantError)
+          return { ok: false, error: { code: error.code, message: error.message } };
         throw error;
       }
     },

@@ -1999,6 +1999,22 @@ export async function loadMemorySnapshot(
   return snapshot as unknown as MemorySnapshot;
 }
 
+export async function loadWorkspaceFileTarget(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+): Promise<HostFileTarget> {
+  const response = asRecord(await unwrap(call, 'workspaceFileTarget', { slug, grantId }));
+  const target = asRecord(response?.['target']);
+  if (
+    typeof target?.['path'] !== 'string' ||
+    target['relativePath'] !== '' ||
+    target['kind'] !== 'directory'
+  )
+    throw new Error('Invalid Workspace directory target');
+  return { path: target['path'], relativePath: '', kind: 'directory' };
+}
+
 export async function loadMemoryFileTarget(
   call: BridgeCall,
   slug: string,
