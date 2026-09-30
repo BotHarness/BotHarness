@@ -884,6 +884,7 @@ export function createActions(
         humanInboxScopeVersion += 1;
         clientStore.setHumanInbox({
           category: nextCategory,
+          sort: nextCategory === 'replies' ? 'newest' : prior.sort,
           botSlug: nextCategory === 'unread' ? undefined : prior.botSlug,
           channelId: undefined,
           status: 'loading',

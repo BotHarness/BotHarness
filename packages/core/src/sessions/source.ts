@@ -1,5 +1,7 @@
 export interface DshSessionEvent {
   type: string;
+  seq?: number;
+  surfaceOp?: unknown;
   time: number;
   data: unknown;
 }
