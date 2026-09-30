@@ -1,0 +1,22 @@
+{
+  "baseline": false,
+  "current": "414A8D3A459FB102984E3F4E1A675322",
+  "preview": "2A64BE837D2A3B5606AB2A50D01A608F",
+  "foreign": "E016ADCA23C4B411D20C84040875FBBC",
+  "accessOffRefused": true,
+  "restored": {
+    "focused": "414A8D3A459FB102984E3F4E1A675322",
+    "tabs": [
+      "2A64BE837D2A3B5606AB2A50D01A608F",
+      "414A8D3A459FB102984E3F4E1A675322"
+    ]
+  },
+  "opened": {
+    "ok": true,
+    "tabId": "414A8D3A459FB102984E3F4E1A675322"
+  },
+  "addedTargets": [],
+  "modelOpenObservePassed": true,
+  "workCompleted": true,
+  "closedCurrentRecovered": true
+}
