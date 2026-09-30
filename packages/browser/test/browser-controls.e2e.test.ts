@@ -67,6 +67,10 @@ icon.addEventListener('click', () => {
 
       const shot = await runtime.captureScreenshot(tab.tabId);
       expect(shot?.viewport?.width ?? 0).toBeGreaterThan(0);
+      expect(shot?.image).toEqual(shot?.viewport);
+      await expect(runtime.clickAt(tab.tabId, shot!.viewport!.width, 0)).rejects.toThrow(
+        /outside the viewport/,
+      );
       const assets = join(repoRoot, 'docs', 'assets', 'pr', '530-bilibili-controls');
       mkdirSync(assets, { recursive: true });
       writeFileSync(join(assets, 'e2e-clickable-upload.jpg'), Buffer.from(shot!.data, 'base64'));

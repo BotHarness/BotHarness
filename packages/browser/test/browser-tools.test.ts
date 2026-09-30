@@ -336,6 +336,24 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(readdirSync(h.screenshotDir)).toHaveLength(2);
   });
 
+  it('reports the coordinate conversion when the image is not 1:1', async () => {
+    const h = harness({ access: true, auto: true });
+    h.runtime.captureScreenshot = vi.fn(async () => ({
+      data: 'Zm9v',
+      mimeType: 'image/jpeg',
+      viewport: { width: 1200, height: 736 },
+      image: { width: 2400, height: 1472 },
+    }));
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const shot = await h.state.definitions
+      .get('browser_screenshot')!
+      .execute({}, execution('browser_screenshot'));
+    expect(JSON.stringify(shot)).toContain('divide image coordinates by 2.00');
+  });
+
   it('reports a tab-less screenshot readably', async () => {
     const h = harness({ access: true, auto: true });
     h.created();

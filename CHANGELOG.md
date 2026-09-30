@@ -164,6 +164,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Screenshots report the image size next to the viewport, so coordinate clicks state the exact conversion when the device scale factor is not 1 (for example 2x on Retina), and the viewport guard now uses exclusive bounds ([#538](https://github.com/BotHarness/BotHarness/issues/538)).
+
 - Browser observation now finds role-less toolbar controls inside editor containers and gives unlabelled ones position-tagged names (`div @x,y`); coordinate clicks outside the viewport fail with a re-screenshot instruction, and screenshots report their viewport size so coordinates map 1:1 ([#530](https://github.com/BotHarness/BotHarness/issues/530)).
 - The Computer viewer now remounts its stream after three consecutive lost samples, then makes at most three automatic attempts before showing the no-picture retry control; manual retry can recover the live desktop ([#456](https://github.com/BotHarness/BotHarness/issues/456)).
 - Recoverable browser tool errors (for example a page whose file input does not exist yet) no longer make a PersonaBot forget its current tab and reopen a new one; only a genuinely closed tab drops the bookkeeping, and `browser_upload` now waits briefly for the page to create its file input after clicking the upload control ([#523](https://github.com/BotHarness/BotHarness/issues/523)).
