@@ -217,6 +217,7 @@ export interface BridgeMethods {
   botSourcePolicySet(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
   botSourcePolicyReset(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
+  humanAttentionStatus(payload: unknown): BridgeResult<{ unreadCount: number; hasAction: boolean }>;
   humanAttentionIgnore(payload: unknown): BridgeResult<{ accepted: boolean }>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
@@ -1693,8 +1694,13 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const channelId = source['channelId'];
       const limit = source['limit'];
       const cursor = source['cursor'];
-      if (category !== undefined && category !== 'action' && category !== 'info')
-        return invalidInput('category must be action or info');
+      if (
+        category !== undefined &&
+        category !== 'action' &&
+        category !== 'info' &&
+        category !== 'unread'
+      )
+        return invalidInput('category must be action, info or unread');
       if (sort !== undefined && sort !== 'newest' && sort !== 'oldest')
         return invalidInput('sort must be newest or oldest');
       if (botSlug !== undefined && (typeof botSlug !== 'string' || !isValidSlug(botSlug)))
@@ -1725,6 +1731,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             ...(limit === undefined ? {} : { limit: limit as number }),
             ...(cursor === undefined ? {} : { cursor: cursor as string }),
           }) ?? { items: [] },
+        };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    humanAttentionStatus() {
+      try {
+        return {
+          ok: true,
+          value: deps.humanAttention?.status() ?? { unreadCount: 0, hasAction: false },
         };
       } catch (error) {
         return invalidInput(String(error));

@@ -46,27 +46,30 @@ describe('Human Inbox center view', () => {
     expect(markup).toContain('拒绝');
   });
 
-  it('renders informational Bot DM messages without decision controls', () => {
+  it('renders a Channel unread summary with a deliberate read action and expandable preview', () => {
     store.select({ kind: 'inbox' });
     store.setHumanInbox({
       status: 'ready',
-      category: 'info',
+      category: 'unread',
       items: [
         {
           ...join,
-          id: 'message:source-1',
-          category: 'info',
-          kind: 'bot-dm-message',
+          id: 'unread:dm-ada',
+          category: 'unread',
+          kind: 'channel-unread',
           summary: 'The draft is ready.',
           messageId: 'message-1',
+          unreadCount: 3,
         },
       ],
     });
     const markup = renderToStaticMarkup(
       createElement(HumanInboxView, { actions: {} as BridgeActions }),
     );
+    expect(markup).toContain('3 条未读');
+    expect(markup).toContain('<details>');
     expect(markup).toContain('The draft is ready.');
-    expect(markup).toContain('已了解');
+    expect(markup).toContain('标为已读');
     expect(markup).not.toContain('申请加入');
     expect(markup).not.toContain('同意</button>');
   });

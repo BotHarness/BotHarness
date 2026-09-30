@@ -636,6 +636,13 @@ export function BotSidebar({
   t,
 }: SidebarProps): ReactElement {
   const state = useClientState();
+  const inboxEntryLabel = [
+    t('humanInbox.title'),
+    ...(state.humanInbox.unreadCount > 0
+      ? [t('humanInbox.unreadCount', { count: String(state.humanInbox.unreadCount) })]
+      : []),
+    ...(state.humanInbox.hasAction ? [t('humanInbox.action')] : []),
+  ].join(' · ');
   const prefs = useBotModePrefs((value) => value);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -663,6 +670,11 @@ export function BotSidebar({
   const [pinZoneHovered, setPinZoneHovered] = useState(false);
   const [unpinZoneArmed, setUnpinZoneArmed] = useState(false);
   const [unpinZoneHovered, setUnpinZoneHovered] = useState(false);
+  const inboxEntryMount = useMountedResource<HTMLButtonElement>(() => {
+    void actions.refreshHumanInboxStatus();
+    const timer = window.setInterval(() => void actions.refreshHumanInboxStatus(), 10_000);
+    return () => window.clearInterval(timer);
+  }, [actions]);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
   const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
@@ -1365,11 +1377,18 @@ export function BotSidebar({
         <button
           type="button"
           className="bh-human-inbox-entry"
-          aria-label={t('humanInbox.title')}
+          ref={inboxEntryMount}
+          aria-label={inboxEntryLabel}
           aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
           onClick={() => void actions.openHumanInbox()}
         >
           {t('humanInbox.title')}
+          {state.humanInbox.unreadCount > 0 ? (
+            <span className="bh-human-inbox-count">{state.humanInbox.unreadCount}</span>
+          ) : null}
+          {state.humanInbox.hasAction ? (
+            <span className="bh-human-inbox-action-dot" aria-hidden="true" />
+          ) : null}
         </button>
         <div className="bh-rail-group">
           {railPinnedChannels.map((channel) => renderRailChannel(channel))}
@@ -1447,10 +1466,18 @@ export function BotSidebar({
       <button
         type="button"
         className="bh-human-inbox-entry"
+        ref={inboxEntryMount}
+        aria-label={inboxEntryLabel}
         aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
         onClick={() => void actions.openHumanInbox()}
       >
         {t('humanInbox.title')}
+        {state.humanInbox.unreadCount > 0 ? (
+          <span className="bh-human-inbox-count">{state.humanInbox.unreadCount}</span>
+        ) : null}
+        {state.humanInbox.hasAction ? (
+          <span className="bh-human-inbox-action-dot" aria-hidden="true" />
+        ) : null}
       </button>{' '}
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>

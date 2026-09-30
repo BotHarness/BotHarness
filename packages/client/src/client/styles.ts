@@ -4436,6 +4436,24 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 .bh-human-inbox-entry[aria-current='page'] {
   background: var(--bh-selected);
 }
+.bh-human-inbox-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+  text-align: center;
+  font-size: 11px;
+}
+.bh-human-inbox-action-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--bh-accent);
+}
 .bh-human-inbox {
   overflow: auto;
   padding: 28px min(6vw, 64px);
@@ -4519,6 +4537,15 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
+}
+.bh-human-inbox-unread-meta {
+  margin-top: 5px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-human-inbox-unread-meta summary {
+  margin-top: 8px;
+  cursor: pointer;
 }
 .bh-human-inbox-row-actions {
   display: flex;

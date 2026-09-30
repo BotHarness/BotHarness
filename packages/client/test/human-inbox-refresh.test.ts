@@ -31,6 +31,57 @@ function deferred<T>() {
 }
 
 describe('Human Inbox pagination refresh', () => {
+  it('rejects an unread summary without a committed anchor or positive count', async () => {
+    const clientStore = createStore();
+    clientStore.select({ kind: 'inbox' });
+    const call: BridgeCall = async () => ({
+      ok: true,
+      value: {
+        items: [
+          {
+            id: 'unread:group-team',
+            category: 'unread',
+            kind: 'channel-unread',
+            createdAt: '2026-09-26T00:00:00.000Z',
+            channelId: 'group-team',
+            channelName: 'Team',
+            botSlug: 'ada',
+            summary: 'Update',
+            unreadCount: 0,
+          },
+        ],
+      },
+    });
+    await createActions(call, clientStore).refreshHumanInbox('unread');
+    expect(clientStore.getSnapshot().humanInbox.status).toBe('error');
+    expect(clientStore.getSnapshot().humanInbox.items).toEqual([]);
+  });
+  it('uses the Host status for the entry badge and refreshes it after a concrete read', async () => {
+    const clientStore = createStore();
+    const calls: Array<{ endpoint: string; payload: Record<string, unknown> }> = [];
+    let unreadCount = 3;
+    const call: BridgeCall = async (endpoint, payload) => {
+      calls.push({ endpoint, payload });
+      if (endpoint === 'humanAttentionStatus')
+        return { ok: true, value: { unreadCount, hasAction: true } };
+      if (endpoint === 'channelMarkRead') {
+        unreadCount = 1;
+        return { ok: true, value: { position: { messageId: 'second' } } };
+      }
+      throw new Error('Unexpected bridge call');
+    };
+    const actions = createActions(call, clientStore);
+    await actions.refreshHumanInboxStatus();
+    expect(clientStore.getSnapshot().humanInbox).toMatchObject({ unreadCount: 3, hasAction: true });
+    await actions.markRead('group-team', 'second');
+    expect(calls.map((entry) => entry.endpoint)).toEqual([
+      'humanAttentionStatus',
+      'channelMarkRead',
+      'humanAttentionStatus',
+    ]);
+    expect(calls[1]?.payload).toEqual({ channelId: 'group-team', messageId: 'second' });
+    expect(clientStore.getSnapshot().humanInbox.unreadCount).toBe(1);
+  });
   it('keeps loaded older items and their cursor across a background refresh', async () => {
     const clientStore = createStore();
     clientStore.select({ kind: 'inbox' });

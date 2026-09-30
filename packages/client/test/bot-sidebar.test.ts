@@ -137,12 +137,14 @@ function stubActions(): BridgeActions {
     openBot: vi.fn(async () => undefined),
     refreshBotInbox: vi.fn(async () => undefined),
     openHumanInbox: vi.fn(async () => undefined),
+    refreshHumanInboxStatus: vi.fn(async () => undefined),
     refreshHumanInbox: vi.fn(async () => undefined),
     setHumanInboxFilters: vi.fn(async () => undefined),
     loadMoreHumanInbox: vi.fn(async () => undefined),
     ignoreHumanReport: vi.fn(async () => undefined),
     loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
+    openChannelAtMessage: vi.fn(async () => undefined),
     loadOlder: vi.fn(async () => undefined),
     loadNewer: vi.fn(async () => undefined),
     openLatest: vi.fn(async () => undefined),
@@ -367,6 +369,7 @@ beforeEach(() => {
 
 afterEach(() => {
   captured.menus.length = 0;
+  store.setHumanInbox({ unreadCount: 0, hasAction: false });
   store.setMode('dsh');
   store.setQuery('');
   store.select(undefined);
@@ -378,12 +381,15 @@ afterEach(() => {
 describe('bot sidebar rows', () => {
   it('places the Human Inbox above Messages and keeps one compact entry', () => {
     store.select({ kind: 'inbox' });
+    store.setHumanInbox({ unreadCount: 4, hasAction: true });
     const expanded = renderSidebar();
     expect(expanded.indexOf('bh-human-inbox-entry')).toBeLessThan(
       expanded.indexOf('bh-header-label'),
     );
     expect(expanded).toContain('aria-current="page"');
     expect(expanded).toContain('收件箱');
+    expect(expanded).toContain('bh-human-inbox-count">4</span>');
+    expect(expanded).toContain('bh-human-inbox-action-dot');
     const compact = renderSidebar(false);
     expect(compact.match(/bh-human-inbox-entry/g)).toHaveLength(1);
   });

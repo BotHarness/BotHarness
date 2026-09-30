@@ -421,6 +421,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
       this.methods.humanAttention({ category, botSlug, channelId, limit, cursor, sort }),
     );
   }
+  humanAttentionStatus(): { unreadCount: number; hasAction: boolean } {
+    return unwrap(this.methods.humanAttentionStatus({}));
+  }
   humanAttentionIgnore(sourceEventId: string): { accepted: boolean } {
     return unwrap(this.methods.humanAttentionIgnore({ sourceEventId }));
   }
@@ -667,6 +670,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'botSourcePolicySet',
   'botSourcePolicyReset',
   'humanAttention',
+  'humanAttentionStatus',
   'humanAttentionIgnore',
   'assignments',
   'assignment',

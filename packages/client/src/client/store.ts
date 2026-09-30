@@ -194,7 +194,7 @@ export interface OwnedSessionSummary {
   assignmentAccessMode?: 'workspace-write' | 'danger-full-access';
 }
 
-export type HumanInboxCategory = 'action' | 'info';
+export type HumanInboxCategory = 'action' | 'info' | 'unread';
 export type HumanInboxSort = 'newest' | 'oldest';
 
 export interface HumanInboxFilters {
@@ -215,7 +215,8 @@ export interface HumanAttentionItem {
     | 'assignment-waiting-human'
     | 'assignment-blocked'
     | 'assignment-report'
-    | 'bot-message-needs-repair';
+    | 'bot-message-needs-repair'
+    | 'channel-unread';
   createdAt: string;
   channelId?: string;
   channelName?: string;
@@ -225,6 +226,7 @@ export interface HumanAttentionItem {
   messageId?: string;
   assignmentSessionId?: string;
   sourceEventId?: string;
+  unreadCount?: number;
 }
 
 export interface HumanAttentionPage {
@@ -234,6 +236,8 @@ export interface HumanAttentionPage {
 
 export interface HumanInboxState {
   status: ClientStatus;
+  unreadCount: number;
+  hasAction: boolean;
   category: HumanInboxCategory;
   botSlug: string | undefined;
   channelId: string | undefined;
@@ -368,7 +372,10 @@ export interface ClientStore {
   upsertBot(bot: BotSummary): void;
   setRosterState(patch: Partial<RosterState>): void;
   upsertChannel(channel: ChannelSummary): void;
-  select(selection: ConversationSelection | undefined): void;
+  select(
+    selection: ConversationSelection | undefined,
+    options?: { deferConversation?: boolean },
+  ): void;
   setConversation(patch: Partial<ConversationState>): void;
   updateCachedConversation(
     channelId: string,
@@ -406,6 +413,8 @@ function initialBotInbox(): BotInboxState {
 function initialHumanInbox(): HumanInboxState {
   return {
     status: 'idle',
+    unreadCount: 0,
+    hasAction: false,
     category: 'action',
     botSlug: undefined,
     channelId: undefined,
@@ -542,7 +551,7 @@ export function createStore(): ClientStore {
       const existing = state.channels.filter((candidate) => candidate.id !== channel.id);
       update({ channels: [{ ...previous, ...channel }, ...existing] });
     },
-    select(selection) {
+    select(selection, options) {
       if (sameSelection(state.selection, selection)) return;
       rememberConversation();
       const previousBot = botSlugForSelection(state.selection);
@@ -559,7 +568,7 @@ export function createStore(): ClientStore {
       update({
         selection,
         conversation:
-          cached === undefined
+          cached === undefined || options?.deferConversation === true
             ? selection?.kind === 'channel' || selection?.kind === 'bot'
               ? { ...initialConversation(), status: 'loading', channel }
               : initialConversation()
