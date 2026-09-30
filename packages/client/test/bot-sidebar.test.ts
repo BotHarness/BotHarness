@@ -105,6 +105,7 @@ function stubActions(): BridgeActions {
     modelCatalog: vi.fn(async () => []),
     modelPresets: vi.fn(async () => []),
     modelPlan: vi.fn(async () => undefined),
+    modelPlanState: vi.fn(async () => ({})),
     createModelPreset: vi.fn(async () => {
       throw new Error('unexpected Model Preset creation');
     }),

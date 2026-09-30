@@ -2796,7 +2796,9 @@ class BotRuntimeImplementation implements BotRuntime {
           throw new Error('Only the Bot Group owner may rename');
         const name = requireNonBlank(input.name, 'Group name').slice(0, 120);
         beforeSend();
-        return this.#channels.rename(channel.id, name)!;
+        const renamed = this.#channels.rename(channel.id, name);
+        if (renamed === undefined) throw new Error('Group rename did not return a Channel');
+        return renamed;
       },
       removeGroupMember: (input) => {
         const channel = this.#channels.get(input.channelId);

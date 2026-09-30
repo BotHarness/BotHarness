@@ -60,6 +60,7 @@ import {
   type PersonaBotModelPlan,
 } from '../models/presets.js';
 import type { ModelCatalog, ModelCatalogEntry } from '../models/catalog.js';
+import type { ModelPlanState, ModelRouteReadiness } from '../models/readiness.js';
 import { MemoryPathError } from '../memory/jail.js';
 import {
   WorkspaceGrantError,
@@ -186,7 +187,7 @@ export interface BridgeMethods {
   modelPresetCreate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
   modelPresetUpdate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
   modelPresetApply(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
-  modelPlan(payload: unknown): BridgeResult<{ plan?: PersonaBotModelPlan }>;
+  modelPlan(payload: unknown): Promise<BridgeResult<ModelPlanState>>;
   modelPlanCustomize(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   modelPlanAssignmentsSet(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
@@ -278,6 +279,7 @@ export interface BridgeMethodsDeps {
   registry: PersonaBotRegistry;
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
+  modelReadiness?: ModelRouteReadiness;
   states: BotStateTracker;
   channels: ChannelStore;
   ownership: SessionOwnership;
@@ -738,11 +740,18 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(error instanceof Error ? error.message : String(error));
       }
     },
-    modelPlan(payload) {
+    async modelPlan(payload) {
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
       const bot = deps.registry.get(slug);
       if (bot === undefined) return unknownBot(slug);
+      if (deps.modelReadiness !== undefined) {
+        try {
+          return { ok: true, value: await deps.modelReadiness.inspect(slug) };
+        } catch (failure) {
+          return invalidInput(failure instanceof Error ? failure.message : String(failure));
+        }
+      }
       return { ok: true, value: bot.modelPlan === undefined ? {} : { plan: bot.modelPlan } };
     },
     async modelPlanCustomize(payload) {

@@ -103,6 +103,10 @@
 
 ### Changed
 
+- Group 创建与邀请工具现在仅返回简短的 Channel、邀请及目标 Bot 引用和实际决定状态；接受或拒绝时不再把完整群记录复制进模型上下文，拒绝仍不授予群访问权限（[#562](https://github.com/BotHarness/BotHarness/issues/562)）。
+
+- Group 改名与移除成员工具现在仅确认已提交的 Channel、群名、结果和受影响的 Bot，不再把头像或无关群状态复制进模型上下文；改名持久化意外未返回记录时会明确失败（[#561](https://github.com/BotHarness/BotHarness/issues/561)）。
+
 - Browser Pause 现在明确说明 Human 始终可以直接操作本地浏览器窗口；暂停后的工具拒绝提示先「继续」再重新观察，暂停期间仍可读取页面（[#495](https://github.com/BotHarness/BotHarness/issues/495)）。
 
 - 并入 steer 或 harvest 的待处理上下文现在按**总字符预算**、以到达顺序（最旧优先，不再按每轮抽样条数）选取：短消息突发（例如直播间评论）会在预算内尽可能多地并入，而不是最多 20 条；超出预算的消息保持 pending 留待后续回合（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。
@@ -174,6 +178,7 @@
 
 - Browser 每次重新观察都会以独立的 ref 替换上一次标记，旧 ref 不再因页面变化而误点另一个控件；role-less 点击目标在重复观察时仍会出现，旧 ref 返回可读的重新观察提示（[#579](https://github.com/BotHarness/BotHarness/issues/579)）。
 
+- PersonaBot 的旧模型选择仅在匹配唯一可用 provider 时迁移；有歧义或不可用的路由会停止新请求，并引导 Human 在 Profile 修复模型预设，不会自动切换 provider（[#500](https://github.com/BotHarness/BotHarness/issues/500)）。
 - 排队的 Browser 动作在真正开始执行时重新检查 Browser Pause 和 Browser Access；Human 暂停或关闭权限会拦截已在队列等待的动作，暂停期间仍可观察页面（[#569](https://github.com/BotHarness/BotHarness/issues/569)）。
 
 - 截图现在同时报告图片尺寸与视口，设备缩放不为 1（例如 Retina 的 2x）时坐标点击会给出精确换算；视口校验改为半开区间（[#538](https://github.com/BotHarness/BotHarness/issues/538)）。
