@@ -292,9 +292,14 @@ try {
     await page.click('button.bh-message-file');
     await menuReady();
     await clickText('[role="menu"] button', '下载');
-    for (let count = 0; count < 100 && !existsSync(join(downloadDir, fixture.ref.name)); count += 1)
+    const downloaded = join(downloadDir, fixture.ref.name);
+    const complete = () =>
+      existsSync(downloaded) &&
+      !readdirSync(downloadDir).some((name) => name.endsWith('.crdownload'));
+    for (let count = 0; count < 100 && !complete(); count += 1)
       await new Promise((done) => setTimeout(done, 100));
-    assert.equal(readFileSync(join(downloadDir, fixture.ref.name), 'utf8'), initial);
+    assert.ok(complete(), 'Browser download did not complete within 10s');
+    assert.equal(readFileSync(downloaded, 'utf8'), initial);
     await attach(source);
     const secondTimeline = (await rpc('channelTimeline', { channelId: channel.id })).page.entries;
     const independent = secondTimeline.find(

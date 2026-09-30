@@ -1,6 +1,15 @@
 import { boundModelPage, readModelContent } from '../src/runtime/channel-model-read.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  mkdirSync,
+  existsSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createAttachmentStore } from '../src/attachments/store.js';
@@ -257,4 +266,42 @@ it('refuses redirected storage directories during upload and cleanup', async () 
   await expect(files.upload({ data: chunks('source'), name: 'notes.txt' })).rejects.toMatchObject({
     code: 'not-found',
   });
+});
+
+it('bounds an opened download to its measured length, including initially empty files', async () => {
+  const files = createAttachmentStore({ rootDir: createTempRoot() });
+  for (const initial of ['', 'a'.repeat(256 * 1024)]) {
+    const ref = await files.upload({ data: chunks(initial), name: 'changing.txt' });
+    const download = await files.download(ref.fileId!);
+    appendFileSync(files.fileTarget(ref.fileId!).path, 'appended after open');
+    expect(download.ref.size).toBe(Buffer.byteLength(initial));
+    expect(await new Response(download.body).text()).toBe(initial);
+    expect((await files.download(ref.fileId!)).ref.size).toBe(Buffer.byteLength(initial) + 19);
+  }
+});
+
+it('recovers an interrupted unpublished transfer but retains a damaged existing receipt', async () => {
+  const root = createTempRoot();
+  const uploadId = randomUUID();
+  const dir = join(root, 'files', uploadId);
+  mkdirSync(join(dir, 'data'), { recursive: true });
+  writeFileSync(join(dir, 'data', 'notes.txt'), 'interrupted transfer');
+  const files = createAttachmentStore({ rootDir: root });
+  const ref = await files.upload({
+    data: chunks('complete transfer'),
+    name: 'notes.txt',
+    uploadId,
+  });
+  expect(ref.fileId).toBe('file:' + uploadId);
+  expect(await new Response((await files.download(ref.fileId!)).body).text()).toBe(
+    'complete transfer',
+  );
+  const path = files.fileTarget(ref.fileId!).path;
+  writeFileSync(path, 'external edit');
+  writeFileSync(join(dir, 'record.json'), '{damaged receipt');
+  await expect(
+    files.upload({ data: chunks('complete transfer'), name: 'notes.txt', uploadId }),
+  ).rejects.toMatchObject({ code: 'not-found' });
+  expect(readFileSync(path, 'utf8')).toBe('external edit');
+  expect(readFileSync(join(dir, 'record.json'), 'utf8')).toBe('{damaged receipt');
 });

@@ -145,11 +145,19 @@ export function createRealAttachments(root: string, maxBytes: number) {
     download(id: string, signal?: AbortSignal) {
       signal?.throwIfAborted();
       const { fd, ref, path } = opened(id);
+      if (ref.size === 0) {
+        closeSync(fd);
+        return {
+          ref,
+          body: new ReadableStream<Uint8Array>({ start: (controller) => controller.close() }),
+        };
+      }
       try {
         const source = createReadStream(path, {
           fd,
           autoClose: true,
           start: 0,
+          end: ref.size - 1,
           ...(signal === undefined ? {} : { signal }),
         });
         return { ref, body: Readable.toWeb(source) as ReadableStream<Uint8Array> };
@@ -206,7 +214,11 @@ export function createRealAttachments(root: string, maxBytes: number) {
           try {
             existing = receipt(id);
           } catch (error) {
-            if (!(error instanceof ChannelAttachmentError) || error.code !== 'not-found')
+            if (
+              !(error instanceof ChannelAttachmentError) ||
+              error.code !== 'not-found' ||
+              lstatSync(join(directory(id), 'record.json'), { throwIfNoEntry: false }) !== undefined
+            )
               throw error;
           }
           if (existing !== undefined) {
@@ -221,6 +233,7 @@ export function createRealAttachments(root: string, maxBytes: number) {
           const dir = directory(id);
           await mkdir(join(root, 'files'), { recursive: true });
           checkedDirectory(join(root, 'files'));
+          await rm(dir, { recursive: true, force: true });
           await mkdir(dir, { recursive: false });
           try {
             await mkdir(join(dir, 'data'));
