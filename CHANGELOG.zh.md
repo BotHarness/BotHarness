@@ -103,6 +103,8 @@
 
 ### Changed
 
+- Group 改名与移除成员工具现在仅确认已提交的 Channel、群名、结果和受影响的 Bot，不再把头像或无关群状态复制进模型上下文；改名持久化意外未返回记录时会明确失败（[#561](https://github.com/BotHarness/BotHarness/issues/561)）。
+
 - Browser Pause 现在明确说明 Human 始终可以直接操作本地浏览器窗口；暂停后的工具拒绝提示先「继续」再重新观察，暂停期间仍可读取页面（[#495](https://github.com/BotHarness/BotHarness/issues/495)）。
 
 - 并入 steer 或 harvest 的待处理上下文现在按**总字符预算**、以到达顺序（最旧优先，不再按每轮抽样条数）选取：短消息突发（例如直播间评论）会在预算内尽可能多地并入，而不是最多 20 条；超出预算的消息保持 pending 留待后续回合（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。

@@ -103,6 +103,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Group rename and member-removal Tools acknowledge the committed Channel, name, outcome, and affected Bot without copying avatars or unrelated Group state into the model context; an unexpectedly missing rename result now fails explicitly ([#561](https://github.com/BotHarness/BotHarness/issues/561)).
+
 - Browser Pause now explains that the Human can always use the local browser window directly; paused tool refusals point to Resume and a fresh observation, while page reading remains available ([#495](https://github.com/BotHarness/BotHarness/issues/495)).
 
 - Pending context folded into a steer or harvest is now selected by the total character budget in arrival order (oldest first, no per-turn row sampling), so bursts of short messages — such as live chat comments — fold as many messages as the budget allows instead of at most twenty; messages beyond the budget stay pending for later turns ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
