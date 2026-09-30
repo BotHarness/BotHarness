@@ -85,6 +85,83 @@ describe('Human DM steering', () => {
     }
   });
 
+  it('admits a Human DM message as its own turn when delivery is turn', async () => {
+    const home = createTempRoot('botharness-dm-turn-');
+    let markStarted = (): void => undefined;
+    let releaseTurn = (): void => undefined;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      releaseTurn = resolve;
+    });
+    const steered: string[] = [];
+    const runs: string[] = [];
+    const agents: BotAgentAdapter = {
+      async runOrchestrator(run) {
+        runs.push(run.inboundChannelId);
+        if (runs.length === 1) {
+          markStarted();
+          await released;
+        }
+      },
+      steerOrchestrator(botSlug, text) {
+        steered.push(text);
+        return true;
+      },
+      async runAssignment() {},
+      requestAssignment() {
+        throw new Error('No Assignment expected');
+      },
+      async close() {},
+    };
+    const core = createCore({ dshHome: home, agents });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.sourcePolicy.setImmediateDelivery('ada', 'human-dm', 'turn', { kind: 'human' });
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessage(dm.id, {
+        id: 'dm-1',
+        at: '2026-09-25T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'Start the report',
+      });
+      const first = core.runtime.admitDmMessage({
+        channelId: dm.id,
+        messageId: 'dm-1',
+        body: 'Start the report',
+      });
+      expect(first.admitted).toBe(true);
+      await started;
+
+      await core.channels.appendMessage(dm.id, {
+        id: 'dm-2',
+        at: '2026-09-25T00:00:01.000Z',
+        author: { kind: 'human' },
+        body: 'QUEUE-42 as its own turn',
+      });
+      const second = core.runtime.admitDmMessage({
+        channelId: dm.id,
+        messageId: 'dm-2',
+        body: 'QUEUE-42 as its own turn',
+      });
+      expect(second.admitted).toBe(true);
+
+      releaseTurn();
+      if (first.admitted) await first.settled;
+      await core.runtime.whenIdle();
+      expect(steered).toEqual([]);
+      expect(runs).toEqual([dm.id, dm.id]);
+      expect(core.channels.message(dm.id, 'dm-2')?.deliveries).toEqual([
+        { botSlug: 'ada', state: 'handled' },
+      ]);
+    } finally {
+      releaseTurn();
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('claims pending Human DM messages into the next steer', async () => {
     const home = createTempRoot('botharness-dm-harvest-');
     let markStarted = (): void => undefined;

@@ -66,13 +66,33 @@ describe('per-PersonaBot source policy defaults', () => {
 
   it('keeps existing audited revisions when adding Group mentions and silent modes', () => {
     const home = createTempRoot('botharness-source-group-upgrade-');
+    const migrations = BOT_HARNESS_SCHEMA_PLAN.migrations;
+    const groupModes = migrations.findIndex(
+      (migration) =>
+        migration.description ===
+        'Allow ordinary Group source defaults to use mentions and silent wake modes',
+    );
+    expect(groupModes).toBeGreaterThan(0);
     const prior = mountOperationalDatabase({
       dshHome: home,
-      schemaPlan: defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1)),
+      schemaPlan: defineSchemaPlan(migrations.slice(0, groupModes)),
     });
-    const oldStore = createBotSourcePolicyStore(attachOperationalModule(prior, 'source-prior'));
-    oldStore.list('ada');
-    oldStore.setAssignmentReport('ada', 'immediate', { kind: 'human' });
+    attachOperationalModule(prior, 'source-prior').transaction((db) => {
+      db.prepare(`
+        INSERT INTO bot_source_policy_revisions
+          (bot_slug, source_class, revision, actor_kind, actor_bot_slug, changed_at,
+           admission_mode, wake_mode, digest_count, digest_interval_seconds, override_active)
+        VALUES ('ada', 'assignment-report', 1, 'built-in', NULL, '2026-01-01T00:00:00.000Z',
+                'admit', 'conditional', NULL, NULL, 0)
+      `).run();
+      db.prepare(`
+        INSERT INTO bot_source_policy_revisions
+          (bot_slug, source_class, revision, actor_kind, actor_bot_slug, changed_at,
+           admission_mode, wake_mode, digest_count, digest_interval_seconds, override_active)
+        VALUES ('ada', 'assignment-report', 2, 'human', NULL, '2026-01-02T00:00:00.000Z',
+                'admit', 'immediate', NULL, NULL, 1)
+      `).run();
+    });
     prior.close();
 
     const upgraded = mountOperationalDatabase({

@@ -715,6 +715,7 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     const steered =
       claim.shouldRun &&
+      this.#delivery(bot.slug, 'human-dm') === 'steer' &&
       this.#steerDmAdmission(
         bot.slug,
         channel.id,
@@ -836,6 +837,7 @@ class BotRuntimeImplementation implements BotRuntime {
         continue;
       if (
         reason === 'group-mention' &&
+        this.#delivery(row.bot_slug, 'group-mention') === 'steer' &&
         this.#steerGroupMention(row.source_event_id, row.bot_slug, channelId, messageId)
       )
         continue;
@@ -847,6 +849,7 @@ class BotRuntimeImplementation implements BotRuntime {
         ) as { body: string } | undefined;
         if (
           source !== undefined &&
+          this.#delivery(row.bot_slug, 'bot-dm') === 'steer' &&
           this.#steerDmAdmission(
             row.bot_slug,
             channelId,
@@ -860,6 +863,15 @@ class BotRuntimeImplementation implements BotRuntime {
       }
       this.#scheduleHarvest(row.bot_slug);
     }
+  }
+
+  #delivery(
+    botSlug: string,
+    sourceClass: 'human-dm' | 'bot-dm' | 'group-mention',
+  ): 'steer' | 'turn' {
+    return this.#database.read(
+      (database) => this.#sourcePolicy.resolveIn(database, botSlug, sourceClass).delivery,
+    );
   }
 
   #steerDmAdmission(

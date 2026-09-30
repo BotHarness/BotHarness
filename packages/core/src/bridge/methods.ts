@@ -1590,6 +1590,23 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (deps.registry.get(slug) === undefined) return unknownBot(slug);
       if (deps.sourcePolicy === undefined) return invalidInput('Source policy is unavailable');
       try {
+        if (
+          sourceClass === 'human-dm' ||
+          sourceClass === 'bot-dm' ||
+          sourceClass === 'group-mention'
+        ) {
+          const delivery = source['delivery'];
+          if (delivery !== 'steer' && delivery !== 'turn')
+            return invalidInput('delivery must be steer or turn');
+          return {
+            ok: true,
+            value: {
+              policy: deps.sourcePolicy.setImmediateDelivery(slug, sourceClass, delivery, {
+                kind: 'human',
+              }),
+            },
+          };
+        }
         if (sourceClass === 'group-ordinary') {
           const digestCount = source['digestCount'];
           const digestIntervalSeconds = source['digestIntervalSeconds'];
