@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import type { ProfileModelUsageRow } from '../src/client/bridge.js';
 import { en } from '../src/client/locale.js';
 import { ModelUsageBreakdown } from '../src/client/model-usage-breakdown.js';
+import { UsageMeasures, type UsageSummary } from '../src/client/model-usage-charts.js';
 
 function translate(key: string, params?: Record<string, unknown>): string {
   let text = (en as Record<string, string>)[key] ?? key;
@@ -25,6 +27,15 @@ const base: ProfileModelUsageRow = {
   totalTokens: 155,
 };
 const props = { today: '2026-09-30', firstDay: '2026-04-02', t: translate };
+
+function tooltipMeasures(row: ProfileModelUsageRow): string[] {
+  const summary: UsageSummary = { ...row, key: row.model, label: row.model };
+  const container = document.createElement('div');
+  container.innerHTML = renderToStaticMarkup(
+    createElement(UsageMeasures, { row: summary, t: translate }),
+  );
+  return [...container.querySelectorAll('dd')].map((element) => element.textContent!);
+}
 
 async function renderUsage(
   rows: ProfileModelUsageRow[],
@@ -186,7 +197,7 @@ describe('coordinated actual-model usage', () => {
       await missing.cleanup();
     }
   });
-  it('shows inclusive input and weighted cache/output shares by model and updates them with the range', async () => {
+  it('keeps model rows compact while weighted cache ratios follow the selected range', async () => {
     const { container, cleanup } = await renderUsage([
       base,
       {
@@ -203,19 +214,16 @@ describe('coordinated actual-model usage', () => {
     ]);
     try {
       const model = container.querySelector('.bh-usage-model-label')!;
-      const measures = model.querySelectorAll('.bh-usage-measures dd');
-      expect(model.textContent).toContain('255 tokens');
-      expect(measures[0]?.textContent).toBe('210');
-      expect(measures[1]?.textContent).toBe('100 · 47.6%');
-      expect(measures[2]?.textContent).toBe('45 · 17.6%');
+      expect(model.textContent).toBe('shared-name255 tokens');
+      expect(container.querySelector('.bh-usage-model-label .bh-usage-measures')).toBeNull();
       expect(container.querySelector('.bh-usage-cache-label')?.textContent).toContain('47.6%');
       expect(container.querySelectorAll('.bh-usage-cache-label')).toHaveLength(2);
       expect(container.querySelector('details')?.open).toBe(false);
       await choose(container, '1');
-      const today = container.querySelectorAll('.bh-usage-model-label .bh-usage-measures dd');
-      expect(today[0]?.textContent).toBe('115');
-      expect(today[1]?.textContent).toBe('10 · 8.7%');
-      expect(today[2]?.textContent).toBe('40 · 25.8%');
+      expect(container.querySelector('.bh-usage-model-label')?.textContent).toBe(
+        'another-model155 tokens',
+      );
+      expect(container.querySelector('.bh-usage-measures')).toBeNull();
       expect(container.querySelector('.bh-usage-cache-label')?.textContent).toContain('8.7%');
     } finally {
       await cleanup();
@@ -289,18 +297,27 @@ describe('coordinated actual-model usage', () => {
     try {
       const models = [...container.querySelectorAll('.bh-usage-model-label')];
       const partial = models.find((row) => row.textContent?.includes('shared-name'))!;
-      const measures = partial.querySelectorAll('.bh-usage-measures dd');
-      expect(measures[0]?.textContent).toBe('Unknown');
-      expect(measures[1]?.textContent).toBe('10 · Unknown');
-      expect(measures[2]?.textContent).toBe('40 · 25.8%');
+      expect(partial.textContent).toBe('shared-name155 tokens');
+      expect(tooltipMeasures({ ...base, inputTokens: null })).toEqual([
+        'Unknown',
+        '10 · Unknown',
+        '40 · 25.8%',
+      ]);
       expect(container.querySelector('.bh-usage-legend')?.textContent).toContain(
         'Total (breakdown unavailable)',
       );
       const output = models.find((row) => row.textContent?.includes('output-only'))!;
-      const outputMeasures = output.querySelectorAll('.bh-usage-measures dd');
-      expect(outputMeasures[0]?.textContent).toBe('0');
-      expect(outputMeasures[1]?.textContent).toBe('0 · Unknown');
-      expect(outputMeasures[2]?.textContent).toBe('10 · 100%');
+      expect(output.textContent).toBe('output-only10 tokens');
+      expect(
+        tooltipMeasures({
+          ...base,
+          inputTokens: 0,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          outputTokens: 10,
+          totalTokens: 10,
+        }),
+      ).toEqual(['0', '0 · Unknown', '10 · 100%']);
       expect(container.querySelectorAll('.bh-usage-cache-label strong')).toHaveLength(2);
       expect(
         [...container.querySelectorAll('.bh-usage-cache-label strong')].map(
@@ -310,6 +327,19 @@ describe('coordinated actual-model usage', () => {
     } finally {
       await cleanup();
     }
+  });
+  it('shows cache-write-inclusive input and independent output percentages in hover details', () => {
+    expect(tooltipMeasures(base)).toEqual(['115', '10 · 8.7%', '40 · 25.8%']);
+    expect(
+      tooltipMeasures({
+        ...base,
+        inputTokens: 100,
+        cacheReadTokens: 100,
+        cacheWriteTokens: 10,
+        outputTokens: 45,
+        totalTokens: 255,
+      }),
+    ).toEqual(['210', '100 · 47.6%', '45 · 17.6%']);
   });
   it('distinguishes unavailable usage from an empty ready range', async () => {
     const { container, cleanup } = await renderUsage([], 'unavailable');

@@ -2,13 +2,7 @@ import { useState, type ReactElement } from 'react';
 
 import type { ProfileModelUsageRow } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
-import {
-  CacheRatio,
-  UsageChart,
-  UsageLegend,
-  UsageMeasures,
-  type UsageSummary,
-} from './model-usage-charts.js';
+import { CacheRatio, UsageChart, UsageLegend, type UsageSummary } from './model-usage-charts.js';
 
 const bucketKeys = [
   'inputTokens',
@@ -256,7 +250,6 @@ export function ModelUsageBreakdown({
                       <div className="bh-usage-model-label" key={row.key}>
                         <span title={row.label}>{row.label}</span>
                         <strong>{count(row.totalTokens)} tokens</strong>
-                        <UsageMeasures row={row} t={t} />
                       </div>
                     ))}
                   </div>

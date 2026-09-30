@@ -219,7 +219,7 @@ export function UsageChart({
     <Chart
       definition={definition}
       ariaLabel={label}
-      height={kind === 'daily' ? 128 : rows.length * (kind === 'model' ? 128 : 64)}
+      height={kind === 'daily' ? 128 : rows.length * (kind === 'model' ? 36 : 32)}
       className="bh-profile-bar-chart"
       renderTooltipBody={({ points }) => {
         const datum = points[0]?.datum as { key: string } | undefined;

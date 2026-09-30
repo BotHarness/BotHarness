@@ -322,9 +322,9 @@ try {
   if (process.env.BH_E2E_EXPECT_COORDINATED && !coordinated)
     throw new Error('Coordinated charts not rendered');
   let presentation;
+  const modelBuckets = new Map();
   if (coordinated) {
     const modelTotals = new Map();
-    const modelBuckets = new Map();
     const [year, month, day] = activity.today.split('-').map(Number);
     const weekStartDate = new Date(year, month - 1, day - 6);
     const weekStart = `${weekStartDate.getFullYear()}-${`${weekStartDate.getMonth() + 1}`.padStart(2, '0')}-${`${weekStartDate.getDate()}`.padStart(2, '0')}`;
@@ -346,9 +346,13 @@ try {
       models: [...element.querySelectorAll('.bh-usage-model-label')].map((row) => ({
         label: row.querySelector('span').getAttribute('title'),
         total: row.querySelector('strong').textContent,
-        measures: [...row.querySelectorAll('.bh-usage-measures dd')].map(
-          (value) => value.textContent,
-        ),
+        hasMeasures: row.querySelector('.bh-usage-measures') !== null,
+        height: row.getBoundingClientRect().height,
+        oneLine:
+          Math.abs(
+            row.querySelector('span').getBoundingClientRect().top -
+              row.querySelector('strong').getBoundingClientRect().top,
+          ) < 4,
       })),
       caches: [...element.querySelectorAll('.bh-usage-cache-label')].map((row) => ({
         label: row.querySelector('span').getAttribute('title'),
@@ -375,22 +379,15 @@ try {
       const reported = modelBuckets.get(row.label);
       const percent = (part, total) =>
         `${((part / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
-      const expected = [
-        reported.input.toLocaleString(),
-        `${reported.cache.toLocaleString()} · ${percent(reported.cache, reported.input)}`,
-        `${reported.output.toLocaleString()} · ${percent(reported.output, reported.total)}`,
-      ];
-      if (JSON.stringify(row.measures) !== JSON.stringify(expected))
-        throw new Error(
-          'Per-model input/cache/output counts or percentages differ from actual usage',
-        );
+      if (row.hasMeasures || !row.oneLine || row.height > 40)
+        throw new Error('Model usage rows are not compact single-line summaries');
       if (
         presentation.caches.find((entry) => entry.label === row.label)?.ratio !==
         percent(reported.cache, reported.input)
       )
         throw new Error('Cache ratio does not agree with the model usage chart');
     }
-    presentation.perModelShares = true;
+    presentation.compactRows = true;
     await page.$eval('.bh-usage-details summary', (element) => element.focus());
     await page.keyboard.press('Enter');
     await page.waitForSelector('.bh-model-usage-route');
@@ -426,17 +423,42 @@ try {
     await page.evaluate(() =>
       document.querySelector('.bh-usage-cache')?.scrollIntoView({ block: 'center' }),
     );
-    const point = await page.$('.bh-usage-cache svg circle');
-    if (!point) throw new Error('Cache-ratio point not rendered');
-    await point.hover();
-    await page.waitForSelector('.bh-profile-chart-tip');
-    const tip = await page.$eval('.bh-profile-chart-tip', (element) => element.textContent);
-    const firstModel = presentation.models[0];
-    const [cacheCount, cacheShare] = firstModel.measures[1].split(' · ');
-    const outputShare = firstModel.measures[2].split(' · ')[1];
-    if (!tip.includes(cacheShare) || !tip.includes(outputShare) || !tip.includes(cacheCount))
-      throw new Error('Real cache hover did not expose the first model token shares');
+    const points = await page.$$('.bh-usage-cache svg circle');
+    if (points.length !== presentation.models.length)
+      throw new Error('Cache-ratio points not rendered');
+    for (const [index, model] of presentation.models.entries()) {
+      const value = modelBuckets.get(model.label);
+      const percent = (part, total) =>
+        `${((part / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+      await points[index].hover();
+      const expected = [
+        value.input.toLocaleString(),
+        `${value.cache.toLocaleString()} · ${percent(value.cache, value.input)}`,
+        `${value.output.toLocaleString()} · ${percent(value.output, value.total)}`,
+      ];
+      await page.waitForFunction(
+        (label, expected) => {
+          const tip = document.querySelector('.bh-profile-chart-tip');
+          return (
+            tip?.querySelector('strong')?.textContent === label &&
+            JSON.stringify(
+              [...tip.querySelectorAll('.bh-usage-measures dd')].map((item) => item.textContent),
+            ) === JSON.stringify(expected)
+          );
+        },
+        {},
+        model.label,
+        expected,
+      );
+    }
+    await points[0].hover();
+    await page.waitForFunction(
+      (label) => document.querySelector('.bh-profile-chart-tip strong')?.textContent === label,
+      {},
+      presentation.models[0].label,
+    );
     await page.screenshot({ path: screenshot.replace(/\.png$/u, '-cache.png') });
+    presentation.perModelShares = true;
     await page.mouse.move(0, 0);
     await page.evaluate(() =>
       document
@@ -444,6 +466,38 @@ try {
         ?.closest('.bh-profile-card')
         ?.scrollIntoView({ block: 'center' }),
     );
+    const bars = await page.$$('.bh-usage-models svg rect');
+    let hoveredModel = false;
+    for (const bar of bars) {
+      const bounds = await bar.boundingBox();
+      if (!bounds || bounds.width < 2 || bounds.height < 2) continue;
+      await bar.hover();
+      const label = presentation.models[0].label;
+      await page.waitForFunction(
+        (label) => document.querySelector('.bh-profile-chart-tip strong')?.textContent === label,
+        {},
+        label,
+      );
+      const value = modelBuckets.get(label);
+      const measures = await page.$$eval('.bh-profile-chart-tip .bh-usage-measures dd', (items) =>
+        items.map((item) => item.textContent),
+      );
+      const percent = (part, total) =>
+        `${((part / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+      const expected = [
+        value.input.toLocaleString(),
+        `${value.cache.toLocaleString()} · ${percent(value.cache, value.input)}`,
+        `${value.output.toLocaleString()} · ${percent(value.output, value.total)}`,
+      ];
+      if (JSON.stringify(measures) !== JSON.stringify(expected))
+        throw new Error('Model bar hover differs from actual usage');
+      await page.screenshot({ path: screenshot.replace(/\.png$/u, '-tooltip.png') });
+      await page.mouse.move(0, 0);
+      hoveredModel = true;
+      break;
+    }
+    if (!hoveredModel) throw new Error('Model usage bars are not hoverable');
+    presentation.modelTooltip = true;
     presentation.cacheTooltip = true;
     await page.$eval('.bh-usage-grouping [data-group="provider"]', (element) => element.focus());
     await page.keyboard.press('Space');
@@ -457,9 +511,8 @@ try {
       labels.map((element) => ({
         label: element.querySelector('span').getAttribute('title'),
         total: element.querySelector('strong').textContent,
-        measures: [...element.querySelectorAll('.bh-usage-measures dd')].map(
-          (entry) => entry.textContent,
-        ),
+        hasMeasures: element.querySelector('.bh-usage-measures') !== null,
+        height: element.getBoundingClientRect().height,
       })),
     );
     const expectedProviders = new Map();
@@ -483,16 +536,10 @@ try {
       throw new Error('Provider grouping did not merge its models');
     for (const row of providers) {
       const value = expectedProviders.get(row.label);
-      const percent = (part, total) =>
-        `${((part / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
-      const measures = [
-        value.input.toLocaleString(),
-        `${value.cache.toLocaleString()} · ${percent(value.cache, value.input)}`,
-        `${value.output.toLocaleString()} · ${percent(value.output, value.total)}`,
-      ];
       if (
         row.total.replace(/[^0-9]/gu, '') !== String(value.total) ||
-        JSON.stringify(row.measures) !== JSON.stringify(measures)
+        row.hasMeasures ||
+        row.height > 40
       )
         throw new Error(
           'Provider totals or weighted percentages differ from the same actual calls',
@@ -508,6 +555,33 @@ try {
         ?.closest('.bh-profile-card')
         ?.scrollIntoView({ block: 'center' });
     });
+    const providerPoint = await page.$('.bh-usage-cache svg circle');
+    if (!providerPoint) throw new Error('Provider cache point is missing');
+    await providerPoint.hover();
+    const providerValue = expectedProviders.get(providers[0].label);
+    const percent = (part, total) =>
+      `${((part / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+    const providerMeasures = [
+      providerValue.input.toLocaleString(),
+      `${providerValue.cache.toLocaleString()} · ${percent(providerValue.cache, providerValue.input)}`,
+      `${providerValue.output.toLocaleString()} · ${percent(providerValue.output, providerValue.total)}`,
+    ];
+    await page.waitForFunction(
+      (label, expected) => {
+        const tip = document.querySelector('.bh-profile-chart-tip');
+        return (
+          tip?.querySelector('strong')?.textContent === label &&
+          JSON.stringify(
+            [...tip.querySelectorAll('.bh-usage-measures dd')].map((item) => item.textContent),
+          ) === JSON.stringify(expected)
+        );
+      },
+      {},
+      providers[0].label,
+      providerMeasures,
+    );
+    presentation.providerTooltip = true;
+    await page.mouse.move(0, 0);
     await page.screenshot({ path: screenshot.replace(/\.png$/u, '-provider.png') });
     await page.$eval('.bh-usage-grouping [data-group="model"]', (element) => element.click());
     await page.waitForFunction(

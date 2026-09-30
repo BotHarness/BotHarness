@@ -2114,10 +2114,10 @@ button.bh-profile-heat-cell:focus-visible {
 .bh-usage-daily, .bh-usage-models, .bh-usage-cache { display: grid; gap: 12px; }
 .bh-usage-axis-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--dsw-alias-label-secondary); }
 .bh-usage-model-plot { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
-.bh-usage-model-label { height: 128px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-size: 12px; }
-.bh-usage-model-label > span,.bh-usage-cache-label > span { line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bh-usage-model-label strong { font-variant-numeric: tabular-nums; }
-.bh-usage-cache-label { height: 64px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-size: 12px; }
+.bh-usage-model-label { height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
+.bh-usage-model-label > span,.bh-usage-cache-label > span { min-width: 0; line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-usage-model-label strong,.bh-usage-cache-label strong { flex-shrink: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bh-usage-cache-label { height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
 .bh-usage-measures { display: grid; gap: 2px; margin: 4px 0 0; font-size: 12px; font-variant-numeric: tabular-nums; }
 .bh-usage-measures > div { display: flex; flex-wrap: wrap; gap: 4px; }
 .bh-usage-measures dt { color: var(--dsw-alias-label-secondary); }
