@@ -2060,3 +2060,51 @@ describe('Workspace folder authorization action', () => {
     expect(call).not.toHaveBeenCalled();
   });
 });
+
+describe('Workspace native action bridge', () => {
+  it('resolves the owner before discovery/open and makes no Grant or Session mutations', async () => {
+    const call = vi.fn<BridgeCall>(async (method, payload) => {
+      expect(method).toBe('workspaceFileTarget');
+      expect(payload).toEqual({ slug: 'ada', grantId: 'grant-1' });
+      return {
+        ok: true,
+        value: { target: { path: '/host/project', relativePath: '', kind: 'directory' } },
+      };
+    });
+    const nativeFiles = {
+      applications: vi.fn(async () => ({ available: true, applications: [] })),
+      open: vi.fn(async () => {}),
+    };
+    const store = createStore();
+    const before = store.getSnapshot();
+    const actions = createActions(call, store, {
+      nativeFiles,
+      pickDirectory: async () => null,
+      createWorkspace: async () => {
+        throw new Error('not used');
+      },
+    });
+    await actions.workspaceFileApplications('ada', 'grant-1');
+    await actions.workspaceFileOpen('ada', 'grant-1', { application: 'finder' });
+    expect(nativeFiles.open).toHaveBeenCalledWith(
+      { path: '/host/project', relativePath: '', kind: 'directory' },
+      { application: 'finder' },
+    );
+    expect(store.getSnapshot()).toEqual(before);
+    call.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'invalid-grant', message: 'revoked', details: {} },
+    });
+    await expect(
+      actions.workspaceFileOpen('ada', 'grant-1', { application: 'finder' }),
+    ).rejects.toThrow('revoked');
+    expect(nativeFiles.open).toHaveBeenCalledTimes(1);
+    call.mockResolvedValueOnce({
+      ok: true,
+      value: { target: { path: '/host/file', relativePath: '', kind: 'file' } },
+    });
+    await expect(actions.workspaceFileTarget('ada', 'grant-1')).rejects.toThrow(
+      'Invalid Workspace directory target',
+    );
+  });
+});

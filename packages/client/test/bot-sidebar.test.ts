@@ -159,6 +159,13 @@ function stubActions(): BridgeActions {
     dismissFailedMessage: vi.fn(() => false),
     openSession: vi.fn(() => undefined),
     refreshSessions: vi.fn(async () => undefined),
+    workspaceFileTarget: async () => ({
+      path: '/workspace',
+      relativePath: '',
+      kind: 'directory' as const,
+    }),
+    workspaceFileApplications: async () => ({ available: false, applications: [] }),
+    workspaceFileOpen: async () => {},
     memoryFileTarget: vi.fn(),
     memoryFileApplications: vi.fn(),
     memoryFileOpen: vi.fn(),

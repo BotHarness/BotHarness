@@ -108,6 +108,7 @@ describe('bridge typert service', () => {
       'assignments',
       'assignment',
       'workspaceOptions',
+      'workspaceFileTarget',
       'grants',
       'grantCreate',
       'grantRevoke',
