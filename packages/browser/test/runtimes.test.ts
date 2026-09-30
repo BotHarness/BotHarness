@@ -1,7 +1,14 @@
+import { mkdtemp, mkdir, writeFile, symlink, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { BotBrowserRuntime, BotBrowserRuntimeOptions } from '../src/runtime/browser.js';
-import { createBotBrowserRuntimes, sanitizeProfileName } from '../src/runtimes.js';
+import {
+  createBotBrowserRuntimes,
+  sanitizeProfileName,
+  listStoredProfileNames,
+} from '../src/runtimes.js';
 
 function fakeRuntime(): BotBrowserRuntime & { stop: ReturnType<typeof vi.fn> } {
   return {
@@ -49,6 +56,32 @@ function setup(profiles: Record<string, string>): {
 }
 
 describe('browser profiles', () => {
+  it('rediscovers stored names without creating runtimes or following external links', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'browser-profile-names-'));
+    const profiles = join(root, 'browser-profiles');
+    try {
+      expect(await listStoredProfileNames(join(root, 'browser'))).toEqual([]);
+      await mkdir(profiles);
+      for (const name of ['team', 'work.v2', '.work', 'default', ' bad']) {
+        await mkdir(join(profiles, name));
+      }
+      await writeFile(join(profiles, 'file'), 'not a profile');
+      await symlink(root, join(profiles, 'external'));
+      expect(await listStoredProfileNames(join(root, 'browser'))).toEqual([
+        '.work',
+        'team',
+        'work.v2',
+      ]);
+      expect(await listStoredProfileNames(join(root, 'browser'))).toEqual([
+        '.work',
+        'team',
+        'work.v2',
+      ]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('sanitizes names and falls back to the default profile', () => {
     expect(sanitizeProfileName('work')).toBe('work');
     expect(sanitizeProfileName('work.v2')).toBe('work.v2');

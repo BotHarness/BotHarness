@@ -117,6 +117,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Browser Profile uses a searchable combobox: select an existing name or explicitly create a new one; errors use the destructive theme colour and the Browser view removes redundant help text and its duplicate page title ([#611](https://github.com/BotHarness/BotHarness/issues/611)).
+
 - Contact discovery now searches names and full descriptions, returns bounded cursor pages and optional detail, and preserves stable colleague IDs for real Bot DMs and Group collaboration ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
 
 - Attention Tools now expose the complete Assignment-report and ordinary-Group parameter matrix, use integer digest schemas, and reject digest parameters outside Group digest mode without changing policy revisions; Human overrides and prospective Inbox snapshots still share the same authority ([#567](https://github.com/BotHarness/BotHarness/issues/567)).

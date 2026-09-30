@@ -3,7 +3,10 @@ import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ runtimes: vi.fn() }));
-vi.mock('../src/runtimes.js', () => ({ createBotBrowserRuntimes: mocks.runtimes }));
+vi.mock('../src/runtimes.js', () => ({
+  createBotBrowserRuntimes: mocks.runtimes,
+  listStoredProfileNames: async () => ['work'],
+}));
 
 import { apply, DEFAULT_CONFIG } from '../src/index.js';
 
@@ -105,7 +108,9 @@ async function setup() {
         signal: new AbortController().signal,
       } as ToolRunContext);
   }
-  async function observation(slug: string): Promise<{ focused: string | null; takeover: boolean }> {
+  async function observation(
+    slug: string,
+  ): Promise<{ focused: string | null; takeover: boolean; profiles: readonly string[] }> {
     return (
       await routes
         .get('/api/browser/observation')!
@@ -118,6 +123,7 @@ async function setup() {
 describe('published Browser Host service', () => {
   it('resets the switching Bot through the service used by core without resetting another Bot', async () => {
     const h = await setup();
+    expect((await h.observation('bot-a')).profiles).toEqual(['work']);
     await h.open('bot-a');
     await h.open('bot-b');
     await h.routes.get('/api/browser/takeover')!.fetch(

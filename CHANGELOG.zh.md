@@ -117,6 +117,8 @@
 
 ### Changed
 
+- Browser Profile 改为可搜索的 combobox：选择已有名称或明确创建新名称；错误使用 destructive 主题颜色，Browser view 移除多余说明与重复页标题（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。
+
 - 联系人发现现在可搜索名称及完整简介，返回有界续页和按需详情，保留稳定同事 ID 以发送真实 Bot 私信及进行群协作（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
 
 - Attention Tools 现在明确列出 Assignment 报告与普通群消息的完整参数组合，digest 参数使用整数 schema，并在非群 digest 模式下明确拒绝这些参数且不改变策略修订；Human 覆盖与后续 Inbox 快照继续共用同一权威（[#567](https://github.com/BotHarness/BotHarness/issues/567)）。

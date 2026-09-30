@@ -6,7 +6,7 @@ import Schema from '@deepseek-ai/schemastery';
 
 import { createBrowserDiagnostics, toLogEntry } from './diagnostics.js';
 import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
-import { createBotBrowserRuntimes } from './runtimes.js';
+import { createBotBrowserRuntimes, listStoredProfileNames } from './runtimes.js';
 import {
   browserToolNames,
   createBrowserToolProvider,
@@ -246,6 +246,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
           focused: tabId ?? null,
           takeover: provider.isTakeover(slug),
           tabs: await provider.listTabs(slug),
+          profiles: await listStoredProfileNames(profileDirectory()),
         });
       },
     };

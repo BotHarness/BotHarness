@@ -6,6 +6,7 @@ window.__ModuleLoader__.load({
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 		let react = require("react");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+		let react_dom = require("react-dom");
 		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region packages/browser/src/client/locale.ts
 		const LOCALE_NS = "botharness-browser";
@@ -16,11 +17,11 @@ window.__ModuleLoader__.load({
 			"entry.profile.label": "Profile",
 			"entry.profile.default": "default",
 			"entry.profile.failed": "切换浏览器 profile 失败",
+			"entry.profile.choose": "选择浏览器 Profile",
+			"entry.profile.create": "创建“{name}”",
 			"entry.view.follow": "跟随 Bot",
 			"entry.view.pause": "暂停 Bot",
 			"entry.view.resume": "继续",
-			"entry.view.paused": "此 Bot 的浏览器动作与模型截图已暂停；仍可读取页面",
-			"entry.view.pauseHint": "你始终可以直接操作浏览器窗口；暂停只让此 Bot 停手。",
 			"entry.view.open": "打开 Bot 浏览器",
 			"entry.view.stop": "停止",
 			"entry.view.opening": "正在打开…",
@@ -35,11 +36,11 @@ window.__ModuleLoader__.load({
 			"entry.profile.label": "Profile",
 			"entry.profile.default": "default",
 			"entry.profile.failed": "Failed to switch the browser profile",
+			"entry.profile.choose": "Choose browser profile",
+			"entry.profile.create": "Create “{name}”",
 			"entry.view.follow": "Follow the Bot",
 			"entry.view.pause": "Pause Bot",
 			"entry.view.resume": "Resume",
-			"entry.view.paused": "This Bot’s actions and model screenshots are paused; page reading remains available",
-			"entry.view.pauseHint": "You can always use the browser window directly; pausing only stops this Bot from acting.",
 			"entry.view.open": "Open Bot Browser",
 			"entry.view.stop": "Stop",
 			"entry.view.opening": "Opening…",
@@ -47,6 +48,176 @@ window.__ModuleLoader__.load({
 			"entry.view.noTabs": "No tabs yet",
 			"entry.error": "Browser action failed"
 		};
+		//#endregion
+		//#region packages/browser/src/client/profile-combobox.tsx
+		function ProfileCombobox({ value, profiles, disabled, invalid, errorId, onSelect, t }) {
+			const root = (0, react.useRef)(null);
+			const panel = (0, react.useRef)(null);
+			const listId = (0, react.useId)();
+			const [open, setOpen] = (0, react.useState)(false);
+			const [query, setQuery] = (0, react.useState)(void 0);
+			const [active, setActive] = (0, react.useState)(void 0);
+			const names = [.../* @__PURE__ */ new Set([
+				"default",
+				...profiles,
+				value === "" ? "default" : value
+			])];
+			const trimmed = query?.trim() ?? "";
+			const options = names.filter((name) => name.toLowerCase().includes(trimmed.toLowerCase())).map((name) => ({
+				name,
+				label: name
+			}));
+			if (trimmed !== "" && !names.includes(trimmed)) options.push({
+				name: trimmed,
+				label: t("entry.profile.create", { name: trimmed })
+			});
+			const highlighted = options.findIndex((option) => option.name === active);
+			const position = (0, _deepseek_ai_dsh_client_ui_primitives.useAnchoredPosition)({
+				open,
+				anchorRef: root,
+				panelRef: panel,
+				gap: 4,
+				margin: 12
+			});
+			(0, _deepseek_ai_dsh_client_ui_primitives.useDismissOnOutsidePointer)(root, open, setOpen, panel);
+			const dismiss = () => {
+				setOpen(false);
+				setQuery(void 0);
+				setActive(void 0);
+			};
+			const select = (name) => {
+				dismiss();
+				onSelect(name);
+			};
+			const onKeyDown = (event) => {
+				if (event.nativeEvent.isComposing) return;
+				if (event.key === "Escape") {
+					event.preventDefault();
+					dismiss();
+				} else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+					event.preventDefault();
+					setOpen(true);
+					const offset = event.key === "ArrowDown" ? 1 : -1;
+					const index = highlighted < 0 ? offset === 1 ? 0 : options.length - 1 : (highlighted + offset + options.length) % options.length;
+					setActive(options[index]?.name);
+					document.getElementById(`${listId}-${index}`)?.scrollIntoView?.({ block: "nearest" });
+				} else if (event.key === "Enter" && open) {
+					event.preventDefault();
+					const choice = options[highlighted]?.name ?? (query === void 0 ? value === "" ? "default" : value : trimmed || "default");
+					select(choice);
+				}
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: "bh-browser-profile-combobox",
+				ref: root,
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+						className: "bh-browser-profile-input",
+						role: "combobox",
+						"aria-label": t("entry.profile.label"),
+						"aria-expanded": open,
+						"aria-autocomplete": "list",
+						"aria-controls": open ? listId : void 0,
+						"aria-activedescendant": open && highlighted >= 0 ? `${listId}-${highlighted}` : void 0,
+						"aria-invalid": invalid,
+						"aria-describedby": invalid ? errorId : void 0,
+						value: query ?? (value === "" ? "default" : value),
+						disabled,
+						autoComplete: "off",
+						onFocus: () => setOpen(true),
+						onChange: (event) => {
+							setQuery(event.target.value);
+							setActive(void 0);
+							setOpen(true);
+						},
+						onBlur: dismiss,
+						onKeyDown
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						className: "bh-browser-profile-toggle",
+						type: "button",
+						"aria-label": t("entry.profile.choose"),
+						disabled,
+						tabIndex: -1,
+						onPointerDown: (event) => event.preventDefault(),
+						onClick: () => {
+							if (open) dismiss();
+							else {
+								root.current?.querySelector("input")?.focus();
+								setOpen(true);
+							}
+						},
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, { size: 16 })
+					}),
+					open && !disabled ? (0, react_dom.createPortal)(/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.MenuSurface, {
+						compact: true,
+						ref: panel,
+						id: listId,
+						role: "listbox",
+						"aria-label": t("entry.profile.label"),
+						className: "bh-browser-profiles",
+						style: {
+							...position,
+							width: root.current?.getBoundingClientRect().width ?? 200,
+							visibility: position === null ? "hidden" : void 0
+						},
+						children: options.map((option, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							id: `${listId}-${index}`,
+							type: "button",
+							role: "option",
+							"aria-selected": option.name === (value === "" ? "default" : value),
+							"data-active": index === highlighted || void 0,
+							tabIndex: -1,
+							onPointerDown: (event) => event.preventDefault(),
+							onMouseEnter: () => setActive(option.name),
+							onClick: () => select(option.name),
+							children: option.label
+						}, option.name))
+					}), document.body) : null
+				]
+			});
+		}
+		//#endregion
+		//#region packages/browser/src/client/styles.ts
+		const styles = `
+/* @bh-browser-aliases:start */
+.bh-browser-body, .bh-browser-profiles {
+  --bh-browser-error: var(--dsw-alias-state-error-primary);
+  --bh-browser-label: var(--dsw-alias-label-primary);
+  --bh-browser-hover: var(--dsw-alias-interactive-bg-hover);
+  --bh-browser-elevation: var(--dsw-elevation-prominent);
+  --bh-browser-stroke: var(--dsw-alias-border-l1);
+  --bh-browser-radius: var(--dsw-radius-md);
+}
+/* @bh-browser-aliases:end */
+.bh-browser-profile-combobox { position: relative; flex: 1; min-width: 0; }
+.bh-browser-profile-input { display: flex; padding-right: 26px; }
+.bh-browser-profile-combobox input { width: 100%; }
+.bh-browser-profile-toggle {
+  position: absolute; right: 4px; top: 4px; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--bh-browser-radius); padding: 0;
+  color: var(--bh-browser-label); background: transparent; cursor: pointer;
+}
+.bh-browser-profile-toggle:hover { background: var(--bh-browser-hover); }
+.bh-browser-profile-toggle:disabled { opacity: 0.5; cursor: default; }
+.bh-browser-profiles {
+  position: fixed; z-index: 1100; padding: 4px; box-sizing: border-box;
+  max-height: 240px; overflow-y: auto;
+  --dsw-elevation-stroke-color: var(--bh-browser-stroke);
+  box-shadow: var(--bh-browser-elevation);
+}
+.bh-browser-profiles > button {
+  display: block; width: 100%; min-height: 34px; padding: 6px 8px;
+  border: 0; border-radius: var(--bh-browser-radius); background: transparent;
+  color: var(--bh-browser-label); text-align: left; font: inherit; font-size: 13px; line-height: 20px; cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.bh-browser-profiles > button:hover, .bh-browser-profiles > button[data-active] {
+  background: var(--bh-browser-hover);
+}
+.bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
+`;
 		//#endregion
 		//#region packages/browser/src/client/index.tsx
 		const ENTRY_ID = "botharness-browser";
@@ -108,7 +279,8 @@ window.__ModuleLoader__.load({
 						listeners.delete(listener);
 					};
 				},
-				getSnapshot: () => info
+				getSnapshot: () => info,
+				refresh: load
 			};
 		}
 		function observationUrl(botSlug, tabId) {
@@ -233,16 +405,17 @@ window.__ModuleLoader__.load({
 			const [follow, setFollow] = (0, react.useState)(true);
 			const [preview, setPreview] = (0, react.useState)(void 0);
 			const [busy, setBusy] = (0, react.useState)(false);
-			const [draft, setDraft] = (0, react.useState)(void 0);
+			const errorId = (0, react.useId)();
+			const [profileInvalid, setProfileInvalid] = (0, react.useState)(false);
 			const [profileOverride, setProfileOverride] = (0, react.useState)(void 0);
 			const [error, setError] = (0, react.useState)(void 0);
 			const tabs = observation?.tabs ?? [];
 			const focused = observation?.focused ?? null;
-			const focusedTab = tabs.find((tab) => tab.targetId === focused);
 			const paused = observation?.takeover === true;
 			const invoke = (endpoint, body = {}) => {
 				if (busy || botSlug === void 0) return;
 				setBusy(true);
+				setProfileInvalid(false);
 				setError(void 0);
 				requestJson(endpoint, {
 					method: "POST",
@@ -272,33 +445,43 @@ window.__ModuleLoader__.load({
 				invoke(TAKEOVER_ENDPOINT, { active: !paused });
 			};
 			const currentProfile = profileOverride ?? info.browserProfile ?? "";
-			const saveProfile = () => {
+			const saveProfile = (name) => {
 				const rpc = connectionRpc;
-				if (rpc === void 0 || botSlug === void 0 || draft === void 0) return;
-				const trimmed = draft.trim();
+				if (rpc === void 0 || botSlug === void 0 || busy) return;
+				const trimmed = name.trim();
 				const next = trimmed === "default" ? "" : trimmed;
-				setDraft(void 0);
-				if (next === currentProfile) return;
+				if (next === currentProfile) {
+					setProfileInvalid(false);
+					setError(void 0);
+					return;
+				}
+				setBusy(true);
+				setProfileInvalid(false);
 				setError(void 0);
 				rpc.call("/api", "botharness/browserProfileSet", { args: {
 					slug: botSlug,
 					profile: next
 				} }).then((result) => {
 					if (!result.ok) {
+						setProfileInvalid(true);
 						setError(result.error?.message ?? t("entry.profile.failed"));
 						return;
 					}
 					const value = result.value;
 					setProfileOverride(typeof value.bot?.browserProfile === "string" ? value.bot.browserProfile : "");
-				}).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
-			};
-			const onProfileChange = (event) => {
-				setDraft(event.target.value);
-			};
-			const onProfileKey = (event) => {
-				if (event.key === "Enter") saveProfile();
+					setPreview(void 0);
+					store.setTab(void 0);
+					infoStore.refresh();
+				}).catch((cause) => {
+					setProfileInvalid(true);
+					setError(cause instanceof Error ? cause.message : String(cause));
+				}).finally(() => {
+					setBusy(false);
+					store.refresh();
+				});
 			};
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: "bh-browser-body",
 				style: {
 					display: "grid",
 					gap: 8,
@@ -311,35 +494,18 @@ window.__ModuleLoader__.load({
 							alignItems: "center",
 							gap: 8
 						},
-						children: [
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-								style: { opacity: .8 },
-								children: t("entry.profile.label")
-							}),
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-								value: draft ?? currentProfile,
-								placeholder: t("entry.profile.default"),
-								list: `browser-profiles-${botSlug ?? ""}`,
-								disabled: botSlug === void 0,
-								onChange: onProfileChange,
-								onBlur: saveProfile,
-								onKeyDown: onProfileKey,
-								style: {
-									flex: 1,
-									minWidth: 0,
-									padding: "2px 6px",
-									borderRadius: 4,
-									border: "1px solid currentColor",
-									background: "transparent",
-									color: "inherit",
-									fontSize: 12
-								}
-							}),
-							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("datalist", {
-								id: `browser-profiles-${botSlug ?? ""}`,
-								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", { value: "default" }), info.profiles.map((name) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", { value: name }, name))]
-							})
-						]
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							style: { opacity: .8 },
+							children: t("entry.profile.label")
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProfileCombobox, {
+							value: currentProfile,
+							profiles: [...info.profiles, ...observation?.profiles ?? []],
+							disabled: busy || botSlug === void 0,
+							invalid: profileInvalid,
+							errorId,
+							onSelect: saveProfile,
+							t
+						})]
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: {
@@ -358,15 +524,6 @@ window.__ModuleLoader__.load({
 							disabled: botSlug === void 0
 						})]
 					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: { opacity: .8 },
-						children: t("entry.view.pauseHint")
-					}),
-					paused ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						role: "status",
-						style: { opacity: .8 },
-						children: t("entry.view.paused")
-					}) : null,
 					observation?.frame === null || observation?.frame === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: { opacity: .6 },
 						children: t("entry.view.noFrame")
@@ -378,13 +535,6 @@ window.__ModuleLoader__.load({
 							borderRadius: 6,
 							border: "1px solid currentColor"
 						}
-					}),
-					focusedTab === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: {
-							opacity: .7,
-							wordBreak: "break-all"
-						},
-						children: focusedTab.title === "" ? focusedTab.url : focusedTab.title
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: {
@@ -436,7 +586,12 @@ window.__ModuleLoader__.load({
 							children: tab.title === "" ? tab.url : tab.title
 						}, tab.targetId))
 					}),
-					error !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: error }) : null
+					error !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						id: errorId,
+						role: "alert",
+						className: "bh-browser-error",
+						children: error
+					}) : null
 				]
 			});
 		}
@@ -458,6 +613,12 @@ window.__ModuleLoader__.load({
 		}
 		function apply(ctx) {
 			const t = ctx.locale.bind(LOCALE_NS);
+			ctx.effect(() => {
+				const sheet = document.createElement("style");
+				sheet.textContent = styles;
+				document.head.append(sheet);
+				return () => sheet.remove();
+			}, "botharness-browser: styles");
 			ctx.effect(() => ctx.locale.register(LOCALE_NS, {
 				zh,
 				en

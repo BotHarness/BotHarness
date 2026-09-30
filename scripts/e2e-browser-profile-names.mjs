@@ -103,7 +103,15 @@ if (mode === '--serve') {
       (await api('create', { displayName: 'Profile Name QA' })).bot;
     const dm = (await api('channelDm', { slug: bot.slug })).channel;
     await api('browserAccessSet', { slug: bot.slug, enabled: true });
-    await api('browserProfileSet', { slug: bot.slug, profile: 'work.v2' });
+    if (process.env.BH_E2E_PROFILE !== undefined) {
+      assert.equal(
+        bot.browserProfile,
+        process.env.BH_E2E_PROFILE,
+        'Select the QA profile through the native combobox first',
+      );
+    } else {
+      await api('browserProfileSet', { slug: bot.slug, profile: 'work.v2' });
+    }
     const oldSession = (await api('sessions', { slug: bot.slug })).sessions.find(
       (record) => record.role === 'orchestrator',
     )?.sessionId;
