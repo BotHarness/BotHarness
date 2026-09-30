@@ -1,12 +1,12 @@
 {
   "stage": "after",
   "restart": {
-    "sourceRevision": "c21db99151e0aedcf830c96489962ed36c37677c",
+    "sourceRevision": "7fd3fc5070670390a7a52cba0dede2d29f6923e1",
     "originalGroupMessagePreserved": true,
     "originalImageInspected": true,
     "defaultAcknowledgement": {
       "channelId": "dm-bot-13d692e731fb4df5a9931bf16cf1f8a1",
-      "messageId": "6213e8a3-29dc-4ce3-84f6-e7f5ba3ec7b3"
+      "messageId": "41db502b-42e9-417b-a480-0f42f2e15190"
     }
   },
   "dshVersion": "0.2.0-rc.1",
@@ -15,8 +15,8 @@
     "model": "deepseek-flash"
   },
   "measurements": {
-    "compiledSchemaCharacters": 1048,
-    "compiledToolMetadataCharacters": 1450,
+    "compiledSchemaCharacters": 1081,
+    "compiledToolMetadataCharacters": 1483,
     "forwardAcknowledgementCharacters": 133,
     "defaultAcknowledgementCharacters": 106
   },
@@ -44,7 +44,7 @@
         },
         "attachments": {
           "type": "array",
-          "description": "At most 10 trusted references. Copy all four fields unchanged: fileId (or legacy hash), name, mime, size; never guess them. Exactly one identity per reference. Size is a safe nonnegative integer byte count (0–9007199254740991).",
+          "description": "At most 10 trusted references: copy fileId, name, mime, size unchanged; never guess them. New sends require fileId; if an old read has hash, refresh its owning message with channel_read first. Size is a safe nonnegative integer byte count (0–9007199254740991).",
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -120,6 +120,32 @@
       },
       "outputCharacters": 133,
       "contentTypes": ["text"]
+    },
+    {
+      "tool": "channel_send",
+      "args": {
+        "body": "[synthetic QA report]"
+      },
+      "outputCharacters": 106,
+      "contentTypes": ["text"]
+    },
+    {
+      "tool": "channel_read",
+      "args": {
+        "channel_id": "group-qa570-forwarded-images-after"
+      },
+      "outputCharacters": 623,
+      "contentTypes": ["text"]
+    },
+    {
+      "tool": "channel_read_image",
+      "args": {
+        "attachment_id": "file:86e8550c-7b3b-4270-8ff2-54fd9666013b",
+        "channel_id": "group-qa570-forwarded-images-after",
+        "message_id": "bot-eba688cdf4761c6627db78827106e098fc08d2dfa9e64eae652a5b33cdc1f66a"
+      },
+      "outputCharacters": 137,
+      "contentTypes": ["text", "image"]
     },
     {
       "tool": "channel_send",

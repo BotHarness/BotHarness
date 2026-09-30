@@ -2,7 +2,7 @@
 
 Real DSH 0.2.0-rc.1 with `deepseek-official / deepseek-flash`, two isolated profiles, Chinese UI, dark theme, 1440 × 1200 viewport. Only synthetic QA data is published. Authentication, credentials and private Session contexts stay machine-local.
 
-Baseline: merged #609 implementation (`a5c0fcf926e6a9e298118017c41ec92fb56fffa1`). Candidate source: `a6ddbd84`; latest-main integration: `c21db99151e0aedcf830c96489962ed36c37677c`. The final evidence commit adds only this report, screenshots and sanitized result records.
+Baseline: merged #609 implementation (`a5c0fcf926e6a9e298118017c41ec92fb56fffa1`). Candidate source: `a6ddbd84`; initial integration: `c21db99151e0aedcf830c96489962ed36c37677c`; final #577 compatibility source: `7fd3fc5070670390a7a52cba0dede2d29f6923e1`. The final evidence commit adds only this report, screenshots and sanitized result records.
 
 ## Real end-to-end path
 
@@ -21,8 +21,8 @@ Counts are UTF-16 characters from actual compiled Tool metadata/results, not est
 
 | Measurement                           | Before | After |
 | ------------------------------------- | -----: | ----: |
-| Compiled parameter schema             |    864 |  1048 |
-| Complete Tool metadata                |   1143 |  1450 |
+| Compiled parameter schema             |    864 |  1081 |
+| Complete Tool metadata                |   1143 |  1483 |
 | Explicit Group send acknowledgement   |     90 |   133 |
 | Default Human DM send acknowledgement |     58 |   106 |
 
