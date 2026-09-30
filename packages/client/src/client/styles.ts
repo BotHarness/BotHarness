@@ -2049,6 +2049,51 @@ button.bh-profile-heat-cell:focus-visible {
   font-size: 12px;
   color: var(--dsw-alias-label-secondary);
 }
+.bh-model-usage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-model-usage-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bh-model-usage-header label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-model-usage-header input {
+  width: auto;
+}
+.bh-model-usage-route {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+.bh-model-usage-buckets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.bh-model-usage-buckets dt {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-model-usage-buckets dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 .bh-profile-heat-grid {
   position: relative;
 }

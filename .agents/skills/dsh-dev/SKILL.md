@@ -82,6 +82,8 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 
 ## Reference
 
+DSH 0.2.0 provider token reports use disjoint uncached input, output, cache-read and cache-write buckets. Optional cache fields may be absent even when an exact total is reported: absence is unknown, not zero. `deriveTurnTokenUsage` may return no result when exact lifecycle or usage evidence is incomplete; never substitute token-meter context estimates for observed provider consumption. Read the durable Assistant settlement's actual source route rather than a configured model. Verified with the installed token-meter contracts and a real model request in #499.
+
 Pre-execution refusal can leave an application-owned Session ID without a DSH Session. Before retrying that reserved identity, use Session Persistence `stat(id)` to distinguish an absent stored Session from an existing one: create only when `stat` returns `undefined`, and propagate storage failures. Do not infer persistent existence from the live Session Store or blindly resume a reserved ID. Verified against DSH 0.2.0-rc.1 in #500 with a rejected model route followed by a successful Human repair.
 
 - **DSH source checkout**: `reference/deepseek-harness` (gitignored, in this worktree) pinned to the installed tag — currently `dsh-v0.2.0-rc.1`. Read the TypeScript source (`packages/typert`, `packages/*connection*`, `packages/*gateway*`, `apps/cli/reference/README.md`) when the how/why matters; the installed `lib/*.js` is bundled output. Re-pin when DSH is bumped: `git fetch --depth 1 origin tag <tag> && git checkout <tag>`.

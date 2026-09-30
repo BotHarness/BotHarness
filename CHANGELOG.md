@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBot Profile shows daily usage by the provider/model actually called, with separate input, output, cache-read and cache-write tokens, provider-reported totals, and explicit unknown buckets when a provider omits usage ([#499](https://github.com/BotHarness/BotHarness/issues/499)).
 - Humans can open the current Memory Repository, nested directories and files on the Host through DSH application menus, reveal a file, copy its Host path, or download its full current bytes to the browser device; ordinary file selection still uses the reader ([#574](https://github.com/BotHarness/BotHarness/issues/574), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
 
 - Human Inbox groups unread Group and PersonaBot DM messages by Channel, shows their deduplicated message count on the sidebar entry, and marks a captured message read only when opened or explicitly acknowledged; pending actions keep a separate indicator ([#546](https://github.com/BotHarness/BotHarness/issues/546), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md)).
