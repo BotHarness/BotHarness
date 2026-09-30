@@ -217,6 +217,11 @@ if (mode === '--serve') {
       assert.match(textOf(refused), /Resume.*browser_observe/iu);
     } else {
       assert.equal(paused, false);
+      const priorErrors = (await actions()).filter((row) => row.detail.includes(' -> error: '));
+      assert.equal(priorErrors.length, 3, 'Run --paused and --resumed before --complete');
+      assert.equal(priorErrors.filter((row) => row.detail.includes('Pause is active')).length, 2);
+      assert.equal(priorErrors.filter((row) => row.detail.includes('Resume requires')).length, 1);
+      assert.equal((await counter()).count, 0, 'Fixture confirmation already completed');
       const read = await call('browser_observe');
       assert.equal(read.isError, false);
       assert.ok(textOf(read).includes('Updated by Human'));
