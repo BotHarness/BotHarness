@@ -1,3 +1,4 @@
+import { createMemoryFiles } from './file-actions.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import { attachOperationalModule, type OperationalDatabaseOwner } from '../database/owner.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
@@ -18,7 +19,7 @@ export interface MemoryServiceOptions {
   warn?: (message: string) => void;
 }
 
-export interface MemoryService extends MemoryAcceptance {
+export interface MemoryService extends MemoryAcceptance, ReturnType<typeof createMemoryFiles> {
   storeForSession(sessionId: string | undefined): MemoryStore | undefined;
   storeForAgent(agent: MemoryAgentRef | undefined): MemoryStore | undefined;
 
@@ -112,6 +113,7 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
   };
 
   return {
+    ...createMemoryFiles(registry),
     continueFromCommit: (input) => requireAcceptance().continueFromCommit(input),
     switchBranch: (input) => requireAcceptance().switchBranch(input),
     prepareTurn: (botSlug, sessionId, options) =>
