@@ -6,14 +6,26 @@
 
 发送会把文件传输到一个 profile 管理的真实目标位置。打开与保存附件直接修改这个目标文件；原消息下次读取、预览或下载使用当前字节、文件名、MIME 和大小。保存后刷新 Channel，可刷新显示的元数据。上传源文件独立。即使内容相同，两次独立上传也互不联动；只有显式复用同一个附件身份，多个消息才会引用同一个文件。
 
-外部保存不创建附件版本、通知、Source Revision、Inbox Admission 或 Bot wake。目标文件缺失时报告不可用，不从原上传字节重建。旧 hash 附件仍可读取与下载；直接编辑等待独立的 legacy 迁移切片。Memory 保留既有 Git 行为。
+外部保存不创建附件版本、通知、Source Revision、Inbox Admission 或 Bot wake。目标文件缺失时报告不可用，不从原上传字节重建。Host 启动时转换保留的旧 hash 附件；成功迁移后提供相同编辑菜单，转换失败则保留旧文件的可读状态。Memory 保留既有 Git 行为。
 
 ## 存储与集成
 
-新引用为 `{fileId,name,mime,size}`，旧引用为 `{hash,name,mime,size}`，身份必须二选一。不可变的消息 envelope 保留发送时引用，消息查询投影当前元数据。`channel_read_image` 用 `attachment_id` 传入返回的 `fileId`，旧图片仍使用 `hash`。Host 验证 Bot 当前 Channel 成员资格与消息归属后，读取符合大小限制的当前图片；模型不会获得附件 Host 路径。可信 Channel 转发复用这份引用契约，目的地确认仍由 [#570](https://github.com/BotHarness/BotHarness/issues/570) 推进。
+新引用为 `{fileId,name,mime,size}`，旧引用为 `{hash,name,mime,size}`，身份必须二选一。不可变的消息 envelope 保留发送时引用，消息查询投影当前元数据。`channel_read_image` 用 `attachment_id` 传入返回的 `fileId`，旧图片仍使用 `hash`。Host 验证 Bot 当前 Channel 成员资格与消息归属后，读取符合大小限制的当前图片；模型不会获得附件 Host 路径。带原消息归属的旧图片 hash 在唯一匹配时解析到该消息的当前真实文件；没有消息归属、同一消息中含糊的 hash，以及新发送中的旧引用会被明确拒绝。刷新原消息取得 canonical fileId。可信 Channel 转发复用这份引用契约，目的地确认仍由 [#570](https://github.com/BotHarness/BotHarness/issues/570) 推进。
 
 `$DSH_HOME/botharness/attachments/files/<uuid>/` 下的 `data/<安全文件名>` 就是真实目标，`record.json` 持久保存身份与传输回执。回执仅保存用于上传重试的校验值，不保存历史文件字节。Composer 重试复用同一个上传 key，不覆盖已经编辑的目标。发送验证 profile 归属；每次原生打开或下载重新解析 `channelId + messageId + fileId`。认证下载使用 `no-store`、服务器嗅探的 MIME 和 `nosniff`。
 
 未完成传输的清理保持独立。引用感知清理从所有保留的 Source Event envelope（含已移除 Channel）标记身份，保护仍可达文件，之后才删除过期孤儿目标与记录；不启用自动保留期。后续 Profile Backup、选定 Export 与显式 Purge 必须覆盖当前引用文件及记录，保留共享身份，不能删除仍被保留事实引用的文件；明确导出捕获当时字节，不建立持续版本档案。本切片不新增这些产品。
 
 设计见 [ADR-0100](adr/0100-file-open-actions-target-real-host-files.md)。可运行验收入口是 `scripts/e2e-real-attachment-files.mjs`：通过真实 composer 准备，在外部编辑器保存，验证原消息、独立上传和共享引用，重启同一 Profile，再验证缺失文件拒绝。登录地址与私有 fixture 留在 Git 外，只发布合成测试数据的截图。
+
+## 旧消息迁移
+
+Messaging 拥有 schema generation 39 的 `attachment_file_bindings`，按不可变 Source Event ID 与附件序号登记。Host 启动扫描所有保留的消息 envelope，含已移除 Channel。每个旧附件出现位置先在 `pending` 状态持久预留独立 UUID，再校验并流式传输旧 CAS 对象，由真实文件 owner 创建目标，重新读取并验证转换字节后才原子切换为 `ready`。查询先应用绑定再投影当前元数据；原 Source Event envelope、文本、placement 与 Inbox Admission 均不改写。Human 打开菜单时不会创建编辑副本。
+
+旧表示只保存内容 hash，没有可信上传身份或复用来源。因此，相同 hash 也会得到独立目标，同一条消息中重复的附件亦如此；不能从 hash 相同推断历史共享。迁移后显式复用 canonical fileId 仍然共享。同一 Host 的并发启动调用共用一个迁移轮次。中断后保留预留 UUID，重启继续未完成转换，不产生重复目标；`ready` 绑定不再复制，即使当前文件已被编辑或缺失。失败转换继续使用可读的旧对象，并在有界 `attachment-migration` 开发日志中标记出现位置及修复／重启操作。损坏的旧对象仍报告不可用，不接受错误字节。
+
+带消息归属的旧下载与图片读取解析到迁移后的当前目标，不返回冻结的旧 CAS 替代品。同一消息中旧 hash 解析到不同目标时，旧身份有歧义，必须改用当前 fileId；仍共同指向未转换 CAS 对象的重复引用保持可读。生产下载始终要求消息归属并使用 `no-store`，包含迁移中的旧引用。旧引用仅保留在历史事实 decoder 与带归属的兼容入口，不再用于新增可变消息文件。
+
+引用感知清理标记 ready fileId 和所有 pending 预留 fileId；只要任一保留出现位置还未转换，其 legacy 对象就仍可达。仅在全部保留依赖安全转换后，既有显式 sweep 才能释放废弃共享 CAS 对象。迁移不启用自动删除，也不影响 SoulSnapshot 或其他 CAS。后续 Profile Backup／Export／Purge 必须覆盖 Operational Database 的绑定记录以及当前目标文件和回执；一次迁移及废弃兼容存储不提供附件历史 API。
+
+Schema 激活是单向升级：旧的 hash-only 版本不能读取 generation 39 或新文件身份。恢复应向前修复，保留数据库、绑定与当前文件。升级前任何另行支持的备份仍由其 owner 负责；本功能不新增备份或恢复产品。真实验收使用 `scripts/e2e-legacy-attachment-migration.mjs`：旧版本 composer 真实发送，将私有 SQLite 备份导入新隔离 Profile，原生编辑器保存，带归属读取当前字节，验证源文件／独立附件隔离、持久注意力不变、重启和缺失文件拒绝。

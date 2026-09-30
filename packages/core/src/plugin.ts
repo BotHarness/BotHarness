@@ -502,6 +502,15 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
+  ctx.effect(() => {
+    const controller = new AbortController();
+    if (core.operationalDatabase.mode === 'ready')
+      void core.channels.migrateAttachments?.(controller.signal).catch(() => {
+        if (!controller.signal.aborted)
+          ctx.logger.warn('attachment-migration phase=failed action=inspect-database-and-restart');
+      });
+    return () => controller.abort();
+  }, 'botharness: retained attachment migration');
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
   ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
   ctx.provide('botharness', core);
