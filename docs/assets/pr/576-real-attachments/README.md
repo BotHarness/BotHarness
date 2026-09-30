@@ -5,7 +5,7 @@ The published screenshots use synthetic Human-only Channels and files. Login URL
 ## Revisions and surfaces
 
 - Baseline: merged #575, `f1c1214340b200727460be085201833ab043f649`.
-- Current implementation: #576 branch, integrated with main `37abf58f`; the PR head identifies the exact evidence bundle and final source.
+- Current implementation: #576 branch, integrated with main `bf0fdfc8`; the PR head identifies the exact evidence bundle and final source.
 - Real pinned DSH `0.2.0-rc.1`, Chromium, Chinese locale; message views are 1440 × 960 in light/dark themes. Image pairs crop the same 1160 × 960 Channel area to omit unrelated roster fixtures.
 - Native TextEdit captures are 1312 × 844. Before/after show the same real transferred destination; saving used the native editor UI, not the verification script.
 
@@ -43,3 +43,5 @@ Use the private output from `scripts/dev-instance.mjs` as `BH_E2E_INSTANCE`, a p
 5. `image`: actual image picker, byte-preserving preview and context/More menus. `reveal` optionally hands off to Finder for native selection inspection.
 
 Automated checks and their final results are recorded in the PR. The first integrated full test run had one pre-existing Memory large-file test time out at 15 seconds (1484 passed, 1 failed, 1 pre-existing opt-in skipped). The same test passed separately; a complete follow-up at four workers passed 1485 tests with the same one pre-existing opt-in skip. This is retained as an intermittent failure, without changing its assertion or timeout.
+
+Final integration with main `bf0fdfc8`: 187 test files and 1496 tests passed at four workers, with one pre-existing opt-in file/test skipped; build, lint/release ledgers, format, typecheck and the 260-page bilingual docs build passed. The final integrated Host repeated the real native editor open/save and current-file/ownership/no-attention verification.
