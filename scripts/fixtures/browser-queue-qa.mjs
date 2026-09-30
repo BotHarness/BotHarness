@@ -13,6 +13,7 @@ export function apply(ctx) {
             'browser_wait',
             'browser_click',
             'browser_open',
+            'browser_tabs',
             'browser_observe',
             'browser_screenshot',
           ].includes(name)

@@ -106,6 +106,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Changed
 
 - Group invitations now default to automatic acceptance without waking the invited PersonaBot; Bot settings can keep invitations pending for its own decision, and resolved invitations cannot wake again after redelivery or restart ([#371](https://github.com/BotHarness/BotHarness/issues/371), [ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)).
+- Channel discovery and history Tools now enumerate supported filters and explain joined-search, author, date and legacy page-size behavior; exact lookups with no accessible match report it explicitly without revealing hidden Channels ([#564](https://github.com/BotHarness/BotHarness/issues/564)).
+
 - Group join request and decision Tools now return compact Channel, request and requester references with the actual state, preserving approval-only access without copying full Group records or internal identity timestamps into model context ([#563](https://github.com/BotHarness/BotHarness/issues/563)).
 
 - Group creation and invitation Tools now return compact Channel, invitation and invitee references with the actual decision state; accepting or declining no longer copies the full Group record into the model context, and declines still grant no Group access ([#562](https://github.com/BotHarness/BotHarness/issues/562)).
@@ -180,6 +182,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Fixed Open Bot Browser to reveal the owned preview tab and restore minimized windows, reusing one owned blank tab when no live work remains ([#584](https://github.com/BotHarness/BotHarness/issues/584)).
 
 - Fresh Browser observations replace the previous refs with an independent namespace, so an older ref cannot click a different control after page changes; role-less click targets stay visible on repeated observations and stale refs retain the readable re-observe refusal ([#579](https://github.com/BotHarness/BotHarness/issues/579)).
 

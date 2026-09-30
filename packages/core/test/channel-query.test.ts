@@ -81,6 +81,17 @@ describe('PersonaBot Channel history query', () => {
             .messages.map((view) => view.message.id),
         ).toEqual(['old-5']);
         expect(() => run.channels.query({ channelId: privateId })).toThrow('not a member');
+        expect(() => Reflect.apply(run.channels.list, undefined, [{ type: 'private' }])).toThrow(
+          'type must be group or dm',
+        );
+        expect(() => Reflect.apply(run.channels.query, undefined, [{ scope: 'all' }])).toThrow(
+          'invalid scope',
+        );
+        expect(() =>
+          Reflect.apply(run.channels.query, undefined, [
+            { channelId: groupId, authorKind: 'agent' },
+          ]),
+        ).toThrow('invalid author_kind');
         const joined = run.channels.query({ scope: 'joined', text: 'needle', limit: 2 });
         expect(joined.messages.map((view) => view.message.id)).toEqual(['other-1', 'old-210']);
         const joinedCursor = joined.nextCursor;

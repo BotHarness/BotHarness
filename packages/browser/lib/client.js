@@ -404,7 +404,7 @@ window.__ModuleLoader__.load({
 								type: "button",
 								style: buttonStyle,
 								disabled: busy,
-								onClick: () => invoke(OPEN_ENDPOINT),
+								onClick: () => invoke(OPEN_ENDPOINT, follow || preview === void 0 ? {} : { tab: preview }),
 								children: t(busy ? "entry.view.opening" : "entry.view.open")
 							}),
 							observation?.running === true ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {

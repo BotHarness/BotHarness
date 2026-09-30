@@ -78,7 +78,7 @@ export interface BotBrowserRuntime {
       }
     | undefined
   >;
-  openWindow(): Promise<BrowserTab>;
+  openWindow(targetId?: string): Promise<BrowserTab>;
   currentUrl(): string | undefined;
   binaryPath(): string | undefined;
   stop(): Promise<void>;
@@ -758,15 +758,30 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return data === undefined ? undefined : withMeta(data);
   };
 
-  const openWindow = async (): Promise<BrowserTab> => {
+  const openWindow = async (existingTargetId?: string): Promise<BrowserTab> => {
     await ensure();
     const live = client;
     if (live === undefined) throw new Error('The Bot Browser is not running');
-    const created = await live.send('Target.createTarget', { url: 'about:blank', newWindow: true });
-    const targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
-    if (targetId === '') throw new Error('The Bot Browser did not open a window');
-    await attach(targetId);
-    return { tabId: targetId, url: 'about:blank', title: '' };
+    let targetId = existingTargetId;
+    if (targetId === undefined) {
+      const created = await live.send('Target.createTarget', {
+        url: 'about:blank',
+        newWindow: true,
+      });
+      targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
+      if (targetId === '') throw new Error('The Bot Browser did not open a window');
+    }
+    const sessionId = await attach(targetId);
+    const window = await live.send('Browser.getWindowForTarget', { targetId });
+    if (asObject(window['bounds'])?.['windowState'] === 'minimized') {
+      await live.send('Browser.setWindowBounds', {
+        windowId: window['windowId'],
+        bounds: { windowState: 'normal' },
+      });
+    }
+    await live.send('Target.activateTarget', { targetId });
+    await live.send('Page.bringToFront', {}, sessionId);
+    return { tabId: targetId, ...(await tabInfo(targetId)) };
   };
 
   const stop = async (): Promise<void> => {

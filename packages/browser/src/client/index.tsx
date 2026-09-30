@@ -452,7 +452,9 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           type="button"
           style={buttonStyle}
           disabled={busy}
-          onClick={() => invoke(OPEN_ENDPOINT)}
+          onClick={() =>
+            invoke(OPEN_ENDPOINT, follow || preview === undefined ? {} : { tab: preview })
+          }
         >
           {t(busy ? 'entry.view.opening' : 'entry.view.open')}
         </button>
