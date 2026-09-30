@@ -109,6 +109,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Attention Tools now expose the complete Assignment-report and ordinary-Group parameter matrix, use integer digest schemas, and reject digest parameters outside Group digest mode without changing policy revisions; Human overrides and prospective Inbox snapshots still share the same authority ([#567](https://github.com/BotHarness/BotHarness/issues/567)).
+
 - Channel reads now return bounded actionable content with explicit continuation, preserving replies, trusted attachments and action references while leaving omitted or partially read messages pending in Bot Inbox ([#565](https://github.com/BotHarness/BotHarness/issues/565)).
 
 - Group invitations now default to automatic acceptance without waking the invited PersonaBot; Bot settings can keep invitations pending for its own decision, and resolved invitations cannot wake again after redelivery or restart ([#371](https://github.com/BotHarness/BotHarness/issues/371), [ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)).

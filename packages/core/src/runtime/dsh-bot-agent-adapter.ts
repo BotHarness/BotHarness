@@ -1411,7 +1411,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'group_attention_get',
           description:
-            "Read this PersonaBot's current attention preference for a joined Group Channel, including revision and last editor. Use channel_list to find the Group ID.",
+            "Read only this PersonaBot's effective joined-Group override: mode, count, intervalSeconds, revision, lastActor and changedAt. Without an override the ordinary-Group source default applies. Use channel_list for its ID.",
           parameters: {
             channel_id: { type: 'string', required: true, description: 'Joined Group Channel ID.' },
           },
@@ -1434,7 +1434,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'group_attention_set',
           description:
-            "Change only this PersonaBot's attention preference in a joined Group Channel. Modes: all (every message), digest (batch), mentions (direct @), silent (no ordinary-message wake). Count and interval are optional; omitted values keep the current setting.",
+            "Set only this PersonaBot's joined-Group override: all=immediate ordinary wake, digest=batch, mentions=no ordinary wake but pending context may join a direct mention, silent=ordinary context requires explicit read. Direct addresses still arrive. In every mode optional integer count 1–100 and interval_seconds 1–3600 tune stored digest settings; omission preserves effective values. Overrides beat the source default; only future Admissions change. Returns effective values, revision and last actor/time.",
           parameters: {
             channel_id: { type: 'string', required: true, description: 'Joined Group Channel ID.' },
             mode: {
@@ -1474,7 +1474,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'source_attention_get',
           description:
-            "Read this PersonaBot's nine effective source rules, their revision and editor, and actual Orchestrator wake attempts over the last seven days. Group Channel preferences override the ordinary Group default.",
+            "Read only this PersonaBot's nine effective source rules, revisions, lastActor/changedAt and recentWakeCount (actual wake attempts in the last seven days). Per-Channel overrides beat the group-ordinary default; membership and protected admission gates remain Host-owned.",
           parameters: {},
           output: {
             schema: { type: 'string' },
@@ -1492,12 +1492,13 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'source_attention_set',
           description:
-            "Set this PersonaBot's source default for Assignment reports or ordinary Group messages. Group options are immediate (all), digest, mentions, and silent; per-Channel Group preferences still take priority. Only new Admissions use the new revision.",
+            "Set only this PersonaBot's source default. Matrix: omitted sourceClass or assignment-report → conditional or immediate, no digest parameters; conditional wakes for non-progress reports or expected replies. group-ordinary → immediate, digest, mentions or silent; only digest accepts optional integer digestCount 1–100 and digestIntervalSeconds 1–3600 (omit to preserve effective values; built-in 5/30). All other combinations fail without a policy write. Per-Channel overrides win, direct addresses still arrive, and only future Admissions change. Returns effective rule, revision, last actor/time and seven-day wake count.",
           parameters: {
             sourceClass: {
               type: 'string',
               enum: ['assignment-report', 'group-ordinary'],
-              description: 'Defaults to assignment-report for compatibility.',
+              description:
+                'Omit for assignment-report; group-ordinary changes its source default, not a Channel override.',
             },
             wake: {
               type: 'string',
@@ -1505,12 +1506,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               enum: ['conditional', 'immediate', 'digest', 'mentions', 'silent'],
             },
             digestCount: {
-              type: 'number',
-              description: 'Group digest count, 1 to 100; used only with digest wake.',
+              type: 'integer',
+              description:
+                'Only group-ordinary + digest: 1–100; omission preserves effective count.',
             },
             digestIntervalSeconds: {
-              type: 'number',
-              description: 'Group digest interval, 1 to 3600 seconds; used only with digest wake.',
+              type: 'integer',
+              description:
+                'Only group-ordinary + digest: 1–3600 seconds; omission preserves effective interval.',
             },
           },
           output: {
@@ -1537,6 +1540,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               args.wake !== 'silent'
             )
               throw new Error('Group ordinary wake mode is invalid');
+            if (
+              args.wake !== 'digest' &&
+              (args.digestCount !== undefined || args.digestIntervalSeconds !== undefined)
+            )
+              throw new Error('Only Group digest wake accepts digest parameters');
             const current = active.run.sourcePolicy
               .list()
               .find((policy) => policy.sourceClass === 'group-ordinary');
@@ -1561,12 +1569,13 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'source_attention_reset',
           description:
-            "Restore this PersonaBot's built-in Assignment report or ordinary Group default. The reset gets a new audited revision and leaves previous Admissions unchanged.",
+            "Reset only this PersonaBot's source default: omitted sourceClass or assignment-report → conditional, no digest; group-ordinary → digest, count 5, interval 30 seconds. Returns the effective rule with a new audited revision, last actor/time and seven-day wake count. Existing Channel overrides and previous Admissions stay intact; other source classes cannot be reset here.",
           parameters: {
             sourceClass: {
               type: 'string',
               enum: ['assignment-report', 'group-ordinary'],
-              description: 'Defaults to assignment-report for compatibility.',
+              description:
+                'Omit for assignment-report; group-ordinary changes its source default, not a Channel override.',
             },
           },
           output: {
