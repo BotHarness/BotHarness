@@ -106,10 +106,7 @@
             "type": {
               "type": "string",
               "description": "Channel type.",
-              "enum": [
-                "group",
-                "dm"
-              ]
+              "enum": ["group", "dm"]
             },
             "member_bot_ids": {
               "type": "array",
@@ -143,10 +140,7 @@
             "scope": {
               "type": "string",
               "description": "Default channel. Joined requires nonblank text and forbids channel_id.",
-              "enum": [
-                "channel",
-                "joined"
-              ]
+              "enum": ["channel", "joined"]
             },
             "text": {
               "type": "string",
@@ -159,12 +153,7 @@
             "author_kind": {
               "type": "string",
               "description": "Author kind; only bot is compatible with author_bot_id.",
-              "enum": [
-                "human",
-                "bot",
-                "bridged",
-                "system"
-              ]
+              "enum": ["human", "bot", "bridged", "system"]
             },
             "from": {
               "type": "string",
@@ -220,10 +209,7 @@
         ]
       }
     ],
-    "historyBodies": [
-      "QA564_RECORD alpha 2",
-      "QA564_RECORD alpha 1"
-    ],
+    "historyBodies": ["QA564_RECORD alpha 2", "QA564_RECORD alpha 1"],
     "joinedBodies": [
       "QA564_RECORD beta 2",
       "QA564_RECORD beta 1",
@@ -328,10 +314,7 @@
         ]
       }
     ],
-    "historyBodies": [
-      "QA564_RECORD alpha 2",
-      "QA564_RECORD alpha 1"
-    ],
+    "historyBodies": ["QA564_RECORD alpha 2", "QA564_RECORD alpha 1"],
     "joinedBodies": [
       "QA564_RECORD beta 2",
       "QA564_RECORD beta 1",
