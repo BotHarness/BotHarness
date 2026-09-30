@@ -1,0 +1,743 @@
+{
+  "baselineRevision": "adc094fec3d1828aea131016a5c0a7cdb5eb076d",
+  "dshVersion": "0.2.0-rc.1",
+  "outputMetric": "Actual channel_read Tool result text length in JavaScript UTF-16 code units, including serialized metadata, cursor and JSON escaping; not tokens or total prompt size. Image pixels use the separate existing image Tool.",
+  "outputLimit": 12000,
+  "choice": "Compact JSON retains existing field/reference structure; JSON and text both passed real reply/search/image checks, and JSON was seven characters shorter for this fixture.",
+  "comparison": [
+    {
+      "format": "before",
+      "characters": 19061,
+      "returnedMessages": 3
+    },
+    {
+      "format": "after",
+      "characters": 6639,
+      "returnedMessages": 1
+    },
+    {
+      "format": "text",
+      "characters": 6646,
+      "returnedMessages": 1
+    }
+  ],
+  "sameMessagesProjectionMeasurement": {
+    "baselineCharacters": 19061,
+    "compactCharactersBeforeApplyingBudget": 18749,
+    "note": "Derived comparison projects the same three recorded baseline messages, isolating bookkeeping removal from message-count budgeting. This is not a separate model call."
+  },
+  "stages": {
+    "before": {
+      "stage": "before",
+      "profileVersion": "DSH 0.2.0-rc.1",
+      "budget": {
+        "outputCharacters": 19061,
+        "returnedMessageIds": [
+          "9724095d-588c-42e5-878c-b556526e14e4",
+          "092e4f6e-56b6-4f34-a966-c8a040dfc516",
+          "329b15b7-d682-4309-9a00-6e5e7c9ae53e"
+        ],
+        "processing": [
+          {
+            "messageId": "9724095d-588c-42e5-878c-b556526e14e4",
+            "state": "processing"
+          },
+          {
+            "messageId": "092e4f6e-56b6-4f34-a966-c8a040dfc516",
+            "state": "processing"
+          },
+          {
+            "messageId": "329b15b7-d682-4309-9a00-6e5e7c9ae53e",
+            "state": "processing"
+          }
+        ],
+        "settled": [
+          {
+            "messageId": "9724095d-588c-42e5-878c-b556526e14e4",
+            "state": "handled"
+          },
+          {
+            "messageId": "092e4f6e-56b6-4f34-a966-c8a040dfc516",
+            "state": "handled"
+          },
+          {
+            "messageId": "329b15b7-d682-4309-9a00-6e5e7c9ae53e",
+            "state": "handled"
+          }
+        ]
+      },
+      "search": {
+        "returnedIds": [
+          "e80bce47-9c0e-49bc-ac7d-69a1a077ff87",
+          "c45300c1-b5ac-4631-ae20-8411c5f771fd",
+          "399976a9-7757-4ea1-a727-6a6534b1f5b9",
+          "6205cc7d-915b-4ed9-b0da-8dd8bba9254c"
+        ],
+        "pages": 2
+      },
+      "reply": {
+        "messageId": "9724095d-588c-42e5-878c-b556526e14e4",
+        "correct": true
+      },
+      "image": {
+        "messageId": "8c62156d-3fd3-461f-b09e-4fff5c22eba9",
+        "hash": "sha256:13a94acfc1e06e28583cd3bd6fcb44d9c3e711ad604b7fe98fe66b489a07883b",
+        "nativeImageReturned": true,
+        "visibleResearcherName": "QA Researcher 564",
+        "correct": true
+      },
+      "readOutputLengths": [
+        {
+          "args": {
+            "channel_id": "group-qa565-budget",
+            "text": "QA565_BUDGET",
+            "author_kind": "human",
+            "limit": 3
+          },
+          "characters": 19061
+        },
+        {
+          "args": {
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "author_kind": "human",
+            "limit": 2,
+            "to": "2026-09-30T17:46:35.887Z"
+          },
+          "characters": 868
+        },
+        {
+          "args": {
+            "author_kind": "human",
+            "cursor": "eyJhdCI6IjIwMjYtMDktMzBUMTc6Mzk6NDQuMjY3WiIsImNoYW5uZWxJZCI6Imdyb3VwLXFhNTY1LW90aGVyIiwibWVzc2FnZUlkIjoiYzQ1MzAwYzEtYjVhYy00NjMxLWFlMjAtODQxMWM1Zjc3MWZkIiwiZmlsdGVyIjoiOGZjMmYxOTBkNzE1Yjc3OSJ9",
+            "limit": 2,
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "to": "2026-09-30T17:46:35.887Z"
+          },
+          "characters": 666
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "text": "QA565_IMAGE"
+          },
+          "characters": 516
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "text": "QA565_LONG"
+          },
+          "characters": 28328
+        }
+      ],
+      "verified": {
+        "boundedOutput": false,
+        "exactReply": true,
+        "joinedPagination": true,
+        "trustedImageReference": true,
+        "imageRecognition": true,
+        "exactSuccessfulConsumption": true
+      }
+    },
+    "after": {
+      "stage": "after",
+      "profileVersion": "DSH 0.2.0-rc.1",
+      "budget": {
+        "outputCharacters": 6639,
+        "returnedMessageIds": ["284f1f70-7187-48b0-853b-ada69fa2a5cf"],
+        "omitted": {
+          "count": 2,
+          "reason": "output-budget",
+          "readContent": {
+            "channel_id": "group-qa565-budget",
+            "message_id": "ff344958-c46d-4075-842d-7ebbd009a3ac"
+          },
+          "continuation": "Use nextCursor with unchanged filters; omitted messages remain pending."
+        },
+        "processing": [
+          {
+            "messageId": "284f1f70-7187-48b0-853b-ada69fa2a5cf",
+            "state": "processing"
+          },
+          {
+            "messageId": "ff344958-c46d-4075-842d-7ebbd009a3ac",
+            "state": "pending"
+          },
+          {
+            "messageId": "c27b1cd4-f680-4850-bf3e-2a32b07e7e9a",
+            "state": "pending"
+          }
+        ],
+        "settled": [
+          {
+            "messageId": "284f1f70-7187-48b0-853b-ada69fa2a5cf",
+            "state": "handled"
+          },
+          {
+            "messageId": "ff344958-c46d-4075-842d-7ebbd009a3ac",
+            "state": "pending"
+          },
+          {
+            "messageId": "c27b1cd4-f680-4850-bf3e-2a32b07e7e9a",
+            "state": "pending"
+          }
+        ]
+      },
+      "search": {
+        "returnedIds": [
+          "2b1a458f-adf5-457a-b652-a95a33a88cca",
+          "504be415-78cc-4346-832d-7a79be9235ba",
+          "d65d9b5a-0b24-4525-b35b-32d606982f0d",
+          "e374b973-865c-45ce-8614-e8bbc21a8e71"
+        ],
+        "pages": 2
+      },
+      "reply": {
+        "messageId": "284f1f70-7187-48b0-853b-ada69fa2a5cf",
+        "correct": true
+      },
+      "image": {
+        "messageId": "e786eb9d-6539-45db-aa64-f755fabe485e",
+        "hash": "sha256:13a94acfc1e06e28583cd3bd6fcb44d9c3e711ad604b7fe98fe66b489a07883b",
+        "nativeImageReturned": true,
+        "visibleResearcherName": "QA Researcher 564",
+        "correct": true
+      },
+      "longContent": {
+        "totalCharacters": 28209,
+        "fragmentsPerRead": 3,
+        "firstReports": [
+          {
+            "report": "QA565-LONG-DONE: 565_END_565",
+            "correct": false
+          },
+          {
+            "report": "QA565-LONG-DONE: QA565_END_565",
+            "correct": false
+          }
+        ],
+        "firstReportCorrect": false,
+        "freshRecheckCorrect": true
+      },
+      "failedTurn": {
+        "processing": [
+          {
+            "messageId": "5d914cfb-3293-46d0-8686-e4e449451cd3",
+            "state": "processing"
+          },
+          {
+            "messageId": "f8d153e2-5f54-4fba-89e1-fff13c29a9f2",
+            "state": "pending"
+          },
+          {
+            "messageId": "dfde2ffa-6c26-4259-aa96-5b74e9efc200",
+            "state": "pending"
+          }
+        ],
+        "settled": [
+          {
+            "messageId": "5d914cfb-3293-46d0-8686-e4e449451cd3",
+            "state": "needs-repair"
+          },
+          {
+            "messageId": "f8d153e2-5f54-4fba-89e1-fff13c29a9f2",
+            "state": "pending"
+          },
+          {
+            "messageId": "dfde2ffa-6c26-4259-aa96-5b74e9efc200",
+            "state": "pending"
+          }
+        ]
+      },
+      "readOutputLengths": [
+        {
+          "args": {
+            "channel_id": "group-qa565-budget",
+            "text": "QA565_BUDGET",
+            "author_kind": "human",
+            "limit": 3
+          },
+          "characters": 6639
+        },
+        {
+          "args": {
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "author_kind": "human",
+            "limit": 2,
+            "to": "2026-09-30T17:46:37.151Z"
+          },
+          "characters": 680
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "text": "QA565_IMAGE"
+          },
+          "characters": 432
+        },
+        {
+          "args": {
+            "author_kind": "human",
+            "cursor": "eyJhdCI6IjIwMjYtMDktMzBUMTc6NDA6MTMuNzU1WiIsImNoYW5uZWxJZCI6Imdyb3VwLXFhNTY1LW90aGVyIiwibWVzc2FnZUlkIjoiNTA0YmU0MTUtNzhjYy00MzQ2LTgzMmQtN2E3OWJlOTIzNWJhIiwiZmlsdGVyIjoiNWEzMDc1NTdlMTBmYmRlNiJ9",
+            "limit": 2,
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "to": "2026-09-30T17:46:37.151Z"
+          },
+          "characters": 478
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "text": "QA565_LONG"
+          },
+          "characters": 307
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "message_id": "ea403594-dd64-490d-abac-451c61b903ad"
+          },
+          "characters": 12000
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "message_id": "ea403594-dd64-490d-abac-451c61b903ad",
+            "content_cursor": "eyJoYXNoIjoiZmI2MzFmZDg5NTljNTM4YzQ2YWU3MDZiNDE4OTgwZmUyZjk1MjZlZjM2NzRiZWMyYzAwMzc2ODMxYmRkMDJkYyIsIm9mZnNldCI6MTE1NDN9"
+          },
+          "characters": 12000
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "content_cursor": "eyJoYXNoIjoiZmI2MzFmZDg5NTljNTM4YzQ2YWU3MDZiNDE4OTgwZmUyZjk1MjZlZjM2NzRiZWMyYzAwMzc2ODMxYmRkMDJkYyIsIm9mZnNldCI6MjMxMDl9",
+            "message_id": "ea403594-dd64-490d-abac-451c61b903ad"
+          },
+          "characters": 5395
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "message_id": "ea403594-dd64-490d-abac-451c61b903ad"
+          },
+          "characters": 12000
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "content_cursor": "eyJoYXNoIjoiZmI2MzFmZDg5NTljNTM4YzQ2YWU3MDZiNDE4OTgwZmUyZjk1MjZlZjM2NzRiZWMyYzAwMzc2ODMxYmRkMDJkYyIsIm9mZnNldCI6MTE1NDN9",
+            "message_id": "ea403594-dd64-490d-abac-451c61b903ad"
+          },
+          "characters": 12000
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "content_cursor": "eyJoYXNoIjoiZmI2MzFmZDg5NTljNTM4YzQ2YWU3MDZiNDE4OTgwZmUyZjk1MjZlZjM2NzRiZWMyYzAwMzc2ODMxYmRkMDJkYyIsIm9mZnNldCI6MjMxMDl9",
+            "message_id": "ea403594-dd64-490d-abac-451c61b903ad"
+          },
+          "characters": 5395
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-repair",
+            "limit": 3,
+            "text": "QA565_REPAIR"
+          },
+          "characters": 6602
+        }
+      ],
+      "verified": {
+        "boundedOutput": true,
+        "exactReply": true,
+        "joinedPagination": true,
+        "trustedImageReference": true,
+        "imageRecognition": true,
+        "exactSuccessfulConsumption": true,
+        "fullLongContentReturned": true,
+        "exactFailureConsumption": true
+      }
+    },
+    "text": {
+      "stage": "text",
+      "profileVersion": "DSH 0.2.0-rc.1",
+      "budget": {
+        "outputCharacters": 6646,
+        "returnedMessageIds": ["a099624b-4a24-4e4e-8d99-2074aea3d7aa"],
+        "omitted": {
+          "count": 2,
+          "reason": "output-budget",
+          "readContent": {
+            "channel_id": "group-qa565-budget",
+            "message_id": "834d37f5-ca75-4237-8df9-e46f38bd7442"
+          },
+          "continuation": "Use nextCursor with unchanged filters; omitted messages remain pending."
+        },
+        "processing": [
+          {
+            "messageId": "a099624b-4a24-4e4e-8d99-2074aea3d7aa",
+            "state": "processing"
+          },
+          {
+            "messageId": "834d37f5-ca75-4237-8df9-e46f38bd7442",
+            "state": "pending"
+          },
+          {
+            "messageId": "b9f8564c-b91d-45a5-88e1-6158b85b605d",
+            "state": "pending"
+          }
+        ],
+        "settled": [
+          {
+            "messageId": "a099624b-4a24-4e4e-8d99-2074aea3d7aa",
+            "state": "handled"
+          },
+          {
+            "messageId": "834d37f5-ca75-4237-8df9-e46f38bd7442",
+            "state": "pending"
+          },
+          {
+            "messageId": "b9f8564c-b91d-45a5-88e1-6158b85b605d",
+            "state": "pending"
+          }
+        ]
+      },
+      "search": {
+        "returnedIds": [
+          "3f4fd869-8bb4-44d6-ad34-0a23f90043b5",
+          "64542f40-ea6d-42e5-8925-fb49f1610f1b",
+          "5825a931-fd1a-4afa-bebc-9d0bdc4ea336",
+          "c6138391-22b7-4a2d-8326-8f0b3f39c17d"
+        ],
+        "pages": 2
+      },
+      "reply": {
+        "messageId": "a099624b-4a24-4e4e-8d99-2074aea3d7aa",
+        "correct": true
+      },
+      "image": {
+        "messageId": "5f433e01-08f4-4ad6-a30f-d73899db8c64",
+        "hash": "sha256:13a94acfc1e06e28583cd3bd6fcb44d9c3e711ad604b7fe98fe66b489a07883b",
+        "nativeImageReturned": true,
+        "visibleResearcherName": "QA Researcher 564",
+        "correct": true
+      },
+      "readOutputLengths": [
+        {
+          "args": {
+            "channel_id": "group-qa565-budget",
+            "text": "QA565_BUDGET",
+            "author_kind": "human",
+            "limit": 3
+          },
+          "characters": 6646
+        },
+        {
+          "args": {
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "author_kind": "human",
+            "limit": 2,
+            "to": "2026-09-30T17:54:55.895Z"
+          },
+          "characters": 694
+        },
+        {
+          "args": {
+            "author_kind": "human",
+            "cursor": "eyJhdCI6IjIwMjYtMDktMzBUMTc6NTA6MTcuNTIxWiIsImNoYW5uZWxJZCI6Imdyb3VwLXFhNTY1LW90aGVyIiwibWVzc2FnZUlkIjoiNjQ1NDJmNDAtZWE2ZC00MmU1LTg5MjUtZmI0OWYxNjEwZjFiIiwiZmlsdGVyIjoiMmE5NTZjMWEzNGZlYjMyYSJ9",
+            "limit": 2,
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "to": "2026-09-30T17:54:55.895Z"
+          },
+          "characters": 493
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other",
+            "text": "QA565_IMAGE"
+          },
+          "characters": 439
+        }
+      ],
+      "verified": {
+        "boundedOutput": true,
+        "exactReply": true,
+        "joinedPagination": true,
+        "trustedImageReference": true,
+        "imageRecognition": true,
+        "exactSuccessfulConsumption": true
+      }
+    }
+  },
+  "verification": {
+    "focusedPassed": 45,
+    "fullPassed": 1419,
+    "fullSkipped": 1,
+    "lint": "passed with existing warnings",
+    "format": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "docsBuild": "passed: 256 pages",
+    "releaseLedgers": "passed",
+    "sourcePolicy": "passed",
+    "ogFont": "regenerated; glyph output unchanged"
+  },
+  "failureNotes": [
+    "The first long-content turn sent two incorrect marker reports although the actual ordered Tool fragments reconstructed the complete exact body. A separate full re-read correctly reported END_CODE_565; this is not claimed as a model-error fix.",
+    "Local capture helpers initially used a single-element selector instead of a collection and needed sequential waits for native expanded history. The final screenshots are unmodified native captures.",
+    "The native cancel QA driver first supplied sessionId directly instead of the documented named request object. The same held turn was cancelled with the correct envelope, producing one needs-repair and two pending results; no product fix is claimed."
+  ],
+  "capture": {
+    "viewport": "1440x1200",
+    "theme": "dark",
+    "locale": "Chinese",
+    "note": "Matched fresh baseline/JSON Profiles share synthetic fixture names and content; generated IDs, Bot avatars, timestamps and model wording differ. Completed-state captures include the subsequently handled four search records and, in the candidate, the later controlled repair Group."
+  },
+  "postMainIntegration": {
+    "validatedSourceCommit": "9908f43793960f86a1cad8b422a47b4fed4a9d65",
+    "integratedMainCommit": "a3d88bbab25d2479ae435c9a8c1441c747cea20e",
+    "adr": "ADR-0102",
+    "validation": {
+      "testsPassed": 1473,
+      "testsSkipped": 1,
+      "testFilesPassed": 183,
+      "testFilesSkipped": 1,
+      "typecheck": "passed",
+      "lint": "passed with existing warnings",
+      "format": "passed",
+      "build": "passed",
+      "releaseLedgers": "passed",
+      "docsBuildPages": 258
+    },
+    "realModelEvidence": {
+      "stage": "integrated",
+      "profileVersion": "DSH 0.2.0-rc.1",
+      "budget": {
+        "outputCharacters": 6643,
+        "returnedMessageIds": ["a75db09a-78c6-4e12-965b-679130f330a0"],
+        "omitted": {
+          "count": 2,
+          "reason": "output-budget",
+          "readContent": {
+            "channel_id": "group-qa565-budget-2",
+            "message_id": "1596e866-8c03-49ef-ba24-87fd7c6837e5"
+          },
+          "continuation": "Use nextCursor with unchanged filters; omitted messages remain pending."
+        },
+        "processing": [
+          {
+            "messageId": "a75db09a-78c6-4e12-965b-679130f330a0",
+            "state": "processing"
+          },
+          {
+            "messageId": "1596e866-8c03-49ef-ba24-87fd7c6837e5",
+            "state": "pending"
+          },
+          {
+            "messageId": "648f335d-c16f-4566-807a-e8f2a2e508e6",
+            "state": "pending"
+          }
+        ],
+        "settled": [
+          {
+            "messageId": "a75db09a-78c6-4e12-965b-679130f330a0",
+            "state": "handled"
+          },
+          {
+            "messageId": "1596e866-8c03-49ef-ba24-87fd7c6837e5",
+            "state": "pending"
+          },
+          {
+            "messageId": "648f335d-c16f-4566-807a-e8f2a2e508e6",
+            "state": "pending"
+          }
+        ]
+      },
+      "search": {
+        "returnedIds": [
+          "2a10bf00-418d-492e-8941-ee15d8132117",
+          "fdd08bf0-2c3c-4d6f-bed8-a4089294f281",
+          "9ab05571-4530-4e59-b647-bad26b7a6a55",
+          "533182ae-bda7-4e15-8b9a-ca9b1c1dce3a"
+        ],
+        "pages": 2
+      },
+      "reply": {
+        "messageId": "a75db09a-78c6-4e12-965b-679130f330a0",
+        "correct": true
+      },
+      "image": {
+        "messageId": "f5118f8d-8aff-4544-bf55-ee4429af3985",
+        "hash": "sha256:13a94acfc1e06e28583cd3bd6fcb44d9c3e711ad604b7fe98fe66b489a07883b",
+        "nativeImageReturned": true,
+        "visibleResearcherName": "QA Researcher 564",
+        "correct": true
+      },
+      "longContent": {
+        "totalCharacters": 28211,
+        "fragmentsPerRead": 3,
+        "firstReports": [
+          {
+            "report": "QA565-LONG-DONE",
+            "correct": true
+          }
+        ],
+        "firstReportCorrect": true,
+        "freshRecheckCorrect": false
+      },
+      "failedTurn": {
+        "processing": [
+          {
+            "messageId": "f4e27c5f-3ce7-4651-ac81-cf6f7e35997e",
+            "state": "processing"
+          },
+          {
+            "messageId": "d7c27278-d02e-47ef-a86c-a618ecc2c89e",
+            "state": "pending"
+          },
+          {
+            "messageId": "98fafc4d-b2b6-4267-ab6c-49d6f619d896",
+            "state": "pending"
+          }
+        ],
+        "settled": [
+          {
+            "messageId": "f4e27c5f-3ce7-4651-ac81-cf6f7e35997e",
+            "state": "needs-repair"
+          },
+          {
+            "messageId": "d7c27278-d02e-47ef-a86c-a618ecc2c89e",
+            "state": "pending"
+          },
+          {
+            "messageId": "98fafc4d-b2b6-4267-ab6c-49d6f619d896",
+            "state": "pending"
+          }
+        ]
+      },
+      "readOutputLengths": [
+        {
+          "args": {
+            "channel_id": "group-qa565-budget-2",
+            "text": "QA565_BUDGET",
+            "author_kind": "human",
+            "limit": 3
+          },
+          "characters": 6643
+        },
+        {
+          "args": {
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "author_kind": "human",
+            "limit": 2,
+            "to": "2026-09-30T18:37:05.204Z"
+          },
+          "characters": 687
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other-2",
+            "text": "QA565_IMAGE"
+          },
+          "characters": 434
+        },
+        {
+          "args": {
+            "author_kind": "human",
+            "cursor": "eyJhdCI6IjIwMjYtMDktMzBUMTg6MzU6MjYuMzcyWiIsImNoYW5uZWxJZCI6Imdyb3VwLXFhNTY1LW90aGVyLTIiLCJtZXNzYWdlSWQiOiJmZGQwOGJmMC0yYzNjLTRkNmYtYmVkOC1hNDA4OTI5NGYyODEiLCJmaWx0ZXIiOiI3NGQ4ZDhkNmY5N2RjMDc1In0\"",
+            "limit": 2,
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "to": "2026-09-30T18:37:05.204Z"
+          },
+          "characters": 482
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other-2",
+            "text": "QA565_LONG"
+          },
+          "characters": 309
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other-2",
+            "message_id": "444d9ff1-46d0-41cb-8265-1701f26a80b7"
+          },
+          "characters": 12000
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other-2",
+            "message_id": "444d9ff1-46d0-41cb-8265-1701f26a80b7",
+            "content_cursor": "eyJoYXNoIjoiNGM5NGU4ZTFmMjQ3MDc4MWMzNzY1ODllYzYwNWYwNTg2ZDdkNTI2YTljM2Y5NjU1ZjVjYWNjNDllZWVmMzY0YiIsIm9mZnNldCI6MTE1NDF9"
+          },
+          "characters": 12000
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-other-2",
+            "content_cursor": "eyJoYXNoIjoiNGM5NGU4ZTFmMjQ3MDc4MWMzNzY1ODllYzYwNWYwNTg2ZDdkNTI2YTljM2Y5NjU1ZjVjYWNjNDllZWVmMzY0YiIsIm9mZnNldCI6MjMxMDV9",
+            "message_id": "444d9ff1-46d0-41cb-8265-1701f26a80b7"
+          },
+          "characters": 5403
+        },
+        {
+          "args": {
+            "channel_id": "group-qa565-repair-2",
+            "limit": 3,
+            "text": "QA565_REPAIR"
+          },
+          "characters": 6606
+        },
+        {
+          "args": {
+            "author_kind": "human",
+            "limit": 2,
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "to": "2026-09-30T18:37:05.204Z"
+          },
+          "characters": 687
+        },
+        {
+          "args": {
+            "author_kind": "human",
+            "cursor": "eyJhdCI6IjIwMjYtMDktMzBUMTg6MzU6MjYuMzcyWiIsImNoYW5uZWxJZCI6Imdyb3VwLXFhNTY1LW90aGVyLTIiLCJtZXNzYWdlSWQiOiJmZGQwOGJmMC0yYzNjLTRkNmYtYmVkOC1hNDA4OTI5NGYyODEiLCJmaWx0ZXIiOiJmY2IzMzE5ZTA0ZmY5YjlhIn0",
+            "limit": 2,
+            "scope": "joined",
+            "text": "QA565_SEARCH",
+            "to": "2026-09-30T18:37:05.204Z"
+          },
+          "characters": 482
+        }
+      ],
+      "verified": {
+        "boundedOutput": true,
+        "exactReply": true,
+        "joinedPagination": true,
+        "trustedImageReference": true,
+        "imageRecognition": true,
+        "exactSuccessfulConsumption": true,
+        "fullLongContentReturned": true,
+        "exactFailureConsumption": true
+      }
+    },
+    "firstFailureNotes": [
+      "The first integrated joined-pagination call copied the cursor with an extra trailing quote. The existing decoder accepted it and returned the correct records, but strict exact-cursor evidence failed. A separate fresh read used its returned cursor verbatim with unchanged filters and passed. The assertion was not weakened.",
+      "The controlled cancellation can mark earlier reads from the same still-active turn needs-repair. The screenshot includes such search records; the repair fixture independently has exactly one included needs-repair message and two omitted pending siblings.",
+      "The integrated long-content read returned all 28211 characters in three bounded fragments and the model copied END_CODE_565 correctly on its first report. The original comparison-profile transcription failures remain recorded above."
+    ],
+    "screenshot": {
+      "path": "docs/assets/pr/565-bounded-channel-read/integrated-after-handled.png",
+      "description": "Unmodified native integrated DSH UI: one budget message handled, two omitted budget messages pending. Search records marked needs-repair belong to the deliberately cancelled active turn."
+    }
+  }
+}

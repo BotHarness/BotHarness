@@ -248,6 +248,7 @@ describe('registered Channel discovery/read contracts', () => {
       ]);
       expect(second.nextCursor).toBeUndefined();
       expect(await call(tools, 'channel_read', { scope: 'joined', text: 'no-match' })).toEqual({
+        outputLimit: 12000,
         messages: [],
       });
       for (const [args, error] of [

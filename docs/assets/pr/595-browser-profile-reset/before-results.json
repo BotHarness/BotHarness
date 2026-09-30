@@ -1,0 +1,14 @@
+{
+  "baseline": true,
+  "modelOpenObservePassed": true,
+  "oldCurrent": "556B9D18DA8D841DD160602369F1BF1F",
+  "oldReference": "62F2068B0E8AA1CB63653AF83F1EF451",
+  "switched": {
+    "focused": "556B9D18DA8D841DD160602369F1BF1F",
+    "takeover": true,
+    "tabs": []
+  },
+  "openError": true,
+  "openText": "[{\"type\":\"text\",\"text\":\"Error: Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting\"}]",
+  "peerCurrent": "5A80F9D37B51E9BC6D1B9F5D3E23EDEC"
+}
