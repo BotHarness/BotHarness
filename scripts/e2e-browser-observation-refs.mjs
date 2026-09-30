@@ -335,6 +335,10 @@ try {
         (event) => event.type === 'tool/call' && event.data.name === 'browser_click',
       );
       assert.ok(click);
+      const modelArguments = JSON.parse(click.data.arguments);
+      assert.equal(typeof modelArguments.ref, 'string');
+      assert.equal(modelArguments.x, undefined);
+      assert.equal(modelArguments.y, undefined);
       modelRefClick = click.data;
       assert.ok(
         (await fixturePage.$eval('#state', (element) => element.textContent)).includes(
