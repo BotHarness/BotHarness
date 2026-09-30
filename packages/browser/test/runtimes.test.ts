@@ -51,11 +51,25 @@ function setup(profiles: Record<string, string>): {
 describe('browser profiles', () => {
   it('sanitizes names and falls back to the default profile', () => {
     expect(sanitizeProfileName('work')).toBe('work');
+    expect(sanitizeProfileName('work.v2')).toBe('work.v2');
+    expect(sanitizeProfileName('.work')).toBe('.work');
+    expect(sanitizeProfileName('work..')).toBe('work..');
     expect(sanitizeProfileName(' work-2 ')).toBe('work-2');
     expect(sanitizeProfileName('default')).toBe('');
     expect(sanitizeProfileName('bad/name')).toBe('');
     expect(sanitizeProfileName('')).toBe('');
   });
+
+  it.each(['.', '..', ' . ', ' .. '])(
+    'keeps reserved stored profile %s in the existing default fallback',
+    (name) => {
+      const { runtimes, created } = setup({ a: name, b: '' });
+      expect(sanitizeProfileName(name)).toBe('');
+      expect(runtimes.for('a')).toBe(runtimes.for('b'));
+      expect(runtimes.profileOf('a')).toBe('');
+      expect(created.map((options) => options.userDataDir)).toEqual(['/tmp/botharness/browser']);
+    },
+  );
 
   it('shares one runtime per profile and isolates different profiles', () => {
     const { runtimes, created } = setup({ a: 'work', b: 'work', c: '' });

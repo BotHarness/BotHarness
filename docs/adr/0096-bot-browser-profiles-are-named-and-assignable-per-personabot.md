@@ -5,7 +5,7 @@ Date: 2026-09-30
 
 # Bot Browser profiles are named and assignable per PersonaBot
 
-The default stays one shared **Bot Browser** profile: the Human signs in once and every PersonaBot reuses those logins. On top of that, a PersonaBot record may carry a **browser profile name** (letters, digits, dot, dash, underscore; up to 40 characters; empty means the default profile), and the Browser entry exposes a Profile field to change it.
+The default stays one shared **Bot Browser** profile: the Human signs in once and every PersonaBot reuses those logins. On top of that, a PersonaBot record may carry a **browser profile name** (letters, digits, dot, dash, underscore; up to 40 characters; empty means the default profile), and the Browser entry exposes a Profile field to change it. The entire names `.` and `..` are reserved path segments and are rejected before saving an assignment or resetting Bot work; dots within a valid name remain supported. Invalid stored names use the runtime’s existing default-profile fallback.
 
 Each in-use profile runs its own browser instance with its own `--user-data-dir` — the default profile keeps `$DSH_HOME/botharness/browser`, named profiles live under `$DSH_HOME/botharness/browser-profiles/<name>`. Instances are created lazily on first use and idle-stop per profile, so only profiles actually in use consume the ADR-0083 memory budget. Tabs, Browser Access, authorization, pause, audit, and observation remain per PersonaBot; bots sharing a profile share its window and logins.
 

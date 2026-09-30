@@ -29,7 +29,7 @@ const PROFILE_NAME = /^[a-zA-Z0-9._-]{1,40}$/u;
 
 export function sanitizeProfileName(value: string): string {
   const trimmed = value.trim();
-  if (trimmed === 'default') return '';
+  if (trimmed === 'default' || trimmed === '.' || trimmed === '..') return '';
   return PROFILE_NAME.test(trimmed) ? trimmed : '';
 }
 
