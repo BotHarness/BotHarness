@@ -105,6 +105,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Channel discovery and history Tools now enumerate supported filters and explain joined-search, author, date and legacy page-size behavior; exact lookups with no accessible match report it explicitly without revealing hidden Channels ([#564](https://github.com/BotHarness/BotHarness/issues/564)).
+
 - Group join request and decision Tools now return compact Channel, request and requester references with the actual state, preserving approval-only access without copying full Group records or internal identity timestamps into model context ([#563](https://github.com/BotHarness/BotHarness/issues/563)).
 
 - Group creation and invitation Tools now return compact Channel, invitation and invitee references with the actual decision state; accepting or declining no longer copies the full Group record into the model context, and declines still grant no Group access ([#562](https://github.com/BotHarness/BotHarness/issues/562)).
