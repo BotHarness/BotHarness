@@ -136,6 +136,14 @@ describe('registered Channel discovery/read contracts', () => {
         { humanId: 'local-human', displayName: 'Human' },
       ]);
       const send = tools.find((tool) => tool.name === 'channel_send')!;
+      for (const invalid of ['local-human', { humanId: 'local-human' }, null, [12]]) {
+        await expect(
+          send.execute(
+            { channel_id: team, body: 'Invalid mention', mention_human_ids: invalid },
+            {} as ToolRunContext,
+          ),
+        ).rejects.toThrow('invalid arguments');
+      }
       await send.execute(
         { channel_id: team, body: 'Ready?', mention_human_ids: ['local-human'] },
         {} as ToolRunContext,

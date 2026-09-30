@@ -3322,8 +3322,12 @@ class BotRuntimeImplementation implements BotRuntime {
       });
       prefix += token + ' ';
     }
-    const humanIds = input.mentionHumanIds ?? [];
-    if (humanIds.length > 20 || humanIds.some((id) => typeof id !== 'string' || !id.trim()))
+    const humanIds = input.mentionHumanIds === undefined ? [] : input.mentionHumanIds;
+    if (
+      !Array.isArray(humanIds) ||
+      humanIds.length > 20 ||
+      humanIds.some((id) => typeof id !== 'string' || !id.trim())
+    )
       throw new Error('Human mentions require at most 20 valid Human IDs');
     const humanMembers = this.#channels.listHumanMembers(channel.id);
     const humanMentions: NonNullable<ChannelMessage['humanMentions']> = [];

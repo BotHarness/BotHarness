@@ -22,9 +22,20 @@ describe('trusted Bot mentions of the local Human', () => {
     const home = createTempRoot('botharness-human-mention-boundary-');
     let groupId = '';
     const failures: string[] = [];
+    const validationErrors: string[] = [];
     const core = createCore({
       dshHome: home,
       agents: adapter(async (run) => {
+        for (const invalid of ['local-human', { humanId: 'local-human' }, null, [12]]) {
+          try {
+            await Reflect.apply(run.channels.send, undefined, [
+              { channelId: groupId, body: 'Invalid target', mentionHumanIds: invalid },
+            ]);
+            validationErrors.push('invalid input accepted');
+          } catch (error) {
+            validationErrors.push(String(error));
+          }
+        }
         for (const humanId of ['Human', 'local-human-old', 'everyone']) {
           try {
             await run.channels.send({
@@ -68,6 +79,9 @@ describe('trusted Bot mentions of the local Human', () => {
       core.runtime.admitDmMessage({ channelId: dm.id, messageId: 'start', body: 'Test targets' });
       await core.runtime.whenIdle();
       expect(failures).toHaveLength(4);
+      expect(validationErrors).toHaveLength(4);
+      for (const error of validationErrors)
+        expect(error).toContain('Human mentions require at most 20 valid Human IDs');
       const personal = core.humanAttention.list({ category: 'replies' }).items;
       expect(personal).toHaveLength(1);
       expect(personal[0]?.summary).toBe('@Human Trusted request');
