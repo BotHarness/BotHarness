@@ -72,4 +72,56 @@ describe('browser observe snapshot', () => {
 
     vi.restoreAllMocks();
   });
+
+  it('keeps role-less controls in successive observations', () => {
+    document.body.innerHTML = '<div style="cursor:pointer">Upload image</div>';
+    const geometry = vi
+      .spyOn(Element.prototype, 'getBoundingClientRect')
+      .mockReturnValue(rect(120, 40));
+    try {
+      const first = runSnapshot();
+      const second = runSnapshot();
+      expect(first.elements.map((element) => element.name)).toEqual(['Upload image']);
+      expect(second.elements.map((element) => element.name)).toEqual(['Upload image']);
+    } finally {
+      geometry.mockRestore();
+    }
+  });
+
+  it('never reassigns an old ref to an inserted control on re-observation', () => {
+    document.body.innerHTML = '<button id="intended">Intended action</button>';
+    const geometry = vi
+      .spyOn(Element.prototype, 'getBoundingClientRect')
+      .mockReturnValue(rect(120, 40));
+    try {
+      const oldRef = runSnapshot().elements[0]!.ref;
+      const inserted = document.createElement('button');
+      inserted.textContent = 'Different action';
+      document.body.prepend(inserted);
+      const latest = runSnapshot();
+      expect(latest.elements.map((element) => element.name)).toEqual([
+        'Different action',
+        'Intended action',
+      ]);
+      expect(document.querySelector(`[data-botharness-ref="${oldRef}"]`)).toBeNull();
+      expect(latest.elements[1]!.ref).not.toBe(oldRef);
+    } finally {
+      geometry.mockRestore();
+    }
+  });
+
+  it('removes refs from controls that are no longer observable', () => {
+    document.body.innerHTML = '<button>Hidden action</button>';
+    const geometry = vi
+      .spyOn(Element.prototype, 'getBoundingClientRect')
+      .mockReturnValue(rect(120, 40));
+    try {
+      const oldRef = runSnapshot().elements[0]!.ref;
+      geometry.mockReturnValue(rect(0, 0));
+      expect(runSnapshot().elements).toHaveLength(0);
+      expect(document.querySelector(`[data-botharness-ref="${oldRef}"]`)).toBeNull();
+    } finally {
+      geometry.mockRestore();
+    }
+  });
 });

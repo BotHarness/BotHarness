@@ -176,6 +176,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fresh Browser observations replace the previous refs with an independent namespace, so an older ref cannot click a different control after page changes; role-less click targets stay visible on repeated observations and stale refs retain the readable re-observe refusal ([#579](https://github.com/BotHarness/BotHarness/issues/579)).
+
 - Legacy PersonaBot model choices migrate only when one available provider matches; ambiguous or unavailable routes stop new requests and direct the Human to repair the Model Preset in Profile, without switching providers ([#500](https://github.com/BotHarness/BotHarness/issues/500)).
 - Queued Browser actions recheck Browser Pause and Browser Access when execution starts, so a Human pause or revoked access blocks actions already waiting behind another operation while paused observation remains available ([#569](https://github.com/BotHarness/BotHarness/issues/569)).
 
