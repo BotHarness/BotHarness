@@ -26,6 +26,7 @@ import { createChannelSidebarBuiltins } from './channel-sidebar-builtins.js';
 import { webBotModeShortcut, webShortcutBlocked } from './channel-shortcuts.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createProfileCardBuiltins } from './profile-cards-builtins.js';
+import { createGroupProfileCards } from './group-profile.js';
 import { createProfileCardRegistry } from './profile-cards.js';
 import { createBridgeCall, loadSessionBotOwner } from './bridge.js';
 import {
@@ -142,7 +143,10 @@ export function apply(ctx: ClientContext): void {
     let disposers: (() => void)[] = [];
     const reconcile = (): void => {
       for (const dispose of disposers) dispose();
-      disposers = createProfileCardBuiltins(t).map((card) => profileCards.register(card));
+      disposers = [
+        ...createProfileCardBuiltins(t).map((card) => profileCards.register(card)),
+        ...createGroupProfileCards(t).map((card) => profileCards.registerGroup(card)),
+      ];
     };
     reconcile();
     const unsubscribe = ctx.locale.subscribe(reconcile);

@@ -66,7 +66,7 @@ function heatLevel(count: number): number {
   return level;
 }
 
-function countByDay(days: readonly ProfileActivityDay[]): Map<string, number> {
+export function countByDay(days: readonly ProfileActivityDay[]): Map<string, number> {
   const counts = new Map<string, number>();
   for (const entry of days) {
     counts.set(entry.day, (counts.get(entry.day) ?? 0) + entry.count);
@@ -78,7 +78,7 @@ function sumCounts(days: readonly ProfileActivityDay[]): number {
   return days.reduce((total, entry) => total + entry.count, 0);
 }
 
-function ProfileHeatmap({
+export function ProfileHeatmap({
   counts,
   label,
   today,

@@ -1880,6 +1880,21 @@ export interface ProfileActivity {
   tokenTotals: ProfileTokenBuckets;
 }
 
+export interface GroupProfileAuthorActivity {
+  author: ChannelAuthor;
+  total: number;
+  days: ProfileActivityDay[];
+}
+
+export interface GroupProfileActivity {
+  channelId: string;
+  weeks: number;
+  since: string;
+  today: string;
+  days: ProfileActivityDay[];
+  authors: GroupProfileAuthorActivity[];
+}
+
 export interface MemorySnapshot {
   head: string | null;
   files: string[];
@@ -2065,6 +2080,33 @@ export async function loadProfileActivity(
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;
+}
+
+export async function loadGroupProfileActivity(
+  call: BridgeCall,
+  channelId: string,
+): Promise<GroupProfileActivity> {
+  const response = asRecord(await unwrap(call, 'groupProfileActivity', { channelId }));
+  if (
+    response === undefined ||
+    response['channelId'] !== channelId ||
+    typeof response['weeks'] !== 'number' ||
+    typeof response['since'] !== 'string' ||
+    typeof response['today'] !== 'string' ||
+    !isActivityDays(response['days']) ||
+    !Array.isArray(response['authors']) ||
+    !response['authors'].every((value) => {
+      const entry = asRecord(value);
+      return (
+        entry !== undefined &&
+        parseAuthor(entry['author']) !== undefined &&
+        typeof entry['total'] === 'number' &&
+        isActivityDays(entry['days'])
+      );
+    })
+  )
+    throw new Error('invalid Group Profile activity');
+  return response as unknown as GroupProfileActivity;
 }
 
 function parseWorkingChange(value: unknown, allowCurrent = false): MemoryWorkingChange {

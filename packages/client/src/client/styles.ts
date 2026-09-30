@@ -3653,6 +3653,34 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
   object-fit: cover;
 }
 .bh-group-avatar-topbar { width: 22px; height: 22px; border-radius: 7px; }
+.bh-group-profile-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+  font-weight: 600;
+}
+.bh-group-profile-avatar-small { width: 40px; height: 40px; }
+.bh-group-profile-avatar-large { width: 64px; height: 64px; border-radius: 16px; }
+.bh-group-profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.bh-group-profile-authors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bh-group-profile-authors li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .bh-group-setting-row select {
   width: 0;
   border: 1px solid var(--dsw-alias-border-l2);
