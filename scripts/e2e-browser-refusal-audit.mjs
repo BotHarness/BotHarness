@@ -185,7 +185,7 @@ if (mode === '--serve') {
       { mode: 0o600 },
     );
     console.log(
-      'Prepared real model observation. Use Client Pause, Human controls Change item, then Client Resume before --verify.',
+      'Prepared real model observation. Use Client Pause and --paused; change the item through Human controls and use Client Resume, then --resumed and --complete.',
     );
   } else {
     const state = JSON.parse(readFileSync(statePath, 'utf8'));
