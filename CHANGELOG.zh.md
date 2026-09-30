@@ -193,6 +193,7 @@
 ### Fixed
 
 - Human 点击 Resume 后，Browser 页面操作必须先完成一次新的观察；Pause 期间或 Pause/Resume 切换前的读取不能让 Bot 继续操作 Human 已修改的内容（[#600](https://github.com/BotHarness/BotHarness/issues/600)）。
+- 被拒绝的 Browser 工具尝试现在也会生成一条带 Bot、Session 与角色归属的 Browser Audit 错误记录，覆盖授权、Access、Pause 与 Resume 后重新观察检查；输入文本和上传路径仍使用既有脱敏摘要（[#604](https://github.com/BotHarness/BotHarness/issues/604)）。
 
 - 修改 PersonaBot 的 Browser Profile 后，会清空旧标签页选择与 Pause 状态，让 Bot 可以在新分配的 profile 中开始工作，不必恢复旧 profile 的操作（[#595](https://github.com/BotHarness/BotHarness/issues/595)）。
 
