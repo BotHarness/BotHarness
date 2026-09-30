@@ -46,6 +46,7 @@ interface SqliteChannelStoreOptions extends ChannelStoreOptions {
   sourcePolicy?: BotSourcePolicyStore;
 
   isBotActive?: (botSlug: string) => boolean;
+  autoAcceptGroupInvitations?: () => boolean;
 }
 
 interface PlacementRow {
@@ -167,6 +168,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode)
       VALUES (?, ?, ?, ?, ?)
     `).run(sourceEventId, botSlug, sourceClass, rule.revision, rule.wake);
+  };
+  const settleInvitation = (db: DatabaseSync, invitationId: string, timestamp: string): void => {
+    db.prepare(`
+      UPDATE inbox_admissions SET attempt_state = 'handled',
+        handled_at = COALESCE(handled_at, ?), last_error = NULL
+      WHERE reason = 'group-invite' AND source_event_id IN (
+        SELECT source_event_id FROM source_events WHERE message_id = ?
+      )
+    `).run(timestamp, invitationId);
   };
   const isBotActive = options.isBotActive ?? (() => true);
   let lowerRegistered = false;
@@ -733,6 +743,26 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     );
   }
 
+  if (options.databaseOwnerReady !== false)
+    database.transaction(
+      (db) => {
+        const decisions = db
+          .prepare(`
+          SELECT json_extract(invitation.value, '$.id') AS id,
+                 COALESCE(json_extract(invitation.value, '$.respondedAt'),
+                          json_extract(invitation.value, '$.createdAt')) AS responded_at
+            FROM channel_records c, json_each(c.record_json, '$.invitations') invitation
+            JOIN source_events e ON e.message_id = json_extract(invitation.value, '$.id')
+            JOIN inbox_admissions a ON a.source_event_id = e.source_event_id
+           WHERE json_extract(invitation.value, '$.status') IN ('accepted', 'declined')
+             AND a.reason = 'group-invite' AND a.attempt_state <> 'handled'
+        `)
+          .all() as Array<{ id: string; responded_at: string }>;
+        for (const decision of decisions) settleInvitation(db, decision.id, decision.responded_at);
+      },
+      ['bot-inbox'],
+    );
+
   return {
     rootDir,
     get: readRecord,
@@ -827,15 +857,22 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       if (
         !isValidSlug(input.targetBotSlug) ||
         input.targetBotSlug === input.inviterBotSlug ||
-        channel.members.includes(input.targetBotSlug) ||
+        !isBotActive(input.targetBotSlug) ||
         targetDm?.type !== 'dm' ||
         targetDm.botSlug !== input.targetBotSlug
       )
         throw new Error('Group invite target is unavailable or already a member');
-      const existing = channel.invitations?.find(
-        (item) => item.targetBotSlug === input.targetBotSlug && item.status === 'pending',
+      const existing = channel.invitations?.findLast(
+        (item) =>
+          item.targetBotSlug === input.targetBotSlug &&
+          item.targetBotCreatedAt === input.targetBotCreatedAt &&
+          (item.status === 'pending' ||
+            (item.status === 'accepted' && channel.members.includes(input.targetBotSlug))),
       );
       if (existing !== undefined) return existing;
+      if (channel.members.includes(input.targetBotSlug))
+        throw new Error('Invitee is already a Group member');
+      const autoAccept = options.autoAcceptGroupInvitations?.() === true;
       const timestamp = now().toISOString();
       const invitation: GroupInvitation = {
         id: 'group-invite-' + randomUUID(),
@@ -844,12 +881,14 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         ...(invitedByHuman
           ? { inviterHuman: true as const }
           : { inviterBotSlug: input.inviterBotSlug! }),
-        status: 'pending',
+        status: autoAccept ? 'accepted' : 'pending',
         createdAt: timestamp,
+        ...(autoAccept ? { respondedAt: timestamp, respondedBy: 'profile-policy' as const } : {}),
       };
       const next = {
         ...channel,
         invitations: [...(channel.invitations ?? []), invitation],
+        members: autoAccept ? [...channel.members, input.targetBotSlug] : channel.members,
         updatedAt: timestamp,
       };
       const body =
@@ -860,8 +899,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         channel.id +
         '). Invitation ID: ' +
         invitation.id +
-        '. Call group_invite_respond with this ID and accept true or false. ' +
-        'You cannot read or send in the Group until you accept.';
+        (autoAccept
+          ? ". Accepted by the Human's Group invitation policy without waking the Bot."
+          : '. Call group_invite_respond with this ID and accept true or false. ' +
+            'You cannot read or send in the Group until you accept.');
       database.transaction(
         (db) => {
           db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
@@ -887,6 +928,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             }),
           );
           insertSourceAdmission(db, sourceEventId, input.targetBotSlug, 'group-invite');
+          if (autoAccept) settleInvitation(db, invitation.id, timestamp);
         },
         ['channel', 'source-event', 'bot-inbox'],
       );
@@ -924,6 +966,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         ...invitation,
         status: expectedStatus,
         respondedAt: now().toISOString(),
+        respondedBy: 'bot',
       };
       const updated: ChannelRecord = {
         ...channel,
@@ -933,7 +976,17 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         ),
         updatedAt: decided.respondedAt!,
       };
-      writeRecord(updated);
+      database.transaction(
+        (db) => {
+          db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+            JSON.stringify(updated),
+            updated.id,
+          );
+          settleInvitation(db, invitation.id, decided.respondedAt!);
+        },
+        ['channel', 'bot-inbox'],
+      );
+      publishRecordChanged();
       return { channel: updated, invitation: decided };
     },
     requestGroupJoin(input) {

@@ -311,6 +311,7 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
 let prefs: BotModePrefsSnapshot = {
   motionPreference: 'system',
   botIcon: 'mascot' as const,
+  autoAcceptGroupInvites: true,
   developerMode: false,
   effectiveMotion: 'full',
   sortMode: 'updated',
@@ -370,6 +371,7 @@ beforeEach(() => {
   prefs = {
     motionPreference: 'system',
     botIcon: 'mascot' as const,
+    autoAcceptGroupInvites: true,
     developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',
@@ -787,6 +789,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
@@ -829,6 +832,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -912,6 +916,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -925,6 +930,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
@@ -954,6 +960,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -968,6 +975,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',

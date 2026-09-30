@@ -153,6 +153,8 @@ export interface BotHarnessCore {
 
   contributeBotAgentSetup(contribute: BotAgentSetup): () => void;
 
+  configureGroupInvitations(autoAccept: () => boolean): () => void;
+
   hostTools: Set<string>;
 
   runBotAgentSetups(
@@ -215,6 +217,7 @@ export function createCore(
       offset: number,
     ) => Promise<AssignmentReportPage>;
     workspaces?: () => DshWorkspaceLookup | undefined;
+    autoAcceptGroupInvitations?: () => boolean;
     activeQuestionMessageIds?: () => readonly string[];
     activeToolApprovalMessageIds?: () => readonly string[];
   } = {},
@@ -258,7 +261,11 @@ export function createCore(
   const sourcePolicy = createBotSourcePolicyStore(
     attachOperationalModule(operationalDatabase, 'bot-inbox'),
   );
+  const initialGroupInvitationPolicy = options.autoAcceptGroupInvitations ?? (() => true);
+  const groupInvitationPolicies: { policy: () => boolean }[] = [];
   const channels = createSqliteChannelStore({
+    autoAcceptGroupInvitations: () =>
+      (groupInvitationPolicies.at(-1)?.policy ?? initialGroupInvitationPolicy)(),
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     sourcePolicy,
     databaseOwnerReady: operationalDatabase.mode === 'ready',
@@ -378,6 +385,14 @@ export function createCore(
     externalMessaging,
     registry,
     modelPresets,
+    configureGroupInvitations: (autoAccept) => {
+      const registration = { policy: autoAccept };
+      groupInvitationPolicies.push(registration);
+      return () => {
+        const index = groupInvitationPolicies.indexOf(registration);
+        if (index !== -1) groupInvitationPolicies.splice(index, 1);
+      };
+    },
     contributeBotAgentSetup,
     runBotAgentSetups,
     hostTools,
