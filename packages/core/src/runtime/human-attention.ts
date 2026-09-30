@@ -1,7 +1,7 @@
 import { LOCAL_HUMAN_ID } from '../channels/channel.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
-export type HumanAttentionCategory = 'action' | 'info' | 'unread';
+export type HumanAttentionCategory = 'action' | 'info' | 'unread' | 'replies';
 export type HumanAttentionSort = 'newest' | 'oldest';
 
 export interface HumanAttentionItem {
@@ -17,7 +17,8 @@ export interface HumanAttentionItem {
     | 'assignment-blocked'
     | 'assignment-report'
     | 'bot-message-needs-repair'
-    | 'channel-unread';
+    | 'channel-unread'
+    | 'channel-reply';
   createdAt: string;
   channelId?: string;
   channelName?: string;
@@ -28,6 +29,7 @@ export interface HumanAttentionItem {
   assignmentSessionId?: string;
   sourceEventId?: string;
   unreadCount?: number;
+  isUnread?: boolean;
 }
 
 export interface HumanAttentionPage {
@@ -69,14 +71,23 @@ interface Cursor {
   id: string;
 }
 
-const UNREAD_CTE = `
-  WITH visible_unread AS (
+const CHANNEL_ATTENTION_CTE = `
+  WITH visible_messages AS (
     SELECT p.channel_id, p.revision, p.message_id, p.source_event_id,
            e.created_at, e.body, e.bot_slug,
-           json_extract(c.record_json, '$.name') AS channel_name
+           json_extract(c.record_json, '$.name') AS channel_name,
+           coalesce(r.revision, 0) AS read_revision,
+           CASE WHEN json_extract(c.record_json, '$.type') = 'group'
+                 AND json_extract(e.payload_json, '$.author.kind') = 'bot'
+                 AND json_extract(target.payload_json, '$.author.kind') = 'human'
+                 AND original.revision >= m.visible_from_revision
+                THEN 1 ELSE 0 END AS is_reply
       FROM channel_placements p
       JOIN source_events e ON e.source_event_id = p.source_event_id
       JOIN channel_records c ON c.channel_id = p.channel_id
+      LEFT JOIN channel_placements original ON original.channel_id = p.channel_id
+        AND original.message_id = json_extract(e.payload_json, '$.replyTo')
+      LEFT JOIN source_events target ON target.source_event_id = original.source_event_id
       LEFT JOIN channel_read_positions r
         ON r.channel_id = p.channel_id AND r.human_id = ?
       LEFT JOIN channel_human_members m
@@ -87,8 +98,9 @@ const UNREAD_CTE = `
          OR (json_extract(c.record_json, '$.type') = 'group'
              AND m.left_at IS NULL AND m.visible_from_revision IS NOT NULL
              AND p.revision >= m.visible_from_revision))
-       AND p.revision > coalesce(r.revision, 0)
        AND json_extract(e.payload_json, '$.author.kind') != 'human'
+  ), visible_unread AS (
+    SELECT * FROM visible_messages WHERE revision > read_revision
   )`;
 
 function decodeCursor(value: string, filters: string): Cursor {
@@ -136,16 +148,86 @@ export function createHumanAttentionQuery(
         sort,
       ]);
       const cursor = input.cursor === undefined ? undefined : decodeCursor(input.cursor, filters);
+      if (category === 'replies') {
+        const rows = database.read((db) =>
+          db
+            .prepare(`${CHANNEL_ATTENTION_CTE}
+          SELECT 'reply:' || source_event_id AS id, channel_id, channel_name,
+                 created_at, message_id, source_event_id, body AS summary, bot_slug,
+                 revision > read_revision AS is_unread
+            FROM visible_messages
+           WHERE is_reply = 1
+             AND (? IS NULL OR bot_slug = ?)
+             AND (? IS NULL OR channel_id = ?)
+             AND (? IS NULL OR created_at ${cursorComparison} ? OR
+                  (created_at = ? AND ('reply:' || source_event_id) ${cursorComparison} ?))
+           ORDER BY created_at ${direction}, id ${direction}
+           LIMIT ?
+        `)
+            .all(
+              LOCAL_HUMAN_ID,
+              LOCAL_HUMAN_ID,
+              input.botSlug ?? null,
+              input.botSlug ?? null,
+              input.channelId ?? null,
+              input.channelId ?? null,
+              cursor?.createdAt ?? null,
+              cursor?.createdAt ?? null,
+              cursor?.createdAt ?? null,
+              cursor?.id ?? null,
+              limit + 1,
+            ),
+        ) as Array<{
+          id: string;
+          channel_id: string;
+          channel_name: string;
+          created_at: string;
+          message_id: string;
+          source_event_id: string;
+          summary: string;
+          bot_slug: string;
+          is_unread: number;
+        }>;
+        const page = rows.slice(0, limit);
+        const last = page.at(-1);
+        return {
+          items: page.map((row) => ({
+            id: row.id,
+            category: 'replies',
+            kind: 'channel-reply',
+            createdAt: row.created_at,
+            channelId: row.channel_id,
+            channelName: row.channel_name,
+            botSlug: row.bot_slug,
+            summary: row.summary,
+            messageId: row.message_id,
+            sourceEventId: row.source_event_id,
+            isUnread: row.is_unread === 1,
+          })),
+          ...(rows.length > limit && last !== undefined
+            ? {
+                nextCursor: Buffer.from(
+                  JSON.stringify({
+                    version: 1,
+                    filters,
+                    createdAt: last.created_at,
+                    id: last.id,
+                  } satisfies Cursor),
+                ).toString('base64url'),
+              }
+            : {}),
+        };
+      }
       if (category === 'unread') {
         const rows = database.read(
           (db) =>
             db
-              .prepare(`${UNREAD_CTE},
+              .prepare(`${CHANNEL_ATTENTION_CTE},
           filtered_unread AS (
-            SELECT * FROM visible_unread WHERE (? IS NULL OR bot_slug = ?)
+            SELECT * FROM visible_unread WHERE is_reply = 0 AND (? IS NULL OR bot_slug = ?)
           ),
           unread_channels AS (
-            SELECT channel_id, count(*) AS unread_count, max(revision) AS last_revision
+            SELECT channel_id, count(DISTINCT source_event_id) AS unread_count, max(revision) AS last_revision
               FROM filtered_unread GROUP BY channel_id
           )
           SELECT 'unread:' || v.channel_id AS id, v.channel_id, v.channel_name,
@@ -426,8 +508,8 @@ export function createHumanAttentionQuery(
         (db) =>
           (
             db
-              .prepare(`${UNREAD_CTE}
-        SELECT count(*) AS unread_count FROM visible_unread
+              .prepare(`${CHANNEL_ATTENTION_CTE}
+        SELECT count(DISTINCT source_event_id) AS unread_count FROM visible_unread
       `)
               .get(LOCAL_HUMAN_ID, LOCAL_HUMAN_ID) as { unread_count: number }
           ).unread_count,

@@ -1,21 +1,24 @@
 import { useRef, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
+import { PersonaBotAvatar } from './avatar.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
-import type { ChannelMessage, HumanAttentionItem } from './store.js';
+import type { BotSummary, ChannelAuthor, ChannelMessage, HumanAttentionItem } from './store.js';
 
 export function HumanInboxReply({
   source,
   actions,
   t,
   botName,
+  bots,
   onClose,
 }: {
   source: HumanAttentionItem;
   actions: BridgeActions;
   t: BotHarnessTranslate;
   botName: (slug: string) => string;
+  bots: readonly BotSummary[];
   onClose: () => void;
 }): ReactElement {
   const channelId = source.channelId!;
@@ -26,6 +29,7 @@ export function HumanInboxReply({
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [sent, setSent] = useState<ChannelMessage>();
+  const [expanded, setExpanded] = useState(false);
   const loading = useRef<AbortController>();
   const attempt = useRef<{ body: string; id: string }>();
   const submitting = useRef(false);
@@ -74,7 +78,7 @@ export function HumanInboxReply({
         observer.observe(message);
       return () => observer.disconnect();
     },
-    [actions, channelId, messageId],
+    [actions, channelId, messageId, context, expanded],
   );
   const submit = async (): Promise<void> => {
     const body = draft.trim();
@@ -101,10 +105,13 @@ export function HumanInboxReply({
       setSending(false);
     }
   };
-  const author = (message: ChannelMessage): string =>
-    message.author.kind === 'bot'
-      ? botName(message.author.slug)
-      : t(message.author.kind === 'human' ? 'humanInbox.reply.you' : 'humanInbox.reply.system');
+  const authorName = (value: ChannelAuthor): string =>
+    value.kind === 'bot'
+      ? botName(value.slug)
+      : value.kind === 'bridged'
+        ? value.source
+        : t(value.kind === 'human' ? 'humanInbox.reply.you' : 'humanInbox.reply.system');
+  const author = (message: ChannelMessage): string => authorName(message.author);
   const target = context?.find((message) => message.id === messageId);
   const openSource = (id: string): void => {
     void actions.openChannelAtMessage(channelId, id).catch(() => {
@@ -130,25 +137,67 @@ export function HumanInboxReply({
           {t(contextError ? 'humanInbox.reply.unavailable' : 'humanInbox.loading')}
         </p>
       ) : (
-        <div ref={visibleSource}>
-          <div className="bh-human-inbox-reply-source" data-message-id={messageId}>
-            <strong>{author(target)}</strong>
-            <p>{target.body}</p>
-            {target.attachments?.map((attachment) => (
-              <p key={attachment.hash}>{attachment.name}</p>
+        <div>
+          <button
+            className="bh-human-inbox-reply-context"
+            type="button"
+            aria-expanded={expanded}
+            onClick={() => setExpanded(!expanded)}
+          >
+            {t(expanded ? 'humanInbox.reply.collapse' : 'humanInbox.reply.context')}
+          </button>
+          <div ref={visibleSource} className="bh-human-inbox-message-flow">
+            {(expanded ? context! : [target]).map((message) => (
+              <article
+                key={message.id}
+                data-message-id={message.id}
+                className={
+                  'bh-human-inbox-message' +
+                  (message.id === messageId ? ' bh-human-inbox-reply-source' : '')
+                }
+              >
+                {message.author.kind === 'bot' ? (
+                  <PersonaBotAvatar
+                    personaBotId={message.author.slug}
+                    name={author(message)}
+                    src={
+                      bots.find(
+                        (bot) => message.author.kind === 'bot' && bot.slug === message.author.slug,
+                      )?.avatar
+                    }
+                    size={28}
+                    indicator={false}
+                    t={t}
+                  />
+                ) : (
+                  <span className="bh-human-inbox-human-avatar" aria-hidden="true">
+                    {author(message).slice(0, 1)}
+                  </span>
+                )}
+                <div className="bh-human-inbox-message-content">
+                  <div className="bh-human-inbox-message-heading">
+                    <strong>{author(message)}</strong>
+                    <time dateTime={message.at}>{new Date(message.at).toLocaleString()}</time>
+                  </div>
+                  {message.id === messageId ? (
+                    <span className="bh-human-inbox-message-target">
+                      {t('humanInbox.reply.target')}
+                    </span>
+                  ) : null}
+                  {message.replyToPreview ? (
+                    <blockquote>
+                      <strong>{authorName(message.replyToPreview.author)}</strong>
+                      <p>{message.replyToPreview.body}</p>
+                    </blockquote>
+                  ) : null}
+                  <p>{message.body}</p>
+                  {message.attachments?.map((attachment) => (
+                    <p key={attachment.hash}>{attachment.name}</p>
+                  ))}
+                </div>
+              </article>
             ))}
           </div>
-          <details className="bh-human-inbox-reply-context">
-            <summary>{t('humanInbox.reply.context')}</summary>
-            {context
-              ?.filter((message) => message.id !== messageId)
-              .map((message) => (
-                <div key={message.id} data-message-id={message.id}>
-                  <strong>{author(message)}</strong>
-                  <p>{message.body}</p>
-                </div>
-              ))}
-          </details>
         </div>
       )}
       {sent === undefined ? (

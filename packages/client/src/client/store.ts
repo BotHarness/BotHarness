@@ -194,7 +194,7 @@ export interface OwnedSessionSummary {
   assignmentAccessMode?: 'workspace-write' | 'danger-full-access';
 }
 
-export type HumanInboxCategory = 'action' | 'info' | 'unread';
+export type HumanInboxCategory = 'action' | 'info' | 'unread' | 'replies';
 export type HumanInboxSort = 'newest' | 'oldest';
 
 export interface HumanInboxFilters {
@@ -216,7 +216,8 @@ export interface HumanAttentionItem {
     | 'assignment-blocked'
     | 'assignment-report'
     | 'bot-message-needs-repair'
-    | 'channel-unread';
+    | 'channel-unread'
+    | 'channel-reply';
   createdAt: string;
   channelId?: string;
   channelName?: string;
@@ -227,6 +228,7 @@ export interface HumanAttentionItem {
   assignmentSessionId?: string;
   sourceEventId?: string;
   unreadCount?: number;
+  isUnread?: boolean;
 }
 
 export interface HumanAttentionPage {

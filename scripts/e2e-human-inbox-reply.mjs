@@ -69,7 +69,7 @@ const inbox = async () => {
   await page.waitForSelector('.bh-human-inbox-entry');
   await page.click('.bh-human-inbox-entry');
   await delay(1200);
-  await clickText('.bh-human-inbox-tabs button', '未读');
+  await clickText('.bh-human-inbox-tabs button', '其他未读');
   await delay(1200);
 };
 const replyRow = async (name) => {
@@ -194,7 +194,7 @@ try {
     if (sourceId !== scene.groupSource.id) throw new Error('Wrong Group source');
     const body = 'Friday launch approved. Please finish the documentation review today.';
     await page.type('.bh-human-inbox-reply textarea', body);
-    await page.click('.bh-human-inbox-reply-context summary');
+    await clickText('.bh-human-inbox-reply button', '查看附近消息');
     await capture('after-draft');
     await clickText('.bh-human-inbox-reply button', '发送回复');
     await page.waitForFunction(() =>
@@ -219,7 +219,7 @@ try {
     await capture('after-source');
     await page.click('.bh-human-inbox-entry');
     await delay(1300);
-    await clickText('.bh-human-inbox-tabs button', '未读');
+    await clickText('.bh-human-inbox-tabs button', '其他未读');
     await delay(1000);
     await replyRow(scene.bot.displayName);
     const dmBody = 'Checklist reviewed. Thank you.';
