@@ -1,7 +1,8 @@
 # Navigation failures and completed retry — #627
 
 Baseline: `c64aeb016b556c8c24b906fc9e88890c8d3a97e4` (merged #626).
-The fixed run uses this PR's runtime change, DSH 0.2.0-rc.1, native Client and
+The final fixed run is integrated with main `137cdc4c` and uses this PR's runtime
+change, DSH 0.2.0-rc.1, native Client and
 managed Chrome in an isolated Profile. Both use the same named Browser profile,
 loopback fixture and confirmation count 0 before completion.
 
@@ -68,7 +69,7 @@ isolated Host/Profile between comparable captures to avoid previous setup target
 - Six runtime failure regressions fail on the base; all 25 runtime and 56 Provider
   tests pass on the change, including successful same-document navigation and
   Provider ownership/error Audit preservation.
-- Full suite: 194 files / 1589 tests pass; one existing opt-in Browser controls
+- Final integrated full suite: 195 files / 1596 tests pass; one existing opt-in Browser controls
   Chrome E2E is skipped. This PR's real Client/Host/Chrome E2E is separately verified.
 - Lint (existing warnings), format, typecheck, bilingual ledgers and build pass.
 - Cleanup is best effort with a 2-second wait bound: rejection, refusal or stall
@@ -76,6 +77,5 @@ isolated Host/Profile between comparable captures to avoid previous setup target
   Chrome unavailability can still leave an unowned target. These failure branches
   have focused automated coverage, not an injected live-Chrome outage claim.
 - A failed reused navigation can show Chrome's error document; the fix preserves
-  its target for retry and does not restore the previous document. Successful HTTP
-  responses, including HTTP error pages, remain observable; validation checks CDP
+  its target for retry and does not restore the previous document. HTTP error pages remain observable; validation checks CDP
   navigation `errorText` only.
