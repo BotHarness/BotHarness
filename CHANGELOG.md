@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Activity Center opens a cross-Bot Overview with the canonical Human action count, current Bot status and executing Orchestrator/Assignment Sessions; Bot cards open DMs and Session rows switch to the exact native DSH Session ([#541](https://github.com/BotHarness/BotHarness/issues/541)).
 
+- A mention-only PersonaBot can explicitly read bounded Lark group, nearby Chat time-window or anchored topic context through its own identity; the Inbox source uses a readable chat layout with named mentions and expandable exact message/source references, sender identities and read history, omissions and permission refusals without admitting ordinary history or creating wakes; non-advancing provider cursors refuse before retaining or observing returned messages ([#612](https://github.com/BotHarness/BotHarness/issues/612)).
+
 - A PersonaBot can process a ZIP received through an authorized Lark file reply, save an independent working copy, and explicitly return a newly selected file in the same topic; Bot Inbox exposes an on-demand original download through the qualified temporary provider ([#657](https://github.com/BotHarness/BotHarness/issues/657), [file guide](docs/file-open.md), [ADR-0107](docs/adr/0107-external-files-use-trusted-source-capabilities-and-existing-owner.md)).
 
 - Human Inbox adds filterable Handled history for answered questions, tool decisions, Workspace Grant replies and Assignment responses, with exact request/answer navigation; live actions stay oldest-first and refresh from canonical facts across windows and restart ([#553](https://github.com/BotHarness/BotHarness/issues/553)).

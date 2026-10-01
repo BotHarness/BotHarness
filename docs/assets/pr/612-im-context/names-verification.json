@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-01",
+  "dsh": "0.2.0-rc.1",
+  "providerSource": "d98a8330859b0daf5c9e88b3f9edc05f127fc321",
+  "providerRuntimeSha256": "d53e2d4363243f112f85311e4646c2fda3493bb02331e723f87903d22a901c3d",
+  "tools": [
+    {
+      "turn": 7,
+      "tool": "bridge_context",
+      "arguments": {
+        "scope": "nearby",
+        "source_event_id": "im-c923cb056e696a172b55a0d360cc8595c4639a4eb8cc5864d75d3f9902447718"
+      },
+      "at": "2026-10-01T11:58:42.395000+00:00",
+      "result": {
+        "scope": "nearby",
+        "omitted": 0,
+        "incomplete": false,
+        "coverage": "provider-visible-human-text",
+        "window": {
+          "start": 1790855619,
+          "end": 1790856220
+        },
+        "messageCount": 2,
+        "messages": [
+          {
+            "sourceEventId": "im-c923cb056e696a172b55a0d360cc8595c4639a4eb8cc5864d75d3f9902447718",
+            "messageId": "om_x100b64d0e0392ca0eec22262199770f",
+            "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+            "senderName": "MUFENG YANG",
+            "mentions": [
+              {
+                "id": "ou_9f3c8cf77e75e1fc806d5f5aa3f24a13",
+                "key": "@_user_1",
+                "name": "MUFENG YANG的Lark CLI"
+              }
+            ],
+            "at": "2026-10-01T11:58:39.331Z",
+            "text": "@_user_1  BH612-NAMES-GROUP-05 Call bridge_context scope nearby on this Inbox source. Find BH612-NAMES-CTX-05. Reply via bridge_reply to this original source with BH612-NAMES-GROUP-OK BIRCH, then the context senderName, senderId, messageId and sourceEventId returned by the tool; also report the mention name/ID from this request. Do not guess names, do not create a local DM or Assignment."
+          },
+          {
+            "sourceEventId": "im-30412e591d20681e82a8c8d16774859ebec90a28e95e531a4414fef00da32ada",
+            "messageId": "om_x100b64d0e3afd8a0eeb4f1c4fb146a0",
+            "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+            "senderName": "MUFENG YANG",
+            "at": "2026-10-01T11:58:14.176Z",
+            "text": "BH612-NAMES-CTX-05 Context code BIRCH. Ordinary context only."
+          }
+        ]
+      }
+    },
+    {
+      "turn": 7,
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-c923cb056e696a172b55a0d360cc8595c4639a4eb8cc5864d75d3f9902447718",
+        "text": "BH612-NAMES-GROUP-OK BIRCH\nContext (BH612-NAMES-CTX-05) senderName: MUFENG YANG; senderId: ou_46c34fea8efea425267630ebd1d9d54b; messageId: om_x100b64d0e3afd8a0eeb4f1c4fb146a0; sourceEventId: im-30412e591d20681e82a8c8d16774859ebec90a28e95e531a4414fef00da32ada\nMention in this request: name MUFENG YANG的Lark CLI; id ou_9f3c8cf77e75e1fc806d5f5aa3f24a13"
+      },
+      "at": "2026-10-01T11:58:48.437000+00:00",
+      "result": {
+        "sourceEventId": "im-c923cb056e696a172b55a0d360cc8595c4639a4eb8cc5864d75d3f9902447718",
+        "text": "BH612-NAMES-GROUP-OK BIRCH\nContext (BH612-NAMES-CTX-05) senderName: MUFENG YANG; senderId: ou_46c34fea8efea425267630ebd1d9d54b; messageId: om_x100b64d0e3afd8a0eeb4f1c4fb146a0; sourceEventId: im-30412e591d20681e82a8c8d16774859ebec90a28e95e531a4414fef00da32ada\nMention in this request: name MUFENG YANG的Lark CLI; id ou_9f3c8cf77e75e1fc806d5f5aa3f24a13",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T11:58:49.070Z",
+        "settledAt": "2026-10-01T11:58:51.287Z"
+      }
+    },
+    {
+      "turn": 8,
+      "tool": "bridge_context",
+      "arguments": {
+        "max_characters": 24000,
+        "scope": "thread",
+        "source_event_id": "im-bca08f1f54e4d0eec5ae8d5b3faffa6819f271156639e31c9111f50fa9414b6c"
+      },
+      "at": "2026-10-01T11:59:29.971000+00:00",
+      "result": {
+        "scope": "thread",
+        "omitted": 7,
+        "incomplete": true,
+        "coverage": "provider-visible-human-text",
+        "messageCount": 13,
+        "messages": [
+          {
+            "sourceEventId": "im-bca08f1f54e4d0eec5ae8d5b3faffa6819f271156639e31c9111f50fa9414b6c",
+            "messageId": "om_x100b64d0ff3960a0eec792b5914d13d",
+            "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+            "senderName": "MUFENG YANG",
+            "mentions": [
+              {
+                "id": "ou_9f3c8cf77e75e1fc806d5f5aa3f24a13",
+                "key": "@_user_1",
+                "name": "MUFENG YANG的Lark CLI"
+              }
+            ],
+            "at": "2026-10-01T11:59:27.346Z",
+            "text": "@_user_1  BH612-NAMES-TOPIC-06 Read bridge_context scope thread max_characters 24000 on this Inbox source. Find BH612-NAMES-CTX-06. Reply only in this topic via bridge_reply: BH612-NAMES-TOPIC-OK JUNIPER followed by that context senderName, senderId, messageId and sourceEventId plus this request mention name and ID. Use only returned values. No local DM or Assignment.",
+            "threadId": "omt_19d8e19f7d8f1947"
+          },
+          {
+            "sourceEventId": "im-d03bfc39a3d9931fd59e35f62b58be85b2323f91a596239480622f955cb3ffef",
+            "messageId": "om_x100b64d0e137aca4ee8718877629a60",
+            "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+            "senderName": "MUFENG YANG",
+            "at": "2026-10-01T11:58:55.677Z",
+            "text": "BH612-NAMES-CTX-06 Topic context code JUNIPER. Ordinary context only.",
+            "threadId": "omt_19d8e19f7d8f1947"
+          }
+        ]
+      }
+    },
+    {
+      "turn": 8,
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-bca08f1f54e4d0eec5ae8d5b3faffa6819f271156639e31c9111f50fa9414b6c",
+        "text": "BH612-NAMES-TOPIC-OK JUNIPER\nContext (BH612-NAMES-CTX-06) senderName: MUFENG YANG; senderId: ou_46c34fea8efea425267630ebd1d9d54b; messageId: om_x100b64d0e137aca4ee8718877629a60; sourceEventId: im-d03bfc39a3d9931fd59e35f62b58be85b2323f91a596239480622f955cb3ffef\nMention in this request: name MUFENG YANG的Lark CLI; id ou_9f3c8cf77e75e1fc806d5f5aa3f24a13"
+      },
+      "at": "2026-10-01T11:59:35.327000+00:00",
+      "result": {
+        "sourceEventId": "im-bca08f1f54e4d0eec5ae8d5b3faffa6819f271156639e31c9111f50fa9414b6c",
+        "text": "BH612-NAMES-TOPIC-OK JUNIPER\nContext (BH612-NAMES-CTX-06) senderName: MUFENG YANG; senderId: ou_46c34fea8efea425267630ebd1d9d54b; messageId: om_x100b64d0e137aca4ee8718877629a60; sourceEventId: im-d03bfc39a3d9931fd59e35f62b58be85b2323f91a596239480622f955cb3ffef\nMention in this request: name MUFENG YANG的Lark CLI; id ou_9f3c8cf77e75e1fc806d5f5aa3f24a13",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T11:59:36.006Z",
+        "settledAt": "2026-10-01T11:59:38.051Z"
+      }
+    }
+  ],
+  "canonicalSources": [
+    {
+      "source_event_id": "im-30412e591d20681e82a8c8d16774859ebec90a28e95e531a4414fef00da32ada",
+      "body": "BH612-NAMES-CTX-05 Context code BIRCH. Ordinary context only.",
+      "attempt_state": null,
+      "observed_at": null,
+      "handled_at": null,
+      "placements": 0
+    },
+    {
+      "source_event_id": "im-c923cb056e696a172b55a0d360cc8595c4639a4eb8cc5864d75d3f9902447718",
+      "body": "@_user_1  BH612-NAMES-GROUP-05 Call bridge_context scope nearby on this Inbox source. Find BH612-NAMES-CTX-05. Reply via bridge_reply to this original source with BH612-NAMES-GROUP-OK BIRCH, then the context senderName, senderId, messageId and sourceEventId returned by the tool; also report the mention name/ID from this request. Do not guess names, do not create a local DM or Assignment.",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T11:58:40.450Z",
+      "handled_at": "2026-10-01T11:58:53.008Z",
+      "placements": 0
+    },
+    {
+      "source_event_id": "im-d03bfc39a3d9931fd59e35f62b58be85b2323f91a596239480622f955cb3ffef",
+      "body": "BH612-NAMES-CTX-06 Topic context code JUNIPER. Ordinary context only.",
+      "attempt_state": null,
+      "observed_at": null,
+      "handled_at": null,
+      "placements": 0
+    },
+    {
+      "source_event_id": "im-bca08f1f54e4d0eec5ae8d5b3faffa6819f271156639e31c9111f50fa9414b6c",
+      "body": "@_user_1  BH612-NAMES-TOPIC-06 Read bridge_context scope thread max_characters 24000 on this Inbox source. Find BH612-NAMES-CTX-06. Reply only in this topic via bridge_reply: BH612-NAMES-TOPIC-OK JUNIPER followed by that context senderName, senderId, messageId and sourceEventId plus this request mention name and ID. Use only returned values. No local DM or Assignment.",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T11:59:28.619Z",
+      "handled_at": "2026-10-01T11:59:40.199Z",
+      "placements": 0
+    }
+  ],
+  "assignments": 0
+}

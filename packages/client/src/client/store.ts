@@ -334,6 +334,7 @@ export interface BotAttentionItem {
     conversationName: string;
     conversationId: string;
     senderId: string;
+    senderName?: string;
   };
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';

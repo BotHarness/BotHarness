@@ -1,0 +1,44 @@
+{
+  "baselineClientCommit": "1deef91155050354b7224f5ceb3b58a2e63f92ba",
+  "finalClientSHA256": "f0af4b1199f664ba240c94771f58ffe4dadb77ea0b92736cbb5a9fa09189f9b3",
+  "sourceEventId": "im-bca08f1f54e4d0eec5ae8d5b3faffa6819f271156639e31c9111f50fa9414b6c",
+  "messageId": "om_x100b64d0ff3960a0eec792b5914d13d",
+  "testMessage": "BH612-NAMES-TOPIC-06",
+  "contextMessage": "BH612-NAMES-CTX-06",
+  "browser": "Codex in-app browser, actual authenticated Host/Client; no page injection",
+  "locale": "zh",
+  "desktopViewport": {
+    "width": 1470,
+    "height": 835
+  },
+  "narrowViewport": {
+    "width": 390,
+    "height": 844
+  },
+  "measuredLayout": {
+    "desktopModalWidth": 720,
+    "desktopContentWidth": 672,
+    "nativeBodyInset": 24,
+    "narrowModalWidth": 342,
+    "narrowOuterInset": 24,
+    "horizontalOverflow": false
+  },
+  "checks": [
+    "Provider names rendered with stable IDs retained in disclosures",
+    "Named @ mention display preserves original text and key/name/ID mapping",
+    "Message and Source Event references visible after expanding details",
+    "Incomplete coverage warning remains visible while read audit is collapsed",
+    "Context ordered chronologically",
+    "Dark/light and narrow layout inspected",
+    "Actual retained Lark Source Events; no new intake, wake or reply caused by opening UI"
+  ],
+  "validation": {
+    "fullSuitePassed": 1737,
+    "existingEnvironmentSkipped": 2,
+    "focusedUIPassed": 21,
+    "typecheck": "passed",
+    "build": "passed",
+    "lint": "passed with existing warnings",
+    "format": "passed"
+  }
+}
