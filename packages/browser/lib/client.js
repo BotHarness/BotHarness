@@ -183,6 +183,7 @@ window.__ModuleLoader__.load({
 /* @bh-browser-aliases:start */
 .bh-browser-body, .bh-browser-profiles {
   --bh-browser-error: var(--dsw-alias-state-error-primary);
+  --bh-browser-secondary: var(--dsw-alias-label-secondary);
   --bh-browser-label: var(--dsw-alias-label-primary);
   --bh-browser-hover: var(--dsw-alias-interactive-bg-hover);
   --bh-browser-elevation: var(--dsw-elevation-prominent);
@@ -216,6 +217,16 @@ window.__ModuleLoader__.load({
 .bh-browser-profiles > button:hover, .bh-browser-profiles > button[data-active] {
   background: var(--bh-browser-hover);
 }
+.bh-browser-tab {
+  display: grid; width: 100%; min-width: 0; gap: 2px; padding: 6px;
+  border: 0; border-radius: var(--bh-browser-radius); background: transparent;
+  color: var(--bh-browser-label); text-align: left; font: inherit; cursor: pointer;
+}
+.bh-browser-tab:hover, .bh-browser-tab[aria-pressed="true"] { background: var(--bh-browser-hover); }
+.bh-browser-tab:focus-visible { outline: 1px solid var(--bh-browser-label); outline-offset: -1px; }
+.bh-browser-tab[aria-current="true"] .bh-browser-tab-title { font-weight: 600; }
+.bh-browser-tab-title, .bh-browser-tab-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-browser-tab-url { color: var(--bh-browser-secondary); }
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
 `;
 		//#endregion
@@ -382,21 +393,6 @@ window.__ModuleLoader__.load({
 			cursor: "pointer",
 			fontSize: 12
 		};
-		const tabRowStyle = {
-			display: "block",
-			width: "100%",
-			textAlign: "left",
-			padding: "3px 6px",
-			borderRadius: 4,
-			border: "none",
-			background: "transparent",
-			color: "inherit",
-			cursor: "pointer",
-			fontSize: 12,
-			overflow: "hidden",
-			textOverflow: "ellipsis",
-			whiteSpace: "nowrap"
-		};
 		function BrowserBody({ botSlug, t }) {
 			const [store] = (0, react.useState)(() => createObservationStore(botSlug));
 			const [infoStore] = (0, react.useState)(() => createBotInfoStore(botSlug));
@@ -411,6 +407,8 @@ window.__ModuleLoader__.load({
 			const [error, setError] = (0, react.useState)(void 0);
 			const tabs = observation?.tabs ?? [];
 			const focused = observation?.focused ?? null;
+			const currentTab = tabs.find((tab) => tab.current);
+			const orderedTabs = currentTab === void 0 ? tabs : [currentTab, ...tabs.filter((tab) => !tab.current)];
 			const paused = observation?.takeover === true;
 			const invoke = (endpoint, body = {}) => {
 				if (busy || botSlug === void 0) return;
@@ -434,7 +432,11 @@ window.__ModuleLoader__.load({
 				if (next) {
 					setPreview(void 0);
 					store.setTab(void 0);
-				} else store.setTab(preview);
+				} else {
+					const selected = focused ?? preview;
+					setPreview(selected);
+					store.setTab(selected);
+				}
 			};
 			const onSelectTab = (targetId) => {
 				setFollow(false);
@@ -574,16 +576,20 @@ window.__ModuleLoader__.load({
 							display: "grid",
 							gap: 2
 						},
-						children: tabs.map((tab) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						children: orderedTabs.map((tab) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
 							type: "button",
-							style: {
-								...tabRowStyle,
-								opacity: tab.targetId === focused ? 1 : .75,
-								fontWeight: tab.targetId === focused ? 600 : 400
-							},
+							className: "bh-browser-tab",
+							"aria-current": tab.current ? true : void 0,
+							"aria-pressed": tab.targetId === focused,
 							title: tab.url,
 							onClick: () => onSelectTab(tab.targetId),
-							children: tab.title === "" ? tab.url : tab.title
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: "bh-browser-tab-title",
+								children: tab.title === "" ? tab.url : tab.title
+							}), tab.title === "" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: "bh-browser-tab-url",
+								children: tab.url
+							})]
 						}, tab.targetId))
 					}),
 					error !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {

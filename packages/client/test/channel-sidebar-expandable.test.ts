@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -104,6 +104,53 @@ describe('Channel sidebar expandable contract', () => {
     gated.setExpandable(true);
     gated.expand();
     expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a header enable and expand a locked section in the same click', () => {
+    let setExpandable: ((value: boolean) => void) | undefined;
+    const entry: ChannelSidebarEntry = {
+      ...gatedEntry().entry,
+      headerAction: (props) => {
+        setExpandable = props.setExpandable;
+        return createElement(
+          'button',
+          {
+            onClick: () => {
+              props.setExpandable?.(true);
+              props.setExpanded?.(true);
+            },
+          },
+          'enable',
+        );
+      },
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mounted.push({ root, container });
+    function Wrapper(): ReturnType<typeof createElement> {
+      const [expanded, setExpanded] = useState(false);
+      return createElement(ChannelSidebarEntrySection, {
+        entry,
+        expanded,
+        onToggle: () => setExpanded((v) => !v),
+        entryProps,
+      });
+    }
+    act(() => root.render(createElement(Wrapper)));
+    act(() => setExpandable?.(false));
+    expect(
+      container.querySelector('.bh-channel-sidebar-entry-head')?.hasAttribute('disabled'),
+    ).toBe(true);
+    act(() =>
+      (
+        container.querySelector('.bh-channel-sidebar-entry-action-slot button') as HTMLButtonElement
+      ).click(),
+    );
+    expect(
+      container.querySelector('.bh-channel-sidebar-entry-head')?.getAttribute('aria-expanded'),
+    ).toBe('true');
+    expect(container.textContent).toContain('gated body');
   });
 
   it('expands an expandable section on request', () => {

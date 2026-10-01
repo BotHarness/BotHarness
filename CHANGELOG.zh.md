@@ -240,6 +240,8 @@
 
 - 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
 
+- Browser entry 开启 Access 后自动展开，以标题和 URL 置顶 Bot 当前标签；关闭跟随后固定预览标签，不改变 Bot 的工作页（[#492](https://github.com/BotHarness/BotHarness/issues/492)）。
+
 - Browser 文件上传使用实际打开选择框的附件字段，省略 ref 时使用第一个文件字段；上传审计记录文件名与大小，失败时隐藏 Host 完整路径（[#491](https://github.com/BotHarness/BotHarness/issues/491)）。
 
 - PersonaBot Orchestrator 可通过既有提醒工具设置和恢复 Human 私聊、Bot 私聊及群内提及的投递方式；即时接收不变，Profile 可查看带 Bot 操作者的修订 ([#528](https://github.com/BotHarness/BotHarness/issues/528)).

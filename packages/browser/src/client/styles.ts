@@ -2,6 +2,7 @@ export const styles = `
 /* @bh-browser-aliases:start */
 .bh-browser-body, .bh-browser-profiles {
   --bh-browser-error: var(--dsw-alias-state-error-primary);
+  --bh-browser-secondary: var(--dsw-alias-label-secondary);
   --bh-browser-label: var(--dsw-alias-label-primary);
   --bh-browser-hover: var(--dsw-alias-interactive-bg-hover);
   --bh-browser-elevation: var(--dsw-elevation-prominent);
@@ -35,5 +36,15 @@ export const styles = `
 .bh-browser-profiles > button:hover, .bh-browser-profiles > button[data-active] {
   background: var(--bh-browser-hover);
 }
+.bh-browser-tab {
+  display: grid; width: 100%; min-width: 0; gap: 2px; padding: 6px;
+  border: 0; border-radius: var(--bh-browser-radius); background: transparent;
+  color: var(--bh-browser-label); text-align: left; font: inherit; cursor: pointer;
+}
+.bh-browser-tab:hover, .bh-browser-tab[aria-pressed="true"] { background: var(--bh-browser-hover); }
+.bh-browser-tab:focus-visible { outline: 1px solid var(--bh-browser-label); outline-offset: -1px; }
+.bh-browser-tab[aria-current="true"] .bh-browser-tab-title { font-weight: 600; }
+.bh-browser-tab-title, .bh-browser-tab-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-browser-tab-url { color: var(--bh-browser-secondary); }
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
 `;

@@ -134,6 +134,7 @@ export function ChannelSidebarEntrySection({
   const HeaderAction = entry.headerAction;
   const [refreshRevision, setRefreshRevision] = useState(0);
   const [expandable, setExpandable] = useState(true);
+  const expandableRef = useRef(expandable);
   const props = {
     ...entryProps,
     refreshRevision,
@@ -141,10 +142,11 @@ export function ChannelSidebarEntrySection({
     expanded,
     setExpanded: (next: boolean) => {
       if (next === expanded) return;
-      if (next && !expandable) return;
+      if (next && !expandableRef.current) return;
       onToggle();
     },
     setExpandable: (next: boolean) => {
+      expandableRef.current = next;
       setExpandable(next);
       if (!next && expanded) onToggle();
     },
