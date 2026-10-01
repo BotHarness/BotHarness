@@ -1,0 +1,18 @@
+{
+  "realDockerRoundTrip": true,
+  "archivedMarkerMatchesRestoredVolume": true,
+  "computerRestarted": true,
+  "directoryLiveWithoutRestart": true,
+  "authorizationAndTraversalRefusals": 5,
+  "ui": {
+    "nativeSettings": true,
+    "fallbackPathSaved": true,
+    "idleTimeSaved": true,
+    "exportAuthorized": true,
+    "archiveSelected": true,
+    "importAuthorized": true,
+    "reloadPersisted": true,
+    "lightAndDark": true,
+    "nativeSystemPicker": "human-qa-pending"
+  }
+}

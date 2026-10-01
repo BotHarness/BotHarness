@@ -86,3 +86,18 @@ Installed packages under `~/.dsh-m35/profiles/node_modules/@deepseek-ai/` are **
 - Endpoint claiming: `dsh-api-gateway/lib/index.js` (`intercept('/api', claimsEndpoint, dispatchRpc)`; WS mux at `/api/remote.mux`).
 - Browser transport: `dsh-client-connection/lib/client.js` (`createWebConnectionRpc`, `INTERNAL_BASE`, error text `transport failure for <channel>/<endpoint>: HTTP <status>`).
 - Boot globals injected into index.html: `__DSH_BOOT__`, `__DSH_CONNECTION_RECOVERY__`, `__DSH_BOOT_READY__` (`dsh-client-connection` host `webserver/index-inject`). `__DSH_TRANSPORT__` is optional; absent = plain HTTP to `location.origin`.
+
+## 6. Preserve the receiver of native Client service callbacks
+
+A class service method such as `uiWorkspace.pickDirectory()` uses its receiver. Passing
+`workspace.pickDirectory` as a detached callback loses `this.directoryPicker` and can make a
+working native picker appear unavailable. Wrap the call (`() => workspace.pickDirectory()`) or
+bind it to the service before injecting it into a UI face. Verify the registration with a
+receiver-dependent service fixture and the real Client, rather than an arrow-only mock (#166).
+
+On pinned DSH `0.2.0-rc.1`, the browse backend's directory flow is rendered through workspace
+Slots; it does not make `uiWorkspace.pickDirectory()` an in-app dialog. A Consumer using that
+native command should keep a manual path fallback when the Host has no native chooser. Do not
+replace the gateway, borrow another entry's child Slot, or expose the Host to force a different
+picker. For an unbindable macOS system dialog, record native selection as Human QA pending;
+opening its process alone is not evidence that a directory was selected.

@@ -18,6 +18,7 @@
 ### Added
 
 - 活动中心入口改为 Bot 模式设置旁的紧凑未读 Chip；侧栏折叠后显示为 Bot 模式下方对齐的图标，跨聊天和刷新记住最后查看的总览或收件箱，展开时仅显示未读数字 badge，没有未读时仅在 Bot 模式开启后悬停或聚焦才显示入口；折叠时入口仅在 Bot 模式开启后显示，并以右上角红点提示通知（[#679](https://github.com/BotHarness/BotHarness/issues/679)）。
+- Human 或绑定 Bot 可为已授权外部群独立配置普通文字收件，以及按数量／时间汇总、下一轮唤醒、随提及阅读或静默读取；Admission 保留当时的策略版本，普通消息不打断正在执行的步骤 ([#613](https://github.com/BotHarness/BotHarness/issues/613), [ADR-0109](docs/adr/0109-external-group-collection-is-separate-from-wake.md)).
 
 - Human 可将授权 Lark 群的 @ 消息接入已有共享 Group Channel：当前成员读取同一条带来源的外部消息，仅被 @ 的绑定 Bot 被唤醒，并可用自己的身份明确回复 ([#634](https://github.com/BotHarness/BotHarness/issues/634), [ADR-0108](docs/adr/0108-shared-channel-bridge-places-canonical-external-sources.md)).
 
@@ -245,6 +246,8 @@
 ### Fixed
 
 - Inbox 列表的“选择工作区”现在直接打开同一个 DSH 文件夹选择器，不展开事件详情；其他回应操作使用独立弹窗，取消后仍可再次打开，已解决的请求不会误触发授权（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
+
+- Computer 设置可正确调用原生目录选择器，授权导出后保存目标目录供后续导入使用；选择器不可用时仍可手动输入路径（[#166](https://github.com/BotHarness/BotHarness/issues/166)）。
 
 - 活动实时传输失败时，通过限频快照查询恢复 Bot 状态；重连与修订跳号同步恢复侧栏及输入框，连接错误不会显示成 Bot 活动状态（[#121](https://github.com/BotHarness/BotHarness/issues/121)）。
 

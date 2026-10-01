@@ -94,7 +94,12 @@ export class ComputerSettingsPrefs {
   async setExportDir(exportDir: string): Promise<void> {
     if (this.scope === undefined) throw new ExportDirRejectedError();
     this.publish({ exportDir });
-    await this.scope.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+    try {
+      await this.scope.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+    } catch (error) {
+      this.sync();
+      throw error;
+    }
     if (this.snapshot.exportDir !== exportDir) throw new ExportDirRejectedError();
   }
 
@@ -186,6 +191,7 @@ export function createComputerSettingsFace(options: {
       await postAuthorized(OPEN_DIR_ENDPOINT, dir === '' ? {} : { dir });
     },
     exportArchive: async (dir) => {
+      if (dir !== undefined && dir !== '') await prefs.setExportDir(dir);
       const payload = await requestJson<{ archive?: string; downloadToken?: string }>(
         EXPORT_ENDPOINT,
         {
@@ -565,23 +571,21 @@ export function ComputerSettingsRows({
           >
             {t('rows.exportDir.open')}
           </button>
-          {canAdjust ? (
-            <button
-              type="button"
-              className="bh-settings-selector"
-              disabled={!writable}
-              onClick={() => {
-                setManualOpen((value) => !value);
-                setManualPath(exportDir);
-              }}
-            >
-              {t('rows.exportDir.manual')}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="bh-settings-selector"
+            disabled={!writable}
+            onClick={() => {
+              setManualOpen((value) => !value);
+              setManualPath(exportDir);
+            }}
+          >
+            {t('rows.exportDir.manual')}
+          </button>
         </div>
       </Row>
 
-      {manualOpen && canAdjust ? (
+      {manualOpen ? (
         <div className="bh-settings-row">
           <div className="bh-settings-row-text">
             <input
@@ -668,7 +672,7 @@ export function ComputerSettingsRows({
             <button
               type="button"
               className="bh-settings-selector"
-              disabled={!hasDir || busy !== undefined}
+              disabled={(!hasDir && !canAdjust) || busy !== undefined}
               onClick={startExport}
             >
               {busy === 'export'
@@ -691,6 +695,10 @@ export function ComputerSettingsRows({
           )}
         </div>
       </Row>
+
+      {confirming === 'export' ? (
+        <div className="bh-note">{t('rows.exportTarget', { dir: exportTarget ?? exportDir })}</div>
+      ) : null}
 
       <Row title={t('rows.importSection.title')} description={t('rows.importSection.description')}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

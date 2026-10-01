@@ -464,7 +464,7 @@ Human 回应目标及时间使用 Messaging 拥有的 SQLite 索引。列表超�
 
 ## 共享 Channel Bridge — #634
 
-[ADR-0108](../adr/0108-shared-channel-bridge-places-canonical-external-sources.md) 为授权 Lark Grant 增加明确选择已有 Group Channel 的收件位置。Messaging 在 ACK 前将同一个外部 Source Event、canonical Channel placement 与仅被验证 @ 的 Bot Inbox Admission 原子提交。原生时间线和授权成员读取投影有界的外部发送人／时间／正文／来源；其他成员获得可见性，不复制消息、身份、Admission 或唤醒。既有 harvest／steer 路径以该本地 Channel 作为入站上下文，只有明确使用自身身份的 checked reply 才回到 Lark。当前成员、绑定与 Grant revision 控制收件、唤醒、读取和未开始的回复；退出／撤销保留已有共享事实。默认仍仅入 Inbox；该切片保留每 Grant 一个目标、每 Source 一个 placement，重投不移动历史。多目标、普通消息收件、话题跟进与协作继续由 #629 的后续 tracer 交付。
+[ADR-0108](../adr/0108-shared-channel-bridge-places-canonical-external-sources.md) 为授权 Lark Grant 增加明确选择已有 Group Channel 的收件位置。Messaging 在 ACK 前将同一个外部 Source Event、canonical Channel placement 与绑定收件 Bot 的 Inbox Admission 原子提交（#634 验证 @；普通文字见 #613）。原生时间线和授权成员读取投影有界的外部发送人／时间／正文／来源；其他成员获得可见性，不复制消息、身份、Admission 或唤醒。既有 harvest／steer 路径以该本地 Channel 作为入站上下文，只有明确使用自身身份的 checked reply 才回到 Lark。当前成员、绑定与 Grant revision 控制收件、唤醒、读取和未开始的回复；退出／撤销保留已有共享事实。默认仍仅入 Inbox；该切片保留每 Grant 一个目标、每 Source 一个 placement，重投不移动历史。多目标、话题跟进与协作继续由 #629 的后续 tracer 交付；普通文字收件沿用下述 #613 策略。
 
 ```mermaid
 flowchart LR
@@ -479,3 +479,9 @@ flowchart LR
   Outbox --> Provider
   Provider --> IM
 ```
+
+## 外部群收件与唤醒 — #613
+
+[ADR-0109](../adr/0109-external-group-collection-is-separate-from-wake.md) 将每个授权 PersonaBot／账号指纹／具体 Chat 的普通文字收件与唤醒分开。Messaging 保存不可改写的策略版本与编辑者；Human Profile 和所属 Orchestrator 的 scoped Tools 可选择仅收 @ 或普通文字全量，以及数量／时间 digest、下一轮 immediate、随本群 @ 阅读或 silent。开启全量要求当前 exclusive Consumer 确实收到一条该群非 @ 消息；仅验证时不保留该消息正文或 Source Event。接收租约与 Host 重启会重置能力验证，已保存策略保持不变，平台缺失的事件不回填。
+
+新收件在 ACK 前原子提交 Source、已有目标 Channel placement（如配置）和绑定 Bot 自己的 Admission，固定当时的 Messaging revision 与阈值。Bot Runtime 复用现有有界 harvest 和计时；普通消息在回合边界入队，不 steer 正在执行的模型／工具步骤。@ 保留既有 steer／turn 规则，可同批阅读本群的待处理 digest／mentions 上下文；silent 只在显式读取时进入本轮。重启从 pending Admission 的历史阈值恢复，编辑只影响后续消息，重投不重新分类。是否回复仍由 Bot 独立决定；其他 Channel 成员的普通消息 attention 由 #638 交付，话题跟进由 #614 交付。

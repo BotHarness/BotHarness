@@ -103,6 +103,7 @@ describe('computer settings prefs', () => {
     prefs.attach(fake.scope);
 
     await expect(prefs.setExportDir('/other')).rejects.toThrow('scope refused');
+    expect(prefs.getSnapshot().exportDir).toBe('/exports');
   });
 
   it('rejects setExportDir when the Host silently recovers to the previous value', async () => {
@@ -231,9 +232,14 @@ describe('computer settings face', () => {
         }),
       );
     });
-    const face = createComputerSettingsFace({ prefs: new ComputerSettingsPrefs() });
+    const prefs = new ComputerSettingsPrefs();
+    const fake = fakeScope({ exportDir: '/old' });
+    prefs.attach(fake.scope);
+    const face = createComputerSettingsFace({ prefs });
 
     expect(await face.exportArchive('/target')).toEqual({ archive: '/target/a.tar' });
+    expect(fake.writes).toEqual([{ field: 'exportDir', value: '/target' }]);
+    expect(prefs.getSnapshot().exportDir).toBe('/target');
     await face.openDirectory('/target');
 
     const exportCall = calls.find((call) => call.url === '/api/computer/export');
@@ -244,6 +250,21 @@ describe('computer settings face', () => {
     const openCall = calls.find((call) => call.url === '/api/computer/open-dir');
     expect(JSON.parse(String(openCall?.init?.body))).toEqual({ authorize: true, dir: '/target' });
     expect(face.pickerAvailable).toBe(false);
+  });
+
+  it('does not export when the chosen directory cannot be saved', async () => {
+    const request = vi.fn();
+    vi.stubGlobal('fetch', request);
+    const prefs = new ComputerSettingsPrefs();
+    const fake = fakeScope({ exportDir: '/old' });
+    fake.scope.set = async () => {
+      throw new Error('settings refused');
+    };
+    prefs.attach(fake.scope);
+    const face = createComputerSettingsFace({ prefs });
+    await expect(face.exportArchive('/target')).rejects.toThrow('settings refused');
+    expect(prefs.getSnapshot().exportDir).toBe('/old');
+    expect(request).not.toHaveBeenCalled();
   });
 
   it('requests an upload token and streams the file bytes by token', async () => {

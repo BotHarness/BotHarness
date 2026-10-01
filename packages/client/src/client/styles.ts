@@ -1874,10 +1874,14 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   min-width: 0;
   font-size: 13px;
 }
+ .bh-im-group-policy { display: grid; gap: 8px; padding-block: 12px; border-block: 1px solid var(--dsw-alias-border-l2); }
+.bh-im-group-policy p { margin: 0; color: var(--dsw-alias-label-secondary); }
+.bh-im-digest-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .bh-im-field textarea { min-height: 80px; resize: vertical; }
 .bh-im-outcome { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; overflow-wrap: anywhere; }
 .bh-im-field select,
 .bh-im-field textarea,
+.bh-im-field input,
 .bh-profile-policy-select,
 .bh-profile-policy-digest input {
   width: 100%;

@@ -80,7 +80,7 @@ function view(overrides: Partial<ComputerEntryViewProps> = {}): string {
 }
 
 describe('Computer channel sidebar entry registration', () => {
-  it('registers a personabot-scope entry and disposes it with the effect', () => {
+  it('registers its entry and preserves the native directory picker receiver', async () => {
     const registered: { id?: string; label?: string; scope?: string; order?: number }[] = [];
     const unregistered: string[] = [];
     let disposed: (() => void) | undefined;
@@ -93,6 +93,13 @@ describe('Computer channel sidebar entry registration', () => {
       },
     };
     const rows: { id?: string; order?: number }[] = [];
+    let pickFromSettings: (() => Promise<string | null>) | undefined;
+    const workspace = {
+      selected: '/native-picker',
+      async pickDirectory() {
+        return this.selected;
+      },
+    };
     const settings = {
       get: () => ({
         getSnapshot: () => ({ status: 'ready' as const, value: undefined, writable: true }),
@@ -109,13 +116,18 @@ describe('Computer channel sidebar entry registration', () => {
         }
         if (deps.includes('uiWorkspace')) {
           callback({
-            uiWorkspace: { pickDirectory: async () => null },
+            uiWorkspace: workspace,
             slots: {
               inject: (_name: string, register: () => void) => {
                 register();
               },
-              register: (options: { id?: string; order?: number }) => {
+              register: (options: {
+                id?: string;
+                order?: number;
+                inject?: () => { pickDirectory: () => Promise<string | null> };
+              }) => {
                 rows.push(options);
+                pickFromSettings = options.inject?.().pickDirectory;
                 return () => {};
               },
             },
@@ -131,6 +143,7 @@ describe('Computer channel sidebar entry registration', () => {
 
     apply(ctx as unknown as Parameters<typeof apply>[0]);
 
+    expect(await pickFromSettings?.()).toBe('/native-picker');
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ id: 'computer', order: 10 });
     expect(registered).toHaveLength(1);

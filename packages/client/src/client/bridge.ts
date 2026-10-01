@@ -1,3 +1,4 @@
+import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
@@ -2782,6 +2783,14 @@ export async function setMessagingChannelTarget(
   channelId: string | null,
 ): Promise<void> {
   await unwrap(call, 'messagingChannelTarget', { slug, grantId, channelId });
+}
+export async function setMessagingGroupPolicy(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+  policy: GroupReceptionInput,
+): Promise<void> {
+  await unwrap(call, 'messagingGroupPolicy', { slug, grantId, policy });
 }
 export async function setMessagingReceive(
   call: BridgeCall,

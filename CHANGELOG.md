@@ -18,6 +18,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Activity Center uses a compact unread chip beside Bot mode settings, switches to an aligned icon below Bot mode when collapsed, and remembers the last Overview or Inbox tab across chats and reload; expanded shows only the unread badge (hover or focus reveals an empty entry only in Bot mode) and collapsed shows its icon only in Bot mode, using a top-right red notification dot ([#679](https://github.com/BotHarness/BotHarness/issues/679)).
+- A Human or the bound Bot can configure ordinary text collection per authorized external group, independently choosing count/time harvest, next-turn wake, mention context or silent reads; versioned Admissions preserve their original policy and ordinary traffic never interrupts an active step ([#613](https://github.com/BotHarness/BotHarness/issues/613), [ADR-0109](docs/adr/0109-external-group-collection-is-separate-from-wake.md)).
 
 - A Human can bridge authorized Lark mentions into an existing shared Group Channel: all current members can read one retained external message with its origin, while only the addressed bound Bot wakes and can explicitly reply through its own identity ([#634](https://github.com/BotHarness/BotHarness/issues/634), [ADR-0108](docs/adr/0108-shared-channel-bridge-places-canonical-external-sources.md)).
 
@@ -245,6 +246,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Fixed
 
 - Inbox list “Choose workspace” now opens the same DSH folder picker directly without expanding the event; other response actions use an independent dialog, cancellation can be retried and resolved requests do not trigger authorization ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
+
+- Computer Settings opens the native directory picker correctly, keeps the authorized export destination for the next import, and retains manual path entry when a picker is unavailable ([#166](https://github.com/BotHarness/BotHarness/issues/166)).
 
 - Bot activity recovers through bounded snapshot refresh when live transport fails; reconnects and revision gaps restore shared sidebar/composer state without treating connection errors as Bot activity ([#121](https://github.com/BotHarness/BotHarness/issues/121)).
 
