@@ -128,7 +128,7 @@ export function ProfileHeatmap({
               type="button"
               className="bh-profile-heat-cell"
               data-level={heatLevel(count)}
-              aria-label={`${day} 路 ${t('profile.heat.tip', { count })}`}
+              aria-label={`${day} · ${t('profile.heat.tip', { count })}`}
               onMouseEnter={() => setHovered({ day, count, column })}
               onMouseLeave={() => setHovered(undefined)}
               onFocus={() => setHovered({ day, count, column })}
