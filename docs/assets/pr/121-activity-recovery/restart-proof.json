@@ -1,0 +1,14 @@
+{
+  "bot": {
+    "slug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+    "displayName": "Activity recovery QA 1790881724943"
+  },
+  "activityFrames": [
+    {
+      "generation": "3bb5ccf2-c1e3-456d-b7e2-b1195b810cfc",
+      "revision": 0,
+      "state": "idle"
+    }
+  ],
+  "verdict": "PASS"
+}

@@ -84,9 +84,11 @@ export function createChannelLiveHub(
     if (activity === undefined) return new Response('Activity unavailable', { status: 503 });
     const encoder = new TextEncoder();
     let cancel: (() => void) | undefined;
+    let flush: (() => void) | undefined;
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
         let ended = false;
+        let pending = false;
         let unsubscribe: (() => void) | undefined;
         let heartbeat: ReturnType<typeof setInterval> | undefined;
         const subscriber = {
@@ -103,6 +105,11 @@ export function createChannelLiveHub(
         };
         const send = (): void => {
           if (ended) return;
+          if ((controller.desiredSize ?? 0) <= 0) {
+            pending = true;
+            return;
+          }
+          pending = false;
           try {
             controller.enqueue(
               encoder.encode(
@@ -113,18 +120,24 @@ export function createChannelLiveHub(
             subscriber.close();
           }
         };
+        flush = () => {
+          if (pending) send();
+        };
         activitySubscribers.add(subscriber);
         cancel = () => subscriber.close();
         unsubscribe = activity.onChange(send);
         send();
         heartbeat = setInterval(() => {
-          if (ended) return;
+          if (ended || (controller.desiredSize ?? 0) <= 0) return;
           try {
             controller.enqueue(encoder.encode(': heartbeat\n\n'));
           } catch {
             subscriber.close();
           }
         }, 15_000);
+      },
+      pull() {
+        flush?.();
       },
       cancel() {
         cancel?.();

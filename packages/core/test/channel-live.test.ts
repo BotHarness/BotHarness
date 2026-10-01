@@ -95,6 +95,38 @@ describe('Channel post-commit stream', () => {
     expect((await reconnectReader.read()).done).toBe(true);
   });
 
+  it('coalesces a slow Activity reader to the current snapshot and releases its listener', async () => {
+    let revision = 0;
+    const listeners = new Set<() => void>();
+    const hub = createChannelLiveHub(createChannelStore({ rootDir: root() }), {
+      snapshot: () => ({ generation: 'host', revision, bots: [{ slug: 'ada', state: 'idle' }] }),
+      onChange: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    });
+    hubs.push(hub);
+    const reader = hub
+      .open(new Request(`http://localhost${CHANNEL_STREAM_PATH}?scope=activity`))
+      .body!.getReader();
+    for (revision = 1; revision <= 100; revision++) for (const listener of listeners) listener();
+    revision = 100;
+    expect(listeners.size).toBe(1);
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain('"revision":0');
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain('"revision":100');
+    await reader.cancel();
+    expect(listeners.size).toBe(0);
+    const reconnected = hub
+      .open(new Request(`http://localhost${CHANNEL_STREAM_PATH}?scope=activity`))
+      .body!.getReader();
+    expect(new TextDecoder().decode((await reconnected.read()).value)).toContain('"revision":100');
+    hub.close();
+    expect(listeners.size).toBe(0);
+    expect((await reconnected.read()).done).toBe(true);
+  });
+
   it('registers the full authenticated Connection Fetch pathname', () => {
     expect(CHANNEL_STREAM_PATH).toBe('/api/botharness/stream');
   });
