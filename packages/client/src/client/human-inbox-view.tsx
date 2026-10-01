@@ -11,6 +11,7 @@ import type { HumanAttentionItem, HumanInboxCategory, HumanInboxFilters } from '
 import { useMountedResource } from './mounted-resource.js';
 import { HumanInboxReply } from './human-inbox-reply.js';
 import { Modal } from './modal.js';
+import { HumanInboxDismiss } from './human-inbox-detail-controls.js';
 import { HumanInboxWorkspaceAction } from './human-inbox-workspace-action.js';
 import { HumanInboxAssignment } from './human-inbox-assignment.js';
 
@@ -206,9 +207,7 @@ export function HumanInboxView({
       <section className="bh-human-inbox-reply" aria-label={itemTitle(source)}>
         <div className="bh-human-inbox-reply-header">
           <h2>{itemTitle(source)}</h2>
-          <Button size="sm" onClick={onClose}>
-            {t('humanInbox.details.close')}
-          </Button>
+          <HumanInboxDismiss source={source} actions={actions} t={t} onClose={onClose} />
         </div>
         <p>{source.summary}</p>
         <HumanInboxSourceButton
@@ -329,7 +328,12 @@ export function HumanInboxView({
                   aria-expanded={replySource?.id === item.id}
                   aria-controls={replySource?.id === item.id ? detailId : undefined}
                   onClick={() => {
-                    setReplySource(item);
+                    setReplySource(
+                      replySource?.id === item.id &&
+                        replySource.sourceEventId === item.sourceEventId
+                        ? undefined
+                        : item,
+                    );
                   }}
                 />
 
@@ -540,7 +544,7 @@ export function HumanInboxView({
             title={itemTitle(actionSource)}
             closeLabel={t('common.close')}
             onClose={() => setActionSource(undefined)}
-            className="bh-human-inbox-action-dialog"
+            className="bh-root bh-human-inbox-action-dialog"
           >
             {renderSource(actionSource, () => setActionSource(undefined))}
           </Modal>

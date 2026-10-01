@@ -293,6 +293,7 @@ export interface BridgeMethods {
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
   humanAssignmentContext(payload: unknown): BridgeResult<{ context: HumanAssignmentContext }>;
   humanAttentionStatus(payload: unknown): BridgeResult<{ unreadCount: number; hasAction: boolean }>;
+  humanAttentionDismiss(payload: unknown): BridgeResult<{ accepted: boolean }>;
   humanAttentionIgnore(payload: unknown): BridgeResult<{ accepted: boolean }>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
@@ -2211,6 +2212,30 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           },
         },
       };
+    },
+    humanAttentionDismiss(payload) {
+      const source = asObject(payload);
+      const itemId = asNonBlank(source, 'itemId');
+      const sourceKey = source?.['sourceKey'];
+      if (
+        itemId === undefined ||
+        itemId.length > 350 ||
+        typeof sourceKey !== 'string' ||
+        sourceKey.length > 150
+      )
+        return invalidInput('itemId and sourceKey are required');
+      try {
+        const item = deps.humanAttention?.item(itemId, sourceKey);
+        if (
+          item === undefined ||
+          (item.sourceEventId ?? '') !== sourceKey ||
+          deps.humanAttentionDecisions?.dismiss(item) !== true
+        )
+          return invalidInput('Inbox item is no longer available');
+        return { ok: true, value: { accepted: true } };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
     },
     humanAttentionIgnore(payload) {
       const source = asObject(payload);

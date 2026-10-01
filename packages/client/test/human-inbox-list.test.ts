@@ -97,6 +97,13 @@ async function mount(source = item, resolved = false) {
     openBot: vi.fn(async () => undefined),
     setHumanInboxFilters: vi.fn(async (filters) => store.setHumanInbox(filters)),
   } satisfies BridgeActions;
+  actions.humanInboxContextPage = vi.fn(async () => ({
+    entries: await actions.humanInboxContext(),
+    olderCursor: null,
+    newerCursor: null,
+    hasOlder: false,
+    hasNewer: false,
+  }));
   store.select({ kind: 'inbox' });
   store.setHumanInbox({
     category: source.category,
@@ -125,9 +132,9 @@ describe('compact Human Inbox interactions', () => {
       expect(view.host.querySelector('select')).toBeNull();
       const row = view.host.querySelector<HTMLButtonElement>('.bh-human-inbox-row-open')!;
       await act(async () => row.click());
-      expect(view.actions.humanInboxContext).toHaveBeenCalledWith(
+      expect(view.actions.humanInboxContextPage).toHaveBeenCalledWith(
         'group',
-        'source',
+        { direction: 'around', around: 'source', olderLimit: 2, newerLimit: 2 },
         expect.any(AbortSignal),
       );
       expect(row.getAttribute('aria-expanded')).toBe('true');

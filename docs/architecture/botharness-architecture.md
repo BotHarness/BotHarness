@@ -485,3 +485,9 @@ flowchart LR
 [ADR-0109](../adr/0109-external-group-collection-is-separate-from-wake.md) 将每个授权 PersonaBot／账号指纹／具体 Chat 的普通文字收件与唤醒分开。Messaging 保存不可改写的策略版本与编辑者；Human Profile 和所属 Orchestrator 的 scoped Tools 可选择仅收 @ 或普通文字全量，以及数量／时间 digest、下一轮 immediate、随本群 @ 阅读或 silent。开启全量要求当前 exclusive Consumer 确实收到一条该群非 @ 消息；仅验证时不保留该消息正文或 Source Event。接收租约与 Host 重启会重置能力验证，已保存策略保持不变，平台缺失的事件不回填。
 
 新收件在 ACK 前原子提交 Source、已有目标 Channel placement（如配置）和绑定 Bot 自己的 Admission，固定当时的 Messaging revision 与阈值。Bot Runtime 复用现有有界 harvest 和计时；普通消息在回合边界入队，不 steer 正在执行的模型／工具步骤。@ 保留既有 steer／turn 规则，可同批阅读本群的待处理 digest／mentions 上下文；silent 只在显式读取时进入本轮。重启从 pending Admission 的历史阈值恢复，编辑只影响后续消息，重投不重新分类。是否回复仍由 Bot 独立决定；其他 Channel 成员的普通消息 attention 由 #638 交付，话题跟进由 #614 交付。
+
+### Human Inbox 详情与移除（#687 QA）
+
+消息窗口上下沿的等宽箭头分别增量读取历史／较新上下文；下沿到达此前末尾后仍能查询后来消息。Channel 沿用原时间线游标，Assignment 报告通过同一个有界查询继续读取边沿。每条消息在悬停或键盘聚焦时显示精确来源按钮，触屏保持可用；Assignment 原始报告则打开所属 DSH Session。常规手动刷新与底部来源按钮移除，失败可重试且保留回复草稿。
+
+Human Attention 在原 operational database 拥有 `human_inbox_dismissals`，只保存 Human、item、Source Event key、可选 unread placement revision 和时间，不保存另一份消息。Host 验证可见原来源后提交 Inbox-only Dismiss；它不答复、审批、授权或推进已读，不创建已处理记录。查询分页和待行动计数排除已移除项；入口未读总数仍由原已读位置决定。Channel 未读汇总只隐藏当时 revision 及之前的批次，之后的消息重新出现；新的 Assignment 报告也不被旧决定隐藏。多窗口与重启共享同一状态，原 Channel 卡片仍能处理，随后真正回应的已处理历史仍引用原权威。再次点击同一行只收起详情，不移除。

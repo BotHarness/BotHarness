@@ -141,7 +141,12 @@ describe('Human Inbox tool approval', () => {
           '工具审批 · ada',
         );
         expect(container.textContent).not.toContain('The separate check is queued.');
-        await act(async () => button('查看附近消息')!.click());
+        await act(async () =>
+          container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-older')!.click(),
+        );
+        await act(async () =>
+          container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-newer')!.click(),
+        );
         expect(container.textContent).toContain('Please check the release.');
         expect(container.textContent).toContain('The separate check is queued.');
         await act(async () => button(outcome === 'rejected' ? '拒绝' : '仅批准这一次')!.click());

@@ -171,6 +171,14 @@ function stubActions(): BridgeActions {
     loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     openChannelAtMessage: vi.fn(async () => undefined),
+    dismissHumanInbox: vi.fn(async () => undefined),
+    humanInboxContextPage: vi.fn(async () => ({
+      entries: [],
+      olderCursor: null,
+      newerCursor: null,
+      hasOlder: false,
+      hasNewer: false,
+    })),
     humanInboxContext: vi.fn(async () => []),
     replyFromHumanInbox: vi.fn(async () => {
       throw new Error('No reply expected');

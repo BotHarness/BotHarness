@@ -106,7 +106,9 @@ describe('Human Inbox Assignment reply', () => {
       expect(container.querySelector('[role="dialog"]')).not.toBeNull();
       expect(container.textContent).toContain('Launch review');
       expect(container.textContent).not.toContain('Dependencies ready');
-      await act(async () => button('查看附近报告').click());
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-older')!.click(),
+      );
       expect(container.textContent).toContain('Dependencies ready');
       const input = container.querySelector('textarea')!;
       await act(async () => {

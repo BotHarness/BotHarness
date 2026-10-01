@@ -15,6 +15,8 @@ export interface HumanAssignmentContext {
   purpose: string;
   sourceEventId: string;
   reports: HumanAssignmentReport[];
+  hasOlder?: boolean;
+  hasNewer?: boolean;
   canReply: boolean;
   reply?: { id: string; at: string; body: string };
 }
@@ -112,12 +114,21 @@ export function readHumanAssignmentContext(
       body: string;
       state: HumanAssignmentReport['state'];
     }>;
+    const edge = (id: string | undefined, direction: '<' | '>'): boolean =>
+      id !== undefined &&
+      db
+        .prepare(
+          `SELECT 1 FROM source_events WHERE assignment_session_id = ? AND source_kind = 'assignment-report' AND rowid ${direction} (SELECT rowid FROM source_events WHERE source_event_id = ?) LIMIT 1`,
+        )
+        .get(sessionId, id) !== undefined;
     const reply = humanReply(db, botSlug, sessionId, sourceEventId);
     return {
       botSlug,
       sessionId,
       purpose: source.purpose,
       sourceEventId,
+      hasOlder: edge(rows[0]?.source_event_id, '<'),
+      hasNewer: edge(rows.at(-1)?.source_event_id, '>'),
       reports: rows.map((row) => ({
         sourceEventId: row.source_event_id,
         at: row.created_at,

@@ -6,7 +6,8 @@
   "canonicalFixture": {
     "bots": 3,
     "workspaceRequests": 3,
-    "groupMessages": 8
+    "groupMessages": 8,
+    "dmContextMessages": 24
   },
   "geometry": [
     {
@@ -44,5 +45,20 @@
   "listActionReopensAfterCancel": true,
   "actionDoesNotExpandRow": true,
   "channelAvatarNavigation": true,
-  "lightAndDark": true
+  "lightAndDark": true,
+  "contextGeometry": {
+    "upperGap": 0,
+    "lowerGap": 0,
+    "upperWidth": 581.203125,
+    "flowWidth": 581.203125,
+    "lowerWidth": 581.203125
+  },
+  "sourceGeometry": {
+    "topInset": 8,
+    "rightInset": 8
+  },
+  "independentDirectionalContext": true,
+  "hoverMessageSourceExact": true,
+  "persistentInboxOnlyDismiss": true,
+  "dismissalAcrossWindowsAndReload": true
 }

@@ -33,6 +33,13 @@ if (mode === 'seed') {
     for (const [slug, displayName] of specs) {
       if (!core.registry.get(slug)) core.registry.create({ slug, displayName });
       const dm = core.channels.getOrCreateDm(slug, displayName);
+      for (let i = 0; i < 4; i++)
+        await core.channels.appendMessageOnce(dm.id, {
+          id: 'inbox-history-' + slug + '-' + i,
+          at: new Date(Date.now() - (4 - i) * 1000).toISOString(),
+          author: { kind: 'bot', slug },
+          body: 'Earlier context ' + (i + 1) + ': launch review findings for ' + displayName,
+        });
       await core.channels.appendMessageOnce(dm.id, {
         id: 'inbox-grant-' + slug,
         at: new Date().toISOString(),
@@ -43,6 +50,13 @@ if (mode === 'seed') {
           displayName +
           ' workspace before I begin reviewing the launch plan.',
       });
+      for (let i = 0; i < 4; i++)
+        await core.channels.appendMessageOnce(dm.id, {
+          id: 'inbox-newer-' + slug + '-' + i,
+          at: new Date(Date.now() + i * 1000).toISOString(),
+          author: { kind: 'bot', slug },
+          body: 'Newer context ' + (i + 1) + ': update to the launch review for ' + displayName,
+        });
     }
     const group =
       core.channels.list().find((c) => c.name === 'Launch Coordination') ??
@@ -82,14 +96,16 @@ const browser = await puppeteer.launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
-const shot = (name) =>
-  page.screenshot({
+const shot = async (name) => {
+  await page.bringToFront();
+  return page.screenshot({
     waitForFonts: false,
     path: resolve(
       out,
       name + (mode === 'resume' && name !== 'overview-restarted' ? '-restart' : '') + '.png',
     ),
   });
+};
 const theme = async (dark) => {
   await page.emulateMediaFeatures([
     { name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' },
@@ -177,17 +193,17 @@ page.on('request', (request) => {
     requestEvidence.push({ method: payload.method, args: payload.payload.args });
   } catch {}
 });
-const openInbox = async () => {
-  await page.waitForSelector('.bh-panel-activity[data-unread="true"]');
-  await page.click('.bh-panel-activity');
-  await page.waitForSelector('.bh-activity-center-header', { timeout: 5000 }).catch(async () => {
-    await page.waitForSelector('.bh-panel-activity');
-    await page.click('.bh-panel-activity');
-    await page.waitForSelector('.bh-activity-center-header');
+const openInbox = async (client = page) => {
+  await client.waitForSelector('.bh-panel-activity[data-wide="true"]');
+  await client.click('.bh-panel-activity');
+  await client.waitForSelector('.bh-activity-center-header', { timeout: 5000 }).catch(async () => {
+    await client.waitForSelector('.bh-panel-activity');
+    await client.click('.bh-panel-activity');
+    await client.waitForSelector('.bh-activity-center-header');
   });
-  await click('.bh-activity-center-header [role="tab"]', '收件箱');
-  await click('.bh-human-inbox-tabs button', '需要我处理');
-  await page.waitForSelector('.bh-human-inbox-row-open');
+  await click('.bh-activity-center-header [role="tab"]', '收件箱', client);
+  await click('.bh-human-inbox-tabs button', '需要我处理', client);
+  await client.waitForSelector('.bh-human-inbox-row-open');
 };
 const selectFilter = async (index, label) => {
   const controls = await page.$$('.bh-human-inbox-selector');
@@ -280,13 +296,13 @@ try {
   assert.ok(detailPadding >= 16);
   await theme(false);
   await shot('row-details-light');
-  await page.click('.bh-human-inbox-detail .bh-human-inbox-reply-header button');
+  await page.click('.bh-human-inbox-row-open[aria-expanded="true"]');
   await page.waitForFunction(() => !document.querySelector('.bh-human-inbox-detail'));
   await page.focus('.bh-human-inbox-row-open');
   await page.keyboard.press('Enter');
   await page.waitForSelector('.bh-human-inbox-detail .bh-grant-request-card');
   await shot('keyboard-details-light');
-  await page.click('.bh-human-inbox-detail .bh-human-inbox-reply-header button');
+  await page.click('.bh-human-inbox-row-open[aria-expanded="true"]');
   await page.click('.bh-human-inbox-row-actions button');
   assert.equal(await page.$('.bh-human-inbox-detail'), null);
   await page.waitForSelector('.bh-folder-browser', { visible: true, timeout: 15000 });
@@ -320,12 +336,138 @@ try {
   );
   await page.waitForSelector('.bh-human-inbox-detail .bh-human-inbox-message');
   await shot('unread-context-light');
+
+  await click('.bh-human-inbox-tabs button', '需要我处理');
+  await page.waitForFunction(() => document.querySelectorAll('.bh-human-inbox-row').length === 3);
+  const pending = (await rpc('humanAttention', { category: 'action', sort: 'oldest', limit: 50 }))
+    .items[0];
+  await page.click('.bh-human-inbox-row-main');
+  await page.waitForSelector('.bh-human-inbox-detail .bh-human-inbox-reply-source');
+  assert.equal(
+    await page.evaluate(
+      () => document.querySelectorAll('.bh-human-inbox-detail [data-message-id]').length,
+    ),
+    1,
+  );
+  assert.equal(
+    await page.$eval('.bh-human-inbox-message-source', (node) => getComputedStyle(node).opacity),
+    '0',
+  );
+  await page.click('.bh-human-inbox-context-older');
+  await page.waitForFunction(
+    () => document.querySelectorAll('.bh-human-inbox-detail [data-message-id]').length === 3,
+  );
+  assert.equal(
+    await page.$eval('.bh-human-inbox-detail', (node) =>
+      node.textContent.includes('Newer context'),
+    ),
+    false,
+  );
+  await page.click('.bh-human-inbox-context-older');
+  await page.waitForFunction(
+    () => document.querySelectorAll('.bh-human-inbox-detail [data-message-id]').length === 5,
+  );
+  await page.click('.bh-human-inbox-context-newer');
+  await page.waitForFunction(
+    () => document.querySelectorAll('.bh-human-inbox-detail [data-message-id]').length === 7,
+  );
+  await page.click('.bh-human-inbox-context-newer');
+  await page.waitForFunction(
+    () => document.querySelectorAll('.bh-human-inbox-detail [data-message-id]').length === 9,
+  );
+  const contextGeometry = await page.$eval('.bh-human-inbox-context-window', (node) => {
+    const upper = node.querySelector('.bh-human-inbox-context-older').getBoundingClientRect(),
+      flow = node.querySelector('.bh-human-inbox-message-flow').getBoundingClientRect(),
+      lower = node.querySelector('.bh-human-inbox-context-newer').getBoundingClientRect();
+    return {
+      upperGap: flow.top - upper.bottom,
+      lowerGap: lower.top - flow.bottom,
+      upperWidth: upper.width,
+      flowWidth: flow.width,
+      lowerWidth: lower.width,
+    };
+  });
+  assert.ok(Math.abs(contextGeometry.upperGap) < 1 && Math.abs(contextGeometry.lowerGap) < 1);
+  assert.ok(
+    Math.abs(contextGeometry.upperWidth - contextGeometry.flowWidth) < 1 &&
+      Math.abs(contextGeometry.lowerWidth - contextGeometry.flowWidth) < 1,
+  );
+  await page.hover('.bh-human-inbox-reply-source');
+  assert.equal(
+    await page.$eval(
+      '.bh-human-inbox-reply-source .bh-human-inbox-message-source',
+      (node) => getComputedStyle(node).opacity,
+    ),
+    '1',
+  );
+  const sourceGeometry = await page.$eval('.bh-human-inbox-reply-source', (node) => {
+    const parent = node.getBoundingClientRect(),
+      button = node.querySelector('.bh-human-inbox-message-source').getBoundingClientRect();
+    return { topInset: button.top - parent.top, rightInset: parent.right - button.right };
+  });
+  assert.ok(
+    sourceGeometry.topInset >= 7 &&
+      sourceGeometry.rightInset >= 7 &&
+      sourceGeometry.rightInset < 12,
+  );
+  await theme(false);
+  await shot('detail-context-light');
+  await theme(true);
+  await shot('detail-context-dark');
+  await page.click('.bh-human-inbox-reply-source .bh-human-inbox-message-source');
+  await page.waitForFunction(() => !document.querySelector('.bh-human-inbox-detail'));
+  await page.waitForSelector('[data-message-id="' + pending.messageId + '"]');
+  assert.equal(await page.$('.bh-human-inbox-detail'), null);
+  await openInbox();
+  const peerContext = await browser.createBrowserContext();
+  const peer = await peerContext.newPage();
+  await peer.setViewport({ width: 1440, height: 900 });
+  await login(peer);
+  await openInbox(peer);
+  await peer.waitForFunction(() => document.querySelectorAll('.bh-human-inbox-row').length === 3);
+  await page.click('.bh-human-inbox-row-main');
+  await page.waitForSelector('.bh-human-inbox-detail .bh-human-inbox-reply-source');
+  await click('.bh-human-inbox-detail .bh-human-inbox-reply-header button', '移除');
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll('.bh-human-inbox-row').length === 2 &&
+      !document.querySelector('.bh-human-inbox-detail'),
+  );
+  await peer.waitForFunction(() => document.querySelectorAll('.bh-human-inbox-row').length === 2);
+  assert.ok(
+    !(await rpc('humanAttention', { category: 'action', sort: 'oldest', limit: 50 })).items.some(
+      (item) => item.id === pending.id,
+    ),
+  );
+  const original = (
+    await rpc('channelTimeline', {
+      channelId: pending.channelId,
+      direction: 'around',
+      around: pending.messageId,
+      olderLimit: 0,
+      newerLimit: 0,
+    })
+  ).page.entries[0];
+  assert.equal(original.grantRequest, true);
+  assert.notEqual(original.grantRequestResolved, true);
+  await shot('detail-dismissed-dark');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.bh-panel-activity');
+  await openInbox();
+  await page.waitForFunction(() => document.querySelectorAll('.bh-human-inbox-row').length === 2);
+  await peerContext.close();
+
   writeFileSync(
     resolve(out, 'verification.json'),
     JSON.stringify(
       {
         viewport: { width: 1440, height: 900 },
-        canonicalFixture: { bots: 3, workspaceRequests: 3, groupMessages: 8 },
+        canonicalFixture: {
+          bots: 3,
+          workspaceRequests: 3,
+          groupMessages: 8,
+          dmContextMessages: 24,
+        },
         geometry,
         detailPadding,
         nativeSelectors: true,
@@ -341,6 +483,12 @@ try {
         actionDoesNotExpandRow: true,
         channelAvatarNavigation: true,
         lightAndDark: true,
+        contextGeometry,
+        sourceGeometry,
+        independentDirectionalContext: true,
+        hoverMessageSourceExact: true,
+        persistentInboxOnlyDismiss: true,
+        dismissalAcrossWindowsAndReload: true,
       },
       null,
       2,
@@ -350,7 +498,8 @@ try {
     'PASS: native DSH filtering and keyboard selection, padded compact rows, whole-row details, native primary actions and exact avatar source navigation.',
   );
 } catch (error) {
-  await shot('failure');
+  console.error(error);
+  await shot('failure').catch(() => undefined);
   console.log(
     JSON.stringify(
       await page.evaluate(() => ({

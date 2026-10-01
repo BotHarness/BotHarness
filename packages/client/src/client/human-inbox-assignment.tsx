@@ -5,6 +5,11 @@ import type { HumanAssignmentContext } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { HumanAttentionItem } from './store.js';
 import type { BotSummary } from './store.js';
+import {
+  HumanInboxDismiss,
+  HumanInboxContextEdge,
+  HumanInboxMessageSource,
+} from './human-inbox-detail-controls.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { useMountedResource } from './mounted-resource.js';
 
@@ -27,7 +32,10 @@ export function HumanInboxAssignment({
   const sourceEventId = source.sourceEventId!;
   const [context, setContext] = useState<HumanAssignmentContext>();
   const [failed, setFailed] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [olderShown, setOlderShown] = useState(0);
+  const [newerShown, setNewerShown] = useState(0);
+  const [edgeBusy, setEdgeBusy] = useState(false);
+  const edgePending = useRef(false);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
@@ -94,14 +102,82 @@ export function HumanInboxAssignment({
     }
   };
   const target = context?.reports.find((row) => row.sourceEventId === sourceEventId);
+  const targetIndex =
+    context?.reports.findIndex((report) => report.sourceEventId === sourceEventId) ?? -1;
+  const visibleReports =
+    context?.reports.slice(Math.max(0, targetIndex - olderShown), targetIndex + newerShown + 1) ??
+    [];
+  const expand = async (direction: 'older' | 'newer'): Promise<void> => {
+    if (edgePending.current || context === undefined) return;
+    if (direction === 'older' && targetIndex > olderShown) {
+      setOlderShown(targetIndex);
+      return;
+    }
+    if (direction === 'newer' && context.reports.length > targetIndex + newerShown + 1) {
+      setNewerShown(context.reports.length - targetIndex - 1);
+      return;
+    }
+    const edge = direction === 'older' ? context.reports[0] : context.reports.at(-1);
+    if (edge === undefined) return;
+    setFailed(false);
+    edgePending.current = true;
+    setEdgeBusy(true);
+    loading.current?.abort();
+    const controller = new AbortController();
+    loading.current = controller;
+    try {
+      const next = await actions.humanAssignmentContext(
+        source.botSlug,
+        sessionId,
+        edge.sourceEventId,
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      const edgeIndex = next.reports.findIndex(
+        (report) => report.sourceEventId === edge.sourceEventId,
+      );
+      const candidates =
+        direction === 'older'
+          ? next.reports.slice(0, edgeIndex)
+          : next.reports.slice(edgeIndex + 1);
+      const additions = candidates.filter(
+        (report) =>
+          !context.reports.some((current) => current.sourceEventId === report.sourceEventId),
+      );
+      setContext(
+        direction === 'older'
+          ? {
+              ...context,
+              reports: [...additions, ...context.reports],
+              hasOlder: next.hasOlder ?? false,
+            }
+          : {
+              ...context,
+              reports: [...context.reports, ...additions],
+              hasNewer: next.hasNewer ?? false,
+            },
+      );
+      if (direction === 'older') setOlderShown(olderShown + additions.length);
+      else setNewerShown(newerShown + additions.length);
+    } catch {
+      if (!controller.signal.aborted) setFailed(true);
+    } finally {
+      edgePending.current = false;
+      if (!controller.signal.aborted) setEdgeBusy(false);
+    }
+  };
   const title = t('humanInbox.assignment.title', { bot: botName(source.botSlug) });
   return (
     <section className="bh-human-inbox-reply" ref={mount} aria-label={title}>
       <div className="bh-human-inbox-reply-header">
         <h2>{title}</h2>
-        <Button size="sm" variant="outline" type="button" disabled={sending} onClick={onClose}>
-          {t('humanInbox.reply.close')}
-        </Button>
+        <HumanInboxDismiss
+          source={source}
+          actions={actions}
+          t={t}
+          disabled={sending}
+          onClose={onClose}
+        />
       </div>
       {target === undefined ? (
         <p role={failed ? 'alert' : 'status'}>
@@ -109,64 +185,61 @@ export function HumanInboxAssignment({
         </p>
       ) : (
         <>
-          <h3
-            className={expanded ? 'bh-human-inbox-purpose' : 'bh-human-inbox-purpose is-collapsed'}
-          >
-            {context!.purpose}
-          </h3>
-          <Button
-            size="sm"
-            variant="outline"
-            type="button"
-            className="bh-human-inbox-reply-context"
-            aria-expanded={expanded}
-            onClick={() => setExpanded(!expanded)}
-          >
-            {t(expanded ? 'humanInbox.assignment.collapse' : 'humanInbox.assignment.context')}
-          </Button>
-          <div className="bh-human-inbox-message-flow">
-            {(expanded ? context!.reports : [target]).map((report) => (
-              <article
-                key={report.sourceEventId}
-                data-source-event-id={report.sourceEventId}
-                className={
-                  'bh-human-inbox-message' +
-                  (report.sourceEventId === sourceEventId ? ' bh-human-inbox-reply-source' : '')
-                }
-              >
-                <PersonaBotAvatar
-                  personaBotId={source.botSlug}
-                  name={botName(source.botSlug)}
-                  src={bots.find((bot) => bot.slug === source.botSlug)?.avatar}
-                  size={28}
-                  indicator={false}
-                  t={t}
-                />
-                <div className="bh-human-inbox-message-content">
-                  <div className="bh-human-inbox-message-heading">
-                    <strong>{botName(source.botSlug)}</strong>
-                    <time dateTime={report.at}>{new Date(report.at).toLocaleString()}</time>
+          <h3 className="bh-human-inbox-purpose is-collapsed">{context!.purpose}</h3>
+          <div className="bh-human-inbox-context-window">
+            <HumanInboxContextEdge
+              direction="older"
+              disabled={!(targetIndex > olderShown || context?.hasOlder)}
+              busy={edgeBusy}
+              onClick={() => void expand('older')}
+              t={t}
+            />
+            <div className="bh-human-inbox-message-flow">
+              {visibleReports.map((report) => (
+                <article
+                  key={report.sourceEventId}
+                  data-source-event-id={report.sourceEventId}
+                  className={
+                    'bh-human-inbox-message' +
+                    (report.sourceEventId === sourceEventId ? ' bh-human-inbox-reply-source' : '')
+                  }
+                >
+                  <HumanInboxMessageSource
+                    label={t('humanInbox.assignment.session')}
+                    onClick={() => void navigate(() => actions.openSession(sessionId))}
+                  />
+                  <PersonaBotAvatar
+                    personaBotId={source.botSlug}
+                    name={botName(source.botSlug)}
+                    src={bots.find((bot) => bot.slug === source.botSlug)?.avatar}
+                    size={28}
+                    indicator={false}
+                    t={t}
+                  />
+                  <div className="bh-human-inbox-message-content">
+                    <div className="bh-human-inbox-message-heading">
+                      <strong>{botName(source.botSlug)}</strong>
+                      <time dateTime={report.at}>{new Date(report.at).toLocaleString()}</time>
+                    </div>
+                    <span className="bh-human-inbox-message-target">
+                      {t(`inbox.report.${report.state}`)}
+                    </span>
+                    <p>{report.summary}</p>
                   </div>
-                  <span className="bh-human-inbox-message-target">
-                    {t(`inbox.report.${report.state}`)}
-                  </span>
-                  <p>{report.summary}</p>
-                </div>
-              </article>
-            ))}
+                </article>
+              ))}
+            </div>
+            <HumanInboxContextEdge
+              direction="newer"
+              disabled={false}
+              busy={edgeBusy}
+              onClick={() => void expand('newer')}
+              t={t}
+            />
           </div>
         </>
       )}
       <div className="bh-human-inbox-reply-actions">
-        <Button
-          size="sm"
-          variant="outline"
-          type="button"
-          disabled={sending}
-          onClick={() => void reload()}
-        >
-          {t('humanInbox.reply.refresh')}
-        </Button>
         <Button
           size="sm"
           variant="outline"
@@ -184,6 +257,9 @@ export function HumanInboxAssignment({
           {t('humanInbox.assignment.dm')}
         </Button>
       </div>
+      {failed && target !== undefined ? (
+        <p role="alert">{t('humanInbox.reply.unavailable')}</p>
+      ) : null}
       {navigationError ? <p role="alert">{t('humanInbox.reply.unavailable')}</p> : null}
       {reply !== undefined ? (
         <div role="status">

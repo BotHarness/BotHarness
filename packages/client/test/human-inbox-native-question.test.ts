@@ -148,7 +148,12 @@ describe('Human Inbox native question', () => {
           '回答问题 · ada',
         );
         expect(container.textContent).not.toContain('The separate check is queued.');
-        await act(async () => button('查看附近消息')!.click());
+        await act(async () =>
+          container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-older')!.click(),
+        );
+        await act(async () =>
+          container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-newer')!.click(),
+        );
         expect(container.textContent).toContain('Please check the release.');
         expect(container.textContent).toContain('The separate check is queued.');
         await act(async () => button('CanarySmall launch')!.click());

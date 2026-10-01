@@ -296,6 +296,7 @@ describe('plugin entry', () => {
       'humanAssignmentContext',
       'humanAttentionStatus',
       'humanAttentionIgnore',
+      'humanAttentionDismiss',
       'assignments',
       'assignment',
       'workspaceOptions',

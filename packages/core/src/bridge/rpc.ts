@@ -524,6 +524,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
   ): { context: HumanAssignmentContext } {
     return unwrap(this.methods.humanAssignmentContext({ slug, sessionId, sourceEventId }));
   }
+  humanAttentionDismiss(itemId: string, sourceKey: string): { accepted: boolean } {
+    return unwrap(this.methods.humanAttentionDismiss({ itemId, sourceKey }));
+  }
   humanAttentionIgnore(sourceEventId: string): { accepted: boolean } {
     return unwrap(this.methods.humanAttentionIgnore({ sourceEventId }));
   }
@@ -814,6 +817,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'humanAssignmentContext',
   'humanAttentionStatus',
   'humanAttentionIgnore',
+  'humanAttentionDismiss',
   'assignments',
   'assignment',
   'workspaceOptions',

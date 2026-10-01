@@ -245,6 +245,8 @@
 
 ### Fixed
 
+- Inbox 详情改为通过贴合消息上下沿的控件分别加载历史／较新内容，悬停或聚焦消息即可精确跳转来源；“移除”会持久隐藏该项，但不回答或授权原请求（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
+
 - Inbox 列表的“选择工作区”现在直接打开同一个 DSH 文件夹选择器，不展开事件详情；其他回应操作使用独立弹窗，取消后仍可再次打开，已解决的请求不会误触发授权（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
 
 - Computer 设置可正确调用原生目录选择器，授权导出后保存目标目录供后续导入使用；选择器不可用时仍可手动输入路径（[#166](https://github.com/BotHarness/BotHarness/issues/166)）。
