@@ -1,0 +1,13 @@
+{
+  "realModel": true,
+  "settingsSave": true,
+  "currentAuthors": true,
+  "historicalHumanAndBotMentions": true,
+  "sameNameTypedActors": true,
+  "plainTextUnchanged": true,
+  "sourceBodyAndOffsetsUnchanged": true,
+  "attentionUnchanged": true,
+  "secondWindow": true,
+  "clearDefault": true,
+  "restart": true
+}
