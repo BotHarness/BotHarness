@@ -1,8 +1,5 @@
 {
-  "realModelInitialTabs": [
-    3,
-    2
-  ],
+  "realModelInitialTabs": [3, 2],
   "parallelBarrierPassed": true,
   "sharedStartupSingleLaunch": true,
   "sameBotSerialized": true,
