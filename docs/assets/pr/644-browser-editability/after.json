@@ -1,0 +1,46 @@
+{
+  "build": "after",
+  "modelSetupVerified": true,
+  "protectedFields": [
+    {
+      "label": "Readonly input",
+      "isError": true
+    },
+    {
+      "label": "Readonly textarea",
+      "isError": true
+    },
+    {
+      "label": "Disabled input",
+      "isError": true
+    },
+    {
+      "label": "Disabled textarea",
+      "isError": true
+    },
+    {
+      "label": "Inherited disabled",
+      "isError": true
+    }
+  ],
+  "protectedValues": "original",
+  "protectedInputEvents": 0,
+  "submission": {
+    "count": 1,
+    "submitted": {
+      "readonlyInput": "original",
+      "readonlyTextarea": "original",
+      "editable": "complete"
+    }
+  },
+  "final": {
+    "currentRetained": true,
+    "ownedTabs": 1
+  },
+  "audit": {
+    "matchedAttempts": 6,
+    "ok": 1,
+    "error": 5,
+    "attributed": true
+  }
+}

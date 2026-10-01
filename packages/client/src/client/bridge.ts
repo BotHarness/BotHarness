@@ -1572,6 +1572,8 @@ export interface WorkspaceGrantView extends WorkspaceOption {
   workspaceTitle: string;
   createdAt: string;
   revokedAt?: string;
+  orchestratorWrite?: boolean;
+  writeRevision?: number;
 }
 
 function parseWorkspaceOption(value: unknown): WorkspaceOption | undefined {
@@ -1607,6 +1609,8 @@ function parseWorkspaceGrant(value: unknown): WorkspaceGrantView | undefined {
     workspacePath: row['workspacePath'],
     workspaceTitle: row['workspaceTitle'],
     createdAt: row['createdAt'],
+    orchestratorWrite: row['orchestratorWrite'] === true,
+    writeRevision: typeof row['writeRevision'] === 'number' ? row['writeRevision'] : 0,
     ...(typeof row['revokedAt'] === 'string' ? { revokedAt: row['revokedAt'] } : {}),
   };
 }
@@ -1640,6 +1644,20 @@ export async function createWorkspaceGrant(
   const value = asRecord(await unwrap(call, 'grantCreate', { slug, workspaceId }))?.['grant'];
   const grant = parseWorkspaceGrant(value);
   if (grant === undefined) throw new Error('invalid grantCreate response');
+  return grant;
+}
+
+export async function setWorkspaceGrantWrite(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+  enabled: boolean,
+): Promise<WorkspaceGrantView> {
+  const value = asRecord(await unwrap(call, 'grantWriteSet', { slug, grantId, enabled }))?.[
+    'grant'
+  ];
+  const grant = parseWorkspaceGrant(value);
+  if (grant === undefined) throw new Error('invalid grantWriteSet response');
   return grant;
 }
 

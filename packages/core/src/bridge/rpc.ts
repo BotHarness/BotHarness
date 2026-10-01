@@ -524,6 +524,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.grantRevoke({ slug, grantId }));
   }
 
+  grantWriteSet(slug: string, grantId: string, enabled: boolean): { grant: WorkspaceGrant } {
+    return unwrap(this.methods.grantWriteSet({ slug, grantId, enabled }));
+  }
+
   assignmentAccessGet(slug: string): { preset: AssignmentAccessPreset } {
     return unwrap(this.methods.assignmentAccessGet({ slug }));
   }
@@ -768,6 +772,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'grants',
   'grantCreate',
   'grantRevoke',
+  'grantWriteSet',
   'assignmentAccessGet',
   'assignmentAccessSet',
   'toolApprovalRules',

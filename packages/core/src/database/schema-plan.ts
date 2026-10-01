@@ -1158,8 +1158,21 @@ const LOCAL_HUMAN_NAME_MIGRATION: SchemaMigration = {
   },
 };
 
-const HUMAN_CHANNEL_NICKNAME_MIGRATION: SchemaMigration = {
+const ORCHESTRATOR_WORKSPACE_WRITE_MIGRATION: SchemaMigration = {
   generation: 42,
+  module: 'workspace-grants',
+  description: 'Explicit Human-owned Orchestrator write permission on Workspace Grants',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE workspace_grants ADD COLUMN orchestrator_write INTEGER NOT NULL DEFAULT 0
+        CHECK (orchestrator_write IN (0, 1));
+      ALTER TABLE workspace_grants ADD COLUMN write_revision INTEGER NOT NULL DEFAULT 0;
+    `);
+  },
+};
+
+const HUMAN_CHANNEL_NICKNAME_MIGRATION: SchemaMigration = {
+  generation: 43,
   module: 'messaging',
   description: 'Retain explicit per-Channel Human nickname overrides',
   migrate(database) {
@@ -1213,5 +1226,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ATTACHMENT_FILE_BINDING_MIGRATION,
   USAGE_RETENTION_MIGRATION,
   LOCAL_HUMAN_NAME_MIGRATION,
+  ORCHESTRATOR_WORKSPACE_WRITE_MIGRATION,
   HUMAN_CHANNEL_NICKNAME_MIGRATION,
 ]);

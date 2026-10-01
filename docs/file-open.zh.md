@@ -29,3 +29,11 @@ Messaging 拥有 schema generation 39 的 `attachment_file_bindings`，按不可
 引用感知清理标记 ready fileId 和所有 pending 预留 fileId；只要任一保留出现位置还未转换，其 legacy 对象就仍可达。仅在全部保留依赖安全转换后，既有显式 sweep 才能释放废弃共享 CAS 对象。迁移不启用自动删除，也不影响 SoulSnapshot 或其他 CAS。后续 Profile Backup／Export／Purge 必须覆盖 Operational Database 的绑定记录以及当前目标文件和回执；一次迁移及废弃兼容存储不提供附件历史 API。
 
 Schema 激活是单向升级：旧的 hash-only 版本不能读取 generation 39 或新文件身份。恢复应向前修复，保留数据库、绑定与当前文件。升级前任何另行支持的备份仍由其 owner 负责；本功能不新增备份或恢复产品。真实验收使用 `scripts/e2e-legacy-attachment-migration.mjs`：旧版本 composer 真实发送，将私有 SQLite 备份导入新隔离 Profile，原生编辑器保存，带归属读取当前字节，验证源文件／独立附件隔离、持久注意力不变、重启和缺失文件拒绝。
+
+## 让 PersonaBot 处理收到的文件
+
+在本地 Bot Channel 展开 **Workspace Grants**，添加工作目录并展开该行。**允许 Bot 写入此文件夹** 默认为关闭；只为保存和生成文件所需的目录开启。关闭后阻止后续 Orchestrator 写入，不删除文件、不改变 Assignment 权限。Shell 仍需 Human 审批或匹配的已保存规则；写入权限变更会使旧规则范围失效。
+
+上传任意格式文件，例如含 CSV 的 ZIP，并请求新结果。Orchestrator 通过 `channel_attachment_save` 另存独立工作文件，使用原生文件工具和经过审批的 Shell 处理，明确选择生成文件并通过 `channel_attachment_import` 导入，再回复独立可下载附件。父目录须已存在，另存不覆盖已有文件。原件引用保持不变，沿用 owner 的 25 MiB 传输上限；下载结果后检查实际内容。
+
+当前切片覆盖本地对话附件；显式原件写回为 #633，Lark/Slack 文件传输仍需后续集成与真实 E2E。见 [ADR-0105](adr/0105-attachments-use-native-file-operations-under-source-authority.md)。

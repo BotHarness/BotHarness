@@ -710,7 +710,8 @@ export const zh = {
   'entry.sessions': '会话',
   'entry.workspaceGrants': '工作区授权',
   'grant.safeDefault':
-    '这里管理文件夹授权。Orchestrator 可读取有效授权文件夹；Memory Repository 是固定内部目录，且是唯一可写入位置。',
+    'Bot 可读取有效授权文件夹。开启文件夹的写入权限后，也可直接处理其中的文件；命令执行仍需单独审批。',
+  'grant.orchestratorWrite': '允许 Bot 写入此文件夹',
   'grant.memory': 'Memory Repository',
   'grant.internal': '内部 · 可读写',
   'grant.readAccess': '项目文件夹',
@@ -1574,7 +1575,8 @@ export const en = {
   'entry.sessions': 'Sessions',
   'entry.workspaceGrants': 'Workspace Grants',
   'grant.safeDefault':
-    'Folder Grants are managed here. The Orchestrator can read active folders; its fixed Memory Repository is its only write location.',
+    'The Bot can read authorized folders. Enable write access to let it process files there; commands still require separate approval.',
+  'grant.orchestratorWrite': 'Allow Bot to write in this folder',
   'grant.memory': 'Memory Repository',
   'grant.internal': 'Internal · read/write',
   'grant.readAccess': 'Project folder',

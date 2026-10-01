@@ -3,6 +3,12 @@ import { join } from 'node:path';
 import { Context } from '@deepseek-ai/cordis';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { installOrchestratorFileTools } from '../src/workspaces/orchestrator-file-tools.js';
+
+vi.mock('../src/workspaces/orchestrator-file-tools.js', () => ({
+  installOrchestratorFileTools: vi.fn(async () => async () => undefined),
+}));
+
 import { apply, type BotHarnessCore } from '../src/index.js';
 import { attachOperationalModule } from '../src/database/owner.js';
 import { FakeAgentHost } from './dsh-agent-host-fixture.js';
@@ -12,6 +18,7 @@ const contexts: Context[] = [];
 const persistedSessions = new Map<string, Set<string>>();
 
 beforeEach(() => {
+  vi.mocked(installOrchestratorFileTools).mockClear();
   vi.stubEnv('DSH_HOME', createTempRoot('botharness-dm-turn-'));
 });
 
@@ -121,6 +128,10 @@ describe('DM turn end to end', () => {
     if (dm === undefined) throw new Error('DM channel missing');
 
     await admitTurn(core, dm.id, 'human-1', '请核对发布状态');
+    expect(installOrchestratorFileTools).toHaveBeenCalledOnce();
+    expect(vi.mocked(installOrchestratorFileTools).mock.calls[0]?.[1].session.id).toBe(
+      core.ownership.rootsFor('ada', 'orchestrator')[0]?.sessionId,
+    );
 
     expect(core.channels.readMessages(dm.id).map((message) => message.body)).toEqual([
       '发布状态已经核对完成。',

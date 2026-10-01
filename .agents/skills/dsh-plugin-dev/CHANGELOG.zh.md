@@ -9,6 +9,8 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 
 ### Documentation
 
+- 在[本地开发指南](../dsh-dev/SKILL.md)记录隔离 Provider 激活顺序、原生 Consumer 捕获 Policy 与真正的 Tool 执行边界，经固定 DSH 0.2.0 RC1 的原生文件与审批 Shell 调用验证（[#632](https://github.com/BotHarness/BotHarness/issues/632)）。
+
 - 在[本地开发指南](../dsh-dev/SKILL.md)澄清原生 token 投影的汇总字段及失败调用的请求路由归属，通过 DSH 0.2.0 RC1 的真实 Assignment 与子代理调用完成核验（[#503](https://github.com/BotHarness/BotHarness/issues/503)）。
 
 - 记录隔离开发 Profile 重启时保留可选 Bundle 的行为（[#117](https://github.com/BotHarness/BotHarness/issues/117)）。
