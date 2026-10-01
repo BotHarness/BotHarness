@@ -2784,6 +2784,14 @@ export async function setMessagingChannelTarget(
 ): Promise<void> {
   await unwrap(call, 'messagingChannelTarget', { slug, grantId, channelId });
 }
+export async function setMessagingThreadPolicy(
+  call: BridgeCall,
+  slug: string,
+  sourceEventId: string,
+  policy: import('../../../core/src/messaging/thread-policy.js').ThreadReceptionInput,
+): Promise<void> {
+  await unwrap(call, 'messagingThreadPolicy', { slug, sourceEventId, policy });
+}
 export async function setMessagingGroupPolicy(
   call: BridgeCall,
   slug: string,

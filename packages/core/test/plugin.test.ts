@@ -246,6 +246,7 @@ describe('plugin entry', () => {
       'messagingChannelTarget',
       'messagingReceive',
       'messagingGroupPolicy',
+      'messagingThreadPolicy',
       'messagingSource',
       'messagingSnapshot',
       'messagingTargets',

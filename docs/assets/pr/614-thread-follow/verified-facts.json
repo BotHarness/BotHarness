@@ -1,0 +1,45 @@
+{
+  "humanOverride": {
+    "revision": 3,
+    "mode": "follow",
+    "editor": "human",
+    "wake": "immediate",
+    "admissionRevision": 3,
+    "toolResult": "Error: human-thread-override",
+    "sessionEventSeq": 669
+  },
+  "larkReplies": [
+    {
+      "text": "BH614-ANCHOR-OK",
+      "correctThread": true,
+      "correctRoot": true,
+      "parentIsTrigger": true
+    },
+    {
+      "text": "BH614-FOLLOW-OK",
+      "correctThread": true,
+      "correctRoot": true,
+      "parentIsTrigger": true
+    },
+    {
+      "text": "BH614-DIGEST-OK",
+      "correctThread": true,
+      "correctRoot": true,
+      "parentIsTrigger": true
+    },
+    {
+      "text": "BH614-UNFOLLOW-OK",
+      "correctThread": true,
+      "correctRoot": true,
+      "parentIsTrigger": true
+    },
+    {
+      "text": "BH614-HUMAN-OVERRIDE-OK",
+      "correctThread": true,
+      "correctRoot": true,
+      "parentIsTrigger": true
+    }
+  ],
+  "excludedSamples": 5,
+  "assertions": "PASS"
+}

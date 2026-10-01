@@ -1,3 +1,4 @@
+import type { ThreadReceptionView } from './thread-policy.js';
 import type { GroupReceptionPolicy } from './group-policy.js';
 import { bridgeChannel } from './channel-target.js';
 import type { ChannelMessageCommit } from '../channels/store.js';
@@ -109,6 +110,7 @@ export interface MessagingSnapshot {
     reception: ReturnType<InboundMessaging['status']>;
     canReceive?: boolean;
     groupPolicy?: GroupReceptionPolicy;
+    threadPolicies?: ThreadReceptionView[];
     ordinaryDelivery?: 'verified' | 'unverified';
   })[];
   intents: OutboxIntent[];
@@ -522,6 +524,7 @@ export function createOutboundMessaging(options: {
             options.isBotActive(botSlug)
               ? {
                   groupPolicy: inbound.policy(botSlug, value.id),
+                  threadPolicies: inbound.threads(botSlug, value.id),
                   ordinaryDelivery: inbound.ordinaryDelivery(value.id),
                 }
               : {}),

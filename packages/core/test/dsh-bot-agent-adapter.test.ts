@@ -841,6 +841,8 @@ describe('DSH Bot Agent adapter', () => {
       'bridge_read',
       'bridge_group_policy_list',
       'bridge_group_policy_set',
+      'bridge_thread_policy_list',
+      'bridge_thread_policy_set',
       'bridge_context',
       'bridge_attachment_save',
       'bridge_reply_file',
@@ -1248,6 +1250,10 @@ it('routes external Tools through the active owning Orchestrator without a local
     inbox: 'External Inbox',
     message: 'External turn',
     externalMessaging: {
+      threads: async () => [],
+      setThread: async () => {
+        throw new Error('thread sentinel');
+      },
       policies: async () => [],
       setPolicy: async () => {
         throw new Error('policy sentinel');
