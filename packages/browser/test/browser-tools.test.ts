@@ -743,6 +743,73 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.provider.tabCount('bot-a')).toBe(1);
   });
 
+  it('retains current work when selecting a Human-closed owned background tab', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    await tabs.execute({ action: 'open', url: 'https://example.org' }, execution('browser_tabs'));
+    await tabs.execute({ action: 'select', targetId: 'tab-1' }, execution('browser_tabs'));
+    vi.mocked(h.runtime.tabInfo).mockRejectedValueOnce(new Error('No target with given id found'));
+    await expect(
+      tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs')),
+    ).rejects.toThrow(/tab is gone.*browser_tabs action list.*browser_open/);
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    expect(h.provider.ownsTab('bot-a', 'tab-1')).toBe(true);
+    expect(h.provider.ownsTab('bot-a', 'tab-2')).toBe(false);
+    await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+    expect(h.runtime.observe).toHaveBeenLastCalledWith('tab-1');
+    await h.state.definitions
+      .get('browser_click')!
+      .execute({ ref: 'e1' }, execution('browser_click'));
+    expect(h.runtime.click).toHaveBeenLastCalledWith('tab-1', 'e1');
+    await expect(
+      tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs')),
+    ).rejects.toThrow(/not owned/);
+  });
+
+  it('leaves selection and ownership intact on transient tab lookup failure and permits retry', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    await tabs.execute({ action: 'open', url: 'https://example.org' }, execution('browser_tabs'));
+    await tabs.execute({ action: 'select', targetId: 'tab-1' }, execution('browser_tabs'));
+    vi.mocked(h.runtime.tabInfo).mockRejectedValueOnce(new Error('Temporary lookup timeout'));
+    await expect(
+      tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs')),
+    ).rejects.toThrow('Temporary lookup timeout');
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    expect(h.provider.tabCount('bot-a')).toBe(2);
+    await tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs'));
+    expect(h.provider.currentTab('bot-a')).toBe('tab-2');
+    expect(h.audits.at(-2)).toMatchObject({ tool: 'browser_tabs', outcome: 'error' });
+    expect(h.audits.at(-1)).toMatchObject({ tool: 'browser_tabs', outcome: 'ok' });
+  });
+
+  it('clears only a confirmed dead current target during selection and keeps another owned tab recoverable', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    await tabs.execute({ action: 'open', url: 'https://example.org' }, execution('browser_tabs'));
+    vi.mocked(h.runtime.tabInfo).mockRejectedValueOnce(new Error('No target with given id found'));
+    await expect(
+      tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs')),
+    ).rejects.toThrow(/tab is gone/);
+    expect(h.provider.currentTab('bot-a')).toBeUndefined();
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+    expect(h.provider.ownsTab('bot-a', 'tab-1')).toBe(true);
+    await tabs.execute({ action: 'select', targetId: 'tab-1' }, execution('browser_tabs'));
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+  });
+
   it('uploads a Host file and audits only its basename', async () => {
     const h = harness({ access: true, auto: true });
     h.created();

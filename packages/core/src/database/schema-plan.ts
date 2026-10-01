@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { defineSchemaPlan, type SchemaMigration } from './schema.js';
 
 const SESSION_OWNERSHIP_MIGRATION: SchemaMigration = {
@@ -1110,8 +1112,42 @@ const ATTACHMENT_FILE_BINDING_MIGRATION: SchemaMigration = {
   },
 };
 
-const LOCAL_HUMAN_NAME_MIGRATION: SchemaMigration = {
+const USAGE_RETENTION_MIGRATION: SchemaMigration = {
   generation: 40,
+  module: 'usage',
+  description:
+    'Retain daily usage independently of Session histories with durable anonymous receipts',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE usage_receipt_state (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        fingerprint_key TEXT NOT NULL
+      );
+      CREATE TABLE usage_receipts (
+        fingerprint TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL
+      );
+      CREATE INDEX usage_receipts_bot ON usage_receipts(bot_slug);
+      CREATE TABLE usage_retired_roots (
+        fingerprint TEXT PRIMARY KEY
+      );
+      CREATE TABLE usage_legacy_baselines (
+        bot_slug TEXT PRIMARY KEY,
+        through_ms INTEGER NOT NULL
+      );
+    `);
+    database
+      .prepare('INSERT INTO usage_receipt_state VALUES (1, ?)')
+      .run(randomBytes(32).toString('hex'));
+    database
+      .prepare(`INSERT INTO usage_legacy_baselines (bot_slug, through_ms)
+      SELECT DISTINCT bot_slug, ? FROM usage_daily`)
+      .run(Date.now());
+  },
+};
+
+const LOCAL_HUMAN_NAME_MIGRATION: SchemaMigration = {
+  generation: 41,
   module: 'messaging',
   description: 'Retain one optional local Human default name without changing membership',
   migrate(database) {
@@ -1161,5 +1197,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   USAGE_REPORT_COMPLETENESS_MIGRATION,
   MESSAGING_OUTBOUND_MIGRATION,
   ATTACHMENT_FILE_BINDING_MIGRATION,
+  USAGE_RETENTION_MIGRATION,
   LOCAL_HUMAN_NAME_MIGRATION,
 ]);

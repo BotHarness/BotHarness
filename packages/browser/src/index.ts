@@ -6,7 +6,7 @@ import Schema from '@deepseek-ai/schemastery';
 
 import { createBrowserDiagnostics, toLogEntry } from './diagnostics.js';
 import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
-import { createBotBrowserRuntimes } from './runtimes.js';
+import { createBotBrowserRuntimes, listStoredProfileNames } from './runtimes.js';
 import {
   browserToolNames,
   createBrowserToolProvider,
@@ -239,6 +239,14 @@ export function apply(ctx: Context, config: BrowserConfig): void {
           const shot = await runtime.captureScreenshot(tabId).catch(() => undefined);
           if (shot !== undefined) frame = `data:${shot.mimeType};base64,${shot.data}`;
         }
+        const discoveryStarted = Date.now();
+        const profiles = await listStoredProfileNames(profileDirectory()).catch(() => {
+          diagnostics.record(
+            'lifecycle',
+            `initiator=observation phase=profile-discovery outcome=unavailable reason=directory-unavailable durationMs=${Date.now() - discoveryStarted}`,
+          );
+          return [];
+        });
         return json({
           ok: true,
           running: runtime.isRunning(),
@@ -246,6 +254,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
           focused: tabId ?? null,
           takeover: provider.isTakeover(slug),
           tabs: await provider.listTabs(slug),
+          profiles,
         });
       },
     };

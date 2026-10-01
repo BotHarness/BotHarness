@@ -1,0 +1,17 @@
+{
+  "baseline": false,
+  "phase": "complete",
+  "modelPassed": true,
+  "originalTab": "ACE31D3F24C21F365664B5354EB4F1C9",
+  "closedCandidate": "F6BC989F4A1FEC8510B5727CBC974F7D",
+  "focused": "ACE31D3F24C21F365664B5354EB4F1C9",
+  "retainedOriginal": true,
+  "previewAvailable": true,
+  "liveTabs": [
+    {
+      "targetId": "ACE31D3F24C21F365664B5354EB4F1C9",
+      "current": true
+    }
+  ],
+  "pageConfirmations": 1
+}

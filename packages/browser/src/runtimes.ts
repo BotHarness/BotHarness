@@ -1,4 +1,5 @@
 import { dirname, join } from 'node:path';
+import { readdir } from 'node:fs/promises';
 
 import {
   createBotBrowserRuntime,
@@ -29,8 +30,23 @@ const PROFILE_NAME = /^[a-zA-Z0-9._-]{1,40}$/u;
 
 export function sanitizeProfileName(value: string): string {
   const trimmed = value.trim();
-  if (trimmed === 'default') return '';
+  if (trimmed === 'default' || trimmed === '.' || trimmed === '..') return '';
   return PROFILE_NAME.test(trimmed) ? trimmed : '';
+}
+
+export async function listStoredProfileNames(browserDir: string): Promise<readonly string[]> {
+  try {
+    const entries = await readdir(join(dirname(browserDir), 'browser-profiles'), {
+      withFileTypes: true,
+    });
+    return entries
+      .filter((entry) => entry.isDirectory() && sanitizeProfileName(entry.name) === entry.name)
+      .map((entry) => entry.name)
+      .sort();
+  } catch (cause) {
+    if (cause instanceof Error && 'code' in cause && cause.code === 'ENOENT') return [];
+    throw cause;
+  }
 }
 
 export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): BotBrowserRuntimes {

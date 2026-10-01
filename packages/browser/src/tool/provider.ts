@@ -482,9 +482,20 @@ export function createBrowserToolProvider(
           );
         }
         if (action === 'select') {
+          let info;
+          try {
+            info = await runtime.tabInfo(targetId);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (!isDeadTarget(message)) throw error;
+            state.owned.delete(targetId);
+            if (state.current === targetId) state.current = undefined;
+            throw new Error(
+              `The requested Bot Browser tab is gone (${message}); call browser_tabs action list to pick another tab, or browser_open`,
+            );
+          }
           state.current = targetId;
           state.lastActivity = Date.now();
-          const info = await runtime.tabInfo(targetId);
           return {
             content: [
               {
