@@ -1,0 +1,30 @@
+{
+  "build": "after",
+  "modelSetupVerified": true,
+  "invalidKey": {
+    "isError": true,
+    "currentRetained": true
+  },
+  "editing": {
+    "focus": "edit",
+    "value": "az",
+    "trusted": true
+  },
+  "submission": {
+    "count": 1,
+    "submitted": {
+      "task": "native-keys",
+      "edit": "az"
+    }
+  },
+  "final": {
+    "currentRetained": true,
+    "ownedTabs": 1
+  },
+  "audit": {
+    "matchedAttempts": 6,
+    "ok": 5,
+    "error": 1,
+    "attributed": true
+  }
+}

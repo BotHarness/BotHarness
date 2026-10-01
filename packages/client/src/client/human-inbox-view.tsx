@@ -61,7 +61,11 @@ export function HumanInboxView({
   };
 
   const openSource = async (item: HumanAttentionItem): Promise<void> => {
-    if (item.kind === 'channel-unread' || item.kind === 'channel-reply') {
+    if (
+      item.kind === 'channel-unread' ||
+      item.kind === 'channel-reply' ||
+      item.kind === 'channel-mention'
+    ) {
       await actions.openChannelAtMessage(item.channelId!, item.messageId!);
     } else if (item.kind === 'bot-message-needs-repair') {
       if (item.channelName && item.channelId && item.messageId) {
@@ -223,11 +227,13 @@ export function HumanInboxView({
                 role="listitem"
                 className={
                   'bh-human-inbox-row' +
-                  (item.kind === 'channel-reply' ? ' bh-human-inbox-personal-row' : '')
+                  (item.kind === 'channel-reply' || item.kind === 'channel-mention'
+                    ? ' bh-human-inbox-personal-row'
+                    : '')
                 }
                 data-selected={replySource?.id === item.id ? 'true' : undefined}
               >
-                {item.kind === 'channel-reply' ? (
+                {item.kind === 'channel-reply' || item.kind === 'channel-mention' ? (
                   <PersonaBotAvatar
                     personaBotId={item.botSlug}
                     name={botName(item.botSlug)}
@@ -266,9 +272,15 @@ export function HumanInboxView({
                                       ? t('humanInbox.repair', { bot: botName(item.botSlug) })
                                       : botName(item.botSlug)}
                   </div>
-                  {item.kind === 'channel-reply' ? (
+                  {item.kind === 'channel-reply' || item.kind === 'channel-mention' ? (
                     <div className="bh-human-inbox-unread-meta">
                       <span>{item.channelName}</span>
+                      {item.kind === 'channel-mention' ? (
+                        <>
+                          {' · '}
+                          <span className="bh-inline-mention">{t('humanInbox.mention')}</span>
+                        </>
+                      ) : null}
                       {' · '}
                       <time dateTime={item.createdAt}>
                         {new Date(item.createdAt).toLocaleString()}
@@ -292,6 +304,7 @@ export function HumanInboxView({
                     </div>
                   ) : null}
                   {item.kind === 'channel-reply' ||
+                  item.kind === 'channel-mention' ||
                   item.kind === 'bot-dm-message' ||
                   item.kind === 'user-question' ||
                   item.kind === 'tool-approval' ||
@@ -316,7 +329,9 @@ export function HumanInboxView({
                   ) : null}
                 </div>
                 <div className="bh-human-inbox-row-actions">
-                  {item.kind === 'channel-unread' || item.kind === 'channel-reply' ? (
+                  {item.kind === 'channel-unread' ||
+                  item.kind === 'channel-reply' ||
+                  item.kind === 'channel-mention' ? (
                     <button type="button" onClick={() => setReplySource(item)}>
                       {t('humanInbox.reply')}
                     </button>
@@ -368,7 +383,8 @@ export function HumanInboxView({
                   ) : item.kind === 'bot-dm-message' ||
                     item.kind === 'assignment-report' ||
                     item.kind === 'channel-unread' ||
-                    (item.kind === 'channel-reply' && item.isUnread) ? (
+                    ((item.kind === 'channel-reply' || item.kind === 'channel-mention') &&
+                      item.isUnread) ? (
                     <button
                       type="button"
                       disabled={busyId === item.id}
@@ -377,7 +393,9 @@ export function HumanInboxView({
                       {t(
                         item.kind === 'assignment-report'
                           ? 'humanInbox.ignore'
-                          : item.kind === 'channel-unread' || item.kind === 'channel-reply'
+                          : item.kind === 'channel-unread' ||
+                              item.kind === 'channel-reply' ||
+                              item.kind === 'channel-mention'
                             ? 'humanInbox.markRead'
                             : 'humanInbox.acknowledge',
                       )}
@@ -395,6 +413,10 @@ export function HumanInboxView({
               t={t}
               botName={botName}
               bots={state.bots}
+              humanMembers={
+                state.channels.find((channel) => channel.id === replySource.channelId)
+                  ?.humanMembers ?? []
+              }
               onClose={() => setReplySource(undefined)}
             />
           )}

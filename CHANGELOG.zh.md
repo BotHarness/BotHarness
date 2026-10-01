@@ -15,7 +15,13 @@
 
 ### Added
 
+- PersonaBot 用量新增实际模型／提供商与执行类别筛选，独立展示保留的累计用量，图表默认近七天，并明确显示查询新鲜度或失败状态 ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
+- 本地 Human 可在插件设置中保存可选默认名字，Channel 作者、成员、回执与 Bot 上下文使用当前称呼；历史可信 Human／Bot 提及按稳定身份显示当前名字，不改写消息或注意力事实（[#621](https://github.com/BotHarness/BotHarness/issues/621)、[ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)）。
+
+- PersonaBot 可通过群聊中有效的成员身份明确提及本地 Human；Human Inbox 将可信提及与直接回复合并到个人视图，支持展开上下文和原位回复，普通 `@Human` 文本不会生成个人提醒（[#549](https://github.com/BotHarness/BotHarness/issues/549)）。
+- PersonaBot Profile 的每日用量与实际模型图表共用一个有界时间范围，初始显示最近 7 天；模型／提供商切换只展示选中维度；默认按模型合并提供商与执行类别，以紧凑单行显示名称与总 token，含缓存的输入、缓存读、输出和加权比例放在图表悬浮提示中，并提供用量构成与缓存比例图；键盘可展开的详细信息提供会话类别 ([#592](https://github.com/BotHarness/BotHarness/issues/592))。
 - 旧消息附件在 Host 启动时迁移到可恢复的独立真实文件身份，原消息菜单可打开当前目标；相同 hash 不会意外联动，带归属的旧读取跟随保存后的内容，不改写消息或唤醒 Bot（[#577](https://github.com/BotHarness/BotHarness/issues/577)，[迁移指南](docs/file-open.md)）。
+- 本地 IM 验证 Profile 可显式安装固定 Git 提交的已验证临时 dsh-im fork，并在启动前校验运行时代码；旧 npm 包仍不可用，生产启用仍需上游资格验证（[#117](https://github.com/BotHarness/BotHarness/issues/117)、[指南](docs/client-bridge.md#qualified-optional-im-provider)、[ADR-0104](docs/adr/0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md)）。
 
 - PersonaBot 模型用量现在按实际 provider/model 分别展示 Orchestrator、Assignment 和 DSH 子代理调用，计入失败和重试调用已报告的 token；未报告的用量仍显示未知（[#503](https://github.com/BotHarness/BotHarness/issues/503)、[ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)）。
 
@@ -121,6 +127,8 @@
 
 ### Changed
 
+- Browser Profile 改为可搜索的 combobox：选择已有名称或明确创建新名称；错误使用 destructive 主题颜色，Browser view 移除多余说明与重复页标题（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。
+
 - `channel_send` 现在用 JSON 确认已提交的 Channel 与消息 ID，明确复制读取到的完整可信附件引用进行转发，并公开既有的 10 个附件／20 个提及上限及安全整数字节大小（[#570](https://github.com/BotHarness/BotHarness/issues/570)）。
 
 - 联系人发现现在可搜索名称及完整简介，返回有界续页和按需详情，保留稳定同事 ID 以发送真实 Bot 私信及进行群协作（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
@@ -208,9 +216,16 @@
 ### Fixed
 
 - 群聊退出现在明确返回已提交变更或 `not-member` 幂等无变更；缺失 Channel 和非群聊目标明确失败，重复或被拒绝的请求不再被描述为一次新退出（[#571](https://github.com/BotHarness/BotHarness/issues/571)）。
+- Browser 按键现在可以执行原生焦点切换、文本编辑和表单提交；不支持的按键会返回可重试的错误，而不是报告成功 ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
+
+- Browser 导航失败现在返回可重试的 Tool 错误并记录错误 Audit；新建失败的标签页会清理，已有当前标签页仍可观察并重试 ([#627](https://github.com/BotHarness/BotHarness/issues/627)).
+
+- 修复 Session 历史缺失时模型 token 统计被清空的问题：重启与校准保留日汇总，持久去重防止重复回放，归档保留用量，彻底 Purge PersonaBot 清理其统计（[#502](https://github.com/BotHarness/BotHarness/issues/502)）。旧汇总作为保留基线迁移；无法确认是否已计入的升级前调用不会单独补计。
+- Bot 选择已被 Human 关闭的 Browser 标签页时，会保留另一当前工作页及其预览，并移除失效标签页、提示恢复方式；临时查询失败不会改变当前选择 ([#623](https://github.com/BotHarness/BotHarness/issues/623)).
 
 - Human 点击 Resume 后，Browser 页面操作必须先完成一次新的观察；Pause 期间或 Pause/Resume 切换前的读取不能让 Bot 继续操作 Human 已修改的内容（[#600](https://github.com/BotHarness/BotHarness/issues/600)）。
 - 被拒绝的 Browser 工具尝试现在也会生成一条带 Bot、Session 与角色归属的 Browser Audit 错误记录，覆盖授权、Access、Pause 与 Resume 后重新观察检查；输入文本和上传路径仍使用既有脱敏摘要（[#604](https://github.com/BotHarness/BotHarness/issues/604)）。
+- Browser Profile 的保留名 `.` 和 `..` 会在保存或重置工作前被拒绝，保留当前标签与 Pause 状态；已存无效名称仍沿用 runtime 的默认 profile 回退（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。
 
 - 修改 PersonaBot 的 Browser Profile 后，会清空旧标签页选择与 Pause 状态，让 Bot 可以在新分配的 profile 中开始工作，不必恢复旧 profile 的操作（[#595](https://github.com/BotHarness/BotHarness/issues/595)）。
 

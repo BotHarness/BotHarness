@@ -93,7 +93,7 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
   {
     raw: 'press_key',
     description:
-      'Press one key (for example Enter or ArrowDown) on the focused element of the current Bot Browser tab.',
+      'Press one native key on the focused element of the current Bot Browser tab. Supports Enter, Tab, Escape, Backspace, Delete, Arrow keys, Home, End, PageUp, PageDown, Insert, F1–F12, Space and printable ASCII characters. Key chords are not supported; use browser_type for arbitrary text.',
     inputSchema: {
       type: 'object',
       properties: { key: { type: 'string' } },

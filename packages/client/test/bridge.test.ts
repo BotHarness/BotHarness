@@ -224,6 +224,25 @@ describe('bridge parsers', () => {
     expect(messages[0]?.author).toEqual({ kind: 'bot', slug: 'ada' });
   });
 
+  it('preserves stable Human mentions and rejects forged offsets or authors', () => {
+    const message = {
+      id: 'mention',
+      at: '2026-09-30T00:00:00Z',
+      author: { kind: 'bot', slug: 'ada' },
+      body: '@Human Launch ready',
+      humanMentions: [{ humanId: 'local-human', label: 'Human', start: 0, end: 6 }],
+    };
+    const messages = parseChannelMessages({
+      messages: [
+        message,
+        { ...message, id: 'bad-offset', humanMentions: [{ ...message.humanMentions[0], end: 5 }] },
+        { ...message, id: 'wrong-author', author: { kind: 'human' } },
+      ],
+    });
+    expect(messages.map((entry) => entry.id)).toEqual(['mention']);
+    expect(messages[0]?.humanMentions).toEqual(message.humanMentions);
+  });
+
   it('parses reply previews and an unavailable original without accepting malformed links', () => {
     const base = {
       id: 'reply',
@@ -1517,6 +1536,12 @@ describe('bridge actions', () => {
   it('can send the first DM immediately after creating a PersonaBot', async () => {
     const creates: Array<Record<string, unknown>> = [];
     const { clientStore, actions } = setup({
+      list: () => ({
+        bots:
+          creates.length === 0
+            ? [BOT]
+            : [{ ...BOT, ...creates.at(-1), slug: 'bot-generated' }, BOT],
+      }),
       create: (payload) => {
         creates.push(payload);
         return {
@@ -1572,6 +1597,10 @@ describe('bridge actions', () => {
   it('routes Git-backed creation through its async Host endpoint and opens the DM', async () => {
     const imports: Array<Record<string, unknown>> = [];
     const { actions, clientStore } = setup({
+      list: () => ({
+        bots:
+          imports.length === 0 ? [BOT] : [{ ...BOT, ...imports.at(-1), slug: 'bot-imported' }, BOT],
+      }),
       createFromGit: (payload) => {
         imports.push(payload);
         return { bot: { ...BOT, slug: 'bot-imported', displayName: payload['displayName'] } };

@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createAttachmentStore } from '../src/attachments/store.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
@@ -86,6 +86,49 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it.each(['.', '..', ' . ', ' .. '])(
+    'refuses reserved Browser profile %s before writing or resetting work',
+    (profile) => {
+      const h = setup();
+      h.registry.create({ slug: 'ada', displayName: 'Ada' });
+      h.registry.setBrowserProfile('ada', 'work.v2');
+      const before = h.registry.get('ada');
+      const write = vi.spyOn(h.registry, 'setBrowserProfile');
+      const changed = vi.fn();
+      const methods = createBridgeMethods({
+        registry: h.registry,
+        states: h.states,
+        channels: h.channels,
+        ownership: createTestOwnership(),
+        roster: createRosterStore(),
+        browserProfile: { changed },
+      });
+      expect(methods.browserProfileSet({ slug: 'ada', profile })).toMatchObject({
+        ok: false,
+        error: { code: 'invalid-input', message: expect.stringMatching(/reserved/) },
+      });
+      expect(write).not.toHaveBeenCalled();
+      expect(changed).not.toHaveBeenCalled();
+      expect(h.registry.get('ada')).toEqual(before);
+      expect(createPersonaBotRegistry({ rootDir: h.root }).get('ada')).toEqual(before);
+    },
+  );
+
+  it('keeps valid dotted Browser profile names and default aliases', () => {
+    const h = setup();
+    h.registry.create({ slug: 'ada', displayName: 'Ada' });
+    for (const [profile, expected] of [
+      [' work.v2 ', 'work.v2'],
+      ['.work', '.work'],
+      ['work..', 'work..'],
+      [' default ', undefined],
+      ['', undefined],
+    ]) {
+      expect(h.methods.browserProfileSet({ slug: 'ada', profile }).ok).toBe(true);
+      expect(h.registry.get('ada')?.browserProfile).toBe(expected);
+    }
+  });
+
   it('shows Assignment-default failure in Profile while the Orchestrator route still works', async () => {
     const working = { provider: 'selected-provider', model: 'working' };
     const missing = { provider: 'selected-provider', model: 'missing' };

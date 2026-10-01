@@ -22,6 +22,7 @@ import {
   isChannelRecord,
   isGroupAvatar,
   isValidChannelId,
+  type LocalHumanIdentity,
   type ChannelMessage,
   type ChannelRecord,
   type GroupInvitation,
@@ -241,8 +242,11 @@ export interface CreateChannelGroupInput {
 
 export interface ChannelStore {
   rootDir: string;
+  humanIdentity(): LocalHumanIdentity;
+  setHumanDefaultName(displayName: string | null): LocalHumanIdentity;
   list(): ChannelRecord[];
   get(id: string): ChannelRecord | undefined;
+  listHumanMembers(id: string): Array<{ humanId: string; displayName: string }>;
 
   latestMessage(id: string): ChannelMessage | undefined;
 
@@ -520,6 +524,15 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
   return {
     rootDir,
     get: read,
+    humanIdentity: () => ({
+      humanId: 'local-human',
+      defaultDisplayName: null,
+      displayName: 'Human',
+    }),
+    setHumanDefaultName: () => {
+      throw new Error('Human names require the operational database');
+    },
+    listHumanMembers: () => [],
     readPosition,
     markRead(id, messageId) {
       return enqueue(id, () => {

@@ -2,6 +2,9 @@ import { useRef, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar } from './avatar.js';
+import { channelHumanName, currentMentionLabel } from './actor-names.js';
+import type { ChannelHumanMember } from './store.js';
+import { referenceRuns } from './channel-refs.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { BotSummary, ChannelAuthor, ChannelMessage, HumanAttentionItem } from './store.js';
@@ -12,6 +15,7 @@ export function HumanInboxReply({
   t,
   botName,
   bots,
+  humanMembers = [],
   onClose,
 }: {
   source: HumanAttentionItem;
@@ -19,6 +23,7 @@ export function HumanInboxReply({
   t: BotHarnessTranslate;
   botName: (slug: string) => string;
   bots: readonly BotSummary[];
+  humanMembers?: readonly ChannelHumanMember[];
   onClose: () => void;
 }): ReactElement {
   const channelId = source.channelId!;
@@ -110,7 +115,9 @@ export function HumanInboxReply({
       ? botName(value.slug)
       : value.kind === 'bridged'
         ? value.source
-        : t(value.kind === 'human' ? 'humanInbox.reply.you' : 'humanInbox.reply.system');
+        : value.kind === 'human'
+          ? channelHumanName({ humanMembers: [...humanMembers] })
+          : t('humanInbox.reply.system');
   const author = (message: ChannelMessage): string => authorName(message.author);
   const target = context?.find((message) => message.id === messageId);
   const openSource = (id: string): void => {
@@ -190,7 +197,37 @@ export function HumanInboxReply({
                       <p>{message.replyToPreview.body}</p>
                     </blockquote>
                   ) : null}
-                  <p>{message.body}</p>
+                  <p>
+                    {referenceRuns(
+                      message.body,
+                      message.mentions ?? [],
+                      [],
+                      message.humanMentions ?? [],
+                    ).map((run, index) =>
+                      run.humanMention === undefined && run.mention === undefined ? (
+                        <span key={index}>{run.text}</span>
+                      ) : (
+                        <span
+                          key={index}
+                          className="bh-inline-mention bh-inline-mention-sent"
+                          data-human-id={run.humanMention?.humanId}
+                          data-bot-id={run.mention?.botSlug}
+                          title={t(
+                            run.humanMention === undefined
+                              ? 'message.mention.botType'
+                              : 'message.mention.humanType',
+                          )}
+                        >
+                          @
+                          {currentMentionLabel(
+                            (run.humanMention ?? run.mention)!,
+                            bots,
+                            humanMembers,
+                          )}
+                        </span>
+                      ),
+                    )}
+                  </p>
                   {message.attachments?.map((attachment) => (
                     <p key={attachment.fileId ?? attachment.hash}>{attachment.name}</p>
                   ))}

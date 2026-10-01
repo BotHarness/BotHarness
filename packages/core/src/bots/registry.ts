@@ -41,9 +41,11 @@ export interface MemoryRepositoryInitialization {
 export interface PersonaBotRegistryOptions {
   rootDir: string;
   now?: () => Date;
+  onDisplayNameChanged?: () => void;
 
   initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
   cloneMemory?: (destination: string, url: string) => Promise<MemoryCloneResult>;
+  onPurge?: (slug: string, removeFiles: () => void) => void;
 }
 
 export interface PersonaBotRegistry {
@@ -276,11 +278,17 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       );
     },
     remove(slug, removeOptions) {
-      if (!isValidSlug(slug) || !existsSync(botDir(slug))) return false;
+      if (!isValidSlug(slug)) return false;
+      const exists = existsSync(botDir(slug));
       if (removeOptions?.purge === true) {
-        rmSync(botDir(slug), { recursive: true, force: true });
-        return true;
+        const removeFiles = () => {
+          if (exists) rmSync(botDir(slug), { recursive: true, force: true });
+        };
+        if (options.onPurge === undefined) removeFiles();
+        else options.onPurge(slug, removeFiles);
+        return exists;
       }
+      if (!exists) return false;
       rmSync(botFile(slug), { force: true });
       return true;
     },
@@ -292,6 +300,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     update(slug, patch) {
       const record = read(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
+      const previousName = record.displayName;
       if (patch.displayName !== undefined) {
         const displayName = patch.displayName.trim();
         if (displayName.length === 0) return { ok: false, reason: 'invalid-input' };
@@ -322,6 +331,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         record.workspaces = [...patch.workspaces];
       }
       write(record);
+      if (record.displayName !== previousName) options.onDisplayNameChanged?.();
       return { ok: true, record };
     },
     setPaused(slug, paused) {

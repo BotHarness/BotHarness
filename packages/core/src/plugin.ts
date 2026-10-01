@@ -224,8 +224,20 @@ export function createCore(
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
   const rootDir = join(dshHome, 'botharness', 'bots');
+  let usage: UsageProjection | undefined;
   const registry = createPersonaBotRegistry({
     rootDir,
+    onDisplayNameChanged: () => {
+      try {
+        live?.publishRosterCommitted();
+      } catch {
+        options.warn?.('bot-name-publication-failed');
+      }
+    },
+    onPurge: (slug, removeFiles) => {
+      if (usage === undefined) throw new Error('Usage purge requires a ready operational database');
+      usage.purgeBot(slug, removeFiles);
+    },
     cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
     initializeMemory: (memoryDir) => {
       const repository = ensureMemoryRepository({ memoryDir });
@@ -324,9 +336,13 @@ export function createCore(
     database: operationalDatabase,
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
-  const usage =
+  usage =
     operationalDatabase.mode === 'ready'
-      ? createUsageProjection({ ownership, database: operationalDatabase })
+      ? createUsageProjection({
+          ownership,
+          database: operationalDatabase,
+          botCreatedAt: (slug) => registry.get(slug)?.createdAt,
+        })
       : undefined;
   const grants = createWorkspaceGrantStore({
     database: attachOperationalModule(operationalDatabase, 'workspace-grants'),
@@ -968,8 +984,13 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       const tracked = core.ownership.list().map((record) => record.sessionId);
       void usage.rebuild(tracked, readUsageLog).then(
         (report) => {
+          if (report.legacyBaselineBots !== undefined) {
+            ctx.logger.warn(
+              `botharness: usage legacy baseline retained; phase=reconcile bots=${report.legacyBaselineBots} historical_backfill=unverifiable`,
+            );
+          }
           ctx.logger.info(
-            `botharness: usage projection rebuilt (${report.folded} attempts, ${report.failed} failed sessions)`,
+            `botharness: usage reconciliation completed (${report.folded} attempts, ${report.failed} failed sessions)`,
           );
         },
         (error: unknown) => {

@@ -15,7 +15,13 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added actual model/provider and execution-role filters to PersonaBot usage, with separate retained all-time totals, a seven-day chart default, and visible query freshness or failures ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
+- The local Human can save an optional default name in plugin settings; Channel authors, members, receipts and Bot context use the current name, and historical trusted Human/Bot mentions resolve current labels by stable identity without changing message content or attention ([#621](https://github.com/BotHarness/BotHarness/issues/621), [ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)).
+
+- PersonaBots can explicitly mention the local Human in a Group using its current member identity; Human Inbox combines trusted mentions and direct replies in one personal view with expandable context and inline replies, while ordinary `@Human` text creates no personal reminder ([#549](https://github.com/BotHarness/BotHarness/issues/549)).
+- PersonaBot Profile coordinates daily and actual-model usage charts with one bounded time range, initially the most recent 7 days; a Model / Provider switch shows only the selected dimension; default model rows combine providers and execution roles as compact name-and-total rows, with inclusive input, cache reads, output and weighted percentages in chart hover tooltips alongside composition and cache-ratio charts; keyboard-accessible Details disclose Session categories ([#592](https://github.com/BotHarness/BotHarness/issues/592)).
 - Existing message attachments migrate at Host startup to resumable independent real-file identities; their original menus open the current destination, equal hashes remain independent, and owner-qualified old reads follow saved contents without rewriting messages or waking Bots ([#577](https://github.com/BotHarness/BotHarness/issues/577), [migration guide](docs/file-open.md)).
+- Local IM verification Profiles can explicitly install the qualified temporary dsh-im fork at an immutable Git revision, with a runtime check before boot; the legacy npm package remains disabled and production enablement still requires upstream qualification ([#117](https://github.com/BotHarness/BotHarness/issues/117), [guide](docs/client-bridge.md#qualified-optional-im-provider), [ADR-0104](docs/adr/0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md)).
 
 - PersonaBot model usage now separates Orchestrator, Assignment and DSH Subagent calls by actual provider/model, including reported failed and retried attempts; missing reports remain unknown ([#503](https://github.com/BotHarness/BotHarness/issues/503), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
 
@@ -121,6 +127,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Browser Profile uses a searchable combobox: select an existing name or explicitly create a new one; errors use the destructive theme colour and the Browser view removes redundant help text and its duplicate page title ([#611](https://github.com/BotHarness/BotHarness/issues/611)).
+
 - `channel_send` now confirms the committed Channel and message IDs as JSON, describes forwarding exact trusted attachment references from reads, and exposes the existing 10-attachment / 20-mention limits and safe integer byte sizes ([#570](https://github.com/BotHarness/BotHarness/issues/570)).
 
 - Contact discovery now searches names and full descriptions, returns bounded cursor pages and optional detail, and preserves stable colleague IDs for real Bot DMs and Group collaboration ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
@@ -208,9 +216,16 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Fixed
 
 - Group departure now reports a committed change or an idempotent `not-member` no-change; missing Channels and non-Group targets fail explicitly, so repeated or rejected requests cannot fabricate a new departure ([#571](https://github.com/BotHarness/BotHarness/issues/571)).
+- Browser key presses now perform native focus movement, editing and form submission; unsupported keys return retryable errors instead of reporting success ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
+
+- Browser navigation failures now return retryable Tool errors and error Audit outcomes; failed new tabs are cleaned up while an existing current target remains available for observation and retry ([#627](https://github.com/BotHarness/BotHarness/issues/627)).
+
+- Fixed retained model-token statistics being cleared when Session histories are missing: restart and reconciliation preserve daily totals, durable receipts prevent duplicate replay, archive preserves usage, and PersonaBot Purge removes its usage ([#502](https://github.com/BotHarness/BotHarness/issues/502)). Existing aggregates migrate as a retained baseline; pre-upgrade attempts cannot be backfilled independently when their prior accounting is unverifiable.
+- Selecting a Bot Browser tab that a Human has closed preserves another live current tab and its preview; the missing tab is removed with recovery guidance, while transient lookup failures leave selection intact ([#623](https://github.com/BotHarness/BotHarness/issues/623)).
 
 - After Human Resume, Browser page interactions require a successful fresh observation; reads made during Pause or before a Pause/Resume transition cannot authorize actions on Human-modified content ([#600](https://github.com/BotHarness/BotHarness/issues/600)).
 - Refused Browser tool attempts now produce one attributed Browser Audit error entry, including authorization, Access, Pause and post-Resume observation checks; typed text and upload paths keep their existing redacted summaries ([#604](https://github.com/BotHarness/BotHarness/issues/604)).
+- Browser Profile changes reject the reserved names `.` and `..` before saving or resetting work, preserving the current tab and Pause state; invalid stored names keep the runtime’s existing default fallback ([#611](https://github.com/BotHarness/BotHarness/issues/611)).
 
 - Changing a PersonaBot’s Browser Profile clears its previous tab selection and Pause state, so work can start in the newly assigned profile without resuming unrelated old-profile work ([#595](https://github.com/BotHarness/BotHarness/issues/595)).
 

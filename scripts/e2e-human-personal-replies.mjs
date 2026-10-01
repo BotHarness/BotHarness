@@ -123,7 +123,7 @@ try {
     }
     save('scene', scenes);
     await inbox();
-    await clickText('.bh-human-inbox-tabs button', '回复我');
+    await clickText('.bh-human-inbox-tabs button', '提及与回复');
     await delay(700);
     await capture('qa-seeded');
   } else {
@@ -157,7 +157,7 @@ try {
     } else {
       await inbox();
       console.log('INBOX OPENED');
-      await clickText('.bh-human-inbox-tabs button', '回复我');
+      await clickText('.bh-human-inbox-tabs button', '提及与回复');
       await delay(900);
       await capture('after-replies');
       assert.ok(

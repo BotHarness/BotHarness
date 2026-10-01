@@ -5,6 +5,8 @@ import type {
 } from '../../../core/src/messaging/outbound.js';
 import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import type { HostFileTarget } from './host-file-actions.js';
+import type { UsageFilter, UsageQueryResult } from '../../../core/src/usage/query.js';
+export type { UsageFilter, UsageQueryResult } from '../../../core/src/usage/query.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
 
@@ -507,6 +509,17 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
       ? { avatar: record['avatar'] }
       : {}),
     members: stringArray(record['members']),
+    ...(Array.isArray(record['humanMembers'])
+      ? {
+          humanMembers: record['humanMembers'].flatMap((raw: unknown) => {
+            const member = asRecord(raw);
+            return typeof member?.['humanId'] === 'string' &&
+              typeof member['displayName'] === 'string'
+              ? [{ humanId: member['humanId'], displayName: member['displayName'] }]
+              : [];
+          }),
+        }
+      : {}),
     createdAt: typeof createdAt === 'string' ? createdAt : '',
     updatedAt: typeof updatedAt === 'string' ? updatedAt : '',
     ...(typeof botSlug === 'string' ? { botSlug } : {}),
@@ -894,6 +907,30 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   )
     return undefined;
   const channelRefs = record['channelRefs'];
+  const humanMentions = record['humanMentions'];
+  if (
+    humanMentions !== undefined &&
+    (!Array.isArray(humanMentions) ||
+      author.kind !== 'bot' ||
+      humanMentions.some((entry) => {
+        const mention = asRecord(entry);
+        return (
+          mention === undefined ||
+          typeof mention['humanId'] !== 'string' ||
+          mention['humanId'].length === 0 ||
+          typeof mention['label'] !== 'string' ||
+          mention['label'].length === 0 ||
+          typeof mention['start'] !== 'number' ||
+          typeof mention['end'] !== 'number' ||
+          !Number.isSafeInteger(mention['start']) ||
+          !Number.isSafeInteger(mention['end']) ||
+          mention['start'] < 0 ||
+          mention['end'] <= mention['start'] ||
+          body.slice(mention['start'], mention['end']) !== '@' + mention['label']
+        );
+      }))
+  )
+    return undefined;
   if (
     channelRefs !== undefined &&
     (!Array.isArray(channelRefs) ||
@@ -963,6 +1000,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(mentions === undefined
       ? {}
       : { mentions: mentions as NonNullable<ChannelMessage['mentions']> }),
+    ...(humanMentions === undefined
+      ? {}
+      : { humanMentions: humanMentions as NonNullable<ChannelMessage['humanMentions']> }),
     ...(channelRefs === undefined
       ? {}
       : { channelRefs: channelRefs as NonNullable<ChannelMessage['channelRefs']> }),
@@ -1130,6 +1170,43 @@ export async function renameChannel(
   if (channel === undefined) throw new Error('invalid channelRename response');
   const bot = parseBotSummary(value?.['bot']);
   return { channel, ...(bot === undefined ? {} : { bot }) };
+}
+
+export interface LocalHumanIdentity {
+  humanId: string;
+  defaultDisplayName: string | null;
+  displayName: string;
+}
+
+function parseHumanIdentity(value: unknown): LocalHumanIdentity {
+  const item = asRecord(value);
+  const name = item?.['defaultDisplayName'];
+  if (
+    item?.['humanId'] !== 'local-human' ||
+    (name !== null &&
+      (typeof name !== 'string' || name.trim().length === 0 || name.length > 128)) ||
+    item['displayName'] !== (name ?? 'Human')
+  )
+    throw new Error('invalid local Human identity');
+  return {
+    humanId: 'local-human',
+    defaultDisplayName: name,
+    displayName: item['displayName'] as string,
+  };
+}
+
+export async function loadHumanIdentity(
+  call: BridgeCall,
+  signal?: AbortSignal,
+): Promise<LocalHumanIdentity> {
+  return parseHumanIdentity(await unwrap(call, 'humanIdentity', {}, signal));
+}
+
+export async function setHumanDefaultName(
+  call: BridgeCall,
+  displayName: string | null,
+): Promise<LocalHumanIdentity> {
+  return parseHumanIdentity(await unwrap(call, 'humanNameSet', { displayName }));
 }
 
 export async function setGroupAvatar(
@@ -1655,7 +1732,8 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['kind'] !== 'assignment-report' &&
       item['kind'] !== 'bot-message-needs-repair' &&
       item['kind'] !== 'channel-unread' &&
-      item['kind'] !== 'channel-reply'
+      item['kind'] !== 'channel-reply' &&
+      item['kind'] !== 'channel-mention'
     )
       return undefined;
     if (item['channelId'] !== undefined && typeof item['channelId'] !== 'string') return undefined;
@@ -1691,8 +1769,10 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
     )
       return undefined;
     if (
-      (item['kind'] === 'channel-reply' || item['category'] === 'replies') &&
-      (item['kind'] !== 'channel-reply' ||
+      (item['kind'] === 'channel-reply' ||
+        item['kind'] === 'channel-mention' ||
+        item['category'] === 'replies') &&
+      ((item['kind'] !== 'channel-reply' && item['kind'] !== 'channel-mention') ||
         item['category'] !== 'replies' ||
         typeof item['messageId'] !== 'string' ||
         typeof item['sourceEventId'] !== 'string' ||
@@ -2173,6 +2253,57 @@ function isTokenBuckets(value: unknown): value is ProfileTokenBuckets {
     typeof record['cacheReadTokens'] === 'number' &&
     typeof record['cacheWriteTokens'] === 'number'
   );
+}
+
+export async function loadProfileUsage(
+  call: BridgeCall,
+  channelId: string,
+  filter: UsageFilter,
+): Promise<UsageQueryResult> {
+  const value = asRecord(await unwrap(call, 'profileUsage', { channelId, filter }));
+  const count = (input: unknown) =>
+    input === null || (Number.isSafeInteger(input) && Number(input) >= 0);
+  if (
+    value === undefined ||
+    !Array.isArray(value['rows']) ||
+    value['rows'].length > 2000 ||
+    !value['rows'].every((item) => {
+      const row = asRecord(item);
+      return (
+        row !== undefined &&
+        ['day', 'purpose', 'provider', 'model'].every((key) => typeof row[key] === 'string') &&
+        ['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'totalTokens'].every(
+          (key) => count(row[key]),
+        )
+      );
+    }) ||
+    !count(value['periodTotal']) ||
+    !count(value['allTimeTotal']) ||
+    !['periodRecords', 'allTimeRecords'].every(
+      (key) => Number.isSafeInteger(value[key]) && Number(value[key]) >= 0,
+    ) ||
+    !['models', 'providers'].every(
+      (key) =>
+        Array.isArray(value[key]) &&
+        value[key].length <= 1000 &&
+        value[key].every((item: unknown) => typeof item === 'string'),
+    ) ||
+    !['truncated', 'facetsTruncated', 'legacyBaseline'].every(
+      (key) => typeof value[key] === 'boolean',
+    ) ||
+    !['ready', 'reconciling', 'degraded'].includes(String(value['freshness'])) ||
+    typeof value['readAt'] !== 'string' ||
+    !Number.isFinite(Date.parse(value['readAt'])) ||
+    (value['reconciledAt'] !== null &&
+      (typeof value['reconciledAt'] !== 'string' ||
+        !Number.isFinite(Date.parse(value['reconciledAt'])))) ||
+    !['start', 'end', 'model', 'provider', 'purpose'].every(
+      (key) =>
+        asRecord(value['filter'])?.[key] === (filter as unknown as Record<string, unknown>)[key],
+    )
+  )
+    throw new Error('invalid Profile usage');
+  return value as unknown as UsageQueryResult;
 }
 
 export async function loadProfileActivity(

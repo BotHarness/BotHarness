@@ -34,6 +34,7 @@ import {
   isChannelRecord,
   isGroupAvatar,
   isValidChannelId,
+  type LocalHumanIdentity,
   type ChannelMessage,
   type ChannelRecord,
   type GroupInvitation,
@@ -120,6 +121,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       replyTo: left.replyTo,
       memorySwitchTarget: left.memorySwitchTarget,
       mentions: left.mentions ?? [],
+      humanMentions: left.humanMentions ?? [],
       channelRefs: left.channelRefs ?? [],
       botDmAction: left.botDmAction,
       botCausation: left.botCausation,
@@ -132,6 +134,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       replyTo: right.replyTo,
       memorySwitchTarget: right.memorySwitchTarget,
       mentions: right.mentions ?? [],
+      humanMentions: right.humanMentions ?? [],
       channelRefs: right.channelRefs ?? [],
       botDmAction: right.botDmAction,
       botCausation: right.botCausation,
@@ -287,6 +290,20 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         });
   };
 
+  const humanIdentity = (): LocalHumanIdentity => {
+    const row = database.read((db) =>
+      db
+        .prepare('SELECT default_display_name FROM local_human_names WHERE human_id = ?')
+        .get(LOCAL_HUMAN_ID),
+    ) as { default_display_name: string | null } | undefined;
+    const defaultDisplayName = row?.default_display_name ?? null;
+    return {
+      humanId: LOCAL_HUMAN_ID,
+      defaultDisplayName,
+      displayName: defaultDisplayName ?? 'Human',
+    };
+  };
+
   const humanMembers = (
     id: string,
   ): Array<{
@@ -298,9 +315,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     database.read((db) =>
       db
         .prepare(`
-        SELECT m.human_id, m.display_name, m.visible_from_revision,
+        SELECT m.human_id, COALESCE(n.default_display_name, 'Human') AS display_name, m.visible_from_revision,
                COALESCE(r.revision, 0) AS read_revision
           FROM channel_human_members m
+          LEFT JOIN local_human_names n ON n.human_id = m.human_id
           LEFT JOIN channel_read_positions r
             ON r.channel_id = m.channel_id AND r.human_id = m.human_id
          WHERE m.channel_id = ? AND m.left_at IS NULL
@@ -391,6 +409,28 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       throw new ChannelReplyTargetError();
     assertAttachmentRefs(message.attachments ?? []);
     const mentions = message.mentions ?? [];
+    const humanMentions = message.humanMentions ?? [];
+    if (
+      humanMentions.length > 0 &&
+      (channel.type !== 'group' ||
+        message.author.kind !== 'bot' ||
+        message.botCausation === undefined ||
+        humanMentions.some(
+          (mention) =>
+            typeof mention.humanId !== 'string' ||
+            mention.humanId.length === 0 ||
+            typeof mention.label !== 'string' ||
+            mention.label.length === 0 ||
+            !Number.isSafeInteger(mention.start) ||
+            !Number.isSafeInteger(mention.end) ||
+            mention.start < 0 ||
+            mention.end <= mention.start ||
+            message.body.slice(mention.start, mention.end) !== '@' + mention.label,
+        ))
+    )
+      throw new Error(
+        'Human mentions require a trusted Bot sender and a current Group Human member',
+      );
     if (
       mentions.length > 0 &&
       (channel.type === 'group'
@@ -466,6 +506,16 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     const actionRevision = senderDm === undefined ? undefined : allMessages(senderDm.id).length + 1;
     database.transaction(
       (db) => {
+        for (const mention of humanMentions) {
+          if (
+            db
+              .prepare(
+                'SELECT 1 FROM channel_human_members WHERE channel_id = ? AND human_id = ? AND left_at IS NULL',
+              )
+              .get(id, mention.humanId) === undefined
+          )
+            throw new Error('Mentioned Human must be a current Group Human member');
+        }
         db.prepare(`
         INSERT INTO source_events (
           source_event_id, source_kind, bot_slug, channel_id, message_id,
@@ -802,6 +852,39 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     );
 
   return {
+    humanIdentity,
+    setHumanDefaultName(displayName) {
+      if (
+        displayName !== null &&
+        (typeof displayName !== 'string' ||
+          displayName.length > 128 ||
+          /[\u0000-\u001f\u007f]/u.test(displayName))
+      )
+        throw new Error('Human name must be a single line of at most 128 characters');
+      const normalized = displayName?.trim() || null;
+      database.transaction(
+        (db) =>
+          db
+            .prepare(
+              'INSERT INTO local_human_names (human_id, default_display_name) VALUES (?, ?) ON CONFLICT(human_id) DO UPDATE SET default_display_name = excluded.default_display_name',
+            )
+            .run(LOCAL_HUMAN_ID, normalized),
+        ['human-identity'],
+      );
+      options.onRecordChanged?.();
+      return humanIdentity();
+    },
+    listHumanMembers(id) {
+      const channel = readRecord(id);
+      if (channel?.type === 'dm' && !isBotDmChannel(channel)) {
+        const identity = humanIdentity();
+        return [{ humanId: identity.humanId, displayName: identity.displayName }];
+      }
+      return humanMembers(id).map((member) => ({
+        humanId: member.human_id,
+        displayName: member.display_name,
+      }));
+    },
     rootDir,
     get: readRecord,
     list() {

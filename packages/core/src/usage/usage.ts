@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+import { queryUsage, usageFilterSchema, type UsageFilter, type UsageQueryResult } from './query.js';
 import type { DatabaseSync } from 'node:sqlite';
 
 import {
@@ -30,6 +32,8 @@ export interface UsageRebuildReport {
   folded: number;
 
   failed: number;
+
+  legacyBaselineBots?: number;
 }
 
 export interface DshUsageSessionLog {
@@ -52,6 +56,10 @@ export interface UsageProjection {
   ): Promise<UsageRebuildReport>;
 
   activity(botSlug: string, sinceIso: string): UsageDayRow[];
+
+  query(botSlug: string, filter: UsageFilter): UsageQueryResult;
+
+  purgeBot(botSlug: string, removeFiles?: () => void): void;
 }
 
 interface UsageDailyDbRow {
@@ -175,6 +183,7 @@ export function createUsageProjection(options: {
   ownership: SessionOwnership;
   database: OperationalDatabaseOwner;
   now?: () => Date;
+  botCreatedAt?: (botSlug: string) => string | undefined;
 }): UsageProjection {
   const database: OperationalDatabaseModulePort = attachOperationalModule(
     options.database,
@@ -182,8 +191,16 @@ export function createUsageProjection(options: {
   );
   const { ownership } = options;
   const routes = new Map<string, Map<number, UsageRoute>>();
-  let seen = new Set<string>();
+  const fingerprintKey = database.read((connection) =>
+    connection.prepare('SELECT fingerprint_key FROM usage_receipt_state WHERE singleton = 1').get(),
+  ) as { fingerprint_key: string };
+  const legacyBaselines = database.read((connection) =>
+    connection.prepare('SELECT bot_slug, through_ms FROM usage_legacy_baselines').all(),
+  ) as Array<{ bot_slug: string; through_ms: number }>;
+  const baselineByBot = new Map(legacyBaselines.map((row) => [row.bot_slug, row.through_ms]));
   let rebuilding = false;
+  let reconciliationFailed = false;
+  let reconciledAt: string | null = null;
   const queuedEvents: Array<{ sessionId: string; event: DshSessionEvent; route?: UsageRoute }> = [];
 
   const upsert = (
@@ -244,15 +261,44 @@ export function createUsageProjection(options: {
     event: DshSessionEvent,
     route: UsageRoute | undefined,
     connection: DatabaseSync,
-    processed: Set<string>,
   ): boolean => {
     if (event.type !== 'assistant/message' && event.type !== 'assistant/attempt') return false;
     if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') return false;
     if (event.seq === undefined || !Number.isSafeInteger(event.seq) || event.seq < 0) return false;
-    const key = JSON.stringify([sessionId, event.seq]);
-    if (processed.has(key)) return false;
     const owner = ownership.resolve(sessionId);
     if (owner === undefined) return false;
+    let root = owner;
+    const lineage = new Set<string>();
+    while (root.parentSessionId !== undefined) {
+      if (lineage.has(root.sessionId)) return false;
+      lineage.add(root.sessionId);
+      const parent = ownership.resolve(root.parentSessionId);
+      if (parent === undefined || parent.botSlug !== owner.botSlug) return false;
+      root = parent;
+    }
+    const rootFingerprint = createHmac('sha256', fingerprintKey.fingerprint_key)
+      .update(JSON.stringify([root.sessionId]))
+      .digest('hex');
+    if (
+      connection
+        .prepare('SELECT 1 FROM usage_retired_roots WHERE fingerprint = ?')
+        .get(rootFingerprint) !== undefined
+    )
+      return false;
+    if (options.botCreatedAt !== undefined) {
+      const createdAt = options.botCreatedAt(owner.botSlug);
+      if (createdAt === undefined || Date.parse(root.createdAt) < Date.parse(createdAt))
+        return false;
+    }
+    const fingerprint = createHmac('sha256', fingerprintKey.fingerprint_key)
+      .update(JSON.stringify([sessionId, event.seq]))
+      .digest('hex');
+    const receipt = connection
+      .prepare('INSERT OR IGNORE INTO usage_receipts (fingerprint, bot_slug) VALUES (?, ?)')
+      .run(fingerprint, owner.botSlug);
+    if (receipt.changes === 0) return false;
+    const baseline = baselineByBot.get(owner.botSlug);
+    if (baseline !== undefined && event.time <= baseline) return false;
     const source = routeOf(recordOf(recordOf(event.data)?.['message'])?.['source']);
     const actual = source ?? route ?? { provider: 'unknown', model: 'unknown' };
     upsert(
@@ -264,7 +310,6 @@ export function createUsageProjection(options: {
       actual.model,
       reportedBuckets(event),
     );
-    processed.add(key);
     return true;
   };
 
@@ -296,13 +341,7 @@ export function createUsageProjection(options: {
     event: DshSessionEvent,
     route: UsageRoute | undefined,
   ): void => {
-    if (seen.has(JSON.stringify([sessionId, event.seq]))) return;
-    const processed = new Set<string>();
-    database.transaction(
-      (connection) => foldEvent(sessionId, event, route, connection, processed),
-      ['usage'],
-    );
-    for (const key of processed) seen.add(key);
+    database.transaction((connection) => foldEvent(sessionId, event, route, connection), ['usage']);
   };
 
   return {
@@ -321,6 +360,7 @@ export function createUsageProjection(options: {
     async rebuild(sessionIds, readLog) {
       if (rebuilding) throw new Error('Usage reconciliation already running');
       rebuilding = true;
+      reconciliationFailed = true;
       let folded = 0;
       let failed = 0;
       try {
@@ -335,32 +375,68 @@ export function createUsageProjection(options: {
             failed += 1;
           }
         }
-        const processed = new Set<string>();
         database.transaction(
           (connection) => {
-            connection.prepare('DELETE FROM usage_daily').run();
             for (const [sessionId, log] of logs) {
               let route: UsageRoute | undefined;
               for (let index = 0; index < log.events.length; index += 1) {
                 const event = log.events[index]!;
                 route = requestRoute(event) ?? route;
                 if (index < log.inheritedEventCount) continue;
-                if (foldEvent(sessionId, event, route, connection, processed)) folded += 1;
+                if (foldEvent(sessionId, event, route, connection)) folded += 1;
               }
             }
             for (const queued of queuedEvents)
-              if (foldEvent(queued.sessionId, queued.event, queued.route, connection, processed))
-                folded += 1;
+              if (foldEvent(queued.sessionId, queued.event, queued.route, connection)) folded += 1;
           },
           ['usage'],
         );
-        seen = processed;
       } finally {
         rebuilding = false;
         const pending = queuedEvents.splice(0);
         for (const queued of pending) writeLive(queued.sessionId, queued.event, queued.route);
       }
-      return { folded, failed };
+      reconciliationFailed = failed > 0;
+      reconciledAt = (options.now?.() ?? new Date()).toISOString();
+      return {
+        folded,
+        failed,
+        ...(baselineByBot.size > 0 ? { legacyBaselineBots: baselineByBot.size } : {}),
+      };
+    },
+    query(botSlug, filter) {
+      const parsed = usageFilterSchema.parse(filter);
+      if (parsed.end > usageLocalDay((options.now?.() ?? new Date()).getTime()))
+        throw new RangeError('Usage range cannot include future days');
+      return database.read((connection) =>
+        queryUsage(connection, botSlug, parsed, {
+          freshness: rebuilding ? 'reconciling' : reconciliationFailed ? 'degraded' : 'ready',
+          readAt: (options.now?.() ?? new Date()).toISOString(),
+          reconciledAt,
+        }),
+      );
+    },
+    purgeBot(botSlug, removeFiles) {
+      database.transaction(
+        (connection) => {
+          const retire = connection.prepare(
+            'INSERT OR IGNORE INTO usage_retired_roots (fingerprint) VALUES (?)',
+          );
+          for (const owner of ownership.list().filter((record) => record.botSlug === botSlug)) {
+            retire.run(
+              createHmac('sha256', fingerprintKey.fingerprint_key)
+                .update(JSON.stringify([owner.sessionId]))
+                .digest('hex'),
+            );
+          }
+          connection.prepare('DELETE FROM usage_daily WHERE bot_slug = ?').run(botSlug);
+          connection.prepare('DELETE FROM usage_receipts WHERE bot_slug = ?').run(botSlug);
+          connection.prepare('DELETE FROM usage_legacy_baselines WHERE bot_slug = ?').run(botSlug);
+          removeFiles?.();
+        },
+        ['usage'],
+      );
+      baselineByBot.delete(botSlug);
     },
     activity(botSlug, sinceIso) {
       const sinceDay = usageLocalDay(Date.parse(sinceIso));

@@ -1,4 +1,4 @@
-import { useMemo, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 
 import { barY, defineChart, stack } from '@tanstack/charts';
 import { scaleLinear } from '@tanstack/charts/scales/linear';
@@ -15,6 +15,7 @@ import type {
 import type { BotHarnessTranslate } from './locale.js';
 import type { ProfileCardDescriptor } from './profile-cards.js';
 import { ModelUsageBreakdown } from './model-usage-breakdown.js';
+import { useProfileChartTokens } from './profile-chart-theme.js';
 
 export const PROFILE_ACTIVITY_WEEKS = 26;
 
@@ -297,86 +298,6 @@ export function tokenShares(totals: {
   };
 }
 
-interface ChartTokens {
-  cached: string;
-  uncached: string;
-  output: string;
-  foreground: string;
-  muted: string;
-  grid: string;
-}
-
-function resolveChartTokens(): ChartTokens {
-  const fallback: ChartTokens = {
-    cached: 'currentColor',
-    uncached: 'currentColor',
-    output: 'currentColor',
-    foreground: 'currentColor',
-    muted: 'currentColor',
-    grid: 'currentColor',
-  };
-  if (typeof window === 'undefined' || typeof getComputedStyle !== 'function') return fallback;
-  const surface = document.querySelector('.bh-root') ?? document.documentElement;
-  const style = getComputedStyle(surface);
-  const token = (name: string, fallbackValue: string): string =>
-    style.getPropertyValue(name).trim() || fallbackValue;
-  const cached = token('--bh-accent', 'currentColor');
-  return {
-    cached,
-    uncached: token('--bh-chart-read-dim', cached),
-    output: token('--bh-chart-output', cached),
-    foreground: token('--dsw-alias-label-primary', 'currentColor'),
-    muted: token('--dsw-alias-label-tertiary', 'currentColor'),
-    grid: token('--dsw-alias-border-l2', 'currentColor'),
-  };
-}
-
-let chartTokens: ChartTokens | undefined;
-let chartObserver: MutationObserver | undefined;
-const chartListeners = new Set<() => void>();
-
-function chartTokenSnapshot(): ChartTokens {
-  chartTokens ??= resolveChartTokens();
-  return chartTokens;
-}
-
-function refreshChartTokens(): void {
-  const next = resolveChartTokens();
-  const previous = chartTokenSnapshot();
-  if (
-    next.cached === previous.cached &&
-    next.uncached === previous.uncached &&
-    next.output === previous.output &&
-    next.foreground === previous.foreground &&
-    next.muted === previous.muted &&
-    next.grid === previous.grid
-  )
-    return;
-  chartTokens = next;
-  chartListeners.forEach((listener) => listener());
-}
-
-function subscribeChartTokens(listener: () => void): () => void {
-  chartListeners.add(listener);
-  if (
-    chartObserver === undefined &&
-    typeof MutationObserver === 'function' &&
-    typeof document !== 'undefined'
-  ) {
-    chartObserver = new MutationObserver(refreshChartTokens);
-    chartObserver.observe(document.body, { attributes: true });
-    chartObserver.observe(document.documentElement, { attributes: true });
-  }
-  refreshChartTokens();
-  return () => {
-    chartListeners.delete(listener);
-    if (chartListeners.size === 0) {
-      chartObserver?.disconnect();
-      chartObserver = undefined;
-    }
-  };
-}
-
 function TokenTip({ totals, t }: { totals: TokenDayTotals; t: BotHarnessTranslate }): ReactElement {
   const shares = tokenShares(totals);
   return (
@@ -407,6 +328,7 @@ function TokenTip({ totals, t }: { totals: TokenDayTotals; t: BotHarnessTranslat
 }
 
 function TokenUsageCard({
+  loadUsage,
   activity,
   t,
   compact,
@@ -448,7 +370,7 @@ function TokenUsageCard({
       }),
     [dayTotals, days],
   );
-  const colors = useSyncExternalStore(subscribeChartTokens, chartTokenSnapshot, chartTokenSnapshot);
+  const colors = useProfileChartTokens();
   const definition = useMemo(
     () =>
       defineChart({
@@ -481,6 +403,17 @@ function TokenUsageCard({
   );
   const total = windowTotals.cached + windowTotals.uncached + windowTotals.output;
   const reportedTotal = profileUsageTotal(activity, total);
+  if (!compact)
+    return (
+      <ModelUsageBreakdown
+        {...(loadUsage === undefined ? {} : { loadUsage })}
+        rows={activity?.modelUsageRows ?? []}
+        status={activity?.modelUsageStatus ?? 'unavailable'}
+        today={activity?.today ?? localDayKey(new Date())}
+        firstDay={trailingProfileDays(activity?.today, weeks * 7)[0]!}
+        t={t}
+      />
+    );
   return (
     <div className="bh-profile-card-body">
       <div className="bh-profile-card-total">
@@ -523,15 +456,6 @@ function TokenUsageCard({
       {total === 0 && !activity?.modelUsageRows?.length ? (
         <div className="bh-profile-empty">{t('profile.empty')}</div>
       ) : null}
-      {compact ? null : (
-        <ModelUsageBreakdown
-          rows={activity?.modelUsageRows ?? []}
-          status={activity?.modelUsageStatus ?? 'unavailable'}
-          today={activity?.today ?? localDayKey(new Date())}
-          firstDay={trailingProfileDays(activity?.today, weeks * 7)[0]!}
-          t={t}
-        />
-      )}
     </div>
   );
 }
@@ -570,6 +494,9 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
   const reportedTotal = profileUsageTotal(activity, tokens);
   return (
     <div className="bh-profile-card-body">
+      <p className="bh-note">
+        {t('profile.usage.window', { weeks: activity?.weeks ?? PROFILE_ACTIVITY_WEEKS })}
+      </p>
       <dl className="bh-profile-stats">
         <div>
           <dt>{t('profile.stat.events')}</dt>

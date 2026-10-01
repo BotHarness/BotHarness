@@ -2,6 +2,7 @@ import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messagi
 import type { MessagingTarget } from '../messaging/provider.js';
 import type { MemoryFileTarget } from '../memory/file-actions.js';
 import type { Context } from '@deepseek-ai/cordis';
+import type { UsageFilter, UsageQueryResult } from '../usage/query.js';
 import { RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 
 import type { PersonaBotPatch } from '../bots/persona-bot.js';
@@ -344,6 +345,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     );
   }
 
+  humanIdentity() {
+    return unwrap(this.methods.humanIdentity({}));
+  }
+
+  humanNameSet(displayName: string | null) {
+    return unwrap(this.methods.humanNameSet({ displayName }));
+  }
+
   channelGroupDelete(channelId: string): { deleted: boolean } {
     return unwrap(this.methods.channelGroupDelete({ channelId }));
   }
@@ -635,6 +644,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.memoryRepair({ channelId, expectedHead, repairId }));
   }
 
+  profileUsage(channelId: string, filter: UsageFilter): UsageQueryResult {
+    return unwrap(this.methods.profileUsage({ channelId, filter }));
+  }
+
   profileActivity(channelId: string): ProfileActivity {
     return unwrap(this.methods.profileActivity({ channelId }));
   }
@@ -718,6 +731,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'pause',
   'resume',
   'channels',
+  'humanIdentity',
+  'humanNameSet',
   'channelDm',
   'channelCreate',
   'channelRename',
@@ -772,6 +787,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'memorySave',
   'memoryRepair',
   'profileActivity',
+  'profileUsage',
   'groupProfileActivity',
   'rosterGet',
   'sectionCreate',

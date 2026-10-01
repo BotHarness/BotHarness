@@ -682,6 +682,34 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.provider.currentTab('bot-a')).toBeUndefined();
   });
 
+  it('audits unsupported key errors, retains current work and permits a native retry', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const press = h.state.definitions.get('browser_press_key')!;
+    vi.mocked(h.runtime.pressKey).mockRejectedValueOnce(
+      new Error('Unsupported browser key; use Enter'),
+    );
+    await expect(
+      press.execute({ key: 'Control+Enter' }, execution('browser_press_key')),
+    ).rejects.toThrow(/Unsupported browser key/);
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+    expect(h.audits.at(-1)).toMatchObject({
+      tool: 'browser_press_key',
+      outcome: 'error',
+      botSlug: 'bot-a',
+      sessionId: 'session-a',
+      rootRole: 'orchestrator',
+    });
+    await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+    await press.execute({ key: 'Enter' }, execution('browser_press_key'));
+    expect(h.runtime.pressKey).toHaveBeenLastCalledWith('tab-1', 'Enter');
+    expect(h.audits.at(-1)).toMatchObject({ tool: 'browser_press_key', outcome: 'ok' });
+  });
+
   it('surfaces a stale ref readably and audits the failure', async () => {
     const h = harness({ access: true, auto: true });
     h.created();
@@ -741,6 +769,102 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.runtime.closeTab).toHaveBeenCalledWith('tab-1');
     expect(h.provider.currentTab('bot-a')).toBeUndefined();
     expect(h.provider.tabCount('bot-a')).toBe(1);
+  });
+
+  it('keeps current work and records errors for failed reused and new-tab navigation', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    const open = h.state.definitions.get('browser_open')!;
+    await open.execute({ url: 'https://example.com' }, execution('browser_open'));
+    const failure = new Error(
+      'Bot Browser navigation failed (net::ERR_EMPTY_RESPONSE); retry browser_open',
+    );
+    vi.mocked(h.runtime.open).mockRejectedValueOnce(failure);
+    await expect(
+      open.execute({ url: 'https://fail.test' }, execution('browser_open')),
+    ).rejects.toThrow('ERR_EMPTY_RESPONSE');
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    expect(h.audits.at(-1)).toMatchObject({ tool: 'browser_open', outcome: 'error' });
+    vi.mocked(h.runtime.createTab).mockRejectedValueOnce(failure);
+    await expect(
+      h.state.definitions
+        .get('browser_tabs')!
+        .execute({ action: 'open', url: 'https://fail.test' }, execution('browser_tabs')),
+    ).rejects.toThrow('ERR_EMPTY_RESPONSE');
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+    expect(h.audits.at(-1)).toMatchObject({ tool: 'browser_tabs', outcome: 'error' });
+    await open.execute({ url: 'https://example.com' }, execution('browser_open'));
+    expect(h.runtime.open).toHaveBeenLastCalledWith('https://example.com', 'tab-1');
+    await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+    expect(h.runtime.observe).toHaveBeenLastCalledWith('tab-1');
+  });
+
+  it('retains current work when selecting a Human-closed owned background tab', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    await tabs.execute({ action: 'open', url: 'https://example.org' }, execution('browser_tabs'));
+    await tabs.execute({ action: 'select', targetId: 'tab-1' }, execution('browser_tabs'));
+    vi.mocked(h.runtime.tabInfo).mockRejectedValueOnce(new Error('No target with given id found'));
+    await expect(
+      tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs')),
+    ).rejects.toThrow(/tab is gone.*browser_tabs action list.*browser_open/);
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    expect(h.provider.ownsTab('bot-a', 'tab-1')).toBe(true);
+    expect(h.provider.ownsTab('bot-a', 'tab-2')).toBe(false);
+    await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+    expect(h.runtime.observe).toHaveBeenLastCalledWith('tab-1');
+    await h.state.definitions
+      .get('browser_click')!
+      .execute({ ref: 'e1' }, execution('browser_click'));
+    expect(h.runtime.click).toHaveBeenLastCalledWith('tab-1', 'e1');
+    await expect(
+      tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs')),
+    ).rejects.toThrow(/not owned/);
+  });
+
+  it('leaves selection and ownership intact on transient tab lookup failure and permits retry', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    await tabs.execute({ action: 'open', url: 'https://example.org' }, execution('browser_tabs'));
+    await tabs.execute({ action: 'select', targetId: 'tab-1' }, execution('browser_tabs'));
+    vi.mocked(h.runtime.tabInfo).mockRejectedValueOnce(new Error('Temporary lookup timeout'));
+    await expect(
+      tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs')),
+    ).rejects.toThrow('Temporary lookup timeout');
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    expect(h.provider.tabCount('bot-a')).toBe(2);
+    await tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs'));
+    expect(h.provider.currentTab('bot-a')).toBe('tab-2');
+    expect(h.audits.at(-2)).toMatchObject({ tool: 'browser_tabs', outcome: 'error' });
+    expect(h.audits.at(-1)).toMatchObject({ tool: 'browser_tabs', outcome: 'ok' });
+  });
+
+  it('clears only a confirmed dead current target during selection and keeps another owned tab recoverable', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    await tabs.execute({ action: 'open', url: 'https://example.org' }, execution('browser_tabs'));
+    vi.mocked(h.runtime.tabInfo).mockRejectedValueOnce(new Error('No target with given id found'));
+    await expect(
+      tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs')),
+    ).rejects.toThrow(/tab is gone/);
+    expect(h.provider.currentTab('bot-a')).toBeUndefined();
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+    expect(h.provider.ownsTab('bot-a', 'tab-1')).toBe(true);
+    await tabs.execute({ action: 'select', targetId: 'tab-1' }, execution('browser_tabs'));
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
   });
 
   it('uploads a Host file and audits only its basename', async () => {

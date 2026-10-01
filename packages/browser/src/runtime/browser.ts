@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 
 import { jpegDimensions } from '../jpeg.js';
+import { browserKey } from './keyboard.js';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -468,9 +469,6 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   const typeScript = (ref: string, text: string): string =>
     `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; el.focus(); if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) { const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const descriptor = Object.getOwnPropertyDescriptor(proto, 'value'); const setter = descriptor && descriptor.set; if (setter) { setter.call(el, ${JSON.stringify(text)}); } else { el.value = ${JSON.stringify(text)}; } el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return { ok: true }; } if (el.isContentEditable) { el.textContent = ${JSON.stringify(text)}; el.dispatchEvent(new InputEvent('input', { bubbles: true, data: ${JSON.stringify(text)} })); return { ok: true }; } return { ok: false, reason: 'not-editable' }; })()`;
 
-  const pressKeyScript = (key: string): string =>
-    `(() => { const el = document.activeElement || document.body; const opts = { key: ${JSON.stringify(key)}, bubbles: true, cancelable: true }; el.dispatchEvent(new KeyboardEvent('keydown', opts)); el.dispatchEvent(new KeyboardEvent('keypress', opts)); el.dispatchEvent(new KeyboardEvent('keyup', opts)); return { ok: true }; })()`;
-
   const scrollScript = (direction: 'up' | 'down', amount: number): string =>
     `(() => { window.scrollBy(0, ${direction === 'down' ? amount : -amount}); return { ok: true }; })()`;
 
@@ -528,8 +526,33 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   const type = (tabId: string, ref: string, text: string): Promise<BrowserTab> =>
     runInteraction(tabId, typeScript(ref, text));
 
-  const pressKey = (tabId: string, key: string): Promise<BrowserTab> =>
-    runInteraction(tabId, pressKeyScript(key));
+  const pressKey = async (tabId: string, key: string): Promise<BrowserTab> => {
+    const { text, ...definition } = browserKey(key);
+    const sessionId = await attach(tabId);
+    const live = client;
+    if (!live) throw new Error('Bot Browser is not connected');
+    const release = (): Promise<Record<string, unknown>> =>
+      live.send('Input.dispatchKeyEvent', { type: 'keyUp', ...definition }, sessionId);
+    try {
+      await live.send(
+        'Input.dispatchKeyEvent',
+        {
+          type: text ? 'keyDown' : 'rawKeyDown',
+          ...definition,
+          ...(text ? { text, unmodifiedText: text } : {}),
+        },
+        sessionId,
+      );
+    } catch (error) {
+      await release().catch(() => undefined);
+      throw error;
+    }
+    await release();
+    await waitForReady(sessionId);
+    const page = await readPage(sessionId);
+    lastUrl = page.url;
+    return { tabId, ...page };
+  };
 
   const scroll = (tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab> =>
     runInteraction(tabId, scrollScript(direction, amount));
@@ -547,8 +570,19 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
       }
     }
     if (targetId === undefined) return openTarget(url, false);
+    return navigateTab(targetId, url);
+  };
+
+  const navigateTab = async (targetId: string, url: string): Promise<BrowserTab> => {
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
     const sessionId = await attach(targetId);
-    await live.send('Page.navigate', { url }, sessionId);
+    const navigation = await live.send('Page.navigate', { url }, sessionId);
+    if (typeof navigation['errorText'] === 'string' && navigation['errorText'] !== '') {
+      throw new Error(
+        `Bot Browser navigation failed (${navigation['errorText']}); retry browser_open with a reachable URL`,
+      );
+    }
     await waitForReady(sessionId);
     const page = await readPage(sessionId);
     lastUrl = page.url;
@@ -565,12 +599,30 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     });
     const targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
     if (targetId === '') throw new Error('The Bot Browser did not open a tab');
-    const sessionId = await attach(targetId);
-    await live.send('Page.navigate', { url }, sessionId);
-    await waitForReady(sessionId);
-    const page = await readPage(sessionId);
-    lastUrl = page.url;
-    return { tabId: targetId, url: page.url, title: page.title };
+    try {
+      return await navigateTab(targetId, url);
+    } catch (error) {
+      const started = Date.now();
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          live.send('Target.closeTarget', { targetId }).then((closed) => {
+            if (closed['success'] === false) throw new Error('Navigation cleanup was refused');
+            sessions.delete(targetId);
+          }),
+          new Promise<never>((_resolve, reject) => {
+            timeout = setTimeout(() => reject(new Error('Navigation cleanup timed out')), 2000);
+          }),
+        ]);
+      } catch {
+        onEvent(
+          `navigation cleanup failed initiator=navigation phase=new-target outcome=error reason=cleanup-unavailable durationMs=${Date.now() - started}`,
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+      throw error;
+    }
   };
 
   const createTab = async (url: string): Promise<BrowserTab> => {

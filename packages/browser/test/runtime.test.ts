@@ -265,6 +265,148 @@ describe('runtime lifecycle', () => {
     expect(child.proc.kill).toHaveBeenCalled();
   });
 
+  it.each(['reuse', 'open', 'new tab'] as const)(
+    'rejects a failed %s navigation and permits retry without losing the original error',
+    async (kind) => {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const client = fakeClient();
+      const send = client.send;
+      client.send = vi.fn(async (method, params, sessionId) => {
+        if (method === 'Page.navigate' && params?.['url'] === 'https://fail.test') {
+          return { errorText: 'net::ERR_EMPTY_RESPONSE' };
+        }
+        return send(method, params, sessionId);
+      });
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        browserPath: '/opt/chrome',
+        fileExists: () => true,
+        connect: async () => client,
+      });
+      const ready = runtime.ensure();
+      child.ready();
+      await ready;
+      if (kind === 'reuse') await runtime.open('https://example.com');
+      const previous = runtime.currentUrl();
+      const failed =
+        kind === 'new tab'
+          ? runtime.createTab('https://fail.test')
+          : runtime.open('https://fail.test', kind === 'reuse' ? 'tab-1' : undefined);
+      await expect(failed).rejects.toThrow(
+        /navigation failed.*ERR_EMPTY_RESPONSE.*retry browser_open/,
+      );
+      expect(runtime.currentUrl()).toBe(previous);
+      expect(
+        vi.mocked(client.send).mock.calls.filter(([method]) => method === 'Target.closeTarget'),
+      ).toHaveLength(kind === 'reuse' ? 0 : 1);
+      await expect(
+        runtime.open('https://example.com', kind === 'reuse' ? 'tab-1' : undefined),
+      ).resolves.toMatchObject({ tabId: 'tab-1' });
+      await runtime.stop();
+    },
+  );
+
+  it.each(['reject', 'refuse'])(
+    'keeps the navigation error when cleanup fails by %s and records a bounded diagnostic',
+    async (failure) => {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const client = fakeClient();
+      const send = client.send;
+      client.send = vi.fn(async (method, params, sessionId) => {
+        if (method === 'Page.navigate') return { errorText: 'net::ERR_EMPTY_RESPONSE' };
+        if (method === 'Target.closeTarget') {
+          if (failure === 'refuse') return { success: false };
+          throw new Error('cleanup unavailable');
+        }
+        return send(method, params, sessionId);
+      });
+      const onEvent = vi.fn();
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        browserPath: '/opt/chrome',
+        fileExists: () => true,
+        connect: async () => client,
+        onEvent,
+      });
+      const ready = runtime.ensure();
+      child.ready();
+      await ready;
+      await expect(runtime.createTab('https://fail.test')).rejects.toThrow(/ERR_EMPTY_RESPONSE/);
+      expect(
+        vi.mocked(client.send).mock.calls.filter(([method]) => method === 'Target.closeTarget'),
+      ).toHaveLength(1);
+      expect(onEvent).toHaveBeenCalledWith(expect.stringContaining('navigation cleanup failed'));
+      await runtime.stop();
+    },
+  );
+
+  it('bounds a stalled new-target cleanup and still returns the navigation error', async () => {
+    vi.useFakeTimers();
+    try {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const client = fakeClient();
+      const send = client.send;
+      client.send = vi.fn(async (method, params, sessionId) => {
+        if (method === 'Page.navigate') return { errorText: 'net::ERR_EMPTY_RESPONSE' };
+        if (method === 'Target.closeTarget') return new Promise<never>(() => {});
+        return send(method, params, sessionId);
+      });
+      const onEvent = vi.fn();
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        browserPath: '/opt/chrome',
+        fileExists: () => true,
+        connect: async () => client,
+        onEvent,
+      });
+      const ready = runtime.ensure();
+      child.ready();
+      await ready;
+      const failed = runtime.createTab('https://fail.test').then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(await failed).toMatchObject({
+        message: expect.stringContaining('ERR_EMPTY_RESPONSE'),
+      });
+      expect(onEvent).toHaveBeenCalledWith(expect.stringContaining('navigation cleanup failed'));
+      await runtime.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('accepts successful same-document navigation without a loader ID', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const client = fakeClient();
+    const send = client.send;
+    client.send = vi.fn(async (method, params, sessionId) => {
+      if (method === 'Page.navigate') return { frameId: 'frame-1' };
+      return send(method, params, sessionId);
+    });
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      browserPath: '/opt/chrome',
+      fileExists: () => true,
+      connect: async () => client,
+    });
+    const ready = runtime.ensure();
+    child.ready();
+    await ready;
+    await expect(runtime.open('https://example.com/#section', 'tab-1')).resolves.toMatchObject({
+      tabId: 'tab-1',
+    });
+    expect(
+      vi.mocked(client.send).mock.calls.some(([method]) => method === 'Target.closeTarget'),
+    ).toBe(false);
+    await runtime.stop();
+  });
+
   it('reveals the existing Human tab and restores a minimized window without a new target', async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child.proc as never);
@@ -468,6 +610,149 @@ describe('runtime lifecycle', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it.each([
+    ['Enter', 'Enter', 'Enter', 13, '\r'],
+    ['Tab', 'Tab', 'Tab', 9, ''],
+    ['Backspace', 'Backspace', 'Backspace', 8, ''],
+    ['ArrowDown', 'ArrowDown', 'ArrowDown', 40, ''],
+    ['Escape', 'Escape', 'Escape', 27, ''],
+    ['Space', ' ', 'Space', 32, ' '],
+    ['z', 'z', 'KeyZ', 90, 'z'],
+    ['Z', 'Z', 'KeyZ', 90, 'Z'],
+    ['7', '7', 'Digit7', 55, '7'],
+    ['!', '!', 'Digit1', 49, '!'],
+  ])(
+    'dispatches native %s key down/up with editing metadata',
+    async (input, key, code, vk, text) => {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const base = fakeClient();
+      const sent: { params: Record<string, unknown>; sessionId: string | undefined }[] = [];
+      const client: CdpClient = {
+        send: async (method, params, sessionId) => {
+          if (method === 'Input.dispatchKeyEvent') sent.push({ params: params ?? {}, sessionId });
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      };
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        platform: 'linux',
+        env: {},
+        fileExists: (path) => path === '/usr/bin/google-chrome',
+        connect: async () => client,
+      });
+      const ensuring = runtime.ensure();
+      child.ready();
+      await ensuring;
+      await runtime.open('https://example.com');
+      const page = await runtime.pressKey('tab-1', input);
+      expect(page.tabId).toBe('tab-1');
+      expect(sent).toEqual([
+        {
+          params: {
+            type: text ? 'keyDown' : 'rawKeyDown',
+            key,
+            code,
+            windowsVirtualKeyCode: vk,
+            ...(text ? { text, unmodifiedText: text } : {}),
+          },
+          sessionId: 'session-1',
+        },
+        { params: { type: 'keyUp', key, code, windowsVirtualKeyCode: vk }, sessionId: 'session-1' },
+      ]);
+    },
+  );
+
+  it('updates the current URL when a native Enter navigates the page', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    let navigated = false;
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => {
+        if (method === 'Input.dispatchKeyEvent' && params?.['type'] === 'keyDown') navigated = true;
+        if (
+          method === 'Runtime.evaluate' &&
+          String(params?.['expression']).startsWith('({ url:') &&
+          navigated
+        ) {
+          return {
+            result: { value: { url: 'https://example.com/submitted', title: 'Submitted' } },
+          };
+        }
+        return base.send(method, params, sessionId);
+      },
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await runtime.open('https://example.com');
+    expect(runtime.currentUrl()).toBe('https://example.com/');
+    const page = await runtime.pressKey('tab-1', 'Enter');
+    expect(page.url).toBe('https://example.com/submitted');
+    expect(runtime.currentUrl()).toBe(page.url);
+  });
+
+  it.each(['Control+Enter', 'UnrecognizedKey', '', '\n', '😀'])(
+    'rejects unsupported key %j before any CDP operation',
+    async (key) => {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const client = fakeClient();
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        platform: 'linux',
+        env: {},
+        fileExists: (path) => path === '/usr/bin/google-chrome',
+        connect: async () => client,
+      });
+      const ensuring = runtime.ensure();
+      child.ready();
+      await ensuring;
+      client.calls.length = 0;
+      await expect(runtime.pressKey('tab-1', key)).rejects.toThrow(/unsupported.*key/i);
+      expect(client.calls).toEqual([]);
+    },
+  );
+
+  it('releases the native key when key-down transport fails and preserves the original error', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const types: unknown[] = [];
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => {
+        if (method === 'Input.dispatchKeyEvent') {
+          types.push(params?.['type']);
+          throw new Error(params?.['type'] === 'keyUp' ? 'release refused' : 'input disconnected');
+        }
+        return base.send(method, params, sessionId);
+      },
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await expect(runtime.pressKey('tab-1', 'Enter')).rejects.toThrow('input disconnected');
+    expect(types).toEqual(['keyDown', 'keyUp']);
   });
 
   it('acts on observed refs and surfaces a stale ref readably', async () => {

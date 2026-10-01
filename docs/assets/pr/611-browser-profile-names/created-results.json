@@ -1,0 +1,10 @@
+{
+  "phase": "native-create-and-model-use",
+  "profile": "qa.new",
+  "modelPassed": true,
+  "target": "4EDD5BCF969753D5103D2BBA0BA03B1B",
+  "runtimeDirectory": "browser-profiles/qa.new",
+  "chromeLocalState": true,
+  "escapeAndBlurPreservedAssignment": true,
+  "storedProfileSelectableAfterHostRestart": true
+}
