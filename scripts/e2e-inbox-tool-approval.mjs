@@ -22,7 +22,7 @@ const pkg = readdirSync(modules).find((name) => name.startsWith('puppeteer@'));
 const puppeteer = createRequire(resolve(modules, pkg, 'node_modules/'))('puppeteer');
 const browser = await puppeteer.launch({
   headless: true,
-  protocolTimeout: 30000,
+  protocolTimeout: 60000,
   args: ['--no-sandbox'],
 });
 const page = await browser.newPage();
@@ -34,7 +34,7 @@ const rpc = async (method, args = {}, client = page, namespace = 'botharness') =
     async ({ method, args, namespace }) => {
       const response = await fetch('/api/' + namespace + '/' + method, {
         method: 'POST',
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(50000),
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           type: 'client-request',

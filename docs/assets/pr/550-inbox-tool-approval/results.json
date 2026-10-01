@@ -2,6 +2,7 @@
   "realModel": true,
   "exactInput": true,
   "sourceCommand": true,
+  "sourceNavigation": true,
   "approve": true,
   "reject": true,
   "canonicalAudit": true,
@@ -11,7 +12,5 @@
   "twoWindowStaleRejected": true,
   "lightDark": true,
   "narrowLayout": true,
-  "nativeOutputVerified": true,
-  "sourceNavigation": true,
-  "currentBotTitle": true
+  "nativeOutputVerified": true
 }

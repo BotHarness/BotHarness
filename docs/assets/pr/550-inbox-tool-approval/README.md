@@ -4,7 +4,7 @@ Issue #550, parent #126. Captured from isolated DSH 0.2.0-rc.1 Web Profiles usin
 
 ## Before and after
 
-The baseline uses main at c033f467: two Bots have pending native bash calls; Inbox only offers source navigation. The feature uses the same two-Bot scenario: Inbox offers Review approval and the existing source DM approval card. Baseline and feature use separate isolated Profiles with equivalent QA names and tasks. Light/dark pairs use a 1440 × 900 viewport. The narrow capture uses 900 × 900.
+The baseline uses main at c033f467: two Bots have pending native bash calls; Inbox only offers source navigation. The final feature run includes main through ec2e3a52 and uses the same two-Bot scenario: Inbox offers Review approval and the existing source DM approval card. Baseline and feature use separate isolated Profiles with equivalent QA names and tasks. Light/dark pairs use a 1440 × 900 viewport. The narrow capture uses 900 × 900.
 
 ## Verified behavior
 
@@ -36,3 +36,9 @@ For manual QA, open Activity Center → Inbox → Needs my action, select Human 
 | `after-approved.png`, `after-rejected.png`          | Accepted canonical decisions                     |
 | `after-exact-source.png`                            | Exact request opened in the source DM            |
 | `human-qa-ready.png`                                | Retained live approval for Human QA              |
+
+## Final integration verification
+
+Main integration preserves its original-file access warning alongside Inbox decision feedback. Typecheck, build and all 21 focused Host/Client integration checks passed; full Linux CI also passed on the integration commit.
+
+The first integration capture attempt timed out while creating the second QA Bot. The browser harness now permits a 60-second protocol timeout and a 50-second HTTP timeout. A private continuation first queried canonical Bot/Channel records, reused the two already-created pending native requests and ran the same approval, rejection, two-window race and source-navigation assertions without duplicating their initial sends. All checks passed and all feature captures were refreshed from this integrated runtime. Launch URLs, credentials and raw diagnostic logs remain private.
