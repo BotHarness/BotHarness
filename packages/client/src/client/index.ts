@@ -113,7 +113,10 @@ export function apply(ctx: ClientContext): void {
       if (workspaces === undefined) throw new Error('DSH Workspace controller is unavailable');
       return workspaces.create(input);
     },
-    openSession: (sessionId) => ctx.uiWorkspace.openSession(sessionId as SessionId),
+    openSession: (sessionId) => {
+      ctx.layout.selectPanel(null);
+      ctx.uiWorkspace.openSession(sessionId as SessionId);
+    },
   });
   const prefs = new BotModePrefs(storage);
   const lastView =
@@ -472,7 +475,9 @@ export function apply(ctx: ClientContext): void {
                   snapshot.channels.some((channel) => channel.id === selection.channelId)
                 ? actions.openChannel(selection.channelId)
                 : selection?.kind === 'inbox'
-                  ? actions.openHumanInbox()
+                  ? selection.view === 'overview'
+                    ? actions.openActivityCenter()
+                    : actions.openHumanInbox()
                   : undefined;
           void opening?.catch((error: unknown) => {
             ctx.logger.warn('botharness: Bot view restore failed', error);

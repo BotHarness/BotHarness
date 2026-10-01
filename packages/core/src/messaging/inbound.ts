@@ -1,10 +1,49 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
 import type { BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { MessagingGrant } from './outbound.js';
-import { MessagingError, type MessagingInboundEvent, type MessagingProvider } from './provider.js';
+import {
+  MessagingError,
+  type MessagingInboundEvent,
+  type MessagingProvider,
+  type MessagingHistoryScope,
+} from './provider.js';
 
+export interface ExternalContextRead {
+  at: string;
+  sessionId: string;
+  scope: MessagingHistoryScope;
+  outcome: 'read' | 'refused';
+  sourceEventIds: string[];
+  omitted: number;
+  incomplete: boolean;
+  reason?: string;
+}
+export interface ExternalContextResult {
+  scope: MessagingHistoryScope;
+  messages: {
+    sourceEventId: string;
+    messageId: string;
+    senderId: string;
+    senderName?: string;
+    mentions?: MessagingInboundEvent['mentions'];
+    at: string;
+    text: string;
+    threadId?: string;
+  }[];
+  omitted: number;
+  incomplete: boolean;
+  coverage: 'provider-visible-human-text';
+  nextCursor?: string;
+  window?: { start: number; end: number };
+  requiredCharacters?: number;
+}
+export interface ExternalContextQuery {
+  scope: MessagingHistoryScope;
+  cursor?: string;
+  maxCharacters?: number;
+}
 export interface ExternalSource {
   id: string;
   body: string;
@@ -15,6 +54,8 @@ export interface ExternalSource {
   event: Omit<MessagingInboundEvent, 'text'>;
   grantId: string;
   grantRevision: number;
+  contextReads?: ExternalContextRead[];
+  contextMessages?: ExternalContextResult['messages'];
 }
 
 export interface InboundMessaging {
@@ -24,6 +65,13 @@ export interface InboundMessaging {
   available(botSlug: string, sourceEventId: string): boolean;
   sourceSignal(botSlug: string, sourceEventId: string): AbortSignal;
   read(botSlug: string, sourceEventId: string): ExternalSource;
+  context(
+    botSlug: string,
+    sourceEventId: string,
+    sessionId: string,
+    query: ExternalContextQuery,
+    signal?: AbortSignal,
+  ): Promise<ExternalContextResult>;
   revoke(grantId: string): void;
   close(): void;
 }
@@ -57,6 +105,93 @@ export function createInboundMessaging(options: {
   >();
   const retries = new Map<string, { timer: ReturnType<typeof setTimeout>; token: object }>();
   let closed = false;
+  const cursors = new Map<
+    string,
+    {
+      botSlug: string;
+      sourceEventId: string;
+      revision: number;
+      scope: MessagingHistoryScope;
+      providerCursor?: string | undefined;
+      offset: number;
+      digest: string;
+      expiresAt: number;
+    }
+  >();
+  const sourceId = (value: MessagingGrant, event: MessagingInboundEvent) =>
+    'im-' +
+    createHash('sha256')
+      .update(
+        JSON.stringify([
+          value.providerId,
+          value.fingerprint,
+          event.conversation.id,
+          event.messageId,
+        ]),
+      )
+      .digest('hex');
+  const persistSource = (
+    db: DatabaseSync,
+    value: MessagingGrant,
+    event: MessagingInboundEvent,
+  ): string => {
+    const id = sourceId(value, event);
+    const existing = db
+      .prepare('SELECT body, payload_json FROM source_events WHERE source_event_id = ?')
+      .get(id) as { body: string; payload_json: string } | undefined;
+    if (existing) {
+      const previous = (JSON.parse(existing.payload_json) as { external: ExternalSource }).external;
+      if (
+        existing.body !== event.text ||
+        previous.event.actor.id !== event.actor.id ||
+        JSON.stringify(previous.event.reply) !== JSON.stringify(event.reply) ||
+        JSON.stringify(previous.event.attachments ?? []) !== JSON.stringify(event.attachments ?? [])
+      )
+        throw new MessagingError('source-conflict');
+      const mentions = previous.event.mentions.map((mention) => {
+        const current = event.mentions.find(
+          (item) => item.id === mention.id && item.key === mention.key,
+        );
+        return current?.name ? { ...mention, name: current.name } : mention;
+      });
+      if (
+        event.actor.name ||
+        mentions.some((item, index) => item.name !== previous.event.mentions[index]?.name)
+      ) {
+        const payload = JSON.parse(existing.payload_json) as { external: ExternalSource };
+        payload.external.event.actor = {
+          ...previous.event.actor,
+          ...(event.actor.name ? { name: event.actor.name } : {}),
+        };
+        payload.external.event.mentions = mentions;
+        db.prepare('UPDATE source_events SET payload_json = ? WHERE source_event_id = ?').run(
+          JSON.stringify(payload),
+          id,
+        );
+      }
+    } else {
+      const { text: _text, ...evidence } = event;
+      const external: Omit<ExternalSource, 'body'> = {
+        id,
+        at: event.at,
+        platform: event.channel,
+        accountName: value.accountName,
+        conversationName: value.targetName,
+        event: evidence,
+        grantId: value.id,
+        grantRevision: value.revision,
+      };
+      db.prepare(`INSERT INTO source_events (source_event_id, source_kind, bot_slug, body, created_at, payload_json)
+        VALUES (?, 'bridge-message', ?, ?, ?, ?)`).run(
+        id,
+        value.botSlug,
+        event.text,
+        event.at,
+        JSON.stringify({ author: { kind: 'bridged' }, external }),
+      );
+    }
+    return id;
+  };
   const grant = (id: string): MessagingGrant => {
     const row = database.read((db) =>
       db.prepare('SELECT body FROM messaging_grants WHERE id = ?').get(id),
@@ -158,60 +293,13 @@ export function createInboundMessaging(options: {
             !event.mentionedAccount
           )
             return { accepted: true };
-          const id =
-            'im-' +
-            createHash('sha256')
-              .update(
-                JSON.stringify([
-                  value.providerId,
-                  value.fingerprint,
-                  event.conversation.id,
-                  event.messageId,
-                ]),
-              )
-              .digest('hex');
-          transaction(
-            (db: DatabaseSync) => {
+          const id = transaction(
+            (db) => {
               signal.throwIfAborted();
               lease.controller.signal.throwIfAborted();
-              const existing = db
-                .prepare('SELECT body, payload_json FROM source_events WHERE source_event_id = ?')
-                .get(id) as { body: string; payload_json: string } | undefined;
-              if (existing) {
-                const previous = (JSON.parse(existing.payload_json) as { external: ExternalSource })
-                  .external;
-                if (
-                  existing.body !== event.text ||
-                  previous.event.actor.id !== event.actor.id ||
-                  JSON.stringify(previous.event.reply) !== JSON.stringify(event.reply) ||
-                  JSON.stringify(previous.event.attachments ?? []) !==
-                    JSON.stringify(event.attachments ?? [])
-                )
-                  throw new MessagingError('source-conflict');
-                return;
-              }
-              const { text: _text, ...evidence } = event;
-              const external: Omit<ExternalSource, 'body'> = {
-                id,
-                at: event.at,
-                platform: event.channel,
-                accountName: value.accountName,
-                conversationName: value.targetName,
-                event: evidence,
-                grantId: value.id,
-                grantRevision: value.revision,
-              };
+              const id = persistSource(db, value, event);
               const policy = options.sourcePolicy.resolveIn(db, value.botSlug, 'group-mention');
-              db.prepare(`INSERT INTO source_events
-              (source_event_id, source_kind, bot_slug, body, created_at, payload_json)
-              VALUES (?, 'bridge-message', ?, ?, ?, ?)`).run(
-                id,
-                value.botSlug,
-                event.text,
-                event.at,
-                JSON.stringify({ author: { kind: 'bridged' }, external }),
-              );
-              db.prepare(`INSERT INTO inbox_admissions
+              db.prepare(`INSERT OR IGNORE INTO inbox_admissions
               (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode)
               VALUES (?, ?, 'group-mention', ?, ?)`).run(
                 id,
@@ -219,6 +307,7 @@ export function createInboundMessaging(options: {
                 policy.revision,
                 policy.wake,
               );
+              return id;
             },
             ['source-event', 'bot-inbox'],
           );
@@ -293,7 +382,30 @@ export function createInboundMessaging(options: {
         .get(id, botSlug),
     ) as { payload_json: string; body: string } | undefined;
     if (!row) throw new MessagingError('source-unavailable');
+    const retained = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;
+    const latest = retained.contextReads?.filter((item) => item.outcome === 'read').at(-1);
+    const contextMessages: ExternalContextResult['messages'] = [];
+    for (const sourceEventId of latest?.sourceEventIds ?? []) {
+      const context = database.read((db) =>
+        db
+          .prepare('SELECT body, payload_json FROM source_events WHERE source_event_id = ?')
+          .get(sourceEventId),
+      ) as { body: string; payload_json: string } | undefined;
+      if (!context) continue;
+      const item = (JSON.parse(context.payload_json) as { external: ExternalSource }).external;
+      contextMessages.push({
+        sourceEventId,
+        messageId: item.event.messageId,
+        senderId: item.event.actor.id,
+        ...(item.event.actor.name ? { senderName: item.event.actor.name } : {}),
+        ...(item.event.mentions.length ? { mentions: item.event.mentions } : {}),
+        at: item.at,
+        text: context.body,
+        ...(item.event.reply.threadId ? { threadId: item.event.reply.threadId } : {}),
+      });
+    }
     return {
+      ...(contextMessages.length === 0 ? {} : { contextMessages }),
       ...(JSON.parse(row.payload_json) as { external: Omit<ExternalSource, 'body'> }).external,
       body: row.body,
     };
@@ -397,6 +509,203 @@ export function createInboundMessaging(options: {
       return leases.get(value.id)!.controller.signal;
     },
     read,
+    async context(botSlug, sourceEventId, sessionId, query, callerSignal) {
+      if (!['group', 'nearby', 'thread'].includes(query.scope))
+        throw new MessagingError('invalid-history-query');
+      const maxCharacters = query.maxCharacters ?? 12000;
+      if (!Number.isInteger(maxCharacters) || maxCharacters < 1000 || maxCharacters > 24000)
+        throw new MessagingError('invalid-history-budget');
+      const source = read(botSlug, sourceEventId);
+      const value = grant(source.grantId);
+      const entry = providers.get(value.providerId);
+      const lease = leases.get(value.id);
+      if (
+        !valid(value) ||
+        !lease ||
+        source.grantRevision !== value.revision ||
+        source.event.fingerprint !== value.fingerprint ||
+        source.event.conversation.id !== value.receiveScope?.conversationId
+      )
+        throw new MessagingError('source-unavailable');
+      const assertCurrent = () => {
+        if (
+          !valid(grant(value.id)) ||
+          grant(value.id).revision !== value.revision ||
+          providers.get(value.providerId) !== entry
+        )
+          throw new MessagingError('source-unavailable');
+      };
+      const audit = (record: ExternalContextRead) =>
+        database.transaction(
+          (db) => {
+            assertCurrent();
+            const row = db
+              .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
+              .get(sourceEventId) as { payload_json: string };
+            const payload = JSON.parse(row.payload_json) as { external: ExternalSource };
+            payload.external.contextReads = [
+              ...(payload.external.contextReads ?? []).slice(-19),
+              record,
+            ];
+            db.prepare('UPDATE source_events SET payload_json = ? WHERE source_event_id = ?').run(
+              JSON.stringify(payload),
+              sourceEventId,
+            );
+          },
+          ['source-event'],
+        );
+      const signal = AbortSignal.any([
+        lease.controller.signal,
+        AbortSignal.timeout(15000),
+        ...(callerSignal ? [callerSignal] : []),
+      ]);
+      const at = new Date().toISOString();
+      const cancellable = async <T>(request: Promise<T>): Promise<T> => {
+        let abort!: () => void;
+        const interrupted = new Promise<never>((_, reject) => {
+          abort = () => reject(new MessagingError('history-cancelled'));
+          signal.addEventListener('abort', abort, { once: true });
+          if (signal.aborted) abort();
+        });
+        try {
+          return await Promise.race([request, interrupted]);
+        } finally {
+          signal.removeEventListener('abort', abort);
+        }
+      };
+      try {
+        signal.throwIfAborted();
+        if (!entry?.provider.history) throw new MessagingError('history-capability-unavailable');
+        if (query.scope === 'thread' && !source.event.reply.threadId)
+          throw new MessagingError('thread-unavailable');
+        for (const [key, cursor] of cursors) if (cursor.expiresAt < Date.now()) cursors.delete(key);
+        const cursor = query.cursor === undefined ? undefined : cursors.get(query.cursor);
+        if (
+          query.cursor !== undefined &&
+          (!cursor ||
+            cursor.botSlug !== botSlug ||
+            cursor.sourceEventId !== sourceEventId ||
+            cursor.revision !== value.revision ||
+            cursor.scope !== query.scope)
+        )
+          throw new MessagingError('history-cursor-unavailable');
+        const inspected = await cancellable(
+          entry.provider.inspect(value.accountRef, value.targetRef),
+        );
+        signal.throwIfAborted();
+        assertCurrent();
+        if (
+          inspected.account.fingerprint !== value.fingerprint ||
+          inspected.target.digest !== value.targetDigest ||
+          inspected.target.receiveScope?.conversationId !== value.receiveScope?.conversationId
+        )
+          throw new MessagingError('rebind-required');
+        const request = entry.provider.history({
+          accountRef: value.accountRef,
+          fingerprint: value.fingerprint,
+          route: source.event.reply,
+          query: {
+            scope: query.scope,
+            limit: 20,
+            ...(cursor?.providerCursor === undefined ? {} : { cursor: cursor.providerCursor }),
+          },
+          signal,
+        });
+        const page = await cancellable(request);
+        signal.throwIfAborted();
+        assertCurrent();
+        if (
+          page.hasMore &&
+          cursor?.providerCursor !== undefined &&
+          page.nextCursor === cursor.providerCursor
+        )
+          throw new MessagingError('untrusted-source');
+        const digest = createHash('sha256').update(JSON.stringify(page)).digest('hex');
+        if (cursor?.digest && cursor.digest !== digest)
+          throw new MessagingError('history-cursor-stale');
+        const result: ExternalContextResult = {
+          scope: query.scope,
+          messages: [],
+          omitted: page.omitted,
+          incomplete: page.hasMore || page.omitted > 0,
+          coverage: page.coverage,
+          ...(page.window ? { window: page.window } : {}),
+        };
+        let offset = cursor?.offset ?? 0;
+        for (; offset < page.events.length; ++offset) {
+          const event = page.events[offset]!;
+          const message = {
+            sourceEventId: sourceId(value, event),
+            messageId: event.messageId,
+            senderId: event.actor.id,
+            ...(event.actor.name ? { senderName: event.actor.name } : {}),
+            ...(event.mentions.length ? { mentions: event.mentions } : {}),
+            at: event.at,
+            text: event.text,
+            ...(event.reply.threadId ? { threadId: event.reply.threadId } : {}),
+          };
+          const required =
+            JSON.stringify({ ...result, messages: [...result.messages, message] }).length + 200;
+          if (required > maxCharacters) {
+            result.incomplete = true;
+            if (result.messages.length === 0) result.requiredCharacters = required;
+            break;
+          }
+          result.messages.push(message);
+        }
+        if (offset < page.events.length || page.hasMore) {
+          const key = randomUUID();
+          if (cursors.size >= 100) cursors.delete(cursors.keys().next().value!);
+          cursors.set(key, {
+            botSlug,
+            sourceEventId,
+            revision: value.revision,
+            scope: query.scope,
+            ...(offset < page.events.length
+              ? { providerCursor: cursor?.providerCursor, offset, digest }
+              : { providerCursor: page.nextCursor, offset: 0, digest: '' }),
+            expiresAt: Date.now() + 300000,
+          });
+          result.nextCursor = key;
+        }
+        database.transaction(
+          (db) => {
+            signal.throwIfAborted();
+            assertCurrent();
+            for (const event of page.events.slice(cursor?.offset ?? 0, offset))
+              persistSource(db, value, event);
+          },
+          ['source-event'],
+        );
+        audit({
+          at,
+          sessionId,
+          scope: query.scope,
+          outcome: 'read',
+          sourceEventIds: result.messages.map((item) => item.sourceEventId),
+          omitted: page.omitted,
+          incomplete: result.incomplete,
+        });
+        if (query.cursor) cursors.delete(query.cursor);
+        return result;
+      } catch (error) {
+        if (!signal.aborted) {
+          try {
+            audit({
+              at,
+              sessionId,
+              scope: query.scope,
+              outcome: 'refused',
+              sourceEventIds: [],
+              omitted: 0,
+              incomplete: true,
+              reason: error instanceof MessagingError ? error.code : 'history-unavailable',
+            });
+          } catch {}
+        }
+        throw error;
+      }
+    },
     revoke: stop,
     close() {
       closed = true;

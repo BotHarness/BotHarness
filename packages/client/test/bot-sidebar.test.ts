@@ -158,6 +158,8 @@ function stubActions(): BridgeActions {
     refreshRoster: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
     refreshBotInbox: vi.fn(async () => undefined),
+    openActivityCenter: vi.fn(async () => undefined),
+    refreshOverview: vi.fn(async () => undefined),
     openHumanInbox: vi.fn(async () => undefined),
     refreshHumanInboxStatus: vi.fn(async () => undefined),
     refreshHumanInbox: vi.fn(async () => undefined),
@@ -439,7 +441,7 @@ describe('bot sidebar rows', () => {
       expanded.indexOf('bh-header-label'),
     );
     expect(expanded).toContain('aria-current="page"');
-    expect(expanded).toContain('收件箱');
+    expect(expanded).toContain('活动中心');
     expect(expanded).toContain('bh-human-inbox-count">4</span>');
     expect(expanded).toContain('bh-human-inbox-action-dot');
     const compact = renderSidebar(false);

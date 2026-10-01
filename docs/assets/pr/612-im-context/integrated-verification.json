@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-02",
+  "botharnessRevision": "9a17ad7801d059a85d76bee180669884a1c84ad4",
+  "providerSource": "ee9d3c7a6fc9f15b13f8d895cd1ccb5183b7cd37",
+  "providerRuntimeSha256": "582803ad34364fe7a48288888342b63d9330a3380cdd39f6034d8a03b5196cb5",
+  "tools": [
+    {
+      "tool": "bridge_context",
+      "arguments": {
+        "max_characters": 1000,
+        "scope": "thread",
+        "source_event_id": "im-f449bea02988b2f2d5eb6c50f6c8e50a0c5545a7956f19ed1f0805cbbc5ca6f9"
+      },
+      "result": {
+        "scope": "thread",
+        "messages": [],
+        "omitted": 0,
+        "incomplete": true,
+        "coverage": "provider-visible-human-text",
+        "requiredCharacters": 1110,
+        "nextCursor": "fe6fe244-7deb-4f35-bdbb-55f2eb9f21c7"
+      },
+      "error": false
+    },
+    {
+      "tool": "bridge_context",
+      "arguments": {
+        "cursor": "fe6fe244-7deb-4f35-bdbb-55f2eb9f21c7",
+        "max_characters": 24000,
+        "scope": "thread",
+        "source_event_id": "im-f449bea02988b2f2d5eb6c50f6c8e50a0c5545a7956f19ed1f0805cbbc5ca6f9"
+      },
+      "result": {
+        "scope": "thread",
+        "messages": [
+          {
+            "sourceEventId": "im-f449bea02988b2f2d5eb6c50f6c8e50a0c5545a7956f19ed1f0805cbbc5ca6f9",
+            "messageId": "om_x100b64dd116628a0eec4e2c1c950570",
+            "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+            "senderName": "MUFENG YANG",
+            "mentions": [
+              {
+                "id": "ou_9f3c8cf77e75e1fc806d5f5aa3f24a13",
+                "key": "@_user_1",
+                "name": "MUFENG YANG的Lark CLI"
+              }
+            ],
+            "at": "2026-10-01T17:18:50.767Z",
+            "text": "@_user_1 [BH612-INTEGRATED-TOPIC-08] Use bridge_context scope thread on this Inbox source with max_characters 1000 first. Then continue using the returned nextCursor on the same source/scope, with max_characters 24000, to read the complete CEDAR context. Reply ONLY BH612-INTEGRATED-OK CEDAR in this topic using bridge_reply. Do not post a group-main reply, create an Assignment, save Memory or send to local DM.",
+            "threadId": "omt_19db1d33340f1944"
+          },
+          {
+            "sourceEventId": "im-c08d04faa95d557faf9750767ce171732d0e1e4764d01c1c3e6c5bd1fa07abd3",
+            "messageId": "om_x100b64dd116caca0ee87a678b86f3f5",
+            "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+            "senderName": "MUFENG YANG",
+            "at": "2026-10-01T17:18:50.096Z",
+            "text": "[BH612-INTEGRATED-CTX-08] Context code CEDAR. Ordinary history only; no Inbox admission expected. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. ",
+            "threadId": "omt_19db1d33340f1944"
+          }
+        ],
+        "omitted": 0,
+        "incomplete": false,
+        "coverage": "provider-visible-human-text"
+      },
+      "error": false
+    },
+    {
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-f449bea02988b2f2d5eb6c50f6c8e50a0c5545a7956f19ed1f0805cbbc5ca6f9",
+        "text": "BH612-INTEGRATED-OK CEDAR"
+      },
+      "result": {
+        "id": "bd158560-28c2-4905-a983-b86ef8e5078e",
+        "botSlug": "bot-705327d0a8c942dc92a668cad89bfd0b",
+        "grantId": "2b29e2bd-5253-429d-be45-32c78a0ecbea",
+        "grantRevision": 7,
+        "requestId": "reply-im-f449bea02988b2f2d5eb6c50f6c8e50a0c5545a7956f19ed1f0805cbbc5ca6f9",
+        "payloadHash": "c7406c0987ea485d122abfb1252d0f956002eb5a9cd3c4d3b54a4773ca98edf3",
+        "sourceEventId": "im-f449bea02988b2f2d5eb6c50f6c8e50a0c5545a7956f19ed1f0805cbbc5ca6f9",
+        "text": "BH612-INTEGRATED-OK CEDAR",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T17:19:03.565Z",
+        "settledAt": "2026-10-01T17:19:05.700Z"
+      },
+      "error": false
+    }
+  ],
+  "canonicalSources": [
+    {
+      "source_event_id": "im-f449bea02988b2f2d5eb6c50f6c8e50a0c5545a7956f19ed1f0805cbbc5ca6f9",
+      "body": "@_user_1 [BH612-INTEGRATED-TOPIC-08] Use bridge_context scope thread on this Inbox source with max_characters 1000 first. Then continue using the returned nextCursor on the same source/scope, with max_characters 24000, to read the complete CEDAR context. Reply ONLY BH612-INTEGRATED-OK CEDAR in this topic using bridge_reply. Do not post a group-main reply, create an Assignment, save Memory or send to local DM.",
+      "attempt_state": "handled",
+      "placements": 0
+    },
+    {
+      "source_event_id": "im-c08d04faa95d557faf9750767ce171732d0e1e4764d01c1c3e6c5bd1fa07abd3",
+      "body": "[BH612-INTEGRATED-CTX-08] Context code CEDAR. Ordinary history only; no Inbox admission expected. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. Bounded context verification. ",
+      "attempt_state": null,
+      "placements": 0
+    }
+  ],
+  "assignments": 0,
+  "externalReply": {
+    "message_id": "om_x100b64dd2e5084a4eecac7ee7d477b5",
+    "content": "BH612-INTEGRATED-OK CEDAR",
+    "thread_id": "omt_19db1d33340f1944",
+    "create_time": "2026-10-02 02:19",
+    "sender": {
+      "id": "cli_aa37adda29f89e15",
+      "id_type": "app_id",
+      "sender_type": "app"
+    }
+  }
+}

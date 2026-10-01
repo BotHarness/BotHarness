@@ -59,6 +59,7 @@ export interface HumanAttentionQuery {
     limit?: number;
   }): HumanAttentionPage;
   status(): { unreadCount: number; hasAction: boolean };
+  actionCount(): number;
 }
 
 interface AttentionRow {
@@ -84,6 +85,155 @@ interface Cursor {
   createdAt: string;
   id: string;
 }
+
+const ACTION_ATTENTION_CTE = `WITH attention AS (
+          SELECT 'join:' || json_extract(j.value, '$.id') AS id,
+                 'action' AS category, 'group-join-request' AS kind,
+                 json_extract(j.value, '$.createdAt') AS created_at,
+                 c.channel_id, json_extract(c.record_json, '$.name') AS channel_name,
+                 json_extract(j.value, '$.requesterBotSlug') AS bot_slug,
+                 '' AS summary, json_extract(j.value, '$.id') AS request_id,
+                 NULL AS message_id, NULL AS assignment_session_id,
+                 NULL AS source_event_id
+            FROM channel_records c, json_each(c.record_json, '$.joinRequests') j
+           WHERE json_extract(c.record_json, '$.type') = 'group'
+             AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             AND json_extract(j.value, '$.status') = 'pending'
+          UNION ALL
+          SELECT 'question:' || e.source_event_id AS id,
+                 'action' AS category, 'user-question' AS kind,
+                 e.created_at, c.channel_id,
+                 json_extract(c.record_json, '$.name') AS channel_name,
+                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
+                 NULL AS assignment_session_id, e.source_event_id
+            FROM source_events e
+            JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            JOIN channel_records c ON c.channel_id = p.channel_id
+           WHERE json_extract(c.record_json, '$.type') = 'dm'
+             AND json_extract(c.record_json, '$.botSlug') IS NOT NULL
+             AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             AND e.source_kind = 'bot-message'
+             AND json_extract(e.payload_json, '$.userQuestionRequest') IS NOT NULL
+             AND e.message_id IN (SELECT value FROM json_each(?))
+             AND NOT EXISTS (
+               SELECT 1 FROM source_events resolution
+                WHERE resolution.channel_id = e.channel_id
+                  AND json_extract(resolution.payload_json,
+                    '$.userQuestionResolution.requestMessageId') = e.message_id
+             )
+          UNION ALL
+          SELECT 'approval:' || e.source_event_id AS id,
+                 'action' AS category, 'tool-approval' AS kind,
+                 e.created_at, c.channel_id,
+                 json_extract(c.record_json, '$.name') AS channel_name,
+                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
+                 NULL AS assignment_session_id, e.source_event_id
+            FROM source_events e
+            JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            JOIN channel_records c ON c.channel_id = p.channel_id
+           WHERE json_extract(c.record_json, '$.type') = 'dm'
+             AND json_extract(c.record_json, '$.botSlug') IS NOT NULL
+             AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             AND e.source_kind = 'bot-message'
+             AND json_extract(e.payload_json, '$.toolApprovalRequest') IS NOT NULL
+             AND e.message_id IN (SELECT value FROM json_each(?))
+             AND NOT EXISTS (
+               SELECT 1 FROM source_events decision
+                WHERE decision.channel_id = e.channel_id
+                  AND json_extract(decision.payload_json,
+                    '$.toolApprovalDecision.requestMessageId') = e.message_id
+             )
+          UNION ALL
+          SELECT 'grant:' || e.source_event_id AS id,
+                 'action' AS category, 'workspace-grant-request' AS kind,
+                 e.created_at, c.channel_id,
+                 json_extract(c.record_json, '$.name') AS channel_name,
+                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
+                 NULL AS assignment_session_id, e.source_event_id
+            FROM source_events e
+            JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            JOIN channel_records c ON c.channel_id = p.channel_id
+           WHERE json_extract(c.record_json, '$.type') = 'dm'
+             AND json_extract(c.record_json, '$.botSlug') = e.bot_slug
+             AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             AND e.source_kind = 'bot-message'
+             AND json_extract(e.payload_json, '$.grantRequest') = 1
+             AND NOT EXISTS (
+               SELECT 1 FROM source_events resolution
+                WHERE resolution.channel_id = e.channel_id
+                  AND resolution.source_kind = 'human-message'
+                  AND json_extract(resolution.payload_json, '$.author.kind') = 'human'
+                  AND json_extract(resolution.payload_json,
+                    '$.grantRequestResolution.requestMessageId') = e.message_id
+             )
+          UNION ALL
+          SELECT 'assignment:' || a.session_id AS id,
+                 'action' AS category,
+                 CASE coalesce(json_extract(ask.payload_json, '$.assignmentReport.state'), a.latest_report_state)
+                   WHEN 'blocked' THEN 'assignment-blocked'
+                   ELSE 'assignment-waiting-human'
+                 END AS kind,
+                 coalesce(ask.created_at, a.latest_report_at) AS created_at, 'dm-' || a.bot_slug AS channel_id,
+                 coalesce((SELECT json_extract(dm.record_json, '$.name') FROM channel_records dm WHERE dm.channel_id = 'dm-' || a.bot_slug), a.bot_slug) AS channel_name, a.bot_slug,
+                 coalesce(ask.body, a.latest_report_summary) AS summary, NULL AS request_id,
+                 NULL AS message_id, a.session_id AS assignment_session_id,
+                 coalesce(a.open_ask_source_event_id, (
+                   SELECT latest.source_event_id FROM source_events latest
+                    WHERE latest.assignment_session_id = a.session_id
+                      AND latest.source_kind = 'assignment-report'
+                    ORDER BY latest.rowid DESC LIMIT 1
+                 )) AS source_event_id
+            FROM assignments a
+            LEFT JOIN source_events ask ON ask.source_event_id = a.open_ask_source_event_id
+           WHERE ((coalesce(json_extract(ask.payload_json, '$.assignmentReport.state'), a.latest_report_state) = 'waiting-human'
+                   AND a.open_ask_source_event_id IS NOT NULL)
+               OR (coalesce(json_extract(ask.payload_json, '$.assignmentReport.state'), a.latest_report_state) = 'blocked'
+                   AND (a.open_ask_source_event_id IS NOT NULL
+                        OR a.activity IN ('idle', 'error'))))
+             AND a.stop_state = 'running'
+             AND a.latest_report_at IS NOT NULL
+             AND NOT EXISTS (SELECT 1 FROM channel_records dm WHERE dm.channel_id = 'dm-' || a.bot_slug AND json_extract(dm.record_json, '$.deletedAt') IS NOT NULL)
+             AND NOT EXISTS (
+               SELECT 1 FROM source_events reply WHERE reply.channel_id = 'dm-' || a.bot_slug
+                 AND reply.source_kind = 'human-message' AND json_extract(reply.payload_json, '$.author.kind') = 'human'
+                 AND json_extract(reply.payload_json, '$.assignmentReply.sessionId') = +a.session_id
+                 AND json_extract(reply.payload_json, '$.assignmentReply.sourceEventId') = coalesce(a.open_ask_source_event_id, (
+                   SELECT latest.source_event_id FROM source_events latest WHERE latest.assignment_session_id = a.session_id AND latest.source_kind = 'assignment-report' ORDER BY latest.rowid DESC LIMIT 1
+                 ))
+             )
+          UNION ALL
+          SELECT 'repair:' || a.source_event_id || ':' || a.bot_slug AS id,
+                 'action' AS category, 'bot-message-needs-repair' AS kind,
+                 e.created_at, e.channel_id,
+                 CASE WHEN json_extract(c.record_json, '$.deletedAt') IS NULL
+                      THEN coalesce(json_extract(c.record_json, '$.name'), '')
+                      ELSE '' END AS channel_name,
+                 a.bot_slug, e.body AS summary, NULL AS request_id,
+                 p.message_id, NULL AS assignment_session_id, e.source_event_id
+            FROM inbox_admissions a
+            JOIN source_events e ON e.source_event_id = a.source_event_id
+            LEFT JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            LEFT JOIN channel_records c ON c.channel_id = e.channel_id
+           WHERE a.attempt_state = 'needs-repair'
+             AND e.channel_id IS NOT NULL
+          UNION ALL
+          SELECT 'report:' || e.source_event_id AS id,
+                 'info' AS category, 'assignment-report' AS kind,
+                 e.created_at, NULL AS channel_id, NULL AS channel_name,
+                 e.bot_slug, e.body AS summary, NULL AS request_id,
+                 NULL AS message_id, a.session_id AS assignment_session_id,
+                 e.source_event_id
+            FROM assignments a
+            JOIN source_events e ON e.source_event_id = (
+              SELECT latest.source_event_id FROM source_events latest
+               WHERE latest.assignment_session_id = a.session_id
+                 AND latest.source_kind = 'assignment-report'
+               ORDER BY latest.rowid DESC LIMIT 1
+            )
+            LEFT JOIN human_attention_decisions d ON d.source_event_id = e.source_event_id
+           WHERE a.latest_report_state = 'completed'
+             AND d.source_event_id IS NULL
+        )`;
 
 const CHANNEL_ATTENTION_CTE = `
   WITH visible_messages AS (
@@ -465,154 +615,7 @@ SELECT 'handled:' || request.source_event_id AS id,
         (db) =>
           db
             .prepare(`
-        WITH attention AS (
-          SELECT 'join:' || json_extract(j.value, '$.id') AS id,
-                 'action' AS category, 'group-join-request' AS kind,
-                 json_extract(j.value, '$.createdAt') AS created_at,
-                 c.channel_id, json_extract(c.record_json, '$.name') AS channel_name,
-                 json_extract(j.value, '$.requesterBotSlug') AS bot_slug,
-                 '' AS summary, json_extract(j.value, '$.id') AS request_id,
-                 NULL AS message_id, NULL AS assignment_session_id,
-                 NULL AS source_event_id
-            FROM channel_records c, json_each(c.record_json, '$.joinRequests') j
-           WHERE json_extract(c.record_json, '$.type') = 'group'
-             AND json_extract(c.record_json, '$.deletedAt') IS NULL
-             AND json_extract(j.value, '$.status') = 'pending'
-          UNION ALL
-          SELECT 'question:' || e.source_event_id AS id,
-                 'action' AS category, 'user-question' AS kind,
-                 e.created_at, c.channel_id,
-                 json_extract(c.record_json, '$.name') AS channel_name,
-                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
-                 NULL AS assignment_session_id, e.source_event_id
-            FROM source_events e
-            JOIN channel_placements p ON p.source_event_id = e.source_event_id
-            JOIN channel_records c ON c.channel_id = p.channel_id
-           WHERE json_extract(c.record_json, '$.type') = 'dm'
-             AND json_extract(c.record_json, '$.botSlug') IS NOT NULL
-             AND json_extract(c.record_json, '$.deletedAt') IS NULL
-             AND e.source_kind = 'bot-message'
-             AND json_extract(e.payload_json, '$.userQuestionRequest') IS NOT NULL
-             AND e.message_id IN (SELECT value FROM json_each(?))
-             AND NOT EXISTS (
-               SELECT 1 FROM source_events resolution
-                WHERE resolution.channel_id = e.channel_id
-                  AND json_extract(resolution.payload_json,
-                    '$.userQuestionResolution.requestMessageId') = e.message_id
-             )
-          UNION ALL
-          SELECT 'approval:' || e.source_event_id AS id,
-                 'action' AS category, 'tool-approval' AS kind,
-                 e.created_at, c.channel_id,
-                 json_extract(c.record_json, '$.name') AS channel_name,
-                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
-                 NULL AS assignment_session_id, e.source_event_id
-            FROM source_events e
-            JOIN channel_placements p ON p.source_event_id = e.source_event_id
-            JOIN channel_records c ON c.channel_id = p.channel_id
-           WHERE json_extract(c.record_json, '$.type') = 'dm'
-             AND json_extract(c.record_json, '$.botSlug') IS NOT NULL
-             AND json_extract(c.record_json, '$.deletedAt') IS NULL
-             AND e.source_kind = 'bot-message'
-             AND json_extract(e.payload_json, '$.toolApprovalRequest') IS NOT NULL
-             AND e.message_id IN (SELECT value FROM json_each(?))
-             AND NOT EXISTS (
-               SELECT 1 FROM source_events decision
-                WHERE decision.channel_id = e.channel_id
-                  AND json_extract(decision.payload_json,
-                    '$.toolApprovalDecision.requestMessageId') = e.message_id
-             )
-          UNION ALL
-          SELECT 'grant:' || e.source_event_id AS id,
-                 'action' AS category, 'workspace-grant-request' AS kind,
-                 e.created_at, c.channel_id,
-                 json_extract(c.record_json, '$.name') AS channel_name,
-                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
-                 NULL AS assignment_session_id, e.source_event_id
-            FROM source_events e
-            JOIN channel_placements p ON p.source_event_id = e.source_event_id
-            JOIN channel_records c ON c.channel_id = p.channel_id
-           WHERE json_extract(c.record_json, '$.type') = 'dm'
-             AND json_extract(c.record_json, '$.botSlug') = e.bot_slug
-             AND json_extract(c.record_json, '$.deletedAt') IS NULL
-             AND e.source_kind = 'bot-message'
-             AND json_extract(e.payload_json, '$.grantRequest') = 1
-             AND NOT EXISTS (
-               SELECT 1 FROM source_events resolution
-                WHERE resolution.channel_id = e.channel_id
-                  AND resolution.source_kind = 'human-message'
-                  AND json_extract(resolution.payload_json, '$.author.kind') = 'human'
-                  AND json_extract(resolution.payload_json,
-                    '$.grantRequestResolution.requestMessageId') = e.message_id
-             )
-          UNION ALL
-          SELECT 'assignment:' || a.session_id AS id,
-                 'action' AS category,
-                 CASE coalesce(json_extract(ask.payload_json, '$.assignmentReport.state'), a.latest_report_state)
-                   WHEN 'blocked' THEN 'assignment-blocked'
-                   ELSE 'assignment-waiting-human'
-                 END AS kind,
-                 coalesce(ask.created_at, a.latest_report_at) AS created_at, 'dm-' || a.bot_slug AS channel_id,
-                 coalesce((SELECT json_extract(dm.record_json, '$.name') FROM channel_records dm WHERE dm.channel_id = 'dm-' || a.bot_slug), a.bot_slug) AS channel_name, a.bot_slug,
-                 coalesce(ask.body, a.latest_report_summary) AS summary, NULL AS request_id,
-                 NULL AS message_id, a.session_id AS assignment_session_id,
-                 coalesce(a.open_ask_source_event_id, (
-                   SELECT latest.source_event_id FROM source_events latest
-                    WHERE latest.assignment_session_id = a.session_id
-                      AND latest.source_kind = 'assignment-report'
-                    ORDER BY latest.rowid DESC LIMIT 1
-                 )) AS source_event_id
-            FROM assignments a
-            LEFT JOIN source_events ask ON ask.source_event_id = a.open_ask_source_event_id
-           WHERE ((coalesce(json_extract(ask.payload_json, '$.assignmentReport.state'), a.latest_report_state) = 'waiting-human'
-                   AND a.open_ask_source_event_id IS NOT NULL)
-               OR (coalesce(json_extract(ask.payload_json, '$.assignmentReport.state'), a.latest_report_state) = 'blocked'
-                   AND (a.open_ask_source_event_id IS NOT NULL
-                        OR a.activity IN ('idle', 'error'))))
-             AND a.stop_state = 'running'
-             AND a.latest_report_at IS NOT NULL
-             AND NOT EXISTS (SELECT 1 FROM channel_records dm WHERE dm.channel_id = 'dm-' || a.bot_slug AND json_extract(dm.record_json, '$.deletedAt') IS NOT NULL)
-             AND NOT EXISTS (
-               SELECT 1 FROM source_events reply WHERE reply.channel_id = 'dm-' || a.bot_slug
-                 AND reply.source_kind = 'human-message' AND json_extract(reply.payload_json, '$.author.kind') = 'human'
-                 AND json_extract(reply.payload_json, '$.assignmentReply.sessionId') = +a.session_id
-                 AND json_extract(reply.payload_json, '$.assignmentReply.sourceEventId') = coalesce(a.open_ask_source_event_id, (
-                   SELECT latest.source_event_id FROM source_events latest WHERE latest.assignment_session_id = a.session_id AND latest.source_kind = 'assignment-report' ORDER BY latest.rowid DESC LIMIT 1
-                 ))
-             )
-          UNION ALL
-          SELECT 'repair:' || a.source_event_id || ':' || a.bot_slug AS id,
-                 'action' AS category, 'bot-message-needs-repair' AS kind,
-                 e.created_at, e.channel_id,
-                 CASE WHEN json_extract(c.record_json, '$.deletedAt') IS NULL
-                      THEN coalesce(json_extract(c.record_json, '$.name'), '')
-                      ELSE '' END AS channel_name,
-                 a.bot_slug, e.body AS summary, NULL AS request_id,
-                 p.message_id, NULL AS assignment_session_id, e.source_event_id
-            FROM inbox_admissions a
-            JOIN source_events e ON e.source_event_id = a.source_event_id
-            LEFT JOIN channel_placements p ON p.source_event_id = e.source_event_id
-            LEFT JOIN channel_records c ON c.channel_id = e.channel_id
-           WHERE a.attempt_state = 'needs-repair'
-             AND e.channel_id IS NOT NULL
-          UNION ALL
-          SELECT 'report:' || e.source_event_id AS id,
-                 'info' AS category, 'assignment-report' AS kind,
-                 e.created_at, NULL AS channel_id, NULL AS channel_name,
-                 e.bot_slug, e.body AS summary, NULL AS request_id,
-                 NULL AS message_id, a.session_id AS assignment_session_id,
-                 e.source_event_id
-            FROM assignments a
-            JOIN source_events e ON e.source_event_id = (
-              SELECT latest.source_event_id FROM source_events latest
-               WHERE latest.assignment_session_id = a.session_id
-                 AND latest.source_kind = 'assignment-report'
-               ORDER BY latest.rowid DESC LIMIT 1
-            )
-            LEFT JOIN human_attention_decisions d ON d.source_event_id = e.source_event_id
-           WHERE a.latest_report_state = 'completed'
-             AND d.source_event_id IS NULL
-        )
+        ${ACTION_ATTENTION_CTE}
         SELECT * FROM attention
          WHERE category = ?
            AND (? IS NULL OR bot_slug = ?)
@@ -655,6 +658,21 @@ SELECT 'handled:' || request.source_event_id AS id,
             }
           : {}),
       };
+    },
+    actionCount() {
+      return database.read(
+        (db) =>
+          (
+            db
+              .prepare(
+                `${ACTION_ATTENTION_CTE} SELECT count(DISTINCT id) AS count FROM attention WHERE category = 'action'`,
+              )
+              .get(
+                JSON.stringify(activeQuestionMessageIds()),
+                JSON.stringify(activeToolApprovalMessageIds()),
+              ) as { count: number }
+          ).count,
+      );
     },
     status() {
       const unreadCount = database.read(

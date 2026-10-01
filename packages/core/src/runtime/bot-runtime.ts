@@ -9,7 +9,11 @@ import {
 } from '../attachments/file-operations.js';
 import { authorizedPathRoot } from '../workspaces/grant-native-tools.js';
 import type { OutboundMessaging } from '../messaging/outbound.js';
-import type { ExternalSource } from '../messaging/inbound.js';
+import type {
+  ExternalSource,
+  ExternalContextQuery,
+  ExternalContextResult,
+} from '../messaging/inbound.js';
 import { sniffAttachmentMime } from '../attachments/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -170,6 +174,11 @@ export interface OrchestratorAgentRun {
   inboundChannelId: string | undefined;
   externalMessaging?: {
     read(sourceEventId: string): ExternalSource;
+    context(
+      sourceEventId: string,
+      query: ExternalContextQuery,
+      signal?: AbortSignal,
+    ): Promise<ExternalContextResult>;
     reply(sourceEventId: string, text: string): ReturnType<OutboundMessaging['reply']>;
     saveFile(input: {
       sourceEventId: string;
@@ -637,7 +646,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
     if (unit.external !== undefined) {
-      return `- External work-group mention (source_event_id: ${unit.sourceEventId}). Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, senderId: unit.external.event.actor.id, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
+      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group mention. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
     }
     if (unit.sourceKind === 'memory-change') {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
@@ -2377,6 +2386,21 @@ class BotRuntimeImplementation implements BotRuntime {
           : {
               externalMessaging: {
                 read: (id: string) => this.#externalMessaging!.inbound.read(bot.slug, id),
+                context: async (id: string, query: ExternalContextQuery, signal?: AbortSignal) => {
+                  const result = await this.#externalMessaging!.inbound.context(
+                    bot.slug,
+                    id,
+                    orchestrator.sessionId,
+                    query,
+                    signal,
+                  );
+                  this.#observeExternalRead(
+                    bot.slug,
+                    result.messages.map((item) => item.sourceEventId),
+                    readAdmissions,
+                  );
+                  return result;
+                },
                 saveFile: async (input) => {
                   if (this.#attachments === undefined || this.#grants === undefined)
                     throw new Error('Bridge file operations are unavailable');
@@ -4587,6 +4611,24 @@ class BotRuntimeImplementation implements BotRuntime {
     return this.#channels
       .list()
       .find((channel) => channel.type === 'dm' && channel.botSlug === botSlug);
+  }
+
+  #observeExternalRead(botSlug: string, ids: string[], readAdmissions: Set<string>): void {
+    const at = this.#now().toISOString();
+    this.#database.transaction(
+      (db) => {
+        for (const id of ids) {
+          const row = db
+            .prepare(`UPDATE inbox_admissions SET observed_at = COALESCE(observed_at, ?),
+          side_effect_started_at = COALESCE(side_effect_started_at, ?), attempt_state = 'running', last_error = NULL
+          WHERE bot_slug = ? AND source_event_id = ? AND reason = 'group-mention'
+            AND attempt_state IN ('pending', 'retryable') RETURNING source_event_id`)
+            .get(at, at, botSlug, id);
+          if (row) readAdmissions.add(id);
+        }
+      },
+      ['bot-inbox'],
+    );
   }
 
   #observeReadMessages(

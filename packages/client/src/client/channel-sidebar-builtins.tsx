@@ -21,6 +21,7 @@ import { MemoryEntry } from './memory-entry.js';
 import { MemoryFilesEntry } from './memory-files-entry.js';
 import { MemoryEvolutionHeaderAction, MemoryRefreshHeaderAction } from './memory-header-action.js';
 import { Modal } from './modal.js';
+import { ExternalSourceContent } from './external-source-content.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
 import {
@@ -283,7 +284,7 @@ function BotInboxItemRow({
     : item.summary;
   const author =
     item.externalOrigin !== undefined
-      ? `${item.externalOrigin.platform} · ${item.externalOrigin.senderId}`
+      ? `${item.externalOrigin.platform} · ${item.externalOrigin.senderName ? `${item.externalOrigin.senderName} (${item.externalOrigin.senderId})` : item.externalOrigin.senderId}`
       : memoryChange
         ? t('inbox.memoryChange')
         : item.sourceKind === 'assignment-report'
@@ -356,6 +357,7 @@ function BotInboxItemRow({
             setExternalOpen(false);
           }}
           title={t('im.sourceTitle')}
+          className="bh-external-source-modal"
           closeLabel={t('common.close')}
         >
           {externalError ? (
@@ -363,19 +365,7 @@ function BotInboxItemRow({
           ) : external === undefined ? (
             <p>{t('im.sourceLoading')}</p>
           ) : (
-            <>
-              <p>
-                {external.platform} · {external.accountName} · {external.conversationName}
-              </p>
-              <p>
-                {external.event.actor.id} · {external.at}
-              </p>
-              <p>
-                {external.event.reply.threadId ??
-                  external.event.reply.rootId ??
-                  external.event.conversation.id}
-              </p>
-              <p className="bh-external-source-body">{external.body}</p>
+            <ExternalSourceContent source={external} t={t}>
               {external.event.attachments?.map((file) => (
                 <div className="bh-external-source-file" key={file.id}>
                   <span>{file.name}</span>
@@ -388,7 +378,7 @@ function BotInboxItemRow({
                 </div>
               ))}
               {fileError ? <p role="alert">{t('im.fileError')}</p> : null}
-            </>
+            </ExternalSourceContent>
           )}
         </Modal>
       ) : null}

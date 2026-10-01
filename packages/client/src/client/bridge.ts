@@ -1,3 +1,4 @@
+import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 export type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
@@ -1790,7 +1791,8 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
       !origin ||
       ['platform', 'accountName', 'conversationName', 'conversationId', 'senderId'].some(
         (key) => typeof origin[key] !== 'string',
-      )
+      ) ||
+      (origin['senderName'] !== undefined && typeof origin['senderName'] !== 'string')
     )
       return undefined;
   }
@@ -2775,6 +2777,7 @@ export async function readMessagingSource(
     typeof event['mentionedAccount'] !== 'boolean' ||
     actor?.['kind'] !== 'user' ||
     !strings(actor, ['id']) ||
+    (actor?.['name'] !== undefined && typeof actor['name'] !== 'string') ||
     !['group', 'dm'].includes(String(conversation?.['kind'])) ||
     !strings(conversation, ['id']) ||
     !strings(reply, ['messageId', 'conversationId', 'actorId']) ||
@@ -2782,7 +2785,12 @@ export async function readMessagingSource(
       (key) => reply?.[key] !== undefined && typeof reply[key] !== 'string',
     ) ||
     !Array.isArray(event['mentions']) ||
-    !event['mentions'].every((mention) => strings(asRecord(mention), ['id', 'key'])) ||
+    !event['mentions'].every(
+      (mention) =>
+        strings(asRecord(mention), ['id', 'key']) &&
+        (asRecord(mention)?.['name'] === undefined ||
+          typeof asRecord(mention)?.['name'] === 'string'),
+    ) ||
     (event['attachments'] !== undefined &&
       (!Array.isArray(event['attachments']) ||
         event['attachments'].length > 1 ||
@@ -2794,5 +2802,83 @@ export async function readMessagingSource(
     replay['gapPossible'] !== true
   )
     throw new BridgeCallError('invalid-response', 'Invalid source');
+  if (
+    source?.['contextReads'] !== undefined &&
+    (!Array.isArray(source['contextReads']) ||
+      source['contextReads'].length > 20 ||
+      !source['contextReads'].every((value) => {
+        const read = asRecord(value);
+        return (
+          strings(read, ['at', 'sessionId', 'scope', 'outcome']) &&
+          ['group', 'nearby', 'thread'].includes(String(read?.['scope'])) &&
+          ['read', 'refused'].includes(String(read?.['outcome'])) &&
+          typeof read?.['incomplete'] === 'boolean' &&
+          Number.isInteger(read?.['omitted']) &&
+          Array.isArray(read?.['sourceEventIds']) &&
+          read['sourceEventIds'].length <= 20 &&
+          read['sourceEventIds'].every((id: unknown) => typeof id === 'string') &&
+          (read['reason'] === undefined || typeof read['reason'] === 'string')
+        );
+      }))
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid context audit');
+  if (
+    source?.['contextMessages'] !== undefined &&
+    (!Array.isArray(source['contextMessages']) ||
+      source['contextMessages'].length > 20 ||
+      !source['contextMessages'].every(
+        (value) =>
+          strings(asRecord(value), ['sourceEventId', 'messageId', 'senderId', 'at', 'text']) &&
+          (asRecord(value)?.['senderName'] === undefined ||
+            typeof asRecord(value)?.['senderName'] === 'string') &&
+          (asRecord(value)?.['mentions'] === undefined ||
+            (Array.isArray(asRecord(value)?.['mentions']) &&
+              (asRecord(value)?.['mentions'] as unknown[]).every(
+                (mention) =>
+                  strings(asRecord(mention), ['id', 'key']) &&
+                  (asRecord(mention)?.['name'] === undefined ||
+                    typeof asRecord(mention)?.['name'] === 'string'),
+              ))),
+      ))
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid context messages');
   return source as unknown as ExternalSource;
+}
+
+export async function loadActivityOverview(call: BridgeCall): Promise<ActivityOverview> {
+  const row = asRecord(await unwrap(call, 'activityOverview', {}));
+  if (
+    row === undefined ||
+    !Number.isSafeInteger(row['actionCount']) ||
+    (row['actionCount'] as number) < 0 ||
+    !Array.isArray(row['bots'])
+  )
+    throw new Error('Invalid Activity Center overview');
+  const bots = row['bots'].map((value: unknown) => {
+    const bot = asRecord(value);
+    if (
+      bot === undefined ||
+      typeof bot['slug'] !== 'string' ||
+      typeof bot['displayName'] !== 'string' ||
+      typeof bot['paused'] !== 'boolean' ||
+      !['idle', 'thinking', 'working', 'waiting', 'blocked'].includes(String(bot['state'])) ||
+      !Array.isArray(bot['sessions']) ||
+      (bot['avatar'] !== undefined && typeof bot['avatar'] !== 'string')
+    )
+      throw new Error('Invalid Overview Bot');
+    const sessions = bot['sessions'].map((value: unknown) => {
+      const session = asRecord(value);
+      if (
+        session === undefined ||
+        typeof session['sessionId'] !== 'string' ||
+        !['orchestrator', 'assignment'].includes(String(session['role'])) ||
+        !['thinking', 'working'].includes(String(session['state'])) ||
+        (session['purpose'] !== undefined && typeof session['purpose'] !== 'string')
+      )
+        throw new Error('Invalid Overview Session');
+      return session as unknown as ActivityOverview['bots'][number]['sessions'][number];
+    });
+    return { ...bot, sessions } as unknown as ActivityOverview['bots'][number];
+  });
+  return { actionCount: row['actionCount'] as number, bots };
 }

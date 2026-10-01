@@ -27,9 +27,9 @@ export interface MessagingInboundEvent {
   fingerprint: string;
   eventId: string;
   messageId: string;
-  actor: { kind: 'user'; id: string };
+  actor: { kind: 'user'; id: string; name?: string };
   conversation: { kind: 'group' | 'dm'; id: string };
-  mentions: { id: string; key: string }[];
+  mentions: { id: string; key: string; name?: string }[];
   mentionedAccount: boolean;
   at: string;
   text: string;
@@ -45,6 +45,23 @@ export interface MessagingReplyRoute {
   threadId?: string;
   rootId?: string;
   parentId?: string;
+}
+
+export type MessagingHistoryScope = 'group' | 'nearby' | 'thread';
+export interface MessagingHistoryQuery {
+  scope: MessagingHistoryScope;
+  limit: number;
+  cursor?: string;
+}
+export interface MessagingHistoryPage {
+  version: 1;
+  scope: MessagingHistoryScope;
+  events: MessagingInboundEvent[];
+  omitted: number;
+  hasMore: boolean;
+  nextCursor?: string;
+  window?: { start: number; end: number };
+  coverage: 'provider-visible-human-text';
 }
 
 export interface MessagingProvider {
@@ -71,6 +88,13 @@ export interface MessagingProvider {
     text: string;
     signal: AbortSignal;
   }): Promise<{ accepted: true }>;
+  history?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    query: MessagingHistoryQuery;
+    signal: AbortSignal;
+  }): Promise<MessagingHistoryPage>;
   readFile?(input: {
     accountRef: string;
     fingerprint: string;

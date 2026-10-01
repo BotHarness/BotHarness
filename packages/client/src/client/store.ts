@@ -1,3 +1,4 @@
+import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { PersonaBotActivityState } from './avatar.js';
 import type { RosterConfig } from './roster-config.js';
 import type { RosterSection, TopOrderEntry } from './roster.js';
@@ -263,7 +264,7 @@ export interface HumanInboxState {
 export type ConversationSelection =
   | { kind: 'bot'; slug: string }
   | { kind: 'channel'; channelId: string }
-  | { kind: 'inbox' };
+  | { kind: 'inbox'; view?: 'overview' };
 
 export interface ConversationTimeline {
   olderCursor: string | null;
@@ -333,6 +334,7 @@ export interface BotAttentionItem {
     conversationName: string;
     conversationId: string;
     senderId: string;
+    senderName?: string;
   };
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';
@@ -380,6 +382,11 @@ export interface ClientState {
   sessions: SessionsState;
   botInbox: BotInboxState;
   humanInbox: HumanInboxState;
+  overview: {
+    status: ClientStatus;
+    value: ActivityOverview | undefined;
+    error: string | undefined;
+  };
 }
 
 export interface PersonaBotActivitySnapshot {
@@ -411,6 +418,7 @@ export interface ClientStore {
   ): void;
   setSessions(patch: Partial<SessionsState>): void;
   setBotInbox(patch: Partial<BotInboxState>): void;
+  setOverview(patch: Partial<ClientState['overview']>): void;
   setHumanInbox(patch: Partial<HumanInboxState>): void;
 }
 
@@ -469,7 +477,7 @@ function sameSelection(
 ): boolean {
   if (left === right) return true;
   if (left === undefined || right === undefined) return false;
-  if (left.kind === 'inbox' && right.kind === 'inbox') return true;
+  if (left.kind === 'inbox' && right.kind === 'inbox') return left.view === right.view;
   if (left.kind === 'bot' && right.kind === 'bot') return left.slug === right.slug;
   if (left.kind === 'channel' && right.kind === 'channel')
     return left.channelId === right.channelId;
@@ -535,6 +543,7 @@ export function createStore(): ClientStore {
     conversation: initialConversation(),
     sessions: initialSessions(),
     botInbox: initialBotInbox(),
+    overview: { status: 'idle', value: undefined, error: undefined },
     humanInbox: initialHumanInbox(),
   };
   const listeners = new Set<() => void>();
@@ -634,6 +643,9 @@ export function createStore(): ClientStore {
     },
     setBotInbox(patch) {
       update({ botInbox: { ...state.botInbox, ...patch } });
+    },
+    setOverview(patch) {
+      update({ overview: { ...state.overview, ...patch } });
     },
     setHumanInbox(patch) {
       update({ humanInbox: { ...state.humanInbox, ...patch } });
