@@ -152,7 +152,7 @@ export function createRealAttachments(root: string, maxBytes: number) {
     }
     const previous = acquisitions.get(id);
     if (previous !== undefined) {
-      await previous;
+      await previous.catch(() => undefined);
       return acquired(input);
     }
     const operation = (async () =>

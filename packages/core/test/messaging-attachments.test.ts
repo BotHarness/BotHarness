@@ -81,9 +81,12 @@ async function fixture(onRun?: (run: OrchestratorAgentRun) => Promise<void>) {
   const download = vi.fn(async function* () {
     yield Buffer.from('original bytes');
   });
+  const observed: { state: string | undefined; body: string }[] = [];
   const reply = vi.fn(async (_bot: string, _route: unknown, file: { bytes: Uint8Array }) => {
-    expect(core.externalMessaging.history('ada')[0]?.state).toBe('in-flight');
-    expect(Buffer.from(file.bytes).toString()).toBe('processed bytes');
+    observed.push({
+      state: core.externalMessaging.history('ada')[0]?.state,
+      body: Buffer.from(file.bytes).toString(),
+    });
     return { sent: true as const };
   });
   const service: DshImOutboundService = {
@@ -143,6 +146,7 @@ async function fixture(onRun?: (run: OrchestratorAgentRun) => Promise<void>) {
     source,
     download,
     reply,
+    observed,
     async restart() {
       core.externalMessaging.close();
       await core.runtime.close();
@@ -189,6 +193,8 @@ it('one trusted source reaches writable native files and a selected same-topic f
   grantId = workspaceGrant.id;
   fx.core.grants.setOrchestratorWrite('ada', grantId, true);
   await fx.source();
+  expect(fx.observed).toEqual([{ state: 'in-flight', body: 'processed bytes' }]);
+  expect(fx.core.externalMessaging.history('ada')[0]?.state).toBe('provider-accepted');
   expect(fx.reply).toHaveBeenCalledTimes(1);
   expect(fx.reply.mock.calls[0]?.[1]).toEqual(event.reply);
   expect(fx.core.externalMessaging.history('ada')[0]?.file?.fileId).toBe(resultId);
