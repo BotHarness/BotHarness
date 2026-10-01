@@ -1162,20 +1162,35 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
   });
 
-  it('drops a dead tab and reports it readably', async () => {
-    const h = harness({ access: true, auto: true });
-    h.created();
-    await h.state.definitions
-      .get('browser_open')!
-      .execute({ url: 'https://example.com' }, execution('browser_open'));
-    h.runtime.observe = vi.fn(async () => {
-      throw new Error('target closed');
-    });
-    await expect(
-      h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe')),
-    ).rejects.toThrow(/browser_tabs/);
-    expect(h.audits.at(-1)?.outcome).toBe('error');
-  });
+  it.each(['target closed', 'Session with given id not found.'])(
+    'drops a dead tab and recovers after %s',
+    async (message) => {
+      const h = harness({ access: true, auto: true });
+      h.created();
+      await h.state.definitions
+        .get('browser_open')!
+        .execute({ url: 'https://example.com' }, execution('browser_open'));
+      h.runtime.observe = vi.fn(async () => {
+        throw new Error(message);
+      });
+      await expect(
+        h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe')),
+      ).rejects.toThrow(/browser_tabs.*browser_open/);
+      expect(h.audits.at(-1)?.outcome).toBe('error');
+      expect(h.provider.currentTab('bot-a')).toBeUndefined();
+      vi.mocked(h.runtime.open).mockResolvedValueOnce({
+        tabId: 'tab-recovered',
+        url: 'https://recover.test',
+        title: 'Recovered',
+      });
+      await h.state.definitions
+        .get('browser_open')!
+        .execute({ url: 'https://recover.test' }, execution('browser_open'));
+      expect(h.runtime.open).toHaveBeenLastCalledWith('https://recover.test', undefined);
+      expect(h.provider.currentTab('bot-a')).toBe('tab-recovered');
+      expect(h.audits.at(-1)?.outcome).toBe('ok');
+    },
+  );
 
   it('fails when access is turned off mid-session, and audits the error', async () => {
     const h = harness({ access: true, auto: true });
