@@ -550,6 +550,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     await release();
     await waitForReady(sessionId);
     const page = await readPage(sessionId);
+    lastUrl = page.url;
     return { tabId, ...page };
   };
 

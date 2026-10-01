@@ -666,6 +666,44 @@ describe('runtime lifecycle', () => {
     },
   );
 
+  it('updates the current URL when a native Enter navigates the page', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    let navigated = false;
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => {
+        if (method === 'Input.dispatchKeyEvent' && params?.['type'] === 'keyDown') navigated = true;
+        if (
+          method === 'Runtime.evaluate' &&
+          String(params?.['expression']).startsWith('({ url:') &&
+          navigated
+        ) {
+          return {
+            result: { value: { url: 'https://example.com/submitted', title: 'Submitted' } },
+          };
+        }
+        return base.send(method, params, sessionId);
+      },
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await runtime.open('https://example.com');
+    expect(runtime.currentUrl()).toBe('https://example.com/');
+    const page = await runtime.pressKey('tab-1', 'Enter');
+    expect(page.url).toBe('https://example.com/submitted');
+    expect(runtime.currentUrl()).toBe(page.url);
+  });
+
   it.each(['Control+Enter', 'UnrecognizedKey', '', '\n', '😀'])(
     'rejects unsupported key %j before any CDP operation',
     async (key) => {
