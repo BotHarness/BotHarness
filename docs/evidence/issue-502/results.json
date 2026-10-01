@@ -1,0 +1,237 @@
+[
+  {
+    "ok": true,
+    "phase": "baseline",
+    "bot": {
+      "slug": "bot-704b8ed5f23e4978813f1f7d8731665d",
+      "displayName": "Execution usage QA 1790826499935"
+    },
+    "paused": false,
+    "missingSourceLogs": 0,
+    "sourceLogCount": 3,
+    "rows": [
+      {
+        "day": "2026-10-01",
+        "purpose": "orchestrator",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 15187,
+        "outputTokens": 1194,
+        "cacheReadTokens": 93184,
+        "cacheWriteTokens": 0,
+        "totalTokens": 109565
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "assignment",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "inputTokens": 7332,
+        "outputTokens": 345,
+        "cacheReadTokens": 17792,
+        "cacheWriteTokens": 0,
+        "totalTokens": 25469
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "subagent",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 6675,
+        "outputTokens": 7,
+        "cacheReadTokens": 1152,
+        "cacheWriteTokens": 0,
+        "totalTokens": 7834
+      }
+    ],
+    "totalTokens": 142868
+  },
+  {
+    "ok": true,
+    "phase": "missing",
+    "bot": {
+      "slug": "bot-704b8ed5f23e4978813f1f7d8731665d",
+      "displayName": "Execution usage QA 1790826499935"
+    },
+    "paused": false,
+    "missingSourceLogs": 3,
+    "sourceLogCount": 3,
+    "rows": [
+      {
+        "day": "2026-10-01",
+        "purpose": "orchestrator",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 15187,
+        "outputTokens": 1194,
+        "cacheReadTokens": 93184,
+        "cacheWriteTokens": 0,
+        "totalTokens": 109565
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "assignment",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "inputTokens": 7332,
+        "outputTokens": 345,
+        "cacheReadTokens": 17792,
+        "cacheWriteTokens": 0,
+        "totalTokens": 25469
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "subagent",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 6675,
+        "outputTokens": 7,
+        "cacheReadTokens": 1152,
+        "cacheWriteTokens": 0,
+        "totalTokens": 7834
+      }
+    ],
+    "totalTokens": 142868
+  },
+  {
+    "ok": true,
+    "phase": "archive",
+    "bot": {
+      "slug": "bot-704b8ed5f23e4978813f1f7d8731665d",
+      "displayName": "Execution usage QA 1790826499935"
+    },
+    "paused": true,
+    "missingSourceLogs": 3,
+    "sourceLogCount": 3,
+    "rows": [
+      {
+        "day": "2026-10-01",
+        "purpose": "orchestrator",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 15187,
+        "outputTokens": 1194,
+        "cacheReadTokens": 93184,
+        "cacheWriteTokens": 0,
+        "totalTokens": 109565
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "assignment",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "inputTokens": 7332,
+        "outputTokens": 345,
+        "cacheReadTokens": 17792,
+        "cacheWriteTokens": 0,
+        "totalTokens": 25469
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "subagent",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 6675,
+        "outputTokens": 7,
+        "cacheReadTokens": 1152,
+        "cacheWriteTokens": 0,
+        "totalTokens": 7834
+      }
+    ],
+    "totalTokens": 142868
+  },
+  {
+    "ok": true,
+    "phase": "restored",
+    "bot": {
+      "slug": "bot-704b8ed5f23e4978813f1f7d8731665d",
+      "displayName": "Execution usage QA 1790826499935"
+    },
+    "paused": true,
+    "missingSourceLogs": 0,
+    "sourceLogCount": 3,
+    "rows": [
+      {
+        "day": "2026-10-01",
+        "purpose": "orchestrator",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 15187,
+        "outputTokens": 1194,
+        "cacheReadTokens": 93184,
+        "cacheWriteTokens": 0,
+        "totalTokens": 109565
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "assignment",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "inputTokens": 7332,
+        "outputTokens": 345,
+        "cacheReadTokens": 17792,
+        "cacheWriteTokens": 0,
+        "totalTokens": 25469
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "subagent",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 6675,
+        "outputTokens": 7,
+        "cacheReadTokens": 1152,
+        "cacheWriteTokens": 0,
+        "totalTokens": 7834
+      }
+    ],
+    "totalTokens": 142868
+  },
+  {
+    "ok": true,
+    "phase": "unarchive",
+    "bot": {
+      "slug": "bot-704b8ed5f23e4978813f1f7d8731665d",
+      "displayName": "Execution usage QA 1790826499935"
+    },
+    "paused": false,
+    "missingSourceLogs": 0,
+    "sourceLogCount": 3,
+    "rows": [
+      {
+        "day": "2026-10-01",
+        "purpose": "orchestrator",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 15187,
+        "outputTokens": 1194,
+        "cacheReadTokens": 93184,
+        "cacheWriteTokens": 0,
+        "totalTokens": 109565
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "assignment",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "inputTokens": 7332,
+        "outputTokens": 345,
+        "cacheReadTokens": 17792,
+        "cacheWriteTokens": 0,
+        "totalTokens": 25469
+      },
+      {
+        "day": "2026-10-01",
+        "purpose": "subagent",
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "inputTokens": 6675,
+        "outputTokens": 7,
+        "cacheReadTokens": 1152,
+        "cacheWriteTokens": 0,
+        "totalTokens": 7834
+      }
+    ],
+    "totalTokens": 142868
+  }
+]

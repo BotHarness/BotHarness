@@ -44,6 +44,7 @@ export interface PersonaBotRegistryOptions {
 
   initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
   cloneMemory?: (destination: string, url: string) => Promise<MemoryCloneResult>;
+  onPurge?: (slug: string, removeFiles: () => void) => void;
 }
 
 export interface PersonaBotRegistry {
@@ -276,11 +277,17 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       );
     },
     remove(slug, removeOptions) {
-      if (!isValidSlug(slug) || !existsSync(botDir(slug))) return false;
+      if (!isValidSlug(slug)) return false;
+      const exists = existsSync(botDir(slug));
       if (removeOptions?.purge === true) {
-        rmSync(botDir(slug), { recursive: true, force: true });
-        return true;
+        const removeFiles = () => {
+          if (exists) rmSync(botDir(slug), { recursive: true, force: true });
+        };
+        if (options.onPurge === undefined) removeFiles();
+        else options.onPurge(slug, removeFiles);
+        return exists;
       }
+      if (!exists) return false;
       rmSync(botFile(slug), { force: true });
       return true;
     },
