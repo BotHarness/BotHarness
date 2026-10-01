@@ -726,6 +726,7 @@ describe('bridge methods', () => {
       create: async () => grant,
       revoke: () => grant,
       requireActive: () => grant,
+      setOrchestratorWrite: (_slug, _id, enabled) => ({ ...grant, orchestratorWrite: enabled }),
       availableWorkspaces: () => [],
     };
     const { registry, channels, methods } = setup(

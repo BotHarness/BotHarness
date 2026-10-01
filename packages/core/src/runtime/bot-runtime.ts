@@ -1,3 +1,9 @@
+import {
+  saveAttachmentFile,
+  importAttachmentFile,
+  type AttachmentSaveInput,
+} from '../attachments/file-operations.js';
+import { authorizedPathRoot } from '../workspaces/grant-native-tools.js';
 import { sniffAttachmentMime } from '../attachments/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -243,6 +249,13 @@ export interface OrchestratorChannelAccess {
   };
   query(input?: ChannelQueryInput): ChannelQueryPage;
   readModel(input?: ChannelQueryInput & { messageId?: string; contentCursor?: string }): string;
+  saveAttachment?(
+    input: AttachmentSaveInput,
+  ): Promise<{ path: string; source: ChannelAttachmentRef; size: number }>;
+  importAttachment?(input: {
+    filePath: string;
+    signal?: AbortSignal;
+  }): Promise<ChannelAttachmentRef>;
   readAttachment?(input: {
     channelId?: string;
     messageId: string;
@@ -3158,6 +3171,60 @@ class BotRuntimeImplementation implements BotRuntime {
         );
         this.#observeReadMessages(botSlug, bounded.included, readAdmissions);
         return bounded.output;
+      },
+      saveAttachment: async (input) => {
+        if (this.#attachments === undefined || this.#grants === undefined)
+          throw new Error('Attachment file operations are unavailable');
+        return saveAttachmentFile(input, {
+          botSlug,
+          grants: this.#grants,
+          attachments: this.#attachments,
+          source: () => {
+            const bot = this.#registry.get(botSlug);
+            if (this.#closed || bot === undefined || bot.paused === true)
+              throw new Error('Source Bot is unavailable');
+            const channel = resolve(input.channelId);
+            const message = this.#channels.message(channel.id, input.messageId);
+            if (message === undefined) throw new Error('Source message is unavailable');
+            const owned =
+              this.#channels.attachmentReference === undefined
+                ? message.attachments?.find((ref) => attachmentIdentity(ref) === input.fileId)
+                : this.#channels.attachmentReference(channel.id, input.messageId, input.fileId);
+            if (owned === undefined) throw new Error('File is not attached to this source message');
+            return this.#attachments!.current(owned);
+          },
+        });
+      },
+      importAttachment: async (input) => {
+        if (
+          this.#attachments === undefined ||
+          this.#grants === undefined ||
+          this.#ownership === undefined
+        )
+          throw new Error('Attachment file operations are unavailable');
+        return importAttachmentFile(input, {
+          attachments: this.#attachments,
+          authorize: (path) => {
+            const bot = this.#registry.get(botSlug);
+            if (this.#closed || bot === undefined || bot.paused === true)
+              throw new Error('Result Bot is unavailable');
+            resolve();
+            const roots = this.#grants!
+              .list(botSlug)
+              .filter((grant) => grant.revokedAt === undefined)
+              .flatMap((grant) => {
+                try {
+                  return [this.#grants!.requireActive(botSlug, grant.id).workspacePath];
+                } catch {
+                  return [];
+                }
+              });
+            const memory = this.#registry.memoryDirFor(botSlug);
+            if (memory !== undefined) roots.push(memory);
+            if (authorizedPathRoot(roots, path) === undefined)
+              throw new Error('Selected file is outside current authorized directories');
+          },
+        });
       },
       readAttachment: async (input) => {
         const channel = resolve(input.channelId);

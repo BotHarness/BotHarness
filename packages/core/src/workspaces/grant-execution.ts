@@ -94,6 +94,8 @@ const BOT_TOOL_NAMES = new Set([
   'channel_read',
   'inbox_ignore',
   'channel_read_image',
+  'channel_attachment_save',
+  'channel_attachment_import',
   'list_bot_contacts',
   'group_create',
   'group_invite_bot',

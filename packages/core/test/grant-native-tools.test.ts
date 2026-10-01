@@ -8,10 +8,10 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { nativeFileToolDenial } from '../src/workspaces/grant-native-tools.js';
+import { nativeFileToolDenial, nativeExecutionRoot } from '../src/workspaces/grant-native-tools.js';
 
 const roots: string[] = [];
 afterEach(() => {
@@ -34,6 +34,7 @@ function fixture() {
   let oldActive = true;
   let newActive = false;
   const oldGrant = {
+    orchestratorWrite: false,
     id: 'old-grant',
     botSlug: 'ada',
     workspaceId: 'project',
@@ -81,6 +82,10 @@ function fixture() {
   const gate = (session: typeof orchestrator, name: string, args: unknown) =>
     nativeFileToolDenial(core, session, name, args);
   return {
+    core,
+    allowWrite: (enabled: boolean) => {
+      oldGrant.orchestratorWrite = enabled;
+    },
     memory,
     project,
     outside,
@@ -153,5 +158,43 @@ describe('Grant policy for native DSH file tools', () => {
     expect(
       f.gate(f.orchestrator, 'read', { file_path: join(f.project, 'project.txt') }),
     ).toBeUndefined();
+  });
+});
+
+describe('Orchestrator execution root selection', () => {
+  it('uses exactly one current writable root, preserving relative Memory paths and revocation', () => {
+    const f = fixture();
+    expect(nativeExecutionRoot(f.core, f.orchestrator, 'bash', { command: 'pwd' })).toBe(f.memory);
+    expect(() =>
+      nativeExecutionRoot(f.core, f.orchestrator, 'bash', { workdir: f.project }),
+    ).toThrow(/outside/);
+    f.allowWrite(true);
+    expect(
+      f.gate(f.orchestrator, 'write', { file_path: join(f.project, 'new.txt') }),
+    ).toBeUndefined();
+    expect(
+      nativeExecutionRoot(f.core, f.orchestrator, 'write', {
+        file_path: join(f.project, 'new.txt'),
+      }),
+    ).toBe(f.project);
+    expect(nativeExecutionRoot(f.core, f.orchestrator, 'write', { file_path: 'new.txt' })).toBe(
+      f.memory,
+    );
+    expect(nativeExecutionRoot(f.core, f.orchestrator, 'bash', { workdir: f.project })).toBe(
+      f.project,
+    );
+    expect(() =>
+      nativeExecutionRoot(f.core, f.orchestrator, 'bash', { workdir: dirname(f.project) }),
+    ).toThrow(/outside/);
+    expect(() =>
+      nativeExecutionRoot(f.core, f.orchestrator, 'bash', { workdir: join(f.project, 'escape') }),
+    ).toThrow(/outside/);
+    f.allowWrite(false);
+    expect(f.gate(f.orchestrator, 'write', { file_path: join(f.project, 'new.txt') })).toMatch(
+      /outside/,
+    );
+    expect(() =>
+      nativeExecutionRoot(f.core, f.orchestrator, 'bash', { workdir: f.project }),
+    ).toThrow(/outside/);
   });
 });

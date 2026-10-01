@@ -4,11 +4,58 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
+import { defineSchemaPlan } from '../src/database/schema.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createWorkspaceGrantStore, type DshWorkspace } from '../src/workspaces/grants.js';
 import { createTempRoot, FIXED_NOW } from './helpers.js';
 
 describe('Workspace Grant store', () => {
+  it('upgrades existing read-only Grants without silently granting write permission', () => {
+    const home = createTempRoot('botharness-grant-upgrade-');
+    const path = join(home, 'project');
+    mkdirSync(path);
+    const prior = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: defineSchemaPlan(
+        BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation < 42),
+      ),
+    });
+    attachOperationalModule(prior, 'workspace-grants').transaction((database) => {
+      database
+        .prepare(
+          'INSERT INTO workspace_grants (id, bot_slug, workspace_id, workspace_path, workspace_title, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run('existing', 'ada', 'workspace-1', path, 'Project', FIXED_NOW().toISOString());
+    });
+    prior.close();
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const workspace: DshWorkspace = {
+      id: 'workspace-1',
+      path,
+      title: 'Project',
+      status: async () => 'ok',
+    };
+    const grants = createWorkspaceGrantStore({
+      database: attachOperationalModule(owner, 'workspace-grants'),
+      now: FIXED_NOW,
+      workspaces: () => ({ get: () => workspace, list: () => [workspace] }),
+    });
+    try {
+      expect(owner.generation).toBe(42);
+      expect(grants.requireActive('ada', 'existing')).toMatchObject({
+        id: 'existing',
+        orchestratorWrite: false,
+        writeRevision: 0,
+      });
+      expect(grants.setOrchestratorWrite('ada', 'existing', true)).toMatchObject({
+        orchestratorWrite: true,
+        writeRevision: 1,
+      });
+    } finally {
+      owner.close();
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
   it('records a canonical DSH Workspace and blocks later use after revocation', async () => {
     const home = createTempRoot('botharness-grant-');
     const path = join(home, 'project');
@@ -40,11 +87,28 @@ describe('Workspace Grant store', () => {
       });
       expect(await grants.create('ada', 'workspace-1')).toEqual(first);
       expect(grants.requireActive('ada', first.id)).toEqual(first);
+      expect(first).toMatchObject({ orchestratorWrite: false, writeRevision: 0 });
+      expect(() => grants.setOrchestratorWrite('bob', first.id, true)).toThrow(
+        /missing or revoked/,
+      );
+      expect(grants.setOrchestratorWrite('ada', first.id, true)).toMatchObject({
+        orchestratorWrite: true,
+        writeRevision: 1,
+      });
+      expect(grants.setOrchestratorWrite('ada', first.id, true).writeRevision).toBe(1);
+      expect(grants.setOrchestratorWrite('ada', first.id, false)).toMatchObject({
+        orchestratorWrite: false,
+        writeRevision: 2,
+      });
+      expect(grants.setOrchestratorWrite('ada', first.id, true).writeRevision).toBe(3);
       expect(() => grants.requireActive('bob', first.id)).toThrow(/missing or revoked/);
 
       const revoked = grants.revoke('ada', first.id);
       expect(revoked.revokedAt).toBe(FIXED_NOW().toISOString());
       expect(() => grants.requireActive('ada', first.id)).toThrow(/missing or revoked/);
+      expect(() => grants.setOrchestratorWrite('ada', first.id, true)).toThrow(
+        /missing or revoked/,
+      );
       expect((await grants.create('ada', 'workspace-1')).id).toBe('grant-2');
 
       workspace = { ...workspace!, path: join(home, 'other') };

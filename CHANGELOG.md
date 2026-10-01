@@ -17,6 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Added actual model/provider and execution-role filters to PersonaBot usage, with separate retained all-time totals, a seven-day chart default, and visible query freshness or failures ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
 - The local Human can save an optional default name in plugin settings; Channel authors, members, receipts and Bot context use the current name, and historical trusted Human/Bot mentions resolve current labels by stable identity without changing message content or attention ([#621](https://github.com/BotHarness/BotHarness/issues/621), [ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)).
+- Human can explicitly allow a PersonaBot to write one granted work folder, save a received file there, process it with native tools and approved Shell calls, and return a separately downloadable result ([#632](https://github.com/BotHarness/BotHarness/issues/632), [ADR-0105](docs/adr/0105-attachments-use-native-file-operations-under-source-authority.md)).
 
 - PersonaBots can explicitly mention the local Human in a Group using its current member identity; Human Inbox combines trusted mentions and direct replies in one personal view with expandable context and inline replies, while ordinary `@Human` text creates no personal reminder ([#549](https://github.com/BotHarness/BotHarness/issues/549)).
 - PersonaBot Profile coordinates daily and actual-model usage charts with one bounded time range, initially the most recent 7 days; a Model / Provider switch shows only the selected dimension; default model rows combine providers and execution roles as compact name-and-total rows, with inclusive input, cache reads, output and weighted percentages in chart hover tooltips alongside composition and cache-ratio charts; keyboard-accessible Details disclose Session categories ([#592](https://github.com/BotHarness/BotHarness/issues/592)).
@@ -216,6 +217,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Fixed
 
 - Group departure now reports a committed change or an idempotent `not-member` no-change; missing Channels and non-Group targets fail explicitly, so repeated or rejected requests cannot fabricate a new departure ([#571](https://github.com/BotHarness/BotHarness/issues/571)).
+
+- Browser typing now refuses readonly and disabled inputs and textareas before changing values, focus or events, including native disabled-fieldset inheritance; the Bot retains its current tab and can continue with an editable field ([#644](https://github.com/BotHarness/BotHarness/issues/644)).
+
 - Browser key presses now perform native focus movement, editing and form submission; unsupported keys return retryable errors instead of reporting success ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
 
 - Browser navigation failures now return retryable Tool errors and error Audit outcomes; failed new tabs are cleaned up while an existing current target remains available for observation and retry ([#627](https://github.com/BotHarness/BotHarness/issues/627)).
@@ -282,6 +286,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Fixed the Computer's Chromium losing its open tabs across stop → start: the desktop now launches Chromium on boot and restores the previous session, so tabs survive a restart the same way they survive export → import ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
 
 ### Documentation
+
+- Replaced the early milestone README with bilingual product screenshots, current source-preview setup, and explicit Computer, Browser, and temporary-fork IM delivery boundaries ([#643](https://github.com/BotHarness/BotHarness/issues/643)).
 
 - Documented the local Human naming target: a plugin-wide default, per-Channel roleplay nicknames, and stable-ID mentions displaying current Human or PersonaBot names; runtime implementation remains subsequent work ([ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md), [#126](https://github.com/BotHarness/BotHarness/issues/126), [design](docs/architecture/botharness-architecture.md)).
 
