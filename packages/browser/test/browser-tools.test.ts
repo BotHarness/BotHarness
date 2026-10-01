@@ -682,6 +682,34 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.provider.currentTab('bot-a')).toBeUndefined();
   });
 
+  it('audits unsupported key errors, retains current work and permits a native retry', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const press = h.state.definitions.get('browser_press_key')!;
+    vi.mocked(h.runtime.pressKey).mockRejectedValueOnce(
+      new Error('Unsupported browser key; use Enter'),
+    );
+    await expect(
+      press.execute({ key: 'Control+Enter' }, execution('browser_press_key')),
+    ).rejects.toThrow(/Unsupported browser key/);
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+    expect(h.audits.at(-1)).toMatchObject({
+      tool: 'browser_press_key',
+      outcome: 'error',
+      botSlug: 'bot-a',
+      sessionId: 'session-a',
+      rootRole: 'orchestrator',
+    });
+    await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+    await press.execute({ key: 'Enter' }, execution('browser_press_key'));
+    expect(h.runtime.pressKey).toHaveBeenLastCalledWith('tab-1', 'Enter');
+    expect(h.audits.at(-1)).toMatchObject({ tool: 'browser_press_key', outcome: 'ok' });
+  });
+
   it('surfaces a stale ref readably and audits the failure', async () => {
     const h = harness({ access: true, auto: true });
     h.created();

@@ -1,0 +1,26 @@
+{
+  "build": "before",
+  "modelSetupVerified": true,
+  "invalidKey": {
+    "isError": false,
+    "currentRetained": true
+  },
+  "editing": {
+    "focus": "task",
+    "value": "ab",
+    "trusted": false
+  },
+  "submission": {
+    "count": 0
+  },
+  "final": {
+    "currentRetained": true,
+    "ownedTabs": 1
+  },
+  "audit": {
+    "matchedAttempts": 6,
+    "ok": 6,
+    "error": 0,
+    "attributed": true
+  }
+}

@@ -215,6 +215,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Browser key presses now perform native focus movement, editing and form submission; unsupported keys return retryable errors instead of reporting success ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
+
 - Browser navigation failures now return retryable Tool errors and error Audit outcomes; failed new tabs are cleaned up while an existing current target remains available for observation and retry ([#627](https://github.com/BotHarness/BotHarness/issues/627)).
 
 - Fixed retained model-token statistics being cleared when Session histories are missing: restart and reconciliation preserve daily totals, durable receipts prevent duplicate replay, archive preserves usage, and PersonaBot Purge removes its usage ([#502](https://github.com/BotHarness/BotHarness/issues/502)). Existing aggregates migrate as a retained baseline; pre-upgrade attempts cannot be backfilled independently when their prior accounting is unverifiable.
