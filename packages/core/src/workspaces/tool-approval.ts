@@ -203,6 +203,11 @@ export class ChannelToolApproval {
     return [...this.#pending.keys()];
   }
 
+  activeSessionIds(): string[] {
+    this.cancelInvalid();
+    return [...this.#pending.values()].map((pending) => pending.sessionId);
+  }
+
   status(botSlug: string, messageId: string): 'pending' | 'expired' {
     return this.#pending.get(messageId)?.botSlug === botSlug ? 'pending' : 'expired';
   }

@@ -18,7 +18,8 @@ function parseSelection(value: unknown): ConversationSelection | undefined {
   if (selection['kind'] === 'channel' && typeof selection['channelId'] === 'string') {
     return { kind: 'channel', channelId: selection['channelId'] };
   }
-  if (selection['kind'] === 'inbox') return { kind: 'inbox' };
+  if (selection['kind'] === 'inbox')
+    return { kind: 'inbox', ...(selection['view'] === 'overview' ? { view: 'overview' } : {}) };
   return undefined;
 }
 

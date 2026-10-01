@@ -289,6 +289,7 @@ describe('plugin entry', () => {
       'botSourcePolicies',
       'botSourcePolicySet',
       'botSourcePolicyReset',
+      'activityOverview',
       'humanAttention',
       'humanAssignmentContext',
       'humanAttentionStatus',

@@ -483,6 +483,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.botSourcePolicyReset({ slug, sourceClass }));
   }
 
+  activityOverview() {
+    return unwrap(this.methods.activityOverview({}));
+  }
+
   humanAttention(
     category?: HumanAttentionCategory,
     botSlug?: string,
@@ -788,6 +792,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'botSourcePolicies',
   'botSourcePolicySet',
   'botSourcePolicyReset',
+  'activityOverview',
   'humanAttention',
   'humanAssignmentContext',
   'humanAttentionStatus',
