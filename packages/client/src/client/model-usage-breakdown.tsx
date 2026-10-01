@@ -135,10 +135,8 @@ export function ModelUsageBreakdown({
           }));
       },
     );
-    const timer = window.setInterval(() => setRefresh((value) => value + 1), 30_000);
     return () => {
       ++request.current;
-      window.clearInterval(timer);
     };
   }, [key, valid, loadUsage, refresh]);
   const query = resource?.key === key ? resource.result : undefined;

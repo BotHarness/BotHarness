@@ -475,3 +475,25 @@ describe('Profile usage public-query interaction', () => {
     }
   });
 });
+
+it('keeps a successful result until manual refresh or filter change, without polling', async () => {
+  vi.useFakeTimers();
+  const load = vi.fn(async (filter: UsageFilter) => packet(filter));
+  const { container, cleanup } = await renderUsage([], 'unavailable', load);
+  try {
+    expect(load).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(10 * 60_000));
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('Selected period: 155 tokens');
+    expect(container.textContent).not.toContain('Refresh failed');
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Refresh"]')!.click(),
+    );
+    expect(load).toHaveBeenCalledTimes(2);
+    await selectFilter(container, 'Filter model / provider', 'unused');
+    expect(load).toHaveBeenCalledTimes(3);
+  } finally {
+    await cleanup();
+    vi.useRealTimers();
+  }
+});
