@@ -187,6 +187,18 @@ try {
       await page.$eval('.bh-human-inbox-reply textarea', (node) => node.disabled),
       false,
     );
+    await page.type('.bh-human-inbox-reply textarea', 'Use canary for this Assignment.');
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('.bh-human-inbox-reply button')].some(
+        (node) => node.textContent?.trim() === '发送回复' && !node.disabled,
+      ),
+    );
+    await page.focus('.bh-human-inbox-reply textarea');
+    await page.keyboard.down('Control');
+    await page.keyboard.press('A');
+    await page.keyboard.up('Control');
+    await page.keyboard.press('Backspace');
+    assert.equal(await page.$eval('.bh-human-inbox-reply textarea', (node) => node.value), '');
     await shot('after-restart-qa-ready');
     console.log('Restart preserved independent Grant and pending Assignment actions.');
   } else {
