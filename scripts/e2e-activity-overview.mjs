@@ -311,8 +311,23 @@ try {
     assert.equal(geometry.padding, '24px');
     assert.equal(geometry.radius, '8px');
     console.log('Measured native Overview geometry: ' + JSON.stringify(geometry));
-    const action = await rpc('humanAttention', { category: 'action', limit: 100 });
-    assert.equal(value.actionCount, action.items.length);
+    let totalActions = 0;
+    let actionPages = 0;
+    let cursor;
+    do {
+      const result = await rpc('humanAttention', {
+        category: 'action',
+        limit: Number(process.env.BH_OVERVIEW_QA_ACTION_PAGE_SIZE ?? 100),
+        cursor,
+      });
+      totalActions += result.items.length;
+      actionPages++;
+      cursor = result.nextCursor;
+    } while (cursor !== undefined);
+    assert.equal(value.actionCount, totalActions);
+    console.log(
+      'Paged canonical actions: ' + actionPages + ' pages, ' + totalActions + ' actions.',
+    );
     assert.equal(
       await page.$eval('.bh-overview-action-count strong', (n) => Number(n.textContent)),
       value.actionCount,

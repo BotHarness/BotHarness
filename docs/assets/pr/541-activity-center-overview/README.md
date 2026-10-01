@@ -7,7 +7,7 @@ Locale: Chinese. Desktop: 1440 × 900. Narrow: 420 × 860. Screenshots are unedi
 
 The prior Human Inbox has no Overview screen. Its merged Client at `45be9fe8`
 (PR #669 reviewed head) supplies the absence/entry baseline. Implementation starts
-from latest main `917ee190`. The Inbox entry being compared is unchanged between
+from main `917ee190` and integrates main `0ada01e2` before delivery. The Inbox entry being compared is unchanged between
 those revisions; unrelated Profile UI changes are outside these captures.
 The matched pairs use the same six-Bot Profile after cold restart, viewport, theme
 and locale. No model work or Human answer is submitted between the pair captures.
@@ -54,7 +54,9 @@ two executing root roles, native requests contain the exact clicked Session ID,
 Bot DM title matches, completed roots leave the list, restart preserves Bot IDs,
 no historical execution after restart, light/dark/narrow render without horizontal
 overflow. Measured native content: 24px desktop inset, 13px inherited shell font,
-8px native-row radius.
+8px native-row radius. A live pagination regression check forced a page size of one:
+four pages yielded four canonical actions, exactly matching Overview; the script
+follows `nextCursor` instead of comparing only the first page.
 
 The first reused native-question scene did not produce a new question after a
 restart, so fresh task Bots were used for the live-question check. This PR does not
