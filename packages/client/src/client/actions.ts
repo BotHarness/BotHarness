@@ -223,7 +223,7 @@ export interface BridgeActions {
   refreshBotInbox(slug: string): Promise<void>;
   openHumanInbox(): Promise<void>;
   refreshHumanInboxStatus(): Promise<void>;
-  refreshHumanInbox(category?: HumanInboxCategory): Promise<void>;
+  refreshHumanInbox(category?: HumanInboxCategory, background?: boolean): Promise<void>;
   setHumanInboxFilters(filters: HumanInboxFilters): Promise<void>;
   loadMoreHumanInbox(): Promise<void>;
   ignoreHumanReport(sourceEventId: string): Promise<void>;
@@ -630,6 +630,7 @@ export function createActions(
 
   let humanInboxHeadSeq = 0;
   let humanInboxPageSeq = 0;
+  let humanInboxPagesPending = 0;
   let humanInboxScopeVersion = 0;
   let humanInboxStatusSeq = 0;
   const refreshHumanInboxStatus = async (): Promise<void> => {
@@ -646,6 +647,7 @@ export function createActions(
     selection: ConversationSelection,
     cursor?: string,
     retainedCount = clientStore.getSnapshot().humanInbox.items.length,
+    background = false,
   ): Promise<void> => {
     const head = cursor === undefined;
     const requestSeq = head ? ++humanInboxHeadSeq : ++humanInboxPageSeq;
@@ -668,6 +670,7 @@ export function createActions(
       const priorState = clientStore.getSnapshot().humanInbox;
       if (priorState.category !== category) return;
       const prior = priorState.items;
+      if (background && (humanInboxPagesPending > 0 || prior.length > 150)) return;
       if (!head && headVersion !== humanInboxHeadSeq) {
         await loadHumanInboxFor(category, selection, undefined, prior.length + page.items.length);
         return;
@@ -695,6 +698,11 @@ export function createActions(
         nextCursor = older.nextCursor;
       }
       if (!isCurrent()) return;
+      if (
+        background &&
+        (humanInboxPagesPending > 0 || clientStore.getSnapshot().humanInbox.items.length > 150)
+      )
+        return;
       const items = head
         ? canonicalItems
         : [
@@ -1010,10 +1018,12 @@ export function createActions(
       return loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection);
     },
     refreshHumanInboxStatus,
-    refreshHumanInbox(category) {
+    refreshHumanInbox(category, background = false) {
       const selection = currentSelection();
       if (selection?.kind !== 'inbox') return Promise.resolve();
       const prior = clientStore.getSnapshot().humanInbox;
+      if (background && (humanInboxPagesPending > 0 || prior.items.length > 150))
+        return Promise.resolve();
       const nextCategory = category ?? prior.category;
       if (nextCategory !== prior.category) {
         humanInboxScopeVersion += 1;
@@ -1028,7 +1038,7 @@ export function createActions(
           error: undefined,
         });
       }
-      return loadHumanInboxFor(nextCategory, selection);
+      return loadHumanInboxFor(nextCategory, selection, undefined, prior.items.length, background);
     },
     setHumanInboxFilters(filters) {
       const selection = currentSelection();
@@ -1054,7 +1064,10 @@ export function createActions(
       const selection = currentSelection();
       const state = clientStore.getSnapshot().humanInbox;
       if (selection?.kind !== 'inbox' || state.nextCursor === undefined) return Promise.resolve();
-      return loadHumanInboxFor(state.category, selection, state.nextCursor);
+      humanInboxPagesPending += 1;
+      return loadHumanInboxFor(state.category, selection, state.nextCursor).finally(() => {
+        humanInboxPagesPending -= 1;
+      });
     },
     async ignoreHumanReport(sourceEventId) {
       await ignoreHumanAssignmentReport(call, sourceEventId);

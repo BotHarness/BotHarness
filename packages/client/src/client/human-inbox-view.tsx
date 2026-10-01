@@ -34,7 +34,8 @@ export function HumanInboxView({
 
   const mount = useMountedResource<HTMLDivElement>(() => {
     const timer = window.setInterval(() => {
-      if (store.getSnapshot().humanInbox.items.length <= 150) void actions.refreshHumanInbox();
+      if (store.getSnapshot().humanInbox.items.length <= 150)
+        void actions.refreshHumanInbox(undefined, true);
     }, 10_000);
     return () => window.clearInterval(timer);
   }, [actions]);

@@ -196,7 +196,20 @@ try {
       rows.map((row) => row.id),
       before.ids,
     );
-    console.log('PASS: canonical Handled history and navigation survive Host restart.');
+    const question = rows.find((row) => row.kind === 'user-question');
+    await click('[data-attention-id="' + question.id + '"] button', '查看上下文');
+    await page.waitForSelector(
+      '.bh-human-inbox-reply [data-message-id="' + question.responseMessageId + '"]',
+    );
+    await page.evaluate(
+      (id) =>
+        document
+          .querySelector('.bh-human-inbox-reply [data-message-id="' + id + '"]')
+          ?.scrollIntoView({ block: 'nearest' }),
+      question.responseMessageId,
+    );
+    await shot('history-question-answer');
+    console.log('PASS: canonical Handled history and exact answer context survive Host restart.');
   } else {
     await theme(true);
     await shot('history-dark');

@@ -217,6 +217,46 @@ describe('Human Inbox pagination refresh', () => {
     expect(clientStore.getSnapshot().humanInbox.items).toHaveLength(200);
   });
 
+  it.each(['poll-first', 'page-first', 'poll-finishes-first'] as const)(
+    'keeps the deep page when background polling races with load-more (%s)',
+    async (order) => {
+      const clientStore = createStore();
+      clientStore.select({ kind: 'inbox' });
+      const first = Array.from({ length: 150 }, (_, i) => item('old-' + i));
+      clientStore.setHumanInbox({ status: 'ready', items: first, nextCursor: 'older' });
+      const refresh = deferred<HumanAttentionPage>(),
+        older = deferred<HumanAttentionPage>();
+      const calls: Record<string, unknown>[] = [];
+      const call: BridgeCall = async (_endpoint, payload) => {
+        calls.push(payload);
+        return {
+          ok: true,
+          value: await (payload['cursor'] === undefined ? refresh.promise : older.promise),
+        };
+      };
+      const actions = createActions(call, clientStore);
+      const poll = order !== 'page-first' ? actions.refreshHumanInbox(undefined, true) : undefined;
+      const more = actions.loadMoreHumanInbox();
+      const laterPoll =
+        order === 'page-first' ? actions.refreshHumanInbox(undefined, true) : undefined;
+      if (order === 'poll-finishes-first') {
+        refresh.resolve({ items: first.slice(0, 50), nextCursor: 'head' });
+        await poll;
+      }
+      older.resolve({ items: [item('deep')], nextCursor: 'deep-cursor' });
+      await more;
+      refresh.resolve({ items: first.slice(0, 50), nextCursor: 'head' });
+      await poll;
+      await laterPoll;
+      expect(clientStore.getSnapshot().humanInbox.items).toHaveLength(151);
+      expect(clientStore.getSnapshot().humanInbox.items.at(-1)?.id).toBe('deep');
+      expect(clientStore.getSnapshot().humanInbox.nextCursor).toBe('deep-cursor');
+      expect(calls.filter((call) => call['cursor'] === undefined)).toHaveLength(
+        order === 'page-first' ? 0 : 1,
+      );
+    },
+  );
+
   it('passes Bot, Channel, and sort filters to the Host and clears a Channel filter on tab change', async () => {
     const clientStore = createStore();
     clientStore.select({ kind: 'inbox' });

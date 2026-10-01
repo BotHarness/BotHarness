@@ -300,6 +300,24 @@ export function HumanInboxReply({
                 </div>
               </article>
             ))}
+            {response === undefined ||
+            (expanded && context?.some((message) => message.id === response.id)) ? null : (
+              <article data-message-id={response.id} className="bh-human-inbox-message">
+                <span className="bh-human-inbox-human-avatar" aria-hidden="true">
+                  {author(response).slice(0, 1)}
+                </span>
+                <div className="bh-human-inbox-message-content">
+                  <div className="bh-human-inbox-message-heading">
+                    <strong>{author(response)}</strong>
+                    <time dateTime={response.at}>{new Date(response.at).toLocaleString()}</time>
+                  </div>
+                  <p>{response.body}</p>
+                  <button type="button" onClick={() => openSource(response.id)}>
+                    {t('humanInbox.handled.response')}
+                  </button>
+                </div>
+              </article>
+            )}
           </div>
         </div>
       )}
