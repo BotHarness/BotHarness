@@ -220,6 +220,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Group departure now reports a committed change or an idempotent `not-member` no-change; missing Channels and non-Group targets fail explicitly, so repeated or rejected requests cannot fabricate a new departure ([#571](https://github.com/BotHarness/BotHarness/issues/571)).
+
 - Browser scrolling now sends a native wheel at the viewport center, so the Bot can move central nested content as well as ordinary pages and observe the result before continuing ([#647](https://github.com/BotHarness/BotHarness/issues/647)).
 
 - Browser typing now refuses readonly and disabled inputs and textareas before changing values, focus or events, including native disabled-fieldset inheritance; the Bot retains its current tab and can continue with an editable field ([#644](https://github.com/BotHarness/BotHarness/issues/644)).

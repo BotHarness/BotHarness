@@ -24,6 +24,8 @@ The owning Orchestrator can forward up to 10 trusted attachment references copie
 
 The root [`CONTEXT.md`](/dev/design/context) is the single product glossary. [BotHarness Runtime Architecture](/dev/design/bot-runtime) focuses on how PersonaBot, Bot Inbox, Orchestrator, Assignment, and DSH execution relate. DSH/Cordis terminology and Plugin-development decisions live under `/dsh` and are not redefined here.
 
+The application-defined `group_leave` Tool returns `{channelId,left:true,outcome:"changed"}` only after canonical membership removal, or `{channelId,left:false,outcome:"unchanged",reason:"not-member"}` when the Bot is not a current Group member. No-change includes a repeat and a never-joined Group; it neither guesses historical membership nor returns a hidden Group name or roster. Missing Channels fail with `group_leave: channel-unavailable`, and non-Group targets fail with `group_leave: group-required`, replacing their former ambiguous `left:false` success. Tool exceptions remain failures. Existing `{channelId,left}` fields and the Core return shape remain compatible; consumers must handle the explicit invalid-target failures. The same ADR-0073 transaction retains creator-to-Human handoff, pending-admission revocation, one durable departure notice and remaining-member attention policy. Post-commit live-notification warnings do not negate a committed change; read/send authority is lost immediately, so the Bot reports to the Human through an available Channel ([#571](https://github.com/BotHarness/BotHarness/issues/571)).
+
 ## 1 · System context
 
 ```mermaid
