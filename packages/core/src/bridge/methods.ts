@@ -1,3 +1,4 @@
+import { personaBotActivitySnapshot, type PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type {
   OutboundMessaging,
@@ -230,6 +231,7 @@ export interface BridgeMethods {
   modelPlanCustomize(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   modelPlanAssignmentsSet(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
+  activitySnapshot(payload: unknown): BridgeResult<PersonaBotActivitySnapshot>;
   get(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   create(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   createFromGit(payload: unknown): Promise<BridgeResult<{ bot: PersonaBotDetail }>>;
@@ -1010,6 +1012,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         })
         .map((record) => summarize(record, deps.states.snapshot(record.slug)));
       return { ok: true, value: { bots } };
+    },
+    activitySnapshot() {
+      return {
+        ok: true,
+        value: personaBotActivitySnapshot(
+          deps.registry.list().map((bot) => bot.slug),
+          deps.states,
+        ),
+      };
     },
     get(payload) {
       const slug = asSlug(payload);

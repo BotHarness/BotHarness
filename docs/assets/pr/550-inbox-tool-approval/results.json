@@ -1,0 +1,15 @@
+{
+  "realModel": true,
+  "exactInput": true,
+  "sourceNavigation": true,
+  "approve": true,
+  "reject": true,
+  "canonicalAudit": true,
+  "otherBotIndependent": true,
+  "oldestFirst": true,
+  "expandableContext": "screenshot-only",
+  "twoWindowStaleRejected": true,
+  "lightDark": "screenshot-only",
+  "narrowLayout": true,
+  "nativeOutputVerified": true
+}

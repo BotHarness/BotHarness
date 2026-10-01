@@ -1,0 +1,52 @@
+{
+  "build": "original slice acceptance",
+  "model": {
+    "setup": true,
+    "screenshotToUpload": true,
+    "freshObservationToPublish": true,
+    "calls": [
+      {
+        "name": "browser_screenshot",
+        "ok": true
+      },
+      {
+        "name": "browser_observe",
+        "ok": true
+      },
+      {
+        "name": "browser_upload",
+        "ok": true
+      },
+      {
+        "name": "browser_observe",
+        "ok": true
+      }
+    ]
+  },
+  "savedScreenshot": {
+    "jpeg": true,
+    "bytes": 87363,
+    "uploadedPathMatchesToolResult": true
+  },
+  "submission": {
+    "count": 1,
+    "exactJpegPayloadVerified": true
+  },
+  "retention": {
+    "seededHistoricalCaptures": 105,
+    "nativeNewCapture": true,
+    "remaining": 100,
+    "oldestRemoved": 7,
+    "newestRetained": true,
+    "normalizedImageAttachmentContentAddressVerified": true
+  },
+  "audit": {
+    "screenshotUploadPublishAttributed": true,
+    "absolutePathAndContentsRedacted": true
+  },
+  "session": {
+    "jpegBase64Absent": true
+  },
+  "currentTargetRetained": true,
+  "ownedTabs": 1
+}

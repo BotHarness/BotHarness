@@ -331,9 +331,17 @@ export function HumanInboxView({
                 <div className="bh-human-inbox-row-actions">
                   {item.kind === 'channel-unread' ||
                   item.kind === 'channel-reply' ||
-                  item.kind === 'channel-mention' ? (
+                  item.kind === 'channel-mention' ||
+                  item.kind === 'tool-approval' ||
+                  item.kind === 'user-question' ? (
                     <button type="button" onClick={() => setReplySource(item)}>
-                      {t('humanInbox.reply')}
+                      {t(
+                        item.kind === 'tool-approval'
+                          ? 'humanInbox.approval.handle'
+                          : item.kind === 'user-question'
+                            ? 'humanInbox.question.handle'
+                            : 'humanInbox.reply',
+                      )}
                     </button>
                   ) : null}
                   <button

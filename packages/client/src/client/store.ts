@@ -1,3 +1,4 @@
+import type { PersonaBotActivityState } from './avatar.js';
 import type { RosterConfig } from './roster-config.js';
 import type { RosterSection, TopOrderEntry } from './roster.js';
 
@@ -377,6 +378,12 @@ export interface ClientState {
   humanInbox: HumanInboxState;
 }
 
+export interface PersonaBotActivitySnapshot {
+  generation: string;
+  revision: number;
+  bots: { slug: string; state: PersonaBotActivityState }[];
+}
+
 export interface ClientStore {
   getSnapshot(): ClientState;
   subscribe(listener: () => void): () => void;
@@ -385,6 +392,7 @@ export interface ClientStore {
   setConfig(config: RosterConfig): void;
   setRosterStatus(status: ClientStatus, error: string | undefined): void;
   setRoster(bots: readonly BotSummary[], channels: readonly ChannelSummary[]): void;
+  applyActivity(snapshot: PersonaBotActivitySnapshot): void;
   upsertBot(bot: BotSummary): void;
   setRosterState(patch: Partial<RosterState>): void;
   upsertChannel(channel: ChannelSummary): void;
@@ -434,7 +442,7 @@ function initialHumanInbox(): HumanInboxState {
     category: 'action',
     botSlug: undefined,
     channelId: undefined,
-    sort: 'newest',
+    sort: 'oldest',
     items: [],
     nextCursor: undefined,
     error: undefined,
@@ -526,6 +534,12 @@ export function createStore(): ClientStore {
     humanInbox: initialHumanInbox(),
   };
   const listeners = new Set<() => void>();
+  let activity: PersonaBotActivitySnapshot | undefined;
+  let activityStates = new Map<string, PersonaBotActivityState>();
+  const withActivity = (bot: BotSummary): BotSummary => {
+    const current = activityStates.get(bot.slug);
+    return current === undefined ? bot : { ...bot, aggregateState: current };
+  };
 
   const update = (patch: Partial<ClientState>): void => {
     state = { ...state, ...patch };
@@ -553,9 +567,17 @@ export function createStore(): ClientStore {
       update({ status, error });
     },
     setRoster(bots, channels) {
-      update({ bots, channels, status: 'ready', error: undefined });
+      update({ bots: bots.map(withActivity), channels, status: 'ready', error: undefined });
     },
-    upsertBot(bot) {
+    applyActivity(snapshot) {
+      if (activity?.generation === snapshot.generation && snapshot.revision <= activity.revision)
+        return;
+      activity = snapshot;
+      activityStates = new Map(snapshot.bots.map((bot) => [bot.slug, bot.state]));
+      update({ bots: state.bots.map(withActivity) });
+    },
+    upsertBot(incoming) {
+      const bot = withActivity(incoming);
       const existing = state.bots.filter((candidate) => candidate.slug !== bot.slug);
       update({ bots: [bot, ...existing], status: 'ready', error: undefined });
     },

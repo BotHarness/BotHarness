@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
+import { ChannelMessageBody } from './channel-message-body.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { channelHumanName, currentMentionLabel } from './actor-names.js';
 import type { ChannelHumanMember } from './store.js';
@@ -26,6 +27,17 @@ export function HumanInboxReply({
   humanMembers?: readonly ChannelHumanMember[];
   onClose: () => void;
 }): ReactElement {
+  const isApproval = source.kind === 'tool-approval';
+  const isQuestion = source.kind === 'user-question';
+  const isNativeAction = isApproval || isQuestion;
+  const title = t(
+    isApproval
+      ? 'humanInbox.approval.title'
+      : isQuestion
+        ? 'humanInbox.question.title'
+        : 'humanInbox.reply.title',
+    { channel: isNativeAction ? botName(source.botSlug) : (source.channelName ?? '') },
+  );
   const channelId = source.channelId!;
   const messageId = source.messageId!;
   const [context, setContext] = useState<ChannelMessage[]>();
@@ -128,15 +140,17 @@ export function HumanInboxReply({
   };
 
   return (
-    <section
-      className="bh-human-inbox-reply"
-      ref={mount}
-      aria-label={t('humanInbox.reply.title', { channel: source.channelName ?? '' })}
-    >
+    <section className="bh-human-inbox-reply" ref={mount} aria-label={title}>
       <div className="bh-human-inbox-reply-header">
-        <h2>{t('humanInbox.reply.title', { channel: source.channelName ?? '' })}</h2>
+        <h2>{title}</h2>
         <button type="button" disabled={sending} onClick={onClose}>
-          {t('humanInbox.reply.close')}
+          {t(
+            isApproval
+              ? 'humanInbox.approval.close'
+              : isQuestion
+                ? 'humanInbox.question.close'
+                : 'humanInbox.reply.close',
+          )}
         </button>
       </div>
       {target === undefined ? (
@@ -188,7 +202,13 @@ export function HumanInboxReply({
                   </div>
                   {message.id === messageId ? (
                     <span className="bh-human-inbox-message-target">
-                      {t('humanInbox.reply.target')}
+                      {t(
+                        isApproval
+                          ? 'approval.requestTitle'
+                          : isQuestion
+                            ? 'question.title'
+                            : 'humanInbox.reply.target',
+                      )}
                     </span>
                   ) : null}
                   {message.replyToPreview ? (
@@ -197,37 +217,57 @@ export function HumanInboxReply({
                       <p>{message.replyToPreview.body}</p>
                     </blockquote>
                   ) : null}
-                  <p>
-                    {referenceRuns(
-                      message.body,
-                      message.mentions ?? [],
-                      [],
-                      message.humanMentions ?? [],
-                    ).map((run, index) =>
-                      run.humanMention === undefined && run.mention === undefined ? (
-                        <span key={index}>{run.text}</span>
-                      ) : (
-                        <span
-                          key={index}
-                          className="bh-inline-mention bh-inline-mention-sent"
-                          data-human-id={run.humanMention?.humanId}
-                          data-bot-id={run.mention?.botSlug}
-                          title={t(
-                            run.humanMention === undefined
-                              ? 'message.mention.botType'
-                              : 'message.mention.humanType',
-                          )}
-                        >
-                          @
-                          {currentMentionLabel(
-                            (run.humanMention ?? run.mention)!,
-                            bots,
-                            humanMembers,
-                          )}
-                        </span>
-                      ),
-                    )}
-                  </p>
+                  {isNativeAction && message.id === messageId ? (
+                    <ChannelMessageBody
+                      message={message}
+                      channelId={channelId}
+                      actions={actions}
+                      t={t}
+                      userQuestionResolution={
+                        message.userQuestionResolution?.state ??
+                        context?.find(
+                          (entry) => entry.userQuestionResolution?.requestMessageId === messageId,
+                        )?.userQuestionResolution?.state
+                      }
+                      toolApprovalDecision={
+                        context?.find(
+                          (entry) => entry.toolApprovalDecision?.requestMessageId === messageId,
+                        )?.toolApprovalDecision?.outcome
+                      }
+                    />
+                  ) : (
+                    <p>
+                      {referenceRuns(
+                        message.body,
+                        message.mentions ?? [],
+                        [],
+                        message.humanMentions ?? [],
+                      ).map((run, index) =>
+                        run.humanMention === undefined && run.mention === undefined ? (
+                          <span key={index}>{run.text}</span>
+                        ) : (
+                          <span
+                            key={index}
+                            className="bh-inline-mention bh-inline-mention-sent"
+                            data-human-id={run.humanMention?.humanId}
+                            data-bot-id={run.mention?.botSlug}
+                            title={t(
+                              run.humanMention === undefined
+                                ? 'message.mention.botType'
+                                : 'message.mention.humanType',
+                            )}
+                          >
+                            @
+                            {currentMentionLabel(
+                              (run.humanMention ?? run.mention)!,
+                              bots,
+                              humanMembers,
+                            )}
+                          </span>
+                        ),
+                      )}
+                    </p>
+                  )}
                   {message.attachments?.map((attachment) => (
                     <p key={attachment.fileId ?? attachment.hash}>{attachment.name}</p>
                   ))}
@@ -237,7 +277,16 @@ export function HumanInboxReply({
           </div>
         </div>
       )}
-      {sent === undefined ? (
+      {isNativeAction ? (
+        <div className="bh-human-inbox-reply-actions">
+          <button type="button" onClick={() => void reload()}>
+            {t('humanInbox.reply.refresh')}
+          </button>
+          <button type="button" onClick={() => openSource(messageId)}>
+            {t('humanInbox.open')}
+          </button>
+        </div>
+      ) : sent === undefined ? (
         <form
           onSubmit={(event) => {
             event.preventDefault();

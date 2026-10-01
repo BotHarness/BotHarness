@@ -1,3 +1,4 @@
+import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
@@ -231,6 +232,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   list(query?: string): { bots: PersonaBotSummary[] } {
     return unwrap(this.methods.list({ query }));
+  }
+
+  activitySnapshot(): PersonaBotActivitySnapshot {
+    return unwrap(this.methods.activitySnapshot({}));
   }
 
   get(slug: string): { bot: PersonaBotDetail } {
@@ -741,6 +746,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'modelPlanCustomize',
   'modelPlanAssignmentsSet',
   'list',
+  'activitySnapshot',
   'get',
   'create',
   'createFromGit',

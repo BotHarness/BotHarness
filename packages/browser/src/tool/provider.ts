@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
 
 import { basename } from 'node:path';
+import { setTimeout as wait } from 'node:timers/promises';
 
 import { BROWSER_GUIDANCE, BROWSER_TOOLS, browserToolName } from './catalog.js';
 import { saveScreenshot } from '../screenshots.js';
@@ -52,6 +53,7 @@ export interface BrowserToolProviderOptions {
 
 export interface BrowserToolProvider {
   attachAgent(scope: Context, sessionId: string, info: { botSlug: string; rootRole: string }): void;
+  executionSignal(sessionId: string): AbortSignal | undefined;
   needsAuthorization(sessionId: string): boolean;
   markAuthorized(sessionId: string): void;
   reconcileBot(slug: string): Promise<void>;
@@ -78,6 +80,7 @@ type BrowserToolContent =
 interface SessionRegistration {
   readonly slug: string;
   readonly scope: Context;
+  readonly controller: AbortController;
   readonly disposers: readonly (() => void)[];
 }
 
@@ -237,6 +240,8 @@ export function createBrowserToolProvider(
     raw: string,
     args: Record<string, unknown>,
     slug: string,
+    signal: AbortSignal,
+    assertScreenshotCurrent: () => void,
   ): Promise<{ content: BrowserToolContent[] }> => {
     const runtime = runtimes.for(slug);
     if (raw === 'open') {
@@ -324,6 +329,7 @@ export function createBrowserToolProvider(
           `The Bot Browser tab is gone (${message}); call browser_tabs action list to pick another tab, or browser_open`,
         );
       }
+      assertScreenshotCurrent();
       if (shot === undefined) {
         return {
           content: [
@@ -334,6 +340,7 @@ export function createBrowserToolProvider(
           ],
         };
       }
+      signal.throwIfAborted();
       const saved =
         options.screenshotDir === undefined
           ? undefined
@@ -342,6 +349,8 @@ export function createBrowserToolProvider(
               options.screenshotLimit ?? 100,
               shot.data,
             ).catch(() => undefined);
+      signal.throwIfAborted();
+      assertScreenshotCurrent();
       return {
         content: [
           { type: 'image', data: shot.data, mimeType: shot.mimeType },
@@ -514,15 +523,19 @@ export function createBrowserToolProvider(
     }
     if (raw === 'wait') {
       const ms = boundedNumber(args['ms'], 0, 10_000, 1000);
-      await new Promise((resolve) => setTimeout(resolve, ms));
+      await wait(ms, undefined, { signal });
       return { content: [{ type: 'text', text: `waited ${ms}ms` }] };
     }
     throw new Error(`Unknown Bot Browser operation: ${raw}`);
   };
 
-  const unregisterSession = (sessionId: string): void => {
+  const unregisterSession = (
+    sessionId: string,
+    reason = new Error('Browser session was disposed'),
+  ): void => {
     const registration = registrations.get(sessionId);
     if (registration === undefined) return;
+    registration.controller.abort(reason);
     registrations.delete(sessionId);
     for (const dispose of [...registration.disposers].reverse()) dispose();
   };
@@ -531,47 +544,84 @@ export function createBrowserToolProvider(
     if (disposed) return;
     if (registrations.has(sessionId)) return;
     const disposers: (() => void)[] = [];
+    const controller = new AbortController();
     try {
       for (const spec of BROWSER_TOOLS) {
+        const screenshotGuards = new WeakMap<ToolExecution, () => void>();
         const definition = createMcpToolDefinition(scope, {
           name: browserToolName(spec.raw),
           rawName: spec.raw,
           description: spec.description,
           inputSchema: spec.inputSchema,
           call: async (args, execution) => {
-            const started = Date.now();
-            try {
-              await authorize(execution, sessionId);
-              onActivity(slug);
+            const signal = AbortSignal.any([execution.signal, controller.signal]);
+            const screenshotState = spec.raw === 'screenshot' ? botTabs(slug) : undefined;
+            const controlRevision = screenshotState?.controlRevision;
+            const assertScreenshotCurrent = (): void => {
+              if (screenshotState === undefined) return;
               assertExecutionAllowed(spec.raw, slug);
-              const result = await serialize(slug, () => {
-                assertExecutionAllowed(spec.raw, slug);
-                return runTool(spec.raw, args, slug);
-              });
-              record(
-                slug,
-                sessionId,
-                browserToolName(spec.raw),
-                auditSummary(spec.raw, args),
-                'ok',
-                Date.now() - started,
-              );
-              return result;
-            } catch (error) {
-              record(
-                slug,
-                sessionId,
-                browserToolName(spec.raw),
-                auditSummary(spec.raw, args),
-                'error',
-                Date.now() - started,
-                error instanceof Error ? error.message : String(error),
-              );
-              throw error;
-            }
+              if (
+                tabsByBot.get(slug) !== screenshotState ||
+                screenshotState.controlRevision !== controlRevision
+              ) {
+                throw new Error(
+                  'Browser control changed during screenshot; retry with a new browser_screenshot after Human Resume',
+                );
+              }
+            };
+            screenshotGuards.set(execution, assertScreenshotCurrent);
+            signal.throwIfAborted();
+            await authorize(execution, sessionId);
+            onActivity(slug);
+            assertExecutionAllowed(spec.raw, slug);
+            const result = await serialize(slug, () => {
+              signal.throwIfAborted();
+              assertExecutionAllowed(spec.raw, slug);
+              assertScreenshotCurrent();
+              return runTool(spec.raw, args, slug, signal, assertScreenshotCurrent);
+            });
+            signal.throwIfAborted();
+            assertScreenshotCurrent();
+            return result;
           },
         });
-        disposers.push(scope.tools.register(definition));
+        disposers.push(
+          scope.tools.register({
+            ...definition,
+            execute: async (args, execution) => {
+              const started = Date.now();
+              const input =
+                typeof args === 'object' && args !== null ? (args as Record<string, unknown>) : {};
+              try {
+                const result = await definition.execute(args, execution);
+                AbortSignal.any([execution.signal, controller.signal]).throwIfAborted();
+                screenshotGuards.get(execution)?.();
+                record(
+                  slug,
+                  sessionId,
+                  browserToolName(spec.raw),
+                  auditSummary(spec.raw, input),
+                  'ok',
+                  Date.now() - started,
+                );
+                return result;
+              } catch (error) {
+                record(
+                  slug,
+                  sessionId,
+                  browserToolName(spec.raw),
+                  auditSummary(spec.raw, input),
+                  'error',
+                  Date.now() - started,
+                  error instanceof Error ? error.message : String(error),
+                );
+                throw error;
+              } finally {
+                screenshotGuards.delete(execution);
+              }
+            },
+          }),
+        );
       }
       disposers.push(
         scope.systemPrompt.section({
@@ -584,7 +634,7 @@ export function createBrowserToolProvider(
       for (const dispose of disposers.reverse()) dispose();
       throw error;
     }
-    registrations.set(sessionId, { slug, scope, disposers });
+    registrations.set(sessionId, { slug, scope, controller, disposers });
     note(`tools on slug=${slug} session=${sessionId} count=${disposers.length - 1}`);
     ctx.logger.info(`botharness-browser: Bot Browser tools on for ${slug} (${sessionId})`);
   };
@@ -619,6 +669,10 @@ export function createBrowserToolProvider(
       }
     },
 
+    executionSignal(sessionId) {
+      return registrations.get(sessionId)?.controller.signal;
+    },
+
     needsAuthorization(sessionId) {
       return !grants.has(sessionId) && !isAutoAllowed();
     },
@@ -636,7 +690,7 @@ export function createBrowserToolProvider(
         if (access) {
           registerSession(sessionId, session.scope, slug);
         } else {
-          unregisterSession(sessionId);
+          unregisterSession(sessionId, new Error('Browser Access is off for this PersonaBot'));
         }
       }
       if (!access) {
@@ -754,8 +808,9 @@ export function createBrowserToolProvider(
       grants.clear();
       tabsByBot.clear();
       takeovers.clear();
-      queues.clear();
       await runtimes.stopAll();
+      await Promise.all([...queues.values()]);
+      queues.clear();
     },
   };
 }
