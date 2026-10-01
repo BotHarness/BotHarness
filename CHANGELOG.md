@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Humans can authorize a Workspace Grant request or answer a waiting/blocked Assignment inside Human Inbox with source context and exact Session navigation; committed replies use the Bot DM authority and refresh canonical action state ([#552](https://github.com/BotHarness/BotHarness/issues/552)).
+
 - Humans can answer a live native Bot question inside Human Inbox using the same options or custom input as its source DM card; answers resume the original request once, refresh resolved or stale actions, and preserve other Bots independently ([#551](https://github.com/BotHarness/BotHarness/issues/551)).
 
 - Humans can inspect a live tool request and approve or reject it directly in Human Inbox, with expandable source messages and exact navigation. Decisions use the source DM command, remove the resolved action while leaving other Bots independent, and refresh stale requests ([#550](https://github.com/BotHarness/BotHarness/issues/550)).

@@ -396,7 +396,7 @@ describe('Assignment collaboration', () => {
     }
   });
 
-  it('projects a Bot Grant request as one Human action until a typed or legacy Human resolution', async () => {
+  it('projects a Bot Grant request until a committed Grant-linked reply and keeps legacy text pending', async () => {
     const home = createTempRoot('botharness-grant-attention-');
     const owner = trackTestOwner(
       mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
@@ -408,6 +408,7 @@ describe('Assignment collaboration', () => {
       now: FIXED_NOW,
     });
     const dmChannelId = channels.getOrCreateDm('ada', 'Ada')!.id;
+    createTestWorkspaceGrants(owner, home);
     try {
       const query = createHumanAttentionQuery(
         attachOperationalModule(owner, 'human-grant-attention-test'),
@@ -470,7 +471,9 @@ describe('Assignment collaboration', () => {
         body: '已授权工作区「Project」，请继续处理之前的事项。',
         replyTo: 'grant-request-legacy',
       });
-      expect(query.list({ category: 'action' }).items).toEqual([]);
+      expect(query.list({ category: 'action' }).items).toMatchObject([
+        { messageId: 'grant-request-legacy' },
+      ]);
     } finally {
       owner.close();
     }
@@ -480,7 +483,9 @@ describe('Assignment collaboration', () => {
     });
     try {
       const query = createHumanAttentionQuery(attachOperationalModule(reopened, 'grant-restart'));
-      expect(query.list({ category: 'action' }).items).toEqual([]);
+      expect(query.list({ category: 'action' }).items).toMatchObject([
+        { messageId: 'grant-request-legacy' },
+      ]);
     } finally {
       reopened.close();
     }

@@ -17,6 +17,8 @@
 
 ### Added
 
+- Human 可在 Human Inbox 授权工作区请求或回应等待／受阻 Assignment，查看来源上下文并准确打开 Session；已提交回应沿用 Bot DM authority，待办根据持久事实刷新（[#552](https://github.com/BotHarness/BotHarness/issues/552)）。
+
 - Human 可在 Human Inbox 使用来源 DM 提问卡的选项或自定义输入回答实时原生提问；答案只恢复原请求一次，刷新已解决或过期待办，并保留其他 Bot 的独立请求（[#551](https://github.com/BotHarness/BotHarness/issues/551)）。
 
 - Human 可在 Human Inbox 查看实时工具请求并原位批准或拒绝，同时展开来源附近消息或准确跳转。决定沿用来源 DM 命令，移除已解决待办、保留其他 Bot 的独立请求，并刷新过期卡片（[#550](https://github.com/BotHarness/BotHarness/issues/550)）。

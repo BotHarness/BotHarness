@@ -29,13 +29,16 @@ export function HumanInboxReply({
 }): ReactElement {
   const isApproval = source.kind === 'tool-approval';
   const isQuestion = source.kind === 'user-question';
-  const isNativeAction = isApproval || isQuestion;
+  const isGrant = source.kind === 'workspace-grant-request';
+  const isNativeAction = isApproval || isQuestion || isGrant;
   const title = t(
     isApproval
       ? 'humanInbox.approval.title'
       : isQuestion
         ? 'humanInbox.question.title'
-        : 'humanInbox.reply.title',
+        : isGrant
+          ? 'humanInbox.grant.title'
+          : 'humanInbox.reply.title',
     { channel: isNativeAction ? botName(source.botSlug) : (source.channelName ?? '') },
   );
   const channelId = source.channelId!;
@@ -149,7 +152,9 @@ export function HumanInboxReply({
               ? 'humanInbox.approval.close'
               : isQuestion
                 ? 'humanInbox.question.close'
-                : 'humanInbox.reply.close',
+                : isGrant
+                  ? 'humanInbox.grant.close'
+                  : 'humanInbox.reply.close',
           )}
         </button>
       </div>
@@ -207,7 +212,9 @@ export function HumanInboxReply({
                           ? 'approval.requestTitle'
                           : isQuestion
                             ? 'question.title'
-                            : 'humanInbox.reply.target',
+                            : isGrant
+                              ? 'grant.requestTitle'
+                              : 'humanInbox.reply.target',
                       )}
                     </span>
                   ) : null}

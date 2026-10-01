@@ -8,6 +8,7 @@ import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { HumanAttentionItem, HumanInboxCategory } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 import { HumanInboxReply } from './human-inbox-reply.js';
+import { HumanInboxAssignment } from './human-inbox-assignment.js';
 
 const categoryCopy = {
   unread: { title: 'humanInbox.unread', empty: 'humanInbox.empty.unread' },
@@ -333,14 +334,22 @@ export function HumanInboxView({
                   item.kind === 'channel-reply' ||
                   item.kind === 'channel-mention' ||
                   item.kind === 'tool-approval' ||
-                  item.kind === 'user-question' ? (
+                  item.kind === 'user-question' ||
+                  item.kind === 'workspace-grant-request' ||
+                  item.kind === 'assignment-waiting-human' ||
+                  item.kind === 'assignment-blocked' ? (
                     <button type="button" onClick={() => setReplySource(item)}>
                       {t(
                         item.kind === 'tool-approval'
                           ? 'humanInbox.approval.handle'
                           : item.kind === 'user-question'
                             ? 'humanInbox.question.handle'
-                            : 'humanInbox.reply',
+                            : item.kind === 'workspace-grant-request'
+                              ? 'humanInbox.grant.handle'
+                              : item.kind === 'assignment-waiting-human' ||
+                                  item.kind === 'assignment-blocked'
+                                ? 'humanInbox.assignment.handle'
+                                : 'humanInbox.reply',
                       )}
                     </button>
                   ) : null}
@@ -413,7 +422,18 @@ export function HumanInboxView({
               </article>
             ))}
           </div>
-          {replySource === undefined ? null : (
+          {replySource === undefined ? null : replySource.kind === 'assignment-waiting-human' ||
+            replySource.kind === 'assignment-blocked' ? (
+            <HumanInboxAssignment
+              key={replySource.assignmentSessionId + ':' + replySource.sourceEventId}
+              source={replySource}
+              actions={actions}
+              t={t}
+              botName={botName}
+              bots={state.bots}
+              onClose={() => setReplySource(undefined)}
+            />
+          ) : (
             <HumanInboxReply
               key={replySource.channelId + ':' + replySource.messageId}
               source={replySource}

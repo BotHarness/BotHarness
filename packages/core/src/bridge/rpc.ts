@@ -1,4 +1,5 @@
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
+import type { HumanAssignmentContext } from '../runtime/assignment-human-context.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
@@ -424,6 +425,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     mentions?: ChannelMessage['mentions'],
     channelRefs?: ChannelMessage['channelRefs'],
     grantRequestResolution?: ChannelMessage['grantRequestResolution'],
+    assignmentReply?: ChannelMessage['assignmentReply'],
   ): Promise<{ message: ChannelMessage }> {
     return unwrap(
       await this.methods.channelSend({
@@ -436,6 +438,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
         ...(mentions === undefined ? {} : { mentions }),
         ...(channelRefs === undefined ? {} : { channelRefs }),
         ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
+        ...(assignmentReply === undefined ? {} : { assignmentReply }),
       }),
     );
   }
@@ -492,6 +495,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
   humanAttentionStatus(): { unreadCount: number; hasAction: boolean } {
     return unwrap(this.methods.humanAttentionStatus({}));
+  }
+  humanAssignmentContext(
+    slug: string,
+    sessionId: string,
+    sourceEventId: string,
+  ): { context: HumanAssignmentContext } {
+    return unwrap(this.methods.humanAssignmentContext({ slug, sessionId, sourceEventId }));
   }
   humanAttentionIgnore(sourceEventId: string): { accepted: boolean } {
     return unwrap(this.methods.humanAttentionIgnore({ sourceEventId }));
@@ -777,6 +787,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'botSourcePolicySet',
   'botSourcePolicyReset',
   'humanAttention',
+  'humanAssignmentContext',
   'humanAttentionStatus',
   'humanAttentionIgnore',
   'assignments',
