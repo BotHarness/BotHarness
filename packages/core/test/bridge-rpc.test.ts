@@ -87,6 +87,8 @@ describe('bridge typert service', () => {
       'update',
       'pause',
       'resume',
+      'humanIdentity',
+      'humanNameSet',
       'channels',
       'channelDm',
       'channelCreate',
