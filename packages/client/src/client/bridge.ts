@@ -2677,5 +2677,34 @@ export async function readMessagingSource(
     replay['gapPossible'] !== true
   )
     throw new BridgeCallError('invalid-response', 'Invalid source');
+  if (
+    source?.['contextReads'] !== undefined &&
+    (!Array.isArray(source['contextReads']) ||
+      source['contextReads'].length > 20 ||
+      !source['contextReads'].every((value) => {
+        const read = asRecord(value);
+        return (
+          strings(read, ['at', 'sessionId', 'scope', 'outcome']) &&
+          ['group', 'nearby', 'thread'].includes(String(read?.['scope'])) &&
+          ['read', 'refused'].includes(String(read?.['outcome'])) &&
+          typeof read?.['incomplete'] === 'boolean' &&
+          Number.isInteger(read?.['omitted']) &&
+          Array.isArray(read?.['sourceEventIds']) &&
+          read['sourceEventIds'].length <= 20 &&
+          read['sourceEventIds'].every((id: unknown) => typeof id === 'string') &&
+          (read['reason'] === undefined || typeof read['reason'] === 'string')
+        );
+      }))
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid context audit');
+  if (
+    source?.['contextMessages'] !== undefined &&
+    (!Array.isArray(source['contextMessages']) ||
+      source['contextMessages'].length > 20 ||
+      !source['contextMessages'].every((value) =>
+        strings(asRecord(value), ['sourceEventId', 'messageId', 'senderId', 'at', 'text']),
+      ))
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid context messages');
   return source as unknown as ExternalSource;
 }

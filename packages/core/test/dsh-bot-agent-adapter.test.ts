@@ -2,7 +2,7 @@ import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent';
 import { SessionId } from '@deepseek-ai/dsh-session';
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createDshBotAgentAdapter } from '../src/runtime/dsh-bot-agent-adapter.js';
 import type { AssignmentAgentRun, OrchestratorAgentRun } from '../src/runtime/bot-runtime.js';
@@ -817,6 +817,7 @@ describe('DSH Bot Agent adapter', () => {
       'stop_assignment',
       'channel_list',
       'bridge_read',
+      'bridge_context',
       'bridge_reply',
       'channel_read',
       'inbox_ignore',
@@ -1162,10 +1163,31 @@ describe('DSH Bot Agent adapter', () => {
 it('routes external Tools through the active owning Orchestrator without a local inbound Channel', async () => {
   const replies: string[][] = [];
   const reads: string[] = [];
+  const signal = new AbortController().signal;
+  const contextRead = vi.fn<NonNullable<OrchestratorAgentRun['externalMessaging']>['context']>(
+    async () => ({
+      scope: 'thread',
+      messages: [],
+      omitted: 0,
+      incomplete: false,
+      coverage: 'provider-visible-human-text',
+    }),
+  );
   const host = new FakeAgentHost(
     { kind: 'completed' },
     {
       onTurn: async (_session, tools) => {
+        const contextTool = tools.find((tool) => tool.name === 'bridge_context');
+        if (!contextTool) throw new Error('context tool unavailable');
+        await contextTool.execute(
+          { source_event_id: 'source-1', scope: 'thread', cursor: 'opaque', max_characters: 1000 },
+          { signal } as ToolRunContext,
+        );
+        expect(contextRead).toHaveBeenCalledWith(
+          'source-1',
+          { scope: 'thread', cursor: 'opaque', maxCharacters: 1000 },
+          signal,
+        );
         const read = tools.find((tool) => tool.name === 'bridge_read');
         const reply = tools.find((tool) => tool.name === 'bridge_reply');
         if (!read || !reply) throw new Error('external tools unavailable');
@@ -1200,6 +1222,7 @@ it('routes external Tools through the active owning Orchestrator without a local
     inbox: 'External Inbox',
     message: 'External turn',
     externalMessaging: {
+      context: contextRead,
       read: (id) => {
         reads.push(id);
         throw new Error('owned source sentinel');
@@ -1251,5 +1274,14 @@ it('routes external Tools through the active owning Orchestrator without a local
     tool?.execute({ source_event_id: 'source-1', text: 'Late response' }, {} as ToolRunContext),
   ).rejects.toThrow('bridge_reply: unavailable');
   expect(replies).toHaveLength(1);
+  const contextTool = host.scopes
+    .get('external-ada')
+    ?.tools.find((item) => item.name === 'bridge_context');
+  await expect(
+    contextTool?.execute({ source_event_id: 'source-1', scope: 'thread' }, {
+      signal,
+    } as ToolRunContext),
+  ).rejects.toThrow('bridge_context: unavailable');
+  expect(contextRead).toHaveBeenCalledTimes(1);
   await adapter.close();
 });

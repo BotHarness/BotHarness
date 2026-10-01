@@ -17,6 +17,8 @@
 
 ### Added
 
+- 只收 @ 的 PersonaBot 可用自己的 Lark 身份主动读取有界群历史、附近时间窗或原话题上下文；Inbox 来源展示已返回内容、遗漏及权限拒绝，不将普通历史加入收件或产生新唤醒（[#612](https://github.com/BotHarness/BotHarness/issues/612)）。
+
 - Human 可在 Human Inbox 查看实时工具请求并原位批准或拒绝，同时展开来源附近消息或准确跳转。决定沿用来源 DM 命令，移除已解决待办、保留其他 Bot 的独立请求，并刷新过期卡片（[#550](https://github.com/BotHarness/BotHarness/issues/550)）。
 - PersonaBot 可通过原生文件工具读取指定收到的原件，并在 Human 审批下显式编辑；原消息下载与共享引用展示当前内容，独立上传和默认工作副本保持独立（[#633](https://github.com/BotHarness/BotHarness/issues/633)，[文件指南](docs/file-open.md)）。
 

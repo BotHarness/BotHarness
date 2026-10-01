@@ -323,6 +323,26 @@ it('clears previous source content and ignores older requests after reopening', 
     at: '2026-10-01T00:00:00Z',
     grantId: 'grant',
     grantRevision: 1,
+    contextReads: [
+      {
+        at: '2026-10-01T00:00:00Z',
+        sessionId: 'session',
+        scope: 'thread',
+        outcome: 'read',
+        sourceEventIds: ['context-one'],
+        omitted: 2,
+        incomplete: true,
+      },
+    ],
+    contextMessages: [
+      {
+        sourceEventId: 'context-one',
+        messageId: 'remote-one',
+        senderId: 'external-human',
+        at: '2026-10-01T00:00:00Z',
+        text: 'ONLY RETURNED CONTEXT',
+      },
+    ],
     event: {
       version: 1,
       channel: 'feishu',
@@ -370,6 +390,9 @@ it('clears previous source content and ignores older requests after reopening', 
     await act(async () => requests[1]!.resolve(source));
     await act(async () => requests[0]!.reject(new Error('Old request failed')));
     expect(container.textContent).toContain('CURRENT SOURCE');
+    expect(container.textContent).toContain('ONLY RETURNED CONTEXT');
+    expect(container.textContent).toContain('context-one');
+    expect(container.textContent).toContain('external-human');
     expect(container.querySelector('[role="alert"]')).toBeNull();
     await close();
     await open();

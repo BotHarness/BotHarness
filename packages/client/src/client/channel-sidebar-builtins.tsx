@@ -319,7 +319,7 @@ function BotInboxItemRow({
           ) : external === undefined ? (
             <p>{t('im.sourceLoading')}</p>
           ) : (
-            <>
+            <div className="bh-external-source-content">
               <p>
                 {external.platform} · {external.accountName} · {external.conversationName}
               </p>
@@ -332,7 +332,35 @@ function BotInboxItemRow({
                   external.event.conversation.id}
               </p>
               <p className="bh-external-source-body">{external.body}</p>
-            </>
+              {external.contextReads?.length ? (
+                <section aria-label={t('im.contextTitle')}>
+                  <h3>{t('im.contextTitle')}</h3>
+                  <p>{t('im.contextExplanation')}</p>
+                  {external.contextReads.map((read, index) => (
+                    <details key={`${read.at}:${index}`}>
+                      <summary>
+                        {read.scope} · {read.at} ·{' '}
+                        {read.outcome === 'refused'
+                          ? t('im.contextRefused', { reason: read.reason ?? 'history-unavailable' })
+                          : t('im.contextCount', { count: String(read.sourceEventIds.length) })}
+                      </summary>
+                      {read.incomplete ? (
+                        <p>{t('im.contextIncomplete', { count: String(read.omitted) })}</p>
+                      ) : null}
+                      <p>{read.sourceEventIds.join(', ')}</p>
+                    </details>
+                  ))}
+                  {external.contextMessages?.map((message) => (
+                    <article key={message.sourceEventId}>
+                      <p>
+                        {message.senderId} · {message.at}
+                      </p>
+                      <p className="bh-external-source-body">{message.text}</p>
+                    </article>
+                  ))}
+                </section>
+              ) : null}
+            </div>
           )}
         </Modal>
       ) : null}

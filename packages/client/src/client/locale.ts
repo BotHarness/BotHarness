@@ -312,6 +312,13 @@ export const zh = {
   'im.reception.unavailable': '群收件不可用；请检查连接后重新开启',
   'im.sourceTitle': '外部消息',
   'im.sourceError': '无法读取已保存的外部消息',
+  'im.contextTitle': 'Bot 读取的上下文',
+  'im.contextExplanation':
+    '使用 Bot 身份读取。仅返回的消息被观察；普通群消息仍未开启收件。下方展示最近返回的一页。',
+  'im.contextRefused': '读取被拒绝：{reason}',
+  'im.contextCount': '返回 {count} 条消息',
+  'im.contextIncomplete':
+    '上下文不完整；略过 {count} 条不支持或不可用消息。可能需要续页或更大预算。',
   'im.sourceLoading': '正在读取外部消息…',
   'im.revoke': '撤销绑定与授权',
   'im.message': '消息内容',
@@ -1177,6 +1184,13 @@ export const en = {
   'im.reception.unavailable': 'Group reception unavailable; check the connection and enable again',
   'im.sourceTitle': 'External message',
   'im.sourceError': 'Unable to read the retained external message',
+  'im.contextTitle': 'Context the Bot read',
+  'im.contextExplanation':
+    'Read through the Bot identity. Only returned messages were observed; ordinary group reception remains off. The most recent returned page is shown below.',
+  'im.contextRefused': 'Read refused: {reason}',
+  'im.contextCount': '{count} messages returned',
+  'im.contextIncomplete':
+    'Incomplete context; {count} unsupported or unavailable messages omitted. More pages or a larger budget may be needed.',
   'im.sourceLoading': 'Reading external message…',
   'im.revoke': 'Revoke binding and grant',
   'im.message': 'Message',

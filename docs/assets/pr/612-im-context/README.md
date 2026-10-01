@@ -1,0 +1,20 @@
+# #612 real Lark context-read verification
+
+Verified on 2026-10-01 with DSH `0.2.0-rc.1` and qualified dsh-im source `13869c30294af3d03d2ebc2d987d6e0765e0fcf2`. The launcher checked 386 runtime files and digest `4aed4a5ca637357dea0a8074e54e9dfd80af3c6a2e84381b803398b6050caf42`. No Human identity was substituted for the Bot reader.
+
+| Scenario                                                 | Observed result                                                                                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unmentioned group context then @                         | Bot read group context and replied `BH612-MAIN-OK ORCHID`.                                                                                                                                  |
+| Unmentioned topic context then @                         | Bot read the anchored topic and replied `BH612-TOPIC-OK CEDAR` there.                                                                                                                       |
+| Final build: 1000-character topic read then continuation | One complete message returned, `incomplete: true`; continuation returned ten messages, including previously unmentioned `MAPLE`. Reply `BH612-FINAL-OK MAPLE` is visible in the same topic. |
+| Final build: guessed source                              | Actual model tool returned `Error: source-unavailable`.                                                                                                                                     |
+| Final build: nearby Chat window                          | Fresh unmentioned group-root context returned through `nearby`; reply was `BH612-NEARBY-OK WILLOW`. Chat listing did not return topic replies; explicit `thread` did.                       |
+| Canonical storage                                        | Both final ordinary context messages have no Inbox admission or Channel placement. The two final @ requests are handled, with no local DM placement; Assignment count stays zero.           |
+
+`verification.json` contains selected real Session tool results and a read-only canonical database projection for the final runs. It excludes raw prompts, credentials, login URLs and unrelated content. It records Provider acceptance separately from the visible Lark reply screenshot. History-first/live admission deduplication, cross-group refusal, cancellation and exact turn consumption are covered automatically.
+
+Before/after Client captures use Chinese, light theme, 2940 × 1670 pixels and the same final-topic Source Event. **Before** is the actual main Client built from `4442e4d8`, rendered against the QA Host's local saved fixture; it has no context display. **After** is the final feature Client; the scrollable native Modal shows the returned page and incomplete coverage. The dark capture verifies the same interaction. Lark's screenshot is cropped to the QA group and topic so unrelated chat previews are excluded.
+
+Human QA: open the test Bot, expand **Bot Inbox → BotHarness IM QA #78 → handled entries**, open `BH612-FINAL-02`, and inspect the reads and `MAPLE` context. In Lark, check `BH612-FINAL-OK MAPLE` in its original topic. To repeat, send a new unmentioned context message, then @ the bound identity asking it to use `bridge_context` and `bridge_reply`. Keep the original source as the reply anchor.
+
+Limits: provider-visible Human text only, at most 20 provider messages per request, JSON output default 12000 / maximum 24000 UTF-16 code units, 15-second cancellation deadline, process-local cursors expiring after five minutes. No native around-message endpoint, provider-wide search, general ordinary-message reception, automatic topic follow or provider read receipt is implemented. Upstream release remains pending; this is the qualified optional development artifact.

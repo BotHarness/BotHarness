@@ -1,0 +1,205 @@
+{
+  "date": "2026-10-01",
+  "dsh": "0.2.0-rc.1",
+  "providerSource": "13869c30294af3d03d2ebc2d987d6e0765e0fcf2",
+  "providerRuntimeSha256": "4aed4a5ca637357dea0a8074e54e9dfd80af3c6a2e84381b803398b6050caf42",
+  "tools": [
+    {
+      "turn": 4,
+      "tool": "bridge_context",
+      "arguments": {
+        "scope": "nearby",
+        "source_event_id": "im-db490d8d7c709671ec06905f1da0b8556f378f717baf5230ba2eda36a0b554c5"
+      },
+      "at": "2026-10-01T10:17:41.348000+00:00",
+      "error": false,
+      "result": {
+        "scope": "nearby",
+        "omitted": 0,
+        "incomplete": false,
+        "coverage": "provider-visible-human-text",
+        "window": {
+          "start": 1790849558,
+          "end": 1790850159
+        },
+        "messageCount": 0,
+        "hasNextCursor": false,
+        "messages": []
+      }
+    },
+    {
+      "turn": 4,
+      "tool": "bridge_context",
+      "arguments": {
+        "max_characters": 1000,
+        "scope": "thread",
+        "source_event_id": "im-db490d8d7c709671ec06905f1da0b8556f378f717baf5230ba2eda36a0b554c5"
+      },
+      "at": "2026-10-01T10:17:44.399000+00:00",
+      "error": false,
+      "result": {
+        "scope": "thread",
+        "omitted": 7,
+        "incomplete": true,
+        "coverage": "provider-visible-human-text",
+        "messageCount": 1,
+        "hasNextCursor": true,
+        "messages": [
+          {
+            "sourceEventId": "im-db490d8d7c709671ec06905f1da0b8556f378f717baf5230ba2eda36a0b554c5",
+            "messageId": "om_x100b64d77aeda8a4ed00e708d6a9325",
+            "at": "2026-10-01T10:17:38.044Z",
+            "text": "@_user_1  BH612-FINAL-02 Use bridge_context scope nearby to discover BH612-FINAL-CTX-02. Also call scope thread with max_characters 1000, then follow nextCursor with 12000. Verify guessing source im-not-authorized is refused. Reply only BH612-FINAL-OK <topic-code> via bridge_reply in this topic. No local DM or Assignment.",
+            "threadId": "omt_19d8e19f7d8f1947"
+          }
+        ]
+      }
+    },
+    {
+      "turn": 4,
+      "tool": "bridge_context",
+      "arguments": {
+        "max_characters": 1000,
+        "scope": "thread",
+        "source_event_id": "im-not-authorized"
+      },
+      "at": "2026-10-01T10:17:47.328000+00:00",
+      "error": true,
+      "result": "Error: source-unavailable"
+    },
+    {
+      "turn": 4,
+      "tool": "bridge_context",
+      "arguments": {
+        "cursor": "562feeb4-9bb2-4c42-9e18-b13c90cacf11",
+        "max_characters": 12000,
+        "scope": "thread",
+        "source_event_id": "im-db490d8d7c709671ec06905f1da0b8556f378f717baf5230ba2eda36a0b554c5"
+      },
+      "at": "2026-10-01T10:17:49.270000+00:00",
+      "error": false,
+      "result": {
+        "scope": "thread",
+        "omitted": 7,
+        "incomplete": true,
+        "coverage": "provider-visible-human-text",
+        "messageCount": 10,
+        "hasNextCursor": false,
+        "messages": [
+          {
+            "sourceEventId": "im-b3fb39faca2761a544a38643b7cf35d212c3bb71a4acd81fe34715afb910808e",
+            "messageId": "om_x100b64d77c2460a4eecc84cce0645be",
+            "at": "2026-10-01T10:17:18.662Z",
+            "text": "BH612-FINAL-CTX-02 Final-build topic code is MAPLE. Context only.",
+            "threadId": "omt_19d8e19f7d8f1947"
+          }
+        ]
+      }
+    },
+    {
+      "turn": 4,
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-db490d8d7c709671ec06905f1da0b8556f378f717baf5230ba2eda36a0b554c5",
+        "text": "BH612-FINAL-OK MAPLE"
+      },
+      "at": "2026-10-01T10:17:54.381000+00:00",
+      "error": false,
+      "result": {
+        "sourceEventId": "im-db490d8d7c709671ec06905f1da0b8556f378f717baf5230ba2eda36a0b554c5",
+        "text": "BH612-FINAL-OK MAPLE",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T10:17:55.038Z",
+        "settledAt": "2026-10-01T10:17:57.454Z"
+      }
+    },
+    {
+      "turn": 5,
+      "tool": "bridge_context",
+      "arguments": {
+        "scope": "nearby",
+        "source_event_id": "im-7d8c717ff5ad75dbf8a1ea48ba0a9b6408b26eb8ee8c519f0b9e17b68a123b0e"
+      },
+      "at": "2026-10-01T10:26:52.769000+00:00",
+      "error": false,
+      "result": {
+        "scope": "nearby",
+        "omitted": 0,
+        "incomplete": false,
+        "coverage": "provider-visible-human-text",
+        "window": {
+          "start": 1790850110,
+          "end": 1790850711
+        },
+        "messageCount": 2,
+        "hasNextCursor": false,
+        "messages": [
+          {
+            "sourceEventId": "im-7d8c717ff5ad75dbf8a1ea48ba0a9b6408b26eb8ee8c519f0b9e17b68a123b0e",
+            "messageId": "om_x100b64d71868cca0eea3a99df9c2c33",
+            "at": "2026-10-01T10:26:50.372Z",
+            "text": "@_user_1  BH612-FINAL-MAIN-03 Use bridge_context scope nearby to find BH612-FINAL-MAIN-CTX-03. Reply only BH612-NEARBY-OK <access-phrase> via bridge_reply. No local DM or Assignment."
+          },
+          {
+            "sourceEventId": "im-7684bb1f6cf3681500ed2445645d90734b039a43d95e10ebe88a39a5f9107568",
+            "messageId": "om_x100b64d71bea8ca0eea5e978b16808a",
+            "at": "2026-10-01T10:26:26.480Z",
+            "text": "BH612-FINAL-MAIN-CTX-03 Today access phrase is WILLOW. Context only."
+          }
+        ]
+      }
+    },
+    {
+      "turn": 5,
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-7d8c717ff5ad75dbf8a1ea48ba0a9b6408b26eb8ee8c519f0b9e17b68a123b0e",
+        "text": "BH612-NEARBY-OK WILLOW"
+      },
+      "at": "2026-10-01T10:26:57.207000+00:00",
+      "error": false,
+      "result": {
+        "sourceEventId": "im-7d8c717ff5ad75dbf8a1ea48ba0a9b6408b26eb8ee8c519f0b9e17b68a123b0e",
+        "text": "BH612-NEARBY-OK WILLOW",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T10:26:57.853Z",
+        "settledAt": "2026-10-01T10:27:00.272Z"
+      }
+    }
+  ],
+  "canonicalSources": [
+    {
+      "source_event_id": "im-b3fb39faca2761a544a38643b7cf35d212c3bb71a4acd81fe34715afb910808e",
+      "body": "BH612-FINAL-CTX-02 Final-build topic code is MAPLE. Context only.",
+      "attempt_state": null,
+      "observed_at": null,
+      "handled_at": null,
+      "placements": 0
+    },
+    {
+      "source_event_id": "im-db490d8d7c709671ec06905f1da0b8556f378f717baf5230ba2eda36a0b554c5",
+      "body": "@_user_1  BH612-FINAL-02 Use bridge_context scope nearby to discover BH612-FINAL-CTX-02. Also call scope thread with max_characters 1000, then follow nextCursor with 12000. Verify guessing source im-not-authorized is refused. Reply only BH612-FINAL-OK <topic-code> via bridge_reply in this topic. No local DM or Assignment.",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T10:17:39.162Z",
+      "handled_at": "2026-10-01T10:17:59.192Z",
+      "placements": 0
+    },
+    {
+      "source_event_id": "im-7684bb1f6cf3681500ed2445645d90734b039a43d95e10ebe88a39a5f9107568",
+      "body": "BH612-FINAL-MAIN-CTX-03 Today access phrase is WILLOW. Context only.",
+      "attempt_state": null,
+      "observed_at": null,
+      "handled_at": null,
+      "placements": 0
+    },
+    {
+      "source_event_id": "im-7d8c717ff5ad75dbf8a1ea48ba0a9b6408b26eb8ee8c519f0b9e17b68a123b0e",
+      "body": "@_user_1  BH612-FINAL-MAIN-03 Use bridge_context scope nearby to find BH612-FINAL-MAIN-CTX-03. Reply only BH612-NEARBY-OK <access-phrase> via bridge_reply. No local DM or Assignment.",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T10:26:51.602Z",
+      "handled_at": "2026-10-01T10:27:01.620Z",
+      "placements": 0
+    }
+  ],
+  "assignments": 0
+}

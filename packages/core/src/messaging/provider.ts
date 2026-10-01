@@ -39,6 +39,23 @@ export interface MessagingReplyRoute {
   parentId?: string;
 }
 
+export type MessagingHistoryScope = 'group' | 'nearby' | 'thread';
+export interface MessagingHistoryQuery {
+  scope: MessagingHistoryScope;
+  limit: number;
+  cursor?: string;
+}
+export interface MessagingHistoryPage {
+  version: 1;
+  scope: MessagingHistoryScope;
+  events: MessagingInboundEvent[];
+  omitted: number;
+  hasMore: boolean;
+  nextCursor?: string;
+  window?: { start: number; end: number };
+  coverage: 'provider-visible-human-text';
+}
+
 export interface MessagingProvider {
   id: string;
   accounts(): Promise<MessagingAccount[]>;
@@ -63,6 +80,13 @@ export interface MessagingProvider {
     text: string;
     signal: AbortSignal;
   }): Promise<{ accepted: true }>;
+  history?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    query: MessagingHistoryQuery;
+    signal: AbortSignal;
+  }): Promise<MessagingHistoryPage>;
   send(input: {
     accountRef: string;
     targetRef: string;

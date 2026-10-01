@@ -3349,6 +3349,11 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   font-size: 12px;
   line-height: 18px;
 }
+.bh-external-source-content {
+  max-height: 65vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
 .bh-external-source-body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

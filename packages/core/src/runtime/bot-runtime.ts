@@ -9,7 +9,11 @@ import {
 } from '../attachments/file-operations.js';
 import { authorizedPathRoot } from '../workspaces/grant-native-tools.js';
 import type { OutboundMessaging } from '../messaging/outbound.js';
-import type { ExternalSource } from '../messaging/inbound.js';
+import type {
+  ExternalSource,
+  ExternalContextQuery,
+  ExternalContextResult,
+} from '../messaging/inbound.js';
 import { sniffAttachmentMime } from '../attachments/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
@@ -170,6 +174,11 @@ export interface OrchestratorAgentRun {
   inboundChannelId: string | undefined;
   externalMessaging?: {
     read(sourceEventId: string): ExternalSource;
+    context(
+      sourceEventId: string,
+      query: ExternalContextQuery,
+      signal?: AbortSignal,
+    ): Promise<ExternalContextResult>;
     reply(sourceEventId: string, text: string): ReturnType<OutboundMessaging['reply']>;
   };
   channels: OrchestratorChannelAccess;
@@ -2349,6 +2358,21 @@ class BotRuntimeImplementation implements BotRuntime {
           : {
               externalMessaging: {
                 read: (id: string) => this.#externalMessaging!.inbound.read(bot.slug, id),
+                context: async (id: string, query: ExternalContextQuery, signal?: AbortSignal) => {
+                  const result = await this.#externalMessaging!.inbound.context(
+                    bot.slug,
+                    id,
+                    orchestrator.sessionId,
+                    query,
+                    signal,
+                  );
+                  this.#observeExternalRead(
+                    bot.slug,
+                    result.messages.map((item) => item.sourceEventId),
+                    readAdmissions,
+                  );
+                  return result;
+                },
                 reply: (id: string, text: string) => {
                   if (!this.#externalMessaging!.inbound.available(bot.slug, id))
                     throw new Error('bridge_reply: source unavailable');
@@ -4483,6 +4507,24 @@ class BotRuntimeImplementation implements BotRuntime {
     return this.#channels
       .list()
       .find((channel) => channel.type === 'dm' && channel.botSlug === botSlug);
+  }
+
+  #observeExternalRead(botSlug: string, ids: string[], readAdmissions: Set<string>): void {
+    const at = this.#now().toISOString();
+    this.#database.transaction(
+      (db) => {
+        for (const id of ids) {
+          const row = db
+            .prepare(`UPDATE inbox_admissions SET observed_at = COALESCE(observed_at, ?),
+          side_effect_started_at = COALESCE(side_effect_started_at, ?), attempt_state = 'running', last_error = NULL
+          WHERE bot_slug = ? AND source_event_id = ? AND reason = 'group-mention'
+            AND attempt_state IN ('pending', 'retryable') RETURNING source_event_id`)
+            .get(at, at, botSlug, id);
+          if (row) readAdmissions.add(id);
+        }
+      },
+      ['bot-inbox'],
+    );
   }
 
   #observeReadMessages(
