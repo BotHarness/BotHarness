@@ -74,7 +74,18 @@ export async function saveAttachmentFile(
       validate();
       size += chunk.value.byteLength;
       if (size > deps.attachments.maxBytes) throw new Error('Attachment exceeds transfer limit');
-      await handle.writeFile(chunk.value);
+      let offset = 0;
+      while (offset < chunk.value.byteLength) {
+        validate();
+        const { bytesWritten } = await handle.write(
+          chunk.value,
+          offset,
+          chunk.value.byteLength - offset,
+          null,
+        );
+        if (bytesWritten === 0) throw new Error('Attachment destination write made no progress');
+        offset += bytesWritten;
+      }
     }
     if (size !== downloaded.ref.size) throw new Error('Attachment changed during transfer');
     validate();

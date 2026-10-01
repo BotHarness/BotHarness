@@ -110,6 +110,25 @@ describe('Attachment file operations', () => {
         .digest('hex'),
     ).toBe(createHash('sha256').update(f.bytes).digest('hex'));
   });
+  it('preserves byte order across streamed chunks', async () => {
+    const f = await fixture();
+    f.enable();
+    const chunks = [f.bytes.subarray(0, 2), f.bytes.subarray(2, 7), f.bytes.subarray(7)];
+    const attachments = {
+      ...f.attachments,
+      download: async () => ({
+        ref: f.original,
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            for (const chunk of chunks) controller.enqueue(chunk);
+            controller.close();
+          },
+        }),
+      }),
+    };
+    const result = await saveAttachmentFile(f.input, { ...f.deps, attachments });
+    expect(readFileSync(result.path)).toEqual(f.bytes);
+  });
   it('requires explicit write access, never overwrites, and checks current source authorization', async () => {
     const f = await fixture();
     await expect(f.save()).rejects.toThrow(/write authorization/);

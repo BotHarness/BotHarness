@@ -36,4 +36,4 @@ Schema 激活是单向升级：旧的 hash-only 版本不能读取 generation 39
 
 上传任意格式文件，例如含 CSV 的 ZIP，并请求新结果。Orchestrator 通过 `channel_attachment_save` 另存独立工作文件，使用原生文件工具和经过审批的 Shell 处理，明确选择生成文件并通过 `channel_attachment_import` 导入，再回复独立可下载附件。父目录须已存在，另存不覆盖已有文件。原件引用保持不变，沿用 owner 的 25 MiB 传输上限；下载结果后检查实际内容。
 
-当前切片覆盖本地对话附件；显式原件写回为 #633，Lark/Slack 文件传输仍需后续集成与真实 E2E。见 [ADR-0104](adr/0104-attachments-use-native-file-operations-under-source-authority.md)。
+当前切片覆盖本地对话附件；显式原件写回为 #633，Lark/Slack 文件传输仍需后续集成与真实 E2E。见 [ADR-0105](adr/0105-attachments-use-native-file-operations-under-source-authority.md)。

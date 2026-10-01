@@ -237,9 +237,15 @@ export function createWorkspaceGrantStore(options: {
           SET orchestrator_write = ?, write_revision = write_revision + 1
           WHERE bot_slug = ? AND id = ? AND revoked_at IS NULL AND orchestrator_write != ?`)
             .run(enabled ? 1 : 0, botSlug, grantId, enabled ? 1 : 0);
-          return connection
+          const current = connection
             .prepare('SELECT * FROM workspace_grants WHERE bot_slug = ? AND id = ?')
-            .get(botSlug, grantId) as unknown as GrantRow;
+            .get(botSlug, grantId) as unknown as GrantRow | undefined;
+          if (current === undefined || current.revoked_at !== null)
+            throw new WorkspaceGrantError(
+              'invalid-grant',
+              'Workspace Grant is missing or revoked: ' + grantId,
+            );
+          return current;
         },
         ['workspace-grants'],
       );
