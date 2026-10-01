@@ -4,6 +4,8 @@ import type {
   MessagingAttachment,
   MessagingInboundEvent,
   MessagingReplyRoute,
+  MessagingHistoryQuery,
+  MessagingHistoryPage,
 } from './provider.js';
 import { MessagingError, MessagingProviderError, type MessagingProvider } from './provider.js';
 
@@ -58,6 +60,12 @@ export interface DshImOutboundService {
       signal: AbortSignal;
     },
   ): Promise<{ sent: true }>;
+  historyChecked?(
+    botId: string,
+    route: MessagingReplyRoute,
+    query: MessagingHistoryQuery,
+    options: { expectedFingerprint: string; signal: AbortSignal },
+  ): Promise<MessagingHistoryPage>;
   sendChecked(
     botId: string,
     targetId: string,
@@ -93,9 +101,22 @@ const inboundSchema = z
     fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     eventId: identifier,
     messageId: identifier,
-    actor: z.object({ kind: z.literal('user'), id: identifier }).strict(),
+    actor: z
+      .object({ kind: z.literal('user'), id: identifier, name: identifier.optional() })
+      .strict()
+      .transform(({ name, ...actor }) => ({ ...actor, ...(name === undefined ? {} : { name }) })),
     conversation: z.object({ kind: z.enum(['group', 'dm']), id: identifier }).strict(),
-    mentions: z.array(z.object({ id: identifier, key: identifier }).strict()).max(100),
+    mentions: z
+      .array(
+        z
+          .object({ id: identifier, key: identifier, name: identifier.optional() })
+          .strict()
+          .transform(({ name, ...mention }) => ({
+            ...mention,
+            ...(name === undefined ? {} : { name }),
+          })),
+      )
+      .max(100),
     mentionedAccount: z.boolean(),
     attachments: z
       .array(
@@ -278,6 +299,85 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
             } catch (error) {
               throw providerFailure(error);
             }
+          },
+        }
+      : {}),
+    ...(typeof host.historyChecked === 'function'
+      ? {
+          async history(input: Parameters<NonNullable<MessagingProvider['history']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingError('rebind-required');
+            if (
+              !info.capabilities.includes('history-text-checked') ||
+              (input.query.scope === 'thread' &&
+                !info.capabilities.includes('thread-history-text-checked'))
+            )
+              throw new MessagingError('history-capability-unavailable');
+            let raw;
+            try {
+              raw = await host.historyChecked!(input.accountRef, input.route, input.query, {
+                expectedFingerprint: input.fingerprint,
+                signal: input.signal,
+              });
+            } catch (error) {
+              const code =
+                error !== null && typeof error === 'object' && 'code' in error
+                  ? error.code
+                  : undefined;
+              throw new MessagingError(
+                typeof code === 'string' &&
+                  [
+                    'history-permission-denied',
+                    'history-unavailable',
+                    'thread-unavailable',
+                    'stale-route',
+                    'account-changed',
+                    'capability-unavailable',
+                    'cancelled',
+                  ].includes(code)
+                  ? code
+                  : 'history-unavailable',
+              );
+            }
+            input.signal.throwIfAborted();
+            const parsed = z
+              .object({
+                version: z.literal(1),
+                scope: z.enum(['group', 'nearby', 'thread']),
+                events: z.array(inboundSchema).max(20),
+                omitted: z.number().int().min(0).max(20),
+                hasMore: z.boolean(),
+                nextCursor: z.string().min(1).max(4096).optional(),
+                window: z
+                  .object({ start: z.number().int(), end: z.number().int() })
+                  .strict()
+                  .optional(),
+                coverage: z.literal('provider-visible-human-text'),
+              })
+              .strict()
+              .parse(raw);
+            if (
+              parsed.scope !== input.query.scope ||
+              parsed.events.length + parsed.omitted > input.query.limit ||
+              parsed.hasMore !== (parsed.nextCursor !== undefined)
+            )
+              throw new MessagingError('untrusted-source');
+            for (const event of parsed.events) {
+              if (
+                event.botId !== input.accountRef ||
+                event.fingerprint !== input.fingerprint ||
+                event.conversation.kind !== 'group' ||
+                event.conversation.id !== input.route.conversationId ||
+                event.reply.conversationId !== event.conversation.id ||
+                event.reply.messageId !== event.messageId ||
+                event.reply.actorId !== event.actor.id ||
+                (input.query.scope === 'thread' && event.reply.threadId !== input.route.threadId)
+              )
+                throw new MessagingError('untrusted-source');
+            }
+            return parsed as MessagingHistoryPage;
           },
         }
       : {}),

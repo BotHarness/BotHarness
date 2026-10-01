@@ -36,6 +36,7 @@ export interface BotAttentionItem {
     conversationName: string;
     conversationId: string;
     senderId: string;
+    senderName?: string;
   };
   summary: string;
 }
@@ -175,6 +176,7 @@ export function createBotAttentionQuery(
                   conversationName: external.conversationName,
                   conversationId: external.event.conversation.id,
                   senderId: external.event.actor.id,
+                  ...(external.event.actor.name ? { senderName: external.event.actor.name } : {}),
                 },
               }),
           id: row.source_event_id,
