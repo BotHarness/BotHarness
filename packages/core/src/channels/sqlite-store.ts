@@ -3,12 +3,17 @@ import {
   type RetainedAttachmentMessage,
 } from '../attachments/legacy-migration.js';
 import { projectAttachmentFiles } from '../attachments/message-files.js';
+import { assertGrantRequestReply, isGrantRequestResolved } from './grant-request.js';
+import {
+  assertAssignmentHumanReply,
+  AssignmentReplyTargetError,
+} from '../runtime/assignment-human-context.js';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
-import type { OperationalDatabaseModulePort } from '../database/owner.js';
+import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
 import {
   createBotSourcePolicyStore,
   defaultGroupWakePolicy,
@@ -126,6 +131,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       botDmAction: left.botDmAction,
       botCausation: left.botCausation,
       grantRequestResolution: left.grantRequestResolution,
+      assignmentReply: left.assignmentReply,
     }) ===
     JSON.stringify({
       author: right.author,
@@ -139,6 +145,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       botDmAction: right.botDmAction,
       botCausation: right.botCausation,
       grantRequestResolution: right.grantRequestResolution,
+      assignmentReply: right.assignmentReply,
     })
   );
 }
@@ -153,6 +160,7 @@ function sourceKind(message: ChannelMessage): string {
 
 function rawMessage(message: ChannelMessage): ChannelMessage {
   const result = { ...message };
+  delete result.grantRequestResolved;
   delete result.replyToPreview;
   delete result.deliveries;
   delete result.humanReceipts;
@@ -407,7 +415,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
 
   const project = (messages: ChannelMessage[], message: ChannelMessage): ChannelMessage =>
     projectAttachmentFiles(
-      replyProjection(message, new Map(messages.map((item) => [item.id, item]))),
+      replyProjection(
+        {
+          ...message,
+          ...(message.grantRequest
+            ? { grantRequestResolved: isGrantRequestResolved(messages, message.id) }
+            : {}),
+        },
+        new Map(messages.map((item) => [item.id, item])),
+      ),
       options.attachments,
     );
 
@@ -531,170 +547,192 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           }
         : undefined;
     const actionRevision = senderDm === undefined ? undefined : allMessages(senderDm.id).length + 1;
-    database.transaction(
-      (db) => {
-        for (const mention of humanMentions) {
+    try {
+      database.transaction(
+        (db) => {
+          assertGrantRequestReply(channel, durable, previous);
+          assertAssignmentHumanReply(db, channel, durable);
           if (
+            durable.grantRequestResolution !== undefined &&
             db
               .prepare(
-                'SELECT 1 FROM channel_human_members WHERE channel_id = ? AND human_id = ? AND left_at IS NULL',
+                'SELECT 1 FROM workspace_grants WHERE id = ? AND bot_slug = ? AND revoked_at IS NULL',
               )
-              .get(id, mention.humanId) === undefined
+              .get(durable.grantRequestResolution.grantId, channel.botSlug!) === undefined
           )
-            throw new Error('Mentioned Human must be a current Group Human member');
-        }
-        db.prepare(`
+            throw new ChannelReplyTargetError();
+          for (const mention of humanMentions) {
+            if (
+              db
+                .prepare(
+                  'SELECT 1 FROM channel_human_members WHERE channel_id = ? AND human_id = ? AND left_at IS NULL',
+                )
+                .get(id, mention.humanId) === undefined
+            )
+              throw new Error('Mentioned Human must be a current Group Human member');
+          }
+          db.prepare(`
         INSERT INTO source_events (
           source_event_id, source_kind, bot_slug, channel_id, message_id,
           body, created_at, payload_json
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-          sourceEventId,
-          sourceKind(durable),
-          durable.author.kind === 'bot'
-            ? durable.author.slug
-            : channel.type === 'dm' && durable.author.kind === 'human'
-              ? (channel.botSlug ?? null)
-              : null,
-          id,
-          durable.id,
-          durable.body,
-          durable.at,
-          eventPayload(durable),
-        );
-        db.prepare(`
+            sourceEventId,
+            sourceKind(durable),
+            durable.author.kind === 'bot'
+              ? durable.author.slug
+              : channel.type === 'dm' && durable.author.kind === 'human'
+                ? (channel.botSlug ?? null)
+                : null,
+            id,
+            durable.id,
+            durable.body,
+            durable.at,
+            eventPayload(durable),
+          );
+          db.prepare(`
         INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
         VALUES (?, ?, ?, ?)
       `).run(id, revision, sourceEventId, durable.id);
-        const botAlreadyAdmitted = (targetSlug: string, rootId: string): boolean =>
-          db
-            .prepare(`
+          const botAlreadyAdmitted = (targetSlug: string, rootId: string): boolean =>
+            db
+              .prepare(`
               SELECT 1 FROM inbox_admissions a
               JOIN source_events e ON e.source_event_id = a.source_event_id
               WHERE a.bot_slug = ? AND e.source_kind = 'bot-message'
                 AND json_extract(e.payload_json, '$.botCausation.rootSourceEventId') = ?
               LIMIT 1
             `)
-            .get(targetSlug, rootId) !== undefined;
-        const candidateRecipients =
-          durable.author.kind === 'human'
-            ? channel.type === 'dm' && channel.botSlug !== undefined
-              ? [{ botSlug: channel.botSlug, reason: 'human-dm' }]
-              : [...new Set(mentions.map((item) => item.botSlug))].map((botSlug) => ({
-                  botSlug,
-                  reason: 'group-mention',
-                }))
-            : channel.type === 'group' &&
-                senderSlug !== undefined &&
-                durable.botCausation !== undefined &&
-                durable.botCausation.hop <= MAX_BOT_HOPS
-              ? [...new Set(mentions.map((item) => item.botSlug))]
-                  .filter(
-                    (targetSlug) =>
-                      targetSlug !== senderSlug &&
-                      !botAlreadyAdmitted(targetSlug, durable.botCausation!.rootSourceEventId),
+              .get(targetSlug, rootId) !== undefined;
+          const candidateRecipients =
+            durable.author.kind === 'human'
+              ? channel.type === 'dm' && channel.botSlug !== undefined
+                ? [{ botSlug: channel.botSlug, reason: 'human-dm' }]
+                : [...new Set(mentions.map((item) => item.botSlug))].map((botSlug) => ({
+                    botSlug,
+                    reason: 'group-mention',
+                  }))
+              : channel.type === 'group' &&
+                  senderSlug !== undefined &&
+                  durable.botCausation !== undefined &&
+                  durable.botCausation.hop <= MAX_BOT_HOPS
+                ? [...new Set(mentions.map((item) => item.botSlug))]
+                    .filter(
+                      (targetSlug) =>
+                        targetSlug !== senderSlug &&
+                        !botAlreadyAdmitted(targetSlug, durable.botCausation!.rootSourceEventId),
+                    )
+                    .map((botSlug) => ({ botSlug, reason: 'group-mention' }))
+                : botDm &&
+                    recipient !== undefined &&
+                    durable.botCausation !== undefined &&
+                    durable.botCausation.hop <= MAX_BOT_HOPS &&
+                    !botAlreadyAdmitted(recipient, durable.botCausation.rootSourceEventId)
+                  ? [{ botSlug: recipient, reason: 'bot-dm' }]
+                  : [];
+          const recipients = candidateRecipients.filter((item) => isBotActive(item.botSlug));
+          const immediate = new Set(recipients.map((item) => item.botSlug));
+          const ordinaryAllowed =
+            durable.author.kind === 'human' ||
+            (senderSlug !== undefined &&
+              durable.botCausation !== undefined &&
+              durable.botCausation.hop <= MAX_BOT_HOPS);
+          const ordinary =
+            channel.type === 'group' && ordinaryAllowed
+              ? channel.members.flatMap((botSlug) => {
+                  if (botSlug === senderSlug || immediate.has(botSlug) || !isBotActive(botSlug))
+                    return [];
+                  const sourceRule = sourcePolicy.resolveIn(db, botSlug, 'group-ordinary');
+                  const policy =
+                    channel.wakePolicies?.[botSlug] ?? defaultGroupWakePolicy(sourceRule);
+                  if (
+                    durable.author.kind === 'bot' &&
+                    durable.botCausation !== undefined &&
+                    botAlreadyAdmitted(botSlug, durable.botCausation.rootSourceEventId)
                   )
-                  .map((botSlug) => ({ botSlug, reason: 'group-mention' }))
-              : botDm &&
-                  recipient !== undefined &&
-                  durable.botCausation !== undefined &&
-                  durable.botCausation.hop <= MAX_BOT_HOPS &&
-                  !botAlreadyAdmitted(recipient, durable.botCausation.rootSourceEventId)
-                ? [{ botSlug: recipient, reason: 'bot-dm' }]
-                : [];
-        const recipients = candidateRecipients.filter((item) => isBotActive(item.botSlug));
-        const immediate = new Set(recipients.map((item) => item.botSlug));
-        const ordinaryAllowed =
-          durable.author.kind === 'human' ||
-          (senderSlug !== undefined &&
-            durable.botCausation !== undefined &&
-            durable.botCausation.hop <= MAX_BOT_HOPS);
-        const ordinary =
-          channel.type === 'group' && ordinaryAllowed
-            ? channel.members.flatMap((botSlug) => {
-                if (botSlug === senderSlug || immediate.has(botSlug) || !isBotActive(botSlug))
-                  return [];
-                const sourceRule = sourcePolicy.resolveIn(db, botSlug, 'group-ordinary');
-                const policy =
-                  channel.wakePolicies?.[botSlug] ?? defaultGroupWakePolicy(sourceRule);
-                if (
-                  durable.author.kind === 'bot' &&
-                  durable.botCausation !== undefined &&
-                  botAlreadyAdmitted(botSlug, durable.botCausation.rootSourceEventId)
-                )
-                  return [];
-                return [{ botSlug, policy, sourceRule }];
-              })
-            : [];
-        for (const recipient of recipients)
-          insertSourceAdmission(
-            db,
-            sourceEventId,
-            recipient.botSlug,
-            recipient.reason as BotSourceClass,
-          );
-        for (const recipient of ordinary)
-          db.prepare(`
+                    return [];
+                  return [{ botSlug, policy, sourceRule }];
+                })
+              : [];
+          for (const recipient of recipients)
+            insertSourceAdmission(
+              db,
+              sourceEventId,
+              recipient.botSlug,
+              recipient.reason as BotSourceClass,
+            );
+          for (const recipient of ordinary)
+            db.prepare(`
         INSERT INTO inbox_admissions (
           source_event_id, bot_slug, reason, wake_count, wake_interval_ms,
           wake_policy_revision, wake_mode, source_policy_revision, source_policy_wake_mode
         ) VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?, ?, ?)
       `).run(
-            sourceEventId,
-            recipient.botSlug,
-            recipient.policy.mode === 'all'
-              ? 1
-              : recipient.policy.mode === 'digest'
-                ? recipient.policy.count
-                : null,
-            recipient.policy.mode === 'all'
-              ? 0
-              : recipient.policy.mode === 'digest'
-                ? recipient.policy.intervalSeconds * 1000
-                : null,
-            recipient.policy.revision,
-            recipient.policy.mode,
-            recipient.sourceRule.revision,
-            recipient.sourceRule.wake,
+              sourceEventId,
+              recipient.botSlug,
+              recipient.policy.mode === 'all'
+                ? 1
+                : recipient.policy.mode === 'digest'
+                  ? recipient.policy.count
+                  : null,
+              recipient.policy.mode === 'all'
+                ? 0
+                : recipient.policy.mode === 'digest'
+                  ? recipient.policy.intervalSeconds * 1000
+                  : null,
+              recipient.policy.revision,
+              recipient.policy.mode,
+              recipient.sourceRule.revision,
+              recipient.sourceRule.wake,
+            );
+          db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+            JSON.stringify({ ...channel, updatedAt: now().toISOString() }),
+            id,
           );
-        db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
-          JSON.stringify({ ...channel, updatedAt: now().toISOString() }),
-          id,
-        );
-        if (
-          action !== undefined &&
-          senderDm !== undefined &&
-          actionRevision !== undefined &&
-          senderSlug !== undefined
-        ) {
-          const actionSourceEventId = randomUUID();
-          db.prepare(`
+          if (
+            action !== undefined &&
+            senderDm !== undefined &&
+            actionRevision !== undefined &&
+            senderSlug !== undefined
+          ) {
+            const actionSourceEventId = randomUUID();
+            db.prepare(`
             INSERT INTO source_events (
               source_event_id, source_kind, bot_slug, channel_id, message_id,
               body, created_at, payload_json
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
-            actionSourceEventId,
-            'bot-message',
-            senderSlug,
-            senderDm.id,
-            action.id,
-            '',
-            action.at,
-            eventPayload(action),
-          );
-          db.prepare(`
+              actionSourceEventId,
+              'bot-message',
+              senderSlug,
+              senderDm.id,
+              action.id,
+              '',
+              action.at,
+              eventPayload(action),
+            );
+            db.prepare(`
             INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
             VALUES (?, ?, ?, ?)
           `).run(senderDm.id, actionRevision, actionSourceEventId, action.id);
-          db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
-            JSON.stringify({ ...senderDm, updatedAt: now().toISOString() }),
-            senderDm.id,
-          );
-        }
-      },
-      ['source-event', 'channel', 'bot-inbox'],
-    );
+            db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+              JSON.stringify({ ...senderDm, updatedAt: now().toISOString() }),
+              senderDm.id,
+            );
+          }
+        },
+        ['source-event', 'channel', 'bot-inbox'],
+      );
+    } catch (error) {
+      if (
+        error instanceof OperationalDatabaseError &&
+        error.code === 'transaction-failed' &&
+        (error.cause instanceof ChannelReplyTargetError ||
+          error.cause instanceof AssignmentReplyTargetError)
+      )
+        throw error.cause;
+      throw error;
+    }
     const committed = project([...previous, durable], durable);
     const deliveries = admissionStatuses(sourceEventId);
     const humanReceipts = humanReceiptsFor(committed, revision, humanMembers(id));

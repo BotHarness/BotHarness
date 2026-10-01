@@ -380,3 +380,9 @@ v1 has only two backup actions: Export Profile produces one self-contained `.bot
 - When module structure, data flow, transaction boundaries, or authority changes, update this file, its Chinese mirror, and `docs/architecture/diagrams/*.mmd`.
 - Run `pnpm diagrams` and commit the light/dark SVGs. `scripts/sync-docs.mjs` publishes this source and those diagrams to `apps/docs`.
 - Companion sources: BotHarness Product Context in `CONTEXT.md`, with trade-offs and rationale in `docs/adr/`. The platform spec and app PRD are archived working drafts rather than parallel design authorities.
+
+### Grant and Assignment actions in Human Inbox
+
+Inbox and source DM reuse the same DSH folder-selection and Workspace Grant authorization path. Only a committed Human reply with the validated request message and Grant IDs resolves a Grant request; this also applies to historical requests. The commit transaction rechecks the active Bot Grant and unresolved request. Text alone never proves authorization.
+
+Waiting and blocked Assignment cards aggregate by Assignment Session and read the exact report Source Event with at most two neighboring reports on either side. A Human answer commits through the owning Bot DM authority with `assignmentReply: {sessionId, sourceEventId}`. The commit transaction validates the owning Bot, running state, current request or idle blocker, and absence of a prior Human response. The Orchestrator receives the trusted address and relays the answer through its existing Assignment operation; the Human DM does not directly resume an Assignment or clear its ask. Terminal or stopped work refuses new responses, while same-ID retries return the existing commitment. Ordinary progress preserves an unresolved ask and a weaker waiting report cannot overwrite a stronger blocked ask. Bot navigation opens the DM; Session navigation opens the original DSH Session (ADR-0071).

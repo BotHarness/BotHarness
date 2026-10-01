@@ -396,7 +396,7 @@ describe('Assignment collaboration', () => {
     }
   });
 
-  it('projects a Bot Grant request as one Human action until a typed or legacy Human resolution', async () => {
+  it('projects a Bot Grant request until a committed Grant-linked reply and keeps legacy text pending', async () => {
     const home = createTempRoot('botharness-grant-attention-');
     const owner = trackTestOwner(
       mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
@@ -408,6 +408,7 @@ describe('Assignment collaboration', () => {
       now: FIXED_NOW,
     });
     const dmChannelId = channels.getOrCreateDm('ada', 'Ada')!.id;
+    createTestWorkspaceGrants(owner, home);
     try {
       const query = createHumanAttentionQuery(
         attachOperationalModule(owner, 'human-grant-attention-test'),
@@ -470,7 +471,9 @@ describe('Assignment collaboration', () => {
         body: '已授权工作区「Project」，请继续处理之前的事项。',
         replyTo: 'grant-request-legacy',
       });
-      expect(query.list({ category: 'action' }).items).toEqual([]);
+      expect(query.list({ category: 'action' }).items).toMatchObject([
+        { messageId: 'grant-request-legacy' },
+      ]);
     } finally {
       owner.close();
     }
@@ -480,7 +483,9 @@ describe('Assignment collaboration', () => {
     });
     try {
       const query = createHumanAttentionQuery(attachOperationalModule(reopened, 'grant-restart'));
-      expect(query.list({ category: 'action' }).items).toEqual([]);
+      expect(query.list({ category: 'action' }).items).toMatchObject([
+        { messageId: 'grant-request-legacy' },
+      ]);
     } finally {
       reopened.close();
     }
@@ -915,6 +920,74 @@ describe('Assignment collaboration', () => {
     expect(runtime.getAssignment('ada', sessionId)?.openAsk).toBeUndefined();
     await close();
   });
+
+  it.each(['waiting-human', 'progress', 'stop-failed'] as const)(
+    'keeps the canonical blocked ask address when harvesting a later %s report',
+    async (state) => {
+      const { runtime, agents, dmChannelId, admit, close } = await setup();
+      let release = (): void => undefined;
+      try {
+        await admit('Start research', 'human-1');
+        const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Choose route' });
+        if (created.outcome !== 'created') throw new Error('create failed');
+        const sessionId = created.assignment.sessionId;
+        const run = agents.started[0]!.run;
+        let started = (): void => undefined;
+        const ready = new Promise<void>((resolve) => {
+          started = resolve;
+        });
+        const held = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        vi.spyOn(agents, 'runOrchestrator').mockImplementationOnce(async () => {
+          started();
+          await held;
+        });
+        const active = runtime.admitDmMessage({
+          channelId: dmChannelId,
+          messageId: 'human-2',
+          body: 'Review context',
+        });
+        if (!active.admitted) throw new Error('active turn missing');
+        await ready;
+        await run.report({ state: 'blocked', summary: 'Choose A or B', expectsReply: true });
+        const askId = runtime.getAssignment('ada', sessionId)!.openAsk!.sourceEventId;
+        await run.report({
+          state: state === 'stop-failed' ? 'progress' : state,
+          summary: 'Later update',
+          expectsReply: state === 'waiting-human',
+        });
+        if (state === 'stop-failed') {
+          agents.failNextStop = true;
+          await expect(agents.access!.stop(sessionId)).rejects.toThrow('DSH stop failed');
+        }
+        agents.finish(sessionId);
+        release();
+        await active.settled;
+        await runtime.whenIdle();
+        const injected = agents.inboxTurns[0] ?? '';
+        if (state === 'stop-failed') {
+          expect(injected).toContain('activity stopping');
+          expect(injected).not.toContain('WAITING');
+          expect(injected).not.toContain('answer_to: ' + askId);
+          return;
+        }
+        expect(injected).toContain('WAITING');
+        expect(injected).toContain('answer_to: ' + askId);
+        expect(injected).toContain('Choose A or B');
+        const answerTo = injected.match(/answer_to: ([^)]+)/u)?.[1];
+        if (answerTo === undefined) throw new Error('Inbox answer target missing');
+        expect(
+          agents.access!.request({ sessionId, mode: 'next-turn', text: 'Choose A', answerTo })
+            .delivery,
+        ).toBe('followup');
+        expect(runtime.getAssignment('ada', sessionId)?.openAsk).toBeUndefined();
+      } finally {
+        release();
+        await close();
+      }
+    },
+  );
 
   it('projects one open Assignment ask into Human Inbox and clears it when answered', async () => {
     const { runtime, agents, owner, admit, close } = await setup();
