@@ -249,7 +249,9 @@ Human Inbox 的首个可运行切片在 Bot mode 左侧栏的 Messages 上方提
 
 #547 切片允许本地 Human 在 Human Inbox 查看捕获的群聊或 Bot DM 未读消息、展开相邻上下文并原位回复。Channel owner 按该 Human 的可见范围返回 timeline，并在发送时再次验证回复目标；Inbox 复用现有 `channelSend`，只提交一条带来源消息引用的 Human Source Event。草稿与重试身份仅是 Client 临时状态；Inbox 刷新或发送失败保留草稿，未修改内容的重试复用同一消息身份。看到具体来源内容推进其权威已读位置，展开未读摘要不推进。来源及已确认回复均保留准确的 Channel 消息导航。
 
-#550 切片允许 Human 在 Inbox 同一来源上下文面板中查看并决定实时工具审批，复用 DM 审批卡及既有 `toolApprovalStatus`／`toolApprovalDecide` Bridge 命令。认证 Host 再次检查来源请求和实时授权范围，提交权威 Channel 审批决定，并只恢复对应原生调用。批准、拒绝或过期后该请求离开待行动投影，其他 Bot 的请求保持独立，默认最久等待优先。成功或过期失败后 Client 刷新 Inbox 与独立行动提示，并从保留的旧分页中移除已确认解决的项。有界附近消息与准确来源跳转沿用现有 Channel timeline 边界，不新增审批存储或生命周期；已处理历史仍由后续 #553 交付。
+#550 切片允许 Human 在 Inbox 同一来源上下文面板中查看并决定实时工具审批，复用 DM 审批卡及既有 `toolApprovalStatus`／`toolApprovalDecide` Bridge 命令。认证 Host 再次检查来源请求和实时授权范围，提交权威 Channel 审批决定，并只恢复对应原生调用。批准、拒绝或过期后该请求离开待行动投影，其他 Bot 的请求保持独立，默认最久等待优先。成功或过期失败后 Client 刷新 Inbox 与独立行动提示，并从保留的旧分页中移除已确认解决的项。有界附近消息与准确来源跳转沿用现有 Channel timeline 边界，不新增审批存储或生命周期；已处理历史由 #553 投影。
+
+#553 从已提交的 typed Human 回应 Source Event，经 Channel placement 关联原始提问、审批、Grant 请求或 Assignment 报告，投影已处理历史。同一请求 Source Event 只保留第一份权威回应的历史行，携带请求、回答、回应时间、Bot 与来源 DM；不复制消息、不增加历史表。游标绑定类别、Bot、Channel 和排序；阅读消息或忽略完成报告不产生已处理行动。Human 回答 Assignment 后立即移除 Human 待办，保留 Bot 运行时的转发地址；旧 blocked ask 已有权威 Human 答复时，后续明确报告建立新请求。历史上下文独立查询准确回答，不依赖请求附近各两条消息或已过期的实时 broker 推断已处理状态。Client 丢弃旧筛选结果，每次刷新最多重查三页、每页 50 项；更多记录可沿刷新后的游标再次加载。Assignment 上下文高亮准确报告，「查看 Session」进入原始 DSH Session，「查看答复」定位所属 DM 的准确回答。
 
 #551 在同一 Inbox 来源面板支持实时原生提问，复用来源 DM 提问卡的准确问题、选项与自定义输入，以及既有 `userQuestionStatus`／`userQuestionAnswer` Bridge 操作。拥有请求的 Channel question broker 校验实时 Orchestrator、目标与答案，提交一次权威回答并恢复原生请求。Client 与工具审批共享决定后的刷新，从保留分页移除已确认回答或过期请求，其他 Bot 保持独立。有界上下文与准确来源跳转沿用既有 Channel timeline，请求生命周期及已处理历史仍归各自既有边界。
 
@@ -443,3 +445,5 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 ### Human Inbox 中回应 Assignment
 
 等待／受阻卡片以 Assignment Session 聚合，读取准确报告 Source Event 和至多前后各两条报告。Human 在 Inbox 回答时，消息通过现有 Bot DM authority 提交，并携带 `assignmentReply: {sessionId, sourceEventId}`；事务核验所属 Bot、运行状态、当前请求或空闲受阻报告，以及尚无已提交 Human 回应。此消息由 Orchestrator 接收并转交 Assignment，不直接恢复事项或清除 ask；完成、失败或停止后的报告拒绝新回应。同 ID 重试返回原提交。普通进展保留未解决 ask，较弱等待报告不覆盖较强的受阻 ask。点击 Bot 打开私聊，点击 Assignment Session 切换到 DSH 原始 Session（ADR-0071）。
+
+Human 回应目标及时间使用 Messaging 拥有的 SQLite 索引。列表超过 150 项时明确暂停自动轮询，保留正在浏览的旧记录；可见的「刷新回到当前列表」按钮保留筛选条件，重查最多三页并获取新游标。「加载更多」不截断当前记录，成功行动命令仍刷新权威状态。

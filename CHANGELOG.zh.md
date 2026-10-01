@@ -17,6 +17,8 @@
 
 ### Added
 
+- Human Inbox 增加可筛选的已处理历史，回看提问答案、工具审批、Workspace Grant 回应和 Assignment 答复，并准确跳转请求及回答；待行动默认等待最久优先，双窗口与重启沿用权威事实刷新（[#553](https://github.com/BotHarness/BotHarness/issues/553)）。
+
 - Human 可在 Human Inbox 授权工作区请求或回应等待／受阻 Assignment，查看来源上下文并准确打开 Session；已提交回应沿用 Bot DM authority，待办根据持久事实刷新（[#552](https://github.com/BotHarness/BotHarness/issues/552)）。
 
 - Human 可在 Human Inbox 使用来源 DM 提问卡的选项或自定义输入回答实时原生提问；答案只恢复原请求一次，刷新已解决或过期待办，并保留其他 Bot 的独立请求（[#551](https://github.com/BotHarness/BotHarness/issues/551)）。

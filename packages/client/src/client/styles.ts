@@ -4723,6 +4723,10 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 .bh-human-inbox-personal-row .bh-human-inbox-row-actions {
   grid-column: 2;
 }
+@media (max-width: 720px) {
+  .bh-human-inbox-row { flex-direction: column; }
+  .bh-human-inbox-row-main { width: 100%; }
+}
 @media (max-width: 1000px) {
   .bh-human-inbox-with-context .bh-human-inbox-workspace {
     grid-template-columns: minmax(0, 1fr);

@@ -24,8 +24,9 @@ const questions = [
 function fixture() {
   let broker: ChannelUserQuestions;
   let live = true;
+  const home = createTempRoot('bh-inbox-question-');
   const core = createCore({
-    dshHome: createTempRoot('bh-inbox-question-'),
+    dshHome: home,
     agents,
     activeQuestionMessageIds: () => broker?.activeMessageIds() ?? [],
   });
@@ -48,6 +49,7 @@ function fixture() {
     return { channelId: channel.id, message: core.channels.readMessages(channel.id)[0]!, answer };
   };
   return {
+    home,
     core,
     broker,
     methods,
@@ -58,6 +60,71 @@ function fixture() {
   };
 }
 describe('Human Inbox question Host boundary', () => {
+  it('pages handled decisions by stable scope, keeps reading independent and reconstructs after restart', async () => {
+    const f = fixture();
+    let expected: string[] = [];
+    try {
+      for (const slug of ['ada', 'bea', 'cy']) {
+        const scene = await f.start(slug);
+        expect(
+          await f.methods.userQuestionAnswer({
+            channelId: scene.channelId,
+            messageId: scene.message.id,
+            answer: { answers: [{ id: 'release-route', selected: ['Canary'] }] },
+          }),
+        ).toMatchObject({ ok: true });
+        await scene.answer;
+      }
+      const all = f.core.humanAttention.list({ category: 'handled' });
+      expected = all.items.map((item) => item.id);
+      expect(expected).toHaveLength(3);
+      const first = f.core.humanAttention.list({ category: 'handled', limit: 1 });
+      const second = f.core.humanAttention.list({
+        category: 'handled',
+        limit: 1,
+        cursor: first.nextCursor!,
+      });
+      expect([...first.items, ...second.items].map((item) => item.id)).toEqual(
+        expected.slice(0, 2),
+      );
+      expect(
+        f.core.humanAttention
+          .list({ category: 'handled', sort: 'oldest' })
+          .items.map((item) => item.id),
+      ).toEqual([...expected].reverse());
+      expect(
+        f.methods.humanAttention({ category: 'handled', botSlug: 'ada', cursor: first.nextCursor }),
+      ).toMatchObject({ ok: false });
+      expect(
+        f.methods.humanAttention({ category: 'handled', sort: 'oldest', cursor: first.nextCursor }),
+      ).toMatchObject({ ok: false });
+      expect(
+        f.core.humanAttention.list({ category: 'handled', channelId: 'dm-ada' }).items,
+      ).toMatchObject([{ botSlug: 'ada' }]);
+      const pending = await f.start('dee');
+      await f.core.channels.markRead(pending.channelId, pending.message.id);
+      expect(f.core.humanAttention.status().hasAction).toBe(true);
+      expect(
+        f.core.humanAttention.list({ category: 'handled' }).items.map((item) => item.id),
+      ).toEqual(expected);
+      f.broker.close();
+      await pending.answer.catch(() => undefined);
+    } finally {
+      f.broker.close();
+      await f.core.runtime.close();
+      f.core.operationalDatabase.close();
+    }
+    const reopened = createCore({ dshHome: f.home, agents });
+    try {
+      expect(
+        reopened.humanAttention.list({ category: 'handled' }).items.map((item) => item.id),
+      ).toEqual(expected);
+    } finally {
+      await reopened.runtime.close();
+      reopened.operationalDatabase.close();
+    }
+  });
+
   it.each(['choice', 'custom'] as const)(
     'settles %s once through the canonical command and preserves other Bot work',
     async (mode) => {
@@ -124,6 +191,26 @@ describe('Human Inbox question Host boundary', () => {
         ]);
         expect(results.map((r) => r.ok).sort()).toEqual([false, true]);
         expect(await ada.answer).toEqual(answer);
+        const response = f.core.channels
+          .readMessages(ada.channelId)
+          .find((m) => m.userQuestionResolution)!;
+        const handled = f.methods.humanAttention({ category: 'handled', botSlug: 'ada' });
+        if (!handled.ok) throw new Error(JSON.stringify(handled.error));
+        expect(handled).toMatchObject({
+          ok: true,
+          value: {
+            items: [
+              {
+                category: 'handled',
+                kind: 'user-question',
+                channelId: ada.channelId,
+                messageId: ada.message.id,
+                responseMessageId: response.id,
+              },
+            ],
+          },
+        });
+
         expect(
           f.core.channels
             .readMessages(ada.channelId)

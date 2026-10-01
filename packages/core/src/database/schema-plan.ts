@@ -1225,6 +1225,27 @@ const EXTERNAL_SOURCE_MIGRATION: SchemaMigration = {
   },
 };
 
+const HUMAN_RESPONSE_INDEX_MIGRATION: SchemaMigration = {
+  generation: 45,
+  module: 'messaging',
+  description: 'Index canonical Human response targets and history time',
+  migrate(database) {
+    database.exec(
+      `CREATE INDEX source_events_human_native_response ON source_events (
+        coalesce(json_extract(payload_json, '$.userQuestionResolution.requestMessageId'),
+                 json_extract(payload_json, '$.toolApprovalDecision.requestMessageId'),
+                 json_extract(payload_json, '$.grantRequestResolution.requestMessageId')), channel_id
+      ) WHERE source_kind = 'human-message' AND json_extract(payload_json, '$.author.kind') = 'human';
+      CREATE INDEX source_events_human_assignment_response ON source_events (
+        json_extract(payload_json, '$.assignmentReply.sourceEventId'),
+        json_extract(payload_json, '$.assignmentReply.sessionId')
+      ) WHERE source_kind = 'human-message' AND json_extract(payload_json, '$.author.kind') = 'human';
+      CREATE INDEX source_events_human_response_time ON source_events (created_at, source_event_id)
+        WHERE source_kind = 'human-message' AND json_extract(payload_json, '$.author.kind') = 'human';`,
+    );
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1269,4 +1290,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ORCHESTRATOR_WORKSPACE_WRITE_MIGRATION,
   HUMAN_CHANNEL_NICKNAME_MIGRATION,
   EXTERNAL_SOURCE_MIGRATION,
+  HUMAN_RESPONSE_INDEX_MIGRATION,
 ]);

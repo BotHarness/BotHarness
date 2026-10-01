@@ -122,6 +122,20 @@ describe('Human Inbox approval Host boundary', () => {
         ]);
         expect(results.map((result) => result.ok).sort()).toEqual([false, true]);
         expect(await ada.answer).toBe(outcome);
+        const response = f.core.channels
+          .readMessages(ada.channelId)
+          .find((m) => m.toolApprovalDecision)!;
+        expect(
+          f.methods.humanAttention({ category: 'handled', channelId: ada.channelId }),
+        ).toMatchObject({
+          ok: true,
+          value: {
+            items: [
+              { kind: 'tool-approval', messageId: ada.message.id, responseMessageId: response.id },
+            ],
+          },
+        });
+
         expect(
           f.core.channels
             .readMessages(ada.channelId)

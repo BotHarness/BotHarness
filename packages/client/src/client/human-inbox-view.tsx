@@ -5,7 +5,8 @@ import { PersonaBotAvatar } from './avatar.js';
 import { channelSidebarPrefs, channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 import { useClientState } from './bot-sidebar.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
-import type { HumanAttentionItem, HumanInboxCategory } from './store.js';
+import { store } from './store.js';
+import type { HumanAttentionItem, HumanInboxCategory, HumanInboxFilters } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 import { HumanInboxReply } from './human-inbox-reply.js';
 import { HumanInboxAssignment } from './human-inbox-assignment.js';
@@ -15,6 +16,7 @@ const categoryCopy = {
   replies: { title: 'humanInbox.replies', empty: 'humanInbox.empty.replies' },
   action: { title: 'humanInbox.action', empty: 'humanInbox.empty.action' },
   info: { title: 'humanInbox.info', empty: 'humanInbox.empty.info' },
+  handled: { title: 'humanInbox.handled', empty: 'humanInbox.empty.handled' },
 } as const;
 
 export function HumanInboxView({
@@ -32,7 +34,7 @@ export function HumanInboxView({
 
   const mount = useMountedResource<HTMLDivElement>(() => {
     const timer = window.setInterval(() => {
-      void actions.refreshHumanInbox();
+      if (store.getSnapshot().humanInbox.items.length <= 150) void actions.refreshHumanInbox();
     }, 10_000);
     return () => window.clearInterval(timer);
   }, [actions]);
@@ -130,7 +132,14 @@ export function HumanInboxView({
   const changeCategory = (category: HumanInboxCategory): void => {
     if (category === inbox.category) return;
     setActionError(undefined);
+    setReplySource(undefined);
     void actions.refreshHumanInbox(category);
+  };
+
+  const changeFilters = (filters: HumanInboxFilters): void => {
+    setReplySource(undefined);
+    setActionError(undefined);
+    void actions.setHumanInboxFilters(filters);
   };
 
   return (
@@ -142,7 +151,7 @@ export function HumanInboxView({
       >
         <h1>{t('humanInbox.title')}</h1>
         <div className="bh-human-inbox-tabs" role="tablist" aria-label={t('humanInbox.title')}>
-          {(['unread', 'replies', 'action', 'info'] as const).map((category) => (
+          {(['unread', 'replies', 'action', 'info', 'handled'] as const).map((category) => (
             <button
               key={category}
               type="button"
@@ -154,6 +163,14 @@ export function HumanInboxView({
             </button>
           ))}
         </div>
+        {inbox.items.length <= 150 ? null : (
+          <div role="status">
+            <p>{t('humanInbox.refresh.paused')}</p>
+            <button type="button" onClick={() => void actions.refreshHumanInbox()}>
+              {t('humanInbox.refresh.current')}
+            </button>
+          </div>
+        )}
         <div className="bh-human-inbox-filters">
           {inbox.category === 'unread' ? null : (
             <label>
@@ -161,7 +178,7 @@ export function HumanInboxView({
               <select
                 value={inbox.botSlug ?? ''}
                 onChange={(event) =>
-                  void actions.setHumanInboxFilters({
+                  changeFilters({
                     botSlug: event.target.value || undefined,
                     channelId: inbox.channelId,
                     sort: inbox.sort,
@@ -182,7 +199,7 @@ export function HumanInboxView({
             <select
               value={inbox.channelId ?? ''}
               onChange={(event) =>
-                void actions.setHumanInboxFilters({
+                changeFilters({
                   botSlug: inbox.botSlug,
                   channelId: event.target.value || undefined,
                   sort: inbox.sort,
@@ -202,7 +219,7 @@ export function HumanInboxView({
             <select
               value={inbox.sort}
               onChange={(event) =>
-                void actions.setHumanInboxFilters({
+                changeFilters({
                   botSlug: inbox.botSlug,
                   channelId: inbox.channelId,
                   sort: event.target.value === 'oldest' ? 'oldest' : 'newest',
@@ -226,6 +243,7 @@ export function HumanInboxView({
               <article
                 key={item.id}
                 role="listitem"
+                data-attention-id={item.id}
                 className={
                   'bh-human-inbox-row' +
                   (item.kind === 'channel-reply' || item.kind === 'channel-mention'
@@ -293,6 +311,15 @@ export function HumanInboxView({
                       ) : null}
                     </div>
                   ) : null}
+                  {item.category === 'handled' ? (
+                    <div className="bh-human-inbox-unread-meta">
+                      {item.channelName}
+                      {' · '}
+                      <time dateTime={item.createdAt}>
+                        {new Date(item.createdAt).toLocaleString()}
+                      </time>
+                    </div>
+                  ) : null}
                   {item.kind === 'channel-unread' ? (
                     <div className="bh-human-inbox-unread-meta">
                       {t('humanInbox.unreadCount', { count: String(item.unreadCount ?? 0) })}
@@ -340,16 +367,18 @@ export function HumanInboxView({
                   item.kind === 'assignment-blocked' ? (
                     <button type="button" onClick={() => setReplySource(item)}>
                       {t(
-                        item.kind === 'tool-approval'
-                          ? 'humanInbox.approval.handle'
-                          : item.kind === 'user-question'
-                            ? 'humanInbox.question.handle'
-                            : item.kind === 'workspace-grant-request'
-                              ? 'humanInbox.grant.handle'
-                              : item.kind === 'assignment-waiting-human' ||
-                                  item.kind === 'assignment-blocked'
-                                ? 'humanInbox.assignment.handle'
-                                : 'humanInbox.reply',
+                        item.category === 'handled'
+                          ? 'humanInbox.handled.context'
+                          : item.kind === 'tool-approval'
+                            ? 'humanInbox.approval.handle'
+                            : item.kind === 'user-question'
+                              ? 'humanInbox.question.handle'
+                              : item.kind === 'workspace-grant-request'
+                                ? 'humanInbox.grant.handle'
+                                : item.kind === 'assignment-waiting-human' ||
+                                    item.kind === 'assignment-blocked'
+                                  ? 'humanInbox.assignment.handle'
+                                  : 'humanInbox.reply',
                       )}
                     </button>
                   ) : null}
@@ -363,9 +392,23 @@ export function HumanInboxView({
                       item.kind === 'bot-message-needs-repair' &&
                         (!item.channelName || !item.messageId)
                         ? 'humanInbox.openBotInbox'
-                        : 'humanInbox.open',
+                        : item.category === 'handled' && item.assignmentSessionId !== undefined
+                          ? 'humanInbox.handled.session'
+                          : 'humanInbox.open',
                     )}
                   </button>
+                  {item.category === 'handled' ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void actions
+                          .openChannelAtMessage(item.channelId!, item.responseMessageId!)
+                          .catch(() => setActionError(t('humanInbox.failed')))
+                      }
+                    >
+                      {t('humanInbox.handled.response')}
+                    </button>
+                  ) : null}
                   {item.kind === 'bot-message-needs-repair' &&
                   item.channelName &&
                   item.messageId ? (
