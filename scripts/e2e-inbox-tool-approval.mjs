@@ -274,7 +274,12 @@ try {
       false,
     );
     await secondContext.close();
-    await review(await prepare('Human Review QA'));
+    const human = await prepare('Human Review QA');
+    await review(human);
+    await click('.bh-human-inbox-reply button', '查看来源');
+    await page.waitForSelector(`[data-message-id="${human.request.id}"]`);
+    await shot('after-exact-source');
+    await review(human);
     writeFileSync(
       resolve(out, 'results.json'),
       JSON.stringify(
@@ -282,6 +287,7 @@ try {
           realModel: true,
           exactInput: true,
           sourceCommand: true,
+          sourceNavigation: true,
           approve: true,
           reject: true,
           canonicalAudit: true,

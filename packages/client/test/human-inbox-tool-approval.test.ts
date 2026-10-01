@@ -28,7 +28,7 @@ const item = (slug: string, minute: string): HumanAttentionItem => ({
   category: 'action',
   createdAt: '2026-10-01T08:' + minute + ':00Z',
   channelId: 'dm-' + slug,
-  channelName: slug,
+  channelName: 'channel-' + slug,
   botSlug: slug,
   messageId: 'request-' + slug,
   summary: 'Approve bash',
@@ -135,6 +135,9 @@ describe('Human Inbox tool approval', () => {
         );
         expect(container.textContent).toContain('/qa/release');
         expect(container.querySelector('textarea')).toBeNull();
+        expect(container.querySelector('.bh-human-inbox-reply h2')?.textContent).toBe(
+          '工具审批 · ada',
+        );
         expect(container.textContent).not.toContain('The separate check is queued.');
         await act(async () => button('查看附近消息')!.click());
         expect(container.textContent).toContain('Please check the release.');

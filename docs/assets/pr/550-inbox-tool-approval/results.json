@@ -1,0 +1,17 @@
+{
+  "realModel": true,
+  "exactInput": true,
+  "sourceCommand": true,
+  "approve": true,
+  "reject": true,
+  "canonicalAudit": true,
+  "otherBotIndependent": true,
+  "oldestFirst": true,
+  "expandableContext": true,
+  "twoWindowStaleRejected": true,
+  "lightDark": true,
+  "narrowLayout": true,
+  "nativeOutputVerified": true,
+  "sourceNavigation": true,
+  "currentBotTitle": true
+}

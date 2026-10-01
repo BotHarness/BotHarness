@@ -29,7 +29,7 @@ export function HumanInboxReply({
 }): ReactElement {
   const isApproval = source.kind === 'tool-approval';
   const title = t(isApproval ? 'humanInbox.approval.title' : 'humanInbox.reply.title', {
-    channel: source.channelName ?? '',
+    channel: isApproval ? botName(source.botSlug) : (source.channelName ?? ''),
   });
   const channelId = source.channelId!;
   const messageId = source.messageId!;
