@@ -1,0 +1,27 @@
+{
+  "phase": "before",
+  "botSlug": "bot-106bd6d4349e4230a1f013a932c94bea",
+  "channelId": "dm-bot-106bd6d4349e4230a1f013a932c94bea",
+  "sessionId": "botharness-1810a58c-6bbe-4ccf-905c-5ed3d14a0227",
+  "messageId": "e683fd0b-fffa-436b-aa47-20bd36e4997d",
+  "body": "QA677-FILE-DONE\n\n【channel_send 工具说明核对】该工具描述中关于附件来源的原句是：“Forward trusted attachment references copied from channel_read (or completed channel_read_content); this Tool set has no local-file upload Tool.”其中提到的读取工具 channel_read 确实已在本 Tool 集注册（可用 message_id + content_cursor 分段读取）；channel_read_content 未作为独立工具注册。该说明同时明确本 Tool 集没有本地文件上传工具，因此本地结果文件的正确导入工具是已注册的 channel_attachment_import（返回 fileId 后原样传给 channel_send）。\n\n【附件读取结果】从唯一已授权的 QA 工作目录 QA_WORKSPACE 选取 receipt.txt（text/plain，60 字节），真实读取内容共 2 行：\n1) QA677 attachment contract\n2) Selected authorized local result.\n导入工具：channel_attachment_import，返回 fileId=file:4fe3646d-72bd-4637-8d87-e8d83439ffd8。\n\n原文件未做任何修改，本次仅发送一次，未使用任何外部 IM 通道。",
+  "reference": {
+    "fileId": "file:4fe3646d-72bd-4637-8d87-e8d83439ffd8",
+    "name": "receipt.txt",
+    "mime": "text/plain",
+    "size": 60
+  },
+  "bytes": 60,
+  "sha256": "2433a9613acba1e759f06d4926b8b8e9718558887b4ae83cb4ecf515918738ff",
+  "originalUnchanged": true,
+  "browserMenuDownloadVerified": true,
+  "nativeTurnEnd": {
+    "turn": 1,
+    "reason": {
+      "kind": "completed"
+    }
+  },
+  "sendCount": 1,
+  "viewport": "1440 x 1200",
+  "externalImEnabled": false
+}

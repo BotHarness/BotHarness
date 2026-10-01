@@ -1,0 +1,27 @@
+{
+  "phase": "after",
+  "botSlug": "bot-8f9a018dedc148adb564e4733f397418",
+  "channelId": "dm-bot-8f9a018dedc148adb564e4733f397418",
+  "sessionId": "botharness-8ed7e1c4-98f1-4e69-a7f2-d7435d7cc2f6",
+  "messageId": "507a3175-adfc-4eaf-840e-6106aa477c92",
+  "body": "QA677-FILE-DONE\n\n核对 channel_send 实际工具说明，其中关于附件来源的一句是：“Forward trusted references from channel_read (including complete message_id/content_cursor reads), or use channel_attachment_import for a selected authorized local result.” 另外附件字段约束“at most 10 trusted references: copy fileId, name, mime, size unchanged; never guess them”，以及“New sends require fileId”。\n\n工具核对结论：\n1) 说明中作为“读取来源”提到的 channel_read 确实已注册（用于读取 Channel 消息并拿到可信引用），此外 channel_read_image、channel_attachment_open、channel_attachment_save 也已注册，但它们负责的是图片查看、原件访问和另存工作副本，并非本次场景所需。\n2) 本地结果文件应使用的现有工具是 channel_attachment_import —— 即说明中 “or use channel_attachment_import for a selected authorized local result” 所指的那个已注册工具；本轮正是用它导入。\n\n真实施行：使用唯一已授权 QA 工作目录（bh677-qa-work，orchestratorWrite=true，workspacePath=QA_WORKSPACE）中的 receipt.txt。用原生 read 实际读取内容为两行：\nQA677 attachment contract\nSelected authorized local result.\n随后用 channel_attachment_import 导入该文件，得到 fileId=file:204a9160-3d82-4ffa-9618-64edbf1dd64c，name=receipt.txt，mime=text/plain，size=60，并原样作为本条消息的附件发回当前私聊。未修改任何文件，未重复发送，未使用外部 IM。",
+  "reference": {
+    "fileId": "file:204a9160-3d82-4ffa-9618-64edbf1dd64c",
+    "name": "receipt.txt",
+    "mime": "text/plain",
+    "size": 60
+  },
+  "bytes": 60,
+  "sha256": "2433a9613acba1e759f06d4926b8b8e9718558887b4ae83cb4ecf515918738ff",
+  "originalUnchanged": true,
+  "browserMenuDownloadVerified": true,
+  "nativeTurnEnd": {
+    "turn": 1,
+    "reason": {
+      "kind": "completed"
+    }
+  },
+  "sendCount": 1,
+  "viewport": "1440 x 1200",
+  "externalImEnabled": false
+}

@@ -338,6 +338,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Channel messages no longer wait for the PersonaBot's Orchestrator turn: a Human message appears immediately, can be sent while the bot is still working, and is admitted to the Bot Inbox for serial processing ([#140](https://github.com/BotHarness/BotHarness/issues/140)).
 - Fixed the Computer's Chromium losing its open tabs across stop → start: the desktop now launches Chromium on boot and restores the previous session, so tabs survive a restart the same way they survive export → import ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
 
+- Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
+
 ### Documentation
 
 - Added a compressed multi-bot concept illustration to both README introductions, keeping it clearly labelled alongside real product screenshots ([#643](https://github.com/BotHarness/BotHarness/issues/643)).

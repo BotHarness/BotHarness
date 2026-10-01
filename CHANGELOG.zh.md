@@ -338,6 +338,8 @@
 - Channel 消息发送不再等待 PersonaBot 的 Orchestrator turn：Human 消息立即回显，可在 bot 工作中继续发送，并以 Bot Inbox 的形式入队、按序处理（[#140](https://github.com/BotHarness/BotHarness/issues/140)）。
 - 修复 Computer 的 Chromium 在停止→启动后丢失标签页：桌面启动时自动打开浏览器并恢复上次会话，标签页在重启后与导出→导入后一样回来（[#150](https://github.com/BotHarness/BotHarness/issues/150)）。
 
+- 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
+
 ### Documentation
 
 - 在中英文 README 顶部加入压缩后的多 Bot 概念插画，明确标注插画，并保留真实产品截图（[#643](https://github.com/BotHarness/BotHarness/issues/643)）。
