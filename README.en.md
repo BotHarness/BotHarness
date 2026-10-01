@@ -13,6 +13,10 @@
 
 **A team of bots, each with its own identity, persona, and memory.**
 
+<img src="docs/assets/readme/hero.webp" width="800" alt="Concept illustration: a Human collaborating at a table with three bots in distinct roles" />
+
+_Concept illustration of bots collaborating with a Human. Real product screenshots follow below._
+
 </div>
 
 BotHarness gives agents a persistent identity inside [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness). Create **PersonaBots** for research, design, or building; talk to them individually or bring them into a Group to work together. Each Bot keeps its own files and history across conversations, sessions, and workspaces.
