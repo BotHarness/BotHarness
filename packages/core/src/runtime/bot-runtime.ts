@@ -2586,7 +2586,7 @@ class BotRuntimeImplementation implements BotRuntime {
         );
       throw error;
     } finally {
-      this.#activeMemoryEvents.delete(bot.slug);
+      if (observeMemory) this.#activeMemoryEvents.delete(bot.slug);
       this.#originalAttachments.clear(orchestrator.sessionId);
     }
   }
