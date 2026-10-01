@@ -1,5 +1,15 @@
 # #612 real Lark context-read verification
 
+## Integrated Provider qualification — 2026-10-02
+
+Revision `9a17ad7801d059a85d76bee180669884a1c84ad4` integrates main `22277064`, preserves the checked file tools, and rejects unchanged provider cursors before retaining or observing a page. The optional Provider is the published immutable fork commit `ee9d3c7a6fc9f15b13f8d895cd1ccb5183b7cd37`; the isolated launcher verified 387 runtime files and SHA-256 `582803ad34364fe7a48288888342b63d9330a3380cdd39f6034d8a03b5196cb5` with DSH `0.2.0-rc.1`.
+
+`integrated-verification.json` records the actual model's three tool results: a 1000-character thread budget returned no partial message and required 1110 characters; the same opaque continuation with a 24000-character budget returned two complete messages including `CEDAR`; `bridge_reply` was provider-accepted. A separate Bot-identity Lark read confirmed `BH612-INTEGRATED-OK CEDAR` was sent by the application inside the original thread. Ordinary context has no Inbox admission; the mention is handled; neither has a Channel placement; no Assignment was created. No Human credentials were used by the Bot reader.
+
+Validation: 119 focused regressions, 6 artifact-pin checks, typecheck, build, lint/source policy, format and bilingual ledgers passed. The full run initially timed out in an unchanged source-policy test while build ran concurrently; its isolated 9 tests passed, then a full run alone passed **1803 tests / 2 existing environment skips**. The Provider's 740 Lark, delivery, artifact and history tests passed. The two unchanged-cursor regressions failed before the fix and passed after it.
+
+The matched Modal screenshots below remain evidence of the presentation revision. Browser control timed out during this integrated requalification, so no new integrated Client screenshot is claimed. This latest run supplements those screenshots with actual model, canonical storage and remote reply facts. Human approved PR #662 for merge; no deployment is authorized.
+
 ## External-source Modal presentation follow-up
 
 The current UI uses a Lark-inspired conversation composition: a single avatar gutter, sender/time header, named @ mentions and readable message cards. The DSH native Modal, 24px body inset, typeface, color/radius tokens, focus and dismissal behavior remain native. The card widens from native 380px to at most 720px for history reading; narrow layouts fit inside the native overlay inset. Initials are placeholders because this API does not return avatars. Feishu is the shared adapter channel, so the route is labeled “Lark / 飞书” rather than guessing a regional endpoint.
