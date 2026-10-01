@@ -1,0 +1,289 @@
+{
+  "bot": {
+    "slug": "bot-42e08e3af16a481d9d288557dffc0694",
+    "displayName": "DM delivery group-mention turn QA 1790874324745"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "sourceClass": "group-mention",
+  "peerChannelId": "group-peer-group-turn-qa-1790874325544",
+  "sourceMessage": {
+    "id": "b884a010-2aca-46bb-8e11-cbc80278827d",
+    "author": {
+      "kind": "human"
+    },
+    "mentions": [
+      {
+        "botSlug": "bot-42e08e3af16a481d9d288557dffc0694",
+        "label": "DM delivery group-mention turn QA 1790874324745",
+        "start": 0,
+        "end": 48
+      }
+    ]
+  },
+  "finalPeerDelivery": [
+    {
+      "botSlug": "bot-42e08e3af16a481d9d288557dffc0694",
+      "state": "handled"
+    }
+  ],
+  "mode": "turn",
+  "policy": {
+    "sourceClass": "group-mention",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "turn",
+    "revision": 2,
+    "lastActor": {
+      "kind": "human"
+    },
+    "changedAt": "2026-10-01T17:05:31.230Z",
+    "overrideActive": true,
+    "recentWakeCount": 0
+  },
+  "sessionId": "botharness-e926bb8e-5a5d-4f73-9a05-309f68011774",
+  "firstMessageId": "228441e8-2911-47ad-b1c0-7c774d10966d",
+  "secondMessageId": "b884a010-2aca-46bb-8e11-cbc80278827d",
+  "whileHeld": {
+    "turnStarts": 1,
+    "turnEnds": 0,
+    "secondDelivery": [
+      {
+        "botSlug": "bot-42e08e3af16a481d9d288557dffc0694",
+        "state": "pending"
+      }
+    ],
+    "markerInjection": null
+  },
+  "nativeTurns": {
+    "starts": [
+      4,
+      36
+    ],
+    "ends": [
+      34,
+      49
+    ]
+  },
+  "proactiveReadCalls": 0,
+  "eventTypes": [
+    {
+      "seq": 0,
+      "type": "sandbox/mode"
+    },
+    {
+      "seq": 1,
+      "type": "approval/policy"
+    },
+    {
+      "seq": 2,
+      "type": "permission/preset"
+    },
+    {
+      "seq": 3,
+      "type": "agent/inbox/spliced"
+    },
+    {
+      "seq": 4,
+      "type": "turn/start"
+    },
+    {
+      "seq": 5,
+      "type": "agent/inbox/spliced"
+    },
+    {
+      "seq": 6,
+      "type": "step/start"
+    },
+    {
+      "seq": 7,
+      "type": "system/message"
+    },
+    {
+      "seq": 8,
+      "type": "user/message"
+    },
+    {
+      "seq": 9,
+      "type": "user/message"
+    },
+    {
+      "seq": 10,
+      "type": "user/message"
+    },
+    {
+      "seq": 11,
+      "type": "request/header"
+    },
+    {
+      "seq": 12,
+      "type": "request/context"
+    },
+    {
+      "seq": 13,
+      "type": "session/title"
+    },
+    {
+      "seq": 14,
+      "type": "session/title-llm-request"
+    },
+    {
+      "seq": 15,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 16,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 17,
+      "type": "session/title"
+    },
+    {
+      "seq": 18,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 19,
+      "type": "tool/call"
+    },
+    {
+      "seq": 20,
+      "type": "approval/asked"
+    },
+    {
+      "seq": 21,
+      "type": "approval/decided"
+    },
+    {
+      "seq": 22,
+      "type": "tool/result"
+    },
+    {
+      "seq": 23,
+      "type": "step/end"
+    },
+    {
+      "seq": 24,
+      "type": "step/start"
+    },
+    {
+      "seq": 25,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 26,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 27,
+      "type": "tool/call"
+    },
+    {
+      "seq": 28,
+      "type": "tool/result"
+    },
+    {
+      "seq": 29,
+      "type": "step/end"
+    },
+    {
+      "seq": 30,
+      "type": "step/start"
+    },
+    {
+      "seq": 31,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 32,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 33,
+      "type": "step/end"
+    },
+    {
+      "seq": 34,
+      "type": "turn/end"
+    },
+    {
+      "seq": 35,
+      "type": "agent/inbox/spliced"
+    },
+    {
+      "seq": 36,
+      "type": "turn/start"
+    },
+    {
+      "seq": 37,
+      "type": "agent/inbox/spliced"
+    },
+    {
+      "seq": 38,
+      "type": "step/start"
+    },
+    {
+      "seq": 39,
+      "type": "user/message"
+    },
+    {
+      "seq": 40,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 41,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 42,
+      "type": "tool/call"
+    },
+    {
+      "seq": 43,
+      "type": "tool/result"
+    },
+    {
+      "seq": 44,
+      "type": "step/end"
+    },
+    {
+      "seq": 45,
+      "type": "step/start"
+    },
+    {
+      "seq": 46,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 47,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 48,
+      "type": "step/end"
+    },
+    {
+      "seq": 49,
+      "type": "turn/end"
+    }
+  ],
+  "replies": [
+    {
+      "id": "15713771-e6d4-4bb7-8069-35fb16a55d5f",
+      "body": "Marker: Peer second confirmed group-mention turn."
+    },
+    {
+      "id": "edbaa5e7-9658-45fc-8d9b-17288ade6e45",
+      "body": "Delivery first confirmed"
+    },
+    {
+      "id": "657d9dce-64f4-42fc-bfe3-30a94564213e",
+      "body": "请求批准执行 pwsh"
+    }
+  ],
+  "finalState": "idle"
+}
