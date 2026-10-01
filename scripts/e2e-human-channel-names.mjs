@@ -28,6 +28,7 @@ const out = resolve(
   process.env.BH_NAMES_QA_EVIDENCE ?? '.humanlayer/tasks/issue-622/evidence',
 );
 mkdirSync(out, { recursive: true });
+const selectAllModifier = process.platform === 'darwin' ? 'Meta' : 'Control';
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 const save = (name, value) =>
   writeFileSync(resolve(out, name + '.json'), JSON.stringify(value, null, 2) + '\n');
@@ -133,9 +134,9 @@ const settings = async (client = page) => {
 const setName = async (name) => {
   await settings();
   await page.click('#bh-human-default-name', { clickCount: 3 });
-  await page.keyboard.down('Control');
+  await page.keyboard.down(selectAllModifier);
   await page.keyboard.press('A');
-  await page.keyboard.up('Control');
+  await page.keyboard.up(selectAllModifier);
   await page.keyboard.press('Backspace');
   if (name) await page.type('#bh-human-default-name', name);
   await page.waitForSelector('.bh-human-name-save:not(:disabled)');
@@ -180,9 +181,9 @@ const nickname = async (channelId, name) => {
   await clickText('[role="menuitem"]', '我的昵称');
   await page.waitForSelector('#bh-human-channel-nickname');
   await page.click('#bh-human-channel-nickname', { clickCount: 3 });
-  await page.keyboard.down('Control');
+  await page.keyboard.down(selectAllModifier);
   await page.keyboard.press('A');
-  await page.keyboard.up('Control');
+  await page.keyboard.up(selectAllModifier);
   await page.keyboard.press('Backspace');
   if (name) await page.type('#bh-human-channel-nickname', name);
   await capture(name ? 'edit-' + (channelId.startsWith('dm-') ? 'dm' : 'group') : 'edit-reset');
