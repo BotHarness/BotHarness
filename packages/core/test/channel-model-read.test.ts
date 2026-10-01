@@ -277,6 +277,7 @@ describe('bounded model Channel read and exact Inbox settlement', () => {
         projectModelMessage({
           channelId: groupId,
           channelName: 'Silent',
+          actorNames: { humans: { 'local-human': 'Human' }, bots: {} },
           message: core.channels.message(groupId, 'long')!,
         }),
       );

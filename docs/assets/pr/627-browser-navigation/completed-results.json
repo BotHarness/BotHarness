@@ -1,0 +1,24 @@
+{
+  "baseline": false,
+  "phase": "complete",
+  "modelPassed": true,
+  "navigationOutcomes": [
+    {
+      "tool": "browser_tabs open",
+      "outcome": "error",
+      "attributed": true
+    },
+    {
+      "tool": "browser_open",
+      "outcome": "error",
+      "attributed": true
+    }
+  ],
+  "originalTab": "F45341AF3D9E31FD05518004CA996352",
+  "focused": "F45341AF3D9E31FD05518004CA996352",
+  "retainedOriginal": true,
+  "ownedLiveTabs": 1,
+  "nativePageTargets": 2,
+  "previewAvailable": true,
+  "pageConfirmations": 1
+}

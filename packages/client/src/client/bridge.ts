@@ -509,6 +509,17 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
       ? { avatar: record['avatar'] }
       : {}),
     members: stringArray(record['members']),
+    ...(Array.isArray(record['humanMembers'])
+      ? {
+          humanMembers: record['humanMembers'].flatMap((raw: unknown) => {
+            const member = asRecord(raw);
+            return typeof member?.['humanId'] === 'string' &&
+              typeof member['displayName'] === 'string'
+              ? [{ humanId: member['humanId'], displayName: member['displayName'] }]
+              : [];
+          }),
+        }
+      : {}),
     createdAt: typeof createdAt === 'string' ? createdAt : '',
     updatedAt: typeof updatedAt === 'string' ? updatedAt : '',
     ...(typeof botSlug === 'string' ? { botSlug } : {}),
@@ -1159,6 +1170,43 @@ export async function renameChannel(
   if (channel === undefined) throw new Error('invalid channelRename response');
   const bot = parseBotSummary(value?.['bot']);
   return { channel, ...(bot === undefined ? {} : { bot }) };
+}
+
+export interface LocalHumanIdentity {
+  humanId: string;
+  defaultDisplayName: string | null;
+  displayName: string;
+}
+
+function parseHumanIdentity(value: unknown): LocalHumanIdentity {
+  const item = asRecord(value);
+  const name = item?.['defaultDisplayName'];
+  if (
+    item?.['humanId'] !== 'local-human' ||
+    (name !== null &&
+      (typeof name !== 'string' || name.trim().length === 0 || name.length > 128)) ||
+    item['displayName'] !== (name ?? 'Human')
+  )
+    throw new Error('invalid local Human identity');
+  return {
+    humanId: 'local-human',
+    defaultDisplayName: name,
+    displayName: item['displayName'] as string,
+  };
+}
+
+export async function loadHumanIdentity(
+  call: BridgeCall,
+  signal?: AbortSignal,
+): Promise<LocalHumanIdentity> {
+  return parseHumanIdentity(await unwrap(call, 'humanIdentity', {}, signal));
+}
+
+export async function setHumanDefaultName(
+  call: BridgeCall,
+  displayName: string | null,
+): Promise<LocalHumanIdentity> {
+  return parseHumanIdentity(await unwrap(call, 'humanNameSet', { displayName }));
 }
 
 export async function setGroupAvatar(

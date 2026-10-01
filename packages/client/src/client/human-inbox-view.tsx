@@ -413,6 +413,10 @@ export function HumanInboxView({
               t={t}
               botName={botName}
               bots={state.bots}
+              humanMembers={
+                state.channels.find((channel) => channel.id === replySource.channelId)
+                  ?.humanMembers ?? []
+              }
               onClose={() => setReplySource(undefined)}
             />
           )}

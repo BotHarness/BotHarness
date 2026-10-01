@@ -1536,6 +1536,12 @@ describe('bridge actions', () => {
   it('can send the first DM immediately after creating a PersonaBot', async () => {
     const creates: Array<Record<string, unknown>> = [];
     const { clientStore, actions } = setup({
+      list: () => ({
+        bots:
+          creates.length === 0
+            ? [BOT]
+            : [{ ...BOT, ...creates.at(-1), slug: 'bot-generated' }, BOT],
+      }),
       create: (payload) => {
         creates.push(payload);
         return {
@@ -1591,6 +1597,10 @@ describe('bridge actions', () => {
   it('routes Git-backed creation through its async Host endpoint and opens the DM', async () => {
     const imports: Array<Record<string, unknown>> = [];
     const { actions, clientStore } = setup({
+      list: () => ({
+        bots:
+          imports.length === 0 ? [BOT] : [{ ...BOT, ...imports.at(-1), slug: 'bot-imported' }, BOT],
+      }),
       createFromGit: (payload) => {
         imports.push(payload);
         return { bot: { ...BOT, slug: 'bot-imported', displayName: payload['displayName'] } };

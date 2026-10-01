@@ -264,6 +264,8 @@ describe('plugin entry', () => {
       'pause',
       'resume',
       'channels',
+      'humanIdentity',
+      'humanNameSet',
       'channelDm',
       'channelCreate',
       'channelRename',

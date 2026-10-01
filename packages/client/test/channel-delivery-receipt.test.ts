@@ -116,9 +116,7 @@ describe('Channel delivery receipt', () => {
       const trigger = host.querySelector<HTMLButtonElement>('.bh-delivery-trigger');
       expect(trigger?.getAttribute('aria-label')).toContain('1 Human 未读');
       await act(async () => trigger?.click());
-      expect(document.body.querySelector('.bh-delivery-panel')?.textContent).toContain(
-        '本机 Human',
-      );
+      expect(document.body.querySelector('.bh-delivery-panel')?.textContent).toContain('Human');
       await act(async () =>
         root.render(
           createElement(ChannelDeliveryReceipt, {
@@ -132,6 +130,17 @@ describe('Channel delivery receipt', () => {
         ),
       );
       expect(trigger?.getAttribute('aria-label')).toContain('1 Human 已读');
+      await act(async () =>
+        root.render(
+          createElement(ChannelDeliveryReceipt, {
+            message: botMessage,
+            bots,
+            humanMembers: [{ humanId: 'local-human', displayName: '教授 🐻' }],
+            t: zhTranslate,
+          }),
+        ),
+      );
+      expect(document.body.querySelector('.bh-delivery-panel')?.textContent).toContain('教授 🐻');
       await act(async () =>
         root.render(
           createElement(ChannelDeliveryReceipt, {

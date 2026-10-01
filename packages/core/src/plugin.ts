@@ -227,6 +227,13 @@ export function createCore(
   let usage: UsageProjection | undefined;
   const registry = createPersonaBotRegistry({
     rootDir,
+    onDisplayNameChanged: () => {
+      try {
+        live?.publishRosterCommitted();
+      } catch {
+        options.warn?.('bot-name-publication-failed');
+      }
+    },
     onPurge: (slug, removeFiles) => {
       if (usage === undefined) throw new Error('Usage purge requires a ready operational database');
       usage.purgeBot(slug, removeFiles);

@@ -459,11 +459,14 @@ export function createActions(
   };
 
   const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
-    const [rosterResult, channelResult] = await Promise.allSettled([
+    const [rosterResult, channelResult, botResult] = await Promise.allSettled([
       loadRoster(call, signal),
       loadChannels(call, signal),
+      loadBots(call, signal),
     ]);
     if (signal?.aborted === true) return;
+    if (botResult.status === 'fulfilled')
+      clientStore.setRoster(botResult.value, clientStore.getSnapshot().channels);
     if (channelResult.status === 'fulfilled') {
       const channels = channelResult.value;
       const current = clientStore.getSnapshot().conversation.channel;

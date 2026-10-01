@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 
 import { PersonaBotAvatar } from './avatar.js';
 import type { BotHarnessKey, BotHarnessTranslate } from './locale.js';
-import type { BotSummary, ChannelMessage } from './store.js';
+import type { ChannelHumanMember, BotSummary, ChannelMessage } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 
 type Delivery = NonNullable<ChannelMessage['deliveries']>[number];
@@ -31,10 +31,12 @@ function stateLabel(state: DeliveryState, t: BotHarnessTranslate): string {
 export function ChannelDeliveryReceipt({
   message,
   bots,
+  humanMembers = [],
   t,
 }: {
   message: ChannelMessage;
   bots: readonly BotSummary[];
+  humanMembers?: readonly ChannelHumanMember[];
   t: BotHarnessTranslate;
 }): ReactElement | null {
   const authorSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
@@ -190,9 +192,8 @@ export function ChannelDeliveryReceipt({
                       {recipients.map((recipient) => {
                         if (recipient.kind === 'human') {
                           const name =
-                            recipient.humanId === 'local-human'
-                              ? t('message.delivery.localHuman')
-                              : recipient.displayName;
+                            humanMembers.find((member) => member.humanId === recipient.humanId)
+                              ?.displayName ?? recipient.displayName;
                           return (
                             <li key={'human:' + recipient.humanId} title={name}>
                               <span className="bh-delivery-human-avatar" aria-hidden="true">

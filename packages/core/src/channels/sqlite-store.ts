@@ -34,6 +34,7 @@ import {
   isChannelRecord,
   isGroupAvatar,
   isValidChannelId,
+  type LocalHumanIdentity,
   type ChannelMessage,
   type ChannelRecord,
   type GroupInvitation,
@@ -289,6 +290,20 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         });
   };
 
+  const humanIdentity = (): LocalHumanIdentity => {
+    const row = database.read((db) =>
+      db
+        .prepare('SELECT default_display_name FROM local_human_names WHERE human_id = ?')
+        .get(LOCAL_HUMAN_ID),
+    ) as { default_display_name: string | null } | undefined;
+    const defaultDisplayName = row?.default_display_name ?? null;
+    return {
+      humanId: LOCAL_HUMAN_ID,
+      defaultDisplayName,
+      displayName: defaultDisplayName ?? 'Human',
+    };
+  };
+
   const humanMembers = (
     id: string,
   ): Array<{
@@ -300,9 +315,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     database.read((db) =>
       db
         .prepare(`
-        SELECT m.human_id, m.display_name, m.visible_from_revision,
+        SELECT m.human_id, COALESCE(n.default_display_name, 'Human') AS display_name, m.visible_from_revision,
                COALESCE(r.revision, 0) AS read_revision
           FROM channel_human_members m
+          LEFT JOIN local_human_names n ON n.human_id = m.human_id
           LEFT JOIN channel_read_positions r
             ON r.channel_id = m.channel_id AND r.human_id = m.human_id
          WHERE m.channel_id = ? AND m.left_at IS NULL
@@ -836,11 +852,39 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     );
 
   return {
-    listHumanMembers: (id) =>
-      humanMembers(id).map((member) => ({
+    humanIdentity,
+    setHumanDefaultName(displayName) {
+      if (
+        displayName !== null &&
+        (typeof displayName !== 'string' ||
+          displayName.length > 128 ||
+          /[\u0000-\u001f\u007f]/u.test(displayName))
+      )
+        throw new Error('Human name must be a single line of at most 128 characters');
+      const normalized = displayName?.trim() || null;
+      database.transaction(
+        (db) =>
+          db
+            .prepare(
+              'INSERT INTO local_human_names (human_id, default_display_name) VALUES (?, ?) ON CONFLICT(human_id) DO UPDATE SET default_display_name = excluded.default_display_name',
+            )
+            .run(LOCAL_HUMAN_ID, normalized),
+        ['human-identity'],
+      );
+      options.onRecordChanged?.();
+      return humanIdentity();
+    },
+    listHumanMembers(id) {
+      const channel = readRecord(id);
+      if (channel?.type === 'dm' && !isBotDmChannel(channel)) {
+        const identity = humanIdentity();
+        return [{ humanId: identity.humanId, displayName: identity.displayName }];
+      }
+      return humanMembers(id).map((member) => ({
         humanId: member.human_id,
         displayName: member.display_name,
-      })),
+      }));
+    },
     rootDir,
     get: readRecord,
     list() {

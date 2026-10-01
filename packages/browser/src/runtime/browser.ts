@@ -547,8 +547,19 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
       }
     }
     if (targetId === undefined) return openTarget(url, false);
+    return navigateTab(targetId, url);
+  };
+
+  const navigateTab = async (targetId: string, url: string): Promise<BrowserTab> => {
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
     const sessionId = await attach(targetId);
-    await live.send('Page.navigate', { url }, sessionId);
+    const navigation = await live.send('Page.navigate', { url }, sessionId);
+    if (typeof navigation['errorText'] === 'string' && navigation['errorText'] !== '') {
+      throw new Error(
+        `Bot Browser navigation failed (${navigation['errorText']}); retry browser_open with a reachable URL`,
+      );
+    }
     await waitForReady(sessionId);
     const page = await readPage(sessionId);
     lastUrl = page.url;
@@ -565,12 +576,30 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     });
     const targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
     if (targetId === '') throw new Error('The Bot Browser did not open a tab');
-    const sessionId = await attach(targetId);
-    await live.send('Page.navigate', { url }, sessionId);
-    await waitForReady(sessionId);
-    const page = await readPage(sessionId);
-    lastUrl = page.url;
-    return { tabId: targetId, url: page.url, title: page.title };
+    try {
+      return await navigateTab(targetId, url);
+    } catch (error) {
+      const started = Date.now();
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          live.send('Target.closeTarget', { targetId }).then((closed) => {
+            if (closed['success'] === false) throw new Error('Navigation cleanup was refused');
+            sessions.delete(targetId);
+          }),
+          new Promise<never>((_resolve, reject) => {
+            timeout = setTimeout(() => reject(new Error('Navigation cleanup timed out')), 2000);
+          }),
+        ]);
+      } catch {
+        onEvent(
+          `navigation cleanup failed initiator=navigation phase=new-target outcome=error reason=cleanup-unavailable durationMs=${Date.now() - started}`,
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+      throw error;
+    }
   };
 
   const createTab = async (url: string): Promise<BrowserTab> => {

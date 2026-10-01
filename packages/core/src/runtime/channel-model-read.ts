@@ -11,7 +11,12 @@ export function projectModelMessage(view: ChannelMessageView) {
     humanReceipts: _receipts,
     ...message
   } = view.message;
-  return { channelId: view.channelId, channelName: view.channelName, message };
+  return {
+    channelId: view.channelId,
+    channelName: view.channelName,
+    ...(view.actorNames === undefined ? {} : { actorNames: view.actorNames }),
+    message,
+  };
 }
 
 export function boundModelPage(

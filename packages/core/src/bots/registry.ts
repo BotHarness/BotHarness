@@ -41,6 +41,7 @@ export interface MemoryRepositoryInitialization {
 export interface PersonaBotRegistryOptions {
   rootDir: string;
   now?: () => Date;
+  onDisplayNameChanged?: () => void;
 
   initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
   cloneMemory?: (destination: string, url: string) => Promise<MemoryCloneResult>;
@@ -299,6 +300,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     update(slug, patch) {
       const record = read(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
+      const previousName = record.displayName;
       if (patch.displayName !== undefined) {
         const displayName = patch.displayName.trim();
         if (displayName.length === 0) return { ok: false, reason: 'invalid-input' };
@@ -329,6 +331,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         record.workspaces = [...patch.workspaces];
       }
       write(record);
+      if (record.displayName !== previousName) options.onDisplayNameChanged?.();
       return { ok: true, record };
     },
     setPaused(slug, paused) {
