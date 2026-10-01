@@ -86,6 +86,7 @@ async function measure() {
     const footer = document.querySelector('.bh-composer-activity-status');
     return {
       scrollTop: body.scrollTop,
+      messageIds: entries.map((entry) => entry.dataset.messageId),
       scrollHeight: body.scrollHeight,
       clientHeight: body.clientHeight,
       bottomGap: body.scrollHeight - body.scrollTop - body.clientHeight,
@@ -232,6 +233,11 @@ try {
   assert.ok(
     Math.abs(historyAfter.scrollTop - historyBefore.scrollTop) <= 5,
     'Sending while reading history jumped the timeline',
+  );
+  assert.deepEqual(
+    historyAfter.messageIds.slice(0, historyBefore.messageIds.length),
+    historyBefore.messageIds,
+    'Sending while reading history replaced the visible timeline window',
   );
   assert.ok(
     frames.length > 0 && frames.every((f) => f.content === 'none' && f.borderWidth === '0px'),
