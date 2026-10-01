@@ -29,6 +29,13 @@ const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 const shot = (name) => page.screenshot({ path: resolve(out, name + '.png') });
+const theme = async (dark) => {
+  await page.evaluate(async (dark) => {
+    if (dark) document.body.setAttribute('data-ds-dark-theme', 'true');
+    else document.body.removeAttribute('data-ds-dark-theme');
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+  }, dark);
+};
 const rpc = async (method, args = {}, client = page, namespace = 'botharness') =>
   client.evaluate(
     async ({ method, args, namespace }) => {
@@ -223,10 +230,11 @@ try {
     await page.$eval('.bh-human-inbox-filters label:last-child select', (n) => n.value),
     'oldest',
   );
+  await theme(false);
   await shot(mode === 'before' ? 'before-list-light' : 'after-list-light');
-  await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', 'true'));
+  await theme(true);
   await shot(mode === 'before' ? 'before-list-dark' : 'after-list-dark');
-  await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
+  await theme(false);
   if (mode === 'before') {
     assert.equal(
       await page.evaluate(() =>
@@ -255,13 +263,13 @@ try {
       nearby.map((n) => n.at).sort(),
     );
     await shot('after-context-light');
-    await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', 'true'));
+    await theme(true);
     await shot('after-context-dark');
     await page.setViewport({ width: 900, height: 900 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await shot('after-narrow');
     await page.setViewport({ width: 1440, height: 900 });
-    await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
+    await theme(false);
     await click('.bh-human-inbox-reply button', '查看来源');
     await page.waitForFunction(() => !document.querySelector('.bh-human-inbox-reply'));
     await page.waitForSelector(`[data-message-id="${release.request.id}"] .bh-question-card`, {
