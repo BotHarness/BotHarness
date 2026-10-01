@@ -10,7 +10,13 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     Button: stub,
     Input: stub,
     Tag,
-    Modal: stub,
+    Modal: ({ children, onClose }: PropsWithChildren<{ onClose(): void }>) =>
+      createElement(
+        'div',
+        { role: 'dialog' },
+        children,
+        createElement('button', { onClick: onClose }, 'Close source'),
+      ),
     StateDot: stub,
     IconChevronDownOutlineRegular: stub,
     IconCloseOutlineRegular: stub,
@@ -22,6 +28,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   };
 });
 
+import type { ExternalSource } from '../../core/src/messaging/inbound.js';
 import type { BridgeActions } from '../src/client/actions.js';
 import { createChannelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
 import { ChannelSidebarEntrySection } from '../src/client/channel-sidebar-view.js';
@@ -278,4 +285,104 @@ describe('DM Bot Inbox sidebar entry', () => {
       store.setBotInbox(previous);
     }
   });
+});
+
+it('clears previous source content and ignores older requests after reopening', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const previous = store.getSnapshot().botInbox;
+  store.setBotInbox({
+    status: 'ready',
+    items: [
+      {
+        ...item,
+        sourceKind: 'bridge-message',
+        externalOrigin: {
+          platform: 'lark',
+          accountName: 'Bot',
+          conversationName: 'Team',
+          conversationId: 'group',
+          senderId: 'human',
+        },
+      },
+    ],
+  });
+  const entry = createChannelSidebarBuiltins(zhTranslate).find((e) => e.id === 'bot-inbox')!;
+  const requests: { resolve(source: ExternalSource): void; reject(error: Error): void }[] = [];
+  const messagingSource = vi.fn(
+    () => new Promise<ExternalSource>((resolve, reject) => requests.push({ resolve, reject })),
+  );
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const source: ExternalSource = {
+    id: 'source-1',
+    body: 'CURRENT SOURCE',
+    platform: 'lark',
+    accountName: 'Bot',
+    conversationName: 'Team',
+    at: '2026-10-01T00:00:00Z',
+    grantId: 'grant',
+    grantRevision: 1,
+    event: {
+      version: 1,
+      channel: 'feishu',
+      botId: 'app',
+      fingerprint: 'a'.repeat(64),
+      eventId: 'ev',
+      messageId: 'om',
+      actor: { kind: 'user', id: 'human' },
+      conversation: { kind: 'group', id: 'group' },
+      mentions: [],
+      mentionedAccount: true,
+      at: '2026-10-01T00:00:00Z',
+      reply: { messageId: 'om', conversationId: 'group', actorId: 'human' },
+      replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
+    },
+  };
+  const open = async () =>
+    act(async () => container.querySelector<HTMLButtonElement>('.bh-inbox-item')!.click());
+  const close = async () =>
+    act(async () =>
+      [...container.querySelectorAll('button')]
+        .find((b) => b.textContent === 'Close source')!
+        .click(),
+    );
+  try {
+    await act(async () =>
+      root.render(
+        createElement(ChannelSidebarEntrySection, {
+          entry,
+          expanded: true,
+          onToggle: () => undefined,
+          entryProps: {
+            scope: 'personabot',
+            channelId: 'dm-ada',
+            botSlug: 'ada',
+            actions: { messagingSource } as unknown as BridgeActions,
+            t: zhTranslate,
+          },
+        }),
+      ),
+    );
+    await open();
+    await close();
+    await open();
+    await act(async () => requests[1]!.resolve(source));
+    await act(async () => requests[0]!.reject(new Error('Old request failed')));
+    expect(container.textContent).toContain('CURRENT SOURCE');
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    await close();
+    await open();
+    expect(container.textContent).not.toContain('CURRENT SOURCE');
+    await close();
+    await open();
+    await act(async () => requests[3]!.resolve({ ...source, body: 'NEWEST SOURCE' }));
+    await act(async () => requests[2]!.resolve({ ...source, body: 'STALE SOURCE' }));
+    expect(container.textContent).toContain('NEWEST SOURCE');
+    expect(container.textContent).not.toContain('STALE SOURCE');
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    store.setBotInbox(previous);
+  }
 });

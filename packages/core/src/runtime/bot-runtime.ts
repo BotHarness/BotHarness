@@ -1538,8 +1538,9 @@ class BotRuntimeImplementation implements BotRuntime {
     const externalOnly =
       claimed.items.length === 0 &&
       claimed.digests.length === 0 &&
-      collected.units.some((unit) => unit.sourceKind === 'bridge-message');
-    if (primaryChannelId === undefined && !externalOnly) return;
+      collected.units.every((unit) => unit.sourceKind === 'bridge-message');
+    const hasExternalSource = collected.units.some((unit) => unit.sourceKind === 'bridge-message');
+    if (primaryChannelId === undefined && !hasExternalSource) return;
     const digestIds = claimed.digests.flatMap((digest) =>
       digest.rows.map((row) => row.source_event_id),
     );

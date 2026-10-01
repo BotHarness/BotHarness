@@ -15,3 +15,9 @@ After cold restart, authenticated Host RPC plus canonical database reads confirm
 Verification: 1683 tests pass / 1 skipped; typecheck, build, lint, formatting and bilingual Release Ledger checks pass. Existing operational-database regression also verifies upgrade from the prior schema preserves a report and its referencing Inbox Admission with no foreign-key violation.
 
 This proof qualifies the temporary dsh-im public text consumer/reply contract; it does not establish an upstream release or production rollout. Rich posts, ordinary-message intake, remote history and autonomous thread following remain outside this tracer.
+
+## Merge verification follow-up
+
+Human QA approved the original tracer. Before merge, the review fixes validate the full external-source response, clear and sequence source-modal requests, and preserve an existing Human DM for mixed external/Assignment harvests while still permitting an external-triggered turn without a DM. Focused regressions cover malformed payloads, stale success/error responses, and mixed attention with and without a DM. Updated local verification: 1687 tests pass / 1 skipped; lint, formatting, typecheck and build pass. The qualified isolated Host was restarted with the new code; authenticated source-detail and messaging-status RPCs confirm the retained source is complete and reception is restored. The screenshots above retain their stated capture revisions; the review fixes add no layout or visible controls.
+
+Lark topic messages can show an unread circular indicator even when this tracer has received and answered them. The provider does not explicitly set Lark read receipts, and its transport ACK is separate from the canonical Inbox observed/handled state. The precise difference between Lark group-mainline and topic read indicators remains unverified; the Bot-only `messages.read_users` API queries recipients of the Bot's own sent messages, not whether the Bot read a Human-origin message.

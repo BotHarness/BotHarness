@@ -484,3 +484,40 @@ it('rejects an older receive toggle without stopping the newer authorized consum
     reception: 'receiving',
   });
 });
+
+it.each([true, false])(
+  'harvests external and Assignment attention together (existing DM: %s)',
+  async (withDm) => {
+    const fx = await fixture({
+      onRun: async (run) => {
+        expect(run.inbox).toContain('Assignment completed');
+        expect(run.inbox).toContain('Please reply in this topic');
+        expect(run.inboundChannelId).toBe(withDm ? dm?.id : undefined);
+        if (withDm) await run.channels.send({ body: 'Assignment acknowledgement' });
+      },
+    });
+    const dm = withDm ? fx.core.channels.getOrCreateDm('ada', 'Ada') : undefined;
+    const database = attachOperationalModule(fx.core.operationalDatabase, 'test');
+    database.transaction(
+      (db) => {
+        db.prepare(`INSERT INTO source_events
+      (source_event_id, source_kind, bot_slug, body, created_at)
+      VALUES ('lifecycle-test', 'assignment-lifecycle', 'ada', 'Assignment completed', '2026-10-01T00:00:00Z')`).run();
+        db.prepare(`INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+      VALUES ('lifecycle-test', 'ada', 'assignment-lifecycle')`).run();
+      },
+      ['source-event', 'bot-inbox'],
+    );
+    await fx.enable();
+    await fx.receive();
+    await fx.idle();
+    expect(fx.runs).toHaveLength(1);
+    expect(fx.runs[0]?.inbox).toContain('Assignment completed');
+    expect(fx.runs[0]?.inboundChannelId).toBe(withDm ? dm?.id : undefined);
+    expect(
+      fx.query(
+        `SELECT attempt_state FROM inbox_admissions WHERE source_event_id = 'lifecycle-test'`,
+      ),
+    ).toEqual([{ attempt_state: 'handled' }]);
+  },
+);

@@ -1,5 +1,5 @@
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   Button,
@@ -228,6 +228,7 @@ function BotInboxItemRow({
   actions: ChannelSidebarEntryProps['actions'];
   t: BotHarnessTranslate;
 }): ReactElement {
+  const externalRequest = useRef(0);
   const [externalOpen, setExternalOpen] = useState(false);
   const [external, setExternal] = useState<ExternalSource>();
   const [externalError, setExternalError] = useState(false);
@@ -253,12 +254,15 @@ function BotInboxItemRow({
   const open = async (): Promise<void> => {
     if (!item.sourceAvailable) return;
     if (item.externalOrigin !== undefined) {
+      const request = ++externalRequest.current;
+      setExternal(undefined);
       setExternalOpen(true);
       setExternalError(false);
       try {
-        setExternal(await actions.messagingSource(item.botSlug, item.id));
+        const source = await actions.messagingSource(item.botSlug, item.id);
+        if (request === externalRequest.current) setExternal(source);
       } catch {
-        setExternalError(true);
+        if (request === externalRequest.current) setExternalError(true);
       }
       return;
     }
@@ -303,7 +307,10 @@ function BotInboxItemRow({
       {externalOpen ? (
         <Modal
           open
-          onClose={() => setExternalOpen(false)}
+          onClose={() => {
+            ++externalRequest.current;
+            setExternalOpen(false);
+          }}
           title={t('im.sourceTitle')}
           closeLabel={t('common.close')}
         >
