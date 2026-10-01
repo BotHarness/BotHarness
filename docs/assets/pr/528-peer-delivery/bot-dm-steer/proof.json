@@ -1,7 +1,7 @@
 {
   "bot": {
-    "slug": "bot-b5da0c960ba44fc386d60597bea2f381",
-    "displayName": "DM delivery bot-dm steer QA 1790874356173"
+    "slug": "bot-6cf63d079d3545bfa7148f5b0fed981d",
+    "displayName": "DM delivery bot-dm steer QA 1790875441442"
   },
   "route": {
     "provider": "deepseek-official",
@@ -9,31 +9,33 @@
     "reasoningEffort": "low"
   },
   "sourceClass": "bot-dm",
-  "peerChannelId": "dm-bots-da28ad5a7fe3240e6600ccb3f59ac3d2",
+  "peerChannelId": "dm-bots-b1dc4b218e127bfbf8b460fafa71bfc5",
   "senderProof": {
     "bot": {
-      "slug": "bot-953ffc8701464041ad6176fcc40afb9c",
-      "displayName": "Peer sender steer QA 1790874357492"
+      "slug": "bot-6fb76225e46d4d25a3480bd04b873999",
+      "displayName": "Peer sender steer QA 1790875442289"
     },
-    "sessionId": "botharness-1ef5ee07-ed35-4a13-9340-55beedaac9a4",
+    "sessionId": "botharness-2fd5ccc3-17e6-4dd1-90c3-689d377ed9ca",
     "botDmSendCalls": 1,
     "successfulResult": true
   },
   "sourceMessage": {
-    "id": "bot-9cea91d2c28ce7a5501326ba854287e51ebe94793e2fecda995eb9b1640ebef9",
+    "id": "bot-dd27e76ee12d1237be4cc9ff2c04ea1d87748a6323723f2744af55bef3074b96",
     "author": {
       "kind": "bot",
-      "slug": "bot-953ffc8701464041ad6176fcc40afb9c"
+      "slug": "bot-6fb76225e46d4d25a3480bd04b873999"
     },
     "botCausation": {
-      "rootSourceEventId": "df7e4244-1e4f-4103-aecf-91a884d4c274",
-      "parentSourceEventId": "df7e4244-1e4f-4103-aecf-91a884d4c274",
+      "rootSourceEventId": "00ce4dbb-6845-49d1-b052-4d3a8dc4ca8f",
+      "parentSourceEventId": "00ce4dbb-6845-49d1-b052-4d3a8dc4ca8f",
       "hop": 1
     }
   },
+  "peerReplyCount": 0,
+  "markerReplyId": "a692640f-1694-4420-863d-705c0ee7d010",
   "finalPeerDelivery": [
     {
-      "botSlug": "bot-b5da0c960ba44fc386d60597bea2f381",
+      "botSlug": "bot-6cf63d079d3545bfa7148f5b0fed981d",
       "state": "handled"
     }
   ],
@@ -47,19 +49,19 @@
     "lastActor": {
       "kind": "built-in"
     },
-    "changedAt": "2026-10-01T17:06:04.172Z",
+    "changedAt": "2026-10-01T17:24:08.267Z",
     "overrideActive": false,
     "recentWakeCount": 0
   },
-  "sessionId": "botharness-072e98d0-ce56-42ab-8409-6918d9bbe506",
-  "firstMessageId": "3a0b12d5-af32-4050-87ea-580e01b95b86",
-  "secondMessageId": "bot-9cea91d2c28ce7a5501326ba854287e51ebe94793e2fecda995eb9b1640ebef9",
+  "sessionId": "botharness-e1551e47-2c52-4a34-b873-ef3b0884969a",
+  "firstMessageId": "734dee1a-3652-4aa8-b0d8-f993de7e2395",
+  "secondMessageId": "bot-dd27e76ee12d1237be4cc9ff2c04ea1d87748a6323723f2744af55bef3074b96",
   "whileHeld": {
     "turnStarts": 1,
     "turnEnds": 0,
     "secondDelivery": [
       {
-        "botSlug": "bot-b5da0c960ba44fc386d60597bea2f381",
+        "botSlug": "bot-6cf63d079d3545bfa7148f5b0fed981d",
         "state": "running"
       }
     ],
@@ -70,7 +72,7 @@
   },
   "nativeTurns": {
     "starts": [4],
-    "ends": [37]
+    "ends": [43]
   },
   "proactiveReadCalls": 0,
   "eventTypes": [
@@ -220,20 +222,48 @@
     },
     {
       "seq": 36,
-      "type": "step/end"
+      "type": "tool/call"
     },
     {
       "seq": 37,
+      "type": "tool/result"
+    },
+    {
+      "seq": 38,
+      "type": "step/end"
+    },
+    {
+      "seq": 39,
+      "type": "step/start"
+    },
+    {
+      "seq": 40,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 41,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 42,
+      "type": "step/end"
+    },
+    {
+      "seq": 43,
       "type": "turn/end"
     }
   ],
   "replies": [
     {
-      "id": "5d883d14-8703-4301-8720-7b213b138839",
-      "body": "Delivery first confirmed\n\nMarker: Peer second confirmed bot-dm steer"
+      "id": "e9a3cfdd-1da1-45e4-a9f5-cfabde3f05a7",
+      "body": "Delivery first confirmed"
     },
     {
-      "id": "63fbbaee-7504-4537-91df-3f54a66dbb55",
+      "id": "a692640f-1694-4420-863d-705c0ee7d010",
+      "body": "Delivery QA observation — Marker received in this turn's incoming context (from bot-dm dm-bots-b1dc4b218e127bfbf8b460fafa71bfc5): \"Peer second confirmed bot-dm steer\"."
+    },
+    {
+      "id": "cfcf9a51-56da-43c8-b0e0-a8f2276b3e05",
       "body": "请求批准执行 bash"
     }
   ],

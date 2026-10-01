@@ -1,7 +1,7 @@
 {
   "bot": {
-    "slug": "bot-42e08e3af16a481d9d288557dffc0694",
-    "displayName": "DM delivery group-mention turn QA 1790874324745"
+    "slug": "bot-a54f8b0f34024bf8a3a0b8b232139ff9",
+    "displayName": "DM delivery group-mention turn QA 1790875532119"
   },
   "route": {
     "provider": "deepseek-official",
@@ -9,24 +9,26 @@
     "reasoningEffort": "low"
   },
   "sourceClass": "group-mention",
-  "peerChannelId": "group-peer-group-turn-qa-1790874325544",
+  "peerChannelId": "group-peer-group-turn-qa-1790875533266",
   "sourceMessage": {
-    "id": "b884a010-2aca-46bb-8e11-cbc80278827d",
+    "id": "5cd48f62-d617-4f12-a355-6b6479646222",
     "author": {
       "kind": "human"
     },
     "mentions": [
       {
-        "botSlug": "bot-42e08e3af16a481d9d288557dffc0694",
-        "label": "DM delivery group-mention turn QA 1790874324745",
+        "botSlug": "bot-a54f8b0f34024bf8a3a0b8b232139ff9",
+        "label": "DM delivery group-mention turn QA 1790875532119",
         "start": 0,
         "end": 48
       }
     ]
   },
+  "peerReplyCount": 0,
+  "markerReplyId": "63219936-319f-4595-8190-f835d25812bd",
   "finalPeerDelivery": [
     {
-      "botSlug": "bot-42e08e3af16a481d9d288557dffc0694",
+      "botSlug": "bot-a54f8b0f34024bf8a3a0b8b232139ff9",
       "state": "handled"
     }
   ],
@@ -40,19 +42,19 @@
     "lastActor": {
       "kind": "human"
     },
-    "changedAt": "2026-10-01T17:05:31.230Z",
+    "changedAt": "2026-10-01T17:25:38.903Z",
     "overrideActive": true,
     "recentWakeCount": 0
   },
-  "sessionId": "botharness-e926bb8e-5a5d-4f73-9a05-309f68011774",
-  "firstMessageId": "228441e8-2911-47ad-b1c0-7c774d10966d",
-  "secondMessageId": "b884a010-2aca-46bb-8e11-cbc80278827d",
+  "sessionId": "botharness-afe49670-f437-464b-8cf1-931b943658db",
+  "firstMessageId": "e8bf335b-05b6-4c02-beda-856f192c4f03",
+  "secondMessageId": "5cd48f62-d617-4f12-a355-6b6479646222",
   "whileHeld": {
     "turnStarts": 1,
     "turnEnds": 0,
     "secondDelivery": [
       {
-        "botSlug": "bot-42e08e3af16a481d9d288557dffc0694",
+        "botSlug": "bot-a54f8b0f34024bf8a3a0b8b232139ff9",
         "state": "pending"
       }
     ],
@@ -267,16 +269,16 @@
   ],
   "replies": [
     {
-      "id": "15713771-e6d4-4bb7-8069-35fb16a55d5f",
-      "body": "Marker: Peer second confirmed group-mention turn."
+      "id": "63219936-319f-4595-8190-f835d25812bd",
+      "body": "Peer second confirmed group-mention turn"
     },
     {
-      "id": "edbaa5e7-9658-45fc-8d9b-17288ade6e45",
+      "id": "3afa4e4e-1c6d-4492-a23d-53375a0523eb",
       "body": "Delivery first confirmed"
     },
     {
-      "id": "657d9dce-64f4-42fc-bfe3-30a94564213e",
-      "body": "请求批准执行 pwsh"
+      "id": "5b2cfa51-682f-469b-bc2b-b44f93dbdd63",
+      "body": "请求批准执行 bash"
     }
   ],
   "finalState": "idle"

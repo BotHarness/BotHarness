@@ -410,6 +410,21 @@ try {
       value.rows.some((m) => m.author.kind === 'bot' && m.body.includes(secondPhrase)),
     'Both messages must settle and the real model must confirm the new instruction',
   );
+  const peerReplyCount =
+    peerChannelId === channelId
+      ? undefined
+      : settled.peerRows.filter(
+          (message) => message.author.kind === 'bot' && message.author.slug === bot.slug,
+        ).length;
+  if (peerChannelId !== channelId)
+    assert.equal(peerReplyCount, 0, 'Receiver must not reply to the peer Channel');
+  const markerReply = settled.rows.find(
+    (message) =>
+      message.author.kind === 'bot' &&
+      message.author.slug === bot.slug &&
+      message.body.includes(secondPhrase),
+  );
+  assert.ok(markerReply);
   const after = await nativeSnapshot(session.sessionId);
   assert.equal(after.hasMore, false);
   const events = after.records.map((e) => e.event);
@@ -467,14 +482,9 @@ try {
       successfulResult: true,
     };
   }
-  await page.waitForFunction(
-    (phrase) =>
-      [...document.querySelectorAll('[data-message-id]')].some((e) =>
-        e.textContent?.includes(phrase),
-      ),
-    {},
-    secondPhrase,
-  );
+  const markerReplySelector = `[data-message-id="${markerReply.id}"]`;
+  await page.waitForSelector(markerReplySelector, { visible: true });
+  await page.$eval(markerReplySelector, (element) => element.scrollIntoView({ block: 'nearest' }));
   await screenshot('settled.png');
   if (peerChannelId !== channelId) {
     await openPeerChannel();
@@ -495,6 +505,8 @@ try {
       mentions: second.mentions,
       botCausation: second.botCausation,
     },
+    peerReplyCount,
+    markerReplyId: markerReply.id,
     finalPeerDelivery: settled.peerRows.find((m) => m.id === second.id).deliveries,
     mode,
     policy,
