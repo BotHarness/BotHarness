@@ -154,6 +154,7 @@ export interface MemoryAcceptance {
     botSlug: string;
     sessionId: string;
     sourceEventId: string;
+    preserveObservation?: boolean;
   }): MemoryAcceptedCommit[];
   abortTurn(botSlug: string, sessionId: string, preserveObservation?: boolean): void;
   snapshot(botSlug: string): MemoryAcceptedSnapshot;
@@ -1053,6 +1054,7 @@ export function createMemoryAcceptance(options: {
     botSlug: string;
     sessionId: string;
     sourceEventId: string;
+    preserveObservation?: boolean;
   }): MemoryAcceptedCommit[] => {
     requireOwned(input.botSlug, input.sessionId);
     const flight = inFlight.get(input.botSlug);
@@ -1130,13 +1132,14 @@ export function createMemoryAcceptance(options: {
             ],
             checkpoint,
           );
-    refreshObservation(
-      input.botSlug,
-      input.sessionId,
-      'source-event',
-      input.sourceEventId,
-      flight.observation?.observationJson,
-    );
+    if (!input.preserveObservation)
+      refreshObservation(
+        input.botSlug,
+        input.sessionId,
+        'source-event',
+        input.sourceEventId,
+        flight.observation?.observationJson,
+      );
     inFlight.delete(input.botSlug);
     return result;
   };

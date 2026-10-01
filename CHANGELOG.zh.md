@@ -238,7 +238,7 @@
 
 ### Fixed
 
-- 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
+- 修复新 DM 或群提及并入活动回合时，Memory 编辑被静默并入基线而漏掉通知的问题；有界变更摘要现在进入该回合的 Bot Inbox，并随回合结果处理（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。
 
 - Browser entry 开启 Access 后自动展开，以标题和 URL 置顶 Bot 当前标签；关闭跟随后固定预览标签，不改变 Bot 的工作页（[#492](https://github.com/BotHarness/BotHarness/issues/492)）。
 
@@ -335,6 +335,8 @@
 - 修复 flat order 的拖拽提交，使未置顶的 PersonaBot DM 能像 group Channel 一样持久地放在列表最顶端或两个 Channel section 之间（[#56](https://github.com/BotHarness/BotHarness/issues/56)）。
 - Channel 消息发送不再等待 PersonaBot 的 Orchestrator turn：Human 消息立即回显，可在 bot 工作中继续发送，并以 Bot Inbox 的形式入队、按序处理（[#140](https://github.com/BotHarness/BotHarness/issues/140)）。
 - 修复 Computer 的 Chromium 在停止→启动后丢失标签页：桌面启动时自动打开浏览器并恢复上次会话，标签页在重启后与导出→导入后一样回来（[#150](https://github.com/BotHarness/BotHarness/issues/150)）。
+
+- 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
 
 ### Documentation
 
