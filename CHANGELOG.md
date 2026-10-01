@@ -234,6 +234,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Browser entry now expands when Access is enabled, pins the Bot’s current tab with visible title/URL, and holds the viewed tab when Follow is off without redirecting Bot work ([#492](https://github.com/BotHarness/BotHarness/issues/492)).
+
 - Browser file uploads select the input that opened the picker, or the first input when ref is omitted; upload audits include basename and size and redact Host paths in failures ([#491](https://github.com/BotHarness/BotHarness/issues/491)).
 
 - PersonaBot Orchestrators can set and restore Human DM, Bot DM and Group mention delivery through the existing attention tools; changes keep immediate admission and carry Bot-authored revisions visible in Profile ([#528](https://github.com/BotHarness/BotHarness/issues/528)).

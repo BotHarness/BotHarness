@@ -1,0 +1,27 @@
+{
+  "modelInitialTabs": true,
+  "realModelSelectedHome": true,
+  "realModelOpenedNext": true,
+  "previewDidNotRedirectBotTask": true,
+  "receipts": [
+    {
+      "page": "next",
+      "token": "CURRENT-NEXT"
+    }
+  ],
+  "ui": {
+    "headerOffLocked": true,
+    "collapsedSwitchVisible": true,
+    "headerOffCollapses": true,
+    "headerOnExpands": true,
+    "currentPinned": true,
+    "titlesAndUrls": true,
+    "noHintCopy": true,
+    "lightAndDark": true,
+    "followSelect": true,
+    "followOffRetained": true,
+    "clickPreview": true,
+    "followResume": true,
+    "pauseResume": true
+  }
+}
