@@ -117,6 +117,32 @@ describe('browser profiles', () => {
     expect(runtimes.profileOf('c')).toBe('');
   });
 
+  it('launches lazily and keeps an active shared profile live while another idles', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(0);
+      const { runtimes, created, factories } = setup({ a: 'work', b: '', c: '' });
+      expect(created).toHaveLength(0);
+      const work = runtimes.for('a');
+      const fallback = runtimes.for('b');
+      expect(work.ensure).not.toHaveBeenCalled();
+      expect(fallback.ensure).not.toHaveBeenCalled();
+      expect(runtimes.for('c')).toBe(fallback);
+      vi.setSystemTime(50_000);
+      runtimes.touch('c');
+      vi.setSystemTime(70_000);
+      await runtimes.closeIdle(60_000);
+      expect(factories.get('/tmp/botharness/browser-profiles/work')!.stop).toHaveBeenCalledOnce();
+      expect(factories.get('/tmp/botharness/browser')!.stop).not.toHaveBeenCalled();
+      expect(created.map((entry) => entry.installDir)).toEqual([
+        '/tmp/botharness/browser-chromium',
+        '/tmp/botharness/browser-chromium',
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('stops only idle profiles, and stops or clears on request', async () => {
     const { runtimes, factories } = setup({ a: 'work', c: '' });
     runtimes.for('a');
