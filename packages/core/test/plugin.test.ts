@@ -320,6 +320,7 @@ describe('plugin entry', () => {
       'memorySave',
       'memoryRepair',
       'profileActivity',
+      'profileUsage',
       'groupProfileActivity',
       'rosterGet',
       'sectionCreate',

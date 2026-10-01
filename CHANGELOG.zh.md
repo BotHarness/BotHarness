@@ -15,6 +15,7 @@
 
 ### Added
 
+- PersonaBot 用量新增实际模型／提供商与执行类别筛选，独立展示保留的累计用量，图表默认近七天，并明确显示查询新鲜度或失败状态 ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
 - 本地 Human 可在插件设置中保存可选默认名字，Channel 作者、成员、回执与 Bot 上下文使用当前称呼；历史可信 Human／Bot 提及按稳定身份显示当前名字，不改写消息或注意力事实（[#621](https://github.com/BotHarness/BotHarness/issues/621)、[ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)）。
 
 - PersonaBot 可通过群聊中有效的成员身份明确提及本地 Human；Human Inbox 将可信提及与直接回复合并到个人视图，支持展开上下文和原位回复，普通 `@Human` 文本不会生成个人提醒（[#549](https://github.com/BotHarness/BotHarness/issues/549)）。

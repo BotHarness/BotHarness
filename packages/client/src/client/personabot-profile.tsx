@@ -408,7 +408,13 @@ export function ProfileView({
                       {isPinned ? <IconPinFillRegular /> : <IconPinOutlineRegular />}
                     </button>
                   </header>
-                  {card.render({ bot, activity, t, compact: false })}
+                  {card.render({
+                    bot,
+                    activity,
+                    t,
+                    compact: false,
+                    loadUsage: (filter) => actions.profileUsage(channel.id, filter),
+                  })}
                 </section>
               );
             })}
