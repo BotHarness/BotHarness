@@ -325,7 +325,10 @@ function UserQuestionCard({
   const submit = (): void => {
     if (botSlug === undefined || busy || status !== 'pending') return;
     const channelId = 'dm-' + botSlug;
-    if (store.getSnapshot().conversation.channel?.id !== channelId) {
+    if (
+      store.getSnapshot().selection?.kind !== 'inbox' &&
+      store.getSnapshot().conversation.channel?.id !== channelId
+    ) {
       setError(t('question.channelChanged'));
       return;
     }

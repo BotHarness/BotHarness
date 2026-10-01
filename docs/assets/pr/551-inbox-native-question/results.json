@@ -1,0 +1,16 @@
+{
+  "realNativeModel": true,
+  "exactQuestions": true,
+  "sourceCommand": true,
+  "sourceNavigation": true,
+  "choiceAnswer": true,
+  "customAnswer": true,
+  "canonicalAudit": true,
+  "otherBotIndependent": true,
+  "oldestFirst": true,
+  "expandableContext": true,
+  "lightDark": "screenshot-only",
+  "narrowLayout": true,
+  "twoWindowStaleRejected": true,
+  "nativeAnswerVerified": true
+}

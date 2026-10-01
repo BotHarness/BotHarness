@@ -332,12 +332,15 @@ export function HumanInboxView({
                   {item.kind === 'channel-unread' ||
                   item.kind === 'channel-reply' ||
                   item.kind === 'channel-mention' ||
-                  item.kind === 'tool-approval' ? (
+                  item.kind === 'tool-approval' ||
+                  item.kind === 'user-question' ? (
                     <button type="button" onClick={() => setReplySource(item)}>
                       {t(
                         item.kind === 'tool-approval'
                           ? 'humanInbox.approval.handle'
-                          : 'humanInbox.reply',
+                          : item.kind === 'user-question'
+                            ? 'humanInbox.question.handle'
+                            : 'humanInbox.reply',
                       )}
                     </button>
                   ) : null}
