@@ -14,6 +14,7 @@ export function MessagingProfile({
   slug: string;
   actions: Pick<
     BridgeActions,
+    | 'messagingReceive'
     | 'messagingSnapshot'
     | 'messagingTargets'
     | 'messagingAuthorize'
@@ -166,6 +167,31 @@ export function MessagingProfile({
                 >
                   {t('im.revoke')}
                 </Button>
+                {grant.canReceive === true || grant.receiveScope !== undefined ? (
+                  <>
+                    <p>{t('im.receiveHint')}</p>
+                    <p>{t(`im.reception.${grant.reception ?? 'off'}`)}</p>
+                    <Button
+                      disabled={
+                        busy ||
+                        (grant.receiveScope === undefined && grant.availability !== 'available')
+                      }
+                      onClick={() =>
+                        void operate(async () => {
+                          await actions.messagingReceive(
+                            slug,
+                            grant.id,
+                            grant.receiveScope === undefined,
+                          );
+                        })
+                      }
+                    >
+                      {t(
+                        grant.receiveScope === undefined ? 'im.receiveEnable' : 'im.receiveDisable',
+                      )}
+                    </Button>
+                  </>
+                ) : null}
                 <label className="bh-im-field">
                   <span>{t('im.message')}</span>
                   <textarea

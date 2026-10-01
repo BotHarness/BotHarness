@@ -19,6 +19,7 @@ describe('Human DM steering', () => {
     const runs: string[] = [];
     const agents: BotAgentAdapter = {
       async runOrchestrator(run) {
+        if (run.inboundChannelId === undefined) throw new Error('Expected local inbound Channel');
         runs.push(run.inboundChannelId);
         markStarted();
         await released;
@@ -99,6 +100,7 @@ describe('Human DM steering', () => {
     const runs: string[] = [];
     const agents: BotAgentAdapter = {
       async runOrchestrator(run) {
+        if (run.inboundChannelId === undefined) throw new Error('Expected local inbound Channel');
         runs.push(run.inboundChannelId);
         if (runs.length === 1) {
           markStarted();

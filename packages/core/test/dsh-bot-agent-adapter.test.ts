@@ -816,6 +816,8 @@ describe('DSH Bot Agent adapter', () => {
       'send_assignment_request',
       'stop_assignment',
       'channel_list',
+      'bridge_read',
+      'bridge_reply',
       'channel_read',
       'inbox_ignore',
       'channel_attachment_save',
@@ -1154,4 +1156,99 @@ describe('DSH Bot Agent adapter', () => {
     expect(drafts.at(-1)).toBe('next');
     await adapter.close();
   });
+});
+
+it('routes external Tools through the active owning Orchestrator without a local inbound Channel', async () => {
+  const replies: string[][] = [];
+  const reads: string[] = [];
+  const host = new FakeAgentHost(
+    { kind: 'completed' },
+    {
+      onTurn: async (_session, tools) => {
+        const read = tools.find((tool) => tool.name === 'bridge_read');
+        const reply = tools.find((tool) => tool.name === 'bridge_reply');
+        if (!read || !reply) throw new Error('external tools unavailable');
+        expect(reply.parameters).toMatchObject({ required: ['source_event_id', 'text'] });
+        await expect(
+          read.execute({ source_event_id: 'source-1' }, {} as ToolRunContext),
+        ).rejects.toThrow('owned source sentinel');
+        const result = await reply.execute(
+          { source_event_id: 'source-1', text: 'Topic response' },
+          {} as ToolRunContext,
+        );
+        expect(typeof result).toBe('string');
+        if (typeof result !== 'string') throw new Error('Expected serialized tool result');
+        expect(JSON.parse(result)).toMatchObject({
+          sourceEventId: 'source-1',
+          state: 'provider-accepted',
+        });
+      },
+    },
+  );
+  const adapter = createDshBotAgentAdapter({
+    agents: host,
+    defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+    orchestratorCwd: () => '/memory/ada',
+    ensureWorkspace: () => undefined,
+  });
+  await adapter.runOrchestrator({
+    sessionId: 'external-ada',
+    resume: false,
+    bot: BOT,
+    inboundChannelId: undefined,
+    inbox: 'External Inbox',
+    message: 'External turn',
+    externalMessaging: {
+      read: (id) => {
+        reads.push(id);
+        throw new Error('owned source sentinel');
+      },
+      reply: async (id, text) => {
+        replies.push([id, text]);
+        return {
+          id: 'intent',
+          botSlug: BOT.slug,
+          grantId: 'grant',
+          grantRevision: 1,
+          sourceEventId: id,
+          text,
+          state: 'provider-accepted',
+          createdAt: BOT.createdAt,
+        };
+      },
+    },
+    channels: {
+      ...groupTools,
+      contacts: () => ({ outputLimit: 12000, contacts: [] }),
+      sendToBot: async () => {
+        throw new Error('unexpected DM');
+      },
+      ignore: () => ({
+        sourceEventId: 'source-1',
+        ignoredAt: BOT.createdAt,
+        alreadyIgnored: false,
+      }),
+      read: () => [],
+      requestGrant: async () => undefined as never,
+      send: async () => {
+        throw new Error('unexpected local message');
+      },
+    },
+    assignments: {
+      create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+      grants: () => [],
+      list: () => [],
+      inspect: () => undefined,
+      stop: async () => ASSIGNMENT,
+      request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
+    },
+  });
+  expect(reads).toEqual(['source-1']);
+  expect(replies).toEqual([['source-1', 'Topic response']]);
+  const tool = host.scopes.get('external-ada')?.tools.find((item) => item.name === 'bridge_reply');
+  await expect(
+    tool?.execute({ source_event_id: 'source-1', text: 'Late response' }, {} as ToolRunContext),
+  ).rejects.toThrow('bridge_reply: unavailable');
+  expect(replies).toHaveLength(1);
+  await adapter.close();
 });

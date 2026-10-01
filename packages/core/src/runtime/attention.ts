@@ -1,3 +1,4 @@
+import type { ExternalSource } from '../messaging/inbound.js';
 import type { ChannelStore } from '../channels/store.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
@@ -29,6 +30,13 @@ export interface BotAttentionItem {
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';
   authorBotSlug?: string;
+  externalOrigin?: {
+    platform: string;
+    accountName: string;
+    conversationName: string;
+    conversationId: string;
+    senderId: string;
+  };
   summary: string;
 }
 
@@ -63,6 +71,7 @@ interface AttentionRow {
   assignment_purpose: string | null;
   assignment_report_state: string | null;
   body: string;
+  payload_json: string | null;
   created_at: string;
   author_kind: string | null;
   author_slug: string | null;
@@ -108,7 +117,7 @@ export function createBotAttentionQuery(
                  assignment.session_id AS available_assignment_session_id,
                  assignment.purpose AS assignment_purpose,
                  json_extract(e.payload_json, '$.assignmentReport.state') AS assignment_report_state,
-                 e.body, e.created_at, json_extract(e.payload_json, '$.author.kind') AS author_kind,
+                 e.body, e.payload_json, e.created_at, json_extract(e.payload_json, '$.author.kind') AS author_kind,
                  json_extract(e.payload_json, '$.author.slug') AS author_slug,
                  CASE
                    WHEN a.attempt_state = 'needs-repair' THEN 'needs-repair'
@@ -152,7 +161,22 @@ export function createBotAttentionQuery(
           row.author_kind === 'human' || row.author_kind === 'bot' || row.author_kind === 'bridged'
             ? row.author_kind
             : 'system';
+        const external =
+          row.source_kind === 'bridge-message' && row.payload_json !== null
+            ? (JSON.parse(row.payload_json) as { external: ExternalSource }).external
+            : undefined;
         return {
+          ...(external === undefined
+            ? {}
+            : {
+                externalOrigin: {
+                  platform: external.platform,
+                  accountName: external.accountName,
+                  conversationName: external.conversationName,
+                  conversationId: external.event.conversation.id,
+                  senderId: external.event.actor.id,
+                },
+              }),
           id: row.source_event_id,
           botSlug: row.bot_slug,
           reason: row.reason,
@@ -178,7 +202,8 @@ export function createBotAttentionQuery(
             : {}),
           sourceAvailable:
             (channel !== undefined && row.placed_message_id !== null) ||
-            row.available_assignment_session_id !== null,
+            row.available_assignment_session_id !== null ||
+            external !== undefined,
           authorKind,
           ...(authorKind === 'bot' && row.author_slug !== null
             ? { authorBotSlug: row.author_slug }

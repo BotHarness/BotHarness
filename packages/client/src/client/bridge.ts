@@ -1,3 +1,4 @@
+import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
   MessagingSnapshot,
   MessagingGrant,
@@ -1691,6 +1692,16 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
     return undefined;
   if (!['human', 'bot', 'bridged', 'system'].includes(String(row['authorKind']))) return undefined;
   if (typeof row['sourceAvailable'] !== 'boolean') return undefined;
+  if (row['externalOrigin'] !== undefined) {
+    const origin = asRecord(row['externalOrigin']);
+    if (
+      !origin ||
+      ['platform', 'accountName', 'conversationName', 'conversationId', 'senderId'].some(
+        (key) => typeof origin[key] !== 'string',
+      )
+    )
+      return undefined;
+  }
   for (const key of [
     'observedAt',
     'handledAt',
@@ -2611,4 +2622,24 @@ export async function loadMessageAttachmentTarget(
   )
     throw new Error('Invalid message attachment target');
   return { path: target['path'], relativePath: target['relativePath'], kind: 'file' };
+}
+
+export async function setMessagingReceive(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+  enabled: boolean,
+): Promise<void> {
+  await unwrap(call, 'messagingReceive', { slug, grantId, enabled });
+}
+export async function readMessagingSource(
+  call: BridgeCall,
+  slug: string,
+  sourceEventId: string,
+): Promise<ExternalSource> {
+  const record = asRecord(await unwrap(call, 'messagingSource', { slug, sourceEventId }));
+  const source = asRecord(record?.['source']);
+  if (!source || typeof source['body'] !== 'string' || typeof source['id'] !== 'string')
+    throw new BridgeCallError('invalid-response', 'Invalid source');
+  return source as unknown as ExternalSource;
 }

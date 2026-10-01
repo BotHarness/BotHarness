@@ -10,6 +10,33 @@ export interface MessagingTarget {
   ref: string;
   name: string;
   digest: string;
+  receiveScope?: { kind: 'group'; conversationId: string };
+}
+
+export interface MessagingInboundEvent {
+  version: 1;
+  channel: 'feishu';
+  botId: string;
+  fingerprint: string;
+  eventId: string;
+  messageId: string;
+  actor: { kind: 'user'; id: string };
+  conversation: { kind: 'group' | 'dm'; id: string };
+  mentions: { id: string; key: string }[];
+  mentionedAccount: boolean;
+  at: string;
+  text: string;
+  reply: MessagingReplyRoute;
+  replay: { kind: 'provider-redelivery'; resumeCursor: false; gapPossible: true };
+}
+
+export interface MessagingReplyRoute {
+  messageId: string;
+  conversationId: string;
+  actorId: string;
+  threadId?: string;
+  rootId?: string;
+  parentId?: string;
 }
 
 export interface MessagingProvider {
@@ -23,6 +50,19 @@ export interface MessagingProvider {
     account: MessagingAccount;
     target: MessagingTarget;
   }>;
+  consume?(input: {
+    accountRef: string;
+    fingerprint: string;
+    signal: AbortSignal;
+    onEvent(event: MessagingInboundEvent, signal: AbortSignal): Promise<{ accepted: true }>;
+  }): Promise<() => void>;
+  reply?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    text: string;
+    signal: AbortSignal;
+  }): Promise<{ accepted: true }>;
   send(input: {
     accountRef: string;
     targetRef: string;
