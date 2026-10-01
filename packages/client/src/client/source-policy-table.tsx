@@ -162,9 +162,10 @@ export function SourcePolicyTable({
               <dt>{t('sourcePolicy.auditColumn')}</dt>
               <dd>
                 {t('sourcePolicy.revision', { revision: details.revision })} · {actor(details, t)}
-                {!details.overrideActive && details.lastActor.kind !== 'built-in' && (
-                  <> · {t('sourcePolicy.restoredDefault')}</>
-                )}
+                {!details.overrideActive &&
+                  (details.lastActor.kind === 'human' || details.lastActor.kind === 'bot') && (
+                    <> · {t('sourcePolicy.restoredDefault')}</>
+                  )}
               </dd>
             </div>
             <div>

@@ -205,7 +205,7 @@ try {
   await page.waitForSelector('.bh-source-policy-audit');
   assert.match(
     await page.$eval('.bh-source-policy-audit', (e) => e.textContent),
-    /群聊可覆盖|Groups can override/,
+    /群聊可覆盖|Group override may replace/,
   );
   await page.keyboard.press('Escape');
   const geometry = await page.evaluate(() => ({
