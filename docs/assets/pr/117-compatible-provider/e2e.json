@@ -1,0 +1,62 @@
+{
+  "verifiedAt": "2026-10-01T03:46:14.599Z",
+  "codeCommit": "63c7708e431b42cb4514f1710654b29cb1d9477b",
+  "baseCommit": "962c7921",
+  "helperSha256": {
+    "scripts/dev-instance.mjs": "d92a87f94e10ef16682c5a0379cfaa02ddd0f24cdcf0bebc494c0c3d83412edb",
+    "scripts/dev-im-provider.mjs": "37ab24aca46d7828d211b6933987a95b4f4c53bb4b4cf711d6ddab04a515445f"
+  },
+  "dsh": "0.2.0-rc.1",
+  "provider": {
+    "source": "19d88f14bf85d74d4abf035a0c749d0b4a640257",
+    "dsh": "0.2.0-rc.1",
+    "runtimeFiles": 385,
+    "runtimeSha256": "f3384d78db525fe04e5beac1520d75b6fa46ae54863043cbf86a00f51e0e91c1",
+    "upstreamReleased": false
+  },
+  "gitArtifactInstalledInsideProfile": true,
+  "health": {
+    "status": 200,
+    "ok": true
+  },
+  "ui": {
+    "realPersonaBotCreated": true,
+    "accountSelectedAndGroupGrantCreated": true,
+    "acceptedTestTexts": [
+      "[BH117 ARTIFACT] fixed-source Profile sends through checked provider",
+      "[BH117 ARTIFACT FINAL] latest-main qualified Profile send"
+    ]
+  },
+  "durability": {
+    "restarted": true,
+    "sameBindingsGrantsIntentsAndAttempts": true,
+    "outboxCount": 2,
+    "attemptCount": 2,
+    "automaticReplay": false
+  },
+  "limits": {
+    "botGroupHistoryRead": "denied: 230027",
+    "humanGroupHistoryRead": "missing CLI authorization scopes",
+    "nativeClientRead": "account verification expired",
+    "groupVisibleReceipt": "unverified",
+    "delivered": "unverified",
+    "read": "unverified",
+    "upstreamReleased": false,
+    "integratedInbound": "out of scope: #12"
+  },
+  "checks": {
+    "pinRegressions": 6,
+    "integratedTests": {
+      "passed": 1569,
+      "skipped": 1,
+      "failed": 0,
+      "maxWorkers": 4
+    },
+    "earlierTestFailure": "Pre-integration full run timed out in one existing source-policy test; isolated rerun 15 pass. No test assertion or timeout was changed.",
+    "lint": "pass with existing warnings",
+    "format": "pass",
+    "typecheck": "pass",
+    "build": "pass",
+    "docsBuild": "pass"
+  }
+}

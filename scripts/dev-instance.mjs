@@ -1,4 +1,9 @@
 import { developmentProfileManifest } from './dev-profile.mjs';
+import {
+  qualifiedImProvider,
+  withQualifiedImProvider,
+  verifyQualifiedImProvider,
+} from './dev-im-provider.mjs';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -42,6 +47,7 @@ function parseArgs(argv) {
     profile: 'web-dev',
     worktree: repoRoot,
     build: false,
+    imProvider: false,
     json: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -66,6 +72,9 @@ function parseArgs(argv) {
         break;
       case '--build':
         options.build = true;
+        break;
+      case '--im-provider':
+        options.imProvider = true;
         break;
       case '--json':
         options.json = true;
@@ -121,10 +130,14 @@ function ensureProfile(options) {
     );
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  const composed = developmentProfileManifest(manifest, options.worktree);
+  const base = developmentProfileManifest(manifest, options.worktree);
+  if (options.imProvider && installedDshVersion(options.worktree) !== qualifiedImProvider.dsh)
+    throw new Error(`Qualified IM provider requires DSH ${qualifiedImProvider.dsh}`);
+  const composed = options.imProvider ? withQualifiedImProvider(base) : base;
   writeFileSync(manifestPath, `${JSON.stringify(composed, null, 2)}\n`);
   const [pnpmExecutable, pnpmArgs] = pnpmCommand(['install']);
   run(pnpmExecutable, pnpmArgs, { cwd: profileDir });
+  if (options.imProvider) verifyQualifiedImProvider(profileDir);
   return profileDir;
 }
 
@@ -224,6 +237,9 @@ async function main() {
         ? 'DSH profile credentials (verify with a real model call)'
         : 'missing (model calls will fail)'),
     health,
+    ...(options.imProvider
+      ? { imProvider: { source: qualifiedImProvider.source, upstreamReleased: false } }
+      : {}),
     stop: `kill ${child.pid}`,
   };
   if (options.json) {
