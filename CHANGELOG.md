@@ -140,6 +140,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- PersonaBot Attention policy now compares nine source rules in a compact table, with recent wakes, inline edit actions and secondary audit details ([#670](https://github.com/BotHarness/BotHarness/issues/670)).
+
 - Browser Profile uses a searchable combobox: select an existing name or explicitly create a new one; errors use the destructive theme colour and the Browser view removes redundant help text and its duplicate page title ([#611](https://github.com/BotHarness/BotHarness/issues/611)).
 
 - `channel_send` now confirms the committed Channel and message IDs as JSON, describes forwarding exact trusted attachment references from reads, and exposes the existing 10-attachment / 20-mention limits and safe integer byte sizes ([#570](https://github.com/BotHarness/BotHarness/issues/570)).

@@ -1,0 +1,53 @@
+{
+  "bot": {
+    "slug": "bot-9569cec720494b4ba5bb8cfa146a332d",
+    "displayName": "DM delivery steer QA 1790867796890"
+  },
+  "before": {
+    "sourceClass": "human-dm",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 3,
+    "lastActor": {
+      "kind": "human"
+    },
+    "changedAt": "2026-10-01T15:19:16.333Z",
+    "overrideActive": false,
+    "recentWakeCount": 1
+  },
+  "saved": {
+    "sourceClass": "human-dm",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "turn",
+    "revision": 4,
+    "lastActor": {
+      "kind": "human"
+    },
+    "changedAt": "2026-10-01T15:52:32.560Z",
+    "overrideActive": true,
+    "recentWakeCount": 1
+  },
+  "restored": {
+    "sourceClass": "human-dm",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 5,
+    "lastActor": {
+      "kind": "human"
+    },
+    "changedAt": "2026-10-01T15:52:33.292Z",
+    "overrideActive": false,
+    "recentWakeCount": 1
+  },
+  "geometry": {
+    "viewport": 1500,
+    "body": 1500,
+    "rows": 9
+  },
+  "keyboardAudit": true,
+  "refreshRetained": true,
+  "groupDigestAndOverridePreserved": true
+}
