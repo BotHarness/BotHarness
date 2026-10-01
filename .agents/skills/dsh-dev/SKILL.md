@@ -90,6 +90,8 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 
 | 34 | Optional Provider Service is published before its account registry is ready | The persisted receive grant is present after restart, but BotHarness shows reception unavailable; enabling again works | Service availability alone is not account readiness. Restore the same explicit grant with a bounded retry only for transient `provider-unavailable`; retain its token, revision and group scope, cancel on disposal, and verify automatic intake with a real Host restart (#12). |
 
+| 35 | Native approval requested from an idle Agent probe | A direct `ctx.tools.execute` probe returns `Human approval is unavailable` and no DM card appears | Pinned DSH 0.2.0 RC1 `approval.request` requires an open Turn to enclose `approval/asked` and `approval/decided`. Exercise first approval with a real model Turn, then use native probes for already-authorized operation guards. Verify pending approval cancellation with another real Turn; a completed Agent is insufficient (#460). |
+
 ## Reference
 
 Pinned DSH 0.2.0 RC1 selects one directory picker interaction at boot. A loopback Windows Host commonly serves native; uiWorkspace.listDirectory() then throws DirectoryBrowseError with rpcError.code = directory-picker/unavailable. A consumer may fall back to uiWorkspace.pickDirectory() only for this capability refusal; unreadable directories and other failures remain errors, and cancellation returns no selection. Authorization still follows an explicit Human choice.
