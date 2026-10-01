@@ -361,7 +361,7 @@ export interface BridgeMethodsDeps {
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
   states: BotStateTracker;
-  isSessionRunning?: (sessionId: string) => boolean;
+  runningSessionIds?: () => ReadonlySet<string>;
   channels: ChannelStore;
   ownership: SessionOwnership;
   memory?: MemoryService;
@@ -1043,22 +1043,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     activityOverview() {
       if (deps.humanAttention === undefined) return unavailable();
-      const pending = new Set([
-        ...(deps.userQuestions?.activeMessageIds() ?? []),
-        ...(deps.toolApproval?.activeMessageIds() ?? []),
+      const waiting = new Set([
+        ...(deps.userQuestions?.activeSessionIds() ?? []),
+        ...(deps.toolApproval?.activeSessionIds() ?? []),
       ]);
+      const running = deps.runningSessionIds?.() ?? new Set<string>();
       const bots = deps.registry.list().map((bot) => {
         const snapshot = deps.states.snapshot(bot.slug);
         const assignments = new Map(
           (deps.runtime?.listAssignments(bot.slug) ?? []).map((item) => [item.sessionId, item]),
         );
-        const waiting = new Set<string>();
-        for (const id of pending) {
-          const message = deps.channels.message('dm-' + bot.slug, id);
-          const sessionId =
-            message?.userQuestionRequest?.sessionId ?? message?.toolApprovalRequest?.sessionId;
-          if (sessionId !== undefined) waiting.add(sessionId);
-        }
         const sessionStates: Record<string, SessionState> = {};
         const sessions: ActivityOverview['bots'][number]['sessions'] = [];
         for (const root of deps.ownership
@@ -1089,10 +1083,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                   ? 'blocked'
                   : 'waiting'
                 : 'done';
-          } else if (
-            (state === 'thinking' || state === 'working') &&
-            deps.isSessionRunning?.(root.sessionId) !== true
-          )
+          } else if ((state === 'thinking' || state === 'working') && !running.has(root.sessionId))
             state = 'done';
           sessionStates[root.sessionId] = state;
           if (state === 'thinking' || state === 'working')

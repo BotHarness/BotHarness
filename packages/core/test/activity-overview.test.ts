@@ -74,7 +74,7 @@ it('shows only live executing roots and follows execution changes without revivi
     ] as const)
       core.states.setSessionState('ada', id, state);
     const live = new Set(['orch', 'assignment', 'child', 'waiting']);
-    const methods = createBridgeMethods({ ...core, isSessionRunning: (id) => live.has(id) });
+    const methods = createBridgeMethods({ ...core, runningSessionIds: () => live });
     expect(methods.activityOverview({})).toMatchObject({
       ok: true,
       value: {
@@ -110,7 +110,7 @@ it('shows only live executing roots and follows execution changes without revivi
   const restored = createCore({ dshHome: home, agents });
   try {
     expect(
-      createBridgeMethods({ ...restored, isSessionRunning: () => false }).activityOverview({}),
+      createBridgeMethods({ ...restored, runningSessionIds: () => new Set() }).activityOverview({}),
     ).toMatchObject({
       ok: true,
       value: {
@@ -153,7 +153,7 @@ it('keeps a real pending question in actions while excluding its waiting Session
     const methods = createBridgeMethods({
       ...core,
       userQuestions: broker,
-      isSessionRunning: () => true,
+      runningSessionIds: () => new Set(['orch']),
     });
     const { vi } = await import('vitest');
     await vi.waitFor(() =>

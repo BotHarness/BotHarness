@@ -149,12 +149,12 @@ try {
     if (mode === 'work') {
       const all = (await rpc('list')).bots;
       const bot =
-        all.find((b) => b.displayName === 'Overview Work QA') ??
+        all.find((b) => b.displayName === 'Overview Execution QA') ??
         (
           await rpc('create', {
-            displayName: 'Overview Work QA',
+            displayName: 'Overview Execution QA',
             persona:
-              'Follow the Human precisely. Create only one requested Assignment. Use native bash only when explicitly requested. Await approval. Never answer the other Bots native questions.',
+              'Follow the Human precisely. Create only one requested Assignment. Use native pwsh only when explicitly requested. Never use bash. Await approval. Never answer the other Bots native questions.',
           })
         ).bot;
       const dm = (await rpc('channelDm', { slug: bot.slug })).channel;
@@ -164,14 +164,14 @@ try {
         .workspace;
       if (
         !(await rpc('grants', { slug: bot.slug })).grants.some(
-          (g) => !g.revokedAt && g.workspaceId === workspace.id,
+          (g) => !g.revokedAt && g.workspaceId === workspace.workspaceId,
         )
       )
-        await rpc('grantCreate', { slug: bot.slug, workspaceId: workspace.id });
+        await rpc('grantCreate', { slug: bot.slug, workspaceId: workspace.workspaceId });
       await rpc('channelSend', {
         channelId: dm.id,
         messageId: 'human-' + crypto.randomUUID(),
-        body: 'First create_assignment exactly once using the existing active Grant. Purpose: use native bash to run node -e "setTimeout(()=>console.log(\'ASSIGNMENT_OVERVIEW_READY\'),90000)"; wait for approval, then after actual completion report_to_orchestrator state completed summary ASSIGNMENT_OVERVIEW_READY. Do not create child agents. After creating this Assignment, Orchestrator must use native bash itself to run node -e "setTimeout(()=>console.log(\'ORCHESTRATOR_OVERVIEW_READY\'),90000)". Await Human approval and actual completion, then send one DM with ORCHESTRATOR_OVERVIEW_READY. These commands only wait and print a marker; do not run any other command.',
+        body: 'First create_assignment exactly once using the existing active Grant. Purpose: use native pwsh to run node -e "setTimeout(()=>console.log(\'ASSIGNMENT_OVERVIEW_READY\'),90000)"; wait for approval, then after actual completion report_to_orchestrator state completed summary ASSIGNMENT_OVERVIEW_READY. Do not create child agents. After creating this Assignment, Orchestrator must use native pwsh itself to run node -e "setTimeout(()=>console.log(\'ORCHESTRATOR_OVERVIEW_READY\'),90000)". Await Human approval and actual completion, then send one DM with ORCHESTRATOR_OVERVIEW_READY. Use the native pwsh tool, never bash; omit workdir in the Orchestrator command so it uses its own Session cwd. These commands only wait and print a marker; do not run any other command.',
       });
       const approvals = await waitFor(async () => {
         const items = (
@@ -213,12 +213,12 @@ try {
       for (const session of active.sessions) {
         const observed = [];
         const observe = (request) => {
-          if (request.url().includes('/api/session/')) observed.push(request.postData() ?? '');
+          if (request.url().includes('/api/')) observed.push(request.postData() ?? '');
         };
         page.on('request', observe);
         await page.click('[data-session-id="' + session.sessionId + '"] button');
         await page.waitForFunction(() => !document.querySelector('.bh-overview'));
-        await page.waitForSelector('.bh-native-session-owner');
+        await page.waitForSelector('.bh-session-return-action');
         await delay(700);
         assert.ok(
           observed.some((body) => body.includes(session.sessionId)),
@@ -274,6 +274,29 @@ try {
     await overview();
     const value = await rpc('activityOverview');
     assert.ok(value.bots.length >= 2);
+    if (mode === 'resume') {
+      const saved = JSON.parse(readFileSync(resolve(out, 'scene.json'), 'utf8'));
+      assert.deepEqual(new Set(value.bots.map((bot) => bot.slug)), new Set(saved.bots));
+      assert.ok(value.bots.every((bot) => bot.sessions.length === 0));
+      await shot('overview-restarted');
+      console.log('PASS: cold restart preserved Bot identities and omitted historical executions.');
+    }
+    const geometry = await page.evaluate(() => {
+      const root = document.querySelector('.bh-overview');
+      const card = document.querySelector('.bh-overview-bot');
+      const style = getComputedStyle(card);
+      return {
+        width: root.clientWidth,
+        scrollWidth: root.scrollWidth,
+        padding: getComputedStyle(root).paddingLeft,
+        font: style.fontSize,
+        radius: style.borderRadius,
+      };
+    });
+    assert.ok(geometry.scrollWidth <= geometry.width);
+    assert.equal(geometry.padding, '24px');
+    assert.equal(geometry.radius, '8px');
+    console.log('Measured native Overview geometry: ' + JSON.stringify(geometry));
     const action = await rpc('humanAttention', { category: 'action', limit: 100 });
     assert.equal(value.actionCount, action.items.length);
     assert.equal(

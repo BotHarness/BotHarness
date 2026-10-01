@@ -117,8 +117,8 @@ export function ActivityCenterView({
                                 : 'activityCenter.assignment',
                             )}
                           </span>
-                          <span className="bh-overview-session-purpose">
-                            {session.purpose ?? session.sessionId}
+                          <span className="bh-overview-session-purpose" title={session.purpose}>
+                            {session.purpose ?? t('activityCenter.orchestratorPurpose')}
                           </span>
                           <span className="bh-overview-session-state">
                             {personaBotActivityLabel(session.state, t)}

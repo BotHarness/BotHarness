@@ -77,3 +77,44 @@ it('shows Overview and routes a Session to native navigation while Bot opens DM'
     store.select(undefined);
   }
 });
+
+it('drops late Overview responses after switching to Inbox and reconciles completed Sessions', async () => {
+  const { createStore } = await import('../src/client/store.js');
+  const local = createStore();
+  let settle: (value: {
+    ok: true;
+    value: { actionCount: number; bots: never[] };
+  }) => void = () => {};
+  let delayed = true;
+  const actions = createActions(async (endpoint) => {
+    if (endpoint === 'humanAttentionStatus')
+      return { ok: true, value: { unreadCount: 0, hasAction: false } };
+    if (endpoint === 'humanAttention') return { ok: true, value: { items: [] } };
+    if (endpoint === 'activityOverview')
+      return delayed
+        ? new Promise((done) => {
+            settle = (value) => done(value);
+          })
+        : {
+            ok: true,
+            value: {
+              actionCount: 0,
+              bots: [
+                { slug: 'ada', displayName: 'Ada', state: 'idle', paused: false, sessions: [] },
+              ],
+            },
+          };
+    throw new Error(endpoint);
+  }, local);
+  const opening = actions.openActivityCenter();
+  await actions.openHumanInbox();
+  settle({ ok: true, value: { actionCount: 2, bots: [] } });
+  await opening;
+  expect(local.getSnapshot().overview.value).toBeUndefined();
+  delayed = false;
+  await actions.openActivityCenter();
+  expect(local.getSnapshot().overview.value).toMatchObject({
+    actionCount: 0,
+    bots: [{ slug: 'ada', sessions: [] }],
+  });
+});
