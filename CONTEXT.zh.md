@@ -332,6 +332,22 @@ _避免使用_：upload、push、submit
 能够参与 Channel 并创作 message 的 Human 或 PersonaBot；Bridge 负责承载 Actor 的 message，但自身不是 Actor。
 _避免使用_：client、connector、bridge identity、caller-supplied sender
 
+**Human ID**：
+本地 Human 在一个 DSH Profile 内的稳定身份，跨 Channel、改名和 Human Channel nickname 保持不变。
+_避免使用_：display name、nickname、browser tab
+
+**Human display name**：
+本地 Human 在一个 DSH Profile 内可修改的默认名称。Human Channel nickname 可覆盖该名称，用于对应 Channel 的消息作者、成员列表与提及展示。
+_避免使用_：Human ID、login name
+
+**Human Channel nickname**：
+本地 Human 在一个 Channel 内选择的名称，包括 DM 或 Group Channel；它在该 Channel 内覆盖 Human display name。它标记同一个 Human ID，不创建独立 Human Inbox 或角色扮演 Persona。
+_避免使用_：Channel name、PersonaBot display name
+
+**Actor mention**：
+Channel 中按稳定身份指向 Human 或 PersonaBot 的可信引用，以该 Actor 在消息所属 Channel 中的当前名称展示。改名更新可见标签，同时保留原提及目标。
+_避免使用_：name-matched text、stored display name as identity
+
 **Source Event**：
 从 Channel、Bridge、webhook、Session 或 system source 接收的不可变本地事实，保存其内容唯一的本地副本与可信 provenance。它可以出现在 Channel 中，也可以被 admit 到任意数量的 Bot Inbox，但两种关系都不拥有另一份内容副本。
 _避免使用_：inbox message、mailbox copy、notification payload、stimulus

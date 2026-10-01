@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createActions } from '../src/client/actions.js';
 import {
+  channelAttachmentUrl,
   BridgeCallError,
   createBridgeCall,
   loadMemoryGitGraph,
@@ -2129,6 +2130,28 @@ describe('Workspace native action bridge', () => {
 });
 
 describe('message attachment native action bridge', () => {
+  it('requires the same owning message for legacy and canonical download URLs', () => {
+    const owner = { channelId: 'group-owner', messageId: 'message-owner' };
+    const legacy = {
+      hash: `sha256:${'a'.repeat(64)}`,
+      name: 'notes.txt',
+      mime: 'text/plain',
+      size: 4,
+    };
+    const canonical = {
+      fileId: 'file:00000000-0000-4000-8000-000000000001',
+      name: 'notes.txt',
+      mime: 'text/plain',
+      size: 4,
+    };
+    for (const ref of [legacy, canonical]) {
+      const url = new URL(channelAttachmentUrl(ref, owner), 'http://local');
+      expect(url.searchParams.get('channelId')).toBe(owner.channelId);
+      expect(url.searchParams.get('messageId')).toBe(owner.messageId);
+      expect(() => Reflect.apply(channelAttachmentUrl, undefined, [ref])).toThrow('ownership');
+    }
+  });
+
   it('resolves current ownership again before launch and refuses a removed message without mutating UI authority', async () => {
     const call = vi.fn<BridgeCall>(async (method, payload) => {
       expect(method).toBe('messageAttachmentTarget');

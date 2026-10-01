@@ -1,3 +1,4 @@
+import type { AttachmentMigrationResult } from '../attachments/legacy-migration.js';
 import { projectAttachmentFiles } from '../attachments/message-files.js';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
@@ -251,6 +252,12 @@ export interface ChannelStore {
   assertAttachmentRefs(refs: readonly ChannelAttachmentRef[]): void;
 
   referencedAttachmentHashes(): ReadonlySet<string>;
+  migrateAttachments?(signal?: AbortSignal): Promise<AttachmentMigrationResult>;
+  attachmentReference?(
+    channelId: string,
+    messageId: string,
+    identity: string,
+  ): ChannelAttachmentRef | undefined;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
   getOrCreateBotDm(
     firstBotSlug: string,

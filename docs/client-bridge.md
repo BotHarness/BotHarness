@@ -147,4 +147,4 @@ Windows 与 WSL 的 `~/.config/botharness/dev.env` 分属不同的用户目录�
 
 ## 8. 新消息附件的真实文件
 
-`messageAttachmentTarget({channelId,messageId,fileId})` 由 Messaging 校验当前消息归属并返回 `{target:{path,relativePath,kind:'file'}}`，供 Human Client 使用现有 DSH 原生能力。下载 GET `/api/botharness/attachment?channelId=...&messageId=...&fileId=...` 每次验证同样归属，并以 `no-store` 返回当前字节；单独路径、文件名或 hash 不能启动新附件。旧 hash GET 仍可读 CAS，不能打开编辑。POST upload 的可选 `uploadId` 是 Composer item UUID，响应新 `{fileId,name,mime,size}`。上传重试回执不覆盖外部编辑。消息读取投影当前元数据，发送幂等比较稳定身份与名称。详见[文件指南](file-open.zh.md)。
+`messageAttachmentTarget({channelId,messageId,fileId})` 由 Messaging 校验当前消息归属并返回 `{target:{path,relativePath,kind:'file'}}`，供 Human Client 使用现有 DSH 原生能力。下载 GET `/api/botharness/attachment?channelId=...&messageId=...&fileId=...` 每次验证同样归属，并以 `no-store` 返回当前字节；单独路径、文件名或 hash 不能启动新附件。旧 hash GET 必须同时携带原 Channel／message 归属；唯一匹配时读取迁移后的当前文件，缺失归属或含糊匹配拒绝。未转换依赖仍使用校验后的 CAS。Host 启动在 generation 39 的 Messaging 绑定中预留身份、验证转换并激活，保留原消息 envelope。POST upload 的可选 `uploadId` 是 Composer item UUID，响应新 `{fileId,name,mime,size}`。上传重试回执不覆盖外部编辑。消息读取投影当前元数据，发送幂等比较稳定身份与名称。详见[文件指南](file-open.zh.md)。

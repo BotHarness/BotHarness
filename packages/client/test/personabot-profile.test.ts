@@ -217,7 +217,8 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-memory-chat-composer')).toBeNull();
       expect(container.querySelector('.bh-profile-view-name')?.textContent).toBe('Ada');
       expect(container.querySelectorAll('.bh-profile-heat-grid').length).toBe(2);
-      expect(container.querySelectorAll('.bh-profile-bar-chart').length).toBe(1);
+      expect(container.querySelectorAll('.bh-profile-bar-chart').length).toBe(0);
+      expect(container.querySelector('.bh-model-usage')?.textContent).toContain('模型用量暂不可用');
       expect(container.querySelectorAll('.bh-profile-avatar-button').length).toBe(1);
       expect(container.querySelectorAll('.bh-profile-card').length).toBe(7);
       expect(container.querySelectorAll('.bh-profile-pin[aria-pressed="true"]').length).toBe(2);
@@ -392,7 +393,9 @@ describe('Profile activity windows', () => {
       expect(container.querySelector('.bh-profile-stats')?.textContent).toContain('未知');
       expect(container.querySelector('.bh-profile-empty')).toBeNull();
       expect(container.querySelector('.bh-profile-token-shares')).toBeNull();
-      expect(container.querySelector('.bh-model-usage')?.textContent).toContain('当日总计：未知');
+      expect(container.querySelector('.bh-model-usage')?.textContent).toContain(
+        '所选时间范围：未知',
+      );
       const partial = {
         ...props,
         activity: {
@@ -456,7 +459,9 @@ describe('Profile activity windows', () => {
       expect(container.querySelector('.bh-profile-stats > div:last-child dd')?.textContent).toBe(
         '155',
       );
-      expect(container.querySelector('.bh-model-usage')?.textContent).toContain('当日总计：155');
+      expect(container.querySelector('.bh-model-usage')?.textContent).toContain(
+        '所选时间范围：155',
+      );
     } finally {
       await act(async () => root.unmount());
       container.remove();

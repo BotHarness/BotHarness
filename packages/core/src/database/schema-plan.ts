@@ -1089,6 +1089,27 @@ const MESSAGING_OUTBOUND_MIGRATION: SchemaMigration = {
   },
 };
 
+const ATTACHMENT_FILE_BINDING_MIGRATION: SchemaMigration = {
+  generation: 39,
+  module: 'messaging',
+  description: 'Bind retained legacy attachment occurrences to independently managed real files',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE attachment_file_bindings (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        attachment_index INTEGER NOT NULL CHECK (attachment_index >= 0),
+        file_id TEXT NOT NULL UNIQUE,
+        original_json TEXT NOT NULL,
+        target_json TEXT,
+        state TEXT NOT NULL CHECK (state IN ('pending', 'ready')),
+        last_error TEXT,
+        PRIMARY KEY (source_event_id, attachment_index),
+        CHECK (state != 'ready' OR target_json IS NOT NULL)
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1127,4 +1148,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ASSIGNMENT_MODEL_ROUTE_MIGRATION,
   USAGE_REPORT_COMPLETENESS_MIGRATION,
   MESSAGING_OUTBOUND_MIGRATION,
+  ATTACHMENT_FILE_BINDING_MIGRATION,
 ]);

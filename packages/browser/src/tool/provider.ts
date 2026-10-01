@@ -528,11 +528,11 @@ export function createBrowserToolProvider(
           description: spec.description,
           inputSchema: spec.inputSchema,
           call: async (args, execution) => {
-            await authorize(execution, sessionId);
-            onActivity(slug);
-            assertExecutionAllowed(spec.raw, slug);
             const started = Date.now();
             try {
+              await authorize(execution, sessionId);
+              onActivity(slug);
+              assertExecutionAllowed(spec.raw, slug);
               const result = await serialize(slug, () => {
                 assertExecutionAllowed(spec.raw, slug);
                 return runTool(spec.raw, args, slug);
