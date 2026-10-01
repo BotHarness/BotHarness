@@ -4355,7 +4355,7 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(
             `SELECT e.source_event_id, e.source_kind, e.assignment_session_id,
                     e.body, e.created_at, e.expects_reply, a.continuity_key,
-                    a.open_ask_source_event_id AS open_ask_id,
+                    CASE WHEN a.stop_state = 'running' THEN a.open_ask_source_event_id END AS open_ask_id,
                     (SELECT body FROM source_events WHERE source_event_id = a.open_ask_source_event_id) AS open_ask_summary,
                     CASE WHEN a.stop_state = 'stopped' THEN 'stopped'
                          WHEN a.stop_state = 'requested' THEN 'stopping'

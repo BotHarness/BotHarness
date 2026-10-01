@@ -921,7 +921,7 @@ describe('Assignment collaboration', () => {
     await close();
   });
 
-  it.each(['waiting-human', 'progress'] as const)(
+  it.each(['waiting-human', 'progress', 'stop-failed'] as const)(
     'keeps the canonical blocked ask address when harvesting a later %s report',
     async (state) => {
       const { runtime, agents, dmChannelId, admit, close } = await setup();
@@ -953,15 +953,25 @@ describe('Assignment collaboration', () => {
         await run.report({ state: 'blocked', summary: 'Choose A or B', expectsReply: true });
         const askId = runtime.getAssignment('ada', sessionId)!.openAsk!.sourceEventId;
         await run.report({
-          state,
+          state: state === 'stop-failed' ? 'progress' : state,
           summary: 'Later update',
           expectsReply: state === 'waiting-human',
         });
+        if (state === 'stop-failed') {
+          agents.failNextStop = true;
+          await expect(agents.access!.stop(sessionId)).rejects.toThrow('DSH stop failed');
+        }
         agents.finish(sessionId);
         release();
         await active.settled;
         await runtime.whenIdle();
         const injected = agents.inboxTurns[0] ?? '';
+        if (state === 'stop-failed') {
+          expect(injected).toContain('activity stopping');
+          expect(injected).not.toContain('WAITING');
+          expect(injected).not.toContain('answer_to: ' + askId);
+          return;
+        }
         expect(injected).toContain('WAITING');
         expect(injected).toContain('answer_to: ' + askId);
         expect(injected).toContain('Choose A or B');
