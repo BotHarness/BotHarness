@@ -1020,7 +1020,9 @@ describe('Assignment collaboration', () => {
         },
       ]);
       expect(attention.list({ category: 'action', botSlug: 'bea' }).items).toEqual([]);
-      expect(attention.list({ category: 'action', channelId: 'dm-ada' }).items).toEqual([]);
+      expect(attention.list({ category: 'action', channelId: 'dm-ada' }).items).toMatchObject([
+        { assignmentSessionId: sessionId },
+      ]);
       expect(attention.list({ category: 'info' }).items).toEqual([]);
 
       const askId = runtime.getAssignment('ada', sessionId)?.openAsk?.sourceEventId;
