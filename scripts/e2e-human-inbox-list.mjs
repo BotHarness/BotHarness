@@ -288,8 +288,10 @@ try {
   await shot('keyboard-details-light');
   await page.click('.bh-human-inbox-detail .bh-human-inbox-reply-header button');
   await page.click('.bh-human-inbox-row-actions button');
-  await page.waitForSelector('.bh-human-inbox-detail .bh-grant-request-card');
+  assert.equal(await page.$('.bh-human-inbox-detail'), null);
   await page.waitForSelector('.bh-folder-browser', { visible: true, timeout: 15000 });
+  assert.equal(await page.$('.bh-human-inbox-detail'), null);
+  assert.equal(await page.$('.bh-human-inbox-row-open[aria-expanded="true"]'), null);
   await shot('list-action-picker-light');
   await click('.bh-folder-browser button', '取消');
   await page.waitForFunction(() => !document.querySelector('.bh-folder-browser'));
@@ -301,7 +303,7 @@ try {
   await page.waitForFunction(() => !document.querySelector('.bh-folder-browser'));
   await theme(false);
   await shot('primary-action-details-light');
-  await page.click('.bh-human-inbox-detail .bh-human-inbox-reply-header button');
+  assert.equal(await page.$('.bh-human-inbox-detail'), null);
   const sourceItem = (
     await rpc('humanAttention', { category: 'action', sort: 'oldest', limit: 50 })
   ).items.find((item) => item.id === firstId);
@@ -336,6 +338,7 @@ try {
         directPrimaryRequestAction: true,
         listActionOpensBrowsePicker: true,
         listActionReopensAfterCancel: true,
+        actionDoesNotExpandRow: true,
         channelAvatarNavigation: true,
         lightAndDark: true,
       },

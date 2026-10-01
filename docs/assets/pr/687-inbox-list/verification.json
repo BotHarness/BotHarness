@@ -42,6 +42,7 @@
   "directPrimaryRequestAction": true,
   "listActionOpensBrowsePicker": true,
   "listActionReopensAfterCancel": true,
+  "actionDoesNotExpandRow": true,
   "channelAvatarNavigation": true,
   "lightAndDark": true
 }

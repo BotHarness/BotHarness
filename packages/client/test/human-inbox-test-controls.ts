@@ -42,3 +42,16 @@ export const IconChevronDownOutlineRegular = (): ReactElement =>
   createElement('svg', { 'aria-hidden': true });
 export const IconRightUpOutlineRegular = ({ className }: { className?: string }): ReactElement =>
   createElement('svg', { className, 'aria-hidden': true });
+
+export const Modal = ({
+  open,
+  children,
+  footer,
+  className,
+}: {
+  open: boolean;
+  children?: ReactNode;
+  footer?: ReactNode;
+  className?: string;
+}): ReactElement | null =>
+  open ? createElement('div', { role: 'dialog', className }, children, footer) : null;

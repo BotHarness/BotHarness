@@ -16,7 +16,6 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
   }) => createElement('button', { ...props, 'data-variant': variant, 'data-size': size }, children),
   MarkdownText: () => null,
   StateDot: () => null,
-  Modal: () => null,
   Input: () => null,
 }));
 vi.mock('../src/client/bot-sidebar.js', async () => {
@@ -170,6 +169,10 @@ describe('compact Human Inbox interactions', () => {
       await act(async () => action.click());
       expect(view.actions.humanInboxContext).toHaveBeenCalledTimes(1);
       expect(view.actions.listHostFolders).toHaveBeenCalledTimes(1);
+      expect(view.host.querySelector('.bh-human-inbox-detail')).toBeNull();
+      expect(
+        view.host.querySelector('.bh-human-inbox-row-open')?.getAttribute('aria-expanded'),
+      ).toBe('false');
       expect(view.host.querySelector('[role="dialog"]')).not.toBeNull();
       expect(view.actions.resolveWorkspaceGrantRequest).not.toHaveBeenCalled();
       await act(async () =>
@@ -180,7 +183,11 @@ describe('compact Human Inbox interactions', () => {
       await act(async () =>
         view.host.querySelector<HTMLButtonElement>('.bh-human-inbox-row-open')!.click(),
       );
-      await act(async () => action.click());
+      await act(async () =>
+        view.host
+          .querySelector<HTMLButtonElement>('.bh-human-inbox-row-actions [data-variant="primary"]')!
+          .click(),
+      );
       expect(view.actions.listHostFolders).toHaveBeenCalledTimes(2);
       await act(async () =>
         Array.from(view.host.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
@@ -193,6 +200,46 @@ describe('compact Human Inbox interactions', () => {
         '/qa/project',
         expect.any(Function),
       );
+    } finally {
+      await view.close();
+    }
+  });
+  it('rechecks a request resolved in another window before reopening the picker', async () => {
+    const view = await mount({
+      ...item,
+      category: 'action',
+      kind: 'workspace-grant-request',
+      botSlug: 'ada',
+    });
+    try {
+      await act(async () =>
+        view.host
+          .querySelector<HTMLButtonElement>('.bh-human-inbox-row-actions [data-variant="primary"]')!
+          .click(),
+      );
+      await act(async () =>
+        Array.from(view.host.querySelectorAll<HTMLButtonElement>('button'))
+          .find((button) => button.textContent === 'Close picker')!
+          .click(),
+      );
+      view.actions.humanInboxContext.mockResolvedValue([
+        {
+          id: 'source',
+          at: item.createdAt,
+          author: { kind: 'bot', slug: 'ada' },
+          body: item.summary,
+          grantRequest: true,
+          grantRequestResolved: true,
+        },
+      ]);
+      await act(async () =>
+        view.host
+          .querySelector<HTMLButtonElement>('.bh-human-inbox-row-actions [data-variant="primary"]')!
+          .click(),
+      );
+      expect(view.actions.listHostFolders).toHaveBeenCalledTimes(1);
+      expect(view.host.querySelector('[role="dialog"]')).toBeNull();
+      expect(view.actions.resolveWorkspaceGrantRequest).not.toHaveBeenCalled();
     } finally {
       await view.close();
     }

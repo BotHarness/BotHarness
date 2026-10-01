@@ -244,7 +244,7 @@
 
 ### Fixed
 
-- Inbox 列表的“选择工作区”现在直接打开同一个 DSH 文件夹选择器；取消后仍可再次打开，已解决的请求不会误触发授权（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
+- Inbox 列表的“选择工作区”现在直接打开同一个 DSH 文件夹选择器，不展开事件详情；其他回应操作使用独立弹窗，取消后仍可再次打开，已解决的请求不会误触发授权（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
 
 - 活动实时传输失败时，通过限频快照查询恢复 Bot 状态；重连与修订跳号同步恢复侧栏及输入框，连接错误不会显示成 Bot 活动状态（[#121](https://github.com/BotHarness/BotHarness/issues/121)）。
 

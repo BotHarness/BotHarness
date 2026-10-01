@@ -244,7 +244,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
-- Inbox list “Choose workspace” now opens the same DSH folder picker directly; cancellation can be retried and resolved requests do not trigger authorization ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
+- Inbox list “Choose workspace” now opens the same DSH folder picker directly without expanding the event; other response actions use an independent dialog, cancellation can be retried and resolved requests do not trigger authorization ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
 
 - Bot activity recovers through bounded snapshot refresh when live transport fails; reconnects and revision gaps restore shared sidebar/composer state without treating connection errors as Bot activity ([#121](https://github.com/BotHarness/BotHarness/issues/121)).
 

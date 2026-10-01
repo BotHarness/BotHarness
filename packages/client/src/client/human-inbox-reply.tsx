@@ -18,7 +18,6 @@ export function HumanInboxReply({
   botName,
   bots,
   humanMembers = [],
-  workspacePickerRequest,
   onClose,
 }: {
   source: HumanAttentionItem;
@@ -27,7 +26,6 @@ export function HumanInboxReply({
   botName: (slug: string) => string;
   bots: readonly BotSummary[];
   humanMembers?: readonly ChannelHumanMember[];
-  workspacePickerRequest?: number | undefined;
   onClose: () => void;
 }): ReactElement {
   const isApproval = source.kind === 'tool-approval';
@@ -248,7 +246,6 @@ export function HumanInboxReply({
                   ) : null}
                   {isNativeAction && message.id === messageId ? (
                     <ChannelMessageBody
-                      workspacePickerRequest={workspacePickerRequest}
                       message={message}
                       channelId={channelId}
                       actions={actions}

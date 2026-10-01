@@ -8,7 +8,6 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
     createElement('button', props, children),
   MarkdownText: () => null,
   StateDot: () => null,
-  Modal: () => null,
   Input: () => null,
 }));
 vi.mock('../src/client/bot-sidebar.js', async () => {

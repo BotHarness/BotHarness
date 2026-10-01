@@ -443,17 +443,21 @@ function UserQuestionCard({
   );
 }
 
-function GrantRequestCard({
+export function GrantRequestCard({
   message,
   actions,
   resolved,
   workspacePickerRequest,
+  compact = false,
+  beforeOpen,
   t,
 }: {
   message: ChannelMessage;
   actions: BridgeActions;
   workspacePickerRequest?: number | undefined;
   resolved: boolean;
+  compact?: boolean;
+  beforeOpen?: () => Promise<boolean>;
   t: BotHarnessTranslate;
 }): ReactElement {
   const [listing, setListing] = useState<HostDirectoryListing | undefined>();
@@ -462,13 +466,13 @@ function GrantRequestCard({
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
-  const open = (): void => {
-    if (botSlug === undefined || busy || opening) return;
+  const open = (alreadyChecked = false): void => {
+    if (botSlug === undefined || busy || opening || resolved || completed) return;
     setOpening(true);
     setError(undefined);
-    void actions
-      .listHostFolders()
-      .then(setListing, async (cause: unknown) => {
+    void (async () => {
+      if (!alreadyChecked && beforeOpen !== undefined && !(await beforeOpen())) return;
+      return actions.listHostFolders().then(setListing, async (cause: unknown) => {
         if (
           cause instanceof Error &&
           'rpcError' in cause &&
@@ -482,7 +486,8 @@ function GrantRequestCard({
           return;
         }
         setError(errorMessage(cause));
-      })
+      });
+    })()
       .catch((cause: unknown) => setError(errorMessage(cause)))
       .finally(() => setOpening(false));
   };
@@ -513,20 +518,34 @@ function GrantRequestCard({
       !completed
     ) {
       openedRequest.current = workspacePickerRequest;
-      open();
+      open(true);
     }
   }, [workspacePickerRequest]);
   return (
-    <div className="bh-grant-request-card" ref={pickerTrigger}>
-      <div className="bh-grant-request-title">{t('grant.requestTitle')}</div>
-      <div className="bh-grant-request-reason">{message.body}</div>
+    <div
+      className={compact ? 'bh-human-inbox-grant-action' : 'bh-grant-request-card'}
+      ref={pickerTrigger}
+    >
+      {compact ? null : (
+        <>
+          <div className="bh-grant-request-title">{t('grant.requestTitle')}</div>
+          <div className="bh-grant-request-reason">{message.body}</div>
+        </>
+      )}
       {resolved || completed ? (
         <div className="bh-note" role="status">
           {t('grant.requestResolved')}
         </div>
       ) : (
-        <Button variant="primary" disabled={busy || opening} onClick={open}>
-          {opening ? t('grant.loading') : t('grant.requestChoose')}
+        <Button
+          variant="primary"
+          size={compact ? 'sm' : 'md'}
+          disabled={busy || opening}
+          onClick={() => open()}
+        >
+          {opening
+            ? t('grant.loading')
+            : t(compact ? 'humanInbox.grant.handle' : 'grant.requestChoose')}
         </Button>
       )}
       {error === undefined ? null : (

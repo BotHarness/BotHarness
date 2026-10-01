@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ReactElement } from 'react';
+import { useId, useState, type ReactElement } from 'react';
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
 import { HumanInboxFilter, HumanInboxSourceButton } from './human-inbox-controls.js';
 
@@ -10,6 +10,8 @@ import { store } from './store.js';
 import type { HumanAttentionItem, HumanInboxCategory, HumanInboxFilters } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 import { HumanInboxReply } from './human-inbox-reply.js';
+import { Modal } from './modal.js';
+import { HumanInboxWorkspaceAction } from './human-inbox-workspace-action.js';
 import { HumanInboxAssignment } from './human-inbox-assignment.js';
 
 const categoryCopy = {
@@ -35,11 +37,7 @@ export function HumanInboxView({
   const [busyId, setBusyId] = useState<string>();
   const [actionError, setActionError] = useState<string>();
   const [replySource, setReplySource] = useState<HumanAttentionItem>();
-  const workspacePickerRevision = useRef(0);
-  const [workspacePickerRequest, setWorkspacePickerRequest] = useState<{
-    itemId: string;
-    revision: number;
-  }>();
+  const [actionSource, setActionSource] = useState<HumanAttentionItem>();
 
   const mount = useMountedResource<HTMLDivElement>(() => {
     const timer = window.setInterval(() => {
@@ -180,6 +178,51 @@ export function HumanInboxView({
     void actions.setHumanInboxFilters(filters);
   };
 
+  const renderSource = (source: HumanAttentionItem, onClose: () => void): ReactElement =>
+    source.kind === 'assignment-waiting-human' || source.kind === 'assignment-blocked' ? (
+      <HumanInboxAssignment
+        key={source.assignmentSessionId + ':' + source.sourceEventId}
+        source={source}
+        actions={actions}
+        t={t}
+        botName={botName}
+        bots={state.bots}
+        onClose={onClose}
+      />
+    ) : source.channelId !== undefined && source.messageId !== undefined ? (
+      <HumanInboxReply
+        key={source.channelId + ':' + source.messageId}
+        source={source}
+        actions={actions}
+        t={t}
+        botName={botName}
+        bots={state.bots}
+        humanMembers={
+          state.channels.find((channel) => channel.id === source.channelId)?.humanMembers ?? []
+        }
+        onClose={onClose}
+      />
+    ) : (
+      <section className="bh-human-inbox-reply" aria-label={itemTitle(source)}>
+        <div className="bh-human-inbox-reply-header">
+          <h2>{itemTitle(source)}</h2>
+          <Button size="sm" onClick={onClose}>
+            {t('humanInbox.details.close')}
+          </Button>
+        </div>
+        <p>{source.summary}</p>
+        <HumanInboxSourceButton
+          item={source}
+          bots={state.bots}
+          channels={state.channels}
+          t={t}
+          onClick={() =>
+            void openSource(source).catch(() => setActionError(t('humanInbox.failed')))
+          }
+        />
+      </section>
+    );
+
   return (
     <div className={embedded ? 'bh-human-inbox' : 'bh-root bh-main bh-human-inbox'} ref={mount}>
       <main
@@ -286,7 +329,6 @@ export function HumanInboxView({
                   aria-expanded={replySource?.id === item.id}
                   aria-controls={replySource?.id === item.id ? detailId : undefined}
                   onClick={() => {
-                    setWorkspacePickerRequest(undefined);
                     setReplySource(item);
                   }}
                 />
@@ -364,38 +406,31 @@ export function HumanInboxView({
                   item.kind === 'workspace-grant-request' ||
                   item.kind === 'assignment-waiting-human' ||
                   item.kind === 'assignment-blocked' ? (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      type="button"
-                      onClick={() => {
-                        setReplySource(item);
-                        if (
-                          item.kind === 'workspace-grant-request' &&
-                          item.category !== 'handled'
-                        ) {
-                          setWorkspacePickerRequest({
-                            itemId: item.id,
-                            revision: ++workspacePickerRevision.current,
-                          });
-                        } else setWorkspacePickerRequest(undefined);
-                      }}
-                    >
-                      {t(
-                        item.category === 'handled'
-                          ? 'humanInbox.handled.context'
-                          : item.kind === 'tool-approval'
-                            ? 'humanInbox.approval.handle'
-                            : item.kind === 'user-question'
-                              ? 'humanInbox.question.handle'
-                              : item.kind === 'workspace-grant-request'
-                                ? 'humanInbox.grant.handle'
-                                : item.kind === 'assignment-waiting-human' ||
-                                    item.kind === 'assignment-blocked'
-                                  ? 'humanInbox.assignment.handle'
-                                  : 'humanInbox.reply',
-                      )}
-                    </Button>
+                    item.kind === 'workspace-grant-request' && item.category !== 'handled' ? (
+                      <HumanInboxWorkspaceAction source={item} actions={actions} t={t} />
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        type="button"
+                        onClick={() => setActionSource(item)}
+                      >
+                        {t(
+                          item.category === 'handled'
+                            ? 'humanInbox.handled.context'
+                            : item.kind === 'tool-approval'
+                              ? 'humanInbox.approval.handle'
+                              : item.kind === 'user-question'
+                                ? 'humanInbox.question.handle'
+                                : item.kind === 'workspace-grant-request'
+                                  ? 'humanInbox.grant.handle'
+                                  : item.kind === 'assignment-waiting-human' ||
+                                      item.kind === 'assignment-blocked'
+                                    ? 'humanInbox.assignment.handle'
+                                    : 'humanInbox.reply',
+                        )}
+                      </Button>
+                    )
                   ) : null}
                   <HumanInboxSourceButton
                     item={item}
@@ -486,58 +521,7 @@ export function HumanInboxView({
           </div>
           {replySource === undefined ? null : (
             <div id={detailId} className="bh-human-inbox-detail">
-              {replySource.kind === 'assignment-waiting-human' ||
-              replySource.kind === 'assignment-blocked' ? (
-                <HumanInboxAssignment
-                  key={replySource.assignmentSessionId + ':' + replySource.sourceEventId}
-                  source={replySource}
-                  actions={actions}
-                  t={t}
-                  botName={botName}
-                  bots={state.bots}
-                  onClose={() => setReplySource(undefined)}
-                />
-              ) : replySource.channelId !== undefined && replySource.messageId !== undefined ? (
-                <HumanInboxReply
-                  workspacePickerRequest={
-                    workspacePickerRequest?.itemId === replySource.id
-                      ? workspacePickerRequest.revision
-                      : undefined
-                  }
-                  key={replySource.channelId + ':' + replySource.messageId}
-                  source={replySource}
-                  actions={actions}
-                  t={t}
-                  botName={botName}
-                  bots={state.bots}
-                  humanMembers={
-                    state.channels.find((channel) => channel.id === replySource.channelId)
-                      ?.humanMembers ?? []
-                  }
-                  onClose={() => setReplySource(undefined)}
-                />
-              ) : (
-                <section className="bh-human-inbox-reply" aria-label={itemTitle(replySource)}>
-                  <div className="bh-human-inbox-reply-header">
-                    <h2>{itemTitle(replySource)}</h2>
-                    <Button size="sm" onClick={() => setReplySource(undefined)}>
-                      {t('humanInbox.details.close')}
-                    </Button>
-                  </div>
-                  <p>{replySource.summary}</p>
-                  <HumanInboxSourceButton
-                    item={replySource}
-                    bots={state.bots}
-                    channels={state.channels}
-                    t={t}
-                    onClick={() =>
-                      void openSource(replySource).catch(() =>
-                        setActionError(t('humanInbox.failed')),
-                      )
-                    }
-                  />
-                </section>
-              )}
+              {renderSource(replySource, () => setReplySource(undefined))}
             </div>
           )}
         </div>
@@ -549,6 +533,17 @@ export function HumanInboxView({
           >
             {t('humanInbox.more')}
           </button>
+        )}
+        {actionSource === undefined ? null : (
+          <Modal
+            open
+            title={itemTitle(actionSource)}
+            closeLabel={t('common.close')}
+            onClose={() => setActionSource(undefined)}
+            className="bh-human-inbox-action-dialog"
+          >
+            {renderSource(actionSource, () => setActionSource(undefined))}
+          </Modal>
         )}
       </main>
     </div>

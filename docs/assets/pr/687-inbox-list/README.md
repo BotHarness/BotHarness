@@ -4,17 +4,17 @@ After evidence was refreshed after the Human QA direct-action fix and is unedite
 
 `before-human-qa.png` is the cropped screenshot supplied by Human QA. It documents the original spacing/filter problem at a different viewport; it is not presented as a matched full-window capture.
 
-| Capture                                                    | Verified state                                                                                        |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| list-light.png / list-dark.png                             | Three compact rows, 76px high, 16px inline inset, one-line summaries and native primary actions       |
-| native-bot-selector-dark.png                               | Native DSH Menu with selected option and current Bot choices                                          |
-| filtered-bot-dark.png                                      | Canonical Bot filter narrows the query to Review Bot                                                  |
-| row-details-light.png / row-details-dark.png               | Clicking row text opens real source context, retains list and 16px message padding                    |
-| keyboard-details-light.png                                 | Enter activates the focused row button                                                                |
-| primary-action-details-light.png                           | Right-side primary action opens the owning picker directly, then retains request context              |
-| list-action-picker-light.png / list-action-picker-dark.png | One list-button click opens the real DSH folder browser; cancelling and clicking again opens it again |
-| exact-source-light.png                                     | Avatar source action opens the exact original DM/message, without opening details                     |
-| unread-channel-avatar-light.png / unread-context-light.png | Group avatar and per-Channel unread summary; row activation loads concrete context                    |
+| Capture                                                    | Verified state                                                                                                                    |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| list-light.png / list-dark.png                             | Three compact rows, 76px high, 16px inline inset, one-line summaries and native primary actions                                   |
+| native-bot-selector-dark.png                               | Native DSH Menu with selected option and current Bot choices                                                                      |
+| filtered-bot-dark.png                                      | Canonical Bot filter narrows the query to Review Bot                                                                              |
+| row-details-light.png / row-details-dark.png               | Clicking row text opens real source context, retains list and 16px message padding                                                |
+| keyboard-details-light.png                                 | Enter activates the focused row button                                                                                            |
+| primary-action-details-light.png                           | Right-side primary action opens the owning picker directly, without opening or selecting the event detail pane                    |
+| list-action-picker-light.png / list-action-picker-dark.png | One list-button click opens the real DSH folder browser; cancelling and clicking again opens it again; the list remains collapsed |
+| exact-source-light.png                                     | Avatar source action opens the exact original DM/message, without opening details                                                 |
+| unread-channel-avatar-light.png / unread-context-light.png | Group avatar and per-Channel unread summary; row activation loads concrete context                                                |
 
 [verification.json](verification.json) records geometry and passed assertions. Native primary is the shell's own button color family, including its light/dark contrast; it does not substitute BotHarness brand tint. The source square deliberately uses token styles because the native Button capsule has different geometry. The pinned primitives export no standalone Select; filters compose native Button/Menu exactly as shell selectors do. Menu keyboard selection and Bot/Channel/sort filters were exercised through the real Host queries.
 
@@ -42,3 +42,5 @@ For reproducible browser screenshots on Windows, add the supported overlay below
 ```
 
 Seed before starting the Host; preserve the private launch log for the browser login helper. Logs/tokens and local paths are not committed. The script does not submit decisions or mark summaries read; concrete visible context retains the canonical read behavior.
+
+Human QA additionally requires independent click behavior: only the row button expands the event pane. Workspace actions reuse the request card as a compact control and picker; reply, question, approval and Assignment forms use a separate native Modal. Mounted regressions cover those forms without row expansion, plus cancellation followed by another window resolving the request before reopening. Reopening rechecks canonical state and does not launch a picker for a resolved request.

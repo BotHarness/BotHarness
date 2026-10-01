@@ -14,7 +14,6 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
     createElement('button', props, children),
   MarkdownText: () => null,
   StateDot: () => null,
-  Modal: () => null,
   Input: () => null,
 }));
 
@@ -103,6 +102,8 @@ describe('Human Inbox Assignment reply', () => {
     try {
       await act(async () => root.render(createElement(HumanInboxView, { actions })));
       await act(async () => button('回应事项').click());
+      expect(container.querySelector('.bh-human-inbox-detail')).toBeNull();
+      expect(container.querySelector('[role="dialog"]')).not.toBeNull();
       expect(container.textContent).toContain('Launch review');
       expect(container.textContent).not.toContain('Dependencies ready');
       await act(async () => button('查看附近报告').click());
