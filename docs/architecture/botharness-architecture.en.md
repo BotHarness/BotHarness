@@ -73,6 +73,8 @@ flowchart LR
 
 The browser reaches Host read models and commands only through RPC. A provider adapter verifies and normalizes events and executes declared capabilities; it does not own the Inbox and cannot wake an Agent directly. DSH remains authoritative for Agent execution, SessionPersistence, Subagents, and credentials. BotHarness does not duplicate that runtime authority.
 
+PersonaBot activity is delivered as one Host-owned snapshot (`generation`, monotonic `revision`, per-Bot aggregate state) through the public `activitySnapshot` query and authenticated `scope=activity` SSE. Every connection starts with a complete baseline, followed by complete snapshots on actual aggregate changes; reconnects recover without a second activity history. The Client atomically updates pinned, ordinary and rail avatars and the DM composer, rejects older revisions within a generation, and retains current activity over stale roster responses. Leaving Bot mode or hiding the page closes the connection. Execution state comes from explicit Session Ownership and the existing DSH SessionEvent Projection, never roster polling or local send flags (#120/#536). On initial connection, the Channel stream also sends current receipts for at most 100 messages at or before the already-seen cursor; this closes the HTTP-snapshot/stream gap without polling or creating another admission authority.
+
 ## 2 · Deep modules and ownership
 
 ```mermaid

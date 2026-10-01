@@ -1,0 +1,178 @@
+{
+  "bot": {
+    "slug": "bot-e4721d706b8d4b1baa5556e672060141",
+    "displayName": "DM activity QA 1790842775212"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "layout": "pinned",
+  "frames": [
+    {
+      "host": "idle",
+      "sidebar": [
+        "idle"
+      ],
+      "composer": [],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [
+        "working"
+      ],
+      "composer": [
+        "working"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 已投递"
+      ]
+    },
+    {
+      "host": "idle",
+      "sidebar": [
+        "idle"
+      ],
+      "composer": [],
+      "receipts": [
+        "收件与已读状态: 1 已处理"
+      ]
+    }
+  ]
+}

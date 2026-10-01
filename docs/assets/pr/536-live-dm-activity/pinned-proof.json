@@ -1,0 +1,472 @@
+{
+  "bot": {
+    "slug": "bot-2de5d5242c29444c88d454d3f85a2295",
+    "displayName": "DM activity QA 1790846576445"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "layout": "pinned",
+  "frames": [
+    {
+      "host": "idle",
+      "sidebar": [
+        "idle"
+      ],
+      "composer": [],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "idle",
+      "sidebar": [
+        "idle"
+      ],
+      "composer": [],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "idle",
+      "sidebar": [
+        "idle"
+      ],
+      "composer": [],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "idle",
+      "sidebar": [
+        "idle"
+      ],
+      "composer": [],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [
+        "working"
+      ],
+      "composer": [
+        "working"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [
+        "thinking"
+      ],
+      "composer": [
+        "thinking"
+      ],
+      "receipts": [
+        "收件与已读状态: 1 处理中"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "idle",
+      "sidebar": [
+        "idle"
+      ],
+      "composer": [],
+      "receipts": [
+        "收件与已读状态: 1 已处理"
+      ],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "handled"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "channel/message",
+      "messageId": "bfcdd32a-24b8-41ba-ac33-3ce811a89de7",
+      "deliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "pending"
+        }
+      ]
+    },
+    {
+      "name": "channel/admission",
+      "messageId": "bfcdd32a-24b8-41ba-ac33-3ce811a89de7",
+      "deliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "name": "channel/message",
+      "messageId": "b89cec10-560c-4ed8-9671-bfeb971c2373"
+    },
+    {
+      "name": "channel/admission",
+      "messageId": "bfcdd32a-24b8-41ba-ac33-3ce811a89de7",
+      "deliveries": [
+        {
+          "botSlug": "bot-2de5d5242c29444c88d454d3f85a2295",
+          "state": "handled"
+        }
+      ]
+    }
+  ]
+}

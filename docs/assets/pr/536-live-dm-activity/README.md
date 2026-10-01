@@ -1,0 +1,15 @@
+# Real DM activity evidence — #536 / #120
+
+Real isolated DSH 0.2.0-rc.1, deepseek-official:deepseek-flash / low, Chinese light theme, 1500 × 1180. Synthetic PersonaBots execute native Memory glob/write/read and send a committed DM reply. The rail case additionally executes an exact, harmless two-second native Shell timer, approved once through the public tool-approval command; no standing permission is added. No provider, Session execution, admission or UI activity is mocked.
+
+Before: the actual Host traverses thinking/working/idle while the sidebar stays idle and the composer has no activity avatar. The directly admitted Human DM path also sometimes skips publishing running; its public query is running while the Client remains pending until handled. The preserved receipt-window-before.json shows this additional symptom.
+
+After: ordinary, pinned and rail surfaces consume the same Host snapshot as the DM composer, show actual thinking/working and settle to idle after the real reply. Short native Tools can complete between samples; the bounded timer in the reusable script makes working easier to capture. The captured PNG can show thinking just after a Tool completes; the sanitized proof JSON independently asserts matching working states at both surfaces and an actual processing receipt. The direct Human DM execution path now publishes its canonical running admission before executing; an additional connection-start receipt baseline closes the snapshot/stream gap; the initial broader receipt check was tightened before final verification.
+
+Run `scripts/e2e-dm-activity.mjs` with `BH_E2E_ORIGIN`, `BH_E2E_HOME`, `BH_E2E_EVIDENCE` and optional `BH_E2E_LAYOUT=row|pinned|rail` and `BH_E2E_STEER=1`. The isolated dev helper supplies the private cookie jar; never publish its content or the one-shot login token.
+
+The feedback loop failed before the fix with “Sidebar stayed idle while real Host turn was active”; all three after layouts passed. A fourth real case sends a second DM while a native Tool is working; the Bot incorporates the steer instruction and both inputs enter running and settle handled. The rail stream opened late and received running in its initial channel/message baseline, followed by handled as channel/admission; the running state is present at the Client in both cases. Host stream regression failed before implementation with HTTP 404 rather than the required 200, then passed with real tracker transitions and reconnect baseline. A production Host direct-DM test separately failed because no running admission frame was published; it passed after prompt-start observation/publication was added.
+
+Focused verification: 48 activity/stream/ownership/RPC/DM checks and the public query regression passed. Typecheck, lint, build and bilingual ledgers passed. Final CI and CodeRabbit are checked on the PR head.
+
+Human QA pending: open the latest fixture DM, send a request that uses native Memory write/read, and confirm sidebar plus composer activity, blue processing receipt, committed reply and idle settlement. Pin or collapse the sidebar and repeat; no page refresh should be needed.

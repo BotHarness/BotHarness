@@ -352,6 +352,8 @@ DSH 失败的 `turn/end` 仍是执行事实权威；BotHarness 在所属 Orchest
 
 DSH SessionEvent 是 durable execution authority；BotHarness 不复制 tool call 或 assistant output 为第二套 Session fact。explicit Session Ownership 把 Session 归属到 PersonaBot 及 `orchestrator` / `assignment` root role，PersonaBot module 再把这些事实与 live liveness 折叠成一个可重建的 Activity Projection。Browser 首先经 Typert/API Gateway 查询 projection，随后消费带单调 revision 的 live update；revision 断档时重新查询，而不是由 Client 自己推导状态。
 
+PersonaBot 活动通过公开 `activitySnapshot` 查询与认证 `scope=activity` SSE stream 交付同一份 Host 拥有的快照（`generation`、单调 `revision`、每个 Bot 的聚合状态）。每次连接先发送完整 baseline，实际聚合状态改变后推送完整快照；重连无需重放第二套活动历史。Client 原子地向置顶、普通行、rail 头像及 DM 输入框应用同一快照，拒绝同 generation 内的旧 revision，并防止过期 roster 响应覆盖当前活动。退出 Bot mode 或隐藏页面时关闭活动连接。执行状态由显式 Session Ownership 和现有 DSH SessionEvent Projection 提供，不来自 roster 轮询或本地发送标记（#120/#536）。 Channel stream 建立连接时还补发已见 cursor 前最多 100 条消息的当前回执，补足 HTTP 快照与实时连接之间的窗口；不引入轮询或第二套 Admission 权威。
+
 application-defined `botharness/personabot/activity` Cordis Event 在 projection 改变后以 `emit` 发出，供 Host 内的 Live2D、3D 或其他 Plugin 同步。Orchestrator 活跃时负责呈现；当它明确 `waiting-on-assignment` 时，活动来源切换为 Assignment：同类 tool kind 使用对应 effect，多类并行回退到通用 `working`。waiting、blocked、approval 与 informational attention 单独投影，不进入可配置 priority。
 
 Tool activity notification 只广播 `toolKind`、可选 `toolName`、SessionEvent reference 与 Tool 显式声明的 `publicDetail`；完整 arguments/result 由受控 Capability 按引用读取。Channel output commit 后另发 PersonaBot output notification，TTS 与说话动画消费该 public output，而不是任意 Tool 参数或尚未提交的草稿。

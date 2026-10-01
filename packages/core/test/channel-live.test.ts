@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { createBotStateTracker } from '../src/state/bot-state.js';
 import type { ChannelMessage } from '../src/channels/channel.js';
 import {
   CHANNEL_STREAM_PATH,
@@ -36,6 +37,64 @@ afterEach(() => {
 });
 
 describe('Channel post-commit stream', () => {
+  it('restores processing receipts changed between the HTTP snapshot and stream connection', async () => {
+    const store = createChannelStore({ rootDir: root() });
+    const channel = store.createGroup({ name: 'Receipt gap', members: ['ada'] });
+    await store.appendMessage(channel.id, {
+      ...message('processing'),
+      deliveries: [{ botSlug: 'ada', state: 'running' }],
+    });
+    const hub = createChannelLiveHub(store);
+    hubs.push(hub);
+    const response = hub.open(
+      new Request(`http://localhost/api/botharness/stream?channelId=${channel.id}&after=1`),
+    );
+    const reader = response.body!.getReader();
+    await reader.read();
+    const baseline = new TextDecoder().decode((await reader.read()).value);
+    expect(baseline).toContain('event: channel/admission');
+    expect(baseline).toContain('"state":"running"');
+    await reader.cancel();
+  });
+
+  it('streams the actual Host activity immediately and on changes without a roster write', async () => {
+    const states = createBotStateTracker();
+    const activity = {
+      snapshot: () => ({
+        ...states.version(),
+        bots: [{ slug: 'ada', state: states.snapshot('ada').state }],
+      }),
+      onChange: (changed: () => void) =>
+        states.on((event) => {
+          if (event.type === 'aggregate-changed') changed();
+        }),
+    };
+    const hub = createChannelLiveHub(createChannelStore({ rootDir: root() }), activity);
+    hubs.push(hub);
+    const response = hub.open(new Request('http://localhost/api/botharness/stream?scope=activity'));
+    expect(response.status).toBe(200);
+    const reader = response.body!.getReader();
+    const read = async () => new TextDecoder().decode((await reader.read()).value);
+    expect(await read()).toContain('"state":"idle"');
+    states.setSessionState('ada', 'owned', 'thinking');
+    expect(await read()).toContain('"state":"thinking"');
+    states.setSessionState('ada', 'owned', 'working');
+    expect(await read()).toContain('"state":"working"');
+    states.setSessionState('ada', 'owned', 'done');
+    expect(await read()).toContain('"state":"idle"');
+    await reader.cancel();
+    states.setSessionState('ada', 'owned', 'thinking');
+    const reconnected = hub.open(
+      new Request('http://localhost/api/botharness/stream?scope=activity'),
+    );
+    const reconnectReader = reconnected.body!.getReader();
+    expect(new TextDecoder().decode((await reconnectReader.read()).value)).toContain(
+      '"state":"thinking"',
+    );
+    hub.close();
+    expect((await reconnectReader.read()).done).toBe(true);
+  });
+
   it('registers the full authenticated Connection Fetch pathname', () => {
     expect(CHANNEL_STREAM_PATH).toBe('/api/botharness/stream');
   });
