@@ -349,6 +349,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.humanIdentity({}));
   }
 
+  channelHumanNameSet(channelId: string, nickname: string | null) {
+    return unwrap(this.methods.channelHumanNameSet({ channelId, nickname }));
+  }
+
   humanNameSet(displayName: string | null) {
     return unwrap(this.methods.humanNameSet({ displayName }));
   }
@@ -737,6 +741,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channels',
   'humanIdentity',
   'humanNameSet',
+  'channelHumanNameSet',
   'channelDm',
   'channelCreate',
   'channelRename',

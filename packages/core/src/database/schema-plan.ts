@@ -1171,6 +1171,20 @@ const ORCHESTRATOR_WORKSPACE_WRITE_MIGRATION: SchemaMigration = {
   },
 };
 
+const HUMAN_CHANNEL_NICKNAME_MIGRATION: SchemaMigration = {
+  generation: 43,
+  module: 'messaging',
+  description: 'Retain explicit per-Channel Human nickname overrides',
+  migrate(database) {
+    database.exec(`CREATE TABLE channel_human_nicknames (
+      channel_id TEXT NOT NULL REFERENCES channel_records(channel_id) ON DELETE CASCADE,
+      human_id TEXT NOT NULL,
+      nickname TEXT NOT NULL,
+      PRIMARY KEY (channel_id, human_id)
+    );`);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1213,4 +1227,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   USAGE_RETENTION_MIGRATION,
   LOCAL_HUMAN_NAME_MIGRATION,
   ORCHESTRATOR_WORKSPACE_WRITE_MIGRATION,
+  HUMAN_CHANNEL_NICKNAME_MIGRATION,
 ]);

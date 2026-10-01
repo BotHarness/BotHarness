@@ -1,0 +1,30 @@
+{
+  "build": "after",
+  "modelSetupVerified": true,
+  "document": {
+    "down": 600,
+    "up": 400,
+    "nativeWheel": true
+  },
+  "nested": {
+    "down": 1112,
+    "up": 812,
+    "restored": 1112,
+    "documentY": 0,
+    "nativeWheel": true,
+    "confirmRevealed": true
+  },
+  "submission": {
+    "count": 1
+  },
+  "final": {
+    "currentRetained": true,
+    "ownedTabs": 1
+  },
+  "audit": {
+    "matchedAttempts": 5,
+    "ok": 5,
+    "error": 0,
+    "attributed": true
+  }
+}
