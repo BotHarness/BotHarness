@@ -1,0 +1,271 @@
+{
+  "bot": {
+    "slug": "bot-6cf63d079d3545bfa7148f5b0fed981d",
+    "displayName": "DM delivery bot-dm steer QA 1790875441442"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "sourceClass": "bot-dm",
+  "peerChannelId": "dm-bots-b1dc4b218e127bfbf8b460fafa71bfc5",
+  "senderProof": {
+    "bot": {
+      "slug": "bot-6fb76225e46d4d25a3480bd04b873999",
+      "displayName": "Peer sender steer QA 1790875442289"
+    },
+    "sessionId": "botharness-2fd5ccc3-17e6-4dd1-90c3-689d377ed9ca",
+    "botDmSendCalls": 1,
+    "successfulResult": true
+  },
+  "sourceMessage": {
+    "id": "bot-dd27e76ee12d1237be4cc9ff2c04ea1d87748a6323723f2744af55bef3074b96",
+    "author": {
+      "kind": "bot",
+      "slug": "bot-6fb76225e46d4d25a3480bd04b873999"
+    },
+    "botCausation": {
+      "rootSourceEventId": "00ce4dbb-6845-49d1-b052-4d3a8dc4ca8f",
+      "parentSourceEventId": "00ce4dbb-6845-49d1-b052-4d3a8dc4ca8f",
+      "hop": 1
+    }
+  },
+  "peerReplyCount": 0,
+  "markerReplyId": "a692640f-1694-4420-863d-705c0ee7d010",
+  "finalPeerDelivery": [
+    {
+      "botSlug": "bot-6cf63d079d3545bfa7148f5b0fed981d",
+      "state": "handled"
+    }
+  ],
+  "mode": "steer",
+  "policy": {
+    "sourceClass": "bot-dm",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T17:24:08.267Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  },
+  "sessionId": "botharness-e1551e47-2c52-4a34-b873-ef3b0884969a",
+  "firstMessageId": "734dee1a-3652-4aa8-b0d8-f993de7e2395",
+  "secondMessageId": "bot-dd27e76ee12d1237be4cc9ff2c04ea1d87748a6323723f2744af55bef3074b96",
+  "whileHeld": {
+    "turnStarts": 1,
+    "turnEnds": 0,
+    "secondDelivery": [
+      {
+        "botSlug": "bot-6cf63d079d3545bfa7148f5b0fed981d",
+        "state": "running"
+      }
+    ],
+    "markerInjection": {
+      "seq": 21,
+      "target": "next-step"
+    }
+  },
+  "nativeTurns": {
+    "starts": [4],
+    "ends": [43]
+  },
+  "proactiveReadCalls": 0,
+  "eventTypes": [
+    {
+      "seq": 0,
+      "type": "sandbox/mode"
+    },
+    {
+      "seq": 1,
+      "type": "approval/policy"
+    },
+    {
+      "seq": 2,
+      "type": "permission/preset"
+    },
+    {
+      "seq": 3,
+      "type": "agent/inbox/spliced"
+    },
+    {
+      "seq": 4,
+      "type": "turn/start"
+    },
+    {
+      "seq": 5,
+      "type": "agent/inbox/spliced"
+    },
+    {
+      "seq": 6,
+      "type": "step/start"
+    },
+    {
+      "seq": 7,
+      "type": "system/message"
+    },
+    {
+      "seq": 8,
+      "type": "user/message"
+    },
+    {
+      "seq": 9,
+      "type": "user/message"
+    },
+    {
+      "seq": 10,
+      "type": "user/message"
+    },
+    {
+      "seq": 11,
+      "type": "request/header"
+    },
+    {
+      "seq": 12,
+      "type": "request/context"
+    },
+    {
+      "seq": 13,
+      "type": "session/title"
+    },
+    {
+      "seq": 14,
+      "type": "session/title-llm-request"
+    },
+    {
+      "seq": 15,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 16,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 17,
+      "type": "session/title"
+    },
+    {
+      "seq": 18,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 19,
+      "type": "tool/call"
+    },
+    {
+      "seq": 20,
+      "type": "approval/asked"
+    },
+    {
+      "seq": 21,
+      "type": "agent/inbox/spliced"
+    },
+    {
+      "seq": 22,
+      "type": "approval/decided"
+    },
+    {
+      "seq": 23,
+      "type": "tool/result"
+    },
+    {
+      "seq": 24,
+      "type": "step/end"
+    },
+    {
+      "seq": 25,
+      "type": "agent/inbox/spliced"
+    },
+    {
+      "seq": 26,
+      "type": "step/start"
+    },
+    {
+      "seq": 27,
+      "type": "user/message"
+    },
+    {
+      "seq": 28,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 29,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 30,
+      "type": "tool/call"
+    },
+    {
+      "seq": 31,
+      "type": "tool/result"
+    },
+    {
+      "seq": 32,
+      "type": "step/end"
+    },
+    {
+      "seq": 33,
+      "type": "step/start"
+    },
+    {
+      "seq": 34,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 35,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 36,
+      "type": "tool/call"
+    },
+    {
+      "seq": 37,
+      "type": "tool/result"
+    },
+    {
+      "seq": 38,
+      "type": "step/end"
+    },
+    {
+      "seq": 39,
+      "type": "step/start"
+    },
+    {
+      "seq": 40,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 41,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 42,
+      "type": "step/end"
+    },
+    {
+      "seq": 43,
+      "type": "turn/end"
+    }
+  ],
+  "replies": [
+    {
+      "id": "e9a3cfdd-1da1-45e4-a9f5-cfabde3f05a7",
+      "body": "Delivery first confirmed"
+    },
+    {
+      "id": "a692640f-1694-4420-863d-705c0ee7d010",
+      "body": "Delivery QA observation — Marker received in this turn's incoming context (from bot-dm dm-bots-b1dc4b218e127bfbf8b460fafa71bfc5): \"Peer second confirmed bot-dm steer\"."
+    },
+    {
+      "id": "cfcf9a51-56da-43c8-b0e0-a8f2276b3e05",
+      "body": "请求批准执行 bash"
+    }
+  ],
+  "finalState": "idle"
+}

@@ -1,0 +1,92 @@
+{
+  "mainRevision": "51f992fa83f1909d1c208a538cf3cb060498a8a3",
+  "date": "2026-10-01",
+  "dsh": "0.2.0-rc.1",
+  "providerSource": "d98a8330859b0daf5c9e88b3f9edc05f127fc321",
+  "providerRuntimeSha256": "d53e2d4363243f112f85311e4646c2fda3493bb02331e723f87903d22a901c3d",
+  "tools": [
+    {
+      "turn": 9,
+      "tool": "bridge_context",
+      "arguments": {
+        "scope": "group",
+        "source_event_id": "im-3ef91833490a110af4f214ed528fc96cc0859b05d30886210aa6ddf0df33771e"
+      },
+      "at": "2026-10-01T12:32:27.774000+00:00",
+      "result": {
+        "scope": "group",
+        "omitted": 11,
+        "incomplete": true,
+        "coverage": "provider-visible-human-text",
+        "messageCount": 9,
+        "messages": [
+          {
+            "sourceEventId": "im-3ef91833490a110af4f214ed528fc96cc0859b05d30886210aa6ddf0df33771e",
+            "messageId": "om_x100b64d1634fd4a0eebfe9781707ad2",
+            "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+            "senderName": "MUFENG YANG",
+            "mentions": [
+              {
+                "id": "ou_9f3c8cf77e75e1fc806d5f5aa3f24a13",
+                "key": "@_user_1",
+                "name": "MUFENG YANG的Lark CLI"
+              }
+            ],
+            "at": "2026-10-01T12:32:24.183Z",
+            "text": "@_user_1  BH612-NAMES-MERGED-07 Call bridge_context scope group on this Inbox source. Find BH612-NAMES-CTX-05. Reply via bridge_reply to this source with BH612-NAMES-MERGED-OK BIRCH plus its returned senderName, senderId, messageId, sourceEventId and the mention name/ID. Do not create a local DM or Assignment."
+          },
+          {
+            "sourceEventId": "im-c923cb056e696a172b55a0d360cc8595c4639a4eb8cc5864d75d3f9902447718",
+            "messageId": "om_x100b64d0e0392ca0eec22262199770f",
+            "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+            "senderName": "MUFENG YANG",
+            "mentions": [
+              {
+                "id": "ou_9f3c8cf77e75e1fc806d5f5aa3f24a13",
+                "key": "@_user_1",
+                "name": "MUFENG YANG的Lark CLI"
+              }
+            ],
+            "at": "2026-10-01T11:58:39.331Z",
+            "text": "@_user_1  BH612-NAMES-GROUP-05 Call bridge_context scope nearby on this Inbox source. Find BH612-NAMES-CTX-05. Reply via bridge_reply to this original source with BH612-NAMES-GROUP-OK BIRCH, then the context senderName, senderId, messageId and sourceEventId returned by the tool; also report the mention name/ID from this request. Do not guess names, do not create a local DM or Assignment."
+          },
+          {
+            "sourceEventId": "im-30412e591d20681e82a8c8d16774859ebec90a28e95e531a4414fef00da32ada",
+            "messageId": "om_x100b64d0e3afd8a0eeb4f1c4fb146a0",
+            "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+            "senderName": "MUFENG YANG",
+            "at": "2026-10-01T11:58:14.176Z",
+            "text": "BH612-NAMES-CTX-05 Context code BIRCH. Ordinary context only."
+          }
+        ]
+      }
+    },
+    {
+      "turn": 9,
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-3ef91833490a110af4f214ed528fc96cc0859b05d30886210aa6ddf0df33771e",
+        "text": "BH612-NAMES-MERGED-OK BIRCH\nContext (BH612-NAMES-CTX-05) senderName: MUFENG YANG; senderId: ou_46c34fea8efea425267630ebd1d9d54b; messageId: om_x100b64d0e3afd8a0eeb4f1c4fb146a0; sourceEventId: im-30412e591d20681e82a8c8d16774859ebec90a28e95e531a4414fef00da32ada\nMention in this request: name MUFENG YANG的Lark CLI; id ou_9f3c8cf77e75e1fc806d5f5aa3f24a13"
+      },
+      "at": "2026-10-01T12:32:33.257000+00:00",
+      "result": {
+        "sourceEventId": "im-3ef91833490a110af4f214ed528fc96cc0859b05d30886210aa6ddf0df33771e",
+        "text": "BH612-NAMES-MERGED-OK BIRCH\nContext (BH612-NAMES-CTX-05) senderName: MUFENG YANG; senderId: ou_46c34fea8efea425267630ebd1d9d54b; messageId: om_x100b64d0e3afd8a0eeb4f1c4fb146a0; sourceEventId: im-30412e591d20681e82a8c8d16774859ebec90a28e95e531a4414fef00da32ada\nMention in this request: name MUFENG YANG的Lark CLI; id ou_9f3c8cf77e75e1fc806d5f5aa3f24a13",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T12:32:34.011Z",
+        "settledAt": "2026-10-01T12:32:36.361Z"
+      }
+    }
+  ],
+  "canonicalSources": [
+    {
+      "source_event_id": "im-3ef91833490a110af4f214ed528fc96cc0859b05d30886210aa6ddf0df33771e",
+      "body": "@_user_1  BH612-NAMES-MERGED-07 Call bridge_context scope group on this Inbox source. Find BH612-NAMES-CTX-05. Reply via bridge_reply to this source with BH612-NAMES-MERGED-OK BIRCH plus its returned senderName, senderId, messageId, sourceEventId and the mention name/ID. Do not create a local DM or Assignment.",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T12:32:25.460Z",
+      "handled_at": "2026-10-01T12:32:38.225Z",
+      "placements": 0
+    }
+  ],
+  "assignments": 0
+}
