@@ -1728,11 +1728,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'source_attention_set',
           description:
-            "Set only this PersonaBot's source default. Matrix: omitted sourceClass or assignment-report → conditional or immediate, no digest parameters; conditional wakes for non-progress reports or expected replies. group-ordinary → immediate, digest, mentions or silent; only digest accepts optional integer digestCount 1–100 and digestIntervalSeconds 1–3600 (omit to preserve effective values; built-in 5/30). All other combinations fail without a policy write. Per-Channel overrides win, direct addresses still arrive, and only future Admissions change. Returns effective rule, revision, last actor/time and seven-day wake count.",
+            "Set only this PersonaBot's source default. Matrix: human-dm, bot-dm or group-mention → wake immediate and required delivery steer (inject at the next safe step of an active turn, or start a turn when idle) or turn (queue a separate turn), no digest parameters. Omitted sourceClass or assignment-report → conditional or immediate, no digest parameters; conditional wakes for non-progress reports or expected replies. group-ordinary → immediate, digest, mentions or silent; only digest accepts optional integer digestCount 1–100 and digestIntervalSeconds 1–3600 (omit to preserve effective values; built-in 5/30). Delivery is rejected for assignment-report and group-ordinary. All other combinations fail without a policy write. Per-Channel overrides win, direct addresses still arrive, and delivery is evaluated when the Host dispatches a wake; admitted events retain their original wake/revision. Returns effective rule, revision, last actor/time and seven-day wake count.",
           parameters: {
             sourceClass: {
               type: 'string',
-              enum: ['assignment-report', 'group-ordinary'],
+              enum: ['assignment-report', 'group-ordinary', 'human-dm', 'bot-dm', 'group-mention'],
               description:
                 'Omit for assignment-report; group-ordinary changes its source default, not a Channel override.',
             },
@@ -1740,6 +1740,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               type: 'string',
               required: true,
               enum: ['conditional', 'immediate', 'digest', 'mentions', 'silent'],
+            },
+            delivery: {
+              type: 'string',
+              enum: ['steer', 'turn'],
+              description:
+                'Required only for human-dm, bot-dm or group-mention with wake immediate.',
             },
             digestCount: {
               type: 'integer',
@@ -1760,6 +1766,22 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator' || active.run.sourcePolicy === undefined)
               throw new Error('source_attention_set: Orchestrator run is unavailable');
+            if (
+              args.sourceClass === 'human-dm' ||
+              args.sourceClass === 'bot-dm' ||
+              args.sourceClass === 'group-mention'
+            ) {
+              if (args.wake !== 'immediate')
+                throw new Error('Direct sources must wake immediately');
+              if (args.delivery !== 'steer' && args.delivery !== 'turn')
+                throw new Error('Direct sources require delivery steer or turn');
+              if (args.digestCount !== undefined || args.digestIntervalSeconds !== undefined)
+                throw new Error('Direct sources have no digest parameters');
+              return JSON.stringify(
+                active.run.sourcePolicy.setImmediateDelivery(args.sourceClass, args.delivery),
+              );
+            }
+            if (args.delivery !== undefined) throw new Error('Only direct sources accept delivery');
             if (args.sourceClass === undefined || args.sourceClass === 'assignment-report') {
               if (args.wake !== 'conditional' && args.wake !== 'immediate')
                 throw new Error('Assignment report wake must be conditional or immediate');
@@ -1805,11 +1827,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'source_attention_reset',
           description:
-            "Reset only this PersonaBot's source default: omitted sourceClass or assignment-report → conditional, no digest; group-ordinary → digest, count 5, interval 30 seconds. Returns the effective rule with a new audited revision, last actor/time and seven-day wake count. Existing Channel overrides and previous Admissions stay intact; other source classes cannot be reset here.",
+            "Reset only this PersonaBot's source default: human-dm, bot-dm or group-mention → immediate, delivery steer; omitted sourceClass or assignment-report → conditional, no digest; group-ordinary → digest, count 5, interval 30 seconds. Returns the effective rule with a new audited revision, last actor/time and seven-day wake count. Existing Channel overrides and previous Admissions stay intact; other source classes cannot be reset here.",
           parameters: {
             sourceClass: {
               type: 'string',
-              enum: ['assignment-report', 'group-ordinary'],
+              enum: ['assignment-report', 'group-ordinary', 'human-dm', 'bot-dm', 'group-mention'],
               description:
                 'Omit for assignment-report; group-ordinary changes its source default, not a Channel override.',
             },
@@ -1825,9 +1847,20 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (
               args.sourceClass !== undefined &&
               args.sourceClass !== 'assignment-report' &&
-              args.sourceClass !== 'group-ordinary'
+              args.sourceClass !== 'group-ordinary' &&
+              args.sourceClass !== 'human-dm' &&
+              args.sourceClass !== 'bot-dm' &&
+              args.sourceClass !== 'group-mention'
             )
               throw new Error('Source class is not editable');
+            if (
+              args.sourceClass === 'human-dm' ||
+              args.sourceClass === 'bot-dm' ||
+              args.sourceClass === 'group-mention'
+            )
+              return JSON.stringify(
+                active.run.sourcePolicy.resetImmediateDelivery(args.sourceClass),
+              );
             return JSON.stringify(
               args.sourceClass === 'group-ordinary'
                 ? active.run.sourcePolicy.resetGroupOrdinary()

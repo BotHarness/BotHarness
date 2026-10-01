@@ -230,6 +230,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- PersonaBot Orchestrators can set and restore Human DM, Bot DM and Group mention delivery through the existing attention tools; changes keep immediate admission and carry Bot-authored revisions visible in Profile ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
+
 - Fixed concurrent first use by several PersonaBots sharing a Browser profile: they now wait for one Chrome startup, and a failed startup permits a fresh retry ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
 
 - Fixed recovery after a Human closes a Bot Browser tab: missing CDP Sessions now clear the closed current tab and return an instruction to select or open another owned tab ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
