@@ -5,9 +5,9 @@
   },
   "geometry": {
     "chip": {
-      "x": 162.609375,
+      "x": 172.609375,
       "y": 169,
-      "width": 67.390625,
+      "width": 57.390625,
       "height": 26
     },
     "bot": {
@@ -37,8 +37,18 @@
       "y": 202,
       "width": 36,
       "height": 36
-    }
+    },
+    "dot": {
+      "x": 37,
+      "y": 205,
+      "width": 6,
+      "height": 6
+    },
+    "dotColor": "rgb(236, 19, 19)"
   },
+  "expandedBadgeOnly": true,
+  "collapsedTopRightDotOnly": true,
+  "collapsedModeOffHiddenEvenWithUnread": true,
   "rememberedInboxAcrossDMAndReload": true,
   "overviewRestoredFromNativeModeByKeyboard": true,
   "settingsIndependent": true

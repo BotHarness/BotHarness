@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- Activity Center uses a compact unread chip beside Bot mode settings, switches to an aligned icon below Bot mode when collapsed, and remembers the last Overview or Inbox tab across chats and reload; unread totals and pending-action hints stay independent ([#679](https://github.com/BotHarness/BotHarness/issues/679)).
+- Activity Center uses a compact unread chip beside Bot mode settings, switches to an aligned icon below Bot mode when collapsed, and remembers the last Overview or Inbox tab across chats and reload; expanded shows only the unread badge (hover or focus reveals an empty entry only in Bot mode) and collapsed shows its icon only in Bot mode, using a top-right red notification dot ([#679](https://github.com/BotHarness/BotHarness/issues/679)).
 
 - Activity Center opens a cross-Bot Overview with the canonical Human action count, current Bot status and executing Orchestrator/Assignment Sessions; Bot cards open DMs and Session rows switch to the exact native DSH Session ([#541](https://github.com/BotHarness/BotHarness/issues/541)).
 

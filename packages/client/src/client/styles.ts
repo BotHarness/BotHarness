@@ -34,6 +34,7 @@ export const CSS =
      Bot mode button (12px, DSH 0.2.0-rc.1). */
   --bh-overview-radius-card: 8px;
   --bh-entry-radius-rail: 12px;
+  --bh-entry-notification: var(--dsw-alias-state-error-primary);
   --bh-overview-radius-control: 6px;
   --bh-overview-label: var(--dsw-alias-label-primary);
   --bh-overview-muted: var(--dsw-alias-label-secondary);
@@ -4840,6 +4841,9 @@ nav:has(> .bh-panel-activity[data-wide='true']) > button:has(.bh-panel-glyph) { 
   background: var(--bh-overview-bg);
   cursor: pointer;
 }
+.bh-panel-activity[data-wide='true'][data-unread='false'] { opacity: 0; pointer-events: none; }
+button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-wide='true'][data-unread='false'][data-active='true'],
+.bh-panel-activity[data-wide='true'][data-unread='false'][data-active='true']:is(:hover, :focus-visible) { opacity: 1; pointer-events: auto; }
 .bh-panel-activity:hover { background: var(--bh-hover); color: var(--bh-overview-label); }
 .bh-panel-activity[aria-current='page'] { background: var(--bh-selected); color: var(--bh-overview-label); }
 .bh-panel-activity:focus-visible { outline: 2px solid var(--bh-overview-label); outline-offset: 2px; }
@@ -4852,12 +4856,14 @@ nav:has(> .bh-panel-activity[data-wide='true']) > button:has(.bh-panel-glyph) { 
   font-variant-numeric: tabular-nums;
   color: var(--bh-overview-label);
 }
-.bh-human-inbox-action-dot {
-  flex: none;
+.bh-human-inbox-notification-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--bh-accent);
+  background: var(--bh-entry-notification);
 }
 .bh-panel-activity[data-wide='false'] {
   justify-self: start;
@@ -4870,18 +4876,9 @@ nav:has(> .bh-panel-activity[data-wide='true']) > button:has(.bh-panel-glyph) { 
   border-radius: var(--bh-entry-radius-rail);
   background: transparent;
 }
+.bh-panel-activity[data-wide='false'][data-active='false'] { display: none; }
 .bh-panel-activity[data-wide='false']:hover { background: var(--bh-hover); }
 .bh-panel-activity[data-wide='false'][aria-current='page'] { background: var(--bh-selected); }
-.bh-panel-activity[data-wide='false'] .bh-human-inbox-count {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  padding: 0 3px;
-  border-radius: var(--bh-memory-radius-count);
-  font-size: 10px;
-  background: var(--bh-overview-bg);
-}
-.bh-panel-activity[data-wide='false'] .bh-human-inbox-action-dot { position: absolute; right: 3px; bottom: 3px; }
 .bh-human-inbox {
   overflow: auto;
   padding: 28px min(6vw, 64px);

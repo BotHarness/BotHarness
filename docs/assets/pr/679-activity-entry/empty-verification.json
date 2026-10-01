@@ -1,0 +1,14 @@
+{
+  "status": {
+    "unreadCount": 0,
+    "hasAction": false
+  },
+  "hiddenAtRest": true,
+  "modeOffHoverDoesNotReveal": true,
+  "modeOffHiddenEntryNotTabbable": true,
+  "modeOffCollapsedEntryHidden": true,
+  "revealedByBotHover": true,
+  "staysClickableAcrossPointerTransfer": true,
+  "revealedByKeyboardFocus": true,
+  "noDuplicateIndicators": true
+}

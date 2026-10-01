@@ -74,7 +74,7 @@ describe('bot panel entry', () => {
   });
 });
 
-it('opens Activity Center independently of native mode, caps the badge and retains zero-unread actions', async () => {
+it('keeps notification states and active-mode navigation distinct', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const nav = document.createElement('nav');
   const native = document.createElement('button');
@@ -85,24 +85,25 @@ it('opens Activity Center independently of native mode, caps the badge and retai
   const settings = vi.fn();
   const entry = createBotPanelEntry(exit, open, async () => undefined);
   const root = createRoot(native);
+  const render = async (size: number, active: boolean) => {
+    await act(async () => {
+      root.render(
+        createElement(entry, { size, active, useBotModePrefs, openSettings: settings, t }),
+      );
+    });
+  };
   try {
     await act(async () => {
       store.setHumanInbox({ unreadCount: 126, hasAction: true });
       store.select({ kind: 'inbox' });
-      root.render(
-        createElement(entry, {
-          size: 16,
-          active: true,
-          useBotModePrefs,
-          openSettings: settings,
-          t,
-        }),
-      );
     });
+    await render(16, true);
     const chip = nav.querySelector<HTMLButtonElement>('.bh-panel-activity')!;
     expect(chip.parentElement).toBe(nav);
+    expect(chip.dataset['unread']).toBe('true');
     expect(chip.querySelector('.bh-human-inbox-count')?.textContent?.trim()).toBe('99+');
     expect(chip.getAttribute('aria-label')).toContain('126');
+    expect(chip.querySelector('.bh-human-inbox-notification-dot')).toBeNull();
     chip.click();
     expect(open).toHaveBeenCalledOnce();
     expect(exit).not.toHaveBeenCalled();
@@ -113,22 +114,42 @@ it('opens Activity Center independently of native mode, caps the badge and retai
     expect(exit).toHaveBeenCalledOnce();
     native.querySelector<HTMLElement>('.bh-panel-glyph')!.click();
     expect(exit).toHaveBeenCalledTimes(2);
+    await render(24, true);
+    expect(chip.querySelector('.bh-human-inbox-count')).toBeNull();
+    expect(chip.querySelector('.bh-human-inbox-notification-dot')).not.toBeNull();
+    expect(chip.getAttribute('aria-label')).toContain('126');
+    await render(24, false);
+    expect(chip.tabIndex).toBe(-1);
+    expect(chip.getAttribute('aria-hidden')).toBe('true');
+    expect(chip.querySelector('.bh-human-inbox-notification-dot')).toBeNull();
+    await render(16, false);
+    expect(chip.querySelector('.bh-human-inbox-count')?.textContent?.trim()).toBe('99+');
+    expect(chip.tabIndex).toBe(0);
+    expect(chip.hasAttribute('aria-hidden')).toBe(false);
+    await render(24, true);
+    await act(async () => {
+      store.setHumanInbox({ unreadCount: 0, hasAction: false });
+    });
+    expect(chip.querySelector('.bh-human-inbox-notification-dot')).toBeNull();
     await act(async () => {
       store.setHumanInbox({ unreadCount: 0, hasAction: true });
-      root.render(
-        createElement(entry, {
-          size: 24,
-          active: false,
-          useBotModePrefs,
-          openSettings: settings,
-          t,
-        }),
-      );
     });
+    await render(16, true);
+    expect(chip.querySelector('.bh-human-inbox-count')).toBeNull();
+    expect(chip.querySelector('.bh-human-inbox-notification-dot')).toBeNull();
+    expect(chip.getAttribute('aria-label')).toContain(zhTranslate('humanInbox.action'));
+    expect(chip.tabIndex).toBe(0);
+    await render(16, false);
+    expect(chip.dataset['active']).toBe('false');
+    expect(chip.tabIndex).toBe(-1);
+    expect(chip.getAttribute('aria-hidden')).toBe('true');
+    await render(24, true);
     expect(nav.querySelectorAll('.bh-panel-activity')).toHaveLength(1);
     expect(chip.dataset['wide']).toBe('false');
+    expect(chip.tabIndex).toBe(0);
+    expect(chip.hasAttribute('aria-hidden')).toBe(false);
     expect(chip.querySelector('.bh-human-inbox-count')).toBeNull();
-    expect(chip.querySelector('.bh-human-inbox-action-dot')).not.toBeNull();
+    expect(chip.querySelector('.bh-human-inbox-notification-dot')).not.toBeNull();
     chip.click();
     expect(open).toHaveBeenCalledTimes(2);
   } finally {

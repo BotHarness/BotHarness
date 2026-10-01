@@ -136,6 +136,7 @@ export function BotPanelIcon({
   const [row, setRow] = useState<HTMLElement | null>(null);
   const wide = size === 16;
   const state = useClientState();
+  const entryHidden = !active && (!wide || state.humanInbox.unreadCount === 0);
   const panelList = row?.parentElement;
   const entryLabel = [
     t('activityCenter.title'),
@@ -196,6 +197,10 @@ export function BotPanelIcon({
               type="button"
               className="bh-root bh-human-inbox-entry bh-panel-activity"
               data-wide={wide ? 'true' : 'false'}
+              data-unread={state.humanInbox.unreadCount > 0 ? 'true' : 'false'}
+              data-active={active ? 'true' : 'false'}
+              tabIndex={entryHidden ? -1 : 0}
+              aria-hidden={entryHidden ? true : undefined}
               ref={entryMount}
               style={{ gridRow: Number(row.style.gridRow) + (wide ? 0 : 1) }}
               aria-label={entryLabel}
@@ -210,13 +215,15 @@ export function BotPanelIcon({
               }}
             >
               <InboxIcon size={wide ? 16 : 18} />
-              {state.humanInbox.unreadCount > 0 ? (
+              {wide && state.humanInbox.unreadCount > 0 ? (
                 <span className="bh-human-inbox-count">
                   {state.humanInbox.unreadCount > 99 ? '99+' : state.humanInbox.unreadCount}
                 </span>
               ) : null}
-              {state.humanInbox.hasAction ? (
-                <span className="bh-human-inbox-action-dot" aria-hidden="true" />
+              {!wide &&
+              active &&
+              (state.humanInbox.unreadCount > 0 || state.humanInbox.hasAction) ? (
+                <span className="bh-human-inbox-notification-dot" aria-hidden="true" />
               ) : null}
             </button>,
             panelList,
