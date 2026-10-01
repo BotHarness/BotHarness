@@ -15,6 +15,8 @@
 
 ### Added
 
+- PersonaBot 可通过原生文件工具读取指定收到的原件，并在 Human 审批下显式编辑；原消息下载与共享引用展示当前内容，独立上传和默认工作副本保持独立（[#633](https://github.com/BotHarness/BotHarness/issues/633)，[文件指南](docs/file-open.md)）。
+
 - Human 参与的 DM 与群聊头部菜单支持“我的昵称”；各 Channel 独立设置，清除后继承插件默认名，历史提及、Inbox 与 Bot 上下文使用来源 Channel 的当前称呼，不改变身份或注意力（[#622](https://github.com/BotHarness/BotHarness/issues/622)）。
 
 - PersonaBot 用量新增实际模型／提供商与执行类别筛选，独立展示保留的累计用量，图表默认近七天，并明确显示查询新鲜度或失败状态 ([#507](https://github.com/BotHarness/BotHarness/issues/507)).

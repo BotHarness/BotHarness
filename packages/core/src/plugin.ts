@@ -602,7 +602,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       const agent = execution.agent;
       if (agent === undefined || core.ownership.resolve(agent.session.id) === undefined)
         return next();
-      if (!requiresHumanToolApproval(execution.name)) return next();
+      if (!requiresHumanToolApproval(execution.name, execution.arguments)) return next();
       if (isSafeMemoryDirectoryListing(core, agent.session, execution.name, execution.arguments))
         return next();
 
@@ -702,7 +702,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           agent,
           toolName: execution.name,
           callId: execution.callId,
-          reason: 'This tool call may access files outside the authorized folder.',
+          reason:
+            execution.name === 'channel_attachment_open'
+              ? 'This PersonaBot wants to edit the selected original attachment. All references to this file will show its current contents.'
+              : 'This tool call may access files outside the authorized folder.',
           signal: execution.signal,
         });
         if (outcome !== 'allowed-once') {
