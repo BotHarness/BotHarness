@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Humans can answer a live native Bot question inside Human Inbox using the same options or custom input as its source DM card; answers resume the original request once, refresh resolved or stale actions, and preserve other Bots independently ([#551](https://github.com/BotHarness/BotHarness/issues/551)).
+
 - Humans can inspect a live tool request and approve or reject it directly in Human Inbox, with expandable source messages and exact navigation. Decisions use the source DM command, remove the resolved action while leaving other Bots independent, and refresh stale requests ([#550](https://github.com/BotHarness/BotHarness/issues/550)).
 - A PersonaBot can read a specified received original through native file tools and explicitly edit it with Human approval; original-message downloads and shared references show current contents, while independent uploads and default working copies remain separate ([#633](https://github.com/BotHarness/BotHarness/issues/633), [file guide](docs/file-open.md)).
 
