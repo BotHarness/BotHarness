@@ -267,6 +267,9 @@ function stubActions(): BridgeActions {
     revokeToolApprovalRule: vi.fn(async () => undefined),
     toolApprovalStatus: vi.fn(async () => 'expired' as const),
     decideToolApproval: vi.fn(async () => undefined),
+    setWorkspaceGrantWrite: vi.fn(
+      async (_slug, _id, enabled) => ({ id: 'grant-1', orchestratorWrite: enabled }) as never,
+    ),
     revokeWorkspaceGrant: vi.fn(async () => ({
       id: 'grant-1',
       path: '/project',

@@ -42,7 +42,7 @@ function canonicalTarget(path: string): string | undefined {
   }
 }
 
-function currentRoots(core: GrantCore, session: Session, kind: AccessKind): string[] {
+export function currentRoots(core: GrantCore, session: Session, kind: AccessKind): string[] {
   let owner = core.ownership.resolve(session.id);
   if (owner === undefined) return [];
   const seen = new Set<string>();
@@ -56,13 +56,15 @@ function currentRoots(core: GrantCore, session: Session, kind: AccessKind): stri
   if (owner.rootRole === 'orchestrator') {
     const memory = core.registry.memoryDirFor(owner.botSlug);
     if (memory === undefined) return [];
-    if (kind === 'write') return [memory];
     const active = core.grants
       .list(owner.botSlug)
       .filter((grant) => grant.revokedAt === undefined)
       .flatMap((grant) => {
         try {
-          return [core.grants.requireActive(owner.botSlug, grant.id).workspacePath];
+          const current = core.grants.requireActive(owner.botSlug, grant.id);
+          return kind === 'read' || current.orchestratorWrite === true
+            ? [current.workspacePath]
+            : [];
         } catch {
           return [];
         }
@@ -125,4 +127,40 @@ export function nativeFileToolDenial(
     } catch {}
   }
   return "Path is outside this Session's authorized workspace";
+}
+
+export function nativeExecutionRoot(
+  core: GrantCore,
+  session: Session,
+  name: string,
+  args: unknown,
+): string {
+  const input = typeof args === 'object' && args !== null ? (args as Record<string, unknown>) : {};
+  const request =
+    name === 'bash'
+      ? { path: typeof input.workdir === 'string' ? input.workdir : '.', kind: 'write' as const }
+      : nativePath(name, args);
+  if (request === undefined || session.header.cwd === undefined)
+    throw new Error('BotHarness requires an authorized execution path');
+  const target = canonicalTarget(resolve(session.header.cwd, request.path));
+  if (target !== undefined) {
+    for (const root of currentRoots(core, session, request.kind)) {
+      try {
+        if (realpathSync(root) === resolve(root) && within(root, target)) return root;
+      } catch {}
+    }
+  }
+  throw new Error("Path is outside this Session's authorized workspace");
+}
+
+export function authorizedPathRoot(roots: readonly string[], path: string): string | undefined {
+  const target = canonicalTarget(path);
+  if (target === undefined) return undefined;
+  return roots.find((root) => {
+    try {
+      return realpathSync(root) === resolve(root) && within(root, target);
+    } catch {
+      return false;
+    }
+  });
 }

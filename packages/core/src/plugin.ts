@@ -10,6 +10,8 @@ import type {} from '@deepseek-ai/dsh-tools';
 import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
 import Schema from '@deepseek-ai/schemastery';
 
+import { installOrchestratorFileTools } from './workspaces/orchestrator-file-tools.js';
+import { nativeExecutionRoot } from './workspaces/grant-native-tools.js';
 import { createAttachmentStore, type AttachmentStore } from './attachments/store.js';
 import { createMemoryFileHttp, MEMORY_FILE_DOWNLOAD_PATH } from './memory/file-http.js';
 import {
@@ -465,6 +467,13 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,
     publishDraft: (event) => publishDraft(event),
     onAgentSetup: (agentCtx, agent, info) => core.runBotAgentSetups(agentCtx, agent, info),
+    onOrchestratorFileSetup: (agentCtx, agent) =>
+      installOrchestratorFileTools(
+        agentCtx,
+        agent,
+        ctx.get('agentPresets') as DshAgentPresetHost | undefined,
+        (name, args) => nativeExecutionRoot(core, agent.session, name, args),
+      ),
     authorizeBorrow: (agent, role) => {
       const owner = core.ownership.resolve(agent.session.id);
       if (owner?.rootRole !== role) throw new Error('BotHarness Agent role mismatch');
@@ -565,7 +574,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       const activeIds = core.grants
         .list(owner.botSlug)
         .filter((grant) => grant.revokedAt === undefined)
-        .map((grant) => grant.id)
+        .map((grant) => `${grant.id}:${grant.writeRevision ?? 0}`)
         .sort();
       return JSON.stringify(['orchestrator', cwd, activeIds]);
     },
