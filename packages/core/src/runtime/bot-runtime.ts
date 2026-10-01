@@ -190,6 +190,11 @@ export interface OrchestratorAgentRun {
       digestIntervalSeconds: number,
     ): BotSourcePolicy;
     resetGroupOrdinary(): BotSourcePolicy;
+    setImmediateDelivery(
+      sourceClass: 'human-dm' | 'bot-dm' | 'group-mention',
+      delivery: 'steer' | 'turn',
+    ): BotSourcePolicy;
+    resetImmediateDelivery(sourceClass: 'human-dm' | 'bot-dm' | 'group-mention'): BotSourcePolicy;
   };
   assignments: OrchestratorAssignmentAccess;
   memory?: {
@@ -2453,6 +2458,20 @@ class BotRuntimeImplementation implements BotRuntime {
               digestIntervalSeconds,
               { kind: 'bot', botSlug: bot.slug },
             );
+          },
+          setImmediateDelivery: (sourceClass, delivery) => {
+            markSideEffect();
+            return this.#sourcePolicy.setImmediateDelivery(bot.slug, sourceClass, delivery, {
+              kind: 'bot',
+              botSlug: bot.slug,
+            });
+          },
+          resetImmediateDelivery: (sourceClass) => {
+            markSideEffect();
+            return this.#sourcePolicy.resetImmediateDelivery(bot.slug, sourceClass, {
+              kind: 'bot',
+              botSlug: bot.slug,
+            });
           },
           resetGroupOrdinary: () => {
             markSideEffect();
