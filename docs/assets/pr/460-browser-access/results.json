@@ -8,7 +8,6 @@
   "navigationInvalidatesRefs": true,
   "stoppedBrowserReadable": true,
   "revokedToolsAbsent": true,
-  "settledAfterRevocationResponseMs": 0,
   "auditAttributedAndRedacted": true,
   "pendingApprovalCancelled": true,
   "accessSurvivesHostRestart": true,
@@ -24,5 +23,6 @@
     "realChromeAndCdp": true,
     "realPageRead": true,
     "cachedRelaunch": true
-  }
+  },
+  "revocationToSettlementMs": 18
 }

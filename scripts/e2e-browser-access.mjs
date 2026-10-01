@@ -273,18 +273,18 @@ if (mode === '--serve') {
       );
       const waiting = native(state, 'browser_wait', { ms: 10000 });
       await new Promise((resolve) => setTimeout(resolve, 750));
+      const revocationStart = Date.now();
       await api('browserAccessSet', { slug: state.slug, enabled: false });
+      const cancelled = await waiting;
+      const revocationMs = Date.now() - revocationStart;
+      assert.equal(cancelled.isError, true, 'Revocation must abort the active call');
+      assert.ok(revocationMs < 2500, 'Cancellation must settle promptly');
       await until(
         () => schemas(state.sessionId),
         (names) => !names.some((n) => n.startsWith('browser_')),
         'Revoked tools remain registered',
         10000,
       );
-      const revocationStart = Date.now();
-      const cancelled = await waiting;
-      const revocationMs = Date.now() - revocationStart;
-      assert.equal(cancelled.isError, true, 'Revocation must abort the active call');
-      assert.ok(revocationMs < 2500, 'Cancellation must settle promptly');
       const denied = await native(state, 'browser_observe');
       assert.equal(denied.isError, true);
       const logs = (await route('computer/logs?plugin=browser&limit=1000')).entries.filter(
@@ -406,7 +406,7 @@ if (mode === '--serve') {
         navigationInvalidatesRefs: state.staleRefDenied,
         stoppedBrowserReadable: state.stoppedErrorVerified,
         revokedToolsAbsent: true,
-        settledAfterRevocationResponseMs: state.revocationMs,
+        revocationToSettlementMs: state.revocationMs,
         auditAttributedAndRedacted: state.auditRedacted,
         pendingApprovalCancelled: state.pendingApprovalCancelled,
         accessSurvivesHostRestart: true,
