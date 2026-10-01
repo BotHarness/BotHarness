@@ -24,6 +24,24 @@ vi.mock('../src/client/bot-sidebar.js', async () => {
   const { store } = await import('../src/client/store.js');
   return { useClientState: () => useSyncExternalStore(store.subscribe, store.getSnapshot) };
 });
+vi.mock('../src/client/modal.js', () => ({
+  Modal: ({
+    children,
+    footer,
+    onClose,
+  }: {
+    children: ReactNode;
+    footer: ReactNode;
+    onClose: () => void;
+  }) =>
+    createElement(
+      'div',
+      { role: 'dialog' },
+      children,
+      footer,
+      createElement('button', { onClick: onClose }, 'Close picker'),
+    ),
+}));
 import { createActions, type BridgeActions } from '../src/client/actions.js';
 import { HumanInboxView } from '../src/client/human-inbox-view.js';
 import { store, type ChannelMessage, type HumanAttentionItem } from '../src/client/store.js';
@@ -47,7 +65,7 @@ afterEach(() => {
   store.setHumanInbox(previous.humanInbox);
 });
 
-async function mount(source = item) {
+async function mount(source = item, resolved = false) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const host = document.createElement('div');
   document.body.append(host);
@@ -61,8 +79,20 @@ async function mount(source = item) {
         at: source.createdAt,
         author: { kind: 'bot', slug: 'ada' },
         body: source.summary,
+        ...(source.kind === 'workspace-grant-request'
+          ? { grantRequest: true as const, grantRequestResolved: resolved }
+          : {}),
       },
     ]),
+    listHostFolders: vi.fn(async () => ({
+      path: '/qa/project',
+      home: '/qa',
+      crumbs: [],
+      entries: [],
+      truncated: false,
+    })),
+    pickWorkspaceFolder: vi.fn(async () => null),
+    resolveWorkspaceGrantRequest: vi.fn(async () => undefined),
     markRead: vi.fn(async () => undefined),
     openChannelAtMessage: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
@@ -106,6 +136,7 @@ describe('compact Human Inbox interactions', () => {
         row.getAttribute('aria-controls'),
       );
       expect(view.actions.markRead).not.toHaveBeenCalled();
+      expect(view.actions.listHostFolders).not.toHaveBeenCalled();
     } finally {
       await view.close();
     }
@@ -124,7 +155,7 @@ describe('compact Human Inbox interactions', () => {
       await view.close();
     }
   });
-  it('opens a live request once through its primary direct action', async () => {
+  it('opens the workspace picker from the list action and can reopen after cancel', async () => {
     const view = await mount({
       ...item,
       category: 'action',
@@ -138,6 +169,71 @@ describe('compact Human Inbox interactions', () => {
       expect(action.textContent).toBe('选择工作区');
       await act(async () => action.click());
       expect(view.actions.humanInboxContext).toHaveBeenCalledTimes(1);
+      expect(view.actions.listHostFolders).toHaveBeenCalledTimes(1);
+      expect(view.host.querySelector('[role="dialog"]')).not.toBeNull();
+      expect(view.actions.resolveWorkspaceGrantRequest).not.toHaveBeenCalled();
+      await act(async () =>
+        Array.from(view.host.querySelectorAll<HTMLButtonElement>('button'))
+          .find((button) => button.textContent === 'Close picker')!
+          .click(),
+      );
+      await act(async () =>
+        view.host.querySelector<HTMLButtonElement>('.bh-human-inbox-row-open')!.click(),
+      );
+      await act(async () => action.click());
+      expect(view.actions.listHostFolders).toHaveBeenCalledTimes(2);
+      await act(async () =>
+        Array.from(view.host.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'))
+          .find((button) => button.textContent === '授权此工作区')!
+          .click(),
+      );
+      expect(view.actions.resolveWorkspaceGrantRequest).toHaveBeenCalledWith(
+        'ada',
+        'source',
+        '/qa/project',
+        expect.any(Function),
+      );
+    } finally {
+      await view.close();
+    }
+  });
+  it('uses the native picker fallback from the list and cancellation grants nothing', async () => {
+    const view = await mount({
+      ...item,
+      category: 'action',
+      kind: 'workspace-grant-request',
+      botSlug: 'ada',
+    });
+    view.actions.listHostFolders.mockRejectedValueOnce(
+      Object.assign(new Error('native picker'), {
+        rpcError: { code: 'directory-picker/unavailable' },
+      }),
+    );
+    try {
+      await act(async () =>
+        view.host
+          .querySelector<HTMLButtonElement>('.bh-human-inbox-row-actions [data-variant="primary"]')!
+          .click(),
+      );
+      expect(view.actions.pickWorkspaceFolder).toHaveBeenCalledTimes(1);
+      expect(view.actions.resolveWorkspaceGrantRequest).not.toHaveBeenCalled();
+    } finally {
+      await view.close();
+    }
+  });
+  it('does not open a picker for a canonically resolved stale request', async () => {
+    const view = await mount(
+      { ...item, category: 'action', kind: 'workspace-grant-request', botSlug: 'ada' },
+      true,
+    );
+    try {
+      await act(async () =>
+        view.host
+          .querySelector<HTMLButtonElement>('.bh-human-inbox-row-actions [data-variant="primary"]')!
+          .click(),
+      );
+      expect(view.actions.listHostFolders).not.toHaveBeenCalled();
+      expect(view.host.querySelector('[role="dialog"]')).toBeNull();
     } finally {
       await view.close();
     }

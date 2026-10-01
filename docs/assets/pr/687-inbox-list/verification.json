@@ -40,6 +40,8 @@
   "sourceLinkIndependentAndExact": true,
   "primaryActions": true,
   "directPrimaryRequestAction": true,
+  "listActionOpensBrowsePicker": true,
+  "listActionReopensAfterCancel": true,
   "channelAvatarNavigation": true,
   "lightAndDark": true
 }

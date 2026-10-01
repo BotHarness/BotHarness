@@ -1,4 +1,4 @@
-import { useId, useState, type ReactElement } from 'react';
+import { useId, useRef, useState, type ReactElement } from 'react';
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
 import { HumanInboxFilter, HumanInboxSourceButton } from './human-inbox-controls.js';
 
@@ -35,6 +35,11 @@ export function HumanInboxView({
   const [busyId, setBusyId] = useState<string>();
   const [actionError, setActionError] = useState<string>();
   const [replySource, setReplySource] = useState<HumanAttentionItem>();
+  const workspacePickerRevision = useRef(0);
+  const [workspacePickerRequest, setWorkspacePickerRequest] = useState<{
+    itemId: string;
+    revision: number;
+  }>();
 
   const mount = useMountedResource<HTMLDivElement>(() => {
     const timer = window.setInterval(() => {
@@ -280,7 +285,10 @@ export function HumanInboxView({
                   aria-label={t('humanInbox.details', { title: itemTitle(item) })}
                   aria-expanded={replySource?.id === item.id}
                   aria-controls={replySource?.id === item.id ? detailId : undefined}
-                  onClick={() => setReplySource(item)}
+                  onClick={() => {
+                    setWorkspacePickerRequest(undefined);
+                    setReplySource(item);
+                  }}
                 />
 
                 <div className="bh-human-inbox-row-main">
@@ -360,7 +368,18 @@ export function HumanInboxView({
                       variant="primary"
                       size="sm"
                       type="button"
-                      onClick={() => setReplySource(item)}
+                      onClick={() => {
+                        setReplySource(item);
+                        if (
+                          item.kind === 'workspace-grant-request' &&
+                          item.category !== 'handled'
+                        ) {
+                          setWorkspacePickerRequest({
+                            itemId: item.id,
+                            revision: ++workspacePickerRevision.current,
+                          });
+                        } else setWorkspacePickerRequest(undefined);
+                      }}
                     >
                       {t(
                         item.category === 'handled'
@@ -480,6 +499,11 @@ export function HumanInboxView({
                 />
               ) : replySource.channelId !== undefined && replySource.messageId !== undefined ? (
                 <HumanInboxReply
+                  workspacePickerRequest={
+                    workspacePickerRequest?.itemId === replySource.id
+                      ? workspacePickerRequest.revision
+                      : undefined
+                  }
                   key={replySource.channelId + ':' + replySource.messageId}
                   source={replySource}
                   actions={actions}

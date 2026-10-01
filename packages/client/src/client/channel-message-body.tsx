@@ -1,5 +1,5 @@
 import { MessageAttachment } from './message-attachment.js';
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useRef, useState, type ReactElement } from 'react';
 
 import {
   Button,
@@ -447,10 +447,12 @@ function GrantRequestCard({
   message,
   actions,
   resolved,
+  workspacePickerRequest,
   t,
 }: {
   message: ChannelMessage;
   actions: BridgeActions;
+  workspacePickerRequest?: number | undefined;
   resolved: boolean;
   t: BotHarnessTranslate;
 }): ReactElement {
@@ -502,8 +504,20 @@ function GrantRequestCard({
       }
     })();
   };
+  const openedRequest = useRef<number>();
+  const pickerTrigger = useMountedResource<HTMLDivElement>(() => {
+    if (
+      workspacePickerRequest !== undefined &&
+      workspacePickerRequest !== openedRequest.current &&
+      !resolved &&
+      !completed
+    ) {
+      openedRequest.current = workspacePickerRequest;
+      open();
+    }
+  }, [workspacePickerRequest]);
   return (
-    <div className="bh-grant-request-card">
+    <div className="bh-grant-request-card" ref={pickerTrigger}>
       <div className="bh-grant-request-title">{t('grant.requestTitle')}</div>
       <div className="bh-grant-request-reason">{message.body}</div>
       {resolved || completed ? (
@@ -570,6 +584,7 @@ export function ChannelMessageBody({
   bots = [],
   humanMembers = [],
   grantRequestResolved = false,
+  workspacePickerRequest,
   toolApprovalDecision,
   userQuestionResolution,
   nativeChatT,
@@ -581,6 +596,7 @@ export function ChannelMessageBody({
   bots?: readonly BotSummary[];
   humanMembers?: readonly ChannelHumanMember[];
   grantRequestResolved?: boolean;
+  workspacePickerRequest?: number | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
   toolApprovalDecision?:
     | 'allowed-once'
@@ -624,6 +640,7 @@ export function ChannelMessageBody({
         message={message}
         actions={actions}
         resolved={grantRequestResolved || message.grantRequestResolved === true}
+        workspacePickerRequest={workspacePickerRequest}
         t={t}
       />
     );

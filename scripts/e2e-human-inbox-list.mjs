@@ -82,7 +82,6 @@ const browser = await puppeteer.launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
-const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 const shot = (name) =>
   page.screenshot({
     waitForFonts: false,
@@ -181,6 +180,11 @@ page.on('request', (request) => {
 const openInbox = async () => {
   await page.waitForSelector('.bh-panel-activity[data-unread="true"]');
   await page.click('.bh-panel-activity');
+  await page.waitForSelector('.bh-activity-center-header', { timeout: 5000 }).catch(async () => {
+    await page.waitForSelector('.bh-panel-activity');
+    await page.click('.bh-panel-activity');
+    await page.waitForSelector('.bh-activity-center-header');
+  });
   await click('.bh-activity-center-header [role="tab"]', '收件箱');
   await click('.bh-human-inbox-tabs button', '需要我处理');
   await page.waitForSelector('.bh-human-inbox-row-open');
@@ -285,6 +289,17 @@ try {
   await page.click('.bh-human-inbox-detail .bh-human-inbox-reply-header button');
   await page.click('.bh-human-inbox-row-actions button');
   await page.waitForSelector('.bh-human-inbox-detail .bh-grant-request-card');
+  await page.waitForSelector('.bh-folder-browser', { visible: true, timeout: 15000 });
+  await shot('list-action-picker-light');
+  await click('.bh-folder-browser button', '取消');
+  await page.waitForFunction(() => !document.querySelector('.bh-folder-browser'));
+  await page.click('.bh-human-inbox-row-actions button');
+  await page.waitForSelector('.bh-folder-browser', { visible: true, timeout: 15000 });
+  await theme(true);
+  await shot('list-action-picker-dark');
+  await click('.bh-folder-browser button', '取消');
+  await page.waitForFunction(() => !document.querySelector('.bh-folder-browser'));
+  await theme(false);
   await shot('primary-action-details-light');
   await page.click('.bh-human-inbox-detail .bh-human-inbox-reply-header button');
   const sourceItem = (
@@ -319,6 +334,8 @@ try {
         sourceLinkIndependentAndExact: true,
         primaryActions: true,
         directPrimaryRequestAction: true,
+        listActionOpensBrowsePicker: true,
+        listActionReopensAfterCancel: true,
         channelAvatarNavigation: true,
         lightAndDark: true,
       },
