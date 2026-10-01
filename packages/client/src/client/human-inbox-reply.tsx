@@ -44,6 +44,7 @@ export function HumanInboxReply({
   const channelId = source.channelId!;
   const messageId = source.messageId!;
   const [context, setContext] = useState<ChannelMessage[]>();
+  const [response, setResponse] = useState<ChannelMessage>();
   const [contextError, setContextError] = useState(false);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -63,7 +64,23 @@ export function HumanInboxReply({
     setContextError(false);
     try {
       const messages = await actions.humanInboxContext(channelId, messageId, controller.signal);
-      if (!controller.signal.aborted) setContext(messages);
+      const responseId = source.category === 'handled' ? source.responseMessageId : undefined;
+      const responses =
+        responseId === undefined
+          ? []
+          : await actions.humanInboxContext(channelId, responseId, controller.signal);
+      const answer = responses.find(
+        (message) =>
+          message.id === responseId &&
+          message.author.kind === 'human' &&
+          message.replyTo === messageId,
+      );
+      if (responseId !== undefined && answer === undefined)
+        throw new Error('Canonical response is unavailable');
+      if (!controller.signal.aborted) {
+        setContext(messages);
+        setResponse(answer);
+      }
     } catch {
       if (!controller.signal.aborted) setContextError(true);
     }
@@ -71,7 +88,7 @@ export function HumanInboxReply({
   const mount = useMountedResource<HTMLElement>(() => {
     void reload();
     return () => loading.current?.abort();
-  }, [actions, channelId, messageId]);
+  }, [actions, channelId, messageId, source.category, source.responseMessageId]);
   const visibleSource = useMountedResource<HTMLDivElement>(
     (element) => {
       if (typeof IntersectionObserver === 'undefined') return;
@@ -231,12 +248,14 @@ export function HumanInboxReply({
                       actions={actions}
                       t={t}
                       userQuestionResolution={
+                        response?.userQuestionResolution?.state ??
                         message.userQuestionResolution?.state ??
                         context?.find(
                           (entry) => entry.userQuestionResolution?.requestMessageId === messageId,
                         )?.userQuestionResolution?.state
                       }
                       toolApprovalDecision={
+                        response?.toolApprovalDecision?.outcome ??
                         context?.find(
                           (entry) => entry.toolApprovalDecision?.requestMessageId === messageId,
                         )?.toolApprovalDecision?.outcome
@@ -281,6 +300,24 @@ export function HumanInboxReply({
                 </div>
               </article>
             ))}
+            {response === undefined ||
+            (expanded && context?.some((message) => message.id === response.id)) ? null : (
+              <article data-message-id={response.id} className="bh-human-inbox-message">
+                <span className="bh-human-inbox-human-avatar" aria-hidden="true">
+                  {author(response).slice(0, 1)}
+                </span>
+                <div className="bh-human-inbox-message-content">
+                  <div className="bh-human-inbox-message-heading">
+                    <strong>{author(response)}</strong>
+                    <time dateTime={response.at}>{new Date(response.at).toLocaleString()}</time>
+                  </div>
+                  <p>{response.body}</p>
+                  <button type="button" onClick={() => openSource(response.id)}>
+                    {t('humanInbox.handled.response')}
+                  </button>
+                </div>
+              </article>
+            )}
           </div>
         </div>
       )}

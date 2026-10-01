@@ -18,6 +18,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconCloseOutlineRegular: stub,
     IconCopyOutlineRegular: stub,
     IconEditOutlineRegular: stub,
+    IconInfoOutlineRegular: stub,
     IconEllipsisOutlineRegular: stub,
     IconFolderOpenOutlineRegular: stub,
     IconNewChatOutlineRegular: stub,
@@ -229,7 +230,7 @@ describe('PersonaBot Profile surface', () => {
       );
       expect(policyDetails?.open).toBe(true);
       expect(container.querySelector('.bh-profile-view')?.textContent).toContain('Human 私聊');
-      expect(container.querySelector('.bh-profile-view')?.textContent).toContain('修订 1');
+      expect(container.querySelector('.bh-source-policy-table')).not.toBeNull();
       expect(container.querySelector('.bh-chat-body')).toBeNull();
       expect(container.querySelector('.bh-memory-chat-composer')).toBeNull();
       expect(container.querySelector('.bh-profile-view-name')?.textContent).toBe('Ada');
@@ -287,6 +288,19 @@ describe('PersonaBot Profile surface', () => {
       await act(async () => click(container, '.bh-profile-avatar-actions button:last-child'));
       expect(setBotAvatar).toHaveBeenCalledWith('dm-ada', null);
       expect(container.querySelector('.bh-profile-avatar-input')).not.toBeNull();
+
+      const dialog = document.createElement('div');
+      dialog.setAttribute('role', 'dialog');
+      dialog.setAttribute('aria-modal', 'true');
+      document.body.append(dialog);
+      try {
+        await act(async () => {
+          dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        });
+        expect(container.querySelector('.bh-profile-view')).not.toBeNull();
+      } finally {
+        dialog.remove();
+      }
 
       await act(async () => {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

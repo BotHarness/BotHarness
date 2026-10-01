@@ -2001,9 +2001,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         category !== 'action' &&
         category !== 'info' &&
         category !== 'unread' &&
-        category !== 'replies'
+        category !== 'replies' &&
+        category !== 'handled'
       )
-        return invalidInput('category must be action, info, unread or replies');
+        return invalidInput('category must be action, info, unread, replies or handled');
       if (sort !== undefined && sort !== 'newest' && sort !== 'oldest')
         return invalidInput('sort must be newest or oldest');
       if (botSlug !== undefined && (typeof botSlug !== 'string' || !isValidSlug(botSlug)))

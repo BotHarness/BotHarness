@@ -38,6 +38,59 @@ afterEach(() => {
 });
 
 describe('Human Inbox center view', () => {
+  it('makes the paused deep-page refresh state visible without dropping loaded history', () => {
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      category: 'handled',
+      status: 'ready',
+      items: Array.from({ length: 151 }, (_, i) => ({
+        ...join,
+        id: 'handled:' + i,
+        category: 'handled' as const,
+        kind: 'user-question' as const,
+        messageId: 'request',
+        responseMessageId: 'answer',
+        responseSourceEventId: 'answer-source',
+      })),
+    });
+    const html = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(html).toContain('浏览较早记录时暂停自动更新。');
+    expect(html).toContain('刷新回到当前列表');
+    expect(store.getSnapshot().humanInbox.items).toHaveLength(151);
+  });
+  it('offers canonical request context and answer navigation for handled work', () => {
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'handled',
+      items: [
+        {
+          id: 'handled-question:source',
+          category: 'handled',
+          kind: 'user-question',
+          createdAt: '2026-10-01T10:05:00Z',
+          channelId: 'dm-ada',
+          channelName: 'Ada',
+          botSlug: 'ada',
+          summary: 'Choose release route',
+          messageId: 'request',
+          sourceEventId: 'source',
+          responseMessageId: 'answer',
+          responseSourceEventId: 'answer-source',
+        },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(markup).toContain('已处理');
+    expect(markup).toContain('查看答复');
+    expect(markup).toContain('查看上下文');
+    expect(markup).not.toContain('回答问题</button>');
+  });
+
   it('defaults to action-required and offers source and decision actions', () => {
     store.select({ kind: 'inbox' });
     store.setHumanInbox({ status: 'ready', category: 'action', items: [join] });

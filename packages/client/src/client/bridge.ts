@@ -1854,7 +1854,8 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['category'] !== 'action' &&
       item['category'] !== 'info' &&
       item['category'] !== 'unread' &&
-      item['category'] !== 'replies'
+      item['category'] !== 'replies' &&
+      item['category'] !== 'handled'
     )
       return undefined;
     if (
@@ -1913,6 +1914,24 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
         typeof item['messageId'] !== 'string' ||
         typeof item['sourceEventId'] !== 'string' ||
         typeof item['isUnread'] !== 'boolean')
+    )
+      return undefined;
+    if (
+      item['category'] === 'handled' &&
+      (![
+        'user-question',
+        'tool-approval',
+        'workspace-grant-request',
+        'assignment-waiting-human',
+        'assignment-blocked',
+      ].includes(String(item['kind'])) ||
+        typeof item['channelId'] !== 'string' ||
+        typeof item['responseMessageId'] !== 'string' ||
+        typeof item['responseSourceEventId'] !== 'string' ||
+        typeof item['sourceEventId'] !== 'string' ||
+        (item['kind'] !== 'assignment-waiting-human' &&
+          item['kind'] !== 'assignment-blocked' &&
+          typeof item['messageId'] !== 'string'))
     )
       return undefined;
     return item as unknown as HumanAttentionItem;

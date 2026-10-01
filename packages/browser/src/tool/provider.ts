@@ -108,7 +108,7 @@ export function formatAudit(event: BrowserAuditEvent): string {
 }
 
 const DEAD_TARGET =
-  /target closed|no target with given id|inspected target navigated or closed|session closed|websocket closed|not attached|detached from target|browser has been closed/iu;
+  /target closed|no target with given id|session with given id not found|inspected target navigated or closed|session closed|websocket closed|not attached|detached from target|browser has been closed/iu;
 
 function isDeadTarget(message: string): boolean {
   return DEAD_TARGET.test(message);

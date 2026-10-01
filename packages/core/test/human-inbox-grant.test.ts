@@ -51,6 +51,7 @@ describe('Human Inbox Grant source authority', () => {
       });
       expect(core.humanAttention.list({ category: 'action' }).items).toHaveLength(2);
       expect(core.grants.list('ada')).toEqual([]);
+      expect(core.humanAttention.list({ category: 'handled' }).items).toEqual([]);
       const grant = await core.grants.create('ada', workspace.id);
       const payload = {
         channelId: dm.id,
@@ -80,6 +81,16 @@ describe('Human Inbox Grant source authority', () => {
           newerLimit: 0,
         })?.entries,
       ).toMatchObject([{ id: 'request', grantRequestResolved: true }]);
+      const response = core.channels.readMessages(dm.id).find((m) => m.grantRequestResolution)!;
+      expect(core.humanAttention.list({ category: 'handled' }).items).toMatchObject([
+        {
+          kind: 'workspace-grant-request',
+          botSlug: 'ada',
+          channelId: dm.id,
+          messageId: 'request',
+          responseMessageId: response.id,
+        },
+      ]);
       expect(core.humanAttention.list({ category: 'action' }).items).toMatchObject([
         { botSlug: 'bea' },
       ]);
@@ -92,6 +103,9 @@ describe('Human Inbox Grant source authority', () => {
     }
     const resumed = createCore({ dshHome: home, agents, workspaces });
     try {
+      expect(resumed.humanAttention.list({ category: 'handled' }).items).toMatchObject([
+        { kind: 'workspace-grant-request', messageId: 'request' },
+      ]);
       expect(resumed.humanAttention.list({ category: 'action' }).items).toMatchObject([
         { botSlug: 'bea' },
       ]);

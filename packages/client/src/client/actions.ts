@@ -223,7 +223,7 @@ export interface BridgeActions {
   refreshBotInbox(slug: string): Promise<void>;
   openHumanInbox(): Promise<void>;
   refreshHumanInboxStatus(): Promise<void>;
-  refreshHumanInbox(category?: HumanInboxCategory): Promise<void>;
+  refreshHumanInbox(category?: HumanInboxCategory, background?: boolean): Promise<void>;
   setHumanInboxFilters(filters: HumanInboxFilters): Promise<void>;
   loadMoreHumanInbox(): Promise<void>;
   ignoreHumanReport(sourceEventId: string): Promise<void>;
@@ -630,6 +630,7 @@ export function createActions(
 
   let humanInboxHeadSeq = 0;
   let humanInboxPageSeq = 0;
+  let humanInboxPagesPending = 0;
   let humanInboxScopeVersion = 0;
   let humanInboxStatusSeq = 0;
   const refreshHumanInboxStatus = async (): Promise<void> => {
@@ -645,10 +646,13 @@ export function createActions(
     category: HumanInboxCategory,
     selection: ConversationSelection,
     cursor?: string,
+    retainedCount = clientStore.getSnapshot().humanInbox.items.length,
+    background = false,
   ): Promise<void> => {
     const head = cursor === undefined;
     const requestSeq = head ? ++humanInboxHeadSeq : ++humanInboxPageSeq;
     const scopeVersion = humanInboxScopeVersion;
+    const headVersion = humanInboxHeadSeq;
     const { botSlug, channelId, sort } = clientStore.getSnapshot().humanInbox;
     const isCurrent = (): boolean =>
       currentSelection() === selection &&
@@ -666,19 +670,46 @@ export function createActions(
       const priorState = clientStore.getSnapshot().humanInbox;
       if (priorState.category !== category) return;
       const prior = priorState.items;
-      const preserveOlder = head && prior.length > 50 && page.nextCursor !== undefined;
-      const refreshedIds = new Set(page.items.map((item) => item.id));
+      if (background && (humanInboxPagesPending > 0 || prior.length > 150)) return;
+      if (!head && headVersion !== humanInboxHeadSeq) {
+        await loadHumanInboxFor(category, selection, undefined, prior.length + page.items.length);
+        return;
+      }
+      let canonicalItems = page.items;
+      let nextCursor = page.nextCursor;
+
+      const desiredCount = Math.min(150, Math.max(retainedCount, prior.length));
+      for (
+        let pageNumber = 1;
+        head &&
+        nextCursor !== undefined &&
+        canonicalItems.length < desiredCount &&
+        pageNumber < Math.ceil(desiredCount / 50);
+        pageNumber++
+      ) {
+        const older = await loadHumanAttention(call, category, 50, nextCursor, {
+          botSlug,
+          channelId,
+          sort,
+        });
+        if (!isCurrent()) return;
+        const seen = new Set(canonicalItems.map((item) => item.id));
+        canonicalItems = [...canonicalItems, ...older.items.filter((item) => !seen.has(item.id))];
+        nextCursor = older.nextCursor;
+      }
+      if (!isCurrent()) return;
+      if (
+        background &&
+        (humanInboxPagesPending > 0 || clientStore.getSnapshot().humanInbox.items.length > 150)
+      )
+        return;
       const items = head
-        ? preserveOlder
-          ? [...page.items, ...prior.filter((item) => !refreshedIds.has(item.id))]
-          : page.items
-        : [...prior, ...page.items.filter((item) => !prior.some((seen) => seen.id === item.id))];
-      clientStore.setHumanInbox({
-        status: 'ready',
-        items,
-        nextCursor: preserveOlder ? priorState.nextCursor : page.nextCursor,
-        error: undefined,
-      });
+        ? canonicalItems
+        : [
+            ...prior,
+            ...canonicalItems.filter((item) => !prior.some((seen) => seen.id === item.id)),
+          ];
+      clientStore.setHumanInbox({ status: 'ready', items, nextCursor, error: undefined });
     } catch (error) {
       if (!isCurrent() || clientStore.getSnapshot().humanInbox.category !== category) return;
       clientStore.setHumanInbox({ status: 'error', error: errorMessage(error) });
@@ -987,21 +1018,18 @@ export function createActions(
       return loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection);
     },
     refreshHumanInboxStatus,
-    refreshHumanInbox(category) {
+    refreshHumanInbox(category, background = false) {
       const selection = currentSelection();
       if (selection?.kind !== 'inbox') return Promise.resolve();
       const prior = clientStore.getSnapshot().humanInbox;
+      if (background && (humanInboxPagesPending > 0 || prior.items.length > 150))
+        return Promise.resolve();
       const nextCategory = category ?? prior.category;
       if (nextCategory !== prior.category) {
         humanInboxScopeVersion += 1;
         clientStore.setHumanInbox({
           category: nextCategory,
-          sort:
-            nextCategory === 'action'
-              ? 'oldest'
-              : nextCategory === 'replies'
-                ? 'newest'
-                : prior.sort,
+          sort: nextCategory === 'action' ? 'oldest' : 'newest',
           botSlug: nextCategory === 'unread' ? undefined : prior.botSlug,
           channelId: undefined,
           status: 'loading',
@@ -1010,7 +1038,7 @@ export function createActions(
           error: undefined,
         });
       }
-      return loadHumanInboxFor(nextCategory, selection);
+      return loadHumanInboxFor(nextCategory, selection, undefined, prior.items.length, background);
     },
     setHumanInboxFilters(filters) {
       const selection = currentSelection();
@@ -1036,7 +1064,10 @@ export function createActions(
       const selection = currentSelection();
       const state = clientStore.getSnapshot().humanInbox;
       if (selection?.kind !== 'inbox' || state.nextCursor === undefined) return Promise.resolve();
-      return loadHumanInboxFor(state.category, selection, state.nextCursor);
+      humanInboxPagesPending += 1;
+      return loadHumanInboxFor(state.category, selection, state.nextCursor).finally(() => {
+        humanInboxPagesPending -= 1;
+      });
     },
     async ignoreHumanReport(sourceEventId) {
       await ignoreHumanAssignmentReport(call, sourceEventId);

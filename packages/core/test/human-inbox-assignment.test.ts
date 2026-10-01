@@ -141,6 +141,21 @@ describe('Human Inbox addressed Assignment response', () => {
       expect(
         core.channels.readMessages(dm.id).filter((message) => message.assignmentReply),
       ).toHaveLength(1);
+      const response = core.channels.readMessages(dm.id).find((m) => m.assignmentReply)!;
+      expect(core.humanAttention.list({ category: 'action' }).items).toEqual([]);
+      expect(methods.humanAttention({ category: 'handled', channelId: dm.id })).toMatchObject({
+        ok: true,
+        value: {
+          items: [
+            {
+              kind: 'assignment-blocked',
+              assignmentSessionId: sessionId,
+              sourceEventId,
+              responseMessageId: response.id,
+            },
+          ],
+        },
+      });
       expect(core.runtime.getAssignment('ada', sessionId)?.openAsk?.sourceEventId).toBe(
         sourceEventId,
       );
@@ -150,6 +165,24 @@ describe('Human Inbox addressed Assignment response', () => {
         ok: true,
         value: { context: { canReply: false, reply: { body: 'Use canary.' } } },
       });
+      await run.report({
+        state: 'waiting-human',
+        summary: 'Choose the next rollout',
+        expectsReply: true,
+      });
+      const nextAsk = core.runtime.getAssignment('ada', sessionId)!.openAsk!.sourceEventId;
+      expect(nextAsk).not.toBe(sourceEventId);
+      expect(core.humanAttention.list({ category: 'action' }).items).toMatchObject([
+        {
+          kind: 'assignment-waiting-human',
+          sourceEventId: nextAsk,
+          summary: 'Choose the next rollout',
+        },
+      ]);
+      expect(core.humanAttention.status().hasAction).toBe(true);
+      expect(core.humanAttention.list({ category: 'handled' }).items).toMatchObject([
+        { kind: 'assignment-blocked', sourceEventId },
+      ]);
       await run.report({ state: 'completed', summary: 'Launched' });
       expect(core.humanAttention.list({ category: 'action' }).items).toEqual([]);
       expect(
@@ -170,6 +203,9 @@ describe('Human Inbox addressed Assignment response', () => {
         resumed.channels.readMessages('dm-ada').filter((message) => message.assignmentReply),
       ).toHaveLength(1);
       expect(resumed.humanAttention.list({ category: 'action' }).items).toEqual([]);
+      expect(resumed.humanAttention.list({ category: 'handled' }).items).toMatchObject([
+        { kind: 'assignment-blocked', botSlug: 'ada' },
+      ]);
     } finally {
       await resumed.runtime.close();
       resumed.operationalDatabase.close();

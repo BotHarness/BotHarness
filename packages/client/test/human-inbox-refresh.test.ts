@@ -31,6 +31,28 @@ function deferred<T>() {
 }
 
 describe('Human Inbox pagination refresh', () => {
+  it('rebuilds loaded older actions after another window resolves one', async () => {
+    const clientStore = createStore();
+    clientStore.select({ kind: 'inbox' });
+    const first = Array.from({ length: 50 }, (_, index) => item('head-' + index));
+    const responses: HumanAttentionPage[] = [
+      { items: first, nextCursor: 'head' },
+      { items: [item('resolved-elsewhere'), item('still-live')], nextCursor: 'tail' },
+      { items: first, nextCursor: 'new-head' },
+      { items: [item('still-live')] },
+    ];
+    const call: BridgeCall = async () => ({ ok: true, value: responses.shift() });
+    const actions = createActions(call, clientStore);
+    await actions.refreshHumanInbox();
+    await actions.loadMoreHumanInbox();
+    await actions.refreshHumanInbox();
+    expect(clientStore.getSnapshot().humanInbox.items.map((row) => row.id)).not.toContain(
+      'resolved-elsewhere',
+    );
+    expect(clientStore.getSnapshot().humanInbox.items.at(-1)?.id).toBe('still-live');
+    expect(clientStore.getSnapshot().humanInbox.nextCursor).toBeUndefined();
+  });
+
   it('rejects an unread summary without a committed anchor or positive count', async () => {
     const clientStore = createStore();
     clientStore.select({ kind: 'inbox' });
@@ -89,7 +111,8 @@ describe('Human Inbox pagination refresh', () => {
     const responses: HumanAttentionPage[] = [
       { items: first, nextCursor: 'cursor-1' },
       { items: [item('id-50')], nextCursor: 'cursor-2' },
-      { items: [item('new'), ...first], nextCursor: 'cursor-new' },
+      { items: [item('new'), ...first.slice(0, 49)], nextCursor: 'cursor-new' },
+      { items: [first[49]!, item('id-50')], nextCursor: 'cursor-2' },
     ];
     const call: BridgeCall = async () => ({ ok: true, value: responses.shift() });
     const actions = createActions(call, clientStore);
@@ -97,6 +120,7 @@ describe('Human Inbox pagination refresh', () => {
     await actions.loadMoreHumanInbox();
     await actions.refreshHumanInbox();
     const inbox = clientStore.getSnapshot().humanInbox;
+    expect(inbox.status).toBe('ready');
     expect(inbox.items).toHaveLength(52);
     expect(inbox.items[0]?.id).toBe('new');
     expect(inbox.items.at(-1)?.id).toBe('id-50');
@@ -121,6 +145,7 @@ describe('Human Inbox pagination refresh', () => {
       { items: first, nextCursor: 'cursor-1' },
       { items: [report('old-ignored'), report('old-kept')], nextCursor: 'cursor-2' },
       { items: first, nextCursor: 'cursor-new' },
+      { items: [report('old-kept')], nextCursor: 'cursor-2' },
     ];
     const call: BridgeCall = async (endpoint) =>
       endpoint === 'humanAttentionIgnore'
@@ -132,6 +157,7 @@ describe('Human Inbox pagination refresh', () => {
     await actions.ignoreHumanReport('old-ignored');
     await actions.refreshHumanInbox();
     const inbox = clientStore.getSnapshot().humanInbox;
+    expect(inbox.status).toBe('ready');
     expect(inbox.items.map((entry) => entry.sourceEventId)).not.toContain('old-ignored');
     expect(inbox.items.map((entry) => entry.sourceEventId)).toContain('old-kept');
     expect(inbox.nextCursor).toBe('cursor-2');
@@ -146,6 +172,8 @@ describe('Human Inbox pagination refresh', () => {
       Promise.resolve({ items: first, nextCursor: 'cursor-1' }),
       older.promise,
       Promise.resolve({ items: [item('new'), ...first.slice(0, 49)], nextCursor: 'cursor-new' }),
+      Promise.resolve({ items: [item('new'), ...first.slice(0, 49)], nextCursor: 'cursor-new' }),
+      Promise.resolve({ items: [first[49]!, item('id-50')], nextCursor: 'cursor-2' }),
     ];
     const call: BridgeCall = async () => ({ ok: true, value: await responses.shift()! });
     const actions = createActions(call, clientStore);
@@ -158,6 +186,76 @@ describe('Human Inbox pagination refresh', () => {
     expect(inbox.items.map((entry) => entry.id)).toContain('id-50');
     expect(inbox.nextCursor).toBe('cursor-2');
   });
+
+  it('bounds automatic reconciliation to three canonical pages and keeps a current load-more cursor', async () => {
+    const clientStore = createStore();
+    clientStore.select({ kind: 'inbox' });
+    clientStore.setHumanInbox({
+      status: 'ready',
+      items: Array.from({ length: 240 }, (_, i) => item('old-' + i)),
+      nextCursor: 'old-cursor',
+    });
+    const requests: Record<string, unknown>[] = [];
+    const call: BridgeCall = async (_endpoint, payload) => {
+      requests.push(payload);
+      const n = requests.length;
+      return {
+        ok: true,
+        value: {
+          items: Array.from({ length: 50 }, (_, i) => item('new-' + ((n - 1) * 50 + i))),
+          nextCursor: 'fresh-' + n,
+        },
+      };
+    };
+    const actions = createActions(call, clientStore);
+    await actions.refreshHumanInbox();
+    expect(requests).toHaveLength(3);
+    expect(clientStore.getSnapshot().humanInbox.items).toHaveLength(150);
+    expect(clientStore.getSnapshot().humanInbox.nextCursor).toBe('fresh-3');
+    await actions.loadMoreHumanInbox();
+    expect(requests.at(-1)?.['cursor']).toBe('fresh-3');
+    expect(clientStore.getSnapshot().humanInbox.items).toHaveLength(200);
+  });
+
+  it.each(['poll-first', 'page-first', 'poll-finishes-first'] as const)(
+    'keeps the deep page when background polling races with load-more (%s)',
+    async (order) => {
+      const clientStore = createStore();
+      clientStore.select({ kind: 'inbox' });
+      const first = Array.from({ length: 150 }, (_, i) => item('old-' + i));
+      clientStore.setHumanInbox({ status: 'ready', items: first, nextCursor: 'older' });
+      const refresh = deferred<HumanAttentionPage>(),
+        older = deferred<HumanAttentionPage>();
+      const calls: Record<string, unknown>[] = [];
+      const call: BridgeCall = async (_endpoint, payload) => {
+        calls.push(payload);
+        return {
+          ok: true,
+          value: await (payload['cursor'] === undefined ? refresh.promise : older.promise),
+        };
+      };
+      const actions = createActions(call, clientStore);
+      const poll = order !== 'page-first' ? actions.refreshHumanInbox(undefined, true) : undefined;
+      const more = actions.loadMoreHumanInbox();
+      const laterPoll =
+        order === 'page-first' ? actions.refreshHumanInbox(undefined, true) : undefined;
+      if (order === 'poll-finishes-first') {
+        refresh.resolve({ items: first.slice(0, 50), nextCursor: 'head' });
+        await poll;
+      }
+      older.resolve({ items: [item('deep')], nextCursor: 'deep-cursor' });
+      await more;
+      refresh.resolve({ items: first.slice(0, 50), nextCursor: 'head' });
+      await poll;
+      await laterPoll;
+      expect(clientStore.getSnapshot().humanInbox.items).toHaveLength(151);
+      expect(clientStore.getSnapshot().humanInbox.items.at(-1)?.id).toBe('deep');
+      expect(clientStore.getSnapshot().humanInbox.nextCursor).toBe('deep-cursor');
+      expect(calls.filter((call) => call['cursor'] === undefined)).toHaveLength(
+        order === 'page-first' ? 0 : 1,
+      );
+    },
+  );
 
   it('passes Bot, Channel, and sort filters to the Host and clears a Channel filter on tab change', async () => {
     const clientStore = createStore();
@@ -183,7 +281,7 @@ describe('Human Inbox pagination refresh', () => {
     expect(requests.at(-1)).toMatchObject({
       category: 'info',
       botSlug: 'ada',
-      sort: 'oldest',
+      sort: 'newest',
     });
     expect(requests.at(-1)?.['channelId']).toBeUndefined();
     expect(clientStore.getSnapshot().humanInbox.channelId).toBeUndefined();

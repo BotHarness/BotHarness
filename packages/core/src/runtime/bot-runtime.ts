@@ -4250,17 +4250,26 @@ class BotRuntimeImplementation implements BotRuntime {
       (database) => {
         const priorAsk = database
           .prepare(`SELECT a.open_ask_source_event_id AS id, a.open_ask_at AS at,
-          json_extract(e.payload_json, '$.assignmentReport.state') AS state
+          json_extract(e.payload_json, '$.assignmentReport.state') AS state,
+          EXISTS (SELECT 1 FROM source_events response INDEXED BY source_events_human_assignment_response
+            WHERE response.source_kind = 'human-message'
+              AND json_extract(response.payload_json, '$.author.kind') = 'human'
+              AND json_extract(response.payload_json, '$.assignmentReply.sessionId') = +a.session_id
+              AND json_extract(response.payload_json, '$.assignmentReply.sourceEventId') = +a.open_ask_source_event_id
+          ) AS answered
           FROM assignments a LEFT JOIN source_events e ON e.source_event_id = a.open_ask_source_event_id
           WHERE a.session_id = ? AND a.bot_slug = ?`)
           .get(sessionId, botSlug) as
-          | { id: string | null; at: string | null; state: string | null }
+          | { id: string | null; at: string | null; state: string | null; answered: number }
           | undefined;
         const terminal = input.state === 'completed' || input.state === 'failed';
         const keepAsk =
           !terminal &&
           ((input.state === 'progress' && !expectsReply) ||
-            (expectsReply && priorAsk?.state === 'blocked' && input.state !== 'blocked'));
+            (expectsReply &&
+              priorAsk?.state === 'blocked' &&
+              priorAsk.answered === 0 &&
+              input.state !== 'blocked'));
         const askId = terminal
           ? null
           : keepAsk

@@ -278,6 +278,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   const connect = options.connect ?? ((url: string) => connectCdp(url));
   let child: ChildProcess | undefined;
   let client: CdpClient | undefined;
+  let starting: Promise<void> | undefined;
   let binary: string | undefined;
   let lastUrl: string | undefined;
   const sessions = new Map<string, string>();
@@ -372,7 +373,10 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
 
   const ensure = async (): Promise<void> => {
     if (isRunning()) return;
-    await launch();
+    starting ??= launch().finally(() => {
+      starting = undefined;
+    });
+    await starting;
   };
 
   const attach = async (targetId: string): Promise<string> => {

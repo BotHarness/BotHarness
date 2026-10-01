@@ -19,6 +19,8 @@
 
 - PersonaBot 可处理获准 Lark 话题中收到的 ZIP，另存独立工作副本，明确选择新文件并回复原话题；Bot Inbox 提供按需原件下载，使用已验证临时 provider（[#657](https://github.com/BotHarness/BotHarness/issues/657)、[文件指南](docs/file-open.md)、[ADR-0107](docs/adr/0107-external-files-use-trusted-source-capabilities-and-existing-owner.md)）。
 
+- Human Inbox 增加可筛选的已处理历史，回看提问答案、工具审批、Workspace Grant 回应和 Assignment 答复，并准确跳转请求及回答；待行动默认等待最久优先，双窗口与重启沿用权威事实刷新（[#553](https://github.com/BotHarness/BotHarness/issues/553)）。
+
 - Human 可在 Human Inbox 授权工作区请求或回应等待／受阻 Assignment，查看来源上下文并准确打开 Session；已提交回应沿用 Bot DM authority，待办根据持久事实刷新（[#552](https://github.com/BotHarness/BotHarness/issues/552)）。
 
 - Human 可在 Human Inbox 使用来源 DM 提问卡的选项或自定义输入回答实时原生提问；答案只恢复原请求一次，刷新已解决或过期待办，并保留其他 Bot 的独立请求（[#551](https://github.com/BotHarness/BotHarness/issues/551)）。
@@ -61,7 +63,7 @@
 - PersonaBot 现在可用 `browser_upload` 把宿主文件附到页面上（可选先点击打开选择器的控件）：原生对话框被拦截，页面文件输入收到该路径；审计只记录文件名（[#491](https://github.com/BotHarness/BotHarness/issues/491)）。
 - `browser_screenshot` 现在会把截图保存到浏览器数据目录并返回其路径，只保留最新的若干张（[#494](https://github.com/BotHarness/BotHarness/issues/494)）。
 - 记忆演化现在提供包含分支、提交、暂存区和工作树状态的审计恢复检查点。Human 确认后可恢复，并完整归档原仓库；检查点区分“何时被观察”与 Git 内容作者（[#115](https://github.com/BotHarness/BotHarness/issues/115)、[ADR-0097](docs/adr/0097-memory-recovery-checkpoints-separate-provenance-from-git-authorship.md)）。
-- PersonaBot 现在可用 `browser_tabs`（list/open/select/close）在自己的 Bot Browser 窗口里保留多个标签：新标签以后台方式打开、不抢焦点；观察与操作跟随当前选中的标签；空闲窗口自动关闭而浏览器继续运行；Human 关闭的标签可通过 list/select 或重新打开恢复（[#463](https://github.com/BotHarness/BotHarness/issues/463)）。
+- PersonaBot 现在可用 `browser_tabs`（list/open/select/close）在共享 Bot Browser 中保留自己拥有的多个后台标签：新标签以后台方式打开、不抢焦点；观察与操作跟随当前选中的标签；空闲 Bot 标签自动关闭而浏览器继续运行；Human 关闭的标签可通过 list/select 或重新打开恢复（[#463](https://github.com/BotHarness/BotHarness/issues/463)）。
 - PersonaBot 在 Bot Browser 里现在不止能读、还能操作：`browser_click`、`browser_type`、`browser_press_key`、`browser_scroll` 与 `browser_wait` 使用最近一次观察的 ref；ref 过期会以明确的"重新观察"错误失败；输入文本进入审计时只记字符数（[#462](https://github.com/BotHarness/BotHarness/issues/462)）。
 - Browser entry 现在显示该 Bot 当前标签的实时画面，并提供 Human **接管**：接管期间该 Bot 的浏览器动作与模型截图暂停，结束接管后恢复；Bot 新增 `browser_screenshot` 工具，截图只作为 model attachment 送达模型，绝不进入审计（[#461](https://github.com/BotHarness/BotHarness/issues/461)、[ADR-0090](docs/adr/0090-browser-access-is-per-personabot-authorization-is-session-scoped.md)）。
 - Human 开启某个 PersonaBot 的 Browser Access 后，该 Bot 即可在 profile 共享的 Bot Browser 里浏览网页：只读的 `browser_open` 与 `browser_observe` 工具及其指引只注入这个 Bot 的会话，每个会话的首次动作向 Human 询问一次（profile 开关可自动允许），每次观察与动作都以脱敏的 Browser Audit 记录；机器上没有可用浏览器时按需安装 version-pinned Chrome for Testing（[#460](https://github.com/BotHarness/BotHarness/issues/460)、[ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md)、[ADR-0090](docs/adr/0090-browser-access-is-per-personabot-authorization-is-session-scoped.md)）。
@@ -141,6 +143,8 @@
 - 新增 Computer 导出与迁移指南，覆盖跨机器单文件迁移、必须随迁移保留的文件所遵循的持久 `~/workspace` 约定，以及体积/耗时预期（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
 
 ### Changed
+
+- PersonaBot 提醒策略改为紧凑表格，便于对比九类来源规则；保留近期唤醒次数与行内编辑入口，审计记录收进详情弹窗（[#670](https://github.com/BotHarness/BotHarness/issues/670)）。
 
 - Browser Profile 改为可搜索的 combobox：选择已有名称或明确创建新名称；错误使用 destructive 主题颜色，Browser view 移除多余说明与重复页标题（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。
 
@@ -229,6 +233,10 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- 修复多个 PersonaBot 首次并行使用共享 Browser profile 时的重复启动：并发请求会等待同一次 Chrome 启动，失败后可重新尝试（[#463](https://github.com/BotHarness/BotHarness/issues/463)）。
+
+- 修复 Human 关闭 Bot Browser 标签后的恢复：CDP Session 已失效时会清除已关闭的当前标签，并提示选择或打开另一个自有标签（[#463](https://github.com/BotHarness/BotHarness/issues/463)）。
 
 - PersonaBot Profile 现在可正确保存 Human 私聊、Bot 私聊和群内提及的投递设置；切换并入活动回合或排为独立回合会生效，并在重启后保留（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。
 
