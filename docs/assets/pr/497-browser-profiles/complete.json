@@ -1,0 +1,52 @@
+{
+  "noLaunchAtBoot": true,
+  "lazyAssignments": true,
+  "sharedDefaultLogin": true,
+  "independentLogins": true,
+  "parallelProfiles": true,
+  "independentIdleStop": true,
+  "persistentLoginAfterIdle": true,
+  "parallelDurationMs": 18638,
+  "idleStopElapsedMs": 45969,
+  "logins": [
+    {
+      "account": "shared"
+    },
+    {
+      "account": "work"
+    }
+  ],
+  "arrivals": [
+    {
+      "bot": "a",
+      "account": "work",
+      "token": "A-PARALLEL"
+    },
+    {
+      "bot": "b",
+      "account": "shared",
+      "token": "B-PARALLEL"
+    }
+  ],
+  "receipts": [
+    {
+      "bot": "a",
+      "account": "work",
+      "token": "A-PARALLEL"
+    },
+    {
+      "bot": "b",
+      "account": "shared",
+      "token": "B-PARALLEL"
+    }
+  ],
+  "ui": {
+    "typingDoesNotSave": true,
+    "createWork": true,
+    "assignmentVisible": true,
+    "selectExisting": true,
+    "returnDefault": true,
+    "lightAndDark": true
+  },
+  "verifiedImplementationCommit": "5de4da44132bb5771666d876b4b8ab587deba7f1"
+}
