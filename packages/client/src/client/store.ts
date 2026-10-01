@@ -168,6 +168,8 @@ export interface ChannelMessage {
     departureType?: 'left' | 'removed';
   };
   grantRequest?: true;
+  grantRequestResolved?: boolean;
+  assignmentReply?: { sessionId: string; sourceEventId: string };
   grantRequestResolution?: { requestMessageId: string; grantId: string };
   toolApprovalRequest?: ToolApprovalRequestCard;
   sessionFailure?: SessionFailureCard;

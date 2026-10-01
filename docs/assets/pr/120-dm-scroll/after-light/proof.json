@@ -1,0 +1,59 @@
+{
+  "bot": {
+    "slug": "bot-a72a5a965d774c3fb92144797c214922",
+    "displayName": "DM scroll QA 1790853509493"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "footer": {
+    "scrollTop": 95,
+    "scrollHeight": 527,
+    "clientHeight": 432,
+    "bottomGap": 0,
+    "messageCount": 1,
+    "lastMessageBottom": 421.5,
+    "viewportBottom": 432,
+    "footerHeight": 40,
+    "lastVisible": true
+  },
+  "frames": [
+    {
+      "content": "none",
+      "borderWidth": "0px"
+    },
+    {
+      "content": "none",
+      "borderWidth": "0px"
+    },
+    {
+      "content": "none",
+      "borderWidth": "0px"
+    }
+  ],
+  "historyBefore": {
+    "scrollTop": 0,
+    "scrollHeight": 527,
+    "clientHeight": 432,
+    "bottomGap": 95,
+    "messageCount": 1,
+    "lastMessageBottom": 516.5,
+    "viewportBottom": 432,
+    "footerHeight": 40,
+    "lastVisible": false
+  },
+  "historyAfter": {
+    "scrollTop": 0,
+    "scrollHeight": 590,
+    "clientHeight": 432,
+    "bottomGap": 158,
+    "messageCount": 2,
+    "lastMessageBottom": 580,
+    "viewportBottom": 432,
+    "footerHeight": 40,
+    "lastVisible": false
+  },
+  "realReply": true
+}

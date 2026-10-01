@@ -432,6 +432,7 @@ interface AssignmentRow {
   latest_report_at: string | null;
   continuity_key: string | null;
   open_ask_source_event_id: string | null;
+  open_ask_summary?: string | null;
   open_ask_at: string | null;
   grant_id: string | null;
   workspace_id: string | null;
@@ -452,6 +453,8 @@ interface InboxReportRow {
   body: string;
   created_at: string;
   expects_reply: number;
+  open_ask_id?: string | null;
+  open_ask_summary?: string | null;
   continuity_key: string | null;
   activity: AssignmentActivity | null;
 }
@@ -463,6 +466,8 @@ interface DigestRow {
   created_at: string;
   author_kind: string;
   author_slug: string | null;
+  reply_session_id?: string | null;
+  reply_source_event_id?: string | null;
 }
 
 function groupMessageAuthor(row: DigestRow, humanName = 'Human'): string {
@@ -494,7 +499,8 @@ interface InboxUnit {
   assignmentSessionId: string | null;
   summary: string;
   createdAt: string;
-  expectsReply: boolean;
+  openAskId?: string | null;
+  openAskSummary?: string | null;
   continuityKey: string | null;
   activity: AssignmentActivity | null;
   repeats: number;
@@ -559,7 +565,7 @@ function assignmentFromRow(row: AssignmentRow): AssignmentDetail {
       ? undefined
       : {
           sourceEventId: row.open_ask_source_event_id,
-          summary: row.latest_report_summary ?? '',
+          summary: row.open_ask_summary ?? row.latest_report_summary ?? '',
           at: row.open_ask_at,
         };
   return {
@@ -596,7 +602,8 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
         assignmentSessionId: row.assignment_session_id,
         summary: row.body,
         createdAt: row.created_at,
-        expectsReply: row.expects_reply === 1,
+        openAskId: row.open_ask_id ?? null,
+        openAskSummary: row.open_ask_summary ?? null,
         continuityKey: row.continuity_key,
         activity: row.activity,
         repeats: 1,
@@ -607,7 +614,8 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
     existing.sourceKind = row.source_kind;
     existing.summary = row.body;
     existing.createdAt = row.created_at;
-    existing.expectsReply = row.expects_reply === 1;
+    existing.openAskId = row.open_ask_id ?? null;
+    existing.openAskSummary = row.open_ask_summary ?? null;
     existing.activity = row.activity;
     existing.repeats += 1;
   }
@@ -628,8 +636,8 @@ function renderInbox(units: InboxUnit[]): string {
       `activity ${unit.activity ?? 'unknown'}`,
       `repeats ${unit.repeats}`,
     ].join(', ');
-    if (unit.expectsReply) {
-      return `- ${target} (${facts}) WAITING for your answer (answer_to: ${unit.sourceEventId}): ${unit.summary}`;
+    if (unit.openAskId != null) {
+      return `- ${target} (${facts}) WAITING for your answer (answer_to: ${unit.openAskId}): ${unit.openAskSummary ?? unit.summary}`;
     }
     if (unit.sourceKind === 'assignment-lifecycle') {
       return `- ${target} (${facts}) Host lifecycle notice: ${unit.summary}`;
@@ -866,7 +874,6 @@ class BotRuntimeImplementation implements BotRuntime {
         assignmentSessionId: null,
         summary: source.body,
         createdAt: source.at,
-        expectsReply: false,
         continuityKey: null,
         activity: null,
         repeats: 1,
@@ -1099,7 +1106,9 @@ class BotRuntimeImplementation implements BotRuntime {
     if (total.count === 0) return undefined;
     const columns = `SELECT a.source_event_id, e.message_id, e.body, e.created_at,
       json_extract(e.payload_json, '$.author.kind') AS author_kind,
-      json_extract(e.payload_json, '$.author.slug') AS author_slug`;
+      json_extract(e.payload_json, '$.author.slug') AS author_slug,
+      json_extract(e.payload_json, '$.assignmentReply.sessionId') AS reply_session_id,
+      json_extract(e.payload_json, '$.assignmentReply.sourceEventId') AS reply_source_event_id`;
     const candidates = database
       .prepare(`${columns} ${base} ORDER BY e.created_at, e.rowid LIMIT ?`)
       .all(
@@ -1137,16 +1146,18 @@ class BotRuntimeImplementation implements BotRuntime {
     return [
       '[Bot Inbox: pending DM context]',
       `Channel: ${context.channelId}`,
-      ...context.rows.map(
-        (row) =>
+      ...context.rows.map((row) => {
+        return (
+          `${row.reply_session_id == null || row.reply_source_event_id == null ? '' : `[Human response to Assignment Session ${row.reply_session_id}, report Source Event ${row.reply_source_event_id}]\n`}` +
           `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${
             row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? '?'}` : 'Human'
           } at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${
             row.body.length > GROUP_CONTEXT_BODY_LIMIT
               ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]`
               : ''
-          }`,
-      ),
+          }`
+        );
+      }),
       context.omittedCount > 0
         ? `${context.omittedCount} messages remain pending for later turns. Use channel_read if more history is needed.`
         : '',
@@ -2029,6 +2040,10 @@ class BotRuntimeImplementation implements BotRuntime {
       return text;
     const selected = [...new Set((message.mentions ?? []).map((mention) => mention.botSlug))];
     const parts = [text];
+    if (message.assignmentReply !== undefined)
+      parts.push(
+        `[Human response to Assignment Session ${message.assignmentReply.sessionId}, report Source Event ${message.assignmentReply.sourceEventId}]\nUse assignment inspection and send_assignment_request to relay this response to the addressed Assignment. This DM is Human input; it does not itself resume the Assignment or clear its open ask.`,
+      );
     if (selected.length > 0) {
       const contacts = selected.map((slug) => {
         const contact = this.#registry.get(slug);
@@ -2117,7 +2132,7 @@ class BotRuntimeImplementation implements BotRuntime {
                   continuity_key, open_ask_source_event_id, open_ask_at,
                   grant_id, workspace_id, primary_cwd, permission_mode,
                   approval_policy, preset_revision, created_at, updated_at
-                  , model_route_json
+                  , model_route_json, (SELECT body FROM source_events WHERE source_event_id = assignments.open_ask_source_event_id) AS open_ask_summary
              FROM assignments
             WHERE bot_slug = ?
             ORDER BY updated_at DESC, session_id ASC`,
@@ -2143,7 +2158,7 @@ class BotRuntimeImplementation implements BotRuntime {
                   continuity_key, open_ask_source_event_id, open_ask_at,
                   grant_id, workspace_id, primary_cwd, permission_mode,
                   approval_policy, preset_revision, created_at, updated_at
-                  , model_route_json
+                  , model_route_json, (SELECT body FROM source_events WHERE source_event_id = assignments.open_ask_source_event_id) AS open_ask_summary
              FROM assignments
             WHERE bot_slug = ? AND session_id = ?`,
         )
@@ -4184,27 +4199,37 @@ class BotRuntimeImplementation implements BotRuntime {
     const sourceEventId = this.#createEventId();
     const reportWake = this.#database.transaction(
       (database) => {
+        const priorAsk = database
+          .prepare(`SELECT a.open_ask_source_event_id AS id, a.open_ask_at AS at,
+          json_extract(e.payload_json, '$.assignmentReport.state') AS state
+          FROM assignments a LEFT JOIN source_events e ON e.source_event_id = a.open_ask_source_event_id
+          WHERE a.session_id = ? AND a.bot_slug = ?`)
+          .get(sessionId, botSlug) as
+          | { id: string | null; at: string | null; state: string | null }
+          | undefined;
+        const terminal = input.state === 'completed' || input.state === 'failed';
+        const keepAsk =
+          !terminal &&
+          ((input.state === 'progress' && !expectsReply) ||
+            (expectsReply && priorAsk?.state === 'blocked' && input.state !== 'blocked'));
+        const askId = terminal
+          ? null
+          : keepAsk
+            ? (priorAsk?.id ?? null)
+            : expectsReply
+              ? sourceEventId
+              : null;
+        const askAt = terminal ? null : keepAsk ? (priorAsk?.at ?? null) : expectsReply ? at : null;
         const changed = database
           .prepare(
             `UPDATE assignments
                 SET latest_report_state = ?, latest_report_summary = ?, latest_report_at = ?,
                     updated_at = ?,
-                    open_ask_source_event_id = CASE WHEN ? = 1 THEN ? ELSE NULL END,
-                    open_ask_at = CASE WHEN ? = 1 THEN ? ELSE NULL END
+                    open_ask_source_event_id = ?,
+                    open_ask_at = ?
               WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`,
           )
-          .run(
-            input.state,
-            summary,
-            at,
-            at,
-            expectsReply ? 1 : 0,
-            sourceEventId,
-            expectsReply ? 1 : 0,
-            at,
-            sessionId,
-            botSlug,
-          );
+          .run(input.state, summary, at, at, askId, askAt, sessionId, botSlug);
         if (changed.changes !== 1)
           throw new Error(`Assignment Session ${sessionId} is unavailable or stopping`);
         const sourceRule = this.#sourcePolicy.resolveIn(database, botSlug, 'assignment-report');
@@ -4330,6 +4355,8 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(
             `SELECT e.source_event_id, e.source_kind, e.assignment_session_id,
                     e.body, e.created_at, e.expects_reply, a.continuity_key,
+                    CASE WHEN a.stop_state = 'running' THEN a.open_ask_source_event_id END AS open_ask_id,
+                    (SELECT body FROM source_events WHERE source_event_id = a.open_ask_source_event_id) AS open_ask_summary,
                     CASE WHEN a.stop_state = 'stopped' THEN 'stopped'
                          WHEN a.stop_state = 'requested' THEN 'stopping'
                          ELSE a.activity END AS activity

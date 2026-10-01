@@ -184,6 +184,8 @@ export interface ChannelMessage {
   botCausation?: BotMessageCausation;
 
   grantRequest?: true;
+  grantRequestResolved?: boolean;
+  assignmentReply?: { sessionId: string; sourceEventId: string };
 
   grantRequestResolution?: { requestMessageId: string; grantId: string };
 
@@ -377,6 +379,25 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
   )
     return false;
   const grantResolution = message['grantRequestResolution'];
+  const assignmentReply = message['assignmentReply'];
+  if (assignmentReply !== undefined) {
+    if (
+      typeof assignmentReply !== 'object' ||
+      assignmentReply === null ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'human'
+    )
+      return false;
+    const target = assignmentReply as Record<string, unknown>;
+    if (
+      typeof target['sessionId'] !== 'string' ||
+      target['sessionId'].length === 0 ||
+      target['sessionId'].length > 150 ||
+      typeof target['sourceEventId'] !== 'string' ||
+      target['sourceEventId'].length === 0 ||
+      target['sourceEventId'].length > 150
+    )
+      return false;
+  }
   if (grantResolution !== undefined) {
     if (
       typeof grantResolution !== 'object' ||

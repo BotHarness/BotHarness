@@ -108,6 +108,14 @@ function stubActions(): BridgeActions {
     }),
     messagingSnapshot: vi.fn(async () => ({ accounts: [], grants: [], intents: [] })),
     messagingTargets: vi.fn(async () => []),
+    resolveWorkspaceGrantRequest: vi.fn(async () => undefined),
+    pickWorkspaceFolder: vi.fn(async () => null),
+    humanAssignmentContext: vi.fn(async () => {
+      throw new Error('unexpected Assignment context');
+    }),
+    replyToHumanAssignment: vi.fn(async () => {
+      throw new Error('unexpected Assignment reply');
+    }),
     messagingAuthorize: vi.fn(async () => {
       throw new Error('unexpected IM authorization');
     }),
