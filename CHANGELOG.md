@@ -215,6 +215,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Browser typing now refuses readonly and disabled inputs and textareas before changing values, focus or events, including native disabled-fieldset inheritance; the Bot retains its current tab and can continue with an editable field ([#644](https://github.com/BotHarness/BotHarness/issues/644)).
+
 - Browser key presses now perform native focus movement, editing and form submission; unsupported keys return retryable errors instead of reporting success ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
 
 - Browser navigation failures now return retryable Tool errors and error Audit outcomes; failed new tabs are cleaned up while an existing current target remains available for observation and retry ([#627](https://github.com/BotHarness/BotHarness/issues/627)).
