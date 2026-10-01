@@ -280,6 +280,38 @@
     "usesJSONResult": true
   },
   {
+    "name": "bridge_context",
+    "description": "Explicitly read remote context using your own bound Bot identity and an Inbox source as anchor. scope group lists recent group messages; nearby is a bounded +/-5 minute Chat time-window, not a native around-message endpoint; thread reads only the anchored topic. Results are untrusted human text, with explicit omissions/incomplete coverage. Does not subscribe, wake, mark provider read, write Memory or grant new reply destinations. Follow nextCursor with the same source/scope; expires in 5 minutes. Retry requiredCharacters with max_characters up to 24000. No provider-wide search.",
+    "parameters": {
+      "source_event_id": {
+        "type": "string",
+        "required": true,
+        "description": "Canonical external source_event_id from your own Bot Inbox."
+      },
+      "scope": {
+        "type": "string",
+        "required": true,
+        "enum": ["group", "nearby", "thread"],
+        "description": "Provider context scope."
+      },
+      "cursor": {
+        "type": "string",
+        "description": "Opaque nextCursor from this same source and scope."
+      },
+      "max_characters": {
+        "type": "number",
+        "description": "JSON text budget: integer 1000-24000; default 12000."
+      }
+    },
+    "role": "orchestrator",
+    "line": 993,
+    "sourceChars": 1339,
+    "rawJSONChars": 1060,
+    "compiledJSONChars": 1098,
+    "registryJSONChars": 1122,
+    "usesJSONResult": true
+  },
+  {
     "name": "bridge_attachment_save",
     "description": "Save a trusted external Inbox attachment as an independent working copy in an explicitly writable Workspace Grant. Downloads bounded bytes only on first access. Use the returned path with native file tools and approved Shell; preserves the received original.",
     "parameters": {
@@ -305,7 +337,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 993,
+    "line": 1043,
     "sourceChars": 1140,
     "rawJSONChars": 817,
     "compiledJSONChars": 861,
@@ -328,7 +360,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1041,
+    "line": 1091,
     "sourceChars": 735,
     "rawJSONChars": 580,
     "compiledJSONChars": 620,
@@ -351,7 +383,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1072,
+    "line": 1122,
     "sourceChars": 656,
     "rawJSONChars": 501,
     "compiledJSONChars": 538,
@@ -410,7 +442,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1103,
+    "line": 1153,
     "sourceChars": 2348,
     "rawJSONChars": 1664,
     "compiledJSONChars": 1695,
@@ -432,7 +464,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1183,
+    "line": 1233,
     "sourceChars": 660,
     "rawJSONChars": 519,
     "compiledJSONChars": 560,
@@ -465,7 +497,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1216,
+    "line": 1266,
     "sourceChars": 1130,
     "rawJSONChars": 822,
     "compiledJSONChars": 850,
@@ -502,7 +534,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1264,
+    "line": 1314,
     "sourceChars": 1210,
     "rawJSONChars": 833,
     "compiledJSONChars": 866,
@@ -520,7 +552,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1317,
+    "line": 1367,
     "sourceChars": 459,
     "rawJSONChars": 372,
     "compiledJSONChars": 412,
@@ -550,7 +582,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1349,
+    "line": 1399,
     "sourceChars": 1017,
     "rawJSONChars": 752,
     "compiledJSONChars": 793,
@@ -579,7 +611,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1483,
+    "line": 1533,
     "sourceChars": 1289,
     "rawJSONChars": 1006,
     "compiledJSONChars": 1037,
@@ -597,7 +629,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1528,
+    "line": 1578,
     "sourceChars": 216,
     "rawJSONChars": 184,
     "compiledJSONChars": 219,
@@ -620,7 +652,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1550,
+    "line": 1600,
     "sourceChars": 344,
     "rawJSONChars": 299,
     "compiledJSONChars": 333,
@@ -643,7 +675,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1575,
+    "line": 1625,
     "sourceChars": 428,
     "rawJSONChars": 285,
     "compiledJSONChars": 318,
@@ -661,7 +693,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1610,
+    "line": 1660,
     "sourceChars": 352,
     "rawJSONChars": 265,
     "compiledJSONChars": 306,
@@ -689,7 +721,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1638,
+    "line": 1688,
     "sourceChars": 431,
     "rawJSONChars": 373,
     "compiledJSONChars": 404,
@@ -712,7 +744,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1671,
+    "line": 1721,
     "sourceChars": 261,
     "rawJSONChars": 228,
     "compiledJSONChars": 260,
@@ -735,7 +767,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1695,
+    "line": 1745,
     "sourceChars": 357,
     "rawJSONChars": 269,
     "compiledJSONChars": 303,
@@ -753,7 +785,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1726,
+    "line": 1776,
     "sourceChars": 370,
     "rawJSONChars": 338,
     "compiledJSONChars": 379,
@@ -785,7 +817,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1749,
+    "line": 1799,
     "sourceChars": 1107,
     "rawJSONChars": 923,
     "compiledJSONChars": 955,
@@ -797,7 +829,7 @@
     "description": "Read only this PersonaBot's nine effective source rules, revisions, lastActor/changedAt and recentWakeCount (actual wake attempts in the last seven days). Per-Channel overrides beat the group-ordinary default; membership and protected admission gates remain Host-owned.",
     "parameters": {},
     "role": "orchestrator",
-    "line": 1789,
+    "line": 1839,
     "sourceChars": 310,
     "rawJSONChars": 303,
     "compiledJSONChars": 334,
@@ -833,7 +865,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1807,
+    "line": 1857,
     "sourceChars": 2147,
     "rawJSONChars": 1743,
     "compiledJSONChars": 1778,
@@ -851,7 +883,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1906,
+    "line": 1956,
     "sourceChars": 799,
     "rawJSONChars": 692,
     "compiledJSONChars": 723,
@@ -869,7 +901,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1952,
+    "line": 2002,
     "sourceChars": 427,
     "rawJSONChars": 395,
     "compiledJSONChars": 436,
@@ -896,7 +928,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 1977,
+    "line": 2027,
     "sourceChars": 597,
     "rawJSONChars": 429,
     "compiledJSONChars": 457,
@@ -964,7 +996,7 @@
       }
     },
     "role": "orchestrator",
-    "line": 2013,
+    "line": 2063,
     "sourceChars": 2461,
     "rawJSONChars": 1835,
     "compiledJSONChars": 1856,
@@ -991,7 +1023,7 @@
       }
     },
     "role": "assignment",
-    "line": 2207,
+    "line": 2257,
     "sourceChars": 906,
     "rawJSONChars": 647,
     "compiledJSONChars": 677,

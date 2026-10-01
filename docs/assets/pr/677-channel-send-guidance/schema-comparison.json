@@ -1,236 +1,282 @@
 {
   "baselineRevision": "9325ac2cdc13177f2682ca6ce6a25a24052d1527",
-  "integratedMain": "222770648139a7fb97925ae77085cf8f0893463e",
-  "candidateRuntimeRevision": "1b8d47555648e64ad6b0933e6e2689d9d0f2520e",
+  "initialAuditedMain": "222770648139a7fb97925ae77085cf8f0893463e",
+  "finalIntegratedMain": "358991db74b4b3e199e104ccd6384756d846a318",
+  "candidateRuntimeRevision": "7f0789fd585655ae2d12c7f6e7ed1ce7a87a5d5c",
   "dshTools": "0.2.0-rc.1",
   "metric": "UTF-16 code units in compact JSON.stringify({description,parameters}) after pinned defineTool conversion; not tokens",
   "tools": [
     {
       "name": "memory_switch_branch",
       "baseline": 314,
-      "integratedBeforeFix": 314,
+      "initialMain": 314,
+      "latestMainBeforeFix": 314,
       "candidate": 314
     },
     {
       "name": "memory_continue_from_commit",
       "baseline": 443,
-      "integratedBeforeFix": 443,
+      "initialMain": 443,
+      "latestMainBeforeFix": 443,
       "candidate": 443
     },
     {
       "name": "list_assignment_models",
       "baseline": 255,
-      "integratedBeforeFix": 255,
+      "initialMain": 255,
+      "latestMainBeforeFix": 255,
       "candidate": 255
     },
     {
       "name": "create_assignment",
       "baseline": 1303,
-      "integratedBeforeFix": 1303,
+      "initialMain": 1303,
+      "latestMainBeforeFix": 1303,
       "candidate": 1303
     },
     {
       "name": "request_workspace_grant",
       "baseline": 350,
-      "integratedBeforeFix": 350,
+      "initialMain": 350,
+      "latestMainBeforeFix": 350,
       "candidate": 350
     },
     {
       "name": "list_workspace_grants",
       "baseline": 182,
-      "integratedBeforeFix": 182,
+      "initialMain": 182,
+      "latestMainBeforeFix": 182,
       "candidate": 182
     },
     {
       "name": "list_assignments",
       "baseline": 198,
-      "integratedBeforeFix": 198,
+      "initialMain": 198,
+      "latestMainBeforeFix": 198,
       "candidate": 198
     },
     {
       "name": "inspect_assignment",
       "baseline": 781,
-      "integratedBeforeFix": 773,
+      "initialMain": 773,
+      "latestMainBeforeFix": 773,
       "candidate": 773
     },
     {
       "name": "send_assignment_request",
       "baseline": 716,
-      "integratedBeforeFix": 1253,
+      "initialMain": 1253,
+      "latestMainBeforeFix": 1253,
       "candidate": 1253
     },
     {
       "name": "stop_assignment",
       "baseline": 419,
-      "integratedBeforeFix": 419,
+      "initialMain": 419,
+      "latestMainBeforeFix": 419,
       "candidate": 419
     },
     {
       "name": "channel_list",
       "baseline": 793,
-      "integratedBeforeFix": 937,
+      "initialMain": 937,
+      "latestMainBeforeFix": 937,
       "candidate": 937
     },
     {
       "name": "bridge_read",
       "baseline": null,
-      "integratedBeforeFix": 389,
+      "initialMain": 389,
+      "latestMainBeforeFix": 389,
       "candidate": 389
+    },
+    {
+      "name": "bridge_context",
+      "baseline": null,
+      "initialMain": null,
+      "latestMainBeforeFix": 1098,
+      "candidate": 1098
     },
     {
       "name": "bridge_attachment_save",
       "baseline": null,
-      "integratedBeforeFix": 861,
+      "initialMain": 861,
+      "latestMainBeforeFix": 861,
       "candidate": 861
     },
     {
       "name": "bridge_reply_file",
       "baseline": null,
-      "integratedBeforeFix": 620,
+      "initialMain": 620,
+      "latestMainBeforeFix": 620,
       "candidate": 620
     },
     {
       "name": "bridge_reply",
       "baseline": null,
-      "integratedBeforeFix": 538,
+      "initialMain": 538,
+      "latestMainBeforeFix": 538,
       "candidate": 538
     },
     {
       "name": "channel_read",
       "baseline": 1012,
-      "integratedBeforeFix": 1695,
+      "initialMain": 1695,
+      "latestMainBeforeFix": 1695,
       "candidate": 1695
     },
     {
       "name": "inbox_ignore",
       "baseline": 560,
-      "integratedBeforeFix": 560,
+      "initialMain": 560,
+      "latestMainBeforeFix": 560,
       "candidate": 560
     },
     {
       "name": "channel_attachment_open",
       "baseline": null,
-      "integratedBeforeFix": 850,
+      "initialMain": 850,
+      "latestMainBeforeFix": 850,
       "candidate": 850
     },
     {
       "name": "channel_attachment_save",
       "baseline": null,
-      "integratedBeforeFix": 866,
+      "initialMain": 866,
+      "latestMainBeforeFix": 866,
       "candidate": 866
     },
     {
       "name": "channel_attachment_import",
       "baseline": null,
-      "integratedBeforeFix": 412,
+      "initialMain": 412,
+      "latestMainBeforeFix": 412,
       "candidate": 412
     },
     {
       "name": "channel_read_image",
       "baseline": 613,
-      "integratedBeforeFix": 793,
+      "initialMain": 793,
+      "latestMainBeforeFix": 793,
       "candidate": 793
     },
     {
       "name": "list_bot_contacts",
       "baseline": 140,
-      "integratedBeforeFix": 1037,
+      "initialMain": 1037,
+      "latestMainBeforeFix": 1037,
       "candidate": 1037
     },
     {
       "name": "group_create",
       "baseline": 219,
-      "integratedBeforeFix": 219,
+      "initialMain": 219,
+      "latestMainBeforeFix": 219,
       "candidate": 219
     },
     {
       "name": "group_invite_bot",
       "baseline": 333,
-      "integratedBeforeFix": 333,
+      "initialMain": 333,
+      "latestMainBeforeFix": 333,
       "candidate": 333
     },
     {
       "name": "group_invite_respond",
       "baseline": 318,
-      "integratedBeforeFix": 318,
+      "initialMain": 318,
+      "latestMainBeforeFix": 318,
       "candidate": 318
     },
     {
       "name": "group_join_request",
       "baseline": 306,
-      "integratedBeforeFix": 306,
+      "initialMain": 306,
+      "latestMainBeforeFix": 306,
       "candidate": 306
     },
     {
       "name": "group_join_decide",
       "baseline": 404,
-      "integratedBeforeFix": 404,
+      "initialMain": 404,
+      "latestMainBeforeFix": 404,
       "candidate": 404
     },
     {
       "name": "group_rename",
       "baseline": 260,
-      "integratedBeforeFix": 260,
+      "initialMain": 260,
+      "latestMainBeforeFix": 260,
       "candidate": 260
     },
     {
       "name": "group_remove_member",
       "baseline": 303,
-      "integratedBeforeFix": 303,
+      "initialMain": 303,
+      "latestMainBeforeFix": 303,
       "candidate": 303
     },
     {
       "name": "group_attention_get",
       "baseline": 316,
-      "integratedBeforeFix": 379,
+      "initialMain": 379,
+      "latestMainBeforeFix": 379,
       "candidate": 379
     },
     {
       "name": "group_attention_set",
       "baseline": 703,
-      "integratedBeforeFix": 955,
+      "initialMain": 955,
+      "latestMainBeforeFix": 955,
       "candidate": 955
     },
     {
       "name": "source_attention_get",
       "baseline": 270,
-      "integratedBeforeFix": 334,
+      "initialMain": 334,
+      "latestMainBeforeFix": 334,
       "candidate": 334
     },
     {
       "name": "source_attention_set",
       "baseline": 795,
-      "integratedBeforeFix": 1778,
+      "initialMain": 1778,
+      "latestMainBeforeFix": 1778,
       "candidate": 1778
     },
     {
       "name": "source_attention_reset",
       "baseline": 366,
-      "integratedBeforeFix": 723,
+      "initialMain": 723,
+      "latestMainBeforeFix": 723,
       "candidate": 723
     },
     {
       "name": "group_leave",
       "baseline": 263,
-      "integratedBeforeFix": 436,
+      "initialMain": 436,
+      "latestMainBeforeFix": 436,
       "candidate": 436
     },
     {
       "name": "bot_dm_send",
       "baseline": 457,
-      "integratedBeforeFix": 457,
+      "initialMain": 457,
+      "latestMainBeforeFix": 457,
       "candidate": 457
     },
     {
       "name": "channel_send",
       "baseline": 1101,
-      "integratedBeforeFix": 1829,
+      "initialMain": 1829,
+      "latestMainBeforeFix": 1829,
       "candidate": 1856
     },
     {
       "name": "report_to_orchestrator",
       "baseline": 677,
-      "integratedBeforeFix": 677,
+      "initialMain": 677,
+      "latestMainBeforeFix": 677,
       "candidate": 677
     }
   ]
