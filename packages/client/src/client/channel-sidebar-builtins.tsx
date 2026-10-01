@@ -21,6 +21,7 @@ import { MemoryEntry } from './memory-entry.js';
 import { MemoryFilesEntry } from './memory-files-entry.js';
 import { MemoryEvolutionHeaderAction, MemoryRefreshHeaderAction } from './memory-header-action.js';
 import { Modal } from './modal.js';
+import { ExternalSourceContent } from './external-source-content.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
 import {
@@ -312,6 +313,7 @@ function BotInboxItemRow({
             setExternalOpen(false);
           }}
           title={t('im.sourceTitle')}
+          className="bh-external-source-modal"
           closeLabel={t('common.close')}
         >
           {externalError ? (
@@ -319,85 +321,7 @@ function BotInboxItemRow({
           ) : external === undefined ? (
             <p>{t('im.sourceLoading')}</p>
           ) : (
-            <div className="bh-external-source-content">
-              <p>
-                {external.platform} · {external.accountName} · {external.conversationName}
-              </p>
-              <p>
-                {external.event.actor.name
-                  ? `${external.event.actor.name} (${external.event.actor.id})`
-                  : external.event.actor.id}{' '}
-                · {external.at}
-              </p>
-              <p>
-                {external.event.reply.threadId ??
-                  external.event.reply.rootId ??
-                  external.event.conversation.id}
-              </p>
-              <p className="bh-external-source-body">
-                {t('im.messageReference', {
-                  messageId: external.event.messageId,
-                  sourceEventId: external.id,
-                })}
-              </p>
-              <p className="bh-external-source-body">{external.body}</p>
-              {external.event.mentions.length ? (
-                <p className="bh-external-source-body">
-                  {external.event.mentions
-                    .map(
-                      (mention) => `${mention.key} → ${mention.name ?? mention.id} (${mention.id})`,
-                    )
-                    .join(' · ')}
-                </p>
-              ) : null}
-              {external.contextReads?.length ? (
-                <section aria-label={t('im.contextTitle')}>
-                  <h3>{t('im.contextTitle')}</h3>
-                  <p>{t('im.contextExplanation')}</p>
-                  {external.contextReads.map((read, index) => (
-                    <details key={`${read.at}:${index}`}>
-                      <summary>
-                        {read.scope} · {read.at} ·{' '}
-                        {read.outcome === 'refused'
-                          ? t('im.contextRefused', { reason: read.reason ?? 'history-unavailable' })
-                          : t('im.contextCount', { count: String(read.sourceEventIds.length) })}
-                      </summary>
-                      {read.incomplete ? (
-                        <p>{t('im.contextIncomplete', { count: String(read.omitted) })}</p>
-                      ) : null}
-                      <p>{read.sourceEventIds.join(', ')}</p>
-                    </details>
-                  ))}
-                  {external.contextMessages?.map((message) => (
-                    <article key={message.sourceEventId}>
-                      <p>
-                        {message.senderName
-                          ? `${message.senderName} (${message.senderId})`
-                          : message.senderId}{' '}
-                        · {message.at}
-                      </p>
-                      <p className="bh-external-source-body">
-                        {t('im.messageReference', {
-                          messageId: message.messageId,
-                          sourceEventId: message.sourceEventId,
-                        })}
-                      </p>
-                      <p className="bh-external-source-body">{message.text}</p>
-                      {message.mentions?.length ? (
-                        <p className="bh-external-source-body">
-                          {message.mentions
-                            .map(
-                              (mention) =>
-                                `${mention.key} → ${mention.name ?? mention.id} (${mention.id})`,
-                            )
-                            .join(' · ')}
-                        </p>
-                      ) : null}
-                    </article>
-                  ))}
-                </section>
-              ) : null}
-            </div>
+            <ExternalSourceContent source={external} t={t} />
           )}
         </Modal>
       ) : null}

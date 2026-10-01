@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- A mention-only PersonaBot can explicitly read bounded Lark group, nearby Chat time-window or anchored topic context through its own identity; the Inbox source shows returned context, sender and mention names with stable IDs, omissions and permission refusals without admitting ordinary history or creating wakes ([#612](https://github.com/BotHarness/BotHarness/issues/612)).
+- A mention-only PersonaBot can explicitly read bounded Lark group, nearby Chat time-window or anchored topic context through its own identity; the Inbox source uses a readable chat layout with named mentions and expandable exact message/source references, sender identities and read history, omissions and permission refusals without admitting ordinary history or creating wakes ([#612](https://github.com/BotHarness/BotHarness/issues/612)).
 
 - Humans can answer a live native Bot question inside Human Inbox using the same options or custom input as its source DM card; answers resume the original request once, refresh resolved or stale actions, and preserve other Bots independently ([#551](https://github.com/BotHarness/BotHarness/issues/551)).
 

@@ -342,7 +342,7 @@ it('clears previous source content and ignores older requests after reopening', 
         senderName: 'Alex',
         mentions: [{ id: 'bot-one', key: '@_user_1', name: 'QA Bot' }],
         at: '2026-10-01T00:00:00Z',
-        text: 'ONLY RETURNED CONTEXT',
+        text: 'ONLY RETURNED CONTEXT @_user_1 and @_user_10 <script>plain</script>',
       },
     ],
     event: {
@@ -392,6 +392,20 @@ it('clears previous source content and ignores older requests after reopening', 
     await act(async () => requests[1]!.resolve(source));
     await act(async () => requests[0]!.reject(new Error('Old request failed')));
     expect(container.textContent).toContain('CURRENT SOURCE');
+    const messages = [...container.querySelectorAll('.bh-external-message')];
+    const context = messages[1]!;
+    expect(context.querySelector('strong')?.textContent).toBe('Alex');
+    expect(context.querySelector('time')?.getAttribute('datetime')).toBe('2026-10-01T00:00:00Z');
+    expect(context.querySelector('.bh-external-message-text')?.textContent).toBe(
+      'ONLY RETURNED CONTEXT @QA Bot and @_user_10 <script>plain</script>',
+    );
+    expect(context.querySelector('script')).toBeNull();
+    const details = context.querySelector('details')!;
+    expect(details.open).toBe(false);
+    details.open = true;
+    expect(details.textContent).toContain('@_user_1 and @_user_10');
+    expect(container.textContent).toContain('上下文不完整');
+    expect(container.querySelector('.bh-external-audit')?.hasAttribute('open')).toBe(false);
     expect(container.textContent).toContain('ONLY RETURNED CONTEXT');
     expect(container.textContent).toContain('context-one');
     expect(container.textContent).toContain('Alex (external-human)');

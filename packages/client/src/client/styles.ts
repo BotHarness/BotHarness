@@ -3349,17 +3349,134 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   font-size: 12px;
   line-height: 18px;
 }
+ .bh-external-source-modal {
+  width: min(720px, 100%);
+  max-height: 100%;
+}
 .bh-external-source-content {
   max-height: 65vh;
   overflow: auto;
   overflow-wrap: anywhere;
+  font: 13px/1.5 var(--dsw-font-family);
+  color: var(--dsw-alias-label-primary);
 }
-.bh-external-source-body {
+.bh-external-route {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-external-route-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.bh-external-platform {
+  font-weight: 600;
+  color: var(--dsw-alias-state-business-primary);
+}
+.bh-external-scope {
+  padding: 1px 6px;
+  border-radius: var(--dsw-radius-sm);
+  font-size: 11px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-external-route > strong {
+  font-size: 15px;
+}
+.bh-external-route > span {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-external-original { padding: 20px 0; }
+.bh-external-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.bh-external-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  height: 36px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 15px;
+  font-weight: 600;
+}
+.bh-external-message-main { flex: 1; min-width: 0; }
+.bh-external-message-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-bottom: 7px;
+}
+.bh-external-message-head strong { font-size: 13px; }
+.bh-external-message-head time {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+}
+.bh-external-message-text {
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 0 var(--dsw-radius-sm) var(--dsw-radius-sm) var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-base);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  max-height: 50vh;
-  overflow: auto;
-  color: var(--dsw-alias-label-primary);
+  line-height: 1.65;
+}
+.bh-external-mention { color: var(--dsw-alias-state-business-primary); }
+.bh-external-details {
+  margin-top: 7px;
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-external-details > summary {
+  width: fit-content;
+  padding: 2px 0;
+  cursor: pointer;
+}
+.bh-external-details > summary:hover { color: var(--dsw-alias-label-primary); }
+.bh-external-details > summary:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+  border-radius: var(--dsw-radius-sm);
+}
+.bh-external-detail-body {
+  padding: 8px 10px;
+  margin-top: 4px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-external-detail-body p { margin: 0 0 6px; }
+.bh-external-detail-body p:last-child { margin-bottom: 0; }
+.bh-external-raw-text { white-space: pre-wrap; }
+.bh-external-context { border-top: 1px solid var(--dsw-alias-border-l2); padding-top: 16px; }
+.bh-external-context h3 { margin: 0 0 4px; font-size: 13px; }
+.bh-external-context-hint { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.bh-external-notice {
+  margin: 10px 0;
+  padding: 8px 10px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-state-warn-primary);
+  font-size: 12px;
+}
+.bh-external-context-messages { display: flex; flex-direction: column; gap: 20px; padding-top: 16px; }
+@media (max-width: 480px) {
+  .bh-external-message { gap: 8px; }
+  .bh-external-avatar { flex-basis: 28px; height: 28px; font-size: 12px; }
+  .bh-external-message-text { padding: 8px 10px; }
 }
 .bh-inbox-item-meta {
   color: var(--dsw-alias-label-tertiary);

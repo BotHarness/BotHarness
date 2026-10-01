@@ -1,5 +1,17 @@
 # #612 real Lark context-read verification
 
+## External-source Modal presentation follow-up
+
+The current UI uses a Lark-inspired conversation composition: a single avatar gutter, sender/time header, named @ mentions and readable message cards. The DSH native Modal, 24px body inset, typeface, color/radius tokens, focus and dismissal behavior remain native. The card widens from native 380px to at most 720px for history reading; narrow layouts fit inside the native overlay inset. Initials are placeholders because this API does not return avatars. Feishu is the shared adapter channel, so the route is labeled “Lark / 飞书” rather than guessing a regional endpoint.
+
+Message / Source Event references, exact sender and @ IDs, original text, origin coordinates and read audit remain available in disclosures. Incomplete/refused reads remain visible without expanding the audit. The latest returned page is ordered by timestamp; this display does not merge missing pages or imply complete topic coverage.
+
+Matched **Before / After** captures use the actual committed pre-polish Client (`1deef911`) and final Client against the same retained `BH612-NAMES-TOPIC-06` source and `JUNIPER` context, same QA Profile, Chinese locale and browser. Desktop is **1470 × 835**, light/dark; narrow is **390 × 844**, dark. `modal-before-light.jpg` / `modal-after-light.jpg`, `modal-context-before-light.jpg` / `modal-context-after-light.jpg`, `modal-before-dark.jpg` / `modal-after-dark.jpg`, and `modal-narrow-before-dark.jpg` / `modal-narrow-after-dark.jpg` are the pairs. `modal-details-light.jpg` shows expanded exact references and original @ text. All are actual JPEG captures, with no page injection or image compositing. Earlier native Chrome evidence remains historical; after a native Chrome window stalled, the task's in-app browser completed the final checks.
+
+`modal-verification.json` records source anchors, measured geometry and checks. At 1470px the Modal is 720px wide with 24px content insets; at 390px it is 342px wide with 24px overlay insets. Neither content region has horizontal overflow. Closing, reopening, expanding details, scrolling to `JUNIPER`, and changing themes were verified on the real Host/Client. Exact final bundle was restored after baseline captures. Human QA starts on the final retained message; no new Lark sends are required for this presentation follow-up.
+
+UI follow-up validation: full suite **1737 passed / 2 existing environment skips**, 21 focused UI/token tests, typecheck, build, lint/source policy, format and bilingual ledger checks passed. Prior provider and boundary checks below remain applicable. Goal pauses for Human QA; no merge or deployment.
+
 Latest Human QA follow-up: qualified provider `d98a8330859b0daf5c9e88b3f9edc05f127fc321`, 386 runtime files, SHA-256 `d53e2d4363243f112f85311e4646c2fda3493bb02331e723f87903d22a901c3d`, DSH `0.2.0-rc.1`. The earlier captures below remain historical evidence of the initial context slice.
 
 After integrating main `51f992fa`, rebuilding and restarting the same isolated Profile, a fresh real group read returned `BIRCH`, its sender name/ID, message/Source Event IDs and mention mapping. Reply `BH612-NAMES-MERGED-OK BIRCH` is visible in `lark-names-merged.png`; `names-merged-verification.json` records the two actual tool results and the handled source, without local placement or Assignment.

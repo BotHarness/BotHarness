@@ -17,7 +17,7 @@
 
 ### Added
 
-- 只收 @ 的 PersonaBot 可用自己的 Lark 身份主动读取有界群历史、附近时间窗或原话题上下文；Inbox 来源展示已返回内容、发送人和 @ 人员的姓名与稳定 ID、遗漏及权限拒绝，不将普通历史加入收件或产生新唤醒（[#612](https://github.com/BotHarness/BotHarness/issues/612)）。
+- 只收 @ 的 PersonaBot 可用自己的 Lark 身份主动读取有界群历史、附近时间窗或原话题上下文；Inbox 来源以聊天布局展示内容、姓名和 @ 人员，消息／来源引用、稳定 ID 与读取记录可展开查看，遗漏及权限拒绝仍明确提示，不将普通历史加入收件或产生新唤醒（[#612](https://github.com/BotHarness/BotHarness/issues/612)）。
 
 - Human 可在 Human Inbox 使用来源 DM 提问卡的选项或自定义输入回答实时原生提问；答案只恢复原请求一次，刷新已解决或过期待办，并保留其他 Bot 的独立请求（[#551](https://github.com/BotHarness/BotHarness/issues/551)）。
 
