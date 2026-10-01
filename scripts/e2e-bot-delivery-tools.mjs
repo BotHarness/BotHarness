@@ -340,8 +340,10 @@ try {
     console.log(JSON.stringify({ verdict: 'PASS', bot: bot.displayName, calls: 4, turns: 2 }));
   }
 } catch (error) {
+  const failureDir = resolve('.humanlayer/tasks/528-bot-delivery-tools');
+  mkdirSync(failureDir, { recursive: true });
   await page
-    .screenshot({ path: resolve('.humanlayer/tasks/528-bot-delivery-tools/failure-private.png') })
+    .screenshot({ path: resolve(failureDir, 'failure-private.png') })
     .catch(() => undefined);
   console.error(error);
   process.exitCode = 1;
