@@ -1,0 +1,7 @@
+{
+  "build": "after",
+  "timeoutReported": true,
+  "elapsedMs": 15186,
+  "currentRetained": true,
+  "partialObservationAvailable": true
+}

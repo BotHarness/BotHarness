@@ -1,0 +1,7 @@
+{
+  "build": "after",
+  "realModelClickCalls": 1,
+  "timeoutReported": true,
+  "realModelReply": "browser_click 实际结果：超时（未返回 click done）。\n\n- 超时毫秒数：15000ms（15 秒）。\n- 错误原文：Bot Browser page did not settle within 15000ms after the action; it may have already run. Call browser_observe to inspect the current page before retrying\n- 过程：只用 browser_open 打开 http://127.0.0.1:32018/page → browser_observe（标题 Browser interaction QA，可见 input Search、button Search、链接 “Never settle”）→ browser_click 点击 “Never settle” 恰好一次。未重试、未另行导航。\n- 按要求先观察后报告：browser_observe 显示 URL 已到 http://127.0.0.1:32018/never，标题 “Unsettled page”，文本 “Unsettled page Loading an image that never completes.”，页面处于持续加载状态。\n- 结论：点击可能已生效（已到 /never），但工具因页面永不 settle 而超时，不能视为已完成；应先 browser_observe 确认当前状态。未再次点击。",
+  "actualClickResult": "Error: Bot Browser page did not settle within 15000ms after the action; it may have already run. Call browser_observe to inspect the current page before retrying"
+}
