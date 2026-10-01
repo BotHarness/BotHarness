@@ -1147,6 +1147,44 @@ describe('runtime lifecycle', () => {
     expect(base.calls.map((call) => call.method)).toContain('Emulation.setFocusEmulationEnabled');
   });
 
+  it('retries input preparation after a best-effort screenshot focus failure', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    let captures = 0;
+    let preparations = 0;
+    let prepared = false;
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      browserPath: '/opt/chrome',
+      fileExists: () => true,
+      connect: async () => ({
+        send: async (method, params, sessionId) => {
+          if (method === 'Page.captureScreenshot' && ++captures === 1)
+            throw new Error('No initial frame');
+          if (method === 'Emulation.setFocusEmulationEnabled') {
+            if (++preparations === 1) throw new Error('Temporary focus failure');
+            prepared = true;
+          }
+          if (method.startsWith('Input.') && !prepared)
+            throw new Error('Background page is not focused for input');
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      }),
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await expect(runtime.captureScreenshot('tab-1')).resolves.toMatchObject({
+      mimeType: 'image/jpeg',
+    });
+    await expect(runtime.pressKey('tab-1', 'Enter')).resolves.toMatchObject({ tabId: 'tab-1' });
+    expect(preparations).toBe(2);
+    expect(base.calls.some((call) => call.method === 'Target.activateTarget')).toBe(false);
+    await runtime.stop();
+  });
+
   it('installs the pinned fallback when no system browser exists', async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child.proc as never);

@@ -7,7 +7,7 @@
   "typedTextAuditRedacted": true,
   "auditAttributed": true,
   "readinessTimeoutReported": true,
-  "toolRoundTripMs": 15164,
+  "toolRoundTripMs": 15186,
   "partialObservationAvailable": true,
   "retryRetainsCurrentTab": true,
   "finalModelReplyAndScreenshot": true

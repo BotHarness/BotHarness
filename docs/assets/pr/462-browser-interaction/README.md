@@ -17,7 +17,7 @@ All fixture data and the search query are synthetic.
 - On base `caa9ec3f`, the never-completing image fixture returned click success after
   15146ms. The actual model reported the success, while noting that loading was unfinished.
 - On the final runtime, that native click returned the readable `15000ms` readiness error.
-  The measured **whole tool round trip** was 15164ms, including transport and registration.
+  The measured **whole tool round trip** was 15186ms, including transport and registration.
   The real model also received the error after one click, observed the partial page,
   explained that the click might already have happened, and did not click again.
 - The original owned target remained current after the timeout. Read-only observation
@@ -44,9 +44,13 @@ CDP Session, using the existing emulation mechanism without foreground activatio
 The final complete model task passed on a freshly restarted Browser before its first
 scroll or model screenshot.
 
+A review regression also reproduced a screenshot focus failure leaving a false ready
+marker. The screenshot fallback now uses the same preparation helper and records only
+successful focus; later input retries preparation after a best-effort capture failure.
+
 Runtime tests cover reused/new navigation, key/type actions, delayed navigation,
 transient execution context loss, recovery, and background input without activating a
-Human target. Focused runtime/tool tests: 130 passed. Full local suite: 1744 passed,
+Human target. Focused runtime/tool tests: 131 passed. Full pre-review local suite: 1744 passed,
 2 explicit opt-in skips; lint, format, typecheck and build passed. Exact PR-head CI is
 linked from the PR description.
 

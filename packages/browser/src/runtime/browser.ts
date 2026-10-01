@@ -898,12 +898,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     } catch {
       void 0;
     }
-    if (!focusEmulated.has(sessionId)) {
-      await live
-        .send('Emulation.setFocusEmulationEnabled', { enabled: true }, sessionId)
-        .catch(() => undefined);
-      focusEmulated.add(sessionId);
-    }
+    await prepareInput(sessionId).catch(() => undefined);
     const data = await capture().catch(() => undefined);
     return data === undefined ? undefined : withMeta(data);
   };
