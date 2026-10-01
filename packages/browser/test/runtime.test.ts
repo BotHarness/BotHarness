@@ -265,6 +265,148 @@ describe('runtime lifecycle', () => {
     expect(child.proc.kill).toHaveBeenCalled();
   });
 
+  it.each(['reuse', 'open', 'new tab'] as const)(
+    'rejects a failed %s navigation and permits retry without losing the original error',
+    async (kind) => {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const client = fakeClient();
+      const send = client.send;
+      client.send = vi.fn(async (method, params, sessionId) => {
+        if (method === 'Page.navigate' && params?.['url'] === 'https://fail.test') {
+          return { errorText: 'net::ERR_EMPTY_RESPONSE' };
+        }
+        return send(method, params, sessionId);
+      });
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        browserPath: '/opt/chrome',
+        fileExists: () => true,
+        connect: async () => client,
+      });
+      const ready = runtime.ensure();
+      child.ready();
+      await ready;
+      if (kind === 'reuse') await runtime.open('https://example.com');
+      const previous = runtime.currentUrl();
+      const failed =
+        kind === 'new tab'
+          ? runtime.createTab('https://fail.test')
+          : runtime.open('https://fail.test', kind === 'reuse' ? 'tab-1' : undefined);
+      await expect(failed).rejects.toThrow(
+        /navigation failed.*ERR_EMPTY_RESPONSE.*retry browser_open/,
+      );
+      expect(runtime.currentUrl()).toBe(previous);
+      expect(
+        vi.mocked(client.send).mock.calls.filter(([method]) => method === 'Target.closeTarget'),
+      ).toHaveLength(kind === 'reuse' ? 0 : 1);
+      await expect(
+        runtime.open('https://example.com', kind === 'reuse' ? 'tab-1' : undefined),
+      ).resolves.toMatchObject({ tabId: 'tab-1' });
+      await runtime.stop();
+    },
+  );
+
+  it.each(['reject', 'refuse'])(
+    'keeps the navigation error when cleanup fails by %s and records a bounded diagnostic',
+    async (failure) => {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const client = fakeClient();
+      const send = client.send;
+      client.send = vi.fn(async (method, params, sessionId) => {
+        if (method === 'Page.navigate') return { errorText: 'net::ERR_EMPTY_RESPONSE' };
+        if (method === 'Target.closeTarget') {
+          if (failure === 'refuse') return { success: false };
+          throw new Error('cleanup unavailable');
+        }
+        return send(method, params, sessionId);
+      });
+      const onEvent = vi.fn();
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        browserPath: '/opt/chrome',
+        fileExists: () => true,
+        connect: async () => client,
+        onEvent,
+      });
+      const ready = runtime.ensure();
+      child.ready();
+      await ready;
+      await expect(runtime.createTab('https://fail.test')).rejects.toThrow(/ERR_EMPTY_RESPONSE/);
+      expect(
+        vi.mocked(client.send).mock.calls.filter(([method]) => method === 'Target.closeTarget'),
+      ).toHaveLength(1);
+      expect(onEvent).toHaveBeenCalledWith(expect.stringContaining('navigation cleanup failed'));
+      await runtime.stop();
+    },
+  );
+
+  it('bounds a stalled new-target cleanup and still returns the navigation error', async () => {
+    vi.useFakeTimers();
+    try {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const client = fakeClient();
+      const send = client.send;
+      client.send = vi.fn(async (method, params, sessionId) => {
+        if (method === 'Page.navigate') return { errorText: 'net::ERR_EMPTY_RESPONSE' };
+        if (method === 'Target.closeTarget') return new Promise<never>(() => {});
+        return send(method, params, sessionId);
+      });
+      const onEvent = vi.fn();
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        browserPath: '/opt/chrome',
+        fileExists: () => true,
+        connect: async () => client,
+        onEvent,
+      });
+      const ready = runtime.ensure();
+      child.ready();
+      await ready;
+      const failed = runtime.createTab('https://fail.test').then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(await failed).toMatchObject({
+        message: expect.stringContaining('ERR_EMPTY_RESPONSE'),
+      });
+      expect(onEvent).toHaveBeenCalledWith(expect.stringContaining('navigation cleanup failed'));
+      await runtime.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('accepts successful same-document navigation without a loader ID', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const client = fakeClient();
+    const send = client.send;
+    client.send = vi.fn(async (method, params, sessionId) => {
+      if (method === 'Page.navigate') return { frameId: 'frame-1' };
+      return send(method, params, sessionId);
+    });
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      browserPath: '/opt/chrome',
+      fileExists: () => true,
+      connect: async () => client,
+    });
+    const ready = runtime.ensure();
+    child.ready();
+    await ready;
+    await expect(runtime.open('https://example.com/#section', 'tab-1')).resolves.toMatchObject({
+      tabId: 'tab-1',
+    });
+    expect(
+      vi.mocked(client.send).mock.calls.some(([method]) => method === 'Target.closeTarget'),
+    ).toBe(false);
+    await runtime.stop();
+  });
+
   it('reveals the existing Human tab and restores a minimized window without a new target', async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child.proc as never);

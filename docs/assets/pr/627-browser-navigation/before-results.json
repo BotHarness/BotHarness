@@ -1,0 +1,23 @@
+{
+  "baseline": true,
+  "phase": "probe",
+  "modelPassed": true,
+  "navigationOutcomes": [
+    {
+      "tool": "browser_tabs open",
+      "outcome": "ok",
+      "attributed": true
+    },
+    {
+      "tool": "browser_open",
+      "outcome": "ok",
+      "attributed": true
+    }
+  ],
+  "originalTab": "90B7DCD0E5D79479840039F143A0ACD9",
+  "focused": "37036211B8C96CF3E0CAE20C2191D6D4",
+  "retainedOriginal": false,
+  "ownedLiveTabs": 2,
+  "previewAvailable": true,
+  "pageConfirmations": 0
+}
