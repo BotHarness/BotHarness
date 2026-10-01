@@ -92,6 +92,8 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 
 | 35 | Native approval requested from an idle Agent probe | A direct `ctx.tools.execute` probe returns `Human approval is unavailable` and no DM card appears | Pinned DSH 0.2.0 RC1 `approval.request` requires an open Turn to enclose `approval/asked` and `approval/decided`. Exercise first approval with a real model Turn, then use native probes for already-authorized operation guards. Verify pending approval cancellation with another real Turn; a completed Agent is insufficient (#460). |
 
+| 36 | SRC Remote signature omits a newly supported named argument | Profile Save fails with `gateway/arguments-invalid: unexpected "delivery"`, although internal bridge-method tests pass | The Gateway builds its named-argument descriptor from the public Remote method signature. Add and forward the argument in that method, not only the owning implementation; verify through `/api` and cover the public adapter plus durable owner (#528). |
+
 ## Reference
 
 DSH 0.2.0 provider token reports use disjoint uncached input, output, cache-read and cache-write buckets. Optional cache fields may be absent even when an exact total is reported: absence is unknown, not zero. `deriveTurnTokenUsage` may return no result when exact lifecycle or usage evidence is incomplete; never substitute token-meter context estimates for observed provider consumption. Read the durable Assistant settlement's actual source route rather than a configured model. Verified with the installed token-meter contracts and a real model request in #499.

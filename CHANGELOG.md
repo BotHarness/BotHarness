@@ -226,6 +226,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Human DM, Bot DM and Group mention delivery settings now save from PersonaBot Profile, so switching between steering the active Turn and queuing a separate Turn takes effect and survives restart ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
+
 - Background Bot Browser tabs now prepare native mouse and keyboard input without bringing the Human window to the foreground, so a search can open its first result before any screenshot or scroll ([#462](https://github.com/BotHarness/BotHarness/issues/462)).
 
 - Browser actions and navigation now report a readable timeout when the page remains unsettled for 15 seconds, and direct the Bot to observe before retrying an action that may already have run ([#462](https://github.com/BotHarness/BotHarness/issues/462)).
