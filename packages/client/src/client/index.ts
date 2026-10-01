@@ -262,7 +262,7 @@ export function apply(ctx: ClientContext): void {
           id: 'human-name',
           order: -10,
           locale: LOCALE_NS,
-          inject: () => ({ call, onSaved: () => actions.refreshRoster() }),
+          inject: () => ({ call, store, onSaved: () => actions.refreshRoster() }),
         },
         HumanNameSettings,
       ),

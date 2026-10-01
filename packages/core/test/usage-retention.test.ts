@@ -271,7 +271,7 @@ it('refuses Host Registry Purge in recovery mode before deleting the PersonaBot 
       schemaPlan: defineSchemaPlan([
         ...BOT_HARNESS_SCHEMA_PLAN.migrations,
         {
-          generation: 41,
+          generation: BOT_HARNESS_SCHEMA_PLAN.targetGeneration + 1,
           module: 'usage',
           description: 'Simulate a newer profile schema',
           migrate() {},

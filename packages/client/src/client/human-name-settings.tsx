@@ -7,16 +7,23 @@ import {
   type BridgeCall,
   type LocalHumanIdentity,
 } from './bridge.js';
+import type { ClientStore } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 
 export type HumanNameSettingsProps = PropsRuntime<'botharness.settings.item'> &
   PropsLocale<'botharness'> &
   InjectFace<{
     call: BridgeCall;
+    store: ClientStore;
     onSaved(): Promise<void>;
   }>;
 
-export function HumanNameSettings({ call, onSaved, t }: HumanNameSettingsProps): ReactElement {
+export function HumanNameSettings({
+  call,
+  store,
+  onSaved,
+  t,
+}: HumanNameSettingsProps): ReactElement {
   const [identity, setIdentity] = useState<LocalHumanIdentity>();
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,18 +50,32 @@ export function HumanNameSettings({ call, onSaved, t }: HumanNameSettingsProps):
       }
     };
     void refresh();
-    const source =
-      typeof EventSource === 'undefined'
-        ? undefined
-        : new EventSource('/api/botharness/stream?scope=roster');
-    source?.addEventListener('roster/changed', () => void refresh());
-    if (source) source.onopen = () => void refresh();
+    let source: EventSource | undefined;
+    let channels = store.getSnapshot().channels;
+    const sync = (): void => {
+      const snapshot = store.getSnapshot();
+      if (snapshot.mode === 'bot') {
+        source?.close();
+        source = undefined;
+      } else if (source === undefined && typeof EventSource !== 'undefined') {
+        source = new EventSource('/api/botharness/stream?scope=roster');
+        source.addEventListener('roster/changed', () => void refresh());
+        source.onopen = () => void refresh();
+      }
+      if (channels !== snapshot.channels) {
+        channels = snapshot.channels;
+        void refresh();
+      }
+    };
+    const unsubscribe = store.subscribe(sync);
+    sync();
     return () => {
       mounted.current = false;
       controller.abort();
+      unsubscribe();
       source?.close();
     };
-  }, [call]);
+  }, [call, store]);
   const save = async (name: string | null): Promise<void> => {
     if (submitting.current) return;
     submitting.current = true;
