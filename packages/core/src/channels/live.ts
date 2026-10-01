@@ -1,3 +1,4 @@
+import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import type { ChannelDraft, ChannelDraftEvent } from './draft.js';
 import type { ChannelMessage } from './channel.js';
 import type { ChannelMessageCommit, ChannelStore } from './store.js';
@@ -66,10 +67,77 @@ function draftFrame(event: PublishedDraftEvent): string {
   return `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
+interface ActivitySource {
+  snapshot(): PersonaBotActivitySnapshot;
+  onChange(listener: () => void): () => void;
+}
+
+export function createChannelLiveHub(
+  channels: ChannelStore,
+  activity?: ActivitySource,
+): ChannelLiveHub {
   const subscribers = new Map<string, Set<Subscriber>>();
   const drafts = new Map<string, Map<string, PublishedDraft>>();
   const draftRevisions = new Map<string, number>();
+  const activitySubscribers = new Set<{ close(): void }>();
+  const openActivity = (): Response => {
+    if (activity === undefined) return new Response('Activity unavailable', { status: 503 });
+    const encoder = new TextEncoder();
+    let cancel: (() => void) | undefined;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        let ended = false;
+        let unsubscribe: (() => void) | undefined;
+        let heartbeat: ReturnType<typeof setInterval> | undefined;
+        const subscriber = {
+          close() {
+            if (ended) return;
+            ended = true;
+            unsubscribe?.();
+            if (heartbeat !== undefined) clearInterval(heartbeat);
+            activitySubscribers.delete(subscriber);
+            try {
+              controller.close();
+            } catch {}
+          },
+        };
+        const send = (): void => {
+          if (ended) return;
+          try {
+            controller.enqueue(
+              encoder.encode(
+                `event: activity/snapshot\ndata: ${JSON.stringify(activity.snapshot())}\n\n`,
+              ),
+            );
+          } catch {
+            subscriber.close();
+          }
+        };
+        activitySubscribers.add(subscriber);
+        cancel = () => subscriber.close();
+        unsubscribe = activity.onChange(send);
+        send();
+        heartbeat = setInterval(() => {
+          if (ended) return;
+          try {
+            controller.enqueue(encoder.encode(': heartbeat\n\n'));
+          } catch {
+            subscriber.close();
+          }
+        }, 15_000);
+      },
+      cancel() {
+        cancel?.();
+      },
+    });
+    return new Response(body, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'X-Accel-Buffering': 'no',
+      },
+    });
+  };
   const rosterSubscribers = new Set<{ push(): void; close(): void }>();
   const openRoster = (): Response => {
     const encoder = new TextEncoder();
@@ -129,6 +197,7 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
   return {
     open(request) {
       const url = new URL(request.url);
+      if (url.searchParams.get('scope') === 'activity') return openActivity();
       if (url.searchParams.get('scope') === 'roster') return openRoster();
       const channelId = url.searchParams.get('channelId');
       if (channelId === null || channels.get(channelId) === undefined) {
@@ -224,6 +293,12 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
           controller.enqueue(encoder.encode('retry: 1500\n\n'));
 
           for (const commit of channels.messagesAfter(channelId, after) ?? []) push(commit);
+          for (const commit of channels.messagesAfter(channelId, Math.max(0, after - 100)) ?? []) {
+            if (commit.revision > after) break;
+            if (commit.message.deliveries !== undefined) {
+              subscriber.pushAdmission(commit.message.id, commit.message);
+            }
+          }
           if (channels.get(channelId)?.type === 'group') {
             const position = channels.readPosition(channelId);
             if (position !== undefined) subscriber.pushHumanRead('local-human', position.revision);
@@ -317,6 +392,7 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
         for (const subscriber of group) subscriber.close();
       }
       for (const subscriber of rosterSubscribers) subscriber.close();
+      for (const subscriber of activitySubscribers) subscriber.close();
     },
   };
 }

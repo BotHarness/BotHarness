@@ -745,6 +745,42 @@ export function createActions(
     }
   };
 
+  const settleNativeInboxAction = async (
+    kind: 'tool-approval' | 'user-question',
+    channelId: string,
+    messageId: string,
+    submit: () => Promise<void>,
+    loadStatus: () => Promise<'pending' | 'expired'>,
+  ): Promise<void> => {
+    let resolved = false;
+    try {
+      await submit();
+      resolved = true;
+    } finally {
+      if (!resolved) {
+        try {
+          resolved = (await loadStatus()) === 'expired';
+        } catch {}
+      }
+      if (resolved)
+        clientStore.setHumanInbox({
+          items: clientStore
+            .getSnapshot()
+            .humanInbox.items.filter(
+              (item) =>
+                item.kind !== kind || item.channelId !== channelId || item.messageId !== messageId,
+            ),
+        });
+      const selection = currentSelection();
+      await Promise.allSettled([
+        refreshHumanInboxStatus(),
+        ...(selection?.kind === 'inbox'
+          ? [loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection)]
+          : []),
+      ]);
+    }
+  };
+
   const actions: BridgeActions = {
     modelCatalog: () => loadModelCatalog(call),
     modelPresets: () => loadModelPresets(call),
@@ -794,41 +830,24 @@ export function createActions(
     revokeToolApprovalRule: (slug, id) => revokeToolApprovalRule(call, slug, id),
     toolApprovalStatus: (channelId, messageId) =>
       loadToolApprovalStatus(call, channelId, messageId),
-    async decideToolApproval(channelId, messageId, outcome) {
-      let resolved = false;
-      try {
-        await decideToolApproval(call, channelId, messageId, outcome);
-        resolved = true;
-      } finally {
-        if (!resolved) {
-          try {
-            resolved = (await loadToolApprovalStatus(call, channelId, messageId)) === 'expired';
-          } catch {}
-        }
-        if (resolved)
-          clientStore.setHumanInbox({
-            items: clientStore
-              .getSnapshot()
-              .humanInbox.items.filter(
-                (item) =>
-                  item.kind !== 'tool-approval' ||
-                  item.channelId !== channelId ||
-                  item.messageId !== messageId,
-              ),
-          });
-        const selection = currentSelection();
-        await Promise.allSettled([
-          refreshHumanInboxStatus(),
-          ...(selection?.kind === 'inbox'
-            ? [loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection)]
-            : []),
-        ]);
-      }
-    },
+    decideToolApproval: (channelId, messageId, outcome) =>
+      settleNativeInboxAction(
+        'tool-approval',
+        channelId,
+        messageId,
+        () => decideToolApproval(call, channelId, messageId, outcome),
+        () => loadToolApprovalStatus(call, channelId, messageId),
+      ),
     userQuestionStatus: (channelId, messageId) =>
       loadUserQuestionStatus(call, channelId, messageId),
     answerUserQuestion: (channelId, messageId, answers) =>
-      answerUserQuestion(call, channelId, messageId, answers),
+      settleNativeInboxAction(
+        'user-question',
+        channelId,
+        messageId,
+        () => answerUserQuestion(call, channelId, messageId, answers),
+        () => loadUserQuestionStatus(call, channelId, messageId),
+      ),
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
       try {

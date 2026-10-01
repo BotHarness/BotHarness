@@ -121,6 +121,34 @@ async function admitTurn(
 }
 
 describe('DM turn end to end', () => {
+  it('publishes processing before a directly admitted Human DM turn settles', async () => {
+    const { core } = startHarness();
+    core.registry.create({ slug: 'ada', displayName: 'Ada' });
+    const dm = core.channels.getOrCreateDm('ada', 'Ada');
+    if (dm === undefined) throw new Error('DM channel missing');
+    const response = core.live.open(
+      new Request(`http://localhost/api/botharness/stream?channelId=${dm.id}&after=0`),
+    );
+    const reader = response.body!.getReader();
+    await admitTurn(core, dm.id, 'live-processing', '请核对发布状态');
+    const states: string[] = [];
+    while (!states.includes('handled')) {
+      const next = await reader.read();
+      if (next.done) break;
+      const frame = new TextDecoder().decode(next.value);
+      if (!frame.includes('event: channel/admission')) continue;
+      const data = frame.split('data: ')[1]?.trim();
+      if (data === undefined) continue;
+      const update = JSON.parse(data) as { messageId: string; deliveries: { state: string }[] };
+      if (update.messageId === 'live-processing')
+        states.push(...update.deliveries.map((item) => item.state));
+    }
+    await reader.cancel();
+    expect(states).toContain('running');
+    expect(states).toContain('handled');
+    expect(states.indexOf('running')).toBeLessThan(states.indexOf('handled'));
+  });
+
   it('runs a real Orchestrator and Assignment turn through the Host wiring', async () => {
     const { ctx, host, core, dshHome } = startHarness();
     expect(core.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);

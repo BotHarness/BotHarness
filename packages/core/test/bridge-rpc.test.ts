@@ -83,6 +83,7 @@ describe('bridge typert service', () => {
       'modelPlanCustomize',
       'modelPlanAssignmentsSet',
       'list',
+      'activitySnapshot',
       'get',
       'create',
       'createFromGit',

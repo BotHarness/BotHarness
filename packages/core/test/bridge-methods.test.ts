@@ -86,6 +86,24 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('queries the same versioned Host activity used by the stream', () => {
+    const { registry, states, methods } = setup();
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    states.setSessionState('ada', 'owned', 'thinking');
+    const first = methods.activitySnapshot({});
+    expect(first).toMatchObject({
+      ok: true,
+      value: { revision: 1, bots: [{ slug: 'ada', state: 'thinking' }] },
+    });
+    states.setSessionState('ada', 'owned', 'working');
+    const second = methods.activitySnapshot({});
+    expect(second).toMatchObject({
+      ok: true,
+      value: { revision: 2, bots: [{ slug: 'ada', state: 'working' }] },
+    });
+    expect(first.ok && first.value.generation).toBe(second.ok && second.value.generation);
+  });
+
   it.each(['.', '..', ' . ', ' .. '])(
     'refuses reserved Browser profile %s before writing or resetting work',
     (profile) => {

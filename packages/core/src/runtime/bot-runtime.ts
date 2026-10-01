@@ -2200,6 +2200,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const collected = this.#collectInbox(bot.slug);
     this.#setObserved(collected.eventIds, timestamp);
     try {
+      this.#observeAdmission(claim.sourceEventId, bot.slug, channelId, messageId);
       await this.#runOrchestratorTurn(
         bot,
         orchestrator,

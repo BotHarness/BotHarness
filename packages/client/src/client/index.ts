@@ -36,6 +36,7 @@ import {
   SessionReturnAction,
   SessionReturnMenuItem,
 } from './session-return-action.js';
+import { mountActivityLive } from './activity-live.js';
 import { mountChannelLive, mountRosterLive } from './channel-live.js';
 import { sessionBotReference } from './mentions.js';
 import { en, LOCALE_NS, zh } from './locale.js';
@@ -203,6 +204,10 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(
     () => (typeof EventSource === 'undefined' ? () => {} : mountRosterLive(store, actions)),
     'botharness: Roster live subscription',
+  );
+  ctx.effect(
+    () => (typeof EventSource === 'undefined' ? () => {} : mountActivityLive(store)),
+    'botharness: PersonaBot activity subscription',
   );
   ctx.effect(() => {
     store.setConfig(loadRosterConfig(storage));
