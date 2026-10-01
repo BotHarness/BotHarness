@@ -98,9 +98,13 @@ async function measure() {
   });
 }
 async function send(body) {
-  await page.waitForSelector('.bh-composer-shell [contenteditable="true"]');
-  await page.locator('.bh-composer-shell .bh-composer-input').fill(body);
-  await page.click('.bh-composer-shell .bh-send-btn');
+  await page.waitForSelector('.bh-chat-body');
+  await page.locator('.bh-composer-shell .bh-composer-input').click();
+  await page.keyboard.sendCharacter(body);
+  await page.waitForFunction(
+    () => !document.querySelector('.bh-composer-shell .bh-send-btn')?.disabled,
+  );
+  await page.locator('.bh-composer-shell .bh-send-btn').click();
 }
 let proof;
 try {
@@ -159,7 +163,22 @@ try {
       document.querySelector('.bh-chat-body [data-message-id]'),
     { timeout: 30000 },
   );
-  await new Promise((done) => setTimeout(done, 400));
+  await page.waitForFunction(
+    () => {
+      const body = document.querySelector('.bh-chat-body');
+      const last = [...(body?.querySelectorAll('[data-message-id]') ?? [])].at(-1);
+      const footer = document.querySelector('.bh-composer-activity-status');
+      return (
+        body &&
+        last &&
+        footer &&
+        footer.getBoundingClientRect().height >= 39 &&
+        body.scrollHeight - body.scrollTop - body.clientHeight <= 3 &&
+        last.getBoundingClientRect().bottom <= body.getBoundingClientRect().bottom + 1
+      );
+    },
+    { timeout: 10000 },
+  );
   const footer = await measure();
   await screenshot('footer.png');
   const frames = await page.evaluate(() =>
