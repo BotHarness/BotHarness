@@ -1,0 +1,56 @@
+Window: "Human workbench A", App: Google Chrome.
+0 标准窗口 Human workbench A - Google Chrome, URL: 127.0.0.1:32019/a/home, Secondary Actions: Raise
+	1 container Human workbench A - Google Chrome, URL: 127.0.0.1:32019/a/home
+		2 container
+			3 工具栏
+				4 按钮 返回
+				5 按钮 (disabled) 前进
+				6 按钮 重新加载
+				7 container
+					8 弹出式按钮 查看网站信息
+					9 文本栏 (settable) 地址和搜索栏, Value: 127.0.0.1:32019/a/home, Placeholder: 在 Google 中搜索，或输入网址
+					10 按钮 为此标签页添加书签
+				11 按钮 您
+				12 弹出式按钮 Chrome
+			13 container
+				14 滚动区
+					15 HTML 内容 Human workbench A, URL: 127.0.0.1:32019/a/home
+						16 标题 Human workbench A, Value: 1
+							17 文本 Human workbench A
+						18 文本 Separate owned tabs on the shared Bot Browser
+						19 container
+							20 文本 Human note 
+							21 文本栏 (settable) Human note, Value: HUMAN-KEEP-x'a
+						22 文本 Human note: HUMAN-KEEP-x'a
+			23 弹出式按钮 标签页搜索
+			24 container
+				25 标签组
+					26 标签 (settable, boolean) about:blank - 内存用量 - 28.2 MB, Value: off
+						27 按钮 关闭
+					28 标签 (selected, settable, boolean) Human workbench A, Value: on
+						29 按钮 关闭
+					30 标签 (settable, boolean) Human workbench B, Value: off
+						31 按钮 关闭
+					32 标签 (settable, boolean) Background Bot A work, Value: off
+						33 按钮 关闭
+					34 标签 (settable, boolean) Background Bot B work, Value: off
+						35 按钮 关闭
+					36 标签 (settable, boolean) Disposable spare A, Value: off
+						37 按钮 关闭
+			38 按钮 新标签页
+	39 关闭按钮
+	40 全屏幕按钮 Help: 此按钮也可以执行缩放窗口的操作, Secondary Actions: 缩放窗口
+	41 最小化按钮
+42 menu bar
+	43 Chrome
+	44 文件
+	45 编辑
+	46 显示
+	47 历史记录
+	48 书签
+	49 个人资料
+	50 标签页
+	51 窗口
+	52 帮助
+
+The focused UI element is 21 文本栏 (settable) Human note, Value: HUMAN-KEEP-x'a

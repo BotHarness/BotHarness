@@ -265,6 +265,60 @@ describe('runtime lifecycle', () => {
     expect(child.proc.kill).toHaveBeenCalled();
   });
 
+  it('shares a single startup for concurrent Browser consumers', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const connect = vi.fn(async () => fakeClient());
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      browserPath: '/opt/chrome',
+      fileExists: () => true,
+      connect,
+    });
+    const consumers = Promise.all([runtime.ensure(), runtime.ensure()]);
+    child.ready();
+    await consumers;
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(1);
+    expect(runtime.isRunning()).toBe(true);
+    await runtime.stop();
+  });
+
+  it('permits one fresh retry after shared startup fails', async () => {
+    const first = fakeChild();
+    const retry = fakeChild();
+    spawnMock.mockReturnValue(first.proc as never);
+    const connect = vi.fn().mockRejectedValue(new Error('Connection unavailable'));
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      browserPath: '/opt/chrome',
+      fileExists: () => true,
+      connect,
+    });
+    const failed = Promise.allSettled([runtime.ensure(), runtime.ensure()]);
+    first.ready();
+    const outcomes = await failed;
+    expect(outcomes).toEqual([
+      {
+        status: 'rejected',
+        reason: expect.objectContaining({ message: 'Connection unavailable' }),
+      },
+      {
+        status: 'rejected',
+        reason: expect.objectContaining({ message: 'Connection unavailable' }),
+      },
+    ]);
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    spawnMock.mockReturnValue(retry.proc as never);
+    connect.mockResolvedValueOnce(fakeClient());
+    const pending = runtime.ensure();
+    retry.ready();
+    await pending;
+    expect(spawnMock).toHaveBeenCalledTimes(2);
+    expect(runtime.isRunning()).toBe(true);
+    await runtime.stop();
+  });
+
   it.each(['reuse', 'open', 'new tab'] as const)(
     'rejects a failed %s navigation and permits retry without losing the original error',
     async (kind) => {

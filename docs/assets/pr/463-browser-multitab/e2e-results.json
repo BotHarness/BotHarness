@@ -1,0 +1,22 @@
+{
+  "realModelInitialTabs": [
+    3,
+    2
+  ],
+  "parallelBarrierPassed": true,
+  "sharedStartupSingleLaunch": true,
+  "sameBotSerialized": true,
+  "foreignTargetRefused": true,
+  "parallelModelTasks": true,
+  "completedPerBot": 1,
+  "externalClosedTabRefused": true,
+  "actualClosedTabError": "Error: The Bot Browser tab is gone (Session with given id not found.); call browser_tabs action list to pick another tab, or browser_open",
+  "humanFocusRetained": true,
+  "realModelRecoveredNewTab": true,
+  "idleBotTabsClosed": true,
+  "activePeerRetained": true,
+  "sharedBrowserNotRestarted": true,
+  "idleElapsedMs": 66070,
+  "nativeTabCloseVerified": true,
+  "auditAttributed": true
+}

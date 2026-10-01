@@ -1,0 +1,6 @@
+{
+  "simultaneousRealModelSetup": true,
+  "repeatedSharedProfileLaunchObserved": true,
+  "actualToolFailure": "Error: The Bot Browser exited during startup (code 0)",
+  "repeatedLaunchesPrevented": false
+}
