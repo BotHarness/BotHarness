@@ -243,6 +243,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Computer Settings opens the native directory picker correctly, keeps the authorized export destination for the next import, and retains manual path entry when a picker is unavailable ([#166](https://github.com/BotHarness/BotHarness/issues/166)).
+
 - Bot activity recovers through bounded snapshot refresh when live transport fails; reconnects and revision gaps restore shared sidebar/composer state without treating connection errors as Bot activity ([#121](https://github.com/BotHarness/BotHarness/issues/121)).
 
 - Fixed Memory edits being silently absorbed when a new DM or Group mention steers an active turn; bounded change summaries now enter that turn’s Bot Inbox and settle with it ([#528](https://github.com/BotHarness/BotHarness/issues/528)).

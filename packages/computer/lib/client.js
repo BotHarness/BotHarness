@@ -283,6 +283,7 @@ window.__ModuleLoader__.load({
 			"rows.download": "下载",
 			"rows.exportTo": "导出到…",
 			"rows.authorizeExport": "授权并导出",
+			"rows.exportTarget": "导出至：{dir}",
 			"rows.import": "导入…",
 			"rows.importing": "导入中…",
 			"rows.chooseFile": "选择归档文件…",
@@ -293,7 +294,7 @@ window.__ModuleLoader__.load({
 			"rows.imported": "已从 {file} 导入并重启 Computer。",
 			"rows.noArchives": "该目录还没有归档；先导出一次。",
 			"rows.noSettings": "设置服务不可用：可以导出/导入，但无法修改目录与空闲时间。",
-			"rows.pickerFallback": "目录选择器不可用，已使用当前导出目录：{dir}"
+			"rows.pickerFallback": "目录选择器不可用；可手动输入路径，或继续使用当前目录：{dir}"
 		};
 		const en = {
 			"entry.label": "Computer",
@@ -366,6 +367,7 @@ window.__ModuleLoader__.load({
 			"rows.download": "Download",
 			"rows.exportTo": "Export to…",
 			"rows.authorizeExport": "Authorize and export",
+			"rows.exportTarget": "Export to: {dir}",
 			"rows.import": "Import…",
 			"rows.importing": "Importing…",
 			"rows.chooseFile": "Choose archive file…",
@@ -376,7 +378,7 @@ window.__ModuleLoader__.load({
 			"rows.imported": "Imported {file} and restarted the Computer.",
 			"rows.noArchives": "No archives in that directory yet — export once first.",
 			"rows.noSettings": "Settings service unavailable: export and import still work, but the directory and idle time cannot be changed.",
-			"rows.pickerFallback": "Directory picker unavailable — using the current export directory: {dir}"
+			"rows.pickerFallback": "Directory picker unavailable — type a path or use the current directory: {dir}"
 		};
 		const PHASE_LABEL = {
 			pulling: "entry.phase.pulling",
@@ -446,7 +448,12 @@ window.__ModuleLoader__.load({
 			async setExportDir(exportDir) {
 				if (this.scope === void 0) throw new ExportDirRejectedError();
 				this.publish({ exportDir });
-				await this.scope.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+				try {
+					await this.scope.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+				} catch (error) {
+					this.sync();
+					throw error;
+				}
 				if (this.snapshot.exportDir !== exportDir) throw new ExportDirRejectedError();
 			}
 			setIdleStopMinutes(idleStopMinutes) {
@@ -525,6 +532,7 @@ window.__ModuleLoader__.load({
 					await postAuthorized(OPEN_DIR_ENDPOINT, dir === "" ? {} : { dir });
 				},
 				exportArchive: async (dir) => {
+					if (dir !== void 0 && dir !== "") await prefs.setExportDir(dir);
 					const payload = await requestJson$1(EXPORT_ENDPOINT, {
 						method: "POST",
 						headers: { "content-type": "application/json" },
@@ -845,7 +853,7 @@ window.__ModuleLoader__.load({
 									onClick: openDir,
 									children: t("rows.exportDir.open")
 								}),
-								canAdjust ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
 									className: "bh-settings-selector",
 									disabled: !writable,
@@ -854,11 +862,11 @@ window.__ModuleLoader__.load({
 										setManualPath(exportDir);
 									},
 									children: t("rows.exportDir.manual")
-								}) : null
+								})
 							]
 						})
 					}),
-					manualOpen && canAdjust ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					manualOpen ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						className: "bh-settings-row",
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							className: "bh-settings-row-text",
@@ -949,7 +957,7 @@ window.__ModuleLoader__.load({
 							})] }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								className: "bh-settings-selector",
-								disabled: !hasDir || busy !== void 0,
+								disabled: !hasDir && !canAdjust || busy !== void 0,
 								onClick: startExport,
 								children: busy === "export" ? t("rows.exporting") : canAdjust ? t("rows.exportTo") : t("rows.export")
 							}), download === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
@@ -962,6 +970,10 @@ window.__ModuleLoader__.load({
 							})]
 						})
 					}),
+					confirming === "export" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: "bh-note",
+						children: t("rows.exportTarget", { dir: exportTarget ?? exportDir })
+					}) : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
 						title: t("rows.importSection.title"),
 						description: t("rows.importSection.description"),
@@ -2134,7 +2146,7 @@ window.__ModuleLoader__.load({
 				const workspace = workspaceCtx.uiWorkspace;
 				const face = createComputerSettingsFace({
 					prefs: settingsPrefs,
-					pickDirectory: workspace?.pickDirectory
+					pickDirectory: workspace?.pickDirectory?.bind(workspace)
 				});
 				workspaceCtx.slots.inject("botharness.settings.item", () => workspaceCtx.slots.register({
 					name: "botharness.settings.item",
