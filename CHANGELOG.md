@@ -208,6 +208,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed retained model-token statistics being cleared when Session histories are missing: restart and reconciliation preserve daily totals, durable receipts prevent duplicate replay, archive preserves usage, and PersonaBot Purge removes its usage ([#502](https://github.com/BotHarness/BotHarness/issues/502)). Existing aggregates migrate as a retained baseline; pre-upgrade attempts cannot be backfilled independently when their prior accounting is unverifiable.
 - After Human Resume, Browser page interactions require a successful fresh observation; reads made during Pause or before a Pause/Resume transition cannot authorize actions on Human-modified content ([#600](https://github.com/BotHarness/BotHarness/issues/600)).
 - Refused Browser tool attempts now produce one attributed Browser Audit error entry, including authorization, Access, Pause and post-Resume observation checks; typed text and upload paths keep their existing redacted summaries ([#604](https://github.com/BotHarness/BotHarness/issues/604)).
 

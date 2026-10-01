@@ -110,7 +110,7 @@ describe('Usage projection', () => {
     ]);
   });
 
-  it('rebuilds from durable logs, skipping fork-inherited prefixes, and replaces the table', async () => {
+  it('rebuilds from durable logs, skipping fork-inherited prefixes, without replacing retained totals', async () => {
     const { usage, ownership } = usageProjection({
       'session-root': { botSlug: 'ada', rootRole: 'orchestrator' },
     });
@@ -172,7 +172,7 @@ describe('Usage projection', () => {
       },
     ]);
 
-    expect(await usage.rebuild(ids, readLog)).toEqual({ folded: 2, failed: 0 });
+    expect(await usage.rebuild(ids, readLog)).toEqual({ folded: 0, failed: 0 });
     const rebuilt = usage.activity('ada', SINCE);
     expect(rebuilt).toHaveLength(2);
     for (const bucket of rebuilt) {
