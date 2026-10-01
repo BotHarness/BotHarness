@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const mode = process.argv[2] ?? 'check';
-const port = Number(process.env.BH_APPROVAL_QA_PORT ?? 31993);
+const port = Number(process.env.BH_APPROVAL_QA_PORT ?? 31994);
 const home = resolve(
-  process.env.BH_APPROVAL_QA_HOME ?? resolve(tmpdir(), 'bh-550-inbox-tool-approval'),
+  process.env.BH_APPROVAL_QA_HOME ?? resolve(tmpdir(), 'bh-550-inbox-tool-approval-final'),
 );
 const out = resolve(repo, '.humanlayer/tasks/issue-550', mode === 'before' ? 'before' : 'evidence');
 mkdirSync(out, { recursive: true });
@@ -188,6 +188,11 @@ try {
     items.filter((i) => i.kind === 'tool-approval').map((i) => i.botSlug),
     [release.bot.slug, docs.bot.slug],
   );
+  if (mode !== 'before')
+    assert.equal(
+      await page.$eval('.bh-human-inbox-filters label:last-child select', (n) => n.value),
+      'oldest',
+    );
   await shot(mode === 'before' ? 'before-list-light' : 'after-list-light');
   await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', 'true'));
   await shot(mode === 'before' ? 'before-list-dark' : 'after-list-dark');
@@ -249,7 +254,8 @@ try {
     );
     const stale = await prepare('Stale QA');
     await review(stale);
-    const second = await browser.newPage();
+    const secondContext = await browser.createBrowserContext();
+    const second = await secondContext.newPage();
     await second.setViewport({ width: 1440, height: 900 });
     await login(second);
     await openDM(stale.dm.id, second);
@@ -267,7 +273,7 @@ try {
       (await actionRows()).some((i) => i.messageId === stale.request.id),
       false,
     );
-    await second.close();
+    await secondContext.close();
     await review(await prepare('Human Review QA'));
     writeFileSync(
       resolve(out, 'results.json'),

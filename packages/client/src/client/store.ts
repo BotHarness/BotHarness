@@ -427,7 +427,7 @@ function initialHumanInbox(): HumanInboxState {
     category: 'action',
     botSlug: undefined,
     channelId: undefined,
-    sort: 'newest',
+    sort: 'oldest',
     items: [],
     nextCursor: undefined,
     error: undefined,
