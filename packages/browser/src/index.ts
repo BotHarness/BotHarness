@@ -131,6 +131,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
       );
     },
     ownsTool: (name: string) => ownsBrowserTool(name),
+    executionSignal: (sessionId: string) => provider.executionSignal(sessionId),
     needsAuthorization: (sessionId: string) => provider.needsAuthorization(sessionId),
     markAuthorized: (sessionId: string) => provider.markAuthorized(sessionId),
   });

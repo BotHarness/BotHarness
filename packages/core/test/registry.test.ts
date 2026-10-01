@@ -118,6 +118,30 @@ describe('createPersonaBotRegistry', () => {
     });
   });
 
+  it('persists independent Browser Access through record serialization and reload', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    registry.create({ slug: 'browser-qa', displayName: 'Browser QA' });
+    expect(registry.get('browser-qa')?.browserAccess).not.toBe(true);
+    expect(registry.setBrowserAccess('browser-qa', true).ok).toBe(true);
+    expect(registry.setComputerAccess('browser-qa', false).ok).toBe(true);
+    const path = join(root, 'browser-qa', 'bot.json');
+    const serialized = readFileSync(path, 'utf8');
+    const snapshot = JSON.parse(serialized);
+    expect(snapshot.browserAccess).toBe(true);
+    expect(snapshot.computerAccess).not.toBe(true);
+    writeFileSync(path, JSON.stringify(snapshot));
+    const reopened = createPersonaBotRegistry({ rootDir: root });
+    expect(reopened.get('browser-qa')?.browserAccess).toBe(true);
+    expect(reopened.get('browser-qa')?.computerAccess).not.toBe(true);
+    expect(reopened.setComputerAccess('browser-qa', true).ok).toBe(true);
+    expect(reopened.get('browser-qa')?.browserAccess).toBe(true);
+    expect(reopened.setBrowserAccess('browser-qa', false).ok).toBe(true);
+    const off = createPersonaBotRegistry({ rootDir: root }).get('browser-qa');
+    expect(off?.browserAccess).not.toBe(true);
+    expect(off?.computerAccess).toBe(true);
+  });
+
   it('provisions the Memory directory for a name-only bot but writes no Persona', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
