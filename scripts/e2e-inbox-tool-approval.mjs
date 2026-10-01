@@ -227,7 +227,8 @@ try {
     await shot('after-approved');
     assert.equal((await audit(release)).length, 1);
     assert.equal((await audit(release))[0].toolApprovalDecision.outcome, 'allowed-once');
-    assert.ok((await actionRows()).some((i) => i.messageId === docs.request.id));
+    const otherBotIndependent = (await actionRows()).some((i) => i.messageId === docs.request.id);
+    assert.ok(otherBotIndependent, 'another Bot approval remains pending');
     const realReply = await waitFor(
       async () =>
         (await rpc('channelMessages', { channelId: release.dm.id })).messages.find(
@@ -286,16 +287,15 @@ try {
         {
           realModel: true,
           exactInput: true,
-          sourceCommand: true,
           sourceNavigation: true,
           approve: true,
           reject: true,
           canonicalAudit: true,
-          otherBotIndependent: true,
+          otherBotIndependent,
           oldestFirst: true,
-          expandableContext: true,
+          expandableContext: 'screenshot-only',
           twoWindowStaleRejected: true,
-          lightDark: true,
+          lightDark: 'screenshot-only',
           narrowLayout: true,
           nativeOutputVerified: realReply.body.includes('BH_INBOX_APPROVAL_QA'),
         },

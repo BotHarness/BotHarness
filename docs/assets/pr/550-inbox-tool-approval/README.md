@@ -15,7 +15,7 @@ The baseline uses main at c033f467: two Bots have pending native bash calls; Inb
 - A separate browser context decides the same request in the source DM. The original Inbox rejects a stale submission, shows expiration and leaves one audit.
 - Exact source navigation locates the original request and returns to a live, undecided Human Review QA request for Human QA. The panel title uses the current Bot display name.
 
-`results.json` records observed checks. Full Linux CI is the automated gate; Windows full-suite attachment sync and Git-backed fixture failures are recorded privately and are not treated as a passed run.
+`results.json` separates asserted behavior from `screenshot-only` context/theme evidence, which was visually inspected. Other-Bot independence is derived from its actual pending-action assertion. The shared source command is covered by focused Host/Client regression tests, rather than an unasserted E2E boolean. Full Linux CI is the automated gate; Windows full-suite attachment sync and Git-backed fixture failures are recorded privately and are not treated as a passed run.
 
 ## Reproduce
 
