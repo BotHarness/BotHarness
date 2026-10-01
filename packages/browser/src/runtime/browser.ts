@@ -402,14 +402,26 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
 
   const waitForReady = async (sessionId: string): Promise<void> => {
     const deadline = Date.now() + READY_TIMEOUT_MS;
+    let complete = false;
     for (;;) {
+      let value: unknown;
       try {
-        const value = await evaluate(sessionId, 'document.readyState');
-        if (String(value) === 'complete') return;
-      } catch {
-        return;
+        value = await evaluate(sessionId, 'document.readyState');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!/execution context was destroyed|cannot find context/iu.test(message)) throw error;
       }
-      if (Date.now() >= deadline) return;
+      if (String(value) === 'complete') {
+        if (complete) return;
+        complete = true;
+      } else {
+        complete = false;
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(
+          `Bot Browser page did not settle within ${READY_TIMEOUT_MS}ms after the action; it may have already run. Call browser_observe to inspect the current page before retrying`,
+        );
+      }
       await delay(READY_POLL_MS);
     }
   };
@@ -435,9 +447,19 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   const clickScript = (ref: string): string =>
     `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; el.scrollIntoView({ block: 'center', inline: 'center' }); const rect = el.getBoundingClientRect(); if (rect.width < 1 || rect.height < 1) return { ok: false, reason: 'not-clickable' }; return { ok: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`;
 
+  const prepareInput = async (sessionId: string): Promise<void> => {
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
+    if (!focusEmulated.has(sessionId)) {
+      await live.send('Emulation.setFocusEmulationEnabled', { enabled: true }, sessionId);
+      focusEmulated.add(sessionId);
+    }
+  };
+
   const dispatchMouseClick = async (sessionId: string, x: number, y: number): Promise<void> => {
     const live = client;
     if (live === undefined) throw new Error('The Bot Browser is not running');
+    await prepareInput(sessionId);
     await live.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId);
     await live.send(
       'Input.dispatchMouseEvent',
@@ -531,6 +553,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     const sessionId = await attach(tabId);
     const live = client;
     if (!live) throw new Error('Bot Browser is not connected');
+    await prepareInput(sessionId);
     const release = (): Promise<Record<string, unknown>> =>
       live.send('Input.dispatchKeyEvent', { type: 'keyUp', ...definition }, sessionId);
     try {
@@ -577,10 +600,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     }
     const live = client;
     if (!live) throw new Error('The Bot Browser is not running');
-    if (!focusEmulated.has(sessionId)) {
-      await live.send('Emulation.setFocusEmulationEnabled', { enabled: true }, sessionId);
-      focusEmulated.add(sessionId);
-    }
+    await prepareInput(sessionId);
     await live.send(
       'Input.dispatchMouseEvent',
       { type: 'mouseMoved', x: width / 2, y: height / 2 },

@@ -1,0 +1,7 @@
+{
+  "build": "before",
+  "realModelClickCalls": 1,
+  "timeoutReported": false,
+  "realModelReply": "browser_click 实际结果：成功 —— 工具返回 “click done — http://127.0.0.1:32018/never”，未出现超时（无超时毫秒数可引用）。\n\n过程：只用 browser_open 打开 http://127.0.0.1:32018/page → browser_observe（可见 input Search、button Search、链接 “Never settle”，标题 Browser interaction QA）→ browser_click 点击 “Never settle” 恰好一次。未重试、未另行导航。\n\n说明：该 fixture 是持续加载页面，点击后进入 /never，点击后的页面内容仍在加载中，本次未再观察或等待，因此不能视为已完成。",
+  "actualClickResult": "click done — http://127.0.0.1:32018/never"
+}
