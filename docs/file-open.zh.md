@@ -10,7 +10,7 @@
 
 ## 存储与集成
 
-新引用为 `{fileId,name,mime,size}`，旧引用为 `{hash,name,mime,size}`，身份必须二选一。不可变的消息 envelope 保留发送时引用，消息查询投影当前元数据。`channel_read_image` 用 `attachment_id` 传入返回的 `fileId`，旧图片仍使用 `hash`。Host 验证 Bot 当前 Channel 成员资格与消息归属后，读取符合大小限制的当前图片；模型不会获得附件 Host 路径。带原消息归属的旧图片 hash 在唯一匹配时解析到该消息的当前真实文件；没有消息归属、同一消息中含糊的 hash，以及新发送中的旧引用会被明确拒绝。刷新原消息取得 canonical fileId。可信 Channel 转发复用这份引用契约，目的地确认仍由 [#570](https://github.com/BotHarness/BotHarness/issues/570) 推进。
+新引用为 `{fileId,name,mime,size}`，旧引用为 `{hash,name,mime,size}`，身份必须二选一。不可变的消息 envelope 保留发送时引用，消息查询投影当前元数据。`channel_read_image` 用 `attachment_id` 传入返回的 `fileId`，旧图片仍使用 `hash`。Host 验证 Bot 当前 Channel 成员资格与消息归属后，读取符合大小限制的当前图片；`channel_read_image` 返回图片内容而不暴露 Host 路径；下述显式原件访问只返回经来源授权的指定路径。带原消息归属的旧图片 hash 在唯一匹配时解析到该消息的当前真实文件；没有消息归属、同一消息中含糊的 hash，以及新发送中的旧引用会被明确拒绝。刷新原消息取得 canonical fileId。可信 Channel 转发复用这份引用契约，目的地确认仍由 [#570](https://github.com/BotHarness/BotHarness/issues/570) 推进。
 
 `$DSH_HOME/botharness/attachments/files/<uuid>/` 下的 `data/<安全文件名>` 就是真实目标，`record.json` 持久保存身份与传输回执。回执仅保存用于上传重试的校验值，不保存历史文件字节。Composer 重试复用同一个上传 key，不覆盖已经编辑的目标。发送验证 profile 归属；每次原生打开或下载重新解析 `channelId + messageId + fileId`。认证下载使用 `no-store`、服务器嗅探的 MIME 和 `nosniff`。
 
@@ -36,4 +36,8 @@ Schema 激活是单向升级：旧的 hash-only 版本不能读取 generation 39
 
 上传任意格式文件，例如含 CSV 的 ZIP，并请求新结果。Orchestrator 通过 `channel_attachment_save` 另存独立工作文件，使用原生文件工具和经过审批的 Shell 处理，明确选择生成文件并通过 `channel_attachment_import` 导入，再回复独立可下载附件。父目录须已存在，另存不覆盖已有文件。原件引用保持不变，沿用 owner 的 25 MiB 传输上限；下载结果后检查实际内容。
 
-当前切片覆盖本地对话附件；显式原件写回为 #633，Lark/Slack 文件传输仍需后续集成与真实 E2E。见 [ADR-0105](adr/0105-attachments-use-native-file-operations-under-source-authority.md)。
+检查原件时，请 Bot 读取指定附件。修改时明确说“修改这个原件”，例如“把这个原件 status.txt 中的 status=pending 改成 status=approved”。Bot 通过 `channel_attachment_open` 选择精确消息与文件：`read` 只允许原生读取，`edit-original` 沿用 Human 工具审批或匹配的已保存规则。只批准要改的那个原件。Bot 在返回的路径上使用普通原生 read/edit/write，不创建副本、不改变 Memory cwd。
+
+刷新 Channel 后，从原消息下载或重新打开附件，检查当前内容。同一 fileId 的显式共享引用会展示修改，Host 重启后仍然如此；内容相同的独立上传和上传者的本地源文件不受影响。原生访问在当前回合结束后失效，每次操作复查来源成员资格。离开来源 Channel 或原件缺失后禁止后续访问，不从上传快照重建缺失原件。文件编辑不产生 Source Revision、文件变化 Inbox Admission 或自动唤醒；对话确认仍需显式回复。保留原生检查与 Shell 审批，不增加 BotHarness 锁或文件版本档案。
+
+这些切片覆盖本地对话附件（#632、#633）；Lark/Slack 文件传输仍需后续集成与真实 E2E。见 [ADR-0105](adr/0105-attachments-use-native-file-operations-under-source-authority.md)。

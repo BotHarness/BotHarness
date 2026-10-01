@@ -118,6 +118,11 @@ export function nativeFileToolDenial(
   if (cwd === undefined) return 'BotHarness Session working directory is unavailable';
   const target = canonicalTarget(resolve(cwd, request.path));
   if (target === undefined) return 'BotHarness Session file path cannot be resolved';
+  if (
+    core.ownership.resolve(session.id)?.rootRole === 'orchestrator' &&
+    core.runtime.originalAttachmentRoot?.(session.id, target, request.kind) !== undefined
+  )
+    return undefined;
   const roots = currentRoots(core, session, request.kind);
   for (const root of roots) {
     try {
@@ -144,6 +149,15 @@ export function nativeExecutionRoot(
     throw new Error('BotHarness requires an authorized execution path');
   const target = canonicalTarget(resolve(session.header.cwd, request.path));
   if (target !== undefined) {
+    if (core.ownership.resolve(session.id)?.rootRole === 'orchestrator') {
+      const original = core.runtime.originalAttachmentRoot?.(
+        session.id,
+        target,
+        request.kind,
+        name === 'bash',
+      );
+      if (original !== undefined) return original;
+    }
     for (const root of currentRoots(core, session, request.kind)) {
       try {
         if (realpathSync(root) === resolve(root) && within(root, target)) return root;

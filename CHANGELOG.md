@@ -15,6 +15,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- A PersonaBot can read a specified received original through native file tools and explicitly edit it with Human approval; original-message downloads and shared references show current contents, while independent uploads and default working copies remain separate ([#633](https://github.com/BotHarness/BotHarness/issues/633), [file guide](docs/file-open.md)).
+
 - Added actual model/provider and execution-role filters to PersonaBot usage, with separate retained all-time totals, a seven-day chart default, and visible query freshness or failures ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
 - The local Human can save an optional default name in plugin settings; Channel authors, members, receipts and Bot context use the current name, and historical trusted Human/Bot mentions resolve current labels by stable identity without changing message content or attention ([#621](https://github.com/BotHarness/BotHarness/issues/621), [ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)).
 - Human can explicitly allow a PersonaBot to write one granted work folder, save a received file there, process it with native tools and approved Shell calls, and return a separately downloadable result ([#632](https://github.com/BotHarness/BotHarness/issues/632), [ADR-0105](docs/adr/0105-attachments-use-native-file-operations-under-source-authority.md)).
