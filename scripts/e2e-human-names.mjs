@@ -14,7 +14,11 @@ assert.ok(url, 'Launch the isolated #621 dev instance first');
 const modules = resolve(repo, 'node_modules/.pnpm');
 const pkg = readdirSync(modules).find((name) => name.startsWith('puppeteer@'));
 const puppeteer = createRequire(resolve(modules, pkg, 'node_modules/'))('puppeteer');
-const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+const browser = await puppeteer.launch({
+  headless: true,
+  protocolTimeout: 20000,
+  args: ['--no-sandbox'],
+});
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
 const out = resolve(repo, '.humanlayer/tasks/issue-621/evidence');
@@ -44,9 +48,9 @@ const rpc = async (method, args = {}, client = page) => {
   assert.equal(envelope.result?.ok, true, method + ': ' + JSON.stringify(envelope.result?.error));
   return envelope.result.value;
 };
-const clickText = async (selector, text) => {
+const clickText = async (selector, text, client = page) => {
   assert.ok(
-    await page.evaluate(
+    await client.evaluate(
       ({ selector, text }) => {
         const node = [...document.querySelectorAll(selector)].find(
           (node) => node.textContent?.trim() === text,
@@ -59,25 +63,25 @@ const clickText = async (selector, text) => {
     'Missing control: ' + text,
   );
 };
-const inbox = async () => {
-  await page.evaluate(() =>
+const inbox = async (client = page) => {
+  await client.evaluate(() =>
     [...document.querySelectorAll('button')]
       .find((node) => node.textContent?.trim() === '继续')
       ?.click(),
   );
   try {
-    await page.waitForSelector('.bh-human-inbox-entry', { timeout: 8000 });
+    await client.waitForSelector('.bh-human-inbox-entry', { timeout: 8000 });
   } catch {
-    await page.evaluate(() =>
+    await client.evaluate(() =>
       [...document.querySelectorAll('button')]
         .find((node) => node.textContent?.includes('Bot 模式'))
         ?.click(),
     );
-    await page.waitForSelector('.bh-human-inbox-entry');
+    await client.waitForSelector('.bh-human-inbox-entry');
   }
-  await page.evaluate(() => document.querySelector('.bh-human-inbox-entry')?.click());
-  await page.waitForSelector('.bh-human-inbox-tabs');
-  await clickText('.bh-human-inbox-tabs button', '提及与回复');
+  await client.evaluate(() => document.querySelector('.bh-human-inbox-entry')?.click());
+  await client.waitForSelector('.bh-human-inbox-tabs');
+  await clickText('.bh-human-inbox-tabs button', '提及与回复', client);
   console.log('Inbox opened');
   await delay(900);
 };
@@ -117,11 +121,27 @@ const setName = async (name) => {
   await page.click('#bh-human-default-name', { clickCount: 3 });
   await page.keyboard.press('Backspace');
   if (name) await page.type('#bh-human-default-name', name);
-  await clickText('.bh-human-name-setting button', '保存名字');
-  await page.waitForFunction(() =>
-    document
-      .querySelector('.bh-human-name-setting [role="status"]')
-      ?.textContent?.includes('已保存'),
+  await page.waitForSelector('.bh-human-name-save:not(:disabled)');
+  console.log(
+    'Save DOM: ' +
+      JSON.stringify(
+        await page.evaluate(() =>
+          [...document.querySelectorAll('.bh-human-name-setting button')].map((b) => ({
+            text: b.textContent,
+            type: b.type,
+            disabled: b.disabled,
+            form: b.form?.className,
+          })),
+        ),
+      ),
+  );
+  await page.click('.bh-human-name-save');
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('.bh-human-name-setting [role="status"]')
+        ?.textContent?.includes('已保存'),
+    { polling: 100 },
   );
 };
 const closeSettings = async () => {
@@ -130,6 +150,7 @@ const closeSettings = async () => {
 };
 const openGroup = async (id, client = page) => {
   await client.bringToFront();
+  await client.waitForSelector(`[data-channel-id="${id}"]`);
   await client.evaluate((id) => document.querySelector(`[data-channel-id="${id}"]`)?.click(), id);
   await client.waitForSelector('.bh-bubble-wrap');
   console.log('Group opened');
@@ -140,7 +161,9 @@ try {
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await inbox();
   const mode = process.argv[2] ?? 'check';
-  if (mode === 'restart') {
+  if (mode === 'inspect') {
+    console.log(JSON.stringify(await rpc('humanIdentity')));
+  } else if (mode === 'restart') {
     const scene = JSON.parse(readFileSync(resolve(out, 'scene.json'), 'utf8'));
     assert.equal((await rpc('humanIdentity')).displayName, scene.finalName);
     assert.equal(
@@ -170,6 +193,13 @@ try {
     );
   } else {
     await settings();
+    if ((await rpc('humanIdentity')).defaultDisplayName !== null) {
+      await clickText('.bh-human-name-setting button', '恢复默认');
+      await page.waitForFunction(
+        () => document.querySelector('#bh-human-default-name')?.value === '',
+        { polling: 100 },
+      );
+    }
     await capture('before-settings');
 
     assert.equal((await rpc('humanIdentity')).displayName, 'Human');
@@ -206,12 +236,25 @@ try {
     await inbox();
     await openGroup(group.id);
     await capture('before-channel');
-    const second = await browser.newPage();
+    console.log('Opening second window');
+    const secondContext = await browser.createBrowserContext();
+    const second = await secondContext.newPage();
+    await second.bringToFront();
     await second.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
     await second.goto(url, { waitUntil: 'domcontentloaded' });
+    console.log('Second window loaded');
     await second.goto(url, { waitUntil: 'domcontentloaded' });
-    await second.waitForSelector('.bh-human-inbox-entry');
-    await openGroup(group.id, second);
+    await second.evaluate(() =>
+      [...document.querySelectorAll('button')]
+        .find((node) => node.textContent?.trim() === '继续')
+        ?.click(),
+    );
+    await inbox(second);
+    console.log('Second window Bot surface ready');
+    await openGroup(group.id, second).catch(async (error) => {
+      await second.screenshot({ path: resolve(out, 'second-failure.png') });
+      throw error;
+    });
     await page.bringToFront();
     const before = await rpc('channelMessages', { channelId: group.id });
     const attention = await rpc('humanAttentionStatus');
@@ -317,7 +360,26 @@ try {
     );
   }
 } catch (error) {
-  await capture('failure');
+  console.log('E2E failed: ' + error.message);
+  console.log('Identity: ' + JSON.stringify(await rpc('humanIdentity').catch(() => null)));
+  console.log(
+    'Settings state: ' +
+      JSON.stringify(
+        await page
+          .evaluate(() => ({
+            input: document.querySelector('#bh-human-default-name')?.value,
+            disabled: document.querySelector('#bh-human-default-name')?.disabled,
+            buttons: [...document.querySelectorAll('.bh-human-name-setting button')].map((b) => ({
+              text: b.textContent,
+              disabled: b.disabled,
+            })),
+            status: document.querySelector('.bh-human-name-setting [role=status]')?.textContent,
+            error: document.querySelector('.bh-human-name-setting [role=alert]')?.textContent,
+          }))
+          .catch(() => null),
+      ),
+  );
+  await capture('failure').catch(() => undefined);
   save(
     'failure-controls',
     await page.evaluate(() =>

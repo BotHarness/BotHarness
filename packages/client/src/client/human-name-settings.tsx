@@ -85,17 +85,17 @@ export function HumanNameSettings({ call, onSaved, t }: HumanNameSettingsProps):
         </label>
         <div className="bh-settings-row-desc">{t('humanName.description')}</div>
       </div>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save(draft.trim() || null);
-        }}
-      >
+      <div className="bh-human-name-controls">
         <Input
           id="bh-human-default-name"
           value={draft}
           placeholder={t('humanName.placeholder')}
           maxLength={128}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+            event.preventDefault();
+            void save(draft.trim() || null);
+          }}
           disabled={busy || identity === undefined}
           onChange={(event) => {
             dirty.current = true;
@@ -104,7 +104,9 @@ export function HumanNameSettings({ call, onSaved, t }: HumanNameSettingsProps):
           }}
         />
         <Button
-          type="submit"
+          type="button"
+          className="bh-human-name-save"
+          onClick={() => void save(draft.trim() || null)}
           variant="primary"
           disabled={
             busy || identity === undefined || draft.trim() === (identity.defaultDisplayName ?? '')
@@ -120,7 +122,7 @@ export function HumanNameSettings({ call, onSaved, t }: HumanNameSettingsProps):
         >
           {t('humanName.clear')}
         </Button>
-      </form>
+      </div>
       {error ? (
         <p className="bh-error" role="alert">
           {t('humanName.error')}
