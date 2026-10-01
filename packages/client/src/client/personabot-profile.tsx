@@ -19,6 +19,7 @@ import { Modal } from './modal.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
 import { ModelPresetProfile } from './model-preset-profile.js';
+import { SourcePolicyTable } from './source-policy-table.js';
 import type { ProfileCardRegistry } from './profile-cards.js';
 import type { BotSummary, ChannelSummary } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -448,94 +449,19 @@ export function ProfileView({
               ) : sourcePolicies === undefined ? (
                 <div className="bh-note">{t('sourcePolicy.loading')}</div>
               ) : (
-                sourcePolicies.map((policy) => (
-                  <div key={policy.sourceClass} className="bh-source-policy-row">
-                    <strong>
-                      {
-                        {
-                          'human-dm': t('sourcePolicy.humanDm'),
-                          'bot-dm': t('sourcePolicy.botDm'),
-                          'group-mention': t('sourcePolicy.groupMention'),
-                          'group-ordinary': t('sourcePolicy.groupOrdinary'),
-                          'group-invite': t('sourcePolicy.groupInvite'),
-                          'group-join-request': t('sourcePolicy.groupJoinRequest'),
-                          'group-join-decision': t('sourcePolicy.groupJoinDecision'),
-                          'assignment-report': t('sourcePolicy.assignmentReport'),
-                          'assignment-lifecycle': t('sourcePolicy.assignmentLifecycle'),
-                        }[policy.sourceClass]
-                      }
-                    </strong>
-                    <span>
-                      {policy.wake === 'digest'
-                        ? t('sourcePolicy.admitDigest', {
-                            count: policy.digestCount ?? 0,
-                            seconds: policy.digestIntervalSeconds ?? 0,
-                          })
-                        : policy.wake === 'conditional'
-                          ? t('sourcePolicy.admitConditional')
-                          : policy.wake === 'mentions'
-                            ? t('sourcePolicy.admitMentions')
-                            : policy.wake === 'silent'
-                              ? t('sourcePolicy.admitSilent')
-                              : t('sourcePolicy.admitImmediate')}
-                    </span>
-                    {(policy.sourceClass === 'human-dm' ||
-                      policy.sourceClass === 'bot-dm' ||
-                      policy.sourceClass === 'group-mention') && (
-                      <span>
-                        {'· '}
-                        {t(
-                          policy.delivery === 'turn'
-                            ? 'sourcePolicy.deliveryTurn'
-                            : 'sourcePolicy.deliverySteer',
-                        )}
-                      </span>
-                    )}
-                    {policy.sourceClass === 'group-ordinary' && (
-                      <span className="bh-note">{t('sourcePolicy.groupOverride')}</span>
-                    )}
-                    <span className="bh-note">
-                      {t('sourcePolicy.recentWakes', { count: policy.recentWakeCount })}
-                    </span>
-                    <span className="bh-note">
-                      {t('sourcePolicy.revision', { revision: policy.revision })}
-                      {' · '}
-                      {!policy.overrideActive &&
-                        policy.lastActor.kind !== 'built-in' &&
-                        `${t('sourcePolicy.restoredDefault')} · `}
-                      {policy.lastActor.kind === 'built-in'
-                        ? t('sourcePolicy.builtIn')
-                        : policy.lastActor.kind === 'human'
-                          ? t('sourcePolicy.human')
-                          : policy.lastActor.kind === 'bot'
-                            ? t('sourcePolicy.botActor', { slug: policy.lastActor.botSlug })
-                            : t('sourcePolicy.builtIn')}
-                      {' · '}
-                      {new Date(policy.changedAt).toLocaleString()}
-                    </span>
-                    {(policy.sourceClass === 'assignment-report' ||
-                      policy.sourceClass === 'group-ordinary' ||
-                      policy.sourceClass === 'human-dm' ||
-                      policy.sourceClass === 'bot-dm' ||
-                      policy.sourceClass === 'group-mention') && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setSourceWakeDraft(policy.wake);
-                          setSourceDeliveryDraft(policy.delivery);
-                          setDigestCountDraft(policy.digestCount ?? 5);
-                          setDigestIntervalDraft(policy.digestIntervalSeconds ?? 30);
-                          setSourcePolicySaveError(false);
-                          setEditingSourcePolicy(
-                            policy.sourceClass as BotSourcePolicyEdit['sourceClass'],
-                          );
-                        }}
-                      >
-                        {t('sourcePolicy.edit')}
-                      </Button>
-                    )}
-                  </div>
-                ))
+                <SourcePolicyTable
+                  key={bot.slug}
+                  policies={sourcePolicies}
+                  t={t}
+                  onEdit={(policy) => {
+                    setSourceWakeDraft(policy.wake);
+                    setSourceDeliveryDraft(policy.delivery);
+                    setDigestCountDraft(policy.digestCount ?? 5);
+                    setDigestIntervalDraft(policy.digestIntervalSeconds ?? 30);
+                    setSourcePolicySaveError(false);
+                    setEditingSourcePolicy(policy.sourceClass);
+                  }}
+                />
               )}
             </section>
           </div>

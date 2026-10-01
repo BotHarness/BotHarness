@@ -140,6 +140,8 @@
 
 ### Changed
 
+- PersonaBot 提醒策略改为紧凑表格，便于对比九类来源规则；保留近期唤醒次数与行内编辑入口，审计记录收进详情弹窗（[#670](https://github.com/BotHarness/BotHarness/issues/670)）。
+
 - Browser Profile 改为可搜索的 combobox：选择已有名称或明确创建新名称；错误使用 destructive 主题颜色，Browser view 移除多余说明与重复页标题（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。
 
 - `channel_send` 现在用 JSON 确认已提交的 Channel 与消息 ID，明确复制读取到的完整可信附件引用进行转发，并公开既有的 10 个附件／20 个提及上限及安全整数字节大小（[#570](https://github.com/BotHarness/BotHarness/issues/570)）。

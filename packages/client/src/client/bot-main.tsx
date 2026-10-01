@@ -689,7 +689,8 @@ function ConversationView({
         );
     }
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (document.querySelector('[role="dialog"][aria-modal="true"]') !== null) return;
       event.preventDefault();
       if (profilePopoverOpen) setProfilePopoverOpen(false);
       else setProfileViewOpen(false);

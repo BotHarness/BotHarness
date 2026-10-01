@@ -13,6 +13,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconChevronLeftOutlineRegular: () => null,
   IconChevronRightOutlineRegular: () => null,
   IconEditOutlineRegular: () => null,
+  IconInfoOutlineRegular: () => null,
   IconPinFillRegular: () => null,
   IconPinOutlineRegular: () => null,
   IconRefreshOutlineRegular: () => null,
@@ -45,6 +46,7 @@ import { MemoryFileView } from '../src/client/memory-current-view.js';
 import { GroupAvatarCropModal } from '../src/client/group-avatar-crop.js';
 import { PersonaBotAvatarCropModal } from '../src/client/personabot-avatar-crop.js';
 import { ProfileView } from '../src/client/personabot-profile.js';
+import { SourcePolicyTable } from '../src/client/source-policy-table.js';
 import { createProfileCardBuiltins } from '../src/client/profile-cards-builtins.js';
 import type { ProfileCardRegistry, ProfileCardViewProps } from '../src/client/profile-cards.js';
 import { useMountedResource } from '../src/client/mounted-resource.js';
@@ -288,6 +290,44 @@ describe('mounted request ownership', () => {
     await act(async () => save.resolve());
     expect(saveButton()).toBeDefined();
     expect(saveButton()?.disabled).toBe(false);
+  });
+
+  it.each<BotSourcePolicyView['lastActor']>([
+    { kind: 'built-in' },
+    { kind: 'template' },
+    { kind: 'human' },
+    { kind: 'bot', botSlug: 'ada' },
+  ])('distinguishes restored audit state from $kind initialization', async (lastActor) => {
+    const policy: BotSourcePolicyView = {
+      sourceClass: 'human-dm',
+      admission: 'admit',
+      wake: 'immediate',
+      delivery: 'steer',
+      revision: 2,
+      lastActor,
+      changedAt: '2026-10-01T00:00:00.000Z',
+      overrideActive: false,
+      recentWakeCount: 0,
+    };
+    await act(async () =>
+      root.render(
+        createElement(SourcePolicyTable, {
+          policies: [policy],
+          t: zhTranslate,
+          onEdit: () => {},
+        }),
+      ),
+    );
+    await act(async () =>
+      host
+        .querySelector<HTMLButtonElement>('.bh-source-policy-actions button[aria-label^="查看"]')
+        ?.click(),
+    );
+    const audit = host.querySelector('.bh-source-policy-audit');
+    expect(audit).not.toBeNull();
+    expect(audit?.textContent?.includes('已恢复')).toBe(
+      lastActor.kind === 'human' || lastActor.kind === 'bot',
+    );
   });
 
   it.each([GroupAvatarCropModal, PersonaBotAvatarCropModal])(
