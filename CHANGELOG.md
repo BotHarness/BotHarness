@@ -220,6 +220,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Browser uploads now honor an observed file-input ref instead of attaching to a different field on multi-input pages, so the intended form can continue ([#652](https://github.com/BotHarness/BotHarness/issues/652)).
+
 - Group departure now reports a committed change or an idempotent `not-member` no-change; missing Channels and non-Group targets fail explicitly, so repeated or rejected requests cannot fabricate a new departure ([#571](https://github.com/BotHarness/BotHarness/issues/571)).
 
 - Browser scrolling now sends a native wheel at the viewport center, so the Bot can move central nested content as well as ordinary pages and observe the result before continuing ([#647](https://github.com/BotHarness/BotHarness/issues/647)).

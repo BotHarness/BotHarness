@@ -547,6 +547,97 @@ describe('runtime lifecycle', () => {
     }
   });
 
+  it.each([
+    { name: 'exact input', nodeId: 7, ref: 'e3', kind: 'file' },
+    { name: 'missing input', nodeId: 0, ref: 'e3', kind: 'missing' },
+    { name: 'invalid input node', nodeId: -1, ref: 'e3', kind: 'missing' },
+    { name: 'unavailable input node', nodeId: undefined, ref: 'e3', kind: 'missing' },
+    { name: 'stale input ref', nodeId: 7, ref: 'e3', kind: 'stale' },
+    { name: 'input transport failure', nodeId: 7, ref: 'e3', kind: 'transport' },
+    { name: 'omitted ref fallback', nodeId: 7, ref: undefined, kind: 'fallback' },
+  ])('targets an upload without silently changing fields: $name', async ({ nodeId, ref, kind }) => {
+    const dir = mkdtempSync(join(tmpdir(), 'browser-upload-target-'));
+    const file = join(dir, 'target.txt');
+    writeFileSync(file, 'target');
+    try {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const base = fakeClient();
+      const sent: { method: string; params?: Record<string, unknown>; sessionId?: string }[] = [];
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        platform: 'linux',
+        env: {},
+        fileExists: (path) => path === '/usr/bin/google-chrome',
+        connect: async () => ({
+          send: async (method, params, sessionId) => {
+            sent.push({
+              method,
+              ...(params === undefined ? {} : { params }),
+              ...(sessionId === undefined ? {} : { sessionId }),
+            });
+            if (
+              method === 'Runtime.evaluate' &&
+              String(params?.['expression']).includes('fileInput')
+            )
+              return {
+                result: {
+                  value:
+                    kind === 'stale'
+                      ? { ok: false, reason: 'stale-ref' }
+                      : { ok: true, fileInput: true },
+                },
+              };
+            if (method === 'DOM.querySelector') return { nodeId };
+            if (method === 'DOM.querySelectorAll') return { nodeIds: [7, 9] };
+            if (method === 'DOM.setFileInputFiles' && kind === 'transport')
+              throw new Error('file input transport failed');
+            return base.send(method, params, sessionId);
+          },
+          close: () => base.close(),
+        }),
+      });
+      const ensuring = runtime.ensure();
+      child.ready();
+      await ensuring;
+      const uploading = runtime.uploadFile('tab-1', {
+        path: file,
+        ...(ref === undefined ? {} : { ref }),
+      });
+      if (kind === 'missing')
+        await expect(uploading).rejects.toThrow(/referenced file input.*unavailable/i);
+      else if (kind === 'stale') await expect(uploading).rejects.toThrow(/stale/);
+      else if (kind === 'transport')
+        await expect(uploading).rejects.toThrow('file input transport failed');
+      else await uploading;
+      const files = sent.filter((call) => call.method === 'DOM.setFileInputFiles');
+      if (kind === 'missing' || kind === 'stale') expect(files).toEqual([]);
+      else
+        expect(files).toEqual([
+          {
+            method: 'DOM.setFileInputFiles',
+            params: { files: [file], nodeId: kind === 'fallback' ? 9 : 7 },
+            sessionId: 'session-1',
+          },
+        ]);
+      if (kind !== 'fallback') {
+        expect(sent.some((call) => call.method === 'DOM.querySelectorAll')).toBe(false);
+        expect(sent.some((call) => call.method === 'Input.dispatchMouseEvent')).toBe(false);
+        expect(sent.some((call) => call.method === 'Page.setInterceptFileChooserDialog')).toBe(
+          false,
+        );
+      }
+      if (kind === 'file')
+        expect(sent.find((call) => call.method === 'DOM.querySelector')).toEqual({
+          method: 'DOM.querySelector',
+          params: { nodeId: 1, selector: 'input[type="file"][data-botharness-ref="e3"]' },
+          sessionId: 'session-1',
+        });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('rejects coordinate clicks outside the viewport with a re-screenshot hint', async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child.proc as never);
