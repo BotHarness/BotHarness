@@ -41,3 +41,21 @@ README table at 1280 × 720 using the same Mac browser and local Markdown
 renderer. The baseline is merged main `bf7ce448`; the correction explicitly
 conditions Session approval on Auto-allow being off. Runtime settings were not
 changed for this documentation correction.
+
+`hero.webp` is the Human-supplied concept illustration: a Human collaborates with
+three bots in distinct roles. It was generated artwork, not a DSH capture, and
+both READMEs label it explicitly before the real product screenshots. The original
+2048 × 768 PNG is retained locally; only the WebP is shipped in the repository.
+The conversion used `cwebp -q 90 -m 6 -sharp_yuv -af -metadata none`, with no
+resizing or cropping: 2,242,152 bytes became 304,460 bytes (86.42% smaller).
+Quality 85, 90, and 95 sizes were compared; quality 90 was visually checked
+against the original PNG and preserved the visible linework and detail.
+
+`hero-before-zh.jpg` / `hero-after-zh.jpg` and `hero-before-en.jpg` /
+`hero-after-en.jpg` compare the two README introductions at 1280 × 960.
+`hero-before-mobile.jpg` / `hero-after-mobile.jpg` compare the Chinese introduction
+at 390 × 844; the English mobile layout was also checked. These were rendered on
+macOS with the installed Google Chrome in headless mode, using a separate
+empty temporary profile and the same local GitHub-flavoured Markdown renderer.
+The baseline is main `0ada01e2`; these are local documentation render checks,
+not screenshots of a GitHub page or the running product.

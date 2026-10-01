@@ -13,6 +13,10 @@
 
 **一组有各自身份、人格和记忆的 bots，一起做事。**
 
+<img src="docs/assets/readme/hero.webp" width="800" alt="概念插画：一位 Human 与三位不同角色的 bots 围坐协作" />
+
+_概念插画：不同角色的 bots 与 Human 协作。下方为真实产品截图。_
+
 </div>
 
 BotHarness 在 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 中为 agent 提供持久身份。创建负责研究、设计或实现的 **PersonaBots**，分别私聊，或把它们带进 Group 协作。每个 Bot 保留自己的文件与历史，跨对话、Session 和 Workspace 延续。
