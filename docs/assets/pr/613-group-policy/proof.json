@@ -1,0 +1,239 @@
+{
+  "issue": 613,
+  "recordedAt": "2026-10-01T20:42:08.447Z",
+  "runtimeSourceCommit": "164adb69216d8dcdf720f4ab59f9d9df669167e3",
+  "integratedMainCommit": "be11a7a5",
+  "provider": {
+    "name": "dsh-im",
+    "version": "4.32.0",
+    "qualifiedRevision": "ee9d3c7a6fc9f15b13f8d895cd1ccb5183b7cd37",
+    "platform": "Lark",
+    "scope": "one authorized QA group"
+  },
+  "model": {
+    "verifiedRequestSeq": 402,
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off",
+    "note": "Native Session chooser selection verified from request/header; earlier Flash requests were stopped and recovered, not counted as passing."
+  },
+  "checks": {
+    "lint": "pass",
+    "format": "pass",
+    "typecheck": "pass",
+    "build": "pass",
+    "releaseLedgers": "pass",
+    "testFilesPassed": 223,
+    "testFilesSkipped": 2,
+    "testsPassed": 1841,
+    "testsSkipped": 2
+  },
+  "defaultAndRestoredExclusions": [
+    {
+      "test": "FINAL-DEFAULT",
+      "sourceCount": 0
+    },
+    {
+      "test": "FINAL-AFTER-OFF",
+      "sourceCount": 0
+    },
+    {
+      "test": "INTEGRATED-DEFAULT",
+      "sourceCount": 0
+    },
+    {
+      "test": "INTEGRATED-AFTER-OFF",
+      "sourceCount": 0
+    }
+  ],
+  "countBeforeThird": [
+    {
+      "source_event_id": "im-6fb325439131df383b88e483cdddda7a4ebfbc9ea4f36b89ea63dcafe0694704",
+      "body": "[BH613 INTEGRATED-COUNT-1] Ordinary text 1/3 on latest-main runtime. No tools, replies, local messages or Assignments.",
+      "reason": "group-ordinary",
+      "attempt_state": "pending",
+      "observed_at": null,
+      "handled_at": null,
+      "last_error": null,
+      "wake_policy_revision": 7,
+      "wake_mode": "digest",
+      "wake_count": 3,
+      "wake_interval_ms": 600000
+    },
+    {
+      "source_event_id": "im-a433af77bdbd74fa644c721f846f646f95bea2ad6e552d71328077ce3a753e16",
+      "body": "[BH613 INTEGRATED-COUNT-2] Ordinary text 2/3. Do not reply or use tools.",
+      "reason": "group-ordinary",
+      "attempt_state": "pending",
+      "observed_at": null,
+      "handled_at": null,
+      "last_error": null,
+      "wake_policy_revision": 7,
+      "wake_mode": "digest",
+      "wake_count": 3,
+      "wake_interval_ms": 600000
+    }
+  ],
+  "countAfterThird": [
+    {
+      "source_event_id": "im-6fb325439131df383b88e483cdddda7a4ebfbc9ea4f36b89ea63dcafe0694704",
+      "body": "[BH613 INTEGRATED-COUNT-1] Ordinary text 1/3 on latest-main runtime. No tools, replies, local messages or Assignments.",
+      "reason": "group-ordinary",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T20:36:31.748Z",
+      "handled_at": "2026-10-01T20:36:35.508Z",
+      "last_error": null,
+      "wake_policy_revision": 7,
+      "wake_mode": "digest",
+      "wake_count": 3,
+      "wake_interval_ms": 600000
+    },
+    {
+      "source_event_id": "im-a433af77bdbd74fa644c721f846f646f95bea2ad6e552d71328077ce3a753e16",
+      "body": "[BH613 INTEGRATED-COUNT-2] Ordinary text 2/3. Do not reply or use tools.",
+      "reason": "group-ordinary",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T20:36:31.748Z",
+      "handled_at": "2026-10-01T20:36:35.508Z",
+      "last_error": null,
+      "wake_policy_revision": 7,
+      "wake_mode": "digest",
+      "wake_count": 3,
+      "wake_interval_ms": 600000
+    },
+    {
+      "source_event_id": "im-1c15090a644102fc6278e714842de0d57957376d92985897e3da23597a5822d8",
+      "body": "[BH613 INTEGRATED-COUNT-3] Ordinary text 3/3. End this harvest with only INTEGRATED-COUNT-OK in native Session. No tools, external replies, local messages or Assignments.",
+      "reason": "group-ordinary",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T20:36:31.748Z",
+      "handled_at": "2026-10-01T20:36:35.508Z",
+      "last_error": null,
+      "wake_policy_revision": 7,
+      "wake_mode": "digest",
+      "wake_count": 3,
+      "wake_interval_ms": 600000
+    }
+  ],
+  "timerPendingBeforeVerifiedRestart": {
+    "at": "2026-10-01T20:20:38.382Z",
+    "items": [
+      {
+        "source_event_id": "im-2f5be04ed02e67f2211f0241fb83db126d673757e2551179906e05547e82d86f",
+        "body": "[BH613 FINAL-TIMER] One ordinary message, below count 10. After the 60-second interval, end with only TIMER-OK in the native Session. No tools, external replies, local messages or Assignments.",
+        "reason": "group-ordinary",
+        "attempt_state": "pending",
+        "observed_at": null,
+        "handled_at": null,
+        "last_error": null,
+        "wake_policy_revision": 4,
+        "wake_mode": "digest",
+        "wake_count": 10,
+        "wake_interval_ms": 60000
+      }
+    ]
+  },
+  "timerAfterRestart": [
+    {
+      "source_event_id": "im-2f5be04ed02e67f2211f0241fb83db126d673757e2551179906e05547e82d86f",
+      "body": "[BH613 FINAL-TIMER] One ordinary message, below count 10. After the 60-second interval, end with only TIMER-OK in the native Session. No tools, external replies, local messages or Assignments.",
+      "reason": "group-ordinary",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T20:21:08.254Z",
+      "handled_at": "2026-10-01T20:21:11.457Z",
+      "last_error": null,
+      "wake_policy_revision": 4,
+      "wake_mode": "digest",
+      "wake_count": 10,
+      "wake_interval_ms": 60000
+    }
+  ],
+  "busyInFlight": [
+    {
+      "source_event_id": "im-614202168038ba9b416e24e447c4ef956f631e0f4a044639ca34598002e9f169",
+      "body": "@_user_1 [BH613 FINAL-BUSY] For this isolated QA only, write a 2000-word fictional story about a garden in the native Session, ending BUSY-OK. This deliberately gives another ordinary event time to arrive during generation. No tools, external reply, local message, Memory changes or Assignments.",
+      "reason": "group-mention",
+      "attempt_state": "running",
+      "observed_at": "2026-10-01T20:23:49.771Z",
+      "handled_at": null,
+      "last_error": null,
+      "wake_policy_revision": 5,
+      "wake_mode": "all",
+      "wake_count": null,
+      "wake_interval_ms": null
+    },
+    {
+      "source_event_id": "im-300e3e1088976cd3677709bcc7830f5c19b5938dfabf2b0f4247ee6d970b7d37",
+      "body": "[BH613 FINAL-QUEUED] Ordinary text arriving during generation. Process me in the next harvest without interrupting the active step; then end QUEUED-OK in the native Session. No tools or external/local reply.",
+      "reason": "group-ordinary",
+      "attempt_state": "pending",
+      "observed_at": null,
+      "handled_at": null,
+      "last_error": null,
+      "wake_policy_revision": 5,
+      "wake_mode": "all",
+      "wake_count": 1,
+      "wake_interval_ms": 0
+    }
+  ],
+  "busySettled": [
+    {
+      "source_event_id": "im-614202168038ba9b416e24e447c4ef956f631e0f4a044639ca34598002e9f169",
+      "body": "@_user_1 [BH613 FINAL-BUSY] For this isolated QA only, write a 2000-word fictional story about a garden in the native Session, ending BUSY-OK. This deliberately gives another ordinary event time to arrive during generation. No tools, external reply, local message, Memory changes or Assignments.",
+      "reason": "group-mention",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T20:23:49.771Z",
+      "handled_at": "2026-10-01T20:24:08.504Z",
+      "last_error": null,
+      "wake_policy_revision": 5,
+      "wake_mode": "all",
+      "wake_count": null,
+      "wake_interval_ms": null
+    },
+    {
+      "source_event_id": "im-300e3e1088976cd3677709bcc7830f5c19b5938dfabf2b0f4247ee6d970b7d37",
+      "body": "[BH613 FINAL-QUEUED] Ordinary text arriving during generation. Process me in the next harvest without interrupting the active step; then end QUEUED-OK in the native Session. No tools or external/local reply.",
+      "reason": "group-ordinary",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T20:24:08.506Z",
+      "handled_at": "2026-10-01T20:24:11.446Z",
+      "last_error": null,
+      "wake_policy_revision": 5,
+      "wake_mode": "all",
+      "wake_count": 1,
+      "wake_interval_ms": 0
+    }
+  ],
+  "policyAudit": {
+    "collection": "mentions",
+    "wake": "digest",
+    "count": 5,
+    "intervalSeconds": 30,
+    "revision": 8,
+    "changedAt": "2026-10-01T20:37:19.528Z",
+    "editor": {
+      "kind": "bot",
+      "botSlug": "bot-705327d0a8c942dc92a668cad89bfd0b"
+    }
+  },
+  "scopedNativeTools": ["bridge_group_policy_list", "bridge_group_policy_set", "bridge_reply"],
+  "externalReply": {
+    "text": "BH613-INTEGRATED-OK",
+    "messageId": "om_x100b64d806955130ee856df9b00b598",
+    "parentId": "om_x100b64d809ad2930ed06fba166c1a72",
+    "expectedParentId": "om_x100b64d809ad2930ed06fba166c1a72"
+  },
+  "localDmPlacementsSinceFormalVerification": 0,
+  "notes": [
+    "Count, Bot policy and reply were rerun after integrating latest main. Timer and busy-step tests exercised the unchanged #613 Host implementation before that rebase.",
+    "Provider redelivery, handled replay and authorization refusal are covered by focused automated regression. No synthetic live provider redelivery is claimed.",
+    "Earlier deliberately aborted Flash QA turns produced three existing lifecycle error notices in DM. Formal verification after 20:15 UTC added zero DM placements."
+  ],
+  "screenshotRefresh": {
+    "baselineCommit": "be11a7a5",
+    "afterRuntimeSourceCommit": "164adb69216d8dcdf720f4ab59f9d9df669167e3",
+    "refreshedAt": "2026-10-01T21:01:35.474844+00:00",
+    "baselineProfile": "fresh isolated Profile with matching QA Bot, identity and group; no event history copied",
+    "activityCenter": "latest-main compact entry and current Human Inbox; navigation context only"
+  }
+}

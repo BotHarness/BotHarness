@@ -245,6 +245,7 @@ describe('plugin entry', () => {
     ).toEqual([
       'messagingChannelTarget',
       'messagingReceive',
+      'messagingGroupPolicy',
       'messagingSource',
       'messagingSnapshot',
       'messagingTargets',

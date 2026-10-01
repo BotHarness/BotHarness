@@ -1,5 +1,6 @@
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import type { HumanAssignmentContext } from '../runtime/assignment-human-context.js';
+import type { GroupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
@@ -126,6 +127,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
     channelId: string | null,
   ): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.messagingChannelTarget({ slug, grantId, channelId }));
+  }
+  messagingGroupPolicy(
+    slug: string,
+    grantId: string,
+    policy: GroupReceptionInput,
+  ): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.messagingGroupPolicy({ slug, grantId, policy }));
   }
   messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.messagingReceive({ slug, grantId, enabled }));
@@ -755,6 +763,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
 markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingChannelTarget',
   'messagingReceive',
+  'messagingGroupPolicy',
   'messagingSource',
   'messagingSnapshot',
   'messagingTargets',

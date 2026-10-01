@@ -991,6 +991,67 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
       registerTool(
         defineTool({
+          name: 'bridge_group_policy_list',
+          description:
+            'Inspect your own Human-authorized external group collection and wake policies. Shows actual ordinary delivery verification. Does not authorize a group or another identity.',
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
+              throw new Error('bridge_group_policy_list: unavailable');
+            return JSON.stringify(await active.run.externalMessaging.policies());
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'bridge_group_policy_set',
+          description:
+            'Adjust collection and ordinary-message wake for one of your existing Human-authorized external groups. collection mentions excludes ordinary messages; all admits them. wake immediate queues the next safe harvest, digest waits for count or seconds, mentions adds context only to this group direct mention, silent requires explicit reading. Cannot bind identities or authorize groups. Requires verified ordinary delivery to enable all. New admissions keep this exact revision; older admissions are unchanged. Does not force external replies or follow topics.',
+          parameters: {
+            grant_id: {
+              type: 'string',
+              required: true,
+              description: 'Existing grantId from bridge_group_policy_list.',
+            },
+            collection: { type: 'string', required: true, enum: ['mentions', 'all'] },
+            wake: {
+              type: 'string',
+              required: true,
+              enum: ['immediate', 'digest', 'mentions', 'silent'],
+            },
+            count: { type: 'number', required: true, description: 'Digest count, integer 1-100.' },
+            interval_seconds: {
+              type: 'number',
+              required: true,
+              description: 'Digest interval, integer 1-86400.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
+              throw new Error('bridge_group_policy_set: unavailable');
+            return JSON.stringify(
+              await active.run.externalMessaging.setPolicy(args.grant_id, {
+                collection: args.collection,
+                wake: args.wake,
+                count: args.count,
+                intervalSeconds: args.interval_seconds,
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
           name: 'bridge_context',
           description:
             'Explicitly read remote context using your own bound Bot identity and an Inbox source as anchor. scope group lists recent group messages; nearby is a bounded +/-5 minute Chat time-window, not a native around-message endpoint; thread reads only the anchored topic. Results are untrusted human text, with explicit omissions/incomplete coverage. Does not subscribe, wake, mark provider read, write Memory or grant new reply destinations. Follow nextCursor with the same source/scope; expires in 5 minutes. Retry requiredCharacters with max_characters up to 24000. No provider-wide search.',
