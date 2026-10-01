@@ -224,6 +224,25 @@ describe('bridge parsers', () => {
     expect(messages[0]?.author).toEqual({ kind: 'bot', slug: 'ada' });
   });
 
+  it('preserves stable Human mentions and rejects forged offsets or authors', () => {
+    const message = {
+      id: 'mention',
+      at: '2026-09-30T00:00:00Z',
+      author: { kind: 'bot', slug: 'ada' },
+      body: '@Human Launch ready',
+      humanMentions: [{ humanId: 'local-human', label: 'Human', start: 0, end: 6 }],
+    };
+    const messages = parseChannelMessages({
+      messages: [
+        message,
+        { ...message, id: 'bad-offset', humanMentions: [{ ...message.humanMentions[0], end: 5 }] },
+        { ...message, id: 'wrong-author', author: { kind: 'human' } },
+      ],
+    });
+    expect(messages.map((entry) => entry.id)).toEqual(['mention']);
+    expect(messages[0]?.humanMentions).toEqual(message.humanMentions);
+  });
+
   it('parses reply previews and an unavailable original without accepting malformed links', () => {
     const base = {
       id: 'reply',

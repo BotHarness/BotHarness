@@ -1696,7 +1696,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'channel_send',
           description:
-            'Send one message as this PersonaBot to a joined Channel; omit channel_id for the inbound Channel. Forward trusted attachment references copied from channel_read (or completed channel_read_content); this Tool set has no local-file upload Tool. Returns committed {channelId,messageId}. In a Group, the Host prepends @ badges and wakes mentioned Bots.',
+            'Send one message as this PersonaBot to a joined Channel; omit channel_id for the inbound Channel. Forward trusted attachment references copied from channel_read (or completed channel_read_content); this Tool set has no local-file upload Tool. Returns committed {channelId,messageId}. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them. Use mention_human_ids from channel_list humanMembers to explicitly address a Human; plain @ names do not create personal mentions.',
           parameters: {
             body: {
               type: 'string',
@@ -1733,6 +1733,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 'At most 20 stable IDs of other active PersonaBots currently joined to the target Group. Do not repeat their names in body.',
               items: { type: 'string' },
             },
+            mention_human_ids: {
+              type: 'array',
+              description:
+                'Stable Human IDs from channel_list humanMembers in this Group; do not repeat their names in body.',
+              items: { type: 'string' },
+            },
           },
           output: {
             schema: { type: 'string' },
@@ -1759,6 +1765,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               ...(args.mention_bot_ids === undefined
                 ? {}
                 : { mentionBotIds: args.mention_bot_ids }),
+              ...(args.mention_human_ids === undefined
+                ? {}
+                : { mentionHumanIds: args.mention_human_ids }),
             });
             this.#drafts.settle(
               run.sessionId,

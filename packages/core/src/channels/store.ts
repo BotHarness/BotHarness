@@ -243,6 +243,7 @@ export interface ChannelStore {
   rootDir: string;
   list(): ChannelRecord[];
   get(id: string): ChannelRecord | undefined;
+  listHumanMembers(id: string): Array<{ humanId: string; displayName: string }>;
 
   latestMessage(id: string): ChannelMessage | undefined;
 
@@ -520,6 +521,7 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
   return {
     rootDir,
     get: read,
+    listHumanMembers: () => [],
     readPosition,
     markRead(id, messageId) {
       return enqueue(id, () => {

@@ -1126,6 +1126,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const trimmed = profile.trim();
       const normalized = trimmed === 'default' ? '' : trimmed;
+      if (normalized === '.' || normalized === '..') {
+        return invalidInput(
+          'Profile names "." and ".." are reserved; choose a named profile or default',
+        );
+      }
       if (normalized !== '' && !/^[a-zA-Z0-9._-]{1,40}$/u.test(normalized)) {
         return invalidInput('profile must use letters, digits, dot, dash, or underscore (max 40)');
       }

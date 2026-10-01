@@ -120,6 +120,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       replyTo: left.replyTo,
       memorySwitchTarget: left.memorySwitchTarget,
       mentions: left.mentions ?? [],
+      humanMentions: left.humanMentions ?? [],
       channelRefs: left.channelRefs ?? [],
       botDmAction: left.botDmAction,
       botCausation: left.botCausation,
@@ -132,6 +133,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       replyTo: right.replyTo,
       memorySwitchTarget: right.memorySwitchTarget,
       mentions: right.mentions ?? [],
+      humanMentions: right.humanMentions ?? [],
       channelRefs: right.channelRefs ?? [],
       botDmAction: right.botDmAction,
       botCausation: right.botCausation,
@@ -391,6 +393,28 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       throw new ChannelReplyTargetError();
     assertAttachmentRefs(message.attachments ?? []);
     const mentions = message.mentions ?? [];
+    const humanMentions = message.humanMentions ?? [];
+    if (
+      humanMentions.length > 0 &&
+      (channel.type !== 'group' ||
+        message.author.kind !== 'bot' ||
+        message.botCausation === undefined ||
+        humanMentions.some(
+          (mention) =>
+            typeof mention.humanId !== 'string' ||
+            mention.humanId.length === 0 ||
+            typeof mention.label !== 'string' ||
+            mention.label.length === 0 ||
+            !Number.isSafeInteger(mention.start) ||
+            !Number.isSafeInteger(mention.end) ||
+            mention.start < 0 ||
+            mention.end <= mention.start ||
+            message.body.slice(mention.start, mention.end) !== '@' + mention.label,
+        ))
+    )
+      throw new Error(
+        'Human mentions require a trusted Bot sender and a current Group Human member',
+      );
     if (
       mentions.length > 0 &&
       (channel.type === 'group'
@@ -466,6 +490,16 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     const actionRevision = senderDm === undefined ? undefined : allMessages(senderDm.id).length + 1;
     database.transaction(
       (db) => {
+        for (const mention of humanMentions) {
+          if (
+            db
+              .prepare(
+                'SELECT 1 FROM channel_human_members WHERE channel_id = ? AND human_id = ? AND left_at IS NULL',
+              )
+              .get(id, mention.humanId) === undefined
+          )
+            throw new Error('Mentioned Human must be a current Group Human member');
+        }
         db.prepare(`
         INSERT INTO source_events (
           source_event_id, source_kind, bot_slug, channel_id, message_id,
@@ -802,6 +836,11 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     );
 
   return {
+    listHumanMembers: (id) =>
+      humanMembers(id).map((member) => ({
+        humanId: member.human_id,
+        displayName: member.display_name,
+      })),
     rootDir,
     get: readRecord,
     list() {

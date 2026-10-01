@@ -15,9 +15,10 @@ import { HumanInboxView } from '../src/client/human-inbox-view.js';
 import { store } from '../src/client/store.js';
 
 describe('Human Inbox inline reply', () => {
-  it.each(['unread', 'replies'] as const)(
+  it.each(['unread', 'replies', 'mention'] as const)(
     'keeps %s context and draft across refresh and failure, and retries one reply id',
     async (category) => {
+      const inboxCategory = category === 'mention' ? 'replies' : category;
       Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
       let seeMessage: ((id: string) => void) | undefined;
       vi.stubGlobal(
@@ -118,13 +119,18 @@ describe('Human Inbox inline reply', () => {
       const actions = createActions(call, store);
       store.select({ kind: 'inbox' });
       store.setHumanInbox({
-        category,
+        category: inboxCategory,
         status: 'ready',
         items: [
           {
             id: 'unread:group-team',
-            kind: category === 'replies' ? 'channel-reply' : 'channel-unread',
-            category,
+            kind:
+              category === 'mention'
+                ? 'channel-mention'
+                : category === 'replies'
+                  ? 'channel-reply'
+                  : 'channel-unread',
+            category: inboxCategory,
             createdAt: '2026-09-30T12:01:00Z',
             channelId: 'group-team',
             channelName: 'Launch planning',
