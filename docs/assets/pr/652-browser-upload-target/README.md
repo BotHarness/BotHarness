@@ -3,7 +3,7 @@
 The before/after pair uses the real Bot Browser runtime and registered Browser Tools on the same isolated DSH Host and two-input fixture.
 
 - Before: main `7fe56622d6bb599e9f2f3ca30af83604cdd88761`, captured before editing the runtime. The extra QA adapter only calls native Tools; it does not choose or populate DOM nodes itself.
-- After: this PR's runtime. A fresh file-input ref resolves to its exact CDP node and `DOM.setFileInputFiles` populates that node without clicking or opening a chooser.
+- After: this PR's runtime, revalidated after integrating main `31cf8f85926c2d490593029bf441d0223a625208`. The Browser tree on that main revision is identical to the captured baseline. A fresh file-input ref resolves to its exact CDP node and `DOM.setFileInputFiles` populates that node without clicking or opening a chooser.
 - Matched page frames: 2400 × 1472, light theme, English fixture and the same native browser locale, data and requested first input. Client completion: 1280 × 720.
 - `before-page.jpg` and `after-page.jpg` show the state after uploading but before submitting. `completed-page.jpg` and `completed-client.png` show the one successful form submission.
 - JPEGs are unedited production observation frames; the PNG is an unedited in-app browser screenshot.
@@ -38,4 +38,4 @@ This slice selects an explicit file-input ref accurately. Upload-control refs an
 
 The concrete mechanism is verified against the [official CDP DOM definition](https://github.com/ChromeDevTools/devtools-protocol/blob/master/json/browser_protocol.json): `DOM.querySelector` returns the matched node ID, and `DOM.setFileInputFiles` accepts that exact node ID.
 
-Focused Browser validation: **147 passed, 1 existing opt-in skip**; all seven new runtime cases pass, including the previously failing target/refusal cases. Existing button-control and omitted-ref regressions remain green. Full suite: **1675 passed, 1 existing opt-in skip**. Lint, formatting, typecheck, build and bilingual release ledgers passed.
+Focused Browser validation: **147 passed, 1 existing opt-in skip**; all seven new runtime cases pass, including the previously failing target/refusal cases. Existing button-control and omitted-ref regressions remain green. Full suite: **1680 passed, 1 existing opt-in skip**. Lint, formatting, typecheck, build and bilingual release ledgers passed.
