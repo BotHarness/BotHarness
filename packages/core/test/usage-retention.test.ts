@@ -109,6 +109,13 @@ it('commits the receipt and counters together, allowing a failed write to be ret
   const usage = createUsageProjection({ ownership, database });
   fail = true;
   expect(() => usage.handleSessionEvent('retry-session', settlement(1))).toThrow();
+  let removedFiles = false;
+  expect(() =>
+    usage.purgeBot('ada', () => {
+      removedFiles = true;
+    }),
+  ).toThrow();
+  expect(removedFiles).toBe(false);
   database.close();
   const recovered = open(home);
   expect(recovered.usage.activity('ada', SINCE)).toEqual([]);
@@ -234,4 +241,20 @@ it('rejects purged roots and their later descendants even when a new Bot shares 
   restarted.usage.handleSessionEvent('new-root', settlement(1));
   expect(restarted.usage.activity('ada', SINCE)[0]?.totalTokens).toBe(170);
   expect(restarted.usage.activity('ada', SINCE)).toHaveLength(1);
+});
+
+it('preserves accounting when the Bot filesystem purge fails', () => {
+  const { usage, ownership } = open(createTempRoot('botharness-failed-purge-'));
+  claim(ownership, 'retained-root');
+  usage.handleSessionEvent('retained-root', settlement(1));
+  const before = usage.activity('ada', SINCE);
+  expect(() =>
+    usage.purgeBot('ada', () => {
+      throw new Error('filesystem refused deletion');
+    }),
+  ).toThrow();
+  expect(usage.activity('ada', SINCE)).toEqual(before);
+  usage.handleSessionEvent('retained-root', settlement(1));
+  usage.handleSessionEvent('retained-root', settlement(2));
+  expect(usage.activity('ada', SINCE)[0]?.totalTokens).toBe(340);
 });

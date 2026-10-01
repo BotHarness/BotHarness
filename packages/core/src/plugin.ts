@@ -227,9 +227,9 @@ export function createCore(
   let usage: UsageProjection | undefined;
   const registry = createPersonaBotRegistry({
     rootDir,
-    onPurge: (slug) => {
+    onPurge: (slug, removeFiles) => {
       if (usage === undefined) throw new Error('Usage purge requires a ready operational database');
-      usage.purgeBot(slug);
+      usage.purgeBot(slug, removeFiles);
     },
     cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
     initializeMemory: (memoryDir) => {

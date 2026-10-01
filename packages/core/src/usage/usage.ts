@@ -56,7 +56,7 @@ export interface UsageProjection {
 
   activity(botSlug: string, sinceIso: string): UsageDayRow[];
 
-  purgeBot(botSlug: string): void;
+  purgeBot(botSlug: string, removeFiles?: () => void): void;
 }
 
 interface UsageDailyDbRow {
@@ -396,7 +396,7 @@ export function createUsageProjection(options: {
         ...(baselineByBot.size > 0 ? { legacyBaselineBots: baselineByBot.size } : {}),
       };
     },
-    purgeBot(botSlug) {
+    purgeBot(botSlug, removeFiles) {
       database.transaction(
         (connection) => {
           const retire = connection.prepare(
@@ -412,6 +412,7 @@ export function createUsageProjection(options: {
           connection.prepare('DELETE FROM usage_daily WHERE bot_slug = ?').run(botSlug);
           connection.prepare('DELETE FROM usage_receipts WHERE bot_slug = ?').run(botSlug);
           connection.prepare('DELETE FROM usage_legacy_baselines WHERE bot_slug = ?').run(botSlug);
+          removeFiles?.();
         },
         ['usage'],
       );
