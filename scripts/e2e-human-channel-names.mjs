@@ -186,7 +186,8 @@ const nickname = async (channelId, name) => {
   await page.keyboard.press('Backspace');
   if (name) await page.type('#bh-human-channel-nickname', name);
   await capture(name ? 'edit-' + (channelId.startsWith('dm-') ? 'dm' : 'group') : 'edit-reset');
-  await page.keyboard.press('Enter');
+  if (name) await page.keyboard.press('Enter');
+  else await clickText('button', '恢复默认名字');
   await page.waitForSelector('#bh-human-channel-nickname', { hidden: true });
   const channels = (await rpc('channels')).channels;
   assert.equal(channels.find((c) => c.id === channelId).humanNickname, name || null);
@@ -207,7 +208,21 @@ try {
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await inbox();
   const mode = process.argv[2] ?? 'check';
-  if (mode === 'restart') {
+  if (mode === 'reset') {
+    const scene = JSON.parse(readFileSync(resolve(out, 'scene.json'), 'utf8'));
+    await nickname(scene.group.id, '');
+    await label(page, '小熊 新');
+    await capture('after-restore-button');
+    await nickname(scene.group.id, '教授');
+    await label(page, '教授');
+    save('result', {
+      ...JSON.parse(readFileSync(resolve(out, 'result.json'), 'utf8')),
+      restoreButton: true,
+    });
+    console.log(
+      'RESTORE BUTTON VERIFIED: inherited current default and restored independent nickname',
+    );
+  } else if (mode === 'restart') {
     const scene = JSON.parse(readFileSync(resolve(out, 'scene.json'), 'utf8'));
     const channels = (await rpc('channels')).channels;
     assert.equal(channels.find((c) => c.id === scene.dm.id).humanNickname, '船长');

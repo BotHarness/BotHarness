@@ -1,0 +1,16 @@
+{
+  "realModel": true,
+  "nicknameMenus": true,
+  "dmAndGroupIndependent": true,
+  "defaultInheritance": true,
+  "clearNickname": true,
+  "historicalMentionLabels": true,
+  "sourceBodyAndOffsetsUnchanged": true,
+  "attentionUnchanged": true,
+  "secondWindow": true,
+  "sourceChannelInbox": true,
+  "botVisibleNames": true,
+  "narrowLayout": true,
+  "restart": true,
+  "restoreButton": true
+}
