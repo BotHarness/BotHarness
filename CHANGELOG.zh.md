@@ -228,6 +228,8 @@
 
 ### Fixed
 
+- PersonaBot Profile 现在可正确保存 Human 私聊、Bot 私聊和群内提及的投递设置；切换并入活动回合或排为独立回合会生效，并在重启后保留（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。
+
 - 后台 Bot Browser 标签页现在会在原生鼠标和键盘输入前准备焦点，无需唤起 Human 前台窗口；搜索可在任何截图或滚动之前打开第一条结果（[#462](https://github.com/BotHarness/BotHarness/issues/462)）。
 
 - Browser 动作与导航遇到页面持续 15 秒未就绪时，现在返回可读超时错误，并要求 Bot 先观察，再决定是否重试可能已经发生的动作（[#462](https://github.com/BotHarness/BotHarness/issues/462)）。

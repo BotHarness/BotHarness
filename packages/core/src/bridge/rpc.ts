@@ -459,9 +459,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
   botSourcePolicySet(
     slug: string,
     wake: 'conditional' | 'immediate' | 'digest' | 'mentions' | 'silent',
-    sourceClass?: 'assignment-report' | 'group-ordinary',
+    sourceClass?: 'assignment-report' | 'group-ordinary' | 'human-dm' | 'bot-dm' | 'group-mention',
     digestCount?: number,
     digestIntervalSeconds?: number,
+    delivery?: 'steer' | 'turn',
   ): { policy: BotSourcePolicy } {
     return unwrap(
       this.methods.botSourcePolicySet({
@@ -470,13 +471,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
         sourceClass,
         digestCount,
         digestIntervalSeconds,
+        delivery,
       }),
     );
   }
 
   botSourcePolicyReset(
     slug: string,
-    sourceClass?: 'assignment-report' | 'group-ordinary',
+    sourceClass?: 'assignment-report' | 'group-ordinary' | 'human-dm' | 'bot-dm' | 'group-mention',
   ): { policy: BotSourcePolicy } {
     return unwrap(this.methods.botSourcePolicyReset({ slug, sourceClass }));
   }

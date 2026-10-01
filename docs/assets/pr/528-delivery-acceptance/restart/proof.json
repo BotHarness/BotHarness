@@ -1,0 +1,55 @@
+{
+  "preserved": [
+    {
+      "bot": {
+        "slug": "bot-9569cec720494b4ba5bb8cfa146a332d",
+        "displayName": "DM delivery steer QA 1790867796890"
+      },
+      "policy": {
+        "sourceClass": "human-dm",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "steer",
+        "revision": 1,
+        "lastActor": {
+          "kind": "built-in"
+        },
+        "changedAt": "2026-10-01T15:16:43.036Z",
+        "overrideActive": false,
+        "recentWakeCount": 1
+      }
+    },
+    {
+      "bot": {
+        "slug": "bot-52bcb6a99f3f4f78aa7bb136aeaaf457",
+        "displayName": "DM delivery turn QA 1790867415845"
+      },
+      "policy": {
+        "sourceClass": "human-dm",
+        "admission": "admit",
+        "wake": "immediate",
+        "delivery": "turn",
+        "revision": 2,
+        "lastActor": {
+          "kind": "human"
+        },
+        "changedAt": "2026-10-01T15:10:56.835Z",
+        "overrideActive": true,
+        "recentWakeCount": 2
+      }
+    }
+  ],
+  "uiRestored": {
+    "sourceClass": "human-dm",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 3,
+    "lastActor": {
+      "kind": "human"
+    },
+    "changedAt": "2026-10-01T15:19:16.333Z",
+    "overrideActive": false,
+    "recentWakeCount": 1
+  }
+}

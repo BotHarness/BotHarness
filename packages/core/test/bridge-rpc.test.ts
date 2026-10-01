@@ -12,6 +12,12 @@ import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
+import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
+import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import {
+  createBotSourcePolicyStore,
+  type BotSourcePolicyStore,
+} from '../src/runtime/source-policy.js';
 import { createTestOwnership } from './helpers.js';
 
 const roots: string[] = [];
@@ -20,7 +26,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-function setup() {
+function setup(sourcePolicy?: BotSourcePolicyStore) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-rpc-'));
   roots.push(root);
   const registry = createPersonaBotRegistry({ rootDir: root });
@@ -35,6 +41,7 @@ function setup() {
     ownership: createTestOwnership(),
     roster: createRosterStore(),
     createBotId: () => 'ada',
+    ...(sourcePolicy === undefined ? {} : { sourcePolicy }),
   });
   const ctx = new Context();
   const service = registerBridge(ctx, methods);
@@ -247,6 +254,55 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.hiddenSet)).toEqual(['hidden']);
     expect(parameterNames(service.rosterBatch)).toEqual(['action', 'channelIds', 'sectionId']);
   });
+
+  it.each(['human-dm', 'bot-dm', 'group-mention'] as const)(
+    'sets and restores %s delivery through the public bridge',
+    (sourceClass) => {
+      const home = mkdtempSync(join(tmpdir(), 'botharness-delivery-rpc-'));
+      roots.push(home);
+      const database = mountOperationalDatabase({
+        dshHome: home,
+        schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+      });
+      try {
+        const policy = createBotSourcePolicyStore(
+          attachOperationalModule(database, 'delivery-rpc'),
+        );
+        const { service } = setup(policy);
+        service.create('Ada');
+        expect(parameterNames(service.botSourcePolicySet)).toEqual([
+          'slug',
+          'wake',
+          'sourceClass',
+          'digestCount',
+          'digestIntervalSeconds',
+          'delivery',
+        ]);
+        expect(
+          service.botSourcePolicySet('ada', 'immediate', sourceClass, undefined, undefined, 'turn')
+            .policy,
+        ).toMatchObject({
+          sourceClass,
+          delivery: 'turn',
+          revision: 2,
+          lastActor: { kind: 'human' },
+          overrideActive: true,
+        });
+        expect(policy.list('ada').find((row) => row.sourceClass === sourceClass)?.delivery).toBe(
+          'turn',
+        );
+        expect(service.botSourcePolicyReset('ada', sourceClass).policy).toMatchObject({
+          sourceClass,
+          delivery: 'steer',
+          revision: 3,
+          lastActor: { kind: 'human' },
+          overrideActive: false,
+        });
+      } finally {
+        database.close();
+      }
+    },
+  );
 
   it('dispatches named arguments into the read model', async () => {
     const { service, registry } = setup();
