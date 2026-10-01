@@ -133,6 +133,9 @@ const settings = async (client = page) => {
 const setName = async (name) => {
   await settings();
   await page.click('#bh-human-default-name', { clickCount: 3 });
+  await page.keyboard.down('Control');
+  await page.keyboard.press('A');
+  await page.keyboard.up('Control');
   await page.keyboard.press('Backspace');
   if (name) await page.type('#bh-human-default-name', name);
   await page.waitForSelector('.bh-human-name-save:not(:disabled)');
@@ -177,6 +180,9 @@ const nickname = async (channelId, name) => {
   await clickText('[role="menuitem"]', '我的昵称');
   await page.waitForSelector('#bh-human-channel-nickname');
   await page.click('#bh-human-channel-nickname', { clickCount: 3 });
+  await page.keyboard.down('Control');
+  await page.keyboard.press('A');
+  await page.keyboard.up('Control');
   await page.keyboard.press('Backspace');
   if (name) await page.type('#bh-human-channel-nickname', name);
   await capture(name ? 'edit-' + (channelId.startsWith('dm-') ? 'dm' : 'group') : 'edit-reset');
@@ -317,7 +323,7 @@ try {
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await capture('after-narrow');
     await page.setViewport({ width: 1440, height: 900 });
-    const messageId = 'visible-' + crypto.randomUUID();
+    const messageId = 'human-' + crypto.randomUUID();
     await rpc('channelSend', {
       channelId: scene.dm.id,
       messageId,

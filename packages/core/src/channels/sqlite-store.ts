@@ -982,7 +982,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const record: ChannelRecord = {
         id,
         type: 'dm',
-        name: name.trim() || members.join(' 路 '),
+        name: name.trim() || members.join(' · '),
         members,
         createdAt: timestamp,
         updatedAt: timestamp,
