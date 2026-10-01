@@ -39,6 +39,57 @@ function render(
 beforeEach(() => vi.mocked(MarkdownText).mockClear());
 
 describe('Channel message body', () => {
+  it.each(['/chosen/project', null])(
+    'uses the native picker on a browse capability refusal and authorizes only a chosen path %s',
+    async (path) => {
+      Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+      const container = document.createElement('div');
+      document.body.append(container);
+      const root = createRoot(container);
+      const pickWorkspaceFolder = vi.fn(async () => path);
+      const resolveWorkspaceGrantRequest = vi.fn(async () => undefined);
+      const actions = {
+        listHostFolders: async () => {
+          throw Object.assign(new Error('native picker'), {
+            rpcError: { code: 'directory-picker/unavailable' },
+          });
+        },
+        pickWorkspaceFolder,
+        resolveWorkspaceGrantRequest,
+      } as unknown as BridgeActions;
+      try {
+        await act(async () =>
+          root.render(
+            createElement(ChannelMessageBody, {
+              message: {
+                id: 'grant-request',
+                at: '2026-10-01T10:00:00Z',
+                author: { kind: 'bot', slug: 'ada' },
+                body: 'Choose a folder',
+                grantRequest: true,
+              },
+              actions,
+              t: zhTranslate,
+            }),
+          ),
+        );
+        await act(async () => container.querySelector<HTMLButtonElement>('button')!.click());
+        expect(pickWorkspaceFolder).toHaveBeenCalledOnce();
+        if (path === null) expect(resolveWorkspaceGrantRequest).not.toHaveBeenCalled();
+        else
+          expect(resolveWorkspaceGrantRequest).toHaveBeenCalledWith(
+            'ada',
+            'grant-request',
+            path,
+            expect.any(Function),
+          );
+        expect(container.textContent?.includes('已回复授权请求')).toBe(path !== null);
+      } finally {
+        await act(async () => root.unmount());
+        container.remove();
+      }
+    },
+  );
   it('opens selected #Group references by stable ID and leaves typed #text inert', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');

@@ -17,6 +17,8 @@
 
 ### Added
 
+- Human 可在 Human Inbox 授权工作区请求或回应等待／受阻 Assignment，查看来源上下文并准确打开 Session；已提交回应沿用 Bot DM authority，待办根据持久事实刷新（[#552](https://github.com/BotHarness/BotHarness/issues/552)）。
+
 - Human 可在 Human Inbox 使用来源 DM 提问卡的选项或自定义输入回答实时原生提问；答案只恢复原请求一次，刷新已解决或过期待办，并保留其他 Bot 的独立请求（[#551](https://github.com/BotHarness/BotHarness/issues/551)）。
 
 - Human 可在 Human Inbox 查看实时工具请求并原位批准或拒绝，同时展开来源附近消息或准确跳转。决定沿用来源 DM 命令，移除已解决待办、保留其他 Bot 的独立请求，并刷新过期卡片（[#550](https://github.com/BotHarness/BotHarness/issues/550)）。
@@ -231,6 +233,8 @@
 - 后台 Bot Browser 标签页现在会在原生鼠标和键盘输入前准备焦点，无需唤起 Human 前台窗口；搜索可在任何截图或滚动之前打开第一条结果（[#462](https://github.com/BotHarness/BotHarness/issues/462)）。
 
 - Browser 动作与导航遇到页面持续 15 秒未就绪时，现在返回可读超时错误，并要求 Bot 先观察，再决定是否重试可能已经发生的动作（[#462](https://github.com/BotHarness/BotHarness/issues/462)）。
+
+- 阅读较早消息时发送 DM 会保留阅读位置；跟随最新对话时，Bot 活动提示展开后新消息仍完整可见（[#120](https://github.com/BotHarness/BotHarness/issues/120)）。
 
 - Human 暂停前已开始的 Browser 截图，会在生成或原生附件处理期间控制状态改变时被拒绝，避免未完成图片在接管后返回模型（[#461](https://github.com/BotHarness/BotHarness/issues/461)）。
 

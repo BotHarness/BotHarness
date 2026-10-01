@@ -86,11 +86,14 @@ export function resolvedGrantRequestIds(messages: readonly ChannelMessage[]): Se
           committed.has(item.id) &&
           item.author.kind === 'human' &&
           item.replyTo !== undefined &&
-          (item.grantRequestResolution?.requestMessageId === item.replyTo ||
-            item.body.startsWith('已授权工作区「') ||
-            item.body.startsWith('I authorized workspace “')),
+          item.grantRequestResolution?.requestMessageId === item.replyTo,
       )
-      .map((item) => item.replyTo!),
+      .map((item) => item.replyTo!)
+      .concat(
+        messages
+          .filter((item) => committed.has(item.id) && item.grantRequestResolved === true)
+          .map((item) => item.id),
+      ),
   );
 }
 
@@ -919,8 +922,12 @@ function ConversationView({
     )
       return;
     submitting.current = true;
-    followingLatest.current = true;
-    setUnseen(0);
+    const viewport = scrollRef.current;
+    followingLatest.current =
+      viewport !== null &&
+      !conversation.timeline.hasNewer &&
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 80;
+    if (followingLatest.current) setUnseen(0);
     const submittedFor = currentChannel.current;
     const submittedUploads = uploadItems;
     const previousFailures = new Set(

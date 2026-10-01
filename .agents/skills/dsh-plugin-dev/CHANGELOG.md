@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded directory picker capability differences and native selection fallback in the [local development guide](../dsh-dev/SKILL.md), verified against pinned DSH 0.2.0 RC1 with a real Inbox Grant flow ([#552](https://github.com/BotHarness/BotHarness/issues/552)).
+
 - Recorded the open-Turn requirement for native approval probes in the [local development guide](../dsh-dev/SKILL.md), verified against pinned DSH 0.2.0 RC1 source and real Browser approval/cancellation turns ([#460](https://github.com/BotHarness/BotHarness/issues/460)).
 
 - Recorded isolated Provider activation order, native Consumer Policy capture and the actual Tool execution boundary in the [local development guide](../dsh-dev/SKILL.md), verified with pinned DSH 0.2.0 RC1 native file and approved Shell calls ([#632](https://github.com/BotHarness/BotHarness/issues/632)).

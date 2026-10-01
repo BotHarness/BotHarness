@@ -121,6 +121,7 @@ describe('bridge typert service', () => {
       'botSourcePolicySet',
       'botSourcePolicyReset',
       'humanAttention',
+      'humanAssignmentContext',
       'humanAttentionStatus',
       'humanAttentionIgnore',
       'assignments',
@@ -230,8 +231,14 @@ describe('bridge typert service', () => {
       'mentions',
       'channelRefs',
       'grantRequestResolution',
+      'assignmentReply',
     ]);
     expect(parameterNames(service.botAttention)).toEqual(['slug', 'limit', 'cursor', 'state']);
+    expect(parameterNames(service.humanAssignmentContext)).toEqual([
+      'slug',
+      'sessionId',
+      'sourceEventId',
+    ]);
     expect(parameterNames(service.assignments)).toEqual(['slug']);
     expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);
     expect(parameterNames(service.sessions)).toEqual(['slug']);

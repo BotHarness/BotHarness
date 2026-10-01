@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Humans can authorize a Workspace Grant request or answer a waiting/blocked Assignment inside Human Inbox with source context and exact Session navigation; committed replies use the Bot DM authority and refresh canonical action state ([#552](https://github.com/BotHarness/BotHarness/issues/552)).
+
 - Humans can answer a live native Bot question inside Human Inbox using the same options or custom input as its source DM card; answers resume the original request once, refresh resolved or stale actions, and preserve other Bots independently ([#551](https://github.com/BotHarness/BotHarness/issues/551)).
 
 - Humans can inspect a live tool request and approve or reject it directly in Human Inbox, with expandable source messages and exact navigation. Decisions use the source DM command, remove the resolved action while leaving other Bots independent, and refresh stale requests ([#550](https://github.com/BotHarness/BotHarness/issues/550)).
@@ -231,6 +233,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Background Bot Browser tabs now prepare native mouse and keyboard input without bringing the Human window to the foreground, so a search can open its first result before any screenshot or scroll ([#462](https://github.com/BotHarness/BotHarness/issues/462)).
 
 - Browser actions and navigation now report a readable timeout when the page remains unsettled for 15 seconds, and direct the Bot to observe before retrying an action that may already have run ([#462](https://github.com/BotHarness/BotHarness/issues/462)).
+
+- Sending a DM while reading earlier messages preserves the reading position; following the latest conversation still keeps new messages visible as Bot activity opens ([#120](https://github.com/BotHarness/BotHarness/issues/120)).
 
 - Browser screenshots started before Human Pause are now refused if control changes during capture or native attachment processing, so unfinished images cannot reach the model after takeover ([#461](https://github.com/BotHarness/BotHarness/issues/461)).
 

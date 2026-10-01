@@ -8,6 +8,10 @@ import type {
 } from '../messaging/outbound.js';
 import { MessagingError, type MessagingTarget } from '../messaging/provider.js';
 import { OperationalDatabaseError } from '../database/owner.js';
+import {
+  AssignmentReplyTargetError,
+  type HumanAssignmentContext,
+} from '../runtime/assignment-human-context.js';
 import { createMessageAttachmentFiles } from '../attachments/message-files.js';
 import { attachmentIntent } from '../attachments/ref.js';
 import type { AttachmentStore } from '../attachments/store.js';
@@ -262,6 +266,7 @@ export interface BridgeMethods {
   botSourcePolicySet(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
   botSourcePolicyReset(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
+  humanAssignmentContext(payload: unknown): BridgeResult<{ context: HumanAssignmentContext }>;
   humanAttentionStatus(payload: unknown): BridgeResult<{ unreadCount: number; hasAction: boolean }>;
   humanAttentionIgnore(payload: unknown): BridgeResult<{ accepted: boolean }>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
@@ -1637,6 +1642,28 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         };
       }
       const requestedMessageId = source['messageId'];
+      const rawAssignmentReply = source['assignmentReply'];
+      let assignmentReply: ChannelMessage['assignmentReply'];
+      if (rawAssignmentReply !== undefined) {
+        if (typeof rawAssignmentReply !== 'object' || rawAssignmentReply === null)
+          return invalidInput('invalid Assignment response');
+        const target = rawAssignmentReply as Record<string, unknown>;
+        if (
+          typeof target['sessionId'] !== 'string' ||
+          target['sessionId'].length === 0 ||
+          target['sessionId'].length > 150 ||
+          typeof target['sourceEventId'] !== 'string' ||
+          target['sourceEventId'].length === 0 ||
+          target['sourceEventId'].length > 150 ||
+          replyTo !== undefined ||
+          grantRequestResolution !== undefined
+        )
+          return invalidInput('invalid Assignment response');
+        assignmentReply = {
+          sessionId: target['sessionId'],
+          sourceEventId: target['sourceEventId'],
+        };
+      }
       if (
         requestedMessageId !== undefined &&
         (typeof requestedMessageId !== 'string' ||
@@ -1679,6 +1706,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           existing.body === body &&
           existing.replyTo === replyTo &&
           existing.memorySwitchTarget === memorySwitchTarget &&
+          JSON.stringify(existing.assignmentReply) === JSON.stringify(assignmentReply) &&
           JSON.stringify(attachmentIntent(existing.attachments ?? [])) ===
             JSON.stringify(attachmentIntent(attachments ?? [])) &&
           JSON.stringify(existing.mentions ?? []) === JSON.stringify(mentions) &&
@@ -1691,6 +1719,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const grantRequestTarget =
         replyTo === undefined ? undefined : deps.channels.message(channelId, replyTo);
+      if (
+        assignmentReply !== undefined &&
+        (channel.type !== 'dm' ||
+          channel.botSlug === undefined ||
+          deps.humanAttention?.assignmentContext(
+            channel.botSlug,
+            assignmentReply.sessionId,
+            assignmentReply.sourceEventId,
+          )?.canReply !== true)
+      )
+        return invalidInput('Assignment request is no longer awaiting this Human response');
       if (
         grantRequestResolution === undefined &&
         grantRequestTarget?.grantRequest === true &&
@@ -1748,6 +1787,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(channelRefs.length === 0 ? {} : { channelRefs }),
         ...(replyTo === undefined ? {} : { replyTo }),
         ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
+        ...(assignmentReply === undefined ? {} : { assignmentReply }),
         ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
       };
       if (
@@ -1763,6 +1803,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       } catch (error) {
         if (
           error instanceof ChannelReplyTargetError ||
+          error instanceof AssignmentReplyTargetError ||
           error instanceof ChannelMentionTargetError ||
           error instanceof ChannelAttachmentError
         )
@@ -2007,6 +2048,36 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       } catch (error) {
         return invalidInput(String(error));
       }
+    },
+    humanAssignmentContext(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const sessionId = asNonBlank(source, 'sessionId');
+      const sourceEventId = asNonBlank(source, 'sourceEventId');
+      if (
+        slug === undefined ||
+        sessionId === undefined ||
+        sessionId.length > 150 ||
+        sourceEventId === undefined ||
+        sourceEventId.length > 150
+      )
+        return invalidInput('Bot, Assignment Session and report Source Event are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      const context = deps.humanAttention?.assignmentContext(slug, sessionId, sourceEventId);
+      if (context === undefined)
+        return invalidInput('Assignment report is unavailable for this Bot');
+      return {
+        ok: true,
+        value: {
+          context: {
+            ...context,
+            canReply:
+              context.canReply &&
+              deps.registry.get(slug)?.paused !== true &&
+              deps.channels.get('dm-' + slug)?.botSlug === slug,
+          },
+        },
+      };
     },
     humanAttentionIgnore(payload) {
       const source = asObject(payload);
