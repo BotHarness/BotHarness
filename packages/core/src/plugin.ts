@@ -226,6 +226,13 @@ export function createCore(
   const rootDir = join(dshHome, 'botharness', 'bots');
   const registry = createPersonaBotRegistry({
     rootDir,
+    onDisplayNameChanged: () => {
+      try {
+        live?.publishRosterCommitted();
+      } catch {
+        options.warn?.('bot-name-publication-failed');
+      }
+    },
     cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
     initializeMemory: (memoryDir) => {
       const repository = ensureMemoryRepository({ memoryDir });

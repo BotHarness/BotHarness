@@ -89,19 +89,7 @@ describe('trusted Bot mentions of the local Human', () => {
         { unreadCount: 1, summary: '@Human ordinary text' },
       ]);
       expect(core.humanAttention.status().unreadCount).toBe(2);
-      const membership = attachOperationalModule(
-        core.operationalDatabase,
-        'human-mention-test-fixture',
-      );
-      membership.transaction(
-        (db) =>
-          db
-            .prepare(
-              'UPDATE channel_human_members SET display_name = ? WHERE channel_id = ? AND human_id = ?',
-            )
-            .run('Launch lead', groupId, LOCAL_HUMAN_ID),
-        ['channel'],
-      );
+      core.channels.setHumanDefaultName('Launch lead');
       expect(core.channels.listHumanMembers(groupId)).toEqual([
         { humanId: LOCAL_HUMAN_ID, displayName: 'Launch lead' },
       ]);

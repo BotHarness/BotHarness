@@ -457,6 +457,19 @@ function MembersEntryForChannel({ actions, t, channelId }: ChannelSidebarEntryPr
         <div className="bh-note">{t('members.humanManaged')}</div>
       ) : null}
       {members.length === 0 ? <div className="bh-note">{t('members.empty')}</div> : null}
+      {(group?.humanMembers ?? []).map((member) => (
+        <div
+          className="bh-member-row"
+          key={'human:' + member.humanId}
+          data-human-id={member.humanId}
+        >
+          <span className="bh-delivery-human-avatar" aria-hidden="true">
+            {member.displayName.slice(0, 1)}
+          </span>
+          <span className="bh-name">{member.displayName}</span>
+          <Tag tone="neutral">{t('message.mention.humanType')}</Tag>
+        </div>
+      ))}
       {members.map((slug) => {
         const member = state.bots.find((candidate) => candidate.slug === slug);
         return (
@@ -490,6 +503,7 @@ function MembersEntryForChannel({ actions, t, channelId }: ChannelSidebarEntryPr
               />
               <span className="bh-name">{memberName(state.bots, slug)}</span>
             </button>
+            <Tag tone="neutral">{t('message.mention.botType')}</Tag>
             {group?.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
             <button
               type="button"

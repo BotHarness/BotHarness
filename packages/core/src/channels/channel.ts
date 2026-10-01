@@ -125,6 +125,12 @@ export interface ChannelReference {
 
 export const LOCAL_HUMAN_ID = 'local-human';
 
+export interface LocalHumanIdentity {
+  humanId: string;
+  defaultDisplayName: string | null;
+  displayName: string;
+}
+
 export interface ChannelHumanReceipt {
   humanId: string;
   displayName: string;

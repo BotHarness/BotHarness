@@ -344,6 +344,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     );
   }
 
+  humanIdentity() {
+    return unwrap(this.methods.humanIdentity({}));
+  }
+
+  humanNameSet(displayName: string | null) {
+    return unwrap(this.methods.humanNameSet({ displayName }));
+  }
+
   channelGroupDelete(channelId: string): { deleted: boolean } {
     return unwrap(this.methods.channelGroupDelete({ channelId }));
   }
@@ -718,6 +726,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'pause',
   'resume',
   'channels',
+  'humanIdentity',
+  'humanNameSet',
   'channelDm',
   'channelCreate',
   'channelRename',

@@ -16,6 +16,7 @@ import { z } from 'zod';
 import {
   isValidChannelId,
   isGroupAvatar,
+  type LocalHumanIdentity,
   type ChannelMention,
   type ChannelMessage,
   type ChannelRecord,
@@ -181,6 +182,7 @@ export interface ProfileActivity {
 }
 
 export interface ChannelListItem extends ChannelRecord {
+  humanMembers?: Array<{ humanId: string; displayName: string }>;
   latestMessage?: ChannelMessage;
 }
 
@@ -229,6 +231,8 @@ export interface BridgeMethods {
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   pause(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  humanIdentity(payload: unknown): BridgeResult<LocalHumanIdentity>;
+  humanNameSet(payload: unknown): BridgeResult<LocalHumanIdentity>;
   channels(payload: unknown): BridgeResult<{ channels: ChannelListItem[] }>;
   channelDm(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
@@ -1149,13 +1153,32 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       return { ok: true, value: detailOf(result.record) };
     },
+    humanIdentity() {
+      return { ok: true, value: deps.channels.humanIdentity() };
+    },
+    humanNameSet(payload) {
+      const input = z
+        .object({ displayName: z.string().max(128).nullable() })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return invalidInput('A displayName string or null is required');
+      try {
+        return { ok: true, value: deps.channels.setHumanDefaultName(input.data.displayName) };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
+    },
     channels() {
       for (const bot of deps.registry.list()) {
         deps.channels.getOrCreateDm(bot.slug, bot.displayName);
       }
       const channels = deps.channels.list().map((channel) => {
         const latestMessage = deps.channels.latestMessage(channel.id);
-        return { ...channel, ...(latestMessage === undefined ? {} : { latestMessage }) };
+        return {
+          ...channel,
+          humanMembers: deps.channels.listHumanMembers(channel.id),
+          ...(latestMessage === undefined ? {} : { latestMessage }),
+        };
       });
       return { ok: true, value: { channels } };
     },
@@ -1168,7 +1191,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (!displayName.ok) return invalidInput('invalid channelDm payload');
       const channel = deps.channels.getOrCreateDm(slug, displayName.value ?? slug);
       if (channel === undefined) return invalidInput(`invalid slug: ${slug}`);
-      return { ok: true, value: { channel } };
+      return {
+        ok: true,
+        value: {
+          channel: { ...channel, humanMembers: deps.channels.listHumanMembers(channel.id) },
+        },
+      };
     },
     channelCreate(payload) {
       const source = asObject(payload);

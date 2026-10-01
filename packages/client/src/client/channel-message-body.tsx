@@ -12,6 +12,8 @@ import {
 import { errorMessage } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { openModelsSettings } from './bot-settings-open.js';
+import { currentMentionLabel } from './actor-names.js';
+import type { ChannelHumanMember } from './store.js';
 import { referenceRuns } from './channel-refs.js';
 import type { BridgeActions, HostDirectoryListing } from './actions.js';
 import { FolderBrowser } from './workspace-grants-entry.js';
@@ -552,6 +554,7 @@ export function ChannelMessageBody({
   t,
   actions,
   bots = [],
+  humanMembers = [],
   grantRequestResolved = false,
   toolApprovalDecision,
   userQuestionResolution,
@@ -562,6 +565,7 @@ export function ChannelMessageBody({
   t: BotHarnessTranslate;
   actions?: BridgeActions;
   bots?: readonly BotSummary[];
+  humanMembers?: readonly ChannelHumanMember[];
   grantRequestResolved?: boolean;
   nativeChatT?: NativeChatFailureText | undefined;
   toolApprovalDecision?:
@@ -612,14 +616,16 @@ export function ChannelMessageBody({
       | NonNullable<ChannelMessage['humanMentions']>[number],
     key: number,
   ) => {
+    const label = currentMentionLabel(mention, bots, humanMembers);
     if ('humanId' in mention)
       return (
         <span
           key={key}
           className="bh-inline-mention bh-inline-mention-sent"
           data-human-id={mention.humanId}
+          title={t('message.mention.humanType')}
         >
-          @{mention.label}
+          @{label}
         </span>
       );
     const bot = bots.find((candidate) => candidate.slug === mention.botSlug);
@@ -635,7 +641,7 @@ export function ChannelMessageBody({
             t={t}
           />
         </span>
-        <span>{mention.label}</span>
+        <span>{label}</span>
       </>
     );
     if (actions === undefined)
@@ -644,6 +650,7 @@ export function ChannelMessageBody({
           key={key}
           className="bh-inline-mention bh-inline-mention-sent"
           data-bot-id={mention.botSlug}
+          title={t('message.mention.botType')}
         >
           {badge}
         </span>
@@ -654,7 +661,7 @@ export function ChannelMessageBody({
         type="button"
         className="bh-inline-mention bh-inline-mention-sent bh-inline-mention-link"
         data-bot-id={mention.botSlug}
-        aria-label={t('message.mention.openDm', { bot: mention.label })}
+        aria-label={t('message.mention.openDm', { bot: label })}
         onClick={() => void actions.openBot(mention.botSlug)}
       >
         {badge}

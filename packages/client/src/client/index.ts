@@ -19,6 +19,7 @@ import { subscribeBotColorScheme, readBotColorScheme } from './bot-color-scheme.
 import { botIconMarkup } from './bot-icon.js';
 import { installBotNavIcon } from './bot-icon-nav.js';
 import { openBotSettings } from './bot-settings-open.js';
+import { HumanNameSettings } from './human-name-settings.js';
 import { BotSettingsSection } from './bot-settings-section.js';
 import './bot-settings-slot.js';
 import { BotMain, BotPanel } from './bot-main.js';
@@ -254,6 +255,18 @@ export function apply(ctx: ClientContext): void {
         };
       },
     });
+    settingsCtx.slots.inject('botharness.settings.item', () =>
+      settingsCtx.slots.register(
+        {
+          name: 'botharness.settings.item',
+          id: 'human-name',
+          order: -10,
+          locale: LOCALE_NS,
+          inject: () => ({ call, onSaved: () => actions.refreshRoster() }),
+        },
+        HumanNameSettings,
+      ),
+    );
     settingsCtx.slots.inject('settings.section', () =>
       settingsCtx.slots.register(
         {

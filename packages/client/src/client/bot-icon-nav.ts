@@ -8,8 +8,9 @@ export function isBotNavLabel(text: string | null | undefined, labels: readonly 
 }
 
 function navLabelNode(button: Element): Element | undefined {
-  if (button.childElementCount !== 2) return undefined;
-  const spans = button.querySelectorAll(':scope > span');
+  const icon = button.querySelector(`:scope > .${BOT_NAV_ICON_CLASS}`);
+  if (button.childElementCount - (icon === null ? 0 : 1) !== 2) return undefined;
+  const spans = [...button.querySelectorAll(':scope > span')].filter((span) => span !== icon);
   return spans.length === 1 ? (spans[0] ?? undefined) : undefined;
 }
 

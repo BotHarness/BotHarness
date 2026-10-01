@@ -4949,4 +4949,9 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 .bh-human-inbox-row-actions button:hover,
 .bh-human-inbox-more:hover {
   background: var(--dsw-alias-interactive-bg-hover);
-}`;
+}
+.bh-human-name-setting{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.bh-human-name-setting form{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bh-human-name-setting form>div:first-child{flex:1 1 220px;min-width:0}
+.bh-human-name-setting p{margin:0}
+`;
