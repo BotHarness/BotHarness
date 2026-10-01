@@ -76,6 +76,7 @@ export const zh = {
   'rows.download': '下载',
   'rows.exportTo': '导出到…',
   'rows.authorizeExport': '授权并导出',
+  'rows.exportTarget': '导出至：{dir}',
   'rows.import': '导入…',
   'rows.importing': '导入中…',
   'rows.chooseFile': '选择归档文件…',
@@ -86,7 +87,7 @@ export const zh = {
   'rows.imported': '已从 {file} 导入并重启 Computer。',
   'rows.noArchives': '该目录还没有归档；先导出一次。',
   'rows.noSettings': '设置服务不可用：可以导出/导入，但无法修改目录与空闲时间。',
-  'rows.pickerFallback': '目录选择器不可用，已使用当前导出目录：{dir}',
+  'rows.pickerFallback': '目录选择器不可用；可手动输入路径，或继续使用当前目录：{dir}',
 } as const;
 
 export const en: Record<keyof typeof zh, string> = {
@@ -168,6 +169,7 @@ export const en: Record<keyof typeof zh, string> = {
   'rows.download': 'Download',
   'rows.exportTo': 'Export to…',
   'rows.authorizeExport': 'Authorize and export',
+  'rows.exportTarget': 'Export to: {dir}',
   'rows.import': 'Import…',
   'rows.importing': 'Importing…',
   'rows.chooseFile': 'Choose archive file…',
@@ -179,7 +181,8 @@ export const en: Record<keyof typeof zh, string> = {
   'rows.noArchives': 'No archives in that directory yet — export once first.',
   'rows.noSettings':
     'Settings service unavailable: export and import still work, but the directory and idle time cannot be changed.',
-  'rows.pickerFallback': 'Directory picker unavailable — using the current export directory: {dir}',
+  'rows.pickerFallback':
+    'Directory picker unavailable — type a path or use the current directory: {dir}',
 };
 
 export type ComputerKey = keyof typeof zh;

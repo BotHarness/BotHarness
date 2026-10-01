@@ -242,6 +242,8 @@
 
 ### Fixed
 
+- Computer 设置可正确调用原生目录选择器，授权导出后保存目标目录供后续导入使用；选择器不可用时仍可手动输入路径（[#166](https://github.com/BotHarness/BotHarness/issues/166)）。
+
 - 活动实时传输失败时，通过限频快照查询恢复 Bot 状态；重连与修订跳号同步恢复侧栏及输入框，连接错误不会显示成 Bot 活动状态（[#121](https://github.com/BotHarness/BotHarness/issues/121)）。
 
 - 修复新 DM 或群提及并入活动回合时，Memory 编辑被静默并入基线而漏掉通知的问题；有界变更摘要现在进入该回合的 Bot Inbox，并随回合结果处理（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。

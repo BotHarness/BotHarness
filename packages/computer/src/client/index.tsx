@@ -1336,7 +1336,7 @@ export function apply(ctx: ClientContext): void {
     ).uiWorkspace;
     const face = createComputerSettingsFace({
       prefs: settingsPrefs,
-      pickDirectory: workspace?.pickDirectory,
+      pickDirectory: workspace?.pickDirectory?.bind(workspace),
     });
     workspaceCtx.slots.inject('botharness.settings.item', () =>
       workspaceCtx.slots.register(
