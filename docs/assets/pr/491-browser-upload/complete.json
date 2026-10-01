@@ -1,0 +1,30 @@
+{
+  "mode": "--complete",
+  "findings": {
+    "chooser": "Real model attached correct field and submitted once",
+    "direct": "Real model attached correct field and submitted once",
+    "audit": "Basename and size only; failures readable; no full path or bytes",
+    "receipts": [
+      {
+        "kind": "chooser",
+        "target": "qa-upload.txt",
+        "other": "",
+        "bytes": 34,
+        "sha256": "13496d14e8a00916410ac3cbb871468ef677baeec38a3349bffdf9798cfc985c"
+      },
+      {
+        "kind": "direct",
+        "target": "qa-upload.txt",
+        "other": "",
+        "bytes": 34,
+        "sha256": "13496d14e8a00916410ac3cbb871468ef677baeec38a3349bffdf9798cfc985c"
+      }
+    ]
+  },
+  "missingFileReadable": true,
+  "noInputReadable": true,
+  "auditCount": 4,
+  "retainedBrowser": true,
+  "successAuditCount": 2,
+  "failureAuditCount": 2
+}

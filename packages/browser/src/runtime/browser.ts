@@ -30,6 +30,11 @@ export interface CdpClient {
     params?: Record<string, unknown>,
     sessionId?: string,
   ): Promise<Record<string, unknown>>;
+  subscribe(
+    method: string,
+    sessionId: string,
+    listener: (params: Record<string, unknown>) => void,
+  ): () => void;
   close(): void;
 }
 
@@ -175,6 +180,11 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
     number,
     { resolve: (value: Record<string, unknown>) => void; reject: (error: Error) => void }
   >();
+  const subscriptions = new Set<{
+    method: string;
+    sessionId: string;
+    listener: (params: Record<string, unknown>) => void;
+  }>();
   let nextId = 1;
   await new Promise<void>((resolve, reject) => {
     socket.addEventListener('open', () => resolve());
@@ -184,13 +194,26 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
   });
   socket.addEventListener('message', (event) => {
     if (typeof event.data !== 'string') return;
-    let message: { id?: number; result?: Record<string, unknown>; error?: { message?: string } };
+    let message: {
+      id?: number;
+      method?: string;
+      sessionId?: string;
+      params?: Record<string, unknown>;
+      result?: Record<string, unknown>;
+      error?: { message?: string };
+    };
     try {
       message = JSON.parse(event.data) as typeof message;
     } catch {
       return;
     }
-    if (typeof message.id !== 'number') return;
+    if (typeof message.id !== 'number') {
+      for (const sub of subscriptions) {
+        if (sub.method === message.method && sub.sessionId === message.sessionId)
+          sub.listener(message.params ?? {});
+      }
+      return;
+    }
     const entry = pending.get(message.id);
     if (entry === undefined) return;
     pending.delete(message.id);
@@ -200,6 +223,7 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
   socket.addEventListener('close', () => {
     for (const entry of pending.values()) entry.reject(new Error('The DevTools websocket closed'));
     pending.clear();
+    subscriptions.clear();
   });
   return {
     send(method, params = {}, sessionId) {
@@ -212,7 +236,15 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
         socket.send(JSON.stringify(payload));
       });
     },
+    subscribe(method, sessionId, listener) {
+      const sub = { method, sessionId, listener };
+      subscriptions.add(sub);
+      return () => {
+        subscriptions.delete(sub);
+      };
+    },
     close() {
+      subscriptions.clear();
       try {
         socket.close();
       } catch {}
@@ -745,38 +777,39 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
         return;
       }
     }
-    await live.send('Page.setInterceptFileChooserDialog', { enabled: true }, sessionId);
-    try {
-      if (options.ref !== undefined) {
-        await clickRef(sessionId, options.ref);
-      }
-      const findInput = async (): Promise<number | undefined> => {
-        const found = await live.send(
-          'DOM.querySelectorAll',
-          { nodeId: await documentRoot(), selector: 'input[type="file"]' },
-          sessionId,
-        );
-        const nodeIds = Array.isArray(found['nodeIds'])
-          ? (found['nodeIds'] as readonly unknown[]).filter(
-              (value): value is number => typeof value === 'number',
-            )
-          : [];
-        return nodeIds[nodeIds.length - 1];
-      };
-      let nodeId = await findInput();
-      if (nodeId === undefined && options.ref !== undefined) {
-        for (let attempt = 0; attempt < 10 && nodeId === undefined; attempt += 1) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          nodeId = await findInput();
-        }
-      }
-      if (nodeId === undefined) {
+    if (options.ref === undefined) {
+      const found = await live.send(
+        'DOM.querySelector',
+        { nodeId: await documentRoot(), selector: 'input[type="file"]' },
+        sessionId,
+      );
+      const nodeId = found['nodeId'];
+      if (typeof nodeId !== 'number' || !Number.isInteger(nodeId) || nodeId <= 0)
         throw new Error(
-          'The page has no file input; click the upload control first so the page creates one, then retry',
+          'The page has no file input; observe an upload control and pass its ref, then retry',
         );
-      }
       await live.send('DOM.setFileInputFiles', { files: [options.path], nodeId }, sessionId);
+      return;
+    }
+    let backendNodeId: number | undefined;
+    const unsubscribe = live.subscribe('Page.fileChooserOpened', sessionId, (params) => {
+      const id = params['backendNodeId'];
+      if (typeof id === 'number' && Number.isInteger(id) && id > 0 && backendNodeId === undefined)
+        backendNodeId = id;
+    });
+    try {
+      await live.send('Page.enable', {}, sessionId);
+      await live.send('Page.setInterceptFileChooserDialog', { enabled: true }, sessionId);
+      await clickRef(sessionId, options.ref);
+      for (let attempt = 0; attempt < 10 && backendNodeId === undefined; attempt += 1)
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      if (backendNodeId === undefined)
+        throw new Error(
+          'The upload control did not open a file input; call browser_observe and choose a file input or picker control before retrying',
+        );
+      await live.send('DOM.setFileInputFiles', { files: [options.path], backendNodeId }, sessionId);
     } finally {
+      unsubscribe();
       await live
         .send('Page.setInterceptFileChooserDialog', { enabled: false }, sessionId)
         .catch(() => undefined);

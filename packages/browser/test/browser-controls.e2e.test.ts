@@ -34,6 +34,7 @@ icon.addEventListener('click', () => {
     });
     document.body.appendChild(input);
   }
+  document.getElementById('picker').click();
 });
 </script>
 </body></html>`,
@@ -54,10 +55,6 @@ icon.addEventListener('click', () => {
         (element) => element.role === 'clickable' && /^div @\d+,\d+$/u.test(element.name),
       );
       expect(positionNamed).toBeDefined();
-
-      await runtime.click(tab.tabId, icon!.ref);
-      const clicked = await runtime.observe(tab.tabId);
-      expect(clicked.text).toContain('clicked');
 
       await runtime.uploadFile(tab.tabId, { ref: icon!.ref, path: uploadPath });
       const uploaded = await runtime.observe(tab.tabId);

@@ -234,6 +234,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Browser file uploads select the input that opened the picker, or the first input when ref is omitted; upload audits include basename and size and redact Host paths in failures ([#491](https://github.com/BotHarness/BotHarness/issues/491)).
+
 - PersonaBot Orchestrators can set and restore Human DM, Bot DM and Group mention delivery through the existing attention tools; changes keep immediate admission and carry Bot-authored revisions visible in Profile ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 
 - Fixed concurrent first use by several PersonaBots sharing a Browser profile: they now wait for one Chrome startup, and a failed startup permits a fresh retry ([#463](https://github.com/BotHarness/BotHarness/issues/463)).

@@ -111,6 +111,43 @@ describe('minimal CDP client', () => {
     await expect(pending).resolves.toEqual({ targetInfo: { targetId: 'tab-1' } });
   });
 
+  it('routes chooser events only to the subscribed session and disposes listeners', async () => {
+    const connecting = connectCdp('ws://127.0.0.1:1/devtools/browser/x', FakeWebSocket);
+    const socket = FakeWebSocket.last!;
+    socket.open();
+    const client = await connecting;
+    const listener = vi.fn();
+    const dispose = client.subscribe('Page.fileChooserOpened', 'session-1', listener);
+    socket.message({
+      method: 'Page.fileChooserOpened',
+      sessionId: 'session-2',
+      params: { backendNodeId: 99 },
+    });
+    socket.message({ method: 'Page.loadEventFired', sessionId: 'session-1', params: {} });
+    expect(listener).not.toHaveBeenCalled();
+    socket.message({
+      method: 'Page.fileChooserOpened',
+      sessionId: 'session-1',
+      params: { backendNodeId: 42 },
+    });
+    expect(listener).toHaveBeenCalledExactlyOnceWith({ backendNodeId: 42 });
+    dispose();
+    socket.message({
+      method: 'Page.fileChooserOpened',
+      sessionId: 'session-1',
+      params: { backendNodeId: 43 },
+    });
+    expect(listener).toHaveBeenCalledOnce();
+    client.subscribe('Page.fileChooserOpened', 'session-1', listener);
+    socket.close();
+    socket.message({
+      method: 'Page.fileChooserOpened',
+      sessionId: 'session-1',
+      params: { backendNodeId: 44 },
+    });
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
   it('fails requests on CDP errors and on connection loss', async () => {
     const connecting = connectCdp('ws://127.0.0.1:1/devtools/browser/x', FakeWebSocket);
     const socket = FakeWebSocket.last!;
@@ -157,9 +194,11 @@ function fakeChild(): FakeChild {
 
 function fakeClient(): CdpClient & { calls: { method: string; sessionId?: string }[] } {
   const calls: { method: string; sessionId?: string }[] = [];
+  let clientSend = (_m: string, _p?: Record<string, unknown>, _sid?: string): void => {};
   return {
     calls,
     send: vi.fn(async (method: string, params?: Record<string, unknown>, sessionId?: string) => {
+      clientSend(method, params, sessionId);
       calls.push({ method, ...(sessionId === undefined ? {} : { sessionId }) });
       if (method === 'Runtime.evaluate') {
         const expression = String(params?.['expression'] ?? '');
@@ -189,6 +228,7 @@ function fakeClient(): CdpClient & { calls: { method: string; sessionId?: string
       if (method === 'Target.attachToTarget') return { sessionId: 'session-1' };
       if (method === 'Page.setInterceptFileChooserDialog') return {};
       if (method === 'DOM.getDocument') return { root: { nodeId: 1 } };
+      if (method === 'DOM.querySelector') return { nodeId: 7 };
       if (method === 'DOM.querySelectorAll') return { nodeIds: [7] };
       if (method === 'DOM.setFileInputFiles') return {};
       if (method === 'Target.activateTarget') return {};
@@ -206,6 +246,22 @@ function fakeClient(): CdpClient & { calls: { method: string; sessionId?: string
       }
       return {};
     }),
+    subscribe: (method, sessionId, listener) => {
+      const original = clientSend;
+      clientSend = (m, p, sid) => {
+        if (
+          m === 'Input.dispatchMouseEvent' &&
+          p?.['type'] === 'mouseReleased' &&
+          sid === sessionId &&
+          method === 'Page.fileChooserOpened'
+        )
+          listener({ backendNodeId: 7 });
+        return original(m, p, sid);
+      };
+      return () => {
+        clientSend = original;
+      };
+    },
     close: vi.fn(),
   };
 }
@@ -603,6 +659,7 @@ describe('runtime lifecycle', () => {
         if (method === 'Target.createTarget') return { targetId: 'tab-2' };
         return base.send(method, params, sessionId);
       },
+      subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
       close: () => base.close(),
     };
     const runtime = createBotBrowserRuntime({
@@ -649,9 +706,10 @@ describe('runtime lifecycle', () => {
       const client: CdpClient = {
         send: async (method, params, sessionId) => {
           sent.push({ method, ...(params === undefined ? {} : { params }) });
-          if (method === 'DOM.querySelectorAll') return { nodeIds: inputs };
+          if (method === 'DOM.querySelector') return { nodeId: inputs[0] };
           return base.send(method, params, sessionId);
         },
+        subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
         close: () => base.close(),
       };
       const runtime = createBotBrowserRuntime({
@@ -667,7 +725,7 @@ describe('runtime lifecycle', () => {
       await runtime.open('https://example.com');
       await runtime.uploadFile('tab-1', { ref: 'e3', path: file });
       const setFiles = sent.find((call) => call.method === 'DOM.setFileInputFiles');
-      expect(setFiles?.params).toEqual({ files: [file], nodeId: 7 });
+      expect(setFiles?.params).toEqual({ files: [file], backendNodeId: 7 });
       expect(sent.some((call) => call.method === 'Page.setInterceptFileChooserDialog')).toBe(true);
 
       inputs = [];
@@ -727,6 +785,7 @@ describe('runtime lifecycle', () => {
               throw new Error('file input transport failed');
             return base.send(method, params, sessionId);
           },
+          subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
           close: () => base.close(),
         }),
       });
@@ -749,7 +808,7 @@ describe('runtime lifecycle', () => {
         expect(files).toEqual([
           {
             method: 'DOM.setFileInputFiles',
-            params: { files: [file], nodeId: kind === 'fallback' ? 9 : 7 },
+            params: { files: [file], nodeId: 7 },
             sessionId: 'session-1',
           },
         ]);
@@ -777,6 +836,7 @@ describe('runtime lifecycle', () => {
     const base = fakeClient();
     const client: CdpClient = {
       send: async (method, params, sessionId) => base.send(method, params, sessionId),
+      subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
       close: () => base.close(),
     };
     const runtime = createBotBrowserRuntime({
@@ -797,44 +857,74 @@ describe('runtime lifecycle', () => {
     expect(base.calls.map((call) => call.method)).toContain('Input.dispatchMouseEvent');
   });
 
-  it('waits briefly for the file input after clicking the upload control', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'browser-upload-wait-'));
-    const file = join(dir, 'shot.jpg');
-    writeFileSync(file, 'x');
-    try {
-      const child = fakeChild();
-      spawnMock.mockReturnValue(child.proc as never);
-      const base = fakeClient();
-      const sent: { method: string; params?: Record<string, unknown> }[] = [];
-      let queries = 0;
-      const client: CdpClient = {
-        send: async (method, params, sessionId) => {
-          sent.push({ method, ...(params === undefined ? {} : { params }) });
-          if (method === 'DOM.querySelectorAll') {
-            queries += 1;
-            return { nodeIds: queries < 2 ? [] : [7] };
-          }
-          return base.send(method, params, sessionId);
-        },
-        close: () => base.close(),
-      };
-      const runtime = createBotBrowserRuntime({
-        userDataDir: '/tmp/browser-test',
-        platform: 'linux',
-        env: {},
-        fileExists: (path) => path === '/usr/bin/google-chrome',
-        connect: async () => client,
-      });
-      const ensuring = runtime.ensure();
-      child.ready();
-      await ensuring;
-      await runtime.open('https://example.com');
-      await runtime.uploadFile('tab-1', { ref: 'e3', path: file });
-      expect(sent.some((call) => call.method === 'DOM.setFileInputFiles')).toBe(true);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+  it.each(['opened', 'missing', 'transport'] as const)(
+    'uses the chooser input instead of an unrelated field and cleans up: %s',
+    async (kind) => {
+      const dir = mkdtempSync(join(tmpdir(), 'browser-upload-chooser-'));
+      const file = join(dir, 'shot.jpg');
+      writeFileSync(file, 'x');
+      try {
+        const child = fakeChild();
+        spawnMock.mockReturnValue(child.proc as never);
+        const base = fakeClient();
+        const dispose = vi.fn();
+        let listener: ((params: Record<string, unknown>) => void) | undefined;
+        const sent: { method: string; params?: Record<string, unknown> }[] = [];
+        const runtime = createBotBrowserRuntime({
+          userDataDir: '/tmp/browser-test',
+          platform: 'linux',
+          env: {},
+          fileExists: (path) => path === '/usr/bin/google-chrome',
+          connect: async () => ({
+            subscribe: (method, sessionId, callback) => {
+              expect(method).toBe('Page.fileChooserOpened');
+              expect(sessionId).toBe('session-1');
+              listener = callback;
+              return dispose;
+            },
+            send: async (method, params, sessionId) => {
+              sent.push({ method, ...(params === undefined ? {} : { params }) });
+              if (method === 'DOM.querySelectorAll') return { nodeIds: [7, 9] };
+              if (
+                method === 'Input.dispatchMouseEvent' &&
+                params?.['type'] === 'mouseReleased' &&
+                kind !== 'missing'
+              )
+                setTimeout(() => listener?.({ backendNodeId: 42 }), 20);
+              if (method === 'DOM.setFileInputFiles' && kind === 'transport')
+                throw Error('upload transport failed');
+              return base.send(method, params, sessionId);
+            },
+            close: () => base.close(),
+          }),
+        });
+        const ensuring = runtime.ensure();
+        child.ready();
+        await ensuring;
+        const uploading = runtime.uploadFile('tab-1', { ref: 'e3', path: file });
+        if (kind === 'missing')
+          await expect(uploading).rejects.toThrow(/did not open a file input/);
+        else if (kind === 'transport')
+          await expect(uploading).rejects.toThrow('upload transport failed');
+        else await uploading;
+        expect(sent.filter((c) => c.method === 'DOM.setFileInputFiles')).toEqual(
+          kind === 'missing'
+            ? []
+            : [{ method: 'DOM.setFileInputFiles', params: { files: [file], backendNodeId: 42 } }],
+        );
+        expect(sent.some((c) => c.method === 'DOM.querySelectorAll')).toBe(false);
+        expect(sent.some((c) => c.method === 'Page.enable')).toBe(true);
+        expect(
+          sent
+            .filter((c) => c.method === 'Page.setInterceptFileChooserDialog')
+            .map((c) => c.params),
+        ).toEqual([{ enabled: true }, { enabled: false }]);
+        expect(dispose).toHaveBeenCalledOnce();
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
 
   it.each([
     ['Enter', 'Enter', 'Enter', 13, '\r'],
@@ -859,6 +949,7 @@ describe('runtime lifecycle', () => {
           if (method === 'Input.dispatchKeyEvent') sent.push({ params: params ?? {}, sessionId });
           return base.send(method, params, sessionId);
         },
+        subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
         close: () => base.close(),
       };
       const runtime = createBotBrowserRuntime({
@@ -909,6 +1000,7 @@ describe('runtime lifecycle', () => {
         }
         return base.send(method, params, sessionId);
       },
+      subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
       close: () => base.close(),
     };
     const runtime = createBotBrowserRuntime({
@@ -963,6 +1055,7 @@ describe('runtime lifecycle', () => {
         }
         return base.send(method, params, sessionId);
       },
+      subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
       close: () => base.close(),
     };
     const runtime = createBotBrowserRuntime({
@@ -1003,6 +1096,7 @@ describe('runtime lifecycle', () => {
           if (method === 'Runtime.evaluate') expressions.push(String(params?.['expression']));
           return base.send(method, params, sessionId);
         },
+        subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
         close: () => base.close(),
       }),
     });
@@ -1048,6 +1142,7 @@ describe('runtime lifecycle', () => {
             throw new Error('wheel transport failed');
           return base.send(method, params, sessionId);
         },
+        subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
         close: () => base.close(),
       }),
     });
@@ -1082,6 +1177,7 @@ describe('runtime lifecycle', () => {
           if (method === 'Input.dispatchMouseEvent') wheel();
           return base.send(method, params, sessionId);
         },
+        subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
         close: () => base.close(),
       }),
     });
@@ -1109,6 +1205,7 @@ describe('runtime lifecycle', () => {
         }
         return base.send(method, params, sessionId);
       },
+      subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
       close: () => base.close(),
     };
     const runtime = createBotBrowserRuntime({
@@ -1154,6 +1251,7 @@ describe('runtime lifecycle', () => {
               return { result: { value: { ok: true, x: 100, y: 100 } } };
             return base.send(method, params, sessionId);
           },
+          subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
           close: () => base.close(),
         }),
       });
@@ -1183,6 +1281,7 @@ describe('runtime lifecycle', () => {
         }
         return base.send(method, params, sessionId);
       },
+      subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
       close: () => base.close(),
     };
     const runtime = createBotBrowserRuntime({
@@ -1224,6 +1323,7 @@ describe('runtime lifecycle', () => {
             throw new Error('Background page is not focused for input');
           return base.send(method, params, sessionId);
         },
+        subscribe: (method, sessionId, listener) => base.subscribe(method, sessionId, listener),
         close: () => base.close(),
       }),
     });

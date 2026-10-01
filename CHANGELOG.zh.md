@@ -234,6 +234,8 @@
 
 ### Fixed
 
+- Browser 文件上传使用实际打开选择框的附件字段，省略 ref 时使用第一个文件字段；上传审计记录文件名与大小，失败时隐藏 Host 完整路径（[#491](https://github.com/BotHarness/BotHarness/issues/491)）。
+
 - PersonaBot Orchestrator 可通过既有提醒工具设置和恢复 Human 私聊、Bot 私聊及群内提及的投递方式；即时接收不变，Profile 可查看带 Bot 操作者的修订 ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 
 - 修复多个 PersonaBot 首次并行使用共享 Browser profile 时的重复启动：并发请求会等待同一次 Chrome 启动，失败后可重新尝试（[#463](https://github.com/BotHarness/BotHarness/issues/463)）。

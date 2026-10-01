@@ -613,7 +613,13 @@ export function createBrowserToolProvider(
                   auditSummary(spec.raw, input),
                   'error',
                   Date.now() - started,
-                  error instanceof Error ? error.message : String(error),
+                  spec.raw === 'upload' && typeof input['path'] === 'string' && input['path'] !== ''
+                    ? (error instanceof Error ? error.message : String(error))
+                        .split(input['path'])
+                        .join(basename(input['path']))
+                    : error instanceof Error
+                      ? error.message
+                      : String(error),
                 );
                 throw error;
               } finally {
