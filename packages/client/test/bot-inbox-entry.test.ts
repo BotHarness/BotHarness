@@ -339,6 +339,8 @@ it('clears previous source content and ignores older requests after reopening', 
         sourceEventId: 'context-one',
         messageId: 'remote-one',
         senderId: 'external-human',
+        senderName: 'Alex',
+        mentions: [{ id: 'bot-one', key: '@_user_1', name: 'QA Bot' }],
         at: '2026-10-01T00:00:00Z',
         text: 'ONLY RETURNED CONTEXT',
       },
@@ -392,7 +394,10 @@ it('clears previous source content and ignores older requests after reopening', 
     expect(container.textContent).toContain('CURRENT SOURCE');
     expect(container.textContent).toContain('ONLY RETURNED CONTEXT');
     expect(container.textContent).toContain('context-one');
-    expect(container.textContent).toContain('external-human');
+    expect(container.textContent).toContain('Alex (external-human)');
+    expect(container.textContent).toContain('消息 remote-one [Source Event context-one]');
+    expect(container.textContent).toContain('@_user_1 → QA Bot (bot-one)');
+    expect(container.textContent).toContain('消息 om [Source Event source-1]');
     expect(container.querySelector('[role="alert"]')).toBeNull();
     await close();
     await open();

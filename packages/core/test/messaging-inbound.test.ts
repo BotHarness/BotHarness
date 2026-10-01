@@ -836,3 +836,62 @@ it.each([false, true])(
     });
   },
 );
+
+it('enriches display names without changing canonical identity and preserves harvest references and mention mappings', async () => {
+  const named = event({
+    actor: { kind: 'user', id: 'ou-human', name: 'Alex' },
+    mentions: [{ id: 'ou-bot', key: '@_user_1', name: 'QA Bot' }],
+  });
+  const history = vi.fn<NonNullable<DshImOutboundService['historyChecked']>>(
+    async (_account, _route, query) => ({
+      version: 1,
+      scope: query.scope,
+      events: [named],
+      omitted: 0,
+      hasMore: false,
+      coverage: 'provider-visible-human-text',
+    }),
+  );
+  const fx = await fixture({
+    history,
+    onRun: async (run) => {
+      const source = fx.core.attention
+        .list({ botSlug: 'ada' })
+        .items.find((item) => item.sourceKind === 'bridge-message')!;
+      expect(run.inbox).toContain(`Message om-1 [Source Event ${source.id}]`);
+      const page = await run.externalMessaging!.context(source.id, { scope: 'thread' });
+      expect(page.messages[0]).toMatchObject({
+        sourceEventId: source.id,
+        messageId: 'om-1',
+        senderId: 'ou-human',
+        senderName: 'Alex',
+        mentions: [{ id: 'ou-bot', key: '@_user_1', name: 'QA Bot' }],
+      });
+    },
+  });
+  await fx.enable();
+  await fx.receive();
+  await fx.idle();
+  const item = fx.core.attention.list({ botSlug: 'ada' }).items[0]!;
+  expect(item.externalOrigin?.senderName).toBe('Alex');
+  expect(fx.core.externalMessaging.inbound.read('ada', item.id).event.actor).toEqual(named.actor);
+  await fx.receive(named);
+  await fx.idle();
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+    1,
+  );
+  expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(1);
+  expect(fx.runs).toHaveLength(1);
+  history.mockResolvedValueOnce({
+    version: 1,
+    scope: 'thread',
+    events: [event()],
+    omitted: 0,
+    hasMore: false,
+    coverage: 'provider-visible-human-text',
+  });
+  await fx.core.externalMessaging.inbound.context('ada', item.id, 'again', { scope: 'thread' });
+  expect(
+    fx.core.externalMessaging.inbound.read('ada', item.id).contextMessages?.[0]?.senderName,
+  ).toBe('Alex');
+});

@@ -26,6 +26,8 @@ export interface ExternalContextResult {
     sourceEventId: string;
     messageId: string;
     senderId: string;
+    senderName?: string;
+    mentions?: MessagingInboundEvent['mentions'];
     at: string;
     text: string;
     threadId?: string;
@@ -135,6 +137,27 @@ export function createInboundMessaging(options: {
         JSON.stringify(previous.event.reply) !== JSON.stringify(event.reply)
       )
         throw new MessagingError('source-conflict');
+      const mentions = previous.event.mentions.map((mention) => {
+        const current = event.mentions.find(
+          (item) => item.id === mention.id && item.key === mention.key,
+        );
+        return current?.name ? { ...mention, name: current.name } : mention;
+      });
+      if (
+        event.actor.name ||
+        mentions.some((item, index) => item.name !== previous.event.mentions[index]?.name)
+      ) {
+        const payload = JSON.parse(existing.payload_json) as { external: ExternalSource };
+        payload.external.event.actor = {
+          ...previous.event.actor,
+          ...(event.actor.name ? { name: event.actor.name } : {}),
+        };
+        payload.external.event.mentions = mentions;
+        db.prepare('UPDATE source_events SET payload_json = ? WHERE source_event_id = ?').run(
+          JSON.stringify(payload),
+          id,
+        );
+      }
     } else {
       const { text: _text, ...evidence } = event;
       const external: Omit<ExternalSource, 'body'> = {
@@ -363,6 +386,8 @@ export function createInboundMessaging(options: {
         sourceEventId,
         messageId: item.event.messageId,
         senderId: item.event.actor.id,
+        ...(item.event.actor.name ? { senderName: item.event.actor.name } : {}),
+        ...(item.event.mentions.length ? { mentions: item.event.mentions } : {}),
         at: item.at,
         text: context.body,
         ...(item.event.reply.threadId ? { threadId: item.event.reply.threadId } : {}),
@@ -590,6 +615,8 @@ export function createInboundMessaging(options: {
             sourceEventId: sourceId(value, event),
             messageId: event.messageId,
             senderId: event.actor.id,
+            ...(event.actor.name ? { senderName: event.actor.name } : {}),
+            ...(event.mentions.length ? { mentions: event.mentions } : {}),
             at: event.at,
             text: event.text,
             ...(event.reply.threadId ? { threadId: event.reply.threadId } : {}),

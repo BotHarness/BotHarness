@@ -312,6 +312,7 @@ export const zh = {
   'im.reception.unavailable': '群收件不可用；请检查连接后重新开启',
   'im.sourceTitle': '外部消息',
   'im.sourceError': '无法读取已保存的外部消息',
+  'im.messageReference': '消息 {messageId} [Source Event {sourceEventId}]',
   'im.contextTitle': 'Bot 读取的上下文',
   'im.contextExplanation':
     '使用 Bot 身份读取。仅返回的消息被观察；普通群消息仍未开启收件。下方展示最近返回的一页。',
@@ -1184,6 +1185,7 @@ export const en = {
   'im.reception.unavailable': 'Group reception unavailable; check the connection and enable again',
   'im.sourceTitle': 'External message',
   'im.sourceError': 'Unable to read the retained external message',
+  'im.messageReference': 'Message {messageId} [Source Event {sourceEventId}]',
   'im.contextTitle': 'Context the Bot read',
   'im.contextExplanation':
     'Read through the Bot identity. Only returned messages were observed; ordinary group reception remains off. The most recent returned page is shown below.',

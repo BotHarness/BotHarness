@@ -85,9 +85,22 @@ const inboundSchema = z
     fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     eventId: identifier,
     messageId: identifier,
-    actor: z.object({ kind: z.literal('user'), id: identifier }).strict(),
+    actor: z
+      .object({ kind: z.literal('user'), id: identifier, name: identifier.optional() })
+      .strict()
+      .transform(({ name, ...actor }) => ({ ...actor, ...(name === undefined ? {} : { name }) })),
     conversation: z.object({ kind: z.enum(['group', 'dm']), id: identifier }).strict(),
-    mentions: z.array(z.object({ id: identifier, key: identifier }).strict()).max(100),
+    mentions: z
+      .array(
+        z
+          .object({ id: identifier, key: identifier, name: identifier.optional() })
+          .strict()
+          .transform(({ name, ...mention }) => ({
+            ...mention,
+            ...(name === undefined ? {} : { name }),
+          })),
+      )
+      .max(100),
     mentionedAccount: z.boolean(),
     at: z.iso.datetime(),
     text: z.string().min(1).max(16000),

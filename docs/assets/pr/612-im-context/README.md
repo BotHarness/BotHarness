@@ -1,5 +1,19 @@
 # #612 real Lark context-read verification
 
+Latest Human QA follow-up: qualified provider `d98a8330859b0daf5c9e88b3f9edc05f127fc321`, 386 runtime files, SHA-256 `d53e2d4363243f112f85311e4646c2fda3493bb02331e723f87903d22a901c3d`, DSH `0.2.0-rc.1`. The earlier captures below remain historical evidence of the initial context slice.
+
+- A real ordinary group message `BH612-NAMES-CTX-05` was read via `nearby`; the model replied `BH612-NAMES-GROUP-OK BIRCH` to the original request with the returned sender name, sender ID, message ID, Source Event ID and mention name/ID.
+- A real ordinary topic message `BH612-NAMES-CTX-06` was read via `thread`; the model replied `BH612-NAMES-TOPIC-OK JUNIPER` inside that same topic with the corresponding returned fields. Both external replies are visible in `lark-names-topic.png`.
+- `names-verification.json` contains the four selected actual model tool results and four canonical sources. Both ordinary context messages have no Inbox admission or Channel placement; both @ requests are handled; all four sources have no local DM placement; Assignment count remains zero.
+- `names-source-light.jpg` shows the original Source Event with sender name/ID, message/Source Event references and the raw @ key mapped to name/ID. `names-context-light.jpg` and `names-context-dark.jpg` show the same retained topic context in both themes. Captures are actual native Chrome UI, Chinese, 2940 × 1670, without page injection. An independent Chrome window completed verification after the existing window stalled; the cause of that earlier stall is not confirmed.
+- Lark returned `MUFENG YANG` as the sender name, while the client displays a different group nickname. Names are display metadata; stable IDs remain the identity. Missing later names do not erase retained names. Original text and @ keys remain intact.
+
+The read API supports `with_sender_name`, returning `sender_name` and multilingual `sender_i18n_names`; mentions expose key/name/ID mapping. This slice retains the returned display name, stable ID and mention mapping. It does not add a directory lookup or contact permission; see the [official CLI sender-name contract](https://github.com/larksuite/cli/blob/main/skill-template/domains/im.md#sender-name-resolution).
+
+Current Human QA: open **IM Artifact QA → Bot Inbox → BotHarness IM QA #78 → handled entries → BH612-NAMES-TOPIC-06**. Inspect the origin and the `JUNIPER` context. Verify name/ID, timestamp, Message ID, Source Event ID, original text and @ mapping. In Lark, check the `BIRCH` group reply and `JUNIPER` topic reply. The original bounded-read checks below remain part of the slice.
+
+Current validation: **1726 passed / 1 existing skip** in the full suite; 58 focused regression tests; qualified provider 74 focused tests and artifact pin 6 tests; typecheck, build, lint/source policy, format and bilingual release-ledger checks passed.
+
 Verified on 2026-10-01 with DSH `0.2.0-rc.1` and qualified dsh-im source `13869c30294af3d03d2ebc2d987d6e0765e0fcf2`. The launcher checked 386 runtime files and digest `4aed4a5ca637357dea0a8074e54e9dfd80af3c6a2e84381b803398b6050caf42`. No Human identity was substituted for the Bot reader.
 
 | Scenario                                                 | Observed result                                                                                                                                                                             |

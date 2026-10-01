@@ -20,9 +20,9 @@ export interface MessagingInboundEvent {
   fingerprint: string;
   eventId: string;
   messageId: string;
-  actor: { kind: 'user'; id: string };
+  actor: { kind: 'user'; id: string; name?: string };
   conversation: { kind: 'group' | 'dm'; id: string };
-  mentions: { id: string; key: string }[];
+  mentions: { id: string; key: string; name?: string }[];
   mentionedAccount: boolean;
   at: string;
   text: string;

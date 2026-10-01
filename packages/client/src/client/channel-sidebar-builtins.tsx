@@ -241,7 +241,7 @@ function BotInboxItemRow({
     : item.summary;
   const author =
     item.externalOrigin !== undefined
-      ? `${item.externalOrigin.platform} · ${item.externalOrigin.senderId}`
+      ? `${item.externalOrigin.platform} · ${item.externalOrigin.senderName ? `${item.externalOrigin.senderName} (${item.externalOrigin.senderId})` : item.externalOrigin.senderId}`
       : memoryChange
         ? t('inbox.memoryChange')
         : item.sourceKind === 'assignment-report'
@@ -324,14 +324,32 @@ function BotInboxItemRow({
                 {external.platform} · {external.accountName} · {external.conversationName}
               </p>
               <p>
-                {external.event.actor.id} · {external.at}
+                {external.event.actor.name
+                  ? `${external.event.actor.name} (${external.event.actor.id})`
+                  : external.event.actor.id}{' '}
+                · {external.at}
               </p>
               <p>
                 {external.event.reply.threadId ??
                   external.event.reply.rootId ??
                   external.event.conversation.id}
               </p>
+              <p className="bh-external-source-body">
+                {t('im.messageReference', {
+                  messageId: external.event.messageId,
+                  sourceEventId: external.id,
+                })}
+              </p>
               <p className="bh-external-source-body">{external.body}</p>
+              {external.event.mentions.length ? (
+                <p className="bh-external-source-body">
+                  {external.event.mentions
+                    .map(
+                      (mention) => `${mention.key} → ${mention.name ?? mention.id} (${mention.id})`,
+                    )
+                    .join(' · ')}
+                </p>
+              ) : null}
               {external.contextReads?.length ? (
                 <section aria-label={t('im.contextTitle')}>
                   <h3>{t('im.contextTitle')}</h3>
@@ -353,9 +371,28 @@ function BotInboxItemRow({
                   {external.contextMessages?.map((message) => (
                     <article key={message.sourceEventId}>
                       <p>
-                        {message.senderId} · {message.at}
+                        {message.senderName
+                          ? `${message.senderName} (${message.senderId})`
+                          : message.senderId}{' '}
+                        · {message.at}
+                      </p>
+                      <p className="bh-external-source-body">
+                        {t('im.messageReference', {
+                          messageId: message.messageId,
+                          sourceEventId: message.sourceEventId,
+                        })}
                       </p>
                       <p className="bh-external-source-body">{message.text}</p>
+                      {message.mentions?.length ? (
+                        <p className="bh-external-source-body">
+                          {message.mentions
+                            .map(
+                              (mention) =>
+                                `${mention.key} → ${mention.name ?? mention.id} (${mention.id})`,
+                            )
+                            .join(' · ')}
+                        </p>
+                      ) : null}
                     </article>
                   ))}
                 </section>

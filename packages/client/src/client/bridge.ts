@@ -1698,7 +1698,8 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
       !origin ||
       ['platform', 'accountName', 'conversationName', 'conversationId', 'senderId'].some(
         (key) => typeof origin[key] !== 'string',
-      )
+      ) ||
+      (origin['senderName'] !== undefined && typeof origin['senderName'] !== 'string')
     )
       return undefined;
   }
@@ -2664,6 +2665,7 @@ export async function readMessagingSource(
     typeof event['mentionedAccount'] !== 'boolean' ||
     actor?.['kind'] !== 'user' ||
     !strings(actor, ['id']) ||
+    (actor?.['name'] !== undefined && typeof actor['name'] !== 'string') ||
     !['group', 'dm'].includes(String(conversation?.['kind'])) ||
     !strings(conversation, ['id']) ||
     !strings(reply, ['messageId', 'conversationId', 'actorId']) ||
@@ -2671,7 +2673,12 @@ export async function readMessagingSource(
       (key) => reply?.[key] !== undefined && typeof reply[key] !== 'string',
     ) ||
     !Array.isArray(event['mentions']) ||
-    !event['mentions'].every((mention) => strings(asRecord(mention), ['id', 'key'])) ||
+    !event['mentions'].every(
+      (mention) =>
+        strings(asRecord(mention), ['id', 'key']) &&
+        (asRecord(mention)?.['name'] === undefined ||
+          typeof asRecord(mention)?.['name'] === 'string'),
+    ) ||
     replay?.['kind'] !== 'provider-redelivery' ||
     replay['resumeCursor'] !== false ||
     replay['gapPossible'] !== true
@@ -2701,8 +2708,19 @@ export async function readMessagingSource(
     source?.['contextMessages'] !== undefined &&
     (!Array.isArray(source['contextMessages']) ||
       source['contextMessages'].length > 20 ||
-      !source['contextMessages'].every((value) =>
-        strings(asRecord(value), ['sourceEventId', 'messageId', 'senderId', 'at', 'text']),
+      !source['contextMessages'].every(
+        (value) =>
+          strings(asRecord(value), ['sourceEventId', 'messageId', 'senderId', 'at', 'text']) &&
+          (asRecord(value)?.['senderName'] === undefined ||
+            typeof asRecord(value)?.['senderName'] === 'string') &&
+          (asRecord(value)?.['mentions'] === undefined ||
+            (Array.isArray(asRecord(value)?.['mentions']) &&
+              (asRecord(value)?.['mentions'] as unknown[]).every(
+                (mention) =>
+                  strings(asRecord(mention), ['id', 'key']) &&
+                  (asRecord(mention)?.['name'] === undefined ||
+                    typeof asRecord(mention)?.['name'] === 'string'),
+              ))),
       ))
   )
     throw new BridgeCallError('invalid-response', 'Invalid context messages');
