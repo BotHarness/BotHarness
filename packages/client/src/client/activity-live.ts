@@ -39,25 +39,117 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
 
 export function mountActivityLive(
   store: ClientStore,
-  makeSource: (url: string) => EventSource = (url) => new EventSource(url),
+  makeSource: (url: string) => EventSource | undefined = (url) =>
+    typeof EventSource === 'undefined' ? undefined : new EventSource(url),
+  readSnapshot: (signal: AbortSignal) => Promise<unknown> = async () => undefined,
 ): () => void {
   let source: EventSource | undefined;
   let disposed = false;
-  const sync = (): void => {
-    const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden';
-    if (disposed || store.getSnapshot().mode !== 'bot' || !visible) {
-      source?.close();
-      source = undefined;
+  let active = false;
+  let healthy = false;
+  let latest: PersonaBotActivitySnapshot | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let controller: AbortController | undefined;
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  const apply = (snapshot: PersonaBotActivitySnapshot): void => {
+    if (latest?.generation === snapshot.generation && snapshot.revision <= latest.revision) return;
+    latest = snapshot;
+    store.applyActivity(snapshot);
+  };
+  const clearTimer = (): void => {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+  };
+  const refresh = (): void => {
+    if (!active || controller !== undefined) return;
+    const next = new AbortController();
+    controller = next;
+    const generation = latest?.generation;
+    deadline = setTimeout(() => {
+      next.abort();
+      if (controller !== next) return;
+      controller = undefined;
+      deadline = undefined;
+      if (active && !healthy) schedule();
+    }, 5_000);
+    void readSnapshot(next.signal)
+      .then((value) => {
+        if (!active || next.signal.aborted || controller !== next) return;
+        const snapshot = parseActivitySnapshot(JSON.stringify(value));
+        if (snapshot === undefined) return;
+        if (latest?.generation !== generation && snapshot.generation !== latest?.generation) return;
+        apply(snapshot);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (controller !== next) return;
+        if (deadline !== undefined) clearTimeout(deadline);
+        deadline = undefined;
+        controller = undefined;
+        if (active && !healthy) schedule();
+      });
+  };
+  const schedule = (): void => {
+    if (timer !== undefined || !active) return;
+    timer = setTimeout(() => {
+      timer = undefined;
+      connect();
+      refresh();
+    }, 10_000);
+  };
+  const connect = (): void => {
+    if (source !== undefined) return;
+    let next: EventSource | undefined;
+    try {
+      next = makeSource('/api/botharness/stream?scope=activity');
+    } catch {
+      schedule();
       return;
     }
-    if (source !== undefined) return;
-    const next = makeSource('/api/botharness/stream?scope=activity');
+    if (next === undefined) {
+      schedule();
+      return;
+    }
     source = next;
     next.addEventListener('activity/snapshot', (event) => {
-      if (disposed || source !== next || !(event instanceof MessageEvent)) return;
+      if (!active || source !== next || !(event instanceof MessageEvent)) return;
       const snapshot = parseActivitySnapshot(event.data as string);
-      if (snapshot !== undefined) store.applyActivity(snapshot);
+      if (snapshot === undefined) return;
+      const gap =
+        latest?.generation === snapshot.generation && snapshot.revision > latest.revision + 1;
+      healthy = true;
+      clearTimer();
+      apply(snapshot);
+      if (gap) refresh();
     });
+    next.addEventListener('error', () => {
+      if (!active || source !== next) return;
+      healthy = false;
+      if (next.readyState === 2) {
+        next.close();
+        source = undefined;
+      }
+      schedule();
+    });
+  };
+  const sync = (): void => {
+    const visible = typeof document === 'undefined' || document.visibilityState !== 'hidden';
+    const enabled = !disposed && store.getSnapshot().mode === 'bot' && visible;
+    if (enabled === active) return;
+    active = enabled;
+    if (!active) {
+      source?.close();
+      source = undefined;
+      healthy = false;
+      clearTimer();
+      controller?.abort();
+      controller = undefined;
+      if (deadline !== undefined) clearTimeout(deadline);
+      deadline = undefined;
+      return;
+    }
+    connect();
+    refresh();
   };
   const unsubscribe = store.subscribe(sync);
   if (typeof document !== 'undefined') document.addEventListener('visibilitychange', sync);

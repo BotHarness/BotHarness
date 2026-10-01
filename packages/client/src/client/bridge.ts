@@ -105,6 +105,13 @@ export interface ModelPlanView {
   appliedAt: string;
 }
 
+export async function loadActivitySnapshot(
+  call: BridgeCall,
+  signal: AbortSignal,
+): Promise<unknown> {
+  return unwrap(call, 'activitySnapshot', {}, signal);
+}
+
 export async function loadModelCatalog(call: BridgeCall): Promise<ModelCatalogEntryView[]> {
   const value = asRecord(await unwrap(call, 'modelCatalog', {}));
   if (!Array.isArray(value?.['models'])) throw new Error('Invalid model catalog');
