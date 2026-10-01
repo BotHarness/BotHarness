@@ -70,14 +70,10 @@ const page = await browser.newPage();
 await page.setViewport({ width: 1500, height: 1180 });
 await page.setExtraHTTPHeaders({ cookie });
 async function screenshot(name) {
-  await page.evaluate((qaHome) => {
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) {
-      const text = walker.currentNode;
-      if (text.nodeValue?.includes(qaHome))
-        text.nodeValue = text.nodeValue.split(qaHome).join('[isolated QA home]');
-    }
-  }, home);
+  await page.addStyleTag({
+    content:
+      '.bh-tool-approval-card > .bh-note:nth-child(3){font-size:0}.bh-tool-approval-card > .bh-note:nth-child(3)::after{content:"[machine-local QA directory redacted]";font-size:12px}',
+  });
   await page.screenshot({ path: resolve(evidence, name) });
 }
 const frames = [],
