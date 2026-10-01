@@ -1,0 +1,45 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "canonicalFixture": {
+    "bots": 3,
+    "workspaceRequests": 3,
+    "groupMessages": 8
+  },
+  "geometry": [
+    {
+      "height": 76,
+      "textInset": 16,
+      "rightInset": 16,
+      "primaryFill": "rgb(15, 17, 21)",
+      "primaryToken": "#0f1115"
+    },
+    {
+      "height": 76,
+      "textInset": 16,
+      "rightInset": 16,
+      "primaryFill": "rgb(15, 17, 21)",
+      "primaryToken": "#0f1115"
+    },
+    {
+      "height": 76,
+      "textInset": 16,
+      "rightInset": 16,
+      "primaryFill": "rgb(15, 17, 21)",
+      "primaryToken": "#0f1115"
+    }
+  ],
+  "detailPadding": 16,
+  "nativeSelectors": true,
+  "nativeKeyboardSelection": true,
+  "channelAndBotFiltering": true,
+  "compactOneRowPerItem": true,
+  "rowClickAndKeyboardOpenDetails": true,
+  "sourceLinkIndependentAndExact": true,
+  "primaryActions": true,
+  "directPrimaryRequestAction": true,
+  "channelAvatarNavigation": true,
+  "lightAndDark": true
+}
