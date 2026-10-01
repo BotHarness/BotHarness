@@ -4823,6 +4823,17 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   overflow-wrap: anywhere;
   margin: 6px 0;
 }
+.bh-human-inbox-purpose {
+  font-size: inherit;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.bh-human-inbox-purpose.is-collapsed {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
 .bh-human-inbox-reply-context {
   margin: 12px 0;
 }

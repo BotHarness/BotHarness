@@ -1,4 +1,8 @@
 import { LOCAL_HUMAN_ID } from '../channels/channel.js';
+import {
+  readHumanAssignmentContext,
+  type HumanAssignmentContext,
+} from './assignment-human-context.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
 export type HumanAttentionCategory = 'action' | 'info' | 'unread' | 'replies';
@@ -39,6 +43,11 @@ export interface HumanAttentionPage {
 }
 
 export interface HumanAttentionQuery {
+  assignmentContext(
+    botSlug: string,
+    sessionId: string,
+    sourceEventId: string,
+  ): HumanAssignmentContext | undefined;
   list(input: {
     category?: HumanAttentionCategory;
     sort?: HumanAttentionSort;
@@ -139,6 +148,9 @@ export function createHumanAttentionQuery(
   activeToolApprovalMessageIds: () => readonly string[] = () => [],
 ): HumanAttentionQuery {
   return {
+    assignmentContext(botSlug, sessionId, sourceEventId) {
+      return readHumanAssignmentContext(database, botSlug, sessionId, sourceEventId);
+    },
     list(input) {
       const limit = input.limit ?? 30;
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
@@ -385,26 +397,19 @@ export function createHumanAttentionQuery(
                 WHERE resolution.channel_id = e.channel_id
                   AND resolution.source_kind = 'human-message'
                   AND json_extract(resolution.payload_json, '$.author.kind') = 'human'
-                  AND (
-                    json_extract(resolution.payload_json,
-                      '$.grantRequestResolution.requestMessageId') = e.message_id
-                    OR (
-                      json_extract(resolution.payload_json, '$.replyTo') = e.message_id
-                      AND (resolution.body GLOB '已授权工作区「*'
-                           OR resolution.body GLOB 'I authorized workspace “*')
-                    )
-                  )
+                  AND json_extract(resolution.payload_json,
+                    '$.grantRequestResolution.requestMessageId') = e.message_id
              )
           UNION ALL
           SELECT 'assignment:' || a.session_id AS id,
                  'action' AS category,
-                 CASE a.latest_report_state
+                 CASE coalesce(json_extract(ask.payload_json, '$.assignmentReport.state'), a.latest_report_state)
                    WHEN 'blocked' THEN 'assignment-blocked'
                    ELSE 'assignment-waiting-human'
                  END AS kind,
-                 a.latest_report_at AS created_at, NULL AS channel_id,
+                 coalesce(ask.created_at, a.latest_report_at) AS created_at, NULL AS channel_id,
                  NULL AS channel_name, a.bot_slug,
-                 a.latest_report_summary AS summary, NULL AS request_id,
+                 coalesce(ask.body, a.latest_report_summary) AS summary, NULL AS request_id,
                  NULL AS message_id, a.session_id AS assignment_session_id,
                  coalesce(a.open_ask_source_event_id, (
                    SELECT latest.source_event_id FROM source_events latest
@@ -413,9 +418,10 @@ export function createHumanAttentionQuery(
                     ORDER BY latest.rowid DESC LIMIT 1
                  )) AS source_event_id
             FROM assignments a
-           WHERE ((a.latest_report_state = 'waiting-human'
+            LEFT JOIN source_events ask ON ask.source_event_id = a.open_ask_source_event_id
+           WHERE ((coalesce(json_extract(ask.payload_json, '$.assignmentReport.state'), a.latest_report_state) = 'waiting-human'
                    AND a.open_ask_source_event_id IS NOT NULL)
-               OR (a.latest_report_state = 'blocked'
+               OR (coalesce(json_extract(ask.payload_json, '$.assignmentReport.state'), a.latest_report_state) = 'blocked'
                    AND (a.open_ask_source_event_id IS NOT NULL
                         OR a.activity IN ('idle', 'error'))))
              AND a.stop_state = 'running'

@@ -1,4 +1,5 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import { publishWorkspaceGrantChange } from './workspace-grant-events.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
   MessagingSnapshot,
@@ -53,6 +54,8 @@ import {
   loadBotAttention,
   loadHumanAttention,
   loadHumanAttentionStatus,
+  loadHumanAssignmentContext,
+  type HumanAssignmentContext,
   ignoreHumanAssignmentReport,
   loadSessions,
   loadBots,
@@ -210,6 +213,7 @@ export interface BridgeActions {
     assignmentModels: AssignmentModelOptionView[],
   ): Promise<ModelPlanView>;
   listHostFolders(path?: string, signal?: AbortSignal): Promise<HostDirectoryListing>;
+  pickWorkspaceFolder(): Promise<string | null>;
   addWorkspaceFolder(slug: string): Promise<WorkspaceGrantView | undefined>;
   authorizeWorkspacePath(slug: string, path: string): Promise<WorkspaceGrantView>;
   memoryDirectory(slug: string): Promise<string | undefined>;
@@ -234,6 +238,25 @@ export interface BridgeActions {
   replyFromHumanInbox(
     channelId: string,
     messageId: string,
+    body: string,
+    clientMessageId: string,
+  ): Promise<ChannelMessage>;
+  resolveWorkspaceGrantRequest(
+    slug: string,
+    messageId: string,
+    path: string,
+    body: (workspaceTitle: string) => string,
+  ): Promise<void>;
+  humanAssignmentContext(
+    slug: string,
+    sessionId: string,
+    sourceEventId: string,
+    signal?: AbortSignal,
+  ): Promise<HumanAssignmentContext>;
+  replyToHumanAssignment(
+    slug: string,
+    sessionId: string,
+    sourceEventId: string,
     body: string,
     clientMessageId: string,
   ): Promise<ChannelMessage>;
@@ -746,7 +769,7 @@ export function createActions(
   };
 
   const settleNativeInboxAction = async (
-    kind: 'tool-approval' | 'user-question',
+    kind: 'tool-approval' | 'user-question' | 'workspace-grant-request',
     channelId: string,
     messageId: string,
     submit: () => Promise<void>,
@@ -1070,10 +1093,99 @@ export function createActions(
         throw new Error('Channel reply could not be confirmed');
       return message;
     },
+    pickWorkspaceFolder() {
+      if (folderAccess === undefined) throw new Error('DSH folder picker is unavailable');
+      return folderAccess.pickDirectory();
+    },
+    async resolveWorkspaceGrantRequest(slug, messageId, path, body) {
+      const channelId = 'dm-' + slug;
+      const readRequest = async () => {
+        const messages = await actions.humanInboxContext(channelId, messageId);
+        return messages.find((message) => message.id === messageId);
+      };
+      await settleNativeInboxAction(
+        'workspace-grant-request',
+        channelId,
+        messageId,
+        async () => {
+          const request = await readRequest();
+          if (
+            request?.grantRequest !== true ||
+            request.grantRequestResolved === true ||
+            request.author.kind !== 'bot' ||
+            request.author.slug !== slug
+          )
+            throw new Error('Workspace request is no longer pending for this Bot');
+          const grant = await actions.authorizeWorkspacePath(slug, path);
+          publishWorkspaceGrantChange(slug);
+          const resolution = { requestMessageId: messageId, grantId: grant.id };
+          const clientMessageId = 'human-' + crypto.randomUUID();
+          const text = body(grant.workspaceTitle);
+          const reply = await sendChannelMessage(
+            call,
+            channelId,
+            text,
+            messageId,
+            undefined,
+            clientMessageId,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            resolution,
+          );
+          if (
+            reply.id !== clientMessageId ||
+            reply.author.kind !== 'human' ||
+            reply.replyTo !== messageId ||
+            reply.grantRequestResolution?.grantId !== grant.id ||
+            reply.grantRequestResolution.requestMessageId !== messageId
+          )
+            throw new Error('Workspace reply could not be confirmed');
+        },
+        async () => ((await readRequest())?.grantRequestResolved === true ? 'expired' : 'pending'),
+      );
+    },
     async markRead(channelId, messageId) {
       await markReadPosition(call, channelId, messageId);
       await refreshHumanInboxStatus();
       if (currentSelection()?.kind === 'inbox') await actions.refreshHumanInbox();
+    },
+    humanAssignmentContext(slug, sessionId, sourceEventId, signal) {
+      return loadHumanAssignmentContext(call, slug, sessionId, sourceEventId, signal);
+    },
+    async replyToHumanAssignment(slug, sessionId, sourceEventId, body, clientMessageId) {
+      try {
+        const text = body.trim();
+        const message = await sendChannelMessage(
+          call,
+          'dm-' + slug,
+          text,
+          undefined,
+          undefined,
+          clientMessageId,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { sessionId, sourceEventId },
+        );
+        if (
+          message.id !== clientMessageId ||
+          message.author.kind !== 'human' ||
+          message.body !== text ||
+          message.assignmentReply?.sessionId !== sessionId ||
+          message.assignmentReply.sourceEventId !== sourceEventId
+        )
+          throw new Error('Assignment response could not be confirmed');
+        return message;
+      } finally {
+        await Promise.allSettled([
+          refreshHumanInboxStatus(),
+          ...(currentSelection()?.kind === 'inbox' ? [actions.refreshHumanInbox()] : []),
+        ]);
+      }
     },
     async loadOlder(channelId) {
       const snapshot = clientStore.getSnapshot();
