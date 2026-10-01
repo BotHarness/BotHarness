@@ -34,6 +34,7 @@ export function installBotNavIcon(options: BotNavIconOptions): () => void {
   const doc = options.root ?? (typeof document === 'undefined' ? undefined : document);
   if (doc === undefined) return () => {};
   const touched = new Set<HTMLElement>();
+  const renderedMarkup = new WeakMap<Element, string>();
   const hiddenGlyphs = new Map<HTMLElement, string>();
   let scheduled = false;
 
@@ -60,7 +61,8 @@ export function installBotNavIcon(options: BotNavIconOptions): () => void {
       }
       box.style.cssText =
         'display:inline-flex;flex:none;align-items:center;justify-content:center;width:16px;height:16px;';
-      if (box.innerHTML !== markup) {
+      if (renderedMarkup.get(box) !== markup) {
+        renderedMarkup.set(box, markup);
         box.innerHTML = markup;
         const media = box.firstElementChild as HTMLElement | null;
         if (media !== null) {

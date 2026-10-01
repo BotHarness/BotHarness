@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFileSync, writeFileSync, readdirSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -28,6 +28,7 @@ const rpc = async (method, args = {}, client = page) => {
     async ({ method, args }) => {
       const response = await fetch('/api/botharness/' + method, {
         method: 'POST',
+        signal: AbortSignal.timeout(20000),
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           type: 'client-request',
@@ -77,6 +78,7 @@ const inbox = async () => {
   await page.evaluate(() => document.querySelector('.bh-human-inbox-entry')?.click());
   await page.waitForSelector('.bh-human-inbox-tabs');
   await clickText('.bh-human-inbox-tabs button', '提及与回复');
+  console.log('Inbox opened');
   await delay(900);
 };
 const waitMessage = async (channelId, marker) => {
@@ -130,6 +132,7 @@ const openGroup = async (id, client = page) => {
   await client.bringToFront();
   await client.evaluate((id) => document.querySelector(`[data-channel-id="${id}"]`)?.click(), id);
   await client.waitForSelector('.bh-bubble-wrap');
+  console.log('Group opened');
   await delay(700);
 };
 try {
@@ -171,25 +174,32 @@ try {
 
     assert.equal((await rpc('humanIdentity')).displayName, 'Human');
     await closeSettings();
-    const bot = (
-      await rpc('create', {
-        displayName: 'Navigator QA',
-        persona:
-          'Follow the Human request precisely. First channel_list to discover humanMembers, then channel_send with mention_human_ids using the current stable Human ID. Never guess a Human ID or type a label for the trusted prefix. Do not create Assignments. Send exactly one requested Group message. After an acknowledgement, finish without sending.',
-      })
-    ).bot;
-    const group = (await rpc('channelCreate', { name: 'Roleplay names QA', members: [bot.slug] }))
-      .channel;
-    const sourceBody =
-      '@Navigator QA Use channel_list to discover humanMembers and channel_send to send one trusted Human mention. The body must be exactly "QA_NAME_TRUSTED: Please confirm Friday. Plain @Human stays ordinary." Use mention_human_ids; do not set reply_to.';
-    await rpc('channelSend', {
-      channelId: group.id,
-      messageId: 'human-' + crypto.randomUUID(),
-      body: sourceBody,
-      mentions: [{ botSlug: bot.slug, label: 'Navigator QA', start: 0, end: 13 }],
-    });
-    const target = await waitMessage(group.id, 'QA_NAME_TRUSTED:');
-    assert.equal(target.humanMentions[0].humanId, 'local-human');
+    const preparedPath = resolve(out, 'prepared.json');
+    const { bot, group, target } = existsSync(preparedPath)
+      ? JSON.parse(readFileSync(preparedPath, 'utf8'))
+      : await (async () => {
+          const bot = (
+            await rpc('create', {
+              displayName: 'Navigator QA',
+              persona:
+                'Follow the Human request precisely. First channel_list to discover humanMembers, then channel_send with mention_human_ids using the current stable Human ID. Never guess a Human ID or type a label for the trusted prefix. Do not create Assignments. Send exactly one requested Group message. After an acknowledgement, finish without sending.',
+            })
+          ).bot;
+          const group = (
+            await rpc('channelCreate', { name: 'Roleplay names QA', members: [bot.slug] })
+          ).channel;
+          const sourceBody =
+            '@Navigator QA Use channel_list to discover humanMembers and channel_send to send one trusted Human mention. The body must be exactly "QA_NAME_TRUSTED: Please confirm Friday. Plain @Human stays ordinary." Use mention_human_ids; do not set reply_to.';
+          await rpc('channelSend', {
+            channelId: group.id,
+            messageId: 'human-' + crypto.randomUUID(),
+            body: sourceBody,
+            mentions: [{ botSlug: bot.slug, label: 'Navigator QA', start: 0, end: 13 }],
+          });
+          const target = await waitMessage(group.id, 'QA_NAME_TRUSTED:');
+          assert.equal(target.humanMentions[0].humanId, 'local-human');
+          return { bot, group, target };
+        })();
     save('prepared', { bot, group, target });
     console.log('Live Bot trusted mention created');
     await page.reload({ waitUntil: 'domcontentloaded' });

@@ -34,6 +34,17 @@ describe('local Human default names', () => {
         expect(core.channels.listHumanMembers(id)).toEqual([
           { humanId: 'local-human', displayName: '小熊 🚀' },
         ]);
+      for (const response of [
+        methods.channelCreate({ name: 'Second', members: ['ada'] }),
+        methods.channelRename({ channelId: group.id, name: 'Renamed' }),
+        methods.channelGroupAvatarSet({ channelId: group.id, avatar: null }),
+      ])
+        expect(response).toMatchObject({
+          ok: true,
+          value: {
+            channel: { humanMembers: [{ humanId: 'local-human', displayName: '小熊 🚀' }] },
+          },
+        });
       expect(core.channels.message(group.id, 'human-source')).toEqual(before);
       expect(core.channels.readPosition(group.id)).toEqual(read);
       expect(core.channels.revision(group.id)).toBe(1);

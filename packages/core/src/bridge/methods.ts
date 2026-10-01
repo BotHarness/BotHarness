@@ -581,6 +581,10 @@ function detail(record: PersonaBotRecord, snapshot: BotStateSnapshot): PersonaBo
 }
 
 export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
+  const channelView = (channel: ChannelRecord) => ({
+    ...channel,
+    humanMembers: deps.channels.listHumanMembers(channel.id),
+  });
   const messagingCall = async <T>(
     operation: (service: OutboundMessaging) => Promise<T>,
   ): Promise<BridgeResult<T>> => {
@@ -1175,8 +1179,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const channels = deps.channels.list().map((channel) => {
         const latestMessage = deps.channels.latestMessage(channel.id);
         return {
-          ...channel,
-          humanMembers: deps.channels.listHumanMembers(channel.id),
+          ...channelView(channel),
           ...(latestMessage === undefined ? {} : { latestMessage }),
         };
       });
@@ -1194,7 +1197,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return {
         ok: true,
         value: {
-          channel: { ...channel, humanMembers: deps.channels.listHumanMembers(channel.id) },
+          channel: channelView(channel),
         },
       };
     },
@@ -1210,7 +1213,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput('members must be an array of PersonaBot IDs');
       }
       const channel = deps.channels.createGroup({ name, members: [...members] });
-      return { ok: true, value: { channel } };
+      return { ok: true, value: { channel: channelView(channel) } };
     },
     channelRename(payload) {
       const source = asObject(payload);
@@ -1232,7 +1235,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const channel = deps.channels.rename(channelId, name);
       if (channel === undefined) return unknownChannel(channelId);
-      return { ok: true, value: { channel, ...(bot === undefined ? {} : { bot }) } };
+      return {
+        ok: true,
+        value: { channel: channelView(channel), ...(bot === undefined ? {} : { bot }) },
+      };
     },
     channelGroupAvatarSet(payload) {
       const source = asObject(payload);
@@ -1241,7 +1247,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channelId === undefined || (avatar !== null && !isGroupAvatar(avatar)))
         return invalidInput('valid channelId and Group avatar are required');
       try {
-        return { ok: true, value: { channel: deps.channels.setGroupAvatar(channelId, avatar) } };
+        return {
+          ok: true,
+          value: { channel: channelView(deps.channels.setGroupAvatar(channelId, avatar)) },
+        };
       } catch (error) {
         return invalidInput(String(error));
       }
@@ -1267,7 +1276,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           targetDmChannelId: dm.id,
         });
         deps.runtime?.admitGroupInvitation(dm.id, invitation.id);
-        return { ok: true, value: { channel: deps.channels.get(channelId)! } };
+        return { ok: true, value: { channel: channelView(deps.channels.get(channelId)!) } };
       } catch (error) {
         return invalidInput(String(error));
       }
@@ -1281,7 +1290,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       try {
         return {
           ok: true,
-          value: { channel: deps.channels.cancelGroupInvite(channelId, invitationId) },
+          value: { channel: channelView(deps.channels.cancelGroupInvite(channelId, invitationId)) },
         };
       } catch (error) {
         return invalidInput(String(error));
@@ -1300,7 +1309,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput('Pending Group join request not found');
       if (request.status !== 'pending')
         return request.status === (accept ? 'accepted' : 'declined')
-          ? { ok: true, value: { channel } }
+          ? { ok: true, value: { channel: channelView(channel) } }
           : invalidInput('Group join request is no longer pending');
       const requester = deps.registry.get(request.requesterBotSlug);
       if (
@@ -1321,7 +1330,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           requesterDmChannelId: dm.id,
         });
         if (decided.notified) deps.runtime?.admitGroupJoinDecision?.(dm.id, request.id);
-        return { ok: true, value: { channel: decided.channel } };
+        return { ok: true, value: { channel: channelView(decided.channel) } };
       } catch (error) {
         return invalidInput(String(error));
       }
@@ -1335,7 +1344,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       try {
         return {
           ok: true,
-          value: { channel: deps.channels.removeGroupMember(channelId, botSlug) },
+          value: { channel: channelView(deps.channels.removeGroupMember(channelId, botSlug)) },
         };
       } catch (error) {
         return invalidInput(String(error));
@@ -1359,15 +1368,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return {
           ok: true,
           value: {
-            channel: deps.channels.setGroupWakePolicy(
-              channelId,
-              botSlug,
-              {
-                mode,
-                count,
-                intervalSeconds,
-              },
-              { kind: 'human' },
+            channel: channelView(
+              deps.channels.setGroupWakePolicy(
+                channelId,
+                botSlug,
+                {
+                  mode,
+                  count,
+                  intervalSeconds,
+                },
+                { kind: 'human' },
+              ),
             ),
           },
         };
