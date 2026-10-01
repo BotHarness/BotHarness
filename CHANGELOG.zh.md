@@ -224,6 +224,7 @@
 
 ### Fixed
 
+- DM 活动现在根据真实 Host Session 投影同步更新侧栏与输入框；活动 Turn 显示思考或工作并在结束后恢复空闲，消息回执继续独立显示处理结果（[#536](https://github.com/BotHarness/BotHarness/issues/536)、[#120](https://github.com/BotHarness/BotHarness/issues/120)）。
 - Browser 上传现在会使用观察到的文件输入框 ref，将文件放入指定字段，避免多输入框页面误传到其他字段，让目标表单可以继续完成（[#652](https://github.com/BotHarness/BotHarness/issues/652)）。
 
 - 群聊退出现在明确返回已提交变更或 `not-member` 幂等无变更；缺失 Channel 和非群聊目标明确失败，重复或被拒绝的请求不再被描述为一次新退出（[#571](https://github.com/BotHarness/BotHarness/issues/571)）。

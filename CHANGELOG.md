@@ -224,6 +224,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- DM activity now updates the sidebar and composer together from the actual Host Session projection; active turns show thinking or working and settle to idle, while delivery receipts keep their independent processing result ([#536](https://github.com/BotHarness/BotHarness/issues/536), [#120](https://github.com/BotHarness/BotHarness/issues/120)).
 - Browser uploads now honor an observed file-input ref instead of attaching to a different field on multi-input pages, so the intended form can continue ([#652](https://github.com/BotHarness/BotHarness/issues/652)).
 
 - Group departure now reports a committed change or an idempotent `not-member` no-change; missing Channels and non-Group targets fail explicitly, so repeated or rejected requests cannot fabricate a new departure ([#571](https://github.com/BotHarness/BotHarness/issues/571)).

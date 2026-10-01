@@ -19,6 +19,20 @@ describe('aggregateSessionStates', () => {
 });
 
 describe('createBotStateTracker', () => {
+  it('increments revision only for changed Session projection facts', () => {
+    const tracker = createBotStateTracker();
+    const initial = tracker.version();
+    expect(initial.revision).toBe(0);
+    tracker.setSessionState('ada', 'owned-1', 'thinking');
+    tracker.setSessionState('ada', 'owned-1', 'thinking');
+    expect(tracker.version()).toEqual({ generation: initial.generation, revision: 1 });
+    tracker.setSessionState('ada', 'owned-1', 'working');
+    tracker.clearSession('ada', 'missing');
+    tracker.clearSession('ada', 'owned-1');
+    expect(tracker.version()).toEqual({ generation: initial.generation, revision: 3 });
+    expect(createBotStateTracker().version().generation).not.toBe(initial.generation);
+  });
+
   it('reports snapshots with session detail', () => {
     const tracker = createBotStateTracker();
     tracker.setSessionState('research', 's1', 'working');
