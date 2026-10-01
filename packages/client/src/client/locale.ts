@@ -746,6 +746,8 @@ export const zh = {
   'approval.orchestrator': 'Orchestrator',
   'approval.cwd': '工作目录：{path}',
   'approval.risk': '此工具可能访问已授权文件夹以外的内容。请检查完整输入和批准范围。',
+  'approval.originalRisk':
+    '这会修改指定附件原件。所有共享此文件的消息都将展示当前内容，独立副本不受影响。请核对上面的消息和文件。',
   'approval.channelChanged': '已切换频道，请回到此 Bot 的私聊后重试。',
   'approval.allowOnce': '仅批准这一次',
   'approval.allowExact': '始终允许相同调用',
@@ -1623,6 +1625,8 @@ export const en = {
   'approval.cwd': 'Working directory: {path}',
   'approval.risk':
     'This tool may access files outside authorized folders. Review the full input and approval scope.',
+  'approval.originalRisk':
+    'This edits the selected original attachment. All messages sharing this file show its current contents; independent copies stay unchanged. Check the message and file above.',
   'approval.channelChanged': 'Return to this Bot DM and try again.',
   'approval.allowOnce': 'Allow once',
   'approval.allowExact': 'Always allow this exact call',

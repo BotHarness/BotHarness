@@ -820,6 +820,7 @@ describe('DSH Bot Agent adapter', () => {
       'bridge_reply',
       'channel_read',
       'inbox_ignore',
+      'channel_attachment_open',
       'channel_attachment_save',
       'channel_attachment_import',
       'channel_read_image',

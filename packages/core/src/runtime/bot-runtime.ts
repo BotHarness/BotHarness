@@ -1,4 +1,8 @@
 import {
+  OriginalAttachmentAccess,
+  type OriginalAttachmentInput,
+} from '../attachments/original-access.js';
+import {
   saveAttachmentFile,
   importAttachmentFile,
   type AttachmentSaveInput,
@@ -255,6 +259,11 @@ export interface OrchestratorChannelAccess {
   };
   query(input?: ChannelQueryInput): ChannelQueryPage;
   readModel(input?: ChannelQueryInput & { messageId?: string; contentCursor?: string }): string;
+  openAttachment?(input: OriginalAttachmentInput): {
+    path: string;
+    source: ChannelAttachmentRef;
+    access: OriginalAttachmentInput['access'];
+  };
   saveAttachment?(
     input: AttachmentSaveInput,
   ): Promise<{ path: string; source: ChannelAttachmentRef; size: number }>;
@@ -339,6 +348,12 @@ export type DmMessageAdmission =
   | { admitted: false; reason: DmAdmissionFailure };
 
 export interface BotRuntime {
+  originalAttachmentRoot?(
+    sessionId: string,
+    path: string,
+    kind: 'read' | 'write',
+    shell?: boolean,
+  ): string | undefined;
   reconcileMemoryChangesOnStartup?(): void;
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
 
@@ -673,6 +688,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #agents: BotAgentAdapter;
   readonly #memory: BotRuntimeOptions['memory'];
   readonly #attachments: AttachmentStore | undefined;
+  readonly #originalAttachments = new OriginalAttachmentAccess();
   readonly #saveReportSpill: BotRuntimeOptions['saveReportSpill'];
   readonly #readAssignmentTail: BotRuntimeOptions['readAssignmentTail'];
   readonly #readAssignmentReportPage: BotRuntimeOptions['readAssignmentReportPage'];
@@ -2429,6 +2445,8 @@ class BotRuntimeImplementation implements BotRuntime {
       if (observeMemory)
         this.#memory?.abortTurn(bot.slug, orchestrator.sessionId, preserveObservation);
       throw error;
+    } finally {
+      this.#originalAttachments.clear(orchestrator.sessionId);
     }
   }
 
@@ -2720,6 +2738,15 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
+  originalAttachmentRoot(
+    sessionId: string,
+    path: string,
+    kind: 'read' | 'write',
+    shell = false,
+  ): string | undefined {
+    return this.#originalAttachments.root(sessionId, path, kind, shell);
+  }
+
   #channelAccess(
     botSlug: string,
     defaultChannelId: string | undefined,
@@ -2735,6 +2762,22 @@ class BotRuntimeImplementation implements BotRuntime {
           'No inbound local Channel; select an explicit joined Channel or use bridge_reply for an external source',
         );
       return this.#requireMembership(botSlug, id);
+    };
+    const attachmentSource = (input: { channelId?: string; messageId: string; fileId: string }) => {
+      const bot = this.#registry.get(botSlug);
+      if (this.#closed || bot === undefined || bot.paused === true)
+        throw new Error('Source Bot is unavailable');
+      const channel = resolve(input.channelId);
+      const message = this.#channels.message(channel.id, input.messageId);
+      if (message === undefined) throw new Error('Source message is unavailable');
+      const owned =
+        this.#channels.attachmentReference === undefined
+          ? message.attachments?.find((ref) => attachmentIdentity(ref) === input.fileId)
+          : this.#channels.attachmentReference(channel.id, input.messageId, input.fileId);
+      if (owned === undefined) throw new Error('File is not attached to this source message');
+      if (this.#attachments === undefined)
+        throw new Error('Attachment file operations are unavailable');
+      return this.#attachments.current(owned);
     };
     const humanNames = (channel: ChannelRecord): Record<string, string> =>
       Object.fromEntries(
@@ -3171,8 +3214,9 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       leaveGroup: (input) => {
         const channel = this.#channels.get(input.channelId);
-        if (channel?.type !== 'group' || !channel.members.includes(botSlug))
-          return { channelId: input.channelId, left: false };
+        if (channel === undefined) throw new Error('group_leave: channel-unavailable');
+        if (channel.type !== 'group') throw new Error('group_leave: group-required');
+        if (!channel.members.includes(botSlug)) return { channelId: input.channelId, left: false };
         beforeSend();
         this.#channels.removeGroupMember(channel.id, botSlug, 'left');
         return { channelId: channel.id, left: true };
@@ -3311,6 +3355,16 @@ class BotRuntimeImplementation implements BotRuntime {
         this.#observeReadMessages(botSlug, bounded.included, readAdmissions);
         return bounded.output;
       },
+      openAttachment: (input) => {
+        const target = this.#originalAttachments.open(sessionId, input, () => {
+          const source = attachmentSource(input);
+          if (source.fileId === undefined)
+            throw new Error('Original attachment identity is unavailable');
+          return { source, path: this.#attachments!.fileTarget(source.fileId).path };
+        });
+        if (input.access === 'edit-original') beforeSend();
+        return target;
+      },
       saveAttachment: async (input) => {
         if (this.#attachments === undefined || this.#grants === undefined)
           throw new Error('Attachment file operations are unavailable');
@@ -3318,20 +3372,7 @@ class BotRuntimeImplementation implements BotRuntime {
           botSlug,
           grants: this.#grants,
           attachments: this.#attachments,
-          source: () => {
-            const bot = this.#registry.get(botSlug);
-            if (this.#closed || bot === undefined || bot.paused === true)
-              throw new Error('Source Bot is unavailable');
-            const channel = resolve(input.channelId);
-            const message = this.#channels.message(channel.id, input.messageId);
-            if (message === undefined) throw new Error('Source message is unavailable');
-            const owned =
-              this.#channels.attachmentReference === undefined
-                ? message.attachments?.find((ref) => attachmentIdentity(ref) === input.fileId)
-                : this.#channels.attachmentReference(channel.id, input.messageId, input.fileId);
-            if (owned === undefined) throw new Error('File is not attached to this source message');
-            return this.#attachments!.current(owned);
-          },
+          source: () => attachmentSource(input),
         });
       },
       importAttachment: async (input) => {

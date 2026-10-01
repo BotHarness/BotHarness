@@ -121,7 +121,13 @@ const BOT_TOOL_NAMES = new Set([
   'report_to_orchestrator',
 ]);
 
-export function requiresHumanToolApproval(name: string): boolean {
+export function requiresHumanToolApproval(name: string, args?: unknown): boolean {
+  if (name === 'channel_attachment_open')
+    return (
+      typeof args !== 'object' ||
+      args === null ||
+      (args as Record<string, unknown>).access !== 'read'
+    );
   return !BOT_TOOL_NAMES.has(name) && !NATIVE_FILE_TOOL_NAMES.has(name);
 }
 
@@ -173,6 +179,10 @@ export function grantToolExecutionDenial(
     core.ownership.resolve(session.id)?.rootRole !== 'orchestrator'
   )
     return 'Assignment questions must go through the Orchestrator';
+  if (name === 'channel_attachment_open')
+    return !requiresHumanToolApproval(name, args) || allowedOnce
+      ? undefined
+      : 'Original attachment edit access requires Human approval';
   if (BOT_TOOL_NAMES.has(name)) return undefined;
 
   if (core.hostTools.has(name)) return undefined;
