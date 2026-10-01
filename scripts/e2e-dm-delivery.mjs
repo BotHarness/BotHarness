@@ -9,6 +9,10 @@ const origin = process.env.BH_E2E_ORIGIN,
 assert.ok(origin && home && evidence);
 const mode = process.env.BH_E2E_DELIVERY ?? 'steer';
 const sourceClass = process.env.BH_E2E_SOURCE ?? 'human-dm';
+const observeMemory = process.env.BH_E2E_MEMORY === '1';
+assert.ok(!observeMemory || (sourceClass === 'human-dm' && mode === 'steer'));
+const memoryPath = 'external-steer-qa.md';
+const memoryBody = 'External Memory fixture body: never inject this content.\n';
 assert.ok(['human-dm', 'bot-dm', 'group-mention'].includes(sourceClass));
 assert.ok(['steer', 'turn'].includes(mode));
 const cookie = readFileSync(resolve(tmpdir(), `dsh-${basename(home)}.cookies`), 'utf8').split(
@@ -47,7 +51,9 @@ const model = models.find(
 assert.ok(model);
 const route = { provider: model.provider, model: model.model, reasoningEffort: 'low' };
 const bot = (
-  await rpc('create', { displayName: `DM delivery ${sourceClass} ${mode} QA ${Date.now()}` })
+  await rpc('create', {
+    displayName: `${observeMemory ? 'Memory steering' : 'DM delivery'} ${sourceClass} ${mode} QA ${Date.now()}`,
+  })
 ).bot;
 const channelId = `dm-${bot.slug}`;
 await rpc('channelDm', { slug: bot.slug, displayName: bot.displayName });
@@ -301,6 +307,11 @@ try {
   const beforeEvents = before.records.map((e) => e.event);
   assert.equal(beforeEvents.filter((e) => e.type === 'turn/start').length, 1);
   assert.equal(beforeEvents.filter((e) => e.type === 'turn/end').length, 0);
+  if (observeMemory) {
+    const record = (await rpc('get', { slug: bot.slug })).bot;
+    assert.ok(record.memoryDir);
+    writeFileSync(resolve(record.memoryDir, memoryPath), memoryBody);
+  }
   let second;
   if (sender) {
     await rpc('channelSend', {
@@ -364,6 +375,26 @@ try {
   );
   if (mode === 'steer') assert.equal(heldPeerInjection?.data.target, 'next-step');
   else assert.equal(heldPeerInjection, undefined);
+  const memoryInjection = observeMemory
+    ? heldEvents.find(
+        (e) =>
+          e.type === 'agent/inbox/spliced' &&
+          e.data.inserted?.some((message) =>
+            message.content?.some((part) => part.text?.includes(memoryPath)),
+          ),
+      )
+    : undefined;
+  let heldMemory;
+  if (observeMemory) {
+    assert.equal(memoryInjection?.data.target, 'next-step');
+    assert.ok(!JSON.stringify(memoryInjection).includes(memoryBody.trim()));
+    heldMemory = (await rpc('botAttention', { slug: bot.slug })).items.filter(
+      (e) => e.reason === 'memory-change',
+    );
+    assert.equal(heldMemory.length, 1);
+    assert.equal(heldMemory[0].state, 'processing');
+    assert.ok(heldMemory[0].summary.includes(memoryPath));
+  }
   await screenshot('held-second.png');
   if (peerChannelId !== channelId) {
     await openPeerChannel();
@@ -493,7 +524,62 @@ try {
   }
   await openProfile();
   await screenshot('final-policy.png');
+  let memoryProof;
+  if (observeMemory) {
+    const items = (await rpc('botAttention', { slug: bot.slug })).items.filter(
+      (e) => e.reason === 'memory-change',
+    );
+    assert.equal(items.length, 1);
+    assert.equal(items[0].state, 'handled');
+    assert.equal(items[0].id, heldMemory[0].id);
+    memoryProof = {
+      path: memoryPath,
+      notificationId: items[0].id,
+      heldState: heldMemory[0].state,
+      settledState: items[0].state,
+      injectionSeq: memoryInjection.seq,
+      injectionTarget: memoryInjection.data.target,
+      bodyInjected: false,
+    };
+    await clickText(['Back to chat', '返回聊天']);
+    const next = (
+      await rpc('channelSend', {
+        channelId,
+        body: 'Reply in this DM using channel_send with exactly Memory next turn confirmed. Do not use Shell, read files, delegate or write Memory.',
+      })
+    ).message;
+    await until(
+      messages,
+      (rows) => rows.find((m) => m.id === next.id)?.deliveries?.some((d) => d.state === 'handled'),
+      'Next ordinary Turn must complete',
+    );
+    const nextItems = (await rpc('botAttention', { slug: bot.slug })).items.filter(
+      (e) => e.reason === 'memory-change',
+    );
+    assert.equal(nextItems.length, 1);
+    assert.equal(nextItems[0].id, items[0].id);
+    memoryProof.nextTurnNotificationCount = nextItems.length;
+    const sidebar = await page.$$('.bh-channel-sidebar-entry-head');
+    for (const header of sidebar) {
+      if (/Bot Inbox|Bot 收件箱/.test(await header.evaluate((e) => e.textContent))) {
+        await header.click();
+        break;
+      }
+    }
+    await page.waitForFunction(
+      (path) => document.querySelector('.bh-channel-sidebar')?.textContent?.includes(path),
+      {},
+      memoryPath,
+    );
+    await page.$$eval('.bh-inbox-group, .bh-inbox-history', (elements) => {
+      for (const element of elements)
+        if (!element.open) element.querySelector(':scope > summary')?.click();
+    });
+    await page.waitForSelector('.bh-inbox-item', { visible: true });
+    await screenshot('memory-inbox.png');
+  }
   const proof = {
+    memory: memoryProof,
     bot: { slug: bot.slug, displayName: bot.displayName },
     route,
     sourceClass,

@@ -235,6 +235,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed Memory edits being silently absorbed when a new DM or Group mention steers an active turn; bounded change summaries now enter that turn’s Bot Inbox and settle with it ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
+
 - Browser file uploads select the input that opened the picker, or the first input when ref is omitted; upload audits include basename and size and redact Host paths in failures ([#491](https://github.com/BotHarness/BotHarness/issues/491)).
 
 - PersonaBot Orchestrators can set and restore Human DM, Bot DM and Group mention delivery through the existing attention tools; changes keep immediate admission and carry Bot-authored revisions visible in Profile ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
