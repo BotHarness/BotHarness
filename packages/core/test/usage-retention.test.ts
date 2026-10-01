@@ -258,3 +258,31 @@ it('preserves accounting when the Bot filesystem purge fails', () => {
   usage.handleSessionEvent('retained-root', settlement(2));
   expect(usage.activity('ada', SINCE)[0]?.totalTokens).toBe(340);
 });
+
+it('refuses Host Registry Purge in recovery mode before deleting the PersonaBot directory', () => {
+  const home = createTempRoot('botharness-recovery-purge-');
+  const original = createCore({ dshHome: home });
+  trackTestOwner(original.operationalDatabase);
+  expect(original.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+  original.operationalDatabase.close();
+  const future = trackTestOwner(
+    mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: defineSchemaPlan([
+        ...BOT_HARNESS_SCHEMA_PLAN.migrations,
+        {
+          generation: 41,
+          module: 'usage',
+          description: 'Simulate a newer profile schema',
+          migrate() {},
+        },
+      ]),
+    }),
+  );
+  future.close();
+  const recovery = createCore({ dshHome: home });
+  trackTestOwner(recovery.operationalDatabase);
+  expect(recovery.operationalDatabase.mode).toBe('recovery');
+  expect(() => recovery.registry.remove('ada', { purge: true })).toThrow();
+  expect(recovery.registry.get('ada')?.displayName).toBe('Ada');
+});
