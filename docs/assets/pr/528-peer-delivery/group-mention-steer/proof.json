@@ -62,12 +62,8 @@
     }
   },
   "nativeTurns": {
-    "starts": [
-      4
-    ],
-    "ends": [
-      43
-    ]
+    "starts": [4],
+    "ends": [43]
   },
   "proactiveReadCalls": 0,
   "eventTypes": [

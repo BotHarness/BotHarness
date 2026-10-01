@@ -66,14 +66,8 @@
     "markerInjection": null
   },
   "nativeTurns": {
-    "starts": [
-      4,
-      36
-    ],
-    "ends": [
-      34,
-      61
-    ]
+    "starts": [4, 36],
+    "ends": [34, 61]
   },
   "proactiveReadCalls": 0,
   "eventTypes": [
