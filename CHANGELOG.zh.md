@@ -232,6 +232,8 @@
 
 - Browser 动作与导航遇到页面持续 15 秒未就绪时，现在返回可读超时错误，并要求 Bot 先观察，再决定是否重试可能已经发生的动作（[#462](https://github.com/BotHarness/BotHarness/issues/462)）。
 
+- 阅读较早消息时发送 DM 会保留阅读位置；跟随最新对话时，Bot 活动提示展开后新消息仍完整可见（[#120](https://github.com/BotHarness/BotHarness/issues/120)）。
+
 - Human 暂停前已开始的 Browser 截图，会在生成或原生附件处理期间控制状态改变时被拒绝，避免未完成图片在接管后返回模型（[#461](https://github.com/BotHarness/BotHarness/issues/461)）。
 
 - 关闭 Browser Access 会取消正在等待的调用，并拒绝已撤销注册的未完成或排队调用；重新开启权限也不会恢复旧调用，已有 Bot Browser 标签页仍保留给 Human 使用（[#460](https://github.com/BotHarness/BotHarness/issues/460)）。
