@@ -17,6 +17,7 @@
 
 ### Added
 
+- Human 可在 Human Inbox 查看实时工具请求并原位批准或拒绝，同时展开来源附近消息或准确跳转。决定沿用来源 DM 命令，移除已解决待办、保留其他 Bot 的独立请求，并刷新过期卡片（[#550](https://github.com/BotHarness/BotHarness/issues/550)）。
 - PersonaBot 可通过原生文件工具读取指定收到的原件，并在 Human 审批下显式编辑；原消息下载与共享引用展示当前内容，独立上传和默认工作副本保持独立（[#633](https://github.com/BotHarness/BotHarness/issues/633)，[文件指南](docs/file-open.md)）。
 
 - Human 参与的 DM 与群聊头部菜单支持“我的昵称”；各 Channel 独立设置，清除后继承插件默认名，历史提及、Inbox 与 Bot 上下文使用来源 Channel 的当前称呼，不改变身份或注意力（[#622](https://github.com/BotHarness/BotHarness/issues/622)）。
