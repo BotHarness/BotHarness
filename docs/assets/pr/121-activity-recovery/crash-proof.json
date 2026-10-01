@@ -1,0 +1,53 @@
+{
+  "scenario": "hard Host termination while a native Agent is actually running; same profile restarted; browser reloaded twice",
+  "bot": {
+    "slug": "bot-d65ed0aac9814f96a81d27a52b493cc4",
+    "displayName": "Activity crash QA 1790883175977"
+  },
+  "before": {
+    "generation": "6052a00a-7603-4bd2-aaa1-d6cf70702231",
+    "revision": 1,
+    "state": "thinking",
+    "runningNativeSessionCount": 1
+  },
+  "after": {
+    "generation": "471de5ea-5d53-4b68-9c66-e7dc697e9c72",
+    "revision": 0,
+    "state": "idle"
+  },
+  "browser": {
+    "bot": {
+      "slug": "bot-d65ed0aac9814f96a81d27a52b493cc4",
+      "displayName": "Activity crash QA 1790883175977"
+    },
+    "activityFrames": [
+      {
+        "generation": "471de5ea-5d53-4b68-9c66-e7dc697e9c72",
+        "revision": 0,
+        "state": "idle"
+      },
+      {
+        "generation": "471de5ea-5d53-4b68-9c66-e7dc697e9c72",
+        "revision": 0,
+        "state": "idle"
+      },
+      {
+        "generation": "471de5ea-5d53-4b68-9c66-e7dc697e9c72",
+        "revision": 0,
+        "state": "idle"
+      }
+    ],
+    "reloads": [
+      {
+        "sidebar": ["idle"],
+        "composer": []
+      },
+      {
+        "sidebar": ["idle"],
+        "composer": []
+      }
+    ],
+    "verdict": "PASS"
+  },
+  "verdict": "PASS"
+}

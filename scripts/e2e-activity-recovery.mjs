@@ -184,11 +184,47 @@ try {
     for (let retry = 0; retry < 50 && activityFrames.length === 0; retry++)
       await new Promise((done) => setTimeout(done, 100));
     assert.equal(activityFrames.at(-1)?.state, 'idle');
+    const reloads = [];
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('button[aria-label="Bot mode"],button[aria-label="Bot 模式"]');
+      if (!(await page.$('.bh-root')))
+        await page.click('button[aria-label="Bot mode"],button[aria-label="Bot 模式"]');
+      await page.waitForSelector(`.bh-root [data-channel-id="${channelId}"]`);
+      await page.click(`.bh-root [data-channel-id="${channelId}"]`);
+      await page.waitForSelector('.bh-composer-shell');
+      await page.waitForFunction(
+        (id) =>
+          document.querySelector(`[data-channel-id="${id}"] .bh-persona-avatar`)?.dataset.state ===
+          'idle',
+        {},
+        channelId,
+      );
+      const state = await page.evaluate(
+        (id) => ({
+          sidebar: Array.from(
+            document.querySelectorAll(`[data-channel-id="${id}"] .bh-persona-avatar`),
+          ).map((element) => element.dataset.state),
+          composer: Array.from(
+            document.querySelectorAll('.bh-composer-shell .bh-persona-avatar'),
+          ).map((element) => element.dataset.state),
+        }),
+        channelId,
+      );
+      assert.ok(state.sidebar.includes('idle'));
+      assert.ok(state.composer.every((value) => value === 'idle'));
+      reloads.push(state);
+    }
     await screenshot('restarted.png');
     writeFileSync(
       resolve(evidence, 'restart-proof.json'),
       JSON.stringify(
-        { bot: { slug: bot.slug, displayName: bot.displayName }, activityFrames, verdict: 'PASS' },
+        {
+          bot: { slug: bot.slug, displayName: bot.displayName },
+          activityFrames,
+          reloads,
+          verdict: 'PASS',
+        },
         null,
         2,
       ) + '\n',

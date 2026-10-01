@@ -21,6 +21,16 @@ Real isolated DSH **0.2.0-rc.1**, DeepSeek Flash `low`; production Host Activity
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------- |
 | ![Committed reply, sidebar idle and no active composer indicator](settled.png) | ![New Host generation with the existing reply](restarted.png) |
 
+## Additional recovery audit requested by Human
+
+In a separate fresh isolated profile, **Activity crash QA 1790883175977** had one native Agent actually running, with the Host snapshot at **thinking**, revision **1**. The dedicated Host process was forcibly terminated without a graceful Turn end. Restarting the same profile produced a different generation at revision **0**, **idle** for the same Bot. Two full browser reloads received that new idle baseline; the sidebar stayed idle and the composer had no active indicator.
+
+[Hard-termination and refresh proof](crash-proof.json)
+
+![Same Bot after hard Host termination and two browser reloads](hard-restarted.png)
+
+This audit covers abandoned activity presentation. It does not prove that an interrupted task completed, retry its tool effects, or force a still-running/waiting Agent to idle. A refresh reads Host truth; a genuine pending execution or approval may correctly remain active. The earlier restart case followed a completed Turn; this additional case explicitly terminated an active Agent.
+
 ## Repeat
 
 Boot a fresh isolated profile with `scripts/dev-instance.mjs --home <isolated-home> --port <port> --worktree <checkout> --build --json`.
