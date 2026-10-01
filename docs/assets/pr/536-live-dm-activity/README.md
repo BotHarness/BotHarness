@@ -1,6 +1,6 @@
 # Real DM activity evidence — #536 / #120
 
-Real isolated DSH 0.2.0-rc.1, deepseek-official:deepseek-flash / low, Chinese light theme, 1500 × 1180. Synthetic PersonaBots execute native Memory glob/write/read and send a committed DM reply. The rail case additionally executes an exact, harmless two-second native Shell timer, approved once through the public tool-approval command; no standing permission is added. No provider, Session execution, admission or UI activity is mocked.
+Real isolated DSH 0.2.0-rc.1, deepseek-official:deepseek-flash / low, Chinese UI, 1500 × 1180: original row/pinned/rail cases use light theme; the latest-main steer case uses dark theme. Synthetic PersonaBots execute native Memory glob/write/read and send a committed DM reply. The rail case additionally executes an exact, harmless two-second native Shell timer, approved once through the public tool-approval command; no standing permission is added. Screenshot capture masks only the machine-local QA home as `[isolated QA home]`; activity, receipts and replies remain untouched. No provider, Session execution, admission or UI activity is mocked.
 
 Before: the actual Host traverses thinking/working/idle while the sidebar stays idle and the composer has no activity avatar. The directly admitted Human DM path also sometimes skips publishing running; its public query is running while the Client remains pending until handled. The preserved receipt-window-before.json shows this additional symptom.
 

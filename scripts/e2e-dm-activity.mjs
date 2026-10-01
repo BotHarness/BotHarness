@@ -69,6 +69,17 @@ const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] 
 const page = await browser.newPage();
 await page.setViewport({ width: 1500, height: 1180 });
 await page.setExtraHTTPHeaders({ cookie });
+async function screenshot(name) {
+  await page.evaluate((qaHome) => {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const text = walker.currentNode;
+      if (text.nodeValue?.includes(qaHome))
+        text.nodeValue = text.nodeValue.split(qaHome).join('[isolated QA home]');
+    }
+  }, home);
+  await page.screenshot({ path: resolve(evidence, name) });
+}
 const frames = [],
   events = [];
 const cdp = await page.createCDPSession();
@@ -128,7 +139,7 @@ try {
     await page.click('button[aria-label="收起侧边栏"],button[aria-label="Collapse sidebar"]');
     await page.waitForSelector('.bh-region-rail');
   }
-  await page.screenshot({ path: resolve(evidence, 'idle.png') });
+  await screenshot('idle.png');
   const initialSend = await rpc('channelSend', {
     channelId,
     body: 'Use native glob to inspect your Memory Repository, then use native write to create activity-qa.txt containing the line activity verified. Read that file using native read. Then use the native Shell tool to run exactly node -e \"setTimeout(() => {}, 2000)\" once; this is a harmless two-second timer. Finally send the exact phrase "DM activity confirmed" in this DM using channel_send. Do not delegate or change any other file. Use Shell only for that exact timer command.',
@@ -158,7 +169,7 @@ try {
     );
     frames.push({ host: host?.aggregateState, ...dom });
     if (!activeCaptured && host?.aggregateState === 'working') {
-      await page.screenshot({ path: resolve(evidence, 'active.png') });
+      await screenshot('active.png');
       activeCaptured = true;
     }
     if (process.env.BH_E2E_STEER === '1' && !steered && host?.aggregateState === 'working') {
@@ -211,7 +222,7 @@ try {
       break;
     await new Promise((r) => setTimeout(r, 200));
   }
-  await page.screenshot({ path: resolve(evidence, 'settled.png') });
+  await screenshot('settled.png');
   writeFileSync(
     resolve(evidence, 'proof.json'),
     JSON.stringify(
