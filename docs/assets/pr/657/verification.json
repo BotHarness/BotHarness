@@ -1,0 +1,29 @@
+{
+  "summary": {
+    "rows": 3,
+    "quantity": 7,
+    "total": 60
+  },
+  "originalUnchanged": true,
+  "csvPreserved": true,
+  "sourceBytes": 170,
+  "resultBytes": 322,
+  "originalSha256": "39c6928f4fc1a7a7439a0814f6da5ab314ed9f34b6f1d39f4154659402c89c84",
+  "resultSha256": "df10089275452040e81fe4247d7b33d9d22ca84cc02310ec3e963bb9cd7674ef",
+  "acceptedIntents": 2,
+  "remoteAppFiles": 2,
+  "noResend": true,
+  "runtimeRevision": "d2c07f2c21240c8ba2fda8d909b164b2133489c1",
+  "baseClientRevision": "caa9ec3f",
+  "clientViewport": {
+    "width": 484,
+    "height": 827,
+    "theme": "dark",
+    "locale": "en"
+  },
+  "testResults": {
+    "passed": 1749,
+    "skipped": 2
+  },
+  "providerRevision": "3784a5cb2e5a2aec6eb3a89c9eccf5426b9fb103"
+}
