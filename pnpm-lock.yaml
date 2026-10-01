@@ -554,6 +554,9 @@ importers:
       '@deepseek-ai/dsh-sandbox-policy':
         specifier: 0.2.0-rc.1
         version: 0.2.0-rc.1(c28dfba7d45104b9c55b6fb1d2a8becc)
+      '@deepseek-ai/dsh-scope':
+        specifier: 0.2.0-rc.1
+        version: 0.2.0-rc.1(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.1(@deepseek-ai/cordis@4.0.4))
       '@deepseek-ai/dsh-session':
         specifier: 0.2.0-rc.1
         version: 0.2.0-rc.1(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-scope@0.2.0-rc.1(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.1(@deepseek-ai/cordis@4.0.4)))
@@ -572,6 +575,12 @@ importers:
       '@deepseek-ai/dsh-token-meter':
         specifier: 0.2.0-rc.1
         version: 0.2.0-rc.1(39c7013d37c5d63b126f8d1326aa7efb)
+      '@deepseek-ai/dsh-tool-bash':
+        specifier: 0.2.0-rc.1
+        version: 0.2.0-rc.1(1036d21c7e0a185a2521aa4ba1882716)
+      '@deepseek-ai/dsh-tool-fs':
+        specifier: 0.2.0-rc.1
+        version: 0.2.0-rc.1(1d3e891cf015ed8a932ee5077f3f3c25)
       '@deepseek-ai/dsh-tools':
         specifier: 0.2.0-rc.1
         version: 0.2.0-rc.1(44958e8f826516598aa7d335d84aa068)

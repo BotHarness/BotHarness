@@ -268,6 +268,7 @@ export interface BridgeMethods {
   grants(payload: unknown): BridgeResult<{ grants: WorkspaceGrant[] }>;
   grantCreate(payload: unknown): Promise<BridgeResult<{ grant: WorkspaceGrant }>>;
   grantRevoke(payload: unknown): BridgeResult<{ grant: WorkspaceGrant }>;
+  grantWriteSet(payload: unknown): BridgeResult<{ grant: WorkspaceGrant }>;
   assignmentAccessGet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
   assignmentAccessSet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
   toolApprovalRules(payload: unknown): BridgeResult<{ rules: ToolApprovalRule[] }>;
@@ -2101,6 +2102,29 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         if (error instanceof WorkspaceGrantError) {
           return { ok: false, error: { code: error.code, message: error.message } };
         }
+        throw error;
+      }
+    },
+    grantWriteSet(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const grantId = asNonBlank(source, 'grantId');
+      const enabled = source?.['enabled'];
+      if (slug === undefined || grantId === undefined || typeof enabled !== 'boolean')
+        return invalidInput('slug, grantId and boolean enabled are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.grants === undefined)
+        return {
+          ok: false,
+          error: { code: 'unavailable', message: 'Workspace Grants are unavailable' },
+        };
+      try {
+        const grant = deps.grants.setOrchestratorWrite(slug, grantId, enabled);
+        deps.toolApproval?.cancelInvalid();
+        return { ok: true, value: { grant } };
+      } catch (error) {
+        if (error instanceof WorkspaceGrantError)
+          return { ok: false, error: { code: error.code, message: error.message } };
         throw error;
       }
     },

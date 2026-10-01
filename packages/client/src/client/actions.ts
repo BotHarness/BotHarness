@@ -38,6 +38,7 @@ import {
   type ToolApprovalRuleView,
   createWorkspaceGrant,
   revokeWorkspaceGrant,
+  setWorkspaceGrantWrite,
   loadToolApprovalStatus,
   decideToolApproval,
   loadUserQuestionStatus,
@@ -308,6 +309,11 @@ export interface BridgeActions {
   listWorkspaceGrants(slug: string): Promise<WorkspaceGrantView[]>;
   createWorkspaceGrant(slug: string, workspaceId: string): Promise<WorkspaceGrantView>;
   revokeWorkspaceGrant(slug: string, grantId: string): Promise<WorkspaceGrantView>;
+  setWorkspaceGrantWrite(
+    slug: string,
+    grantId: string,
+    enabled: boolean,
+  ): Promise<WorkspaceGrantView>;
   assignmentAccess(slug: string): Promise<AssignmentAccessPresetView>;
   setAssignmentAccess(
     slug: string,
@@ -771,6 +777,8 @@ export function createActions(
     listWorkspaceGrants: (slug) => loadWorkspaceGrants(call, slug),
     createWorkspaceGrant: (slug, workspaceId) => createWorkspaceGrant(call, slug, workspaceId),
     revokeWorkspaceGrant: (slug, grantId) => revokeWorkspaceGrant(call, slug, grantId),
+    setWorkspaceGrantWrite: (slug, grantId, enabled) =>
+      setWorkspaceGrantWrite(call, slug, grantId, enabled),
     assignmentAccess: (slug) => loadAssignmentAccess(call, slug),
     setAssignmentAccess: (slug, mode, acknowledgeRisk) =>
       setAssignmentAccess(call, slug, mode, acknowledgeRisk),

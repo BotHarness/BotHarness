@@ -513,6 +513,29 @@ export function WorkspaceGrantsEntry({
               />
             }
             disabled={busy !== undefined}
+            detail={
+              <label className="bh-assignment-access-row">
+                <span>{t('grant.orchestratorWrite')}</span>
+                <Switch
+                  checked={grant.orchestratorWrite === true}
+                  disabled={busy !== undefined}
+                  label={t('grant.orchestratorWrite') + ': ' + grant.workspaceTitle}
+                  onChange={(enabled) =>
+                    mutate(grant.id, async () => {
+                      const updated = await actions.setWorkspaceGrantWrite(
+                        botSlug,
+                        grant.id,
+                        enabled,
+                      );
+                      const current = cachedWorkspace(actions, botSlug)?.grants ?? grants;
+                      const next = current.map((row) => (row.id === updated.id ? updated : row));
+                      rememberWorkspace(actions, botSlug, { grants: next });
+                      if (activeSlug.current === botSlug) setGrants(next);
+                    })
+                  }
+                />
+              </label>
+            }
             removeLabel={t('grant.removeFolder') + ': ' + grant.workspaceTitle}
             remove={() =>
               mutate(grant.id, async () => {

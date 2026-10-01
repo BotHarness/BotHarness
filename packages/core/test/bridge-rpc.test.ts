@@ -120,6 +120,7 @@ describe('bridge typert service', () => {
       'grants',
       'grantCreate',
       'grantRevoke',
+      'grantWriteSet',
       'assignmentAccessGet',
       'assignmentAccessSet',
       'toolApprovalRules',

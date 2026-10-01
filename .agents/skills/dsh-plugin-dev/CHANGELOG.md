@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded isolated Provider activation order, native Consumer Policy capture and the actual Tool execution boundary in the [local development guide](../dsh-dev/SKILL.md), verified with pinned DSH 0.2.0 RC1 native file and approved Shell calls ([#632](https://github.com/BotHarness/BotHarness/issues/632)).
+
 - Clarified native token projection totals and dispatch-route attribution for failed attempts in the [local development guide](../dsh-dev/SKILL.md), verified against DSH 0.2.0 RC1 with real Assignment and Subagent calls ([#503](https://github.com/BotHarness/BotHarness/issues/503)).
 
 - Documented optional Bundle preservation when restarting an isolated development Profile ([#117](https://github.com/BotHarness/BotHarness/issues/117)).

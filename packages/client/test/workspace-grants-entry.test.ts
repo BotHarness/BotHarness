@@ -10,7 +10,26 @@ import { WorkspaceGrantsEntry } from '../src/client/workspace-grants-entry.js';
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
-  Switch: () => null,
+  Switch: ({
+    checked,
+    disabled,
+    label,
+    onChange,
+  }: {
+    checked: boolean;
+    disabled?: boolean;
+    label: string;
+    onChange(value: boolean): void;
+  }) =>
+    createElement('input', {
+      type: 'checkbox',
+      role: 'switch',
+      checked,
+      disabled,
+      'aria-label': label,
+      onChange: (event: { currentTarget: { checked: boolean } }) =>
+        onChange(event.currentTarget.checked),
+    }),
   Modal: () => null,
   Input: () => null,
   IconChevronDownOutlineRegular: () => null,
@@ -19,6 +38,80 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 }));
 
 describe('Workspace Grant sidebar', () => {
+  it('keeps write permission off until the Host confirms and preserves it when revocation fails', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    let grant = {
+      id: 'write-grant',
+      botSlug: 'write-test',
+      workspaceId: 'write-workspace',
+      workspacePath: '/tmp/write-project',
+      workspaceTitle: 'write project',
+      createdAt: '2026-10-01T00:00:00.000Z',
+      orchestratorWrite: false,
+      writeRevision: 0,
+    };
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const setWorkspaceGrantWrite = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        await pending;
+        grant = { ...grant, orchestratorWrite: true, writeRevision: 1 };
+        return grant;
+      })
+      .mockRejectedValueOnce(new Error('Host rejected permission change'));
+    const actions = {
+      listWorkspaceOptions: vi.fn(async () => []),
+      listWorkspaceGrants: vi.fn(async () => [grant]),
+      memoryDirectory: vi.fn(async () => '/tmp/memory'),
+      listToolApprovalRules: vi.fn(async () => []),
+      assignmentAccess: vi.fn(async () => ({ mode: 'workspace-write' })),
+      setWorkspaceGrantWrite,
+    } as unknown as BridgeActions;
+    try {
+      await act(async () =>
+        root.render(
+          createElement(WorkspaceGrantsEntry, {
+            scope: 'personabot',
+            channelId: 'dm-write-test',
+            botSlug: 'write-test',
+            actions,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      const expand = Array.from(container.querySelectorAll('button')).find(
+        (button) => button.textContent === 'write project',
+      )!;
+      act(() => expand.click());
+      const toggle = () =>
+        container.querySelector('input[aria-label*="write project"]') as HTMLInputElement;
+      expect(toggle().checked).toBe(false);
+      await act(async () => toggle().click());
+      expect(setWorkspaceGrantWrite).toHaveBeenCalledWith('write-test', 'write-grant', true);
+      expect(toggle().checked).toBe(false);
+      expect(toggle().disabled).toBe(true);
+      await act(async () => {
+        release();
+        await pending;
+      });
+      expect(toggle().checked).toBe(true);
+      expect(toggle().disabled).toBe(false);
+      await act(async () => toggle().click());
+      expect(setWorkspaceGrantWrite).toHaveBeenLastCalledWith('write-test', 'write-grant', false);
+      expect(toggle().checked).toBe(true);
+      expect(toggle().disabled).toBe(false);
+      expect(container.textContent).toContain('Host rejected permission change');
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
   it('shows cached Grants immediately when returning to the same PersonaBot', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');

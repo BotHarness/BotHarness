@@ -10,6 +10,8 @@ export interface WorkspaceGrant {
   workspaceTitle: string;
   createdAt: string;
   revokedAt?: string;
+  orchestratorWrite?: boolean;
+  writeRevision?: number;
 }
 
 export interface AssignmentPermissionSnapshot {
@@ -45,6 +47,7 @@ export interface WorkspaceGrantStore {
   create(botSlug: string, workspaceId: string): Promise<WorkspaceGrant>;
   revoke(botSlug: string, grantId: string): WorkspaceGrant;
   requireActive(botSlug: string, grantId: string): WorkspaceGrant;
+  setOrchestratorWrite(botSlug: string, grantId: string, enabled: boolean): WorkspaceGrant;
   availableWorkspaces(): { id: string; path: string; title: string }[];
 }
 
@@ -56,6 +59,8 @@ interface GrantRow {
   workspace_title: string;
   created_at: string;
   revoked_at: string | null;
+  orchestrator_write: number;
+  write_revision: number;
 }
 function toRecord(row: GrantRow): WorkspaceGrant {
   return {
@@ -65,6 +70,8 @@ function toRecord(row: GrantRow): WorkspaceGrant {
     workspacePath: row.workspace_path,
     workspaceTitle: row.workspace_title,
     createdAt: row.created_at,
+    orchestratorWrite: row.orchestrator_write === 1,
+    writeRevision: row.write_revision,
     ...(row.revoked_at === null ? {} : { revokedAt: row.revoked_at }),
   };
 }
@@ -220,6 +227,23 @@ export function createWorkspaceGrantStore(options: {
         );
       }
       return grant;
+    },
+    setOrchestratorWrite(botSlug, grantId, enabled) {
+      this.requireActive(botSlug, grantId);
+      const row = database.transaction(
+        (connection) => {
+          connection
+            .prepare(`UPDATE workspace_grants
+          SET orchestrator_write = ?, write_revision = write_revision + 1
+          WHERE bot_slug = ? AND id = ? AND revoked_at IS NULL AND orchestrator_write != ?`)
+            .run(enabled ? 1 : 0, botSlug, grantId, enabled ? 1 : 0);
+          return connection
+            .prepare('SELECT * FROM workspace_grants WHERE bot_slug = ? AND id = ?')
+            .get(botSlug, grantId) as unknown as GrantRow;
+        },
+        ['workspace-grants'],
+      );
+      return toRecord(row);
     },
     availableWorkspaces() {
       return lookup()
