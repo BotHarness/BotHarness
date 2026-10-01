@@ -520,12 +520,18 @@ function GrantRequestCard({
 
 function leadingBotMentions(message: ChannelMessage):
   | {
-      mentions: NonNullable<ChannelMessage['mentions']>;
+      mentions: (
+        | NonNullable<ChannelMessage['mentions']>[number]
+        | NonNullable<ChannelMessage['humanMentions']>[number]
+      )[];
       text: string;
     }
   | undefined {
-  if (message.author.kind !== 'bot' || !message.mentions?.length) return undefined;
-  const mentions = [...message.mentions].sort((left, right) => left.start - right.start);
+  if (message.author.kind !== 'bot') return undefined;
+  const mentions = [...(message.mentions ?? []), ...(message.humanMentions ?? [])].sort(
+    (left, right) => left.start - right.start,
+  );
+  if (mentions.length === 0) return undefined;
   let cursor = 0;
   for (const mention of mentions) {
     if (
@@ -600,7 +606,22 @@ export function ChannelMessageBody({
     );
   }
   const leading = format === 'markdown' ? leadingBotMentions(message) : undefined;
-  const renderMention = (mention: NonNullable<ChannelMessage['mentions']>[number], key: number) => {
+  const renderMention = (
+    mention:
+      | NonNullable<ChannelMessage['mentions']>[number]
+      | NonNullable<ChannelMessage['humanMentions']>[number],
+    key: number,
+  ) => {
+    if ('humanId' in mention)
+      return (
+        <span
+          key={key}
+          className="bh-inline-mention bh-inline-mention-sent"
+          data-human-id={mention.humanId}
+        >
+          @{mention.label}
+        </span>
+      );
     const bot = bots.find((candidate) => candidate.slug === mention.botSlug);
     const badge = (
       <>
@@ -671,15 +692,21 @@ export function ChannelMessageBody({
     <div className="bh-bubble-content">
       {message.body.length === 0 ? null : format === 'text' ? (
         <div className="bh-bubble-body">
-          {referenceRuns(message.body, message.mentions ?? [], message.channelRefs ?? []).map(
-            (run, index) =>
-              run.mention !== undefined ? (
-                renderMention(run.mention, index)
-              ) : run.channelRef !== undefined ? (
-                renderChannelRef(run.channelRef, index)
-              ) : (
-                <span key={index}>{run.text}</span>
-              ),
+          {referenceRuns(
+            message.body,
+            message.mentions ?? [],
+            message.channelRefs ?? [],
+            message.humanMentions ?? [],
+          ).map((run, index) =>
+            run.mention !== undefined ? (
+              renderMention(run.mention, index)
+            ) : run.humanMention !== undefined ? (
+              renderMention(run.humanMention, index)
+            ) : run.channelRef !== undefined ? (
+              renderChannelRef(run.channelRef, index)
+            ) : (
+              <span key={index}>{run.text}</span>
+            ),
           )}
         </div>
       ) : (

@@ -165,6 +165,7 @@ export interface ChannelMessage {
   memorySwitchTarget?: string;
 
   mentions?: ChannelMention[];
+  humanMentions?: { humanId: string; label: string; start: number; end: number }[];
   channelRefs?: ChannelReference[];
 
   channelRevision?: number;
@@ -462,6 +463,27 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
           !Number.isSafeInteger(item.end) ||
           item.start < 0 ||
           item.end <= item.start,
+      ))
+  )
+    return false;
+  const humanMentions = message['humanMentions'];
+  if (
+    humanMentions !== undefined &&
+    (!Array.isArray(humanMentions) ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'bot' ||
+      humanMentions.some(
+        (item) =>
+          typeof item !== 'object' ||
+          item === null ||
+          typeof item.humanId !== 'string' ||
+          item.humanId.length === 0 ||
+          typeof item.label !== 'string' ||
+          item.label.length === 0 ||
+          !Number.isSafeInteger(item.start) ||
+          !Number.isSafeInteger(item.end) ||
+          item.start < 0 ||
+          item.end <= item.start ||
+          (message['body'] as string).slice(item.start, item.end) !== '@' + item.label,
       ))
   )
     return false;

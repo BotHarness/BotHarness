@@ -1067,6 +1067,7 @@ describe('DSH Bot Agent adapter', () => {
                         type: 'dm' as const,
                         kind: 'human-dm' as const,
                         members: [],
+                        humanMembers: [],
                       },
                     ],
             };

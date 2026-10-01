@@ -168,6 +168,28 @@ describe('Channel message body', () => {
     });
   });
 
+  it('shows mixed Bot/Human targets without turning the Human into a Bot DM link', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelMessageBody, {
+        message: {
+          id: 'mixed',
+          at: '2026-09-30T00:00:00Z',
+          author: { kind: 'bot', slug: 'ada' },
+          body: '@Bea @Human **please confirm**',
+          mentions: [{ botSlug: 'bea', label: 'Bea', start: 0, end: 4 }],
+          humanMentions: [{ humanId: 'local-human', label: 'Human', start: 5, end: 11 }],
+        },
+        t: zhTranslate,
+        actions: { openBot: vi.fn() } as unknown as BridgeActions,
+      }),
+    );
+    expect(markup).toContain('data-human-id="local-human">@Human</span>');
+    expect(markup).not.toContain('data-bot-id="local-human"');
+    expect(vi.mocked(MarkdownText).mock.calls[0]?.[0]).toMatchObject({
+      text: '**please confirm**',
+    });
+  });
+
   it('opens the selected Bot DM by stable ID even when display names are identical', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');

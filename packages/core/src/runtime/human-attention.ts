@@ -18,7 +18,8 @@ export interface HumanAttentionItem {
     | 'assignment-report'
     | 'bot-message-needs-repair'
     | 'channel-unread'
-    | 'channel-reply';
+    | 'channel-reply'
+    | 'channel-mention';
   createdAt: string;
   channelId?: string;
   channelName?: string;
@@ -81,7 +82,13 @@ const CHANNEL_ATTENTION_CTE = `
                  AND json_extract(e.payload_json, '$.author.kind') = 'bot'
                  AND json_extract(target.payload_json, '$.author.kind') = 'human'
                  AND original.revision >= m.visible_from_revision
-                THEN 1 ELSE 0 END AS is_reply
+                THEN 1 ELSE 0 END AS is_reply,
+           CASE WHEN json_extract(c.record_json, '$.type') = 'group'
+                 AND json_extract(e.payload_json, '$.author.kind') = 'bot'
+                 AND EXISTS (
+                   SELECT 1 FROM json_each(e.payload_json, '$.humanMentions') mention
+                    WHERE json_extract(mention.value, '$.humanId') = m.human_id
+                 ) THEN 1 ELSE 0 END AS is_mention
       FROM channel_placements p
       JOIN source_events e ON e.source_event_id = p.source_event_id
       JOIN channel_records c ON c.channel_id = p.channel_id
@@ -154,9 +161,9 @@ export function createHumanAttentionQuery(
             .prepare(`${CHANNEL_ATTENTION_CTE}
           SELECT 'reply:' || source_event_id AS id, channel_id, channel_name,
                  created_at, message_id, source_event_id, body AS summary, bot_slug,
-                 revision > read_revision AS is_unread
+                 revision > read_revision AS is_unread, is_mention
             FROM visible_messages
-           WHERE is_reply = 1
+           WHERE (is_reply = 1 OR is_mention = 1)
              AND (? IS NULL OR bot_slug = ?)
              AND (? IS NULL OR channel_id = ?)
              AND (? IS NULL OR created_at ${cursorComparison} ? OR
@@ -187,6 +194,7 @@ export function createHumanAttentionQuery(
           summary: string;
           bot_slug: string;
           is_unread: number;
+          is_mention: number;
         }>;
         const page = rows.slice(0, limit);
         const last = page.at(-1);
@@ -194,7 +202,7 @@ export function createHumanAttentionQuery(
           items: page.map((row) => ({
             id: row.id,
             category: 'replies',
-            kind: 'channel-reply',
+            kind: row.is_mention === 1 ? 'channel-mention' : 'channel-reply',
             createdAt: row.created_at,
             channelId: row.channel_id,
             channelName: row.channel_name,
@@ -224,7 +232,7 @@ export function createHumanAttentionQuery(
             db
               .prepare(`${CHANNEL_ATTENTION_CTE},
           filtered_unread AS (
-            SELECT * FROM visible_unread WHERE is_reply = 0 AND (? IS NULL OR bot_slug = ?)
+            SELECT * FROM visible_unread WHERE is_reply = 0 AND is_mention = 0 AND (? IS NULL OR bot_slug = ?)
           ),
           unread_channels AS (
             SELECT channel_id, count(DISTINCT source_event_id) AS unread_count, max(revision) AS last_revision
