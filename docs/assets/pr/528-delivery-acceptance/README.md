@@ -6,7 +6,8 @@ This first acceptance slice repairs the public Remote adapter for the existing H
 
 - DSH 0.2.0-rc.1, DeepSeek Flash / low, isolated Web Profile.
 - `steer/proof.json`: a real Shell approval holds Turn 1; a second Human DM is admitted while that Turn is open, both messages finish, and native Session history contains exactly one Turn start/end.
-- `turn/edit-turn.png` and `turn/policy.png`: Human changes the existing Profile modal to queue-only, saves and sees revision 2. The separate-Turn and restart checks are completed before Human QA.
+- `turn/edit-turn.png` and `turn/final-policy.png`: Human changes the existing Profile modal to queue-only, saves and sees revision 2; `turn/proof.json` contains exactly two native Turn starts/ends, and both DMs are handled.
+- A queued prompt can already have a claimed/running Admission while waiting for Turn 1 to end; native Turn events distinguish queue delivery from a steer. The test does not infer Turn identity from a receipt or activity label.
 - Approval is restricted to the exact harmless command `node -e "setTimeout(() => {}, 2000)"`, for this fixture's Orchestrator; machine-local approval directory text is redacted in screenshots.
 
 ## Reproduce

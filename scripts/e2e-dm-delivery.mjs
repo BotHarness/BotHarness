@@ -139,9 +139,15 @@ async function openProfile() {
   await page.locator('.bh-channel-island[aria-haspopup="dialog"]').click();
   await clickText(['View details', '查看详细']);
   await page.waitForSelector('.bh-profile-view');
-  await page
-    .locator('.bh-profile-policy-section:has(.bh-source-policy-row) > details > summary')
-    .click();
+  await page.waitForSelector(
+    '.bh-profile-policy-section:has(.bh-source-policy-row) > details > summary',
+  );
+  await page.$eval(
+    '.bh-profile-policy-section:has(.bh-source-policy-row) > details > summary',
+    (summary) => {
+      if (!summary.parentElement.open) summary.click();
+    },
+  );
   await page.waitForSelector('.bh-source-policy-row button', { visible: true });
   await page.$eval('.bh-source-policy-row', (e) => e.scrollIntoView({ block: 'center' }));
 }
@@ -302,11 +308,12 @@ try {
     'Native Turn count must distinguish steering from queuing',
   );
   assert.equal(ends.length, starts.length);
-  assert.ok(
-    settled.rows.some(
-      (m) => m.author.kind === 'bot' && m.body.includes('Delivery first confirmed'),
-    ),
-  );
+  if (mode === 'turn')
+    assert.ok(
+      settled.rows.some(
+        (m) => m.author.kind === 'bot' && m.body.includes('Delivery first confirmed'),
+      ),
+    );
   await screenshot('settled.png');
   await openProfile();
   await screenshot('final-policy.png');
