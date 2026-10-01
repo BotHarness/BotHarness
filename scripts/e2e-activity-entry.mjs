@@ -3,7 +3,6 @@ import { createRequire } from 'node:module';
 import { basename, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
-import { createCore } from '../packages/core/dist/index.mjs';
 import { fileURLToPath } from 'node:url';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const mode = process.argv[2] ?? 'check';
@@ -13,6 +12,7 @@ const out = resolve(repo, '.humanlayer/tasks/issue-679', mode === 'before' ? 'be
 mkdirSync(out, { recursive: true });
 
 if (mode === 'seed') {
+  const { createCore } = await import('../packages/core/dist/index.mjs');
   const core = createCore({
     dshHome: home,
     agents: {
@@ -169,6 +169,8 @@ const login = async (client) => {
 try {
   await login(page);
   console.log('Authenticated isolated DSH');
+  await theme(true);
+  await shot('native-mode-dark');
   console.log('Opening activity entry');
   await page.click('.bh-panel-activity');
   await page.waitForSelector('.bh-overview').catch(async (error) => {

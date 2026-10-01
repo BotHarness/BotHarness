@@ -30,9 +30,10 @@ export const CSS =
   --bh-inbox-radius-control: 6px;
   /* @bh-inbox-reply-aliases:end */
   /* @bh-overview-aliases:start — pinned DSH has no radius tokens; use the
-     measured native project row (8px) and compact control (6px). */
+     measured native project row (8px), compact control (6px), and collapsed
+     Bot mode button (12px, DSH 0.2.0-rc.1). */
   --bh-overview-radius-card: 8px;
-  --bh-entry-radius-rail: 10px;
+  --bh-entry-radius-rail: 12px;
   --bh-overview-radius-control: 6px;
   --bh-overview-label: var(--dsw-alias-label-primary);
   --bh-overview-muted: var(--dsw-alias-label-secondary);
