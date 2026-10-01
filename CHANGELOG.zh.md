@@ -15,6 +15,8 @@
 
 ### Added
 
+- Human 可在 Human Inbox 查看实时工具请求并原位批准或拒绝，同时展开来源附近消息或准确跳转。决定沿用来源 DM 命令，移除已解决待办、保留其他 Bot 的独立请求，并刷新过期卡片（[#550](https://github.com/BotHarness/BotHarness/issues/550)）。
+
 - Human 参与的 DM 与群聊头部菜单支持“我的昵称”；各 Channel 独立设置，清除后继承插件默认名，历史提及、Inbox 与 Bot 上下文使用来源 Channel 的当前称呼，不改变身份或注意力（[#622](https://github.com/BotHarness/BotHarness/issues/622)）。
 
 - PersonaBot 用量新增实际模型／提供商与执行类别筛选，独立展示保留的累计用量，图表默认近七天，并明确显示查询新鲜度或失败状态 ([#507](https://github.com/BotHarness/BotHarness/issues/507)).

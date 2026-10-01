@@ -15,6 +15,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Humans can inspect a live tool request and approve or reject it directly in Human Inbox, with expandable source messages and exact navigation. Decisions use the source DM command, remove the resolved action while leaving other Bots independent, and refresh stale requests ([#550](https://github.com/BotHarness/BotHarness/issues/550)).
+
 - Human-participating DM and Group headers now offer My nickname; independent Channel names inherit the plugin default when cleared, and historical mentions plus Inbox and Bot context use their source Channel name without changing identity or attention ([#622](https://github.com/BotHarness/BotHarness/issues/622)).
 
 - Added actual model/provider and execution-role filters to PersonaBot usage, with separate retained all-time totals, a seven-day chart default, and visible query freshness or failures ([#507](https://github.com/BotHarness/BotHarness/issues/507)).

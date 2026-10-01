@@ -788,8 +788,37 @@ export function createActions(
     revokeToolApprovalRule: (slug, id) => revokeToolApprovalRule(call, slug, id),
     toolApprovalStatus: (channelId, messageId) =>
       loadToolApprovalStatus(call, channelId, messageId),
-    decideToolApproval: (channelId, messageId, outcome) =>
-      decideToolApproval(call, channelId, messageId, outcome),
+    async decideToolApproval(channelId, messageId, outcome) {
+      let resolved = false;
+      try {
+        await decideToolApproval(call, channelId, messageId, outcome);
+        resolved = true;
+      } finally {
+        if (!resolved) {
+          try {
+            resolved = (await loadToolApprovalStatus(call, channelId, messageId)) === 'expired';
+          } catch {}
+        }
+        if (resolved)
+          clientStore.setHumanInbox({
+            items: clientStore
+              .getSnapshot()
+              .humanInbox.items.filter(
+                (item) =>
+                  item.kind !== 'tool-approval' ||
+                  item.channelId !== channelId ||
+                  item.messageId !== messageId,
+              ),
+          });
+        const selection = currentSelection();
+        await Promise.allSettled([
+          refreshHumanInboxStatus(),
+          ...(selection?.kind === 'inbox'
+            ? [loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection)]
+            : []),
+        ]);
+      }
+    },
     userQuestionStatus: (channelId, messageId) =>
       loadUserQuestionStatus(call, channelId, messageId),
     answerUserQuestion: (channelId, messageId, answers) =>
@@ -919,7 +948,12 @@ export function createActions(
         humanInboxScopeVersion += 1;
         clientStore.setHumanInbox({
           category: nextCategory,
-          sort: nextCategory === 'replies' ? 'newest' : prior.sort,
+          sort:
+            nextCategory === 'action'
+              ? 'oldest'
+              : nextCategory === 'replies'
+                ? 'newest'
+                : prior.sort,
           botSlug: nextCategory === 'unread' ? undefined : prior.botSlug,
           channelId: undefined,
           status: 'loading',

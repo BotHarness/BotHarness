@@ -124,6 +124,8 @@ function ToolApprovalCard({
   t: BotHarnessTranslate;
 }): ReactElement {
   const request = message.toolApprovalRequest!;
+  const [acceptedDecision, setAcceptedDecision] = useState<typeof decision>();
+  const effectiveDecision = decision ?? acceptedDecision;
   const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
   const [status, setStatus] = useState<'loading' | 'pending' | 'expired' | 'decided'>(
     decision === undefined ? 'loading' : 'decided',
@@ -169,7 +171,10 @@ function ToolApprovalCard({
     setBusy(true);
     setError(undefined);
     const channelId = 'dm-' + botSlug;
-    if (store.getSnapshot().conversation.channel?.id !== channelId) {
+    if (
+      store.getSnapshot().selection?.kind !== 'inbox' &&
+      store.getSnapshot().conversation.channel?.id !== channelId
+    ) {
       setError(t('approval.channelChanged'));
       setBusy(false);
       return;
@@ -177,7 +182,10 @@ function ToolApprovalCard({
     void actions
       .decideToolApproval(channelId, message.id, outcome)
       .then(
-        () => setStatus('decided'),
+        () => {
+          setAcceptedDecision(outcome);
+          setStatus('decided');
+        },
         (cause: unknown) => {
           return actions.toolApprovalStatus(channelId, message.id).then(
             (latest) => {
@@ -204,11 +212,11 @@ function ToolApprovalCard({
       <div className="bh-note">{t('approval.cwd', { path: request.cwd })}</div>
       <pre className="bh-tool-approval-input">{request.input}</pre>
       <div className="bh-note">{t('approval.risk')}</div>
-      {decision !== undefined ? (
+      {effectiveDecision !== undefined ? (
         <div role="status" className="bh-note">
-          {decision === 'rejected'
+          {effectiveDecision === 'rejected'
             ? t('approval.rejected')
-            : decision === 'allowed-once'
+            : effectiveDecision === 'allowed-once'
               ? t('approval.approved')
               : t('approval.ruleSaved')}
         </div>

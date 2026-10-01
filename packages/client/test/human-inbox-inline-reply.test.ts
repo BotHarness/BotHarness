@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  Button: ({ children, ...props }: { children: ReactNode }) =>
+    createElement('button', props, children),
+  MarkdownText: () => null,
+  StateDot: () => null,
+  Modal: () => null,
+  Input: () => null,
+}));
 
 vi.mock('../src/client/bot-sidebar.js', async () => {
   const { useSyncExternalStore } = await import('react');
