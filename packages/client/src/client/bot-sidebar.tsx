@@ -637,7 +637,7 @@ export function BotSidebar({
 }: SidebarProps): ReactElement {
   const state = useClientState();
   const inboxEntryLabel = [
-    t('humanInbox.title'),
+    t('activityCenter.title'),
     ...(state.humanInbox.unreadCount > 0
       ? [t('humanInbox.unreadCount', { count: String(state.humanInbox.unreadCount) })]
       : []),
@@ -1380,9 +1380,9 @@ export function BotSidebar({
           ref={inboxEntryMount}
           aria-label={inboxEntryLabel}
           aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
-          onClick={() => void actions.openHumanInbox()}
+          onClick={() => void actions.openActivityCenter()}
         >
-          {t('humanInbox.title')}
+          {t('activityCenter.title')}
           {state.humanInbox.unreadCount > 0 ? (
             <span className="bh-human-inbox-count">{state.humanInbox.unreadCount}</span>
           ) : null}
@@ -1469,9 +1469,9 @@ export function BotSidebar({
         ref={inboxEntryMount}
         aria-label={inboxEntryLabel}
         aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
-        onClick={() => void actions.openHumanInbox()}
+        onClick={() => void actions.openActivityCenter()}
       >
-        {t('humanInbox.title')}
+        {t('activityCenter.title')}
         {state.humanInbox.unreadCount > 0 ? (
           <span className="bh-human-inbox-count">{state.humanInbox.unreadCount}</span>
         ) : null}

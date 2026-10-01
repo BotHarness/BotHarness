@@ -141,6 +141,13 @@ export class ChannelUserQuestions {
       .map(([messageId]) => messageId);
   }
 
+  activeSessionIds(): string[] {
+    return this.activeMessageIds().flatMap((id) => {
+      const pending = this.#pending.get(id);
+      return pending === undefined ? [] : [pending.agent.session.id];
+    });
+  }
+
   status(botSlug: string, messageId: string): 'pending' | 'expired' {
     const pending = this.#pending.get(messageId);
     if (pending === undefined || pending.botSlug !== botSlug) return 'expired';

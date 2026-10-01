@@ -29,6 +29,17 @@ export const CSS =
   --bh-inbox-radius-panel: 8px;
   --bh-inbox-radius-control: 6px;
   /* @bh-inbox-reply-aliases:end */
+  /* @bh-overview-aliases:start — pinned DSH has no radius tokens; use the
+     measured native project row (8px) and compact control (6px). */
+  --bh-overview-radius-card: 8px;
+  --bh-overview-radius-control: 6px;
+  --bh-overview-label: var(--dsw-alias-label-primary);
+  --bh-overview-muted: var(--dsw-alias-label-secondary);
+  --bh-overview-subtle: var(--dsw-alias-label-tertiary);
+  --bh-overview-border: var(--dsw-alias-border-l2);
+  --bh-overview-bg: var(--dsw-alias-bg-base);
+  --bh-overview-font: var(--dsh-content-font-size);
+  /* @bh-overview-aliases:end */
   font: 13px/1.5 var(--dsw-font-family);
   color: var(--dsw-alias-label-primary);
 }
@@ -5139,4 +5150,32 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 .bh-human-name-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .bh-human-name-controls>div:first-child{flex:1 1 220px;min-width:0}
 .bh-human-name-setting p{margin:0}
+.bh-activity-center { display:flex;flex-direction:column;overflow:hidden; }
+.bh-activity-center-header {padding:20px 24px 0; flex-shrink:0;}
+.bh-activity-center-header h1 {margin:0 0 16px;font-size:calc(var(--bh-overview-font) + 6px);line-height:1.4;}
+.bh-activity-center > .bh-human-inbox {min-height:0;flex:1;}
+.bh-overview {padding:16px 24px 24px;overflow-y:auto;min-height:0;}
+.bh-overview-toolbar {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;}
+.bh-overview button {color:var(--bh-overview-label);font:inherit;cursor:pointer;}
+.bh-overview button:hover {background:var(--bh-hover);}
+.bh-overview button:focus-visible {outline:2px solid var(--bh-accent);outline-offset:2px;}
+.bh-overview-action-count {display:flex;align-items:center;gap:24px;padding:12px 16px;border:1px solid var(--bh-overview-border);border-radius:var(--bh-overview-radius-card);background:var(--bh-overview-bg);}
+.bh-overview-action-count strong {font-size:calc(var(--bh-overview-font) + 10px);line-height:1.2;font-variant-numeric:tabular-nums;}
+.bh-overview-refresh {margin-left:auto;padding:6px 12px;border:1px solid var(--bh-overview-border);border-radius:var(--bh-overview-radius-control);background:transparent;}
+.bh-overview-bots {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px;}
+.bh-overview-bot {min-width:0;border:1px solid var(--bh-overview-border);border-radius:var(--bh-overview-radius-card);overflow:hidden;}
+.bh-overview-bot-header {width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:12px;border:0;background:transparent;}
+.bh-overview-bot-name {min-width:0;overflow-wrap:anywhere;flex:1;font-weight:600;}
+.bh-overview-bot-state,.bh-overview-session-state {color:var(--bh-overview-muted);font-size:var(--bh-overview-font);flex-shrink:0;}
+.bh-overview-bot h2 {margin:0;padding:8px 12px;font-size:var(--bh-overview-font);line-height:18px;font-weight:500;color:var(--bh-overview-muted);border-top:1px solid var(--bh-overview-border);}
+.bh-overview-bot h2 span {margin-left:6px;font-variant-numeric:tabular-nums;}
+.bh-overview-idle {margin:0;padding:4px 12px 12px;font-size:var(--bh-overview-font);color:var(--bh-overview-subtle);}
+.bh-overview-bot ul {list-style:none;margin:0;padding:0 4px 4px;}
+.bh-overview-bot li button {display:flex;align-items:start;gap:8px;text-align:left;width:100%;padding:8px;border:0;background:transparent;border-radius:var(--bh-overview-radius-control);}
+.bh-overview-session-role {font-size:var(--bh-overview-font);color:var(--bh-overview-muted);}
+.bh-overview-session-purpose {flex:1;min-width:0;overflow-wrap:anywhere;font-size:var(--bh-overview-font);}
+@media(max-width:720px){.bh-activity-center-header{padding:16px 16px 0}.bh-overview{padding:12px 16px 16px}.bh-overview-bot li button{flex-wrap:wrap}.bh-overview-session-purpose{flex-basis:100%;order:3}}
+
+.bh-overview-session-purpose {display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.bh-overview-bots {align-items:start;}
 `;

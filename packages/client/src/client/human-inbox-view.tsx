@@ -22,8 +22,10 @@ const categoryCopy = {
 export function HumanInboxView({
   actions,
   t = zhTranslate,
+  embedded = false,
 }: {
   actions: BridgeActions;
+  embedded?: boolean;
   t?: BotHarnessTranslate | undefined;
 }): ReactElement {
   const state = useClientState();
@@ -144,13 +146,13 @@ export function HumanInboxView({
   };
 
   return (
-    <div className="bh-root bh-main bh-human-inbox" ref={mount}>
+    <div className={embedded ? 'bh-human-inbox' : 'bh-root bh-main bh-human-inbox'} ref={mount}>
       <main
         className={
           'bh-human-inbox-inner' + (replySource === undefined ? '' : ' bh-human-inbox-with-context')
         }
       >
-        <h1>{t('humanInbox.title')}</h1>
+        {embedded ? null : <h1>{t('humanInbox.title')}</h1>}
         <div className="bh-human-inbox-tabs" role="tablist" aria-label={t('humanInbox.title')}>
           {(['unread', 'replies', 'action', 'info', 'handled'] as const).map((category) => (
             <button
