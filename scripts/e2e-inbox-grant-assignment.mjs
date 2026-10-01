@@ -451,10 +451,5 @@ try {
     );
   }
 } finally {
-  for (const [index, window] of (await browser.pages()).entries()) {
-    await window
-      .screenshot({ path: resolve(out, 'last-window-' + index + '.png') })
-      .catch(() => undefined);
-  }
   await browser.close();
 }
