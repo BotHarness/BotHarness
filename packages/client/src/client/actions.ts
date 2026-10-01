@@ -5,6 +5,7 @@ import {
   type ActivityCenterTab,
 } from './last-view.js';
 import { defaultStorage, type ConfigStorage } from './roster-config.js';
+import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import { publishWorkspaceGrantChange } from './workspace-grant-events.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
@@ -20,6 +21,7 @@ import {
   revokeMessaging,
   sendMessaging,
   setMessagingReceive,
+  setMessagingGroupPolicy,
   setMessagingChannelTarget,
   readMessagingSource,
   loadMessageAttachmentTarget,
@@ -177,6 +179,7 @@ export interface HostDirectoryListing {
 
 export interface BridgeActions {
   messagingChannelTarget(slug: string, grantId: string, channelId: string | null): Promise<void>;
+  messagingGroupPolicy(slug: string, grantId: string, policy: GroupReceptionInput): Promise<void>;
   messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<void>;
   messagingSource(slug: string, sourceEventId: string): Promise<ExternalSource>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
@@ -1540,6 +1543,8 @@ export function createActions(
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
     messagingChannelTarget: (slug, grantId, channelId) =>
       setMessagingChannelTarget(call, slug, grantId, channelId),
+    messagingGroupPolicy: (slug, grantId, policy) =>
+      setMessagingGroupPolicy(call, slug, grantId, policy),
     messagingReceive: (slug, grantId, enabled) => setMessagingReceive(call, slug, grantId, enabled),
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),

@@ -423,7 +423,7 @@ it('uses existing group-mention steer when an Orchestrator is already active', a
   const waiting = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const steer = vi.fn(() => true);
+  const steer = vi.fn((_bot: string, _text: string) => true);
   const fx = await fixture({ steer, onRun: async () => waiting });
   await fx.enable();
   await fx.receive();
@@ -1111,4 +1111,274 @@ it('revoking a Channel bridge before the queued turn starts preserves its placem
   expect(fx.runs).toHaveLength(0);
   expect(fx.replies).toHaveLength(0);
   expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+});
+
+function ordinaryEvent(id: string): MessagingInboundEvent {
+  return event({
+    eventId: 'ev-' + id,
+    messageId: id,
+    text: 'Ordinary ' + id,
+    at: new Date().toISOString(),
+    mentionedAccount: false,
+    mentions: [],
+    reply: { messageId: id, conversationId: 'oc-team', actorId: 'ou-human' },
+  });
+}
+const reception = { collection: 'all', wake: 'digest', count: 2, intervalSeconds: 60 } as const;
+
+it('requires actual ordinary delivery, versions collection separately from wake, and preserves admitted facts when disabled', async () => {
+  const fx = await fixture();
+  await fx.enable();
+  await expect(
+    fx.core.externalMessaging.inbound.setPolicy('ada', fx.grant.id, reception, { kind: 'human' }),
+  ).rejects.toThrow('ordinary-delivery-unverified');
+  await fx.receive(ordinaryEvent('probe'));
+  await fx.idle();
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+    0,
+  );
+  expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]).toMatchObject({
+    ordinaryDelivery: 'verified',
+    groupPolicy: { revision: 0, collection: 'mentions' },
+  });
+  await fx.core.externalMessaging.inbound.setPolicy('ada', fx.grant.id, reception, {
+    kind: 'human',
+  });
+  const first = ordinaryEvent('first');
+  await fx.receive(first);
+  await fx.idle();
+  expect(fx.runs).toHaveLength(0);
+  expect(
+    fx.query(
+      "SELECT reason, wake_count, wake_policy_revision FROM inbox_admissions WHERE reason = 'group-ordinary'",
+    ),
+  ).toEqual([{ reason: 'group-ordinary', wake_count: 2, wake_policy_revision: 1 }]);
+  await fx.core.externalMessaging.inbound.setPolicy(
+    'ada',
+    fx.grant.id,
+    { ...reception, collection: 'mentions' },
+    { kind: 'bot', botSlug: 'ada' },
+  );
+  await fx.receive(ordinaryEvent('excluded'));
+  await fx.idle();
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+    1,
+  );
+  expect(fx.core.attention.list({ botSlug: 'ada' }).items).toHaveLength(1);
+  expect(fx.core.externalMessaging.inbound.policy('ada', fx.grant.id)).toMatchObject({
+    revision: 2,
+    editor: { kind: 'bot', botSlug: 'ada' },
+    collection: 'mentions',
+  });
+  await fx.core.externalMessaging.inbound.setPolicy('ada', fx.grant.id, reception, {
+    kind: 'human',
+  });
+  await fx.receive(first);
+  await fx.idle();
+  expect(fx.runs).toHaveLength(0);
+  expect(fx.query('SELECT wake_policy_revision FROM inbox_admissions')).toEqual([
+    { wake_policy_revision: 1 },
+  ]);
+  expect(
+    fx.query('SELECT * FROM messaging_group_policy_revisions WHERE revision > 0'),
+  ).toHaveLength(3);
+});
+
+it('harvests an ordinary digest by count once, retaining individual source IDs and trusted origin', async () => {
+  const fx = await fixture();
+  await fx.enable();
+  await fx.receive(ordinaryEvent('probe'));
+  await fx.core.externalMessaging.inbound.setPolicy('ada', fx.grant.id, reception, {
+    kind: 'human',
+  });
+  const first = ordinaryEvent('count-one');
+  await fx.receive(first);
+  await fx.idle();
+  expect(fx.runs).toHaveLength(0);
+  const second = ordinaryEvent('count-two');
+  await fx.receive(second);
+  await fx.idle();
+  expect(fx.runs).toHaveLength(1);
+  expect(fx.runs[0]?.inbox).toContain('count-one');
+  expect(fx.runs[0]?.inbox).toContain('count-two');
+  expect(fx.runs[0]?.inbox).toContain('ordinary message; no reply required');
+  expect(fx.runs[0]?.inboundChannelId).toBeUndefined();
+  expect(fx.replies).toHaveLength(0);
+  await fx.receive(first);
+  await fx.receive(second);
+  await fx.idle();
+  expect(fx.runs).toHaveLength(1);
+  expect(
+    fx.query("SELECT attempt_state FROM inbox_admissions WHERE reason = 'group-ordinary'"),
+  ).toEqual([{ attempt_state: 'handled' }, { attempt_state: 'handled' }]);
+});
+
+it('recovers a time digest across restart without changing its recorded revision or replaying a handled source', async () => {
+  const fx = await fixture();
+  await fx.enable();
+  await fx.receive(ordinaryEvent('probe'));
+  await fx.core.externalMessaging.inbound.setPolicy(
+    'ada',
+    fx.grant.id,
+    { ...reception, count: 10, intervalSeconds: 1 },
+    { kind: 'human' },
+  );
+  const first = ordinaryEvent('time-one');
+  await fx.receive(first);
+  await fx.idle();
+  expect(fx.runs).toHaveLength(0);
+  await fx.restart();
+  expect(fx.core.externalMessaging.inbound.policy('ada', fx.grant.id)).toMatchObject({
+    revision: 1,
+    count: 10,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  await fx.idle();
+  expect(fx.runs).toHaveLength(1);
+  expect(fx.runs[0]?.inbox).toContain('time-one');
+  await fx.receive(first);
+  await fx.idle();
+  expect(fx.runs).toHaveLength(1);
+});
+
+it('queues immediate ordinary traffic after the active turn without steering it', async () => {
+  let finish!: () => void;
+  const busy = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let started!: () => void;
+  const start = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const steer = vi.fn(() => true);
+  const fx = await fixture({
+    steer,
+    onRun: async () => {
+      if (fx.runs.length === 1) {
+        started();
+        await busy;
+      }
+    },
+  });
+  await fx.enable();
+  await fx.receive(ordinaryEvent('probe'));
+  await fx.core.externalMessaging.inbound.setPolicy(
+    'ada',
+    fx.grant.id,
+    { ...reception, wake: 'immediate' },
+    { kind: 'human' },
+  );
+  await fx.receive(event());
+  await start;
+  expect(fx.runs).toHaveLength(1);
+  await fx.receive(ordinaryEvent('while-busy'));
+  await tick();
+  await tick();
+  expect(fx.runs).toHaveLength(1);
+  expect(steer).not.toHaveBeenCalled();
+  finish();
+  await fx.idle();
+  expect(fx.runs).toHaveLength(2);
+  expect(fx.runs[1]?.inbox).toContain('while-busy');
+});
+
+it('keeps mentions-only wake passive until the same group mention and keeps silent admissions unread', async () => {
+  const fx = await fixture();
+  await fx.enable();
+  await fx.receive(ordinaryEvent('probe'));
+  await fx.core.externalMessaging.inbound.setPolicy(
+    'ada',
+    fx.grant.id,
+    { ...reception, wake: 'silent' },
+    { kind: 'human' },
+  );
+  await fx.receive(ordinaryEvent('silent'));
+  await fx.idle();
+  await fx.core.externalMessaging.inbound.setPolicy(
+    'ada',
+    fx.grant.id,
+    { ...reception, wake: 'mentions' },
+    { kind: 'human' },
+  );
+  await fx.receive(ordinaryEvent('passive'));
+  await fx.idle();
+  expect(fx.runs).toHaveLength(0);
+  await fx.receive(event());
+  await fx.idle();
+  expect(fx.runs).toHaveLength(1);
+  expect(fx.runs[0]?.inbox).toContain('passive');
+  expect(fx.runs[0]?.inbox).not.toContain('Ordinary silent');
+  expect(
+    fx.core.attention
+      .list({ botSlug: 'ada' })
+      .items.find((item) => item.summary === 'Ordinary silent')?.state,
+  ).toBe('pending');
+});
+
+it('does not let another Bot or a revoked grant configure group collection', async () => {
+  const fx = await fixture();
+  await fx.enable();
+  await fx.receive(ordinaryEvent('probe'));
+  await expect(
+    fx.core.externalMessaging.inbound.setPolicy('ada', fx.grant.id, reception, {
+      kind: 'bot',
+      botSlug: 'other',
+    }),
+  ).rejects.toThrow('grant-unavailable');
+  await expect(
+    fx.core.externalMessaging.inbound.setPolicy('other', fx.grant.id, reception, { kind: 'human' }),
+  ).rejects.toThrow('grant-unavailable');
+  fx.core.externalMessaging.revoke('ada', fx.grant.id);
+  await expect(
+    fx.core.externalMessaging.inbound.setPolicy('ada', fx.grant.id, reception, { kind: 'human' }),
+  ).rejects.toThrow('grant-unavailable');
+});
+
+it('coharvests mention-context ordinary items with an active mention steer and settles the same included batch', async () => {
+  let finish!: () => void;
+  let began!: () => void;
+  const started = new Promise<void>((resolve) => {
+    began = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const steer = vi.fn((_bot: string, _text: string) => true);
+  const fx = await fixture({
+    steer,
+    onRun: async () => {
+      began();
+      await held;
+    },
+  });
+  await fx.enable();
+  await fx.receive(ordinaryEvent('probe'));
+  await fx.core.externalMessaging.inbound.setPolicy(
+    'ada',
+    fx.grant.id,
+    { ...reception, wake: 'mentions' },
+    { kind: 'human' },
+  );
+  await fx.receive(event());
+  await started;
+  await fx.receive(ordinaryEvent('active-context'));
+  await tick();
+  expect(steer).not.toHaveBeenCalled();
+  await fx.receive(
+    event({
+      eventId: 'ev-2',
+      messageId: 'om-2',
+      text: '@_user_1 second mention',
+      reply: { ...event().reply, messageId: 'om-2' },
+    }),
+  );
+  await tick();
+  expect(steer).toHaveBeenCalledTimes(1);
+  expect(steer.mock.calls[0]?.[1]).toContain('active-context');
+  finish();
+  await fx.idle();
+  expect(fx.runs).toHaveLength(1);
+  expect(
+    fx.query("SELECT attempt_state FROM inbox_admissions WHERE reason = 'group-ordinary'"),
+  ).toEqual([{ attempt_state: 'handled' }]);
 });

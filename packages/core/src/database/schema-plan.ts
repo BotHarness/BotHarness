@@ -1246,6 +1246,28 @@ const HUMAN_RESPONSE_INDEX_MIGRATION: SchemaMigration = {
   },
 };
 
+const EXTERNAL_GROUP_POLICY_MIGRATION: SchemaMigration = {
+  generation: 46,
+  module: 'messaging',
+  description: 'Version external group collection and wake independently of Service Grants',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_group_policy_revisions (
+        grant_id TEXT NOT NULL REFERENCES messaging_grants(id),
+        revision INTEGER NOT NULL,
+        body TEXT NOT NULL,
+        PRIMARY KEY (grant_id, revision)
+      );
+      CREATE TRIGGER messaging_group_policy_no_update
+        BEFORE UPDATE ON messaging_group_policy_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging Policy revisions are immutable'); END;
+      CREATE TRIGGER messaging_group_policy_no_delete
+        BEFORE DELETE ON messaging_group_policy_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging Policy revisions are immutable'); END;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1291,4 +1313,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   HUMAN_CHANNEL_NICKNAME_MIGRATION,
   EXTERNAL_SOURCE_MIGRATION,
   HUMAN_RESPONSE_INDEX_MIGRATION,
+  EXTERNAL_GROUP_POLICY_MIGRATION,
 ]);

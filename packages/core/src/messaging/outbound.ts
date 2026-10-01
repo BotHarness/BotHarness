@@ -1,3 +1,4 @@
+import type { GroupReceptionPolicy } from './group-policy.js';
 import { bridgeChannel } from './channel-target.js';
 import type { ChannelMessageCommit } from '../channels/store.js';
 import { attachmentIdentity, type ChannelAttachmentRef } from '../attachments/ref.js';
@@ -107,6 +108,8 @@ export interface MessagingSnapshot {
     availability: 'available' | 'unavailable' | 'rebind-required';
     reception: ReturnType<InboundMessaging['status']>;
     canReceive?: boolean;
+    groupPolicy?: GroupReceptionPolicy;
+    ordinaryDelivery?: 'verified' | 'unverified';
   })[];
   intents: OutboxIntent[];
 }
@@ -508,11 +511,20 @@ export function createOutboundMessaging(options: {
                 availability = 'rebind-required';
             }
           }
+          const current = grant(botSlug, value.id);
           return {
-            ...grant(botSlug, value.id),
+            ...current,
             availability,
             reception: inbound.status(value.id),
             canReceive,
+            ...(current.revokedAt === undefined &&
+            !current.suspendedReason &&
+            options.isBotActive(botSlug)
+              ? {
+                  groupPolicy: inbound.policy(botSlug, value.id),
+                  ordinaryDelivery: inbound.ordinaryDelivery(value.id),
+                }
+              : {}),
           };
         }),
       );

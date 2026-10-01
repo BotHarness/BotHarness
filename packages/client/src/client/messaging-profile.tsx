@@ -1,3 +1,7 @@
+import type {
+  GroupReceptionInput,
+  GroupReceptionPolicy,
+} from '../../../core/src/messaging/group-policy.js';
 import { useRef, useState, type ReactElement } from 'react';
 import { Button, IconChevronRightOutlineRegular, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { MessagingSnapshot, OutboxState } from '../../../core/src/messaging/outbound.js';
@@ -14,6 +18,7 @@ export function MessagingProfile({
   slug: string;
   actions: Pick<
     BridgeActions,
+    | 'messagingGroupPolicy'
     | 'messagingReceive'
     | 'messagingChannelTarget'
     | 'messagingSnapshot'
@@ -205,6 +210,18 @@ export function MessagingProfile({
                         : t('im.receiveHint')}
                     </p>
                     <p>{t(`im.reception.${grant.reception ?? 'off'}`)}</p>
+                    {grant.receiveScope && grant.groupPolicy ? (
+                      <GroupReceptionSettings
+                        key={`${grant.id}:${grant.groupPolicy.revision}`}
+                        policy={grant.groupPolicy}
+                        verified={grant.ordinaryDelivery === 'verified'}
+                        busy={busy}
+                        t={t}
+                        save={(input) =>
+                          operate(() => actions.messagingGroupPolicy(slug, grant.id, input))
+                        }
+                      />
+                    ) : null}
                     <Button
                       disabled={
                         busy ||
@@ -306,6 +323,125 @@ export function MessagingProfile({
           ) : null}
         </div>
       </details>
+    </section>
+  );
+}
+
+function GroupReceptionSettings({
+  policy,
+  verified,
+  busy,
+  t,
+  save,
+}: {
+  policy: GroupReceptionPolicy;
+  verified: boolean;
+  busy: boolean;
+  t: BotHarnessTranslate;
+  save(input: GroupReceptionInput): Promise<void>;
+}): ReactElement {
+  const [collection, setCollection] = useState(policy.collection);
+  const [wake, setWake] = useState(policy.wake);
+  const [count, setCount] = useState(String(policy.count));
+  const [seconds, setSeconds] = useState(String(policy.intervalSeconds));
+  const numericCount = Number(count),
+    numericSeconds = Number(seconds);
+  const valid =
+    Number.isInteger(numericCount) &&
+    numericCount >= 1 &&
+    numericCount <= 100 &&
+    Number.isInteger(numericSeconds) &&
+    numericSeconds >= 1 &&
+    numericSeconds <= 86400;
+  const changed =
+    collection !== policy.collection ||
+    wake !== policy.wake ||
+    numericCount !== policy.count ||
+    numericSeconds !== policy.intervalSeconds;
+  return (
+    <section className="bh-im-group-policy" aria-label={t('im.groupPolicy')}>
+      <strong>{t('im.groupPolicy')}</strong>
+      <label className="bh-im-field">
+        <span>{t('im.collection')}</span>
+        <select
+          aria-label={t('im.collection')}
+          value={collection}
+          disabled={busy}
+          onChange={(event) =>
+            setCollection(event.target.value as GroupReceptionInput['collection'])
+          }
+        >
+          <option value="mentions">{t('im.collection.mentions')}</option>
+          <option value="all" disabled={!verified}>
+            {t('im.collection.all')}
+          </option>
+        </select>
+      </label>
+      <p>{t(verified ? 'im.ordinaryVerified' : 'im.ordinaryUnverified')}</p>
+      <label className="bh-im-field">
+        <span>{t('im.ordinaryWake')}</span>
+        <select
+          aria-label={t('im.ordinaryWake')}
+          value={wake}
+          disabled={busy || collection !== 'all'}
+          onChange={(event) => setWake(event.target.value as GroupReceptionInput['wake'])}
+        >
+          {(['digest', 'immediate', 'mentions', 'silent'] as const).map((mode) => (
+            <option key={mode} value={mode}>
+              {t(`im.wake.${mode}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {wake === 'digest' ? (
+        <div className="bh-im-digest-fields">
+          <label className="bh-im-field">
+            <span>{t('im.digestCount')}</span>
+            <input
+              aria-label={t('im.digestCount')}
+              type="number"
+              min="1"
+              max="100"
+              value={count}
+              disabled={busy || collection !== 'all'}
+              onChange={(event) => setCount(event.target.value)}
+            />
+          </label>
+          <label className="bh-im-field">
+            <span>{t('im.digestSeconds')}</span>
+            <input
+              aria-label={t('im.digestSeconds')}
+              type="number"
+              min="1"
+              max="86400"
+              value={seconds}
+              disabled={busy || collection !== 'all'}
+              onChange={(event) => setSeconds(event.target.value)}
+            />
+          </label>
+        </div>
+      ) : null}
+      <p>{t('im.wakeHint')}</p>
+      <p>
+        {t('im.policyRevision', {
+          revision: String(policy.revision),
+          editor: t(
+            policy.editor.kind === 'bot'
+              ? 'im.policyBot'
+              : policy.editor.kind === 'human'
+                ? 'im.policyHuman'
+                : 'im.policyDefault',
+          ),
+        })}
+      </p>
+      <Button
+        disabled={busy || !valid || !changed || (collection === 'all' && !verified)}
+        onClick={() =>
+          void save({ collection, wake, count: numericCount, intervalSeconds: numericSeconds })
+        }
+      >
+        {t('im.policySave')}
+      </Button>
     </section>
   );
 }

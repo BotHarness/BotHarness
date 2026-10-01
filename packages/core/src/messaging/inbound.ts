@@ -1,3 +1,11 @@
+import {
+  commitGroupReceptionPolicy,
+  groupReceptionPolicy,
+  initializeGroupReceptionPolicy,
+  type GroupReceptionInput,
+  type GroupReceptionPolicy,
+} from './group-policy.js';
+import type { BotSourcePolicyEditor } from '../runtime/source-policy.js';
 import { bridgeChannel, placeBridgeSource } from './channel-target.js';
 import type { ChannelMessageCommit } from '../channels/store.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -65,6 +73,14 @@ export interface InboundMessaging {
   register(provider: MessagingProvider): () => void;
   setEnabled(botSlug: string, grantId: string, enabled: boolean): Promise<void>;
   setChannelTarget(botSlug: string, grantId: string, channelId: string | null): Promise<void>;
+  policy(botSlug: string, grantId: string): GroupReceptionPolicy;
+  setPolicy(
+    botSlug: string,
+    grantId: string,
+    input: GroupReceptionInput,
+    editor: BotSourcePolicyEditor,
+  ): Promise<GroupReceptionPolicy>;
+  ordinaryDelivery(grantId: string): 'verified' | 'unverified';
   status(grantId: string): 'off' | 'connecting' | 'receiving' | 'unavailable';
   available(botSlug: string, sourceEventId: string): boolean;
   sourceSignal(botSlug: string, sourceEventId: string): AbortSignal;
@@ -103,6 +119,7 @@ export function createInboundMessaging(options: {
     string,
     {
       token: object;
+      ordinaryVerified?: boolean;
       revision: number;
       controller: AbortController;
       dispose: (() => void) | undefined;
@@ -269,6 +286,7 @@ export function createInboundMessaging(options: {
     )
       return;
     const lease = {
+      ordinaryVerified: false,
       token: entry.token,
       revision: value.revision,
       controller: new AbortController(),
@@ -284,6 +302,7 @@ export function createInboundMessaging(options: {
         inspected.target.receiveScope?.conversationId !== value.receiveScope.conversationId
       )
         throw new MessagingError('rebind-required');
+      transaction((db) => initializeGroupReceptionPolicy(db, value.id));
       const dispose = await entry.provider.consume({
         accountRef: value.accountRef,
         fingerprint: value.fingerprint,
@@ -306,11 +325,20 @@ export function createInboundMessaging(options: {
             throw new MessagingError('untrusted-source');
           if (
             event.conversation.kind !== 'group' ||
-            event.conversation.id !== value.receiveScope!.conversationId ||
-            !event.mentionedAccount
+            event.conversation.id !== value.receiveScope!.conversationId
           )
             return { accepted: true };
           if (!targetAvailable(latest)) return { accepted: true };
+          if (!event.mentionedAccount && !lease.ordinaryVerified) {
+            lease.ordinaryVerified = true;
+            options.warn?.(
+              JSON.stringify({
+                event: 'messaging-inbound',
+                phase: 'ordinary-delivery-verified',
+                grantId: value.id,
+              }),
+            );
+          }
           let placement: ChannelMessageCommit | undefined;
           const id = transaction(
             (db) => {
@@ -318,6 +346,8 @@ export function createInboundMessaging(options: {
               lease.controller.signal.throwIfAborted();
               if (value.receiveTargetChannelId)
                 bridgeChannel(db, value.receiveTargetChannelId, value.botSlug);
+              const reception = groupReceptionPolicy(db, value.id);
+              if (!event.mentionedAccount && reception.collection !== 'all') return undefined;
               const id = persistSource(db, value, event);
               const row = db
                 .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
@@ -325,19 +355,36 @@ export function createInboundMessaging(options: {
               const source = (JSON.parse(row.payload_json) as { external: ExternalSource })
                 .external;
               placement = placeBridgeSource(db, { ...source, body: event.text }, value.botSlug);
-              const policy = options.sourcePolicy.resolveIn(db, value.botSlug, 'group-mention');
+              const reason = event.mentionedAccount ? 'group-mention' : 'group-ordinary';
+              const policy = options.sourcePolicy.resolveIn(db, value.botSlug, reason);
+              const wake = event.mentionedAccount ? policy.wake : reception.wake;
               db.prepare(`INSERT OR IGNORE INTO inbox_admissions
-              (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode)
-              VALUES (?, ?, 'group-mention', ?, ?)`).run(
+              (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
+               wake_policy_revision, wake_mode, wake_count, wake_interval_ms)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
                 id,
                 value.botSlug,
+                reason,
                 policy.revision,
-                policy.wake,
+                wake,
+                reception.revision,
+                wake === 'immediate' ? 'all' : wake,
+                !event.mentionedAccount && (wake === 'immediate' || wake === 'digest')
+                  ? wake === 'immediate'
+                    ? 1
+                    : reception.count
+                  : null,
+                !event.mentionedAccount && (wake === 'immediate' || wake === 'digest')
+                  ? wake === 'immediate'
+                    ? 0
+                    : reception.intervalSeconds * 1000
+                  : null,
               );
               return id;
             },
             ['source-event', 'channel', 'bot-inbox'],
           );
+          if (id === undefined) return { accepted: true };
           if (placement) {
             try {
               options.onPlaced?.(placement);
@@ -545,6 +592,58 @@ export function createInboundMessaging(options: {
       );
       stop(id);
       if (updated.receiveScope) await start(updated);
+    },
+    policy(botSlug, id) {
+      const value = grant(id);
+      if (
+        value.botSlug !== botSlug ||
+        value.revokedAt ||
+        value.suspendedReason ||
+        !options.isBotActive(botSlug)
+      )
+        throw new MessagingError('grant-unavailable');
+      return database.read((db) => groupReceptionPolicy(db, id));
+    },
+    async setPolicy(botSlug, id, input, editor) {
+      const value = grant(id);
+      if (
+        value.botSlug !== botSlug ||
+        !valid(value) ||
+        (editor.kind === 'bot' && editor.botSlug !== botSlug)
+      )
+        throw new MessagingError('grant-unavailable');
+      const entry = providers.get(value.providerId)!;
+      const inspected = await entry.provider.inspect(value.accountRef, value.targetRef);
+      if (
+        providers.get(value.providerId) !== entry ||
+        inspected.account.fingerprint !== value.fingerprint ||
+        inspected.target.digest !== value.targetDigest ||
+        inspected.target.receiveScope?.conversationId !== value.receiveScope?.conversationId
+      )
+        throw new MessagingError('rebind-required');
+      if (input.collection === 'all' && !leases.get(id)?.ordinaryVerified)
+        throw new MessagingError('ordinary-delivery-unverified');
+      const policy = transaction(
+        (db) => {
+          if (!valid(grant(id)) || grant(id).revision !== value.revision)
+            throw new MessagingError('grant-unavailable');
+          return commitGroupReceptionPolicy(db, id, input, editor);
+        },
+        ['grants', 'bot-inbox'],
+      );
+      options.warn?.(
+        JSON.stringify({
+          event: 'messaging-group-policy',
+          phase: 'committed',
+          grantId: id,
+          revision: policy.revision,
+          editor: editor.kind,
+        }),
+      );
+      return policy;
+    },
+    ordinaryDelivery(id) {
+      return valid(grant(id)) && leases.get(id)?.ordinaryVerified ? 'verified' : 'unverified';
     },
     status(id) {
       const value = grant(id);
