@@ -646,11 +646,15 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       const browserTools = ctx.get('botharnessBrowserTools') as
         | {
             ownsTool?(name: string): boolean;
+            executionSignal?(sessionId: string): AbortSignal | undefined;
             needsAuthorization?(sessionId: string): boolean;
             markAuthorized?(sessionId: string): void;
           }
         | undefined;
       if (browserTools?.ownsTool?.(execution.name) === true) {
+        const browserSignal = browserTools.executionSignal?.(agent.session.id);
+        if (browserTools.executionSignal !== undefined && browserSignal === undefined)
+          return { kind: 'deny', reason: 'Browser Access is off for this PersonaBot' };
         if (browserTools.needsAuthorization?.(agent.session.id) !== true) return next();
         const browserApproval = ctx.get('approval') as ApprovalService | undefined;
         const untrackBrowser = toolApproval.track(execution);
@@ -663,7 +667,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
             toolName: execution.name,
             callId: execution.callId,
             reason: "This PersonaBot wants to act in the profile's shared Bot Browser.",
-            signal: execution.signal,
+            signal: AbortSignal.any([execution.signal, browserSignal ?? execution.signal]),
           });
           if (outcome !== 'allowed-once') {
             return { kind: 'deny', reason: 'Human approval was ' + outcome };

@@ -436,6 +436,10 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       });
       if (phase !== 'before Pause') h.provider.setTakeover('bot-a', true);
       const oldRead = call('browser_observe');
+      const oldReadResult =
+        phase === 'during Access cycling'
+          ? expect(oldRead).rejects.toThrow(/Browser Access is off/)
+          : oldRead;
       await entered;
       if (phase === 'during Access cycling') {
         h.setAccess(false);
@@ -447,7 +451,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
         h.provider.setTakeover('bot-a', false);
       }
       release();
-      await oldRead;
+      await oldReadResult;
       await expect(call('browser_click', { ref: 'e1' })).rejects.toThrow(/Resume.*browser_observe/);
       h.runtime.observe = vi.fn(async () => {
         throw new Error('temporary read failure');
@@ -549,6 +553,52 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.runtime.uploadFile).not.toHaveBeenCalled();
   });
 
+  it('cancels an active wait when Access is revoked and prevents an old queued action after re-enable', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    const pending = h.state.definitions
+      .get('browser_wait')!
+      .execute({ ms: 10000 }, execution('browser_wait'));
+    const cancelled = expect(pending).rejects.toThrow(/abort/i);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const queued = h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.org' }, execution('browser_open'));
+    const refused = expect(queued).rejects.toThrow(/Browser Access is off/);
+    const oldSignal = h.provider.executionSignal('session-a');
+    expect(oldSignal?.aborted).toBe(false);
+    h.setAccess(false);
+    await h.provider.reconcileBot('bot-a');
+    expect(oldSignal?.aborted).toBe(true);
+    expect(h.provider.executionSignal('session-a')).toBeUndefined();
+    h.setAccess(true);
+    await h.provider.reconcileBot('bot-a');
+    expect(h.provider.executionSignal('session-a')?.aborted).toBe(false);
+    expect(h.provider.executionSignal('session-a')).not.toBe(oldSignal);
+    await Promise.all([cancelled, refused]);
+    expect(h.runtime.open).not.toHaveBeenCalled();
+    expect(h.audits.filter((event) => event.outcome === 'error')).toHaveLength(2);
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    expect(h.runtime.open).toHaveBeenCalledTimes(1);
+  });
+
+  it('honors caller cancellation during an active wait without revoking Access', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    const controller = new AbortController();
+    const pending = h.state.definitions
+      .get('browser_wait')!
+      .execute({ ms: 10000 }, { ...execution('browser_wait'), signal: controller.signal });
+    const cancelled = expect(pending).rejects.toThrow(/abort/i);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    controller.abort();
+    await cancelled;
+    expect(h.state.registered()).toContain('browser_open');
+    expect(h.audits.at(-1)).toMatchObject({ tool: 'browser_wait', outcome: 'error' });
+  });
+
   it.each(['pause', 'access'] as const)(
     'refuses a queued action when %s changes before execution',
     async (guard) => {
@@ -589,12 +639,16 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       const refused = expect(queued).rejects.toThrow(
         guard === 'pause' ? /Browser Pause is active/ : /Browser Access is off/,
       );
+      const settledFirst =
+        guard === 'access' ? expect(first).rejects.toThrow(/Browser Access is off/) : first;
       release();
-      await first;
+      await settledFirst;
       await refused;
       expect(h.runtime.click).toHaveBeenCalledTimes(1);
       expect(h.audits).toHaveLength(3);
-      expect(h.audits.filter((event) => event.outcome === 'error')).toHaveLength(1);
+      expect(h.audits.filter((event) => event.outcome === 'error')).toHaveLength(
+        guard === 'access' ? 2 : 1,
+      );
       expect(h.runtime.open).toHaveBeenCalledTimes(1);
       expect(h.audits.at(-1)).toMatchObject({
         tool: guard === 'pause' ? 'browser_click' : 'browser_open',

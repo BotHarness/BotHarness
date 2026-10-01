@@ -1,0 +1,28 @@
+{
+  "defaultOff": true,
+  "computerIndependent": true,
+  "scopedTools": true,
+  "firstApproval": "allowed-once",
+  "approvalCards": 1,
+  "modelReadAndSummary": true,
+  "navigationInvalidatesRefs": true,
+  "stoppedBrowserReadable": true,
+  "revokedToolsAbsent": true,
+  "settledAfterRevocationResponseMs": 0,
+  "auditAttributedAndRedacted": true,
+  "pendingApprovalCancelled": true,
+  "accessSurvivesHostRestart": true,
+  "missingConfiguredBinary": {
+    "hostBooted": true,
+    "openStatus": 500,
+    "readableError": true,
+    "hostStillAvailable": true
+  },
+  "pinnedFallback": {
+    "version": "154.0.8037.57",
+    "realInstaller": true,
+    "realChromeAndCdp": true,
+    "realPageRead": true,
+    "cachedRelaunch": true
+  }
+}
