@@ -59,7 +59,9 @@ const rpc = async (method, args = {}, client = page, namespace = 'botharness') =
 const click = async (selector, text, client = page) => {
   await client.waitForFunction(
     ({ selector, text }) =>
-      [...document.querySelectorAll(selector)].some((n) => n.textContent?.trim() === text),
+      [...document.querySelectorAll(selector)].some(
+        (n) => n.textContent?.trim() === text && n.disabled !== true,
+      ),
     {},
     { selector, text },
   );
@@ -67,7 +69,7 @@ const click = async (selector, text, client = page) => {
     await client.evaluate(
       ({ selector, text }) => {
         const n = [...document.querySelectorAll(selector)].find(
-          (n) => n.textContent?.trim() === text,
+          (n) => n.textContent?.trim() === text && n.disabled !== true,
         );
         n?.click();
         return !!n;
@@ -94,6 +96,11 @@ const login = async (client) => {
       ?.click(),
   );
   await client.waitForSelector('.bh-human-inbox-entry', { timeout: 5000 }).catch(async () => {
+    await client.waitForFunction(() =>
+      [...document.querySelectorAll('button')].some((node) =>
+        node.textContent?.includes('Bot 模式'),
+      ),
+    );
     await client.evaluate(() =>
       [...document.querySelectorAll('button')]
         .find((n) => n.textContent?.includes('Bot 模式'))
@@ -139,9 +146,9 @@ const newBot = async (name) => {
   const dm = (await rpc('channelDm', { slug: bot.slug })).channel;
   return { bot, dm };
 };
-const review = async (scene, label) => {
-  await inbox();
-  await page.waitForFunction(
+const review = async (scene, label, client = page) => {
+  await inbox(client);
+  await client.waitForFunction(
     (name) =>
       [...document.querySelectorAll('.bh-human-inbox-row')].some((row) =>
         row.textContent?.includes(name),
@@ -149,7 +156,7 @@ const review = async (scene, label) => {
     {},
     scene.bot.displayName,
   );
-  await page.evaluate(
+  await client.evaluate(
     ({ name, label }) => {
       const row = [...document.querySelectorAll('.bh-human-inbox-row')].find((row) =>
         row.textContent?.includes(name),
@@ -160,7 +167,7 @@ const review = async (scene, label) => {
     },
     { name: scene.bot.displayName, label },
   );
-  await page.waitForSelector('.bh-human-inbox-reply');
+  await client.waitForSelector('.bh-human-inbox-reply');
 };
 try {
   await login(page);
@@ -360,18 +367,21 @@ try {
     await page.waitForSelector('.bh-human-inbox-reply textarea');
     await shot('assignment-blocked');
     console.log('Blocked Assignment ready for concurrent response verification.');
-    const other = await browser.newPage();
+    const secondContext = await browser.createBrowserContext();
+    await secondContext.setCookie(...(await page.browserContext().cookies()));
+    const other = await secondContext.newPage();
+    await other.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
     await login(other);
-    await rpc(
-      'channelSend',
-      {
-        channelId: blocked.dm.id,
-        body: 'Use stable for this Assignment.',
-        messageId: 'human-' + crypto.randomUUID(),
-        assignmentReply: { sessionId: blocked.sessionId, sourceEventId: blocked.sourceEventId },
-      },
-      other,
+    console.log('Second window entered Bot mode.');
+    await review(blocked, '回应事项', other);
+    await other.waitForSelector('.bh-human-inbox-reply textarea');
+    await other.type('.bh-human-inbox-reply textarea', 'Use stable for this Assignment.');
+    await click('.bh-human-inbox-reply button', '发送回复', other);
+    console.log('Second window submitted the addressed response.');
+    await other.waitForFunction(() =>
+      document.querySelector('.bh-human-inbox-reply')?.textContent.includes('已发送给 Bot'),
     );
+    await secondContext.close();
     await page.bringToFront();
     await page.type('.bh-human-inbox-reply textarea', 'Use canary instead.');
     await click('.bh-human-inbox-reply button', '发送回复');
@@ -393,7 +403,6 @@ try {
           .assignment.latestReport?.state === 'completed',
       'blocked Assignment resumed',
     );
-    await other.close();
     const qa = await startAssignment('waiting-human', 'HUMAN_QA');
     await review(qa, '回应事项');
     await page.waitForSelector('.bh-human-inbox-reply textarea');
@@ -430,5 +439,10 @@ try {
     );
   }
 } finally {
+  for (const [index, window] of (await browser.pages()).entries()) {
+    await window
+      .screenshot({ path: resolve(out, 'last-window-' + index + '.png') })
+      .catch(() => undefined);
+  }
   await browser.close();
 }

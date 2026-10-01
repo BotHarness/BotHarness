@@ -124,6 +124,15 @@ describe('Human Inbox Assignment reply', () => {
       expect(store.getSnapshot().selection).toEqual({ kind: 'inbox' });
       await act(async () => button('打开 Assignment Session').click());
       expect(openSession).toHaveBeenCalledWith('session');
+      openSession.mockImplementationOnce(() => {
+        throw new Error('DSH Session navigation is unavailable');
+      });
+      await act(async () => button('打开 Assignment Session').click());
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain('来源已不可用');
+      expect(store.getSnapshot().selection).toEqual({ kind: 'inbox' });
+      await act(async () => button('查看来源').click());
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain('来源已不可用');
+      expect(container.textContent).toContain('Use canary');
     } finally {
       await act(async () => root.unmount());
       container.remove();

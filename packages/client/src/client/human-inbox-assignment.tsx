@@ -30,6 +30,7 @@ export function HumanInboxAssignment({
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
+  const [navigationError, setNavigationError] = useState(false);
   const [sent, setSent] = useState<HumanAssignmentContext['reply']>();
   const loading = useRef<AbortController>();
   const pending = useRef(false);
@@ -83,6 +84,14 @@ export function HumanInboxAssignment({
     }
   };
   const reply = sent ?? context?.reply;
+  const navigate = async (open: () => unknown): Promise<void> => {
+    setNavigationError(false);
+    try {
+      await open();
+    } catch {
+      setNavigationError(true);
+    }
+  };
   const target = context?.reports.find((row) => row.sourceEventId === sourceEventId);
   const title = t('humanInbox.assignment.title', { bot: botName(source.botSlug) });
   return (
@@ -99,7 +108,11 @@ export function HumanInboxAssignment({
         </p>
       ) : (
         <>
-          <h3>{context!.purpose}</h3>
+          <h3
+            className={expanded ? 'bh-human-inbox-purpose' : 'bh-human-inbox-purpose is-collapsed'}
+          >
+            {context!.purpose}
+          </h3>
           <button
             type="button"
             className="bh-human-inbox-reply-context"
@@ -145,13 +158,14 @@ export function HumanInboxAssignment({
         <button type="button" disabled={sending} onClick={() => void reload()}>
           {t('humanInbox.reply.refresh')}
         </button>
-        <button type="button" onClick={() => actions.openSession(sessionId)}>
+        <button type="button" onClick={() => void navigate(() => actions.openSession(sessionId))}>
           {t('humanInbox.assignment.session')}
         </button>
-        <button type="button" onClick={() => void actions.openBot(source.botSlug)}>
+        <button type="button" onClick={() => void navigate(() => actions.openBot(source.botSlug))}>
           {t('humanInbox.assignment.dm')}
         </button>
       </div>
+      {navigationError ? <p role="alert">{t('humanInbox.reply.unavailable')}</p> : null}
       {reply !== undefined ? (
         <div role="status">
           <strong>{t('humanInbox.assignment.sent')}</strong>
@@ -159,7 +173,9 @@ export function HumanInboxAssignment({
           <p>{t('humanInbox.assignment.forwarding')}</p>
           <button
             type="button"
-            onClick={() => void actions.openChannelAtMessage('dm-' + source.botSlug, reply.id)}
+            onClick={() =>
+              void navigate(() => actions.openChannelAtMessage('dm-' + source.botSlug, reply.id))
+            }
           >
             {t('humanInbox.open')}
           </button>
