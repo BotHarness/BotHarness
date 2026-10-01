@@ -267,6 +267,7 @@ export function createCore(
     attachOperationalModule(operationalDatabase, 'bot-inbox'),
   );
   const externalMessaging = createOutboundMessaging({
+    attachments,
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     sourcePolicy,
     onAdmitted: (slug, sourceEventId) => runtime?.admitExternalSource?.(slug, sourceEventId),
@@ -890,7 +891,20 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         }),
       'botharness: current Memory file download',
     );
-    const attachmentHttp = createAttachmentHttp(core.attachments, core.channels);
+    const attachmentHttp = createAttachmentHttp(core.attachments, core.channels, async (input) => {
+      const ref = await core.externalMessaging.acquireFile(
+        input.slug,
+        input.sourceEventId,
+        input.attachmentId,
+        input.signal,
+      );
+      const signal = AbortSignal.any([
+        input.signal,
+        core.externalMessaging.inbound.sourceSignal(input.slug, input.sourceEventId),
+      ]);
+      const downloaded = await core.attachments.download(ref.fileId!, ref.name, signal);
+      return downloaded;
+    });
     connectionCtx.effect(
       () =>
         connection.fetch.register({

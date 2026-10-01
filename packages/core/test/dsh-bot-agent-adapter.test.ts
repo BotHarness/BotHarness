@@ -817,6 +817,8 @@ describe('DSH Bot Agent adapter', () => {
       'stop_assignment',
       'channel_list',
       'bridge_read',
+      'bridge_attachment_save',
+      'bridge_reply_file',
       'bridge_reply',
       'channel_read',
       'inbox_ignore',
@@ -1200,6 +1202,12 @@ it('routes external Tools through the active owning Orchestrator without a local
     inbox: 'External Inbox',
     message: 'External turn',
     externalMessaging: {
+      saveFile: async () => {
+        throw new Error('file sentinel');
+      },
+      replyFile: async () => {
+        throw new Error('file sentinel');
+      },
       read: (id) => {
         reads.push(id);
         throw new Error('owned source sentinel');

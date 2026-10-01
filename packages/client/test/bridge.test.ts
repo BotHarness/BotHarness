@@ -2255,6 +2255,9 @@ it('rejects incomplete external source responses before the source modal can ren
     { ...EXTERNAL_SOURCE.event, reply: { threadId: 42 } },
     { ...EXTERNAL_SOURCE.event, mentions: [null] },
     { ...EXTERNAL_SOURCE.event, replay: null },
+    { ...EXTERNAL_SOURCE.event, attachments: [null] },
+    { ...EXTERNAL_SOURCE.event, attachments: [{ name: 'file.zip' }] },
+    { ...EXTERNAL_SOURCE.event, attachments: 'file.zip' },
   ])
     await expect(read({ ...EXTERNAL_SOURCE, event })).rejects.toBeInstanceOf(BridgeCallError);
 });

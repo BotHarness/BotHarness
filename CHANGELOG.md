@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- A PersonaBot can process a ZIP received through an authorized Lark file reply, save an independent working copy, and explicitly return a newly selected file in the same topic; Bot Inbox exposes an on-demand original download through the qualified temporary provider ([#657](https://github.com/BotHarness/BotHarness/issues/657), [file guide](docs/file-open.md), [ADR-0107](docs/adr/0107-external-files-use-trusted-source-capabilities-and-existing-owner.md)).
+
 - A PersonaBot can read a specified received original through native file tools and explicitly edit it with Human approval; original-message downloads and shared references show current contents, while independent uploads and default working copies remain separate ([#633](https://github.com/BotHarness/BotHarness/issues/633), [file guide](docs/file-open.md)).
 
 - Human-participating DM and Group headers now offer My nickname; independent Channel names inherit the plugin default when cleared, and historical mentions plus Inbox and Bot context use their source Channel name without changing identity or attention ([#622](https://github.com/BotHarness/BotHarness/issues/622)).

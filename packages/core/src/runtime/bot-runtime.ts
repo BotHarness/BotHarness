@@ -171,6 +171,13 @@ export interface OrchestratorAgentRun {
   externalMessaging?: {
     read(sourceEventId: string): ExternalSource;
     reply(sourceEventId: string, text: string): ReturnType<OutboundMessaging['reply']>;
+    saveFile(input: {
+      sourceEventId: string;
+      attachmentId: string;
+      grantId: string;
+      destinationPath: string;
+    }): ReturnType<typeof saveAttachmentFile>;
+    replyFile(sourceEventId: string, fileId: string): ReturnType<OutboundMessaging['replyFile']>;
   };
   channels: OrchestratorChannelAccess;
   sourcePolicy?: {
@@ -617,7 +624,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
     if (unit.external !== undefined) {
-      return `- External work-group mention (source_event_id: ${unit.sourceEventId}). Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, senderId: unit.external.event.actor.id, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, use bridge_reply with this source_event_id; never guess an account or route and never mirror this message or its response to the Human DM.`;
+      return `- External work-group mention (source_event_id: ${unit.sourceEventId}). Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, senderId: unit.external.event.actor.id, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
     }
     if (unit.sourceKind === 'memory-change') {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
@@ -2276,6 +2283,7 @@ class BotRuntimeImplementation implements BotRuntime {
       )?.source_kind !== 'bridge-message';
     let memoryEventIds: string[] = [];
     let preserveObservation = false;
+    const importedFiles = new Map<string, ChannelAttachmentRef>();
     const markSideEffect = (): void => {
       this.#markReportSideEffects([...reportEventIds, ...memoryEventIds], bot.slug);
       markAttemptSideEffect();
@@ -2348,6 +2356,43 @@ class BotRuntimeImplementation implements BotRuntime {
           : {
               externalMessaging: {
                 read: (id: string) => this.#externalMessaging!.inbound.read(bot.slug, id),
+                saveFile: async (input) => {
+                  if (this.#attachments === undefined || this.#grants === undefined)
+                    throw new Error('Bridge file operations are unavailable');
+                  const destinationGrant = this.#grants.requireActive(bot.slug, input.grantId);
+                  if (destinationGrant.orchestratorWrite !== true)
+                    throw new Error('Destination requires Orchestrator write authorization');
+                  const ref = await this.#externalMessaging!.acquireFile(
+                    bot.slug,
+                    input.sourceEventId,
+                    input.attachmentId,
+                  );
+                  return saveAttachmentFile(input, {
+                    botSlug: bot.slug,
+                    grants: this.#grants,
+                    attachments: this.#attachments,
+                    source: () => {
+                      if (
+                        !this.#externalMessaging!.inbound.available(bot.slug, input.sourceEventId)
+                      )
+                        throw new Error('Bridge file source is unavailable');
+                      return this.#attachments!.current(ref);
+                    },
+                  });
+                },
+                replyFile: (id: string, fileId: string) => {
+                  const ref = importedFiles.get(fileId);
+                  if (ref === undefined || this.#attachments === undefined)
+                    throw new Error(
+                      'Select a result file with channel_attachment_import in this run before replying',
+                    );
+                  markSideEffect();
+                  return this.#externalMessaging!.replyFile(
+                    bot.slug,
+                    id,
+                    this.#attachments.current(ref),
+                  );
+                },
                 reply: (id: string, text: string) => {
                   if (!this.#externalMessaging!.inbound.available(bot.slug, id))
                     throw new Error('bridge_reply: source unavailable');
@@ -2363,6 +2408,7 @@ class BotRuntimeImplementation implements BotRuntime {
           orchestrator.sessionId,
           markSideEffect,
           readAdmissions,
+          (ref) => importedFiles.set(attachmentIdentity(ref), ref),
         ),
         sourcePolicy: {
           list: () => this.#sourcePolicy.list(bot.slug),
@@ -2754,6 +2800,7 @@ class BotRuntimeImplementation implements BotRuntime {
     sessionId: string,
     beforeSend: () => void,
     readAdmissions: Set<string>,
+    onImport?: (ref: ChannelAttachmentRef) => void,
   ): OrchestratorChannelAccess {
     const resolve = (requested?: string): ChannelRecord => {
       const id = requested ?? defaultChannelId;
@@ -3382,13 +3429,13 @@ class BotRuntimeImplementation implements BotRuntime {
           this.#ownership === undefined
         )
           throw new Error('Attachment file operations are unavailable');
-        return importAttachmentFile(input, {
+        const ref = await importAttachmentFile(input, {
           attachments: this.#attachments,
           authorize: (path) => {
             const bot = this.#registry.get(botSlug);
             if (this.#closed || bot === undefined || bot.paused === true)
               throw new Error('Result Bot is unavailable');
-            resolve();
+            if (defaultChannelId !== undefined) resolve();
             const roots = this.#grants!
               .list(botSlug)
               .filter((grant) => grant.revokedAt === undefined)
@@ -3405,6 +3452,8 @@ class BotRuntimeImplementation implements BotRuntime {
               throw new Error('Selected file is outside current authorized directories');
           },
         });
+        onImport?.(ref);
+        return ref;
       },
       readAttachment: async (input) => {
         const channel = resolve(input.channelId);

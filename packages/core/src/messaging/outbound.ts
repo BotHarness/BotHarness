@@ -1,3 +1,5 @@
+import { attachmentIdentity, type ChannelAttachmentRef } from '../attachments/ref.js';
+import type { AttachmentStore } from '../attachments/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createInboundMessaging, type InboundMessaging } from './inbound.js';
 import { createBotSourcePolicyStore, type BotSourcePolicyStore } from '../runtime/source-policy.js';
@@ -10,6 +12,48 @@ import {
   type MessagingAccount,
   type MessagingTarget,
 } from './provider.js';
+
+async function replyFileBytes(
+  store: AttachmentStore,
+  file: ChannelAttachmentRef,
+  signal: AbortSignal,
+) {
+  try {
+    const downloaded = await store.download(attachmentIdentity(file), file.name, signal);
+    if (downloaded.ref.size < 1 || downloaded.ref.size > store.maxBytes) {
+      await downloaded.body.cancel();
+      throw new MessagingProviderError('invalid-file', 'not-started');
+    }
+    const reader = downloaded.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      while (true) {
+        signal.throwIfAborted();
+        const next = await reader.read();
+        if (next.done) break;
+        size += next.value.byteLength;
+        if (size > store.maxBytes) throw new MessagingProviderError('invalid-file', 'not-started');
+        chunks.push(next.value);
+      }
+    } finally {
+      await reader.cancel().catch(() => undefined);
+      reader.releaseLock();
+    }
+    if (size !== downloaded.ref.size)
+      throw new MessagingProviderError('file-changed', 'not-started');
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return { name: downloaded.ref.name, bytes };
+  } catch (error) {
+    if (error instanceof MessagingProviderError) throw error;
+    throw new MessagingProviderError('file-unavailable', 'not-started');
+  }
+}
 
 export interface MessagingGrant {
   id: string;
@@ -45,6 +89,7 @@ export interface OutboxIntent {
   grantId: string;
   grantRevision: number;
   sourceEventId?: string;
+  file?: ChannelAttachmentRef;
   text: string;
   state: OutboxState;
   createdAt: string;
@@ -65,6 +110,17 @@ export interface MessagingSnapshot {
 export interface OutboundMessaging {
   inbound: InboundMessaging;
   reply(botSlug: string, sourceEventId: string, text: string): Promise<OutboxIntent>;
+  acquireFile(
+    botSlug: string,
+    sourceEventId: string,
+    attachmentId: string,
+    signal?: AbortSignal,
+  ): Promise<ChannelAttachmentRef>;
+  replyFile(
+    botSlug: string,
+    sourceEventId: string,
+    file: ChannelAttachmentRef,
+  ): Promise<OutboxIntent>;
   register(provider: MessagingProvider): () => void;
   snapshot(botSlug: string): Promise<MessagingSnapshot>;
   targets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
@@ -83,6 +139,7 @@ export interface OutboundMessaging {
     requestId: string,
     text: string,
     sourceEventId?: string,
+    file?: ChannelAttachmentRef,
   ): Promise<OutboxIntent>;
   history(botSlug: string): OutboxIntent[];
   close(): void;
@@ -92,6 +149,7 @@ type StoredIntent = OutboxIntent & { requestId: string; payloadHash: string };
 
 export function createOutboundMessaging(options: {
   database: OperationalDatabaseModulePort;
+  attachments?: AttachmentStore;
   isBotActive(slug: string): boolean;
   sourcePolicy?: BotSourcePolicyStore;
   onAdmitted?(botSlug: string, sourceEventId: string): void;
@@ -114,7 +172,7 @@ export function createOutboundMessaging(options: {
   const providers = new Map<string, { provider: MessagingProvider; token: object }>();
   const inFlight = new Map<
     string,
-    { providerId: string; token: object; controller: AbortController }
+    { providerId: string; token: object; controller: AbortController; fileGrantId?: string }
   >();
   let closed = false;
   const active = (slug: string) => {
@@ -256,6 +314,136 @@ export function createOutboundMessaging(options: {
   });
   const service: OutboundMessaging = {
     inbound,
+    async acquireFile(botSlug, sourceEventId, attachmentId, signal) {
+      if (options.attachments === undefined || !inbound.available(botSlug, sourceEventId))
+        throw new MessagingError('source-unavailable');
+      const source = inbound.read(botSlug, sourceEventId);
+      const attachment = source.event.attachments?.find((item) => item.id === attachmentId);
+      if (attachment === undefined) throw new MessagingError('attachment-unavailable');
+      const value = grant(botSlug, source.grantId);
+      const entry = await check(value);
+      if (entry.provider.readFile === undefined) throw new MessagingError('capability-unavailable');
+      const controller = new AbortController();
+      const combined = AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(30000),
+        inbound.sourceSignal(botSlug, sourceEventId),
+        ...(signal === undefined ? [] : [signal]),
+      ]);
+      const key = 'file-' + randomUUID();
+      inFlight.set(key, {
+        providerId: value.providerId,
+        token: entry.token,
+        controller,
+        fileGrantId: value.id,
+      });
+      const validate = () => {
+        combined.throwIfAborted();
+        current(value.providerId, entry.token);
+        if (!inbound.available(botSlug, sourceEventId))
+          throw new MessagingError('source-unavailable');
+      };
+      const startedAt = Date.now();
+      options.warn?.(
+        JSON.stringify({
+          event: 'messaging-attachment',
+          phase: 'starting',
+          initiator: 'source-file-access',
+          sourceEventId,
+        }),
+      );
+      let abort: (() => void) | undefined;
+      try {
+        validate();
+        const hash = createHash('sha256')
+          .update(
+            JSON.stringify([
+              value.providerId,
+              value.fingerprint,
+              source.event.conversation.id,
+              attachment.id,
+            ]),
+          )
+          .digest('hex')
+          .slice(0, 32);
+        const uploadId = [
+          hash.slice(0, 8),
+          hash.slice(8, 12),
+          '4' + hash.slice(13, 16),
+          '8' + hash.slice(17, 20),
+          hash.slice(20),
+        ].join('-');
+        const interrupted = new Promise<never>((_, reject) => {
+          abort = () => reject(new MessagingError('transfer-cancelled'));
+          combined.addEventListener('abort', abort, { once: true });
+          if (combined.aborted) abort();
+        });
+        const ref = await Promise.race([
+          options.attachments.acquire({
+            uploadId,
+            name: attachment.name,
+            signal: combined,
+            load: async () => {
+              validate();
+              const data = await entry.provider.readFile!({
+                accountRef: value.accountRef,
+                fingerprint: value.fingerprint,
+                route: source.event.reply,
+                attachment,
+                signal: combined,
+              });
+              return (async function* () {
+                for await (const chunk of data) {
+                  validate();
+                  yield chunk;
+                }
+                validate();
+              })();
+            },
+          }),
+          interrupted,
+        ]);
+        validate();
+        options.warn?.(
+          JSON.stringify({
+            event: 'messaging-attachment',
+            phase: 'completed',
+            sourceEventId,
+            durationMs: Date.now() - startedAt,
+            size: ref.size,
+          }),
+        );
+        return ref;
+      } catch (error) {
+        options.warn?.(
+          JSON.stringify({
+            event: 'messaging-attachment',
+            phase: 'refused',
+            sourceEventId,
+            durationMs: Date.now() - startedAt,
+            reason: error instanceof MessagingError ? error.code : 'transfer-unavailable',
+          }),
+        );
+        throw error;
+      } finally {
+        if (abort !== undefined) combined.removeEventListener('abort', abort);
+        inFlight.delete(key);
+        controller.abort();
+      }
+    },
+    async replyFile(botSlug, sourceEventId, file) {
+      if (!inbound.available(botSlug, sourceEventId))
+        throw new MessagingError('source-unavailable');
+      const source = inbound.read(botSlug, sourceEventId);
+      return service.send(
+        botSlug,
+        source.grantId,
+        'reply-' + sourceEventId,
+        'File reply: ' + file.name,
+        sourceEventId,
+        file,
+      );
+    },
     async reply(botSlug, sourceEventId, text) {
       if (!inbound.available(botSlug, sourceEventId))
         throw new MessagingError('source-unavailable');
@@ -423,13 +611,26 @@ export function createOutboundMessaging(options: {
         ['grants', 'bindings', 'outbox'],
       );
       inbound.revoke(grantId);
+      for (const attempt of inFlight.values())
+        if (attempt.fileGrantId === grantId) attempt.controller.abort();
     },
-    async send(botSlug, grantId, requestId, text, sourceEventId) {
+    async send(botSlug, grantId, requestId, text, sourceEventId, file) {
       active(botSlug);
-      if (!/^[A-Za-z0-9_-]{8,128}$/.test(requestId) || !text.trim() || text.length > 4000)
+      if (
+        (file !== undefined && sourceEventId === undefined) ||
+        !/^[A-Za-z0-9_-]{8,128}$/.test(requestId) ||
+        !text.trim() ||
+        text.length > 4000
+      )
         throw new MessagingError('invalid-input');
       const payloadHash = createHash('sha256')
-        .update(sourceEventId === undefined ? text : JSON.stringify([text, sourceEventId]))
+        .update(
+          file === undefined
+            ? sourceEventId === undefined
+              ? text
+              : JSON.stringify([text, sourceEventId])
+            : JSON.stringify([text, sourceEventId, file]),
+        )
         .digest('hex');
       const duplicate = database.read((db) =>
         db.prepare('SELECT id FROM messaging_outbox WHERE request_id = ?').get(requestId),
@@ -473,6 +674,7 @@ export function createOutboundMessaging(options: {
             requestId,
             payloadHash,
             ...(sourceEventId === undefined ? {} : { sourceEventId }),
+            ...(file === undefined ? {} : { file }),
             text,
             state: 'pending',
             createdAt: now(),
@@ -544,6 +746,7 @@ export function createOutboundMessaging(options: {
           providerId: acceptedGrant.providerId,
           token: entry.token,
           controller,
+          ...(file === undefined ? {} : { fileGrantId: acceptedGrant.id }),
         });
         const interrupted = new Promise<never>((_, reject) => {
           controller.signal.addEventListener(
@@ -554,24 +757,49 @@ export function createOutboundMessaging(options: {
           timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 15000);
         });
         const result = await Promise.race([
-          sourceEventId !== undefined
-            ? entry.provider.reply === undefined
-              ? Promise.reject(new MessagingProviderError('capability-unavailable', 'not-started'))
-              : entry.provider.reply({
+          file !== undefined && sourceEventId !== undefined
+            ? (async () => {
+                if (entry.provider.replyFile === undefined || options.attachments === undefined)
+                  throw new MessagingProviderError('capability-unavailable', 'not-started');
+                const result = await replyFileBytes(options.attachments, file, controller.signal);
+                try {
+                  await check(grant(botSlug, grantId));
+                } catch (error) {
+                  throw new MessagingProviderError(
+                    error instanceof MessagingError ? error.code : 'grant-unavailable',
+                    'not-started',
+                  );
+                }
+                if (!inbound.available(botSlug, sourceEventId))
+                  throw new MessagingProviderError('source-unavailable', 'not-started');
+                return entry.provider.replyFile({
                   accountRef: acceptedGrant.accountRef,
                   fingerprint: acceptedGrant.fingerprint,
                   route: inbound.read(botSlug, sourceEventId).event.reply,
+                  file: { id: id.id, ...result },
+                  signal: controller.signal,
+                });
+              })()
+            : sourceEventId !== undefined
+              ? entry.provider.reply === undefined
+                ? Promise.reject(
+                    new MessagingProviderError('capability-unavailable', 'not-started'),
+                  )
+                : entry.provider.reply({
+                    accountRef: acceptedGrant.accountRef,
+                    fingerprint: acceptedGrant.fingerprint,
+                    route: inbound.read(botSlug, sourceEventId).event.reply,
+                    text,
+                    signal: controller.signal,
+                  })
+              : entry.provider.send({
+                  accountRef: acceptedGrant.accountRef,
+                  targetRef: acceptedGrant.targetRef,
+                  fingerprint: acceptedGrant.fingerprint,
+                  targetDigest: acceptedGrant.targetDigest,
                   text,
                   signal: controller.signal,
-                })
-            : entry.provider.send({
-                accountRef: acceptedGrant.accountRef,
-                targetRef: acceptedGrant.targetRef,
-                fingerprint: acceptedGrant.fingerprint,
-                targetDigest: acceptedGrant.targetDigest,
-                text,
-                signal: controller.signal,
-              }),
+                }),
           interrupted,
         ]);
         if (result.accepted !== true)

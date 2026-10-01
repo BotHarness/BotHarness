@@ -49,6 +49,7 @@ function destinationName(name?: string): string {
 
 export function createRealAttachments(root: string, maxBytes: number) {
   const pending = new Map<string, Promise<ChannelAttachmentRef>>();
+  const acquisitions = new Map<string, Promise<ChannelAttachmentRef>>();
   const checkedDirectory = (path: string): void => {
     const info = lstatSync(path);
     const local = relative(realpathSync(root), realpathSync(path));
@@ -135,7 +136,39 @@ export function createRealAttachments(root: string, maxBytes: number) {
       throw error;
     }
   };
-  return {
+  const acquired = async (input: {
+    uploadId: string;
+    name: string;
+    signal: AbortSignal;
+    load(): Promise<AsyncIterable<Uint8Array>>;
+  }): Promise<ChannelAttachmentRef> => {
+    const id = 'file:' + input.uploadId;
+    const dir = directory(id);
+    input.signal.throwIfAborted();
+    if (lstatSync(join(dir, 'record.json'), { throwIfNoEntry: false }) !== undefined) {
+      const { fd, ref } = opened(id);
+      closeSync(fd);
+      return ref;
+    }
+    const previous = acquisitions.get(id);
+    if (previous !== undefined) {
+      await previous;
+      return acquired(input);
+    }
+    const operation = (async () =>
+      real.upload({
+        ...input,
+        data: await input.load(),
+      }))();
+    acquisitions.set(id, operation);
+    try {
+      return await operation;
+    } finally {
+      if (acquisitions.get(id) === operation) acquisitions.delete(id);
+    }
+  };
+  const real = {
+    acquire: acquired,
     target,
     current(id: string): ChannelAttachmentRef {
       const { fd, ref } = opened(id);
@@ -286,7 +319,8 @@ export function createRealAttachments(root: string, maxBytes: number) {
           !entry.isDirectory() ||
           !ATTACHMENT_FILE_ID_PATTERN.test(id) ||
           references.has(id) ||
-          pending.has(id)
+          pending.has(id) ||
+          acquisitions.has(id)
         )
           continue;
         const path = directory(id);
@@ -297,4 +331,5 @@ export function createRealAttachments(root: string, maxBytes: number) {
       return removed;
     },
   };
+  return real;
 }
