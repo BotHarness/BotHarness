@@ -41,7 +41,7 @@ describe('Workspace Grant store', () => {
       workspaces: () => ({ get: () => workspace, list: () => [workspace] }),
     });
     try {
-      expect(owner.generation).toBe(42);
+      expect(owner.generation).toBe(43);
       expect(grants.requireActive('ada', 'existing')).toMatchObject({
         id: 'existing',
         orchestratorWrite: false,

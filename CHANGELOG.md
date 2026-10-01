@@ -15,6 +15,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Human-participating DM and Group headers now offer My nickname; independent Channel names inherit the plugin default when cleared, and historical mentions plus Inbox and Bot context use their source Channel name without changing identity or attention ([#622](https://github.com/BotHarness/BotHarness/issues/622)).
+
 - Added actual model/provider and execution-role filters to PersonaBot usage, with separate retained all-time totals, a seven-day chart default, and visible query freshness or failures ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
 - The local Human can save an optional default name in plugin settings; Channel authors, members, receipts and Bot context use the current name, and historical trusted Human/Bot mentions resolve current labels by stable identity without changing message content or attention ([#621](https://github.com/BotHarness/BotHarness/issues/621), [ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)).
 - Human can explicitly allow a PersonaBot to write one granted work folder, save a received file there, process it with native tools and approved Shell calls, and return a separately downloadable result ([#632](https://github.com/BotHarness/BotHarness/issues/632), [ADR-0105](docs/adr/0105-attachments-use-native-file-operations-under-source-authority.md)).
