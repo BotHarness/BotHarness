@@ -12,167 +12,87 @@
   "frames": [
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 已投递"
-      ]
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 已投递"]
     },
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 已处理"
-      ]
+      "receipts": ["收件与已读状态: 1 已处理"]
     }
   ]
 }

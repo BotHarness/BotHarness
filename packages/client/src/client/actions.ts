@@ -1,3 +1,5 @@
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
   MessagingSnapshot,
   MessagingGrant,
@@ -10,6 +12,8 @@ import {
   authorizeMessaging,
   revokeMessaging,
   sendMessaging,
+  setMessagingReceive,
+  readMessagingSource,
   loadMessageAttachmentTarget,
 } from './bridge.js';
 import {
@@ -161,6 +165,8 @@ export interface HostDirectoryListing {
 }
 
 export interface BridgeActions {
+  messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<void>;
+  messagingSource(slug: string, sourceEventId: string): Promise<ExternalSource>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
@@ -788,8 +794,37 @@ export function createActions(
     revokeToolApprovalRule: (slug, id) => revokeToolApprovalRule(call, slug, id),
     toolApprovalStatus: (channelId, messageId) =>
       loadToolApprovalStatus(call, channelId, messageId),
-    decideToolApproval: (channelId, messageId, outcome) =>
-      decideToolApproval(call, channelId, messageId, outcome),
+    async decideToolApproval(channelId, messageId, outcome) {
+      let resolved = false;
+      try {
+        await decideToolApproval(call, channelId, messageId, outcome);
+        resolved = true;
+      } finally {
+        if (!resolved) {
+          try {
+            resolved = (await loadToolApprovalStatus(call, channelId, messageId)) === 'expired';
+          } catch {}
+        }
+        if (resolved)
+          clientStore.setHumanInbox({
+            items: clientStore
+              .getSnapshot()
+              .humanInbox.items.filter(
+                (item) =>
+                  item.kind !== 'tool-approval' ||
+                  item.channelId !== channelId ||
+                  item.messageId !== messageId,
+              ),
+          });
+        const selection = currentSelection();
+        await Promise.allSettled([
+          refreshHumanInboxStatus(),
+          ...(selection?.kind === 'inbox'
+            ? [loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection)]
+            : []),
+        ]);
+      }
+    },
     userQuestionStatus: (channelId, messageId) =>
       loadUserQuestionStatus(call, channelId, messageId),
     answerUserQuestion: (channelId, messageId, answers) =>
@@ -919,7 +954,12 @@ export function createActions(
         humanInboxScopeVersion += 1;
         clientStore.setHumanInbox({
           category: nextCategory,
-          sort: nextCategory === 'replies' ? 'newest' : prior.sort,
+          sort:
+            nextCategory === 'action'
+              ? 'oldest'
+              : nextCategory === 'replies'
+                ? 'newest'
+                : prior.sort,
           botSlug: nextCategory === 'unread' ? undefined : prior.botSlug,
           channelId: undefined,
           status: 'loading',
@@ -1293,6 +1333,8 @@ export function createActions(
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
+    messagingReceive: (slug, grantId, enabled) => setMessagingReceive(call, slug, grantId, enabled),
+    messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
     messagingTargets: (providerId, accountRef) =>
       loadMessagingTargets(call, providerId, accountRef),

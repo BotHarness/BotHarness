@@ -1,4 +1,5 @@
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
+import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   Button,
@@ -227,6 +228,10 @@ function BotInboxItemRow({
   actions: ChannelSidebarEntryProps['actions'];
   t: BotHarnessTranslate;
 }): ReactElement {
+  const externalRequest = useRef(0);
+  const [externalOpen, setExternalOpen] = useState(false);
+  const [external, setExternal] = useState<ExternalSource>();
+  const [externalError, setExternalError] = useState(false);
   const memoryChange = item.sourceKind === 'memory-change';
   const summary = memoryChange
     ? item.summary
@@ -234,17 +239,33 @@ function BotInboxItemRow({
         .replace(/^Working Memory changes since your last turn:\s*/u, '')
         .replace(/^\?\? /u, '')
     : item.summary;
-  const author = memoryChange
-    ? t('inbox.memoryChange')
-    : item.sourceKind === 'assignment-report'
-      ? t('inbox.assignment')
-      : item.authorKind === 'human'
-        ? t('main.author.human')
-        : item.authorKind === 'bot'
-          ? (item.authorBotSlug ?? t('inbox.bot'))
-          : t('inbox.system');
+  const author =
+    item.externalOrigin !== undefined
+      ? `${item.externalOrigin.platform} · ${item.externalOrigin.senderId}`
+      : memoryChange
+        ? t('inbox.memoryChange')
+        : item.sourceKind === 'assignment-report'
+          ? t('inbox.assignment')
+          : item.authorKind === 'human'
+            ? t('main.author.human')
+            : item.authorKind === 'bot'
+              ? (item.authorBotSlug ?? t('inbox.bot'))
+              : t('inbox.system');
   const open = async (): Promise<void> => {
     if (!item.sourceAvailable) return;
+    if (item.externalOrigin !== undefined) {
+      const request = ++externalRequest.current;
+      setExternal(undefined);
+      setExternalOpen(true);
+      setExternalError(false);
+      try {
+        const source = await actions.messagingSource(item.botSlug, item.id);
+        if (request === externalRequest.current) setExternal(source);
+      } catch {
+        if (request === externalRequest.current) setExternalError(true);
+      }
+      return;
+    }
     if (item.assignmentSessionId !== undefined) {
       await actions.openSession(item.assignmentSessionId);
       return;
@@ -264,6 +285,9 @@ function BotInboxItemRow({
       </span>
       <span className="bh-inbox-item-summary">{summary || t('inbox.system')}</span>
       <span className="bh-inbox-item-meta">
+        {item.externalOrigin === undefined
+          ? ''
+          : `${item.externalOrigin.accountName} · ${item.externalOrigin.conversationName} · `}
         {formatRelativeTime(Date.parse(item.createdAt), Date.now(), t)}
         {!memoryChange && !item.sourceAvailable ? ` · ${t('inbox.sourceUnavailable')}` : ''}
       </span>
@@ -271,14 +295,48 @@ function BotInboxItemRow({
   );
   if (memoryChange) return <div className="bh-inbox-item bh-inbox-item-info">{content}</div>;
   return (
-    <button
-      type="button"
-      className="bh-inbox-item"
-      disabled={!item.sourceAvailable}
-      onClick={() => void open()}
-    >
-      {content}
-    </button>
+    <>
+      <button
+        type="button"
+        className="bh-inbox-item"
+        disabled={!item.sourceAvailable}
+        onClick={() => void open()}
+      >
+        {content}
+      </button>
+      {externalOpen ? (
+        <Modal
+          open
+          onClose={() => {
+            ++externalRequest.current;
+            setExternalOpen(false);
+          }}
+          title={t('im.sourceTitle')}
+          closeLabel={t('common.close')}
+        >
+          {externalError ? (
+            <p role="alert">{t('im.sourceError')}</p>
+          ) : external === undefined ? (
+            <p>{t('im.sourceLoading')}</p>
+          ) : (
+            <>
+              <p>
+                {external.platform} · {external.accountName} · {external.conversationName}
+              </p>
+              <p>
+                {external.event.actor.id} · {external.at}
+              </p>
+              <p>
+                {external.event.reply.threadId ??
+                  external.event.reply.rootId ??
+                  external.event.conversation.id}
+              </p>
+              <p className="bh-external-source-body">{external.body}</p>
+            </>
+          )}
+        </Modal>
+      ) : null}
+    </>
   );
 }
 
@@ -337,11 +395,15 @@ function BotInboxEntry({ actions, t, botSlug }: ChannelSidebarEntryProps): React
   for (const item of inbox.items) {
     const key =
       item.assignmentSessionId === undefined
-        ? (item.sourceChannelId ?? `system:${item.reason}`)
+        ? (item.sourceChannelId ??
+          (item.externalOrigin === undefined
+            ? `system:${item.reason}`
+            : `external:${item.externalOrigin.platform}:${item.externalOrigin.conversationId}`))
         : `assignment:${item.assignmentSessionId}`;
     const group = groups.get(key) ?? {
       name:
         item.assignmentPurpose ??
+        item.externalOrigin?.conversationName ??
         item.sourceChannelName ??
         item.sourceChannelId ??
         t(item.assignmentSessionId === undefined ? 'inbox.system' : 'inbox.assignment'),

@@ -3349,6 +3349,13 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   font-size: 12px;
   line-height: 18px;
 }
+.bh-external-source-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 50vh;
+  overflow: auto;
+  color: var(--dsw-alias-label-primary);
+}
 .bh-inbox-item-meta {
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;

@@ -1,6 +1,15 @@
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  Button: ({ children, ...props }: { children: ReactNode }) =>
+    createElement('button', props, children),
+  MarkdownText: () => null,
+  StateDot: () => null,
+  Modal: () => null,
+  Input: () => null,
+}));
 
 vi.mock('../src/client/bot-sidebar.js', async () => {
   const { store } = await import('../src/client/store.js');

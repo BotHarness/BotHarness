@@ -9,17 +9,23 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Breaking Changes
 
+- Custom `BotAgentAdapter` implementations must handle an absent `OrchestratorAgentRun.inboundChannelId` for external-only Inbox turns; choose an authorized local Channel explicitly when sending locally ([#12](https://github.com/BotHarness/BotHarness/issues/12)).
+
 - `channel_send` Tool acknowledgements change from prose to `{channelId,messageId}` JSON; consumers must read those fields. Attachment `size` is now declared as `integer`, matching the already-enforced safe nonnegative integer contract; new sends use the current four-field fileId reference; obsolete hash results must be refreshed from their owning message after #577 migration ([#570](https://github.com/BotHarness/BotHarness/issues/570)).
 
 - Custom `BotAgentAdapter` implementations must return `{ outputLimit, contacts, nextCursor? }` from Orchestrator `channels.contacts(input?)`, with stable IDs under `botId` instead of `slug`; the `list_bot_contacts` Tool now returns that bounded page, so consumers must follow continuation ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
 
 ### Added
 
+- Humans can inspect a live tool request and approve or reject it directly in Human Inbox, with expandable source messages and exact navigation. Decisions use the source DM command, remove the resolved action while leaving other Bots independent, and refresh stale requests ([#550](https://github.com/BotHarness/BotHarness/issues/550)).
+- A PersonaBot can read a specified received original through native file tools and explicitly edit it with Human approval; original-message downloads and shared references show current contents, while independent uploads and default working copies remain separate ([#633](https://github.com/BotHarness/BotHarness/issues/633), [file guide](docs/file-open.md)).
+
 - Human-participating DM and Group headers now offer My nickname; independent Channel names inherit the plugin default when cleared, and historical mentions plus Inbox and Bot context use their source Channel name without changing identity or attention ([#622](https://github.com/BotHarness/BotHarness/issues/622)).
 
 - Added actual model/provider and execution-role filters to PersonaBot usage, with separate retained all-time totals, a seven-day chart default, and visible query freshness or failures ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
 - The local Human can save an optional default name in plugin settings; Channel authors, members, receipts and Bot context use the current name, and historical trusted Human/Bot mentions resolve current labels by stable identity without changing message content or attention ([#621](https://github.com/BotHarness/BotHarness/issues/621), [ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)).
 - Human can explicitly allow a PersonaBot to write one granted work folder, save a received file there, process it with native tools and approved Shell calls, and return a separately downloadable result ([#632](https://github.com/BotHarness/BotHarness/issues/632), [ADR-0105](docs/adr/0105-attachments-use-native-file-operations-under-source-authority.md)).
+- A Human can enable text mentions from one authorized Lark work group into a bound PersonaBot’s canonical Inbox; the Bot uses its own identity to explicitly reply in the original group/topic, with retained origin details, exclusive intake and no implicit Human DM mirror. This isolated tracer uses the qualified temporary provider and does not enable production IM ([#12](https://github.com/BotHarness/BotHarness/issues/12), [ADR-0106](docs/adr/0106-exclusive-im-intake-commits-bot-inbox-before-acknowledgement.md)).
 
 - PersonaBots can explicitly mention the local Human in a Group using its current member identity; Human Inbox combines trusted mentions and direct replies in one personal view with expandable context and inline replies, while ordinary `@Human` text creates no personal reminder ([#549](https://github.com/BotHarness/BotHarness/issues/549)).
 - PersonaBot Profile coordinates daily and actual-model usage charts with one bounded time range, initially the most recent 7 days; a Model / Provider switch shows only the selected dimension; default model rows combine providers and execution roles as compact name-and-total rows, with inclusive input, cache reads, output and weighted percentages in chart hover tooltips alongside composition and cache-ratio charts; keyboard-accessible Details disclose Session categories ([#592](https://github.com/BotHarness/BotHarness/issues/592)).
@@ -219,6 +225,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Fixed
 
 - DM activity now updates the sidebar and composer together from the actual Host Session projection; active turns show thinking or working and settle to idle, while delivery receipts keep their independent processing result ([#536](https://github.com/BotHarness/BotHarness/issues/536), [#120](https://github.com/BotHarness/BotHarness/issues/120)).
+- Browser uploads now honor an observed file-input ref instead of attaching to a different field on multi-input pages, so the intended form can continue ([#652](https://github.com/BotHarness/BotHarness/issues/652)).
+
+- Group departure now reports a committed change or an idempotent `not-member` no-change; missing Channels and non-Group targets fail explicitly, so repeated or rejected requests cannot fabricate a new departure ([#571](https://github.com/BotHarness/BotHarness/issues/571)).
 
 - Browser scrolling now sends a native wheel at the viewport center, so the Bot can move central nested content as well as ordinary pages and observe the result before continuing ([#647](https://github.com/BotHarness/BotHarness/issues/647)).
 

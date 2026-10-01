@@ -12,9 +12,7 @@
   "frames": [
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
       "receipts": [],
       "hostDeliveries": [
@@ -26,13 +24,9 @@
     },
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -42,13 +36,9 @@
     },
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -58,13 +48,9 @@
     },
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -74,13 +60,9 @@
     },
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -90,13 +72,9 @@
     },
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -106,15 +84,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -124,15 +96,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -142,15 +108,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -160,15 +120,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -178,15 +132,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -196,15 +144,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -214,15 +156,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -232,15 +168,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -250,15 +180,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -268,15 +192,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -286,15 +204,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -304,15 +216,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -322,15 +228,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -340,15 +240,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -358,15 +252,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -376,15 +264,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -394,15 +276,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -412,15 +288,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -430,15 +300,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -448,15 +312,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -466,15 +324,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -484,15 +336,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -502,15 +348,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -520,15 +360,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -538,15 +372,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -556,15 +384,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -574,15 +396,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -592,16 +408,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -611,16 +420,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -630,16 +432,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -649,16 +444,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -668,16 +456,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -687,16 +468,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -706,16 +480,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -725,16 +492,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -744,16 +504,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -763,16 +516,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -782,16 +528,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -801,16 +540,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -820,16 +552,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -839,16 +564,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -858,16 +576,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -877,16 +588,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -896,16 +600,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -915,16 +612,9 @@
     },
     {
       "host": "working",
-      "sidebar": [
-        "working"
-      ],
-      "composer": [
-        "working"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -934,16 +624,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -953,16 +636,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -972,16 +648,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -991,16 +660,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -1010,16 +672,9 @@
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "thinking"
-      ],
-      "composer": [
-        "thinking"
-      ],
-      "receipts": [
-        "收件与已读状态: 1 处理中",
-        "收件与已读状态: 1 已投递"
-      ],
+      "sidebar": ["thinking"],
+      "composer": ["thinking"],
+      "receipts": ["收件与已读状态: 1 处理中", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",
@@ -1029,14 +684,9 @@
     },
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 已处理",
-        "收件与已读状态: 1 已投递"
-      ],
+      "receipts": ["收件与已读状态: 1 已处理", "收件与已读状态: 1 已投递"],
       "hostDeliveries": [
         {
           "botSlug": "bot-dce077ef53d04033990c82cf08160a3b",

@@ -144,7 +144,7 @@ export function createHumanAttentionQuery(
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
         throw new Error('Human attention limit must be 1-100');
       const category = input.category ?? 'action';
-      const sort = input.sort ?? 'newest';
+      const sort = input.sort ?? (category === 'action' ? 'oldest' : 'newest');
       if (sort !== 'newest' && sort !== 'oldest') throw new Error('Invalid Human attention sort');
       const direction = sort === 'newest' ? 'DESC' : 'ASC';
       const cursorComparison = sort === 'newest' ? '<' : '>';

@@ -11,193 +11,117 @@
   "frames": [
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "working",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "working",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "thinking",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 处理中"
-      ]
+      "receipts": ["收件与已读状态: 1 处理中"]
     },
     {
       "host": "idle",
-      "sidebar": [
-        "idle"
-      ],
+      "sidebar": ["idle"],
       "composer": [],
-      "receipts": [
-        "收件与已读状态: 1 已处理"
-      ]
+      "receipts": ["收件与已读状态: 1 已处理"]
     }
   ]
 }
