@@ -8,49 +8,62 @@
     "model": "deepseek-v4-pro",
     "reasoningEffort": "off"
   },
+  "colorScheme": "dark",
   "phase": "after",
   "snapshots": [
     {
       "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
-      "revision": 2,
+      "revision": 8,
+      "slug": "bot-d5dc970172584931bf9259e959c4bc79",
+      "state": "idle"
+    },
+    {
+      "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
+      "revision": 9,
+      "slug": "bot-d5dc970172584931bf9259e959c4bc79",
+      "state": "thinking"
+    },
+    {
+      "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
+      "revision": 10,
       "slug": "bot-d5dc970172584931bf9259e959c4bc79",
       "state": "working",
       "activity": {
         "effect": "executing",
         "toolKind": "execute",
         "toolName": "bash",
-        "startedAt": 1790888497404,
+        "startedAt": 1790889925627,
         "activeToolCount": 1
       }
     },
     {
       "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
-      "revision": 3,
+      "revision": 11,
       "slug": "bot-d5dc970172584931bf9259e959c4bc79",
       "state": "thinking"
     },
     {
       "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
-      "revision": 4,
+      "revision": 12,
       "slug": "bot-d5dc970172584931bf9259e959c4bc79",
       "state": "working",
       "activity": {
         "effect": "generic-working",
         "toolKind": "other",
         "toolName": "channel_send",
-        "startedAt": 1790888718455,
+        "startedAt": 1790889939485,
         "activeToolCount": 1
       }
     },
     {
       "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
-      "revision": 5,
+      "revision": 13,
       "slug": "bot-d5dc970172584931bf9259e959c4bc79",
       "state": "thinking"
     },
     {
       "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
-      "revision": 6,
+      "revision": 14,
       "slug": "bot-d5dc970172584931bf9259e959c4bc79",
       "state": "idle"
     }
@@ -75,49 +88,28 @@
   "nativeEvents": [
     {
       "type": "tool/call",
-      "time": 1790887780748,
+      "time": 1790889925627,
       "name": "bash"
     },
     {
       "type": "tool/result",
-      "time": 1790887787020
+      "time": 1790889936572
     },
     {
       "type": "tool/call",
-      "time": 1790887788768,
+      "time": 1790889939485,
       "name": "channel_send"
     },
     {
       "type": "tool/result",
-      "time": 1790887788788
+      "time": 1790889939660
     },
     {
       "type": "turn/end",
-      "time": 1790887791254
-    },
-    {
-      "type": "tool/call",
-      "time": 1790888497404,
-      "name": "bash"
-    },
-    {
-      "type": "tool/result",
-      "time": 1790888715780
-    },
-    {
-      "type": "tool/call",
-      "time": 1790888718455,
-      "name": "channel_send"
-    },
-    {
-      "type": "tool/result",
-      "time": 1790888718511
-    },
-    {
-      "type": "turn/end",
-      "time": 1790888721468
+      "time": 1790889942761
     }
   ],
+  "railFocusSummary": "Tool activity QA 1790886851938 · 正在执行 · bash",
   "layoutEvidence": [
     {
       "layout": "pinned",

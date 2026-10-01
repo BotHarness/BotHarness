@@ -34,7 +34,7 @@ describe("generated developer reference", () => {
     expect(reference.tools).toEqual([]);
   });
 
-  it("publishes the consumed DSH events, not the in-process BotStateEvent", () => {
+  it("publishes DSH consumers and the safe application Activity event, not BotStateEvent", () => {
     expect(
       reference.publicEvents.map(({ name, direction, operation }) => ({
         name,
@@ -47,6 +47,7 @@ describe("generated developer reference", () => {
       { name: "agent/disposed", direction: "consumes", operation: "on" },
       { name: "agent/pre-step", direction: "consumes", operation: "on" },
       { name: "approval/request", direction: "consumes", operation: "on" },
+      { name: "botharness/personabot/activity", direction: "emits", operation: "emit" },
       { name: "session/event", direction: "consumes", operation: "on" },
       { name: "tools/execute", direction: "consumes", operation: "on" },
       { name: "tools/pre-execute", direction: "consumes", operation: "on" },

@@ -131,6 +131,8 @@ mkdirSync(evidence, { recursive: true });
 const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage();
 await page.setViewport({ width: 1500, height: 1180 });
+const colorScheme = process.env.BH_E2E_COLOR_SCHEME ?? 'dark';
+await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: colorScheme }]);
 await page.setExtraHTTPHeaders({ cookie });
 async function screenshot(name) {
   await page.addStyleTag({
@@ -280,10 +282,25 @@ try {
   });
   await page.click('button[aria-label="收起侧边栏"],button[aria-label="Collapse sidebar"]');
   await page.waitForSelector('.bh-region-rail');
-  const rail = `.bh-rail-channel[aria-label="${bot.displayName}"]`;
+  const rail =
+    phase === 'before'
+      ? `.bh-rail-channel[aria-label="${bot.displayName}"]`
+      : `.bh-rail-channel[data-channel-id="${channelId}"]`;
   await page.hover(rail);
   await page.waitForSelector('.bh-rail-preview');
   await screenshot(`${phase}-rail.png`);
+  let railFocusSummary;
+  if (phase === 'after') {
+    await page.mouse.move(800, 900);
+    await page.focus('.bh-composer-input');
+    await page.waitForFunction(() => !document.querySelector('.bh-rail-preview'));
+    await page.keyboard.press('Tab');
+    await page.focus(rail);
+    await page.waitForSelector('.bh-rail-preview');
+    railFocusSummary = await page.$eval(rail, (button) => button.getAttribute('aria-label'));
+    assert.ok(railFocusSummary.includes('bash'));
+    await screenshot('rail-focus.png');
+  }
   layoutEvidence.push({
     layout: 'rail',
     effect: await page.$eval(`${rail} .bh-persona-avatar`, (e) => e.dataset.effect),
@@ -291,14 +308,20 @@ try {
   await page.click('button[aria-label="打开侧边栏"],button[aria-label="Open sidebar"]');
   await page.waitForSelector('.bh-pinned');
   await rpc('pinsSet', { pins: roster.pins });
-  await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+  await page.emulateMediaFeatures([
+    { name: 'prefers-reduced-motion', value: 'reduce' },
+    { name: 'prefers-color-scheme', value: colorScheme },
+  ]);
   await page.waitForFunction(() => document.documentElement.dataset.botharnessMotion === 'reduce');
   const motion = await page.$$eval('.bh-composer-activity-facepile .bh-avatar-media', (elements) =>
     elements.map((e) => getComputedStyle(e).animationName),
   );
   assert.ok(motion.length > 0 && motion.every((name) => name === 'none'));
   await screenshot(`${phase}-reduce.png`);
-  await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'no-preference' }]);
+  await page.emulateMediaFeatures([
+    { name: 'prefers-reduced-motion', value: 'no-preference' },
+    { name: 'prefers-color-scheme', value: colorScheme },
+  ]);
   if (phase === 'after') {
     const summary = await page.$('.bh-composer-activity-status summary');
     assert.ok(summary);
@@ -324,7 +347,10 @@ try {
         const snapshot = await rpc('activitySnapshot');
         if (
           messages.some(
-            (m) => m.author.kind === 'bot' && m.body.includes('Safe tool activity confirmed'),
+            (m) =>
+              m.at >= pending.at &&
+              m.author.kind === 'bot' &&
+              m.body.includes('Safe tool activity confirmed'),
           ) &&
           snapshot.bots.find((b) => b.slug === bot.slug)?.state === 'idle'
         )
@@ -348,7 +374,11 @@ try {
   assert.ok(sessionId);
   const native = await nativeSnapshot(sessionId);
   const nativeEvents = native.records
-    .filter((record) => ['tool/call', 'tool/result', 'turn/end'].includes(record.event.type))
+    .filter(
+      (record) =>
+        record.event.time >= Date.parse(pending.at) - 5000 &&
+        ['tool/call', 'tool/result', 'turn/end'].includes(record.event.type),
+    )
     .map((record) => ({
       type: record.event.type,
       time: record.event.time,
@@ -368,10 +398,12 @@ try {
       {
         bot: { slug: bot.slug, displayName: bot.displayName },
         route,
+        colorScheme,
         phase,
         snapshots,
         dom,
         nativeEvents,
+        railFocusSummary,
         layoutEvidence,
         reduceMotion: motion,
         heldForHumanQA: process.env.BH_E2E_HOLD === 'true',

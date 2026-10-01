@@ -614,6 +614,7 @@ function RailChannel({
   };
   return (
     <HoverCard
+      inline
       openDelayMs={350}
       copyLabel={t('rail.copy')}
       copiedLabel={t('rail.copied')}
@@ -621,7 +622,12 @@ function RailChannel({
         <button
           type="button"
           className={`bh-rail-channel${selected ? ' bh-selected' : ''}${showShortcutHints && shortcut !== undefined ? ' bh-shortcut-active' : ''}`}
-          aria-label={title}
+          data-channel-id={channel.id}
+          aria-label={
+            bot === undefined
+              ? title
+              : `${title} · ${personaBotActivitySummary(activity ?? 'idle', bot.activity, t)}`
+          }
           aria-current={selected ? 'page' : undefined}
           aria-keyshortcuts={shortcut}
           onClick={open}

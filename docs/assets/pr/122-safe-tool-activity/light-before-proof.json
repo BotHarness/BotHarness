@@ -1,0 +1,71 @@
+{
+  "bot": {
+    "slug": "bot-918191cc639e4facb8832ed9ccd0567c",
+    "displayName": "Safe tool Activity QA"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "colorScheme": "light",
+  "phase": "before",
+  "snapshots": [
+    {
+      "generation": "044a9ae1-2534-4f79-9885-db348f0afb94",
+      "revision": 2,
+      "slug": "bot-918191cc639e4facb8832ed9ccd0567c",
+      "state": "idle"
+    },
+    {
+      "generation": "044a9ae1-2534-4f79-9885-db348f0afb94",
+      "revision": 3,
+      "slug": "bot-918191cc639e4facb8832ed9ccd0567c",
+      "state": "thinking"
+    },
+    {
+      "generation": "044a9ae1-2534-4f79-9885-db348f0afb94",
+      "revision": 4,
+      "slug": "bot-918191cc639e4facb8832ed9ccd0567c",
+      "state": "working"
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "generic-working",
+        "label": "Safe tool Activity QA：正在工作"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "generic-working",
+        "label": "Safe tool Activity QA：正在工作"
+      }
+    ],
+    "summary": "Safe tool Activity QA 正在工作"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790889539269,
+      "name": "bash"
+    }
+  ],
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "generic-working"
+    },
+    {
+      "layout": "rail",
+      "effect": "generic-working"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": false,
+  "actualNativeShellApproval": true,
+  "verdict": "PASS"
+}
