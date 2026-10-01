@@ -1,6 +1,8 @@
-import { useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
+import { IconRefreshOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
 
-import type { ProfileModelUsageRow } from './bridge.js';
+import { useMountedResource } from './mounted-resource.js';
+import type { UsageFilter, UsageQueryResult, ProfileModelUsageRow } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { CacheRatio, UsageChart, UsageLegend, type UsageSummary } from './model-usage-charts.js';
 
@@ -65,18 +67,30 @@ function Buckets({ row, t }: { row: UsageSummary; t: BotHarnessTranslate }): Rea
 }
 
 export function ModelUsageBreakdown({
-  rows,
-  status,
+  rows: initialRows,
+  status: initialStatus,
+  loadUsage,
   today,
   firstDay,
   t,
 }: {
+  loadUsage?: (filter: UsageFilter) => Promise<UsageQueryResult>;
   rows: readonly ProfileModelUsageRow[];
   status: 'ready' | 'unavailable';
   today: string;
   firstDay: string;
   t: BotHarnessTranslate;
 }): ReactElement {
+  const [route, setRoute] = useState('');
+  const [purpose, setPurpose] = useState<UsageFilter['purpose']>();
+  const [refresh, setRefresh] = useState(0);
+  const [resource, setResource] = useState<{
+    key: string;
+    result?: UsageQueryResult;
+    error?: boolean;
+    loading?: boolean;
+  }>();
+  const request = useRef(0);
   const [preset, setPreset] = useState('7');
   const [customStart, setStart] = useState(firstDay);
   const [customEnd, setEnd] = useState(today);
@@ -93,7 +107,59 @@ export function ModelUsageBreakdown({
     start >= firstDay &&
     end <= today &&
     start <= end;
-  const selected = valid ? rows.filter((row) => row.day >= start && row.day <= end) : [];
+  const filter: UsageFilter = {
+    start,
+    end,
+    ...(route ? { [grouping]: route } : {}),
+    ...(purpose ? { purpose } : {}),
+  };
+  const key = JSON.stringify(filter);
+  const mount = useMountedResource<HTMLElement>(() => {
+    const generation = ++request.current;
+    if (!valid || loadUsage === undefined) return;
+    setResource((previous) => ({
+      key,
+      loading: true,
+      ...(previous?.key === key && previous.result ? { result: previous.result } : {}),
+    }));
+    void loadUsage(filter).then(
+      (result) => {
+        if (generation === request.current) setResource({ key, result });
+      },
+      () => {
+        if (generation === request.current)
+          setResource((previous) => ({
+            key,
+            error: true,
+            ...(previous?.key === key && previous.result ? { result: previous.result } : {}),
+          }));
+      },
+    );
+    const timer = window.setInterval(() => setRefresh((value) => value + 1), 30_000);
+    return () => {
+      ++request.current;
+      window.clearInterval(timer);
+    };
+  }, [key, valid, loadUsage, refresh]);
+  const query = resource?.key === key ? resource.result : undefined;
+  const loading =
+    loadUsage !== undefined && valid && (resource?.key !== key || resource.loading === true);
+  const error = resource?.key === key && resource.error === true;
+  const rows = loadUsage === undefined ? initialRows : (query?.rows ?? []);
+  const status =
+    loadUsage === undefined ? initialStatus : query === undefined ? 'unavailable' : 'ready';
+  const routes =
+    (grouping === 'model' ? resource?.result?.models : resource?.result?.providers) ??
+    [...new Set(initialRows.map((row) => row[grouping]))].sort();
+  const selected = valid
+    ? rows.filter(
+        (row) =>
+          row.day >= start &&
+          row.day <= end &&
+          (!route || row[grouping] === route) &&
+          (!purpose || row.purpose === purpose),
+      )
+    : [];
   const models = summaries(selected, (row) => ({
     key: row[grouping],
     label: row[grouping],
@@ -118,7 +184,11 @@ export function ModelUsageBreakdown({
           totalTokens: 0,
         },
       );
-  const total = models.reduce<number | null>((sum, row) => sumBucket(sum, row.totalTokens), 0);
+  const calculatedTotal = models.reduce<number | null>(
+    (sum, row) => sumBucket(sum, row.totalTokens),
+    0,
+  );
+  const total = query === undefined ? calculatedTotal : query.periodTotal;
   const count = (value: number | null) =>
     value === null ? t('profile.usage.unknown') : value.toLocaleString();
   const role = (purpose: string) =>
@@ -135,6 +205,8 @@ export function ModelUsageBreakdown({
   }));
   return (
     <section
+      ref={mount}
+      aria-busy={loading}
       className="bh-model-usage bh-model-usage-overview"
       aria-label={t('profile.card.tokens')}
     >
@@ -144,7 +216,7 @@ export function ModelUsageBreakdown({
           <select
             className="bh-profile-policy-select"
             value={preset}
-            disabled={status !== 'ready'}
+            disabled={loadUsage === undefined && status !== 'ready'}
             onChange={(event) => setPreset(event.target.value)}
           >
             <option value="182">{t('profile.usage.range26')}</option>
@@ -185,9 +257,105 @@ export function ModelUsageBreakdown({
           </label>
         </div>
       ) : null}
+      <div className="bh-model-usage-header">
+        <div className="bh-usage-grouping" role="group" aria-label={t('profile.usage.grouping')}>
+          <button
+            type="button"
+            data-group="model"
+            aria-pressed={grouping === 'model'}
+            onClick={() => {
+              setGrouping('model');
+              setRoute('');
+            }}
+          >
+            {t('profile.usage.models')}
+          </button>
+          <button
+            type="button"
+            data-group="provider"
+            aria-pressed={grouping === 'provider'}
+            onClick={() => {
+              setGrouping('provider');
+              setRoute('');
+            }}
+          >
+            {t('profile.usage.providers')}
+          </button>
+        </div>
+        <label>
+          {t(grouping === 'model' ? 'profile.usage.models' : 'profile.usage.providers')}
+          <select
+            className="bh-profile-policy-select"
+            aria-label={t('profile.usage.routeFilter')}
+            value={route}
+            onChange={(event) => setRoute(event.target.value)}
+          >
+            <option value="">{t('profile.usage.allRoutes')}</option>
+            {routes.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+        {loadUsage !== undefined ? (
+          <button
+            type="button"
+            className="bh-profile-pin"
+            aria-label={t('profile.usage.refresh')}
+            title={t('profile.usage.refresh')}
+            disabled={loading}
+            onClick={() => setRefresh((value) => value + 1)}
+          >
+            <IconRefreshOutlineRegular size={16} />
+          </button>
+        ) : null}
+      </div>
+      {loading && query !== undefined ? (
+        <p className="bh-note" role="status">
+          {t('profile.usage.loading')}
+        </p>
+      ) : null}
+      {error && query !== undefined ? (
+        <p className="bh-note" role="status">
+          {t('profile.usage.stale', { at: new Date(query.readAt).toLocaleString() })}
+        </p>
+      ) : null}
+      {query !== undefined ? (
+        <>
+          <p className="bh-note" aria-live="polite">
+            {t('profile.usage.allTime', { count: count(query.allTimeTotal) })}
+          </p>
+          {query.freshness !== 'ready' ? (
+            <p className="bh-note" role="status">
+              {t(
+                query.freshness === 'reconciling'
+                  ? 'profile.usage.reconciling'
+                  : 'profile.usage.degraded',
+              )}
+            </p>
+          ) : null}
+          {query.legacyBaseline ? (
+            <p className="bh-note" role="status">
+              {t('profile.usage.legacy')}
+            </p>
+          ) : null}
+          {query.facetsTruncated ? (
+            <p className="bh-note" role="status">
+              {t('profile.usage.facetsTruncated')}
+            </p>
+          ) : null}
+        </>
+      ) : null}
       {status === 'unavailable' ? (
         <p className="bh-note" role="status">
-          {t('profile.usage.unavailable')}
+          {t(
+            error
+              ? 'profile.usage.loadFailed'
+              : loading
+                ? 'profile.usage.loading'
+                : 'profile.usage.unavailable',
+          )}
         </p>
       ) : !valid ? (
         <p className="bh-note" role="alert">
@@ -198,7 +366,11 @@ export function ModelUsageBreakdown({
           <strong className="bh-profile-card-total" aria-live="polite">
             {t('profile.usage.periodTotal', { count: count(total) })}
           </strong>
-          {selected.length === 0 ? (
+          {query?.truncated === true ? (
+            <p className="bh-note" role="status">
+              {t('profile.usage.truncated')}
+            </p>
+          ) : selected.length === 0 ? (
             <p className="bh-profile-empty">{t('profile.usage.periodEmpty')}</p>
           ) : (
             <>
@@ -220,28 +392,6 @@ export function ModelUsageBreakdown({
                   <strong>
                     {t(grouping === 'model' ? 'profile.usage.byModel' : 'profile.usage.byProvider')}
                   </strong>
-                  <div
-                    className="bh-usage-grouping"
-                    role="group"
-                    aria-label={t('profile.usage.grouping')}
-                  >
-                    <button
-                      type="button"
-                      data-group="model"
-                      aria-pressed={grouping === 'model'}
-                      onClick={() => setGrouping('model')}
-                    >
-                      {t('profile.usage.models')}
-                    </button>
-                    <button
-                      type="button"
-                      data-group="provider"
-                      aria-pressed={grouping === 'provider'}
-                      onClick={() => setGrouping('provider')}
-                    >
-                      {t('profile.usage.providers')}
-                    </button>
-                  </div>
                 </div>
                 <UsageLegend rows={models} t={t} />
                 <div className="bh-usage-model-plot">
@@ -299,58 +449,93 @@ export function ModelUsageBreakdown({
                   </div>
                 </div>
               </div>
-              <details
-                className="bh-usage-details"
-                onToggle={(event) => setExpanded(event.currentTarget.open)}
-              >
-                <summary>{t('profile.usage.details')}</summary>
-                {expanded ? (
-                  <div>
-                    <p className="bh-note">{t('profile.usage.observed')}</p>
-                    <strong>{t('profile.usage.executionDetails')}</strong>
-                    {details.map((row) => (
-                      <div key={row.key} className="bh-model-usage-route">
-                        <strong>{row.label}</strong>
-                        <Buckets row={row} t={t} />
-                      </div>
-                    ))}
-                    <strong>{t('profile.usage.daily')}</strong>
-                    <div className="bh-usage-table-scroll">
-                      <table className="bh-usage-day-table">
-                        <caption>
-                          {start} – {end}
-                        </caption>
-                        <thead>
-                          <tr>
-                            <th scope="col">{t('profile.usage.day')}</th>
-                            {bucketLabels.map((key) => (
-                              <th scope="col" key={key}>
-                                {t(key)}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {days
-                            .sort((a, b) => b.key.localeCompare(a.key))
-                            .map((row) => (
-                              <tr key={row.key}>
-                                <th scope="row">{row.label}</th>
-                                {bucketKeys.map((key) => (
-                                  <td key={key}>{count(row[key])}</td>
-                                ))}
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : null}
-              </details>
             </>
           )}
         </>
       )}
+      <details
+        className="bh-usage-details"
+        onToggle={(event) => setExpanded(event.currentTarget.open)}
+      >
+        <summary>
+          {t('profile.usage.details')}
+          {purpose ? ` · ${role(purpose)}` : ''}
+        </summary>
+        {expanded ? (
+          <div>
+            <label>
+              {t('profile.usage.roleFilter')}
+              <select
+                className="bh-profile-policy-select"
+                aria-label={t('profile.usage.roleFilter')}
+                value={purpose ?? ''}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setPurpose(
+                    value === 'orchestrator' || value === 'assignment' || value === 'subagent'
+                      ? value
+                      : undefined,
+                  );
+                }}
+              >
+                <option value="">{t('profile.usage.allRoles')}</option>
+                {['orchestrator', 'assignment', 'subagent'].map((value) => (
+                  <option key={value} value={value}>
+                    {role(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {query !== undefined ? (
+              <p className="bh-note">
+                {t('profile.usage.readAt', { at: new Date(query.readAt).toLocaleString() })}
+              </p>
+            ) : null}
+            <p className="bh-note">{t('profile.usage.observed')}</p>
+            {query?.truncated ? null : (
+              <>
+                <strong>{t('profile.usage.executionDetails')}</strong>
+                {details.map((row) => (
+                  <div key={row.key} className="bh-model-usage-route">
+                    <strong>{row.label}</strong>
+                    <Buckets row={row} t={t} />
+                  </div>
+                ))}
+                <strong>{t('profile.usage.daily')}</strong>
+                <div className="bh-usage-table-scroll">
+                  <table className="bh-usage-day-table">
+                    <caption>
+                      {start} – {end}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">{t('profile.usage.day')}</th>
+                        {bucketLabels.map((key) => (
+                          <th scope="col" key={key}>
+                            {t(key)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {days
+                        .sort((a, b) => b.key.localeCompare(a.key))
+                        .map((row) => (
+                          <tr key={row.key}>
+                            <th scope="row">{row.label}</th>
+                            {bucketKeys.map((key) => (
+                              <td key={key}>{count(row[key])}</td>
+                            ))}
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+      </details>
     </section>
   );
 }

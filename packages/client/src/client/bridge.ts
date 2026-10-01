@@ -5,6 +5,8 @@ import type {
 } from '../../../core/src/messaging/outbound.js';
 import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import type { HostFileTarget } from './host-file-actions.js';
+import type { UsageFilter, UsageQueryResult } from '../../../core/src/usage/query.js';
+export type { UsageFilter, UsageQueryResult } from '../../../core/src/usage/query.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
 
@@ -2203,6 +2205,57 @@ function isTokenBuckets(value: unknown): value is ProfileTokenBuckets {
     typeof record['cacheReadTokens'] === 'number' &&
     typeof record['cacheWriteTokens'] === 'number'
   );
+}
+
+export async function loadProfileUsage(
+  call: BridgeCall,
+  channelId: string,
+  filter: UsageFilter,
+): Promise<UsageQueryResult> {
+  const value = asRecord(await unwrap(call, 'profileUsage', { channelId, filter }));
+  const count = (input: unknown) =>
+    input === null || (Number.isSafeInteger(input) && Number(input) >= 0);
+  if (
+    value === undefined ||
+    !Array.isArray(value['rows']) ||
+    value['rows'].length > 2000 ||
+    !value['rows'].every((item) => {
+      const row = asRecord(item);
+      return (
+        row !== undefined &&
+        ['day', 'purpose', 'provider', 'model'].every((key) => typeof row[key] === 'string') &&
+        ['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'totalTokens'].every(
+          (key) => count(row[key]),
+        )
+      );
+    }) ||
+    !count(value['periodTotal']) ||
+    !count(value['allTimeTotal']) ||
+    !['periodRecords', 'allTimeRecords'].every(
+      (key) => Number.isSafeInteger(value[key]) && Number(value[key]) >= 0,
+    ) ||
+    !['models', 'providers'].every(
+      (key) =>
+        Array.isArray(value[key]) &&
+        value[key].length <= 1000 &&
+        value[key].every((item: unknown) => typeof item === 'string'),
+    ) ||
+    !['truncated', 'facetsTruncated', 'legacyBaseline'].every(
+      (key) => typeof value[key] === 'boolean',
+    ) ||
+    !['ready', 'reconciling', 'degraded'].includes(String(value['freshness'])) ||
+    typeof value['readAt'] !== 'string' ||
+    !Number.isFinite(Date.parse(value['readAt'])) ||
+    (value['reconciledAt'] !== null &&
+      (typeof value['reconciledAt'] !== 'string' ||
+        !Number.isFinite(Date.parse(value['reconciledAt'])))) ||
+    !['start', 'end', 'model', 'provider', 'purpose'].every(
+      (key) =>
+        asRecord(value['filter'])?.[key] === (filter as unknown as Record<string, unknown>)[key],
+    )
+  )
+    throw new Error('invalid Profile usage');
+  return value as unknown as UsageQueryResult;
 }
 
 export async function loadProfileActivity(

@@ -59,6 +59,9 @@ import {
   loadMemoryGitGraph,
   loadMemoryGitCommitDiff,
   loadProfileActivity,
+  loadProfileUsage,
+  type UsageFilter,
+  type UsageQueryResult,
   loadGroupProfileActivity,
   loadModelCatalog,
   loadModelPresets,
@@ -269,6 +272,7 @@ export interface BridgeActions {
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
+  profileUsage(channelId: string, filter: UsageFilter): Promise<UsageQueryResult>;
   groupProfileActivity(channelId: string): Promise<GroupProfileActivity>;
   botSourcePolicies(slug: string): Promise<BotSourcePolicyView[]>;
   setBotSourcePolicy(slug: string, edit: BotSourcePolicyEdit): Promise<void>;
@@ -1274,6 +1278,7 @@ export function createActions(
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
     messagingTargets: (providerId, accountRef) =>

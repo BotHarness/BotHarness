@@ -128,7 +128,7 @@ export function ProfileHeatmap({
               type="button"
               className="bh-profile-heat-cell"
               data-level={heatLevel(count)}
-              aria-label={`${day} · ${t('profile.heat.tip', { count })}`}
+              aria-label={`${day} 路 ${t('profile.heat.tip', { count })}`}
               onMouseEnter={() => setHovered({ day, count, column })}
               onMouseLeave={() => setHovered(undefined)}
               onFocus={() => setHovered({ day, count, column })}
@@ -328,6 +328,7 @@ function TokenTip({ totals, t }: { totals: TokenDayTotals; t: BotHarnessTranslat
 }
 
 function TokenUsageCard({
+  loadUsage,
   activity,
   t,
   compact,
@@ -405,6 +406,7 @@ function TokenUsageCard({
   if (!compact)
     return (
       <ModelUsageBreakdown
+        {...(loadUsage === undefined ? {} : { loadUsage })}
         rows={activity?.modelUsageRows ?? []}
         status={activity?.modelUsageStatus ?? 'unavailable'}
         today={activity?.today ?? localDayKey(new Date())}
@@ -492,6 +494,9 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
   const reportedTotal = profileUsageTotal(activity, tokens);
   return (
     <div className="bh-profile-card-body">
+      <p className="bh-note">
+        {t('profile.usage.window', { weeks: activity?.weeks ?? PROFILE_ACTIVITY_WEEKS })}
+      </p>
       <dl className="bh-profile-stats">
         <div>
           <dt>{t('profile.stat.events')}</dt>

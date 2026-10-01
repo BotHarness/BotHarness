@@ -15,6 +15,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added actual model/provider and execution-role filters to PersonaBot usage, with separate retained all-time totals, a seven-day chart default, and visible query freshness or failures ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
+
 - PersonaBots can explicitly mention the local Human in a Group using its current member identity; Human Inbox combines trusted mentions and direct replies in one personal view with expandable context and inline replies, while ordinary `@Human` text creates no personal reminder ([#549](https://github.com/BotHarness/BotHarness/issues/549)).
 - PersonaBot Profile coordinates daily and actual-model usage charts with one bounded time range, initially the most recent 7 days; a Model / Provider switch shows only the selected dimension; default model rows combine providers and execution roles as compact name-and-total rows, with inclusive input, cache reads, output and weighted percentages in chart hover tooltips alongside composition and cache-ratio charts; keyboard-accessible Details disclose Session categories ([#592](https://github.com/BotHarness/BotHarness/issues/592)).
 - Existing message attachments migrate at Host startup to resumable independent real-file identities; their original menus open the current destination, equal hashes remain independent, and owner-qualified old reads follow saved contents without rewriting messages or waking Bots ([#577](https://github.com/BotHarness/BotHarness/issues/577), [migration guide](docs/file-open.md)).

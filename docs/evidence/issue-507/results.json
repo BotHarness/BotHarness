@@ -1,0 +1,292 @@
+{
+  "ok": true,
+  "bot": {
+    "slug": "bot-49fbcb0916b24f6ba6a7e073fbcfb722",
+    "displayName": "Execution usage QA 1790831359441"
+  },
+  "realReplies": {
+    "orchestrator": "USAGE_ROLES_CONFIRMED",
+    "assignment": "USAGE_ASSIGNMENT_REAL",
+    "child": "USAGE_CHILD_REAL"
+  },
+  "packets": [
+    {
+      "filter": {
+        "start": "2026-09-25",
+        "end": "2026-10-01"
+      },
+      "rows": [
+        {
+          "day": "2026-10-01",
+          "purpose": "assignment",
+          "provider": "deepseek-official",
+          "model": "deepseek-v4-pro",
+          "inputTokens": null,
+          "outputTokens": null,
+          "cacheReadTokens": null,
+          "cacheWriteTokens": null,
+          "totalTokens": null
+        },
+        {
+          "day": "2026-10-01",
+          "purpose": "orchestrator",
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "inputTokens": 14314,
+          "outputTokens": 834,
+          "cacheReadTokens": 45184,
+          "cacheWriteTokens": 0,
+          "totalTokens": 60332
+        },
+        {
+          "day": "2026-10-01",
+          "purpose": "subagent",
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "inputTokens": 6675,
+          "outputTokens": 7,
+          "cacheReadTokens": 1152,
+          "cacheWriteTokens": 0,
+          "totalTokens": 7834
+        }
+      ],
+      "periodTotal": null,
+      "allTimeTotal": null,
+      "periodRecords": 3,
+      "allTimeRecords": 3,
+      "models": ["deepseek-flash", "deepseek-v4-pro"],
+      "providers": ["deepseek-official"],
+      "facetsTruncated": false,
+      "truncated": false,
+      "legacyBaseline": false,
+      "freshness": "ready",
+      "readAt": "2026-10-01T05:30:14.941Z",
+      "reconciledAt": "2026-10-01T05:08:54.274Z"
+    },
+    {
+      "filter": {
+        "start": "2026-09-25",
+        "end": "2026-10-01",
+        "model": "deepseek-flash"
+      },
+      "rows": [
+        {
+          "day": "2026-10-01",
+          "purpose": "orchestrator",
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "inputTokens": 14314,
+          "outputTokens": 834,
+          "cacheReadTokens": 45184,
+          "cacheWriteTokens": 0,
+          "totalTokens": 60332
+        },
+        {
+          "day": "2026-10-01",
+          "purpose": "subagent",
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "inputTokens": 6675,
+          "outputTokens": 7,
+          "cacheReadTokens": 1152,
+          "cacheWriteTokens": 0,
+          "totalTokens": 7834
+        }
+      ],
+      "periodTotal": 68166,
+      "allTimeTotal": 68166,
+      "periodRecords": 2,
+      "allTimeRecords": 2,
+      "models": ["deepseek-flash", "deepseek-v4-pro"],
+      "providers": ["deepseek-official"],
+      "facetsTruncated": false,
+      "truncated": false,
+      "legacyBaseline": false,
+      "freshness": "ready",
+      "readAt": "2026-10-01T05:30:14.955Z",
+      "reconciledAt": "2026-10-01T05:08:54.274Z"
+    },
+    {
+      "filter": {
+        "start": "2026-09-25",
+        "end": "2026-10-01",
+        "provider": "deepseek-official"
+      },
+      "rows": [
+        {
+          "day": "2026-10-01",
+          "purpose": "assignment",
+          "provider": "deepseek-official",
+          "model": "deepseek-v4-pro",
+          "inputTokens": null,
+          "outputTokens": null,
+          "cacheReadTokens": null,
+          "cacheWriteTokens": null,
+          "totalTokens": null
+        },
+        {
+          "day": "2026-10-01",
+          "purpose": "orchestrator",
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "inputTokens": 14314,
+          "outputTokens": 834,
+          "cacheReadTokens": 45184,
+          "cacheWriteTokens": 0,
+          "totalTokens": 60332
+        },
+        {
+          "day": "2026-10-01",
+          "purpose": "subagent",
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "inputTokens": 6675,
+          "outputTokens": 7,
+          "cacheReadTokens": 1152,
+          "cacheWriteTokens": 0,
+          "totalTokens": 7834
+        }
+      ],
+      "periodTotal": null,
+      "allTimeTotal": null,
+      "periodRecords": 3,
+      "allTimeRecords": 3,
+      "models": ["deepseek-flash", "deepseek-v4-pro"],
+      "providers": ["deepseek-official"],
+      "facetsTruncated": false,
+      "truncated": false,
+      "legacyBaseline": false,
+      "freshness": "ready",
+      "readAt": "2026-10-01T05:30:14.961Z",
+      "reconciledAt": "2026-10-01T05:08:54.274Z"
+    },
+    {
+      "filter": {
+        "start": "2026-09-25",
+        "end": "2026-10-01",
+        "purpose": "orchestrator"
+      },
+      "rows": [
+        {
+          "day": "2026-10-01",
+          "purpose": "orchestrator",
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "inputTokens": 14314,
+          "outputTokens": 834,
+          "cacheReadTokens": 45184,
+          "cacheWriteTokens": 0,
+          "totalTokens": 60332
+        }
+      ],
+      "periodTotal": 60332,
+      "allTimeTotal": 60332,
+      "periodRecords": 1,
+      "allTimeRecords": 1,
+      "models": ["deepseek-flash", "deepseek-v4-pro"],
+      "providers": ["deepseek-official"],
+      "facetsTruncated": false,
+      "truncated": false,
+      "legacyBaseline": false,
+      "freshness": "ready",
+      "readAt": "2026-10-01T05:30:14.966Z",
+      "reconciledAt": "2026-10-01T05:08:54.274Z"
+    },
+    {
+      "filter": {
+        "start": "2026-09-25",
+        "end": "2026-10-01",
+        "purpose": "assignment"
+      },
+      "rows": [
+        {
+          "day": "2026-10-01",
+          "purpose": "assignment",
+          "provider": "deepseek-official",
+          "model": "deepseek-v4-pro",
+          "inputTokens": null,
+          "outputTokens": null,
+          "cacheReadTokens": null,
+          "cacheWriteTokens": null,
+          "totalTokens": null
+        }
+      ],
+      "periodTotal": null,
+      "allTimeTotal": null,
+      "periodRecords": 1,
+      "allTimeRecords": 1,
+      "models": ["deepseek-flash", "deepseek-v4-pro"],
+      "providers": ["deepseek-official"],
+      "facetsTruncated": false,
+      "truncated": false,
+      "legacyBaseline": false,
+      "freshness": "ready",
+      "readAt": "2026-10-01T05:30:14.971Z",
+      "reconciledAt": "2026-10-01T05:08:54.274Z"
+    },
+    {
+      "filter": {
+        "start": "2026-09-25",
+        "end": "2026-10-01",
+        "purpose": "subagent"
+      },
+      "rows": [
+        {
+          "day": "2026-10-01",
+          "purpose": "subagent",
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "inputTokens": 6675,
+          "outputTokens": 7,
+          "cacheReadTokens": 1152,
+          "cacheWriteTokens": 0,
+          "totalTokens": 7834
+        }
+      ],
+      "periodTotal": 7834,
+      "allTimeTotal": 7834,
+      "periodRecords": 1,
+      "allTimeRecords": 1,
+      "models": ["deepseek-flash", "deepseek-v4-pro"],
+      "providers": ["deepseek-official"],
+      "facetsTruncated": false,
+      "truncated": false,
+      "legacyBaseline": false,
+      "freshness": "ready",
+      "readAt": "2026-10-01T05:30:14.976Z",
+      "reconciledAt": "2026-10-01T05:08:54.274Z"
+    },
+    {
+      "filter": {
+        "start": "2026-09-30",
+        "end": "2026-09-30",
+        "model": "deepseek-flash"
+      },
+      "rows": [],
+      "periodTotal": 0,
+      "allTimeTotal": 68166,
+      "periodRecords": 0,
+      "allTimeRecords": 2,
+      "models": ["deepseek-flash", "deepseek-v4-pro"],
+      "providers": ["deepseek-official"],
+      "facetsTruncated": false,
+      "truncated": false,
+      "legacyBaseline": false,
+      "freshness": "ready",
+      "readAt": "2026-10-01T05:30:14.982Z",
+      "reconciledAt": "2026-10-01T05:08:54.274Z"
+    }
+  ],
+  "geometry": {
+    "cardWidth": 864,
+    "usageWidth": 834,
+    "insetLeft": 15,
+    "insetRight": 15
+  },
+  "unknownUsage": [
+    {
+      "model": "deepseek-v4-pro",
+      "purpose": "assignment"
+    }
+  ]
+}
