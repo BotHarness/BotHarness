@@ -1,0 +1,11 @@
+{
+  "bot": {
+    "slug": "bot-ebe5b0ab4e634a29bea5496d6db9d958",
+    "displayName": "Bot delivery tools QA 1790871925562"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  }
+}
