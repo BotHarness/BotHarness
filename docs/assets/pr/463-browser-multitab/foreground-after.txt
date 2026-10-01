@@ -20,14 +20,14 @@ Window: "Human workbench A", App: Google Chrome.
 						18 文本 Separate owned tabs on the shared Bot Browser
 						19 container
 							20 文本 Human note 
-							21 文本栏 (settable) Human note, Value: HUMAN-KEEP-x'a
-						22 文本 Human note: HUMAN-KEEP-x'a
+							21 文本栏 (settable) Human note, Value: HUMAN-FINAL-xb
+						22 文本 Human note: HUMAN-FINAL-xb
 			23 弹出式按钮 标签页搜索
 			24 container
 				25 标签组
-					26 标签 (settable, boolean) about:blank - 内存用量 - 28.2 MB, Value: off
+					26 标签 (settable, boolean) about:blank - 内存用量 - 28.4 MB, Value: off
 						27 按钮 关闭
-					28 标签 (selected, settable, boolean) Human workbench A, Value: on
+					28 标签 (selected, settable, boolean) Human workbench A - 内存用量 - 32.2 MB, Value: on
 						29 按钮 关闭
 					30 标签 (settable, boolean) Human workbench B, Value: off
 						31 按钮 关闭
@@ -53,4 +53,4 @@ Window: "Human workbench A", App: Google Chrome.
 	51 窗口
 	52 帮助
 
-The focused UI element is 21 文本栏 (settable) Human note, Value: HUMAN-KEEP-x'a
+The focused UI element is 21 文本栏 (settable) Human note, Value: HUMAN-FINAL-xb
