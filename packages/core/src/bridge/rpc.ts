@@ -1,3 +1,4 @@
+import type { ExternalSource } from '../messaging/inbound.js';
 import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
 import type { MessagingTarget } from '../messaging/provider.js';
 import type { MemoryFileTarget } from '../memory/file-actions.js';
@@ -117,6 +118,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
     this.methods = methods;
   }
 
+  messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.messagingReceive({ slug, grantId, enabled }));
+  }
+  messagingSource(slug: string, sourceEventId: string): Promise<{ source: ExternalSource }> {
+    return unwrapAsync(this.methods.messagingSource({ slug, sourceEventId }));
+  }
   messagingSnapshot(slug: string): Promise<MessagingSnapshot> {
     return unwrapAsync(this.methods.messagingSnapshot({ slug }));
   }
@@ -718,6 +725,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
+  'messagingReceive',
+  'messagingSource',
   'messagingSnapshot',
   'messagingTargets',
   'messagingAuthorize',

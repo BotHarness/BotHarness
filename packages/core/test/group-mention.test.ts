@@ -219,6 +219,7 @@ describe('Group mention tracer', () => {
     const runs: string[] = [];
     const agents: BotAgentAdapter = {
       async runOrchestrator(run) {
+        if (run.inboundChannelId === undefined) throw new Error('Expected local inbound Channel');
         runs.push(run.inboundChannelId);
         markStarted();
         await released;

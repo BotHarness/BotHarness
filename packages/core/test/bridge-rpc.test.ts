@@ -67,6 +67,8 @@ describe('bridge typert service', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
+      'messagingReceive',
+      'messagingSource',
       'messagingSnapshot',
       'messagingTargets',
       'messagingAuthorize',

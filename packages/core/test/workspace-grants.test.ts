@@ -41,7 +41,7 @@ describe('Workspace Grant store', () => {
       workspaces: () => ({ get: () => workspace, list: () => [workspace] }),
     });
     try {
-      expect(owner.generation).toBe(43);
+      expect(owner.generation).toBe(BOT_HARNESS_SCHEMA_PLAN.targetGeneration);
       expect(grants.requireActive('ada', 'existing')).toMatchObject({
         id: 'existing',
         orchestratorWrite: false,

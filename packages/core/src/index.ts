@@ -200,4 +200,11 @@ export type {
 export { createDshImProvider } from './messaging/dsh-im.js';
 export type { DshImOutboundService } from './messaging/dsh-im.js';
 export { MessagingError, MessagingProviderError } from './messaging/provider.js';
-export type { MessagingProvider, MessagingAccount, MessagingTarget } from './messaging/provider.js';
+export type {
+  MessagingProvider,
+  MessagingAccount,
+  MessagingTarget,
+  MessagingInboundEvent,
+  MessagingReplyRoute,
+} from './messaging/provider.js';
+export type { InboundMessaging, ExternalSource } from './messaging/inbound.js';

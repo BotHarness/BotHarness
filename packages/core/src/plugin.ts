@@ -263,8 +263,13 @@ export function createCore(
     dshHome,
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
+  const sourcePolicy = createBotSourcePolicyStore(
+    attachOperationalModule(operationalDatabase, 'bot-inbox'),
+  );
   const externalMessaging = createOutboundMessaging({
     database: attachOperationalModule(operationalDatabase, 'messaging'),
+    sourcePolicy,
+    onAdmitted: (slug, sourceEventId) => runtime?.admitExternalSource?.(slug, sourceEventId),
     recover: operationalDatabase.mode === 'ready',
     isBotActive: (slug) => {
       const bot = registry.get(slug);
@@ -272,9 +277,6 @@ export function createCore(
     },
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
-  const sourcePolicy = createBotSourcePolicyStore(
-    attachOperationalModule(operationalDatabase, 'bot-inbox'),
-  );
   const initialGroupInvitationPolicy = options.autoAcceptGroupInvitations ?? (() => true);
   const groupInvitationPolicies: { policy: () => boolean }[] = [];
   const channels = createSqliteChannelStore({
@@ -376,6 +378,7 @@ export function createCore(
 
   runtime = createBotRuntime({
     database: operationalDatabase,
+    externalMessaging,
     sourcePolicy,
     registry,
     channels,

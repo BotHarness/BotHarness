@@ -1,3 +1,4 @@
+import type { ExternalSource } from '../messaging/inbound.js';
 import type {
   OutboundMessaging,
   MessagingSnapshot,
@@ -212,6 +213,8 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  messagingReceive(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
+  messagingSource(payload: unknown): Promise<BridgeResult<{ source: ExternalSource }>>;
   messagingSnapshot(payload: unknown): Promise<BridgeResult<MessagingSnapshot>>;
   messagingTargets(payload: unknown): Promise<BridgeResult<{ targets: MessagingTarget[] }>>;
   messagingAuthorize(payload: unknown): Promise<BridgeResult<{ grant: MessagingGrant }>>;
@@ -706,6 +709,27 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
   };
 
   return {
+    messagingReceive(payload) {
+      const input = z
+        .object({ slug: z.string().min(1), grantId: z.string().uuid(), enabled: z.boolean() })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid receive setting'));
+      return messagingCall(async (service) => {
+        await service.inbound.setEnabled(input.data.slug, input.data.grantId, input.data.enabled);
+        return { updated: true as const };
+      });
+    },
+    messagingSource(payload) {
+      const input = z
+        .object({ slug: z.string().min(1), sourceEventId: z.string().min(1).max(128) })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid external source'));
+      return messagingCall(async (service) => ({
+        source: service.inbound.read(input.data.slug, input.data.sourceEventId),
+      }));
+    },
     messagingSnapshot(payload) {
       const slug = asSlug(payload);
       if (slug === undefined || deps.registry.get(slug) === undefined)

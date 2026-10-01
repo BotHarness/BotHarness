@@ -1,3 +1,5 @@
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
   MessagingSnapshot,
   MessagingGrant,
@@ -10,6 +12,8 @@ import {
   authorizeMessaging,
   revokeMessaging,
   sendMessaging,
+  setMessagingReceive,
+  readMessagingSource,
   loadMessageAttachmentTarget,
 } from './bridge.js';
 import {
@@ -161,6 +165,8 @@ export interface HostDirectoryListing {
 }
 
 export interface BridgeActions {
+  messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<void>;
+  messagingSource(slug: string, sourceEventId: string): Promise<ExternalSource>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
@@ -1293,6 +1299,8 @@ export function createActions(
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
+    messagingReceive: (slug, grantId, enabled) => setMessagingReceive(call, slug, grantId, enabled),
+    messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
     messagingTargets: (providerId, accountRef) =>
       loadMessagingTargets(call, providerId, accountRef),

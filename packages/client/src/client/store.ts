@@ -322,6 +322,13 @@ export interface BotAttentionItem {
   assignmentSessionId?: string;
   assignmentPurpose?: string;
   assignmentReportState?: 'progress' | 'completed' | 'blocked' | 'waiting-human' | 'failed';
+  externalOrigin?: {
+    platform: string;
+    accountName: string;
+    conversationName: string;
+    conversationId: string;
+    senderId: string;
+  };
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';
   authorBotSlug?: string;

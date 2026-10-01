@@ -1185,6 +1185,46 @@ const HUMAN_CHANNEL_NICKNAME_MIGRATION: SchemaMigration = {
   },
 };
 
+const EXTERNAL_SOURCE_MIGRATION: SchemaMigration = {
+  generation: 44,
+  module: 'messaging',
+  description: 'Persist authenticated external IM Source Events without Channel placements',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE source_events_next (
+        source_event_id TEXT PRIMARY KEY,
+        source_kind TEXT NOT NULL CHECK (source_kind IN
+          ('human-message', 'bot-message', 'system-message', 'assignment-report',
+           'assignment-lifecycle', 'memory-change', 'bridge-message')),
+        bot_slug TEXT,
+        channel_id TEXT,
+        message_id TEXT,
+        assignment_session_id TEXT,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        handled_at TEXT,
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        expects_reply INTEGER NOT NULL DEFAULT 0 CHECK (expects_reply IN (0, 1)),
+        observed_at TEXT,
+        payload_json TEXT,
+        UNIQUE (channel_id, message_id)
+      );
+      INSERT INTO source_events_next
+      SELECT * FROM source_events;
+      DROP TABLE source_events;
+      ALTER TABLE source_events_next RENAME TO source_events;
+      CREATE INDEX source_events_bot_created
+        ON source_events (bot_slug, created_at, source_event_id);
+      CREATE INDEX source_events_assignment_kind
+        ON source_events (assignment_session_id, source_kind);
+
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1228,4 +1268,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   LOCAL_HUMAN_NAME_MIGRATION,
   ORCHESTRATOR_WORKSPACE_WRITE_MIGRATION,
   HUMAN_CHANNEL_NICKNAME_MIGRATION,
+  EXTERNAL_SOURCE_MIGRATION,
 ]);

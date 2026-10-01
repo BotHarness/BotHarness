@@ -102,6 +102,10 @@ const DM_CHANNEL: ChannelSummary = {
 
 function stubActions(): BridgeActions {
   return {
+    messagingReceive: vi.fn(async () => undefined),
+    messagingSource: vi.fn(async () => {
+      throw new Error('unexpected source read');
+    }),
     messagingSnapshot: vi.fn(async () => ({ accounts: [], grants: [], intents: [] })),
     messagingTargets: vi.fn(async () => []),
     messagingAuthorize: vi.fn(async () => {

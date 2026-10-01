@@ -42,7 +42,7 @@ it('requires explicit target authorization and an explicit send; unknown outcome
   };
   let snapshot: MessagingSnapshot = { accounts: [account], grants: [], intents: [] };
   const messagingAuthorize = vi.fn(async () => {
-    snapshot = { ...snapshot, grants: [{ ...grant, availability: 'available' }] };
+    snapshot = { ...snapshot, grants: [{ ...grant, availability: 'available', reception: 'off' }] };
     return grant;
   });
   const messagingSend = vi.fn(
@@ -64,12 +64,14 @@ it('requires explicit target authorization and an explicit send; unknown outcome
   );
   const actions: Pick<
     BridgeActions,
+    | 'messagingReceive'
     | 'messagingSnapshot'
     | 'messagingTargets'
     | 'messagingAuthorize'
     | 'messagingRevoke'
     | 'messagingSend'
   > = {
+    messagingReceive: async () => undefined,
     messagingSnapshot: async () => snapshot,
     messagingTargets: async () => [target],
     messagingAuthorize,
@@ -129,10 +131,96 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     expect(container.textContent).toContain(zhTranslate('im.noRetry'));
     await act(async () => button(zhTranslate('im.refresh')).click());
     expect(messagingSend).toHaveBeenCalledTimes(1);
-    snapshot = { ...snapshot, grants: [{ ...grant, availability: 'rebind-required' }] };
+    snapshot = {
+      ...snapshot,
+      grants: [{ ...grant, availability: 'rebind-required', reception: 'off' }],
+    };
     await act(async () => button(zhTranslate('im.refresh')).click());
     expect(container.textContent).toContain(zhTranslate('im.rebind'));
     expect(button(zhTranslate('im.send')).disabled).toBe(true);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it('changes group intake only after the Human toggles it and can stop it when the provider is unavailable', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const grant: MessagingGrant = {
+    id: 'group-grant',
+    bindingId: 'binding',
+    botSlug: 'ada',
+    providerId: 'dsh-im',
+    accountRef: 'app',
+    accountName: 'Own identity',
+    fingerprint: 'a'.repeat(64),
+    platform: 'feishu',
+    targetRef: 'group',
+    targetName: 'Work group',
+    targetDigest: 'b'.repeat(64),
+    revision: 1,
+    createdAt: '2026-10-01T00:00:00Z',
+  };
+  let snapshot: MessagingSnapshot = {
+    accounts: [],
+    intents: [],
+    grants: [{ ...grant, availability: 'available', canReceive: true, reception: 'off' }],
+  };
+  const messagingReceive = vi.fn(async (slug: string, id: string, enabled: boolean) => {
+    expect(slug).toBe('ada');
+    expect(id).toBe(grant.id);
+    snapshot = {
+      ...snapshot,
+      grants: [
+        {
+          ...grant,
+          availability: enabled ? 'unavailable' : 'available',
+          canReceive: true,
+          reception: enabled ? 'unavailable' : 'off',
+          ...(enabled
+            ? { receiveScope: { kind: 'group', conversationId: 'oc-group' } as const }
+            : {}),
+        },
+      ],
+    };
+  });
+  const messagingSend = vi.fn(async () => {
+    throw new Error('unexpected send');
+  });
+  const actions = {
+    messagingReceive,
+    messagingSend,
+    messagingSnapshot: async () => snapshot,
+    messagingTargets: async () => [],
+    messagingAuthorize: async () => grant,
+    messagingRevoke: async () => undefined,
+  };
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const button = (key: 'im.refresh' | 'im.receiveEnable' | 'im.receiveDisable') => {
+    const element = [...container.querySelectorAll('button')].find(
+      (item) => item.textContent === zhTranslate(key),
+    );
+    if (!element) throw new Error('button unavailable');
+    return element;
+  };
+  try {
+    await act(async () =>
+      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
+    );
+    await act(async () => button('im.refresh').click());
+    expect(messagingReceive).not.toHaveBeenCalled();
+    await act(async () => button('im.receiveEnable').click());
+    expect(messagingReceive.mock.calls).toEqual([['ada', grant.id, true]]);
+    expect(button('im.receiveDisable').disabled).toBe(false);
+    await act(async () => button('im.receiveDisable').click());
+    expect(messagingReceive.mock.calls).toEqual([
+      ['ada', grant.id, true],
+      ['ada', grant.id, false],
+    ]);
+    expect(button('im.receiveEnable').disabled).toBe(false);
+    expect(messagingSend).not.toHaveBeenCalled();
   } finally {
     await act(async () => root.unmount());
     container.remove();

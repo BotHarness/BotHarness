@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { createInboundMessaging, type InboundMessaging } from './inbound.js';
+import { createBotSourcePolicyStore, type BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { DatabaseSync } from 'node:sqlite';
 import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
 import {
@@ -23,6 +25,7 @@ export interface MessagingGrant {
   targetDigest: string;
   revision: number;
   createdAt: string;
+  receiveScope?: { kind: 'group'; conversationId: string };
   revokedAt?: string;
   suspendedReason?: 'rebind-required';
 }
@@ -41,6 +44,7 @@ export interface OutboxIntent {
   botSlug: string;
   grantId: string;
   grantRevision: number;
+  sourceEventId?: string;
   text: string;
   state: OutboxState;
   createdAt: string;
@@ -50,11 +54,17 @@ export interface OutboxIntent {
 
 export interface MessagingSnapshot {
   accounts: (MessagingAccount & { providerId: string })[];
-  grants: (MessagingGrant & { availability: 'available' | 'unavailable' | 'rebind-required' })[];
+  grants: (MessagingGrant & {
+    availability: 'available' | 'unavailable' | 'rebind-required';
+    reception: ReturnType<InboundMessaging['status']>;
+    canReceive?: boolean;
+  })[];
   intents: OutboxIntent[];
 }
 
 export interface OutboundMessaging {
+  inbound: InboundMessaging;
+  reply(botSlug: string, sourceEventId: string, text: string): Promise<OutboxIntent>;
   register(provider: MessagingProvider): () => void;
   snapshot(botSlug: string): Promise<MessagingSnapshot>;
   targets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
@@ -67,7 +77,13 @@ export interface OutboundMessaging {
     targetDigest: string;
   }): Promise<MessagingGrant>;
   revoke(botSlug: string, grantId: string): void;
-  send(botSlug: string, grantId: string, requestId: string, text: string): Promise<OutboxIntent>;
+  send(
+    botSlug: string,
+    grantId: string,
+    requestId: string,
+    text: string,
+    sourceEventId?: string,
+  ): Promise<OutboxIntent>;
   history(botSlug: string): OutboxIntent[];
   close(): void;
 }
@@ -77,6 +93,8 @@ type StoredIntent = OutboxIntent & { requestId: string; payloadHash: string };
 export function createOutboundMessaging(options: {
   database: OperationalDatabaseModulePort;
   isBotActive(slug: string): boolean;
+  sourcePolicy?: BotSourcePolicyStore;
+  onAdmitted?(botSlug: string, sourceEventId: string): void;
   timeoutMs?: number;
   recover?: boolean;
   now?: () => Date;
@@ -227,9 +245,23 @@ export function createOutboundMessaging(options: {
       suspend(value);
       throw new MessagingError('rebind-required');
     }
-    return entry;
+    return { ...entry, inspected };
   };
-  return {
+  const inbound = createInboundMessaging({
+    database,
+    sourcePolicy: options.sourcePolicy ?? createBotSourcePolicyStore(database),
+    isBotActive: options.isBotActive,
+    onAdmitted: options.onAdmitted ?? (() => undefined),
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
+  const service: OutboundMessaging = {
+    inbound,
+    async reply(botSlug, sourceEventId, text) {
+      if (!inbound.available(botSlug, sourceEventId))
+        throw new MessagingError('source-unavailable');
+      const source = inbound.read(botSlug, sourceEventId);
+      return service.send(botSlug, source.grantId, 'reply-' + sourceEventId, text, sourceEventId);
+    },
     register(value) {
       if (closed) throw new MessagingError('provider-unavailable');
       const token = {};
@@ -239,7 +271,9 @@ export function createOutboundMessaging(options: {
           if (attempt.token === previous.token) attempt.controller.abort();
         }
       providers.set(value.id, { provider: value, token });
+      const disposeInbound = inbound.register(value);
       return () => {
+        disposeInbound();
         if (providers.get(value.id)?.token === token) providers.delete(value.id);
         for (const attempt of inFlight.values())
           if (attempt.token === token) attempt.controller.abort();
@@ -266,16 +300,26 @@ export function createOutboundMessaging(options: {
         rows.map(async (row) => {
           const value = JSON.parse(row.body) as MessagingGrant;
           let availability: 'available' | 'unavailable' | 'rebind-required' = 'unavailable';
+          let canReceive = false;
           if (value.revokedAt === undefined) {
             try {
-              await check(value);
+              const checked = await check(value);
+              canReceive =
+                checked.provider.consume !== undefined &&
+                checked.provider.reply !== undefined &&
+                checked.inspected.target.receiveScope !== undefined;
               availability = 'available';
             } catch (error) {
               if (error instanceof MessagingError && error.code === 'rebind-required')
                 availability = 'rebind-required';
             }
           }
-          return { ...grant(botSlug, value.id), availability };
+          return {
+            ...grant(botSlug, value.id),
+            availability,
+            reception: inbound.status(value.id),
+            canReceive,
+          };
         }),
       );
       return { accounts, grants, intents: history(botSlug) };
@@ -378,12 +422,15 @@ export function createOutboundMessaging(options: {
         },
         ['grants', 'bindings', 'outbox'],
       );
+      inbound.revoke(grantId);
     },
-    async send(botSlug, grantId, requestId, text) {
+    async send(botSlug, grantId, requestId, text, sourceEventId) {
       active(botSlug);
       if (!/^[A-Za-z0-9_-]{8,128}$/.test(requestId) || !text.trim() || text.length > 4000)
         throw new MessagingError('invalid-input');
-      const payloadHash = createHash('sha256').update(text).digest('hex');
+      const payloadHash = createHash('sha256')
+        .update(sourceEventId === undefined ? text : JSON.stringify([text, sourceEventId]))
+        .digest('hex');
       const duplicate = database.read((db) =>
         db.prepare('SELECT id FROM messaging_outbox WHERE request_id = ?').get(requestId),
       ) as { id: string } | undefined;
@@ -398,6 +445,12 @@ export function createOutboundMessaging(options: {
         return value;
       }
       const acceptedGrant = grant(botSlug, grantId);
+      if (
+        sourceEventId !== undefined &&
+        (!inbound.available(botSlug, sourceEventId) ||
+          inbound.read(botSlug, sourceEventId).grantId !== grantId)
+      )
+        throw new MessagingError('source-unavailable');
       await check(acceptedGrant);
       const id = transaction(
         (db) => {
@@ -419,6 +472,7 @@ export function createOutboundMessaging(options: {
             grantRevision: currentGrant.revision,
             requestId,
             payloadHash,
+            ...(sourceEventId === undefined ? {} : { sourceEventId }),
             text,
             state: 'pending',
             createdAt: now(),
@@ -475,12 +529,14 @@ export function createOutboundMessaging(options: {
           },
           ['outbox'],
         );
+        if (sourceEventId !== undefined && !inbound.available(botSlug, sourceEventId))
+          throw new MessagingProviderError('source-unavailable', 'not-started');
         started = true;
         options.warn?.(
           JSON.stringify({
             event: 'messaging-outbox',
             phase: 'starting',
-            initiator: 'human-profile',
+            initiator: sourceEventId === undefined ? 'human-profile' : 'bot-source-reply',
             intentId: id.id,
           }),
         );
@@ -498,14 +554,24 @@ export function createOutboundMessaging(options: {
           timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 15000);
         });
         const result = await Promise.race([
-          entry.provider.send({
-            accountRef: acceptedGrant.accountRef,
-            targetRef: acceptedGrant.targetRef,
-            fingerprint: acceptedGrant.fingerprint,
-            targetDigest: acceptedGrant.targetDigest,
-            text,
-            signal: controller.signal,
-          }),
+          sourceEventId !== undefined
+            ? entry.provider.reply === undefined
+              ? Promise.reject(new MessagingProviderError('capability-unavailable', 'not-started'))
+              : entry.provider.reply({
+                  accountRef: acceptedGrant.accountRef,
+                  fingerprint: acceptedGrant.fingerprint,
+                  route: inbound.read(botSlug, sourceEventId).event.reply,
+                  text,
+                  signal: controller.signal,
+                })
+            : entry.provider.send({
+                accountRef: acceptedGrant.accountRef,
+                targetRef: acceptedGrant.targetRef,
+                fingerprint: acceptedGrant.fingerprint,
+                targetDigest: acceptedGrant.targetDigest,
+                text,
+                signal: controller.signal,
+              }),
           interrupted,
         ]);
         if (result.accepted !== true)
@@ -544,8 +610,10 @@ export function createOutboundMessaging(options: {
     },
     close() {
       closed = true;
+      inbound.close();
       providers.clear();
       for (const attempt of inFlight.values()) attempt.controller.abort();
     },
   };
+  return service;
 }

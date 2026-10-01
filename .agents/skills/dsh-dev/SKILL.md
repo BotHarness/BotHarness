@@ -86,6 +86,10 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 
 | 28b | Rebooting an isolated Profile drops its optional IM Bundle | dsh-im settings and transport disappear after running the AX helper again | The helper used to replace all dependencies and bundles. It now retains non-BotHarness dependencies and extra Bundle entries while refreshing its own linked packages. Keep the same task-owned home and verify native plus BotHarness APIs after restart. |
 
+| 33 | Core Host types change Client Context augmentation order | Adding a shared Core DTO type import makes Client `ctx.sessions.list()` resolve to a Host function requiring arguments | Keep the Client session-controller type import before shared Core DTO imports in `client/actions.ts`; verify `pnpm typecheck` and the running native Client. Host and Client Context augmentations share a module name; DTO imports can change declaration order (#12). |
+
+| 34 | Optional Provider Service is published before its account registry is ready | The persisted receive grant is present after restart, but BotHarness shows reception unavailable; enabling again works | Service availability alone is not account readiness. Restore the same explicit grant with a bounded retry only for transient `provider-unavailable`; retain its token, revision and group scope, cancel on disposal, and verify automatic intake with a real Host restart (#12). |
+
 ## Reference
 
 DSH 0.2.0 provider token reports use disjoint uncached input, output, cache-read and cache-write buckets. Optional cache fields may be absent even when an exact total is reported: absence is unknown, not zero. `deriveTurnTokenUsage` may return no result when exact lifecycle or usage evidence is incomplete; never substitute token-meter context estimates for observed provider consumption. Read the durable Assistant settlement's actual source route rather than a configured model. Verified with the installed token-meter contracts and a real model request in #499.

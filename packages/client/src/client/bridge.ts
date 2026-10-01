@@ -1,3 +1,4 @@
+import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
   MessagingSnapshot,
   MessagingGrant,
@@ -1691,6 +1692,16 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
     return undefined;
   if (!['human', 'bot', 'bridged', 'system'].includes(String(row['authorKind']))) return undefined;
   if (typeof row['sourceAvailable'] !== 'boolean') return undefined;
+  if (row['externalOrigin'] !== undefined) {
+    const origin = asRecord(row['externalOrigin']);
+    if (
+      !origin ||
+      ['platform', 'accountName', 'conversationName', 'conversationId', 'senderId'].some(
+        (key) => typeof origin[key] !== 'string',
+      )
+    )
+      return undefined;
+  }
   for (const key of [
     'observedAt',
     'handledAt',
@@ -2611,4 +2622,60 @@ export async function loadMessageAttachmentTarget(
   )
     throw new Error('Invalid message attachment target');
   return { path: target['path'], relativePath: target['relativePath'], kind: 'file' };
+}
+
+export async function setMessagingReceive(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+  enabled: boolean,
+): Promise<void> {
+  await unwrap(call, 'messagingReceive', { slug, grantId, enabled });
+}
+export async function readMessagingSource(
+  call: BridgeCall,
+  slug: string,
+  sourceEventId: string,
+): Promise<ExternalSource> {
+  const record = asRecord(await unwrap(call, 'messagingSource', { slug, sourceEventId }));
+  const source = asRecord(record?.['source']);
+  const event = asRecord(source?.['event']);
+  const actor = asRecord(event?.['actor']);
+  const conversation = asRecord(event?.['conversation']);
+  const reply = asRecord(event?.['reply']);
+  const replay = asRecord(event?.['replay']);
+  const strings = (value: Record<string, unknown> | undefined, keys: string[]): boolean =>
+    value !== undefined && keys.every((key) => typeof value[key] === 'string');
+  if (
+    !strings(source, [
+      'body',
+      'id',
+      'platform',
+      'accountName',
+      'conversationName',
+      'at',
+      'grantId',
+    ]) ||
+    !Number.isInteger(source?.['grantRevision']) ||
+    Number(source?.['grantRevision']) < 1 ||
+    event?.['version'] !== 1 ||
+    event['channel'] !== 'feishu' ||
+    !strings(event, ['botId', 'fingerprint', 'eventId', 'messageId', 'at']) ||
+    typeof event['mentionedAccount'] !== 'boolean' ||
+    actor?.['kind'] !== 'user' ||
+    !strings(actor, ['id']) ||
+    !['group', 'dm'].includes(String(conversation?.['kind'])) ||
+    !strings(conversation, ['id']) ||
+    !strings(reply, ['messageId', 'conversationId', 'actorId']) ||
+    ['threadId', 'rootId', 'parentId'].some(
+      (key) => reply?.[key] !== undefined && typeof reply[key] !== 'string',
+    ) ||
+    !Array.isArray(event['mentions']) ||
+    !event['mentions'].every((mention) => strings(asRecord(mention), ['id', 'key'])) ||
+    replay?.['kind'] !== 'provider-redelivery' ||
+    replay['resumeCursor'] !== false ||
+    replay['gapPossible'] !== true
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid source');
+  return source as unknown as ExternalSource;
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createActions } from '../src/client/actions.js';
 import {
+  readMessagingSource,
   channelAttachmentUrl,
   BridgeCallError,
   createBridgeCall,
@@ -2211,4 +2212,49 @@ describe('message attachment native action bridge', () => {
     expect(nativeFiles.open).toHaveBeenCalledTimes(1);
     expect(store.getSnapshot()).toEqual(before);
   });
+});
+
+const EXTERNAL_SOURCE = {
+  id: 'im-source',
+  body: 'Please reply',
+  platform: 'lark',
+  accountName: 'Bot',
+  conversationName: 'Team',
+  at: '2026-10-01T00:00:00Z',
+  grantId: 'grant',
+  grantRevision: 2,
+  event: {
+    version: 1,
+    channel: 'feishu',
+    botId: 'app',
+    fingerprint: 'a'.repeat(64),
+    eventId: 'ev',
+    messageId: 'om',
+    at: '2026-10-01T00:00:00Z',
+    mentionedAccount: true,
+    mentions: [{ id: 'bot', key: '@bot' }],
+    actor: { kind: 'user', id: 'human' },
+    conversation: { kind: 'group', id: 'group' },
+    reply: { messageId: 'om', conversationId: 'group', actorId: 'human', threadId: 'thread' },
+    replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
+  },
+};
+
+it('rejects incomplete external source responses before the source modal can render them', async () => {
+  const read = (source: unknown) =>
+    readMessagingSource(bridgeCall({ messagingSource: () => ({ source }) }), 'ada', 'im-source');
+  await expect(read(EXTERNAL_SOURCE)).resolves.toEqual(EXTERNAL_SOURCE);
+  for (const key of Object.keys(EXTERNAL_SOURCE)) {
+    const incomplete: Record<string, unknown> = { ...EXTERNAL_SOURCE };
+    delete incomplete[key];
+    await expect(read(incomplete)).rejects.toMatchObject({ code: 'invalid-response' });
+  }
+  for (const event of [
+    { ...EXTERNAL_SOURCE.event, actor: null },
+    { ...EXTERNAL_SOURCE.event, conversation: {} },
+    { ...EXTERNAL_SOURCE.event, reply: { threadId: 42 } },
+    { ...EXTERNAL_SOURCE.event, mentions: [null] },
+    { ...EXTERNAL_SOURCE.event, replay: null },
+  ])
+    await expect(read({ ...EXTERNAL_SOURCE, event })).rejects.toBeInstanceOf(BridgeCallError);
 });
