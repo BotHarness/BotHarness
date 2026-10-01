@@ -212,6 +212,8 @@
 
 ### Fixed
 
+- Browser 按键现在可以执行原生焦点切换、文本编辑和表单提交；不支持的按键会返回可重试的错误，而不是报告成功 ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
+
 - Browser 导航失败现在返回可重试的 Tool 错误并记录错误 Audit；新建失败的标签页会清理，已有当前标签页仍可观察并重试 ([#627](https://github.com/BotHarness/BotHarness/issues/627)).
 
 - 修复 Session 历史缺失时模型 token 统计被清空的问题：重启与校准保留日汇总，持久去重防止重复回放，归档保留用量，彻底 Purge PersonaBot 清理其统计（[#502](https://github.com/BotHarness/BotHarness/issues/502)）。旧汇总作为保留基线迁移；无法确认是否已计入的升级前调用不会单独补计。

@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 
 import { jpegDimensions } from '../jpeg.js';
+import { browserKey } from './keyboard.js';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -468,9 +469,6 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   const typeScript = (ref: string, text: string): string =>
     `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; el.focus(); if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) { const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const descriptor = Object.getOwnPropertyDescriptor(proto, 'value'); const setter = descriptor && descriptor.set; if (setter) { setter.call(el, ${JSON.stringify(text)}); } else { el.value = ${JSON.stringify(text)}; } el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return { ok: true }; } if (el.isContentEditable) { el.textContent = ${JSON.stringify(text)}; el.dispatchEvent(new InputEvent('input', { bubbles: true, data: ${JSON.stringify(text)} })); return { ok: true }; } return { ok: false, reason: 'not-editable' }; })()`;
 
-  const pressKeyScript = (key: string): string =>
-    `(() => { const el = document.activeElement || document.body; const opts = { key: ${JSON.stringify(key)}, bubbles: true, cancelable: true }; el.dispatchEvent(new KeyboardEvent('keydown', opts)); el.dispatchEvent(new KeyboardEvent('keypress', opts)); el.dispatchEvent(new KeyboardEvent('keyup', opts)); return { ok: true }; })()`;
-
   const scrollScript = (direction: 'up' | 'down', amount: number): string =>
     `(() => { window.scrollBy(0, ${direction === 'down' ? amount : -amount}); return { ok: true }; })()`;
 
@@ -528,8 +526,32 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   const type = (tabId: string, ref: string, text: string): Promise<BrowserTab> =>
     runInteraction(tabId, typeScript(ref, text));
 
-  const pressKey = (tabId: string, key: string): Promise<BrowserTab> =>
-    runInteraction(tabId, pressKeyScript(key));
+  const pressKey = async (tabId: string, key: string): Promise<BrowserTab> => {
+    const { text, ...definition } = browserKey(key);
+    const sessionId = await attach(tabId);
+    const live = client;
+    if (!live) throw new Error('Bot Browser is not connected');
+    const release = (): Promise<Record<string, unknown>> =>
+      live.send('Input.dispatchKeyEvent', { type: 'keyUp', ...definition }, sessionId);
+    try {
+      await live.send(
+        'Input.dispatchKeyEvent',
+        {
+          type: text ? 'keyDown' : 'rawKeyDown',
+          ...definition,
+          ...(text ? { text, unmodifiedText: text } : {}),
+        },
+        sessionId,
+      );
+    } catch (error) {
+      await release().catch(() => undefined);
+      throw error;
+    }
+    await release();
+    await waitForReady(sessionId);
+    const page = await readPage(sessionId);
+    return { tabId, ...page };
+  };
 
   const scroll = (tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab> =>
     runInteraction(tabId, scrollScript(direction, amount));
