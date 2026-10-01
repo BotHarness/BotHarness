@@ -325,6 +325,8 @@ Human 的「打开 Bot 浏览器」通过现有进程内 per-Bot 标签页 Provi
 
 同一 browser profile 的并发首次调用等待同一次 Browser 启动；启动失败后可重新尝试，不生成第二个实例。Human 关闭当前 Bot Tab 后，下一次工具调用清除失效的进程内归属与当前页，并提示使用 `browser_tabs list` 选择另一页或 `browser_open` 恢复（#463）。
 
+`browser_upload` 使用 Host 文件向当前 Bot Tab 附件字段挂载文件：文件 input 的 ref 精确选择该字段，上传按钮的 ref 在 CDP Session 内拦截原生 chooser，并使用实际 `Page.fileChooserOpened.backendNodeId`，不会猜测其他附件字段；省略 ref 使用第一个 `input[type=file]`。chooser 监听按 CDP Session 隔离，超时或失败后解除监听与拦截；文件不存在、无输入或按钮未打开 chooser 均返回可读错误。Browser Audit 只记录 ref、文件 basename 与大小，失败摘要隐藏传入的完整 Host 路径；发布前仍须 Human 明确确认。
+
 Browser Tool Provider 在同一调用完成路径中记录成功与失败，包含授权、Access、Pause 及 Resume 后重新观察检查的即时拒绝；队列入口拒绝与运行失败仍各只记录一次。Browser Audit 使用注册时的 Bot、Session 及可信 Session ownership 的角色归属，写入现有 `logs.db`；输入只记录字符数、上传只记录文件名，不另建日志存储或读取接口。
 
 Pause/Resume 在现有进程内 Provider 状态中失效该 Bot 的可操作观察。页面点击（ref 或坐标）、输入、按键、滚动及上传，必须先完成一次在当前控制状态变更后开始、且 Pause 未开启时成功返回的观察；读取失败、Pause 期间的读取以及旧的在途读取均不能满足此要求，截图也不能替代观察。Open 与标签管理保留以恢复缺失页面；Access 开关保留重新观察要求，显式 Profile 重置则重新开始标签归属。其他 Bot 各自独立。

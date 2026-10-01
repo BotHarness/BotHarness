@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import { basename } from 'node:path';
 
 export const BROWSER_TOOL_PREFIX = 'browser_';
@@ -120,7 +121,7 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
   {
     raw: 'upload',
     description:
-      'Attach a file from the Host to the current Bot Browser tab: a file-input ref selects that exact field without opening a dialog; another ref clicks the upload control and intercepts its dialog. Without a file-input ref, the last page file input is used. Use a path returned by browser_screenshot or a file you created. Uploading is externally visible: confirm with the Human before posting.',
+      'Attach a file from the Host to the current Bot Browser tab: a file-input ref selects that exact field without opening a dialog; another ref clicks the upload control and intercepts its dialog. Without ref, the first page file input is used; a picker-control ref selects the input that actually opened its chooser. Use a path returned by browser_screenshot or a file you created. Uploading is externally visible: confirm with the Human before posting.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -134,10 +135,14 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
       required: ['path'],
       additionalProperties: false,
     },
-    audit: (args) =>
-      `file=${basename(str(args, 'path'))}${
-        typeof args['ref'] === 'string' ? ` ref=${args['ref']}` : ''
-      }`,
+    audit: (args) => {
+      const path = str(args, 'path');
+      let size: number | undefined;
+      try {
+        size = statSync(path).size;
+      } catch {}
+      return `file=${basename(path)} bytes=${size ?? '?'}${typeof args['ref'] === 'string' ? ` ref=${args['ref']}` : ''}`;
+    },
   },
   {
     raw: 'tabs',

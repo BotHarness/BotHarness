@@ -234,6 +234,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Browser file uploads select the input that opened the picker, or the first input when ref is omitted; upload audits include basename and size and redact Host paths in failures ([#491](https://github.com/BotHarness/BotHarness/issues/491)).
+
 - Fixed concurrent first use by several PersonaBots sharing a Browser profile: they now wait for one Chrome startup, and a failed startup permits a fresh retry ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
 
 - Fixed recovery after a Human closes a Bot Browser tab: missing CDP Sessions now clear the closed current tab and return an instruction to select or open another owned tab ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
