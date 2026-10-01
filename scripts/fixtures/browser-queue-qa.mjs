@@ -14,6 +14,7 @@ export function apply(ctx) {
             'browser_click',
             'browser_type',
             'browser_press_key',
+            'browser_scroll',
             'browser_open',
             'browser_tabs',
             'browser_observe',

@@ -755,6 +755,119 @@ describe('runtime lifecycle', () => {
     expect(types).toEqual(['keyDown', 'keyUp']);
   });
 
+  it.each([
+    ['down', 600],
+    ['up', -600],
+  ] as const)('dispatches a native %s wheel at the viewport center', async (direction, deltaY) => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const wheels: { params: Record<string, unknown>; sessionId?: string }[] = [];
+    const expressions: string[] = [];
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => ({
+        send: async (method, params, sessionId) => {
+          if (method === 'Input.dispatchMouseEvent' && params?.['type'] === 'mouseWheel')
+            wheels.push({
+              params: params ?? {},
+              ...(sessionId === undefined ? {} : { sessionId }),
+            });
+          if (method === 'Runtime.evaluate') expressions.push(String(params?.['expression']));
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      }),
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    const page = await runtime.scroll('tab-1', direction, 600);
+    expect(wheels).toEqual([
+      { params: { type: 'mouseWheel', x: 640, y: 400, deltaX: 0, deltaY }, sessionId: 'session-1' },
+    ]);
+    expect(expressions.some((expression) => expression.includes('window.scrollBy'))).toBe(false);
+    expect(page).toEqual({ tabId: 'tab-1', url: 'https://example.com/', title: 'Example' });
+    expect(runtime.currentUrl()).toBe('https://example.com/');
+    expect(
+      base.calls.filter(
+        (call) =>
+          call.method === 'Emulation.setFocusEmulationEnabled' ||
+          call.method === 'Input.dispatchMouseEvent',
+      ),
+    ).toEqual([
+      { method: 'Emulation.setFocusEmulationEnabled', sessionId: 'session-1' },
+      { method: 'Input.dispatchMouseEvent', sessionId: 'session-1' },
+      { method: 'Input.dispatchMouseEvent', sessionId: 'session-1' },
+    ]);
+    await runtime.scroll('tab-1', direction, 600);
+    expect(
+      base.calls.filter((call) => call.method === 'Emulation.setFocusEmulationEnabled'),
+    ).toHaveLength(1);
+  });
+
+  it('surfaces a wheel transport failure instead of returning success', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => ({
+        send: async (method, params, sessionId) => {
+          if (method === 'Input.dispatchMouseEvent' && params?.['type'] === 'mouseWheel')
+            throw new Error('wheel transport failed');
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      }),
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await expect(runtime.scroll('tab-1', 'down', 600)).rejects.toThrow('wheel transport failed');
+  });
+
+  it.each([
+    { width: 0, height: 800 },
+    { width: 1280, height: 0 },
+    { width: NaN, height: 800 },
+    { height: 800 },
+  ])('refuses unavailable viewport bounds before wheel dispatch: %j', async (bounds) => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const wheel = vi.fn();
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => ({
+        send: async (method, params, sessionId) => {
+          if (
+            method === 'Runtime.evaluate' &&
+            String(params?.['expression']).startsWith('({ width:')
+          )
+            return { result: { value: bounds } };
+          if (method === 'Input.dispatchMouseEvent') wheel();
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      }),
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await expect(runtime.scroll('tab-1', 'down', 600)).rejects.toThrow(/viewport/);
+    expect(wheel).not.toHaveBeenCalled();
+  });
+
   it('acts on observed refs and surfaces a stale ref readably', async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child.proc as never);

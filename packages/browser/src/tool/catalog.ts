@@ -104,7 +104,8 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
   },
   {
     raw: 'scroll',
-    description: 'Scroll the current Bot Browser tab up or down by a bounded amount of pixels.',
+    description:
+      'Send a native wheel up or down by a bounded amount of CSS pixels at the current viewport center; this scrolls the document or nested content under that point. Observe again to verify movement.',
     inputSchema: {
       type: 'object',
       properties: {
