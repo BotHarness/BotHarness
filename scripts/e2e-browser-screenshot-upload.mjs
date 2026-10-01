@@ -330,7 +330,9 @@ if (mode === '--serve') {
         'Dedicated fresh screenshot store required',
       );
       const image = readFileSync(state.path);
-      const seedStamp = Date.now() - 100000;
+      const captureStamp = Number(basename(state.path).match(/^screenshot-(\d+)\.jpg$/)?.[1]);
+      assert.ok(Number.isSafeInteger(captureStamp) && captureStamp > 105);
+      const seedStamp = captureStamp - 105;
       mkdirSync(dir, { recursive: true });
       const seeded = Array.from({ length: 105 }, (_, i) => `screenshot-${seedStamp + i}.jpg`);
       for (const name of seeded) writeFileSync(join(dir, name), image);
