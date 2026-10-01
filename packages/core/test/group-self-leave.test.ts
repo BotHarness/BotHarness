@@ -166,8 +166,16 @@ describe('Bot Group self-leave', () => {
           channelId: group!.id,
           left: true,
         });
-        for (const channelId of [hiddenGroupId, 'missing-group', run.inboundChannelId!])
-          expect(run.channels.leaveGroup({ channelId })).toEqual({ channelId, left: false });
+        expect(run.channels.leaveGroup({ channelId: hiddenGroupId })).toEqual({
+          channelId: hiddenGroupId,
+          left: false,
+        });
+        expect(() => run.channels.leaveGroup({ channelId: 'missing-group' })).toThrow(
+          'group_leave: channel-unavailable',
+        );
+        expect(() => run.channels.leaveGroup({ channelId: run.inboundChannelId! })).toThrow(
+          'group_leave: group-required',
+        );
       }),
     });
     try {

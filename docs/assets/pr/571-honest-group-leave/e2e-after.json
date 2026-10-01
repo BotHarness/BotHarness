@@ -1,0 +1,87 @@
+{
+  "stage": "after",
+  "dshVersion": "0.2.0-rc.1",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash"
+  },
+  "measurements": {
+    "compiledParameterCharacters": 123,
+    "compiledToolMetadataCharacters": 457,
+    "leaveResultCharacters": [79, 104, 34, 39, 113]
+  },
+  "actualLeaveResults": [
+    {
+      "channelId": "group-qa571-creator-group-after",
+      "nativeFailure": false,
+      "result": "{\"channelId\":\"group-qa571-creator-group-after\",\"left\":true,\"outcome\":\"changed\"}"
+    },
+    {
+      "channelId": "group-qa571-creator-group-after",
+      "nativeFailure": false,
+      "result": "{\"channelId\":\"group-qa571-creator-group-after\",\"left\":false,\"outcome\":\"unchanged\",\"reason\":\"not-member\"}"
+    },
+    {
+      "channelId": "dm-bot-1d28e479666642bc925a08bd59b6b6a2",
+      "nativeFailure": true,
+      "result": "Error: group_leave: group-required"
+    },
+    {
+      "channelId": "qa571-missing-group",
+      "nativeFailure": true,
+      "result": "Error: group_leave: channel-unavailable"
+    },
+    {
+      "channelId": "group-qa571-hidden-nonmember-group-after",
+      "nativeFailure": false,
+      "result": "{\"channelId\":\"group-qa571-hidden-nonmember-group-after\",\"left\":false,\"outcome\":\"unchanged\",\"reason\":\"not-member\"}"
+    }
+  ],
+  "verified": {
+    "realBotCreator": true,
+    "autoAcceptedPeerInvitation": true,
+    "oneCommittedDeparture": true,
+    "creatorAuthorityHandedToHuman": true,
+    "repeatCreatesNoSecondNotice": true,
+    "readSendRevoked": true,
+    "noLeaverDepartureAdmission": true,
+    "noHiddenNameOrRoster": true,
+    "noShellOrAssignment": true,
+    "invalidTargetsAreNativeFailures": true,
+    "explicitChangedAndUnchanged": true,
+    "pendingLeaverAdmissionRevoked": true,
+    "remainingPeerDepartureHandled": true
+  },
+  "canonical": {
+    "groupId": "group-qa571-creator-group-after",
+    "members": ["bot-ddec1424b7bf4c3bb7a9309805288b72"],
+    "ownerBotSlug": null,
+    "departureId": "member-left-f19307da-1aa1-4028-9935-0292c2ee816c",
+    "deliveries": [
+      {
+        "botSlug": "bot-ddec1424b7bf4c3bb7a9309805288b72",
+        "state": "handled"
+      }
+    ],
+    "pendingLeaverAdmission": {
+      "botSlug": "bot-1d28e479666642bc925a08bd59b6b6a2",
+      "state": "handled",
+      "reason": "Group membership revoked"
+    }
+  },
+  "compiledSchema": {
+    "name": "group_leave",
+    "description": "Leave a joined Group, relinquishing Bot creator management and read/send access. Returns changed (left=true) or unchanged (left=false, reason=not-member); unchanged does not prove prior membership. Missing Channels/non-Group targets throw; never report a Tool failure as departure.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "channel_id": {
+          "type": "string",
+          "description": "Group Channel ID."
+        }
+      },
+      "required": ["channel_id"]
+    }
+  },
+  "testData": "Fresh isolated Profile; synthetic Bot creator, peer, Group, pending ordinary message, missing ID and Human DM. Actual model Tool calls; no private user data."
+}

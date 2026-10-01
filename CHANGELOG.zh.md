@@ -218,6 +218,8 @@
 
 ### Fixed
 
+- 群聊退出现在明确返回已提交变更或 `not-member` 幂等无变更；缺失 Channel 和非群聊目标明确失败，重复或被拒绝的请求不再被描述为一次新退出（[#571](https://github.com/BotHarness/BotHarness/issues/571)）。
+
 - Browser 滚动改为在视口中心发送原生滚轮事件，Bot 可以滚动中心位置的独立内容区或普通页面，并观察结果后继续操作（[#647](https://github.com/BotHarness/BotHarness/issues/647)）。
 
 - Browser 输入会在改变值、焦点或事件前拒绝只读与禁用的 input、textarea，包括原生 fieldset 禁用继承；Bot 保留当前标签页并可继续填写可编辑字段（[#644](https://github.com/BotHarness/BotHarness/issues/644)）。
