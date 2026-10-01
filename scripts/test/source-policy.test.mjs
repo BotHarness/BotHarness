@@ -159,3 +159,18 @@ describe('source policy', () => {
     }
   });
 });
+
+it('retains the required Inbox ISC notice without allowing other or modified comments', async () => {
+  const source = readFileSync('packages/client/src/client/inbox-icon.tsx', 'utf8');
+  expect(await scanSource('packages/client/src/client/inbox-icon.tsx', source)).toEqual([]);
+  expect(await scanSource('packages/client/src/client/other-icon.tsx', source)).toHaveLength(1);
+  expect(
+    await scanSource(
+      'packages/client/src/client/inbox-icon.tsx',
+      source.replace('Vendored', 'Modified'),
+    ),
+  ).toHaveLength(1);
+  expect(
+    await scanSource('packages/client/src/client/inbox-icon.tsx', source + '\n// unrelated'),
+  ).toHaveLength(1);
+});

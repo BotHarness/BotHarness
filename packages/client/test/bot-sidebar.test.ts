@@ -434,19 +434,10 @@ afterEach(() => {
 });
 
 describe('bot sidebar rows', () => {
-  it('places the Human Inbox above Messages and keeps one compact entry', () => {
+  it('keeps Activity Center out of the Channel roster in both layouts', () => {
     store.select({ kind: 'inbox' });
-    store.setHumanInbox({ unreadCount: 4, hasAction: true });
-    const expanded = renderSidebar();
-    expect(expanded.indexOf('bh-human-inbox-entry')).toBeLessThan(
-      expanded.indexOf('bh-header-label'),
-    );
-    expect(expanded).toContain('aria-current="page"');
-    expect(expanded).toContain('活动中心');
-    expect(expanded).toContain('bh-human-inbox-count">4</span>');
-    expect(expanded).toContain('bh-human-inbox-action-dot');
-    const compact = renderSidebar(false);
-    expect(compact.match(/bh-human-inbox-entry/g)).toHaveLength(1);
+    expect(renderSidebar()).not.toContain('bh-human-inbox-entry');
+    expect(renderSidebar(false)).not.toContain('bh-human-inbox-entry');
   });
 
   it('renders the glyph-free section header anatomy', () => {

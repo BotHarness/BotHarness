@@ -629,7 +629,11 @@ export function createStore(): ClientStore {
           (botSlug === undefined ? undefined : sessionsByBot.get(botSlug)) ?? initialSessions(),
         botInbox:
           (botSlug === undefined ? undefined : inboxesByBot.get(botSlug)) ?? initialBotInbox(),
-        humanInbox: initialHumanInbox(),
+        humanInbox: {
+          ...initialHumanInbox(),
+          unreadCount: state.humanInbox.unreadCount,
+          hasAction: state.humanInbox.hasAction,
+        },
       });
     },
     setConversation(patch) {

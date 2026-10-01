@@ -30,8 +30,11 @@ export const CSS =
   --bh-inbox-radius-control: 6px;
   /* @bh-inbox-reply-aliases:end */
   /* @bh-overview-aliases:start — pinned DSH has no radius tokens; use the
-     measured native project row (8px) and compact control (6px). */
+     measured native project row (8px), compact control (6px), and collapsed
+     Bot mode button (12px, DSH 0.2.0-rc.1). */
   --bh-overview-radius-card: 8px;
+  --bh-entry-radius-rail: 12px;
+  --bh-entry-notification: var(--dsw-alias-state-error-primary);
   --bh-overview-radius-control: 6px;
   --bh-overview-label: var(--dsw-alias-label-primary);
   --bh-overview-muted: var(--dsw-alias-label-secondary);
@@ -411,10 +414,7 @@ button:has(.bh-panel-glyph)::before {
   align-items: center;
   justify-content: center;
 }
-.bh-panel-glyph-hit {
-  position: absolute;
-  inset: 0;
-}
+
 
 /* Settings gear on the active Bot row: hidden until the row is hovered, then
    it opens the Bot section of the Settings dialog. */
@@ -437,7 +437,8 @@ button:has(.bh-panel-glyph)::before {
     background 120ms var(--ds-ease-in-out);
 }
 
-button:has(.bh-panel-glyph):hover .bh-panel-gear {
+button:has(.bh-panel-glyph):hover .bh-panel-gear,
+button:has(.bh-panel-glyph):focus-within .bh-panel-gear {
   opacity: 1;
   pointer-events: auto;
 }
@@ -4816,48 +4817,69 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   font-size: 12px;
 }
 /* Human Inbox follows the native Bot mode inset and semantic theme aliases. */
-.bh-human-inbox-entry {
-  display: flex;
+
+nav:has(> .bh-panel-activity) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  width: calc(100% - 12px);
-  min-height: 38px;
-  margin: 8px 6px 10px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 10px;
-  color: var(--dsw-alias-label-primary);
-  background: transparent;
-  text-align: left;
+}
+nav:has(> .bh-panel-activity) > button { grid-column: 1; }
+nav:has(> .bh-panel-activity[data-wide='true']) > button:has(.bh-panel-glyph) { padding-right: 112px; }
+.bh-panel-activity {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  gap: 4px;
+  min-height: 26px;
+  margin-right: 38px;
+  padding: 3px 6px;
+  border: 1px solid var(--bh-overview-border);
+  border-radius: var(--bh-overview-radius-control);
+  color: var(--bh-overview-muted);
+  background: var(--bh-overview-bg);
   cursor: pointer;
 }
-.bh-region-rail .bh-human-inbox-entry {
-  justify-content: center;
-  padding: 0 4px;
-  font-size: 11px;
-}.bh-human-inbox-entry:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-.bh-human-inbox-entry[aria-current='page'] {
-  background: var(--bh-selected);
-}
+.bh-panel-activity[data-wide='true'][data-unread='false'] { opacity: 0; pointer-events: none; }
+button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-wide='true'][data-unread='false'][data-active='true'],
+.bh-panel-activity[data-wide='true'][data-unread='false'][data-active='true']:is(:hover, :focus-visible) { opacity: 1; pointer-events: auto; }
+.bh-panel-activity:hover { background: var(--bh-hover); color: var(--bh-overview-label); }
+.bh-panel-activity[aria-current='page'] { background: var(--bh-selected); color: var(--bh-overview-label); }
+.bh-panel-activity:focus-visible { outline: 2px solid var(--bh-overview-label); outline-offset: 2px; }
 .bh-human-inbox-count {
-  margin-left: auto;
-  min-width: 20px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-interactive-bg-hover);
-  text-align: center;
-  font-size: 11px;
-}
-.bh-human-inbox-action-dot {
   flex: none;
-  width: 7px;
-  height: 7px;
-  margin-left: 6px;
-  border-radius: 50%;
-  background: var(--bh-accent);
+  min-width: 14px;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--bh-overview-label);
 }
+.bh-human-inbox-notification-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bh-entry-notification);
+}
+.bh-panel-activity[data-wide='false'] {
+  justify-self: start;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  margin: -8px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--bh-entry-radius-rail);
+  background: transparent;
+}
+.bh-panel-activity[data-wide='false'][data-active='false'] { display: none; }
+.bh-panel-activity[data-wide='false']:hover { background: var(--bh-hover); }
+.bh-panel-activity[data-wide='false'][aria-current='page'] { background: var(--bh-selected); }
 .bh-human-inbox {
   overflow: auto;
   padding: 28px min(6vw, 64px);

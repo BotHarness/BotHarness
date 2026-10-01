@@ -112,9 +112,45 @@ it('drops late Overview responses after switching to Inbox and reconciles comple
   await opening;
   expect(local.getSnapshot().overview.value).toBeUndefined();
   delayed = false;
-  await actions.openActivityCenter();
+  await actions.openActivityCenter('overview');
   expect(local.getSnapshot().overview.value).toMatchObject({
     actionCount: 0,
     bots: [{ slug: 'ada', sessions: [] }],
   });
+});
+
+it('returns to the last Activity Center tab after DM navigation and a new client', async () => {
+  const { createStore } = await import('../src/client/store.js');
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+  };
+  const call = async (endpoint: string) => ({
+    ok: true as const,
+    value:
+      endpoint === 'humanAttentionStatus'
+        ? { unreadCount: 0, hasAction: false }
+        : endpoint === 'activityOverview'
+          ? { actionCount: 0, bots: [] }
+          : { items: [] },
+  });
+  const local = createStore();
+  const actions = createActions(call, local, undefined, storage);
+  await actions.openActivityCenter();
+  expect(local.getSnapshot().selection).toEqual({ kind: 'inbox', view: 'overview' });
+  await actions.openHumanInbox();
+  local.select({ kind: 'channel', channelId: 'dm-ada' });
+  await actions.openActivityCenter();
+  expect(local.getSnapshot().selection).toEqual({ kind: 'inbox' });
+  const reloaded = createStore();
+  const next = createActions(call, reloaded, undefined, storage);
+  await next.openActivityCenter();
+  expect(reloaded.getSnapshot().selection).toEqual({ kind: 'inbox' });
+  await next.openActivityCenter('overview');
+  reloaded.select({ kind: 'bot', slug: 'ada' });
+  await next.openActivityCenter();
+  expect(reloaded.getSnapshot().selection).toEqual({ kind: 'inbox', view: 'overview' });
 });
