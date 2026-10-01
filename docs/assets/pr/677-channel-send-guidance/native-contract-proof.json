@@ -1,0 +1,375 @@
+{
+  "before": {
+    "sourceRevision": "222770648139a7fb97925ae77085cf8f0893463e",
+    "modelRoute": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "high"
+    },
+    "nativeToolCount": 66,
+    "registeredToolNames": [
+      "ask_user_question",
+      "bash",
+      "bot_dm_send",
+      "bot_subagent",
+      "bot_subagent_fork",
+      "bridge_attachment_save",
+      "bridge_read",
+      "bridge_reply",
+      "bridge_reply_file",
+      "channel_attachment_import",
+      "channel_attachment_open",
+      "channel_attachment_save",
+      "channel_list",
+      "channel_read",
+      "channel_read_image",
+      "channel_send",
+      "create_assignment",
+      "create_goal",
+      "edit",
+      "exit_plan_mode",
+      "get_goal",
+      "glob",
+      "grep",
+      "group_attention_get",
+      "group_attention_set",
+      "group_create",
+      "group_invite_bot",
+      "group_invite_respond",
+      "group_join_decide",
+      "group_join_request",
+      "group_leave",
+      "group_remove_member",
+      "group_rename",
+      "inbox_ignore",
+      "inspect_assignment",
+      "interrupt_agent",
+      "job_kill",
+      "job_list",
+      "job_output",
+      "list_agents",
+      "list_assignment_models",
+      "list_assignments",
+      "list_bot_contacts",
+      "list_bot_subagent_models",
+      "list_workspace_grants",
+      "memory_continue_from_commit",
+      "memory_switch_branch",
+      "present",
+      "read",
+      "read_image",
+      "request_workspace_grant",
+      "send_assignment_request",
+      "send_message",
+      "skill",
+      "source_attention_get",
+      "source_attention_reset",
+      "source_attention_set",
+      "stop_assignment",
+      "subagent",
+      "subagent_fork",
+      "todo_write",
+      "update_goal",
+      "web_fetch",
+      "web_search",
+      "workflow",
+      "write"
+    ],
+    "channelSend": {
+      "name": "channel_send",
+      "description": "Send one message as this PersonaBot to a joined Channel; omit channel_id for the inbound Channel. Forward trusted attachment references copied from channel_read (or completed channel_read_content); this Tool set has no local-file upload Tool. Returns committed {channelId,messageId}. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them. Use mention_human_ids from channel_list humanMembers to explicitly address a Human; plain @ names do not create personal mentions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "Message body; may be empty when attachments are present."
+          },
+          "attachments": {
+            "type": "array",
+            "description": "At most 10 trusted references: copy fileId, name, mime, size unchanged; never guess them. New sends require fileId; if an old read has hash, refresh its owning message with channel_read first. Size is a safe nonnegative integer byte count (0–9007199254740991).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "hash": {
+                  "type": "string"
+                },
+                "fileId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "mime": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                }
+              },
+              "required": ["name", "mime", "size"]
+            }
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "Channel id; defaults to the inbound Channel."
+          },
+          "reply_to": {
+            "type": "string",
+            "description": "Optional message id to reply to in that same Channel."
+          },
+          "mention_bot_ids": {
+            "type": "array",
+            "description": "At most 20 stable IDs of other active PersonaBots currently joined to the target Group. Do not repeat their names in body.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mention_human_ids": {
+            "type": "array",
+            "description": "Stable Human IDs from channel_list humanMembers in this Group; do not repeat their names in body.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["body"]
+      }
+    },
+    "channelSendCompiledJSONChars": 1829,
+    "calls": [
+      {
+        "name": "channel_attachment_import",
+        "callId": "call_00_tux15dsvJomH3SU2oRKC5640",
+        "callSeq": 51,
+        "resultSeq": 52,
+        "arguments": {
+          "file_path": "QA_WORKSPACE/receipt.txt"
+        },
+        "result": {
+          "fileId": "file:4fe3646d-72bd-4637-8d87-e8d83439ffd8",
+          "name": "receipt.txt",
+          "mime": "text/plain",
+          "size": 60
+        },
+        "isError": false
+      },
+      {
+        "name": "channel_send",
+        "callId": "call_00_qmhMvBThyu4y81lh8UBK7492",
+        "callSeq": 57,
+        "resultSeq": 58,
+        "arguments": {
+          "body": "QA677-FILE-DONE\n\n【channel_send 工具说明核对】该工具描述中关于附件来源的原句是：“Forward trusted attachment references copied from channel_read (or completed channel_read_content); this Tool set has no local-file upload Tool.”其中提到的读取工具 channel_read 确实已在本 Tool 集注册（可用 message_id + content_cursor 分段读取）；channel_read_content 未作为独立工具注册。该说明同时明确本 Tool 集没有本地文件上传工具，因此本地结果文件的正确导入工具是已注册的 channel_attachment_import（返回 fileId 后原样传给 channel_send）。\n\n【附件读取结果】从唯一已授权的 QA 工作目录 QA_WORKSPACE 选取 receipt.txt（text/plain，60 字节），真实读取内容共 2 行：\n1) QA677 attachment contract\n2) Selected authorized local result.\n导入工具：channel_attachment_import，返回 fileId=file:4fe3646d-72bd-4637-8d87-e8d83439ffd8。\n\n原文件未做任何修改，本次仅发送一次，未使用任何外部 IM 通道。",
+          "attachments": [
+            {
+              "fileId": "file:4fe3646d-72bd-4637-8d87-e8d83439ffd8",
+              "name": "receipt.txt",
+              "mime": "text/plain",
+              "size": 60
+            }
+          ],
+          "channel_id": "dm-bot-106bd6d4349e4230a1f013a932c94bea"
+        },
+        "result": {
+          "channelId": "dm-bot-106bd6d4349e4230a1f013a932c94bea",
+          "messageId": "e683fd0b-fffa-436b-aa47-20bd36e4997d"
+        },
+        "isError": false
+      }
+    ],
+    "terminal": {
+      "turn": 1,
+      "reason": {
+        "kind": "completed"
+      }
+    }
+  },
+  "after": {
+    "sourceRevision": "1b8d47555648e64ad6b0933e6e2689d9d0f2520e",
+    "modelRoute": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "high"
+    },
+    "nativeToolCount": 66,
+    "registeredToolNames": [
+      "ask_user_question",
+      "bash",
+      "bot_dm_send",
+      "bot_subagent",
+      "bot_subagent_fork",
+      "bridge_attachment_save",
+      "bridge_read",
+      "bridge_reply",
+      "bridge_reply_file",
+      "channel_attachment_import",
+      "channel_attachment_open",
+      "channel_attachment_save",
+      "channel_list",
+      "channel_read",
+      "channel_read_image",
+      "channel_send",
+      "create_assignment",
+      "create_goal",
+      "edit",
+      "exit_plan_mode",
+      "get_goal",
+      "glob",
+      "grep",
+      "group_attention_get",
+      "group_attention_set",
+      "group_create",
+      "group_invite_bot",
+      "group_invite_respond",
+      "group_join_decide",
+      "group_join_request",
+      "group_leave",
+      "group_remove_member",
+      "group_rename",
+      "inbox_ignore",
+      "inspect_assignment",
+      "interrupt_agent",
+      "job_kill",
+      "job_list",
+      "job_output",
+      "list_agents",
+      "list_assignment_models",
+      "list_assignments",
+      "list_bot_contacts",
+      "list_bot_subagent_models",
+      "list_workspace_grants",
+      "memory_continue_from_commit",
+      "memory_switch_branch",
+      "present",
+      "read",
+      "read_image",
+      "request_workspace_grant",
+      "send_assignment_request",
+      "send_message",
+      "skill",
+      "source_attention_get",
+      "source_attention_reset",
+      "source_attention_set",
+      "stop_assignment",
+      "subagent",
+      "subagent_fork",
+      "todo_write",
+      "update_goal",
+      "web_fetch",
+      "web_search",
+      "workflow",
+      "write"
+    ],
+    "channelSend": {
+      "name": "channel_send",
+      "description": "Send one message as this PersonaBot to a joined Channel; omit channel_id for the inbound Channel. Forward trusted references from channel_read (including complete message_id/content_cursor reads), or use channel_attachment_import for a selected authorized local result. Returns committed {channelId,messageId}. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them. Use mention_human_ids from channel_list humanMembers to explicitly address a Human; plain @ names do not create personal mentions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "Message body; may be empty when attachments are present."
+          },
+          "attachments": {
+            "type": "array",
+            "description": "At most 10 trusted references: copy fileId, name, mime, size unchanged; never guess them. New sends require fileId; if an old read has hash, refresh its owning message with channel_read first. Size is a safe nonnegative integer byte count (0–9007199254740991).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "hash": {
+                  "type": "string"
+                },
+                "fileId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "mime": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                }
+              },
+              "required": ["name", "mime", "size"]
+            }
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "Channel id; defaults to the inbound Channel."
+          },
+          "reply_to": {
+            "type": "string",
+            "description": "Optional message id to reply to in that same Channel."
+          },
+          "mention_bot_ids": {
+            "type": "array",
+            "description": "At most 20 stable IDs of other active PersonaBots currently joined to the target Group. Do not repeat their names in body.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mention_human_ids": {
+            "type": "array",
+            "description": "Stable Human IDs from channel_list humanMembers in this Group; do not repeat their names in body.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["body"]
+      }
+    },
+    "channelSendCompiledJSONChars": 1856,
+    "calls": [
+      {
+        "name": "channel_attachment_import",
+        "callId": "call_01_5jLIe9lSXsS1nisPpzOh0264",
+        "callSeq": 45,
+        "resultSeq": 46,
+        "arguments": {
+          "file_path": "QA_WORKSPACE/receipt.txt"
+        },
+        "result": {
+          "fileId": "file:4aac9776-4a6e-492a-8aec-86826904707f",
+          "name": "receipt.txt",
+          "mime": "text/plain",
+          "size": 60
+        },
+        "isError": false
+      },
+      {
+        "name": "channel_send",
+        "callId": "call_00_Ke7ME53yLpCVs5N4Unxf4353",
+        "callSeq": 59,
+        "resultSeq": 60,
+        "arguments": {
+          "body": "QA677-FILE-DONE\n\n【channel_send 附件来源原文】注册说明中关于附件来源的句子为：“Forward trusted references from channel_read (including complete message_id/content_cursor reads), or use channel_attachment_import for a selected authorized local result.” 以及 “New sends require fileId; if an old read has hash, refresh its owning message with channel_read first.”\n\n【提到的读取工具】上述句子提到的读取工具是 channel_read（用于消息内容与 message_id/content_cursor 的完整读取，以及旧 hash 附件的刷新）。经核对我实际注册的工具清单：channel_read 确实已注册；channel_attachment_import 也确实已注册。\n\n【本地结果文件的导入工具】发送本地结果文件不使用任何“channel_file_import”之类工具（该工具并未注册，属于不可用名称），而应使用已注册的 channel_attachment_import：传入所选生成文件的绝对canonical路径，返回独立 Attachment 引用（fileId/name/mime/size），再原样传给 channel_send 的 attachments。\n\n【本次实际执行】唯一已授权 QA 工作目录为 grant a7bed64a-0465-45d1-a273-134fd6c73ac5（QA_WORKSPACE）。选择该目录下的 receipt.txt，路径 QA_WORKSPACE/receipt.txt。真实读到的内容为两行纯文本（ASCII，60 字节，末行有换行）：\n第 1 行 “QA677 attachment contract”\n第 2 行 “Selected authorized local result.”\n已用 channel_attachment_import 导入，得到 fileId file:4aac9776-4a6e-492a-8aec-86826904707f，name receipt.txt，mime text/plain，size 60，并以该引用作为本次 channel_send 的附件发回当前私聊。未修改任何文件（未 edit-original、未写入副本），仅发送一次，未使用任何外部 IM。",
+          "attachments": [
+            {
+              "fileId": "file:4aac9776-4a6e-492a-8aec-86826904707f",
+              "name": "receipt.txt",
+              "mime": "text/plain",
+              "size": 60
+            }
+          ]
+        },
+        "result": {
+          "channelId": "dm-bot-216e9a5a97a8422e9b4aefa6891b94df",
+          "messageId": "10a64c0f-d939-45f6-8c64-42399f0f3ab5"
+        },
+        "isError": false
+      }
+    ],
+    "terminal": {
+      "turn": 1,
+      "reason": {
+        "kind": "completed"
+      }
+    }
+  }
+}
