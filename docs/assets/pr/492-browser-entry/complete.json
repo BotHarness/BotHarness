@@ -23,5 +23,7 @@
     "clickPreview": true,
     "followResume": true,
     "pauseResume": true
-  }
+  },
+  "verifiedImplementationCommit": "5abf3bd4abd68fe45d20feffd2e370c4e2980d73",
+  "repeatedAfterMainIntegration": true
 }
