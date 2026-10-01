@@ -101,3 +101,11 @@ native command should keep a manual path fallback when the Host has no native ch
 replace the gateway, borrow another entry's child Slot, or expose the Host to force a different
 picker. For an unbindable macOS system dialog, record native selection as Human QA pending;
 opening its process alone is not evidence that a directory was selected.
+
+## Local Computer target verification (DSH 0.2.0 RC1)
+
+Native settings expose only volatile fields. Volatile references have `get()` rather than a subscription; the pinned Loader commits them before emitting the Fiber-filtered `loader/volatile-update` event with changed paths. A resource-owning consumer must react to that event, dispose the old target and invalidate cached tools/session grants instead of capturing the initial target. Patch config replaces the whole object, so the Computer Bundle declares the fresh local default while the schema keeps the legacy container fallback. Verify a real native Settings selection plus Host read-back and restart persistence.
+
+Pinned cua-driver 0.28.0 `doctor --json` checks installation, not TCC grants. Use `mcp --direct --embedded` for the Host-owned stdio runtime and read `check_permissions({prompt:false})`; the ordinary macOS proxy path belongs to the standalone driver identity. Embedded mode does not raise permission prompts. Granted OS booleans do not prove direct ScreenCaptureKit capture: preserve a real first-observation failure and report it separately from installation/permissions. Do not silently retry a native permission refusal. See the [upstream embedding contract](https://github.com/trycua/cua/blob/cua-driver-rs-v0.28.0/libs/cua-driver/rust/Skills/cua-driver/EMBEDDING.md).
+
+For a mode that categorically refuses an upload, register its route as buffered under the native request-body cap instead of streaming. The pinned HTTP bridge destroys unread streaming requests after writing the response; a short early refusal can reach Undici as a socket-close error. Computer re-registers the upload route when its target changes: local is buffered and refused; container keeps the existing streaming TAR path. Verify the refusal over real HTTP, not only with a constructed Request.

@@ -92,7 +92,12 @@ interface Harness {
   setAuto(allow: boolean): void;
 }
 
-function harness(options: { access: boolean; running: boolean; auto?: boolean }): Harness {
+function harness(options: {
+  access: boolean;
+  running: boolean;
+  auto?: boolean;
+  authorizationScope?: () => string;
+}): Harness {
   const { scope, state } = fakeScope();
   const driver = fakeDriver();
   const audits: ComputerAuditEvent[] = [];
@@ -124,6 +129,7 @@ function harness(options: { access: boolean; running: boolean; auto?: boolean })
     driver,
     isComputerRunning: () => running,
     isAutoAllowed: () => auto,
+    authorizationScope: options.authorizationScope,
     audit: (event) => audits.push(event),
     core: () => ({
       registry: {
@@ -294,6 +300,27 @@ describe('per-PersonaBot registration and authorization', () => {
     expect(h.audits[0]?.summary).toContain('pid=7');
     expect(h.audits[1]?.summary).toContain('chars=5');
     expect(JSON.stringify(h.audits)).not.toContain('hello');
+  });
+
+  it('refuses a decision from the old target and requires a fresh grant after target reset', async () => {
+    let scope = 'container:0';
+    const h = harness({ access: true, running: true, authorizationScope: () => scope });
+    h.created({ agent });
+    h.provider.markAuthorized('session-a', scope);
+    expect(h.provider.needsAuthorization('session-a')).toBe(false);
+    scope = 'local:1';
+    h.provider.resetRuntime();
+    expect(h.provider.markAuthorized('session-a', 'container:0')).toBe(false);
+    expect(h.provider.needsAuthorization('session-a')).toBe(true);
+    await expect(
+      h.state.definitions.get('computer_click')!.execute({ pid: 7 }, execution('computer_click')),
+    ).rejects.toThrow('not authorized');
+    expect(h.driver.call).not.toHaveBeenCalled();
+    expect(h.provider.markAuthorized('session-a', scope)).toBe(true);
+    await h.state.definitions
+      .get('computer_click')!
+      .execute({ pid: 7 }, execution('computer_click'));
+    expect(h.driver.call).toHaveBeenCalledTimes(1);
   });
 
   it('runs without a grant when the profile auto-allows', async () => {

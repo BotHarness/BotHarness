@@ -629,11 +629,13 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         | {
             ownsTool?(name: string): boolean;
             needsAuthorization?(sessionId: string): boolean;
-            markAuthorized?(sessionId: string): void;
+            authorizationScope?(): string;
+            markAuthorized?(sessionId: string, scope?: string): boolean | void;
           }
         | undefined;
       if (computerTools?.ownsTool?.(execution.name) === true) {
         if (computerTools.needsAuthorization?.(agent.session.id) !== true) return next();
+        const authorizationScope = computerTools.authorizationScope?.();
         const computerApproval = ctx.get('approval') as ApprovalService | undefined;
         const untrackComputer = toolApproval.track(execution);
         if (computerApproval === undefined || untrackComputer === undefined) {
@@ -650,7 +652,12 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           if (outcome !== 'allowed-once') {
             return { kind: 'deny', reason: 'Human approval was ' + outcome };
           }
-          computerTools.markAuthorized?.(agent.session.id);
+          if (computerTools.markAuthorized?.(agent.session.id, authorizationScope) === false)
+            return {
+              kind: 'deny',
+              reason:
+                'Computer Target changed while awaiting Human approval; request a new action.',
+            };
           approvedCalls.add(execution.token);
           return await next();
         } catch {

@@ -17,6 +17,8 @@
 
 ### Added
 
+- 新增 macOS 本机 Computer，可在 Profile 设置中选择本机或 Docker 目标，显式检查桌面权限并按 Bot 授权；新安装默认使用本机桌面，旧 Docker 配置保留原目标（[#694](https://github.com/BotHarness/BotHarness/issues/694)）。
+
 - 活动中心入口改为 Bot 模式设置旁的紧凑未读 Chip；侧栏折叠后显示为 Bot 模式下方对齐的图标，跨聊天和刷新记住最后查看的总览或收件箱，展开时仅显示未读数字 badge，没有未读时仅在 Bot 模式开启后悬停或聚焦才显示入口；折叠时入口仅在 Bot 模式开启后显示，并以右上角红点提示通知（[#679](https://github.com/BotHarness/BotHarness/issues/679)）。
 - Human 或绑定 Bot 可为已授权外部群独立配置普通文字收件，以及按数量／时间汇总、下一轮唤醒、随提及阅读或静默读取；Admission 保留当时的策略版本，普通消息不打断正在执行的步骤 ([#613](https://github.com/BotHarness/BotHarness/issues/613), [ADR-0109](docs/adr/0109-external-group-collection-is-separate-from-wake.md)).
 

@@ -213,6 +213,15 @@ window.__ModuleLoader__.load({
 		//#region packages/computer/src/client/locale.ts
 		const LOCALE_NS = "botharness-computer";
 		const zh = {
+			"rows.target.title": "操作目标",
+			"rows.target.description": "本 Profile 的所有 Bot 共用一个目标；切换后需要重新授权操作。",
+			"rows.target.local": "本机 Computer",
+			"rows.target.container": "Docker Computer",
+			"local.title": "本机 Computer",
+			"local.granted": "桌面权限已授予",
+			"local.description": "直接操作运行 DSH 的 Mac。首次检查会安装桌面操作组件；请在这台电脑上完成登录。",
+			"local.check": "检查权限",
+			"local.checking": "正在检查…",
 			"entry.label": "电脑",
 			"entry.screen.title": "{name} 的屏幕",
 			"entry.shared": "这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。",
@@ -257,7 +266,7 @@ window.__ModuleLoader__.load({
 			"entry.updated": "最后更新 {seconds}s 前",
 			"entry.setup": "未检测到容器运行时。任选其一安装后重试：\n\nColima（推荐，MIT）：\n  brew install colima docker\n  brew services start colima\n\n或 Docker Desktop：https://www.docker.com/products/docker-desktop/",
 			"section.title": "Computer",
-			"section.description": "导出目录、空闲停止与导出 / 导入",
+			"section.description": "操作目标与 Computer 权限",
 			"rows.exportDir.title": "Computer 导出目录",
 			"rows.exportDir.current": "当前：{dir}",
 			"rows.exportDir.empty": "未配置时使用默认导出目录",
@@ -297,6 +306,15 @@ window.__ModuleLoader__.load({
 			"rows.pickerFallback": "目录选择器不可用；可手动输入路径，或继续使用当前目录：{dir}"
 		};
 		const en = {
+			"rows.target.title": "Computer Target",
+			"rows.target.description": "All Bots in this Profile share one target. Switching requires new action authorization.",
+			"rows.target.local": "Local Computer",
+			"rows.target.container": "Docker Computer",
+			"local.title": "Local Computer",
+			"local.granted": "Desktop permissions granted",
+			"local.description": "Uses the Mac running DSH. The first check installs the required desktop helper. Complete logins on this computer.",
+			"local.check": "Check permissions",
+			"local.checking": "Checking…",
 			"entry.label": "Computer",
 			"entry.screen.title": "{name}'s screen",
 			"entry.shared": "This Computer is shared by every PersonaBot in the profile: each keeps its own window and they share logins and files.",
@@ -341,7 +359,7 @@ window.__ModuleLoader__.load({
 			"entry.updated": "Last update {seconds}s ago",
 			"entry.setup": "No container runtime found. Install one of these, then retry:\n\nColima (recommended, MIT):\n  brew install colima docker\n  brew services start colima\n\nOr Docker Desktop: https://www.docker.com/products/docker-desktop/",
 			"section.title": "Computer",
-			"section.description": "Export directory, idle stop, and export / import",
+			"section.description": "Computer target and permissions",
 			"rows.exportDir.title": "Computer export directory",
 			"rows.exportDir.current": "Current: {dir}",
 			"rows.exportDir.empty": "Uses the default export directory when none is set",
@@ -393,6 +411,7 @@ window.__ModuleLoader__.load({
 		const COMPUTER_EXPORT_DIR_FIELD = "exportDir";
 		const COMPUTER_IDLE_STOP_FIELD = "idleStopMinutes";
 		const COMPUTER_AUTO_ALLOW_FIELD = "autoAllowActions";
+		const COMPUTER_TARGET_FIELD = "target";
 		//#endregion
 		//#region packages/computer/src/client/mounted-resource.ts
 		function useMountedResource(start, dependencies) {
@@ -402,6 +421,100 @@ window.__ModuleLoader__.load({
 				cleanup.current = void 0;
 				if (node !== null) cleanup.current = start(node) || void 0;
 			}, dependencies);
+		}
+		//#endregion
+		//#region packages/computer/src/client/local-computer.tsx
+		const LOCAL_COMPUTER_COLORS = {
+			error: "var(--dsw-alias-state-error-primary)",
+			secondary: "var(--dsw-alias-label-secondary)"
+		};
+		function LocalComputerStatus({ t }) {
+			const [payload, setPayload] = (0, react.useState)();
+			const [busy, setBusy] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)();
+			const refresh = (0, react.useCallback)(async (signal) => {
+				const response = await fetch("/api/computer/status", {
+					credentials: "same-origin",
+					...signal === void 0 ? {} : { signal }
+				});
+				if (!response.ok) throw new Error(`Computer status: HTTP ${String(response.status)}`);
+				const next = await response.json();
+				if (!signal?.aborted) {
+					setPayload(next);
+					setError(void 0);
+				}
+			}, []);
+			const resource = useMountedResource(() => {
+				const controller = new AbortController();
+				let pending = false;
+				const poll = async () => {
+					if (pending || controller.signal.aborted) return;
+					pending = true;
+					try {
+						await refresh(AbortSignal.any([controller.signal, AbortSignal.timeout(1e4)]));
+					} catch (error) {
+						if (!controller.signal.aborted) setError(String(error));
+					} finally {
+						pending = false;
+					}
+				};
+				poll();
+				const timer = setInterval(() => void poll(), 2e3);
+				return () => {
+					controller.abort();
+					clearInterval(timer);
+				};
+			}, [refresh]);
+			const preparing = busy || payload?.status?.phase === "starting";
+			const failure = error ?? payload?.status?.detail ?? payload?.probe?.detail;
+			const check = () => {
+				setBusy(true);
+				setError(void 0);
+				fetch("/api/computer/start", {
+					method: "POST",
+					credentials: "same-origin",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						authorize: true,
+						target: "local"
+					})
+				}).then(async (response) => {
+					if (!response.ok) throw new Error(await response.text());
+					await refresh();
+				}).catch((error) => setError(String(error))).finally(() => setBusy(false));
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: resource,
+				style: {
+					display: "flex",
+					flexDirection: "column",
+					gap: 8
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: t(payload?.status?.state === "running" ? "local.granted" : preparing ? "local.checking" : "local.title") }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: {
+							color: LOCAL_COMPUTER_COLORS.secondary,
+							fontSize: 12
+						},
+						children: t("local.description")
+					}),
+					failure === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						role: "alert",
+						style: {
+							color: LOCAL_COMPUTER_COLORS.error,
+							fontSize: 12
+						},
+						children: failure
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						size: "sm",
+						disabled: preparing || payload?.probe?.available === false,
+						onClick: check,
+						children: t(preparing ? "local.checking" : "local.check")
+					})
+				]
+			});
 		}
 		//#endregion
 		//#region packages/computer/src/client/settings-rows.tsx
@@ -416,6 +529,7 @@ window.__ModuleLoader__.load({
 		}
 		var ComputerSettingsPrefs = class {
 			snapshot = {
+				target: "container",
 				exportDir: "",
 				idleStopMinutes: 30,
 				autoAllowActions: false,
@@ -445,6 +559,12 @@ window.__ModuleLoader__.load({
 					this.listeners.delete(listener);
 				};
 			};
+			async setTarget(target) {
+				if (this.scope === void 0) throw new Error("Computer settings are unavailable");
+				await this.scope.set(COMPUTER_TARGET_FIELD, target);
+				this.sync();
+				if (this.snapshot.target !== target) throw new Error("Computer Target was not saved");
+			}
 			async setExportDir(exportDir) {
 				if (this.scope === void 0) throw new ExportDirRejectedError();
 				this.publish({ exportDir });
@@ -480,6 +600,7 @@ window.__ModuleLoader__.load({
 				const next = scope.getSnapshot();
 				const value = next.value;
 				this.snapshot = {
+					target: value?.target ?? "container",
 					exportDir: value?.exportDir ?? "",
 					idleStopMinutes: value?.idleStopMinutes ?? 30,
 					autoAllowActions: value?.autoAllowActions ?? false,
@@ -619,6 +740,9 @@ window.__ModuleLoader__.load({
 		}
 		function ComputerSettingsRows({ t, prefs, pickerAvailable, pickDirectory, openDirectory, exportArchive, downloadUrl, importArchive, requestUpload, sendUploadBytes, listArchives, hostExportDir }) {
 			const snapshot = (0, react.useSyncExternalStore)(prefs.subscribe, prefs.getSnapshot);
+			const [targetOpen, setTargetOpen] = (0, react.useState)(false);
+			const [targetError, setTargetError] = (0, react.useState)();
+			const [targetSaving, setTargetSaving] = (0, react.useState)(false);
 			const [idleOpen, setIdleOpen] = (0, react.useState)(false);
 			const [importOpen, setImportOpen] = (0, react.useState)(false);
 			const [archives, setArchives] = (0, react.useState)(void 0);
@@ -638,6 +762,7 @@ window.__ModuleLoader__.load({
 			const [livePhase, setLivePhase] = (0, react.useState)(void 0);
 			const [liveElapsed, setLiveElapsed] = (0, react.useState)(0);
 			const hostDirResource = useMountedResource(() => {
+				if (snapshot.target === "local") return;
 				if (snapshot.status !== "unavailable" && snapshot.exportDir !== "") return;
 				let active = true;
 				hostExportDir().then((dir) => {
@@ -649,7 +774,8 @@ window.__ModuleLoader__.load({
 			}, [
 				hostExportDir,
 				snapshot.status,
-				snapshot.exportDir
+				snapshot.exportDir,
+				snapshot.target
 			]);
 			const busyResource = useMountedResource(() => {
 				setLivePhase(void 0);
@@ -829,96 +955,38 @@ window.__ModuleLoader__.load({
 						})]
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
-						title: t("rows.exportDir.title"),
-						description: hasDir ? t("rows.exportDir.current", { dir: exportDir }) : t("rows.exportDir.empty"),
-						children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							style: {
-								display: "flex",
-								gap: 8,
-								alignItems: "center",
-								flexWrap: "wrap"
-							},
-							children: [
-								canAdjust ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
-									type: "button",
-									className: "bh-settings-selector",
-									disabled: !writable,
-									onClick: pickExportDir,
-									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFolderOpenOutlineRegular, { size: 14 }), t("rows.exportDir.pick")]
-								}) : null,
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									type: "button",
-									className: "bh-settings-selector",
-									disabled: !hasDir,
-									onClick: openDir,
-									children: t("rows.exportDir.open")
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									type: "button",
-									className: "bh-settings-selector",
-									disabled: !writable,
-									onClick: () => {
-										setManualOpen((value) => !value);
-										setManualPath(exportDir);
-									},
-									children: t("rows.exportDir.manual")
-								})
-							]
-						})
-					}),
-					manualOpen ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						className: "bh-settings-row",
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: "bh-settings-row-text",
-							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-								className: "bh-settings-input",
-								value: manualPath,
-								placeholder: "/absolute/path",
-								"aria-label": t("rows.exportDir.manual"),
-								onChange: (event) => {
-									setManualPath(event.target.value);
-								}
-							})
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							className: "bh-settings-selector",
-							disabled: !writable || saving || manualPath.trim() === "",
-							onClick: saveManualPath,
-							children: saving ? t("rows.exportDir.saving") : t("rows.exportDir.save")
-						})]
-					}) : null,
-					dirNote === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						className: "bh-note",
-						children: dirNote
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
-						title: t("rows.idle.title"),
-						description: t("rows.idle.description"),
+						title: t("rows.target.title"),
+						description: t("rows.target.description"),
 						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Menu, {
-							open: idleOpen,
+							open: targetOpen,
 							portal: true,
 							align: "end",
-							items: IDLE_OPTIONS.map((minutes) => ({
-								id: String(minutes),
-								label: t("rows.idle.minutes", { minutes })
+							items: ["local", "container"].map((id) => ({
+								id,
+								label: t(`rows.target.${id}`)
 							})),
-							selectedId: String(snapshot.idleStopMinutes),
+							selectedId: snapshot.target,
 							onSelect: (id) => {
-								setIdleOpen(false);
-								prefs.setIdleStopMinutes(Number(id));
+								setTargetOpen(false);
+								if (id !== "local" && id !== "container") return;
+								setTargetSaving(true);
+								setTargetError(void 0);
+								prefs.setTarget(id).catch((error) => setTargetError(String(error))).finally(() => setTargetSaving(false));
 							},
-							onClose: () => {
-								setIdleOpen(false);
-							},
+							onClose: () => setTargetOpen(false),
 							anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Selector, {
-								label: t("rows.idle.minutes", { minutes: snapshot.idleStopMinutes }),
-								open: idleOpen,
-								disabled: !writable,
-								onToggle: () => {
-									setIdleOpen((value) => !value);
-								}
+								label: t(`rows.target.${snapshot.target}`),
+								open: targetOpen,
+								disabled: !writable || targetSaving,
+								onToggle: () => setTargetOpen((value) => !value)
 							})
 						})
+					}),
+					targetError === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						role: "alert",
+						className: "bh-note",
+						style: { color: LOCAL_COMPUTER_COLORS.error },
+						children: targetError
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
 						title: t("rows.autoAllow.title"),
@@ -932,148 +1000,242 @@ window.__ModuleLoader__.load({
 							label: t("rows.autoAllow.title")
 						})
 					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
-						title: t("rows.exportSection.title"),
-						description: t("rows.exportSection.description"),
-						children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							style: {
-								display: "flex",
-								gap: 8,
-								alignItems: "center",
-								flexWrap: "wrap"
-							},
-							children: [confirming === "export" ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								className: "bh-settings-selector",
-								onClick: () => {
-									setConfirming(void 0);
+					snapshot.target === "local" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(LocalComputerStatus, { t }) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
+							title: t("rows.exportDir.title"),
+							description: hasDir ? t("rows.exportDir.current", { dir: exportDir }) : t("rows.exportDir.empty"),
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								style: {
+									display: "flex",
+									gap: 8,
+									alignItems: "center",
+									flexWrap: "wrap"
 								},
-								children: t("entry.cancel")
+								children: [
+									canAdjust ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "bh-settings-selector",
+										disabled: !writable,
+										onClick: pickExportDir,
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFolderOpenOutlineRegular, { size: 14 }), t("rows.exportDir.pick")]
+									}) : null,
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "bh-settings-selector",
+										disabled: !hasDir,
+										onClick: openDir,
+										children: t("rows.exportDir.open")
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "bh-settings-selector",
+										disabled: !writable,
+										onClick: () => {
+											setManualOpen((value) => !value);
+											setManualPath(exportDir);
+										},
+										children: t("rows.exportDir.manual")
+									})
+								]
+							})
+						}),
+						manualOpen ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: "bh-settings-row",
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: "bh-settings-row-text",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									className: "bh-settings-input",
+									value: manualPath,
+									placeholder: "/absolute/path",
+									"aria-label": t("rows.exportDir.manual"),
+									onChange: (event) => {
+										setManualPath(event.target.value);
+									}
+								})
 							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								className: "bh-settings-selector",
-								onClick: runExport,
-								children: t("rows.authorizeExport")
-							})] }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								className: "bh-settings-selector",
-								disabled: !hasDir && !canAdjust || busy !== void 0,
-								onClick: startExport,
-								children: busy === "export" ? t("rows.exporting") : canAdjust ? t("rows.exportTo") : t("rows.export")
-							}), download === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								className: "bh-settings-selector",
-								onClick: () => {
-									globalThis.location?.assign(downloadUrl(download.token));
-								},
-								children: t("rows.download")
+								disabled: !writable || saving || manualPath.trim() === "",
+								onClick: saveManualPath,
+								children: saving ? t("rows.exportDir.saving") : t("rows.exportDir.save")
 							})]
-						})
-					}),
-					confirming === "export" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						className: "bh-note",
-						children: t("rows.exportTarget", { dir: exportTarget ?? exportDir })
-					}) : null,
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
-						title: t("rows.importSection.title"),
-						description: t("rows.importSection.description"),
-						children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							style: {
-								display: "flex",
-								gap: 8,
-								alignItems: "center",
-								flexWrap: "wrap"
-							},
-							children: [
-								uploadName !== void 0 ? null : confirming === "import" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						}) : null,
+						dirNote === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: "bh-note",
+							children: dirNote
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
+							title: t("rows.idle.title"),
+							description: t("rows.idle.description"),
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Menu, {
+								open: idleOpen,
+								portal: true,
+								align: "end",
+								items: IDLE_OPTIONS.map((minutes) => ({
+									id: String(minutes),
+									label: t("rows.idle.minutes", { minutes })
+								})),
+								selectedId: String(snapshot.idleStopMinutes),
+								onSelect: (id) => {
+									setIdleOpen(false);
+									prefs.setIdleStopMinutes(Number(id));
+								},
+								onClose: () => {
+									setIdleOpen(false);
+								},
+								anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Selector, {
+									label: t("rows.idle.minutes", { minutes: snapshot.idleStopMinutes }),
+									open: idleOpen,
+									disabled: !writable,
+									onToggle: () => {
+										setIdleOpen((value) => !value);
+									}
+								})
+							})
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
+							title: t("rows.exportSection.title"),
+							description: t("rows.exportSection.description"),
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								style: {
+									display: "flex",
+									gap: 8,
+									alignItems: "center",
+									flexWrap: "wrap"
+								},
+								children: [confirming === "export" ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
 									className: "bh-settings-selector",
 									onClick: () => {
 										setConfirming(void 0);
 									},
-									children: t("rows.cancelImport")
-								}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Menu, {
-									open: importOpen,
-									portal: true,
-									align: "end",
-									items: (archives ?? []).map((file) => ({
-										id: file,
-										label: file
-									})),
-									onSelect: (id) => {
-										setConfirming("import");
-										setArchives([id]);
-									},
-									onClose: () => {
-										setImportOpen(false);
-									},
-									anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Selector, {
-										label: busy === "import" ? t("rows.importing") : t("rows.import"),
-										open: importOpen,
-										disabled: !hasDir || busy !== void 0,
-										onToggle: openImport
-									})
-								}),
-								uploadName === void 0 && confirming === "import" && archives?.[0] !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									type: "button",
-									className: "bh-settings-selector",
-									disabled: busy !== void 0,
-									onClick: () => {
-										const file = archives[0];
-										if (file !== void 0) runImport(file);
-									},
-									children: t("rows.authorizeImportConfirm")
-								}) : null,
-								uploadName !== void 0 || confirming === "import" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-									className: "bh-settings-selector",
-									children: [t("rows.chooseFile"), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-										type: "file",
-										accept: ".tar,application/x-tar",
-										hidden: true,
-										disabled: busy !== void 0,
-										onChange: (event) => {
-											const file = event.target.files?.[0] ?? null;
-											event.target.value = "";
-											takeUploadFile(file);
-										}
-									})]
-								}),
-								uploadName === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									type: "button",
-									className: "bh-settings-selector",
-									onClick: () => {
-										setUploadName(void 0);
-										uploadFile.current = null;
-									},
 									children: t("entry.cancel")
 								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
 									className: "bh-settings-selector",
-									disabled: busy !== void 0,
-									onClick: runUpload,
-									children: busy === "upload" ? t("rows.importing") : t("rows.authorizeImportConfirm")
-								})] })
-							]
-						})
-					}),
-					selectedFile === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						className: "bh-note",
-						style: {
-							overflow: "hidden",
-							textOverflow: "ellipsis",
-							whiteSpace: "nowrap"
-						},
-						children: selectedFile
-					}),
-					busy !== void 0 && phaseKey !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						className: "bh-note",
-						children: `${t(phaseKey)} · ${t("entry.elapsed", { seconds: liveElapsed })}`
-					}) : null,
+									onClick: runExport,
+									children: t("rows.authorizeExport")
+								})] }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "bh-settings-selector",
+									disabled: !hasDir && !canAdjust || busy !== void 0,
+									onClick: startExport,
+									children: busy === "export" ? t("rows.exporting") : canAdjust ? t("rows.exportTo") : t("rows.export")
+								}), download === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "bh-settings-selector",
+									onClick: () => {
+										globalThis.location?.assign(downloadUrl(download.token));
+									},
+									children: t("rows.download")
+								})]
+							})
+						}),
+						confirming === "export" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: "bh-note",
+							children: t("rows.exportTarget", { dir: exportTarget ?? exportDir })
+						}) : null,
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
+							title: t("rows.importSection.title"),
+							description: t("rows.importSection.description"),
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								style: {
+									display: "flex",
+									gap: 8,
+									alignItems: "center",
+									flexWrap: "wrap"
+								},
+								children: [
+									uploadName !== void 0 ? null : confirming === "import" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "bh-settings-selector",
+										onClick: () => {
+											setConfirming(void 0);
+										},
+										children: t("rows.cancelImport")
+									}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Menu, {
+										open: importOpen,
+										portal: true,
+										align: "end",
+										items: (archives ?? []).map((file) => ({
+											id: file,
+											label: file
+										})),
+										onSelect: (id) => {
+											setConfirming("import");
+											setArchives([id]);
+										},
+										onClose: () => {
+											setImportOpen(false);
+										},
+										anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Selector, {
+											label: busy === "import" ? t("rows.importing") : t("rows.import"),
+											open: importOpen,
+											disabled: !hasDir || busy !== void 0,
+											onToggle: openImport
+										})
+									}),
+									uploadName === void 0 && confirming === "import" && archives?.[0] !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "bh-settings-selector",
+										disabled: busy !== void 0,
+										onClick: () => {
+											const file = archives[0];
+											if (file !== void 0) runImport(file);
+										},
+										children: t("rows.authorizeImportConfirm")
+									}) : null,
+									uploadName !== void 0 || confirming === "import" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+										className: "bh-settings-selector",
+										children: [t("rows.chooseFile"), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+											type: "file",
+											accept: ".tar,application/x-tar",
+											hidden: true,
+											disabled: busy !== void 0,
+											onChange: (event) => {
+												const file = event.target.files?.[0] ?? null;
+												event.target.value = "";
+												takeUploadFile(file);
+											}
+										})]
+									}),
+									uploadName === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "bh-settings-selector",
+										onClick: () => {
+											setUploadName(void 0);
+											uploadFile.current = null;
+										},
+										children: t("entry.cancel")
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "bh-settings-selector",
+										disabled: busy !== void 0,
+										onClick: runUpload,
+										children: busy === "upload" ? t("rows.importing") : t("rows.authorizeImportConfirm")
+									})] })
+								]
+							})
+						}),
+						selectedFile === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: "bh-note",
+							style: {
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+								whiteSpace: "nowrap"
+							},
+							children: selectedFile
+						}),
+						busy !== void 0 && phaseKey !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: "bh-note",
+							children: `${t(phaseKey)} · ${t("entry.elapsed", { seconds: liveElapsed })}`
+						}) : null
+					] }),
 					snapshot.status === "unavailable" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: "bh-note",
 						children: t("rows.noSettings")
 					}) : null,
-					transferNote === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					snapshot.target !== "container" || transferNote === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						className: "bh-note",
 						children: transferNote
 					})
@@ -2110,7 +2272,7 @@ window.__ModuleLoader__.load({
 				children: [inProgress ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
 					hidden: true,
 					ref: progressResource
-				}) : null, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntryView, {
+				}) : null, payload?.target === "local" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(LocalComputerStatus, { t }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntryView, {
 					t,
 					state: payload?.status.state ?? "absent",
 					...phase === void 0 ? {} : { phase },
