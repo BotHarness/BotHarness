@@ -1,7 +1,7 @@
 {
   "memory": {
     "path": "external-steer-qa.md",
-    "notificationId": "ef389063-803a-43d2-86ec-50991c5ae523",
+    "notificationId": "bb88408e-387f-44c6-ae65-2b86f38c4e56",
     "heldState": "processing",
     "settledState": "handled",
     "injectionSeq": 21,
@@ -10,15 +10,15 @@
     "nextTurnNotificationCount": 1,
     "restart": {
       "notificationCount": 1,
-      "notificationId": "ef389063-803a-43d2-86ec-50991c5ae523",
+      "notificationId": "bb88408e-387f-44c6-ae65-2b86f38c4e56",
       "state": "handled",
       "botState": "idle",
       "fileUnchanged": true
     }
   },
   "bot": {
-    "slug": "bot-fd2bd597da7745b2971f56a2c9404321",
-    "displayName": "Memory steering human-dm steer QA 1790877975053"
+    "slug": "bot-2c9c918622114090ae7dd72a09b5b683",
+    "displayName": "Memory steering human-dm steer QA 1790878698732"
   },
   "route": {
     "provider": "deepseek-official",
@@ -26,17 +26,17 @@
     "reasoningEffort": "low"
   },
   "sourceClass": "human-dm",
-  "peerChannelId": "dm-bot-fd2bd597da7745b2971f56a2c9404321",
+  "peerChannelId": "dm-bot-2c9c918622114090ae7dd72a09b5b683",
   "sourceMessage": {
-    "id": "4bdead80-adb3-4751-8cb6-a540bdfec6d6",
+    "id": "ba1f4361-4d31-481b-9f21-43687881937c",
     "author": {
       "kind": "human"
     }
   },
-  "markerReplyId": "dd8cd731-f0c8-4419-95cb-e61738989788",
+  "markerReplyId": "84530b3e-8e6b-4199-9901-fc451c01ae5b",
   "finalPeerDelivery": [
     {
-      "botSlug": "bot-fd2bd597da7745b2971f56a2c9404321",
+      "botSlug": "bot-2c9c918622114090ae7dd72a09b5b683",
       "state": "handled"
     }
   ],
@@ -50,19 +50,19 @@
     "lastActor": {
       "kind": "built-in"
     },
-    "changedAt": "2026-10-01T18:06:22.137Z",
+    "changedAt": "2026-10-01T18:18:27.106Z",
     "overrideActive": false,
     "recentWakeCount": 0
   },
-  "sessionId": "botharness-cb30efbf-64c6-419f-b8b7-909294cd3a9b",
-  "firstMessageId": "fdd910a5-d279-43d5-ba63-cff16429d28a",
-  "secondMessageId": "4bdead80-adb3-4751-8cb6-a540bdfec6d6",
+  "sessionId": "botharness-be103b5e-f4db-414f-b18f-a3508a2e896b",
+  "firstMessageId": "daaae019-69a8-458c-bdeb-e1b052984420",
+  "secondMessageId": "ba1f4361-4d31-481b-9f21-43687881937c",
   "whileHeld": {
     "turnStarts": 1,
     "turnEnds": 0,
     "secondDelivery": [
       {
-        "botSlug": "bot-fd2bd597da7745b2971f56a2c9404321",
+        "botSlug": "bot-2c9c918622114090ae7dd72a09b5b683",
         "state": "running"
       }
     ],
@@ -73,7 +73,7 @@
   },
   "nativeTurns": {
     "starts": [4],
-    "ends": [40]
+    "ends": [56]
   },
   "proactiveReadCalls": 0,
   "eventTypes": [
@@ -207,27 +207,27 @@
     },
     {
       "seq": 32,
-      "type": "tool/call"
-    },
-    {
-      "seq": 33,
-      "type": "tool/result"
-    },
-    {
-      "seq": 34,
       "type": "step/end"
     },
     {
-      "seq": 35,
+      "seq": 33,
       "type": "step/start"
     },
     {
-      "seq": 36,
+      "seq": 34,
       "type": "session-log-deepseek/delivery-accepted"
     },
     {
-      "seq": 37,
+      "seq": 35,
       "type": "assistant/message"
+    },
+    {
+      "seq": 36,
+      "type": "tool/call"
+    },
+    {
+      "seq": 37,
+      "type": "tool/result"
     },
     {
       "seq": 38,
@@ -235,20 +235,88 @@
     },
     {
       "seq": 39,
-      "type": "workspace/changes"
+      "type": "step/start"
     },
     {
       "seq": 40,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 41,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 42,
+      "type": "tool/call"
+    },
+    {
+      "seq": 43,
+      "type": "tool/result"
+    },
+    {
+      "seq": 44,
+      "type": "step/end"
+    },
+    {
+      "seq": 45,
+      "type": "step/start"
+    },
+    {
+      "seq": 46,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 47,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 48,
+      "type": "tool/call"
+    },
+    {
+      "seq": 49,
+      "type": "tool/result"
+    },
+    {
+      "seq": 50,
+      "type": "step/end"
+    },
+    {
+      "seq": 51,
+      "type": "step/start"
+    },
+    {
+      "seq": 52,
+      "type": "session-log-deepseek/delivery-accepted"
+    },
+    {
+      "seq": 53,
+      "type": "assistant/message"
+    },
+    {
+      "seq": 54,
+      "type": "step/end"
+    },
+    {
+      "seq": 55,
+      "type": "workspace/changes"
+    },
+    {
+      "seq": 56,
       "type": "turn/end"
     }
   ],
   "replies": [
     {
-      "id": "dd8cd731-f0c8-4419-95cb-e61738989788",
+      "id": "84530b3e-8e6b-4199-9901-fc451c01ae5b",
       "body": "Delivery second confirmed"
     },
     {
-      "id": "ecab9842-0457-41f1-b65c-b52f0efa09a5",
+      "id": "c88c2a17-00a9-4c1f-91f3-2d61e5999d38",
+      "body": "Delivery first confirmed"
+    },
+    {
+      "id": "3ee14257-3640-4029-b803-494cde25e86a",
       "body": "请求批准执行 bash"
     }
   ],

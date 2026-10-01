@@ -549,8 +549,16 @@ try {
       })
     ).message;
     await until(
-      messages,
-      (rows) => rows.find((m) => m.id === next.id)?.deliveries?.some((d) => d.state === 'handled'),
+      async () => ({
+        rows: await messages(),
+        bot: (await rpc('list')).bots.find((record) => record.slug === bot.slug),
+      }),
+      (value) =>
+        value.bot?.aggregateState === 'idle' &&
+        value.rows.find((m) => m.id === next.id)?.deliveries?.some((d) => d.state === 'handled') &&
+        value.rows.some(
+          (m) => m.author.kind === 'bot' && m.body.includes('Memory next turn confirmed'),
+        ),
       'Next ordinary Turn must complete',
     );
     const nextItems = (await rpc('botAttention', { slug: bot.slug })).items.filter(

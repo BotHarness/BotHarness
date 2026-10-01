@@ -36,7 +36,7 @@ After completion, restart that exact Host without changing its profile or bundle
 
 ## Human QA
 
-Open **Memory steering human-dm steer QA 1790877975053** in Bot mode. Its DM contains `Delivery second confirmed` and `Memory next turn confirmed`. Expand **Bot Inbox → System → Handled or ignored**: `external-steer-qa.md` should show **Handled**. Open **Memory files** to inspect that file. Refresh and confirm the one handled notification remains.
+Open **Memory steering human-dm steer QA 1790878698732** in Bot mode. Its DM contains `Delivery second confirmed` and `Memory next turn confirmed`. Expand **Bot Inbox → System → Handled or ignored**: `external-steer-qa.md` should show **Handled**. Open **Memory files** to inspect that file. Refresh and confirm the one handled notification remains.
 
 ## Automated regression
 
