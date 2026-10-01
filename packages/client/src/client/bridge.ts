@@ -837,6 +837,26 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       attachments.some((entry) => entry === undefined))
   )
     return undefined;
+  let bridgeOrigin: ChannelMessage['bridgeOrigin'];
+  if (record['bridgeOrigin'] !== undefined) {
+    const origin = asRecord(record['bridgeOrigin']);
+    if (
+      author.kind !== 'bridged' ||
+      !origin ||
+      ![
+        'sourceEventId',
+        'platform',
+        'conversationId',
+        'conversationName',
+        'messageId',
+        'senderId',
+      ].every((key) => typeof origin[key] === 'string' && origin[key].length > 0) ||
+      (origin['threadId'] !== undefined &&
+        (typeof origin['threadId'] !== 'string' || origin['threadId'].length === 0))
+    )
+      return undefined;
+    bridgeOrigin = origin as NonNullable<ChannelMessage['bridgeOrigin']>;
+  }
   const format = record['format'];
   if (format !== undefined && format !== 'markdown' && format !== 'text') return undefined;
   const replyTo = record['replyTo'];
@@ -1049,6 +1069,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(userQuestionResolution === undefined ? {} : { userQuestionResolution }),
     ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),
+    ...(bridgeOrigin === undefined ? {} : { bridgeOrigin }),
     ...(replyTo === undefined ? {} : { replyTo }),
     ...(replyToPreview === undefined ? {} : { replyToPreview }),
   };
@@ -2667,7 +2688,17 @@ export async function loadMessagingSnapshot(
     !record ||
     !Array.isArray(record['accounts']) ||
     !Array.isArray(record['grants']) ||
-    !Array.isArray(record['intents'])
+    !Array.isArray(record['intents']) ||
+    (record['channelTargets'] !== undefined &&
+      (!Array.isArray(record['channelTargets']) ||
+        !record['channelTargets'].every((value) => {
+          const target = asRecord(value);
+          return (
+            typeof target?.['id'] === 'string' &&
+            target['id'].length > 0 &&
+            typeof target['name'] === 'string'
+          );
+        })))
   )
     throw new BridgeCallError('invalid-response', 'Invalid messaging snapshot');
   return value as MessagingSnapshot;
@@ -2737,6 +2768,14 @@ export async function loadMessageAttachmentTarget(
   return { path: target['path'], relativePath: target['relativePath'], kind: 'file' };
 }
 
+export async function setMessagingChannelTarget(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+  channelId: string | null,
+): Promise<void> {
+  await unwrap(call, 'messagingChannelTarget', { slug, grantId, channelId });
+}
 export async function setMessagingReceive(
   call: BridgeCall,
   slug: string,
@@ -2769,6 +2808,8 @@ export async function readMessagingSource(
       'at',
       'grantId',
     ]) ||
+    (source?.['localChannelId'] !== undefined &&
+      (typeof source['localChannelId'] !== 'string' || source['localChannelId'].length === 0)) ||
     !Number.isInteger(source?.['grantRevision']) ||
     Number(source?.['grantRevision']) < 1 ||
     event?.['version'] !== 1 ||

@@ -457,3 +457,21 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 等待／受阻卡片以 Assignment Session 聚合，读取准确报告 Source Event 和至多前后各两条报告。Human 在 Inbox 回答时，消息通过现有 Bot DM authority 提交，并携带 `assignmentReply: {sessionId, sourceEventId}`；事务核验所属 Bot、运行状态、当前请求或空闲受阻报告，以及尚无已提交 Human 回应。此消息由 Orchestrator 接收并转交 Assignment，不直接恢复事项或清除 ask；完成、失败或停止后的报告拒绝新回应。同 ID 重试返回原提交。普通进展保留未解决 ask，较弱等待报告不覆盖较强的受阻 ask。点击 Bot 打开私聊，点击 Assignment Session 切换到 DSH 原始 Session（ADR-0071）。
 
 Human 回应目标及时间使用 Messaging 拥有的 SQLite 索引。列表超过 150 项时明确暂停自动轮询，保留正在浏览的旧记录；可见的「刷新回到当前列表」按钮保留筛选条件，重查最多三页并获取新游标。「加载更多」不截断当前记录，成功行动命令仍刷新权威状态。
+
+## 共享 Channel Bridge — #634
+
+[ADR-0108](../adr/0108-shared-channel-bridge-places-canonical-external-sources.md) 为授权 Lark Grant 增加明确选择已有 Group Channel 的收件位置。Messaging 在 ACK 前将同一个外部 Source Event、canonical Channel placement 与仅被验证 @ 的 Bot Inbox Admission 原子提交。原生时间线和授权成员读取投影有界的外部发送人／时间／正文／来源；其他成员获得可见性，不复制消息、身份、Admission 或唤醒。既有 harvest／steer 路径以该本地 Channel 作为入站上下文，只有明确使用自身身份的 checked reply 才回到 Lark。当前成员、绑定与 Grant revision 控制收件、唤醒、读取和未开始的回复；退出／撤销保留已有共享事实。默认仍仅入 Inbox；该切片保留每 Grant 一个目标、每 Source 一个 placement，重投不移动历史。多目标、普通消息收件、话题跟进与协作继续由 #629 的后续 tracer 交付。
+
+```mermaid
+flowchart LR
+  IM["Authorized Lark group<br/>verified Human @"] --> Provider["dsh-im public Service<br/>exclusive Consumer"]
+  Provider --> Commit["Messaging transaction<br/>canonical Source Event"]
+  Commit --> Placement["One existing Group Channel placement"]
+  Commit --> Admission["Addressed bound Bot Inbox Admission"]
+  Placement --> Members["Current Human and Bot members<br/>native timeline and bounded reads"]
+  Admission --> Runtime["Existing harvest / steer<br/>one Orchestrator"]
+  Runtime --> Reply["Explicit own-identity reply<br/>current grant and source checks"]
+  Reply --> Outbox["Existing durable Outbox"]
+  Outbox --> Provider
+  Provider --> IM
+```

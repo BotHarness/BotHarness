@@ -1,3 +1,5 @@
+import { bridgeChannel, placeBridgeSource } from './channel-target.js';
+import type { ChannelMessageCommit } from '../channels/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
@@ -54,6 +56,7 @@ export interface ExternalSource {
   event: Omit<MessagingInboundEvent, 'text'>;
   grantId: string;
   grantRevision: number;
+  localChannelId?: string;
   contextReads?: ExternalContextRead[];
   contextMessages?: ExternalContextResult['messages'];
 }
@@ -61,6 +64,7 @@ export interface ExternalSource {
 export interface InboundMessaging {
   register(provider: MessagingProvider): () => void;
   setEnabled(botSlug: string, grantId: string, enabled: boolean): Promise<void>;
+  setChannelTarget(botSlug: string, grantId: string, channelId: string | null): Promise<void>;
   status(grantId: string): 'off' | 'connecting' | 'receiving' | 'unavailable';
   available(botSlug: string, sourceEventId: string): boolean;
   sourceSignal(botSlug: string, sourceEventId: string): AbortSignal;
@@ -81,6 +85,7 @@ export function createInboundMessaging(options: {
   sourcePolicy: BotSourcePolicyStore;
   isBotActive(slug: string): boolean;
   onAdmitted(botSlug: string, sourceEventId: string): void;
+  onPlaced?(commit: ChannelMessageCommit): void;
   warn?(message: string): void;
 }): InboundMessaging {
   const { database } = options;
@@ -180,6 +185,7 @@ export function createInboundMessaging(options: {
         event: evidence,
         grantId: value.id,
         grantRevision: value.revision,
+        ...(value.receiveTargetChannelId ? { localChannelId: value.receiveTargetChannelId } : {}),
       };
       db.prepare(`INSERT INTO source_events (source_event_id, source_kind, bot_slug, body, created_at, payload_json)
         VALUES (?, 'bridge-message', ?, ?, ?, ?)`).run(
@@ -207,10 +213,21 @@ export function createInboundMessaging(options: {
     lease?.controller.abort();
     lease?.dispose?.();
   };
+  const targetAvailable = (value: MessagingGrant): boolean => {
+    if (!value.receiveTargetChannelId) return true;
+    try {
+      database.read((db) => bridgeChannel(db, value.receiveTargetChannelId!, value.botSlug));
+      return true;
+    } catch (error) {
+      if (error instanceof MessagingError) return false;
+      throw error;
+    }
+  };
   const valid = (value: MessagingGrant): boolean => {
     const lease = leases.get(value.id);
     return (
       !closed &&
+      targetAvailable(value) &&
       options.isBotActive(value.botSlug) &&
       value.revokedAt === undefined &&
       value.suspendedReason === undefined &&
@@ -293,11 +310,21 @@ export function createInboundMessaging(options: {
             !event.mentionedAccount
           )
             return { accepted: true };
+          if (!targetAvailable(latest)) return { accepted: true };
+          let placement: ChannelMessageCommit | undefined;
           const id = transaction(
             (db) => {
               signal.throwIfAborted();
               lease.controller.signal.throwIfAborted();
+              if (value.receiveTargetChannelId)
+                bridgeChannel(db, value.receiveTargetChannelId, value.botSlug);
               const id = persistSource(db, value, event);
+              const row = db
+                .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
+                .get(id) as { payload_json: string };
+              const source = (JSON.parse(row.payload_json) as { external: ExternalSource })
+                .external;
+              placement = placeBridgeSource(db, { ...source, body: event.text }, value.botSlug);
               const policy = options.sourcePolicy.resolveIn(db, value.botSlug, 'group-mention');
               db.prepare(`INSERT OR IGNORE INTO inbox_admissions
               (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode)
@@ -309,8 +336,15 @@ export function createInboundMessaging(options: {
               );
               return id;
             },
-            ['source-event', 'bot-inbox'],
+            ['source-event', 'channel', 'bot-inbox'],
           );
+          if (placement) {
+            try {
+              options.onPlaced?.(placement);
+            } catch {
+              options.warn?.('bridge-channel-publication-failed');
+            }
+          }
           setImmediate(() => {
             if (closed) return;
             try {
@@ -383,6 +417,8 @@ export function createInboundMessaging(options: {
     ) as { payload_json: string; body: string } | undefined;
     if (!row) throw new MessagingError('source-unavailable');
     const retained = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;
+    if (retained.localChannelId)
+      database.read((db) => bridgeChannel(db, retained.localChannelId!, botSlug));
     const latest = retained.contextReads?.filter((item) => item.outcome === 'read').at(-1);
     const contextMessages: ExternalContextResult['messages'] = [];
     for (const sourceEventId of latest?.sourceEventIds ?? []) {
@@ -480,9 +516,40 @@ export function createInboundMessaging(options: {
       if (enabled) await start(updated);
       else stop(id);
     },
+    async setChannelTarget(botSlug, id, channelId) {
+      const updated = transaction(
+        (db) => {
+          const value = grant(id);
+          if (
+            value.botSlug !== botSlug ||
+            value.revokedAt ||
+            value.suspendedReason ||
+            !options.isBotActive(botSlug)
+          )
+            throw new MessagingError('grant-unavailable');
+          if (channelId !== null) bridgeChannel(db, channelId, botSlug, true);
+          const { receiveTargetChannelId: _old, ...rest } = value;
+          const next: MessagingGrant = {
+            ...rest,
+            revision: value.revision + 1,
+            ...(channelId === null ? {} : { receiveTargetChannelId: channelId }),
+          };
+          db.prepare('UPDATE messaging_grants SET body = ?, revision = ? WHERE id = ?').run(
+            JSON.stringify(next),
+            next.revision,
+            id,
+          );
+          return next;
+        },
+        ['grants', 'bindings', 'bot-inbox'],
+      );
+      stop(id);
+      if (updated.receiveScope) await start(updated);
+    },
     status(id) {
       const value = grant(id);
       if (!value.receiveScope || value.revokedAt) return 'off';
+      if (!targetAvailable(value)) return 'unavailable';
       const lease = leases.get(id);
       if (valid(value)) return 'receiving';
       return lease && !lease.controller.signal.aborted ? 'connecting' : 'unavailable';

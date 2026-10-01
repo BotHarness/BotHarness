@@ -239,6 +239,7 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingReceive(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingSource(payload: unknown): Promise<BridgeResult<{ source: ExternalSource }>>;
   messagingSnapshot(payload: unknown): Promise<BridgeResult<MessagingSnapshot>>;
@@ -739,6 +740,25 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
   };
 
   return {
+    messagingChannelTarget(payload) {
+      const input = z
+        .object({
+          slug: z.string().min(1),
+          grantId: z.string().uuid(),
+          channelId: z.string().min(1).max(128).nullable(),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid Bridge Channel target'));
+      return messagingCall(async (service) => {
+        await service.inbound.setChannelTarget(
+          input.data.slug,
+          input.data.grantId,
+          input.data.channelId,
+        );
+        return { updated: true as const };
+      });
+    },
     messagingReceive(payload) {
       const input = z
         .object({ slug: z.string().min(1), grantId: z.string().uuid(), enabled: z.boolean() })

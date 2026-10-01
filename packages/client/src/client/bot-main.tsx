@@ -318,6 +318,34 @@ function MessageGroupView({
                     onJump={onJumpReply}
                     t={t}
                   />
+                  {message.bridgeOrigin ? (
+                    <details className="bh-external-details">
+                      <summary>
+                        {message.bridgeOrigin.platform === 'feishu'
+                          ? 'Lark / 飞书'
+                          : message.bridgeOrigin.platform}{' '}
+                        · {message.bridgeOrigin.conversationName}
+                        {message.bridgeOrigin.threadId ? ` · ${t('im.threadLabel')}` : ''}
+                      </summary>
+                      <div className="bh-external-detail-body">
+                        <p>
+                          {t('im.origin')} · {message.bridgeOrigin.conversationId}
+                        </p>
+                        <p>
+                          {t('im.messageReference', {
+                            messageId: message.bridgeOrigin.messageId,
+                            sourceEventId: message.bridgeOrigin.sourceEventId,
+                          })}
+                        </p>
+                        <p>
+                          {t('im.senderLabel')} · {message.bridgeOrigin.senderId}
+                        </p>
+                        {message.bridgeOrigin.threadId ? (
+                          <p>{message.bridgeOrigin.threadId}</p>
+                        ) : null}
+                      </div>
+                    </details>
+                  ) : null}
                   <ChannelMessageBody
                     message={message}
                     channelId={channelId}

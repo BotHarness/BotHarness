@@ -1,0 +1,11 @@
+flowchart LR
+  IM["Authorized Lark group<br/>verified Human @"] --> Provider["dsh-im public Service<br/>exclusive Consumer"]
+  Provider --> Commit["Messaging transaction<br/>canonical Source Event"]
+  Commit --> Placement["One existing Group Channel placement"]
+  Commit --> Admission["Addressed bound Bot Inbox Admission"]
+  Placement --> Members["Current Human and Bot members<br/>native timeline and bounded reads"]
+  Admission --> Runtime["Existing harvest / steer<br/>one Orchestrator"]
+  Runtime --> Reply["Explicit own-identity reply<br/>current grant and source checks"]
+  Reply --> Outbox["Existing durable Outbox"]
+  Outbox --> Provider
+  Provider --> IM
