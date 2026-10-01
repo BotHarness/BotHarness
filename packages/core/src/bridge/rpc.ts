@@ -120,6 +120,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
     this.methods = methods;
   }
 
+  messagingChannelTarget(
+    slug: string,
+    grantId: string,
+    channelId: string | null,
+  ): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.messagingChannelTarget({ slug, grantId, channelId }));
+  }
   messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.messagingReceive({ slug, grantId, enabled }));
   }
@@ -746,6 +753,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
+  'messagingChannelTarget',
   'messagingReceive',
   'messagingSource',
   'messagingSnapshot',

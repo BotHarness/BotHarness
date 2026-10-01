@@ -199,6 +199,15 @@ export interface ChannelMessage {
 
   userQuestionResolution?: ChannelQuestionResolution;
   attachments?: ChannelAttachmentRef[];
+  bridgeOrigin?: {
+    sourceEventId: string;
+    platform: string;
+    conversationId: string;
+    conversationName: string;
+    messageId: string;
+    senderId: string;
+    threadId?: string;
+  };
   external?: ChannelMessageExternal;
   format?: 'markdown' | 'text';
 
@@ -658,6 +667,31 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     if (typeof preview !== 'object') return false;
     const record = preview as Record<string, unknown>;
     if (!isChannelMessageAuthor(record['author']) || typeof record['body'] !== 'string')
+      return false;
+  }
+  const bridgeOrigin = message['bridgeOrigin'];
+  if (bridgeOrigin !== undefined) {
+    if (
+      typeof bridgeOrigin !== 'object' ||
+      bridgeOrigin === null ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'bridged'
+    )
+      return false;
+    const origin = bridgeOrigin as Record<string, unknown>;
+    for (const key of [
+      'sourceEventId',
+      'platform',
+      'conversationId',
+      'conversationName',
+      'messageId',
+      'senderId',
+    ]) {
+      if (typeof origin[key] !== 'string' || origin[key].length === 0) return false;
+    }
+    if (
+      origin['threadId'] !== undefined &&
+      (typeof origin['threadId'] !== 'string' || origin['threadId'].length === 0)
+    )
       return false;
   }
   const external = message['external'];

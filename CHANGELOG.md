@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Activity Center uses a compact unread chip beside Bot mode settings, switches to an aligned icon below Bot mode when collapsed, and remembers the last Overview or Inbox tab across chats and reload; expanded shows only the unread badge (hover or focus reveals an empty entry only in Bot mode) and collapsed shows its icon only in Bot mode, using a top-right red notification dot ([#679](https://github.com/BotHarness/BotHarness/issues/679)).
 
+- A Human can bridge authorized Lark mentions into an existing shared Group Channel: all current members can read one retained external message with its origin, while only the addressed bound Bot wakes and can explicitly reply through its own identity ([#634](https://github.com/BotHarness/BotHarness/issues/634), [ADR-0108](docs/adr/0108-shared-channel-bridge-places-canonical-external-sources.md)).
+
 - Activity Center opens a cross-Bot Overview with the canonical Human action count, current Bot status and executing Orchestrator/Assignment Sessions; Bot cards open DMs and Session rows switch to the exact native DSH Session ([#541](https://github.com/BotHarness/BotHarness/issues/541)).
 
 - A mention-only PersonaBot can explicitly read bounded Lark group, nearby Chat time-window or anchored topic context through its own identity; the Inbox source uses a readable chat layout with named mentions and expandable exact message/source references, sender identities and read history, omissions and permission refusals without admitting ordinary history or creating wakes; non-advancing provider cursors refuse before retaining or observing returned messages ([#612](https://github.com/BotHarness/BotHarness/issues/612)).
@@ -240,6 +242,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed Memory edits being silently absorbed when a new DM or Group mention steers an active turn; bounded change summaries now enter that turn’s Bot Inbox and settle with it ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
+
+- Browser entry now expands when Access is enabled, pins the Bot’s current tab with visible title/URL, and holds the viewed tab when Follow is off without redirecting Bot work ([#492](https://github.com/BotHarness/BotHarness/issues/492)).
+
 - Browser file uploads select the input that opened the picker, or the first input when ref is omitted; upload audits include basename and size and redact Host paths in failures ([#491](https://github.com/BotHarness/BotHarness/issues/491)).
 
 - PersonaBot Orchestrators can set and restore Human DM, Bot DM and Group mention delivery through the existing attention tools; changes keep immediate admission and carry Bot-authored revisions visible in Profile ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
@@ -333,6 +339,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Fixed flat-order drag commits so an unpinned PersonaBot DM can persist at the absolute top or between Channel sections exactly like a group Channel ([#56](https://github.com/BotHarness/BotHarness/issues/56)).
 - Channel messages no longer wait for the PersonaBot's Orchestrator turn: a Human message appears immediately, can be sent while the bot is still working, and is admitted to the Bot Inbox for serial processing ([#140](https://github.com/BotHarness/BotHarness/issues/140)).
 - Fixed the Computer's Chromium losing its open tabs across stop → start: the desktop now launches Chromium on boot and restores the previous session, so tabs survive a restart the same way they survive export → import ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
+
+- Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
 
 ### Documentation
 

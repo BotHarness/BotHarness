@@ -286,22 +286,6 @@ const buttonStyle = {
   fontSize: 12,
 } as const;
 
-const tabRowStyle = {
-  display: 'block',
-  width: '100%',
-  textAlign: 'left',
-  padding: '3px 6px',
-  borderRadius: 4,
-  border: 'none',
-  background: 'transparent',
-  color: 'inherit',
-  cursor: 'pointer',
-  fontSize: 12,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-} as const;
-
 function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const [store] = useState(() => createObservationStore(botSlug));
   const [infoStore] = useState(() => createBotInfoStore(botSlug));
@@ -317,6 +301,9 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
 
   const tabs = observation?.tabs ?? [];
   const focused = observation?.focused ?? null;
+  const currentTab = tabs.find((tab) => tab.current);
+  const orderedTabs =
+    currentTab === undefined ? tabs : [currentTab, ...tabs.filter((tab) => !tab.current)];
   const paused = observation?.takeover === true;
 
   const invoke = (endpoint: string, body: Record<string, unknown> = {}): void => {
@@ -342,7 +329,9 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
       setPreview(undefined);
       store.setTab(undefined);
     } else {
-      store.setTab(preview);
+      const selected = focused ?? preview;
+      setPreview(selected);
+      store.setTab(selected);
     }
   };
 
@@ -460,19 +449,18 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         <div style={{ opacity: 0.6 }}>{t('entry.view.noTabs')}</div>
       ) : (
         <div style={{ display: 'grid', gap: 2 }}>
-          {tabs.map((tab) => (
+          {orderedTabs.map((tab) => (
             <button
               key={tab.targetId}
               type="button"
-              style={{
-                ...tabRowStyle,
-                opacity: tab.targetId === focused ? 1 : 0.75,
-                fontWeight: tab.targetId === focused ? 600 : 400,
-              }}
+              className="bh-browser-tab"
+              aria-current={tab.current ? true : undefined}
+              aria-pressed={tab.targetId === focused}
               title={tab.url}
               onClick={() => onSelectTab(tab.targetId)}
             >
-              {tab.title === '' ? tab.url : tab.title}
+              <span className="bh-browser-tab-title">{tab.title === '' ? tab.url : tab.title}</span>
+              {tab.title === '' ? null : <span className="bh-browser-tab-url">{tab.url}</span>}
             </button>
           ))}
         </div>

@@ -15,6 +15,7 @@ export function MessagingProfile({
   actions: Pick<
     BridgeActions,
     | 'messagingReceive'
+    | 'messagingChannelTarget'
     | 'messagingSnapshot'
     | 'messagingTargets'
     | 'messagingAuthorize'
@@ -169,7 +170,40 @@ export function MessagingProfile({
                 </Button>
                 {grant.canReceive === true || grant.receiveScope !== undefined ? (
                   <>
-                    <p>{t('im.receiveHint')}</p>
+                    <label className="bh-im-field">
+                      <span>{t('im.localTarget')}</span>
+                      <select
+                        aria-label={t('im.localTarget')}
+                        value={grant.receiveTargetChannelId ?? ''}
+                        disabled={busy}
+                        onChange={(event) => {
+                          const channelId = event.target.value || null;
+                          void operate(() =>
+                            actions.messagingChannelTarget(slug, grant.id, channelId),
+                          );
+                        }}
+                      >
+                        <option value="">{t('im.inboxTarget')}</option>
+                        {grant.receiveTargetChannelId &&
+                        !snapshot.channelTargets?.some(
+                          (target) => target.id === grant.receiveTargetChannelId,
+                        ) ? (
+                          <option value={grant.receiveTargetChannelId}>
+                            {t('im.targetUnavailable')}
+                          </option>
+                        ) : null}
+                        {(snapshot.channelTargets ?? []).map((target) => (
+                          <option key={target.id} value={target.id}>
+                            {target.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <p>
+                      {grant.receiveTargetChannelId
+                        ? t('im.channelTargetHint')
+                        : t('im.receiveHint')}
+                    </p>
                     <p>{t(`im.reception.${grant.reception ?? 'off'}`)}</p>
                     <Button
                       disabled={

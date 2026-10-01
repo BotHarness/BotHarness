@@ -1,3 +1,5 @@
+import { bridgeChannel } from './channel-target.js';
+import type { ChannelMessageCommit } from '../channels/store.js';
 import { attachmentIdentity, type ChannelAttachmentRef } from '../attachments/ref.js';
 import type { AttachmentStore } from '../attachments/store.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -70,6 +72,7 @@ export interface MessagingGrant {
   revision: number;
   createdAt: string;
   receiveScope?: { kind: 'group'; conversationId: string };
+  receiveTargetChannelId?: string;
   revokedAt?: string;
   suspendedReason?: 'rebind-required';
 }
@@ -98,6 +101,7 @@ export interface OutboxIntent {
 }
 
 export interface MessagingSnapshot {
+  channelTargets?: { id: string; name: string }[];
   accounts: (MessagingAccount & { providerId: string })[];
   grants: (MessagingGrant & {
     availability: 'available' | 'unavailable' | 'rebind-required';
@@ -153,6 +157,7 @@ export function createOutboundMessaging(options: {
   isBotActive(slug: string): boolean;
   sourcePolicy?: BotSourcePolicyStore;
   onAdmitted?(botSlug: string, sourceEventId: string): void;
+  onPlaced?(commit: ChannelMessageCommit): void;
   timeoutMs?: number;
   recover?: boolean;
   now?: () => Date;
@@ -310,6 +315,7 @@ export function createOutboundMessaging(options: {
     sourcePolicy: options.sourcePolicy ?? createBotSourcePolicyStore(database),
     isBotActive: options.isBotActive,
     onAdmitted: options.onAdmitted ?? (() => undefined),
+    ...(options.onPlaced ? { onPlaced: options.onPlaced } : {}),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   const service: OutboundMessaging = {
@@ -510,7 +516,21 @@ export function createOutboundMessaging(options: {
           };
         }),
       );
-      return { accounts, grants, intents: history(botSlug) };
+      const channelTargets = database.read((db) => {
+        const rows = db.prepare('SELECT channel_id FROM channel_records').all() as {
+          channel_id: string;
+        }[];
+        return rows.flatMap(({ channel_id }) => {
+          try {
+            const channel = bridgeChannel(db, channel_id, botSlug, true);
+            return [{ id: channel.id, name: channel.name }];
+          } catch (error) {
+            if (error instanceof MessagingError) return [];
+            throw error;
+          }
+        });
+      });
+      return { accounts, grants, channelTargets, intents: history(botSlug) };
     },
     async targets(providerId, accountRef) {
       return provider(providerId).provider.targets(accountRef);

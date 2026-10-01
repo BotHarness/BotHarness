@@ -65,12 +65,14 @@ it('requires explicit target authorization and an explicit send; unknown outcome
   const actions: Pick<
     BridgeActions,
     | 'messagingReceive'
+    | 'messagingChannelTarget'
     | 'messagingSnapshot'
     | 'messagingTargets'
     | 'messagingAuthorize'
     | 'messagingRevoke'
     | 'messagingSend'
   > = {
+    messagingChannelTarget: async () => undefined,
     messagingReceive: async () => undefined,
     messagingSnapshot: async () => snapshot,
     messagingTargets: async () => [target],
@@ -166,6 +168,20 @@ it('changes group intake only after the Human toggles it and can stop it when th
     intents: [],
     grants: [{ ...grant, availability: 'available', canReceive: true, reception: 'off' }],
   };
+  snapshot.channelTargets = [{ id: 'shared-work', name: 'Shared work' }];
+  const messagingChannelTarget = vi.fn(
+    async (slug: string, id: string, channelId: string | null) => {
+      expect(slug).toBe('ada');
+      expect(id).toBe(grant.id);
+      snapshot = {
+        ...snapshot,
+        grants: snapshot.grants.map((item) => {
+          const { receiveTargetChannelId: _prior, ...rest } = item;
+          return { ...rest, ...(channelId === null ? {} : { receiveTargetChannelId: channelId }) };
+        }),
+      };
+    },
+  );
   const messagingReceive = vi.fn(async (slug: string, id: string, enabled: boolean) => {
     expect(slug).toBe('ada');
     expect(id).toBe(grant.id);
@@ -188,6 +204,7 @@ it('changes group intake only after the Human toggles it and can stop it when th
     throw new Error('unexpected send');
   });
   const actions = {
+    messagingChannelTarget,
     messagingReceive,
     messagingSend,
     messagingSnapshot: async () => snapshot,
@@ -211,6 +228,28 @@ it('changes group intake only after the Human toggles it and can stop it when th
     );
     await act(async () => button('im.refresh').click());
     expect(messagingReceive).not.toHaveBeenCalled();
+    expect(messagingChannelTarget).not.toHaveBeenCalled();
+    const selector = container.querySelector<HTMLSelectElement>(
+      `select[aria-label="${zhTranslate('im.localTarget')}"]`,
+    )!;
+    expect(selector.value).toBe('');
+    expect(selector.options.length).toBe(2);
+    await act(async () => {
+      selector.value = 'shared-work';
+      selector.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(messagingChannelTarget.mock.calls).toEqual([['ada', grant.id, 'shared-work']]);
+    expect(container.textContent).toContain(zhTranslate('im.channelTargetHint'));
+    expect(messagingReceive).not.toHaveBeenCalled();
+    expect(messagingSend).not.toHaveBeenCalled();
+    await act(async () => {
+      selector.value = '';
+      selector.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(messagingChannelTarget.mock.calls).toEqual([
+      ['ada', grant.id, 'shared-work'],
+      ['ada', grant.id, null],
+    ]);
     await act(async () => button('im.receiveEnable').click());
     expect(messagingReceive.mock.calls).toEqual([['ada', grant.id, true]]);
     expect(button('im.receiveDisable').disabled).toBe(false);

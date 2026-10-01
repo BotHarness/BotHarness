@@ -1,0 +1,349 @@
+{
+  "date": "2026-10-02",
+  "dsh": "0.2.0-rc.1",
+  "providerSource": "ee9d3c7a6fc9f15b13f8d895cd1ccb5183b7cd37",
+  "runtimeCodeCommit": "89272bf1",
+  "integrationBase": "5de4da44",
+  "tools": [
+    {
+      "tool": "channel_read",
+      "arguments": {
+        "channel_id": "group-lark-shared-channel-qa-634"
+      },
+      "sessionId": "botharness-687fd242-3b0c-43fe-b9c7-fc78bdde0188",
+      "at": "2026-10-01T18:20:31.244000+00:00",
+      "result": {
+        "messages": [
+          {
+            "channelId": "group-lark-shared-channel-qa-634",
+            "channelName": "Lark Shared Channel QA #634",
+            "actorNames": {
+              "humans": {
+                "local-human": "Human"
+              },
+              "bots": {}
+            },
+            "message": {
+              "id": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+              "at": "2026-10-01T18:20:27.999Z",
+              "body": "@_user_1 [BH634 SHARED] 请用 channel_read 读取本地 group-lark-shared-channel-qa-634 中这条消息，确认 bridgeOrigin 的 messageId 和 sourceEventId。然后仅使用 bridge_reply 回复原消息 BH634-SHARED-OK。不要发本地消息，不要创建 Assignment。",
+              "format": "text",
+              "author": {
+                "kind": "bridged",
+                "source": "ou_46c34fea8efea425267630ebd1d9d54b"
+              },
+              "bridgeOrigin": {
+                "sourceEventId": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+                "platform": "feishu",
+                "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+                "conversationName": "BotHarness IM QA #78",
+                "messageId": "om_x100b64de0872b0a0ee800d5cd146d86",
+                "senderId": "ou_46c34fea8efea425267630ebd1d9d54b"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+        "text": "BH634-SHARED-OK"
+      },
+      "sessionId": "botharness-687fd242-3b0c-43fe-b9c7-fc78bdde0188",
+      "at": "2026-10-01T18:20:33.276000+00:00",
+      "result": {
+        "sourceEventId": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+        "text": "BH634-SHARED-OK",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T18:20:34.159Z",
+        "settledAt": "2026-10-01T18:20:37.091Z"
+      }
+    },
+    {
+      "tool": "channel_read",
+      "arguments": {
+        "channel_id": "group-lark-shared-channel-qa-634",
+        "limit": 20
+      },
+      "sessionId": "botharness-687fd242-3b0c-43fe-b9c7-fc78bdde0188",
+      "at": "2026-10-01T18:24:14.861000+00:00",
+      "result": {
+        "messages": [
+          {
+            "channelId": "group-lark-shared-channel-qa-634",
+            "channelName": "Lark Shared Channel QA #634",
+            "actorNames": {
+              "humans": {
+                "local-human": "Human"
+              },
+              "bots": {}
+            },
+            "message": {
+              "id": "im-bb5d77e3a6ffac5cd6036231364c69a5c3c454fb017e07585b7d74dd7c8e7c71",
+              "at": "2026-10-01T18:24:11.236Z",
+              "body": "@_user_1 [BH634 TOPIC] 请使用 channel_read 读取 group-lark-shared-channel-qa-634 的这条新消息，核对 bridgeOrigin.threadId，然后仅用 bridge_reply 在本话题回复 BH634-TOPIC-OK。不要发本地消息，不要创建 Assignment。",
+              "format": "text",
+              "author": {
+                "kind": "bridged",
+                "source": "ou_46c34fea8efea425267630ebd1d9d54b"
+              },
+              "bridgeOrigin": {
+                "sourceEventId": "im-bb5d77e3a6ffac5cd6036231364c69a5c3c454fb017e07585b7d74dd7c8e7c71",
+                "platform": "feishu",
+                "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+                "conversationName": "BotHarness IM QA #78",
+                "messageId": "om_x100b64de1a7eb4a0eec799ebd2cca08",
+                "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+                "threadId": "omt_19db2ca2d5cf1944"
+              }
+            }
+          },
+          {
+            "channelId": "group-lark-shared-channel-qa-634",
+            "channelName": "Lark Shared Channel QA #634",
+            "actorNames": {
+              "humans": {
+                "local-human": "Human"
+              },
+              "bots": {}
+            },
+            "message": {
+              "id": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+              "at": "2026-10-01T18:20:27.999Z",
+              "body": "@_user_1 [BH634 SHARED] 请用 channel_read 读取本地 group-lark-shared-channel-qa-634 中这条消息，确认 bridgeOrigin 的 messageId 和 sourceEventId。然后仅使用 bridge_reply 回复原消息 BH634-SHARED-OK。不要发本地消息，不要创建 Assignment。",
+              "format": "text",
+              "author": {
+                "kind": "bridged",
+                "source": "ou_46c34fea8efea425267630ebd1d9d54b"
+              },
+              "bridgeOrigin": {
+                "sourceEventId": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+                "platform": "feishu",
+                "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+                "conversationName": "BotHarness IM QA #78",
+                "messageId": "om_x100b64de0872b0a0ee800d5cd146d86",
+                "senderId": "ou_46c34fea8efea425267630ebd1d9d54b"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-bb5d77e3a6ffac5cd6036231364c69a5c3c454fb017e07585b7d74dd7c8e7c71",
+        "text": "BH634-TOPIC-OK"
+      },
+      "sessionId": "botharness-687fd242-3b0c-43fe-b9c7-fc78bdde0188",
+      "at": "2026-10-01T18:24:16.380000+00:00",
+      "result": {
+        "sourceEventId": "im-bb5d77e3a6ffac5cd6036231364c69a5c3c454fb017e07585b7d74dd7c8e7c71",
+        "text": "BH634-TOPIC-OK",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T18:24:17.177Z",
+        "settledAt": "2026-10-01T18:24:19.331Z"
+      }
+    },
+    {
+      "tool": "channel_read",
+      "arguments": {
+        "channel_id": "group-lark-shared-channel-qa-634",
+        "limit": 20
+      },
+      "sessionId": "botharness-687fd242-3b0c-43fe-b9c7-fc78bdde0188",
+      "at": "2026-10-01T18:46:53.081000+00:00",
+      "result": {
+        "messages": [
+          {
+            "channelId": "group-lark-shared-channel-qa-634",
+            "channelName": "Lark Shared Channel QA #634",
+            "actorNames": {
+              "humans": {
+                "local-human": "Human"
+              },
+              "bots": {}
+            },
+            "message": {
+              "id": "im-37cd2203bc9c63c97fc1392838e735a278d48b40fd14b28785e16b9786d43a3d",
+              "at": "2026-10-01T18:46:50.612Z",
+              "body": "@_user_1 [BH634 INTEGRATED] 请用 channel_read 读取本地 group-lark-shared-channel-qa-634 中这条消息，确认 bridgeOrigin 的 messageId 和 sourceEventId。然后仅使用 bridge_reply 回复原消息 BH634-INTEGRATED-OK。不要发本地消息，不要创建 Assignment。",
+              "format": "text",
+              "author": {
+                "kind": "bridged",
+                "source": "ou_46c34fea8efea425267630ebd1d9d54b"
+              },
+              "bridgeOrigin": {
+                "sourceEventId": "im-37cd2203bc9c63c97fc1392838e735a278d48b40fd14b28785e16b9786d43a3d",
+                "platform": "feishu",
+                "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+                "conversationName": "BotHarness IM QA #78",
+                "messageId": "om_x100b64dee764a4a4eeb7dc351f25b63",
+                "senderId": "ou_46c34fea8efea425267630ebd1d9d54b"
+              }
+            }
+          },
+          {
+            "channelId": "group-lark-shared-channel-qa-634",
+            "channelName": "Lark Shared Channel QA #634",
+            "actorNames": {
+              "humans": {
+                "local-human": "Human"
+              },
+              "bots": {}
+            },
+            "message": {
+              "id": "im-bb5d77e3a6ffac5cd6036231364c69a5c3c454fb017e07585b7d74dd7c8e7c71",
+              "at": "2026-10-01T18:24:11.236Z",
+              "body": "@_user_1 [BH634 TOPIC] 请使用 channel_read 读取 group-lark-shared-channel-qa-634 的这条新消息，核对 bridgeOrigin.threadId，然后仅用 bridge_reply 在本话题回复 BH634-TOPIC-OK。不要发本地消息，不要创建 Assignment。",
+              "format": "text",
+              "author": {
+                "kind": "bridged",
+                "source": "ou_46c34fea8efea425267630ebd1d9d54b"
+              },
+              "bridgeOrigin": {
+                "sourceEventId": "im-bb5d77e3a6ffac5cd6036231364c69a5c3c454fb017e07585b7d74dd7c8e7c71",
+                "platform": "feishu",
+                "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+                "conversationName": "BotHarness IM QA #78",
+                "messageId": "om_x100b64de1a7eb4a0eec799ebd2cca08",
+                "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+                "threadId": "omt_19db2ca2d5cf1944"
+              }
+            }
+          },
+          {
+            "channelId": "group-lark-shared-channel-qa-634",
+            "channelName": "Lark Shared Channel QA #634",
+            "actorNames": {
+              "humans": {
+                "local-human": "Human"
+              },
+              "bots": {}
+            },
+            "message": {
+              "id": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+              "at": "2026-10-01T18:20:27.999Z",
+              "body": "@_user_1 [BH634 SHARED] 请用 channel_read 读取本地 group-lark-shared-channel-qa-634 中这条消息，确认 bridgeOrigin 的 messageId 和 sourceEventId。然后仅使用 bridge_reply 回复原消息 BH634-SHARED-OK。不要发本地消息，不要创建 Assignment。",
+              "format": "text",
+              "author": {
+                "kind": "bridged",
+                "source": "ou_46c34fea8efea425267630ebd1d9d54b"
+              },
+              "bridgeOrigin": {
+                "sourceEventId": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+                "platform": "feishu",
+                "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+                "conversationName": "BotHarness IM QA #78",
+                "messageId": "om_x100b64de0872b0a0ee800d5cd146d86",
+                "senderId": "ou_46c34fea8efea425267630ebd1d9d54b"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-37cd2203bc9c63c97fc1392838e735a278d48b40fd14b28785e16b9786d43a3d",
+        "text": "BH634-INTEGRATED-OK"
+      },
+      "sessionId": "botharness-687fd242-3b0c-43fe-b9c7-fc78bdde0188",
+      "at": "2026-10-01T18:46:54.530000+00:00",
+      "result": {
+        "sourceEventId": "im-37cd2203bc9c63c97fc1392838e735a278d48b40fd14b28785e16b9786d43a3d",
+        "text": "BH634-INTEGRATED-OK",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T18:46:55.142Z",
+        "settledAt": "2026-10-01T18:46:57.666Z"
+      }
+    },
+    {
+      "tool": "channel_read",
+      "arguments": {
+        "channel_id": "group-lark-shared-channel-qa-634",
+        "text": "BH634 SHARED"
+      },
+      "sessionId": "botharness-7d933885-e436-42c9-a364-f80ddd75a565",
+      "at": "2026-10-01T18:23:31.672000+00:00",
+      "result": {
+        "messages": [
+          {
+            "channelId": "group-lark-shared-channel-qa-634",
+            "channelName": "Lark Shared Channel QA #634",
+            "actorNames": {
+              "humans": {
+                "local-human": "Human"
+              },
+              "bots": {}
+            },
+            "message": {
+              "id": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+              "at": "2026-10-01T18:20:27.999Z",
+              "body": "@_user_1 [BH634 SHARED] 请用 channel_read 读取本地 group-lark-shared-channel-qa-634 中这条消息，确认 bridgeOrigin 的 messageId 和 sourceEventId。然后仅使用 bridge_reply 回复原消息 BH634-SHARED-OK。不要发本地消息，不要创建 Assignment。",
+              "format": "text",
+              "author": {
+                "kind": "bridged",
+                "source": "ou_46c34fea8efea425267630ebd1d9d54b"
+              },
+              "bridgeOrigin": {
+                "sourceEventId": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+                "platform": "feishu",
+                "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+                "conversationName": "BotHarness IM QA #78",
+                "messageId": "om_x100b64de0872b0a0ee800d5cd146d86",
+                "senderId": "ou_46c34fea8efea425267630ebd1d9d54b"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "tool": "channel_send",
+      "arguments": {
+        "body": "BH634-READER-OK\n\n本地读取结果（group-lark-shared-channel-qa-634 / \"Lark Shared Channel QA #634\"）：\n- bridgeOrigin.messageId: om_x100b64de0872b0a0ee800d5cd146d86\n- bridgeOrigin.sourceEventId: im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e\n- bridgeOrigin.platform: feishu\n- 本地消息 id: im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e\n\n已按要求仅用 channel_read 读取原消息；没有外部 IM 绑定，未对 Lark 发送任何消息，也未创建 Assignment。"
+      },
+      "sessionId": "botharness-7d933885-e436-42c9-a364-f80ddd75a565",
+      "at": "2026-10-01T18:23:33.851000+00:00",
+      "result": {
+        "channelId": "dm-bot-fc52268ea2bb4d91bde3bea71ae2576b",
+        "messageId": "fc7f6010-40be-4909-bddd-cf9ed4bbfc09"
+      }
+    }
+  ],
+  "canonicalSources": [
+    {
+      "source_event_id": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+      "message_id": "im-18cc3462735685bea47e5c4877249de6684087d1cdc966e42bf85195c6b7808e",
+      "channel_id": "group-lark-shared-channel-qa-634",
+      "body": "@_user_1 [BH634 SHARED] 请用 channel_read 读取本地 group-lark-shared-channel-qa-634 中这条消息，确认 bridgeOrigin 的 messageId 和 sourceEventId。然后仅使用 bridge_reply 回复原消息 BH634-SHARED-OK。不要发本地消息，不要创建 Assignment。",
+      "bot_slug": "bot-705327d0a8c942dc92a668cad89bfd0b",
+      "attempt_state": "handled",
+      "placements": 1
+    },
+    {
+      "source_event_id": "im-bb5d77e3a6ffac5cd6036231364c69a5c3c454fb017e07585b7d74dd7c8e7c71",
+      "message_id": "im-bb5d77e3a6ffac5cd6036231364c69a5c3c454fb017e07585b7d74dd7c8e7c71",
+      "channel_id": "group-lark-shared-channel-qa-634",
+      "body": "@_user_1 [BH634 TOPIC] 请使用 channel_read 读取 group-lark-shared-channel-qa-634 的这条新消息，核对 bridgeOrigin.threadId，然后仅用 bridge_reply 在本话题回复 BH634-TOPIC-OK。不要发本地消息，不要创建 Assignment。",
+      "bot_slug": "bot-705327d0a8c942dc92a668cad89bfd0b",
+      "attempt_state": "handled",
+      "placements": 1
+    },
+    {
+      "source_event_id": "im-37cd2203bc9c63c97fc1392838e735a278d48b40fd14b28785e16b9786d43a3d",
+      "message_id": "im-37cd2203bc9c63c97fc1392838e735a278d48b40fd14b28785e16b9786d43a3d",
+      "channel_id": "group-lark-shared-channel-qa-634",
+      "body": "@_user_1 [BH634 INTEGRATED] 请用 channel_read 读取本地 group-lark-shared-channel-qa-634 中这条消息，确认 bridgeOrigin 的 messageId 和 sourceEventId。然后仅使用 bridge_reply 回复原消息 BH634-INTEGRATED-OK。不要发本地消息，不要创建 Assignment。",
+      "bot_slug": "bot-705327d0a8c942dc92a668cad89bfd0b",
+      "attempt_state": "handled",
+      "placements": 1
+    }
+  ],
+  "secondBotBindings": 0,
+  "assignments": 0
+}

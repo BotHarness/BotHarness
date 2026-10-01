@@ -136,6 +136,7 @@ export interface SessionFailureCard {
 }
 
 export interface ChannelMessage {
+  bridgeOrigin?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeOrigin'];
   id: string;
   at: string;
   author: ChannelAuthor;

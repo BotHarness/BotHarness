@@ -2063,7 +2063,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'channel_send',
           description:
-            'Send one message as this PersonaBot to a joined Channel; omit channel_id for the inbound Channel. Forward trusted attachment references copied from channel_read (or completed channel_read_content); this Tool set has no local-file upload Tool. Returns committed {channelId,messageId}. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them. Use mention_human_ids from channel_list humanMembers to explicitly address a Human; plain @ names do not create personal mentions.',
+            'Send one message as this PersonaBot to a joined Channel; omit channel_id for the inbound Channel. Forward trusted references from channel_read (including complete message_id/content_cursor reads), or use channel_attachment_import for a selected authorized local result. Returns committed {channelId,messageId}. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them. Use mention_human_ids from channel_list humanMembers to explicitly address a Human; plain @ names do not create personal mentions.',
           parameters: {
             body: {
               type: 'string',

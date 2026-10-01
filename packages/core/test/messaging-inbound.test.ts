@@ -946,3 +946,169 @@ it('enriches display names without changing canonical identity and preserves har
     fx.core.externalMessaging.inbound.read('ada', item.id).contextMessages?.[0]?.senderName,
   ).toBe('Alex');
 });
+
+async function sharedTarget(fx: Awaited<ReturnType<typeof fixture>>) {
+  expect(fx.core.registry.create({ slug: 'bea', displayName: 'Bea' }).ok).toBe(true);
+  const methods = createBridgeMethods({ ...fx.core });
+  const result = methods.channelCreate({ name: 'Shared Lark work', members: ['ada', 'bea'] });
+  if (!result.ok) throw new Error(result.error.message);
+  const channelId = result.value.channel.id;
+  expect(
+    await methods.messagingChannelTarget({ slug: 'ada', grantId: fx.grant.id, channelId }),
+  ).toEqual({ ok: true, value: { updated: true } });
+  return channelId;
+}
+
+it('places one canonical external Source Event in a shared Channel, wakes only the addressed identity and preserves its reply route', async () => {
+  let channelId: string;
+  let sourceId: string;
+  const fx = await fixture({
+    onRun: async (run) => {
+      if (run.bot.slug === 'ada') {
+        expect(run.inboundChannelId).toBe(channelId);
+        const item = fx.core.attention
+          .list({ botSlug: 'ada' })
+          .items.find((item) => item.sourceKind === 'bridge-message')!;
+        sourceId = item.id;
+        expect(run.channels.read({ channelId })[0]?.message).toMatchObject({
+          id: sourceId,
+          author: { kind: 'bridged', source: 'Human sender' },
+          body: event().text,
+          bridgeOrigin: {
+            messageId: 'om-1',
+            sourceEventId: sourceId,
+            senderId: 'ou-human',
+            threadId: 'omt-topic',
+          },
+        });
+        expect(run.externalMessaging?.read(sourceId).localChannelId).toBe(channelId);
+        await run.externalMessaging?.reply(sourceId, 'Shared work reply');
+      } else {
+        expect(run.bot.slug).toBe('bea');
+        expect(run.channels.query({ channelId, text: 'Please reply' }).messages).toHaveLength(1);
+        expect(run.channels.read({ channelId })[0]?.message.id).toBe(sourceId);
+        expect(() => run.externalMessaging?.read(sourceId)).toThrow('source-unavailable');
+        await expect(run.externalMessaging?.reply(sourceId, 'Borrowed identity')).rejects.toThrow(
+          'source-unavailable',
+        );
+      }
+    },
+  });
+  channelId = await sharedTarget(fx);
+  expect((await fx.core.externalMessaging.snapshot('ada')).channelTargets).toContainEqual({
+    id: channelId,
+    name: 'Shared Lark work',
+  });
+  await fx.enable();
+  expect(
+    await fx.receive(event({ actor: { kind: 'user', id: 'ou-human', name: 'Human sender' } })),
+  ).toEqual({ accepted: true });
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+    1,
+  );
+  expect(fx.query('SELECT * FROM channel_placements')).toHaveLength(1);
+  expect(fx.core.attention.list({ botSlug: 'bea' }).items).toHaveLength(0);
+  await fx.idle();
+  expect(fx.runs.map((run) => run.bot.slug)).toEqual(['ada']);
+  expect(fx.replies).toEqual([
+    { botId: 'lark-app', route: event().reply, text: 'Shared work reply' },
+  ]);
+  const dm = fx.core.channels.getOrCreateDm('bea', 'Bea')!;
+  await fx.core.channels.appendMessage(dm.id, {
+    id: 'check',
+    at: '2026-10-01T00:01:00Z',
+    author: { kind: 'human' },
+    body: 'Read the shared Channel',
+  });
+  fx.core.runtime.admitDmMessage({
+    channelId: dm.id,
+    messageId: 'check',
+    body: 'Read the shared Channel',
+  });
+  await fx.idle();
+  expect(fx.runs.map((run) => run.bot.slug)).toEqual(['ada', 'bea']);
+  expect(
+    fx.core.channels.readMessages(fx.core.channels.getOrCreateDm('ada', 'Ada')!.id),
+  ).toHaveLength(0);
+  expect(fx.replies).toHaveLength(1);
+  await fx.receive();
+  await fx.idle();
+  await fx.restart();
+  await fx.receive();
+  await fx.idle();
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+  expect(fx.runs.map((run) => run.bot.slug)).toEqual(['ada', 'bea']);
+  expect(fx.replies).toHaveLength(1);
+  expect(fx.query("SELECT * FROM inbox_admissions WHERE reason = 'group-mention'")).toHaveLength(1);
+});
+
+it('refuses non-group or nonmember targets without changing the grant, and supports returning to Inbox-only reception', async () => {
+  const fx = await fixture();
+  const methods = createBridgeMethods({ ...fx.core });
+  const dm = fx.core.channels.getOrCreateDm('ada', 'Ada')!;
+  const other = fx.core.channels.createGroup({ name: 'Other members', members: [] });
+  for (const channelId of [dm.id, other.id, 'missing']) {
+    expect(
+      await methods.messagingChannelTarget({ slug: 'ada', grantId: fx.grant.id, channelId }),
+    ).toMatchObject({ ok: false, error: { code: 'channel-unavailable' } });
+  }
+  expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]?.revision).toBe(
+    fx.grant.revision,
+  );
+  await sharedTarget(fx);
+  await methods.messagingChannelTarget({ slug: 'ada', grantId: fx.grant.id, channelId: null });
+  await fx.enable();
+  await fx.receive();
+  await fx.idle();
+  expect(fx.runs[0]?.inboundChannelId).toBeUndefined();
+  expect(fx.query('SELECT * FROM channel_placements')).toHaveLength(0);
+});
+
+it('closes intake and old-source authority on Channel departure while retaining the shared fact', async () => {
+  const fx = await fixture();
+  const channelId = await sharedTarget(fx);
+  await fx.enable();
+  await fx.receive();
+  await fx.idle();
+  const id = fx.core.attention.list({ botSlug: 'ada' }).items[0]!.id;
+  fx.core.channels.removeGroupMember(channelId, 'ada');
+  expect(fx.core.externalMessaging.inbound.status(fx.grant.id)).toBe('unavailable');
+  expect(() => fx.core.externalMessaging.inbound.read('ada', id)).toThrow('channel-unavailable');
+  expect(fx.core.externalMessaging.inbound.available('ada', id)).toBe(false);
+  await expect(fx.core.externalMessaging.reply('ada', id, 'Too late')).rejects.toThrow(
+    'source-unavailable',
+  );
+  expect(
+    await fx.receive(
+      event({ eventId: 'ev-2', messageId: 'om-2', reply: { ...event().reply, messageId: 'om-2' } }),
+    ),
+  ).toEqual({ accepted: true });
+  await fx.idle();
+  expect(fx.replies).toHaveLength(0);
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+    1,
+  );
+  expect(fx.core.channels.readMessages(channelId).some((message) => message.id === id)).toBe(true);
+  await fx.restart();
+  await fx.receive(
+    event({ eventId: 'ev-3', messageId: 'om-3', reply: { ...event().reply, messageId: 'om-3' } }),
+  );
+  await fx.idle();
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+    1,
+  );
+});
+
+it('revoking a Channel bridge before the queued turn starts preserves its placement without waking or sending', async () => {
+  const fx = await fixture();
+  const channelId = await sharedTarget(fx);
+  await fx.enable();
+  await fx.receive();
+  fx.core.externalMessaging.revoke('ada', fx.grant.id);
+  await fx.idle();
+  expect(fx.subscriptions).toBe(0);
+  expect(fx.runs).toHaveLength(0);
+  expect(fx.replies).toHaveLength(0);
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+});

@@ -646,7 +646,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
     if (unit.external !== undefined) {
-      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group mention. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
+      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group mention. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
     }
     if (unit.sourceKind === 'memory-change') {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
@@ -729,6 +729,10 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
+  readonly #activeMemoryEvents = new Map<
+    string,
+    { eventIds: string[]; preserveObservation: boolean }
+  >();
   readonly #steerSettlements = new Set<Promise<void>>();
   readonly #pendingHarvests = new Set<string>();
   readonly #digestTimers = new Map<string, NodeJS.Timeout>();
@@ -1060,7 +1064,7 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     let delivered: boolean;
     try {
-      delivered = this.#agents.steerOrchestrator(
+      delivered = this.#steerWithMemory(
         botSlug,
         claimed === undefined ? prompt : `${prompt}\n\n${this.#dmContextSection(claimed)}`,
       );
@@ -1108,6 +1112,27 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#steerSettlements.add(settlement);
     void settlement.finally(() => this.#steerSettlements.delete(settlement)).catch(() => undefined);
     return true;
+  }
+
+  #steerWithMemory(botSlug: string, prompt: string): boolean {
+    const activeEvents = this.#activeMemoryEvents.get(botSlug);
+    if (activeEvents === undefined || this.#memory?.scanChanges === undefined)
+      return this.#agents.steerOrchestrator?.(botSlug, prompt) ?? false;
+    try {
+      this.#recordMemoryObservation(botSlug, this.#memory.scanChanges(botSlug));
+    } catch (error) {
+      activeEvents.preserveObservation = true;
+      throw error;
+    }
+    const memoryInbox = this.#collectMemoryInbox(botSlug);
+    const text =
+      memoryInbox.units.length === 0 ? prompt : `${prompt}\n\n${renderInbox(memoryInbox.units)}`;
+    const delivered = this.#agents.steerOrchestrator?.(botSlug, text) ?? false;
+    if (delivered) {
+      activeEvents.eventIds.push(...memoryInbox.eventIds);
+      this.#setObserved(memoryInbox.eventIds, this.#now().toISOString());
+    }
+    return delivered;
   }
 
   #claimDmContext(
@@ -1242,7 +1267,7 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     let delivered: boolean;
     try {
-      delivered = this.#agents.steerOrchestrator(
+      delivered = this.#steerWithMemory(
         botSlug,
         [
           this.#groupMentionPrompt(channelId, messageId, source.body),
@@ -1362,7 +1387,7 @@ class BotRuntimeImplementation implements BotRuntime {
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.reason IN ('group-mention', 'bot-dm', 'group-invite', 'group-join-request', 'group-join-decision')
            AND a.attempt_state IN ('pending', 'retryable')
-           AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL
+           AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL AND e.source_kind != 'bridge-message'
          ORDER BY e.channel_id, e.message_id, a.reason
       `)
         .all(),
@@ -1501,7 +1526,7 @@ class BotRuntimeImplementation implements BotRuntime {
       database
         .prepare(`
         SELECT 1 AS found FROM inbox_admissions a JOIN source_events e USING(source_event_id)
-         WHERE a.bot_slug = ? AND a.attempt_state = 'pending' AND e.channel_id IS NOT NULL
+         WHERE a.bot_slug = ? AND a.attempt_state = 'pending' AND e.channel_id IS NOT NULL AND e.source_kind != 'bridge-message'
            AND reason IN ('group-mention', 'bot-dm', 'group-invite', 'group-join-request', 'group-join-decision')
          LIMIT 1
       `)
@@ -1581,8 +1606,13 @@ class BotRuntimeImplementation implements BotRuntime {
       collected.eventIds.length === 0
     )
       return;
+    const externalChannelId = collected.units.find((unit) => unit.external?.localChannelId)
+      ?.external?.localChannelId;
     const primaryChannelId =
-      claimed.items[0]?.channelId ?? claimed.digests[0]?.channelId ?? this.#dmChannel(botSlug)?.id;
+      claimed.items[0]?.channelId ??
+      claimed.digests[0]?.channelId ??
+      externalChannelId ??
+      this.#dmChannel(botSlug)?.id;
     const externalOnly =
       claimed.items.length === 0 &&
       claimed.digests.length === 0 &&
@@ -1640,7 +1670,7 @@ class BotRuntimeImplementation implements BotRuntime {
         bot,
         orchestrator,
         sourceEventId,
-        externalOnly ? undefined : primaryChannelId,
+        externalOnly && externalChannelId === undefined ? undefined : primaryChannelId,
         [preamble, ...sections].filter((part): part is string => part !== undefined).join('\n\n'),
         collected.units,
         collected.eventIds.length > 0,
@@ -1745,7 +1775,7 @@ class BotRuntimeImplementation implements BotRuntime {
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.bot_slug = ? AND a.attempt_state IN ('pending', 'retryable')
            AND a.reason IN ('group-mention', 'bot-dm', 'group-invite', 'group-join-request', 'group-join-decision')
-           AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL
+           AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL AND e.source_kind != 'bridge-message'
          ORDER BY CASE a.reason
                     WHEN 'group-mention' THEN 0
                     WHEN 'bot-dm' THEN 1
@@ -2365,6 +2395,11 @@ class BotRuntimeImplementation implements BotRuntime {
       const units = [...inboxUnits, ...memoryInbox.units];
       const inbox = units.length === 0 ? '' : renderInbox(units);
       this.#setObserved(memoryEventIds, this.#now().toISOString());
+      if (observeMemory)
+        this.#activeMemoryEvents.set(bot.slug, {
+          eventIds: memoryEventIds,
+          preserveObservation: false,
+        });
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
         resume: orchestrator.resume,
@@ -2539,6 +2574,7 @@ class BotRuntimeImplementation implements BotRuntime {
           botSlug: bot.slug,
           sessionId: orchestrator.sessionId,
           sourceEventId,
+          preserveObservation: this.#activeMemoryEvents.get(bot.slug)?.preserveObservation ?? false,
         });
       this.#markReportsHandled(memoryEventIds);
       this.#settleHarvestHandled(bot.slug, [...readAdmissions]);
@@ -2548,9 +2584,14 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#settleHarvestFailure(bot.slug, [...readAdmissions], String(error));
       this.#notifyReadAdmissions(readAdmissions);
       if (observeMemory)
-        this.#memory?.abortTurn(bot.slug, orchestrator.sessionId, preserveObservation);
+        this.#memory?.abortTurn(
+          bot.slug,
+          orchestrator.sessionId,
+          preserveObservation || this.#activeMemoryEvents.get(bot.slug)?.preserveObservation,
+        );
       throw error;
     } finally {
+      if (observeMemory) this.#activeMemoryEvents.delete(bot.slug);
       this.#originalAttachments.clear(orchestrator.sessionId);
     }
   }

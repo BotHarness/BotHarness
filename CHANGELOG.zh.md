@@ -19,6 +19,8 @@
 
 - 活动中心入口改为 Bot 模式设置旁的紧凑未读 Chip；侧栏折叠后显示为 Bot 模式下方对齐的图标，跨聊天和刷新记住最后查看的总览或收件箱，展开时仅显示未读数字 badge，没有未读时仅在 Bot 模式开启后悬停或聚焦才显示入口；折叠时入口仅在 Bot 模式开启后显示，并以右上角红点提示通知（[#679](https://github.com/BotHarness/BotHarness/issues/679)）。
 
+- Human 可将授权 Lark 群的 @ 消息接入已有共享 Group Channel：当前成员读取同一条带来源的外部消息，仅被 @ 的绑定 Bot 被唤醒，并可用自己的身份明确回复 ([#634](https://github.com/BotHarness/BotHarness/issues/634), [ADR-0108](docs/adr/0108-shared-channel-bridge-places-canonical-external-sources.md)).
+
 - 活动中心新增跨 Bot 总览，显示权威 Human 待行动数、Bot 当前状态及正在执行的 Orchestrator／Assignment Session；点击 Bot 进入私聊，点击 Session 切换到准确的 DSH 原始会话（[#541](https://github.com/BotHarness/BotHarness/issues/541)）。
 
 - 只收 @ 的 PersonaBot 可用自己的 Lark 身份主动读取有界群历史、附近时间窗或原话题上下文；Inbox 来源以聊天布局展示内容、姓名和 @ 人员，消息／来源引用、稳定 ID 与读取记录可展开查看，遗漏及权限拒绝仍明确提示，不将普通历史加入收件或产生新唤醒；Provider 分页游标不前进时，在保留或观察返回消息前明确拒绝（[#612](https://github.com/BotHarness/BotHarness/issues/612)）。
@@ -240,6 +242,10 @@
 
 ### Fixed
 
+- 修复新 DM 或群提及并入活动回合时，Memory 编辑被静默并入基线而漏掉通知的问题；有界变更摘要现在进入该回合的 Bot Inbox，并随回合结果处理（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。
+
+- Browser entry 开启 Access 后自动展开，以标题和 URL 置顶 Bot 当前标签；关闭跟随后固定预览标签，不改变 Bot 的工作页（[#492](https://github.com/BotHarness/BotHarness/issues/492)）。
+
 - Browser 文件上传使用实际打开选择框的附件字段，省略 ref 时使用第一个文件字段；上传审计记录文件名与大小，失败时隐藏 Host 完整路径（[#491](https://github.com/BotHarness/BotHarness/issues/491)）。
 
 - PersonaBot Orchestrator 可通过既有提醒工具设置和恢复 Human 私聊、Bot 私聊及群内提及的投递方式；即时接收不变，Profile 可查看带 Bot 操作者的修订 ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
@@ -333,6 +339,8 @@
 - 修复 flat order 的拖拽提交，使未置顶的 PersonaBot DM 能像 group Channel 一样持久地放在列表最顶端或两个 Channel section 之间（[#56](https://github.com/BotHarness/BotHarness/issues/56)）。
 - Channel 消息发送不再等待 PersonaBot 的 Orchestrator turn：Human 消息立即回显，可在 bot 工作中继续发送，并以 Bot Inbox 的形式入队、按序处理（[#140](https://github.com/BotHarness/BotHarness/issues/140)）。
 - 修复 Computer 的 Chromium 在停止→启动后丢失标签页：桌面启动时自动打开浏览器并恢复上次会话，标签页在重启后与导出→导入后一样回来（[#150](https://github.com/BotHarness/BotHarness/issues/150)）。
+
+- 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
 
 ### Documentation
 
