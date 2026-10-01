@@ -275,6 +275,7 @@ export function createCore(
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     sourcePolicy,
     onAdmitted: (slug, sourceEventId) => runtime?.admitExternalSource?.(slug, sourceEventId),
+    onPlaced: (commit) => live?.publishCommitted(commit),
     recover: operationalDatabase.mode === 'ready',
     isBotActive: (slug) => {
       const bot = registry.get(slug);

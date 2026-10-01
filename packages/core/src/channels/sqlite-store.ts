@@ -1,3 +1,5 @@
+import { projectBridgeMessage } from '../messaging/channel-target.js';
+import type { ExternalSource } from '../messaging/inbound.js';
 import {
   createLegacyAttachmentMigration,
   type RetainedAttachmentMessage,
@@ -92,6 +94,11 @@ function parseRecord(value: string, id: string): ChannelRecord | undefined {
 function parseMessage(value: string, body?: string): ChannelMessage | undefined {
   try {
     const parsed: unknown = JSON.parse(value);
+    const external =
+      typeof parsed === 'object' && parsed !== null && 'external' in parsed
+        ? (parsed as { external: ExternalSource }).external
+        : undefined;
+    if (external?.localChannelId && body !== undefined) return projectBridgeMessage(external, body);
     const candidate = body === undefined ? parsed : { ...(parsed as object), body };
     return isChannelMessage(candidate) ? candidate : undefined;
   } catch {

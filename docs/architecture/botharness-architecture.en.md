@@ -400,3 +400,21 @@ Inbox and source DM reuse the same DSH folder-selection and Workspace Grant auth
 Waiting and blocked Assignment cards aggregate by Assignment Session and read the exact report Source Event with at most two neighboring reports on either side. A Human answer commits through the owning Bot DM authority with `assignmentReply: {sessionId, sourceEventId}`. The commit transaction validates the owning Bot, running state, current request or idle blocker, and absence of a prior Human response. The Orchestrator receives the trusted address and relays the answer through its existing Assignment operation; the Human DM does not directly resume an Assignment or clear its ask. Terminal or stopped work refuses new responses, while same-ID retries return the existing commitment. Ordinary progress preserves an unresolved ask and a weaker waiting report cannot overwrite a stronger blocked ask. Bot navigation opens the DM; Session navigation opens the original DSH Session (ADR-0071).
 
 Human response targets and event times use Messaging-owned SQLite indexes. Lists beyond 150 loaded items explicitly pause automatic polling while the Human browses older rows; the visible Refresh current list action preserves filters and reconciles up to three pages with a fresh cursor. Load more does not truncate the viewed rows. Successful action commands still refresh canonical state.
+
+## Shared Channel bridge — #634
+
+[ADR-0108](../adr/0108-shared-channel-bridge-places-canonical-external-sources.md) adds an explicit existing Group Channel target to the authorized Lark grant. Messaging atomically commits the same external Source Event, its canonical Channel placement and only the verified addressed Bot's Inbox Admission before ACK. The native timeline and authorized member reads project a bounded external author/time/body/origin; another member receives visibility without a copied message, identity, admission or wake. The existing harvest/steer path uses that local Channel as the inbound context, while only an explicit own-identity checked reply goes back to Lark. Current membership, binding and grant revision gate intake, wake, reads and unstarted replies; removal/revocation preserves retained shared facts. Inbox-only remains the default. This slice retains one target per grant and one placement per source; replay does not move history. Multiple targets, ordinary intake, topic following and coordination remain later #629 tracers.
+
+```mermaid
+flowchart LR
+  IM["Authorized Lark group<br/>verified Human @"] --> Provider["dsh-im public Service<br/>exclusive Consumer"]
+  Provider --> Commit["Messaging transaction<br/>canonical Source Event"]
+  Commit --> Placement["One existing Group Channel placement"]
+  Commit --> Admission["Addressed bound Bot Inbox Admission"]
+  Placement --> Members["Current Human and Bot members<br/>native timeline and bounded reads"]
+  Admission --> Runtime["Existing harvest / steer<br/>one Orchestrator"]
+  Runtime --> Reply["Explicit own-identity reply<br/>current grant and source checks"]
+  Reply --> Outbox["Existing durable Outbox"]
+  Outbox --> Provider
+  Provider --> IM
+```

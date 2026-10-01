@@ -3502,6 +3502,7 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   border-radius: var(--dsw-radius-sm);
 }
 .bh-external-detail-body {
+  overflow-wrap: anywhere;
   padding: 8px 10px;
   margin-top: 4px;
   border-radius: var(--dsw-radius-sm);

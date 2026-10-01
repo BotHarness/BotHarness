@@ -14,6 +14,7 @@ import {
   revokeMessaging,
   sendMessaging,
   setMessagingReceive,
+  setMessagingChannelTarget,
   readMessagingSource,
   loadMessageAttachmentTarget,
 } from './bridge.js';
@@ -169,6 +170,7 @@ export interface HostDirectoryListing {
 }
 
 export interface BridgeActions {
+  messagingChannelTarget(slug: string, grantId: string, channelId: string | null): Promise<void>;
   messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<void>;
   messagingSource(slug: string, sourceEventId: string): Promise<ExternalSource>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
@@ -1520,6 +1522,8 @@ export function createActions(
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
+    messagingChannelTarget: (slug, grantId, channelId) =>
+      setMessagingChannelTarget(call, slug, grantId, channelId),
     messagingReceive: (slug, grantId, enabled) => setMessagingReceive(call, slug, grantId, enabled),
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
