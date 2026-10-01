@@ -17,6 +17,7 @@
 
 - Human 参与的 DM 与群聊头部菜单支持“我的昵称”；各 Channel 独立设置，清除后继承插件默认名，历史提及、Inbox 与 Bot 上下文使用来源 Channel 的当前称呼，不改变身份或注意力（[#622](https://github.com/BotHarness/BotHarness/issues/622)）。
 
+- PersonaBot 用量新增实际模型／提供商与执行类别筛选，独立展示保留的累计用量，图表默认近七天，并明确显示查询新鲜度或失败状态 ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
 - 本地 Human 可在插件设置中保存可选默认名字，Channel 作者、成员、回执与 Bot 上下文使用当前称呼；历史可信 Human／Bot 提及按稳定身份显示当前名字，不改写消息或注意力事实（[#621](https://github.com/BotHarness/BotHarness/issues/621)、[ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)）。
 
 - PersonaBot 可通过群聊中有效的成员身份明确提及本地 Human；Human Inbox 将可信提及与直接回复合并到个人视图，支持展开上下文和原位回复，普通 `@Human` 文本不会生成个人提醒（[#549](https://github.com/BotHarness/BotHarness/issues/549)）。
@@ -215,6 +216,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- Browser 按键现在可以执行原生焦点切换、文本编辑和表单提交；不支持的按键会返回可重试的错误，而不是报告成功 ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
 
 - Browser 导航失败现在返回可重试的 Tool 错误并记录错误 Audit；新建失败的标签页会清理，已有当前标签页仍可观察并重试 ([#627](https://github.com/BotHarness/BotHarness/issues/627)).
 

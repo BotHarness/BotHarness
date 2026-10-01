@@ -201,6 +201,7 @@ function stubActions(): BridgeActions {
     })),
     memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
     setBotAvatar: vi.fn(async () => true),
+    profileUsage: vi.fn(),
     profileActivity: vi.fn(async () => ({
       slug: '',
       weeks: 26,

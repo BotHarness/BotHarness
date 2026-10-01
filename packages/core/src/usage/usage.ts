@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { queryUsage, usageFilterSchema, type UsageFilter, type UsageQueryResult } from './query.js';
 import type { DatabaseSync } from 'node:sqlite';
 
 import {
@@ -55,6 +56,8 @@ export interface UsageProjection {
   ): Promise<UsageRebuildReport>;
 
   activity(botSlug: string, sinceIso: string): UsageDayRow[];
+
+  query(botSlug: string, filter: UsageFilter): UsageQueryResult;
 
   purgeBot(botSlug: string, removeFiles?: () => void): void;
 }
@@ -196,6 +199,8 @@ export function createUsageProjection(options: {
   ) as Array<{ bot_slug: string; through_ms: number }>;
   const baselineByBot = new Map(legacyBaselines.map((row) => [row.bot_slug, row.through_ms]));
   let rebuilding = false;
+  let reconciliationFailed = false;
+  let reconciledAt: string | null = null;
   const queuedEvents: Array<{ sessionId: string; event: DshSessionEvent; route?: UsageRoute }> = [];
 
   const upsert = (
@@ -355,6 +360,7 @@ export function createUsageProjection(options: {
     async rebuild(sessionIds, readLog) {
       if (rebuilding) throw new Error('Usage reconciliation already running');
       rebuilding = true;
+      reconciliationFailed = true;
       let folded = 0;
       let failed = 0;
       try {
@@ -390,11 +396,25 @@ export function createUsageProjection(options: {
         const pending = queuedEvents.splice(0);
         for (const queued of pending) writeLive(queued.sessionId, queued.event, queued.route);
       }
+      reconciliationFailed = failed > 0;
+      reconciledAt = (options.now?.() ?? new Date()).toISOString();
       return {
         folded,
         failed,
         ...(baselineByBot.size > 0 ? { legacyBaselineBots: baselineByBot.size } : {}),
       };
+    },
+    query(botSlug, filter) {
+      const parsed = usageFilterSchema.parse(filter);
+      if (parsed.end > usageLocalDay((options.now?.() ?? new Date()).getTime()))
+        throw new RangeError('Usage range cannot include future days');
+      return database.read((connection) =>
+        queryUsage(connection, botSlug, parsed, {
+          freshness: rebuilding ? 'reconciling' : reconciliationFailed ? 'degraded' : 'ready',
+          readAt: (options.now?.() ?? new Date()).toISOString(),
+          reconciledAt,
+        }),
+      );
     },
     purgeBot(botSlug, removeFiles) {
       database.transaction(

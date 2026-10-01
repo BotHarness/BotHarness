@@ -612,6 +612,149 @@ describe('runtime lifecycle', () => {
     }
   });
 
+  it.each([
+    ['Enter', 'Enter', 'Enter', 13, '\r'],
+    ['Tab', 'Tab', 'Tab', 9, ''],
+    ['Backspace', 'Backspace', 'Backspace', 8, ''],
+    ['ArrowDown', 'ArrowDown', 'ArrowDown', 40, ''],
+    ['Escape', 'Escape', 'Escape', 27, ''],
+    ['Space', ' ', 'Space', 32, ' '],
+    ['z', 'z', 'KeyZ', 90, 'z'],
+    ['Z', 'Z', 'KeyZ', 90, 'Z'],
+    ['7', '7', 'Digit7', 55, '7'],
+    ['!', '!', 'Digit1', 49, '!'],
+  ])(
+    'dispatches native %s key down/up with editing metadata',
+    async (input, key, code, vk, text) => {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const base = fakeClient();
+      const sent: { params: Record<string, unknown>; sessionId: string | undefined }[] = [];
+      const client: CdpClient = {
+        send: async (method, params, sessionId) => {
+          if (method === 'Input.dispatchKeyEvent') sent.push({ params: params ?? {}, sessionId });
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      };
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        platform: 'linux',
+        env: {},
+        fileExists: (path) => path === '/usr/bin/google-chrome',
+        connect: async () => client,
+      });
+      const ensuring = runtime.ensure();
+      child.ready();
+      await ensuring;
+      await runtime.open('https://example.com');
+      const page = await runtime.pressKey('tab-1', input);
+      expect(page.tabId).toBe('tab-1');
+      expect(sent).toEqual([
+        {
+          params: {
+            type: text ? 'keyDown' : 'rawKeyDown',
+            key,
+            code,
+            windowsVirtualKeyCode: vk,
+            ...(text ? { text, unmodifiedText: text } : {}),
+          },
+          sessionId: 'session-1',
+        },
+        { params: { type: 'keyUp', key, code, windowsVirtualKeyCode: vk }, sessionId: 'session-1' },
+      ]);
+    },
+  );
+
+  it('updates the current URL when a native Enter navigates the page', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    let navigated = false;
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => {
+        if (method === 'Input.dispatchKeyEvent' && params?.['type'] === 'keyDown') navigated = true;
+        if (
+          method === 'Runtime.evaluate' &&
+          String(params?.['expression']).startsWith('({ url:') &&
+          navigated
+        ) {
+          return {
+            result: { value: { url: 'https://example.com/submitted', title: 'Submitted' } },
+          };
+        }
+        return base.send(method, params, sessionId);
+      },
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await runtime.open('https://example.com');
+    expect(runtime.currentUrl()).toBe('https://example.com/');
+    const page = await runtime.pressKey('tab-1', 'Enter');
+    expect(page.url).toBe('https://example.com/submitted');
+    expect(runtime.currentUrl()).toBe(page.url);
+  });
+
+  it.each(['Control+Enter', 'UnrecognizedKey', '', '\n', '😀'])(
+    'rejects unsupported key %j before any CDP operation',
+    async (key) => {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const client = fakeClient();
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        platform: 'linux',
+        env: {},
+        fileExists: (path) => path === '/usr/bin/google-chrome',
+        connect: async () => client,
+      });
+      const ensuring = runtime.ensure();
+      child.ready();
+      await ensuring;
+      client.calls.length = 0;
+      await expect(runtime.pressKey('tab-1', key)).rejects.toThrow(/unsupported.*key/i);
+      expect(client.calls).toEqual([]);
+    },
+  );
+
+  it('releases the native key when key-down transport fails and preserves the original error', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const types: unknown[] = [];
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => {
+        if (method === 'Input.dispatchKeyEvent') {
+          types.push(params?.['type']);
+          throw new Error(params?.['type'] === 'keyUp' ? 'release refused' : 'input disconnected');
+        }
+        return base.send(method, params, sessionId);
+      },
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await expect(runtime.pressKey('tab-1', 'Enter')).rejects.toThrow('input disconnected');
+    expect(types).toEqual(['keyDown', 'keyUp']);
+  });
+
   it('acts on observed refs and surfaces a stale ref readably', async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child.proc as never);

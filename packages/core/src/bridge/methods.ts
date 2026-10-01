@@ -61,6 +61,7 @@ import {
 import type { MemoryRecoveryCheckpoint } from '../memory/recovery.js';
 import type { MemoryService } from '../memory/service.js';
 import type { UsageProjection } from '../usage/usage.js';
+import { usageFilterSchema, type UsageQueryResult } from '../usage/query.js';
 import {
   isAssignmentModelOption,
   isModelRoute,
@@ -300,6 +301,7 @@ export interface BridgeMethods {
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
+  profileUsage(payload: unknown): BridgeResult<UsageQueryResult>;
   groupProfileActivity(payload: unknown): BridgeResult<GroupProfileActivity>;
   rosterGet(payload: unknown): BridgeResult<RosterSnapshot>;
   sectionCreate(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
@@ -2450,6 +2452,20 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return memoryCall(() => ({
         repair: deps.memory!.repairHuman({ botSlug: scope.botSlug, expectedHead, repairId }),
       }));
+    },
+    profileUsage(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const parsed = usageFilterSchema.safeParse(asObject(payload)['filter']);
+      if (!parsed.success || parsed.data.end > (localDay(new Date().toISOString()) ?? ''))
+        return invalidInput('Usage filter requires real dates within a 182-day non-future range');
+      if (deps.usage === undefined) return unavailable();
+      try {
+        return { ok: true, value: deps.usage.query(scope.botSlug, parsed.data) };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError) return unavailable();
+        throw error;
+      }
     },
     profileActivity(payload) {
       const scope = dmMemory(payload);

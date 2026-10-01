@@ -17,6 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Human-participating DM and Group headers now offer My nickname; independent Channel names inherit the plugin default when cleared, and historical mentions plus Inbox and Bot context use their source Channel name without changing identity or attention ([#622](https://github.com/BotHarness/BotHarness/issues/622)).
 
+- Added actual model/provider and execution-role filters to PersonaBot usage, with separate retained all-time totals, a seven-day chart default, and visible query freshness or failures ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
 - The local Human can save an optional default name in plugin settings; Channel authors, members, receipts and Bot context use the current name, and historical trusted Human/Bot mentions resolve current labels by stable identity without changing message content or attention ([#621](https://github.com/BotHarness/BotHarness/issues/621), [ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)).
 
 - PersonaBots can explicitly mention the local Human in a Group using its current member identity; Human Inbox combines trusted mentions and direct replies in one personal view with expandable context and inline replies, while ordinary `@Human` text creates no personal reminder ([#549](https://github.com/BotHarness/BotHarness/issues/549)).
@@ -215,6 +216,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Browser key presses now perform native focus movement, editing and form submission; unsupported keys return retryable errors instead of reporting success ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
 
 - Browser navigation failures now return retryable Tool errors and error Audit outcomes; failed new tabs are cleaned up while an existing current target remains available for observation and retry ([#627](https://github.com/BotHarness/BotHarness/issues/627)).
 

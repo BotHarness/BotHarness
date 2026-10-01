@@ -46,6 +46,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   };
 });
 
+import type { UsageFilter } from '../src/client/bridge.js';
 import type { BridgeActions } from '../src/client/actions.js';
 import { BotMain } from '../src/client/bot-main.js';
 import { createChannelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
@@ -149,6 +150,22 @@ describe('PersonaBot Profile surface', () => {
       renameChannel,
       setBotAvatar,
       profileActivity,
+      profileUsage: vi.fn(async (_channelId: string, filter: UsageFilter) => ({
+        filter,
+        rows: [],
+        periodTotal: 0,
+        allTimeTotal: 0,
+        periodRecords: 0,
+        allTimeRecords: 0,
+        models: [],
+        providers: [],
+        facetsTruncated: false,
+        truncated: false,
+        freshness: 'ready',
+        readAt: new Date().toISOString(),
+        reconciledAt: null,
+        legacyBaseline: false,
+      })),
       botSourcePolicies: vi.fn(async () => [
         {
           sourceClass: 'human-dm',
@@ -218,7 +235,9 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-profile-view-name')?.textContent).toBe('Ada');
       expect(container.querySelectorAll('.bh-profile-heat-grid').length).toBe(2);
       expect(container.querySelectorAll('.bh-profile-bar-chart').length).toBe(0);
-      expect(container.querySelector('.bh-model-usage')?.textContent).toContain('模型用量暂不可用');
+      expect(container.querySelector('.bh-model-usage')?.textContent).toContain(
+        '所选时间范围内暂无模型调用记录。',
+      );
       expect(container.querySelectorAll('.bh-profile-avatar-button').length).toBe(1);
       expect(container.querySelectorAll('.bh-profile-card').length).toBe(7);
       expect(container.querySelectorAll('.bh-profile-pin[aria-pressed="true"]').length).toBe(2);

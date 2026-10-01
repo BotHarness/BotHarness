@@ -2,9 +2,13 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import type { ProfileModelUsageRow } from '../src/client/bridge.js';
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  IconRefreshOutlineRegular: () => createElement('svg'),
+}));
+
+import type { UsageFilter, UsageQueryResult, ProfileModelUsageRow } from '../src/client/bridge.js';
 import { en } from '../src/client/locale.js';
 import { ModelUsageBreakdown } from '../src/client/model-usage-breakdown.js';
 import { UsageMeasures, type UsageSummary } from '../src/client/model-usage-charts.js';
@@ -40,13 +44,21 @@ function tooltipMeasures(row: ProfileModelUsageRow): string[] {
 async function renderUsage(
   rows: ProfileModelUsageRow[],
   status: 'ready' | 'unavailable' = 'ready',
+  loadUsage?: (filter: UsageFilter) => Promise<UsageQueryResult>,
 ) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   await act(async () =>
-    root.render(createElement(ModelUsageBreakdown, { ...props, rows, status })),
+    root.render(
+      createElement(ModelUsageBreakdown, {
+        ...props,
+        rows,
+        status,
+        ...(loadUsage ? { loadUsage } : {}),
+      }),
+    ),
   );
   return {
     container,
@@ -351,4 +363,137 @@ describe('coordinated actual-model usage', () => {
       await cleanup();
     }
   });
+});
+
+function packet(filter: UsageFilter, rows: ProfileModelUsageRow[] = [base]): UsageQueryResult {
+  const selected = rows.filter(
+    (row) =>
+      row.day >= filter.start &&
+      row.day <= filter.end &&
+      (!filter.model || row.model === filter.model) &&
+      (!filter.provider || row.provider === filter.provider) &&
+      (!filter.purpose || row.purpose === filter.purpose),
+  );
+  return {
+    filter,
+    rows: selected,
+    periodTotal: selected.reduce((sum, row) => sum + (row.totalTokens ?? 0), 0),
+    allTimeTotal: 999,
+    periodRecords: selected.length,
+    allTimeRecords: 9,
+    models: ['shared-name', 'unused'],
+    providers: ['provider-a'],
+    facetsTruncated: false,
+    truncated: false,
+    freshness: 'ready',
+    readAt: '2026-09-30T12:00:00Z',
+    reconciledAt: '2026-09-30T11:00:00Z',
+    legacyBaseline: false,
+  };
+}
+async function selectFilter(container: HTMLElement, label: string, value: string) {
+  await act(async () => {
+    const input = container.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!;
+    input.value = value;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+describe('Profile usage public-query interaction', () => {
+  it('loads seven days, filters routes/roles through Host and keeps all-time independent of the date selection', async () => {
+    const load = vi.fn(async (filter: UsageFilter) => packet(filter));
+    const { container, cleanup } = await renderUsage([], 'unavailable', load);
+    try {
+      expect(load).toHaveBeenLastCalledWith({ start: '2026-09-24', end: '2026-09-30' });
+      expect(container.textContent).toContain('All-time (current filters): 999 tokens');
+      expect(container.textContent).toContain('Selected period: 155 tokens');
+      expect(container.querySelector('details')?.open).toBe(false);
+      await selectFilter(container, 'Filter model / provider', 'unused');
+      expect(load).toHaveBeenLastCalledWith({
+        start: '2026-09-24',
+        end: '2026-09-30',
+        model: 'unused',
+      });
+      expect(container.textContent).toContain('No model calls recorded in this period.');
+      await openDetails(container);
+      await selectFilter(container, 'Execution role', 'assignment');
+      expect(load.mock.calls.at(-1)?.[0]).toMatchObject({ purpose: 'assignment', model: 'unused' });
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>('[data-group="provider"]')!.click(),
+      );
+      expect(load.mock.calls.at(-1)?.[0]).not.toHaveProperty('model');
+      await choose(container, '1');
+      expect(load.mock.calls.at(-1)?.[0]).toMatchObject({ start: '2026-09-30', end: '2026-09-30' });
+      expect(container.textContent).toContain('999 tokens');
+    } finally {
+      await cleanup();
+    }
+  });
+  it('marks a failed same-filter refresh stale, but never shows old counts under a failed new filter', async () => {
+    let failing = false;
+    const load = async (filter: UsageFilter) => {
+      if (failing) throw new Error('offline');
+      return packet(filter);
+    };
+    const { container, cleanup } = await renderUsage([], 'unavailable', load);
+    try {
+      failing = true;
+      await act(async () =>
+        [...container.querySelectorAll<HTMLButtonElement>('button')]
+          .find((button) => button.getAttribute('aria-label') === 'Refresh')!
+          .click(),
+      );
+      expect(container.textContent).toContain('Refresh failed; showing the last result');
+      expect(container.textContent).toContain('Selected period: 155 tokens');
+      await selectFilter(container, 'Filter model / provider', 'unused');
+      expect(container.textContent).toContain('Usage query failed');
+      expect(container.textContent).not.toContain('155 tokens');
+      expect(container.textContent).not.toContain('999 tokens');
+    } finally {
+      await cleanup();
+    }
+  });
+  it('ignores late responses from a previous filter', async () => {
+    let resolveInitial: (value: UsageQueryResult) => void = () => {};
+    const initial = { start: '2026-09-24', end: '2026-09-30' };
+    const load = (filter: UsageFilter) =>
+      filter.model === 'shared-name'
+        ? Promise.resolve(packet(filter))
+        : new Promise<UsageQueryResult>((resolve) => {
+            resolveInitial = resolve;
+          });
+    const { container, cleanup } = await renderUsage([base], 'ready', load);
+    try {
+      expect(container.getAttribute('aria-busy')).toBeNull();
+      await selectFilter(container, 'Filter model / provider', 'shared-name');
+      await act(async () =>
+        resolveInitial({ ...packet(initial), periodTotal: 10000, allTimeTotal: 10000 }),
+      );
+      expect(container.textContent).toContain('Selected period: 155 tokens');
+      expect(container.textContent).not.toContain('10,000');
+    } finally {
+      await cleanup();
+    }
+  });
+});
+
+it('keeps a successful result until manual refresh or filter change, without polling', async () => {
+  vi.useFakeTimers();
+  const load = vi.fn(async (filter: UsageFilter) => packet(filter));
+  const { container, cleanup } = await renderUsage([], 'unavailable', load);
+  try {
+    expect(load).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTimeAsync(10 * 60_000));
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('Selected period: 155 tokens');
+    expect(container.textContent).not.toContain('Refresh failed');
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Refresh"]')!.click(),
+    );
+    expect(load).toHaveBeenCalledTimes(2);
+    await selectFilter(container, 'Filter model / provider', 'unused');
+    expect(load).toHaveBeenCalledTimes(3);
+  } finally {
+    await cleanup();
+    vi.useRealTimers();
+  }
 });

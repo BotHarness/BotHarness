@@ -13,6 +13,7 @@ export function apply(ctx) {
             'browser_wait',
             'browser_click',
             'browser_type',
+            'browser_press_key',
             'browser_open',
             'browser_tabs',
             'browser_observe',

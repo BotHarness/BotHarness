@@ -328,6 +328,7 @@ function TokenTip({ totals, t }: { totals: TokenDayTotals; t: BotHarnessTranslat
 }
 
 function TokenUsageCard({
+  loadUsage,
   activity,
   t,
   compact,
@@ -405,6 +406,7 @@ function TokenUsageCard({
   if (!compact)
     return (
       <ModelUsageBreakdown
+        {...(loadUsage === undefined ? {} : { loadUsage })}
         rows={activity?.modelUsageRows ?? []}
         status={activity?.modelUsageStatus ?? 'unavailable'}
         today={activity?.today ?? localDayKey(new Date())}
@@ -492,6 +494,9 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
   const reportedTotal = profileUsageTotal(activity, tokens);
   return (
     <div className="bh-profile-card-body">
+      <p className="bh-note">
+        {t('profile.usage.window', { weeks: activity?.weeks ?? PROFILE_ACTIVITY_WEEKS })}
+      </p>
       <dl className="bh-profile-stats">
         <div>
           <dt>{t('profile.stat.events')}</dt>
