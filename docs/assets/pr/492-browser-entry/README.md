@@ -43,8 +43,9 @@ The completed QA profile is retained for Human acceptance; do not stop other run
 
 Baseline: main `0ada01e2c74dd8f5f04d54c53247b37d967dccd6` before edits.
 The full real-model functional flow was repeated after integration with main on
-implementation commit `5abf3bd4abd68fe45d20feffd2e370c4e2980d73`; the final
-commit updates only this evidence, with identical runtime sources and bundles.
+implementation commit `5abf3bd4abd68fe45d20feffd2e370c4e2980d73`; subsequent
+commits update only E2E validation and evidence, with identical application
+runtime sources and bundles.
 
 Before/after pairs match 1280 × 720, English shell, theme, Bot and the two owned
 home/work pages with current work and Follow on. A Host restart recreated target

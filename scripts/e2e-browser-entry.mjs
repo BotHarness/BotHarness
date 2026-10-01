@@ -245,6 +245,7 @@ if (mode === '--serve') {
         'collapsedSwitchVisible',
         'followSelect',
         'followOffRetained',
+        'followResume',
         'clickPreview',
         'currentPinned',
         'titlesAndUrls',
