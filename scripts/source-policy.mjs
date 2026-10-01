@@ -15,6 +15,10 @@ const generatedPrefixes = [
   'apps/docs/dist/',
   'apps/docs/.astro/',
 ];
+const licenseHeaderHashes = new Map([
+  ['packages/client/src/client/hash-icon.tsx', '8d64b9069cfcfaab'],
+  ['packages/client/src/client/inbox-icon.tsx', '8412a9519ce369b7'],
+]);
 const firstPartyPrefixes = ['packages/', 'scripts/', 'apps/docs/', 'design/'];
 
 export function isPolicySource(path) {
@@ -60,12 +64,7 @@ function isException(path, item) {
     item.token === '/* @vite-ignore */'
   )
     return true;
-  if (
-    path === 'packages/client/src/client/hash-icon.tsx' &&
-    item.line === 1 &&
-    item.column === 1 &&
-    item.hash === '8d64b9069cfcfaab'
-  )
+  if (item.line === 1 && item.column === 1 && item.hash === licenseHeaderHashes.get(path))
     return true;
   return false;
 }
