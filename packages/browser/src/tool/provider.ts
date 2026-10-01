@@ -241,6 +241,7 @@ export function createBrowserToolProvider(
     args: Record<string, unknown>,
     slug: string,
     signal: AbortSignal,
+    assertScreenshotCurrent: () => void,
   ): Promise<{ content: BrowserToolContent[] }> => {
     const runtime = runtimes.for(slug);
     if (raw === 'open') {
@@ -328,6 +329,7 @@ export function createBrowserToolProvider(
           `The Bot Browser tab is gone (${message}); call browser_tabs action list to pick another tab, or browser_open`,
         );
       }
+      assertScreenshotCurrent();
       if (shot === undefined) {
         return {
           content: [
@@ -347,6 +349,8 @@ export function createBrowserToolProvider(
               options.screenshotLimit ?? 100,
               shot.data,
             ).catch(() => undefined);
+      signal.throwIfAborted();
+      assertScreenshotCurrent();
       return {
         content: [
           { type: 'image', data: shot.data, mimeType: shot.mimeType },
@@ -543,49 +547,81 @@ export function createBrowserToolProvider(
     const controller = new AbortController();
     try {
       for (const spec of BROWSER_TOOLS) {
+        const screenshotGuards = new WeakMap<ToolExecution, () => void>();
         const definition = createMcpToolDefinition(scope, {
           name: browserToolName(spec.raw),
           rawName: spec.raw,
           description: spec.description,
           inputSchema: spec.inputSchema,
           call: async (args, execution) => {
-            const started = Date.now();
             const signal = AbortSignal.any([execution.signal, controller.signal]);
-            try {
-              signal.throwIfAborted();
-              await authorize(execution, sessionId);
-              onActivity(slug);
+            const screenshotState = spec.raw === 'screenshot' ? botTabs(slug) : undefined;
+            const controlRevision = screenshotState?.controlRevision;
+            const assertScreenshotCurrent = (): void => {
+              if (screenshotState === undefined) return;
               assertExecutionAllowed(spec.raw, slug);
-              const result = await serialize(slug, () => {
-                signal.throwIfAborted();
-                assertExecutionAllowed(spec.raw, slug);
-                return runTool(spec.raw, args, slug, signal);
-              });
+              if (
+                tabsByBot.get(slug) !== screenshotState ||
+                screenshotState.controlRevision !== controlRevision
+              ) {
+                throw new Error(
+                  'Browser control changed during screenshot; retry with a new browser_screenshot after Human Resume',
+                );
+              }
+            };
+            screenshotGuards.set(execution, assertScreenshotCurrent);
+            signal.throwIfAborted();
+            await authorize(execution, sessionId);
+            onActivity(slug);
+            assertExecutionAllowed(spec.raw, slug);
+            const result = await serialize(slug, () => {
               signal.throwIfAborted();
-              record(
-                slug,
-                sessionId,
-                browserToolName(spec.raw),
-                auditSummary(spec.raw, args),
-                'ok',
-                Date.now() - started,
-              );
-              return result;
-            } catch (error) {
-              record(
-                slug,
-                sessionId,
-                browserToolName(spec.raw),
-                auditSummary(spec.raw, args),
-                'error',
-                Date.now() - started,
-                error instanceof Error ? error.message : String(error),
-              );
-              throw error;
-            }
+              assertExecutionAllowed(spec.raw, slug);
+              assertScreenshotCurrent();
+              return runTool(spec.raw, args, slug, signal, assertScreenshotCurrent);
+            });
+            signal.throwIfAborted();
+            assertScreenshotCurrent();
+            return result;
           },
         });
-        disposers.push(scope.tools.register(definition));
+        disposers.push(
+          scope.tools.register({
+            ...definition,
+            execute: async (args, execution) => {
+              const started = Date.now();
+              const input =
+                typeof args === 'object' && args !== null ? (args as Record<string, unknown>) : {};
+              try {
+                const result = await definition.execute(args, execution);
+                AbortSignal.any([execution.signal, controller.signal]).throwIfAborted();
+                screenshotGuards.get(execution)?.();
+                record(
+                  slug,
+                  sessionId,
+                  browserToolName(spec.raw),
+                  auditSummary(spec.raw, input),
+                  'ok',
+                  Date.now() - started,
+                );
+                return result;
+              } catch (error) {
+                record(
+                  slug,
+                  sessionId,
+                  browserToolName(spec.raw),
+                  auditSummary(spec.raw, input),
+                  'error',
+                  Date.now() - started,
+                  error instanceof Error ? error.message : String(error),
+                );
+                throw error;
+              } finally {
+                screenshotGuards.delete(execution);
+              }
+            },
+          }),
+        );
       }
       disposers.push(
         scope.systemPrompt.section({

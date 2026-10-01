@@ -226,6 +226,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Browser screenshots started before Human Pause are now refused if control changes during capture or native attachment processing, so unfinished images cannot reach the model after takeover ([#461](https://github.com/BotHarness/BotHarness/issues/461)).
+
 - Turning off Browser Access cancels active waits and refuses unfinished or queued calls from the revoked registration, including after Access is enabled again; existing Bot Browser tabs remain available to the Human ([#460](https://github.com/BotHarness/BotHarness/issues/460)).
 
 - DM activity now updates the sidebar and composer together from the actual Host Session projection; active turns show thinking or working and settle to idle, while delivery receipts keep their independent processing result ([#536](https://github.com/BotHarness/BotHarness/issues/536), [#120](https://github.com/BotHarness/BotHarness/issues/120)).
