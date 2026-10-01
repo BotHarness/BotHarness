@@ -785,6 +785,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       modelCatalog,
       modelReadiness,
       states: core.states,
+      isSessionRunning: (id) =>
+        ctx.agents.list().some((agent) => agent.id === id && agent.status === 'running'),
       channels: core.channels,
       attachments: core.attachments,
       ownership: core.ownership,

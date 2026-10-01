@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Activity Center opens a cross-Bot Overview with the canonical Human action count, current Bot status and executing Orchestrator/Assignment Sessions; Bot cards open DMs and Session rows switch to the exact native DSH Session ([#541](https://github.com/BotHarness/BotHarness/issues/541)).
+
 - Human Inbox adds filterable Handled history for answered questions, tool decisions, Workspace Grant replies and Assignment responses, with exact request/answer navigation; live actions stay oldest-first and refresh from canonical facts across windows and restart ([#553](https://github.com/BotHarness/BotHarness/issues/553)).
 
 - Humans can authorize a Workspace Grant request or answer a waiting/blocked Assignment inside Human Inbox with source context and exact Session navigation; committed replies use the Bot DM authority and refresh canonical action state ([#552](https://github.com/BotHarness/BotHarness/issues/552)).

@@ -1,3 +1,4 @@
+import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 export type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
@@ -2789,4 +2790,42 @@ export async function readMessagingSource(
   )
     throw new BridgeCallError('invalid-response', 'Invalid source');
   return source as unknown as ExternalSource;
+}
+
+export async function loadActivityOverview(call: BridgeCall): Promise<ActivityOverview> {
+  const row = asRecord(await unwrap(call, 'activityOverview', {}));
+  if (
+    row === undefined ||
+    !Number.isSafeInteger(row['actionCount']) ||
+    (row['actionCount'] as number) < 0 ||
+    !Array.isArray(row['bots'])
+  )
+    throw new Error('Invalid Activity Center overview');
+  const bots = row['bots'].map((value: unknown) => {
+    const bot = asRecord(value);
+    if (
+      bot === undefined ||
+      typeof bot['slug'] !== 'string' ||
+      typeof bot['displayName'] !== 'string' ||
+      typeof bot['paused'] !== 'boolean' ||
+      !['idle', 'thinking', 'working', 'waiting', 'blocked'].includes(String(bot['state'])) ||
+      !Array.isArray(bot['sessions']) ||
+      (bot['avatar'] !== undefined && typeof bot['avatar'] !== 'string')
+    )
+      throw new Error('Invalid Overview Bot');
+    const sessions = bot['sessions'].map((value: unknown) => {
+      const session = asRecord(value);
+      if (
+        session === undefined ||
+        typeof session['sessionId'] !== 'string' ||
+        !['orchestrator', 'assignment'].includes(String(session['role'])) ||
+        !['thinking', 'working'].includes(String(session['state'])) ||
+        (session['purpose'] !== undefined && typeof session['purpose'] !== 'string')
+      )
+        throw new Error('Invalid Overview Session');
+      return session as unknown as ActivityOverview['bots'][number]['sessions'][number];
+    });
+    return { ...bot, sessions } as unknown as ActivityOverview['bots'][number];
+  });
+  return { actionCount: row['actionCount'] as number, bots };
 }

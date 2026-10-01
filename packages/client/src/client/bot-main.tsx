@@ -38,7 +38,7 @@ import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
 import { MessageCopyAction } from './message-copy-action.js';
 import { isBotDmChannel, isHumanReadOnlyDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
-import { HumanInboxView } from './human-inbox-view.js';
+import { ActivityCenterView } from './activity-center-view.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
 import { MemoryCommitView } from './memory-commit-view.js';
@@ -1502,7 +1502,7 @@ export function BotMain({
 }): ReactElement {
   const state = useClientState();
   if (state.selection === undefined) return <Welcome state={state} t={t} />;
-  if (state.selection.kind === 'inbox') return <HumanInboxView actions={actions} t={t} />;
+  if (state.selection.kind === 'inbox') return <ActivityCenterView actions={actions} t={t} />;
   const scopeKey =
     state.selection.kind === 'bot'
       ? `bot:${state.selection.slug}`

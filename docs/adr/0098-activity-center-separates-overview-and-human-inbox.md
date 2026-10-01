@@ -25,3 +25,7 @@ The earlier first slice and issue #126 treated Human Inbox mainly as an action a
 - Give cross-Bot Overview its own issue (#541). Reuse the PersonaBot usage read model (#34/#39) and Group message-count authority (#424), rather than duplicating either statistic.
 - Human mentions require a trusted Human target in Channel message provenance; the current ChannelMention type targets only PersonaBots.
 - The original Bot Inbox remains each PersonaBot's event and attention timeline. Human Inbox does not mirror every Bot Inbox event.
+
+## Delivered first Overview tracer (#541)
+
+The existing Human attention projection exposes a complete count using the same action predicates as Inbox paging. The Host query joins PersonaBot registry, root Session ownership and current activity with native live Agent status; pending native question/approval requests and idle Assignment asks override stale execution labels. Only live thinking/working roots appear as executing. Client polling is owned by the mounted Overview and rejects obsolete navigation responses. Bot cards open DM; Session rows explicitly leave Bot mode before native Session navigation. Channel activity charts, token trends and Memory trends remain later tracer expansions.

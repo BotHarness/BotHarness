@@ -1,4 +1,8 @@
-import { personaBotActivitySnapshot, type PersonaBotActivitySnapshot } from '../state/bot-state.js';
+import {
+  aggregateSessionStates,
+  personaBotActivitySnapshot,
+  type PersonaBotActivitySnapshot,
+} from '../state/bot-state.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type {
   OutboundMessaging,
@@ -121,6 +125,23 @@ import type {
   BotStateTracker,
   SessionState,
 } from '../state/bot-state.js';
+
+export interface ActivityOverview {
+  actionCount: number;
+  bots: Array<{
+    slug: string;
+    displayName: string;
+    avatar?: string;
+    paused: boolean;
+    state: AggregatedState;
+    sessions: Array<{
+      sessionId: string;
+      role: SessionRootRole;
+      state: 'thinking' | 'working';
+      purpose?: string;
+    }>;
+  }>;
+}
 
 export interface PersonaBotSummary {
   slug: string;
@@ -265,6 +286,7 @@ export interface BridgeMethods {
   botSourcePolicies(payload: unknown): BridgeResult<{ policies: BotSourcePolicy[] }>;
   botSourcePolicySet(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
   botSourcePolicyReset(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
+  activityOverview(payload: unknown): BridgeResult<ActivityOverview>;
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
   humanAssignmentContext(payload: unknown): BridgeResult<{ context: HumanAssignmentContext }>;
   humanAttentionStatus(payload: unknown): BridgeResult<{ unreadCount: number; hasAction: boolean }>;
@@ -339,6 +361,7 @@ export interface BridgeMethodsDeps {
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
   states: BotStateTracker;
+  isSessionRunning?: (sessionId: string) => boolean;
   channels: ChannelStore;
   ownership: SessionOwnership;
   memory?: MemoryService;
@@ -1017,6 +1040,85 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         })
         .map((record) => summarize(record, deps.states.snapshot(record.slug)));
       return { ok: true, value: { bots } };
+    },
+    activityOverview() {
+      if (deps.humanAttention === undefined) return unavailable();
+      const pending = new Set([
+        ...(deps.userQuestions?.activeMessageIds() ?? []),
+        ...(deps.toolApproval?.activeMessageIds() ?? []),
+      ]);
+      const bots = deps.registry.list().map((bot) => {
+        const snapshot = deps.states.snapshot(bot.slug);
+        const assignments = new Map(
+          (deps.runtime?.listAssignments(bot.slug) ?? []).map((item) => [item.sessionId, item]),
+        );
+        const waiting = new Set<string>();
+        for (const id of pending) {
+          const message = deps.channels.message('dm-' + bot.slug, id);
+          const sessionId =
+            message?.userQuestionRequest?.sessionId ?? message?.toolApprovalRequest?.sessionId;
+          if (sessionId !== undefined) waiting.add(sessionId);
+        }
+        const sessionStates: Record<string, SessionState> = {};
+        const sessions: ActivityOverview['bots'][number]['sessions'] = [];
+        for (const root of deps.ownership
+          .rootsFor(bot.slug)
+          .sort(
+            (left, right) =>
+              Number(right.rootRole === 'orchestrator') -
+                Number(left.rootRole === 'orchestrator') ||
+              left.createdAt.localeCompare(right.createdAt) ||
+              left.sessionId.localeCompare(right.sessionId),
+          )) {
+          if (root.parentSessionId !== undefined) continue;
+          const assignment = assignments.get(root.sessionId);
+          let state = snapshot.sessions[root.sessionId] ?? 'done';
+          if (waiting.has(root.sessionId)) state = 'waiting';
+          else if (assignment?.activity === 'error') state = 'blocked';
+          else if (assignment?.activity === 'idle' && assignment.openAsk !== undefined) {
+            const ask = deps.humanAttention?.assignmentContext(
+              bot.slug,
+              root.sessionId,
+              assignment.openAsk.sourceEventId,
+            );
+            state =
+              ask?.canReply === true
+                ? ask.reports.find(
+                    (report) => report.sourceEventId === assignment.openAsk?.sourceEventId,
+                  )?.state === 'blocked'
+                  ? 'blocked'
+                  : 'waiting'
+                : 'done';
+          } else if (
+            (state === 'thinking' || state === 'working') &&
+            deps.isSessionRunning?.(root.sessionId) !== true
+          )
+            state = 'done';
+          sessionStates[root.sessionId] = state;
+          if (state === 'thinking' || state === 'working')
+            sessions.push({
+              sessionId: root.sessionId,
+              role: root.rootRole,
+              state,
+              ...(assignment === undefined ? {} : { purpose: assignment.purpose }),
+            });
+        }
+        return {
+          slug: bot.slug,
+          displayName: bot.displayName,
+          ...(bot.avatar === undefined
+            ? {}
+            : {
+                avatar: bot.avatar.startsWith('data:image/')
+                  ? botAvatarUrl(bot.slug, bot.avatar)
+                  : bot.avatar,
+              }),
+          paused: bot.paused === true,
+          state: aggregateSessionStates(sessionStates),
+          sessions,
+        };
+      });
+      return { ok: true, value: { actionCount: deps.humanAttention.actionCount(), bots } };
     },
     activitySnapshot() {
       return {

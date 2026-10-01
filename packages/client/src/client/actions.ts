@@ -52,6 +52,7 @@ import {
   type WorkspaceOption,
   type WorkspaceGrantView,
   loadBotAttention,
+  loadActivityOverview,
   loadHumanAttention,
   loadHumanAttentionStatus,
   loadHumanAssignmentContext,
@@ -221,6 +222,8 @@ export interface BridgeActions {
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
+  openActivityCenter(): Promise<void>;
+  refreshOverview(): Promise<void>;
   openHumanInbox(): Promise<void>;
   refreshHumanInboxStatus(): Promise<void>;
   refreshHumanInbox(category?: HumanInboxCategory, background?: boolean): Promise<void>;
@@ -628,6 +631,22 @@ export function createActions(
     }
   };
 
+  let overviewSeq = 0;
+  const refreshOverview = async (): Promise<void> => {
+    const selection = currentSelection();
+    if (selection?.kind !== 'inbox' || selection.view !== 'overview') return;
+    const seq = ++overviewSeq;
+    if (clientStore.getSnapshot().overview.status === 'idle')
+      clientStore.setOverview({ status: 'loading', error: undefined });
+    try {
+      const value = await loadActivityOverview(call);
+      if (seq !== overviewSeq || currentSelection() !== selection) return;
+      clientStore.setOverview({ status: 'ready', value, error: undefined });
+    } catch (error) {
+      if (seq !== overviewSeq || currentSelection() !== selection) return;
+      clientStore.setOverview({ status: 'error', error: errorMessage(error) });
+    }
+  };
   let humanInboxHeadSeq = 0;
   let humanInboxPageSeq = 0;
   let humanInboxPagesPending = 0;
@@ -1010,6 +1029,12 @@ export function createActions(
         return Promise.resolve();
       return loadBotInboxFor(slug, selection, cursor);
     },
+    openActivityCenter() {
+      clientStore.select({ kind: 'inbox', view: 'overview' });
+      void refreshHumanInboxStatus();
+      return refreshOverview();
+    },
+    refreshOverview,
     openHumanInbox() {
       clientStore.select({ kind: 'inbox' });
       void refreshHumanInboxStatus();
