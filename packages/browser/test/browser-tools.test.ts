@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
-import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
+import type { ToolDefinition, ToolRunContext, ToolExecutionSuccess } from '@deepseek-ai/dsh-tools';
 
 import type { BotBrowserRuntime } from '../src/runtime/browser.js';
 import {
@@ -19,14 +19,17 @@ import {
 
 interface FakeScope {
   readonly definitions: Map<string, ToolDefinition>;
+  readonly services: Map<string, unknown>;
   readonly sections: string[];
   registered(): readonly string[];
 }
 
 function fakeScope(): { scope: Context; state: FakeScope } {
   const definitions = new Map<string, ToolDefinition>();
+  const services = new Map<string, unknown>();
   const sections: string[] = [];
   const scope = {
+    get: (name: string) => services.get(name),
     tools: {
       register(definition: ToolDefinition) {
         definitions.set(definition.name, definition);
@@ -45,6 +48,7 @@ function fakeScope(): { scope: Context; state: FakeScope } {
     scope,
     state: {
       definitions,
+      services,
       sections,
       registered: () => [...definitions.keys()].sort(),
     },
@@ -321,6 +325,183 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(JSON.stringify(shot)).toContain('Screenshot saved to');
     expect(readdirSync(h.screenshotDir)).toHaveLength(1);
     expect(h.audits.at(-1)?.summary).toBe('screenshot');
+  });
+
+  it.each(['paused', 'resumed'] as const)(
+    'discards a pending screenshot after Human control changes while %s',
+    async (phase) => {
+      const h = harness({ access: true, auto: true });
+      h.created();
+      const call = (name: string, args = {}) =>
+        h.state.definitions.get(name)!.execute(args, execution(name));
+      await call('browser_open', { url: 'https://example.com' });
+      let started!: () => void;
+      let release!: () => void;
+      const entered = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const pending = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      h.runtime.captureScreenshot = vi.fn(async () => {
+        started();
+        await pending;
+        return { data: 'Zm9v', mimeType: 'image/jpeg' };
+      });
+      const screenshot = call('browser_screenshot');
+      const refused = expect(screenshot).rejects.toThrow(/Browser Pause|Browser control changed/);
+      await entered;
+      h.provider.setTakeover('bot-a', true);
+      if (phase === 'resumed') h.provider.setTakeover('bot-a', false);
+      release();
+      await refused;
+      expect(readdirSync(h.screenshotDir)).toHaveLength(0);
+      expect(h.audits.at(-1)).toMatchObject({
+        tool: 'browser_screenshot',
+        outcome: 'error',
+        summary: 'screenshot',
+      });
+      expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+      if (phase === 'paused') h.provider.setTakeover('bot-a', false);
+      const fresh = await call('browser_screenshot');
+      expect(JSON.stringify(fresh)).toContain('Screenshot saved to');
+    },
+  );
+
+  it('refuses a screenshot queued before a Pause cycle without starting capture', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    const call = (name: string, args = {}) =>
+      h.state.definitions.get(name)!.execute(args, execution(name));
+    await call('browser_open', { url: 'https://example.com' });
+    let started!: () => void;
+    let release!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const observe = h.runtime.observe;
+    h.runtime.observe = vi.fn(async (tabId: string) => {
+      started();
+      await pending;
+      return observe(tabId);
+    });
+    const read = call('browser_observe');
+    await entered;
+    const shot = call('browser_screenshot');
+    const refused = expect(shot).rejects.toThrow(/Browser control changed/);
+    h.provider.setTakeover('bot-a', true);
+    h.provider.setTakeover('bot-a', false);
+    release();
+    await read;
+    await refused;
+    expect(h.runtime.captureScreenshot).not.toHaveBeenCalled();
+    expect(readdirSync(h.screenshotDir)).toHaveLength(0);
+    await call('browser_screenshot');
+    expect(h.runtime.captureScreenshot).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['paused', 'resumed'] as const)(
+    'refuses the image after native attachment admission overlaps Human control while %s',
+    async (phase) => {
+      const h = harness({ access: true, auto: true });
+      h.created();
+      await h.state.definitions
+        .get('browser_open')!
+        .execute({ url: 'https://example.com' }, execution('browser_open'));
+      let started!: () => void;
+      let release!: () => void;
+      const entered = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const pending = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const saveImages = vi.fn(async () => {
+        started();
+        await pending;
+        return [
+          {
+            attachmentId: `sha256:${'a'.repeat(64)}`,
+            mediaType: 'image/jpeg',
+            bytes: 3,
+            width: 1,
+            height: 1,
+          },
+        ];
+      });
+      h.state.services.set('attachments', { saveImages });
+      h.state.services.set('llm', {
+        resolveModelInfo: async () => ({ inputModalities: ['image'] }),
+      });
+      const exec = {
+        ...execution('browser_screenshot'),
+        agent: {
+          id: 'session-a',
+          options: {},
+          session: { requestHeader: () => ({ config: { provider: 'qa', model: 'vision' } }) },
+        },
+      } as unknown as ToolRunContext;
+      const shot = h.state.definitions.get('browser_screenshot')!.execute({}, exec);
+      const refused = expect(shot).rejects.toThrow(/Browser Pause|Browser control changed/);
+      await entered;
+      h.provider.setTakeover('bot-a', true);
+      if (phase === 'resumed') h.provider.setTakeover('bot-a', false);
+      release();
+      await refused;
+      expect(saveImages).toHaveBeenCalledTimes(1);
+      expect(h.audits.filter((event) => event.tool === 'browser_screenshot')).toEqual([
+        expect.objectContaining({ outcome: 'error', summary: 'screenshot' }),
+      ]);
+    },
+  );
+
+  it('uses the pinned native MCP text fallback when a model route rejects image input', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const saveImages = vi.fn(async () => []);
+    h.state.services.set('attachments', { saveImages });
+    h.state.services.set('llm', { resolveModelInfo: async () => ({ inputModalities: ['text'] }) });
+    const exec = {
+      ...execution('browser_screenshot'),
+      agent: {
+        id: 'session-a',
+        options: {},
+        session: { requestHeader: () => ({ config: { provider: 'qa', model: 'text-only' } }) },
+      },
+    } as unknown as ToolRunContext;
+    const definition = h.state.definitions.get('browser_screenshot')!;
+    const value = (await definition.execute({}, exec)) as ToolExecutionSuccess['value'];
+    const content = definition.projectContent!(exec, {
+      isError: false,
+      value,
+      content: definition.output.render({}, value),
+    });
+    expect(JSON.stringify(content)).toContain('image unavailable');
+    expect(JSON.stringify(content)).toContain('does not declare image input');
+    expect(JSON.stringify(content)).not.toContain('Zm9v');
+    expect(content?.some((block) => block.type === 'image')).toBe(false);
+    expect(saveImages).not.toHaveBeenCalled();
+  });
+
+  it('reports an unavailable native frame without creating a model image or saved file', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    h.runtime.captureScreenshot = vi.fn(async () => undefined);
+    const result = await h.state.definitions
+      .get('browser_screenshot')!
+      .execute({}, execution('browser_screenshot'));
+    expect(JSON.stringify(result)).toContain('image unavailable');
+    expect(readdirSync(h.screenshotDir)).toHaveLength(0);
+    expect(h.audits.at(-1)).toMatchObject({ summary: 'screenshot', outcome: 'ok' });
   });
 
   it('keeps only the newest screenshots on disk', async () => {

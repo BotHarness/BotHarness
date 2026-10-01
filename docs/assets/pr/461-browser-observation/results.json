@@ -1,0 +1,19 @@
+{
+  "realModelScreenshot": true,
+  "imageAttachment": true,
+  "readableModelFallback": false,
+  "noBase64SessionEvents": true,
+  "authenticatedLivePreview": true,
+  "unauthenticatedFrameDenied": true,
+  "pauseRefusesActionAndModelScreenshot": true,
+  "humanPreviewRemainsAvailable": true,
+  "pauseAllowsReadOnlyObservation": true,
+  "humanChangedPageWhilePaused": true,
+  "humanOpenRetainedBotTab": true,
+  "resumeRefusesOldObservation": true,
+  "modelReobservedBeforeAction": true,
+  "actualConfirmations": 1,
+  "confirmedItem": "Updated by Human",
+  "auditAttributedAndRedacted": true,
+  "retainedCurrentTab": true
+}
