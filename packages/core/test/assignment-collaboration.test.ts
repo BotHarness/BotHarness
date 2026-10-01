@@ -921,6 +921,64 @@ describe('Assignment collaboration', () => {
     await close();
   });
 
+  it.each(['waiting-human', 'progress'] as const)(
+    'keeps the canonical blocked ask address when harvesting a later %s report',
+    async (state) => {
+      const { runtime, agents, dmChannelId, admit, close } = await setup();
+      let release = (): void => undefined;
+      try {
+        await admit('Start research', 'human-1');
+        const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Choose route' });
+        if (created.outcome !== 'created') throw new Error('create failed');
+        const sessionId = created.assignment.sessionId;
+        const run = agents.started[0]!.run;
+        let started = (): void => undefined;
+        const ready = new Promise<void>((resolve) => {
+          started = resolve;
+        });
+        const held = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        vi.spyOn(agents, 'runOrchestrator').mockImplementationOnce(async () => {
+          started();
+          await held;
+        });
+        const active = runtime.admitDmMessage({
+          channelId: dmChannelId,
+          messageId: 'human-2',
+          body: 'Review context',
+        });
+        if (!active.admitted) throw new Error('active turn missing');
+        await ready;
+        await run.report({ state: 'blocked', summary: 'Choose A or B', expectsReply: true });
+        const askId = runtime.getAssignment('ada', sessionId)!.openAsk!.sourceEventId;
+        await run.report({
+          state,
+          summary: 'Later update',
+          expectsReply: state === 'waiting-human',
+        });
+        agents.finish(sessionId);
+        release();
+        await active.settled;
+        await runtime.whenIdle();
+        const injected = agents.inboxTurns[0] ?? '';
+        expect(injected).toContain('WAITING');
+        expect(injected).toContain('answer_to: ' + askId);
+        expect(injected).toContain('Choose A or B');
+        const answerTo = injected.match(/answer_to: ([^)]+)/u)?.[1];
+        if (answerTo === undefined) throw new Error('Inbox answer target missing');
+        expect(
+          agents.access!.request({ sessionId, mode: 'next-turn', text: 'Choose A', answerTo })
+            .delivery,
+        ).toBe('followup');
+        expect(runtime.getAssignment('ada', sessionId)?.openAsk).toBeUndefined();
+      } finally {
+        release();
+        await close();
+      }
+    },
+  );
+
   it('projects one open Assignment ask into Human Inbox and clears it when answered', async () => {
     const { runtime, agents, owner, admit, close } = await setup();
     try {

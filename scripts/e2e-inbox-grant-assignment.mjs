@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { basename, dirname, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+const userHome = process.env.USERPROFILE ?? homedir();
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const mode = process.argv[2] ?? 'check';
 const port = Number(process.env.BH_ACTION_QA_PORT ?? 31999);
@@ -232,14 +233,14 @@ try {
       (node) => node.textContent,
     );
     const folderName = 'InboxActionQA-' + stamp;
-    const project = resolve(process.env.USERPROFILE, folderName);
+    const project = resolve(userHome, folderName);
     mkdirSync(project, { recursive: true });
     writeFileSync(
       resolve(project, 'release-plan.txt'),
       'QA release plan: route is chosen by the Human.\n',
     );
-    if (initialFolder !== basename(process.env.USERPROFILE)) {
-      await click('.bh-folder-browser-crumb', basename(process.env.USERPROFILE));
+    if (initialFolder !== basename(userHome)) {
+      await click('.bh-folder-browser-crumb', basename(userHome));
     }
     await click('.bh-human-inbox-reply button', '刷新上下文').catch(() => undefined);
     if (!(await page.$('.bh-folder-browser'))) {

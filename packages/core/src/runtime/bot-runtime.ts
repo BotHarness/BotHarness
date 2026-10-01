@@ -453,6 +453,8 @@ interface InboxReportRow {
   body: string;
   created_at: string;
   expects_reply: number;
+  open_ask_id?: string | null;
+  open_ask_summary?: string | null;
   continuity_key: string | null;
   activity: AssignmentActivity | null;
 }
@@ -464,6 +466,8 @@ interface DigestRow {
   created_at: string;
   author_kind: string;
   author_slug: string | null;
+  reply_session_id?: string | null;
+  reply_source_event_id?: string | null;
 }
 
 function groupMessageAuthor(row: DigestRow, humanName = 'Human'): string {
@@ -495,7 +499,8 @@ interface InboxUnit {
   assignmentSessionId: string | null;
   summary: string;
   createdAt: string;
-  expectsReply: boolean;
+  openAskId?: string | null;
+  openAskSummary?: string | null;
   continuityKey: string | null;
   activity: AssignmentActivity | null;
   repeats: number;
@@ -597,7 +602,8 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
         assignmentSessionId: row.assignment_session_id,
         summary: row.body,
         createdAt: row.created_at,
-        expectsReply: row.expects_reply === 1,
+        openAskId: row.open_ask_id ?? null,
+        openAskSummary: row.open_ask_summary ?? null,
         continuityKey: row.continuity_key,
         activity: row.activity,
         repeats: 1,
@@ -608,7 +614,8 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
     existing.sourceKind = row.source_kind;
     existing.summary = row.body;
     existing.createdAt = row.created_at;
-    existing.expectsReply = row.expects_reply === 1;
+    existing.openAskId = row.open_ask_id ?? null;
+    existing.openAskSummary = row.open_ask_summary ?? null;
     existing.activity = row.activity;
     existing.repeats += 1;
   }
@@ -629,8 +636,8 @@ function renderInbox(units: InboxUnit[]): string {
       `activity ${unit.activity ?? 'unknown'}`,
       `repeats ${unit.repeats}`,
     ].join(', ');
-    if (unit.expectsReply) {
-      return `- ${target} (${facts}) WAITING for your answer (answer_to: ${unit.sourceEventId}): ${unit.summary}`;
+    if (unit.openAskId != null) {
+      return `- ${target} (${facts}) WAITING for your answer (answer_to: ${unit.openAskId}): ${unit.openAskSummary ?? unit.summary}`;
     }
     if (unit.sourceKind === 'assignment-lifecycle') {
       return `- ${target} (${facts}) Host lifecycle notice: ${unit.summary}`;
@@ -867,7 +874,6 @@ class BotRuntimeImplementation implements BotRuntime {
         assignmentSessionId: null,
         summary: source.body,
         createdAt: source.at,
-        expectsReply: false,
         continuityKey: null,
         activity: null,
         repeats: 1,
@@ -1100,7 +1106,9 @@ class BotRuntimeImplementation implements BotRuntime {
     if (total.count === 0) return undefined;
     const columns = `SELECT a.source_event_id, e.message_id, e.body, e.created_at,
       json_extract(e.payload_json, '$.author.kind') AS author_kind,
-      json_extract(e.payload_json, '$.author.slug') AS author_slug`;
+      json_extract(e.payload_json, '$.author.slug') AS author_slug,
+      json_extract(e.payload_json, '$.assignmentReply.sessionId') AS reply_session_id,
+      json_extract(e.payload_json, '$.assignmentReply.sourceEventId') AS reply_source_event_id`;
     const candidates = database
       .prepare(`${columns} ${base} ORDER BY e.created_at, e.rowid LIMIT ?`)
       .all(
@@ -1139,9 +1147,8 @@ class BotRuntimeImplementation implements BotRuntime {
       '[Bot Inbox: pending DM context]',
       `Channel: ${context.channelId}`,
       ...context.rows.map((row) => {
-        const target = this.#channels.message(context.channelId, row.message_id)?.assignmentReply;
         return (
-          `${target === undefined ? '' : `[Human response to Assignment Session ${target.sessionId}, report Source Event ${target.sourceEventId}]\n`}` +
+          `${row.reply_session_id == null || row.reply_source_event_id == null ? '' : `[Human response to Assignment Session ${row.reply_session_id}, report Source Event ${row.reply_source_event_id}]\n`}` +
           `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${
             row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? '?'}` : 'Human'
           } at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${
@@ -4348,6 +4355,8 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(
             `SELECT e.source_event_id, e.source_kind, e.assignment_session_id,
                     e.body, e.created_at, e.expects_reply, a.continuity_key,
+                    a.open_ask_source_event_id AS open_ask_id,
+                    (SELECT body FROM source_events WHERE source_event_id = a.open_ask_source_event_id) AS open_ask_summary,
                     CASE WHEN a.stop_state = 'stopped' THEN 'stopped'
                          WHEN a.stop_state = 'requested' THEN 'stopping'
                          ELSE a.activity END AS activity
