@@ -1,0 +1,23 @@
+{
+  "build": "before",
+  "modelSetupVerified": true,
+  "staleRefRefused": true,
+  "upload": {
+    "target": "",
+    "other": "qa-target.txt"
+  },
+  "submission": {
+    "count": 0
+  },
+  "final": {
+    "currentRetained": true,
+    "ownedTabs": 1
+  },
+  "audit": {
+    "matchedAttempts": 2,
+    "ok": 1,
+    "error": 1,
+    "attributed": true,
+    "hostPathRedacted": true
+  }
+}

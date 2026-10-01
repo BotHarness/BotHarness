@@ -16,6 +16,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Humans can inspect a live tool request and approve or reject it directly in Human Inbox, with expandable source messages and exact navigation. Decisions use the source DM command, remove the resolved action while leaving other Bots independent, and refresh stale requests ([#550](https://github.com/BotHarness/BotHarness/issues/550)).
+- A PersonaBot can read a specified received original through native file tools and explicitly edit it with Human approval; original-message downloads and shared references show current contents, while independent uploads and default working copies remain separate ([#633](https://github.com/BotHarness/BotHarness/issues/633), [file guide](docs/file-open.md)).
 
 - Human-participating DM and Group headers now offer My nickname; independent Channel names inherit the plugin default when cleared, and historical mentions plus Inbox and Bot context use their source Channel name without changing identity or attention ([#622](https://github.com/BotHarness/BotHarness/issues/622)).
 
@@ -219,6 +220,12 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Browser uploads now honor an observed file-input ref instead of attaching to a different field on multi-input pages, so the intended form can continue ([#652](https://github.com/BotHarness/BotHarness/issues/652)).
+
+- Group departure now reports a committed change or an idempotent `not-member` no-change; missing Channels and non-Group targets fail explicitly, so repeated or rejected requests cannot fabricate a new departure ([#571](https://github.com/BotHarness/BotHarness/issues/571)).
+
+- Browser scrolling now sends a native wheel at the viewport center, so the Bot can move central nested content as well as ordinary pages and observe the result before continuing ([#647](https://github.com/BotHarness/BotHarness/issues/647)).
 
 - Browser typing now refuses readonly and disabled inputs and textareas before changing values, focus or events, including native disabled-fieldset inheritance; the Bot retains its current tab and can continue with an editable field ([#644](https://github.com/BotHarness/BotHarness/issues/644)).
 

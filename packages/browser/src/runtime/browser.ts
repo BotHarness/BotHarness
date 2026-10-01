@@ -469,9 +469,6 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   const typeScript = (ref: string, text: string): string =>
     `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) { if (el.matches(':disabled')) return { ok: false, reason: 'disabled' }; if (el.readOnly) return { ok: false, reason: 'readonly' }; } el.focus(); if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) { const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const descriptor = Object.getOwnPropertyDescriptor(proto, 'value'); const setter = descriptor && descriptor.set; if (setter) { setter.call(el, ${JSON.stringify(text)}); } else { el.value = ${JSON.stringify(text)}; } el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return { ok: true }; } if (el.isContentEditable) { el.textContent = ${JSON.stringify(text)}; el.dispatchEvent(new InputEvent('input', { bubbles: true, data: ${JSON.stringify(text)} })); return { ok: true }; } return { ok: false, reason: 'not-editable' }; })()`;
 
-  const scrollScript = (direction: 'up' | 'down', amount: number): string =>
-    `(() => { window.scrollBy(0, ${direction === 'down' ? amount : -amount}); return { ok: true }; })()`;
-
   const runInteraction = async (tabId: string, expression: string): Promise<BrowserTab> => {
     const sessionId = await attach(tabId);
     const value = asObject(await evaluate(sessionId, expression));
@@ -557,8 +554,54 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return { tabId, ...page };
   };
 
-  const scroll = (tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab> =>
-    runInteraction(tabId, scrollScript(direction, amount));
+  const scroll = async (
+    tabId: string,
+    direction: 'up' | 'down',
+    amount: number,
+  ): Promise<BrowserTab> => {
+    const sessionId = await attach(tabId);
+    const bounds = asObject(
+      await evaluate(sessionId, '({ width: window.innerWidth, height: window.innerHeight })'),
+    );
+    const width = bounds?.['width'];
+    const height = bounds?.['height'];
+    if (
+      typeof width !== 'number' ||
+      typeof height !== 'number' ||
+      !Number.isFinite(width) ||
+      !Number.isFinite(height) ||
+      width <= 0 ||
+      height <= 0
+    ) {
+      throw new Error('The Bot Browser viewport is unavailable; observe again before scrolling');
+    }
+    const live = client;
+    if (!live) throw new Error('The Bot Browser is not running');
+    if (!focusEmulated.has(sessionId)) {
+      await live.send('Emulation.setFocusEmulationEnabled', { enabled: true }, sessionId);
+      focusEmulated.add(sessionId);
+    }
+    await live.send(
+      'Input.dispatchMouseEvent',
+      { type: 'mouseMoved', x: width / 2, y: height / 2 },
+      sessionId,
+    );
+    await live.send(
+      'Input.dispatchMouseEvent',
+      {
+        type: 'mouseWheel',
+        x: width / 2,
+        y: height / 2,
+        deltaX: 0,
+        deltaY: direction === 'down' ? amount : -amount,
+      },
+      sessionId,
+    );
+    await waitForReady(sessionId);
+    const page = await readPage(sessionId);
+    lastUrl = page.url;
+    return { tabId, ...page };
+  };
 
   const open = async (url: string, reuseTabId?: string): Promise<BrowserTab> => {
     await ensure();
@@ -643,18 +686,50 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
       throw new Error(`The file does not exist on the Host: ${options.path}`);
     }
     const sessionId = await attach(tabId);
+    const documentRoot = async (): Promise<number> => {
+      const document = await live.send('DOM.getDocument', {}, sessionId);
+      const rootId = asObject(document['root'])?.['nodeId'];
+      if (typeof rootId !== 'number') throw new Error('The Bot Browser returned no document');
+      return rootId;
+    };
+    if (options.ref !== undefined) {
+      const target = asObject(
+        await evaluate(
+          sessionId,
+          `(() => { const el = ${selectorExpression(options.ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; return { ok: true, fileInput: el instanceof HTMLInputElement && el.type === 'file' }; })()`,
+        ),
+      );
+      if (target?.['ok'] !== true) {
+        throw new Error('The element ref is stale; call browser_observe again before acting');
+      }
+      if (target['fileInput'] === true) {
+        const found = await live.send(
+          'DOM.querySelector',
+          {
+            nodeId: await documentRoot(),
+            selector: `input[type="file"][data-botharness-ref=${JSON.stringify(options.ref)}]`,
+          },
+          sessionId,
+        );
+        const nodeId = found['nodeId'];
+        if (typeof nodeId !== 'number' || !Number.isInteger(nodeId) || nodeId <= 0) {
+          throw new Error(
+            'The referenced file input is unavailable; call browser_observe again before uploading',
+          );
+        }
+        await live.send('DOM.setFileInputFiles', { files: [options.path], nodeId }, sessionId);
+        return;
+      }
+    }
     await live.send('Page.setInterceptFileChooserDialog', { enabled: true }, sessionId);
     try {
       if (options.ref !== undefined) {
         await clickRef(sessionId, options.ref);
       }
       const findInput = async (): Promise<number | undefined> => {
-        const document = await live.send('DOM.getDocument', {}, sessionId);
-        const rootId = asObject(document['root'])?.['nodeId'];
-        if (typeof rootId !== 'number') throw new Error('The Bot Browser returned no document');
         const found = await live.send(
           'DOM.querySelectorAll',
-          { nodeId: rootId, selector: 'input[type="file"]' },
+          { nodeId: await documentRoot(), selector: 'input[type="file"]' },
           sessionId,
         );
         const nodeIds = Array.isArray(found['nodeIds'])

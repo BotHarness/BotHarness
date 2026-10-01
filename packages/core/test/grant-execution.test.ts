@@ -82,6 +82,29 @@ describe('Workspace Grant execution boundary', () => {
     expect(requiresHumanToolApproval('bot_dm_send')).toBe(false);
   });
 
+  it('requires approval for original editing while allowing exact read acquisition', () => {
+    const state = fixture();
+    const session = { id: 'botharness-orchestrator', header: { cwd: '/tmp/memory' } } as never;
+    expect(requiresHumanToolApproval('channel_attachment_open', { access: 'read' })).toBe(false);
+    expect(requiresHumanToolApproval('channel_attachment_open', { access: 'edit-original' })).toBe(
+      true,
+    );
+    expect(requiresHumanToolApproval('channel_attachment_open', {})).toBe(true);
+    const gate = (access: string, approved = false) =>
+      grantToolExecutionDenial(
+        state.core,
+        session,
+        state.policy,
+        state.approval,
+        'channel_attachment_open',
+        { access },
+        approved,
+      );
+    expect(gate('read')).toBeUndefined();
+    expect(gate('edit-original')).toMatch(/Human approval/);
+    expect(gate('edit-original', true)).toBeUndefined();
+  });
+
   it('allows a valid Assignment and rejects native resume after revoke', () => {
     const state = fixture();
     expect(

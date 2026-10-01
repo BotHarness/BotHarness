@@ -211,7 +211,13 @@ function ToolApprovalCard({
       </div>
       <div className="bh-note">{t('approval.cwd', { path: request.cwd })}</div>
       <pre className="bh-tool-approval-input">{request.input}</pre>
-      <div className="bh-note">{t('approval.risk')}</div>
+      <div className="bh-note">
+        {t(
+          request.toolName === 'channel_attachment_open'
+            ? 'approval.originalRisk'
+            : 'approval.risk',
+        )}
+      </div>
       {effectiveDecision !== undefined ? (
         <div role="status" className="bh-note">
           {effectiveDecision === 'rejected'

@@ -547,6 +547,97 @@ describe('runtime lifecycle', () => {
     }
   });
 
+  it.each([
+    { name: 'exact input', nodeId: 7, ref: 'e3', kind: 'file' },
+    { name: 'missing input', nodeId: 0, ref: 'e3', kind: 'missing' },
+    { name: 'invalid input node', nodeId: -1, ref: 'e3', kind: 'missing' },
+    { name: 'unavailable input node', nodeId: undefined, ref: 'e3', kind: 'missing' },
+    { name: 'stale input ref', nodeId: 7, ref: 'e3', kind: 'stale' },
+    { name: 'input transport failure', nodeId: 7, ref: 'e3', kind: 'transport' },
+    { name: 'omitted ref fallback', nodeId: 7, ref: undefined, kind: 'fallback' },
+  ])('targets an upload without silently changing fields: $name', async ({ nodeId, ref, kind }) => {
+    const dir = mkdtempSync(join(tmpdir(), 'browser-upload-target-'));
+    const file = join(dir, 'target.txt');
+    writeFileSync(file, 'target');
+    try {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const base = fakeClient();
+      const sent: { method: string; params?: Record<string, unknown>; sessionId?: string }[] = [];
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        platform: 'linux',
+        env: {},
+        fileExists: (path) => path === '/usr/bin/google-chrome',
+        connect: async () => ({
+          send: async (method, params, sessionId) => {
+            sent.push({
+              method,
+              ...(params === undefined ? {} : { params }),
+              ...(sessionId === undefined ? {} : { sessionId }),
+            });
+            if (
+              method === 'Runtime.evaluate' &&
+              String(params?.['expression']).includes('fileInput')
+            )
+              return {
+                result: {
+                  value:
+                    kind === 'stale'
+                      ? { ok: false, reason: 'stale-ref' }
+                      : { ok: true, fileInput: true },
+                },
+              };
+            if (method === 'DOM.querySelector') return { nodeId };
+            if (method === 'DOM.querySelectorAll') return { nodeIds: [7, 9] };
+            if (method === 'DOM.setFileInputFiles' && kind === 'transport')
+              throw new Error('file input transport failed');
+            return base.send(method, params, sessionId);
+          },
+          close: () => base.close(),
+        }),
+      });
+      const ensuring = runtime.ensure();
+      child.ready();
+      await ensuring;
+      const uploading = runtime.uploadFile('tab-1', {
+        path: file,
+        ...(ref === undefined ? {} : { ref }),
+      });
+      if (kind === 'missing')
+        await expect(uploading).rejects.toThrow(/referenced file input.*unavailable/i);
+      else if (kind === 'stale') await expect(uploading).rejects.toThrow(/stale/);
+      else if (kind === 'transport')
+        await expect(uploading).rejects.toThrow('file input transport failed');
+      else await uploading;
+      const files = sent.filter((call) => call.method === 'DOM.setFileInputFiles');
+      if (kind === 'missing' || kind === 'stale') expect(files).toEqual([]);
+      else
+        expect(files).toEqual([
+          {
+            method: 'DOM.setFileInputFiles',
+            params: { files: [file], nodeId: kind === 'fallback' ? 9 : 7 },
+            sessionId: 'session-1',
+          },
+        ]);
+      if (kind !== 'fallback') {
+        expect(sent.some((call) => call.method === 'DOM.querySelectorAll')).toBe(false);
+        expect(sent.some((call) => call.method === 'Input.dispatchMouseEvent')).toBe(false);
+        expect(sent.some((call) => call.method === 'Page.setInterceptFileChooserDialog')).toBe(
+          false,
+        );
+      }
+      if (kind === 'file')
+        expect(sent.find((call) => call.method === 'DOM.querySelector')).toEqual({
+          method: 'DOM.querySelector',
+          params: { nodeId: 1, selector: 'input[type="file"][data-botharness-ref="e3"]' },
+          sessionId: 'session-1',
+        });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('rejects coordinate clicks outside the viewport with a re-screenshot hint', async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child.proc as never);
@@ -753,6 +844,119 @@ describe('runtime lifecycle', () => {
     await ensuring;
     await expect(runtime.pressKey('tab-1', 'Enter')).rejects.toThrow('input disconnected');
     expect(types).toEqual(['keyDown', 'keyUp']);
+  });
+
+  it.each([
+    ['down', 600],
+    ['up', -600],
+  ] as const)('dispatches a native %s wheel at the viewport center', async (direction, deltaY) => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const wheels: { params: Record<string, unknown>; sessionId?: string }[] = [];
+    const expressions: string[] = [];
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => ({
+        send: async (method, params, sessionId) => {
+          if (method === 'Input.dispatchMouseEvent' && params?.['type'] === 'mouseWheel')
+            wheels.push({
+              params: params ?? {},
+              ...(sessionId === undefined ? {} : { sessionId }),
+            });
+          if (method === 'Runtime.evaluate') expressions.push(String(params?.['expression']));
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      }),
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    const page = await runtime.scroll('tab-1', direction, 600);
+    expect(wheels).toEqual([
+      { params: { type: 'mouseWheel', x: 640, y: 400, deltaX: 0, deltaY }, sessionId: 'session-1' },
+    ]);
+    expect(expressions.some((expression) => expression.includes('window.scrollBy'))).toBe(false);
+    expect(page).toEqual({ tabId: 'tab-1', url: 'https://example.com/', title: 'Example' });
+    expect(runtime.currentUrl()).toBe('https://example.com/');
+    expect(
+      base.calls.filter(
+        (call) =>
+          call.method === 'Emulation.setFocusEmulationEnabled' ||
+          call.method === 'Input.dispatchMouseEvent',
+      ),
+    ).toEqual([
+      { method: 'Emulation.setFocusEmulationEnabled', sessionId: 'session-1' },
+      { method: 'Input.dispatchMouseEvent', sessionId: 'session-1' },
+      { method: 'Input.dispatchMouseEvent', sessionId: 'session-1' },
+    ]);
+    await runtime.scroll('tab-1', direction, 600);
+    expect(
+      base.calls.filter((call) => call.method === 'Emulation.setFocusEmulationEnabled'),
+    ).toHaveLength(1);
+  });
+
+  it('surfaces a wheel transport failure instead of returning success', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => ({
+        send: async (method, params, sessionId) => {
+          if (method === 'Input.dispatchMouseEvent' && params?.['type'] === 'mouseWheel')
+            throw new Error('wheel transport failed');
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      }),
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await expect(runtime.scroll('tab-1', 'down', 600)).rejects.toThrow('wheel transport failed');
+  });
+
+  it.each([
+    { width: 0, height: 800 },
+    { width: 1280, height: 0 },
+    { width: NaN, height: 800 },
+    { height: 800 },
+  ])('refuses unavailable viewport bounds before wheel dispatch: %j', async (bounds) => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const wheel = vi.fn();
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => ({
+        send: async (method, params, sessionId) => {
+          if (
+            method === 'Runtime.evaluate' &&
+            String(params?.['expression']).startsWith('({ width:')
+          )
+            return { result: { value: bounds } };
+          if (method === 'Input.dispatchMouseEvent') wheel();
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      }),
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await expect(runtime.scroll('tab-1', 'down', 600)).rejects.toThrow(/viewport/);
+    expect(wheel).not.toHaveBeenCalled();
   });
 
   it('acts on observed refs and surfaces a stale ref readably', async () => {

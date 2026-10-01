@@ -104,7 +104,8 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
   },
   {
     raw: 'scroll',
-    description: 'Scroll the current Bot Browser tab up or down by a bounded amount of pixels.',
+    description:
+      'Send a native wheel up or down by a bounded amount of CSS pixels at the current viewport center; this scrolls the document or nested content under that point. Observe again to verify movement.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -119,13 +120,14 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
   {
     raw: 'upload',
     description:
-      "Attach a file from the Host to the current Bot Browser tab: clicks the element with the given ref (when provided), intercepts the native file dialog, and sets the page's file input to the given path. Use a path returned by browser_screenshot or a file you created. Uploading is externally visible: confirm with the Human before posting.",
+      'Attach a file from the Host to the current Bot Browser tab: a file-input ref selects that exact field without opening a dialog; another ref clicks the upload control and intercepts its dialog. Without a file-input ref, the last page file input is used. Use a path returned by browser_screenshot or a file you created. Uploading is externally visible: confirm with the Human before posting.',
     inputSchema: {
       type: 'object',
       properties: {
         ref: {
           type: 'string',
-          description: 'Optional ref of the control that opens the file picker',
+          description:
+            'Optional observed file-input ref, or ref of the control that opens the file picker',
         },
         path: { type: 'string', description: 'Absolute path to a file on the Host' },
       },
