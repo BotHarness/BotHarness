@@ -9,5 +9,7 @@
   "attentionUnchanged": true,
   "secondWindow": true,
   "clearDefault": true,
-  "restart": true
+  "restart": true,
+  "verifiedDisplayName": "教授 🐻",
+  "nameCodePoints": ["U+6559", "U+6388", "U+20", "U+1F43B"]
 }

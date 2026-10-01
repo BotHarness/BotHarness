@@ -9,7 +9,7 @@ This scene uses an isolated DSH Profile on port 31990 with the local BotHarness 
 - An independent browser window updates through the existing roster stream.
 - Inbox reply context works in light and dark themes; the 900px layout has no horizontal overflow.
 - Raw message bodies, stored mention spans, Channel revision and personal attention snapshots are unchanged by rename.
-- Cold Host restart (new process 29524) retains the name and original message/revision.
+- Cold Host restart (a new verified process) retains the name and original message/revision.
 
 ## Screenshots
 
@@ -28,5 +28,7 @@ This scene uses an isolated DSH Profile on port 31990 with the local BotHarness 
 3. Open the “Roleplay names QA” Channel whose Bot is “教授 🐻”. The older Human/Bot mention chips resolve the new names; plain body text still says `@Human`.
 4. Open Inbox → Mentions and replies, choose that Bot, click Reply and expand nearby messages. Check both author names and typed mention targets.
 5. Use Restore default; Human names return to Human. Reapply a name and compare another window.
+
+The verified emoji is U+1F43B (BEAR FACE); its glyph is rendered by the platform font. Exact saved text and code points are recorded in results.json. This evidence was recaptured after integrating main, with Human names at schema generation 41 following main usage retention generation 40.
 
 The resumable verifier is `scripts/e2e-human-names.mjs`; `check` exercises the real scene and `restart` checks the persisted scene after a cold restart. Private authentication URLs and local logs are excluded from these artifacts.
