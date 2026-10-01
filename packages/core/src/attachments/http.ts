@@ -1,3 +1,5 @@
+import { MessagingError } from '../messaging/provider.js';
+import type { ChannelAttachmentRef } from './ref.js';
 import { createMessageAttachmentFiles } from './message-files.js';
 import type { ChannelStore } from '../channels/store.js';
 import { ChannelAttachmentError, safeAttachmentName, type AttachmentStore } from './store.js';
@@ -26,6 +28,11 @@ function filenameDisposition(name: string, inline: boolean): string {
 }
 
 function errorResponse(error: unknown): Response {
+  if (error instanceof MessagingError)
+    return Response.json(
+      { error: { code: 'source-unavailable', message: 'Attachment source is unavailable' } },
+      { status: 403, headers: { 'cache-control': 'no-store' } },
+    );
   if (error instanceof ChannelAttachmentError) {
     const status = error.code === 'too-large' ? 413 : error.code === 'not-found' ? 404 : 400;
     return Response.json(
@@ -42,6 +49,12 @@ function errorResponse(error: unknown): Response {
 export function createAttachmentHttp(
   store: AttachmentStore,
   channels?: ChannelStore,
+  externalFile?: (input: {
+    slug: string;
+    sourceEventId: string;
+    attachmentId: string;
+    signal: AbortSignal;
+  }) => Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>,
 ): (request: Request) => Promise<Response> {
   return async (request) => {
     const url = new URL(request.url);
@@ -69,6 +82,40 @@ export function createAttachmentHttp(
             headers: { 'cache-control': 'no-store' },
           },
         );
+      } catch (error) {
+        return errorResponse(error);
+      }
+    }
+    if (request.method === 'GET' && url.searchParams.has('sourceEventId')) {
+      const slug = url.searchParams.get('slug');
+      const sourceEventId = url.searchParams.get('sourceEventId');
+      const attachmentId = url.searchParams.get('attachmentId');
+      if (
+        !slug ||
+        !sourceEventId ||
+        !attachmentId ||
+        externalFile === undefined ||
+        [...url.searchParams.keys()].some(
+          (key) => !['slug', 'sourceEventId', 'attachmentId'].includes(key),
+        )
+      )
+        return new Response('External attachment source is required', { status: 400 });
+      try {
+        const { ref, body } = await externalFile({
+          slug,
+          sourceEventId,
+          attachmentId,
+          signal: request.signal,
+        });
+        return new Response(body, {
+          headers: {
+            'content-type': ref.mime,
+            'content-length': String(ref.size),
+            'content-disposition': filenameDisposition(ref.name, false),
+            'x-content-type-options': 'nosniff',
+            'cache-control': 'no-store',
+          },
+        });
       } catch (error) {
         return errorResponse(error);
       }

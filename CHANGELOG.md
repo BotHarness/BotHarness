@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- A PersonaBot can process a ZIP received through an authorized Lark file reply, save an independent working copy, and explicitly return a newly selected file in the same topic; Bot Inbox exposes an on-demand original download through the qualified temporary provider ([#657](https://github.com/BotHarness/BotHarness/issues/657), [file guide](docs/file-open.md), [ADR-0107](docs/adr/0107-external-files-use-trusted-source-capabilities-and-existing-owner.md)).
+
 - Human Inbox adds filterable Handled history for answered questions, tool decisions, Workspace Grant replies and Assignment responses, with exact request/answer navigation; live actions stay oldest-first and refresh from canonical facts across windows and restart ([#553](https://github.com/BotHarness/BotHarness/issues/553)).
 
 - Humans can authorize a Workspace Grant request or answer a waiting/blocked Assignment inside Human Inbox with source context and exact Session navigation; committed replies use the Bot DM authority and refresh canonical action state ([#552](https://github.com/BotHarness/BotHarness/issues/552)).

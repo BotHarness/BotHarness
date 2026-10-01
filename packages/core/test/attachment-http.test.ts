@@ -3,11 +3,12 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CHANNEL_ATTACHMENT_PATH, createAttachmentHttp } from '../src/attachments/http.js';
 import { createAttachmentStore } from '../src/attachments/store.js';
 import type { ChannelAttachmentRef } from '../src/attachments/ref.js';
+import { MessagingError } from '../src/messaging/provider.js';
 
 const roots: string[] = [];
 function setup(maxBytes = 1024) {
@@ -116,5 +117,52 @@ describe('exact attachment Fetch route', () => {
     expect((await handle(new Request(url('?hash=bad')))).status).toBe(400);
     expect((await handle(new Request(url()))).status).toBe(400);
     expect((await handle(new Request(url(), { method: 'DELETE' }))).status).toBe(405);
+  });
+});
+
+it('downloads a trusted external source through its callback and rejects mixed selectors before acquiring bytes', async () => {
+  const rootDir = mkdtempSync(join(tmpdir(), 'botharness-external-http-'));
+  roots.push(rootDir);
+  const store = createAttachmentStore({ rootDir });
+  const ref = await store.upload({
+    name: 'source.zip',
+    data: (async function* () {
+      yield Buffer.from('ZIP');
+    })(),
+  });
+  const load = vi.fn(async () => store.download(ref.fileId!));
+  const handle = createAttachmentHttp(store, undefined, load);
+  const query = '?slug=ada&sourceEventId=source&attachmentId=attachment';
+  const request = new Request(url(query));
+  const response = await handle(request);
+  expect(load).toHaveBeenCalledWith({
+    slug: 'ada',
+    sourceEventId: 'source',
+    attachmentId: 'attachment',
+    signal: request.signal,
+  });
+  expect(response.status).toBe(200);
+  expect(response.headers.get('content-disposition')).toMatch(/^attachment;/u);
+  expect(response.headers.get('cache-control')).toBe('no-store');
+  expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+  expect(await response.text()).toBe('ZIP');
+  expect((await handle(new Request(url(query + '&fileId=' + ref.fileId!)))).status).toBe(400);
+  expect((await handle(new Request(url('?slug=ada&sourceEventId=source')))).status).toBe(400);
+  expect(load).toHaveBeenCalledTimes(1);
+});
+
+it('refuses an unavailable external source without returning its provider error or bytes', async () => {
+  const rootDir = mkdtempSync(join(tmpdir(), 'botharness-external-http-'));
+  roots.push(rootDir);
+  const handle = createAttachmentHttp(createAttachmentStore({ rootDir }), undefined, async () => {
+    throw new MessagingError('sensitive-provider-detail');
+  });
+  const response = await handle(
+    new Request(url('?slug=ada&sourceEventId=source&attachmentId=attachment')),
+  );
+  expect(response.status).toBe(403);
+  expect(response.headers.get('cache-control')).toBe('no-store');
+  expect(await response.json()).toEqual({
+    error: { code: 'source-unavailable', message: 'Attachment source is unavailable' },
   });
 });

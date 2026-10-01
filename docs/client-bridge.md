@@ -135,13 +135,13 @@ corepack pnpm dev:client
 node scripts/dev-instance.mjs --home /tmp/bh-im-qa --port 31968 --im-provider --json
 ```
 
-仅对已停止的隔离 Profile 执行；重启同一 Profile 时仍传入 `--im-provider`，以重复校验。启动器使用 Git 完整提交 `19d88f14bf85d74d4abf035a0c749d0b4a640257` 与 DSH `0.2.0-rc.1`，校验 Bundle、入口及运行时代码 digest 后才启动 Host；不依赖另一份 provider 本地源码。安装摘要明确标注 `upstreamReleased: false`。默认启动不安装它，原 npm `4.32.0` 仍不满足账号校验和条件发送契约。此入口不会发布包，也不是生产启用许可（[ADR-0104](adr/0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md)）。
+仅对已停止的隔离 Profile 执行；重启同一 Profile 时仍传入 `--im-provider`，以重复校验。启动器使用 Git 完整提交 `3784a5cb2e5a2aec6eb3a89c9eccf5426b9fb103` 与 DSH `0.2.0-rc.1`，校验 Bundle、入口及运行时代码 digest 后才启动 Host；不依赖另一份 provider 本地源码。安装摘要明确标注 `upstreamReleased: false`。默认启动不安装它，原 npm `4.32.0` 仍不满足账号校验和条件发送契约。此入口不会发布包，也不是生产启用许可（[ADR-0104](adr/0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md)）。
 
 在 dsh-im 原设置中配置测试应用，并保存、测试仅含测试者与 Bot 的目标群；凭据交由 DSH credentials service，不复制到 BotHarness。打开 PersonaBot Profile → IM connection，选择已认证账号与已测试目标，显式授权后发送一条唯一测试文本。预期 Recent sends 显示 Platform accepted，并在目标群核对同一文本；这不代表送达或已读。停止本次启动摘要中的确切 PID，再以相同参数启动：绑定与发送历史应保留，不自动重发。
 
 一个测试应用只保留一个连接 owner，先停止之前使用该应用的测试 Host。#12 的入站必须启用下述 Bot Inbox 群收件，不启用 dsh-im standalone Session 作为替代。若需撤回此可选安装，先停止该 Profile 的 Host，在它的 `package.json` 中移除 `@xmanrui/dsh-im` dependency 与 Bundle，然后不带此选项启动；不删除 Profile 数据，已发送消息仍留在平台。
 
-此 Provider 的入站契约仅支持 Lark `text` 消息。客户端使用代码样式、富文本或附件时可能生成 `post` 或其他类型，当前不会收件；验收时使用普通文本并从成员候选选择真实 @。格式化正文的规范化由后续 Provider 切片验证。
+此 Provider 的入站仍以 Lark `text` 消息为触发；#657 为回复一个文件消息的文本 @ 增加准确父文件元信息、按需下载与原话题新文件回复，见[文件指南](file-open.zh.md#在原话题处理-lark-zip)。客户端使用代码样式、富文本或附件时可能生成 `post` 或其他类型，当前不会收件；验收时使用普通文本并从成员候选选择真实 @。格式化正文的规范化由后续 Provider 切片验证。
 
 开启群文字 @ 收件后，在已授权群的既有话题里 @ 绑定身份，要求只回复一条唯一测试文本。预期 Bot Inbox 显示平台、群、发送人与接收身份；点击来源可读取完整保留正文；Bot 显式调用 `bridge_reply` 后，Recent sends 显示 Platform accepted，需在 Lark 核对原话题中的同一文本。普通无 @ 消息不进入 Inbox；首次回复不自动跟进话题；本地 Human DM 不镜像外部对话。关闭群收件或撤销绑定后旧来源仍可查看，但不能继续外部回复。此切片不自动将外部来源写入 Memory，也不提供远端历史读取。重启保持绑定和来源，不自动重发已接受或未知结果的回复（#12，ADR-0106）。
 

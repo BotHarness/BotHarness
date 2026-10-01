@@ -21,7 +21,7 @@ export interface AttachmentSaveInput {
 }
 
 export async function saveAttachmentFile(
-  input: AttachmentSaveInput,
+  input: Pick<AttachmentSaveInput, 'grantId' | 'destinationPath' | 'signal'>,
   deps: {
     botSlug: string;
     grants: WorkspaceGrantStore;

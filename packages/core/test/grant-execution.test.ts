@@ -82,6 +82,39 @@ describe('Workspace Grant execution boundary', () => {
     expect(requiresHumanToolApproval('bot_dm_send')).toBe(false);
   });
 
+  it('keeps checked external file operations internal while retaining Shell approval', () => {
+    const state = fixture();
+    const session = { id: 'botharness-orchestrator', header: { cwd: '/tmp/memory' } } as never;
+    for (const tool of ['bridge_attachment_save', 'bridge_reply_file']) {
+      expect(requiresHumanToolApproval(tool)).toBe(false);
+      expect(
+        grantToolExecutionDenial(state.core, session, state.policy, state.approval, tool, {}),
+      ).toBeUndefined();
+      expect(
+        grantToolExecutionDenial(state.core, session, state.policy, state.approval, tool, {
+          sandbox_permissions: 'require_escalated',
+        }),
+      ).toMatch(/cannot request sandbox permission escalation/);
+    }
+    expect(requiresHumanToolApproval('bash')).toBe(true);
+    expect(
+      grantToolExecutionDenial(state.core, session, state.policy, state.approval, 'bash', {
+        command: 'unzip source-orders.zip',
+      }),
+    ).toBe('BotHarness Session cannot run an unconfined native tool: bash');
+    expect(
+      grantToolExecutionDenial(
+        state.core,
+        session,
+        state.policy,
+        state.approval,
+        'bash',
+        { command: 'unzip source-orders.zip' },
+        true,
+      ),
+    ).toBeUndefined();
+  });
+
   it('requires approval for original editing while allowing exact read acquisition', () => {
     const state = fixture();
     const session = { id: 'botharness-orchestrator', header: { cwd: '/tmp/memory' } } as never;

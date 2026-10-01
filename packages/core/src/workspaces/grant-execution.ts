@@ -94,6 +94,8 @@ const BOT_TOOL_NAMES = new Set([
   'channel_read',
   'bridge_read',
   'bridge_reply',
+  'bridge_attachment_save',
+  'bridge_reply_file',
   'inbox_ignore',
   'channel_read_image',
   'channel_attachment_save',
