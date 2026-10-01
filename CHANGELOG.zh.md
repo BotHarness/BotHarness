@@ -123,6 +123,8 @@
 
 ### Changed
 
+- Browser Profile 改为可搜索的 combobox：选择已有名称或明确创建新名称；错误使用 destructive 主题颜色，Browser view 移除多余说明与重复页标题（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。
+
 - `channel_send` 现在用 JSON 确认已提交的 Channel 与消息 ID，明确复制读取到的完整可信附件引用进行转发，并公开既有的 10 个附件／20 个提及上限及安全整数字节大小（[#570](https://github.com/BotHarness/BotHarness/issues/570)）。
 
 - 联系人发现现在可搜索名称及完整简介，返回有界续页和按需详情，保留稳定同事 ID 以发送真实 Bot 私信及进行群协作（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
@@ -211,6 +213,7 @@
 
 - Human 点击 Resume 后，Browser 页面操作必须先完成一次新的观察；Pause 期间或 Pause/Resume 切换前的读取不能让 Bot 继续操作 Human 已修改的内容（[#600](https://github.com/BotHarness/BotHarness/issues/600)）。
 - 被拒绝的 Browser 工具尝试现在也会生成一条带 Bot、Session 与角色归属的 Browser Audit 错误记录，覆盖授权、Access、Pause 与 Resume 后重新观察检查；输入文本和上传路径仍使用既有脱敏摘要（[#604](https://github.com/BotHarness/BotHarness/issues/604)）。
+- Browser Profile 的保留名 `.` 和 `..` 会在保存或重置工作前被拒绝，保留当前标签与 Pause 状态；已存无效名称仍沿用 runtime 的默认 profile 回退（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。
 
 - 修改 PersonaBot 的 Browser Profile 后，会清空旧标签页选择与 Pause 状态，让 Bot 可以在新分配的 profile 中开始工作，不必恢复旧 profile 的操作（[#595](https://github.com/BotHarness/BotHarness/issues/595)）。
 

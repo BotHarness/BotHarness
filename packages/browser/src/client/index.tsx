@@ -1,15 +1,16 @@
 import {
+  useId,
   useState,
   useSyncExternalStore,
-  type ChangeEvent,
   type ComponentType,
-  type KeyboardEvent,
   type ReactElement,
 } from 'react';
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
 import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
+import { ProfileCombobox } from './profile-combobox.js';
+import { styles } from './styles.js';
 
 const ENTRY_ID = 'botharness-browser';
 const OBSERVATION_ENDPOINT = '/api/browser/observation';
@@ -79,6 +80,7 @@ interface BrowserObservation {
   readonly focused: string | null;
   readonly takeover: boolean;
   readonly tabs: readonly BrowserTabView[];
+  readonly profiles?: readonly string[];
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -95,7 +97,9 @@ interface ReadableStore<T> {
   getSnapshot(): T;
 }
 
-function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoView> {
+function createBotInfoStore(
+  botSlug: string | undefined,
+): ReadableStore<BotInfoView> & { refresh(): void } {
   let info: BotInfoView = {
     displayName: undefined,
     browserAccess: undefined,
@@ -157,6 +161,7 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
       };
     },
     getSnapshot: () => info,
+    refresh: load,
   };
 }
 
@@ -305,18 +310,19 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const [follow, setFollow] = useState(true);
   const [preview, setPreview] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState<string | undefined>(undefined);
+  const errorId = useId();
+  const [profileInvalid, setProfileInvalid] = useState(false);
   const [profileOverride, setProfileOverride] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
 
   const tabs = observation?.tabs ?? [];
   const focused = observation?.focused ?? null;
-  const focusedTab = tabs.find((tab) => tab.targetId === focused);
   const paused = observation?.takeover === true;
 
   const invoke = (endpoint: string, body: Record<string, unknown> = {}): void => {
     if (busy || botSlug === undefined) return;
     setBusy(true);
+    setProfileInvalid(false);
     setError(undefined);
     void requestJson<{ ok: boolean }>(endpoint, {
       method: 'POST',
@@ -352,18 +358,24 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
 
   const currentProfile = profileOverride ?? info.browserProfile ?? '';
 
-  const saveProfile = (): void => {
+  const saveProfile = (name: string): void => {
     const rpc = connectionRpc;
-    if (rpc === undefined || botSlug === undefined || draft === undefined) return;
-    const trimmed = draft.trim();
+    if (rpc === undefined || botSlug === undefined || busy) return;
+    const trimmed = name.trim();
     const next = trimmed === 'default' ? '' : trimmed;
-    setDraft(undefined);
-    if (next === currentProfile) return;
+    if (next === currentProfile) {
+      setProfileInvalid(false);
+      setError(undefined);
+      return;
+    }
+    setBusy(true);
+    setProfileInvalid(false);
     setError(undefined);
     void rpc
       .call('/api', 'botharness/browserProfileSet', { args: { slug: botSlug, profile: next } })
       .then((result) => {
         if (!result.ok) {
+          setProfileInvalid(true);
           setError(result.error?.message ?? t('entry.profile.failed'));
           return;
         }
@@ -371,47 +383,33 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         setProfileOverride(
           typeof value.bot?.browserProfile === 'string' ? value.bot.browserProfile : '',
         );
+        setPreview(undefined);
+        store.setTab(undefined);
+        infoStore.refresh();
       })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
-  };
-
-  const onProfileChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    setDraft(event.target.value);
-  };
-
-  const onProfileKey = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === 'Enter') saveProfile();
+      .catch((cause: unknown) => {
+        setProfileInvalid(true);
+        setError(cause instanceof Error ? cause.message : String(cause));
+      })
+      .finally(() => {
+        setBusy(false);
+        store.refresh();
+      });
   };
 
   return (
-    <div style={{ display: 'grid', gap: 8, fontSize: 12.5 }}>
+    <div className="bh-browser-body" style={{ display: 'grid', gap: 8, fontSize: 12.5 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ opacity: 0.8 }}>{t('entry.profile.label')}</span>
-        <input
-          value={draft ?? currentProfile}
-          placeholder={t('entry.profile.default')}
-          list={`browser-profiles-${botSlug ?? ''}`}
-          disabled={botSlug === undefined}
-          onChange={onProfileChange}
-          onBlur={saveProfile}
-          onKeyDown={onProfileKey}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            padding: '2px 6px',
-            borderRadius: 4,
-            border: '1px solid currentColor',
-            background: 'transparent',
-            color: 'inherit',
-            fontSize: 12,
-          }}
+        <ProfileCombobox
+          value={currentProfile}
+          profiles={[...info.profiles, ...(observation?.profiles ?? [])]}
+          disabled={busy || botSlug === undefined}
+          invalid={profileInvalid}
+          errorId={errorId}
+          onSelect={saveProfile}
+          t={t}
         />
-        <datalist id={`browser-profiles-${botSlug ?? ''}`}>
-          <option value="default" />
-          {info.profiles.map((name) => (
-            <option key={name} value={name} />
-          ))}
-        </datalist>
       </div>
       <div
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
@@ -424,12 +422,6 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           disabled={botSlug === undefined}
         />
       </div>
-      <div style={{ opacity: 0.8 }}>{t('entry.view.pauseHint')}</div>
-      {paused ? (
-        <div role="status" style={{ opacity: 0.8 }}>
-          {t('entry.view.paused')}
-        </div>
-      ) : null}
       {observation?.frame === null || observation?.frame === undefined ? (
         <div style={{ opacity: 0.6 }}>{t('entry.view.noFrame')}</div>
       ) : (
@@ -438,11 +430,6 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           alt={t('entry.label')}
           style={{ width: '100%', borderRadius: 6, border: '1px solid currentColor' }}
         />
-      )}
-      {focusedTab === undefined ? null : (
-        <div style={{ opacity: 0.7, wordBreak: 'break-all' }}>
-          {focusedTab.title === '' ? focusedTab.url : focusedTab.title}
-        </div>
       )}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" style={buttonStyle} disabled={busy} onClick={onPause}>
@@ -490,7 +477,11 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           ))}
         </div>
       )}
-      {error !== undefined ? <div>{error}</div> : null}
+      {error !== undefined ? (
+        <div id={errorId} role="alert" className="bh-browser-error">
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -509,6 +500,12 @@ function createBrowserHeader(t: BrowserTranslate): ComponentType<ChannelSidebarE
 
 export function apply(ctx: BrowserClientContext): void {
   const t = ctx.locale.bind(LOCALE_NS);
+  ctx.effect(() => {
+    const sheet = document.createElement('style');
+    sheet.textContent = styles;
+    document.head.append(sheet);
+    return () => sheet.remove();
+  }, 'botharness-browser: styles');
   ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'botharness-browser: dictionaries');
   ctx.inject(['channelSidebar', 'connection'], (sidebarCtx) => {
     const registry = (sidebarCtx as unknown as { channelSidebar?: ChannelSidebarRegistryLike })
