@@ -133,7 +133,9 @@ describe('DM turn end to end', () => {
     await admitTurn(core, dm.id, 'live-processing', '请核对发布状态');
     const states: string[] = [];
     while (!states.includes('handled')) {
-      const frame = new TextDecoder().decode((await reader.read()).value);
+      const next = await reader.read();
+      if (next.done) break;
+      const frame = new TextDecoder().decode(next.value);
       if (!frame.includes('event: channel/admission')) continue;
       const data = frame.split('data: ')[1]?.trim();
       if (data === undefined) continue;
@@ -143,6 +145,7 @@ describe('DM turn end to end', () => {
     }
     await reader.cancel();
     expect(states).toContain('running');
+    expect(states).toContain('handled');
     expect(states.indexOf('running')).toBeLessThan(states.indexOf('handled'));
   });
 
