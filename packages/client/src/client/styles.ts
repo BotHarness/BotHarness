@@ -3390,6 +3390,15 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   font-size: 12px;
   line-height: 18px;
 }
+.bh-external-source-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-block: 8px;
+}
+.bh-external-source-file > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.bh-external-source-file > button { flex-shrink: 0; }
 .bh-external-source-body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

@@ -1,0 +1,12 @@
+{
+  "mode": "--baseline",
+  "findings": {
+    "chooser": "Wrong last field receives attachment",
+    "direct": "Wrong last field receives attachment",
+    "audit": "Missing-file error leaks full Host path"
+  },
+  "missingFileReadable": true,
+  "noInputReadable": true,
+  "auditCount": 4,
+  "retainedBrowser": true
+}

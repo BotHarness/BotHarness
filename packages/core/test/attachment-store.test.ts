@@ -11,7 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ChannelAttachmentError,
@@ -34,6 +34,37 @@ async function* chunks(...values: Uint8Array[]): AsyncIterable<Uint8Array> {
 }
 
 describe('profile attachment storage', () => {
+  it('lets an independent waiter retry after a concurrent acquisition fails', async () => {
+    const store = createAttachmentStore({ rootDir: root() });
+    const uploadId = '01234567-0123-4123-8123-0123456789ab';
+    let fail = (_error: Error): void => {};
+    const first = store.acquire({
+      uploadId,
+      name: 'source.zip',
+      signal: new AbortController().signal,
+      load: () =>
+        new Promise((_, reject) => {
+          fail = reject;
+        }),
+    });
+    const firstFailure = expect(first).rejects.toThrow('first transfer cancelled');
+    const load = vi.fn(async () => chunks(Buffer.from('second transfer')));
+    const second = store.acquire({
+      uploadId,
+      name: 'source.zip',
+      signal: new AbortController().signal,
+      load,
+    });
+    const secondSuccess = expect(second).resolves.toMatchObject({ fileId: 'file:' + uploadId });
+    fail(new Error('first transfer cancelled'));
+    await firstFailure;
+    await secondSuccess;
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(await new Response((await store.download('file:' + uploadId)).body).text()).toBe(
+      'second transfer',
+    );
+  });
+
   it('keeps legacy objects readable and still verifies their bytes', async () => {
     const home = root();
     const store = createAttachmentStore({ rootDir: home });

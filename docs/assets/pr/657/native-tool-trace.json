@@ -1,0 +1,44 @@
+[
+  {
+    "tool": "bridge_read",
+    "callSequence": 150,
+    "resultSequence": 151,
+    "resultIsError": false
+  },
+  {
+    "tool": "list_workspace_grants",
+    "callSequence": 152,
+    "resultSequence": 153,
+    "resultIsError": false
+  },
+  {
+    "tool": "bridge_attachment_save",
+    "callSequence": 158,
+    "resultSequence": 159,
+    "resultIsError": false
+  },
+  {
+    "tool": "write",
+    "callSequence": 164,
+    "resultSequence": 165,
+    "resultIsError": false
+  },
+  {
+    "tool": "bash",
+    "callSequence": 170,
+    "resultSequence": 173,
+    "resultIsError": false
+  },
+  {
+    "tool": "channel_attachment_import",
+    "callSequence": 178,
+    "resultSequence": 179,
+    "resultIsError": false
+  },
+  {
+    "tool": "bridge_reply_file",
+    "callSequence": 184,
+    "resultSequence": 185,
+    "resultIsError": false
+  }
+]

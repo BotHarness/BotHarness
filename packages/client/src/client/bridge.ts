@@ -2784,6 +2784,12 @@ export async function readMessagingSource(
     ) ||
     !Array.isArray(event['mentions']) ||
     !event['mentions'].every((mention) => strings(asRecord(mention), ['id', 'key'])) ||
+    (event['attachments'] !== undefined &&
+      (!Array.isArray(event['attachments']) ||
+        event['attachments'].length > 1 ||
+        !event['attachments'].every((file) =>
+          strings(asRecord(file), ['id', 'messageId', 'resourceKey', 'name']),
+        ))) ||
     replay?.['kind'] !== 'provider-redelivery' ||
     replay['resumeCursor'] !== false ||
     replay['gapPossible'] !== true

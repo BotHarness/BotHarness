@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Activity Center opens a cross-Bot Overview with the canonical Human action count, current Bot status and executing Orchestrator/Assignment Sessions; Bot cards open DMs and Session rows switch to the exact native DSH Session ([#541](https://github.com/BotHarness/BotHarness/issues/541)).
 
+- A PersonaBot can process a ZIP received through an authorized Lark file reply, save an independent working copy, and explicitly return a newly selected file in the same topic; Bot Inbox exposes an on-demand original download through the qualified temporary provider ([#657](https://github.com/BotHarness/BotHarness/issues/657), [file guide](docs/file-open.md), [ADR-0107](docs/adr/0107-external-files-use-trusted-source-capabilities-and-existing-owner.md)).
+
 - Human Inbox adds filterable Handled history for answered questions, tool decisions, Workspace Grant replies and Assignment responses, with exact request/answer navigation; live actions stay oldest-first and refresh from canonical facts across windows and restart ([#553](https://github.com/BotHarness/BotHarness/issues/553)).
 
 - Humans can authorize a Workspace Grant request or answer a waiting/blocked Assignment inside Human Inbox with source context and exact Session navigation; committed replies use the Bot DM authority and refresh canonical action state ([#552](https://github.com/BotHarness/BotHarness/issues/552)).
@@ -233,6 +235,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Browser file uploads select the input that opened the picker, or the first input when ref is omitted; upload audits include basename and size and redact Host paths in failures ([#491](https://github.com/BotHarness/BotHarness/issues/491)).
+
+- PersonaBot Orchestrators can set and restore Human DM, Bot DM and Group mention delivery through the existing attention tools; changes keep immediate admission and carry Bot-authored revisions visible in Profile ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 
 - Fixed concurrent first use by several PersonaBots sharing a Browser profile: they now wait for one Chrome startup, and a failed startup permits a fresh retry ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
 
