@@ -1,0 +1,18 @@
+{
+  "initialAccessOff": true,
+  "headerWriteReachedHost": true,
+  "disableWriteReachedHost": true,
+  "isolatedRuntimeReady": true,
+  "isolatedRuntimeStopped": true,
+  "desktopFrames": "unverified: viewer remained connecting",
+  "ui": {
+    "offHeaderLocked": true,
+    "enableExpands": true,
+    "collapsedSwitchVisible": true,
+    "authorizeAndCancel": true,
+    "disableCollapses": true,
+    "reloadKeepsOff": true,
+    "lightAndDark": true,
+    "runningBodyMounted": true
+  }
+}
