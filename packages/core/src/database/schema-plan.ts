@@ -1146,6 +1146,18 @@ const USAGE_RETENTION_MIGRATION: SchemaMigration = {
   },
 };
 
+const LOCAL_HUMAN_NAME_MIGRATION: SchemaMigration = {
+  generation: 41,
+  module: 'messaging',
+  description: 'Retain one optional local Human default name without changing membership',
+  migrate(database) {
+    database.exec(`CREATE TABLE local_human_names (
+      human_id TEXT PRIMARY KEY,
+      default_display_name TEXT
+    );`);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1186,4 +1198,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   MESSAGING_OUTBOUND_MIGRATION,
   ATTACHMENT_FILE_BINDING_MIGRATION,
   USAGE_RETENTION_MIGRATION,
+  LOCAL_HUMAN_NAME_MIGRATION,
 ]);

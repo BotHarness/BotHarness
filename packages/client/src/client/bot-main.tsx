@@ -30,6 +30,8 @@ import {
 } from './channel-composer.js';
 import type { SelectedMention } from './mentions.js';
 import type { SelectedChannelRef } from './channel-refs.js';
+import { channelHumanName } from './actor-names.js';
+import type { ChannelHumanMember } from './store.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
 import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
 import { MessageCopyAction } from './message-copy-action.js';
@@ -99,10 +101,11 @@ function authorLabel(
   message: ChannelMessage,
   bots: readonly BotSummary[],
   t: BotHarnessTranslate,
+  humanName = 'Human',
 ): string {
   switch (message.author.kind) {
     case 'human':
-      return t('main.author.human');
+      return humanName;
     case 'system':
       return t('main.author.system');
     case 'bot':
@@ -140,6 +143,7 @@ interface MessageMenuRequest {
 }
 
 function ReplyQuote({
+  humanName,
   message,
   bots,
   onJump,
@@ -147,6 +151,7 @@ function ReplyQuote({
 }: {
   message: ChannelMessage;
   bots: readonly BotSummary[];
+  humanName: string;
   onJump(messageId: string): void;
   t: BotHarnessTranslate;
 }): ReactElement | null {
@@ -166,11 +171,11 @@ function ReplyQuote({
       className="bh-bubble-reply"
       onClick={() => onJump(targetId)}
       aria-label={t('message.replyJump', {
-        author: authorLabel({ ...message, author: preview.author }, bots, t),
+        author: authorLabel({ ...message, author: preview.author }, bots, t, humanName),
       })}
     >
       <span className="bh-bubble-reply-author">
-        {authorLabel({ ...message, author: preview.author }, bots, t)}
+        {authorLabel({ ...message, author: preview.author }, bots, t, humanName)}
       </span>
       <span className="bh-bubble-reply-body">{preview.body}</span>
     </button>
@@ -192,6 +197,7 @@ function ReplyIcon(): ReactElement {
 }
 
 function MessageGroupView({
+  humanMembers = [],
   group,
   channelId,
   bots,
@@ -208,6 +214,7 @@ function MessageGroupView({
   nativeChatT,
   t,
 }: {
+  humanMembers?: readonly ChannelHumanMember[];
   group: MessageGroup;
   channelId?: string | undefined;
   focusMessageId?: string | undefined;
@@ -227,6 +234,7 @@ function MessageGroupView({
   t: BotHarnessTranslate;
   nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
+  const humanName = channelHumanName({ humanMembers: [...humanMembers] });
   const first = group.messages[0]!;
   const author = first.author;
   const human = author.kind === 'human';
@@ -261,7 +269,7 @@ function MessageGroupView({
         </button>
       )}
       <div className="bh-message-stack">
-        <div className="bh-bubble-author">{authorLabel(first, bots, t)}</div>
+        <div className="bh-bubble-author">{authorLabel(first, bots, t, humanName)}</div>
         {group.messages.map((message, index) => {
           const position =
             group.messages.length === 1
@@ -299,7 +307,13 @@ function MessageGroupView({
                   className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}${message.failed === undefined ? '' : ' bh-bubble-failed'}`}
                   data-group-position={position}
                 >
-                  <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
+                  <ReplyQuote
+                    humanName={humanName}
+                    message={message}
+                    bots={bots}
+                    onJump={onJumpReply}
+                    t={t}
+                  />
                   <ChannelMessageBody
                     message={message}
                     channelId={channelId}
@@ -307,12 +321,18 @@ function MessageGroupView({
                     nativeChatT={nativeChatT}
                     actions={actions}
                     bots={bots}
+                    humanMembers={humanMembers}
                     grantRequestResolved={resolvedGrantRequests.has(message.id)}
                     toolApprovalDecision={toolApprovalDecisions.get(message.id)}
                     userQuestionResolution={userQuestionResolutions.get(message.id)}
                   />
                 </div>
-                <ChannelDeliveryReceipt message={message} bots={bots} t={t} />
+                <ChannelDeliveryReceipt
+                  message={message}
+                  bots={bots}
+                  humanMembers={humanMembers}
+                  t={t}
+                />
               </div>
               <div
                 className={`bh-bubble-meta${message.pending === true || message.streaming === true || message.failed !== undefined ? ' bh-bubble-meta-persistent' : ''}`}
@@ -1206,10 +1226,16 @@ function ConversationView({
                               { name: first.memberDeparture.displayName },
                             )}
                           </span>
-                          <ChannelDeliveryReceipt message={first} bots={state.bots} t={t} />
+                          <ChannelDeliveryReceipt
+                            message={first}
+                            bots={state.bots}
+                            humanMembers={channel?.humanMembers ?? []}
+                            t={t}
+                          />
                         </div>
                       ) : first.botDmAction === undefined ? (
                         <MessageGroupView
+                          humanMembers={channel?.humanMembers ?? []}
                           group={group}
                           channelId={channelId}
                           actions={actions}
@@ -1293,7 +1319,7 @@ function ConversationView({
                           }}
                         >
                           {t('botDm.action', {
-                            sender: authorLabel(first, state.bots, t),
+                            sender: authorLabel(first, state.bots, t, channelHumanName(channel)),
                             recipient: memberName(state.bots, first.botDmAction.recipientBotSlug),
                           })}
                         </button>
@@ -1380,7 +1406,12 @@ function ConversationView({
                         ? undefined
                         : {
                             id: replyTarget.id,
-                            author: authorLabel(replyTarget, state.bots, t),
+                            author: authorLabel(
+                              replyTarget,
+                              state.bots,
+                              t,
+                              channelHumanName(channel),
+                            ),
                             body: replyTarget.body,
                           }
                     }

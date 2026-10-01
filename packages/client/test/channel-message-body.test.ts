@@ -183,7 +183,8 @@ describe('Channel message body', () => {
         actions: { openBot: vi.fn() } as unknown as BridgeActions,
       }),
     );
-    expect(markup).toContain('data-human-id="local-human">@Human</span>');
+    expect(markup).toContain('data-human-id="local-human"');
+    expect(markup).toContain('@Human</span>');
     expect(markup).not.toContain('data-bot-id="local-human"');
     expect(vi.mocked(MarkdownText).mock.calls[0]?.[0]).toMatchObject({
       text: '**please confirm**',
@@ -426,4 +427,44 @@ describe('Tool approval card', () => {
       container.remove();
     }
   });
+});
+
+it('renders current names for historical typed IDs without changing plain text or saved offsets', () => {
+  const message: ChannelMessage = {
+    id: 'history',
+    at: '2026-10-01T00:00:00Z',
+    author: { kind: 'bot', slug: 'ada' },
+    format: 'text',
+    body: '@Ada @Human / plain @Ada @Human',
+    mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+    humanMentions: [{ humanId: 'local-human', label: 'Human', start: 5, end: 11 }],
+  };
+  const original = JSON.stringify(message);
+  const html = renderToStaticMarkup(
+    createElement(ChannelMessageBody, {
+      message,
+      t: zhTranslate,
+      bots: [
+        {
+          slug: 'ada',
+          displayName: '教授 🐻',
+          roles: [],
+          aggregateState: 'idle',
+          workspaces: [],
+          createdAt: '',
+        },
+      ],
+      humanMembers: [{ humanId: 'local-human', displayName: '教授 🐻' }],
+    }),
+  );
+  expect(html).toContain('data-human-id="local-human"');
+  expect(html).toContain('@教授 🐻');
+  expect(html).toContain('data-bot-id="ada"');
+  expect(html).toContain('plain @Ada @Human');
+  expect(JSON.stringify(message)).toBe(original);
+  const fallback = renderToStaticMarkup(
+    createElement(ChannelMessageBody, { message, t: zhTranslate }),
+  );
+  expect(fallback).toContain('@Human');
+  expect(fallback).toContain('Ada');
 });

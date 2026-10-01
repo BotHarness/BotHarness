@@ -191,6 +191,7 @@ export type AssignmentRequestDelivery =
   | { delivery: 'followup'; done: Promise<void> };
 
 export interface ChannelMessageView {
+  actorNames?: { humans: Record<string, string>; bots: Record<string, string> };
   channelId: string;
   channelName: string;
   message: ChannelMessage;
@@ -427,10 +428,10 @@ interface DigestRow {
   author_slug: string | null;
 }
 
-function groupMessageAuthor(row: DigestRow): string {
+function groupMessageAuthor(row: DigestRow, humanName = 'Human'): string {
   if (row.author_kind === 'bot') return `PersonaBot ${row.author_slug ?? 'unknown'}`;
   if (row.author_kind === 'system') return 'Channel system';
-  return 'Human';
+  return humanName;
 }
 
 interface GroupContext {
@@ -1777,12 +1778,13 @@ class BotRuntimeImplementation implements BotRuntime {
 
   #groupContextSection(context: GroupContext): string {
     const channel = this.#channels.get(context.channelId);
+    const humanName = this.#channels.listHumanMembers(context.channelId)[0]?.displayName;
     return [
       '[Bot Inbox: pending Group context]',
       `Channel: ${channel?.name ?? context.channelId} (${context.channelId})`,
       ...context.rows.map(
         (row) =>
-          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row)} at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${row.body.length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
+          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${row.body.length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
       ),
       context.omittedCount > 0
         ? `${context.omittedCount} earlier or intervening messages remain pending for later turns. Use channel_read if more history is needed.`
@@ -1794,13 +1796,14 @@ class BotRuntimeImplementation implements BotRuntime {
 
   #digestSection(channelId: string, rows: DigestRow[], omittedCount = 0): string {
     const channel = this.#channels.get(channelId);
+    const humanName = this.#channels.listHumanMembers(channelId)[0]?.displayName;
     return [
       '[Bot Inbox: Group digest]',
       `Channel: ${channel?.name ?? channelId} (${channelId})`,
       `${rows.length} ordinary messages are due. Review them and respond only if useful; no acknowledgment is required.`,
       ...rows.map(
         (row) =>
-          `- Message ${row.message_id} from ${groupMessageAuthor(row)} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
+          `- Message ${row.message_id} from ${groupMessageAuthor(row, humanName)} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
       ),
       ...(omittedCount > 0
         ? [
@@ -2185,7 +2188,15 @@ class BotRuntimeImplementation implements BotRuntime {
         sessionId: orchestrator.sessionId,
         resume: orchestrator.resume,
         bot,
-        message: body,
+        message: (() => {
+          const human = this.#channels.listHumanMembers(channelId)[0];
+          return human === undefined || human.displayName === 'Human'
+            ? body
+            : 'Current Channel Human: ' +
+                JSON.stringify({ humanId: human.humanId, displayName: human.displayName }) +
+                '\n' +
+                body;
+        })(),
         inbox,
         inboundChannelId: channelId,
         channels: this.#channelAccess(
@@ -2572,6 +2583,35 @@ class BotRuntimeImplementation implements BotRuntime {
   ): OrchestratorChannelAccess {
     const resolve = (requested?: string): ChannelRecord =>
       this.#requireMembership(botSlug, requested ?? defaultChannelId);
+    const humanNames = (channel: ChannelRecord): Record<string, string> =>
+      Object.fromEntries(
+        this.#channels
+          .listHumanMembers(channel.id)
+          .map((member) => [member.humanId, member.displayName]),
+      );
+    const viewOf = (
+      channel: ChannelRecord,
+      message: ChannelMessage,
+      humans = humanNames(channel),
+    ): ChannelMessageView => ({
+      channelId: channel.id,
+      channelName: channel.name,
+      message,
+      actorNames: {
+        humans,
+        bots: Object.fromEntries(
+          [
+            ...new Set([
+              ...(message.author.kind === 'bot' ? [message.author.slug] : []),
+              ...(message.mentions ?? []).map((mention) => mention.botSlug),
+            ]),
+          ].flatMap((slug) => {
+            const bot = this.#registry.get(slug);
+            return bot === undefined ? [] : [[slug, bot.displayName]];
+          }),
+        ),
+      },
+    });
     const contentProgress = new Map<string, number>();
     const queryPage = (input: ChannelQueryInput = {}): ChannelQueryPage => {
       if (input.scope !== undefined && input.scope !== 'channel' && input.scope !== 'joined') {
@@ -2580,11 +2620,8 @@ class BotRuntimeImplementation implements BotRuntime {
       if (input.scope !== 'joined') {
         const channel = resolve(input.channelId);
         const page = this.#channels.queryMessages(channel.id, input);
-        const messages = page.messages.map((message) => ({
-          channelId: channel.id,
-          channelName: channel.name,
-          message,
-        }));
+        const humans = humanNames(channel);
+        const messages = page.messages.map((message) => viewOf(channel, message, humans));
         return {
           messages,
           ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
@@ -2660,6 +2697,7 @@ class BotRuntimeImplementation implements BotRuntime {
         return { messages: [] };
       const found: ChannelMessageView[] = [];
       for (const channel of channels) {
+        const humans = humanNames(channel);
         let cursor: string | undefined;
         do {
           const page = this.#channels.queryMessages(channel.id, {
@@ -2673,7 +2711,7 @@ class BotRuntimeImplementation implements BotRuntime {
           for (const message of page.messages) {
             const key = { at: message.at, channelId: channel.id, messageId: message.id };
             if (after !== undefined && compare(key, after) <= 0) continue;
-            found.push({ channelId: channel.id, channelName: channel.name, message });
+            found.push(viewOf(channel, message, humans));
           }
           found.sort((left, right) =>
             compare(
@@ -3079,16 +3117,13 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       read: (input = {}) => {
         const channel = resolve(input.channelId);
+        const humans = humanNames(channel);
         const messages = this.#channels
           .readMessages(channel.id, {
             ...(input.before === undefined ? {} : { before: input.before }),
             ...(input.limit === undefined ? {} : { limit: input.limit }),
           })
-          .map((message) => ({
-            channelId: channel.id,
-            channelName: channel.name,
-            message,
-          }));
+          .map((message) => viewOf(channel, message, humans));
         this.#observeReadMessages(botSlug, messages, readAdmissions);
         return messages;
       },
@@ -3105,7 +3140,7 @@ class BotRuntimeImplementation implements BotRuntime {
           const channel = resolve(channelId);
           const message = this.#channels.message(channel.id, messageId);
           if (message === undefined) throw new Error('channel_read: message not found');
-          const view = { channelId: channel.id, channelName: channel.name, message };
+          const view = viewOf(channel, message);
           const chunk = readModelContent(view, contentCursor);
           const previous = contentProgress.get(chunk.hash) ?? 0;
           const progress = chunk.start <= previous ? Math.max(previous, chunk.end) : previous;

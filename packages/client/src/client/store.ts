@@ -17,7 +17,13 @@ export interface BotSummary {
   createdAt: string;
 }
 
+export interface ChannelHumanMember {
+  humanId: string;
+  displayName: string;
+}
+
 export interface ChannelSummary {
+  humanMembers?: ChannelHumanMember[];
   id: string;
   type: 'dm' | 'group';
   name: string;
