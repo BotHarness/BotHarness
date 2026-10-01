@@ -1073,6 +1073,7 @@ it('closes intake and old-source authority on Channel departure while retaining 
   await fx.idle();
   const id = fx.core.attention.list({ botSlug: 'ada' }).items[0]!.id;
   fx.core.channels.removeGroupMember(channelId, 'ada');
+  expect(fx.core.externalMessaging.inbound.status(fx.grant.id)).toBe('unavailable');
   expect(() => fx.core.externalMessaging.inbound.read('ada', id)).toThrow('channel-unavailable');
   expect(fx.core.externalMessaging.inbound.available('ada', id)).toBe(false);
   await expect(fx.core.externalMessaging.reply('ada', id, 'Too late')).rejects.toThrow(

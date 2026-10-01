@@ -549,6 +549,7 @@ export function createInboundMessaging(options: {
     status(id) {
       const value = grant(id);
       if (!value.receiveScope || value.revokedAt) return 'off';
+      if (!targetAvailable(value)) return 'unavailable';
       const lease = leases.get(id);
       if (valid(value)) return 'receiving';
       return lease && !lease.controller.signal.aborted ? 'connecting' : 'unavailable';
