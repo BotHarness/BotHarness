@@ -11,6 +11,8 @@ Messaging owns the synchronous transaction that saves one `bridge-message` Sourc
 
 The consumer resolves `{accepted:true}` only after commit. Its callback does not re-enter the provider's account transition. After acknowledgement, the existing Orchestrator harvest or steer path receives the admission, including the actual receiving identity and origin. A persisted receive grant retries transient account-registration unavailability at most three times after cold start, with the same registration token, revision and scope; replacement, revocation and close cancel recovery. Durable pending admissions resume only after the exclusive lease is available; obsolete grant revisions cannot wake the Bot. Bot consideration, reply and platform delivery remain separate facts. Successful consideration can finish without a reply.
 
+The qualified Provider currently normalizes only Lark `text`; formatted `post` bodies and attachments are excluded. Human UI verification uses a real member mention and plain text. Rich-text normalization needs its own qualified Provider slice, rather than silently treating unsupported content as an admitted message.
+
 ## Explicit replies
 
 Orchestrator-only `bridge_read` reads the Bot's retained canonical source; it does not read platform history. `bridge_reply` accepts only that source ID and text. The owning Host derives the Bot, its current grant/account and the immutable original reply route. It rejects another Bot's source, revoked or changed grants, archived Bots, missing consumers and unavailable providers. The public checked-reply operation authenticates the account again and verifies the original remote message, sender, group and exact thread/root/parent before replying.

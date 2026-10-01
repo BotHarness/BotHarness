@@ -141,6 +141,8 @@ node scripts/dev-instance.mjs --home /tmp/bh-im-qa --port 31968 --im-provider --
 
 一个测试应用只保留一个连接 owner，先停止之前使用该应用的测试 Host。#12 的入站必须启用下述 Bot Inbox 群收件，不启用 dsh-im standalone Session 作为替代。若需撤回此可选安装，先停止该 Profile 的 Host，在它的 `package.json` 中移除 `@xmanrui/dsh-im` dependency 与 Bundle，然后不带此选项启动；不删除 Profile 数据，已发送消息仍留在平台。
 
+此 Provider 的入站契约仅支持 Lark `text` 消息。客户端使用代码样式、富文本或附件时可能生成 `post` 或其他类型，当前不会收件；验收时使用普通文本并从成员候选选择真实 @。格式化正文的规范化由后续 Provider 切片验证。
+
 开启群文字 @ 收件后，在已授权群的既有话题里 @ 绑定身份，要求只回复一条唯一测试文本。预期 Bot Inbox 显示平台、群、发送人与接收身份；点击来源可读取完整保留正文；Bot 显式调用 `bridge_reply` 后，Recent sends 显示 Platform accepted，需在 Lark 核对原话题中的同一文本。普通无 @ 消息不进入 Inbox；首次回复不自动跟进话题；本地 Human DM 不镜像外部对话。关闭群收件或撤销绑定后旧来源仍可查看，但不能继续外部回复。此切片不自动将外部来源写入 Memory，也不提供远端历史读取。重启保持绑定和来源，不自动重发已接受或未知结果的回复（#12，ADR-0106）。
 
 ### Windows Desktop 检查点

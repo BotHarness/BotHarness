@@ -2315,7 +2315,8 @@ class BotRuntimeImplementation implements BotRuntime {
         resume: orchestrator.resume,
         bot,
         message: (() => {
-          const human = this.#channels.listHumanMembers(channelId)[0];
+          const human =
+            channelId === undefined ? undefined : this.#channels.listHumanMembers(channelId)[0];
           return human === undefined || human.displayName === 'Human'
             ? body
             : 'Current Channel Human: ' +
