@@ -228,6 +228,8 @@
 
 - 阅读较早消息时发送 DM 会保留阅读位置；跟随最新对话时，Bot 活动提示展开后新消息仍完整可见（[#120](https://github.com/BotHarness/BotHarness/issues/120)）。
 
+- 关闭 Browser Access 会取消正在等待的调用，并拒绝已撤销注册的未完成或排队调用；重新开启权限也不会恢复旧调用，已有 Bot Browser 标签页仍保留给 Human 使用（[#460](https://github.com/BotHarness/BotHarness/issues/460)）。
+
 - DM 活动现在根据真实 Host Session 投影同步更新侧栏与输入框；活动 Turn 显示思考或工作并在结束后恢复空闲，消息回执继续独立显示处理结果（[#536](https://github.com/BotHarness/BotHarness/issues/536)、[#120](https://github.com/BotHarness/BotHarness/issues/120)）。
 - Browser 上传现在会使用观察到的文件输入框 ref，将文件放入指定字段，避免多输入框页面误传到其他字段，让目标表单可以继续完成（[#652](https://github.com/BotHarness/BotHarness/issues/652)）。
 
