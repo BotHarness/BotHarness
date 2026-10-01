@@ -195,9 +195,16 @@ try {
   const historyBefore = await measure();
   await send('Additional instruction: also include "history position confirmed" in your DM reply.');
   await page.waitForFunction(
-    () => document.querySelectorAll('.bh-chat-body [data-message-id]').length >= 2,
+    (count) =>
+      [...document.querySelectorAll('.bh-chat-body [data-message-id]')].length > count &&
+      [...document.querySelectorAll('.bh-chat-body [data-message-id]')].some((entry) =>
+        entry.textContent?.includes(
+          'Additional instruction: also include "history position confirmed" in your DM reply.',
+        ),
+      ),
+    {},
+    historyBefore.messageCount,
   );
-  await new Promise((done) => setTimeout(done, 400));
   const historyAfter = await measure();
   await screenshot('history.png');
   for (let i = 0; i < 400; i++) {
