@@ -28,9 +28,16 @@ export function HumanInboxReply({
   onClose: () => void;
 }): ReactElement {
   const isApproval = source.kind === 'tool-approval';
-  const title = t(isApproval ? 'humanInbox.approval.title' : 'humanInbox.reply.title', {
-    channel: isApproval ? botName(source.botSlug) : (source.channelName ?? ''),
-  });
+  const isQuestion = source.kind === 'user-question';
+  const isNativeAction = isApproval || isQuestion;
+  const title = t(
+    isApproval
+      ? 'humanInbox.approval.title'
+      : isQuestion
+        ? 'humanInbox.question.title'
+        : 'humanInbox.reply.title',
+    { channel: isNativeAction ? botName(source.botSlug) : (source.channelName ?? '') },
+  );
   const channelId = source.channelId!;
   const messageId = source.messageId!;
   const [context, setContext] = useState<ChannelMessage[]>();
@@ -137,7 +144,13 @@ export function HumanInboxReply({
       <div className="bh-human-inbox-reply-header">
         <h2>{title}</h2>
         <button type="button" disabled={sending} onClick={onClose}>
-          {t(isApproval ? 'humanInbox.approval.close' : 'humanInbox.reply.close')}
+          {t(
+            isApproval
+              ? 'humanInbox.approval.close'
+              : isQuestion
+                ? 'humanInbox.question.close'
+                : 'humanInbox.reply.close',
+          )}
         </button>
       </div>
       {target === undefined ? (
@@ -189,7 +202,13 @@ export function HumanInboxReply({
                   </div>
                   {message.id === messageId ? (
                     <span className="bh-human-inbox-message-target">
-                      {t(isApproval ? 'approval.requestTitle' : 'humanInbox.reply.target')}
+                      {t(
+                        isApproval
+                          ? 'approval.requestTitle'
+                          : isQuestion
+                            ? 'question.title'
+                            : 'humanInbox.reply.target',
+                      )}
                     </span>
                   ) : null}
                   {message.replyToPreview ? (
@@ -198,12 +217,18 @@ export function HumanInboxReply({
                       <p>{message.replyToPreview.body}</p>
                     </blockquote>
                   ) : null}
-                  {isApproval && message.id === messageId ? (
+                  {isNativeAction && message.id === messageId ? (
                     <ChannelMessageBody
                       message={message}
                       channelId={channelId}
                       actions={actions}
                       t={t}
+                      userQuestionResolution={
+                        message.userQuestionResolution?.state ??
+                        context?.find(
+                          (entry) => entry.userQuestionResolution?.requestMessageId === messageId,
+                        )?.userQuestionResolution?.state
+                      }
                       toolApprovalDecision={
                         context?.find(
                           (entry) => entry.toolApprovalDecision?.requestMessageId === messageId,
@@ -252,7 +277,7 @@ export function HumanInboxReply({
           </div>
         </div>
       )}
-      {isApproval ? (
+      {isNativeAction ? (
         <div className="bh-human-inbox-reply-actions">
           <button type="button" onClick={() => void reload()}>
             {t('humanInbox.reply.refresh')}

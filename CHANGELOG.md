@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - A mention-only PersonaBot can explicitly read bounded Lark group, nearby Chat time-window or anchored topic context through its own identity; the Inbox source shows returned context, sender and mention names with stable IDs, omissions and permission refusals without admitting ordinary history or creating wakes ([#612](https://github.com/BotHarness/BotHarness/issues/612)).
 
+- Humans can answer a live native Bot question inside Human Inbox using the same options or custom input as its source DM card; answers resume the original request once, refresh resolved or stale actions, and preserve other Bots independently ([#551](https://github.com/BotHarness/BotHarness/issues/551)).
+
 - Humans can inspect a live tool request and approve or reject it directly in Human Inbox, with expandable source messages and exact navigation. Decisions use the source DM command, remove the resolved action while leaving other Bots independent, and refresh stale requests ([#550](https://github.com/BotHarness/BotHarness/issues/550)).
 - A PersonaBot can read a specified received original through native file tools and explicitly edit it with Human approval; original-message downloads and shared references show current contents, while independent uploads and default working copies remain separate ([#633](https://github.com/BotHarness/BotHarness/issues/633), [file guide](docs/file-open.md)).
 
@@ -225,6 +227,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Turning off Browser Access cancels active waits and refuses unfinished or queued calls from the revoked registration, including after Access is enabled again; existing Bot Browser tabs remain available to the Human ([#460](https://github.com/BotHarness/BotHarness/issues/460)).
 
 - DM activity now updates the sidebar and composer together from the actual Host Session projection; active turns show thinking or working and settle to idle, while delivery receipts keep their independent processing result ([#536](https://github.com/BotHarness/BotHarness/issues/536), [#120](https://github.com/BotHarness/BotHarness/issues/120)).
 - Browser uploads now honor an observed file-input ref instead of attaching to a different field on multi-input pages, so the intended form can continue ([#652](https://github.com/BotHarness/BotHarness/issues/652)).
