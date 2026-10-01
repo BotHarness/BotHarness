@@ -8,7 +8,8 @@ vi.mock('../src/client/bot-sidebar.js', async () => {
   const { store } = await import('../src/client/store.js');
   return { useClientState: () => useSyncExternalStore(store.subscribe, store.getSnapshot) };
 });
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./human-inbox-test-controls.js')),
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
   MarkdownText: () => null,

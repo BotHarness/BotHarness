@@ -152,6 +152,8 @@
 
 ### Changed
 
+- Human Inbox 改用 DSH 原生筛选菜单和带内边距的紧凑列表：点击整行打开详情，用主色按钮处理请求，通过头像与右上角箭头准确跳转来源；浏览器拒绝保存设置时，活动中心仍保留本窗口当前标签（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
+
 - PersonaBot 提醒策略改为紧凑表格，便于对比九类来源规则；保留近期唤醒次数与行内编辑入口，审计记录收进详情弹窗（[#670](https://github.com/BotHarness/BotHarness/issues/670)）。
 
 - Browser Profile 改为可搜索的 combobox：选择已有名称或明确创建新名称；错误使用 destructive 主题颜色，Browser view 移除多余说明与重复页标题（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。

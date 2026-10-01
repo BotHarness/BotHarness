@@ -1,3 +1,4 @@
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
 import { useRef, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
@@ -163,7 +164,7 @@ export function HumanInboxReply({
     <section className="bh-human-inbox-reply" ref={mount} aria-label={title}>
       <div className="bh-human-inbox-reply-header">
         <h2>{title}</h2>
-        <button type="button" disabled={sending} onClick={onClose}>
+        <Button size="sm" variant="outline" type="button" disabled={sending} onClick={onClose}>
           {t(
             isApproval
               ? 'humanInbox.approval.close'
@@ -173,7 +174,7 @@ export function HumanInboxReply({
                   ? 'humanInbox.grant.close'
                   : 'humanInbox.reply.close',
           )}
-        </button>
+        </Button>
       </div>
       {target === undefined ? (
         <p role={contextError ? 'alert' : 'status'}>
@@ -181,14 +182,16 @@ export function HumanInboxReply({
         </p>
       ) : (
         <div>
-          <button
+          <Button
+            size="sm"
+            variant="outline"
             className="bh-human-inbox-reply-context"
             type="button"
             aria-expanded={expanded}
             onClick={() => setExpanded(!expanded)}
           >
             {t(expanded ? 'humanInbox.reply.collapse' : 'humanInbox.reply.context')}
-          </button>
+          </Button>
           <div ref={visibleSource} className="bh-human-inbox-message-flow">
             {(expanded ? context! : [target]).map((message) => (
               <article
@@ -312,9 +315,14 @@ export function HumanInboxReply({
                     <time dateTime={response.at}>{new Date(response.at).toLocaleString()}</time>
                   </div>
                   <p>{response.body}</p>
-                  <button type="button" onClick={() => openSource(response.id)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    type="button"
+                    onClick={() => openSource(response.id)}
+                  >
                     {t('humanInbox.handled.response')}
-                  </button>
+                  </Button>
                 </div>
               </article>
             )}
@@ -323,12 +331,12 @@ export function HumanInboxReply({
       )}
       {isNativeAction ? (
         <div className="bh-human-inbox-reply-actions">
-          <button type="button" onClick={() => void reload()}>
+          <Button size="sm" variant="outline" type="button" onClick={() => void reload()}>
             {t('humanInbox.reply.refresh')}
-          </button>
-          <button type="button" onClick={() => openSource(messageId)}>
+          </Button>
+          <Button size="sm" variant="outline" type="button" onClick={() => openSource(messageId)}>
             {t('humanInbox.open')}
-          </button>
+          </Button>
         </div>
       ) : sent === undefined ? (
         <form
@@ -348,29 +356,43 @@ export function HumanInboxReply({
           </label>
           {sendError ? <p role="alert">{t('humanInbox.reply.failed')}</p> : null}
           <div className="bh-human-inbox-reply-actions">
-            <button type="button" disabled={sending} onClick={() => void reload()}>
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              disabled={sending}
+              onClick={() => void reload()}
+            >
               {t('humanInbox.reply.refresh')}
-            </button>
-            <button type="button" disabled={sending} onClick={() => openSource(messageId)}>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              disabled={sending}
+              onClick={() => openSource(messageId)}
+            >
               {t('humanInbox.open')}
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
               type="submit"
               disabled={
                 sending || context === undefined || contextError || draft.trim().length === 0
               }
             >
               {t(sending ? 'humanInbox.reply.sending' : 'humanInbox.reply.send')}
-            </button>
+            </Button>
           </div>
         </form>
       ) : (
         <div role="status">
           <strong>{t('humanInbox.reply.sent')}</strong>
           <p>{sent.body}</p>
-          <button type="button" onClick={() => openSource(sent.id)}>
+          <Button size="sm" variant="outline" type="button" onClick={() => openSource(sent.id)}>
             {t('humanInbox.open')}
-          </button>
+          </Button>
         </div>
       )}
     </section>

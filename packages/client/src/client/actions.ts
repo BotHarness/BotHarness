@@ -1044,7 +1044,7 @@ export function createActions(
       return loadBotInboxFor(slug, selection, cursor);
     },
     openActivityCenter(view) {
-      const tab = view ?? readActivityCenterTab(navigationStorage) ?? activityTab;
+      const tab = view ?? activityTab;
       if (tab === 'inbox') return actions.openHumanInbox();
       rememberActivityTab('overview');
       clientStore.select({ kind: 'inbox', view: 'overview' });

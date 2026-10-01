@@ -1,3 +1,4 @@
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
 import { useRef, useState, type ReactElement } from 'react';
 import type { BridgeActions } from './actions.js';
 import type { HumanAssignmentContext } from './bridge.js';
@@ -98,9 +99,9 @@ export function HumanInboxAssignment({
     <section className="bh-human-inbox-reply" ref={mount} aria-label={title}>
       <div className="bh-human-inbox-reply-header">
         <h2>{title}</h2>
-        <button type="button" disabled={sending} onClick={onClose}>
+        <Button size="sm" variant="outline" type="button" disabled={sending} onClick={onClose}>
           {t('humanInbox.reply.close')}
-        </button>
+        </Button>
       </div>
       {target === undefined ? (
         <p role={failed ? 'alert' : 'status'}>
@@ -113,14 +114,16 @@ export function HumanInboxAssignment({
           >
             {context!.purpose}
           </h3>
-          <button
+          <Button
+            size="sm"
+            variant="outline"
             type="button"
             className="bh-human-inbox-reply-context"
             aria-expanded={expanded}
             onClick={() => setExpanded(!expanded)}
           >
             {t(expanded ? 'humanInbox.assignment.collapse' : 'humanInbox.assignment.context')}
-          </button>
+          </Button>
           <div className="bh-human-inbox-message-flow">
             {(expanded ? context!.reports : [target]).map((report) => (
               <article
@@ -155,15 +158,31 @@ export function HumanInboxAssignment({
         </>
       )}
       <div className="bh-human-inbox-reply-actions">
-        <button type="button" disabled={sending} onClick={() => void reload()}>
+        <Button
+          size="sm"
+          variant="outline"
+          type="button"
+          disabled={sending}
+          onClick={() => void reload()}
+        >
           {t('humanInbox.reply.refresh')}
-        </button>
-        <button type="button" onClick={() => void navigate(() => actions.openSession(sessionId))}>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          type="button"
+          onClick={() => void navigate(() => actions.openSession(sessionId))}
+        >
           {t('humanInbox.assignment.session')}
-        </button>
-        <button type="button" onClick={() => void navigate(() => actions.openBot(source.botSlug))}>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          type="button"
+          onClick={() => void navigate(() => actions.openBot(source.botSlug))}
+        >
           {t('humanInbox.assignment.dm')}
-        </button>
+        </Button>
       </div>
       {navigationError ? <p role="alert">{t('humanInbox.reply.unavailable')}</p> : null}
       {reply !== undefined ? (
@@ -171,14 +190,16 @@ export function HumanInboxAssignment({
           <strong>{t('humanInbox.assignment.sent')}</strong>
           <p>{reply.body}</p>
           <p>{t('humanInbox.assignment.forwarding')}</p>
-          <button
+          <Button
+            size="sm"
+            variant="outline"
             type="button"
             onClick={() =>
               void navigate(() => actions.openChannelAtMessage('dm-' + source.botSlug, reply.id))
             }
           >
             {t('humanInbox.open')}
-          </button>
+          </Button>
         </div>
       ) : (
         <form
@@ -201,12 +222,14 @@ export function HumanInboxAssignment({
           </label>
           {sendError ? <p role="alert">{t('humanInbox.reply.failed')}</p> : null}
           <div className="bh-human-inbox-reply-actions">
-            <button
+            <Button
+              size="sm"
+              variant="primary"
               type="submit"
               disabled={sending || context?.canReply !== true || draft.trim().length === 0}
             >
               {t(sending ? 'humanInbox.reply.sending' : 'humanInbox.reply.send')}
-            </button>
+            </Button>
           </div>
         </form>
       )}
