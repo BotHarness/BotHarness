@@ -165,6 +165,61 @@
         "createdAt": "2026-10-01T10:26:57.853Z",
         "settledAt": "2026-10-01T10:27:00.272Z"
       }
+    },
+    {
+      "turn": 6,
+      "tool": "bridge_context",
+      "arguments": {
+        "scope": "group",
+        "source_event_id": "im-cfe040c62f145812beb416ae25dd2f8ef3516f347d1253fe4db2bdbdcd76fb60"
+      },
+      "at": "2026-10-01T10:40:39.514000+00:00",
+      "error": false,
+      "result": {
+        "scope": "group",
+        "omitted": 12,
+        "incomplete": true,
+        "coverage": "provider-visible-human-text",
+        "messageCount": 7,
+        "hasNextCursor": false,
+        "messages": [
+          {
+            "sourceEventId": "im-cfe040c62f145812beb416ae25dd2f8ef3516f347d1253fe4db2bdbdcd76fb60",
+            "messageId": "om_x100b64d7c48b90acee878d5d78fe5ba",
+            "at": "2026-10-01T10:40:36.430Z",
+            "text": "@_user_1  BH612-REBASED-04 Call bridge_context scope group on this Inbox source. Find the access phrase in BH612-FINAL-MAIN-CTX-03 and reply only BH612-REBASED-OK <access-phrase> through bridge_reply. No local DM or Assignment."
+          },
+          {
+            "sourceEventId": "im-7d8c717ff5ad75dbf8a1ea48ba0a9b6408b26eb8ee8c519f0b9e17b68a123b0e",
+            "messageId": "om_x100b64d71868cca0eea3a99df9c2c33",
+            "at": "2026-10-01T10:26:50.372Z",
+            "text": "@_user_1  BH612-FINAL-MAIN-03 Use bridge_context scope nearby to find BH612-FINAL-MAIN-CTX-03. Reply only BH612-NEARBY-OK <access-phrase> via bridge_reply. No local DM or Assignment."
+          },
+          {
+            "sourceEventId": "im-7684bb1f6cf3681500ed2445645d90734b039a43d95e10ebe88a39a5f9107568",
+            "messageId": "om_x100b64d71bea8ca0eea5e978b16808a",
+            "at": "2026-10-01T10:26:26.480Z",
+            "text": "BH612-FINAL-MAIN-CTX-03 Today access phrase is WILLOW. Context only."
+          }
+        ]
+      }
+    },
+    {
+      "turn": 6,
+      "tool": "bridge_reply",
+      "arguments": {
+        "source_event_id": "im-cfe040c62f145812beb416ae25dd2f8ef3516f347d1253fe4db2bdbdcd76fb60",
+        "text": "BH612-REBASED-OK WILLOW"
+      },
+      "at": "2026-10-01T10:40:43.743000+00:00",
+      "error": false,
+      "result": {
+        "sourceEventId": "im-cfe040c62f145812beb416ae25dd2f8ef3516f347d1253fe4db2bdbdcd76fb60",
+        "text": "BH612-REBASED-OK WILLOW",
+        "state": "provider-accepted",
+        "createdAt": "2026-10-01T10:40:44.443Z",
+        "settledAt": "2026-10-01T10:40:46.539Z"
+      }
     }
   ],
   "canonicalSources": [
@@ -199,7 +254,17 @@
       "observed_at": "2026-10-01T10:26:51.602Z",
       "handled_at": "2026-10-01T10:27:01.620Z",
       "placements": 0
+    },
+    {
+      "source_event_id": "im-cfe040c62f145812beb416ae25dd2f8ef3516f347d1253fe4db2bdbdcd76fb60",
+      "body": "@_user_1  BH612-REBASED-04 Call bridge_context scope group on this Inbox source. Find the access phrase in BH612-FINAL-MAIN-CTX-03 and reply only BH612-REBASED-OK <access-phrase> through bridge_reply. No local DM or Assignment.",
+      "attempt_state": "handled",
+      "observed_at": "2026-10-01T10:40:37.542Z",
+      "handled_at": "2026-10-01T10:40:48.083Z",
+      "placements": 0
     }
   ],
-  "assignments": 0
+  "assignments": 0,
+  "featureCommit": "65eb37bb25af8500ba7b7877923fc1a395a6b03d",
+  "baseCommit": "f9211ba5e5a7e92dcb00a1d4be9dd1a90c605333"
 }
