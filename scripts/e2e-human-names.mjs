@@ -387,15 +387,17 @@ try {
   await capture('failure').catch(() => undefined);
   save(
     'failure-controls',
-    await page.evaluate(() =>
-      [...document.querySelectorAll('button')].map((button) => ({
-        text: button.textContent?.trim(),
-        label: button.getAttribute('aria-label'),
-        popup: button.getAttribute('aria-haspopup'),
-        children: button.childElementCount,
-        spans: [...button.querySelectorAll(':scope > span')].map((span) => span.textContent),
-      })),
-    ),
+    await page
+      .evaluate(() =>
+        [...document.querySelectorAll('button')].map((button) => ({
+          text: button.textContent?.trim(),
+          label: button.getAttribute('aria-label'),
+          popup: button.getAttribute('aria-haspopup'),
+          children: button.childElementCount,
+          spans: [...button.querySelectorAll(':scope > span')].map((span) => span.textContent),
+        })),
+      )
+      .catch(() => null),
   );
   throw error;
 } finally {
