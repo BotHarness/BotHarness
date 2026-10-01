@@ -228,5 +228,12 @@
     "Count, Bot policy and reply were rerun after integrating latest main. Timer and busy-step tests exercised the unchanged #613 Host implementation before that rebase.",
     "Provider redelivery, handled replay and authorization refusal are covered by focused automated regression. No synthetic live provider redelivery is claimed.",
     "Earlier deliberately aborted Flash QA turns produced three existing lifecycle error notices in DM. Formal verification after 20:15 UTC added zero DM placements."
-  ]
+  ],
+  "screenshotRefresh": {
+    "baselineCommit": "be11a7a5",
+    "afterRuntimeSourceCommit": "164adb69216d8dcdf720f4ab59f9d9df669167e3",
+    "refreshedAt": "2026-10-01T21:01:35.474844+00:00",
+    "baselineProfile": "fresh isolated Profile with matching QA Bot, identity and group; no event history copied",
+    "activityCenter": "latest-main compact entry and current Human Inbox; navigation context only"
+  }
 }

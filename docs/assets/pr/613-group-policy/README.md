@@ -4,12 +4,14 @@ Real Lark E2E uses one Human-authorized test group and the Bot's own bound ident
 
 ## Screenshots
 
-- `before-light.jpg`: pre-change IM Profile from the initial main baseline (`e5f5bc29`), with mention-only intake and no group policy form.
+- `before-light.jpg`: pre-change IM Profile from the refreshed latest-main baseline (`be11a7a5`), with mention-only intake and no group policy form.
 - `after-light.jpg`: final integrated runtime (`164adb69`), Human revision 7: all ordinary text, count 3 or 600 seconds.
 - `bot-policy.jpg`: the same final runtime, Bot revision 8: restored mention-only intake with retained digest preferences.
 - `ordinary-source.jpg`: final integrated ordinary message, individually accessible from Bot Inbox history with original message ID, Source Event ID, sender, time and receiving identity.
 
-All captures use the real Chinese, light-theme Client at 882 × 771. The initial baseline predates main's independent compact Activity Center change; that navigation difference is not part of #613. The added form makes the IM section taller, so the after view includes the bound identity and full policy controls rather than the prior send composer.
+All captures use the real Chinese, light-theme Client at 882 × 771. Both revisions include latest main's compact Activity Center entry. The refreshed baseline uses a fresh isolated Profile with the same test Bot, bound identity and authorized group; its event history is not copied. The added form makes the IM section taller, so the after view includes the bound identity and full policy controls rather than the prior send composer.
+
+- `activity-latest.jpg`: the integrated runtime's current Activity Center → Inbox, shown as navigation context. This Human Inbox empty state is not evidence of Bot intake.
 
 ## Observed behavior
 
