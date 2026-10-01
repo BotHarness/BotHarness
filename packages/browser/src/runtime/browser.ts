@@ -686,18 +686,50 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
       throw new Error(`The file does not exist on the Host: ${options.path}`);
     }
     const sessionId = await attach(tabId);
+    const documentRoot = async (): Promise<number> => {
+      const document = await live.send('DOM.getDocument', {}, sessionId);
+      const rootId = asObject(document['root'])?.['nodeId'];
+      if (typeof rootId !== 'number') throw new Error('The Bot Browser returned no document');
+      return rootId;
+    };
+    if (options.ref !== undefined) {
+      const target = asObject(
+        await evaluate(
+          sessionId,
+          `(() => { const el = ${selectorExpression(options.ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; return { ok: true, fileInput: el instanceof HTMLInputElement && el.type === 'file' }; })()`,
+        ),
+      );
+      if (target?.['ok'] !== true) {
+        throw new Error('The element ref is stale; call browser_observe again before acting');
+      }
+      if (target['fileInput'] === true) {
+        const found = await live.send(
+          'DOM.querySelector',
+          {
+            nodeId: await documentRoot(),
+            selector: `input[type="file"][data-botharness-ref=${JSON.stringify(options.ref)}]`,
+          },
+          sessionId,
+        );
+        const nodeId = found['nodeId'];
+        if (typeof nodeId !== 'number' || !Number.isInteger(nodeId) || nodeId <= 0) {
+          throw new Error(
+            'The referenced file input is unavailable; call browser_observe again before uploading',
+          );
+        }
+        await live.send('DOM.setFileInputFiles', { files: [options.path], nodeId }, sessionId);
+        return;
+      }
+    }
     await live.send('Page.setInterceptFileChooserDialog', { enabled: true }, sessionId);
     try {
       if (options.ref !== undefined) {
         await clickRef(sessionId, options.ref);
       }
       const findInput = async (): Promise<number | undefined> => {
-        const document = await live.send('DOM.getDocument', {}, sessionId);
-        const rootId = asObject(document['root'])?.['nodeId'];
-        if (typeof rootId !== 'number') throw new Error('The Bot Browser returned no document');
         const found = await live.send(
           'DOM.querySelectorAll',
-          { nodeId: rootId, selector: 'input[type="file"]' },
+          { nodeId: await documentRoot(), selector: 'input[type="file"]' },
           sessionId,
         );
         const nodeIds = Array.isArray(found['nodeIds'])
