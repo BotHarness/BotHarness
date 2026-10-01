@@ -215,6 +215,8 @@
 
 ### Fixed
 
+- Browser 输入会在改变值、焦点或事件前拒绝只读与禁用的 input、textarea，包括原生 fieldset 禁用继承；Bot 保留当前标签页并可继续填写可编辑字段（[#644](https://github.com/BotHarness/BotHarness/issues/644)）。
+
 - Browser 按键现在可以执行原生焦点切换、文本编辑和表单提交；不支持的按键会返回可重试的错误，而不是报告成功 ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
 
 - Browser 导航失败现在返回可重试的 Tool 错误并记录错误 Audit；新建失败的标签页会清理，已有当前标签页仍可观察并重试 ([#627](https://github.com/BotHarness/BotHarness/issues/627)).
