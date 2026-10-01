@@ -15,6 +15,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBot Profile coordinates daily and actual-model usage charts with one bounded time range, initially the most recent 7 days; a Model / Provider switch shows only the selected dimension; default model rows combine providers and execution roles as compact name-and-total rows, with inclusive input, cache reads, output and weighted percentages in chart hover tooltips alongside composition and cache-ratio charts; keyboard-accessible Details disclose Session categories ([#592](https://github.com/BotHarness/BotHarness/issues/592)).
 - Existing message attachments migrate at Host startup to resumable independent real-file identities; their original menus open the current destination, equal hashes remain independent, and owner-qualified old reads follow saved contents without rewriting messages or waking Bots ([#577](https://github.com/BotHarness/BotHarness/issues/577), [migration guide](docs/file-open.md)).
 
 - PersonaBot model usage now separates Orchestrator, Assignment and DSH Subagent calls by actual provider/model, including reported failed and retried attempts; missing reports remain unknown ([#503](https://github.com/BotHarness/BotHarness/issues/503), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
