@@ -729,6 +729,10 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
+  readonly #activeMemoryEvents = new Map<
+    string,
+    { eventIds: string[]; preserveObservation: boolean }
+  >();
   readonly #steerSettlements = new Set<Promise<void>>();
   readonly #pendingHarvests = new Set<string>();
   readonly #digestTimers = new Map<string, NodeJS.Timeout>();
@@ -1060,7 +1064,7 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     let delivered: boolean;
     try {
-      delivered = this.#agents.steerOrchestrator(
+      delivered = this.#steerWithMemory(
         botSlug,
         claimed === undefined ? prompt : `${prompt}\n\n${this.#dmContextSection(claimed)}`,
       );
@@ -1108,6 +1112,27 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#steerSettlements.add(settlement);
     void settlement.finally(() => this.#steerSettlements.delete(settlement)).catch(() => undefined);
     return true;
+  }
+
+  #steerWithMemory(botSlug: string, prompt: string): boolean {
+    const activeEvents = this.#activeMemoryEvents.get(botSlug);
+    if (activeEvents === undefined || this.#memory?.scanChanges === undefined)
+      return this.#agents.steerOrchestrator?.(botSlug, prompt) ?? false;
+    try {
+      this.#recordMemoryObservation(botSlug, this.#memory.scanChanges(botSlug));
+    } catch (error) {
+      activeEvents.preserveObservation = true;
+      throw error;
+    }
+    const memoryInbox = this.#collectMemoryInbox(botSlug);
+    const text =
+      memoryInbox.units.length === 0 ? prompt : `${prompt}\n\n${renderInbox(memoryInbox.units)}`;
+    const delivered = this.#agents.steerOrchestrator?.(botSlug, text) ?? false;
+    if (delivered) {
+      activeEvents.eventIds.push(...memoryInbox.eventIds);
+      this.#setObserved(memoryInbox.eventIds, this.#now().toISOString());
+    }
+    return delivered;
   }
 
   #claimDmContext(
@@ -1242,7 +1267,7 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     let delivered: boolean;
     try {
-      delivered = this.#agents.steerOrchestrator(
+      delivered = this.#steerWithMemory(
         botSlug,
         [
           this.#groupMentionPrompt(channelId, messageId, source.body),
@@ -2365,6 +2390,11 @@ class BotRuntimeImplementation implements BotRuntime {
       const units = [...inboxUnits, ...memoryInbox.units];
       const inbox = units.length === 0 ? '' : renderInbox(units);
       this.#setObserved(memoryEventIds, this.#now().toISOString());
+      if (observeMemory)
+        this.#activeMemoryEvents.set(bot.slug, {
+          eventIds: memoryEventIds,
+          preserveObservation: false,
+        });
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
         resume: orchestrator.resume,
@@ -2539,6 +2569,7 @@ class BotRuntimeImplementation implements BotRuntime {
           botSlug: bot.slug,
           sessionId: orchestrator.sessionId,
           sourceEventId,
+          preserveObservation: this.#activeMemoryEvents.get(bot.slug)?.preserveObservation ?? false,
         });
       this.#markReportsHandled(memoryEventIds);
       this.#settleHarvestHandled(bot.slug, [...readAdmissions]);
@@ -2548,9 +2579,14 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#settleHarvestFailure(bot.slug, [...readAdmissions], String(error));
       this.#notifyReadAdmissions(readAdmissions);
       if (observeMemory)
-        this.#memory?.abortTurn(bot.slug, orchestrator.sessionId, preserveObservation);
+        this.#memory?.abortTurn(
+          bot.slug,
+          orchestrator.sessionId,
+          preserveObservation || this.#activeMemoryEvents.get(bot.slug)?.preserveObservation,
+        );
       throw error;
     } finally {
+      if (observeMemory) this.#activeMemoryEvents.delete(bot.slug);
       this.#originalAttachments.clear(orchestrator.sessionId);
     }
   }

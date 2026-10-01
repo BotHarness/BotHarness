@@ -1,10 +1,119 @@
 import { describe, expect, it } from 'vitest';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
+import { attachOperationalModule } from '../src/database/owner.js';
 import { createCore } from '../src/plugin.js';
 import type { BotAgentAdapter } from '../src/runtime/bot-runtime.js';
 import { createTempRoot } from './helpers.js';
 
 describe('Human DM steering', () => {
+  it.each(['accepted', 'refused', 'interrupted', 'admission-failed'])(
+    'observes an external Memory edit when active steering is %s',
+    async (outcome) => {
+      let markStarted = (): void => undefined;
+      let releaseTurn = (): void => undefined;
+      const started = new Promise<void>((resolve) => {
+        markStarted = resolve;
+      });
+      const released = new Promise<void>((resolve) => {
+        releaseTurn = resolve;
+      });
+      const inboxes: string[] = [];
+      const steered: string[] = [];
+      const agents: BotAgentAdapter = {
+        async runOrchestrator(run) {
+          inboxes.push(run.inbox);
+          if (inboxes.length === 1) {
+            markStarted();
+            await released;
+            if (outcome === 'interrupted') throw new Error('Interrupted active Turn');
+          }
+        },
+        steerOrchestrator(_slug, text) {
+          steered.push(text);
+          return outcome !== 'refused';
+        },
+        async runAssignment() {},
+        requestAssignment() {
+          throw new Error('No Assignment expected');
+        },
+        async close() {},
+      };
+      const core = createCore({ dshHome: createTempRoot('botharness-steer-memory-'), agents });
+      try {
+        core.registry.create({ slug: 'ada', displayName: 'Ada' });
+        const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+        const send = async (id: string) => {
+          await core.channels.appendMessage(dm.id, {
+            id,
+            at: '2026-10-01T00:00:00.000Z',
+            author: { kind: 'human' },
+            body: id,
+          });
+          return core.runtime.admitDmMessage({ channelId: dm.id, messageId: id, body: id });
+        };
+        await send('first');
+        await started;
+        writeFileSync(
+          join(core.registry.memoryDirFor('ada')!, 'external.md'),
+          'External private content\n',
+        );
+        const port = attachOperationalModule(core.operationalDatabase, 'steer-memory-test');
+        if (outcome === 'admission-failed')
+          port.transaction((db) =>
+            db.exec(`
+        CREATE TRIGGER reject_steered_memory BEFORE INSERT ON inbox_admissions
+        WHEN NEW.reason = 'memory-change'
+        BEGIN SELECT RAISE(ABORT, 'simulated admission failure'); END;
+      `),
+          );
+        await send('steered');
+        expect(inboxes).toHaveLength(1);
+        const items = () =>
+          core.attention
+            .list({ botSlug: 'ada' })
+            .items.filter((item) => item.reason === 'memory-change');
+        if (outcome === 'admission-failed') {
+          expect(steered).toHaveLength(0);
+          expect(items()).toHaveLength(0);
+          port.transaction((db) => db.exec('DROP TRIGGER reject_steered_memory'));
+        } else {
+          expect(steered[0]).toContain('external.md');
+          expect(steered[0]).not.toContain('External private content');
+          expect(items()[0]?.state).toBe(outcome === 'refused' ? 'pending' : 'processing');
+        }
+        if (outcome === 'accepted') {
+          await send('steered-again');
+          expect(steered).toHaveLength(2);
+          expect(steered[1]).not.toContain('external.md');
+        }
+        releaseTurn();
+        await core.runtime.whenIdle();
+        await send('next-turn');
+        await core.runtime.whenIdle();
+        expect(inboxes).toHaveLength(outcome === 'refused' ? 3 : 2);
+        if (outcome === 'accepted') expect(inboxes[1]).not.toContain('external.md');
+        else expect(inboxes[1]).toContain('external.md');
+        expect(inboxes.join('')).not.toContain('External private content');
+        expect(
+          core.attention
+            .list({ botSlug: 'ada' })
+            .items.filter((item) => item.reason === 'memory-change'),
+        ).toHaveLength(1);
+        expect(
+          core.attention
+            .list({ botSlug: 'ada' })
+            .items.find((item) => item.reason === 'memory-change')?.state,
+        ).toBe('handled');
+      } finally {
+        releaseTurn();
+        await core.runtime.close();
+        core.operationalDatabase.close();
+      }
+    },
+  );
+
   it('steers a Human DM message into an active Orchestrator turn at its next safe step', async () => {
     const home = createTempRoot('botharness-dm-steer-');
     let markStarted = (): void => undefined;
