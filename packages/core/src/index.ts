@@ -74,6 +74,8 @@ export type {
   BotStateEvent,
   BotStateSnapshot,
   BotStateTracker,
+  PersonaBotActivityEvent,
+  PersonaBotActivitySnapshot,
   SessionState,
 } from './state/bot-state.js';
 export {
@@ -208,3 +210,6 @@ export type {
   MessagingReplyRoute,
 } from './messaging/provider.js';
 export type { InboundMessaging, ExternalSource } from './messaging/inbound.js';
+
+export { activityEffectForToolKind } from './state/tool-activity.js';
+export type { PersonaBotToolActivity, ActivityEffect } from './state/tool-activity.js';

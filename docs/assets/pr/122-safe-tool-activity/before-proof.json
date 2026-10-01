@@ -1,0 +1,58 @@
+{
+  "bot": {
+    "slug": "bot-65b9c993d00a4167a4e09c20db062185",
+    "displayName": "Tool activity QA 1790886851938"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "phase": "before",
+  "snapshots": [
+    {
+      "generation": "044a9ae1-2534-4f79-9885-db348f0afb94",
+      "revision": 2,
+      "slug": "bot-65b9c993d00a4167a4e09c20db062185",
+      "state": "working"
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "generic-working",
+        "label": "Tool activity QA 1790886851938：正在工作"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "generic-working",
+        "label": "Tool activity QA 1790886851938：正在工作"
+      }
+    ],
+    "summary": "Tool activity QA 1790886851938 正在工作"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790887961709,
+      "name": "bash"
+    }
+  ],
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "generic-working"
+    },
+    {
+      "layout": "rail",
+      "effect": "generic-working"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": false,
+  "actualNativeShellApproval": true,
+  "verdict": "PASS"
+}

@@ -1,0 +1,135 @@
+{
+  "bot": {
+    "slug": "bot-d5dc970172584931bf9259e959c4bc79",
+    "displayName": "Tool activity QA 1790886851938"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
+      "revision": 2,
+      "slug": "bot-d5dc970172584931bf9259e959c4bc79",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790888497404,
+        "activeToolCount": 1
+      }
+    },
+    {
+      "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
+      "revision": 3,
+      "slug": "bot-d5dc970172584931bf9259e959c4bc79",
+      "state": "thinking"
+    },
+    {
+      "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
+      "revision": 4,
+      "slug": "bot-d5dc970172584931bf9259e959c4bc79",
+      "state": "working",
+      "activity": {
+        "effect": "generic-working",
+        "toolKind": "other",
+        "toolName": "channel_send",
+        "startedAt": 1790888718455,
+        "activeToolCount": 1
+      }
+    },
+    {
+      "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
+      "revision": 5,
+      "slug": "bot-d5dc970172584931bf9259e959c4bc79",
+      "state": "thinking"
+    },
+    {
+      "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
+      "revision": 6,
+      "slug": "bot-d5dc970172584931bf9259e959c4bc79",
+      "state": "idle"
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Tool activity QA 1790886851938：正在执行 · bash"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Tool activity QA 1790886851938：正在执行 · bash"
+      }
+    ],
+    "summary": "Tool activity QA 1790886851938 正在执行 · bash"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790887780748,
+      "name": "bash"
+    },
+    {
+      "type": "tool/result",
+      "time": 1790887787020
+    },
+    {
+      "type": "tool/call",
+      "time": 1790887788768,
+      "name": "channel_send"
+    },
+    {
+      "type": "tool/result",
+      "time": 1790887788788
+    },
+    {
+      "type": "turn/end",
+      "time": 1790887791254
+    },
+    {
+      "type": "tool/call",
+      "time": 1790888497404,
+      "name": "bash"
+    },
+    {
+      "type": "tool/result",
+      "time": 1790888715780
+    },
+    {
+      "type": "tool/call",
+      "time": 1790888718455,
+      "name": "channel_send"
+    },
+    {
+      "type": "tool/result",
+      "time": 1790888718511
+    },
+    {
+      "type": "turn/end",
+      "time": 1790888721468
+    }
+  ],
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": false,
+  "actualNativeShellApproval": true,
+  "verdict": "PASS"
+}

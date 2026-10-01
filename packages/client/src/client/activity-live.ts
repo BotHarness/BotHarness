@@ -29,7 +29,44 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
       )
         return undefined;
       slugs.add(bot['slug']);
-      bots.push({ slug: bot['slug'], state });
+      const detail = bot['activity'];
+      let activity: PersonaBotActivitySnapshot['bots'][number]['activity'];
+      if (detail !== undefined) {
+        if (typeof detail !== 'object' || detail === null || state !== 'working') return undefined;
+        const row = detail as Record<string, unknown>;
+        const kind = ['read', 'edit', 'delete', 'move', 'search', 'execute', 'fetch', 'other'].find(
+          (value) => value === row['toolKind'],
+        );
+        const effect = [
+          'thinking-dots',
+          'searching',
+          'coding',
+          'executing',
+          'generic-working',
+        ].find((value) => value === row['effect']);
+        if (
+          kind === undefined ||
+          effect === undefined ||
+          typeof row['startedAt'] !== 'number' ||
+          !Number.isSafeInteger(row['startedAt']) ||
+          row['startedAt'] < 0 ||
+          typeof row['activeToolCount'] !== 'number' ||
+          !Number.isSafeInteger(row['activeToolCount']) ||
+          row['activeToolCount'] < 1 ||
+          (row['toolName'] !== undefined &&
+            (typeof row['toolName'] !== 'string' ||
+              !/^[A-Za-z0-9_.:/-]{1,80}$/.test(row['toolName'])))
+        )
+          return undefined;
+        activity = {
+          toolKind: kind as NonNullable<typeof activity>['toolKind'],
+          effect: effect as NonNullable<typeof activity>['effect'],
+          startedAt: row['startedAt'],
+          activeToolCount: row['activeToolCount'],
+          ...(row['toolName'] === undefined ? {} : { toolName: row['toolName'] as string }),
+        };
+      }
+      bots.push({ slug: bot['slug'], state, ...(activity === undefined ? {} : { activity }) });
     }
     return { generation: item['generation'], revision: item['revision'], bots };
   } catch {

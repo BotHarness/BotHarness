@@ -3018,7 +3018,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-composer-activity-status {
   min-height: 40px;
   min-width: 0;
-  display: flex;
+  display: block;
   align-items: center;
   gap: 10px;
   padding: 0 6px;
@@ -3032,6 +3032,19 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-composer-activity-facepile .bh-persona-avatar::before {
   display: none;
 }
+.bh-composer-activity-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.bh-composer-activity-chevron { flex: none; }
+.bh-composer-activity-status[open] .bh-composer-activity-chevron { transform: rotate(180deg); }
+.bh-composer-activity-toggle::-webkit-details-marker { display: none; }
+.bh-composer-activity-toggle:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.bh-composer-activity-details { display: grid; gap: 4px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.bh-composer-activity-details > div { display: flex; gap: 8px; flex-wrap: wrap; }
 .bh-composer-activity-summary {
   min-width: 0;
   flex: 1;
