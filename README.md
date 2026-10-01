@@ -57,14 +57,16 @@ _隔离本地 Group 中的真实模型回复：Mira 回顾访客需求，Theo �
 
 ## Computer use 与 Browser use
 
-| 能力             | 当前已交付                                                                                                              | 启用条件与边界                                                                                                                                                                             |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Computer use** | 通过 Cua Driver 观察、操作共享桌面，提供 VNC 观看与 Computer Audit。                                                    | 可选 `@botharness/computer` Bundle；当前运行容器桌面，需要 Docker。按 Bot 打开 Computer Access，每个 Session 首次动作请求授权。                                                            |
-| **Browser use**  | 打开与观察网页；点击、输入、按键、滚动、等待、截图、上传文件与管理多标签。侧栏展示 Bot 当前网页，Human 可以暂停其操作。 | 可选 `@botharness/browser` Bundle；在 Host 上运行受管 Bot Browser。按 Bot 打开 Browser Access 并授权 Session；命名 browser profile 可保留不同登录数据，分配到同一 profile 的 Bots 共享它。 |
+| 能力             | 当前已交付                                                                                                              | 启用条件与边界                                                                                                                                                                                               |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Computer use** | 通过 Cua Driver 观察、操作共享桌面，提供 VNC 观看与 Computer Audit。                                                    | 可选 `@botharness/computer` Bundle；当前运行容器桌面，需要 Docker。按 Bot 打开 Computer Access，Auto-allow 关闭时，每个 Session 首次动作请求授权。                                                           |
+| **Browser use**  | 打开与观察网页；点击、输入、按键、滚动、等待、截图、上传文件与管理多标签。侧栏展示 Bot 当前网页，Human 可以暂停其操作。 | 可选 `@botharness/browser` Bundle；在 Host 上运行受管 Bot Browser。按 Bot 打开 Browser Access；Auto-allow 关闭时需授权 Session；命名 browser profile 可保留不同登录数据，分配到同一 profile 的 Bots 共享它。 |
 
 ![已有 DSH QA 截图：命名 Bot Browser profile、实时网页预览与 Pause Bot 控件](docs/assets/pr/611-browser-profile-names/ui-completed.jpg)
 
 _复用 [Browser profile 验证](https://github.com/BotHarness/BotHarness/pull/615) 截图：Bot 已读取本地测试页，预览与 Human 控件可用。_
+
+每个 Bundle 的 DSH Profile 配置 `autoAllowActions` 默认关闭。开启后，该 Bundle 的操作跳过逐 Session 授权，但仍需按 Bot 开启对应 Access。
 
 标签归属决定某个 Bot 操作哪一页；同一 browser profile 中的标签不是安全隔离边界。Computer 与 Browser Access 独立控制。开发启动器包含这两个可选 Bundle，新 Bot 仍需显式开启对应 Access。[运行时设计](docs/architecture/botharness-architecture.md) · [Computer 契约](docs/architecture/computer-runtime-contracts.md)
 

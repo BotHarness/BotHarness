@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - A PersonaBot can read a specified received original through native file tools and explicitly edit it with Human approval; original-message downloads and shared references show current contents, while independent uploads and default working copies remain separate ([#633](https://github.com/BotHarness/BotHarness/issues/633), [file guide](docs/file-open.md)).
 
+- Human-participating DM and Group headers now offer My nickname; independent Channel names inherit the plugin default when cleared, and historical mentions plus Inbox and Bot context use their source Channel name without changing identity or attention ([#622](https://github.com/BotHarness/BotHarness/issues/622)).
+
 - Added actual model/provider and execution-role filters to PersonaBot usage, with separate retained all-time totals, a seven-day chart default, and visible query freshness or failures ([#507](https://github.com/BotHarness/BotHarness/issues/507)).
 - The local Human can save an optional default name in plugin settings; Channel authors, members, receipts and Bot context use the current name, and historical trusted Human/Bot mentions resolve current labels by stable identity without changing message content or attention ([#621](https://github.com/BotHarness/BotHarness/issues/621), [ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)).
 - Human can explicitly allow a PersonaBot to write one granted work folder, save a received file there, process it with native tools and approved Shell calls, and return a separately downloadable result ([#632](https://github.com/BotHarness/BotHarness/issues/632), [ADR-0105](docs/adr/0105-attachments-use-native-file-operations-under-source-authority.md)).
@@ -218,6 +220,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Browser scrolling now sends a native wheel at the viewport center, so the Bot can move central nested content as well as ordinary pages and observe the result before continuing ([#647](https://github.com/BotHarness/BotHarness/issues/647)).
+
 - Browser typing now refuses readonly and disabled inputs and textareas before changing values, focus or events, including native disabled-fieldset inheritance; the Bot retains its current tab and can continue with an editable field ([#644](https://github.com/BotHarness/BotHarness/issues/644)).
 
 - Browser key presses now perform native focus movement, editing and form submission; unsupported keys return retryable errors instead of reporting success ([#640](https://github.com/BotHarness/BotHarness/issues/640)).
@@ -287,7 +291,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
-- Replaced the early milestone README with bilingual product screenshots, current source-preview setup, and explicit Computer, Browser, and temporary-fork IM delivery boundaries ([#643](https://github.com/BotHarness/BotHarness/issues/643)).
+- Replaced the early milestone README with bilingual product screenshots, current source-preview setup, and explicit Computer/Browser authorization (including Auto-allow) and temporary-fork IM delivery boundaries ([#643](https://github.com/BotHarness/BotHarness/issues/643)).
 
 - Documented the local Human naming target: a plugin-wide default, per-Channel roleplay nicknames, and stable-ID mentions displaying current Human or PersonaBot names; runtime implementation remains subsequent work ([ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md), [#126](https://github.com/BotHarness/BotHarness/issues/126), [design](docs/architecture/botharness-architecture.md)).
 

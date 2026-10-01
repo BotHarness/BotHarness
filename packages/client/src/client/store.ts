@@ -24,6 +24,7 @@ export interface ChannelHumanMember {
 
 export interface ChannelSummary {
   humanMembers?: ChannelHumanMember[];
+  humanNickname?: string | null;
   id: string;
   type: 'dm' | 'group';
   name: string;

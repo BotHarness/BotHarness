@@ -469,9 +469,6 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   const typeScript = (ref: string, text: string): string =>
     `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) { if (el.matches(':disabled')) return { ok: false, reason: 'disabled' }; if (el.readOnly) return { ok: false, reason: 'readonly' }; } el.focus(); if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) { const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const descriptor = Object.getOwnPropertyDescriptor(proto, 'value'); const setter = descriptor && descriptor.set; if (setter) { setter.call(el, ${JSON.stringify(text)}); } else { el.value = ${JSON.stringify(text)}; } el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return { ok: true }; } if (el.isContentEditable) { el.textContent = ${JSON.stringify(text)}; el.dispatchEvent(new InputEvent('input', { bubbles: true, data: ${JSON.stringify(text)} })); return { ok: true }; } return { ok: false, reason: 'not-editable' }; })()`;
 
-  const scrollScript = (direction: 'up' | 'down', amount: number): string =>
-    `(() => { window.scrollBy(0, ${direction === 'down' ? amount : -amount}); return { ok: true }; })()`;
-
   const runInteraction = async (tabId: string, expression: string): Promise<BrowserTab> => {
     const sessionId = await attach(tabId);
     const value = asObject(await evaluate(sessionId, expression));
@@ -557,8 +554,54 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return { tabId, ...page };
   };
 
-  const scroll = (tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab> =>
-    runInteraction(tabId, scrollScript(direction, amount));
+  const scroll = async (
+    tabId: string,
+    direction: 'up' | 'down',
+    amount: number,
+  ): Promise<BrowserTab> => {
+    const sessionId = await attach(tabId);
+    const bounds = asObject(
+      await evaluate(sessionId, '({ width: window.innerWidth, height: window.innerHeight })'),
+    );
+    const width = bounds?.['width'];
+    const height = bounds?.['height'];
+    if (
+      typeof width !== 'number' ||
+      typeof height !== 'number' ||
+      !Number.isFinite(width) ||
+      !Number.isFinite(height) ||
+      width <= 0 ||
+      height <= 0
+    ) {
+      throw new Error('The Bot Browser viewport is unavailable; observe again before scrolling');
+    }
+    const live = client;
+    if (!live) throw new Error('The Bot Browser is not running');
+    if (!focusEmulated.has(sessionId)) {
+      await live.send('Emulation.setFocusEmulationEnabled', { enabled: true }, sessionId);
+      focusEmulated.add(sessionId);
+    }
+    await live.send(
+      'Input.dispatchMouseEvent',
+      { type: 'mouseMoved', x: width / 2, y: height / 2 },
+      sessionId,
+    );
+    await live.send(
+      'Input.dispatchMouseEvent',
+      {
+        type: 'mouseWheel',
+        x: width / 2,
+        y: height / 2,
+        deltaX: 0,
+        deltaY: direction === 'down' ? amount : -amount,
+      },
+      sessionId,
+    );
+    await waitForReady(sessionId);
+    const page = await readPage(sessionId);
+    lastUrl = page.url;
+    return { tabId, ...page };
+  };
 
   const open = async (url: string, reuseTabId?: string): Promise<BrowserTab> => {
     await ensure();

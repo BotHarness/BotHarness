@@ -35,3 +35,9 @@ were reopened from disk in the Mac browser and checked at README display width.
 in-app browser. `readme-memory-after.jpg` shows the Memory section at its
 actual README width. These are documentation render checks, not GitHub-page
 captures or generated application mockups.
+
+`auto-allow-before.jpg` and `auto-allow-after.jpg` compare the Computer/Browser
+README table at 1280 × 720 using the same Mac browser and local Markdown
+renderer. The baseline is merged main `bf7ce448`; the correction explicitly
+conditions Session approval on Auto-allow being off. Runtime settings were not
+changed for this documentation correction.

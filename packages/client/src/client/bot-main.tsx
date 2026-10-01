@@ -31,6 +31,7 @@ import {
 import type { SelectedMention } from './mentions.js';
 import type { SelectedChannelRef } from './channel-refs.js';
 import { channelHumanName } from './actor-names.js';
+import { HumanChannelNameMenu } from './human-channel-name.js';
 import type { ChannelHumanMember } from './store.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
 import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
@@ -967,6 +968,9 @@ function ConversationView({
       <div className="bh-chat-layout">
         <section className="bh-chat-pane">
           <div ref={profileMount} className="bh-topbar">
+            {channel === undefined ? null : (
+              <HumanChannelNameMenu key={channel.id} channel={channel} actions={actions} t={t} />
+            )}
             {channel?.type === 'group' ? (
               <span className="bh-channel-island-wrap" ref={profileTriggerRef}>
                 <button
