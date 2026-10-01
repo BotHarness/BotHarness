@@ -4950,6 +4950,8 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 .bh-human-inbox-more:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
+.bh-channel-options{position:absolute;right:12px;top:11px;pointer-events:auto}
+.bh-human-nickname-dialog p{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px}
 .bh-human-name-setting{display:flex;flex-direction:column;gap:10px;margin-top:20px}
 .bh-human-name-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .bh-human-name-controls>div:first-child{flex:1 1 220px;min-width:0}

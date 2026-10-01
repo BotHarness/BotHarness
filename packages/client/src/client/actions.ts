@@ -19,6 +19,7 @@ import {
   createGroupChannel,
   inviteGroupBot,
   setGroupAvatar as setGroupAvatarViaBridge,
+  setChannelHumanName,
   setBotAvatar as setBotAvatarViaBridge,
   cancelGroupInvitation,
   decideGroupJoin,
@@ -336,6 +337,7 @@ export interface BridgeActions {
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
+  setHumanNickname(channelId: string, nickname: string | null): Promise<boolean>;
   setGroupAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   setBotAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   inviteGroupBot(channelId: string, botSlug: string): Promise<boolean>;
@@ -1509,6 +1511,17 @@ export function createActions(
       await placeCreatedChannelFirst(channel.id, sectionId);
       await openChannelById(channel.id);
       return channel;
+    },
+    async setHumanNickname(channelId, nickname) {
+      try {
+        const channel = await setChannelHumanName(call, channelId, nickname);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch {
+        return false;
+      }
     },
     async renameChannel(channelId, name) {
       try {

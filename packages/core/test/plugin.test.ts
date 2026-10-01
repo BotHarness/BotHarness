@@ -266,6 +266,7 @@ describe('plugin entry', () => {
       'channels',
       'humanIdentity',
       'humanNameSet',
+      'channelHumanNameSet',
       'channelDm',
       'channelCreate',
       'channelRename',

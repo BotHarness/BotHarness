@@ -15,6 +15,8 @@
 
 ### Added
 
+- Human 参与的 DM 与群聊头部菜单支持“我的昵称”；各 Channel 独立设置，清除后继承插件默认名，历史提及、Inbox 与 Bot 上下文使用来源 Channel 的当前称呼，不改变身份或注意力（[#622](https://github.com/BotHarness/BotHarness/issues/622)）。
+
 - 本地 Human 可在插件设置中保存可选默认名字，Channel 作者、成员、回执与 Bot 上下文使用当前称呼；历史可信 Human／Bot 提及按稳定身份显示当前名字，不改写消息或注意力事实（[#621](https://github.com/BotHarness/BotHarness/issues/621)、[ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)）。
 
 - PersonaBot 可通过群聊中有效的成员身份明确提及本地 Human；Human Inbox 将可信提及与直接回复合并到个人视图，支持展开上下文和原位回复，普通 `@Human` 文本不会生成个人提醒（[#549](https://github.com/BotHarness/BotHarness/issues/549)）。

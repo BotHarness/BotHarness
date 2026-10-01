@@ -507,6 +507,9 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
       ? { avatar: record['avatar'] }
       : {}),
     members: stringArray(record['members']),
+    ...(record['humanNickname'] === null || typeof record['humanNickname'] === 'string'
+      ? { humanNickname: record['humanNickname'] as string | null }
+      : {}),
     ...(Array.isArray(record['humanMembers'])
       ? {
           humanMembers: record['humanMembers'].flatMap((raw: unknown) => {
@@ -1205,6 +1208,18 @@ export async function setHumanDefaultName(
   displayName: string | null,
 ): Promise<LocalHumanIdentity> {
   return parseHumanIdentity(await unwrap(call, 'humanNameSet', { displayName }));
+}
+
+export async function setChannelHumanName(
+  call: BridgeCall,
+  channelId: string,
+  nickname: string | null,
+): Promise<ChannelSummary> {
+  const value = asRecord(await unwrap(call, 'channelHumanNameSet', { channelId, nickname }));
+  const channel = parseChannelRecord(value?.['channel']);
+  if (channel === undefined || channel.id !== channelId)
+    throw new Error('invalid channelHumanNameSet response');
+  return channel;
 }
 
 export async function setGroupAvatar(

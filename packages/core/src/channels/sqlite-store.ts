@@ -315,10 +315,11 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     database.read((db) =>
       db
         .prepare(`
-        SELECT m.human_id, COALESCE(n.default_display_name, 'Human') AS display_name, m.visible_from_revision,
+        SELECT m.human_id, COALESCE(k.nickname, n.default_display_name, 'Human') AS display_name, m.visible_from_revision,
                COALESCE(r.revision, 0) AS read_revision
           FROM channel_human_members m
           LEFT JOIN local_human_names n ON n.human_id = m.human_id
+          LEFT JOIN channel_human_nicknames k ON k.channel_id = m.channel_id AND k.human_id = m.human_id
           LEFT JOIN channel_read_positions r
             ON r.channel_id = m.channel_id AND r.human_id = m.human_id
          WHERE m.channel_id = ? AND m.left_at IS NULL
@@ -331,6 +332,32 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       visible_from_revision: number;
       read_revision: number;
     }>;
+
+  const readNickname = (id: string): string | null => {
+    const row = database.read((db) =>
+      db
+        .prepare(
+          'SELECT nickname FROM channel_human_nicknames WHERE channel_id = ? AND human_id = ?',
+        )
+        .get(id, LOCAL_HUMAN_ID),
+    ) as { nickname: string } | undefined;
+    return row?.nickname ?? null;
+  };
+  const participates = (id: string): boolean => {
+    const channel = readRecord(id);
+    if (channel === undefined || channel.deletedAt !== undefined) return false;
+    return channel.type === 'dm'
+      ? !isBotDmChannel(channel)
+      : humanMembers(id).some((member) => member.human_id === LOCAL_HUMAN_ID);
+  };
+  const normalizeHumanName = (name: string | null): string | null => {
+    if (
+      name !== null &&
+      (typeof name !== 'string' || name.length > 128 || /[\u0000-\u001f\u007f]/u.test(name))
+    )
+      throw new Error('Human name must be a single line of at most 128 characters');
+    return name?.trim() || null;
+  };
 
   const humanReceiptsFor = (
     message: ChannelMessage,
@@ -854,14 +881,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
   return {
     humanIdentity,
     setHumanDefaultName(displayName) {
-      if (
-        displayName !== null &&
-        (typeof displayName !== 'string' ||
-          displayName.length > 128 ||
-          /[\u0000-\u001f\u007f]/u.test(displayName))
-      )
-        throw new Error('Human name must be a single line of at most 128 characters');
-      const normalized = displayName?.trim() || null;
+      const normalized = normalizeHumanName(displayName);
       database.transaction(
         (db) =>
           db
@@ -874,11 +894,34 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       options.onRecordChanged?.();
       return humanIdentity();
     },
+    humanNickname(id) {
+      return participates(id) ? readNickname(id) : undefined;
+    },
+    setHumanNickname(id, nickname) {
+      if (!participates(id)) throw new Error('The local Human must participate in this Channel');
+      const normalized = normalizeHumanName(nickname);
+      database.transaction(
+        (db) => {
+          if (normalized === null)
+            db.prepare(
+              'DELETE FROM channel_human_nicknames WHERE channel_id = ? AND human_id = ?',
+            ).run(id, LOCAL_HUMAN_ID);
+          else
+            db.prepare(
+              'INSERT INTO channel_human_nicknames (channel_id, human_id, nickname) VALUES (?, ?, ?) ON CONFLICT(channel_id, human_id) DO UPDATE SET nickname = excluded.nickname',
+            ).run(id, LOCAL_HUMAN_ID, normalized);
+        },
+        ['human-identity'],
+      );
+      options.onRecordChanged?.();
+    },
     listHumanMembers(id) {
       const channel = readRecord(id);
       if (channel?.type === 'dm' && !isBotDmChannel(channel)) {
         const identity = humanIdentity();
-        return [{ humanId: identity.humanId, displayName: identity.displayName }];
+        return [
+          { humanId: identity.humanId, displayName: readNickname(id) ?? identity.displayName },
+        ];
       }
       return humanMembers(id).map((member) => ({
         humanId: member.human_id,
@@ -939,7 +982,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const record: ChannelRecord = {
         id,
         type: 'dm',
-        name: name.trim() || members.join(' · '),
+        name: name.trim() || members.join(' 路 '),
         members,
         createdAt: timestamp,
         updatedAt: timestamp,

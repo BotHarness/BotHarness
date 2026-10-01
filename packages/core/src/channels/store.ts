@@ -244,6 +244,8 @@ export interface ChannelStore {
   rootDir: string;
   humanIdentity(): LocalHumanIdentity;
   setHumanDefaultName(displayName: string | null): LocalHumanIdentity;
+  humanNickname(id: string): string | null | undefined;
+  setHumanNickname(id: string, nickname: string | null): void;
   list(): ChannelRecord[];
   get(id: string): ChannelRecord | undefined;
   listHumanMembers(id: string): Array<{ humanId: string; displayName: string }>;
@@ -530,6 +532,10 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       displayName: 'Human',
     }),
     setHumanDefaultName: () => {
+      throw new Error('Human names require the operational database');
+    },
+    humanNickname: () => undefined,
+    setHumanNickname: () => {
       throw new Error('Human names require the operational database');
     },
     listHumanMembers: () => [],

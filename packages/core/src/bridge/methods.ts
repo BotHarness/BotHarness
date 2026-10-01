@@ -183,6 +183,7 @@ export interface ProfileActivity {
 
 export interface ChannelListItem extends ChannelRecord {
   humanMembers?: Array<{ humanId: string; displayName: string }>;
+  humanNickname?: string | null;
   latestMessage?: ChannelMessage;
 }
 
@@ -233,6 +234,7 @@ export interface BridgeMethods {
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   humanIdentity(payload: unknown): BridgeResult<LocalHumanIdentity>;
   humanNameSet(payload: unknown): BridgeResult<LocalHumanIdentity>;
+  channelHumanNameSet(payload: unknown): BridgeResult<{ channel: ChannelListItem }>;
   channels(payload: unknown): BridgeResult<{ channels: ChannelListItem[] }>;
   channelDm(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
@@ -581,10 +583,14 @@ function detail(record: PersonaBotRecord, snapshot: BotStateSnapshot): PersonaBo
 }
 
 export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
-  const channelView = (channel: ChannelRecord) => ({
-    ...channel,
-    humanMembers: deps.channels.listHumanMembers(channel.id),
-  });
+  const channelView = (channel: ChannelRecord): ChannelListItem => {
+    const humanNickname = deps.channels.humanNickname(channel.id);
+    return {
+      ...channel,
+      humanMembers: deps.channels.listHumanMembers(channel.id),
+      ...(humanNickname === undefined ? {} : { humanNickname }),
+    };
+  };
   const messagingCall = async <T>(
     operation: (service: OutboundMessaging) => Promise<T>,
   ): Promise<BridgeResult<T>> => {
@@ -1173,6 +1179,23 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (!input.success) return invalidInput('A displayName string or null is required');
       try {
         return { ok: true, value: deps.channels.setHumanDefaultName(input.data.displayName) };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
+    },
+    channelHumanNameSet(payload) {
+      const input = z
+        .object({ channelId: z.string(), nickname: z.string().max(128).nullable() })
+        .strict()
+        .safeParse(payload);
+      if (!input.success)
+        return invalidInput('A channelId and nickname string or null are required');
+      try {
+        deps.channels.setHumanNickname(input.data.channelId, input.data.nickname);
+        return {
+          ok: true,
+          value: { channel: channelView(deps.channels.get(input.data.channelId)!) },
+        };
       } catch (error) {
         return invalidInput(error instanceof Error ? error.message : String(error));
       }
