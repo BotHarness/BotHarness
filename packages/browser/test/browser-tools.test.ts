@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -309,6 +309,26 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     await expect(
       h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe')),
     ).rejects.toThrow(/call browser_open/);
+  });
+
+  it('audits upload size and redacts Host paths on failures without changing the tool error', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    const path = join(h.screenshotDir, 'upload.txt');
+    writeFileSync(path, 'private contents');
+    const call = (name: string, args = {}) =>
+      h.state.definitions.get(name)!.execute(args, execution(name));
+    await call('browser_open', { url: 'https://example.com' });
+    await call('browser_observe');
+    await call('browser_upload', { path, ref: 'e1' });
+    expect(h.audits.at(-1)?.summary).toBe('file=upload.txt bytes=16 ref=e1');
+    h.runtime.uploadFile = vi.fn(async () => {
+      throw Error(`The file does not exist on the Host: ${path}`);
+    });
+    await expect(call('browser_upload', { path })).rejects.toThrow(path);
+    expect(JSON.stringify(h.audits)).not.toContain(path);
+    expect(JSON.stringify(h.audits)).not.toContain('private contents');
+    expect(h.audits.at(-1)?.error).toBe('The file does not exist on the Host: upload.txt');
   });
 
   it('captures a screenshot as an image result and audits it redacted', async () => {

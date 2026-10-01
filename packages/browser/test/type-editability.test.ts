@@ -49,6 +49,7 @@ async function runtimeWithDocument(html: string) {
         }
         return {};
       },
+      subscribe: () => () => undefined,
       close: () => undefined,
     }),
   });
