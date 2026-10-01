@@ -17,7 +17,12 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- A mention-only PersonaBot can explicitly read bounded Lark group, nearby Chat time-window or anchored topic context through its own identity; the Inbox source uses a readable chat layout with named mentions and expandable exact message/source references, sender identities and read history, omissions and permission refusals without admitting ordinary history or creating wakes ([#612](https://github.com/BotHarness/BotHarness/issues/612)).
+- A mention-only PersonaBot can explicitly read bounded Lark group, nearby Chat time-window or anchored topic context through its own identity; the Inbox source uses a readable chat layout with named mentions and expandable exact message/source references, sender identities and read history, omissions and permission refusals without admitting ordinary history or creating wakes; non-advancing provider cursors refuse before retaining or observing returned messages ([#612](https://github.com/BotHarness/BotHarness/issues/612)).
+- A PersonaBot can process a ZIP received through an authorized Lark file reply, save an independent working copy, and explicitly return a newly selected file in the same topic; Bot Inbox exposes an on-demand original download through the qualified temporary provider ([#657](https://github.com/BotHarness/BotHarness/issues/657), [file guide](docs/file-open.md), [ADR-0107](docs/adr/0107-external-files-use-trusted-source-capabilities-and-existing-owner.md)).
+
+- Human Inbox adds filterable Handled history for answered questions, tool decisions, Workspace Grant replies and Assignment responses, with exact request/answer navigation; live actions stay oldest-first and refresh from canonical facts across windows and restart ([#553](https://github.com/BotHarness/BotHarness/issues/553)).
+
+- Humans can authorize a Workspace Grant request or answer a waiting/blocked Assignment inside Human Inbox with source context and exact Session navigation; committed replies use the Bot DM authority and refresh canonical action state ([#552](https://github.com/BotHarness/BotHarness/issues/552)).
 
 - Humans can answer a live native Bot question inside Human Inbox using the same options or custom input as its source DM card; answers resume the original request once, refresh resolved or stale actions, and preserve other Bots independently ([#551](https://github.com/BotHarness/BotHarness/issues/551)).
 
@@ -59,7 +64,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - A PersonaBot can attach Host files to a page through `browser_upload` (optionally clicking the control that opens the picker first): the native dialog is intercepted and the page's file input receives the path, with the audit recording only the file's basename ([#491](https://github.com/BotHarness/BotHarness/issues/491)).
 - `browser_screenshot` now also saves the capture under the browser data directory and reports its path, keeping only the newest captures ([#494](https://github.com/BotHarness/BotHarness/issues/494)).
 - Memory evolution now offers audited recovery checkpoints for branch, commit, staged, and working-tree state. A Human can confirm a restore while the original repository is archived; checkpoint context distinguishes observation from Git authorship ([#115](https://github.com/BotHarness/BotHarness/issues/115), [ADR-0097](docs/adr/0097-memory-recovery-checkpoints-separate-provenance-from-git-authorship.md)).
-- A PersonaBot can keep several tabs in its own Bot Browser window through `browser_tabs` (list, open, select, close): background tabs are opened without stealing focus, observe and actions follow the selected tab, idle windows close while the browser keeps running, and a Human-closed tab recovers through list/select or a new open ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
+- A PersonaBot can keep several tabs as owned background tabs on the shared Bot Browser through `browser_tabs` (list, open, select, close): background tabs are opened without stealing focus, observe and actions follow the selected tab, idle Bot tabs close while the browser keeps running, and a Human-closed tab recovers through list/select or a new open ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
 - A PersonaBot can act as well as read in the Bot Browser: `browser_click`, `browser_type`, `browser_press_key`, `browser_scroll`, and `browser_wait` use refs from the latest observation, a stale ref fails with a clear re-observe instruction, and typed text enters the audit only as a character count ([#462](https://github.com/BotHarness/BotHarness/issues/462)).
 - The Browser entry shows a live frame of the Bot's current tab and offers a Human **takeover** that pauses that Bot's browser actions and model screenshots until released; the Bot gains a `browser_screenshot` tool whose images reach the model only as attachments and never the audit ([#461](https://github.com/BotHarness/BotHarness/issues/461), [ADR-0090](docs/adr/0090-browser-access-is-per-personabot-authorization-is-session-scoped.md)).
 - A PersonaBot can browse the web in the profile's shared Bot Browser once the Human turns on its Browser Access: the read-only `browser_open` and `browser_observe` tools with guidance are injected only into that PersonaBot's sessions, the first action of a session asks the Human once (a profile switch can auto-allow), every observation and action is recorded as a redacted Browser Audit entry, and a version-pinned Chrome for Testing is installed on demand when the machine has no browser ([#460](https://github.com/BotHarness/BotHarness/issues/460), [ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md), [ADR-0090](docs/adr/0090-browser-access-is-per-personabot-authorization-is-session-scoped.md)).
@@ -139,6 +144,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- PersonaBot Attention policy now compares nine source rules in a compact table, with recent wakes, inline edit actions and secondary audit details ([#670](https://github.com/BotHarness/BotHarness/issues/670)).
 
 - Browser Profile uses a searchable combobox: select an existing name or explicitly create a new one; errors use the destructive theme colour and the Browser view removes redundant help text and its duplicate page title ([#611](https://github.com/BotHarness/BotHarness/issues/611)).
 
@@ -227,6 +234,22 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- PersonaBot Orchestrators can set and restore Human DM, Bot DM and Group mention delivery through the existing attention tools; changes keep immediate admission and carry Bot-authored revisions visible in Profile ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
+
+- Fixed concurrent first use by several PersonaBots sharing a Browser profile: they now wait for one Chrome startup, and a failed startup permits a fresh retry ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
+
+- Fixed recovery after a Human closes a Bot Browser tab: missing CDP Sessions now clear the closed current tab and return an instruction to select or open another owned tab ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
+
+- Human DM, Bot DM and Group mention delivery settings now save from PersonaBot Profile, so switching between steering the active Turn and queuing a separate Turn takes effect and survives restart ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
+
+- Background Bot Browser tabs now prepare native mouse and keyboard input without bringing the Human window to the foreground, so a search can open its first result before any screenshot or scroll ([#462](https://github.com/BotHarness/BotHarness/issues/462)).
+
+- Browser actions and navigation now report a readable timeout when the page remains unsettled for 15 seconds, and direct the Bot to observe before retrying an action that may already have run ([#462](https://github.com/BotHarness/BotHarness/issues/462)).
+
+- Sending a DM while reading earlier messages preserves the reading position; following the latest conversation still keeps new messages visible as Bot activity opens ([#120](https://github.com/BotHarness/BotHarness/issues/120)).
+
+- Browser screenshots started before Human Pause are now refused if control changes during capture or native attachment processing, so unfinished images cannot reach the model after takeover ([#461](https://github.com/BotHarness/BotHarness/issues/461)).
 
 - Turning off Browser Access cancels active waits and refuses unfinished or queued calls from the revoked registration, including after Access is enabled again; existing Bot Browser tabs remain available to the Human ([#460](https://github.com/BotHarness/BotHarness/issues/460)).
 

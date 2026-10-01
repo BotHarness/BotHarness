@@ -1,4 +1,6 @@
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
+import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
+export type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
 import type {
   MessagingSnapshot,
   MessagingGrant,
@@ -654,6 +656,20 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   if (grantRequest !== undefined && (grantRequest !== true || author.kind !== 'bot'))
     return undefined;
   let grantRequestResolution: ChannelMessage['grantRequestResolution'];
+  let assignmentReply: ChannelMessage['assignmentReply'];
+  if (record['assignmentReply'] !== undefined) {
+    const target = asRecord(record['assignmentReply']);
+    if (
+      target === undefined ||
+      author.kind !== 'human' ||
+      typeof target['sessionId'] !== 'string' ||
+      target['sessionId'].length === 0 ||
+      typeof target['sourceEventId'] !== 'string' ||
+      target['sourceEventId'].length === 0
+    )
+      return undefined;
+    assignmentReply = { sessionId: target['sessionId'], sourceEventId: target['sourceEventId'] };
+  }
   if (record['grantRequestResolution'] !== undefined) {
     const resolution = asRecord(record['grantRequestResolution']);
     if (
@@ -1018,7 +1034,11 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       : { humanReceipts: humanReceipts as NonNullable<ChannelMessage['humanReceipts']> }),
     ...(channelRevision === undefined ? {} : { channelRevision }),
     ...(grantRequest === true ? { grantRequest: true as const } : {}),
+    ...(grantRequest === true && record['grantRequestResolved'] === true
+      ? { grantRequestResolved: true }
+      : {}),
     ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
+    ...(assignmentReply === undefined ? {} : { assignmentReply }),
     ...(botDmAction === undefined ? {} : { botDmAction }),
     ...(memberDeparture === undefined ? {} : { memberDeparture }),
     ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
@@ -1408,6 +1428,76 @@ export async function markReadPosition(
   await unwrap(call, 'channelMarkRead', { channelId, messageId });
 }
 
+export async function loadHumanAssignmentContext(
+  call: BridgeCall,
+  slug: string,
+  sessionId: string,
+  sourceEventId: string,
+  signal?: AbortSignal,
+): Promise<HumanAssignmentContext> {
+  const context = asRecord(
+    asRecord(
+      await unwrap(call, 'humanAssignmentContext', { slug, sessionId, sourceEventId }, signal),
+    )?.['context'],
+  );
+  if (
+    context === undefined ||
+    context['botSlug'] !== slug ||
+    context['sessionId'] !== sessionId ||
+    context['sourceEventId'] !== sourceEventId ||
+    typeof context['purpose'] !== 'string' ||
+    typeof context['canReply'] !== 'boolean' ||
+    !Array.isArray(context['reports']) ||
+    context['reports'].length > 5
+  )
+    throw new Error('invalid Assignment context');
+  const reports: HumanAssignmentContext['reports'] = [];
+  for (const value of context['reports']) {
+    const row = asRecord(value);
+    if (
+      row === undefined ||
+      typeof row['sourceEventId'] !== 'string' ||
+      typeof row['at'] !== 'string' ||
+      typeof row['summary'] !== 'string' ||
+      (row['state'] !== 'progress' &&
+        row['state'] !== 'completed' &&
+        row['state'] !== 'blocked' &&
+        row['state'] !== 'waiting-human' &&
+        row['state'] !== 'failed')
+    )
+      throw new Error('invalid Assignment report');
+    reports.push({
+      sourceEventId: row['sourceEventId'],
+      at: row['at'],
+      summary: row['summary'],
+      state: row['state'],
+    });
+  }
+  if (!reports.some((row) => row.sourceEventId === sourceEventId))
+    throw new Error('Assignment source report is unavailable');
+  let reply: HumanAssignmentContext['reply'];
+  if (context['reply'] !== undefined) {
+    const row = asRecord(context['reply']);
+    if (
+      row === undefined ||
+      typeof row['id'] !== 'string' ||
+      typeof row['at'] !== 'string' ||
+      typeof row['body'] !== 'string'
+    )
+      throw new Error('invalid Assignment response');
+    reply = { id: row['id'], at: row['at'], body: row['body'] };
+  }
+  return {
+    botSlug: slug,
+    sessionId,
+    sourceEventId,
+    purpose: context['purpose'],
+    canReply: context['canReply'],
+    reports,
+    ...(reply === undefined ? {} : { reply }),
+  };
+}
+
 export async function sendChannelMessage(
   call: BridgeCall,
   channelId: string,
@@ -1420,6 +1510,7 @@ export async function sendChannelMessage(
   mentions?: ChannelMessage['mentions'],
   channelRefs?: ChannelMessage['channelRefs'],
   grantRequestResolution?: ChannelMessage['grantRequestResolution'],
+  assignmentReply?: ChannelMessage['assignmentReply'],
 ): Promise<ChannelMessage> {
   const value = await unwrap(
     call,
@@ -1434,6 +1525,7 @@ export async function sendChannelMessage(
       ...(mentions === undefined ? {} : { mentions }),
       ...(channelRefs === undefined ? {} : { channelRefs }),
       ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
+      ...(assignmentReply === undefined ? {} : { assignmentReply }),
     },
     signal,
   );
@@ -1763,7 +1855,8 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['category'] !== 'action' &&
       item['category'] !== 'info' &&
       item['category'] !== 'unread' &&
-      item['category'] !== 'replies'
+      item['category'] !== 'replies' &&
+      item['category'] !== 'handled'
     )
       return undefined;
     if (
@@ -1822,6 +1915,24 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
         typeof item['messageId'] !== 'string' ||
         typeof item['sourceEventId'] !== 'string' ||
         typeof item['isUnread'] !== 'boolean')
+    )
+      return undefined;
+    if (
+      item['category'] === 'handled' &&
+      (![
+        'user-question',
+        'tool-approval',
+        'workspace-grant-request',
+        'assignment-waiting-human',
+        'assignment-blocked',
+      ].includes(String(item['kind'])) ||
+        typeof item['channelId'] !== 'string' ||
+        typeof item['responseMessageId'] !== 'string' ||
+        typeof item['responseSourceEventId'] !== 'string' ||
+        typeof item['sourceEventId'] !== 'string' ||
+        (item['kind'] !== 'assignment-waiting-human' &&
+          item['kind'] !== 'assignment-blocked' &&
+          typeof item['messageId'] !== 'string'))
     )
       return undefined;
     return item as unknown as HumanAttentionItem;
@@ -2679,6 +2790,12 @@ export async function readMessagingSource(
         (asRecord(mention)?.['name'] === undefined ||
           typeof asRecord(mention)?.['name'] === 'string'),
     ) ||
+    (event['attachments'] !== undefined &&
+      (!Array.isArray(event['attachments']) ||
+        event['attachments'].length > 1 ||
+        !event['attachments'].every((file) =>
+          strings(asRecord(file), ['id', 'messageId', 'resourceKey', 'name']),
+        ))) ||
     replay?.['kind'] !== 'provider-redelivery' ||
     replay['resumeCursor'] !== false ||
     replay['gapPossible'] !== true

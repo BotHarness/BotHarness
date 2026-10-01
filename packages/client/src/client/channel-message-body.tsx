@@ -17,7 +17,7 @@ import type { ChannelHumanMember } from './store.js';
 import { referenceRuns } from './channel-refs.js';
 import type { BridgeActions, HostDirectoryListing } from './actions.js';
 import { FolderBrowser } from './workspace-grants-entry.js';
-import { publishWorkspaceGrantChange, WORKSPACE_GRANTS_CHANGED } from './workspace-grant-events.js';
+import { WORKSPACE_GRANTS_CHANGED } from './workspace-grant-events.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { store, type BotSummary, type ChannelMessage } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -466,9 +466,22 @@ function GrantRequestCard({
     setError(undefined);
     void actions
       .listHostFolders()
-      .then(setListing, (cause: unknown) => {
+      .then(setListing, async (cause: unknown) => {
+        if (
+          cause instanceof Error &&
+          'rpcError' in cause &&
+          typeof cause.rpcError === 'object' &&
+          cause.rpcError !== null &&
+          'code' in cause.rpcError &&
+          cause.rpcError.code === 'directory-picker/unavailable'
+        ) {
+          const path = await actions.pickWorkspaceFolder();
+          if (path !== null) approve(path);
+          return;
+        }
         setError(errorMessage(cause));
       })
+      .catch((cause: unknown) => setError(errorMessage(cause)))
       .finally(() => setOpening(false));
   };
   const approve = (path: string): void => {
@@ -477,25 +490,9 @@ function GrantRequestCard({
     setError(undefined);
     void (async () => {
       try {
-        const expectedChannel = `dm-${botSlug}`;
-        if (store.getSnapshot().conversation.channel?.id !== expectedChannel) {
-          throw new Error(t('grant.requestChannelChanged'));
-        }
-        const grant = await actions.authorizeWorkspacePath(botSlug, path);
-        publishWorkspaceGrantChange(botSlug);
-        if (store.getSnapshot().conversation.channel?.id !== expectedChannel) {
-          throw new Error(t('grant.requestChannelChanged'));
-        }
-        const sent = await actions.send(
-          t('grant.requestApprovedMessage', { name: grant.workspaceTitle }),
-          message.id,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          { requestMessageId: message.id, grantId: grant.id },
+        await actions.resolveWorkspaceGrantRequest(botSlug, message.id, path, (name) =>
+          t('grant.requestApprovedMessage', { name }),
         );
-        if (!sent) throw new Error(t('grant.requestContinueFailed'));
         setCompleted(true);
         setListing(undefined);
       } catch (cause) {
@@ -623,7 +620,12 @@ export function ChannelMessageBody({
   }
   if (message.grantRequest === true && actions !== undefined) {
     return (
-      <GrantRequestCard message={message} actions={actions} resolved={grantRequestResolved} t={t} />
+      <GrantRequestCard
+        message={message}
+        actions={actions}
+        resolved={grantRequestResolved || message.grantRequestResolved === true}
+        t={t}
+      />
     );
   }
   const leading = format === 'markdown' ? leadingBotMentions(message) : undefined;

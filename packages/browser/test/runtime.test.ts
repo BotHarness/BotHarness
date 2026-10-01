@@ -265,6 +265,60 @@ describe('runtime lifecycle', () => {
     expect(child.proc.kill).toHaveBeenCalled();
   });
 
+  it('shares a single startup for concurrent Browser consumers', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const connect = vi.fn(async () => fakeClient());
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      browserPath: '/opt/chrome',
+      fileExists: () => true,
+      connect,
+    });
+    const consumers = Promise.all([runtime.ensure(), runtime.ensure()]);
+    child.ready();
+    await consumers;
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(1);
+    expect(runtime.isRunning()).toBe(true);
+    await runtime.stop();
+  });
+
+  it('permits one fresh retry after shared startup fails', async () => {
+    const first = fakeChild();
+    const retry = fakeChild();
+    spawnMock.mockReturnValue(first.proc as never);
+    const connect = vi.fn().mockRejectedValue(new Error('Connection unavailable'));
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      browserPath: '/opt/chrome',
+      fileExists: () => true,
+      connect,
+    });
+    const failed = Promise.allSettled([runtime.ensure(), runtime.ensure()]);
+    first.ready();
+    const outcomes = await failed;
+    expect(outcomes).toEqual([
+      {
+        status: 'rejected',
+        reason: expect.objectContaining({ message: 'Connection unavailable' }),
+      },
+      {
+        status: 'rejected',
+        reason: expect.objectContaining({ message: 'Connection unavailable' }),
+      },
+    ]);
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    spawnMock.mockReturnValue(retry.proc as never);
+    connect.mockResolvedValueOnce(fakeClient());
+    const pending = runtime.ensure();
+    retry.ready();
+    await pending;
+    expect(spawnMock).toHaveBeenCalledTimes(2);
+    expect(runtime.isRunning()).toBe(true);
+    await runtime.stop();
+  });
+
   it.each(['reuse', 'open', 'new tab'] as const)(
     'rejects a failed %s navigation and permits retry without losing the original error',
     async (kind) => {
@@ -339,6 +393,85 @@ describe('runtime lifecycle', () => {
       ).toHaveLength(1);
       expect(onEvent).toHaveBeenCalledWith(expect.stringContaining('navigation cleanup failed'));
       await runtime.stop();
+    },
+  );
+
+  it.each(['reuse', 'new tab', 'key', 'type', 'delayed navigation', 'context loss'] as const)(
+    'reports an unsettled page within the readiness bound after %s',
+    async (operation) => {
+      vi.useFakeTimers();
+      try {
+        const child = fakeChild();
+        spawnMock.mockReturnValue(child.proc as never);
+        const client = fakeClient();
+        const send = client.send;
+        let loading = false;
+        let readinessReads = 0;
+        client.send = vi.fn(async (method, params, sessionId) => {
+          if (
+            loading &&
+            method === 'Runtime.evaluate' &&
+            params?.['expression'] === 'document.readyState'
+          ) {
+            readinessReads += 1;
+            if (operation === 'context loss' && readinessReads === 1)
+              throw new Error('Execution context was destroyed');
+            return {
+              result: {
+                value:
+                  operation === 'delayed navigation' && readinessReads === 1
+                    ? 'complete'
+                    : 'loading',
+              },
+            };
+          }
+          return send(method, params, sessionId);
+        });
+        const runtime = createBotBrowserRuntime({
+          userDataDir: '/tmp/browser-test',
+          browserPath: '/opt/chrome',
+          fileExists: () => true,
+          connect: async () => client,
+        });
+        const ready = runtime.ensure();
+        child.ready();
+        await ready;
+        const opened = runtime.open('https://example.com');
+        await vi.advanceTimersByTimeAsync(200);
+        await opened;
+        loading = true;
+        const started = Date.now();
+        const pending =
+          operation === 'reuse'
+            ? runtime.open('https://loading.test', 'tab-1')
+            : operation === 'new tab'
+              ? runtime.createTab('https://loading.test')
+              : operation === 'key' ||
+                  operation === 'delayed navigation' ||
+                  operation === 'context loss'
+                ? runtime.pressKey('tab-1', 'Enter')
+                : runtime.type('tab-1', 'e1', 'synthetic query');
+        const outcome = pending.then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+        await vi.advanceTimersByTimeAsync(15000);
+        expect(await outcome).toMatchObject({
+          message: expect.stringMatching(/did not settle within 15000ms.*browser_observe/),
+        });
+        expect(Date.now() - started).toBe(15000);
+        expect(
+          vi.mocked(client.send).mock.calls.filter(([method]) => method === 'Target.closeTarget'),
+        ).toHaveLength(operation === 'new tab' ? 1 : 0);
+        loading = false;
+        await expect(runtime.observe('tab-1')).resolves.toMatchObject({ text: 'Hello world' });
+        const retry = runtime.open('https://example.com', 'tab-1');
+        await vi.advanceTimersByTimeAsync(200);
+        await expect(retry).resolves.toMatchObject({ tabId: 'tab-1' });
+        await runtime.stop();
+      } finally {
+        vi.useRealTimers();
+      }
     },
   );
 
@@ -998,6 +1131,45 @@ describe('runtime lifecycle', () => {
     await expect(runtime.click('tab-1', 'e9')).rejects.toThrow(/stale/);
   });
 
+  it.each(['click', 'key'] as const)(
+    'prepares a background Session before native %s input without foreground activation',
+    async (operation) => {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const base = fakeClient();
+      let prepared = false;
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        browserPath: '/opt/chrome',
+        fileExists: () => true,
+        connect: async () => ({
+          send: async (method, params, sessionId) => {
+            if (method === 'Emulation.setFocusEmulationEnabled') prepared = true;
+            if (method.startsWith('Input.') && !prepared)
+              throw new Error('Background page is not focused for input');
+            if (
+              method === 'Runtime.evaluate' &&
+              String(params?.['expression']).includes('const el = document.querySelector(')
+            )
+              return { result: { value: { ok: true, x: 100, y: 100 } } };
+            return base.send(method, params, sessionId);
+          },
+          close: () => base.close(),
+        }),
+      });
+      const ensuring = runtime.ensure();
+      child.ready();
+      await ensuring;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await expect(
+          operation === 'click' ? runtime.click('tab-1', 'e1') : runtime.pressKey('tab-1', 'Enter'),
+        ).resolves.toMatchObject({ tabId: 'tab-1' });
+      }
+      expect(base.calls.some((call) => call.method === 'Target.activateTarget')).toBe(false);
+      await runtime.stop();
+    },
+  );
+
   it('captures a JPEG frame and retries with focus emulation when the first take fails', async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child.proc as never);
@@ -1027,6 +1199,44 @@ describe('runtime lifecycle', () => {
     const shot = await runtime.captureScreenshot('tab-1');
     expect(shot).toEqual({ data: 'Zm9v', mimeType: 'image/jpeg' });
     expect(base.calls.map((call) => call.method)).toContain('Emulation.setFocusEmulationEnabled');
+  });
+
+  it('retries input preparation after a best-effort screenshot focus failure', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    let captures = 0;
+    let preparations = 0;
+    let prepared = false;
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      browserPath: '/opt/chrome',
+      fileExists: () => true,
+      connect: async () => ({
+        send: async (method, params, sessionId) => {
+          if (method === 'Page.captureScreenshot' && ++captures === 1)
+            throw new Error('No initial frame');
+          if (method === 'Emulation.setFocusEmulationEnabled') {
+            if (++preparations === 1) throw new Error('Temporary focus failure');
+            prepared = true;
+          }
+          if (method.startsWith('Input.') && !prepared)
+            throw new Error('Background page is not focused for input');
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      }),
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await expect(runtime.captureScreenshot('tab-1')).resolves.toMatchObject({
+      mimeType: 'image/jpeg',
+    });
+    await expect(runtime.pressKey('tab-1', 'Enter')).resolves.toMatchObject({ tabId: 'tab-1' });
+    expect(preparations).toBe(2);
+    expect(base.calls.some((call) => call.method === 'Target.activateTarget')).toBe(false);
+    await runtime.stop();
   });
 
   it('installs the pinned fallback when no system browser exists', async () => {

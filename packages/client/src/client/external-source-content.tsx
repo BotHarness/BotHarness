@@ -101,9 +101,11 @@ function MessageCard({
 export function ExternalSourceContent({
   source,
   t,
+  children,
 }: {
   source: ExternalSource;
   t: BotHarnessTranslate;
+  children?: ReactNode;
 }): ReactElement {
   const platform =
     source.platform === 'feishu'
@@ -148,6 +150,7 @@ export function ExternalSourceContent({
           }}
           t={t}
         />
+        {children}
       </section>
       {source.contextReads?.length ? (
         <section aria-label={t('im.contextTitle')} className="bh-external-context">

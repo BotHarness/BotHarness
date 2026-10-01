@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import type { OperationalDatabaseModulePort } from '../database/owner.js';
+import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
 import type { BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { MessagingGrant } from './outbound.js';
 import {
@@ -63,6 +63,7 @@ export interface InboundMessaging {
   setEnabled(botSlug: string, grantId: string, enabled: boolean): Promise<void>;
   status(grantId: string): 'off' | 'connecting' | 'receiving' | 'unavailable';
   available(botSlug: string, sourceEventId: string): boolean;
+  sourceSignal(botSlug: string, sourceEventId: string): AbortSignal;
   read(botSlug: string, sourceEventId: string): ExternalSource;
   context(
     botSlug: string,
@@ -83,6 +84,15 @@ export function createInboundMessaging(options: {
   warn?(message: string): void;
 }): InboundMessaging {
   const { database } = options;
+  const transaction = <T>(command: (db: DatabaseSync) => T, topics: string[] = []): T => {
+    try {
+      return database.transaction(command, topics);
+    } catch (error) {
+      if (error instanceof OperationalDatabaseError && error.cause instanceof MessagingError)
+        throw error.cause;
+      throw error;
+    }
+  };
   const providers = new Map<string, { provider: MessagingProvider; token: object }>();
   const leases = new Map<
     string,
@@ -134,7 +144,8 @@ export function createInboundMessaging(options: {
       if (
         existing.body !== event.text ||
         previous.event.actor.id !== event.actor.id ||
-        JSON.stringify(previous.event.reply) !== JSON.stringify(event.reply)
+        JSON.stringify(previous.event.reply) !== JSON.stringify(event.reply) ||
+        JSON.stringify(previous.event.attachments ?? []) !== JSON.stringify(event.attachments ?? [])
       )
         throw new MessagingError('source-conflict');
       const mentions = previous.event.mentions.map((mention) => {
@@ -282,7 +293,7 @@ export function createInboundMessaging(options: {
             !event.mentionedAccount
           )
             return { accepted: true };
-          const id = database.transaction(
+          const id = transaction(
             (db) => {
               signal.throwIfAborted();
               lease.controller.signal.throwIfAborted();
@@ -491,6 +502,12 @@ export function createInboundMessaging(options: {
         return false;
       }
     },
+    sourceSignal(botSlug, sourceEventId) {
+      const source = read(botSlug, sourceEventId);
+      const value = grant(source.grantId);
+      if (!valid(value)) throw new MessagingError('source-unavailable');
+      return leases.get(value.id)!.controller.signal;
+    },
     read,
     async context(botSlug, sourceEventId, sessionId, query, callerSignal) {
       if (!['group', 'nearby', 'thread'].includes(query.scope))
@@ -597,6 +614,12 @@ export function createInboundMessaging(options: {
         const page = await cancellable(request);
         signal.throwIfAborted();
         assertCurrent();
+        if (
+          page.hasMore &&
+          cursor?.providerCursor !== undefined &&
+          page.nextCursor === cursor.providerCursor
+        )
+          throw new MessagingError('untrusted-source');
         const digest = createHash('sha256').update(JSON.stringify(page)).digest('hex');
         if (cursor?.digest && cursor.digest !== digest)
           throw new MessagingError('history-cursor-stale');

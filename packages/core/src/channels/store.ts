@@ -1,5 +1,6 @@
 import type { AttachmentMigrationResult } from '../attachments/legacy-migration.js';
 import { projectAttachmentFiles } from '../attachments/message-files.js';
+import { assertGrantRequestReply, isGrantRequestResolved } from './grant-request.js';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import type { Dirent } from 'node:fs';
@@ -387,6 +388,8 @@ function sameMessageIntent(left: ChannelMessage, right: ChannelMessage): boolean
     JSON.stringify(left.author) === JSON.stringify(right.author) &&
     left.body === right.body &&
     left.replyTo === right.replyTo &&
+    JSON.stringify(left.grantRequestResolution) === JSON.stringify(right.grantRequestResolution) &&
+    JSON.stringify(left.assignmentReply) === JSON.stringify(right.assignmentReply) &&
     JSON.stringify(attachmentIntent(left.attachments ?? [])) ===
       JSON.stringify(attachmentIntent(right.attachments ?? []))
   );
@@ -400,7 +403,19 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
   const projectReply = (
     message: ChannelMessage,
     byId: ReadonlyMap<string, ChannelMessage>,
-  ): ChannelMessage => projectAttachmentFiles(projectReplyBase(message, byId), options.attachments);
+  ): ChannelMessage =>
+    projectAttachmentFiles(
+      projectReplyBase(
+        {
+          ...message,
+          ...(message.grantRequest
+            ? { grantRequestResolved: isGrantRequestResolved([...byId.values()], message.id) }
+            : {}),
+        },
+        byId,
+      ),
+      options.attachments,
+    );
   const rootDir = options.rootDir;
   const now = options.now ?? (() => new Date());
   const channelDir = (id: string): string => join(rootDir, id);
@@ -739,7 +754,9 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
           throw new ChannelReplyTargetError();
         }
         assertAttachmentRefs(message.attachments ?? []);
+        assertGrantRequestReply(record, message, priorMessages);
         const durableMessage = { ...message };
+        delete durableMessage.grantRequestResolved;
         delete durableMessage.replyToPreview;
         const projected = projectReply(durableMessage, messageIndex(priorMessages));
         const revision = revisionOf(id) + 1;
@@ -775,7 +792,9 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
           throw new ChannelReplyTargetError();
         }
         assertAttachmentRefs(message.attachments ?? []);
+        assertGrantRequestReply(record, message, priorMessages);
         const durableMessage = { ...message };
+        delete durableMessage.grantRequestResolved;
         delete durableMessage.replyToPreview;
         const projected = projectReply(durableMessage, messageIndex(priorMessages));
         const revision = revisionOf(id) + 1;

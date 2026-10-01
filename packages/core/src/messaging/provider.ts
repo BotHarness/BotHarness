@@ -13,6 +13,13 @@ export interface MessagingTarget {
   receiveScope?: { kind: 'group'; conversationId: string };
 }
 
+export interface MessagingAttachment {
+  id: string;
+  messageId: string;
+  resourceKey: string;
+  name: string;
+}
+
 export interface MessagingInboundEvent {
   version: 1;
   channel: 'feishu';
@@ -26,6 +33,7 @@ export interface MessagingInboundEvent {
   mentionedAccount: boolean;
   at: string;
   text: string;
+  attachments?: MessagingAttachment[];
   reply: MessagingReplyRoute;
   replay: { kind: 'provider-redelivery'; resumeCursor: false; gapPossible: true };
 }
@@ -87,6 +95,20 @@ export interface MessagingProvider {
     query: MessagingHistoryQuery;
     signal: AbortSignal;
   }): Promise<MessagingHistoryPage>;
+  readFile?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    attachment: MessagingAttachment;
+    signal: AbortSignal;
+  }): Promise<AsyncIterable<Uint8Array>>;
+  replyFile?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    file: { id: string; name: string; bytes: Uint8Array };
+    signal: AbortSignal;
+  }): Promise<{ accepted: true }>;
   send(input: {
     accountRef: string;
     targetRef: string;

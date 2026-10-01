@@ -1,0 +1,14 @@
+{
+  "realModelSearchCompleted": true,
+  "nativeInteractionTools": ["type", "press_key", "click", "wait", "scroll"],
+  "searchSubmissions": 1,
+  "firstResultOpenedDuringTask": 1,
+  "staleRefRefused": true,
+  "typedTextAuditRedacted": true,
+  "auditAttributed": true,
+  "readinessTimeoutReported": true,
+  "toolRoundTripMs": 15186,
+  "partialObservationAvailable": true,
+  "retryRetainsCurrentTab": true,
+  "finalModelReplyAndScreenshot": true
+}

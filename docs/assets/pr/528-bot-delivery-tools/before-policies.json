@@ -1,0 +1,121 @@
+[
+  {
+    "sourceClass": "human-dm",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T16:25:44.409Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  },
+  {
+    "sourceClass": "bot-dm",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T16:25:44.409Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  },
+  {
+    "sourceClass": "group-mention",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T16:25:44.409Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  },
+  {
+    "sourceClass": "group-ordinary",
+    "admission": "admit",
+    "wake": "digest",
+    "delivery": "steer",
+    "digestCount": 5,
+    "digestIntervalSeconds": 30,
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T16:25:44.409Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  },
+  {
+    "sourceClass": "group-invite",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T16:25:44.409Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  },
+  {
+    "sourceClass": "group-join-request",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T16:25:44.409Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  },
+  {
+    "sourceClass": "group-join-decision",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T16:25:44.410Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  },
+  {
+    "sourceClass": "assignment-report",
+    "admission": "admit",
+    "wake": "conditional",
+    "delivery": "steer",
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T16:25:44.410Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  },
+  {
+    "sourceClass": "assignment-lifecycle",
+    "admission": "admit",
+    "wake": "immediate",
+    "delivery": "steer",
+    "revision": 1,
+    "lastActor": {
+      "kind": "built-in"
+    },
+    "changedAt": "2026-10-01T16:25:44.410Z",
+    "overrideActive": false,
+    "recentWakeCount": 0
+  }
+]

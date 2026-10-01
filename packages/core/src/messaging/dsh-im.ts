@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type {
+  MessagingAttachment,
   MessagingInboundEvent,
   MessagingReplyRoute,
   MessagingHistoryQuery,
@@ -17,6 +18,20 @@ interface DshImTarget {
 
 export interface DshImOutboundService {
   contractVersion: 1;
+  fileVersion?: 1;
+  readSourceFile?(
+    botId: string,
+    route: MessagingReplyRoute,
+    attachment: MessagingAttachment,
+    options: { expectedFingerprint: string; signal: AbortSignal },
+  ): Promise<AsyncIterable<Uint8Array>>;
+  replyFileChecked?(
+    botId: string,
+    route: MessagingReplyRoute,
+    file: { id: string; name: string; bytes: Uint8Array },
+    options: { expectedFingerprint: string; signal: AbortSignal },
+  ): Promise<{ sent: true }>;
+
   listBots(): Promise<{ botId: string; channel: string }[]>;
   listTargets(botId: string): Promise<DshImTarget[]>;
   describeBot(botId: string): Promise<{
@@ -32,6 +47,7 @@ export interface DshImOutboundService {
     options: {
       expectedFingerprint: string;
       signal: AbortSignal;
+      sourceFiles?: boolean;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
     },
   ): Promise<() => void>;
@@ -102,6 +118,19 @@ const inboundSchema = z
       )
       .max(100),
     mentionedAccount: z.boolean(),
+    attachments: z
+      .array(
+        z
+          .object({
+            id: z.string().regex(/^[a-f0-9]{64}$/),
+            messageId: identifier,
+            resourceKey: identifier,
+            name: identifier,
+          })
+          .strict(),
+      )
+      .max(1)
+      .optional(),
     at: z.iso.datetime(),
     text: z.string().min(1).max(16000),
     reply: z
@@ -141,6 +170,8 @@ function providerFailure(error: unknown): MessagingProviderError {
     'bad-request',
     'stale-route',
     'consumer-unavailable',
+    'file-upload-failed',
+    'file-provider-rejected',
   ].includes(code);
   return new MessagingProviderError(
     definite ? code : 'provider-result-unknown',
@@ -223,11 +254,18 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
             return host.consumeInbound!(input.accountRef, {
               expectedFingerprint: input.fingerprint,
               signal: input.signal,
+              ...(host.fileVersion === 1 &&
+              info.capabilities.includes('source-file-checked') &&
+              info.capabilities.includes('reply-file-checked')
+                ? { sourceFiles: true }
+                : {}),
               onEvent: async (raw, context) => {
                 const parsed = inboundSchema.parse(raw);
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
+                const { attachments, ...base } = parsed;
                 const event: MessagingInboundEvent = {
-                  ...parsed,
+                  ...base,
+                  ...(attachments === undefined ? {} : { attachments }),
                   reply: {
                     ...required,
                     ...(threadId === undefined ? {} : { threadId }),
@@ -241,7 +279,8 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
                   event.fingerprint !== input.fingerprint ||
                   event.reply.messageId !== event.messageId ||
                   event.reply.conversationId !== event.conversation.id ||
-                  event.reply.actorId !== event.actor.id
+                  event.reply.actorId !== event.actor.id ||
+                  event.attachments?.some((item) => item.messageId !== event.reply.parentId)
                 )
                   throw new MessagingError('untrusted-source');
                 return input.onEvent(event, context.signal);
@@ -339,6 +378,48 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
                 throw new MessagingError('untrusted-source');
             }
             return parsed as MessagingHistoryPage;
+          },
+        }
+      : {}),
+    ...(host.fileVersion === 1 &&
+    typeof host.readSourceFile === 'function' &&
+    typeof host.replyFileChecked === 'function'
+      ? {
+          async readFile(input: Parameters<NonNullable<MessagingProvider['readFile']>>[0]) {
+            const info = await host.describeBot(input.accountRef);
+            if (
+              info.account.fingerprint !== input.fingerprint ||
+              !info.capabilities.includes('source-file-checked')
+            )
+              throw new MessagingError('provider-incompatible');
+            return host.readSourceFile!(input.accountRef, input.route, input.attachment, {
+              expectedFingerprint: input.fingerprint,
+              signal: input.signal,
+            });
+          },
+          async replyFile(input: Parameters<NonNullable<MessagingProvider['replyFile']>>[0]) {
+            try {
+              const info = await host.describeBot(input.accountRef);
+              if (
+                info.account.fingerprint !== input.fingerprint ||
+                !info.capabilities.includes('reply-file-checked')
+              )
+                throw new MessagingProviderError('capability-unavailable', 'not-started');
+              const result = await host.replyFileChecked!(
+                input.accountRef,
+                input.route,
+                input.file,
+                {
+                  expectedFingerprint: input.fingerprint,
+                  signal: input.signal,
+                },
+              );
+              if (result.sent !== true)
+                throw new MessagingProviderError('provider-result-unknown', 'unknown');
+              return { accepted: true as const };
+            } catch (error) {
+              throw providerFailure(error);
+            }
           },
         }
       : {}),

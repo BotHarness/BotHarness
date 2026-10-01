@@ -125,7 +125,7 @@ describe('DSH Bot Agent adapter', () => {
           );
           for (const call of [
             sourceSet.execute({ sourceClass: 'human-dm', wake: 'immediate' }, {} as ToolRunContext),
-            sourceReset.execute({ sourceClass: 'group-mention' }, {} as ToolRunContext),
+            sourceReset.execute({ sourceClass: 'group-invite' }, {} as ToolRunContext),
           ])
             rejectedSourceCalls.push(
               call.then(
@@ -150,6 +150,28 @@ describe('DSH Bot Agent adapter', () => {
       inboundChannelId: 'dm-test',
       inbox: '',
       sourcePolicy: {
+        setImmediateDelivery: (sourceClass, delivery) => ({
+          sourceClass,
+          delivery,
+          admission: 'admit',
+          wake: 'immediate',
+          revision: 2,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: true,
+          recentWakeCount: 0,
+        }),
+        resetImmediateDelivery: (sourceClass) => ({
+          sourceClass,
+          delivery: 'steer',
+          admission: 'admit',
+          wake: 'immediate',
+          revision: 3,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: false,
+          recentWakeCount: 0,
+        }),
         list: () => [],
         setAssignmentReport: (wake) => ({
           sourceClass: 'assignment-report',
@@ -282,7 +304,7 @@ describe('DSH Bot Agent adapter', () => {
         ok: false,
         error: expect.stringContaining('provider and model must be specified together'),
       },
-      { ok: false, error: expect.stringContaining('must be one of') },
+      { ok: false, error: expect.stringContaining('Direct sources require delivery') },
       { ok: false, error: expect.stringContaining('must be one of') },
     ]);
     expect(assignmentRequests).toEqual([
@@ -818,6 +840,8 @@ describe('DSH Bot Agent adapter', () => {
       'channel_list',
       'bridge_read',
       'bridge_context',
+      'bridge_attachment_save',
+      'bridge_reply_file',
       'bridge_reply',
       'channel_read',
       'inbox_ignore',
@@ -1223,6 +1247,12 @@ it('routes external Tools through the active owning Orchestrator without a local
     message: 'External turn',
     externalMessaging: {
       context: contextRead,
+      saveFile: async () => {
+        throw new Error('file sentinel');
+      },
+      replyFile: async () => {
+        throw new Error('file sentinel');
+      },
       read: (id) => {
         reads.push(id);
         throw new Error('owned source sentinel');

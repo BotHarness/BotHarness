@@ -1,0 +1,65 @@
+{
+  "bot": {
+    "slug": "bot-52ec1044bb28457aaf7483ee77af4a79",
+    "displayName": "DM scroll QA 1790864955660"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "footer": {
+    "scrollTop": 95,
+    "messageIds": ["human-b8c4daac-fae6-493e-b79b-1febef3d5291"],
+    "scrollHeight": 527,
+    "clientHeight": 432,
+    "bottomGap": 0,
+    "messageCount": 1,
+    "lastMessageBottom": 421.5,
+    "viewportBottom": 432,
+    "footerHeight": 40,
+    "lastVisible": true
+  },
+  "frames": [
+    {
+      "content": "none",
+      "borderWidth": "0px"
+    },
+    {
+      "content": "none",
+      "borderWidth": "0px"
+    },
+    {
+      "content": "none",
+      "borderWidth": "0px"
+    }
+  ],
+  "historyBefore": {
+    "scrollTop": 0,
+    "messageIds": ["human-b8c4daac-fae6-493e-b79b-1febef3d5291"],
+    "scrollHeight": 527,
+    "clientHeight": 432,
+    "bottomGap": 95,
+    "messageCount": 1,
+    "lastMessageBottom": 516.5,
+    "viewportBottom": 432,
+    "footerHeight": 40,
+    "lastVisible": false
+  },
+  "historyAfter": {
+    "scrollTop": 0,
+    "messageIds": [
+      "human-b8c4daac-fae6-493e-b79b-1febef3d5291",
+      "human-170f8401-c035-4939-a185-fd9c61cea988"
+    ],
+    "scrollHeight": 590,
+    "clientHeight": 432,
+    "bottomGap": 158,
+    "messageCount": 2,
+    "lastMessageBottom": 580,
+    "viewportBottom": 432,
+    "footerHeight": 40,
+    "lastVisible": false
+  },
+  "realReply": true
+}

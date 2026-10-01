@@ -1,0 +1,36 @@
+{
+  "runtimeRevision": "adf2e5ba007a901025f98ae2f699b6b44d1677b1",
+  "summary": {
+    "rows": 3,
+    "quantity": 7,
+    "total": 60
+  },
+  "originalUnchanged": true,
+  "csvPreserved": true,
+  "sourceBytes": 170,
+  "resultBytes": 322,
+  "resultSha256": "df10089275452040e81fe4247d7b33d9d22ca84cc02310ec3e963bb9cd7674ef",
+  "originalSha256": "39c6928f4fc1a7a7439a0814f6da5ab314ed9f34b6f1d39f4154659402c89c84",
+  "acceptedIntents": 3,
+  "remoteAppFiles": 3,
+  "testResults": {
+    "passed": 1772,
+    "skipped": 2
+  },
+  "reviewFix": {
+    "concurrentWaiterFailure": "focused regression passed",
+    "fixtureAssertions": "checked outside caught callbacks"
+  },
+  "finalCodeChecks": {
+    "tests": {
+      "passed": 1773,
+      "skipped": 2
+    },
+    "focusedReviewRegressions": 15,
+    "typecheck": true,
+    "lint": true,
+    "format": true,
+    "build": true,
+    "releaseLedgers": true
+  }
+}

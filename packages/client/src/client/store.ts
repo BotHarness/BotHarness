@@ -168,6 +168,8 @@ export interface ChannelMessage {
     departureType?: 'left' | 'removed';
   };
   grantRequest?: true;
+  grantRequestResolved?: boolean;
+  assignmentReply?: { sessionId: string; sourceEventId: string };
   grantRequestResolution?: { requestMessageId: string; grantId: string };
   toolApprovalRequest?: ToolApprovalRequestCard;
   sessionFailure?: SessionFailureCard;
@@ -201,7 +203,7 @@ export interface OwnedSessionSummary {
   assignmentAccessMode?: 'workspace-write' | 'danger-full-access';
 }
 
-export type HumanInboxCategory = 'action' | 'info' | 'unread' | 'replies';
+export type HumanInboxCategory = 'action' | 'info' | 'unread' | 'replies' | 'handled';
 export type HumanInboxSort = 'newest' | 'oldest';
 
 export interface HumanInboxFilters {
@@ -237,6 +239,8 @@ export interface HumanAttentionItem {
   sourceEventId?: string;
   unreadCount?: number;
   isUnread?: boolean;
+  responseMessageId?: string;
+  responseSourceEventId?: string;
 }
 
 export interface HumanAttentionPage {

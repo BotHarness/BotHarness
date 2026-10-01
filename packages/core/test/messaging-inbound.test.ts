@@ -655,6 +655,57 @@ it('binds bounded continuations to source/scope, returns omitted content later, 
   expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(1);
 });
 
+it.each([1000, 12000])(
+  'refuses an unchanged provider continuation before retaining its page (budget %i)',
+  async (maxCharacters) => {
+    const history = vi.fn<NonNullable<DshImOutboundService['historyChecked']>>(
+      async (_account, _route, query) => ({
+        version: 1,
+        scope: query.scope,
+        events: [
+          contextEvent(
+            query.cursor === undefined ? 'om-first' : 'om-repeated-page',
+            query.cursor === undefined ? 'first page' : 'x'.repeat(5000),
+          ),
+        ],
+        omitted: 0,
+        hasMore: true,
+        nextCursor: 'provider-same',
+        coverage: 'provider-visible-human-text',
+      }),
+    );
+    const fx = await fixture({ history });
+    await fx.enable();
+    await fx.receive();
+    await fx.idle();
+    const anchor = fx.core.attention.list({ botSlug: 'ada' }).items[0]!.id;
+    const first = await fx.core.externalMessaging.inbound.context('ada', anchor, 'test-read', {
+      scope: 'group',
+    });
+    const retained = fx.query('SELECT source_event_id FROM source_events ORDER BY source_event_id');
+    await expect(
+      fx.core.externalMessaging.inbound.context('ada', anchor, 'test-read', {
+        scope: 'group',
+        cursor: first.nextCursor!,
+        maxCharacters,
+      }),
+    ).rejects.toThrow('untrusted-source');
+    expect(history).toHaveBeenCalledTimes(2);
+    expect(history.mock.calls[1]?.[2].cursor).toBe('provider-same');
+    expect(fx.query('SELECT source_event_id FROM source_events ORDER BY source_event_id')).toEqual(
+      retained,
+    );
+    expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(1);
+    const read = fx.core.externalMessaging.inbound.read('ada', anchor);
+    expect(read.contextMessages?.map((message) => message.messageId)).toEqual(['om-first']);
+    expect(read.contextReads?.at(-1)).toMatchObject({
+      outcome: 'refused',
+      reason: 'untrusted-source',
+      sourceEventIds: [],
+    });
+  },
+);
+
 it('refuses another Bot, guessed source, cross-group evidence and missing capability without leaking content', async () => {
   const history = vi.fn<NonNullable<DshImOutboundService['historyChecked']>>(
     async (_account, _route, query) => ({

@@ -171,6 +171,46 @@ describe('attention Tool contracts through the owning Host', () => {
     });
   });
 
+  it('edits and restores only its own immediate delivery with audited Bot revisions', async () => {
+    await fixture(async (tools, core) => {
+      const other = core.sourcePolicy.list('bea');
+      for (const sourceClass of ['human-dm', 'bot-dm', 'group-mention']) {
+        expect(
+          await call(tools, 'source_attention_set', {
+            sourceClass,
+            wake: 'immediate',
+            delivery: 'turn',
+          }),
+        ).toMatchObject({
+          sourceClass,
+          admission: 'admit',
+          wake: 'immediate',
+          delivery: 'turn',
+          revision: 2,
+          overrideActive: true,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+        });
+        expect(
+          await call(tools, 'source_attention_set', {
+            sourceClass,
+            wake: 'immediate',
+            delivery: 'steer',
+          }),
+        ).toMatchObject({ delivery: 'steer', revision: 3, overrideActive: true });
+        expect(await call(tools, 'source_attention_reset', { sourceClass })).toMatchObject({
+          sourceClass,
+          admission: 'admit',
+          wake: 'immediate',
+          delivery: 'steer',
+          revision: 4,
+          overrideActive: false,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+        });
+      }
+      expect(core.sourcePolicy.list('bea')).toEqual(other);
+    });
+  });
+
   it('rejects invalid source combinations and numeric bounds without changing effective rules or revisions', async () => {
     await fixture(async (tools, core) => {
       const baseline = core.sourcePolicy.list('ada');
@@ -179,7 +219,16 @@ describe('attention Tool contracts through the owning Host', () => {
         { sourceClass: 'assignment-report', wake: 'silent' },
         { wake: 'immediate', digestCount: 5 },
         { sourceClass: 'group-ordinary', wake: 'conditional' },
-        { sourceClass: 'human-dm', wake: 'immediate' },
+        ...['human-dm', 'bot-dm', 'group-mention'].flatMap((sourceClass) => [
+          { sourceClass, wake: 'immediate' },
+          { sourceClass, wake: 'silent', delivery: 'turn' },
+          { sourceClass, wake: 'immediate', delivery: 'invalid' },
+          { sourceClass, wake: 'immediate', delivery: 'turn', digestCount: 5 },
+          { sourceClass, wake: 'immediate', delivery: 'turn', digestIntervalSeconds: 30 },
+        ]),
+        { wake: 'immediate', delivery: 'turn' },
+        { sourceClass: 'group-ordinary', wake: 'immediate', delivery: 'turn' },
+        { sourceClass: 'group-invite', wake: 'immediate', delivery: 'turn' },
         ...['immediate', 'mentions', 'silent'].flatMap((wake) => [
           { sourceClass: 'group-ordinary', wake, digestCount: 5 },
           { sourceClass: 'group-ordinary', wake, digestIntervalSeconds: 30 },
@@ -200,7 +249,7 @@ describe('attention Tool contracts through the owning Host', () => {
         expect(core.sourcePolicy.list('ada')).toEqual(baseline);
       }
       await expect(
-        call(tools, 'source_attention_reset', { sourceClass: 'group-mention' }),
+        call(tools, 'source_attention_reset', { sourceClass: 'group-invite' }),
       ).rejects.toThrow();
       expect(core.sourcePolicy.list('ada')).toEqual(baseline);
     });

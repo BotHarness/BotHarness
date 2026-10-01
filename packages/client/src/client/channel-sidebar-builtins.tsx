@@ -233,6 +233,48 @@ function BotInboxItemRow({
   const [externalOpen, setExternalOpen] = useState(false);
   const [external, setExternal] = useState<ExternalSource>();
   const [externalError, setExternalError] = useState(false);
+  const [fileBusy, setFileBusy] = useState<string>();
+  const [fileError, setFileError] = useState(false);
+  const fileRequest = useRef<AbortController>();
+  const download = async (attachmentId: string, name: string): Promise<void> => {
+    if (fileBusy !== undefined) return;
+    const controller = new AbortController();
+    fileRequest.current = controller;
+    setFileBusy(attachmentId);
+    setFileError(false);
+    try {
+      const response = await fetch(
+        '/api/botharness/attachment?' +
+          new URLSearchParams({
+            slug: item.botSlug,
+            sourceEventId: item.id,
+            attachmentId,
+          }),
+        {
+          credentials: 'same-origin',
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(45000)]),
+        },
+      );
+      if (!response.ok) throw new Error('Download unavailable');
+      const blob = await response.blob();
+      controller.signal.throwIfAborted();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = name;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      if (!controller.signal.aborted) setFileError(true);
+    } finally {
+      if (fileRequest.current === controller) {
+        fileRequest.current = undefined;
+        setFileBusy(undefined);
+      }
+    }
+  };
   const memoryChange = item.sourceKind === 'memory-change';
   const summary = memoryChange
     ? item.summary
@@ -259,6 +301,7 @@ function BotInboxItemRow({
       setExternal(undefined);
       setExternalOpen(true);
       setExternalError(false);
+      setFileError(false);
       try {
         const source = await actions.messagingSource(item.botSlug, item.id);
         if (request === externalRequest.current) setExternal(source);
@@ -310,6 +353,7 @@ function BotInboxItemRow({
           open
           onClose={() => {
             ++externalRequest.current;
+            fileRequest.current?.abort();
             setExternalOpen(false);
           }}
           title={t('im.sourceTitle')}
@@ -321,7 +365,20 @@ function BotInboxItemRow({
           ) : external === undefined ? (
             <p>{t('im.sourceLoading')}</p>
           ) : (
-            <ExternalSourceContent source={external} t={t} />
+            <ExternalSourceContent source={external} t={t}>
+              {external.event.attachments?.map((file) => (
+                <div className="bh-external-source-file" key={file.id}>
+                  <span>{file.name}</span>
+                  <Button
+                    disabled={fileBusy !== undefined}
+                    onClick={() => void download(file.id, file.name)}
+                  >
+                    {fileBusy === file.id ? t('im.fileDownloading') : t('im.fileDownload')}
+                  </Button>
+                </div>
+              ))}
+              {fileError ? <p role="alert">{t('im.fileError')}</p> : null}
+            </ExternalSourceContent>
           )}
         </Modal>
       ) : null}
