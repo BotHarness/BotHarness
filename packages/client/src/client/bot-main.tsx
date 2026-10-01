@@ -919,8 +919,12 @@ function ConversationView({
     )
       return;
     submitting.current = true;
-    followingLatest.current = true;
-    setUnseen(0);
+    const viewport = scrollRef.current;
+    followingLatest.current =
+      viewport !== null &&
+      !conversation.timeline.hasNewer &&
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 80;
+    if (followingLatest.current) setUnseen(0);
     const submittedFor = currentChannel.current;
     const submittedUploads = uploadItems;
     const previousFailures = new Set(

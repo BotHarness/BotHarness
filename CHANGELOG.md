@@ -226,6 +226,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Sending a DM while reading earlier messages preserves the reading position; following the latest conversation still keeps new messages visible as Bot activity opens ([#120](https://github.com/BotHarness/BotHarness/issues/120)).
+
 - DM activity now updates the sidebar and composer together from the actual Host Session projection; active turns show thinking or working and settle to idle, while delivery receipts keep their independent processing result ([#536](https://github.com/BotHarness/BotHarness/issues/536), [#120](https://github.com/BotHarness/BotHarness/issues/120)).
 - Browser uploads now honor an observed file-input ref instead of attaching to a different field on multi-input pages, so the intended form can continue ([#652](https://github.com/BotHarness/BotHarness/issues/652)).
 
