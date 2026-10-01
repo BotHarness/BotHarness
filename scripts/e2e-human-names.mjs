@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const home = resolve(
-  process.env.BH_NAMES_QA_HOME ?? resolve(tmpdir(), 'bh-621-human-default-name'),
+  process.env.BH_NAMES_QA_HOME ?? resolve(tmpdir(), 'bh-621-human-default-name-main'),
 );
 const url = readFileSync(resolve(tmpdir(), `dsh-${basename(home)}-31990.log`), 'utf8').match(
   /http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9._-]+/u,
@@ -25,7 +25,7 @@ const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
 const out = resolve(
   repo,
-  process.env.BH_NAMES_QA_EVIDENCE ?? '.humanlayer/tasks/issue-621/evidence',
+  process.env.BH_NAMES_QA_EVIDENCE ?? '.humanlayer/tasks/issue-621/evidence-main',
 );
 mkdirSync(out, { recursive: true });
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
