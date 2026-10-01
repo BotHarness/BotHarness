@@ -212,6 +212,8 @@
 ### Fixed
 
 - 修复 Session 历史缺失时模型 token 统计被清空的问题：重启与校准保留日汇总，持久去重防止重复回放，归档保留用量，彻底 Purge PersonaBot 清理其统计（[#502](https://github.com/BotHarness/BotHarness/issues/502)）。旧汇总作为保留基线迁移；无法确认是否已计入的升级前调用不会单独补计。
+- Bot 选择已被 Human 关闭的 Browser 标签页时，会保留另一当前工作页及其预览，并移除失效标签页、提示恢复方式；临时查询失败不会改变当前选择 ([#623](https://github.com/BotHarness/BotHarness/issues/623)).
+
 - Human 点击 Resume 后，Browser 页面操作必须先完成一次新的观察；Pause 期间或 Pause/Resume 切换前的读取不能让 Bot 继续操作 Human 已修改的内容（[#600](https://github.com/BotHarness/BotHarness/issues/600)）。
 - 被拒绝的 Browser 工具尝试现在也会生成一条带 Bot、Session 与角色归属的 Browser Audit 错误记录，覆盖授权、Access、Pause 与 Resume 后重新观察检查；输入文本和上传路径仍使用既有脱敏摘要（[#604](https://github.com/BotHarness/BotHarness/issues/604)）。
 - Browser Profile 的保留名 `.` 和 `..` 会在保存或重置工作前被拒绝，保留当前标签与 Pause 状态；已存无效名称仍沿用 runtime 的默认 profile 回退（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。

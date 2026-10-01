@@ -1,0 +1,18 @@
+{
+  "baseline": true,
+  "phase": "probe",
+  "modelPassed": true,
+  "errorReason": "closed-target",
+  "originalTab": "FE383A8EC2FF33468F96578D3C1CB943",
+  "closedCandidate": "9C27C682B99F422F5291104DEC8A1D25",
+  "focused": "9C27C682B99F422F5291104DEC8A1D25",
+  "retainedOriginal": false,
+  "previewAvailable": false,
+  "liveTabs": [
+    {
+      "targetId": "FE383A8EC2FF33468F96578D3C1CB943",
+      "current": false
+    }
+  ],
+  "pageConfirmations": 0
+}
