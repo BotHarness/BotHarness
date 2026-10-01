@@ -10,9 +10,7 @@
   },
   "footer": {
     "scrollTop": 95,
-    "messageIds": [
-      "human-b8c4daac-fae6-493e-b79b-1febef3d5291"
-    ],
+    "messageIds": ["human-b8c4daac-fae6-493e-b79b-1febef3d5291"],
     "scrollHeight": 527,
     "clientHeight": 432,
     "bottomGap": 0,
@@ -38,9 +36,7 @@
   ],
   "historyBefore": {
     "scrollTop": 0,
-    "messageIds": [
-      "human-b8c4daac-fae6-493e-b79b-1febef3d5291"
-    ],
+    "messageIds": ["human-b8c4daac-fae6-493e-b79b-1febef3d5291"],
     "scrollHeight": 527,
     "clientHeight": 432,
     "bottomGap": 95,
