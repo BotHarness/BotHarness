@@ -127,6 +127,20 @@ corepack pnpm dev:client
 - 机器级测试密钥由启动器按进程环境、`~/.config/botharness/dev.env`、Keychain 顺序读取；现有 Profile 凭据也可被 DSH 使用。运行 `node scripts/dev-secret.mjs check` 只显示来源。若要让后续隔离 Profile 共用已有密钥，可运行 `node scripts/dev-secret.mjs adopt-profile --home <已有 DSH_HOME>`；此操作只写受保护的本机密钥文件。模型可用性仍以真实 DM 回复为准。
 - 自动回归：`node scripts/e2e-personabot-create.mjs` 创建自己的隔离 Profile，经认证 API 建立原生 Workspace、PersonaBot、DM 与 Git Memory，重启后核对同一身份和 Git HEAD，不发模型请求。
 
+### Qualified optional IM provider
+
+工作群 IM tracer 可在隔离 Profile 中显式加入已验证的临时 dsh-im fork：
+
+```bash
+node scripts/dev-instance.mjs --home /tmp/bh-im-qa --port 31968 --im-provider --json
+```
+
+仅对已停止的隔离 Profile 执行；重启同一 Profile 时仍传入 `--im-provider`，以重复校验。启动器使用 Git 完整提交 `19d88f14bf85d74d4abf035a0c749d0b4a640257` 与 DSH `0.2.0-rc.1`，校验 Bundle、入口及运行时代码 digest 后才启动 Host；不依赖另一份 provider 本地源码。安装摘要明确标注 `upstreamReleased: false`。默认启动不安装它，原 npm `4.32.0` 仍不满足账号校验和条件发送契约。此入口不会发布包，也不是生产启用许可（[ADR-0104](adr/0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md)）。
+
+在 dsh-im 原设置中配置测试应用，并保存、测试仅含测试者与 Bot 的目标群；凭据交由 DSH credentials service，不复制到 BotHarness。打开 PersonaBot Profile → IM connection，选择已认证账号与已测试目标，显式授权后发送一条唯一测试文本。预期 Recent sends 显示 Platform accepted，并在目标群核对同一文本；这不代表送达或已读。停止本次启动摘要中的确切 PID，再以相同参数启动：绑定与发送历史应保留，不自动重发。
+
+一个测试应用只保留一个连接 owner，先停止之前使用该应用的测试 Host。这里只验证主动出站；Bot Inbox 入站仍由 #12 交付，不启用 dsh-im standalone Session 作为替代。若需撤回此可选安装，先停止该 Profile 的 Host，在它的 `package.json` 中移除 `@xmanrui/dsh-im` dependency 与 Bundle，然后不带此选项启动；不删除 Profile 数据，已发送消息仍留在平台。
+
 ### Windows Desktop 检查点
 
 在原生 Windows checkout 执行 `corepack pnpm install --frozen-lockfile` 和 `corepack pnpm build`，再从官方 Desktop 的插件页选择本地 `packages/deepseekbot`，启用插件并重启应用及 Host。`pnpm-workspace.yaml` 只放行 Desktop 安装实际需要执行的 native postinstall。用独立 `DSH_HOME` 保持 profile 与日常使用隔离；本机 AX 密钥只通过启动进程的 `DEEPSEEK_API_KEY` 环境变量注入，不写入仓库或 issue。
