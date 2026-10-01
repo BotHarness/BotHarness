@@ -1,4 +1,7 @@
-import { createElement } from 'react';
+// @vitest-environment jsdom
+import { act, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { store } from '../src/client/store.js';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -18,6 +21,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconTrashOutlineRegular: stub,
     IconPlusOutlineRegular: stub,
     IconSearchOutlineRegular: stub,
+    IconSettingsOutlineRegular: stub,
     IconSendOutlineRegular: stub,
     Input: stub,
     Menu: stub,
@@ -56,7 +60,11 @@ const openSettings = () => undefined;
 
 describe('bot panel entry', () => {
   it('renders the chosen mark in both states', () => {
-    const entry = createBotPanelEntry(() => undefined);
+    const entry = createBotPanelEntry(
+      () => undefined,
+      () => undefined,
+      async () => undefined,
+    );
     const inactive = renderToStaticMarkup(
       createElement(entry, { size: 16, active: false, useBotModePrefs, openSettings, t }),
     );
@@ -69,4 +77,73 @@ describe('bot panel entry', () => {
     expect(inactive).toContain('data-wide="true"');
     expect(inactive).not.toContain('bh-panel-glyph-hit');
   });
+});
+
+it('opens Activity Center independently of native mode, caps the badge and retains zero-unread actions', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const nav = document.createElement('nav');
+  const native = document.createElement('button');
+  nav.append(native);
+  document.body.append(nav);
+  const exit = vi.fn();
+  const open = vi.fn();
+  const settings = vi.fn();
+  const entry = createBotPanelEntry(exit, open, async () => undefined);
+  const root = createRoot(native);
+  try {
+    await act(async () => {
+      store.setHumanInbox({ unreadCount: 126, hasAction: true });
+      store.select({ kind: 'inbox' });
+      root.render(
+        createElement(entry, {
+          size: 16,
+          active: true,
+          useBotModePrefs,
+          openSettings: settings,
+          t,
+        }),
+      );
+    });
+    const chip = nav.querySelector<HTMLButtonElement>('.bh-panel-activity')!;
+    expect(chip.parentElement).toBe(nav);
+    expect(chip.querySelector('.bh-human-inbox-count')?.textContent?.trim()).toBe('99+');
+    expect(chip.getAttribute('aria-label')).toContain('126');
+    chip.click();
+    expect(open).toHaveBeenCalledOnce();
+    expect(exit).not.toHaveBeenCalled();
+    nav.querySelector<HTMLElement>('.bh-panel-gear')!.click();
+    expect(settings).toHaveBeenCalledOnce();
+    expect(exit).not.toHaveBeenCalled();
+    native.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(exit).toHaveBeenCalledOnce();
+    native.querySelector<HTMLElement>('.bh-panel-glyph')!.click();
+    expect(exit).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      store.setHumanInbox({ unreadCount: 0, hasAction: true });
+      root.render(
+        createElement(entry, {
+          size: 24,
+          active: false,
+          useBotModePrefs,
+          openSettings: settings,
+          t,
+        }),
+      );
+    });
+    expect(nav.querySelectorAll('.bh-panel-activity')).toHaveLength(1);
+    expect(chip.dataset['wide']).toBe('false');
+    expect(chip.querySelector('.bh-human-inbox-count')).toBeNull();
+    expect(chip.querySelector('.bh-human-inbox-action-dot')).not.toBeNull();
+    chip.click();
+    expect(open).toHaveBeenCalledTimes(2);
+  } finally {
+    await act(async () => {
+      root.unmount();
+      store.setHumanInbox({ unreadCount: 0, hasAction: false });
+      store.select(undefined);
+    });
+    expect(nav.querySelector('.bh-panel-activity')).toBeNull();
+    expect(native.style.gridRow).toBe('');
+    nav.remove();
+  }
 });

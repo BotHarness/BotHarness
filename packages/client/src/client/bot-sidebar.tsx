@@ -37,6 +37,7 @@ import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
 import { BotIcon, botBackdropUri } from './bot-icon.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
+import { InboxIcon } from './inbox-icon.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import {
   webChannelShortcutIndex,
@@ -123,18 +124,43 @@ export function BotPanelIcon({
   onExit,
   useBotModePrefs,
   openSettings,
+  openActivityCenter,
+  refreshStatus,
   t,
-}: BotPanelEntryProps & { onExit: () => void }): ReactElement {
+}: BotPanelEntryProps & {
+  onExit: () => void;
+  openActivityCenter: () => void;
+  refreshStatus: () => Promise<void>;
+}): ReactElement {
   const icon = useBotModePrefs((prefs) => prefs.botIcon);
   const [row, setRow] = useState<HTMLElement | null>(null);
   const wide = size === 16;
+  const state = useClientState();
+  const panelList = row?.parentElement;
+  const entryLabel = [
+    t('activityCenter.title'),
+    ...(state.humanInbox.unreadCount > 0
+      ? [t('humanInbox.unreadCount', { count: String(state.humanInbox.unreadCount) })]
+      : []),
+    ...(state.humanInbox.hasAction ? [t('humanInbox.action')] : []),
+  ].join(' · ');
+  const entryMount = useMountedResource<HTMLButtonElement>(() => {
+    void refreshStatus();
+    const timer = window.setInterval(() => void refreshStatus(), 10_000);
+    return () => window.clearInterval(timer);
+  }, [refreshStatus]);
 
   const glyphMount = useMountedResource<HTMLSpanElement>(
     (glyph) => {
       const button = glyph.closest('button');
       setRow(button);
       button?.style.setProperty('--bh-bot-texture', `url("${botBackdropUri(icon)}")`);
-      if (button === null || !active) return;
+      if (button === null) return;
+      const priorGridRow = button.style.gridRow;
+      const siblings = Array.from(button.parentElement?.children ?? []).filter(
+        (node) => !node.classList.contains('bh-human-inbox-entry'),
+      );
+      button.style.gridRow = String(siblings.indexOf(button) + 1);
       const onKeyDown = (event: KeyboardEvent): void => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         if ((event.target as Element | null)?.closest('.bh-panel-gear') !== null) return;
@@ -142,9 +168,20 @@ export function BotPanelIcon({
         event.stopPropagation();
         onExit();
       };
-      button.addEventListener('keydown', onKeyDown);
+      const onClick = (event: MouseEvent): void => {
+        if ((event.target as Element | null)?.closest('.bh-panel-gear') !== null) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onExit();
+      };
+      if (active) {
+        button.addEventListener('keydown', onKeyDown);
+        button.addEventListener('click', onClick, true);
+      }
       return () => {
+        button.style.gridRow = priorGridRow;
         button.removeEventListener('keydown', onKeyDown);
+        button.removeEventListener('click', onClick, true);
       };
     },
     [size, icon, active, onExit],
@@ -153,17 +190,41 @@ export function BotPanelIcon({
   return (
     <span className="bh-panel-glyph" ref={glyphMount} {...(wide ? { 'data-wide': 'true' } : {})}>
       <BotIcon icon={icon} size={size} />
+      {row !== null && panelList != null
+        ? createPortal(
+            <button
+              type="button"
+              className="bh-root bh-human-inbox-entry bh-panel-activity"
+              data-wide={wide ? 'true' : 'false'}
+              ref={entryMount}
+              style={{ gridRow: Number(row.style.gridRow) + (wide ? 0 : 1) }}
+              aria-label={entryLabel}
+              title={entryLabel}
+              aria-current={active && state.selection?.kind === 'inbox' ? 'page' : undefined}
+              onClick={(event) => {
+                event.stopPropagation();
+                openActivityCenter();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+              }}
+            >
+              <InboxIcon size={wide ? 16 : 18} />
+              {state.humanInbox.unreadCount > 0 ? (
+                <span className="bh-human-inbox-count">
+                  {state.humanInbox.unreadCount > 99 ? '99+' : state.humanInbox.unreadCount}
+                </span>
+              ) : null}
+              {state.humanInbox.hasAction ? (
+                <span className="bh-human-inbox-action-dot" aria-hidden="true" />
+              ) : null}
+            </button>,
+            panelList,
+          )
+        : null}
       {active && row !== null
         ? createPortal(
             <>
-              <span
-                className="bh-panel-glyph-hit"
-                aria-hidden="true"
-                onClickCapture={(event) => {
-                  event.stopPropagation();
-                  onExit();
-                }}
-              />
               {wide ? (
                 <span
                   className="bh-panel-gear"
@@ -195,6 +256,8 @@ export function BotPanelIcon({
 
 export function createBotPanelEntry(
   onExit: () => void,
+  openActivityCenter: () => void,
+  refreshStatus: () => Promise<void>,
 ): (props: BotPanelEntryProps) => ReactElement {
   return function BotPanelEntry({ size, active, useBotModePrefs, openSettings, t }) {
     return (
@@ -202,6 +265,8 @@ export function createBotPanelEntry(
         size={size}
         active={active}
         onExit={onExit}
+        openActivityCenter={openActivityCenter}
+        refreshStatus={refreshStatus}
         useBotModePrefs={useBotModePrefs}
         openSettings={openSettings}
         t={t}
@@ -636,13 +701,6 @@ export function BotSidebar({
   t,
 }: SidebarProps): ReactElement {
   const state = useClientState();
-  const inboxEntryLabel = [
-    t('activityCenter.title'),
-    ...(state.humanInbox.unreadCount > 0
-      ? [t('humanInbox.unreadCount', { count: String(state.humanInbox.unreadCount) })]
-      : []),
-    ...(state.humanInbox.hasAction ? [t('humanInbox.action')] : []),
-  ].join(' · ');
   const prefs = useBotModePrefs((value) => value);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -670,11 +728,6 @@ export function BotSidebar({
   const [pinZoneHovered, setPinZoneHovered] = useState(false);
   const [unpinZoneArmed, setUnpinZoneArmed] = useState(false);
   const [unpinZoneHovered, setUnpinZoneHovered] = useState(false);
-  const inboxEntryMount = useMountedResource<HTMLButtonElement>(() => {
-    void actions.refreshHumanInboxStatus();
-    const timer = window.setInterval(() => void actions.refreshHumanInboxStatus(), 10_000);
-    return () => window.clearInterval(timer);
-  }, [actions]);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
   const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
@@ -1374,22 +1427,6 @@ export function BotSidebar({
     };
     return (
       <div className="bh-root bh-region bh-region-rail" aria-label={t('rail.label')}>
-        <button
-          type="button"
-          className="bh-human-inbox-entry"
-          ref={inboxEntryMount}
-          aria-label={inboxEntryLabel}
-          aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
-          onClick={() => void actions.openActivityCenter()}
-        >
-          {t('activityCenter.title')}
-          {state.humanInbox.unreadCount > 0 ? (
-            <span className="bh-human-inbox-count">{state.humanInbox.unreadCount}</span>
-          ) : null}
-          {state.humanInbox.hasAction ? (
-            <span className="bh-human-inbox-action-dot" aria-hidden="true" />
-          ) : null}
-        </button>
         <div className="bh-rail-group">
           {railPinnedChannels.map((channel) => renderRailChannel(channel))}
         </div>
@@ -1463,22 +1500,6 @@ export function BotSidebar({
         channelGapDropProps(resolved.sectionId).drop(resolved.half);
       }}
     >
-      <button
-        type="button"
-        className="bh-human-inbox-entry"
-        ref={inboxEntryMount}
-        aria-label={inboxEntryLabel}
-        aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
-        onClick={() => void actions.openActivityCenter()}
-      >
-        {t('activityCenter.title')}
-        {state.humanInbox.unreadCount > 0 ? (
-          <span className="bh-human-inbox-count">{state.humanInbox.unreadCount}</span>
-        ) : null}
-        {state.humanInbox.hasAction ? (
-          <span className="bh-human-inbox-action-dot" aria-hidden="true" />
-        ) : null}
-      </button>{' '}
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
           {t('roster.messages')}

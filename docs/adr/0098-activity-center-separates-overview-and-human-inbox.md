@@ -29,3 +29,9 @@ The earlier first slice and issue #126 treated Human Inbox mainly as an action a
 ## Delivered first Overview tracer (#541)
 
 The existing Human attention projection exposes a complete count using the same action predicates as Inbox paging. The Host query joins PersonaBot registry, root Session ownership and current activity with native live Agent status; pending native question/approval requests and idle Assignment asks override stale execution labels. Only live thinking/working roots appear as executing. Client polling is owned by the mounted Overview and rejects obsolete navigation responses. Bot cards open DM; Session rows explicitly leave Bot mode before native Session navigation. Channel activity charts, token trends and Memory trends remain later tracer expansions.
+
+## Activity Center entry and remembered tab (#679)
+
+One responsive entry remains available in the native sidebar, including outside Bot mode. Expanded, an unread chip sits immediately left of the Bot settings gear; collapsed, a 36px icon sits below the matching Bot mode button with a 4px gap. The visible count caps at 99+, its accessible name exposes the full canonical count, and pending actions retain an independent hint even with zero unread. The control is a sibling of the native button so opening Activity Center never accidentally toggles mode.
+
+Client preferences remember the last Overview or Inbox tab separately from the last visible conversation. Opening a DM, leaving Bot mode or reloading therefore does not erase this choice; explicit tab clicks still select that tab. First visit uses Overview, and storage refusal falls back to the current Client's choice. This preference owns navigation only, with no additional Host store or changes to Human read positions, identity, attention or Wake Policy.

@@ -310,9 +310,16 @@ export function apply(ctx: ClientContext): void {
           },
         }),
       },
-      createBotPanelEntry(() => {
-        ctx.layout.selectPanel(null);
-      }),
+      createBotPanelEntry(
+        () => {
+          ctx.layout.selectPanel(null);
+        },
+        () => {
+          ctx.layout.selectPanel(PANEL_ID);
+          void actions.openActivityCenter();
+        },
+        () => actions.refreshHumanInboxStatus(),
+      ),
     ),
   );
 
@@ -476,7 +483,7 @@ export function apply(ctx: ClientContext): void {
                 ? actions.openChannel(selection.channelId)
                 : selection?.kind === 'inbox'
                   ? selection.view === 'overview'
-                    ? actions.openActivityCenter()
+                    ? actions.openActivityCenter('overview')
                     : actions.openHumanInbox()
                   : undefined;
           void opening?.catch((error: unknown) => {

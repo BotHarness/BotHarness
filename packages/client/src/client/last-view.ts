@@ -51,3 +51,26 @@ export function writeLastView(storage: ConfigStorage | undefined, view: LastView
     storage?.setItem(LAST_VIEW_KEY, JSON.stringify(view));
   } catch {}
 }
+
+export type ActivityCenterTab = 'overview' | 'inbox';
+export const ACTIVITY_CENTER_TAB_KEY = 'botharness/activity-center-tab.v1';
+
+export function readActivityCenterTab(
+  storage: ConfigStorage | undefined,
+): ActivityCenterTab | undefined {
+  try {
+    const value = storage?.getItem(ACTIVITY_CENTER_TAB_KEY);
+    return value === 'overview' || value === 'inbox' ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function writeActivityCenterTab(
+  storage: ConfigStorage | undefined,
+  view: ActivityCenterTab,
+): void {
+  try {
+    storage?.setItem(ACTIVITY_CENTER_TAB_KEY, view);
+  } catch {}
+}

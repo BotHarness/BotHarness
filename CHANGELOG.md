@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Activity Center uses a compact unread chip beside Bot mode settings, switches to an aligned icon below Bot mode when collapsed, and remembers the last Overview or Inbox tab across chats and reload; unread totals and pending-action hints stay independent ([#679](https://github.com/BotHarness/BotHarness/issues/679)).
+
 - Activity Center opens a cross-Bot Overview with the canonical Human action count, current Bot status and executing Orchestrator/Assignment Sessions; Bot cards open DMs and Session rows switch to the exact native DSH Session ([#541](https://github.com/BotHarness/BotHarness/issues/541)).
 
 - A mention-only PersonaBot can explicitly read bounded Lark group, nearby Chat time-window or anchored topic context through its own identity; the Inbox source uses a readable chat layout with named mentions and expandable exact message/source references, sender identities and read history, omissions and permission refusals without admitting ordinary history or creating wakes; non-advancing provider cursors refuse before retaining or observing returned messages ([#612](https://github.com/BotHarness/BotHarness/issues/612)).

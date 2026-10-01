@@ -1,4 +1,10 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import {
+  readActivityCenterTab,
+  writeActivityCenterTab,
+  type ActivityCenterTab,
+} from './last-view.js';
+import { defaultStorage, type ConfigStorage } from './roster-config.js';
 import { publishWorkspaceGrantChange } from './workspace-grant-events.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
@@ -222,7 +228,7 @@ export interface BridgeActions {
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
-  openActivityCenter(): Promise<void>;
+  openActivityCenter(view?: ActivityCenterTab): Promise<void>;
   refreshOverview(): Promise<void>;
   openHumanInbox(): Promise<void>;
   refreshHumanInboxStatus(): Promise<void>;
@@ -471,7 +477,13 @@ export function createActions(
     openSession?(sessionId: string): void;
     nativeFiles?: NativeHostFiles;
   },
+  navigationStorage: ConfigStorage | undefined = defaultStorage(),
 ): BridgeActions {
+  let activityTab = readActivityCenterTab(navigationStorage) ?? 'overview';
+  const rememberActivityTab = (view: ActivityCenterTab): void => {
+    activityTab = view;
+    writeActivityCenterTab(navigationStorage, view);
+  };
   let openingFile = false;
   const failedByChannel = new Map<string, ChannelMessage[]>();
   const localFailedFor = (id: string): ChannelMessage[] => failedByChannel.get(id) ?? [];
@@ -1029,13 +1041,17 @@ export function createActions(
         return Promise.resolve();
       return loadBotInboxFor(slug, selection, cursor);
     },
-    openActivityCenter() {
+    openActivityCenter(view) {
+      const tab = view ?? readActivityCenterTab(navigationStorage) ?? activityTab;
+      if (tab === 'inbox') return actions.openHumanInbox();
+      rememberActivityTab('overview');
       clientStore.select({ kind: 'inbox', view: 'overview' });
       void refreshHumanInboxStatus();
       return refreshOverview();
     },
     refreshOverview,
     openHumanInbox() {
+      rememberActivityTab('inbox');
       clientStore.select({ kind: 'inbox' });
       void refreshHumanInboxStatus();
       const selection = currentSelection();

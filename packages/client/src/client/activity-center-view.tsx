@@ -30,7 +30,7 @@ export function ActivityCenterView({
             type="button"
             role="tab"
             aria-selected={overview}
-            onClick={() => void actions.openActivityCenter()}
+            onClick={() => void actions.openActivityCenter('overview')}
           >
             {t('activityCenter.overview')}
           </button>
