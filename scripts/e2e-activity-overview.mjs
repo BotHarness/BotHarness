@@ -27,7 +27,13 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
-const shot = (name) => page.screenshot({ path: resolve(out, name + '.png') });
+const shot = (name) =>
+  page.screenshot({
+    path: resolve(
+      out,
+      name + (mode === 'resume' && name !== 'overview-restarted' ? '-restart' : '') + '.png',
+    ),
+  });
 const theme = async (dark) => {
   await page.emulateMediaFeatures([
     { name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' },
@@ -234,14 +240,22 @@ try {
         return current?.sessions.length === 0;
       }, 'executions finish');
       await click('.bh-overview-refresh', '刷新');
+      await page.waitForFunction(
+        (slug) =>
+          document
+            .querySelector('[data-bot-id="' + slug + '"]')
+            ?.querySelectorAll('[data-session-id]').length === 0,
+        {},
+        bot.slug,
+      );
       await shot('overview-work-completed');
       console.log(
         'PASS: real model started both approved native timed commands, both root Sessions opened exactly, and completed work left execution list.',
       );
     }
-    if (mode !== 'resume') {
+    if (!['resume', 'snapshot'].includes(mode)) {
       const all = (await rpc('list')).bots;
-      for (const name of ['Release Question QA', 'Docs Question QA']) {
+      for (const name of ['Release Decision QA', 'Docs Decision QA']) {
         const bot =
           all.find((b) => b.displayName === name) ??
           (
@@ -303,7 +317,7 @@ try {
       await page.$eval('.bh-overview-action-count strong', (n) => Number(n.textContent)),
       value.actionCount,
     );
-    const release = value.bots.find((b) => b.displayName === 'Release Question QA');
+    const release = value.bots.find((b) => b.displayName === 'Release Decision QA');
     assert.ok(release);
     await theme(false);
     await shot('overview-light');
@@ -313,7 +327,7 @@ try {
     await page.click(`.bh-overview-bot[data-bot-id="${release.slug}"] .bh-overview-bot-header`);
     await page.waitForSelector('.bh-channel-options');
     assert.equal(
-      await page.$eval('.bh-channel-title', (n) => n.textContent).catch(() => release.displayName),
+      await page.$eval('.bh-topbar .bh-title', (n) => n.textContent),
       release.displayName,
     );
     await shot('overview-bot-dm');
