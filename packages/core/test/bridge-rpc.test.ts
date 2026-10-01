@@ -227,7 +227,11 @@ describe('bridge typert service', () => {
       'assignmentReply',
     ]);
     expect(parameterNames(service.botAttention)).toEqual(['slug', 'limit', 'cursor', 'state']);
-    expect(parameterNames(service.humanAssignmentContext)).toEqual(['slug', 'sessionId', 'sourceEventId']);
+    expect(parameterNames(service.humanAssignmentContext)).toEqual([
+      'slug',
+      'sessionId',
+      'sourceEventId',
+    ]);
     expect(parameterNames(service.assignments)).toEqual(['slug']);
     expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);
     expect(parameterNames(service.sessions)).toEqual(['slug']);
