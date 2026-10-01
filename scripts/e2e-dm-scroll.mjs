@@ -238,9 +238,15 @@ try {
     'Redundant Avatar outer frame',
   );
 } catch (error) {
-  await screenshot('failure.png');
-  throw error;
+  await screenshot('failure.png').catch(() => undefined);
+  console.error(error);
+  process.exitCode = 1;
 } finally {
-  await Promise.race([browser.close(), new Promise((done) => setTimeout(done, 5000))]);
+  await Promise.race([
+    browser.close().catch(() => undefined),
+    new Promise((done) => setTimeout(done, 5000)),
+  ]);
   browser.process()?.kill();
 }
+
+process.exit(process.exitCode ?? 0);
