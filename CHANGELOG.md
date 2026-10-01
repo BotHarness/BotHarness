@@ -238,6 +238,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Bot activity recovers through bounded snapshot refresh when live transport fails; reconnects and revision gaps restore shared sidebar/composer state without treating connection errors as Bot activity ([#121](https://github.com/BotHarness/BotHarness/issues/121)).
+
 - Fixed Memory edits being silently absorbed when a new DM or Group mention steers an active turn; bounded change summaries now enter that turn’s Bot Inbox and settle with it ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 
 - Browser entry now expands when Access is enabled, pins the Bot’s current tab with visible title/URL, and holds the viewed tab when Follow is off without redirecting Bot work ([#492](https://github.com/BotHarness/BotHarness/issues/492)).

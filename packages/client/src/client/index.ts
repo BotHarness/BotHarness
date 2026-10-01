@@ -30,7 +30,7 @@ import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createProfileCardBuiltins } from './profile-cards-builtins.js';
 import { createGroupProfileCards } from './group-profile.js';
 import { createProfileCardRegistry } from './profile-cards.js';
-import { createBridgeCall, loadSessionBotOwner } from './bridge.js';
+import { createBridgeCall, loadActivitySnapshot, loadSessionBotOwner } from './bridge.js';
 import {
   SessionOwnerLeading,
   SessionReturnAction,
@@ -209,7 +209,7 @@ export function apply(ctx: ClientContext): void {
     'botharness: Roster live subscription',
   );
   ctx.effect(
-    () => (typeof EventSource === 'undefined' ? () => {} : mountActivityLive(store)),
+    () => mountActivityLive(store, undefined, (signal) => loadActivitySnapshot(call, signal)),
     'botharness: PersonaBot activity subscription',
   );
   ctx.effect(() => {

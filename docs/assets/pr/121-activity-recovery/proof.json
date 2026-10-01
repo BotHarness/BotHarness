@@ -1,0 +1,1461 @@
+{
+  "bot": {
+    "slug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+    "displayName": "Activity recovery QA 1790881724943"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "layout": "row",
+  "frames": [
+    {
+      "host": "idle",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["idle"],
+      "composer": [],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": ["working"],
+      "composer": ["working"],
+      "receipts": ["收件与已读状态: 1 处理中"],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "working",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "thinking",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "host": "idle",
+      "sidebar": [],
+      "composer": [],
+      "receipts": [],
+      "hostDeliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "handled"
+        }
+      ]
+    },
+    {
+      "host": "idle",
+      "sidebar": ["idle"],
+      "composer": [],
+      "recovered": true
+    }
+  ],
+  "events": [
+    {
+      "name": "channel/message",
+      "messageId": "48c69f9e-d26a-41c8-aa18-c47ce527a82e",
+      "deliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "pending"
+        }
+      ]
+    },
+    {
+      "name": "channel/admission",
+      "messageId": "48c69f9e-d26a-41c8-aa18-c47ce527a82e",
+      "deliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "running"
+        }
+      ]
+    },
+    {
+      "name": "channel/message",
+      "messageId": "29bbf031-16b3-429a-9915-a6331e5ba003"
+    },
+    {
+      "name": "channel/message",
+      "messageId": "6a141921-d790-486e-97cb-953422ebe8cc",
+      "deliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "pending"
+        }
+      ]
+    },
+    {
+      "name": "channel/message",
+      "messageId": "afcb15f3-036c-40f6-bc0b-f9814ca9dd3f"
+    },
+    {
+      "name": "channel/admission",
+      "messageId": "48c69f9e-d26a-41c8-aa18-c47ce527a82e",
+      "deliveries": [
+        {
+          "botSlug": "bot-88ef23bb3e814c8d9f6bc01e2c122d77",
+          "state": "handled"
+        }
+      ]
+    }
+  ],
+  "inputIds": ["48c69f9e-d26a-41c8-aa18-c47ce527a82e"],
+  "steered": false,
+  "unavailable": 2,
+  "activityFrames": [
+    {
+      "generation": "e7bb36b2-7590-4ab3-86c2-f6500e5e17f7",
+      "revision": 32,
+      "state": "working"
+    },
+    {
+      "generation": "e7bb36b2-7590-4ab3-86c2-f6500e5e17f7",
+      "revision": 36,
+      "state": "idle"
+    }
+  ],
+  "snapshotQueries": [1790881731158, 1790881741184, 1790881751190, 1790881759270],
+  "recoveryReady": true,
+  "committedReplies": [
+    {
+      "id": "afcb15f3-036c-40f6-bc0b-f9814ca9dd3f",
+      "body": "DM activity confirmed"
+    }
+  ]
+}
