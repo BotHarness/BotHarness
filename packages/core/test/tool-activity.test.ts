@@ -29,10 +29,10 @@ const result = (id: string) => ({
   time: 2000,
   data: { message: { toolCallId: id, content: [{ type: 'text', text: 'private-result' }] } },
 });
-function setup() {
+function setup(rootRole: 'orchestrator' | 'assignment' = 'orchestrator') {
   const states = createBotStateTracker();
   const ownership = createTestOwnership({
-    root: { botSlug: 'ada', rootRole: 'orchestrator' },
+    root: { botSlug: 'ada', rootRole },
     child: { botSlug: 'ada', rootRole: 'assignment' },
   });
   const projection = createDshActivityProjection({
@@ -92,8 +92,8 @@ describe('safe tool Activity', () => {
     expect(states.snapshot('ada').state).toBe('thinking');
     expect(states.activity('ada')).toBeUndefined();
   });
-  it('coalesces mixed tool kinds across owned Sessions; removal restores the remaining effect', () => {
-    const { states, projection } = setup();
+  it('coalesces mixed tool kinds across owned Assignment Sessions; removal restores the remaining effect', () => {
+    const { states, projection } = setup('assignment');
     projection.handleSessionEvent('root', call('a'));
     projection.handleSessionEvent('child', call('b', 'shell'));
     expect(states.activity('ada')).toMatchObject({
@@ -164,25 +164,23 @@ describe('safe tool Activity', () => {
     expect(states.snapshot('ada').state).toBe('idle');
     expect(states.activity('ada')).toBeUndefined();
   });
-  it('counts owned working Sessions separately from tools and clears completed source roles', () => {
+  it('counts selected Orchestrator tools and hands off only after its Turn ends', () => {
     const { states, projection } = setup();
     projection.handleSessionEvent('root', call('a'));
     projection.handleSessionEvent('root', call('b'));
     projection.handleSessionEvent('child', call('c'));
     expect(states.activity('ada')).toMatchObject({
-      activeToolCount: 3,
+      activeToolCount: 2,
       effect: 'searching',
-      sources: [
-        { role: 'orchestrator', count: 1 },
-        { role: 'assignment', count: 1 },
-      ],
+      sources: [{ role: 'orchestrator', count: 1 }],
     });
+    expect(states.sessionActivity('ada')).toHaveLength(2);
     projection.handleSessionEvent('root', result('a'));
-    expect(states.activity('ada')?.sources).toEqual([
-      { role: 'orchestrator', count: 1 },
-      { role: 'assignment', count: 1 },
-    ]);
+    expect(states.activity('ada')?.sources).toEqual([{ role: 'orchestrator', count: 1 }]);
     projection.handleSessionEvent('root', result('b'));
+    expect(states.snapshot('ada').state).toBe('thinking');
+    expect(states.activity('ada')).toBeUndefined();
+    projection.handleSessionEvent('root', { type: 'turn/end', time: 3000, data: {} });
     expect(states.activity('ada')?.sources).toEqual([{ role: 'assignment', count: 1 }]);
     projection.handleSessionEvent('child', result('c'));
     expect(states.activity('ada')).toBeUndefined();
