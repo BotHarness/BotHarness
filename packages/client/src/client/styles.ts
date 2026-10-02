@@ -5329,4 +5329,19 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-channel-activity {margin-top:24px;padding-top:16px;border-top:1px solid var(--bh-overview-border);}
 .bh-statistics-content[hidden] {display:none;}
 @media(max-width:480px){.bh-overview-unread{align-items:flex-start;flex-direction:column}.bh-overview-toolbar{gap:8px}}
+
+.bh-overview-usage {margin-top:12px;min-width:0;}
+.bh-overview-usage h3 {margin:0;font-weight:400;}
+.bh-overview-usage .bh-profile-card-head {flex-wrap:wrap;}
+.bh-overview-usage-controls {display:flex;align-items:center;gap:8px;}
+.bh-overview-usage .bh-note {margin:0;}
+.bh-overview-usage-period {padding:0;}
+.bh-overview-usage .bh-usage-model-label {gap:6px;}
+.bh-overview-usage-bot-name {flex:1;}
+.bh-overview-usage-bot-name > span {display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bh-overview-usage-bot-name > span + span {color:var(--bh-overview-muted);}
+.bh-overview-usage .bh-profile-pin {flex-shrink:0;cursor:pointer;color:var(--bh-overview-muted);}
+.bh-overview-usage .bh-profile-pin:hover {background:var(--bh-hover);color:var(--bh-text);}
+.bh-overview-usage .bh-profile-pin:disabled {cursor:default;opacity:0.5;}
+.bh-statistics-content > header h3 {font-size:var(--bh-overview-font);margin:0;}
 `;

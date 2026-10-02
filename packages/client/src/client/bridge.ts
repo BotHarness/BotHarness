@@ -1,4 +1,6 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
+import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
@@ -3035,4 +3037,61 @@ export async function markAllReadPositions(call: BridgeCall): Promise<void> {
   const row = asRecord(await unwrap(call, 'channelMarkAllRead', {}));
   if (!row || !Number.isSafeInteger(row['channels']) || (row['channels'] as number) < 0)
     throw new Error('invalid all-read result');
+}
+
+export async function loadOverviewUsage(
+  call: BridgeCall,
+  period: UsageOverviewPeriod,
+  after?: string,
+): Promise<OverviewUsage> {
+  const value = asRecord(
+    await unwrap(call, 'overviewUsage', { period, ...(after === undefined ? {} : { after }) }),
+  );
+  const validDay = (input: unknown): input is string =>
+    typeof input === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/u.test(input) &&
+    Number.isFinite(Date.parse(input)) &&
+    new Date(input).toISOString().slice(0, 10) === input;
+  const buckets = (input: unknown): boolean => {
+    const row = asRecord(input);
+    return (
+      row !== undefined &&
+      ['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'totalTokens'].every(
+        (key) => row[key] === null || (Number.isSafeInteger(row[key]) && Number(row[key]) >= 0),
+      )
+    );
+  };
+  if (
+    !value ||
+    value['period'] !== period ||
+    !['start', 'end', 'timezone', 'readAt', 'nextRefreshAt'].every(
+      (key) => typeof value[key] === 'string',
+    ) ||
+    !Number.isFinite(Date.parse(String(value['readAt']))) ||
+    !Number.isFinite(Date.parse(String(value['nextRefreshAt']))) ||
+    !validDay(value['start']) ||
+    !validDay(value['end']) ||
+    Date.parse(value['end']) - Date.parse(value['start']) !==
+      (period === 'week' ? 6 : 0) * 86400000 ||
+    !buckets(value['totals']) ||
+    !Array.isArray(value['days']) ||
+    value['days'].length !== (period === 'week' ? 7 : 1) ||
+    !value['days'].every((row) => buckets(row) && typeof asRecord(row)?.['day'] === 'string') ||
+    !Array.isArray(value['bots']) ||
+    value['bots'].length > 20 ||
+    !value['bots'].every(
+      (row) =>
+        buckets(row) &&
+        typeof asRecord(row)?.['slug'] === 'string' &&
+        typeof asRecord(row)?.['displayName'] === 'string' &&
+        typeof asRecord(row)?.['current'] === 'boolean',
+    ) ||
+    (value['nextCursor'] !== undefined &&
+      (typeof value['nextCursor'] !== 'string' || value['nextCursor'].length === 0)) ||
+    !['ready', 'reconciling', 'degraded'].includes(String(value['freshness'])) ||
+    typeof value['legacyBaseline'] !== 'boolean' ||
+    (value['reconciledAt'] !== null && !Number.isFinite(Date.parse(String(value['reconciledAt']))))
+  )
+    throw new Error('invalid Overview usage');
+  return value as unknown as OverviewUsage;
 }

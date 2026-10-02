@@ -9,6 +9,7 @@ import {
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
+import { OverviewUsageView } from './overview-usage-view.js';
 import { ChannelActivityChart } from './channel-activity-chart.js';
 import { defaultStorage, type ConfigStorage } from './roster-config.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -81,41 +82,44 @@ export function ChannelActivityView({
   return (
     <section className="bh-channel-activity" ref={mount} aria-label={t('channelActivity.title')}>
       <header>
-        <div>
-          <h2>
-            <button
-              type="button"
-              className="bh-statistics-toggle"
-              aria-expanded={!collapsed}
-              aria-label={t('channelActivity.toggle')}
-              onClick={toggle}
-            >
-              <IconChevronDownOutlineRegular
-                size={16}
-                className={collapsed ? 'bh-channel-activity-closed' : ''}
-              />
-              {t('channelActivity.statistics')}
-            </button>
-          </h2>
-          <span>{t('channelActivity.title')}</span>
-          {value ? (
-            <p>
-              {value.day} · {value.timezone} · <strong data-activity-total>{value.total}</strong>{' '}
-              {t('channelActivity.messages')}
-            </p>
-          ) : null}
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={busy}
-          aria-busy={busy}
-          onClick={() => refresh.current()}
-        >
-          <IconRefreshOutlineRegular size={16} /> {t('channelActivity.refresh')}
-        </Button>
+        <h2>
+          <button
+            type="button"
+            className="bh-statistics-toggle"
+            aria-expanded={!collapsed}
+            aria-label={t('channelActivity.toggle')}
+            onClick={toggle}
+          >
+            <IconChevronDownOutlineRegular
+              size={16}
+              className={collapsed ? 'bh-channel-activity-closed' : ''}
+            />
+            {t('channelActivity.statistics')}
+          </button>
+        </h2>
       </header>
       <div hidden={collapsed} className="bh-statistics-content">
+        {!collapsed ? <OverviewUsageView actions={actions} t={t} /> : null}
+        <header>
+          <div>
+            <h3>{t('channelActivity.title')}</h3>
+            {value ? (
+              <p>
+                {value.day} · {value.timezone} · <strong data-activity-total>{value.total}</strong>{' '}
+                {t('channelActivity.messages')}
+              </p>
+            ) : null}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            aria-busy={busy}
+            onClick={() => refresh.current()}
+          >
+            <IconRefreshOutlineRegular size={16} /> {t('channelActivity.refresh')}
+          </Button>
+        </header>
         {status === 'loading' ? <p role="status">{t('channelActivity.loading')}</p> : null}
         {status === 'error' ? <p role="alert">{t('channelActivity.error')}</p> : null}
         {value ? (
