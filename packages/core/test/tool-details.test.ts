@@ -111,6 +111,8 @@ describe('authorized Activity Tool detail capability', () => {
     const absent = fixture();
     absent.events.length = 0;
     expect(absent.index.read(absent.reference)).toEqual({ ok: false, reason: 'unavailable' });
+    absent.events.push(call());
+    expect(absent.index.read(absent.reference)).toEqual({ ok: false, reason: 'unavailable' });
     const large = fixture();
     large.events.push({
       ...result,
@@ -159,10 +161,27 @@ describe('authorized Activity Tool detail capability', () => {
     const ctx = new Context();
     const f = fixture();
     const audit: ToolDetailAudit[] = [];
+    let publish!: () => void;
+    let notified: ToolDetailRead | undefined;
     const provider = ctx.plugin({
       name: 'provider',
       apply(c: Context) {
         new ActivityToolDetails(c, f.index, ['permitted-consumer'], (entry) => audit.push(entry));
+        publish = () =>
+          c.emit('botharness/personabot/activity', {
+            generation: 'test',
+            revision: 1,
+            slug: 'ada',
+            state: 'working',
+            cause: 'session-changed',
+            activity: {
+              detailRefs: [f.reference],
+              toolKind: 'execute',
+              effect: 'executing',
+              startedAt: 1,
+              activeToolCount: 1,
+            },
+          });
       },
     });
     await provider.await();
@@ -174,6 +193,13 @@ describe('authorized Activity Tool detail capability', () => {
       apply(c: Context) {
         const service = c.botharnessActivityDetails;
         permitted = () => service.read(f.reference);
+        c.on(
+          'botharness/personabot/activity',
+          (event) => {
+            notified = service.read(event.activity!.detailRefs![0]!);
+          },
+          { global: true },
+        );
       },
     });
     const other = ctx.plugin({
@@ -187,6 +213,8 @@ describe('authorized Activity Tool detail capability', () => {
     await consumer.await();
     await other.await();
     try {
+      publish();
+      expect(notified).toMatchObject({ ok: true });
       expect(permitted()).toMatchObject({ ok: true });
       expect(denied()).toEqual({ ok: false, reason: 'unauthorized' });
       expect(ctx.botharnessActivityDetails.read(f.reference)).toEqual({
@@ -196,6 +224,7 @@ describe('authorized Activity Tool detail capability', () => {
       await consumer.dispose();
       expect(permitted()).toEqual({ ok: false, reason: 'unauthorized' });
       expect(audit.map((e) => e.outcome)).toEqual([
+        'allowed',
         'allowed',
         'unauthorized',
         'unauthorized',

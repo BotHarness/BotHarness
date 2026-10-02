@@ -95,6 +95,10 @@ export function createToolDetailIndex(options: {
     read(reference) {
       prune();
       const entry = entries.get(reference);
+      const unavailable = (): ToolDetailRead => {
+        entries.delete(reference);
+        return { ok: false, reason: 'unavailable' };
+      };
       const owner = entry === undefined ? undefined : options.owner(entry.sessionId);
       if (
         entry === undefined ||
@@ -102,26 +106,23 @@ export function createToolDetailIndex(options: {
         entry.owner !== ownerIdentity(owner) ||
         entry.repairRevision !== options.repairRevision(entry.sessionId)
       ) {
-        entries.delete(reference);
-        return { ok: false, reason: 'unavailable' };
+        return unavailable();
       }
       const events = options.events(entry.sessionId);
       const index = events?.findIndex(
         (event) => event.seq === entry.seq && event.type === 'tool/call',
       );
-      if (events === undefined || index === undefined || index < 0)
-        return { ok: false, reason: 'unavailable' };
+      if (events === undefined || index === undefined || index < 0) return unavailable();
       const call = dataOf(events[index]!);
       if (
         call['callId'] !== entry.callId ||
         typeof call['name'] !== 'string' ||
         typeof call['arguments'] !== 'string'
       )
-        return { ok: false, reason: 'unavailable' };
+        return unavailable();
       let result: unknown;
       for (const event of events.slice(index + 1)) {
-        if (event.type === 'turn/end' || event.type === 'turn/start')
-          return { ok: false, reason: 'unavailable' };
+        if (event.type === 'turn/end' || event.type === 'turn/start') return unavailable();
         if (event.type !== 'tool/result') continue;
         const data = dataOf(event);
         const message = data['message'];
@@ -146,7 +147,7 @@ export function createToolDetailIndex(options: {
         if (bytes > TOOL_DETAIL_MAX_BYTES) return { ok: false, reason: 'too-large' };
         return { ok: true, detail: JSON.parse(encoded) as ToolDetail, bytes };
       } catch {
-        return { ok: false, reason: 'unavailable' };
+        return unavailable();
       }
     },
     revokeSession,
