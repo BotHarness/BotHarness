@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactElement } from 'react';
+import { useCallback, useRef, useState, type ReactElement } from 'react';
 
 import {
   IconAgentPresetOutlineRegular,
@@ -544,6 +544,21 @@ function ConversationView({
   const [replyTarget, setReplyTarget] = useState<ChannelMessage | undefined>();
   const submitting = useRef(false);
   const followingLatest = useRef(true);
+  const activityOverlayPane = useRef<HTMLElement | null>(null);
+  const resizeActivityOverlay = useCallback(
+    (height: number): void => {
+      const timeline = scrollRef.current;
+      const pane = timeline?.closest<HTMLElement>('.bh-chat-pane') ?? activityOverlayPane.current;
+      if (pane === null) return;
+      activityOverlayPane.current = pane;
+      const following =
+        followingLatest.current && !store.getSnapshot().conversation.timeline.hasNewer;
+      if (height > 0) pane.style.setProperty('--bh-activity-overlay-inset', `${height + 6}px`);
+      else pane.style.removeProperty('--bh-activity-overlay-inset');
+      if (following && timeline !== null) timeline.scrollTop = timeline.scrollHeight;
+    },
+    [store],
+  );
   const prependAnchor = useRef<{
     firstId: string | undefined;
     y: number | undefined;
@@ -616,6 +631,7 @@ function ConversationView({
     src: member.avatar,
     state: personaBotActivity(state, member),
     activity: member.activity,
+    sessions: member.sessionActivity,
   }));
   const activeFacepile = channelFacepile.filter((item) => item.state !== 'idle');
   const composerFacepile: PersonaBotFacepileItem[] =
@@ -630,6 +646,7 @@ function ConversationView({
               src: bot.avatar,
               state: botActivity,
               activity: bot.activity,
+              sessions: bot.sessionActivity,
             },
           ];
   const composerActivity: ChannelComposerActivity | undefined =
@@ -1447,6 +1464,7 @@ function ConversationView({
                       setUploadItems((current) => current.filter((item) => item.id !== id));
                     }}
                     activity={composerActivity}
+                    onActivityOverlayResize={resizeActivityOverlay}
                     reply={
                       replyTarget === undefined
                         ? undefined

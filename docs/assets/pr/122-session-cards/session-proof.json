@@ -1,0 +1,28 @@
+{
+  "sessions": [
+    {
+      "id": "activity-5ae31efe-bbde-4e0c-ba1d-202a0bed2d8b",
+      "role": "assignment",
+      "name": "Verify compact Session cards with native titles, transparent history and narrow-",
+      "at": 1790961913503,
+      "revision": 19,
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "pwsh",
+        "startedAt": 1790961703764,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "assignment",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "rows": [
+    "Verify compact Session cards with native titles, transparent history and narrow-正在执行 · pwsh02:25:13"
+  ]
+}

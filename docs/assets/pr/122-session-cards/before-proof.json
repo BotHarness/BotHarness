@@ -1,0 +1,194 @@
+{
+  "bot": {
+    "slug": "bot-e1c80d47ed314cdbbafc10466f88235c",
+    "displayName": "Session layout QA assignment"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "assignment",
+  "colorScheme": "light",
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "4c9a6ec5-b270-44ed-8421-bbd2d2e5488b",
+      "revision": 19,
+      "slug": "bot-e1c80d47ed314cdbbafc10466f88235c",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "pwsh",
+        "startedAt": 1790961703764,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "assignment",
+            "count": 1
+          }
+        ]
+      },
+      "sessions": [
+        {
+          "id": "activity-5ae31efe-bbde-4e0c-ba1d-202a0bed2d8b",
+          "role": "assignment",
+          "name": "Verify compact Session cards with native titles, transparent history and narrow-",
+          "at": 1790961913503,
+          "revision": 19,
+          "state": "working",
+          "activity": {
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "pwsh",
+            "startedAt": 1790961703764,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "assignment",
+                "count": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "generation": "4c9a6ec5-b270-44ed-8421-bbd2d2e5488b",
+      "revision": 19,
+      "slug": "bot-e1c80d47ed314cdbbafc10466f88235c",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "pwsh",
+        "startedAt": 1790961703764,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "assignment",
+            "count": 1
+          }
+        ]
+      },
+      "sessions": [
+        {
+          "id": "activity-5ae31efe-bbde-4e0c-ba1d-202a0bed2d8b",
+          "role": "assignment",
+          "name": "Verify compact Session cards with native titles, transparent history and narrow-",
+          "at": 1790961913503,
+          "revision": 19,
+          "state": "working",
+          "activity": {
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "pwsh",
+            "startedAt": 1790961703764,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "assignment",
+                "count": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Session layout QA assignment：正在执行 · pwsh · 任务会话"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Session layout QA assignment：正在执行 · pwsh · 任务会话"
+      }
+    ],
+    "summary": "Session layout QA assignment 正在执行 · pwsh · 任务会话"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790961703764,
+      "name": "pwsh"
+    }
+  ],
+  "railFocusSummary": "Session layout QA assignment · 正在执行 · pwsh · 任务会话",
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "disclosure": {
+    "open": false,
+    "headerBackground": "rgba(0, 0, 0, 0)",
+    "bodyHeight": 0
+  },
+  "expandedPanel": {
+    "width": 600,
+    "parentWidth": 872,
+    "leftInset": 42,
+    "radius": "20px",
+    "background": "rgb(245, 246, 247)",
+    "timelineBottom": 568,
+    "disclosureBottom": 692
+  },
+  "sourceRows": [
+    {
+      "height": 64,
+      "width": 576,
+      "parentWidth": 576,
+      "clientWidth": 574,
+      "scrollWidth": 574,
+      "gap": "normal",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(255, 255, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0.1)",
+      "fits": true,
+      "icon": "任务会话",
+      "name": "任务会话",
+      "nameOverflow": "ellipsis",
+      "nameTop": 625,
+      "latestTop": 650
+    }
+  ],
+  "narrowSourceRows": [
+    {
+      "height": 64,
+      "width": 248.421875,
+      "parentWidth": 248.421875,
+      "clientWidth": 246,
+      "scrollWidth": 246,
+      "gap": "normal",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(255, 255, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0.1)",
+      "fits": true,
+      "icon": "任务会话",
+      "name": "任务会话",
+      "nameOverflow": "ellipsis",
+      "nameTop": 681.03125,
+      "latestTop": 706.03125
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": true,
+  "actualNativeShellApproval": true,
+  "toolName": "pwsh",
+  "verdict": "PASS"
+}

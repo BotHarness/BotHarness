@@ -6,6 +6,7 @@ import {
 } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import type { PersonaBotFacepileItem } from '../src/client/avatar.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: ({
@@ -95,7 +96,7 @@ describe('Channel composer', () => {
         onSubmit: () => undefined,
       }),
     );
-    expect(markup).toContain('bh-composer-activity-public-detail');
+    expect(markup).toContain('bh-composer-activity-session-latest');
     expect(markup).toContain('&lt;b&gt;Opening a browser tab&lt;/b&gt;');
     expect(markup).not.toContain('<details class="bh-composer-activity-status" open');
   });
@@ -128,9 +129,9 @@ describe('Channel composer', () => {
         onSubmit: () => undefined,
       }),
     );
-    expect(markup).toContain('role="img" aria-label="任务会话"');
-    expect(markup).toContain('2 个会话');
-    expect(markup).toContain('bash · 3 个活动工具');
+    expect(markup).toContain('任务会话 ×2');
+    expect(markup).toContain('3 个工具');
+    expect(markup).toContain('bash');
     expect(markup).not.toContain('sessionId');
     expect(markup).not.toContain('<details open');
   });
@@ -302,4 +303,100 @@ describe('Channel composer', () => {
     expect(fitComposerTextarea(element as never)).toEqual({ expanded: true, height: 144 });
     expect(style).toEqual({ height: '144px', overflowY: 'auto' });
   });
+});
+
+it('puts only the latest activity inside each Session block and does not repeat the Bot name', () => {
+  const markup = renderToStaticMarkup(
+    createElement(ChannelComposer, {
+      value: '',
+      placeholder: 'Message',
+      sending: false,
+      onChange: () => undefined,
+      onSubmit: () => undefined,
+      activity: {
+        summary: 'Ada working',
+        items: [
+          {
+            personaBotId: 'ada',
+            name: 'Ada',
+            state: 'working',
+            sessions: [
+              {
+                id: 'activity-11111111-1111-4111-8111-111111111111',
+                role: 'assignment',
+                name: 'Inspect <layout>',
+                revision: 1,
+                at: 1000,
+                state: 'thinking',
+              },
+              {
+                id: 'activity-22222222-2222-4222-8222-222222222222',
+                role: 'assignment',
+                name: 'Verify compact activity',
+                revision: 2,
+                at: 2000,
+                state: 'working',
+                activity: {
+                  effect: 'generic-working',
+                  toolKind: 'other',
+                  toolName: 'browser_tabs',
+                  publicDetail: '<public operation>',
+                  startedAt: 2000,
+                  activeToolCount: 1,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  expect(markup).toContain('<details class="bh-composer-activity-status">');
+  expect(markup.match(/class="bh-composer-activity-session"/gu)).toHaveLength(2);
+  expect(markup).toContain('Inspect &lt;layout&gt;');
+  expect(markup).toContain('Verify compact activity');
+  expect(markup).not.toContain('任务会话 1');
+  expect(markup).toContain('<ul class="bh-composer-activity-details"');
+  expect(markup).toContain('dateTime="1970-01-01T00:00:02.000Z"');
+  expect(markup).toContain('&lt;public operation&gt;');
+  expect(markup).not.toContain('<public operation>');
+  expect(markup).not.toContain('<strong>Ada</strong>');
+  expect(markup).not.toContain('bh-composer-activity-trace');
+  expect(markup).not.toContain('bh-composer-activity-session-header');
+  expect(markup).not.toContain('bh-composer-activity-bot');
+});
+
+it('identifies Session ownership with avatars only when multiple Bots are active', () => {
+  const markup = renderToStaticMarkup(
+    createElement(ChannelComposer, {
+      value: '',
+      placeholder: 'Group',
+      sending: false,
+      onChange: () => undefined,
+      onSubmit: () => undefined,
+      activity: {
+        summary: '2 bots working',
+        items: ['Ada', 'Bob'].map((name, index): PersonaBotFacepileItem => ({
+          personaBotId: name.toLowerCase(),
+          name,
+          state: 'thinking',
+          sessions: [
+            {
+              id: `activity-${String(index).padStart(8, '0')}-1111-4111-8111-111111111111`,
+              role: 'orchestrator',
+              revision: 1,
+              at: 1000,
+              state: 'thinking',
+            },
+          ],
+        })),
+      },
+    }),
+  );
+  const body = markup.slice(markup.indexOf('bh-composer-activity-details'));
+  expect(body.match(/class="bh-persona-avatar"/gu)).toHaveLength(2);
+  expect(body).toContain('aria-label="Ada：正在思考"');
+  expect(body).toContain('aria-label="Bob：正在思考"');
+  expect(body).not.toContain('<strong>Ada</strong>');
+  expect(body).not.toContain('<strong>Bob</strong>');
 });
