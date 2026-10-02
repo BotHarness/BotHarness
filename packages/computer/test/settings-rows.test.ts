@@ -71,6 +71,29 @@ afterEach(() => {
 });
 
 describe('computer settings prefs', () => {
+  it('changes target only after the durable scope accepts it, and keeps it on refusal', async () => {
+    let target: 'local' | 'container' = 'container';
+    const prefs = new ComputerSettingsPrefs();
+    const set = vi.fn(async (_field, next) => {
+      target = next;
+    });
+    prefs.attach({
+      getSnapshot: () => ({
+        status: 'ready',
+        writable: true,
+        value: { target, exportDir: '', idleStopMinutes: 30, autoAllowActions: false },
+      }),
+      subscribe: () => () => undefined,
+      set,
+    });
+    await prefs.setTarget('local');
+    expect(set).toHaveBeenCalledWith('target', 'local');
+    expect(prefs.getSnapshot().target).toBe('local');
+    set.mockRejectedValue(new Error('refused'));
+    await expect(prefs.setTarget('container')).rejects.toThrow('refused');
+    expect(prefs.getSnapshot().target).toBe('local');
+  });
+
   it('adopts the scope values and publishes writes optimistically', async () => {
     const fake = fakeScope({ exportDir: '/exports', idleStopMinutes: 60 });
     const prefs = new ComputerSettingsPrefs();

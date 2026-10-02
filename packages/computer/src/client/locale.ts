@@ -3,6 +3,17 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness-computer';
 
 export const zh = {
+  'rows.target.title': '操作目标',
+  'rows.target.description': '本 Profile 的所有 Bot 共用一个目标；切换后需要重新授权操作。',
+  'rows.target.local': '本机 Computer',
+  'rows.target.container': 'Docker Computer',
+  'local.title': '本机 Computer',
+  'local.granted': '桌面权限已授予',
+  'local.description':
+    '直接操作运行 DSH 的 Mac。首次检查会安装桌面操作组件；请在这台电脑上完成登录。',
+  'local.check': '检查权限',
+  'local.checking': '正在检查…',
+
   'entry.label': '电脑',
   'entry.screen.title': '{name} 的屏幕',
   'entry.shared':
@@ -50,7 +61,7 @@ export const zh = {
   'entry.setup':
     '未检测到容器运行时。任选其一安装后重试：\n\nColima（推荐，MIT）：\n  brew install colima docker\n  brew services start colima\n\n或 Docker Desktop：https://www.docker.com/products/docker-desktop/',
   'section.title': 'Computer',
-  'section.description': '导出目录、空闲停止与导出 / 导入',
+  'section.description': '操作目标与 Computer 权限',
   'rows.exportDir.title': 'Computer 导出目录',
   'rows.exportDir.current': '当前：{dir}',
   'rows.exportDir.empty': '未配置时使用默认导出目录',
@@ -91,6 +102,18 @@ export const zh = {
 } as const;
 
 export const en: Record<keyof typeof zh, string> = {
+  'rows.target.title': 'Computer Target',
+  'rows.target.description':
+    'All Bots in this Profile share one target. Switching requires new action authorization.',
+  'rows.target.local': 'Local Computer',
+  'rows.target.container': 'Docker Computer',
+  'local.title': 'Local Computer',
+  'local.granted': 'Desktop permissions granted',
+  'local.description':
+    'Uses the Mac running DSH. The first check installs the required desktop helper. Complete logins on this computer.',
+  'local.check': 'Check permissions',
+  'local.checking': 'Checking…',
+
   'entry.label': 'Computer',
   'entry.screen.title': "{name}'s screen",
   'entry.shared':
@@ -141,7 +164,7 @@ export const en: Record<keyof typeof zh, string> = {
   'entry.setup':
     'No container runtime found. Install one of these, then retry:\n\nColima (recommended, MIT):\n  brew install colima docker\n  brew services start colima\n\nOr Docker Desktop: https://www.docker.com/products/docker-desktop/',
   'section.title': 'Computer',
-  'section.description': 'Export directory, idle stop, and export / import',
+  'section.description': 'Computer target and permissions',
   'rows.exportDir.title': 'Computer export directory',
   'rows.exportDir.current': 'Current: {dir}',
   'rows.exportDir.empty': 'Uses the default export directory when none is set',

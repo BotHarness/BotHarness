@@ -1,0 +1,53 @@
+{
+  "capturedAt": "2026-10-02T05:52:48.084Z",
+  "driverVersion": "0.28.0",
+  "runtimeHashesVerified": true,
+  "target": "local",
+  "provider": "local",
+  "installationAndOsGrants": "PASS",
+  "persistedTarget": "local",
+  "localArchiveRoutesRefused": [
+    {
+      "endpoint": "export",
+      "status": 400,
+      "code": "container-only"
+    },
+    {
+      "endpoint": "import",
+      "status": 400,
+      "code": "container-only"
+    },
+    {
+      "endpoint": "upload",
+      "status": 400,
+      "code": "container-only"
+    },
+    {
+      "endpoint": "open-dir",
+      "status": 400,
+      "code": "container-only"
+    },
+    {
+      "endpoint": "exports",
+      "status": 400,
+      "code": "container-only"
+    },
+    {
+      "endpoint": "download",
+      "status": 400,
+      "code": "container-only"
+    },
+    {
+      "endpoint": "upload-content",
+      "status": 400,
+      "code": "container-only"
+    }
+  ],
+  "staleTargetSetupRefused": {
+    "status": 409,
+    "code": "target-changed"
+  },
+  "computerAccess": false,
+  "nativeDesktopCapture": "NOT_RUN",
+  "nativeBotAction": "NOT_RUN_BY_THIS_READ_ONLY_PROBE"
+}

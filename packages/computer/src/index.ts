@@ -30,6 +30,11 @@ import { DEFAULT_DOCKER_CONFIG, createDockerComputerProvider } from './providers
 import type { ComputerRuntimeResult, ComputerRuntimeRunner } from './provider.js';
 import { createComputerService, type ComputerService } from './service.js';
 import { createCuaDriver } from './tool/driver.js';
+import { createLocalCuaDriver } from './tool/local-driver.js';
+import { createLocalComputerProvider } from './providers/local.js';
+import { computerTarget, createComputerTargetRuntime, type ComputerTarget } from './target.js';
+import { COMPUTER_GUIDANCE, LOCAL_COMPUTER_GUIDANCE } from './tool/catalog.js';
+import type {} from '@deepseek-ai/cordis-plugin-loader';
 import {
   computerToolNames,
   createComputerToolProvider,
@@ -41,6 +46,7 @@ import { ViewerProxy, proxyUpgrade, viewerUpgradePaths } from './viewer.js';
 export const name = 'botharness-computer';
 
 export interface ComputerConfig {
+  target: ComputerTarget;
   enabled: boolean;
   image: string;
   containerName: string;
@@ -61,8 +67,9 @@ export interface ComputerConfig {
 
 type ComputerRuntimeConfig = Omit<
   ComputerConfig,
-  'exportDir' | 'idleStopMinutes' | 'autoAllowActions'
+  'exportDir' | 'idleStopMinutes' | 'autoAllowActions' | 'target'
 > & {
+  target: ComputerTarget | Volatile<ComputerTarget>;
   exportDir: string | Volatile<string>;
   idleStopMinutes: number | Volatile<number>;
   autoAllowActions: boolean | Volatile<boolean>;
@@ -78,6 +85,7 @@ export function desktopLocale(language: string): string {
 }
 
 export const DEFAULT_CONFIG: ComputerConfig = {
+  target: 'local',
   enabled: true,
   image: DEFAULT_DOCKER_CONFIG.image,
   containerName: DEFAULT_DOCKER_CONFIG.containerName,
@@ -97,6 +105,9 @@ export const DEFAULT_CONFIG: ComputerConfig = {
 };
 
 export const Config = Schema.object({
+  target: Schema.union([Schema.const('local'), Schema.const('container')])
+    .default('container')
+    .volatile(),
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 Computer'),
   image: Schema.string().default(DEFAULT_CONFIG.image),
   containerName: Schema.string().default(DEFAULT_CONFIG.containerName),
@@ -259,45 +270,87 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       logDb?.write(toLogEntry(event, 'computer', 'profile-shared'));
     },
   });
-  const transferTokens = createTransferTokens();
+  let transferTokens = createTransferTokens();
   const service: ComputerService = createComputerService();
   let requestedLanguage = '';
   const runner = createProcessRunner();
-  const provider = createDockerComputerProvider({
-    runner,
-    onEvent: (detail) => diagnostics.record('container', detail),
-    getLanguage: () => (requestedLanguage === '' ? config.language : requestedLanguage),
-    config: {
-      image: config.image,
-      containerName: config.containerName,
-      volumeName: config.volumeName,
-      dataDir: config.dataDir,
-      hostPort: config.hostPort,
-      cpus: config.cpus,
-      memory: config.memory,
-      resolution: config.resolution,
-      shmSize: config.shmSize,
-      pidsLimit: config.pidsLimit,
-      idleStopMinutes: readLive(config.idleStopMinutes),
-      hardenDesktop: config.hardenDesktop,
-      language: config.language,
+  let authorizationRevision = 0;
+  const authorizationScope = (): string => `${target()}:${String(authorizationRevision)}`;
+  const target = (): ComputerTarget => computerTarget(readLive(config.target));
+  const runtime = createComputerTargetRuntime({
+    target,
+    onChange: () => {
+      transferTokens = createTransferTokens();
+      toolProvider.resetRuntime();
+    },
+    onEvent: (detail) => diagnostics.record('lifecycle', detail),
+    create: (selected) => {
+      if (selected === 'local') {
+        const driver = createLocalCuaDriver({
+          runner,
+          onEvent: (detail) => diagnostics.record('lifecycle', detail),
+        });
+        const provider = createLocalComputerProvider({
+          driver,
+          runner,
+          onEvent: (detail) => diagnostics.record('lifecycle', `target=local ${detail}`),
+        });
+        return { provider, driver };
+      }
+      const provider = createDockerComputerProvider({
+        runner,
+        onEvent: (detail) => diagnostics.record('container', detail),
+        getLanguage: () => (requestedLanguage === '' ? config.language : requestedLanguage),
+        config: {
+          image: config.image,
+          containerName: config.containerName,
+          volumeName: config.volumeName,
+          dataDir: config.dataDir,
+          hostPort: config.hostPort,
+          cpus: config.cpus,
+          memory: config.memory,
+          resolution: config.resolution,
+          shmSize: config.shmSize,
+          pidsLimit: config.pidsLimit,
+          idleStopMinutes: readLive(config.idleStopMinutes),
+          hardenDesktop: config.hardenDesktop,
+          language: config.language,
+        },
+      });
+      const driver = createCuaDriver({
+        runner,
+        containerName: config.containerName,
+        onEvent: (detail) => diagnostics.record('lifecycle', `target=container ${detail}`),
+      });
+      return { provider, driver };
     },
   });
-
-  const release = service.registerProvider(provider);
+  const release = service.registerProvider(runtime.provider);
   ctx.effect(() => release, 'botharness-computer: provider registration');
   ctx.provide('botharnessComputer', service);
-
-  const activity = { touch: (): void => undefined };
-  const driver = createCuaDriver({
-    runner,
-    containerName: config.containerName,
-    onEvent: (detail) => diagnostics.record('lifecycle', `driver: ${detail}`),
+  ctx.on('loader/volatile-update', (paths) => {
+    if (!paths.some((path) => path[0] === 'target')) return;
+    authorizationRevision += 1;
+    toolProvider.resetRuntime();
+    void runtime
+      .sync()
+      .then(() => toolProvider.reconcileAll())
+      .catch((error: unknown) =>
+        diagnostics.record(
+          'lifecycle',
+          `phase=target-switch-failed detail=${String(error).slice(0, 200)}`,
+        ),
+      );
   });
+  ctx.effect(() => () => runtime.dispose(), 'botharness-computer: target runtime');
+  const activity = { touch: (): void => undefined };
+  const driver = runtime.driver;
   const toolProvider = createComputerToolProvider({
     ctx,
     driver,
-    isComputerRunning: () => service.upstream() !== undefined,
+    isComputerRunning: () => runtime.isRunning(),
+    authorizationScope,
+    guidance: () => (target() === 'local' ? LOCAL_COMPUTER_GUIDANCE : COMPUTER_GUIDANCE),
     isAutoAllowed: () => effective().autoAllowActions,
     audit: (event) => diagnostics.record('computer-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),
@@ -316,7 +369,9 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     reconcileBot: (slug: string) => toolProvider.reconcileBot(slug),
     ownsTool: (name: string) => ownsComputerTool(name),
     needsAuthorization: (sessionId: string) => toolProvider.needsAuthorization(sessionId),
-    markAuthorized: (sessionId: string) => toolProvider.markAuthorized(sessionId),
+    authorizationScope,
+    markAuthorized: (sessionId: string, scope?: string) =>
+      toolProvider.markAuthorized(sessionId, scope),
   });
   ctx.inject(['botharness'], (coreCtx) => {
     const core = (
@@ -342,12 +397,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       for (const name of computerToolNames()) hostTools?.delete(name);
     };
   });
-  ctx.effect(
-    () => () => {
-      void toolProvider.dispose();
-    },
-    'botharness-computer: tool provider',
-  );
+  ctx.effect(() => () => toolProvider.dispose(), 'botharness-computer: tool provider');
 
   const log = (message: string): void => {
     ctx.logger.info(`botharness-computer: ${message}`);
@@ -371,6 +421,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     idleMs: () => Math.max(1, effective().idleStopMinutes) * 60_000,
     onIdle: async () => {
       try {
+        if (target() !== 'container') return;
         const status = await service.status();
         if (status.state === 'running') {
           log(`idle stop after ${String(effective().idleStopMinutes)} min without activity`);
@@ -406,11 +457,12 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
           .status()
           .catch((error: unknown) => ({ state: 'failed' as const, detail: String(error) }));
         return json({
+          target: target(),
           provider: service.providerName ?? null,
           probe,
           status,
-          exportDir: resolveExportDir(),
-          resolution: config.resolution,
+          exportDir: target() === 'container' ? resolveExportDir() : '',
+          ...(target() === 'container' ? { resolution: config.resolution } : {}),
         });
       },
     };
@@ -425,9 +477,13 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
         let authorize = false;
-        let body: { authorize?: unknown; language?: unknown } = {};
+        let body: { authorize?: unknown; language?: unknown; target?: unknown } = {};
         try {
-          body = (await request.json()) as { authorize?: unknown; language?: unknown };
+          body = (await request.json()) as {
+            authorize?: unknown;
+            language?: unknown;
+            target?: unknown;
+          };
           authorize = body.authorize === true;
         } catch {}
         if (!authorize) {
@@ -436,6 +492,15 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
             400,
           );
         }
+        if (body.target !== undefined && body.target !== target())
+          return json(
+            {
+              ok: false,
+              code: 'target-changed',
+              error: 'Computer Target changed; check the selected Computer before retrying',
+            },
+            409,
+          );
         requestedLanguage =
           typeof body.language === 'string' && body.language !== ''
             ? desktopLocale(body.language)
@@ -504,6 +569,15 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
+        if (target() !== 'container')
+          return json(
+            {
+              ok: false,
+              code: 'container-only',
+              error: 'Archive transfer is only available for Container Computer',
+            },
+            400,
+          );
         const body = await parseBody(request);
         if (body.authorize !== true) return unauthorized();
         const requested = typeof body.dir === 'string' && body.dir !== '' ? body.dir : undefined;
@@ -535,6 +609,15 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
+        if (target() !== 'container')
+          return json(
+            {
+              ok: false,
+              code: 'container-only',
+              error: 'Archive transfer is only available for Container Computer',
+            },
+            400,
+          );
         const body = await parseBody(request);
         if (body.authorize !== true) return unauthorized();
         const requested = typeof body.dir === 'string' && body.dir !== '' ? body.dir : undefined;
@@ -631,6 +714,15 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       methods: ['GET'] as const,
       requestBody: 'buffered' as const,
       fetch: async (): Promise<Response> => {
+        if (target() !== 'container')
+          return json(
+            {
+              ok: false,
+              code: 'container-only',
+              error: 'Archive transfer is only available for Container Computer',
+            },
+            400,
+          );
         const exportDir = resolveExportDir();
         try {
           const entries = await readdir(exportDir);
@@ -653,6 +745,15 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
+        if (target() !== 'container')
+          return json(
+            {
+              ok: false,
+              code: 'container-only',
+              error: 'Archive transfer is only available for Container Computer',
+            },
+            400,
+          );
         const body = await parseBody(request);
         if (body.authorize !== true) return unauthorized();
         const exportDir = resolveExportDir();
@@ -679,6 +780,15 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       methods: ['GET'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
+        if (target() !== 'container')
+          return json(
+            {
+              ok: false,
+              code: 'container-only',
+              error: 'Archive transfer is only available for Container Computer',
+            },
+            400,
+          );
         const token = new URL(request.url).searchParams.get('token') ?? '';
         const archive = transferTokens.consume(token, 'download');
         if (archive === undefined) return unknownToken('download');
@@ -703,6 +813,15 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
+        if (target() !== 'container')
+          return json(
+            {
+              ok: false,
+              code: 'container-only',
+              error: 'Archive transfer is only available for Container Computer',
+            },
+            400,
+          );
         const body = await parseBody(request);
         if (body.authorize !== true) return unauthorized();
         const file = typeof body.file === 'string' ? body.file : '';
@@ -728,8 +847,16 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     const uploadContentRoute = {
       path: '/api/computer/upload-content',
       methods: ['POST'] as const,
-      requestBody: 'streaming' as const,
       fetch: async (request: Request): Promise<Response> => {
+        if (target() !== 'container')
+          return json(
+            {
+              ok: false,
+              code: 'container-only',
+              error: 'Archive transfer is only available for Container Computer',
+            },
+            400,
+          );
         const token = new URL(request.url).searchParams.get('token') ?? '';
         const dest = transferTokens.consume(token, 'upload');
         if (dest === undefined) return unknownToken('upload');
@@ -748,9 +875,40 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
         return json({ ok: true });
       },
     };
+    const registerUploadContent = (): (() => Promise<void>) =>
+      connection.fetch.register({
+        ...uploadContentRoute,
+        requestBody: target() === 'container' ? 'streaming' : 'buffered',
+      });
+    let removeUploadContent = registerUploadContent();
+    let uploadChange = Promise.resolve();
+    let uploadDisposed = false;
     connectionCtx.effect(
-      () => connection.fetch.register(uploadContentRoute),
+      () => async () => {
+        uploadDisposed = true;
+        await uploadChange.catch(() => undefined);
+        await removeUploadContent();
+      },
       'botharness-computer: upload-content route',
+    );
+    connectionCtx.effect(
+      () =>
+        ctx.on('loader/volatile-update', (paths) => {
+          if (!paths.some((path) => path[0] === 'target')) return;
+          uploadChange = uploadChange
+            .catch(() => undefined)
+            .then(async () => {
+              await removeUploadContent();
+              if (!uploadDisposed) removeUploadContent = registerUploadContent();
+            });
+          void uploadChange.catch((error: unknown) =>
+            diagnostics.record(
+              'lifecycle',
+              `phase=upload-policy-refused detail=${String(error).slice(0, 200)}`,
+            ),
+          );
+        }),
+      'botharness-computer: upload target policy',
     );
   });
 

@@ -128,3 +128,13 @@ Cancellation does not roll back. Input already delivered to the desktop stays de
 Credentials are the Human's. Never type passwords, API keys, or recovery codes. When a page asks for a login, tell the Human in the chat what to log in to, then wait — the Human logs in through the Computer panel. Logins persist in the shared browser profile.
 
 Before an externally visible action (posting, sending, purchasing, deleting), tell the Human what you are about to do in one short message. Computer Authorization lets you act; it is not blanket consent for surprising consequences. When done, report what you did with the window and outcome, and stop acting.`;
+
+export const LOCAL_COMPUTER_GUIDANCE =
+  COMPUTER_GUIDANCE.replace(
+    'a Linux (X11/XFCE) desktop inside a container with Chrome',
+    'the macOS desktop of the DSH Host, shared with the Human',
+  ).replace(
+    'the Human logs in through the Computer panel',
+    'the Human logs in directly on their own screen',
+  ) +
+  '\nLocal Computer has no viewer. Never assume a login is complete; ask the Human and re-observe the task window.';

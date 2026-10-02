@@ -53,6 +53,7 @@ import {
   createComputerSettingsFace,
   type ComputerSettingsScope,
 } from './settings-rows.js';
+import { LocalComputerStatus } from './local-computer.js';
 import { useMountedResource } from './mounted-resource.js';
 
 export const name = 'botharness-computer-client';
@@ -84,6 +85,7 @@ interface ComputerProgress {
 }
 
 interface ComputerStatusPayload {
+  readonly target?: 'local' | 'container';
   resolution?: string;
   readonly provider: string | null;
   readonly probe: { readonly available: boolean; readonly detail?: string };
@@ -1294,27 +1296,31 @@ function ComputerEntry({
   return (
     <div ref={statusResource} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {inProgress ? <span hidden ref={progressResource} /> : null}
-      <ComputerEntryView
-        t={t}
-        state={payload?.status.state ?? 'absent'}
-        {...(phase === undefined ? {} : { phase })}
-        {...(payload?.status.detail === undefined ? {} : { detail: payload.status.detail })}
-        {...(payload?.status.progress === undefined ? {} : { progress: payload.status.progress })}
-        runtimeAvailable={payload?.probe.available ?? true}
-        confirming={confirming}
-        busy={busy}
-        elapsed={elapsed}
-        nowTs={nowTs}
-        {...(error === undefined ? {} : { error })}
-        {...(displayName === undefined ? {} : { botSlug: displayName })}
-        {...(payload?.status.storage === undefined ? {} : { storage: payload.status.storage })}
-        {...(payload?.resolution === undefined ? {} : { resolution: payload.resolution })}
-        onStart={onStart}
-        onConfirmStart={onConfirmStart}
-        onStop={() => void act(STOP_ENDPOINT)}
-        onApprove={onApprove}
-        onCancel={() => setConfirming(false)}
-      />
+      {payload?.target === 'local' ? (
+        <LocalComputerStatus t={t} />
+      ) : (
+        <ComputerEntryView
+          t={t}
+          state={payload?.status.state ?? 'absent'}
+          {...(phase === undefined ? {} : { phase })}
+          {...(payload?.status.detail === undefined ? {} : { detail: payload.status.detail })}
+          {...(payload?.status.progress === undefined ? {} : { progress: payload.status.progress })}
+          runtimeAvailable={payload?.probe.available ?? true}
+          confirming={confirming}
+          busy={busy}
+          elapsed={elapsed}
+          nowTs={nowTs}
+          {...(error === undefined ? {} : { error })}
+          {...(displayName === undefined ? {} : { botSlug: displayName })}
+          {...(payload?.status.storage === undefined ? {} : { storage: payload.status.storage })}
+          {...(payload?.resolution === undefined ? {} : { resolution: payload.resolution })}
+          onStart={onStart}
+          onConfirmStart={onConfirmStart}
+          onStop={() => void act(STOP_ENDPOINT)}
+          onApprove={onApprove}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
     </div>
   );
 }

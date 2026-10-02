@@ -11,6 +11,25 @@ import type {} from '@deepseek-ai/dsh-user-approval';
 import { COMPUTER_GUIDANCE, COMPUTER_TOOLS, FALLBACK_TOOLS, computerToolName } from './catalog.js';
 import type { CuaDriver, DriverToolDescriptor } from './driver.js';
 
+function modelVisibleDriverResult(result: unknown): unknown {
+  if (
+    typeof result !== 'object' ||
+    result === null ||
+    !('structuredContent' in result) ||
+    result.structuredContent === undefined ||
+    !('content' in result) ||
+    !Array.isArray(result.content)
+  )
+    return result;
+  return {
+    ...result,
+    content: [
+      ...result.content,
+      { type: 'text', text: JSON.stringify({ structuredContent: result.structuredContent }) },
+    ],
+  };
+}
+
 export const COMPUTER_PROVIDER_NAME = 'botharness-computer';
 
 export const COMPUTER_PROMPT_SECTION = 'botharness:computer';
@@ -53,6 +72,8 @@ export interface ComputerToolProviderOptions {
   readonly driver: CuaDriver;
   readonly isComputerRunning: () => boolean;
   readonly isAutoAllowed: () => boolean;
+  readonly guidance?: (() => string) | undefined;
+  readonly authorizationScope?: (() => string) | undefined;
   readonly audit: (event: ComputerAuditEvent) => void;
   readonly note?: (detail: string) => void;
   readonly onActivity?: () => void;
@@ -70,9 +91,10 @@ export function ownsComputerTool(name: string): boolean {
 export interface ComputerToolProvider {
   attachAgent(scope: Context, sessionId: string, info: { botSlug: string; rootRole: string }): void;
   needsAuthorization(sessionId: string): boolean;
-  markAuthorized(sessionId: string): void;
+  markAuthorized(sessionId: string, scope?: string): boolean;
   reconcileBot(slug: string): Promise<void>;
   reconcileAll(): Promise<void>;
+  resetRuntime(): void;
   dispose(): Promise<void>;
 }
 
@@ -117,7 +139,9 @@ export function createComputerToolProvider(
 
   const sessions = new Map<string, { scope: Context; disposed: boolean }>();
   const registrations = new Map<string, SessionRegistration>();
-  const grants = new Set<string>();
+  const grants = new Map<string, string>();
+  const authorizationScope = (): string => options.authorizationScope?.() ?? 'computer';
+  const granted = (sessionId: string): boolean => grants.get(sessionId) === authorizationScope();
   let slotDisposer: (() => Promise<void>) | undefined;
   let disposed = false;
 
@@ -126,13 +150,17 @@ export function createComputerToolProvider(
 
   let cachedTools: readonly DriverToolDescriptor[] | undefined;
   let warming: Promise<void> | undefined;
+  let catalogEpoch = 0;
 
   const warmCatalog = (): void => {
     if (warming !== undefined || disposed || !isComputerRunning()) return;
+    const epoch = catalogEpoch;
     warming = (async () => {
       try {
         await driver.ensure();
-        cachedTools = await driver.tools();
+        const descriptors = await driver.tools();
+        if (disposed || epoch !== catalogEpoch) return;
+        cachedTools = descriptors;
         for (const [sessionId, registration] of [...registrations]) {
           if (registration.source !== 'fallback') continue;
           if (core().registry?.get(registration.slug)?.computerAccess !== true) continue;
@@ -199,7 +227,7 @@ export function createComputerToolProvider(
                 'ok',
                 Date.now() - started,
               );
-              return result;
+              return modelVisibleDriverResult(result);
             } catch (error) {
               record(
                 slug,
@@ -220,7 +248,7 @@ export function createComputerToolProvider(
         scope.systemPrompt.section({
           name: COMPUTER_PROMPT_SECTION,
           order: scope.systemPrompt.getSectionOrder('TOOL_COMPUTER_USE'),
-          text: COMPUTER_GUIDANCE,
+          text: options.guidance?.() ?? COMPUTER_GUIDANCE,
         }),
       );
     } catch (error) {
@@ -275,7 +303,7 @@ export function createComputerToolProvider(
   ): Promise<void> => {
     const agent = execution.agent;
     if (agent === undefined) throw new Error('Computer tools require a PersonaBot session');
-    if (grants.has(sessionId) || isAutoAllowed()) return;
+    if (granted(sessionId) || isAutoAllowed()) return;
     throw new Error('Computer action is not authorized for this session');
   };
 
@@ -318,11 +346,13 @@ export function createComputerToolProvider(
     },
 
     needsAuthorization(sessionId) {
-      return !grants.has(sessionId) && !isAutoAllowed();
+      return !granted(sessionId) && !isAutoAllowed();
     },
 
-    markAuthorized(sessionId) {
-      grants.add(sessionId);
+    markAuthorized(sessionId, scope = authorizationScope()) {
+      if (scope !== authorizationScope()) return false;
+      grants.set(sessionId, scope);
+      return true;
     },
 
     async reconcileBot(slug) {
@@ -345,6 +375,18 @@ export function createComputerToolProvider(
       warmCatalog();
       for (const bot of core().registry?.list() ?? []) {
         if (bot.computerAccess === true) await this.reconcileBot(bot.slug);
+      }
+    },
+
+    resetRuntime() {
+      catalogEpoch += 1;
+      cachedTools = undefined;
+      grants.clear();
+      for (const sessionId of [...registrations.keys()]) unregisterSession(sessionId);
+      for (const [sessionId, session] of sessions) {
+        const owner = botSlugOf(sessionId);
+        if (owner !== undefined && core().registry?.get(owner.botSlug)?.computerAccess === true)
+          registerSession(sessionId, session.scope, owner.botSlug);
       }
     },
 

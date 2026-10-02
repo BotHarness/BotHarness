@@ -1,0 +1,93 @@
+{
+  "capturedAt": "2026-10-02T05:52:47.923525+00:00",
+  "driverVersion": "0.28.0",
+  "nativePersonaBotTurn": 4,
+  "nativeApproval": "allowed-once",
+  "firstFailure": {
+    "turn": 3,
+    "modelReceivedCountOnly": true,
+    "nativeEditNotAttempted": true,
+    "repair": "Mirror structuredContent into Native model-visible text; retain canonical result and image blocks."
+  },
+  "nativeAxObservation": "PASS",
+  "nativeBackgroundInput": "PASS",
+  "nativeSaveButton": "PASS",
+  "nativeSaveReadback": "PASS",
+  "proofText": "BH694-NATIVE-20261002-LOCAL-QA",
+  "savedFileSha256": "6a9410cf0d6408e0d930dfcbf61bae37e6d5e2ea1514d4434d03ee7918c89bc6",
+  "steps": [
+    {
+      "tool": "computer_list_windows",
+      "seq": 73,
+      "resultSeq": 76,
+      "pid": 27793,
+      "isError": false,
+      "selectedWindowId": 176000
+    },
+    {
+      "tool": "computer_get_window_state",
+      "seq": 81,
+      "resultSeq": 82,
+      "pid": 27793,
+      "isError": false,
+      "windowId": 176000,
+      "screenshotRequested": false,
+      "snapshotId": "s00000001"
+    },
+    {
+      "tool": "computer_type_text",
+      "seq": 86,
+      "resultSeq": 87,
+      "pid": 27793,
+      "isError": false,
+      "windowId": 176000,
+      "usesLatestObservedToken": true,
+      "delivery": "background",
+      "effect": "confirmed",
+      "route": "accessibility"
+    },
+    {
+      "tool": "computer_get_window_state",
+      "seq": 91,
+      "resultSeq": 92,
+      "pid": 27793,
+      "isError": false,
+      "windowId": 176000,
+      "screenshotRequested": false,
+      "snapshotId": "s00000002"
+    },
+    {
+      "tool": "computer_click",
+      "seq": 96,
+      "resultSeq": 97,
+      "pid": 27793,
+      "isError": false,
+      "windowId": 176000,
+      "usesLatestObservedToken": true,
+      "delivery": "background",
+      "effect": "unverifiable",
+      "route": "accessibility"
+    },
+    {
+      "tool": "computer_get_window_state",
+      "seq": 101,
+      "resultSeq": 102,
+      "pid": 27793,
+      "isError": false,
+      "windowId": 176000,
+      "screenshotRequested": false,
+      "snapshotId": "s00000003"
+    }
+  ],
+  "noOtherAppOrShellCalls": true,
+  "revokedComputerAccess": true,
+  "revocationTurn": 5,
+  "computerToolsInRevokedRequest": 0,
+  "revokedTurnComputerCalls": 0,
+  "auditEvents": 6,
+  "auditTextAndTokensRedacted": true,
+  "nativeDriverScreenshotCapture": "NOT_RUN",
+  "osPermissionsChanged": false,
+  "verificationHostBundleSha256": "f090da5aaacebfa19fec578c635c40da527fd29dccc9016a3566438ddc495c4e",
+  "verificationProviderSourceSha256": "6f33c88bde1e7e832c6a56287c1396132bc1af2dbe90a7d32e21a6c1f7958785"
+}
