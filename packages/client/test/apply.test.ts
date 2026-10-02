@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   return {
+    IconCodeOutlineRegular: () => null,
+    IconBranchOutlineRegular: () => null,
     Button: stub,
     MenuItemButton: stub,
     IconAgentPresetOutlineRegular: stub,

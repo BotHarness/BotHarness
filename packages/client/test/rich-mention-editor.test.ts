@@ -4,6 +4,9 @@ import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  IconAgentPresetOutlineRegular: () => null,
+  IconCodeOutlineRegular: () => null,
+  IconBranchOutlineRegular: () => null,
   Button: ({
     children,
     icon: _icon,
