@@ -1861,6 +1861,12 @@ it('all-message Bridge intake requires observed ordinary delivery and preserves 
   await fx.core.externalMessaging.inbound.channelBridge(channelId, update());
   row = await bridgeRow(fx, channelId);
   expect(row.collection).toBe('all');
+  expect(fx.core.externalMessaging.inbound.policy('ada', fx.grant.id)).toMatchObject({
+    collection: 'all',
+    wake: 'digest',
+    count: 2,
+    intervalSeconds: 300,
+  });
   await fx.receive({
     ...ordinary,
     eventId: 'ordinary-new',

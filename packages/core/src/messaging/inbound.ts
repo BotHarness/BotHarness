@@ -670,6 +670,21 @@ export function createInboundMessaging(options: {
                     revision: input.kind === 'add' ? 1 : configuration.revision + 1,
                   },
                 };
+          if (input.kind !== 'delete') {
+            const policy = groupReceptionPolicy(db, value.id);
+            if (policy.collection !== input.collection)
+              commitGroupReceptionPolicy(
+                db,
+                value.id,
+                {
+                  collection: input.collection,
+                  wake: policy.wake,
+                  count: policy.count,
+                  intervalSeconds: policy.intervalSeconds,
+                },
+                { kind: 'human' },
+              );
+          }
           db.prepare('UPDATE messaging_grants SET body = ?, revision = ? WHERE id = ?').run(
             JSON.stringify(next),
             next.revision,
