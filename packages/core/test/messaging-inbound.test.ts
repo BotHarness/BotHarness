@@ -1649,13 +1649,16 @@ it('counts followed Thread digests independently and never lets another Thread r
   ).toEqual([{ attempt_state: 'pending' }]);
 });
 
-it('counts a bridged Channel Source Event once under its projected sender', async () => {
+it.each([
+  ['Alex', 'Alex'],
+  [undefined, 'ou-human'],
+])('counts a bridged Channel Source Event once with actor name %s', async (name, label) => {
   const fx = await fixture();
   const channelId = await sharedTarget(fx);
   await fx.enable();
   const inbound = event({
     at: new Date().toISOString(),
-    actor: { kind: 'user', id: 'ou-human', name: 'Alex' },
+    actor: { kind: 'user', id: 'ou-human', ...(name === undefined ? {} : { name }) },
   });
   await fx.receive(inbound);
   await fx.receive(inbound);
@@ -1673,7 +1676,7 @@ it('counts a bridged Channel Source Event once under its projected sender', asyn
           human: 0,
           bot: 0,
           other: 1,
-          senders: [{ author: { kind: 'bridged', source: 'Alex' }, displayName: 'Alex', count: 1 }],
+          senders: [{ author: { kind: 'bridged', source: label }, displayName: label, count: 1 }],
         },
       ]),
     },
