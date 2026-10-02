@@ -602,7 +602,21 @@ try {
         refreshed.bots.find((row) => row.slug === bot.slug)?.sessions,
         latest.sessions,
       );
-      await page.locator('.bh-composer-activity-status summary').click();
+      await page.waitForFunction(
+        () => document.querySelector('.bh-composer-activity-status summary') !== null,
+      );
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      );
+      const restoredOpen = await page.$eval(
+        '.bh-composer-activity-status',
+        (details) => details.open,
+      );
+      console.log(JSON.stringify({ refreshedDisclosureOpen: restoredOpen }));
+      if (!restoredOpen) {
+        await page.focus('.bh-composer-activity-status summary');
+        await page.keyboard.press('Enter');
+      }
       await page.waitForSelector('.bh-composer-activity-status[open]');
       await screenshot('session-refresh.png');
       writeFileSync(
