@@ -76,6 +76,7 @@ export type {
   BotStateTracker,
   PersonaBotActivityEvent,
   PersonaBotActivitySnapshot,
+  PersonaBotSessionActivity,
   SessionState,
 } from './state/bot-state.js';
 export {

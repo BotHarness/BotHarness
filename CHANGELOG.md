@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- The expanded composer status shows each active Session’s latest safe activity inside its own compact block, without repeating the Bot name; Host revisions synchronize current rows, completed/disposed Sessions disappear and restart rebuilds the current baseline without copying Session payloads; the expanded container is transparent, desktop name/status share one line, and Assignment cards show native DSH titles ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
+
 - Overview Statistics shows reported token totals across Bots with today/seven-day trends, compact Profile-aligned charts, paginated Bot details and direct Profile navigation; unknown buckets and retained usage remain explicit ([#709](https://github.com/BotHarness/BotHarness/issues/709)).
 - Browser tab Activity can show the Provider-declared operation in shared sidebar/composer summaries; only bounded public text is admitted, conflicting concurrent detail is omitted, and raw URLs, titles and tool payloads remain excluded ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 

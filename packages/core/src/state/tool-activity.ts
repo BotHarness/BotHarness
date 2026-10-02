@@ -1,3 +1,4 @@
+import type { AggregatedState } from './bot-state.js';
 import type { ToolCallKind, ToolCallView } from '@deepseek-ai/dsh-tools';
 
 export type ActivityEffect =
@@ -22,6 +23,25 @@ export interface PersonaBotToolActivity {
   startedAt: number;
   activeToolCount: number;
   sources?: readonly ActivitySourceCount[];
+}
+
+export interface PersonaBotSessionActivity {
+  id: string;
+  role: ActivitySourceRole;
+  name?: string;
+  revision: number;
+  at: number;
+  state: Exclude<AggregatedState, 'idle'>;
+  activity?: PersonaBotToolActivity;
+}
+
+export function isSessionActivityName(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.trim().length > 0 &&
+    value.length <= 1024 &&
+    !/[\p{Cc}\p{Zl}\p{Zp}\u202a-\u202e\u2066-\u2069]/u.test(value)
+  );
 }
 
 export interface PublicToolActivityDeclaration {

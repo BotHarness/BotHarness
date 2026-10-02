@@ -1,0 +1,152 @@
+{
+  "bot": {
+    "slug": "bot-0a2d7dea6aed47c3a2eaa851571ddc82",
+    "displayName": "Session latest QA light"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "orchestrator",
+  "colorScheme": "light",
+  "phase": "before",
+  "snapshots": [
+    {
+      "generation": "e3a6bf29-6e12-48a6-acfd-117f9f88898d",
+      "revision": 12,
+      "slug": "bot-0a2d7dea6aed47c3a2eaa851571ddc82",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790958712065,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      },
+      "sessions": [
+        {
+          "id": "activity-fc49a2a4-b37b-4e4b-ab15-b07590f6f4cf",
+          "role": "orchestrator",
+          "at": 1790958712066,
+          "revision": 12,
+          "state": "working",
+          "activity": {
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1790958712065,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Session latest QA light：正在执行 · bash · 主会话"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Session latest QA light：正在执行 · bash · 主会话"
+      }
+    ],
+    "summary": "Session latest QA light 正在执行 · bash · 主会话"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790958710240
+    },
+    {
+      "type": "tool/result",
+      "time": 1790958710465
+    },
+    {
+      "type": "tool/call",
+      "time": 1790958712065,
+      "name": "bash"
+    }
+  ],
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "disclosure": {
+    "open": false,
+    "headerBackground": "rgba(0, 0, 0, 0)",
+    "bodyHeight": 0
+  },
+  "expandedPanel": {
+    "width": 600,
+    "parentWidth": 872,
+    "leftInset": 42,
+    "radius": "20px",
+    "background": "rgb(245, 246, 247)"
+  },
+  "sourceRows": [
+    {
+      "height": 40,
+      "width": 576,
+      "parentWidth": 576,
+      "clientWidth": 574,
+      "scrollWidth": 574,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(255, 255, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0.1)",
+      "fits": true,
+      "icon": "主会话",
+      "count": "1 个会话"
+    }
+  ],
+  "narrowSourceRows": [
+    {
+      "height": 40,
+      "width": 260,
+      "parentWidth": 260,
+      "clientWidth": 258,
+      "scrollWidth": 258,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(255, 255, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0.1)",
+      "fits": true,
+      "icon": "主会话",
+      "count": "1 个会话"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": true,
+  "actualNativeShellApproval": true,
+  "actualBrowserToolApproval": true,
+  "sessionMode": true,
+  "toolName": "bash",
+  "verdict": "PASS"
+}

@@ -126,6 +126,7 @@ describe('safe tool Activity', () => {
         slug: event.slug,
         state: event.state,
         activity: event.activity,
+        sessions: event.sessions,
       });
       notifications.push(event);
     });
