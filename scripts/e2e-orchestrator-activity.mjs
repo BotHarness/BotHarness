@@ -13,16 +13,29 @@ const cookie = readFileSync(resolve(tmpdir(), `dsh-${basename(home)}.cookies`), 
 )[0];
 async function rpc(method, args = {}) {
   const endpoint = method.includes('/') ? method : `botharness/${method}`;
-  const response = await fetch(`${origin}/api/${endpoint}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify({
-      type: 'client-request',
-      rpcId: crypto.randomUUID(),
-      method: endpoint,
-      payload: { args },
-    }),
-  });
+  let response;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      response = await fetch(`${origin}/api/${endpoint}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: crypto.randomUUID(),
+          method: endpoint,
+          payload: { args },
+        }),
+      });
+      break;
+    } catch (error) {
+      if (
+        !['list', 'channelMessages', 'activitySnapshot', 'modelCatalog'].includes(method) ||
+        attempt === 2
+      )
+        throw error;
+      await new Promise((done) => setTimeout(done, 200));
+    }
+  }
   const result = (await response.json()).result;
   assert.equal(result?.ok, true, `${method}: ${JSON.stringify(result?.error)}`);
   return result.value;
