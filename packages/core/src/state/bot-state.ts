@@ -216,6 +216,9 @@ export function createBotStateTracker(): BotStateTracker {
       if (nextActivity === undefined) tools.delete(sessionId);
       else
         tools.set(sessionId, {
+          ...(nextActivity.detailRefs === undefined
+            ? {}
+            : { detailRefs: [...nextActivity.detailRefs] }),
           effect: nextActivity.effect,
           toolKind: nextActivity.toolKind,
           ...(nextActivity.toolName === undefined ? {} : { toolName: nextActivity.toolName }),
