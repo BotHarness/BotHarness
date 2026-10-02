@@ -1,5 +1,5 @@
 {
-  "baseline": "23d5acd51207affacdc63092ea5256f147ee6b51",
+  "baseline": "4b2420ed29acabfe6bc88697e10b7b50eb94210c",
   "verification": {
     "verifiedAt": "2026-10-02T18:44:33.059938+00:00",
     "code": "4320d789",
@@ -44,11 +44,28 @@
     }
   ],
   "automated": {
-    "passed": 1977,
-    "skipped": 2,
+    "passed": 1983,
+    "skipped": 3,
     "typecheck": "passed",
     "lint": "passed (existing warnings)",
     "format": "passed",
     "build": "passed"
+  },
+  "integratedCode": "54c9a066908b90b5321b4963f84457e28c83d281",
+  "integratedModelTools": [
+    {
+      "name": "bridge_reply",
+      "turn": 50,
+      "text": "BH700-INTEGRATED-OK"
+    }
+  ],
+  "integratedVerification": {
+    "at": "2026-10-02T18:58:47.971638+00:00",
+    "sourceCount": 1,
+    "replyStates": ["provider-accepted"],
+    "excludedSourceCounts": {
+      "BH700 CUTOFF PAUSED": 0,
+      "BH700 CUTOFF DELETED": 0
+    }
   }
 }
