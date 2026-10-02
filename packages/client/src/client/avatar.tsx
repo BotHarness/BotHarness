@@ -85,6 +85,18 @@ export function personaBotActivityLabel(
   }
 }
 
+export function personaBotActivitySources(
+  activity: PersonaBotToolActivity | undefined,
+  t: BotHarnessTranslate = zhTranslate,
+): string | undefined {
+  return activity?.sources
+    ?.map(({ role, count }) => {
+      const label = t(`activity.source.${role}`);
+      return count > 1 ? t('activity.sourceCount', { label, count }) : label;
+    })
+    .join(' / ');
+}
+
 export function personaBotActivitySummary(
   state: PersonaBotActivityState,
   activity: PersonaBotToolActivity | undefined,
@@ -102,6 +114,7 @@ export function personaBotActivitySummary(
   return [
     label,
     activity.toolName,
+    personaBotActivitySources(activity, t),
     activity.activeToolCount > 1
       ? t('activity.toolCount', { count: activity.activeToolCount })
       : undefined,

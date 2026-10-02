@@ -38,6 +38,10 @@ export const CSS =
   --bh-inbox-label: var(--dsw-alias-label-primary);
   --bh-inbox-muted: var(--dsw-alias-label-secondary);
   /* @bh-inbox-reply-aliases:end */
+  /* @bh-composer-aliases:start — match the native multiline input panel. */
+  --bh-composer-radius-panel: 20px;
+  --bh-composer-panel-bg: var(--dsw-alias-bg-module-platform);
+  /* @bh-composer-aliases:end */
   /* @bh-overview-aliases:start — pinned DSH has no radius tokens; use the
      measured native project row (8px), compact control (6px), and collapsed
      Bot mode button (12px, DSH 0.2.0-rc.1). */
@@ -2969,7 +2973,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   padding: 7px var(--bh-composer-compact-padding-right) 7px var(--bh-composer-compact-padding-left);
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 25px;
-  background: var(--dsw-alias-bg-module-platform);
+  background: var(--bh-composer-panel-bg);
   box-shadow: 0 8px 24px
     color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
   transition:
@@ -2979,11 +2983,11 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-composer-expanded {
   padding-top: 10px;
   padding-bottom: 48px;
-  border-radius: 20px;
+  border-radius: var(--bh-composer-radius-panel);
 }
 .bh-composer-with-footer {
   padding: 10px 12px 48px;
-  border-radius: 20px;
+  border-radius: var(--bh-composer-radius-panel);
 }
 .bh-composer-reply {
   display: flex;
@@ -3036,14 +3040,11 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 }
 
 .bh-composer-activity-status {
-  min-height: 40px;
+  min-height: 28px;
   min-width: 0;
-  display: block;
-  align-items: center;
-  gap: 10px;
   padding: 0 6px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11.5px;
+  color: var(--bh-overview-muted);
+  font-size: var(--bh-overview-font);
 }
 .bh-composer-activity-facepile .bh-persona-avatar,
 .bh-composer-activity-facepile .bh-avatar-facepile-overflow {
@@ -3058,13 +3059,22 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   gap: 8px;
   cursor: pointer;
   list-style: none;
+  background: transparent;
 }
 .bh-composer-activity-chevron { flex: none; }
 .bh-composer-activity-status[open] .bh-composer-activity-chevron { transform: rotate(180deg); }
 .bh-composer-activity-toggle::-webkit-details-marker { display: none; }
 .bh-composer-activity-toggle:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
-.bh-composer-activity-details { display: grid; gap: 4px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
-.bh-composer-activity-details > div { display: flex; gap: 8px; flex-wrap: wrap; }
+.bh-composer-activity-status:not([open]) .bh-composer-activity-details { display: none; }
+.bh-composer-activity-details { display: grid; gap: 8px; max-width: 600px; margin: 8px 16px 0 36px; padding: 12px; border-radius: var(--bh-composer-radius-panel); background: var(--bh-composer-panel-bg); }
+.bh-composer-activity-bot { min-width: 0; }
+.bh-composer-activity-bot-header { display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 8px; color: var(--bh-overview-muted); }
+.bh-composer-activity-bot-header strong { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--bh-overview-label); }
+.bh-composer-activity-bot-header > span { min-width: 0; max-width: 70%; flex-shrink: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--bh-overview-font); }
+.bh-composer-activity-sources { display: flex; flex-direction: column; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.bh-composer-activity-source { color: var(--bh-overview-label); }
+.bh-composer-activity-source-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bh-composer-activity-source-count { flex-shrink: 0; color: var(--bh-overview-muted); font-variant-numeric: tabular-nums; }
 .bh-composer-activity-summary {
   min-width: 0;
   flex: 1;
@@ -5249,14 +5259,14 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-overview-bot h2 span {margin-left:6px;font-variant-numeric:tabular-nums;}
 .bh-overview-idle {margin:0;padding:4px 12px 12px;font-size:var(--bh-overview-font);color:var(--bh-overview-subtle);}
 .bh-overview-bot ul {list-style:none;margin:0;padding:0 4px 4px;}
-.bh-overview-bot li button {display:flex;align-items:center;gap:8px;text-align:left;width:100%;min-height:40px;padding:8px;border:1px solid var(--bh-overview-border);background:var(--bh-overview-bg);border-radius:var(--bh-overview-radius-control);}
-.bh-overview-session-role {font-size:var(--bh-overview-font);color:var(--bh-overview-muted);}
+.bh-overview-bot li button,.bh-composer-activity-source {display:flex;align-items:center;gap:8px;text-align:left;width:100%;min-height:40px;padding:8px;border:1px solid var(--bh-overview-border);background:var(--bh-overview-bg);border-radius:var(--bh-overview-radius-control);}
+.bh-session-role-icon {font-size:var(--bh-overview-font);color:var(--bh-overview-muted);}
 .bh-overview-session-purpose {flex:1;min-width:0;overflow-wrap:anywhere;font-size:var(--bh-overview-font);}
 @media(max-width:720px){.bh-activity-center-header{padding:16px 16px 0}.bh-overview{padding:12px 16px 16px}.bh-overview-toolbar{flex-wrap:wrap}}
 
 .bh-overview-session-purpose {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .bh-overview-bot ul {display:flex;flex-direction:column;gap:4px;padding:0 8px 8px;}
-.bh-overview-session-role {display:flex;align-items:center;flex-shrink:0;}
+.bh-session-role-icon {display:flex;align-items:center;flex-shrink:0;}
 .bh-overview-actions {padding:0;overflow:visible;}
 .bh-overview-actions .bh-human-inbox-inner {width:100%;margin:0;}
 .bh-overview-actions .bh-human-inbox-row {min-height:64px;padding:10px 12px;flex-wrap:wrap;}

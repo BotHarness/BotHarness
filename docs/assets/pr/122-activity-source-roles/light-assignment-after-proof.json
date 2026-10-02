@@ -1,0 +1,137 @@
+{
+  "bot": {
+    "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+    "displayName": "Assignment source QA"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "assignment",
+  "colorScheme": "light",
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 24,
+      "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+      "state": "idle"
+    },
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 25,
+      "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+      "state": "thinking"
+    },
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 26,
+      "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+      "state": "working",
+      "activity": {
+        "effect": "generic-working",
+        "toolKind": "other",
+        "toolName": "create_assignment",
+        "startedAt": 1790917012547,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 27,
+      "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+      "state": "thinking"
+    },
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 28,
+      "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+      "state": "thinking"
+    },
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 29,
+      "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "pwsh",
+        "startedAt": 1790917014311,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "assignment",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 30,
+      "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "pwsh",
+        "startedAt": 1790917014311,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "assignment",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Assignment source QA：正在执行 · pwsh · 任务会话"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Assignment source QA：正在执行 · pwsh · 任务会话"
+      }
+    ],
+    "summary": "Assignment source QA 正在执行 · pwsh · 任务会话"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790917014311,
+      "name": "pwsh"
+    }
+  ],
+  "railFocusSummary": "Assignment source QA · 正在执行 · pwsh · 任务会话",
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": true,
+  "actualNativeShellApproval": true,
+  "toolName": "pwsh",
+  "verdict": "PASS"
+}

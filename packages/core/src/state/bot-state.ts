@@ -142,6 +142,9 @@ export function createBotStateTracker(): BotStateTracker {
           ...(nextActivity.toolName === undefined ? {} : { toolName: nextActivity.toolName }),
           startedAt: nextActivity.startedAt,
           activeToolCount: nextActivity.activeToolCount,
+          ...(nextActivity.sources === undefined
+            ? {}
+            : { sources: nextActivity.sources.map(({ role, count }) => ({ role, count })) }),
         });
       sessions.set(sessionId, state);
       const snapshot = snapshotOf(slug, sessions);
