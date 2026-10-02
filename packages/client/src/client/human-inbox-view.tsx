@@ -13,6 +13,7 @@ import { HumanInboxReply } from './human-inbox-reply.js';
 import { Modal } from './modal.js';
 import { HumanInboxDismiss } from './human-inbox-detail-controls.js';
 import { HumanInboxWorkspaceAction } from './human-inbox-workspace-action.js';
+import { useHumanActionScope } from './human-inbox-scope.js';
 import { HumanInboxAssignment } from './human-inbox-assignment.js';
 
 const categoryCopy = {
@@ -24,16 +25,30 @@ const categoryCopy = {
 } as const;
 
 export function HumanInboxView({
-  actions,
+  actions: sourceActions,
+  actionBotSlug,
   t = zhTranslate,
   embedded = false,
 }: {
   actions: BridgeActions;
+  actionBotSlug?: string;
   embedded?: boolean;
   t?: BotHarnessTranslate | undefined;
 }): ReactElement {
   const state = useClientState();
-  const inbox = state.humanInbox;
+  const scope = useHumanActionScope(sourceActions, actionBotSlug);
+  const actions = scope.actions;
+  const inbox =
+    actionBotSlug === undefined
+      ? state.humanInbox
+      : {
+          ...state.humanInbox,
+          ...scope.page,
+          category: 'action' as const,
+          botSlug: actionBotSlug,
+          channelId: undefined,
+          sort: 'oldest' as const,
+        };
   const detailId = useId();
   const [busyId, setBusyId] = useState<string>();
   const [actionError, setActionError] = useState<string>();
@@ -41,12 +56,13 @@ export function HumanInboxView({
   const [actionSource, setActionSource] = useState<HumanAttentionItem>();
 
   const mount = useMountedResource<HTMLDivElement>(() => {
+    if (actionBotSlug !== undefined) return;
     const timer = window.setInterval(() => {
       if (store.getSnapshot().humanInbox.items.length <= 150)
         void actions.refreshHumanInbox(undefined, true);
     }, 10_000);
     return () => window.clearInterval(timer);
-  }, [actions]);
+  }, [actions, actionBotSlug]);
 
   const botName = (slug: string): string =>
     state.bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
@@ -242,83 +258,104 @@ export function HumanInboxView({
     );
 
   return (
-    <div className={embedded ? 'bh-human-inbox' : 'bh-root bh-main bh-human-inbox'} ref={mount}>
+    <div
+      className={
+        actionBotSlug !== undefined
+          ? 'bh-human-inbox bh-overview-actions'
+          : embedded
+            ? 'bh-human-inbox'
+            : 'bh-root bh-main bh-human-inbox'
+      }
+      ref={actionBotSlug === undefined ? mount : scope.mount}
+    >
       <main
         className={
           'bh-human-inbox-inner' + (replySource === undefined ? '' : ' bh-human-inbox-with-context')
         }
       >
         {embedded ? null : <h1>{t('humanInbox.title')}</h1>}
-        <div className="bh-human-inbox-tabs" role="tablist" aria-label={t('humanInbox.title')}>
-          {(['unread', 'replies', 'action', 'info', 'handled'] as const).map((category) => (
-            <button
-              key={category}
-              type="button"
-              role="tab"
-              aria-selected={inbox.category === category}
-              onClick={() => changeCategory(category)}
-            >
-              {t(categoryCopy[category].title)}
-            </button>
-          ))}
-        </div>
-        {inbox.items.length <= 150 ? null : (
+        {actionBotSlug !== undefined ? null : (
+          <>
+            <div className="bh-human-inbox-tabs" role="tablist" aria-label={t('humanInbox.title')}>
+              {(['unread', 'replies', 'action', 'info', 'handled'] as const).map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  role="tab"
+                  aria-selected={inbox.category === category}
+                  onClick={() => changeCategory(category)}
+                >
+                  {t(categoryCopy[category].title)}
+                </button>
+              ))}
+            </div>
+            {inbox.items.length <= 150 ? null : (
+              <div role="status">
+                <p>{t('humanInbox.refresh.paused')}</p>
+                <button type="button" onClick={() => void actions.refreshHumanInbox()}>
+                  {t('humanInbox.refresh.current')}
+                </button>
+              </div>
+            )}
+            <div className="bh-human-inbox-filters">
+              {inbox.category === 'unread' ? null : (
+                <HumanInboxFilter
+                  label={t('humanInbox.filter.bot')}
+                  value={inbox.botSlug ?? ''}
+                  options={[
+                    { id: '', label: t('humanInbox.filter.allBots') },
+                    ...bots.map((bot) => ({ id: bot.slug, label: bot.displayName })),
+                  ]}
+                  onChange={(value) =>
+                    changeFilters({
+                      botSlug: value || undefined,
+                      channelId: inbox.channelId,
+                      sort: inbox.sort,
+                    })
+                  }
+                />
+              )}
+              <HumanInboxFilter
+                label={t('humanInbox.filter.channel')}
+                value={inbox.channelId ?? ''}
+                options={[
+                  { id: '', label: t('humanInbox.filter.allChannels') },
+                  ...channels.map((channel) => ({ id: channel.id, label: channel.name })),
+                ]}
+                onChange={(value) =>
+                  changeFilters({
+                    botSlug: inbox.botSlug,
+                    channelId: value || undefined,
+                    sort: inbox.sort,
+                  })
+                }
+              />
+              <HumanInboxFilter
+                label={t('humanInbox.filter.sort')}
+                value={inbox.sort}
+                options={[
+                  { id: 'newest', label: t('humanInbox.filter.newest') },
+                  { id: 'oldest', label: t('humanInbox.filter.oldest') },
+                ]}
+                onChange={(value) =>
+                  changeFilters({
+                    botSlug: inbox.botSlug,
+                    channelId: inbox.channelId,
+                    sort: value === 'oldest' ? 'oldest' : 'newest',
+                  })
+                }
+              />
+            </div>
+          </>
+        )}
+        {actionBotSlug !== undefined && inbox.items.length > 150 ? (
           <div role="status">
             <p>{t('humanInbox.refresh.paused')}</p>
             <button type="button" onClick={() => void actions.refreshHumanInbox()}>
               {t('humanInbox.refresh.current')}
             </button>
           </div>
-        )}
-        <div className="bh-human-inbox-filters">
-          {inbox.category === 'unread' ? null : (
-            <HumanInboxFilter
-              label={t('humanInbox.filter.bot')}
-              value={inbox.botSlug ?? ''}
-              options={[
-                { id: '', label: t('humanInbox.filter.allBots') },
-                ...bots.map((bot) => ({ id: bot.slug, label: bot.displayName })),
-              ]}
-              onChange={(value) =>
-                changeFilters({
-                  botSlug: value || undefined,
-                  channelId: inbox.channelId,
-                  sort: inbox.sort,
-                })
-              }
-            />
-          )}
-          <HumanInboxFilter
-            label={t('humanInbox.filter.channel')}
-            value={inbox.channelId ?? ''}
-            options={[
-              { id: '', label: t('humanInbox.filter.allChannels') },
-              ...channels.map((channel) => ({ id: channel.id, label: channel.name })),
-            ]}
-            onChange={(value) =>
-              changeFilters({
-                botSlug: inbox.botSlug,
-                channelId: value || undefined,
-                sort: inbox.sort,
-              })
-            }
-          />
-          <HumanInboxFilter
-            label={t('humanInbox.filter.sort')}
-            value={inbox.sort}
-            options={[
-              { id: 'newest', label: t('humanInbox.filter.newest') },
-              { id: 'oldest', label: t('humanInbox.filter.oldest') },
-            ]}
-            onChange={(value) =>
-              changeFilters({
-                botSlug: inbox.botSlug,
-                channelId: inbox.channelId,
-                sort: value === 'oldest' ? 'oldest' : 'newest',
-              })
-            }
-          />
-        </div>
+        ) : null}
         {actionError === undefined ? null : <p role="alert">{actionError}</p>}
         {inbox.error === undefined ? null : <p role="alert">{inbox.error}</p>}
         {inbox.status === 'loading' ? <p>{t('humanInbox.loading')}</p> : null}
@@ -347,6 +384,10 @@ export function HumanInboxView({
                   aria-expanded={replySource?.id === item.id}
                   aria-controls={replySource?.id === item.id ? detailId : undefined}
                   onClick={() => {
+                    if (actionBotSlug !== undefined) {
+                      setActionSource(item);
+                      return;
+                    }
                     setReplySource(
                       replySource?.id === item.id &&
                         replySource.sourceEventId === item.sourceEventId

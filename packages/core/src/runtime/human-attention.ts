@@ -63,6 +63,7 @@ export interface HumanAttentionQuery {
   }): HumanAttentionPage;
   status(): { unreadCount: number; hasAction: boolean };
   actionCount(): number;
+  actionSummary(): { count: number; botSlugs: string[] };
 }
 
 interface AttentionRow {
@@ -712,19 +713,24 @@ SELECT 'handled:' || request.source_event_id AS id,
       };
     },
     actionCount() {
-      return database.read(
+      return this.actionSummary().count;
+    },
+    actionSummary() {
+      const rows = database.read(
         (db) =>
-          (
-            db
-              .prepare(
-                `${ACTION_ATTENTION_CTE} SELECT count(DISTINCT id) AS count FROM attention WHERE category = 'action' AND NOT EXISTS (SELECT 1 FROM human_inbox_dismissals d WHERE d.human_id = '${LOCAL_HUMAN_ID}' AND d.item_id = attention.id AND d.source_key = coalesce(attention.source_event_id, ''))`,
-              )
-              .get(
-                JSON.stringify(activeQuestionMessageIds()),
-                JSON.stringify(activeToolApprovalMessageIds()),
-              ) as { count: number }
-          ).count,
+          db
+            .prepare(
+              `${ACTION_ATTENTION_CTE} SELECT bot_slug, count(DISTINCT id) AS count FROM attention WHERE category = 'action' AND NOT EXISTS (SELECT 1 FROM human_inbox_dismissals d WHERE d.human_id = '${LOCAL_HUMAN_ID}' AND d.item_id = attention.id AND d.source_key = coalesce(attention.source_event_id, '')) GROUP BY bot_slug`,
+            )
+            .all(
+              JSON.stringify(activeQuestionMessageIds()),
+              JSON.stringify(activeToolApprovalMessageIds()),
+            ) as { bot_slug: string; count: number }[],
       );
+      return {
+        count: rows.reduce((total, row) => total + row.count, 0),
+        botSlugs: rows.map((row) => row.bot_slug),
+      };
     },
     status() {
       const unreadCount = database.read(

@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "actionsBefore": 3,
+  "geometry": {
+    "width": 1160,
+    "scrollWidth": 1160
+  },
+  "tiles": [
+    {
+      "label": "Orchestrator: Ask user for release channel",
+      "height": 40,
+      "role": "Orchestrator"
+    },
+    {
+      "label": "Orchestrator: Release coordination",
+      "height": 40,
+      "role": "Orchestrator"
+    },
+    {
+      "label": "Assignment: Verify release artifact",
+      "height": 40,
+      "role": "Assignment"
+    }
+  ],
+  "assertions": [
+    "default hides idle",
+    "waiting Bot remains",
+    "show idle",
+    "native question answered in Overview",
+    "both native timed commands approved in Overview",
+    "both executing root roles",
+    "native titles and live rename",
+    "exact native Session navigation",
+    "narrow overflow"
+  ]
+}

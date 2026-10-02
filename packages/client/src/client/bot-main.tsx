@@ -38,6 +38,7 @@ import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
 import { MessageCopyAction } from './message-copy-action.js';
 import { isBotDmChannel, isHumanReadOnlyDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
+import type { NativeSessionCatalog } from './sessions-entry.js';
 import { ActivityCenterView } from './activity-center-view.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
@@ -518,6 +519,7 @@ function ConversationView({
   state: ClientState;
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeSessions?: NativeSessionCatalog;
   profileCards?: ProfileCardRegistry | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
@@ -1519,6 +1521,7 @@ function ConversationView({
 
 export function BotMain({
   actions,
+  nativeSessions,
   channelSidebar,
   profileCards,
   nativeChatT,
@@ -1526,13 +1529,15 @@ export function BotMain({
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeSessions?: NativeSessionCatalog | undefined;
   profileCards?: ProfileCardRegistry | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
   t?: BotHarnessTranslate | undefined;
 }): ReactElement {
   const state = useClientState();
   if (state.selection === undefined) return <Welcome state={state} t={t} />;
-  if (state.selection.kind === 'inbox') return <ActivityCenterView actions={actions} t={t} />;
+  if (state.selection.kind === 'inbox')
+    return <ActivityCenterView actions={actions} t={t} nativeSessions={nativeSessions} />;
   const scopeKey =
     state.selection.kind === 'bot'
       ? `bot:${state.selection.slug}`
@@ -1552,6 +1557,7 @@ export function BotMain({
 
 export function BotPanel({
   actions,
+  nativeSessions,
   channelSidebar,
   profileCards,
   nativeChatT,
@@ -1559,6 +1565,7 @@ export function BotPanel({
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeSessions?: NativeSessionCatalog | undefined;
   profileCards?: ProfileCardRegistry | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
@@ -1574,6 +1581,7 @@ export function BotPanel({
       <span ref={modeMount} hidden aria-hidden="true" />
       <BotMain
         actions={actions}
+        nativeSessions={nativeSessions}
         channelSidebar={channelSidebar}
         profileCards={profileCards}
         nativeChatT={nativeChatT}

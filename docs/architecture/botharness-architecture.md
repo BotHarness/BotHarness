@@ -501,3 +501,7 @@ PersonaBot Profile 展示最多 50 个 Inbox 锚定话题的收件方式、修�
 消息窗口上下沿的等宽箭头分别增量读取历史／较新上下文；下沿到达此前末尾后仍能查询后来消息。Channel 沿用原时间线游标，Assignment 报告通过同一个有界查询继续读取边沿。每条消息在悬停或键盘聚焦时显示精确来源按钮，触屏保持可用；Assignment 原始报告则打开所属 DSH Session。常规手动刷新与底部来源按钮移除，失败可重试且保留回复草稿。
 
 Human Attention 在原 operational database 拥有 `human_inbox_dismissals`，只保存 Human、item、Source Event key、可选 unread placement revision 和时间，不保存另一份消息。Host 验证可见原来源后提交 Inbox-only Dismiss；它不答复、审批、授权或推进已读，不创建已处理记录。查询分页和待行动计数排除已移除项；入口未读总数仍由原已读位置决定。Channel 未读汇总只隐藏当时 revision 及之前的批次，之后的消息重新出现；新的 Assignment 报告也不被旧决定隐藏。多窗口与重启共享同一状态，原 Channel 卡片仍能处理，随后真正回应的已处理历史仍引用原权威。再次点击同一行只收起详情，不移除。
+
+### 总览行动与 Session 行卡（#698）
+
+总览默认显示非 idle 状态或有权威 Human 待行动的 PersonaBot；「显示空闲 Bot」可查看其余 Bot。等待／受阻工作显示为状态或行动，不计为正在执行。每张 Bot 卡复用 Human Inbox 的原生行动表单与选择器，以独立的 Bot 过滤 Client 查询缓存读取同一 Human Attention Bridge，最久等待优先、有界刷新并沿原游标继续分页。决定与移除后刷新该列表及总行动数；沿用 Inbox 的移除排除规则，不新增持久表或请求生命周期。正在执行的根 Session 用紧凑行卡显示原生 DSH Session 列表的当前 displayTitle；总览打开／刷新时加载该公共列表，订阅名称更新，并用图标区分 Orchestrator 与 Assignment。只有原生名称不可用时才回退用途／角色；点击仍退出 Bot mode 并打开准确原始 Session。
