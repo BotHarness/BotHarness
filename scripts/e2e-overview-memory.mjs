@@ -186,12 +186,12 @@ try {
   } else {
     const scene = JSON.parse(readFileSync(sceneFile, 'utf8'));
     await overview();
-    await page.waitForSelector('[data-activity-total]');
     if (
       (await page.$eval('.bh-statistics-toggle', (node) => node.getAttribute('aria-expanded'))) ===
       'false'
     )
       await page.click('.bh-statistics-toggle');
+    await page.waitForSelector('[data-activity-total]');
     if (mode !== 'before') await page.waitForSelector('[data-memory-bot]');
     for (const dark of [false, true]) {
       await theme(dark);
@@ -201,6 +201,18 @@ try {
       await page.setViewport({ width: 420, height: 960, deviceScaleFactor: 1 });
       await theme(false);
       await shot('overview-narrow');
+      await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+      await page.click('[data-channel-id="' + scene.bots[0].dm + '"]');
+      await page.waitForSelector('.bh-channel-island');
+      await page.click('.bh-channel-island');
+      await page.waitForSelector('.bh-profile-expand');
+      await page.click('.bh-profile-expand');
+      await page.waitForSelector('.bh-profile-view');
+      await page.waitForFunction(() =>
+        document.querySelector('.bh-profile-view')?.textContent.includes('Memory'),
+      );
+      await new Promise((done) => setTimeout(done, 1200));
+      await shot('memory-bot-navigation');
     } else {
       const before = scene.bots
         .slice(0, 2)
