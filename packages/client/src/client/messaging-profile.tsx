@@ -187,7 +187,9 @@ export function MessagingProfile({
                   >
                     {t('im.revoke')}
                   </Button>
-                  {grant.canReceive === true || grant.receiveScope !== undefined ? (
+                  {grant.channelBridge ? (
+                    <p>{t('bridge.managed')}</p>
+                  ) : grant.canReceive === true || grant.receiveScope !== undefined ? (
                     <>
                       <label className="bh-im-field">
                         <span>{t('im.localTarget')}</span>

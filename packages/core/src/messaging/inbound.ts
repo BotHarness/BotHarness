@@ -14,6 +14,12 @@ import {
 } from './group-policy.js';
 import type { BotSourcePolicyEditor } from '../runtime/source-policy.js';
 import { bridgeChannel, placeBridgeSource } from './channel-target.js';
+import { assertMessagingIdentity } from './identity.js';
+import {
+  channelBridgeConfiguration,
+  channelBridgeInput,
+  type ChannelBridgeInput,
+} from './channel-bridge.js';
 import type { ChannelMessageCommit } from '../channels/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
@@ -79,6 +85,7 @@ export interface ExternalSource {
 export interface InboundMessaging {
   register(provider: MessagingProvider): () => void;
   setEnabled(botSlug: string, grantId: string, enabled: boolean): Promise<void>;
+  channelBridge(channelId: string, input: ChannelBridgeInput): Promise<void>;
   setChannelTarget(botSlug: string, grantId: string, channelId: string | null): Promise<void>;
   policy(botSlug: string, grantId: string): GroupReceptionPolicy;
   setPolicy(
@@ -128,6 +135,19 @@ export function createInboundMessaging(options: {
       if (error instanceof OperationalDatabaseError && error.cause instanceof MessagingError)
         throw error.cause;
       throw error;
+    }
+  };
+  const bounded = async <T>(pending: Promise<T>): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        pending,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new MessagingError('provider-unavailable')), 15000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
     }
   };
   const providers = new Map<string, { provider: MessagingProvider; token: object }>();
@@ -349,7 +369,13 @@ export function createInboundMessaging(options: {
             event.conversation.id !== value.receiveScope!.conversationId
           )
             return { accepted: true };
-          if (!targetAvailable(latest)) return { accepted: true };
+          if (
+            !targetAvailable(latest) ||
+            latest.channelBridge?.enabled === false ||
+            (latest.channelBridge?.intakeAfter !== undefined &&
+              Date.parse(event.at) < Date.parse(latest.channelBridge.intakeAfter))
+          )
+            return { accepted: true };
           if (!event.mentionedAccount && !lease.ordinaryVerified) {
             lease.ordinaryVerified = true;
             options.warn?.(
@@ -390,7 +416,8 @@ export function createInboundMessaging(options: {
               if (
                 !event.mentionedAccount &&
                 (thread?.mode === 'exclude' ||
-                  (thread?.mode !== 'follow' && reception.collection !== 'all'))
+                  (thread?.mode !== 'follow' &&
+                    (latest.channelBridge?.collection ?? reception.collection) !== 'all'))
               )
                 return undefined;
               if (
@@ -564,6 +591,134 @@ export function createInboundMessaging(options: {
         for (const [id, retry] of retries) if (retry.token === token) stop(id);
       };
     },
+    async channelBridge(channelId, rawInput) {
+      const input = channelBridgeInput.parse(rawInput);
+      const value = grant(input.grantId);
+      const configuration = channelBridgeConfiguration(value);
+      database.read((db) => bridgeChannel(db, channelId, value.botSlug, true));
+      if (
+        value.revision !== input.expectedGrantRevision ||
+        (input.kind !== 'add' && configuration.revision !== input.expectedRevision)
+      )
+        throw new MessagingError('bridge-stale');
+      if (
+        input.kind === 'add'
+          ? !!value.receiveTargetChannelId || !!value.channelBridge
+          : value.receiveTargetChannelId !== channelId
+      )
+        throw new MessagingError('bridge-unavailable');
+      let inspected: Awaited<ReturnType<MessagingProvider['inspect']>> | undefined;
+      let entry: { provider: MessagingProvider; token: object } | undefined;
+      if (input.kind === 'add' || (input.kind === 'update' && input.enabled)) {
+        if (value.revokedAt || value.suspendedReason || !options.isBotActive(value.botSlug))
+          throw new MessagingError('grant-unavailable');
+        database.read((db) => assertMessagingIdentity(db, value.bindingId));
+        entry = providers.get(value.providerId);
+        if (!entry?.provider.consume || !entry.provider.reply)
+          throw new MessagingError('provider-incompatible');
+        inspected = await bounded(entry.provider.inspect(value.accountRef, value.targetRef));
+        if (
+          providers.get(value.providerId) !== entry ||
+          !inspected.account.connected ||
+          inspected.account.ref !== value.accountRef ||
+          inspected.account.platform !== 'feishu' ||
+          inspected.account.fingerprint !== value.fingerprint ||
+          inspected.target.ref !== value.targetRef ||
+          inspected.target.digest !== value.targetDigest ||
+          !inspected.target.receiveScope
+        )
+          throw new MessagingError('rebind-required');
+        if (input.collection === 'all' && !leases.get(value.id)?.ordinaryVerified)
+          throw new MessagingError('ordinary-delivery-unverified');
+      }
+      const updated = transaction(
+        (db) => {
+          const latest = grant(value.id);
+          bridgeChannel(db, channelId, latest.botSlug, true);
+          if (
+            latest.revision !== input.expectedGrantRevision ||
+            (input.kind !== 'add' &&
+              channelBridgeConfiguration(latest).revision !== input.expectedRevision) ||
+            (input.kind === 'add'
+              ? !!latest.receiveTargetChannelId || !!latest.channelBridge
+              : latest.receiveTargetChannelId !== channelId)
+          )
+            throw new MessagingError('bridge-stale');
+          if (entry) {
+            assertMessagingIdentity(db, latest.bindingId);
+            if (
+              providers.get(latest.providerId) !== entry ||
+              latest.revokedAt ||
+              latest.suspendedReason ||
+              !options.isBotActive(latest.botSlug)
+            )
+              throw new MessagingError('grant-unavailable');
+          }
+          const {
+            receiveScope: _scope,
+            receiveTargetChannelId: _channel,
+            channelBridge: _bridge,
+            ...rest
+          } = latest;
+          const next: MessagingGrant =
+            input.kind === 'delete'
+              ? { ...rest, revision: latest.revision + 1 }
+              : {
+                  ...latest,
+                  receiveTargetChannelId: channelId,
+                  ...(inspected ? { receiveScope: inspected.target.receiveScope } : {}),
+                  revision: input.kind === 'add' ? latest.revision + 1 : latest.revision,
+                  channelBridge: {
+                    name: input.name,
+                    enabled: input.enabled,
+                    collection: input.collection,
+                    revision: input.kind === 'add' ? 1 : configuration.revision + 1,
+                    ...(input.kind === 'add' ||
+                    (input.enabled && (!configuration.enabled || !configuration.intakeAfter))
+                      ? { intakeAfter: new Date().toISOString() }
+                      : configuration.intakeAfter
+                        ? { intakeAfter: configuration.intakeAfter }
+                        : {}),
+                  },
+                };
+          if (input.kind !== 'delete') {
+            const policy = groupReceptionPolicy(db, value.id);
+            if (policy.collection !== input.collection)
+              commitGroupReceptionPolicy(
+                db,
+                value.id,
+                {
+                  collection: input.collection,
+                  wake: policy.wake,
+                  count: policy.count,
+                  intervalSeconds: policy.intervalSeconds,
+                },
+                { kind: 'human' },
+              );
+          }
+          db.prepare('UPDATE messaging_grants SET body = ?, revision = ? WHERE id = ?').run(
+            JSON.stringify(next),
+            next.revision,
+            value.id,
+          );
+          return next;
+        },
+        ['grants', 'channel', 'bot-inbox'],
+      );
+      if (input.kind === 'delete') stop(value.id);
+      else if (input.kind === 'add' || !valid(updated)) await bounded(start(updated));
+      options.warn?.(
+        JSON.stringify({
+          event: 'messaging-channel-bridge',
+          phase: 'committed',
+          initiator: 'human-profile',
+          channelId,
+          grantId: value.id,
+          operation: input.kind,
+          revision: updated.channelBridge?.revision,
+        }),
+      );
+    },
     async setEnabled(botSlug, id, enabled) {
       const value = grant(id);
       if (
@@ -604,6 +759,15 @@ export function createInboundMessaging(options: {
             ...rest,
             revision: latest.revision + 1,
             ...(scope ? { receiveScope: scope } : {}),
+            ...(latest.channelBridge
+              ? {
+                  channelBridge: {
+                    ...latest.channelBridge,
+                    enabled,
+                    revision: latest.channelBridge.revision + 1,
+                  },
+                }
+              : {}),
           };
           db.prepare('UPDATE messaging_grants SET body = ?, revision = ? WHERE id = ?').run(
             JSON.stringify(next),
@@ -629,11 +793,21 @@ export function createInboundMessaging(options: {
           )
             throw new MessagingError('grant-unavailable');
           if (channelId !== null) bridgeChannel(db, channelId, botSlug, true);
-          const { receiveTargetChannelId: _old, ...rest } = value;
+          const { receiveTargetChannelId: _old, channelBridge: _bridge, ...rest } = value;
           const next: MessagingGrant = {
             ...rest,
             revision: value.revision + 1,
-            ...(channelId === null ? {} : { receiveTargetChannelId: channelId }),
+            ...(channelId === null
+              ? {}
+              : {
+                  receiveTargetChannelId: channelId,
+                  channelBridge: {
+                    name: value.targetName,
+                    enabled: !!value.receiveScope,
+                    collection: groupReceptionPolicy(db, id).collection,
+                    revision: 1,
+                  },
+                }),
           };
           db.prepare('UPDATE messaging_grants SET body = ?, revision = ? WHERE id = ?').run(
             JSON.stringify(next),
@@ -681,7 +855,22 @@ export function createInboundMessaging(options: {
         (db) => {
           if (!valid(grant(id)) || grant(id).revision !== value.revision)
             throw new MessagingError('grant-unavailable');
-          return commitGroupReceptionPolicy(db, id, input, editor);
+          const policy = commitGroupReceptionPolicy(db, id, input, editor);
+          const latest = grant(id);
+          if (latest.channelBridge && latest.channelBridge.collection !== input.collection) {
+            db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+              JSON.stringify({
+                ...latest,
+                channelBridge: {
+                  ...latest.channelBridge,
+                  collection: input.collection,
+                  revision: latest.channelBridge.revision + 1,
+                },
+              }),
+              id,
+            );
+          }
+          return policy;
         },
         ['grants', 'bot-inbox'],
       );
@@ -844,7 +1033,8 @@ export function createInboundMessaging(options: {
     },
     status(id) {
       const value = grant(id);
-      if (!value.receiveScope || value.revokedAt) return 'off';
+      if (!value.receiveScope || value.revokedAt || value.channelBridge?.enabled === false)
+        return 'off';
       if (!targetAvailable(value)) return 'unavailable';
       const lease = leases.get(id);
       if (valid(value)) return 'receiving';

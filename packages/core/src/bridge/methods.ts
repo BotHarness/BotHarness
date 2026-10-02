@@ -1,6 +1,7 @@
 import type { OverviewMemory } from '../memory/overview.js';
 import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overview.js';
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
+import { channelBridgeInput, type ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { MessagingIdentity } from '../messaging/identity.js';
 import {
   aggregateSessionStates,
@@ -251,6 +252,8 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  channelBridges(payload: unknown): Promise<BridgeResult<ChannelBridgeSnapshot>>;
+  channelBridge(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingIdentity(payload: unknown): Promise<BridgeResult<{ identity: MessagingIdentity }>>;
   messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingThreadPolicy(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
@@ -760,6 +763,25 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
   };
 
   return {
+    channelBridges(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128) })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
+      return messagingCall((service) => service.channelBridges(input.data.channelId));
+    },
+    channelBridge(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128), input: channelBridgeInput })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid Channel Bridge command'));
+      return messagingCall(async (service) => {
+        await service.inbound.channelBridge(input.data.channelId, input.data.input);
+        return { updated: true as const };
+      });
+    },
     messagingChannelTarget(payload) {
       const input = z
         .object({
