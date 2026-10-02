@@ -40,6 +40,7 @@ import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelReadPosition, ChannelStore } from '../channels/store.js';
 import { groupProfileActivity, type GroupProfileActivity } from '../channels/profile-activity.js';
+import { channelActivityToday, type ChannelActivityToday } from '../channels/activity-today.js';
 import type { ChannelTimelinePage } from '../channels/timeline.js';
 import type {
   CreatePersonaBotResult,
@@ -292,6 +293,7 @@ export interface BridgeMethods {
   botSourcePolicies(payload: unknown): BridgeResult<{ policies: BotSourcePolicy[] }>;
   botSourcePolicySet(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
   botSourcePolicyReset(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
+  channelActivityToday(payload: unknown): BridgeResult<ChannelActivityToday>;
   activityOverview(payload: unknown): BridgeResult<ActivityOverview>;
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
   humanAssignmentContext(payload: unknown): BridgeResult<{ context: HumanAssignmentContext }>;
@@ -1103,6 +1105,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         })
         .map((record) => summarize(record, deps.states.snapshot(record.slug)));
       return { ok: true, value: { bots } };
+    },
+    channelActivityToday() {
+      if (deps.channels.humanMessageCounts === undefined)
+        return {
+          ok: false,
+          error: { code: 'storage-unavailable', message: 'Channel activity query unavailable' },
+        };
+      return {
+        ok: true,
+        value: channelActivityToday(deps.channels, (slug) => deps.registry.get(slug)?.displayName),
+      };
     },
     activityOverview() {
       if (deps.humanAttention === undefined) return unavailable();

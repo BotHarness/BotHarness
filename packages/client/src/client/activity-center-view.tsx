@@ -8,6 +8,7 @@ import {
 import type { BridgeActions } from './actions.js';
 import { useClientState } from './bot-sidebar.js';
 import { PersonaBotAvatar, personaBotActivityLabel } from './avatar.js';
+import { ChannelActivityView } from './channel-activity-view.js';
 import { HumanInboxView } from './human-inbox-view.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -206,6 +207,7 @@ export function ActivityCenterView({
               </article>
             ))}
           </div>
+          <ChannelActivityView actions={actions} t={t} />
         </section>
       ) : (
         <HumanInboxView actions={actions} t={t} embedded />

@@ -344,6 +344,14 @@ export interface ChannelStore {
   messagesAfter(id: string, revision: number): ChannelMessageCommit[] | undefined;
   admissionChanged?(channelId: string, messageId: string): void;
 
+  humanMessageCounts?(
+    from: string,
+    to: string,
+  ): Array<{
+    channelId: string;
+    author: ChannelMessage['author'];
+    count: number;
+  }>;
   admissionActivity?(botSlug: string, sinceIso: string): Array<{ at: string; reason: string }>;
 }
 

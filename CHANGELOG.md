@@ -18,6 +18,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Added macOS Local Computer with a shared Profile target selector, explicit desktop permission checks and per-Bot authorization; fresh installations use the host desktop while legacy Docker configurations keep their target ([#694](https://github.com/BotHarness/BotHarness/issues/694)).
+- Overview shows today’s Human-accessible Channel message totals with Human/Bot/other segments, current sender names and expandable details; day/timezone and read-only Channel navigation remain explicit ([#703](https://github.com/BotHarness/BotHarness/issues/703)).
+
 - Overview defaults to active Bots, keeps Bots with Human actions visible, and lets Humans answer or decide from each Bot card; compact executing Session tiles show current native names and role icons, with exact Session navigation ([#698](https://github.com/BotHarness/BotHarness/issues/698)).
 - PersonaBots can explicitly follow a verified Lark Thread, admit its ordinary replies with inherited or overridden harvest, and unfollow without changing group collection; Humans can inspect and override participation ([#614](https://github.com/BotHarness/BotHarness/issues/614), [ADR-0110](docs/adr/0110-external-thread-following-is-scoped-and-explicit.md)).
 
