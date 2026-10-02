@@ -20,6 +20,14 @@ describe("generated developer reference", () => {
         source: "packages/core/src/plugin.ts",
       },
       {
+        name: "activityDetailConsumers",
+        type: "string[]",
+        default: [],
+        description:
+          "Explicitly trusted Host Plugin names allowed to read Activity Tool details",
+        source: "packages/core/src/plugin.ts",
+      },
+      {
         name: "agentPreset",
         type: "string",
         default: "standard",
