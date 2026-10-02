@@ -72,6 +72,7 @@ export interface SessionOwnership {
   descendantsOf(sessionId: string): SessionOwnershipRecord[];
 
   repair(input: SessionOwnershipRepair): SessionOwnershipRecord;
+  repairRevision(sessionId: string): number;
 
   personaSnapshot(sessionId: string): SessionPersonaSnapshot | undefined;
 
@@ -178,6 +179,7 @@ function claimRow(connection: DatabaseSync, input: SessionOwnershipClaim): Sessi
 }
 
 export function createSessionOwnership(database: OperationalDatabaseModulePort): SessionOwnership {
+  const repairRevisions = new Map<string, number>();
   const resolve = (sessionId: string): SessionOwnershipRecord | undefined => {
     const row = database.read((connection) => readRow(connection, sessionId)) as
       | OwnershipRow
@@ -286,7 +288,11 @@ export function createSessionOwnership(database: OperationalDatabaseModulePort):
       const repaired = resolve(input.sessionId);
       if (repaired === undefined)
         throw new Error(`Session ownership repair failed: ${input.sessionId}`);
+      repairRevisions.set(input.sessionId, (repairRevisions.get(input.sessionId) ?? 0) + 1);
       return repaired;
+    },
+    repairRevision(sessionId) {
+      return repairRevisions.get(sessionId) ?? 0;
     },
     personaSnapshot(sessionId) {
       return database.read((connection) => readPersonaSnapshot(connection, sessionId));

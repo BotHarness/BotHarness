@@ -222,3 +222,5 @@ export type {
 
 export { withPublicToolDetail } from './state/tool-activity.js';
 export type { PublicToolActivityDeclaration } from './state/tool-activity.js';
+
+export type { ToolDetail, ToolDetailRead, ToolDetailRefusal } from './state/tool-details.js';

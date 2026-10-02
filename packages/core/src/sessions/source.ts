@@ -22,5 +22,6 @@ export interface DshSession {
 }
 
 export interface DshSessionStore {
+  get(sessionId: string): DshSession | undefined;
   list(): readonly DshSession[];
 }
