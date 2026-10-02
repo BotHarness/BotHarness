@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- Humans can select `@All Bots` in a Group composer with an explicit active-recipient count; stale previews require a fresh send and the committed message follows existing per-Bot mention attention and wake policies ([#542](https://github.com/BotHarness/BotHarness/issues/542)).
+- Humans can select `@All Bots` in a Group composer with an explicit active-recipient count; individual Bot picker rows show only avatar, name and role labels; stale previews require a fresh send and the committed message follows existing per-Bot mention attention and wake policies ([#542](https://github.com/BotHarness/BotHarness/issues/542)).
 
 - Explicitly trusted Host Plugins can read bounded canonical Tool arguments/results from opaque Activity references; unauthorized, expired and revoked reads fail closed without exposing payloads to Channel activity ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 

@@ -27,8 +27,13 @@ node scripts/e2e-all-bot-mention.mjs before # baseline build; creates the scene
 node scripts/e2e-all-bot-mention.mjs check  # implemented build; real models
 node scripts/e2e-all-bot-mention.mjs finish # continue after answering legitimate model approvals
 node scripts/e2e-all-bot-mention.mjs resume # after restarting the Host
+node scripts/e2e-all-bot-mention.mjs picker # clean Bot menu: tagged and untagged rows
 ```
 
 Scene state is private under `.humanlayer/tasks/all-bot-mention`. If a model requests a native tool approval, review it in the real DSH interface before continuing; `finish` does not submit another Human message. Models need not request the same tools on another run.
 
 Screenshots cover the baseline picker, light/dark picker and replies, narrow counted draft, stale recovery and final-build restart. They are actual browser captures, not mocked UI.
+
+## Human QA refinement — mention menu
+
+Individual Bot options display only the avatar, display name and existing role labels. Untagged Bots display no ID fallback. Actual DSH picker assertions check that no Bot slug appears in menu text; refreshed light/dark and narrow screenshots include Ada QA with two labels and Bea QA with none. Stable IDs still identify selected mention targets internally.

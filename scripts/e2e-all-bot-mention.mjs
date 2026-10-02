@@ -191,7 +191,29 @@ try {
         .map((b) => b.slug)
         .sort(),
     );
-    if (mode === 'resume') {
+    if (mode === 'picker') {
+      await rpc('update', { slug: scene.bots[0].slug, patch: { roles: ['研究员', '发布协作'] } });
+      await rpc('update', { slug: scene.bots[1].slug, patch: { roles: [] } });
+      await openGroup(scene.channelId);
+      await page.locator('.bh-composer-input').click();
+      await page.keyboard.type('@');
+      await page.waitForSelector('[role=listbox]');
+      const menuText = await page.$eval('[role=listbox]', (menu) => menu.textContent);
+      for (const bot of scene.bots) assert.equal(menuText.includes(bot.slug), false);
+      assert.ok(menuText.includes('Ada QA'));
+      assert.ok(menuText.includes('研究员 · 发布协作'));
+      assert.ok(menuText.includes('Bea QA'));
+      await theme(false);
+      await shot('picker-light');
+      await theme(true);
+      await shot('picker-dark');
+      await theme(false);
+      await page.setViewport({ width: 520, height: 860, deviceScaleFactor: 1 });
+      await shot('picker-narrow');
+      console.log(
+        'PASS actual DSH mention picker: avatars, names, role labels, no technical IDs including untagged Bots',
+      );
+    } else if (mode === 'resume') {
       const messages = (await rpc('channelMessages', { channelId: scene.channelId, limit: 100 }))
         .messages;
       assert.ok(messages.some((m) => m.author.kind === 'human' && m.mentions?.length === 2));

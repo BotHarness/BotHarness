@@ -826,9 +826,8 @@ export function ChannelComposer({
                 />
                 <span className="bh-mention-option-copy">
                   <strong>{candidate.displayName}</strong>
-                  <small>{candidate.roles.join(' · ') || candidate.slug}</small>
+                  {candidate.roles.length > 0 ? <small>{candidate.roles.join(' · ')}</small> : null}
                 </span>
-                <small className="bh-mention-option-id">{candidate.slug}</small>
               </button>
             ),
           )}
