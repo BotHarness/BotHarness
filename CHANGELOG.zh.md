@@ -253,6 +253,8 @@
 
 ### Fixed
 
+- Computer Audit 将 driver 返回的工具失败正确记为错误，截图或窗口请求被拒绝时不再显示成功，且不记录观察内容（[#708](https://github.com/BotHarness/BotHarness/issues/708)）。
+
 - Inbox 的来源头像始终位于操作行最右侧；修复项的 Bot Inbox 维护入口移入详情，不再额外占用列表按钮 ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
 
 - Inbox 详情改为通过贴合消息上下沿的控件分别加载历史／较新内容，悬停或聚焦消息即可精确跳转来源；“移除”会持久隐藏该项，但不回答或授权原请求（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。

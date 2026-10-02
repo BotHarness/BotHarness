@@ -253,6 +253,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Computer Audit now records driver-returned tool failures as errors, so refused screenshot and window requests no longer appear successful; observation content stays out of Audit ([#708](https://github.com/BotHarness/BotHarness/issues/708)).
+
 - Inbox source avatars remain at the far right of every action row; repair-only Bot Inbox maintenance is available inside details without an extra list button ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
 
 - Inbox details load older/newer context from flush edge controls, expose exact source links on message hover/focus and persist Dismiss without answering or authorizing the source request ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
