@@ -1,3 +1,4 @@
+import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
 import type { OverviewMemory } from '../memory/overview.js';
@@ -69,6 +70,7 @@ export const BRIDGE_SERVICE_KEY = 'botharnessBridge';
 
 declare module '@deepseek-ai/dsh-typert-protocol/types' {
   interface RemoteErrorDetailsMap {
+    'all-bot-preview-changed': { preview: AllBotPreview };
     'invalid-input': Record<string, never>;
     'invalid-slug': Record<string, never>;
     duplicate: Record<string, never>;
@@ -107,7 +109,7 @@ function markRemoteMethods(prototype: object, methods: readonly string[]): void 
 }
 
 function toRemoteError(error: BridgeError): RemoteError {
-  return new RemoteError(error.code as RemoteError['code'], error.message, {});
+  return new RemoteError(error.code as RemoteError['code'], error.message, error.details ?? {});
 }
 
 function unwrap<T>(result: BridgeResult<T>): T {
@@ -452,6 +454,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(await this.methods.channelMarkRead({ channelId, messageId }));
   }
 
+  channelAllBotPreview(channelId: string): AllBotPreview {
+    return unwrap(this.methods.channelAllBotPreview({ channelId }));
+  }
   async channelSend(
     channelId: string,
     body: string,
@@ -463,11 +468,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
     channelRefs?: ChannelMessage['channelRefs'],
     grantRequestResolution?: ChannelMessage['grantRequestResolution'],
     assignmentReply?: ChannelMessage['assignmentReply'],
+    allBotMention?: AllBotMention,
   ): Promise<{ message: ChannelMessage }> {
     return unwrap(
       await this.methods.channelSend({
         channelId,
         body,
+        ...(allBotMention === undefined ? {} : { allBotMention }),
         ...(replyTo === undefined ? {} : { replyTo }),
         ...(attachments === undefined ? {} : { attachments }),
         ...(messageId === undefined ? {} : { messageId }),
@@ -843,6 +850,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelReadPosition',
   'channelMarkRead',
   'channelMarkAllRead',
+  'channelAllBotPreview',
   'channelSend',
   'botAttention',
   'botSourcePolicies',

@@ -1,8 +1,10 @@
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import { loadAllBotPreview } from './bridge.js';
+import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
 import type {
   MessagingIdentity,
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
-import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { HumanAttentionPage } from './store.js';
 import {
@@ -416,6 +418,7 @@ export interface BridgeActions {
     messageId: string,
     answers: UserQuestionAnswerItem[],
   ): Promise<void>;
+  allBotPreview(channelId: string): Promise<AllBotPreview>;
   send(
     body: string,
     replyTo?: string,
@@ -424,6 +427,7 @@ export interface BridgeActions {
     mentions?: ChannelMessage['mentions'],
     channelRefs?: ChannelMessage['channelRefs'],
     grantRequestResolution?: ChannelMessage['grantRequestResolution'],
+    allBotMention?: AllBotMention,
   ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
@@ -1666,6 +1670,7 @@ export function createActions(
       if (selection === undefined || selectedBotSlug(selection) !== slug) return;
       await loadSessionsFor(slug, selection);
     },
+    allBotPreview: (channelId) => loadAllBotPreview(call, channelId),
     async send(
       body,
       replyTo,
@@ -1674,6 +1679,7 @@ export function createActions(
       mentions,
       channelRefs,
       grantRequestResolution,
+      allBotMention,
     ) {
       let snapshot = clientStore.getSnapshot();
       const channel = snapshot.conversation.channel;
@@ -1747,6 +1753,8 @@ export function createActions(
           mentions,
           channelRefs,
           grantRequestResolution,
+          undefined,
+          allBotMention,
         );
         remainingFailures(channel.id, [message]);
         const selection = currentSelection();
@@ -1790,14 +1798,15 @@ export function createActions(
           return true;
         }
         if (
-          error instanceof BridgeCallError &&
-          error.code === 'invalid-input' &&
-          error.message.includes('Mentioned PersonaBot')
+          allBotMention !== undefined ||
+          (error instanceof BridgeCallError &&
+            error.code === 'invalid-input' &&
+            error.message.includes('Mentioned PersonaBot'))
         ) {
           if (latest.conversation.channel?.id === channel.id) {
             clientStore.setConversation({
               sending: false,
-              error: error.message,
+              error: errorMessage(error),
               messages: latest.conversation.messages.filter((message) => message.id !== localId),
             });
           } else {
@@ -1806,6 +1815,8 @@ export function createActions(
               messages: cached.messages.filter((message) => message.id !== localId),
             }));
           }
+          if (error instanceof BridgeCallError && error.code === 'all-bot-preview-changed')
+            throw error;
           return false;
         }
         const failedEcho: ChannelMessage = {

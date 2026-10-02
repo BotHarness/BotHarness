@@ -1,3 +1,5 @@
+import { BridgeCallError, parseAllBotPreview } from './bridge.js';
+import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
 import { useCallback, useRef, useState, type ReactElement } from 'react';
 
 import {
@@ -527,6 +529,8 @@ function ConversationView({
   const sidebar = useChannelSidebar(state);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState('');
+  const [allBotPreview, setAllBotPreview] = useState<AllBotPreview>();
+  const [allBotNotice, setAllBotNotice] = useState<string>();
   const [mentionTokens, setMentionTokens] = useState<SelectedMention[]>([]);
   const [channelRefTokens, setChannelRefTokens] = useState<SelectedChannelRef[]>([]);
   const [selectedMemoryView, setSelectedMemoryView] = useState<
@@ -707,7 +711,25 @@ function ConversationView({
 
   const currentChannel = useRef(channelId);
   currentChannel.current = channelId;
+  const previewRoster = channelBots
+    .map((bot) => [bot.slug, bot.paused, bot.displayName].join(':'))
+    .join('|');
+  const allBotPreviewMount = useMountedResource<HTMLSpanElement>(() => {
+    let cancelled = false;
+    setAllBotPreview(undefined);
+    if (channel?.type === 'group')
+      void actions
+        .allBotPreview(channel.id)
+        .then((preview) => {
+          if (!cancelled) setAllBotPreview(preview);
+        })
+        .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [channelId, previewRoster]);
   const conversationMount = useMountedResource<HTMLDivElement>(() => {
+    setAllBotNotice(undefined);
     return () => {
       currentChannel.current = undefined;
       window.clearTimeout(readMarkTimer.current);
@@ -966,6 +988,17 @@ function ConversationView({
         ? [adjusted]
         : [];
     });
+    const shortcut = submittedMentions.find((item) => item.kind === 'all-bots');
+    const allBotMention: AllBotMention | undefined =
+      shortcut?.kind === 'all-bots'
+        ? {
+            start: shortcut.start,
+            end: shortcut.end,
+            label: shortcut.label,
+            preview: shortcut.preview,
+          }
+        : undefined;
+    if (allBotMention?.preview.recipients.length === 0) return;
     if (
       (body.length === 0 && uploadItems.length === 0) ||
       uploadItems.some((item) => item.status !== 'ready' || item.ref === undefined) ||
@@ -999,10 +1032,13 @@ function ConversationView({
         submittedReplyTo,
         submittedUploads.flatMap((item) => (item.ref === undefined ? [] : [item.ref])),
         undefined,
-        submittedMentions,
+        submittedMentions.filter((item) => item.kind !== 'all-bots'),
         submittedRefs,
+        undefined,
+        allBotMention,
       );
       if (sent) {
+        setAllBotNotice(undefined);
         setReplyTarget((current) => (current?.id === submittedReplyTo ? undefined : current));
       } else if (currentChannel.current === submittedFor) {
         const failedEcho = store
@@ -1017,6 +1053,31 @@ function ConversationView({
           setUploadItems((current) => (current.length > 0 ? current : submittedUploads));
         }
       }
+    } catch (error) {
+      if (
+        error instanceof BridgeCallError &&
+        error.code === 'all-bot-preview-changed' &&
+        currentChannel.current === submittedFor &&
+        submittedFor !== undefined
+      ) {
+        const preview =
+          parseAllBotPreview((error.details as { preview?: unknown } | undefined)?.preview) ??
+          (await actions.allBotPreview(submittedFor).catch(() => undefined));
+        if (currentChannel.current !== submittedFor) return;
+        store.setConversation({ error: undefined });
+        setAllBotNotice(t('composer.allBotsChanged'));
+        setAllBotPreview(preview);
+        setDraft((current) => current || body);
+        setMentionTokens((current) =>
+          current.length > 0
+            ? current
+            : submittedMentions.map((item) =>
+                item.kind === 'all-bots' && preview !== undefined ? { ...item, preview } : item,
+              ),
+        );
+        setChannelRefTokens((current) => (current.length > 0 ? current : submittedRefs));
+        setUploadItems((current) => (current.length > 0 ? current : submittedUploads));
+      } else throw error;
     } finally {
       submitting.current = false;
     }
@@ -1024,6 +1085,7 @@ function ConversationView({
 
   return (
     <div ref={conversationMount} className="bh-root bh-main">
+      <span ref={allBotPreviewMount} hidden />
       <div className="bh-chat-layout">
         <section className="bh-chat-pane">
           <div ref={profileMount} className="bh-topbar">
@@ -1439,6 +1501,8 @@ function ConversationView({
                         ? state.channels.filter((candidate) => candidate.type === 'group')
                         : []
                     }
+                    allBotPreview={channel?.type === 'group' ? allBotPreview : undefined}
+                    allBotNotice={allBotNotice}
                     mentionCandidates={
                       channel?.type === 'group'
                         ? channelBots

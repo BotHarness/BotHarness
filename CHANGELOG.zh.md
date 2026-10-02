@@ -17,6 +17,8 @@
 
 ### Added
 
+- Human 可在群聊组合器一次选择 `@所有 Bot` 并查看活跃接收人数；过期预览须重新确认发送，提交的消息沿用逐个 @Bot 的 attention 与 wake policy（[#542](https://github.com/BotHarness/BotHarness/issues/542)）。
+
 - 总览统计新增逐 Bot 近七天 Memory Git 提交趋势与当前未提交改动提示，复用紧凑 Profile 卡片，明确显示仓库不可用状态并可展开每日精确值（[#716](https://github.com/BotHarness/BotHarness/issues/716)）。
   既有 Bot Profile Memory 活动也统一使用相同的普通提交日期与引用口径。
 - 展开的消息框状态区在每个活跃 Session 的独立紧凑卡片内显示最新安全活动，不重复 Bot 名称；Host revision 同步当前记录，完成或销毁的 Session 移出，重启后重建当前基线，不复制参数、结果或推理内容；展开区域透明，桌面名称与状态同行，Assignment 显示原生 DSH 名称（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。

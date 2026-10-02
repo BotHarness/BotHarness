@@ -1,3 +1,4 @@
+import { createBridgeMethods } from '../src/bridge/methods.js';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -15,6 +16,82 @@ import type {
 import { createTempRoot } from './helpers.js';
 
 describe('Group mention tracer', () => {
+  it('commits All Bots as ordinary mentions, survives replay after a member leaves, and reloads after restart', async () => {
+    const home = createTempRoot('botharness-all-bot-');
+    const runs: string[] = [];
+    const agents: BotAgentAdapter = {
+      async runOrchestrator(run) {
+        runs.push(run.bot.slug);
+        await run.channels.send({ body: run.bot.displayName + ' received' });
+      },
+      async runAssignment() {},
+      requestAssignment() {
+        throw new Error('No Assignment expected');
+      },
+      async close() {},
+    };
+    let core = createCore({ dshHome: home, agents });
+    try {
+      for (const slug of ['ada', 'bea', 'outsider', 'paused'])
+        core.registry.create({ slug, displayName: slug.toUpperCase() });
+      core.registry.setPaused('paused', true);
+      const group = core.channels.createGroup({
+        name: 'All Bots Runtime',
+        members: ['ada', 'bea', 'paused'],
+      });
+      for (const slug of ['ada', 'bea'])
+        core.channels.setGroupWakePolicy(
+          group.id,
+          slug,
+          { mode: 'silent', count: 10, intervalSeconds: 60 },
+          { kind: 'human' },
+        );
+      const methods = createBridgeMethods({ ...core });
+      const preview = methods.channelAllBotPreview({ channelId: group.id });
+      if (!preview.ok) throw new Error('Expected preview');
+      const request = {
+        channelId: group.id,
+        body: '@All Bots check',
+        messageId: 'human-6cca0c89-e0ec-4074-8fcd-5b6f016dcb11',
+        allBotMention: { start: 0, end: 9, label: 'All Bots', preview: preview.value },
+      };
+      const sent = await methods.channelSend(request);
+      expect(sent).toMatchObject({ ok: true, value: { message: { body: '@ADA @BEA check' } } });
+      await core.runtime.whenIdle();
+      expect(runs.sort()).toEqual(['ada', 'bea']);
+      expect(core.channels.message(group.id, request.messageId)?.deliveries).toEqual([
+        { botSlug: 'ada', state: 'handled' },
+        { botSlug: 'bea', state: 'handled' },
+      ]);
+      core.channels.removeGroupMember(group.id, 'bea');
+      expect(await methods.channelSend(request)).toMatchObject({ ok: true });
+      expect(
+        core.channels.readMessages(group.id).filter((item) => item.id === request.messageId),
+      ).toHaveLength(1);
+      const stale = await methods.channelSend({
+        ...request,
+        messageId: 'human-61c22d15-2da9-4bc8-93c8-ece204ad31f9',
+      });
+      expect(stale).toMatchObject({ ok: false, error: { code: 'all-bot-preview-changed' } });
+      await core.runtime.close();
+      core.operationalDatabase.close();
+      core = createCore({ dshHome: home, agents });
+      expect(
+        core.channels.message(group.id, request.messageId)?.mentions?.map((item) => item.botSlug),
+      ).toEqual(['ada', 'bea']);
+      expect(core.channels.previewAllBotMention(group.id).recipients).toEqual([
+        { botSlug: 'ada', label: 'ADA' },
+      ]);
+      expect(await createBridgeMethods({ ...core }).channelSend(request)).toMatchObject({
+        ok: true,
+      });
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(2);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
   it('commits one Source Event and placement, wakes two independent Bot Inboxes, and replies in the Group', async () => {
     const home = createTempRoot('botharness-group-mention-');
     const runs: string[] = [];

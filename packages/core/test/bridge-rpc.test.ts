@@ -120,6 +120,7 @@ describe('bridge typert service', () => {
       'channelReadPosition',
       'channelMarkRead',
       'channelMarkAllRead',
+      'channelAllBotPreview',
       'channelSend',
       'botAttention',
       'botSourcePolicies',
@@ -242,6 +243,7 @@ describe('bridge typert service', () => {
       'channelRefs',
       'grantRequestResolution',
       'assignmentReply',
+      'allBotMention',
     ]);
     expect(parameterNames(service.botAttention)).toEqual(['slug', 'limit', 'cursor', 'state']);
     expect(parameterNames(service.humanAssignmentContext)).toEqual([

@@ -102,6 +102,9 @@ const DM_CHANNEL: ChannelSummary = {
 
 function stubActions(): BridgeActions {
   return {
+    allBotPreview: vi.fn(async () => {
+      throw new Error('unexpected All Bots preview');
+    }),
     overviewMemory: vi.fn(async () => {
       throw new Error('unexpected Overview Memory');
     }),

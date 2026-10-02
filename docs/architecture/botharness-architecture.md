@@ -521,3 +521,9 @@ application-defined `botharness/channelActivityToday` 查询由 Channel owner �
 ### 外部身份独立生命周期（#699）
 
 [ADR-0111](../adr/0111-external-identity-lifecycle-is-independent-of-grants.md) 将应用定义的 PersonaBot 外部身份与会话 Grant 分开。Messaging 既有 bindings 表持久保存启用偏好、本地名称及 revision；仅绑定通过可信 dsh-im 的认证账号元信息，不创建 Grant 或 listener。Profile 以独立身份表／Modal 管理；Group 没有身份表。暂停停止该身份的 Consumer lease，并由同一个 Host 权限门禁拒绝未开始的 Client／Bot 外部效果；原有路线、Source Event 和政策快照保留。恢复校验同一账号和原目标 digest，不扩大范围。撤销单个 Grant 不解绑身份；明确解绑使该身份所有 Grant 失效，保留可检查配置和消息，不删除 Provider 凭据。#700 继续交付 Channel Bridge 表。
+
+## Human 群聊全部 Bot 提及（#542）
+
+群聊组合器的 `@所有 Bot` 是临时的 Human 输入意图，预览显示当前群内已加入且未暂停的接收 Bot 人数；DM 不提供该选项，粘贴文本不携带选择权威。现有 Channel Store 使用 Registry 与成员事实生成包含名单及显示名的预览 revision。提交前及实际提交边界校验同一预览，名单改变（即使人数相同）或人数为零时返回更新后的可信预览，经既有 Typert 错误 details 显示新人数、保留草稿，并等待 Human 再次发送。
+
+Host 将选中的单一 token 展开为普通逐个 @Bot 的正文及稳定 ID／范围，提交一个 Source Event 和 placement，再复用每个 Bot 的普通 group-mention Admission、attention 与 wake policy；普通消息 silent 不屏蔽明确提及。重试相同 messageId 在当前成员校验前复用已提交内容，重启保留普通消息及各接收者状态。该预览不写入消息或引入 broadcast Source Class；Bot 的 Tool 不暴露此快捷方式。见 [ADR-0099](../adr/0099-human-all-bot-mention-expands-to-direct-mentions.md)。

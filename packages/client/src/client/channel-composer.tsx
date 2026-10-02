@@ -1,3 +1,4 @@
+import type { AllBotPreview } from '../../../core/src/channels/all-bot-mention.js';
 import {
   useCallback,
   useRef,
@@ -88,6 +89,8 @@ export interface ChannelComposerProps {
   onRemoveAttachment?(id: string): void;
   onActivityOverlayResize?(height: number): void;
   activity?: ChannelComposerActivity | undefined;
+  allBotNotice?: string | undefined;
+  allBotPreview?: AllBotPreview | undefined;
   mentionCandidates?: readonly BotSummary[] | undefined;
   mentions?: readonly SelectedMention[] | undefined;
   channelCandidates?: readonly ChannelSummary[] | undefined;
@@ -408,6 +411,8 @@ export function ChannelComposer({
   onRemoveAttachment,
   onActivityOverlayResize,
   activity,
+  allBotNotice,
+  allBotPreview,
   mentionCandidates = [],
   mentions = [],
   channelCandidates = [],
@@ -424,6 +429,7 @@ export function ChannelComposer({
   const renderedAvatarKey = useRef('');
   const [avatarMounts, setAvatarMounts] = useState<MentionAvatarMount[]>([]);
   const rich =
+    allBotPreview !== undefined ||
     mentionCandidates.length > 0 ||
     mentions.length > 0 ||
     channelCandidates.length > 0 ||
@@ -431,7 +437,7 @@ export function ChannelComposer({
   const [mentionQuery, setMentionQuery] = useState<MentionQuery | undefined>();
   const [channelQuery, setChannelQuery] = useState<ChannelRefQuery | undefined>();
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
-  const candidates =
+  const botCandidates =
     mentionQuery === undefined
       ? []
       : mentionCandidates
@@ -444,6 +450,17 @@ export function ChannelComposer({
                 bot.slug.toLocaleLowerCase().includes(mentionQuery.query.toLocaleLowerCase())),
           )
           .slice(0, 8);
+  const allBotLabel = t('composer.allBots');
+  const offerAll =
+    allBotPreview !== undefined &&
+    mentionQuery !== undefined &&
+    !mentions.some((item) => item.kind === 'all-bots') &&
+    [allBotLabel.toLocaleLowerCase(), 'all', '所有'].some((name) =>
+      name.includes(mentionQuery.query.toLocaleLowerCase()),
+    );
+  const candidates: Array<BotSummary | { preview: AllBotPreview }> = offerAll
+    ? [{ preview: allBotPreview }, ...botCandidates]
+    : botCandidates;
   const channelOptions =
     channelQuery === undefined
       ? []
@@ -466,9 +483,25 @@ export function ChannelComposer({
       }
     });
   };
-  const chooseMention = (bot: BotSummary): void => {
+  const chooseMention = (bot: BotSummary | { preview: AllBotPreview }): void => {
     if (mentionQuery === undefined) return;
-    const selected = selectMention(value, mentions, mentionQuery, bot.slug, bot.displayName);
+    if ('preview' in bot && bot.preview.recipients.length === 0) return;
+    const selected =
+      'preview' in bot
+        ? selectMention(value, mentions, mentionQuery, '', allBotLabel)
+        : selectMention(value, mentions, mentionQuery, bot.slug, bot.displayName);
+    if ('preview' in bot)
+      selected.mentions = selected.mentions.map((item) =>
+        item.botSlug === ''
+          ? {
+              kind: 'all-bots',
+              label: item.label,
+              start: item.start,
+              end: item.end,
+              preview: bot.preview,
+            }
+          : item,
+      );
     onChange(
       selected.value,
       selected.mentions,
@@ -717,12 +750,21 @@ export function ChannelComposer({
       return;
     }
     if (!shouldSubmitComposerKey(event)) return;
+    if (mentions.some((item) => item.kind === 'all-bots' && item.preview.recipients.length === 0)) {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
     void onSubmit();
   };
 
   return (
     <div className="bh-composer-shell">
+      {allBotNotice === undefined ? null : (
+        <div className="bh-muted" role="status">
+          {allBotNotice}
+        </div>
+      )}
       {channelQuery !== undefined && channelOptions.length > 0 ? (
         <div className="bh-mention-picker" role="listbox" aria-label="Reference a Group Channel">
           {channelOptions.map((candidate, index) => (
@@ -744,31 +786,52 @@ export function ChannelComposer({
       ) : null}
       {mentionQuery !== undefined && candidates.length > 0 ? (
         <div className="bh-mention-picker" role="listbox" aria-label="Mention a PersonaBot">
-          {candidates.map((candidate, index) => (
-            <button
-              key={candidate.slug}
-              type="button"
-              className={`bh-mention-option${index === activeMentionIndex ? ' bh-mention-option-active' : ''}`}
-              role="option"
-              aria-selected={index === activeMentionIndex}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => chooseMention(candidate)}
-            >
-              <PersonaBotAvatar
-                personaBotId={candidate.slug}
-                name={candidate.displayName}
-                src={candidate.avatar}
-                size={28}
-                indicator={false}
-                t={t}
-              />
-              <span className="bh-mention-option-copy">
-                <strong>{candidate.displayName}</strong>
-                <small>{candidate.roles.join(' · ') || candidate.slug}</small>
-              </span>
-              <small className="bh-mention-option-id">{candidate.slug}</small>
-            </button>
-          ))}
+          {candidates.map((candidate, index) =>
+            'preview' in candidate ? (
+              <button
+                key="all-bots"
+                type="button"
+                className={`bh-mention-option${index === activeMentionIndex ? ' bh-mention-option-active' : ''}`}
+                role="option"
+                aria-selected={index === activeMentionIndex}
+                disabled={candidate.preview.recipients.length === 0}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => chooseMention(candidate)}
+              >
+                <span className="bh-mention-option-copy">
+                  <strong>@{allBotLabel}</strong>
+                  <small>{t('composer.allBotsScope')}</small>
+                </span>
+                <small className="bh-mention-option-id">
+                  {t('composer.allBotsCount', { count: candidate.preview.recipients.length })}
+                </small>
+              </button>
+            ) : (
+              <button
+                key={candidate.slug}
+                type="button"
+                className={`bh-mention-option${index === activeMentionIndex ? ' bh-mention-option-active' : ''}`}
+                role="option"
+                aria-selected={index === activeMentionIndex}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => chooseMention(candidate)}
+              >
+                <PersonaBotAvatar
+                  personaBotId={candidate.slug}
+                  name={candidate.displayName}
+                  src={candidate.avatar}
+                  size={28}
+                  indicator={false}
+                  t={t}
+                />
+                <span className="bh-mention-option-copy">
+                  <strong>{candidate.displayName}</strong>
+                  <small>{candidate.roles.join(' · ') || candidate.slug}</small>
+                </span>
+                <small className="bh-mention-option-id">{candidate.slug}</small>
+              </button>
+            ),
+          )}
         </div>
       ) : null}
       <PersonaBotActivityStatus activity={activity} t={t} onResize={onActivityOverlayResize} />
@@ -924,6 +987,9 @@ export function ChannelComposer({
             disabled={
               (value.trim().length === 0 && attachments.length === 0) ||
               sending ||
+              mentions.some(
+                (item) => item.kind === 'all-bots' && item.preview.recipients.length === 0,
+              ) ||
               attachments.some((item) => item.status !== 'ready')
             }
             onClick={() => void onSubmit()}
