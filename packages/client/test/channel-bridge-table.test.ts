@@ -87,7 +87,7 @@ it('Bridge Switch failures refresh committed state and stale edits preserve the 
       collection: 'mentions',
     });
     const edit = container.querySelector<HTMLButtonElement>(
-      '[aria-label="编辑 Bridge：QA intake"]',
+      '[aria-label="编辑频道连接器：QA intake"]',
     )!;
     await act(async () => edit.click());
     const input = container.querySelector<HTMLInputElement>('input')!;
