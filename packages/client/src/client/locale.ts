@@ -18,7 +18,7 @@ export const zh = {
   'activityCenter.unread': '条未读消息',
   'activityCenter.markAllRead': '全部标为已读',
   'activityCenter.readHint': '标为已读不会回答或移除待处理请求。',
-  'activityCenter.readError': '未能全部标为已读，请重试；待处理请求不受影响。',
+  'activityCenter.readError': '无法确认最新已读状态，请重试；待处理请求不受影响。',
   'activityCenter.work': '待你处理与正在工作',
   'channelActivity.statistics': '统计',
   'channelActivity.toggle': '展开或收起统计',
@@ -1020,7 +1020,7 @@ export const en = {
   'activityCenter.markAllRead': 'Mark all read',
   'activityCenter.readHint': 'Reading messages does not answer or remove pending requests.',
   'activityCenter.readError':
-    'Some messages could not be marked read. Retry; pending requests are unchanged.',
+    'The latest read state could not be confirmed. Retry; pending requests are unchanged.',
   'activityCenter.work': 'Needs you and working now',
   'channelActivity.statistics': 'Statistics',
   'channelActivity.toggle': 'Expand or collapse statistics',

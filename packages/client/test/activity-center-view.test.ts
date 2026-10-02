@@ -573,7 +573,7 @@ it('shows a read failure, keeps the action pending, then retries successfully', 
     expect(attempts).toBe(2);
     expect(
       [...container.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(''),
-    ).not.toContain('未能全部标为已读');
+    ).not.toContain('无法确认最新已读状态');
     expect(store.getSnapshot().humanInbox.hasAction).toBe(true);
   } finally {
     await act(async () => root.unmount());
@@ -655,7 +655,7 @@ it('reports failed unread reconciliation after a successful read write', async (
     );
     expect(
       [...container.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(''),
-    ).toContain('未能全部标为已读');
+    ).toContain('无法确认最新已读状态');
     expect(container.querySelector<HTMLButtonElement>('[data-mark-all-read]')?.disabled).toBe(
       false,
     );

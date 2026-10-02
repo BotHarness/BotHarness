@@ -1781,8 +1781,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         JOIN source_events e ON e.source_event_id = p.source_event_id
         JOIN channel_records c ON c.channel_id = p.channel_id
         LEFT JOIN channel_human_members h ON h.channel_id = p.channel_id AND h.human_id = ? AND h.left_at IS NULL
-        WHERE p.channel_id = ? AND (json_extract(c.record_json, '$.type') = 'dm' OR
-          (h.human_id IS NOT NULL AND p.revision >= h.visible_from_revision))
+        WHERE p.channel_id = ? AND json_extract(c.record_json, '$.deletedAt') IS NULL
+          AND ((json_extract(c.record_json, '$.type') = 'dm' AND json_extract(c.record_json, '$.botSlug') IS NOT NULL) OR
+          (json_extract(c.record_json, '$.type') = 'group' AND h.human_id IS NOT NULL AND p.revision >= h.visible_from_revision))
         ORDER BY p.revision DESC LIMIT 1
       `)
           .get(LOCAL_HUMAN_ID, id),

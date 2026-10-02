@@ -273,6 +273,9 @@ try {
       await page.click('.bh-statistics-toggle');
       await page.reload({ waitUntil: 'domcontentloaded' });
       await overview();
+      await page.waitForSelector('[data-bot-id="' + scene.decision + '"] [data-attention-id]');
+      await page.waitForSelector('[data-activity-total]');
+      await delay(200);
       assert.equal(
         await page.$eval('.bh-statistics-toggle', (n) => n.getAttribute('aria-expanded')),
         'false',
@@ -326,6 +329,20 @@ try {
       );
     }
   }
+} catch (error) {
+  await shot('diagnostic-error');
+  console.log(
+    JSON.stringify(
+      await page.evaluate(() => ({
+        expanded: document.querySelector('.bh-statistics-toggle')?.getAttribute('aria-expanded'),
+        hidden: document.querySelector('.bh-statistics-content')?.hidden,
+        alerts: [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent),
+        charts: document.querySelectorAll('.bh-channel-statistics-chart').length,
+        title: document.querySelector('.bh-channel-activity header')?.textContent,
+      })),
+    ),
+  );
+  throw error;
 } finally {
   await browser.close();
 }

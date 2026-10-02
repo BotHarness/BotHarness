@@ -1,3 +1,4 @@
+import { attachOperationalModule } from '../src/database/owner.js';
 import { expect, it } from 'vitest';
 import { createCore } from '../src/plugin.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
@@ -70,6 +71,53 @@ it('marks captured Human Channel heads read, preserves requests and leaves later
     core = createCore({ dshHome: home, agents });
     expect(core.humanAttention.status().unreadCount).toBe(1);
     expect(core.humanAttention.actionCount()).toBe(1);
+  } finally {
+    await core.runtime.close();
+    core.operationalDatabase.close();
+  }
+});
+
+it('excludes inaccessible heads and reports a corrupt latest placement instead of claiming success', async () => {
+  const core = createCore({ dshHome: createTempRoot('bh-all-read-access-'), agents });
+  const fixture = attachOperationalModule(core.operationalDatabase, 'channels');
+  try {
+    core.registry.create({ slug: 'ada', displayName: 'Ada' });
+    const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+    const group = core.channels.createGroup({ name: 'Former membership', members: ['ada'] });
+    const deleted = core.channels.createGroup({ name: 'Deleted', members: ['ada'] });
+    const hidden = core.channels.getOrCreateBotDm('ada', 'bea', 'Private')!;
+    for (const channel of [dm, group, deleted, hidden])
+      await core.channels.appendMessage(channel.id, {
+        id: 'head-' + channel.id,
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'Stored update',
+        at: new Date().toISOString(),
+        ...(channel.id === hidden.id
+          ? { botCausation: { rootSourceEventId: 'root', parentSourceEventId: 'parent', hop: 1 } }
+          : {}),
+      });
+    core.channels.deleteGroup(deleted.id);
+    fixture.transaction((db) => {
+      db.prepare('UPDATE channel_human_members SET left_at = ? WHERE channel_id = ?').run(
+        new Date().toISOString(),
+        group.id,
+      );
+    });
+    expect(core.channels.latestHumanMessageId?.(hidden.id)).toBeUndefined();
+    expect(core.channels.latestHumanMessageId?.(deleted.id)).toBeUndefined();
+    expect(core.channels.latestHumanMessageId?.(group.id)).toBeUndefined();
+    fixture.transaction((db) => {
+      const result = db
+        .prepare('UPDATE source_events SET payload_json = ? WHERE channel_id = ?')
+        .run('{}', dm.id);
+      expect(result.changes).toBeGreaterThan(0);
+    });
+    expect(await createBridgeMethods({ ...core }).channelMarkAllRead({})).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+    expect(core.channels.readPosition(dm.id)).toBeUndefined();
+    expect(core.channels.readPosition(hidden.id)).toBeUndefined();
   } finally {
     await core.runtime.close();
     core.operationalDatabase.close();
