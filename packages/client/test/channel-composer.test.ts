@@ -68,6 +68,38 @@ describe('Channel composer', () => {
     expect(markup).toContain('data-layout="compact"');
   });
 
+  it('renders declared public text as escaped content inside the folded disclosure', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelComposer, {
+        value: '',
+        placeholder: 'Message',
+        sending: false,
+        activity: {
+          summary: 'Opening a browser tab',
+          items: [
+            {
+              personaBotId: 'ada',
+              name: 'Ada',
+              state: 'working',
+              activity: {
+                toolKind: 'other',
+                effect: 'generic-working',
+                startedAt: 1000,
+                activeToolCount: 1,
+                publicDetail: '<b>Opening a browser tab</b>',
+              },
+            },
+          ],
+        },
+        onChange: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    );
+    expect(markup).toContain('bh-composer-activity-public-detail');
+    expect(markup).toContain('&lt;b&gt;Opening a browser tab&lt;/b&gt;');
+    expect(markup).not.toContain('<details class="bh-composer-activity-status" open');
+  });
+
   it('discloses the safe trusted execution source and active Session count', () => {
     const markup = renderToStaticMarkup(
       createElement(ChannelComposer, {

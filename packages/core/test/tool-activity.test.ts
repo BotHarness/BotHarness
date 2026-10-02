@@ -4,6 +4,9 @@ import { createBotStateTracker, personaBotActivitySnapshot } from '../src/state/
 import { createDshActivityProjection } from '../src/state/dsh-activity.js';
 import {
   activityEffectForToolKind,
+  aggregateToolActivity,
+  readPublicToolDetail,
+  withPublicToolDetail,
   type PersonaBotToolActivity,
 } from '../src/state/tool-activity.js';
 import { createTestOwnership } from './helpers.js';
@@ -221,5 +224,113 @@ describe('safe tool Activity', () => {
     } satisfies PersonaBotToolActivity & { arguments: string };
     states.setSessionState('ada', 's', 'working', activity);
     expect(JSON.stringify(personaBotActivitySnapshot(['ada'], states))).not.toContain('private');
+  });
+});
+
+describe('explicit Provider public Activity detail', () => {
+  it('ignores native call-card titles and model payloads without a Provider declaration', () => {
+    const tool = {
+      presentCall: () => ({ card: 'generic', title: 'private-token', rawInput: 'secret' }),
+    };
+    expect(
+      readPublicToolDetail(tool, { publicDetail: 'poisoned', secret: 'private' }),
+    ).toBeUndefined();
+    expect(readPublicToolDetail({ publicDetail: 'poisoned' }, {})).toBeUndefined();
+  });
+  it.each([
+    '',
+    '  ',
+    'x'.repeat(161),
+    'line\nbreak',
+    'tab\tvalue',
+    '\u202Ehidden',
+    { text: 'private' },
+    undefined,
+  ])('fails closed for invalid Provider detail %j', (value) => {
+    expect(
+      readPublicToolDetail(
+        withPublicToolDetail({}, () => value),
+        {},
+      ),
+    ).toBeUndefined();
+  });
+  it('isolates a throwing Provider and publishes only its declared bounded text', () => {
+    expect(
+      readPublicToolDetail(
+        withPublicToolDetail({}, () => {
+          throw Error('private');
+        }),
+        {},
+      ),
+    ).toBeUndefined();
+    expect(
+      readPublicToolDetail(
+        withPublicToolDetail({}, () => 'Opening a browser tab'),
+        { url: 'private-token' },
+      ),
+    ).toBe('Opening a browser tab');
+  });
+  it('uses the exact Host declaration, preserves revision/event agreement and clears completed detail', () => {
+    const states = createBotStateTracker();
+    const ownership = createTestOwnership({ root: { botSlug: 'ada', rootRole: 'orchestrator' } });
+    const tool = withPublicToolDetail({ name: 'browser_tabs' }, () => 'Opening a browser tab');
+    const projection = createDshActivityProjection({
+      states,
+      ownership,
+      describeCall: (_session, name, args) =>
+        name === tool.name
+          ? {
+              name,
+              ...(readPublicToolDetail(tool, args) === undefined
+                ? {}
+                : { publicDetail: readPublicToolDetail(tool, args)! }),
+              view: { card: 'generic', kind: 'other', title: 'private title', rawInput: args },
+            }
+          : undefined,
+    });
+    const events: unknown[] = [];
+    states.onActivity((event) => {
+      expect(event.revision).toBe(personaBotActivitySnapshot(['ada'], states).revision);
+      events.push(event);
+    });
+    projection.handleSessionEvent('root', {
+      ...call('one', tool.name),
+      data: {
+        ...call('one', tool.name).data,
+        publicDetail: 'private poisoned detail',
+      },
+    });
+    expect(states.activity('ada')?.publicDetail).toBe('Opening a browser tab');
+    expect(JSON.stringify(events)).not.toMatch(/private|rawInput|arguments|secret/);
+    projection.handleSessionEvent('root', result('one'));
+    expect(states.activity('ada')).toBeUndefined();
+    expect(events).toHaveLength(2);
+  });
+  it('omits conflicting concurrent summaries and restores the remaining live one', () => {
+    const base: PersonaBotToolActivity = {
+      effect: 'generic-working',
+      toolKind: 'other',
+      toolName: 'browser_tabs',
+      startedAt: 1000,
+      activeToolCount: 1,
+      publicDetail: 'Opening a browser tab',
+    };
+    expect(aggregateToolActivity([base, base])?.publicDetail).toBe(base.publicDetail);
+    expect(
+      aggregateToolActivity([base, { ...base, publicDetail: 'Closing a browser tab' }])
+        ?.publicDetail,
+    ).toBeUndefined();
+    const missing = { ...base };
+    delete missing.publicDetail;
+    expect(aggregateToolActivity([base, missing])?.publicDetail).toBeUndefined();
+    const states = createBotStateTracker();
+    states.setSessionState('ada', 'one', 'working', base);
+    states.setSessionState('ada', 'two', 'working', {
+      ...base,
+      publicDetail: 'Closing a browser tab',
+    });
+    expect(states.activity('ada')?.publicDetail).toBeUndefined();
+    states.clearSession('ada', 'two');
+    expect(states.activity('ada')?.publicDetail).toBe(base.publicDetail);
   });
 });

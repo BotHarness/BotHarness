@@ -98,6 +98,7 @@ import {
   type PersonaBotActivityEvent,
 } from './state/bot-state.js';
 import { createDshActivityProjection } from './state/dsh-activity.js';
+import { readPublicToolDetail } from './state/tool-activity.js';
 import { createUsageProjection, type UsageProjection } from './usage/usage.js';
 import { installBotSubagentModelTools } from './runtime/subagent-model-tools.js';
 
@@ -977,7 +978,12 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       const definition = ctx.tools.get(name, agent);
       if (definition === undefined) return undefined;
       const view = definition.presentCall?.(args);
-      return { name: definition.name, ...(view === undefined ? {} : { view }) };
+      const publicDetail = readPublicToolDetail(definition, args);
+      return {
+        name: definition.name,
+        ...(view === undefined ? {} : { view }),
+        ...(publicDetail === undefined ? {} : { publicDetail }),
+      };
     },
   });
   ctx.effect(() =>

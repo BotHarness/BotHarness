@@ -218,3 +218,6 @@ export type {
   ActivitySourceRole,
   ActivitySourceCount,
 } from './state/tool-activity.js';
+
+export { withPublicToolDetail } from './state/tool-activity.js';
+export type { PublicToolActivityDeclaration } from './state/tool-activity.js';

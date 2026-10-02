@@ -3,6 +3,7 @@ import {
   aggregateToolActivity,
   activityEffectForToolKind,
   toolKindForView,
+  isPublicToolDetail,
   type PersonaBotToolActivity,
 } from './tool-activity.js';
 import type { SessionOwnership, SessionOwnershipRecord } from '../sessions/ownership.js';
@@ -74,7 +75,7 @@ export function createDshActivityProjection(options: {
     sessionId: string,
     name: string,
     args: unknown,
-  ): { name: string; view?: ToolCallView } | undefined;
+  ): { name: string; view?: ToolCallView; publicDetail?: string } | undefined;
 }): DshActivityProjection {
   const { ownership, states } = options;
   const now = options.now ?? (() => new Date());
@@ -98,7 +99,7 @@ export function createDshActivityProjection(options: {
           ? data['name']
           : undefined;
       const callId = typeof data['callId'] === 'string' ? data['callId'] : undefined;
-      let declaration: { name: string; view?: ToolCallView } | undefined;
+      let declaration: { name: string; view?: ToolCallView; publicDetail?: string } | undefined;
       try {
         if (name !== undefined && typeof data['arguments'] === 'string')
           declaration = options.describeCall?.(sessionId, name, JSON.parse(data['arguments']));
@@ -113,6 +114,9 @@ export function createDshActivityProjection(options: {
           toolKind,
           effect: activityEffectForToolKind(toolKind),
           ...(toolName === undefined ? {} : { toolName }),
+          ...(isPublicToolDetail(declaration?.publicDetail)
+            ? { publicDetail: declaration.publicDetail }
+            : {}),
           startedAt:
             Number.isSafeInteger(event.time) && event.time >= 0 ? event.time : now().getTime(),
           activeToolCount: 1,

@@ -60,9 +60,13 @@ const bot = process.env.BH_E2E_RECONNECT_BOT
     ).bot;
 assert.ok(bot);
 const channelId = `dm-${bot.slug}`;
+const publicDetailMode = process.env.BH_E2E_PUBLIC_DETAIL === 'true';
+const expectedPublicDetail = 'Opening a new browser tab';
+const expectedEffect = publicDetailMode ? 'generic-working' : 'executing';
 const sourceRole = process.env.BH_E2E_SOURCE_ROLE;
 assert.ok(sourceRole === undefined || ['orchestrator', 'assignment'].includes(sourceRole));
 const layout = process.env.BH_E2E_LAYOUT ?? 'row';
+if (publicDetailMode) await rpc('browserAccessSet', { slug: bot.slug, enabled: true });
 await rpc('channelDm', { slug: bot.slug, displayName: bot.displayName });
 if (!process.env.BH_E2E_RECONNECT_BOT) {
   const preset = (
@@ -231,8 +235,9 @@ try {
       ? undefined
       : await rpc('channelSend', {
           channelId,
-          body:
-            sourceRole === 'assignment'
+          body: publicDetailMode
+            ? 'Use browser_tabs exactly once with action open and URL https://example.com/?bhqa=private-token-for-proof . Do not use browser_open, browse other pages, delegate, or change files. After it succeeds, use channel_send to send the exact phrase "Safe tool activity confirmed" in this DM.'
+            : sourceRole === 'assignment'
               ? `For this QA, create exactly one Assignment with active Workspace Grant ${assignmentGrant.id}, omitting provider/model/effort. Its purpose: use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once, then report_to_orchestrator that the harmless two-second timer completed. Do not modify files, use any other commands, or create subagents. Do not run Shell yourself. After the Assignment reports successful completion, use channel_send in this DM with exact phrase "Safe tool activity confirmed". Before completion, end your turn and await the Assignment report; do not poll it.`
               : 'Use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once. This is a harmless two-second QA timer. Do not use any other tool except channel_send afterwards to send the exact phrase "Safe tool activity confirmed" in this DM. Do not delegate or modify any files.',
         });
@@ -244,14 +249,21 @@ try {
         (sent === undefined || m.at >= sent.message.at) &&
         !list.some((decision) => decision.toolApprovalDecision?.requestMessageId === m.id) &&
         m.toolApprovalRequest &&
-        JSON.parse(m.toolApprovalRequest.input).command === 'node -e "setTimeout(() => {}, 2000)"',
+        (publicDetailMode
+          ? m.toolApprovalRequest.toolName === 'browser_tabs' &&
+            JSON.parse(m.toolApprovalRequest.input).action === 'open'
+          : JSON.parse(m.toolApprovalRequest.input).command ===
+            'node -e "setTimeout(() => {}, 2000)"'),
     );
     if (pending) break;
     await new Promise((done) => setTimeout(done, 200));
   }
-  assert.ok(pending, 'Actual native Shell approval must be pending');
+  assert.ok(pending, 'Actual scoped tool approval must be pending');
   const toolName = pending.toolApprovalRequest.toolName;
-  assert.ok(['bash', 'pwsh'].includes(toolName), 'Registered native Shell tool name');
+  assert.ok(
+    (publicDetailMode ? ['browser_tabs'] : ['bash', 'pwsh']).includes(toolName),
+    'Registered scoped tool name',
+  );
   console.log(JSON.stringify({ approvalPending: true, sourceRole, toolName }));
   await page.waitForFunction(
     (id) =>
@@ -262,13 +274,13 @@ try {
   );
   if (phase === 'after') {
     await page.waitForFunction(
-      (id) =>
+      (id, effect) =>
         document.querySelector(`[data-channel-id="${id}"] .bh-persona-avatar`)?.dataset.effect ===
-          'executing' &&
-        document.querySelector('.bh-composer-shell .bh-persona-avatar')?.dataset.effect ===
-          'executing',
+          effect &&
+        document.querySelector('.bh-composer-shell .bh-persona-avatar')?.dataset.effect === effect,
       {},
       channelId,
+      expectedEffect,
     );
   }
   if (phase === 'after' && sourceRole !== undefined) {
@@ -438,8 +450,15 @@ try {
       await page.setViewport({ width: 1500, height: 1180 });
     }
     const latest = snapshots.at(-1);
-    assert.equal(latest.activity.toolKind, 'execute');
-    assert.equal(latest.activity.effect, 'executing');
+    assert.equal(latest.activity.toolKind, publicDetailMode ? 'other' : 'execute');
+    assert.equal(latest.activity.effect, expectedEffect);
+    if (publicDetailMode) {
+      assert.equal(latest.activity.publicDetail, expectedPublicDetail);
+      assert.ok(dom.summary.includes(expectedPublicDetail));
+      assert.ok(dom.sidebar.every((item) => item.label.includes(expectedPublicDetail)));
+      assert.ok(!JSON.stringify(snapshots).includes('private-token-for-proof'));
+      assert.ok(!JSON.stringify(snapshots).includes('example.com'));
+    }
     assert.ok(
       !JSON.stringify(snapshots).includes('setTimeout'),
       'No raw command in Activity snapshots',
@@ -522,7 +541,10 @@ try {
         narrowSourceRows,
         reduceMotion: motion,
         heldForHumanQA: process.env.BH_E2E_HOLD === 'true',
-        actualNativeShellApproval: true,
+        actualNativeShellApproval: !publicDetailMode,
+        ...(publicDetailMode
+          ? { actualBrowserToolApproval: true, publicDetail: expectedPublicDetail }
+          : {}),
         toolName,
         verdict: 'PASS',
       },

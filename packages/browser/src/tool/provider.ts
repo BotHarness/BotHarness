@@ -1,3 +1,4 @@
+import { withPublicToolDetail } from '../../../core/src/state/tool-activity.js';
 import type { Context } from '@deepseek-ai/cordis';
 import { createMcpToolDefinition } from '@deepseek-ai/dsh-mcp-client';
 import type { Agent } from '@deepseek-ai/dsh-agent';
@@ -82,6 +83,20 @@ interface SessionRegistration {
   readonly scope: Context;
   readonly controller: AbortController;
   readonly disposers: readonly (() => void)[];
+}
+
+export function browserTabsPublicDetail(args: unknown): string | undefined {
+  if (typeof args !== 'object' || args === null || !('action' in args)) return undefined;
+  const labels = {
+    list: 'Listing browser tabs',
+    open: 'Opening a new browser tab',
+    select: 'Selecting a browser tab',
+    close: 'Closing a browser tab',
+  };
+  const action = args.action;
+  return typeof action === 'string' && Object.hasOwn(labels, action)
+    ? labels[action as keyof typeof labels]
+    : undefined;
 }
 
 export function browserToolNames(): readonly string[] {
@@ -586,47 +601,56 @@ export function createBrowserToolProvider(
           },
         });
         disposers.push(
-          scope.tools.register({
-            ...definition,
-            execute: async (args, execution) => {
-              const started = Date.now();
-              const input =
-                typeof args === 'object' && args !== null ? (args as Record<string, unknown>) : {};
-              try {
-                const result = await definition.execute(args, execution);
-                AbortSignal.any([execution.signal, controller.signal]).throwIfAborted();
-                screenshotGuards.get(execution)?.();
-                record(
-                  slug,
-                  sessionId,
-                  browserToolName(spec.raw),
-                  auditSummary(spec.raw, input),
-                  'ok',
-                  Date.now() - started,
-                );
-                return result;
-              } catch (error) {
-                record(
-                  slug,
-                  sessionId,
-                  browserToolName(spec.raw),
-                  auditSummary(spec.raw, input),
-                  'error',
-                  Date.now() - started,
-                  spec.raw === 'upload' && typeof input['path'] === 'string' && input['path'] !== ''
-                    ? (error instanceof Error ? error.message : String(error))
-                        .split(input['path'])
-                        .join(basename(input['path']))
-                    : error instanceof Error
-                      ? error.message
-                      : String(error),
-                );
-                throw error;
-              } finally {
-                screenshotGuards.delete(execution);
-              }
-            },
-          }),
+          scope.tools.register(
+            withPublicToolDetail(
+              {
+                ...definition,
+                execute: async (args, execution) => {
+                  const started = Date.now();
+                  const input =
+                    typeof args === 'object' && args !== null
+                      ? (args as Record<string, unknown>)
+                      : {};
+                  try {
+                    const result = await definition.execute(args, execution);
+                    AbortSignal.any([execution.signal, controller.signal]).throwIfAborted();
+                    screenshotGuards.get(execution)?.();
+                    record(
+                      slug,
+                      sessionId,
+                      browserToolName(spec.raw),
+                      auditSummary(spec.raw, input),
+                      'ok',
+                      Date.now() - started,
+                    );
+                    return result;
+                  } catch (error) {
+                    record(
+                      slug,
+                      sessionId,
+                      browserToolName(spec.raw),
+                      auditSummary(spec.raw, input),
+                      'error',
+                      Date.now() - started,
+                      spec.raw === 'upload' &&
+                        typeof input['path'] === 'string' &&
+                        input['path'] !== ''
+                        ? (error instanceof Error ? error.message : String(error))
+                            .split(input['path'])
+                            .join(basename(input['path']))
+                        : error instanceof Error
+                          ? error.message
+                          : String(error),
+                    );
+                    throw error;
+                  } finally {
+                    screenshotGuards.delete(execution);
+                  }
+                },
+              },
+              (args) => (spec.raw === 'tabs' ? browserTabsPublicDetail(args) : undefined),
+            ),
+          ),
         );
       }
       disposers.push(

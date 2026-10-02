@@ -1,3 +1,4 @@
+import { readPublicToolDetail } from '../../core/src/state/tool-activity.js';
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -1401,5 +1402,26 @@ describe('Human Browser window reveal', () => {
     expect(h.provider.currentTab('bot-a')).toBe('tab-2');
     expect(h.provider.tabCount('bot-a')).toBe(2);
     expect(h.runtime.openWindow).not.toHaveBeenCalled();
+  });
+});
+
+describe('browser Provider public Activity detail', () => {
+  it('registers explicit operation-only detail on the actual scoped tabs Tool', () => {
+    const h = harness({ access: true });
+    h.created();
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    const input = {
+      action: 'open',
+      url: 'https://private.example/?token=secret',
+      targetId: 'private-tab',
+      title: 'private title',
+    };
+    expect(readPublicToolDetail(tabs, input)).toBe('Opening a new browser tab');
+    expect(readPublicToolDetail(tabs, { ...input, action: 'close' })).toBe('Closing a browser tab');
+    expect(readPublicToolDetail(tabs, { action: 'private-action' })).toBeUndefined();
+    expect(readPublicToolDetail(h.state.definitions.get('browser_open')!, input)).toBeUndefined();
+    expect(JSON.stringify(readPublicToolDetail(tabs, input))).not.toMatch(
+      /private|secret|token|targetId/,
+    );
   });
 });
