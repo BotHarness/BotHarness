@@ -274,6 +274,7 @@ try {
       await theme(false);
       await page.click('[aria-label="打开 Channel: Release room"]');
       await page.waitForSelector('.bh-channel-options');
+      await page.waitForFunction(() => document.body.textContent.includes('Release checklist 6'));
       assert.ok(
         await page.evaluate(() => document.body.textContent.includes('Release checklist 6')),
       );

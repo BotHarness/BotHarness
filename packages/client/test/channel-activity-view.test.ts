@@ -118,7 +118,10 @@ it('disables refresh while awaiting the Host and allows retry after an unavailab
     refresh.click();
     expect(call).toHaveBeenCalledTimes(1);
     await act(async () =>
-      complete?.({ ok: false, error: { code: 'storage-unavailable', message: 'Unavailable' } }),
+      complete?.({
+        ok: false,
+        error: { code: 'storage-unavailable', message: 'Unavailable', details: {} },
+      }),
     );
     expect(container.querySelector('[role=alert]')).not.toBeNull();
     expect(container.querySelector('[data-activity-total]')).toBeNull();
