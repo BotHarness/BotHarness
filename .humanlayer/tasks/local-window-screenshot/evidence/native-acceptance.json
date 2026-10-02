@@ -1,0 +1,38 @@
+{
+  "capturedAt": "2026-10-02T16:23:41.902Z",
+  "driverVersion": "0.28.0",
+  "nativeApproval": "allowed-once",
+  "captureTurn": 3,
+  "failureTurn": 4,
+  "revokedTurn": 5,
+  "visualMarker": "930B95",
+  "visualMarkerAbsentFromAX": true,
+  "realNativeScreenshot": "PASS",
+  "attachment": {
+    "attachmentId": "sha256:c6bffd9b442cf509c180bb15fb6152efb1cd1a92e6f6a7946bf1e03548be1e79",
+    "mediaType": "image/webp",
+    "width": 1560,
+    "height": 864,
+    "bytes": 166918
+  },
+  "markerReadback": "PASS",
+  "driverFailure": "PASS",
+  "driverFailureCalls": 1,
+  "driverFailureAudit": "error",
+  "accessOff": true,
+  "revokedComputerTools": 0,
+  "revokedComputerCalls": 0,
+  "noOtherAppShellOrBrowserCalls": true,
+  "liveOsPermissionRevocation": "NOT_RUN",
+  "verificationProviderSourceSha256": "dfe38aebbcb916b105bb5a3eddc1bd18b2b7fb5a4ce59e30178a4c920c9fcd0d",
+  "verificationHostBundleSha256": "611c6fed9dfb62f1d9b2278ed5787e84a0453a2f8e8ab84856a1d7bd77972ac3",
+  "firstFailureBeforeFix": {
+    "turn": 2,
+    "nativeIsError": true,
+    "auditOutcome": "ok",
+    "driverRefusalCode": "session_ended",
+    "note": "Preserved failure; idle-session recovery remains a separate frontier."
+  },
+  "driverFailureCode": "window_id_not_found",
+  "idleSessionRecoveryIssue": 713
+}

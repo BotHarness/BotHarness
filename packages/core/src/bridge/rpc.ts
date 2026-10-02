@@ -1,4 +1,6 @@
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
+import type { UsageOverviewPeriod } from '../usage/overview.js';
+import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import type { HumanAssignmentContext } from '../runtime/assignment-human-context.js';
 import type { ThreadReceptionInput } from '../messaging/thread-policy.js';
@@ -721,6 +723,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.memoryRepair({ channelId, expectedHead, repairId }));
   }
 
+  overviewUsage(period: UsageOverviewPeriod, after?: string): OverviewUsage {
+    return unwrap(this.methods.overviewUsage({ period, after }));
+  }
   profileUsage(channelId: string, filter: UsageFilter): UsageQueryResult {
     return unwrap(this.methods.profileUsage({ channelId, filter }));
   }
@@ -878,6 +883,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'memorySave',
   'memoryRepair',
   'profileActivity',
+  'overviewUsage',
   'profileUsage',
   'groupProfileActivity',
   'rosterGet',

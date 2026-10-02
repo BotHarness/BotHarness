@@ -1,3 +1,4 @@
+import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overview.js';
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
 import type { MessagingIdentity } from '../messaging/identity.js';
 import {
@@ -178,6 +179,10 @@ export interface ProfileActivityReasonDay extends ProfileActivityDay {
   reason: string;
 }
 
+export interface OverviewUsage extends Omit<UsageOverviewResult, 'bots'> {
+  bots: Array<UsageOverviewBuckets & { slug: string; displayName: string; current: boolean }>;
+}
+
 export interface ProfileTokenBuckets {
   inputTokens: number;
   outputTokens: number;
@@ -347,6 +352,7 @@ export interface BridgeMethods {
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
+  overviewUsage(payload: unknown): BridgeResult<OverviewUsage>;
   profileUsage(payload: unknown): BridgeResult<UsageQueryResult>;
   groupProfileActivity(payload: unknown): BridgeResult<GroupProfileActivity>;
   rosterGet(payload: unknown): BridgeResult<RosterSnapshot>;
@@ -2836,6 +2842,46 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return memoryCall(() => ({
         repair: deps.memory!.repairHuman({ botSlug: scope.botSlug, expectedHead, repairId }),
       }));
+    },
+    overviewUsage(payload) {
+      const source = asObject(payload);
+      const period = source['period'];
+      const after = source['after'];
+      if (
+        (period !== 'today' && period !== 'week') ||
+        (after !== undefined &&
+          (typeof after !== 'string' || after.length === 0 || after.length > 255))
+      )
+        return invalidInput('Overview usage requires today or week and an optional Bot cursor');
+      if (deps.usage === undefined)
+        return {
+          ok: false,
+          error: { code: 'storage-unavailable', message: 'Usage statistics unavailable' },
+        };
+      try {
+        const result = deps.usage.overview(period, after);
+        return {
+          ok: true,
+          value: {
+            ...result,
+            bots: result.bots.map((row) => {
+              const bot = deps.registry.get(row.slug);
+              return {
+                ...row,
+                displayName: bot?.displayName ?? row.slug,
+                current: bot !== undefined,
+              };
+            }),
+          },
+        };
+      } catch (error) {
+        if (error instanceof OperationalDatabaseError)
+          return {
+            ok: false,
+            error: { code: 'storage-unavailable', message: 'Usage statistics unavailable' },
+          };
+        throw error;
+      }
     },
     profileUsage(payload) {
       const scope = dmMemory(payload);

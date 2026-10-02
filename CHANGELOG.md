@@ -17,6 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Overview Statistics shows reported token totals across Bots with today/seven-day trends, compact Profile-aligned charts, paginated Bot details and direct Profile navigation; unknown buckets and retained usage remain explicit ([#709](https://github.com/BotHarness/BotHarness/issues/709)).
 - Browser tab Activity can show the Provider-declared operation in shared sidebar/composer summaries; only bounded public text is admitted, conflicting concurrent detail is omitted, and raw URLs, titles and tool payloads remain excluded ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
 - Active tool summaries now identify trusted Orchestrator, Assignment and DSH Subagent sources, count working Sessions separately from concurrent tools, clear finished sources through the same revisioned Host projection, and use compact role rows aligned with Overview ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
@@ -260,6 +261,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Computer Audit now records driver-returned tool failures as errors, so refused screenshot and window requests no longer appear successful; observation content stays out of Audit ([#708](https://github.com/BotHarness/BotHarness/issues/708)).
 
 - Inbox source avatars remain at the far right of every action row; repair-only Bot Inbox maintenance is available inside details without an extra list button ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
 

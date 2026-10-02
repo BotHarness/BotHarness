@@ -1,3 +1,8 @@
+import {
+  queryOverviewUsage,
+  type UsageOverviewPeriod,
+  type UsageOverviewResult,
+} from './overview.js';
 import { createHmac } from 'node:crypto';
 import { queryUsage, usageFilterSchema, type UsageFilter, type UsageQueryResult } from './query.js';
 import type { DatabaseSync } from 'node:sqlite';
@@ -58,6 +63,8 @@ export interface UsageProjection {
   activity(botSlug: string, sinceIso: string): UsageDayRow[];
 
   query(botSlug: string, filter: UsageFilter): UsageQueryResult;
+
+  overview(period: UsageOverviewPeriod, after?: string): UsageOverviewResult;
 
   purgeBot(botSlug: string, removeFiles?: () => void): void;
 }
@@ -412,6 +419,14 @@ export function createUsageProjection(options: {
         queryUsage(connection, botSlug, parsed, {
           freshness: rebuilding ? 'reconciling' : reconciliationFailed ? 'degraded' : 'ready',
           readAt: (options.now?.() ?? new Date()).toISOString(),
+          reconciledAt,
+        }),
+      );
+    },
+    overview(period, after) {
+      return database.read((connection) =>
+        queryOverviewUsage(connection, period, after, options.now?.() ?? new Date(), {
+          freshness: rebuilding ? 'reconciling' : reconciliationFailed ? 'degraded' : 'ready',
           reconciledAt,
         }),
       );

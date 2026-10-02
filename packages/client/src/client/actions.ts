@@ -91,6 +91,7 @@ import {
   loadMemoryGitCommitDiff,
   loadProfileActivity,
   loadProfileUsage,
+  loadOverviewUsage,
   type UsageFilter,
   type UsageQueryResult,
   loadGroupProfileActivity,
@@ -251,7 +252,7 @@ export interface BridgeActions {
   memoryDirectory(slug: string): Promise<string | undefined>;
   load(signal?: AbortSignal): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
-  openBot(slug: string): Promise<void>;
+  openBot(slug: string, view?: 'profile'): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
   openActivityCenter(view?: ActivityCenterTab): Promise<void>;
   refreshOverview(): Promise<void>;
@@ -345,6 +346,10 @@ export interface BridgeActions {
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
+  overviewUsage(
+    period: 'today' | 'week',
+    after?: string,
+  ): Promise<import('../../../core/src/bridge/methods.js').OverviewUsage>;
   profileUsage(channelId: string, filter: UsageFilter): Promise<UsageQueryResult>;
   channelActivityToday(): Promise<ChannelActivityToday>;
   groupProfileActivity(channelId: string): Promise<GroupProfileActivity>;
@@ -984,11 +989,15 @@ export function createActions(
       await refreshRoster(signal);
     },
     refreshRoster,
-    async openBot(slug) {
+    async openBot(slug, view) {
       const snapshot = clientStore.getSnapshot();
       const bot = snapshot.bots.find((candidate) => candidate.slug === slug);
       if (bot === undefined) return;
-      const selection: ConversationSelection = { kind: 'bot', slug };
+      const selection: ConversationSelection = {
+        kind: 'bot',
+        slug,
+        ...(view === 'profile' ? { profile: true } : {}),
+      };
       clientStore.select(selection);
       const active = currentSelection();
       if (active === undefined) return;
@@ -1612,6 +1621,7 @@ export function createActions(
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    overviewUsage: (period, after) => loadOverviewUsage(call, period, after),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     channelActivityToday: () => loadChannelActivityToday(call),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
