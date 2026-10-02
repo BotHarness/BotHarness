@@ -360,6 +360,12 @@ it('keeps idle Bots with actions visible, pages their own actions and decides wi
 it('preserves the pending action page when a decision refresh overlaps load more', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   let decided = false;
+  let decisions = 0;
+  let scopedLoads = 0;
+  let releaseDecision: (() => void) | undefined;
+  const decisionReady = new Promise<void>((resolve) => {
+    releaseDecision = resolve;
+  });
   let releaseCursor: (() => void) | undefined;
   const cursorReady = new Promise<void>((resolve) => {
     releaseCursor = resolve;
@@ -407,6 +413,7 @@ it('preserves the pending action page when a decision refresh overlaps load more
     if (endpoint === 'humanAttentionStatus')
       return { ok: true, value: { unreadCount: 0, hasAction: true } };
     if (endpoint === 'humanAttention') {
+      if (args['botSlug'] === 'ada') scopedLoads++;
       if (args['cursor'] === 'next' && cursorCalls++ === 0) {
         await cursorReady;
         return { ok: true, value: { items: Array.from({ length: 50 }, (_, i) => item(i + 50)) } };
@@ -422,6 +429,7 @@ it('preserves the pending action page when a decision refresh overlaps load more
       };
     }
     if (endpoint === 'channelGroupJoinDecide') {
+      if (++decisions === 2) await decisionReady;
       decided = true;
       return { ok: true, value: { channel } };
     }
@@ -452,6 +460,21 @@ it('preserves the pending action page when a decision refresh overlaps load more
     expect(container.querySelectorAll('[data-attention-id]')).toHaveLength(99);
     expect(container.querySelector('[data-attention-id="join:r99"]')).not.toBeNull();
     expect(container.querySelector('[data-attention-id="join:r0"]')).toBeNull();
+    const beforeLeaving = scopedLoads;
+    const second = [
+      ...container.querySelectorAll<HTMLButtonElement>('[data-attention-id="join:r1"] button'),
+    ].find((button) => button.textContent === '拒绝')!;
+    await act(async () => second.click());
+    expect(decisions).toBe(2);
+    await act(async () => {
+      root.unmount();
+      store.select(undefined);
+    });
+    await act(async () => {
+      releaseDecision?.();
+      await decisionReady;
+    });
+    expect(scopedLoads).toBe(beforeLeaving);
   } finally {
     await act(async () => root.unmount());
     container.remove();

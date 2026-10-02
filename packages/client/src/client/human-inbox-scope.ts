@@ -15,14 +15,16 @@ export function useHumanActionScope(actions: BridgeActions, botSlug: string | un
   const current = useRef(page);
   current.current = page;
   const generation = useRef(0);
+  const active = useRef(false);
   const pending = useRef<Promise<void> | undefined>(undefined);
   const refresh = useCallback(
     async (cursor?: string): Promise<void> => {
-      if (botSlug === undefined || (cursor !== undefined && pending.current)) return;
+      if (!active.current || botSlug === undefined || (cursor !== undefined && pending.current))
+        return;
       if (pending.current !== undefined) {
         const waitingVersion = generation.current;
         await pending.current;
-        if (waitingVersion !== generation.current) return;
+        if (!active.current || waitingVersion !== generation.current) return;
       }
       const version = ++generation.current;
       const prior = current.current;
@@ -73,12 +75,14 @@ export function useHumanActionScope(actions: BridgeActions, botSlug: string | un
   );
   const mount = useMountedResource<HTMLDivElement>(() => {
     if (botSlug === undefined) return;
+    active.current = true;
     void refresh();
     const timer = window.setInterval(() => {
       if (!pending.current && current.current.items.length <= 150) void refresh();
     }, 10_000);
     return () => {
       window.clearInterval(timer);
+      active.current = false;
       generation.current++;
       pending.current = undefined;
     };
