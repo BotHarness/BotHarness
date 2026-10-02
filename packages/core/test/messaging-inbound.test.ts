@@ -1682,3 +1682,293 @@ it.each([
     },
   });
 });
+
+function managedEvent(
+  fx: Awaited<ReturnType<typeof fixture>>,
+  overrides: Partial<MessagingInboundEvent> = {},
+) {
+  const value = fx.query(
+    "SELECT body FROM messaging_grants WHERE id = '" + fx.grant.id + "'",
+  )[0] as { body: string };
+  const after = JSON.parse(value.body).channelBridge.intakeAfter as string;
+  return event({ at: new Date(Date.parse(after) + 1).toISOString(), ...overrides });
+}
+async function addManagedBridge(fx: Awaited<ReturnType<typeof fixture>>, enabled = true) {
+  const result = createBridgeMethods({ ...fx.core }).channelCreate({
+    name: 'Managed Lark',
+    members: ['ada'],
+  });
+  if (!result.ok) throw new Error(result.error.message);
+  const channelId = result.value.channel.id;
+  const grant = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!;
+  await fx.core.externalMessaging.inbound.channelBridge(channelId, {
+    kind: 'add',
+    grantId: grant.id,
+    expectedGrantRevision: grant.revision,
+    name: 'Work intake',
+    enabled,
+    collection: 'mentions',
+  });
+  return channelId;
+}
+async function bridgeRow(fx: Awaited<ReturnType<typeof fixture>>, channelId: string) {
+  return (await fx.core.externalMessaging.channelBridges(channelId)).bridges[0]!;
+}
+it('Channel Bridge pause survives reconnect, retains accepted reply authority and resumes without replay or duplicate consumers', async () => {
+  const fx = await fixture();
+  const channelId = await addManagedBridge(fx);
+  const first = managedEvent(fx);
+  await fx.receive(first);
+  await fx.idle();
+  const sourceId = fx.core.channels.readMessages(channelId)[0]!.id;
+  let row = await bridgeRow(fx, channelId);
+  await fx.core.externalMessaging.inbound.channelBridge(channelId, {
+    kind: 'update',
+    grantId: row.grantId,
+    expectedGrantRevision: row.grantRevision,
+    expectedRevision: row.revision,
+    name: 'Paused intake',
+    enabled: false,
+    collection: 'mentions',
+  });
+  expect(fx.subscriptions).toBe(1);
+  expect((await bridgeRow(fx, channelId)).reception).toBe('off');
+  await fx.receive(
+    managedEvent(fx, {
+      eventId: 'off',
+      messageId: 'off',
+      reply: { ...event().reply, messageId: 'off' },
+    }),
+  );
+  await fx.core.externalMessaging.reply('ada', sourceId, 'Accepted before pause');
+  expect(fx.replies).toHaveLength(1);
+  await fx.restart();
+  expect(fx.subscriptions).toBe(1);
+  await fx.receive(
+    managedEvent(fx, {
+      eventId: 'off-restart',
+      messageId: 'off-restart',
+      reply: { ...event().reply, messageId: 'off-restart' },
+    }),
+  );
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind='bridge-message'")).toHaveLength(
+    1,
+  );
+  row = await bridgeRow(fx, channelId);
+  await fx.core.externalMessaging.inbound.channelBridge(channelId, {
+    kind: 'update',
+    grantId: row.grantId,
+    expectedGrantRevision: row.grantRevision,
+    expectedRevision: row.revision,
+    name: row.name,
+    enabled: true,
+    collection: 'mentions',
+  });
+  await fx.receive(first);
+  await fx.receive(
+    managedEvent(fx, {
+      eventId: 'new',
+      messageId: 'new',
+      reply: { ...event().reply, messageId: 'new' },
+    }),
+  );
+  await fx.idle();
+  expect(fx.subscriptions).toBe(1);
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(2);
+  expect(fx.runs).toHaveLength(2);
+});
+it('deleting a Channel Bridge retains history and Bot identity, removes intake without Inbox fallback and fences old source replies', async () => {
+  const fx = await fixture();
+  const channelId = await addManagedBridge(fx);
+  await fx.receive(managedEvent(fx));
+  await fx.idle();
+  const sourceId = fx.core.channels.readMessages(channelId)[0]!.id;
+  const row = await bridgeRow(fx, channelId);
+  const oldCallback = fx.callback!;
+  await fx.core.externalMessaging.inbound.channelBridge(channelId, {
+    kind: 'delete',
+    grantId: row.grantId,
+    expectedGrantRevision: row.grantRevision,
+    expectedRevision: row.revision,
+  });
+  expect(fx.subscriptions).toBe(0);
+  expect(fx.core.externalMessaging.inbound.read('ada', sourceId).body).toBe(event().text);
+  await expect(fx.core.externalMessaging.reply('ada', sourceId, 'Removed route')).rejects.toThrow(
+    'source-unavailable',
+  );
+  await expect(oldCallback(event(), { signal: new AbortController().signal })).rejects.toThrow();
+  const snapshot = await fx.core.externalMessaging.snapshot('ada');
+  expect(snapshot.identities?.[0]).toMatchObject({ enabled: true, grantCount: 1 });
+  expect(snapshot.grants[0]).not.toHaveProperty('receiveScope');
+  expect(snapshot.grants[0]).not.toHaveProperty('channelBridge');
+  expect(snapshot.grants[0]).not.toHaveProperty('receiveTargetChannelId');
+  expect((await fx.core.externalMessaging.channelBridges(channelId)).sources).toHaveLength(1);
+  await fx.restart();
+  expect(fx.subscriptions).toBe(0);
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+});
+it.each(['pause', 'delete'] as const)(
+  'refuses delayed messages sent during %s after reactivation and restart, while accepting fresh messages',
+  async (mode) => {
+    const fx = await fixture();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2026-10-03T10:00:00.000Z'));
+      const channelId = await addManagedBridge(fx);
+      await fx.receive(managedEvent(fx));
+      await fx.idle();
+      let row = await bridgeRow(fx, channelId);
+      vi.setSystemTime(new Date('2026-10-03T10:00:05.000Z'));
+      const version = {
+        grantId: row.grantId,
+        expectedGrantRevision: row.grantRevision,
+        expectedRevision: row.revision,
+      };
+      await fx.core.externalMessaging.inbound.channelBridge(
+        channelId,
+        mode === 'delete'
+          ? { ...version, kind: 'delete' }
+          : { ...version, kind: 'update', name: row.name, enabled: false, collection: 'mentions' },
+      );
+      const delayed = event({
+        eventId: 'delayed',
+        messageId: 'delayed',
+        at: '2026-10-03T10:00:10.000Z',
+        reply: { ...event().reply, messageId: 'delayed' },
+      });
+      vi.setSystemTime(new Date('2026-10-03T10:00:20.000Z'));
+      if (mode === 'delete') {
+        const grant = (await fx.core.externalMessaging.snapshot('ada')).grants[0]!;
+        await fx.core.externalMessaging.inbound.channelBridge(channelId, {
+          kind: 'add',
+          grantId: grant.id,
+          expectedGrantRevision: grant.revision,
+          name: row.name,
+          enabled: true,
+          collection: 'mentions',
+        });
+      } else {
+        row = await bridgeRow(fx, channelId);
+        await fx.core.externalMessaging.inbound.channelBridge(channelId, {
+          kind: 'update',
+          grantId: row.grantId,
+          expectedGrantRevision: row.grantRevision,
+          expectedRevision: row.revision,
+          name: row.name,
+          enabled: true,
+          collection: 'mentions',
+        });
+      }
+      await fx.restart();
+      await fx.receive(delayed);
+      await fx.idle();
+      expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+      expect(
+        fx.query("SELECT * FROM source_events WHERE source_kind='bridge-message'"),
+      ).toHaveLength(1);
+      expect(fx.subscriptions).toBe(1);
+      await fx.receive(
+        managedEvent(fx, {
+          eventId: 'fresh',
+          messageId: 'fresh',
+          reply: { ...event().reply, messageId: 'fresh' },
+        }),
+      );
+      await fx.idle();
+      expect(fx.core.channels.readMessages(channelId)).toHaveLength(2);
+      expect(
+        fx.query("SELECT * FROM source_events WHERE source_kind='bridge-message'"),
+      ).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
+it('Bridge writes reject stale configuration, DM targets and departed Humans without starting a consumer', async () => {
+  const fx = await fixture();
+  const channelId = await addManagedBridge(fx, false);
+  const row = await bridgeRow(fx, channelId);
+  const update = {
+    kind: 'update' as const,
+    grantId: row.grantId,
+    expectedGrantRevision: row.grantRevision,
+    expectedRevision: row.revision,
+    name: row.name,
+    enabled: false,
+    collection: 'mentions' as const,
+  };
+  await fx.core.externalMessaging.inbound.channelBridge(channelId, update);
+  await expect(fx.core.externalMessaging.inbound.channelBridge(channelId, update)).rejects.toThrow(
+    'bridge-stale',
+  );
+  const dm = fx.core.channels.getOrCreateDm('ada', 'Ada')!;
+  await expect(fx.core.externalMessaging.channelBridges(dm.id)).rejects.toThrow(
+    'channel-unavailable',
+  );
+  attachOperationalModule(fx.core.operationalDatabase, 'test').transaction((db) => {
+    db.prepare(
+      "UPDATE channel_human_members SET left_at = '2026-10-03T00:00:00Z' WHERE channel_id = ?",
+    ).run(channelId);
+  });
+  await expect(fx.core.externalMessaging.channelBridges(channelId)).rejects.toThrow(
+    'channel-unavailable',
+  );
+  await expect(
+    fx.core.externalMessaging.inbound.channelBridge(channelId, {
+      ...update,
+      expectedRevision: row.revision + 1,
+    }),
+  ).rejects.toThrow('channel-unavailable');
+  expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]?.channelBridge?.enabled).toBe(
+    false,
+  );
+});
+it('all-message Bridge intake requires observed ordinary delivery and preserves per-Bot wake policy', async () => {
+  const fx = await fixture();
+  const channelId = await addManagedBridge(fx);
+  let row = await bridgeRow(fx, channelId);
+  const update = () => ({
+    kind: 'update' as const,
+    grantId: row.grantId,
+    expectedGrantRevision: row.grantRevision,
+    expectedRevision: row.revision,
+    name: row.name,
+    enabled: true,
+    collection: 'all' as const,
+  });
+  await expect(
+    fx.core.externalMessaging.inbound.channelBridge(channelId, update()),
+  ).rejects.toThrow('ordinary-delivery-unverified');
+  const ordinary = managedEvent(fx, {
+    mentionedAccount: false,
+    mentions: [],
+    reply: { messageId: 'om-1', conversationId: 'oc-team', actorId: 'ou-human' },
+  });
+  await fx.receive(ordinary);
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(0);
+  await fx.core.externalMessaging.inbound.setPolicy(
+    'ada',
+    fx.grant.id,
+    { collection: 'mentions', wake: 'digest', count: 2, intervalSeconds: 300 },
+    { kind: 'human' },
+  );
+  await fx.core.externalMessaging.inbound.channelBridge(channelId, update());
+  row = await bridgeRow(fx, channelId);
+  expect(row.collection).toBe('all');
+  expect(fx.core.externalMessaging.inbound.policy('ada', fx.grant.id)).toMatchObject({
+    collection: 'all',
+    wake: 'digest',
+    count: 2,
+    intervalSeconds: 300,
+  });
+  await fx.receive({
+    ...ordinary,
+    eventId: 'ordinary-new',
+    messageId: 'ordinary-new',
+    reply: { ...ordinary.reply, messageId: 'ordinary-new' },
+  });
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+  await fx.idle();
+  expect(fx.runs).toHaveLength(0);
+});

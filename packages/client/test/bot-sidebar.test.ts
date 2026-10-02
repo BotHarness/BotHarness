@@ -108,6 +108,8 @@ function stubActions(): BridgeActions {
     overviewUsage: vi.fn(async () => {
       throw new Error('unexpected Overview usage');
     }),
+    channelBridges: vi.fn(async (channelId) => ({ channelId, bridges: [], sources: [] })),
+    channelBridge: vi.fn(async () => undefined),
     messagingChannelTarget: async () => undefined,
     messagingThreadPolicy: async () => undefined,
     messagingGroupPolicy: async () => undefined,

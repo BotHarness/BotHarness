@@ -221,7 +221,7 @@ describe('PersonaBot Profile surface', () => {
       expect(sections[0]?.getAttribute('aria-label')).toBe('活动概览');
       expect(sections[1]?.getAttribute('aria-label')).toBe('模型预设');
       expect(sections[2]?.getAttribute('aria-label')).toBe('外部身份');
-      expect(sections[3]?.getAttribute('aria-label')).toBe('Channel Bridge 与授权');
+      expect(sections[3]?.getAttribute('aria-label')).toBe('频道连接器与授权');
       expect(sections[4]?.getAttribute('aria-label')).toBe('提醒策略');
       expect(sections[1]?.querySelector('summary')?.textContent).toContain('节省成本');
       expect(sections[1]?.querySelector('summary')?.textContent).toContain('修订 3');
