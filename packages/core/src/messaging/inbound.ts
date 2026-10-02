@@ -24,7 +24,7 @@ import type { ChannelMessageCommit } from '../channels/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
-import type { BotSourcePolicyStore } from '../runtime/source-policy.js';
+import { defaultGroupWakePolicy, type BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { MessagingGrant } from './outbound.js';
 import {
   MessagingError,
@@ -434,6 +434,46 @@ export function createInboundMessaging(options: {
               const source = (JSON.parse(row.payload_json) as { external: ExternalSource })
                 .external;
               placement = placeBridgeSource(db, { ...source, body: event.text }, value.botSlug);
+              if (!event.mentionedAccount && source.localChannelId && placement) {
+                const channel = bridgeChannel(db, source.localChannelId, value.botSlug);
+                for (const botSlug of channel.members) {
+                  if (!options.isBotActive(botSlug)) continue;
+                  const rule = options.sourcePolicy.resolveIn(db, botSlug, 'group-ordinary');
+                  const policy = channel.wakePolicies?.[botSlug] ?? defaultGroupWakePolicy(rule);
+                  const followed =
+                    botSlug === value.botSlug && thread?.mode === 'follow'
+                      ? thread.wake
+                      : undefined;
+                  const mode = followed
+                    ? followed.wake === 'immediate'
+                      ? 'all'
+                      : followed.wake
+                    : policy.mode;
+                  db.prepare(`INSERT OR IGNORE INTO inbox_admissions
+                    (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
+                     wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision)
+                    VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?, ?, ?, ?)`).run(
+                    id,
+                    botSlug,
+                    rule.revision,
+                    rule.wake,
+                    policy.revision,
+                    mode,
+                    mode === 'all'
+                      ? 1
+                      : mode === 'digest'
+                        ? (followed?.count ?? policy.count)
+                        : null,
+                    mode === 'all'
+                      ? 0
+                      : mode === 'digest'
+                        ? (followed?.intervalSeconds ?? policy.intervalSeconds) * 1000
+                        : null,
+                    followed ? (thread?.revision ?? null) : null,
+                  );
+                }
+              }
+              if (!event.mentionedAccount && source.localChannelId) return id;
               const reason = event.mentionedAccount ? 'group-mention' : 'group-ordinary';
               const policy = options.sourcePolicy.resolveIn(db, value.botSlug, reason);
               const wake = event.mentionedAccount ? policy.wake : ordinary.wake;
@@ -539,8 +579,8 @@ export function createInboundMessaging(options: {
       db
         .prepare(`SELECT e.payload_json, e.body FROM source_events e
       JOIN inbox_admissions a USING(source_event_id)
-      WHERE e.source_event_id = ? AND a.bot_slug = ? AND e.source_kind = 'bridge-message'`)
-        .get(id, botSlug),
+      WHERE e.source_event_id = ? AND a.bot_slug = ? AND e.bot_slug = ? AND e.source_kind = 'bridge-message'`)
+        .get(id, botSlug, botSlug),
     ) as { payload_json: string; body: string } | undefined;
     if (!row) throw new MessagingError('source-unavailable');
     const retained = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;

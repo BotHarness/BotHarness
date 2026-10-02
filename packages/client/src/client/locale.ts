@@ -3,6 +3,17 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
+  'groupWake.title': '成员消息提醒',
+  'groupWake.summary': '各成员独立决定何时处理消息。外部收件条件在「频道连接器」中管理。',
+  'groupWake.editAction': '编辑',
+  'groupWake.bot': 'Bot',
+  'groupWake.policy': '处理方式',
+  'groupWake.origin': '设置来源',
+  'groupWake.default': 'Bot 默认',
+  'groupWake.custom': '频道自定义',
+  'groupWake.threshold': '{count} 条或 {seconds} 秒',
+  'groupWake.edit': '编辑 {bot} 的消息提醒',
+
   'overviewMemory.title': 'Memory 活动',
   'overviewMemory.refresh': '刷新 Memory 活动',
   'overviewMemory.loading': '正在读取 Memory 活动…',
@@ -1120,6 +1131,18 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
+  'groupWake.title': 'Member attention',
+  'groupWake.summary':
+    'Each member decides when to process messages. Manage external intake separately in Channel Bridges.',
+  'groupWake.editAction': 'Edit',
+  'groupWake.bot': 'Bot',
+  'groupWake.policy': 'Processing',
+  'groupWake.origin': 'Setting source',
+  'groupWake.default': 'Bot default',
+  'groupWake.custom': 'Channel override',
+  'groupWake.threshold': '{count} messages or {seconds} seconds',
+  'groupWake.edit': 'Edit attention for {bot}',
+
   'overviewMemory.title': 'Memory activity',
   'overviewMemory.refresh': 'Refresh Memory activity',
   'overviewMemory.loading': 'Loading Memory activity…',

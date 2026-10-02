@@ -116,6 +116,7 @@ describe('bridge typert service', () => {
       'channelGroupMemberRemove',
       'channelGroupJoinDecide',
       'channelGroupWakeSet',
+      'channelGroupWakePolicies',
       'channelGroupDelete',
       'channelMessages',
       'channelTimeline',

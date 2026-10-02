@@ -1,4 +1,5 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
 import type {
   ChannelBridgeInput,
   ChannelBridgeSnapshot,
@@ -1357,6 +1358,28 @@ export async function removeGroupMember(
   const channel = parseChannelRecord(value?.['channel']);
   if (channel === undefined) throw new Error('invalid channelGroupMemberRemove response');
   return channel;
+}
+
+export async function loadGroupWakePolicies(
+  call: BridgeCall,
+  channelId: string,
+): Promise<GroupMemberWakePolicy[]> {
+  const value = asRecord(await unwrap(call, 'channelGroupWakePolicies', { channelId }));
+  const members = value?.['members'];
+  if (
+    !Array.isArray(members) ||
+    members.some(
+      (row) =>
+        typeof row.botSlug !== 'string' ||
+        typeof row.inherited !== 'boolean' ||
+        !row.policy ||
+        !['all', 'mentions', 'digest', 'silent'].includes(row.policy.mode) ||
+        !Number.isSafeInteger(row.policy.count) ||
+        !Number.isSafeInteger(row.policy.intervalSeconds),
+    )
+  )
+    throw new Error('invalid channelGroupWakePolicies response');
+  return members;
 }
 
 export async function setGroupWakePolicy(

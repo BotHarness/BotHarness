@@ -20,6 +20,12 @@ export interface GroupWakePolicyView extends GroupWakePolicy {
   changedAt: string | null;
 }
 
+export interface GroupMemberWakePolicy {
+  botSlug: string;
+  inherited: boolean;
+  policy: GroupWakePolicyView;
+}
+
 export const DEFAULT_GROUP_WAKE_POLICY: GroupWakePolicy = {
   mode: 'digest',
   count: 5,
