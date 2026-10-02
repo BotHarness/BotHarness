@@ -1648,3 +1648,34 @@ it('counts followed Thread digests independently and never lets another Thread r
     ),
   ).toEqual([{ attempt_state: 'pending' }]);
 });
+
+it('counts a bridged Channel Source Event once under its projected sender', async () => {
+  const fx = await fixture();
+  const channelId = await sharedTarget(fx);
+  await fx.enable();
+  const inbound = event({
+    at: new Date().toISOString(),
+    actor: { kind: 'user', id: 'ou-human', name: 'Alex' },
+  });
+  await fx.receive(inbound);
+  await fx.receive(inbound);
+  await fx.idle();
+  expect(createBridgeMethods({ ...fx.core }).channelActivityToday({})).toMatchObject({
+    ok: true,
+    value: {
+      total: 1,
+      channels: expect.arrayContaining([
+        {
+          channelId,
+          name: 'Shared Lark work',
+          type: 'group',
+          total: 1,
+          human: 0,
+          bot: 0,
+          other: 1,
+          senders: [{ author: { kind: 'bridged', source: 'Alex' }, displayName: 'Alex', count: 1 }],
+        },
+      ]),
+    },
+  });
+});

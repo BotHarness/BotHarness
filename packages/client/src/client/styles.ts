@@ -5279,4 +5279,31 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-human-inbox-dismiss { display: flex; align-items: center; gap: 6px; }
 @media (hover: none) { .bh-human-inbox-message-source { opacity: 1; pointer-events: auto; } }
 
+
+.bh-channel-activity {margin-top:24px;color:var(--bh-overview-label);font-size:var(--bh-overview-font);}
+.bh-channel-activity header {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.bh-channel-activity h2 {font-size:var(--bh-overview-font);margin:0;font-weight:600;}
+.bh-channel-activity p {margin:8px 0;color:var(--bh-overview-muted);}
+.bh-channel-activity ul {list-style:none;margin:0;padding:0;}
+.bh-channel-activity > ul > li {border-bottom:1px solid var(--bh-overview-border);}
+.bh-channel-activity-legend {display:flex;gap:16px;margin:12px 0;color:var(--bh-overview-muted);}
+.bh-channel-activity-legend span {display:flex;align-items:center;gap:6px;}
+.bh-channel-activity-legend i {width:8px;height:8px;border-radius:var(--bh-overview-radius-control);}
+.bh-channel-activity-human {background:var(--bh-accent);}
+.bh-channel-activity-bot {background:var(--bh-chart-output);}
+.bh-channel-activity-other {background:var(--bh-overview-subtle);}
+.bh-channel-activity-row {display:flex;align-items:center;gap:8px;padding:8px 0;}
+.bh-channel-activity-toggle {border:0;border-radius:var(--bh-overview-radius-control);background:transparent;display:flex;align-items:center;gap:12px;min-width:0;flex:1;min-height:40px;padding:8px;text-align:left;font:inherit;color:inherit;cursor:pointer;}
+.bh-channel-activity-toggle:hover {background:var(--bh-hover);}
+.bh-channel-activity-name {width:160px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bh-channel-activity-chart {display:flex;flex:1;min-width:24px;height:12px;overflow:hidden;border-radius:var(--bh-overview-radius-control);}
+.bh-channel-activity-chart i {height:100%;}
+.bh-channel-activity strong {font-variant-numeric:tabular-nums;}
+.bh-channel-activity-toggle strong {min-width:36px;text-align:right;}
+.bh-channel-activity-closed {transform:rotate(-90deg);}
+.bh-channel-activity-senders {padding:0 16px 12px 36px;}
+.bh-channel-activity-senders li {display:flex;align-items:center;gap:12px;padding:6px 0;}
+.bh-channel-activity-senders li > span:first-child {min-width:0;flex:1;overflow-wrap:anywhere;}
+.bh-channel-activity-kind {color:var(--bh-overview-muted);}
+@media(max-width:720px){.bh-channel-activity-name{width:100px}.bh-channel-activity-toggle{gap:6px}}
 `;

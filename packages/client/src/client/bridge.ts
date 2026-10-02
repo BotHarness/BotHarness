@@ -1,3 +1,5 @@
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
@@ -2962,4 +2964,69 @@ export async function loadActivityOverview(call: BridgeCall): Promise<ActivityOv
     } as unknown as ActivityOverview['bots'][number];
   });
   return { actionCount: row['actionCount'] as number, bots };
+}
+
+export async function loadChannelActivityToday(call: BridgeCall): Promise<ChannelActivityToday> {
+  const data = asRecord(await unwrap(call, 'channelActivityToday', {}));
+  const count = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+  if (
+    !data ||
+    !count(data['total']) ||
+    !Array.isArray(data['channels']) ||
+    typeof data['day'] !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/u.test(data['day']) ||
+    typeof data['timezone'] !== 'string' ||
+    typeof data['from'] !== 'string' ||
+    typeof data['to'] !== 'string' ||
+    !Number.isFinite(Date.parse(data['from'])) ||
+    !(Date.parse(data['to']) > Date.parse(data['from']))
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid Channel activity');
+  const ids = new Set<string>();
+  for (const raw of data['channels']) {
+    const row = asRecord(raw);
+    if (
+      !row ||
+      typeof row['channelId'] !== 'string' ||
+      !row['channelId'] ||
+      ids.has(row['channelId']) ||
+      typeof row['name'] !== 'string' ||
+      !['dm', 'group'].includes(String(row['type'])) ||
+      !count(row['total']) ||
+      !count(row['human']) ||
+      !count(row['bot']) ||
+      !count(row['other']) ||
+      row['total'] !== row['human'] + row['bot'] + row['other'] ||
+      !Array.isArray(row['senders'])
+    )
+      throw new BridgeCallError('invalid-response', 'Invalid Channel activity');
+    ids.add(row['channelId']);
+    const sums = { human: 0, bot: 0, other: 0 };
+    for (const rawSender of row['senders']) {
+      const sender = asRecord(rawSender);
+      const author = asRecord(sender?.['author']);
+      if (
+        !sender ||
+        !author ||
+        !count(sender['count']) ||
+        typeof sender['displayName'] !== 'string' ||
+        !['human', 'bot', 'system', 'bridged'].includes(String(author['kind'])) ||
+        (author['kind'] === 'bot' && (typeof author['slug'] !== 'string' || !author['slug'])) ||
+        (author['kind'] === 'bridged' &&
+          (typeof author['source'] !== 'string' || !author['source']))
+      )
+        throw new BridgeCallError('invalid-response', 'Invalid Channel activity');
+      sums[author['kind'] === 'human' ? 'human' : author['kind'] === 'bot' ? 'bot' : 'other'] +=
+        sender['count'];
+    }
+    if (sums.human !== row['human'] || sums.bot !== row['bot'] || sums.other !== row['other'])
+      throw new BridgeCallError('invalid-response', 'Invalid Channel activity');
+  }
+  if (
+    data['channels'].reduce((sum: number, row: { total: number }) => sum + row.total, 0) !==
+    data['total']
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid Channel activity');
+  return data as unknown as ChannelActivityToday;
 }
