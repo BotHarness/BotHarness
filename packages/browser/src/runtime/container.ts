@@ -151,10 +151,13 @@ export function createContainerBrowserExecution(
 
   const launch = async (): Promise<{ endpoint: string; binary: string }> => {
     const started = Date.now();
+    let phase = 'docker';
     event('initiator=browser phase=start target=container');
     try {
       await run(['info', '--format', '{{.ServerVersion}}']);
+      phase = 'owner-check';
       await stopOwned();
+      phase = 'volume';
       await run(['volume', 'create', '--label', `${OWNER_LABEL}=${identity}`, name]);
       const volumeOwner = await run([
         'volume',
@@ -166,6 +169,7 @@ export function createContainerBrowserExecution(
       if (volumeOwner !== identity)
         throw new Error('Container Browser volume belongs to another owner');
       await mkdir(options.profileDirectory, { recursive: true });
+      phase = 'profile-recovery';
       await run([
         'run',
         '--rm',
@@ -190,7 +194,9 @@ export function createContainerBrowserExecution(
         '-c',
         'rm -f /config/bot-browser/SingletonLock /config/bot-browser/SingletonCookie /config/bot-browser/SingletonSocket',
       ]);
+      phase = 'launch';
       await run(containerBrowserArgs(identity));
+      phase = 'readiness';
       let endpoint: string | undefined;
       const deadline = Date.now() + 90_000;
       while (Date.now() < deadline && !stopping) {
@@ -215,6 +221,7 @@ export function createContainerBrowserExecution(
       }
       if (endpoint === undefined || stopping)
         throw new Error('Container Bot Browser did not become ready');
+      phase = 'cdp-relay';
       server = createServer((socket) => {
         sockets.add(socket);
         const relay = spawn('docker', ['exec', '-i', name, 'python3', '-u', '-c', RELAY], {
@@ -249,6 +256,7 @@ export function createContainerBrowserExecution(
         throw new Error('Container CDP endpoint is not loopback');
       ws.hostname = '127.0.0.1';
       ws.port = String(address.port);
+      phase = 'viewer';
       const port = await run(['port', name, '3000/tcp']);
       const match = /^127\.0\.0\.1:(\d+)$/u.exec(port);
       if (match === null) throw new Error('Container viewer is not bound exclusively to loopback');
@@ -260,7 +268,9 @@ export function createContainerBrowserExecution(
     } catch (error) {
       await closeRelay();
       await stopOwned().catch(() => undefined);
-      event(`initiator=browser phase=refused target=container durationMs=${Date.now() - started}`);
+      event(
+        `initiator=browser phase=refused target=container reason=${phase}-failed durationMs=${Date.now() - started}`,
+      );
       throw new Error(
         `Container Bot Browser startup failed: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -298,8 +308,10 @@ export function createContainerBrowserExecution(
       const dir = `/tmp/botharness-upload-${randomUUID()}`;
       const dest = `${dir}/${basename(path)}`;
       try {
-        await run(['exec', name, 'mkdir', '-p', dir]);
-        await run(['cp', path, `${name}:${dest}`]);
+        await run(['exec', '--user', 'abc', name, 'mkdir', '-m', '700', '-p', dir]);
+        await run(['cp', '-L', path, `${name}:${dest}`]);
+        await run(['exec', name, 'chown', 'abc:abc', dest]);
+        await run(['exec', name, 'chmod', '400', dest]);
       } catch (error) {
         uploadBytes -= info.size;
         await run(['exec', name, 'rm', '-rf', dir]).catch(() => undefined);

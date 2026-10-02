@@ -1406,3 +1406,46 @@ describe('runtime lifecycle', () => {
     );
   });
 });
+
+describe('Container upload execution paths', () => {
+  it('validates the Host source once and sends the transferred path to CDP', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'browser-container-upload-'));
+    const file = join(directory, 'synthetic.txt');
+    writeFileSync(file, 'synthetic upload');
+    const remote = '/tmp/botharness-container-only/synthetic.txt';
+    const base = fakeClient();
+    const dispose = vi.fn(async () => undefined);
+    const prepareUpload = vi.fn(async () => ({ path: remote, dispose }));
+    const setFiles = vi.fn();
+    const runtime = createBotBrowserRuntime({
+      userDataDir: directory,
+      execution: {
+        start: async () => ({ endpoint: 'ws://fixture', binary: 'container' }),
+        isRunning: () => true,
+        stop: async () => undefined,
+        prepareUpload,
+      },
+      connect: async () => ({
+        ...base,
+        send: async (method, params, sessionId) => {
+          if (method === 'DOM.setFileInputFiles') setFiles(params);
+          return base.send(method, params, sessionId);
+        },
+      }),
+    });
+    try {
+      await runtime.ensure();
+      await runtime.uploadFile('tab-1', { path: file });
+      expect(prepareUpload).toHaveBeenCalledExactlyOnceWith(file);
+      expect(setFiles).toHaveBeenCalledWith({ files: [remote], nodeId: 7 });
+      expect(dispose).toHaveBeenCalledOnce();
+      await expect(
+        runtime.uploadFile('tab-1', { path: join(directory, 'missing') }),
+      ).rejects.toThrow('does not exist on the Host');
+      expect(prepareUpload).toHaveBeenCalledOnce();
+    } finally {
+      await runtime.stop();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});

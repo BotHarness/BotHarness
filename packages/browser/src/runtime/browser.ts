@@ -812,9 +812,6 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   ): Promise<void> => {
     const live = client;
     if (live === undefined) throw new Error('The Bot Browser is not running');
-    if (!existsSync(options.path)) {
-      throw new Error(`The file does not exist on the Host: ${options.path}`);
-    }
     const sessionId = await attach(tabId);
     const documentRoot = async (): Promise<number> => {
       const document = await live.send('DOM.getDocument', {}, sessionId);
@@ -1089,6 +1086,8 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     pressKey,
     scroll,
     async uploadFile(tabId, upload) {
+      if (!existsSync(upload.path))
+        throw new Error(`The file does not exist on the Host: ${upload.path}`);
       const transferred = await options.execution?.prepareUpload?.(upload.path);
       try {
         await uploadFile(
