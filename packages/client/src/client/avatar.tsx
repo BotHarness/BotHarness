@@ -114,6 +114,7 @@ export function personaBotActivitySummary(
   return [
     label,
     activity.toolName,
+    activity.publicDetail,
     personaBotActivitySources(activity, t),
     activity.activeToolCount > 1
       ? t('activity.toolCount', { count: activity.activeToolCount })

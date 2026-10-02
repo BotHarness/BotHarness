@@ -1,0 +1,136 @@
+{
+  "bot": {
+    "slug": "bot-b3d91c528d1e4a369034491bcc50d21e",
+    "displayName": "Public tool detail QA light"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "orchestrator",
+  "colorScheme": "light",
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 6,
+      "slug": "bot-b3d91c528d1e4a369034491bcc50d21e",
+      "state": "idle"
+    },
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 7,
+      "slug": "bot-b3d91c528d1e4a369034491bcc50d21e",
+      "state": "thinking"
+    },
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 8,
+      "slug": "bot-b3d91c528d1e4a369034491bcc50d21e",
+      "state": "working",
+      "activity": {
+        "effect": "generic-working",
+        "toolKind": "other",
+        "toolName": "browser_tabs",
+        "publicDetail": "Opening a new browser tab",
+        "startedAt": 1790935531698,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "generic-working",
+        "label": "Public tool detail QA light：正在工作 · browser_tabs · Opening a new browser tab · 主会话"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "generic-working",
+        "label": "Public tool detail QA light：正在工作 · browser_tabs · Opening a new browser tab · 主会话"
+      }
+    ],
+    "summary": "Public tool detail QA light 正在工作 · browser_tabs · Opening a new browser tab · 主会话"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790935531698,
+      "name": "browser_tabs"
+    }
+  ],
+  "railFocusSummary": "Public tool detail QA light · 正在工作 · browser_tabs · Opening a new browser tab · 主会话",
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "generic-working"
+    },
+    {
+      "layout": "rail",
+      "effect": "generic-working"
+    }
+  ],
+  "disclosure": {
+    "open": false,
+    "headerBackground": "rgba(0, 0, 0, 0)",
+    "bodyHeight": 0
+  },
+  "expandedPanel": {
+    "width": 600,
+    "parentWidth": 872,
+    "leftInset": 42,
+    "radius": "20px",
+    "background": "rgb(245, 246, 247)"
+  },
+  "sourceRows": [
+    {
+      "height": 40,
+      "width": 576,
+      "parentWidth": 576,
+      "clientWidth": 574,
+      "scrollWidth": 574,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(255, 255, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0.1)",
+      "fits": true,
+      "icon": "主会话",
+      "count": "1 个会话"
+    }
+  ],
+  "narrowSourceRows": [
+    {
+      "height": 40,
+      "width": 260,
+      "parentWidth": 260,
+      "clientWidth": 258,
+      "scrollWidth": 258,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(255, 255, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0.1)",
+      "fits": true,
+      "icon": "主会话",
+      "count": "1 个会话"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": true,
+  "actualNativeShellApproval": false,
+  "actualBrowserToolApproval": true,
+  "publicDetail": "Opening a new browser tab",
+  "toolName": "browser_tabs",
+  "verdict": "PASS"
+}

@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Browser tab Activity can show the Provider-declared operation in shared sidebar/composer summaries; only bounded public text is admitted, conflicting concurrent detail is omitted, and raw URLs, titles and tool payloads remain excluded ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
+
 - Active tool summaries now identify trusted Orchestrator, Assignment and DSH Subagent sources, count working Sessions separately from concurrent tools, clear finished sources through the same revisioned Host projection, and use compact role rows aligned with Overview ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 - Added macOS Local Computer with a shared Profile target selector, explicit desktop permission checks and per-Bot authorization; fresh installations use the host desktop while legacy Docker configurations keep their target ([#694](https://github.com/BotHarness/BotHarness/issues/694)).
 - Overview shows today’s Human-accessible Channel message totals with Human/Bot/other segments, current sender names and expandable details; day/timezone and read-only Channel navigation remain explicit ([#703](https://github.com/BotHarness/BotHarness/issues/703)).

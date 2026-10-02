@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { aggregateToolActivity, type PersonaBotToolActivity } from './tool-activity.js';
+import {
+  aggregateToolActivity,
+  isPublicToolDetail,
+  type PersonaBotToolActivity,
+} from './tool-activity.js';
 
 export type SessionState = 'thinking' | 'working' | 'waiting' | 'blocked' | 'done';
 
@@ -140,6 +144,9 @@ export function createBotStateTracker(): BotStateTracker {
           effect: nextActivity.effect,
           toolKind: nextActivity.toolKind,
           ...(nextActivity.toolName === undefined ? {} : { toolName: nextActivity.toolName }),
+          ...(isPublicToolDetail(nextActivity.publicDetail)
+            ? { publicDetail: nextActivity.publicDetail }
+            : {}),
           startedAt: nextActivity.startedAt,
           activeToolCount: nextActivity.activeToolCount,
           ...(nextActivity.sources === undefined

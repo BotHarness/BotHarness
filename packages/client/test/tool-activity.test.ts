@@ -139,3 +139,48 @@ describe('revisioned safe tool presentation', () => {
     expect(personaBotActivitySummary('idle', activity, zhTranslate)).toBe('空闲');
   });
 });
+
+describe('Provider-declared public detail presentation', () => {
+  it('retains only bounded public text and uses the shared avatar/sidebar summary', () => {
+    const detail = {
+      ...activity,
+      publicDetail: '<b>Opening a browser tab</b>',
+      arguments: 'private',
+    };
+    const snapshot = parseActivitySnapshot(
+      JSON.stringify({
+        generation: 'host',
+        revision: 1,
+        bots: [{ slug: 'ada', state: 'working', activity: detail }],
+      }),
+    );
+    const projected = snapshot?.bots[0]?.activity;
+    expect(projected).toEqual({ ...activity, publicDetail: detail.publicDetail });
+    expect(personaBotActivitySummary('working', projected)).toContain(detail.publicDetail);
+    const markup = renderToStaticMarkup(
+      createElement(PersonaBotAvatar, {
+        personaBotId: 'ada',
+        name: 'Ada',
+        size: 28,
+        state: 'working',
+        activity: projected,
+      }),
+    );
+    expect(markup).toContain('&lt;b&gt;Opening a browser tab&lt;/b&gt;');
+    expect(markup).not.toContain('private');
+  });
+  it.each(['', 'x'.repeat(161), 'line\nbreak', '\u202Ehidden', { secret: 'private' }])(
+    'rejects invalid transported public detail %j',
+    (publicDetail) => {
+      expect(
+        parseActivitySnapshot(
+          JSON.stringify({
+            generation: 'host',
+            revision: 1,
+            bots: [{ slug: 'ada', state: 'working', activity: { ...activity, publicDetail } }],
+          }),
+        ),
+      ).toBeUndefined();
+    },
+  );
+});

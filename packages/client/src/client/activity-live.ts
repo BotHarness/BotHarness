@@ -1,3 +1,4 @@
+import { isPublicToolDetail } from '../../../core/src/state/tool-activity.js';
 import { PERSONA_BOT_ACTIVITY_STATES } from './avatar.js';
 import type { ClientStore, PersonaBotActivitySnapshot } from './store.js';
 
@@ -45,6 +46,7 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
           'generic-working',
         ].find((value) => value === row['effect']);
         if (
+          (row['publicDetail'] !== undefined && !isPublicToolDetail(row['publicDetail'])) ||
           kind === undefined ||
           effect === undefined ||
           typeof row['startedAt'] !== 'number' ||
@@ -92,6 +94,9 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
           startedAt: row['startedAt'],
           activeToolCount: row['activeToolCount'],
           ...(row['toolName'] === undefined ? {} : { toolName: row['toolName'] as string }),
+          ...(row['publicDetail'] === undefined
+            ? {}
+            : { publicDetail: row['publicDetail'] as string }),
           ...(sources === undefined ? {} : { sources }),
         };
       }
