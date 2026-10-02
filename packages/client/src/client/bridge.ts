@@ -1,3 +1,7 @@
+import type {
+  MessagingIdentity,
+  MessagingIdentityInput,
+} from '../../../core/src/messaging/identity.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
@@ -2699,6 +2703,22 @@ export async function repairMemory(
   return repair as unknown as MemoryRepairEvent;
 }
 
+export async function manageMessagingIdentity(
+  call: BridgeCall,
+  slug: string,
+  input: MessagingIdentityInput,
+): Promise<MessagingIdentity> {
+  const record = asRecord(await unwrap(call, 'messagingIdentity', { slug, input }));
+  const identity = asRecord(record?.['identity']);
+  if (
+    !identity ||
+    typeof identity['id'] !== 'string' ||
+    typeof identity['revision'] !== 'number' ||
+    typeof identity['enabled'] !== 'boolean'
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid identity result');
+  return identity as unknown as MessagingIdentity;
+}
 export async function loadMessagingSnapshot(
   call: BridgeCall,
   slug: string,

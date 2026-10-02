@@ -248,6 +248,7 @@ describe('plugin entry', () => {
       'messagingGroupPolicy',
       'messagingThreadPolicy',
       'messagingSource',
+      'messagingIdentity',
       'messagingSnapshot',
       'messagingTargets',
       'messagingAuthorize',

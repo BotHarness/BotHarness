@@ -1,3 +1,7 @@
+import type {
+  MessagingIdentity,
+  MessagingIdentityInput,
+} from '../../../core/src/messaging/identity.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { HumanAttentionPage } from './store.js';
@@ -18,6 +22,7 @@ import type {
 import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import {
   loadMessagingSnapshot,
+  manageMessagingIdentity,
   loadMessagingTargets,
   authorizeMessaging,
   revokeMessaging,
@@ -196,6 +201,7 @@ export interface BridgeActions {
   messagingGroupPolicy(slug: string, grantId: string, policy: GroupReceptionInput): Promise<void>;
   messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<void>;
   messagingSource(slug: string, sourceEventId: string): Promise<ExternalSource>;
+  messagingIdentity(slug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
@@ -1617,6 +1623,7 @@ export function createActions(
       setMessagingGroupPolicy(call, slug, grantId, policy),
     messagingReceive: (slug, grantId, enabled) => setMessagingReceive(call, slug, grantId, enabled),
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
+    messagingIdentity: (slug, input) => manageMessagingIdentity(call, slug, input),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
     messagingTargets: (providerId, accountRef) =>
       loadMessagingTargets(call, providerId, accountRef),

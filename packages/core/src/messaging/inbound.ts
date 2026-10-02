@@ -106,12 +106,14 @@ export interface InboundMessaging {
     query: ExternalContextQuery,
     signal?: AbortSignal,
   ): Promise<ExternalContextResult>;
+  reconcileBinding(bindingId: string): Promise<void>;
   revoke(grantId: string): void;
   close(): void;
 }
 
 export function createInboundMessaging(options: {
   database: OperationalDatabaseModulePort;
+  bindingAvailable?(id: string): boolean;
   sourcePolicy: BotSourcePolicyStore;
   isBotActive(slug: string): boolean;
   onAdmitted(botSlug: string, sourceEventId: string): void;
@@ -259,6 +261,7 @@ export function createInboundMessaging(options: {
     const lease = leases.get(value.id);
     return (
       !closed &&
+      (options.bindingAvailable?.(value.bindingId) ?? true) &&
       targetAvailable(value) &&
       options.isBotActive(value.botSlug) &&
       value.revokedAt === undefined &&
@@ -292,6 +295,7 @@ export function createInboundMessaging(options: {
     const entry = providers.get(value.providerId);
     if (
       closed ||
+      options.bindingAvailable?.(value.bindingId) === false ||
       !entry?.provider.consume ||
       !entry.provider.reply ||
       !value.receiveScope ||
@@ -334,6 +338,7 @@ export function createInboundMessaging(options: {
             latest.revision !== value.revision ||
             latest.revokedAt ||
             latest.suspendedReason ||
+            options.bindingAvailable?.(latest.bindingId) === false ||
             !options.isBotActive(value.botSlug)
           )
             throw new MessagingError('consumer-unavailable');
@@ -590,6 +595,7 @@ export function createInboundMessaging(options: {
             latest.revision !== value.revision ||
             latest.revokedAt ||
             latest.suspendedReason ||
+            options.bindingAvailable?.(latest.bindingId) === false ||
             !options.isBotActive(botSlug)
           )
             throw new MessagingError('grant-unavailable');
@@ -1062,6 +1068,14 @@ export function createInboundMessaging(options: {
         }
         throw error;
       }
+    },
+    async reconcileBinding(bindingId) {
+      const rows = database.read((db) =>
+        db.prepare('SELECT body FROM messaging_grants WHERE binding_id = ?').all(bindingId),
+      ) as { body: string }[];
+      const values = rows.map((r) => JSON.parse(r.body) as MessagingGrant);
+      for (const value of values) stop(value.id);
+      await Promise.all(values.filter((v) => !v.revokedAt).map((value) => start(value)));
     },
     revoke: stop,
     close() {

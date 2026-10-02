@@ -9,6 +9,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: (props: ButtonHTMLAttributes<HTMLButtonElement>) => createElement('button', props),
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
   IconChevronRightOutlineRegular: () => null,
+  Switch: () => null,
   Modal: ({ open, children }: PropsWithChildren<{ open: boolean }>) =>
     open ? createElement('div', { role: 'dialog' }, children) : null,
 }));
@@ -70,6 +71,7 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     | 'messagingThreadPolicy'
     | 'messagingReceive'
     | 'messagingChannelTarget'
+    | 'messagingIdentity'
     | 'messagingSnapshot'
     | 'messagingTargets'
     | 'messagingAuthorize'
@@ -80,6 +82,7 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     messagingGroupPolicy: async () => undefined,
     messagingChannelTarget: async () => undefined,
     messagingReceive: async () => undefined,
+    messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
     messagingTargets: async () => [target],
     messagingAuthorize,
@@ -215,6 +218,7 @@ it('changes group intake only after the Human toggles it and can stop it when th
     messagingChannelTarget,
     messagingReceive,
     messagingSend,
+    messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
     messagingTargets: async () => [],
     messagingAuthorize: async () => grant,
@@ -308,6 +312,7 @@ it('gates full collection on live ordinary delivery and saves collection indepen
     messagingThreadPolicy: async () => undefined,
     messagingReceive: async () => undefined,
     messagingChannelTarget: async () => undefined,
+    messagingIdentity: vi.fn(),
     messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
       accounts: [],
       intents: [],

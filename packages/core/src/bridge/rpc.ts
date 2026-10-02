@@ -1,3 +1,4 @@
+import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import type { HumanAssignmentContext } from '../runtime/assignment-human-context.js';
 import type { ThreadReceptionInput } from '../messaging/thread-policy.js';
@@ -149,6 +150,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
   messagingSource(slug: string, sourceEventId: string): Promise<{ source: ExternalSource }> {
     return unwrapAsync(this.methods.messagingSource({ slug, sourceEventId }));
+  }
+  messagingIdentity(
+    slug: string,
+    input: MessagingIdentityInput,
+  ): Promise<{ identity: MessagingIdentity }> {
+    return unwrapAsync(this.methods.messagingIdentity({ slug, input }));
   }
   messagingSnapshot(slug: string): Promise<MessagingSnapshot> {
     return unwrapAsync(this.methods.messagingSnapshot({ slug }));
@@ -785,6 +792,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingGroupPolicy',
   'messagingThreadPolicy',
   'messagingSource',
+  'messagingIdentity',
   'messagingSnapshot',
   'messagingTargets',
   'messagingAuthorize',

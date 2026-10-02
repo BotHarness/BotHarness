@@ -1,4 +1,5 @@
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
+import type { MessagingIdentity } from '../messaging/identity.js';
 import {
   aggregateSessionStates,
   personaBotActivitySnapshot,
@@ -244,6 +245,7 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  messagingIdentity(payload: unknown): Promise<BridgeResult<{ identity: MessagingIdentity }>>;
   messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingThreadPolicy(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingGroupPolicy(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
@@ -825,6 +827,52 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (!input.success) return Promise.resolve(invalidInput('Invalid external source'));
       return messagingCall(async (service) => ({
         source: service.inbound.read(input.data.slug, input.data.sourceEventId),
+      }));
+    },
+    messagingIdentity(payload) {
+      const input = z
+        .object({
+          slug: z.string().min(1),
+          input: z.discriminatedUnion('kind', [
+            z
+              .object({
+                kind: z.literal('bind'),
+                providerId: z.string().min(1).max(128),
+                accountRef: z.string().min(1).max(512),
+                fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+              })
+              .strict(),
+            z
+              .object({
+                kind: z.literal('update'),
+                id: z.string().uuid(),
+                expectedRevision: z.number().int().positive(),
+                name: z.string().trim().min(1).max(120),
+                enabled: z.boolean(),
+              })
+              .strict(),
+            z
+              .object({
+                kind: z.literal('reconnect'),
+                id: z.string().uuid(),
+                expectedRevision: z.number().int().positive(),
+              })
+              .strict(),
+            z
+              .object({
+                kind: z.literal('unbind'),
+                id: z.string().uuid(),
+                expectedRevision: z.number().int().positive(),
+              })
+              .strict(),
+          ]),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success || deps.registry.get(input.data.slug) === undefined)
+        return Promise.resolve(invalidInput('Known Bot and valid identity operation required'));
+      return messagingCall(async (service) => ({
+        identity: await service.identity(input.data.slug, input.data.input),
       }));
     },
     messagingSnapshot(payload) {
