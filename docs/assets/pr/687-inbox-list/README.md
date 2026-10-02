@@ -1,6 +1,6 @@
 # Compact Human Inbox — #687
 
-After evidence was refreshed after the Human QA direct-action and detail-context changes and is unedited output from a real isolated DSH 0.2.0-rc.1 Profile pinned to the official browse picker pair, 1440×900, Chinese locale, on the linked task worktree. A fresh canonical fixture starts with 35 unread messages: three PersonaBots each have four older messages, one Workspace Grant request and four newer messages in their DM, plus eight Group updates. Concrete visible messages advance canonical read positions; badges in later captures therefore decrease. Failed E2E attempts kept their read positions and subsequent complete attempts used fresh Profiles. No model execution, mocked RPC response or copied Inbox state supplies these captures.
+This evidence was refreshed after the Human QA direct-action and detail-context changes. It is unedited output from a real isolated DSH 0.2.0-rc.1 Profile pinned to the official browse picker pair, 1440×900, Chinese locale, on the linked task worktree. A fresh canonical fixture starts with 35 unread messages: three PersonaBots each have four older messages, one Workspace Grant request and four newer messages in their DM, plus eight Group updates. Concrete visible messages advance canonical read positions; badges in later captures therefore decrease. Failed E2E attempts kept their read positions and subsequent complete attempts used fresh Profiles. No model execution, mocked RPC response or copied Inbox state supplies these captures.
 
 `before-human-qa.png` is the cropped screenshot supplied by Human QA. It documents the original spacing/filter problem at a different viewport; it is not presented as a matched full-window capture.
 
@@ -15,9 +15,8 @@ After evidence was refreshed after the Human QA direct-action and detail-context
 | list-action-picker-light.png / list-action-picker-dark.png | One list-button click opens the real DSH folder browser; cancelling and clicking again opens it again; the list remains collapsed |
 | exact-source-light.png                                     | Avatar source action opens the exact original DM/message, without opening details                                                 |
 | unread-channel-avatar-light.png / unread-context-light.png | Group avatar and per-Channel unread summary; row activation loads concrete context                                                |
-
-| detail-context-light.png / detail-context-dark.png | Full-width directional context controls flush against the message flow, original pending request, and inset hover source icon |
-| detail-dismissed-dark.png | Inbox item removed; two remaining requests, no expanded detail; canonical original request remains pending |
+| detail-context-light.png / detail-context-dark.png         | Full-width directional context controls flush against the message flow, original pending request, and inset hover source icon     |
+| detail-dismissed-dark.png                                  | Inbox item removed; two remaining requests, no expanded detail; canonical original request remains pending                        |
 
 [verification.json](verification.json) records geometry and passed assertions. Native primary is the shell's own button color family, including its light/dark contrast; it does not substitute BotHarness brand tint. The source square deliberately uses token styles because the native Button capsule has different geometry. The pinned primitives export no standalone Select; filters compose native Button/Menu exactly as shell selectors do. Menu keyboard selection and Bot/Channel/sort filters were exercised through the real Host queries.
 
