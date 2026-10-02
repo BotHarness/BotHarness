@@ -165,6 +165,7 @@ describe('bridge typert service', () => {
       'memorySave',
       'memoryRepair',
       'profileActivity',
+      'overviewMemory',
       'overviewUsage',
       'profileUsage',
       'groupProfileActivity',
@@ -357,8 +358,10 @@ describe('bridge typert service', () => {
   });
 });
 
-it('exports the named Overview period and cursor through the existing Typert service', () => {
+it('exports the named Overview period and cursor through the existing Typert service', async () => {
   const { service } = setup();
+  expect(parameterNames(service.overviewMemory)).toEqual(['after']);
+  await expect(service.overviewMemory()).rejects.toThrow('Memory statistics unavailable');
   expect(parameterNames(service.overviewUsage)).toEqual(['period', 'after']);
   expect(() => service.overviewUsage('week')).toThrow('Usage statistics unavailable');
 });

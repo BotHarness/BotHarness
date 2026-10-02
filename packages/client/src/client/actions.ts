@@ -91,6 +91,7 @@ import {
   loadMemoryGitCommitDiff,
   loadProfileActivity,
   loadProfileUsage,
+  loadOverviewMemory,
   loadOverviewUsage,
   type UsageFilter,
   type UsageQueryResult,
@@ -346,6 +347,9 @@ export interface BridgeActions {
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
+  overviewMemory(
+    after?: string,
+  ): Promise<import('../../../core/src/memory/overview.js').OverviewMemory>;
   overviewUsage(
     period: 'today' | 'week',
     after?: string,
@@ -1621,6 +1625,7 @@ export function createActions(
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    overviewMemory: (after) => loadOverviewMemory(call, after),
     overviewUsage: (period, after) => loadOverviewUsage(call, period, after),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     channelActivityToday: () => loadChannelActivityToday(call),
