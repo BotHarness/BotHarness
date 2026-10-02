@@ -13,7 +13,10 @@ window.__ModuleLoader__.load({
 		const zh = {
 			"entry.label": "浏览器",
 			"entry.access.title": "Browser Access",
+			"entry.access.enable": "启用 Browser Access",
+			"entry.access.disable": "停用 Browser Access",
 			"entry.access.failed": "切换 Browser Access 失败",
+			"entry.access.failureHint": "授权失败",
 			"entry.profile.label": "Profile",
 			"entry.profile.default": "default",
 			"entry.profile.failed": "切换浏览器 profile 失败",
@@ -32,7 +35,10 @@ window.__ModuleLoader__.load({
 		const en = {
 			"entry.label": "Browser",
 			"entry.access.title": "Browser Access",
+			"entry.access.enable": "Enable Browser Access",
+			"entry.access.disable": "Disable Browser Access",
 			"entry.access.failed": "Failed to switch Browser Access",
+			"entry.access.failureHint": "Access failed",
 			"entry.profile.label": "Profile",
 			"entry.profile.default": "default",
 			"entry.profile.failed": "Failed to switch the browser profile",
@@ -180,6 +186,19 @@ window.__ModuleLoader__.load({
 		//#endregion
 		//#region packages/browser/src/client/styles.ts
 		const styles = `
+.bh-browser-access-control { position: relative; display: flex; align-items: center; }
+.bh-browser-access-power {
+  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: var(--dsw-radius-md); background: transparent;
+  color: var(--dsw-alias-label-secondary); cursor: pointer;
+}
+.bh-browser-access-power:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.bh-browser-access-power[aria-pressed='true'] { color: var(--dsw-alias-state-business-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.bh-browser-access-power:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.bh-browser-access-power:disabled { opacity: 0.5; cursor: default; }
+.bh-browser-access-power.bh-access-failed { color: var(--dsw-alias-state-error-primary); }
+.bh-browser-access-error { order: -1; padding: 0 4px; color: var(--dsw-alias-state-error-primary); font-size: 11px; line-height: 16px; white-space: nowrap; }
+
 /* @bh-browser-aliases:start */
 .bh-browser-body, .bh-browser-profiles {
   --bh-browser-error: var(--dsw-alias-state-error-primary);
@@ -230,6 +249,22 @@ window.__ModuleLoader__.load({
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
 `;
 		//#endregion
+		//#region packages/browser/src/client/access-power-icon.tsx
+		function AccessPowerIcon() {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				width: "16",
+				height: "16",
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: "2",
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": "true",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M12 2v10" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M18.4 6.6a9 9 0 1 1-12.77.04" })]
+			});
+		}
+		//#endregion
 		//#region packages/browser/src/client/index.tsx
 		const ENTRY_ID = "botharness-browser";
 		const OBSERVATION_ENDPOINT = "/api/browser/observation";
@@ -272,7 +307,7 @@ window.__ModuleLoader__.load({
 					const profiles = [...new Set(bots.map((bot) => typeof bot.browserProfile === "string" ? bot.browserProfile : "").filter((name) => name !== ""))].sort();
 					info = {
 						displayName: typeof match.displayName === "string" && match.displayName.length > 0 ? match.displayName : void 0,
-						browserAccess: typeof match.browserAccess === "boolean" ? match.browserAccess : void 0,
+						browserAccess: match.browserAccess === true,
 						browserProfile: typeof match.browserProfile === "string" && match.browserProfile !== "" ? match.browserProfile : void 0,
 						profiles
 					};
@@ -280,6 +315,13 @@ window.__ModuleLoader__.load({
 				}).catch(() => void 0);
 			};
 			return {
+				setAccess(enabled) {
+					info = {
+						...info,
+						browserAccess: enabled
+					};
+					for (const listener of listeners) listener();
+				},
 				subscribe(listener) {
 					if (!started) {
 						started = true;
@@ -336,11 +378,12 @@ window.__ModuleLoader__.load({
 		}
 		function BrowserHeaderAction({ botSlug, t, setExpandable, setExpanded }) {
 			const [store] = (0, react.useState)(() => createBotInfoStore(botSlug));
-			const [override, setOverride] = (0, react.useState)(void 0);
 			const [busy, setBusy] = (0, react.useState)(false);
+			const inFlight = (0, react.useRef)(false);
+			const [error, setError] = (0, react.useState)(false);
 			const subscribe = (listener) => {
 				const sync = () => {
-					const access = override ?? store.getSnapshot().browserAccess === true;
+					const access = store.getSnapshot().browserAccess === true;
 					setExpandable?.(access);
 				};
 				const unsubscribe = store.subscribe(() => {
@@ -351,37 +394,55 @@ window.__ModuleLoader__.load({
 				return unsubscribe;
 			};
 			const info = (0, react.useSyncExternalStore)(subscribe, store.getSnapshot);
-			const accessOn = override ?? info.browserAccess === true;
+			const accessOn = info.browserAccess === true;
 			const onToggle = (next) => {
 				const rpc = connectionRpc;
-				if (rpc === void 0 || botSlug === void 0 || busy) return;
-				const previous = accessOn;
-				setOverride(next);
+				if (rpc === void 0 || botSlug === void 0 || inFlight.current) return;
+				inFlight.current = true;
 				setBusy(true);
-				setExpandable?.(next);
-				if (next) setExpanded?.(true);
+				setError(false);
 				rpc.call("/api", "botharness/browserAccessSet", { args: {
 					slug: botSlug,
 					enabled: next
 				} }).then((result) => {
 					if (!result.ok) {
-						setOverride(previous);
-						setExpandable?.(previous);
+						setError(true);
 						return;
 					}
 					const applied = result.value.bot?.browserAccess === true;
-					setOverride(applied);
+					store.setAccess(applied);
 					setExpandable?.(applied);
+					setExpanded?.(applied);
 				}).catch(() => {
-					setOverride(previous);
-					setExpandable?.(previous);
-				}).finally(() => setBusy(false));
+					setError(true);
+				}).finally(() => {
+					inFlight.current = false;
+					setBusy(false);
+				});
 			};
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
-				checked: accessOn,
-				disabled: busy || botSlug === void 0,
-				onChange: onToggle,
-				label: t("entry.access.title")
+			const label = t(accessOn ? "entry.access.disable" : "entry.access.enable");
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+				className: "bh-browser-access-control",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
+					label: error ? t("entry.access.failed") + ": " + label : label,
+					side: "bottom",
+					delayMs: 500,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: `bh-browser-access-power${error ? " bh-access-failed" : ""}`,
+						"aria-label": label,
+						"aria-pressed": accessOn,
+						"aria-busy": busy,
+						disabled: busy || botSlug === void 0 || connectionRpc === void 0 || info.browserAccess === void 0,
+						onClick: () => onToggle(!accessOn),
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AccessPowerIcon, {})
+					})
+				}), error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					className: "bh-browser-access-error",
+					role: "alert",
+					title: t("entry.access.failed"),
+					children: t("entry.access.failureHint")
+				}) : null]
 			});
 		}
 		const buttonStyle = {
@@ -614,7 +675,7 @@ window.__ModuleLoader__.load({
 				return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(BrowserHeaderAction, {
 					...props,
 					t
-				});
+				}, props.botSlug);
 			};
 		}
 		function apply(ctx) {

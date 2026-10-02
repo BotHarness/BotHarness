@@ -40,7 +40,7 @@ import {
   IconFullscreenOutlineRegular,
   Pill,
   StateDot,
-  Switch,
+  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
@@ -55,6 +55,8 @@ import {
 } from './settings-rows.js';
 import { LocalComputerStatus } from './local-computer.js';
 import { useMountedResource } from './mounted-resource.js';
+
+import { AccessPowerIcon } from './access-power-icon.js';
 
 export const name = 'botharness-computer-client';
 
@@ -204,6 +206,19 @@ function designOf(resolution: string | undefined): { width: number; height: numb
 }
 
 const SPIN_STYLE = `
+.bh-computer-access-control { position: relative; display: flex; align-items: center; }
+.bh-computer-access-power {
+  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: var(--dsw-radius-md); background: transparent;
+  color: var(--dsw-alias-label-secondary); cursor: pointer;
+}
+.bh-computer-access-power:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.bh-computer-access-power[aria-pressed='true'] { color: var(--dsw-alias-state-business-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.bh-computer-access-power:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.bh-computer-access-power:disabled { opacity: 0.5; cursor: default; }
+.bh-computer-access-power.bh-access-failed { color: var(--dsw-alias-state-error-primary); }
+.bh-computer-access-error { order: -1; padding: 0 4px; color: var(--dsw-alias-state-error-primary); font-size: 11px; line-height: 16px; white-space: nowrap; }
+
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
 
@@ -1064,7 +1079,9 @@ interface ReadableStore<T> {
   getSnapshot(): T;
 }
 
-function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfo> {
+function createBotInfoStore(
+  botSlug: string | undefined,
+): ReadableStore<BotInfo> & { setAccess(enabled: boolean): void } {
   let info: BotInfo = { displayName: undefined, computerAccess: undefined };
   const listeners = new Set<() => void>();
   let started = false;
@@ -1085,14 +1102,17 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfo>
             typeof match.displayName === 'string' && match.displayName.length > 0
               ? match.displayName
               : undefined,
-          computerAccess:
-            typeof match.computerAccess === 'boolean' ? match.computerAccess : undefined,
+          computerAccess: match.computerAccess === true,
         };
         for (const listener of listeners) listener();
       })
       .catch(() => undefined);
   };
   return {
+    setAccess(enabled) {
+      info = { ...info, computerAccess: enabled };
+      for (const listener of listeners) listener();
+    },
     subscribe(listener) {
       if (!started) {
         started = true;
@@ -1120,11 +1140,12 @@ function ComputerHeaderAction({
   setExpanded,
 }: ChannelSidebarEntryProps & { t: ComputerTranslate }): ReactElement {
   const [store] = useState(() => createBotInfoStore(botSlug));
-  const [override, setOverride] = useState<boolean | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  const [error, setError] = useState(false);
   const subscribe = (listener: () => void): (() => void) => {
     const sync = (): void => {
-      const access = override ?? store.getSnapshot().computerAccess === true;
+      const access = store.getSnapshot().computerAccess === true;
       setExpandable?.(access);
     };
     const unsubscribe = store.subscribe(() => {
@@ -1135,43 +1156,67 @@ function ComputerHeaderAction({
     return unsubscribe;
   };
   const info = useSyncExternalStore(subscribe, store.getSnapshot);
-  const accessOn = override ?? info.computerAccess === true;
+  const accessOn = info.computerAccess === true;
 
   const onToggle = (next: boolean): void => {
     const rpc = connectionRpc;
-    if (rpc === undefined || botSlug === undefined || busy) return;
-    const previous = accessOn;
-    setOverride(next);
+    if (rpc === undefined || botSlug === undefined || inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
-    setExpandable?.(next);
-    if (next) setExpanded?.(true);
+    setError(false);
     void rpc
       .call('/api', 'botharness/computerAccessSet', { args: { slug: botSlug, enabled: next } })
       .then((result) => {
         if (!result.ok) {
-          setOverride(previous);
-          setExpandable?.(previous);
+          setError(true);
           return;
         }
         const value = result.value as { bot?: { computerAccess?: unknown } };
         const applied = value.bot?.computerAccess === true;
-        setOverride(applied);
+        store.setAccess(applied);
         setExpandable?.(applied);
+        setExpanded?.(applied);
       })
       .catch(() => {
-        setOverride(previous);
-        setExpandable?.(previous);
+        setError(true);
       })
-      .finally(() => setBusy(false));
+      .finally(() => {
+        inFlight.current = false;
+        setBusy(false);
+      });
   };
 
+  const label = t(accessOn ? 'entry.access.disable' : 'entry.access.enable');
   return (
-    <Switch
-      checked={accessOn}
-      disabled={busy || botSlug === undefined}
-      onChange={onToggle}
-      label={t('entry.access.title')}
-    />
+    <span className="bh-computer-access-control">
+      <Tooltip
+        label={error ? t('entry.access.failed') + ': ' + label : label}
+        side="bottom"
+        delayMs={500}
+      >
+        <button
+          type="button"
+          className={`bh-computer-access-power${error ? ' bh-access-failed' : ''}`}
+          aria-label={label}
+          aria-pressed={accessOn}
+          aria-busy={busy}
+          disabled={
+            busy ||
+            botSlug === undefined ||
+            connectionRpc === undefined ||
+            info.computerAccess === undefined
+          }
+          onClick={() => onToggle(!accessOn)}
+        >
+          <AccessPowerIcon />
+        </button>
+      </Tooltip>
+      {error ? (
+        <span className="bh-computer-access-error" role="alert" title={t('entry.access.failed')}>
+          {t('entry.access.failureHint')}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -1179,7 +1224,7 @@ export function createComputerHeader(
   t: ComputerTranslate,
 ): (props: ChannelSidebarEntryProps) => ReactElement {
   return function ComputerHeaderWithLocale(props: ChannelSidebarEntryProps): ReactElement {
-    return <ComputerHeaderAction {...props} t={t} />;
+    return <ComputerHeaderAction key={props.botSlug} {...props} t={t} />;
   };
 }
 

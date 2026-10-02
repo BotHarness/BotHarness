@@ -17,6 +17,8 @@
 
 ### Added
 
+- Computer 与 Browser Access 改用紧凑 Lucide Power 按钮，提供本地化授权操作、Host 确认状态、处理中防重与失败提示 ([#720](https://github.com/BotHarness/BotHarness/issues/720)).
+
 - 群组频道资料可通过 Attention 风格表格、独立收件 Switch 与编辑／删除弹窗管理一个已授权 Lark 频道连接器；暂停保留已收来源，删除仅移除收件路径而保留 Bot 身份和历史（[#700](https://github.com/BotHarness/BotHarness/issues/700)）。
 - 总览统计新增逐 Bot 近七天 Memory Git 提交趋势与当前未提交改动提示，复用紧凑 Profile 卡片，明确显示仓库不可用状态并可展开每日精确值（[#716](https://github.com/BotHarness/BotHarness/issues/716)）。
   既有 Bot Profile Memory 活动也统一使用相同的普通提交日期与引用口径。

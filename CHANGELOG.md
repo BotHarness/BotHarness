@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Computer and Browser Access use compact Lucide Power controls with localized permission actions, Host-confirmed state, pending guards and failure feedback ([#720](https://github.com/BotHarness/BotHarness/issues/720)).
+
 - Group Channel Profile manages one authorized Lark Bridge through an Attention-style table, independent intake Switch and edit/delete Modal; pause preserves accepted sources, deletion removes intake without deleting Bot identity or history ([#700](https://github.com/BotHarness/BotHarness/issues/700)).
 - Overview Statistics adds compact per-Bot seven-day Memory Git commit trends and current uncommitted-change indicators, with explicit repository unavailability and exact daily detail ([#716](https://github.com/BotHarness/BotHarness/issues/716)).
   Existing Bot Profile Memory activity uses the same ordinary-commit date/ref definition.
