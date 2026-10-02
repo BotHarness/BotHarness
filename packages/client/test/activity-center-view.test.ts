@@ -356,3 +356,105 @@ it('keeps idle Bots with actions visible, pages their own actions and decides wi
     store.select(undefined);
   }
 });
+
+it('preserves the pending action page when a decision refresh overlaps load more', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  let decided = false;
+  let releaseCursor: (() => void) | undefined;
+  const cursorReady = new Promise<void>((resolve) => {
+    releaseCursor = resolve;
+  });
+  let cursorCalls = 0;
+  const channel = {
+    id: 'team',
+    type: 'group',
+    name: 'Team',
+    createdAt: '2026-10-02T00:00:00Z',
+    updatedAt: '2026-10-02T00:00:00Z',
+    members: ['ada'],
+    invitations: [],
+    joinRequests: [],
+  };
+  const item = (n: number) => ({
+    id: 'join:r' + n,
+    category: 'action',
+    kind: 'group-join-request',
+    botSlug: 'ada',
+    channelId: 'team',
+    channelName: 'Team',
+    summary: '',
+    requestId: 'r' + n,
+    createdAt: '2026-10-02T00:00:00Z',
+  });
+  const actions = createActions(async (endpoint, args) => {
+    if (endpoint === 'activityOverview')
+      return {
+        ok: true,
+        value: {
+          actionCount: decided ? 99 : 100,
+          bots: [
+            {
+              slug: 'ada',
+              displayName: 'Ada',
+              state: 'idle',
+              paused: false,
+              hasAction: true,
+              sessions: [],
+            },
+          ],
+        },
+      };
+    if (endpoint === 'humanAttentionStatus')
+      return { ok: true, value: { unreadCount: 0, hasAction: true } };
+    if (endpoint === 'humanAttention') {
+      if (args['cursor'] === 'next' && cursorCalls++ === 0) {
+        await cursorReady;
+        return { ok: true, value: { items: Array.from({ length: 50 }, (_, i) => item(i + 50)) } };
+      }
+      const start = args['cursor'] === 'next' ? 51 : decided ? 1 : 0;
+      const count = args['cursor'] === 'next' && decided ? 49 : 50;
+      return {
+        ok: true,
+        value: {
+          items: Array.from({ length: count }, (_, i) => item(i + start)),
+          ...(args['cursor'] === 'next' ? {} : { nextCursor: 'next' }),
+        },
+      };
+    }
+    if (endpoint === 'channelGroupJoinDecide') {
+      decided = true;
+      return { ok: true, value: { channel } };
+    }
+    throw new Error(endpoint);
+  }, store);
+  store.setRoster([], []);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => {
+      await actions.openActivityCenter('overview');
+      root.render(createElement(ActivityCenterView, { actions }));
+    });
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('.bh-human-inbox-more')!.click(),
+    );
+    expect(cursorCalls).toBe(1);
+    const decline = [
+      ...container.querySelectorAll<HTMLButtonElement>('[data-attention-id="join:r0"] button'),
+    ].find((button) => button.textContent === '拒绝')!;
+    await act(async () => decline.click());
+    expect(decided).toBe(true);
+    await act(async () => {
+      releaseCursor?.();
+      await cursorReady;
+    });
+    expect(container.querySelectorAll('[data-attention-id]')).toHaveLength(99);
+    expect(container.querySelector('[data-attention-id="join:r99"]')).not.toBeNull();
+    expect(container.querySelector('[data-attention-id="join:r0"]')).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    store.select(undefined);
+  }
+});

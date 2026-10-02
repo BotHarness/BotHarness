@@ -15,49 +15,59 @@ export function useHumanActionScope(actions: BridgeActions, botSlug: string | un
   const current = useRef(page);
   current.current = page;
   const generation = useRef(0);
-  const pending = useRef(false);
+  const pending = useRef<Promise<void> | undefined>(undefined);
   const refresh = useCallback(
     async (cursor?: string): Promise<void> => {
       if (botSlug === undefined || (cursor !== undefined && pending.current)) return;
+      if (pending.current !== undefined) {
+        const waitingVersion = generation.current;
+        await pending.current;
+        if (waitingVersion !== generation.current) return;
+      }
       const version = ++generation.current;
-      pending.current = true;
       const prior = current.current;
       const limit =
         cursor === undefined ? Math.min(3, Math.max(1, Math.ceil(prior.items.length / 50))) : 1;
       setPage((value) => ({ ...value, status: 'loading', error: undefined }));
-      try {
-        let next: HumanAttentionPage = { items: [] };
-        let nextCursor = cursor;
-        for (let i = 0; i < limit; i++) {
-          const fetched = await actions.humanActionPage(botSlug, nextCursor);
-          if (version !== generation.current) return;
-          next = {
-            items: [...next.items, ...fetched.items],
-            ...(fetched.nextCursor === undefined ? {} : { nextCursor: fetched.nextCursor }),
+      const request = (async () => {
+        try {
+          let next: HumanAttentionPage = { items: [] };
+          let nextCursor = cursor;
+          for (let i = 0; i < limit; i++) {
+            const fetched = await actions.humanActionPage(botSlug, nextCursor);
+            if (version !== generation.current) return;
+            next = {
+              items: [...next.items, ...fetched.items],
+              ...(fetched.nextCursor === undefined ? {} : { nextCursor: fetched.nextCursor }),
+            };
+            nextCursor = fetched.nextCursor;
+            if (nextCursor === undefined) break;
+          }
+          const seen = new Set(next.items.map((item) => item.id));
+          const value = {
+            items:
+              cursor === undefined
+                ? next.items
+                : [...prior.items.filter((item) => !seen.has(item.id)), ...next.items],
+            nextCursor: next.nextCursor,
+            status: 'ready' as const,
+            error: undefined,
           };
-          nextCursor = fetched.nextCursor;
-          if (nextCursor === undefined) break;
+          current.current = value;
+          setPage(value);
+        } catch (error) {
+          if (version === generation.current)
+            setPage((value) => ({
+              ...value,
+              status: 'error',
+              error: error instanceof Error ? error.message : String(error),
+            }));
+        } finally {
+          if (version === generation.current) pending.current = undefined;
         }
-        const seen = new Set(next.items.map((item) => item.id));
-        setPage({
-          items:
-            cursor === undefined
-              ? next.items
-              : [...prior.items.filter((item) => !seen.has(item.id)), ...next.items],
-          nextCursor: next.nextCursor,
-          status: 'ready',
-          error: undefined,
-        });
-      } catch (error) {
-        if (version === generation.current)
-          setPage((value) => ({
-            ...value,
-            status: 'error',
-            error: error instanceof Error ? error.message : String(error),
-          }));
-      } finally {
-        if (version === generation.current) pending.current = false;
-      }
+      })();
+      pending.current = request;
+      await request;
     },
     [actions, botSlug],
   );
@@ -70,7 +80,7 @@ export function useHumanActionScope(actions: BridgeActions, botSlug: string | un
     return () => {
       window.clearInterval(timer);
       generation.current++;
-      pending.current = false;
+      pending.current = undefined;
     };
   }, [botSlug, refresh]);
   const scoped = useMemo((): BridgeActions => {
