@@ -41,7 +41,7 @@
     "format": "passed",
     "typecheck": "passed",
     "tests": {
-      "passed": 2024,
+      "passed": 2031,
       "skipped": 3
     },
     "build": "passed"
@@ -54,5 +54,8 @@
     "nativeOutcome": "cancelled",
     "toolRefused": true,
     "noRetry": true
-  }
+  },
+  "runtimeRevision": "414280be",
+  "integratedMainRevision": "12ff478ae42ba9e57dc08b46fb220426b666fc78",
+  "finalMainModelInteraction": "model-interaction.json"
 }

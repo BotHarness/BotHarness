@@ -1,6 +1,6 @@
 # Container Browser tracer — #726
 
-Verified with pinned DSH 0.2.0 RC1 and the fixed official LinuxServer Chrome image on macOS Docker Desktop. Runtime implementation revision: `f613f14e`; later commits contain evidence and documentation only. Computer Access stayed off and Computer Target stayed Local throughout Container Browser QA.
+Verified with pinned DSH 0.2.0 RC1 and the fixed official LinuxServer Chrome image on macOS Docker Desktop. Target, upload and Human control guards were verified at `f613f14e`. The core real-model interaction was repeated at `414280be` after integrating main `12ff478a`; `human-qa-ready.png` shows that final live viewer. Computer Access stayed off and Computer Target stayed Local throughout Container Browser QA.
 
 ## Observed results
 
@@ -9,11 +9,11 @@ Verified with pinned DSH 0.2.0 RC1 and the fixed official LinuxServer Chrome ima
 - Human Open displayed the actual Container Chrome stream with interaction off. Explicit Human interaction paused the Bot before input; `human-paused-input.png` and `human-paused-results.png` show an actual synthetic search. Disabling interaction kept Pause. A real Bot screenshot was refused by Browser Pause.
 - Access off collapsed and locked Browser; re-enable restored the entry. Switching to Local removed the Container process and preserved its owned volume, cleared old tab ownership and required fresh native approval. A real Local open/observe succeeded. A later pending Container approval was cancelled when Target changed. After starting Container again, its Chrome History retained six synthetic fixture URL entries.
 - HTTP viewer without DSH authentication returned 401. The authenticated viewer used the real WebSocket stream. Docker inspection found only the owned `/config` volume and loopback port 3000; CDP was not published.
-- Full regression: 2,024 tests passed, 3 existing tests skipped. Lint, format, typecheck and build passed. Independent Standards and Spec review findings were corrected and re-reviewed.
+- Full regression: 2,031 tests passed, 3 existing tests skipped. Lint, format, typecheck and build passed. Independent Standards and Spec review findings were corrected and re-reviewed.
 
 ## Images
 
-All Human captures use 1280 × 720, English native shell, light theme and synthetic QA data. `settings-before.png` captures the prior Bot settings entry point with no Browser Target row; `settings-after.png` adds the independent Local/Docker Browser choice. The Container viewer is a new interaction with no prior Container screen; its before state is the same prior settings entry point. Existing Computer permission status differs between isolated profiles and is outside this change.
+All Human captures use 1280 × 720, English native shell, light theme and synthetic QA data. The settings pair shows the bottom of the same native settings pane in the same in-app Browser environment. `settings-before.png` captures the prior Bot settings entry point with no Browser Target row; `settings-after.png` adds the independent Local/Docker Browser choice. The Container viewer is a new interaction with no prior Container screen; its before state is the same prior settings entry point. The isolated profiles have different synthetic Bot rosters, which are outside this settings change.
 
 `native-approval.png`, `container-readonly.png`, `human-paused-input.png`, `human-paused-results.png`, `access-off.png`, `local-reauthorization.png` and `target-cancelled.png` capture each key interaction. These screenshots contain task-owned temporary paths and synthetic messages only.
 
