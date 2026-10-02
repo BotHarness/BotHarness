@@ -6,6 +6,7 @@ export interface ChannelBridgeConfiguration {
   enabled: boolean;
   collection: 'mentions' | 'all';
   revision: number;
+  intakeAfter?: string;
 }
 const fields = {
   grantId: z.string().uuid(),

@@ -369,7 +369,12 @@ export function createInboundMessaging(options: {
             event.conversation.id !== value.receiveScope!.conversationId
           )
             return { accepted: true };
-          if (!targetAvailable(latest) || latest.channelBridge?.enabled === false)
+          if (
+            !targetAvailable(latest) ||
+            latest.channelBridge?.enabled === false ||
+            (latest.channelBridge?.intakeAfter !== undefined &&
+              Date.parse(event.at) < Date.parse(latest.channelBridge.intakeAfter))
+          )
             return { accepted: true };
           if (!event.mentionedAccount && !lease.ordinaryVerified) {
             lease.ordinaryVerified = true;
@@ -668,6 +673,12 @@ export function createInboundMessaging(options: {
                     enabled: input.enabled,
                     collection: input.collection,
                     revision: input.kind === 'add' ? 1 : configuration.revision + 1,
+                    ...(input.kind === 'add' ||
+                    (input.enabled && (!configuration.enabled || !configuration.intakeAfter))
+                      ? { intakeAfter: new Date().toISOString() }
+                      : configuration.intakeAfter
+                        ? { intakeAfter: configuration.intakeAfter }
+                        : {}),
                   },
                 };
           if (input.kind !== 'delete') {
