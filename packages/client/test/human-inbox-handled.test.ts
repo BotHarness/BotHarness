@@ -2,12 +2,12 @@
 import { act, createElement, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./human-inbox-test-controls.js')),
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
   MarkdownText: () => null,
   StateDot: () => null,
-  Modal: () => null,
   Input: () => null,
 }));
 vi.mock('../src/client/bot-sidebar.js', async () => {
@@ -176,7 +176,9 @@ describe('Handled action navigation', () => {
       const root = createRoot(container);
       const click = async (label: string) => {
         const button = [...container.querySelectorAll('button')].find(
-          (node) => node.textContent === label,
+          (node) =>
+            node.textContent === label ||
+            node.getAttribute('aria-label')?.startsWith(label + ' · '),
         );
         expect(button).toBeDefined();
         await act(async () => button!.click());

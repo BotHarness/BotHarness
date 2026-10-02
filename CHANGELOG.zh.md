@@ -155,6 +155,8 @@
 
 ### Changed
 
+- Human Inbox 改用 DSH 原生筛选菜单和带内边距的紧凑列表：点击整行打开详情，用主色按钮处理请求，通过头像与右上角箭头准确跳转来源；浏览器拒绝保存设置时，活动中心仍保留本窗口当前标签（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
+
 - PersonaBot 提醒策略改为紧凑表格，便于对比九类来源规则；保留近期唤醒次数与行内编辑入口，审计记录收进详情弹窗（[#670](https://github.com/BotHarness/BotHarness/issues/670)）。
 
 - Browser Profile 改为可搜索的 combobox：选择已有名称或明确创建新名称；错误使用 destructive 主题颜色，Browser view 移除多余说明与重复页标题（[#611](https://github.com/BotHarness/BotHarness/issues/611)）。
@@ -244,6 +246,12 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- Inbox 的来源头像始终位于操作行最右侧；修复项的 Bot Inbox 维护入口移入详情，不再额外占用列表按钮 ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
+
+- Inbox 详情改为通过贴合消息上下沿的控件分别加载历史／较新内容，悬停或聚焦消息即可精确跳转来源；“移除”会持久隐藏该项，但不回答或授权原请求（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
+
+- Inbox 列表的“选择工作区”现在直接打开同一个 DSH 文件夹选择器，不展开事件详情；其他回应操作使用独立弹窗，取消后仍可再次打开，已解决的请求不会误触发授权（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
 
 - Computer 设置可正确调用原生目录选择器，授权导出后保存目标目录供后续导入使用；选择器不可用时仍可手动输入路径（[#166](https://github.com/BotHarness/BotHarness/issues/166)）。
 
