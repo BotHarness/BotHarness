@@ -1538,7 +1538,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   padding: 5px 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 999px;
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
   box-shadow: 0 3px 12px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
   color: var(--dsw-alias-label-primary);
   font: inherit;
@@ -1576,7 +1576,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   padding: 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
   box-shadow: 0 6px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 16%, transparent);
   text-align: left;
 }
@@ -1809,7 +1809,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   padding: 12px 14px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
 }
 .bh-profile-card-compact {
   gap: 6px;
@@ -2240,7 +2240,7 @@ button.bh-profile-heat-cell:focus-visible {
   padding: 4px 8px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 6px;
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
   box-shadow: 0 4px 14px color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent);
   white-space: nowrap;
   pointer-events: none;
@@ -2260,7 +2260,7 @@ button.bh-profile-heat-cell:focus-visible {
   padding: 6px 8px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 8px;
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
   box-shadow: 0 4px 14px color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent);
   color: var(--dsw-alias-label-primary);
   font: 12px/1.4 var(--dsw-font-family);
@@ -2696,7 +2696,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   border-radius: 999px;
   padding: 6px 12px;
   color: var(--dsw-alias-label-primary);
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
   box-shadow: 0 4px 16px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
   cursor: pointer;
 }
@@ -2859,7 +2859,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   padding: 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
   color: var(--dsw-alias-label-primary);
   font: 12px/1.5 var(--dsw-font-family);
@@ -2923,7 +2923,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   overflow-y: auto;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
 }
 .bh-mention-option {
@@ -4095,7 +4095,7 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
   flex: none;
   border-radius: 12px;
   overflow: hidden;
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
   color: var(--dsw-alias-label-secondary);
   font-weight: 600;
 }
@@ -4344,7 +4344,7 @@ button.bh-bot-nav > svg {
   padding: 0 14px;
   border: none;
   border-radius: 18px;
-  background: var(--bh-composer-panel-bg);
+  background: var(--dsw-alias-bg-module-platform);
   font: inherit;
   font-size: 14px;
   line-height: 22px;
