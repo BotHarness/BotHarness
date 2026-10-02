@@ -324,6 +324,7 @@ it('puts only the latest activity inside each Session block and does not repeat 
               {
                 id: 'activity-11111111-1111-4111-8111-111111111111',
                 role: 'assignment',
+                name: 'Inspect <layout>',
                 revision: 1,
                 at: 1000,
                 state: 'thinking',
@@ -331,6 +332,7 @@ it('puts only the latest activity inside each Session block and does not repeat 
               {
                 id: 'activity-22222222-2222-4222-8222-222222222222',
                 role: 'assignment',
+                name: 'Verify compact activity',
                 revision: 2,
                 at: 2000,
                 state: 'working',
@@ -351,16 +353,17 @@ it('puts only the latest activity inside each Session block and does not repeat 
   );
   expect(markup).toContain('<details class="bh-composer-activity-status">');
   expect(markup.match(/class="bh-composer-activity-session"/gu)).toHaveLength(2);
-  expect(markup).toContain('任务会话 1');
-  expect(markup).toContain('任务会话 2');
+  expect(markup).toContain('Inspect &lt;layout&gt;');
+  expect(markup).toContain('Verify compact activity');
+  expect(markup).not.toContain('任务会话 1');
+  expect(markup).toContain('<ul class="bh-composer-activity-details"');
   expect(markup).toContain('dateTime="1970-01-01T00:00:02.000Z"');
   expect(markup).toContain('&lt;public operation&gt;');
   expect(markup).not.toContain('<public operation>');
   expect(markup).not.toContain('<strong>Ada</strong>');
   expect(markup).not.toContain('bh-composer-activity-trace');
-  expect(markup.indexOf('bh-composer-activity-session-latest')).toBeGreaterThan(
-    markup.indexOf('bh-composer-activity-session-header'),
-  );
+  expect(markup).not.toContain('bh-composer-activity-session-header');
+  expect(markup).not.toContain('bh-composer-activity-bot');
 });
 
 it('identifies Session ownership with avatars only when multiple Bots are active', () => {

@@ -62,6 +62,7 @@ assert.ok(bot);
 const channelId = `dm-${bot.slug}`;
 const publicDetailMode = process.env.BH_E2E_PUBLIC_DETAIL === 'true';
 const sessionMode = process.env.BH_E2E_SESSIONS === 'true';
+const compactSessions = process.env.BH_E2E_COMPACT === 'true';
 const expectedPublicDetail = 'Opening a new browser tab';
 const expectedEffect = publicDetailMode && !sessionMode ? 'generic-working' : 'executing';
 const sourceRole = process.env.BH_E2E_SOURCE_ROLE;
@@ -152,7 +153,7 @@ async function nativeSnapshot(sessionId) {
 mkdirSync(evidence, { recursive: true });
 const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage();
-await page.setViewport({ width: 1500, height: 1180 });
+await page.setViewport({ width: 1500, height: Number(process.env.BH_E2E_HEIGHT ?? 1180) });
 const colorScheme = process.env.BH_E2E_COLOR_SCHEME ?? 'dark';
 await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: colorScheme }]);
 await page.setExtraHTTPHeaders({ cookie });
@@ -306,10 +307,13 @@ try {
   if (sourceRole !== undefined) {
     const current = (await rpc('activitySnapshot')).bots.find((row) => row.slug === bot.slug);
     assert.deepEqual(current?.activity?.sources, [{ role: sourceRole, count: 1 }]);
-    const sourceLabel = sourceRole === 'assignment' ? '任务会话' : '主会话';
+    const sourceLabel =
+      sourceRole === 'assignment' ? ['任务会话', 'Assignment'] : ['主会话', 'Orchestrator'];
     await page.waitForFunction(
       (label) =>
-        document.querySelector('.bh-composer-activity-summary')?.textContent.includes(label),
+        label.some((text) =>
+          document.querySelector('.bh-composer-activity-summary')?.textContent.includes(text),
+        ),
       {},
       sourceLabel,
     );
@@ -411,11 +415,26 @@ try {
     assert.equal(disclosure.open, false);
     assert.equal(disclosure.headerBackground, 'rgba(0, 0, 0, 0)');
     assert.equal(disclosure.bodyHeight, 0);
+    if (compactSessions) {
+      const jump = await page.$('.bh-timeline-new');
+      if (jump !== null) await jump.click();
+      await page.evaluate(() => {
+        const timeline = document.querySelector('.bh-chat-body');
+        timeline.scrollTop = timeline.scrollHeight;
+        timeline.dispatchEvent(new Event('scroll'));
+      });
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      );
+    }
     const summary = await page.$('.bh-composer-activity-status summary');
     assert.ok(summary);
     await summary.focus();
     await page.keyboard.press('Enter');
     await page.waitForSelector('.bh-composer-activity-status[open]');
+    await page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    );
     expandedPanel = await page.$eval('.bh-composer-activity-details', (panel) => {
       const box = panel.getBoundingClientRect();
       const parent = panel.parentElement.getBoundingClientRect();
@@ -426,12 +445,68 @@ try {
         leftInset: box.left - parent.left,
         radius: style.borderRadius,
         background: style.backgroundColor,
+        timelineBottom: document.querySelector('.bh-chat-body').getBoundingClientRect().bottom,
+        disclosureBottom: parent.bottom,
       };
     });
-    assert.ok(expandedPanel.leftInset >= 36);
-    assert.ok(expandedPanel.width < expandedPanel.parentWidth - 36);
-    assert.equal(expandedPanel.radius, '20px');
+    if (compactSessions) {
+      assert.equal(expandedPanel.background, 'rgba(0, 0, 0, 0)');
+      assert.ok(
+        expandedPanel.timelineBottom >= expandedPanel.disclosureBottom,
+        'Transcript extends behind the transparent Activity overlay',
+      );
+      assert.ok(expandedPanel.leftInset <= 6);
+      assert.ok(expandedPanel.width >= expandedPanel.parentWidth - 12);
+    } else {
+      assert.ok(expandedPanel.leftInset >= 36);
+      assert.ok(expandedPanel.width < expandedPanel.parentWidth - 36);
+      assert.equal(expandedPanel.radius, '20px');
+    }
     await screenshot('details.png');
+    if (compactSessions) {
+      const transparentHistory = await page.evaluate(() => {
+        const timeline = document.querySelector('.bh-chat-body');
+        const header = document.querySelector('.bh-composer-activity-toggle');
+        const latest = timeline.querySelector('.bh-message-block:last-child');
+        const guardedBottom = latest?.getBoundingClientRect().bottom;
+        const headerTop = header.getBoundingClientRect().top;
+        const bottom = timeline.scrollTop;
+        timeline.scrollTop = Math.max(0, bottom - 96);
+        return { guardedBottom, headerTop, bottom, shifted: timeline.scrollTop };
+      });
+      writeFileSync(
+        resolve(evidence, 'transparent-history-proof.json'),
+        JSON.stringify(transparentHistory, null, 2),
+      );
+      assert.ok(
+        transparentHistory.guardedBottom <= transparentHistory.headerTop + 2,
+        'Latest message actions remain above the overlay',
+      );
+      await screenshot('transparent-history.png');
+      const historyTop = await page.$eval('.bh-chat-body', (timeline) => timeline.scrollTop);
+      await page.click('.bh-composer-activity-status summary');
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      );
+      await page.click('.bh-composer-activity-status summary');
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      );
+      const retainedTop = await page.$eval('.bh-chat-body', (timeline) => timeline.scrollTop);
+      assert.ok(
+        Math.abs(retainedTop - historyTop) <= 2,
+        'Disclosure preserves history reading position',
+      );
+      transparentHistory.historyTop = historyTop;
+      transparentHistory.retainedTop = retainedTop;
+      await page.evaluate((top) => {
+        document.querySelector('.bh-chat-body').scrollTop = top;
+      }, transparentHistory.bottom);
+      writeFileSync(
+        resolve(evidence, 'transparent-history-proof.json'),
+        JSON.stringify(transparentHistory, null, 2),
+      );
+    }
     if (sourceRole !== undefined) {
       const measureSources = () =>
         page.$$eval(
@@ -455,6 +530,17 @@ try {
                 fits: row.scrollWidth <= row.clientWidth,
                 icon: row.querySelector('[role="img"]')?.getAttribute('aria-label'),
                 count: row.querySelector('.bh-composer-activity-source-count')?.textContent,
+                name: row.querySelector('.bh-composer-activity-source-label')?.textContent,
+                nameOverflow: row.querySelector('.bh-composer-activity-source-label')
+                  ? getComputedStyle(row.querySelector('.bh-composer-activity-source-label'))
+                      .textOverflow
+                  : undefined,
+                nameTop: row
+                  .querySelector('.bh-composer-activity-source-label')
+                  ?.getBoundingClientRect().top,
+                latestTop: row
+                  .querySelector('.bh-composer-activity-session-latest')
+                  ?.getBoundingClientRect().top,
               };
             }),
         );
@@ -466,24 +552,40 @@ try {
             row.height <= (sessionMode && phase === 'after' ? 80 : 44) && row.fits && row.icon,
         ),
       );
+      if (compactSessions) {
+        assert.ok(
+          sourceRows.every(
+            (row) =>
+              row.width >= row.parentWidth - 1 &&
+              Math.abs(row.nameTop - row.latestTop) <= 2 &&
+              row.nameOverflow === 'ellipsis',
+          ),
+        );
+      }
       await page.setViewport({ width: 420, height: 860 });
       await page.waitForFunction(
-        () => document.querySelector('.bh-composer-activity-sources')?.clientWidth >= 180,
+        () => document.querySelector('.bh-composer-activity-details')?.clientWidth >= 180,
       );
       await page.evaluate(
         () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
       );
       narrowSourceRows = await measureSources();
       assert.ok(narrowSourceRows.every((row) => row.fits));
+      if (compactSessions)
+        assert.ok(
+          narrowSourceRows.every(
+            (row) => row.latestTop > row.nameTop && row.width >= row.parentWidth - 1,
+          ),
+        );
       await screenshot('details-narrow.png');
-      await page.setViewport({ width: 1500, height: 1180 });
+      await page.setViewport({ width: 1500, height: Number(process.env.BH_E2E_HEIGHT ?? 1180) });
     }
     const latest = snapshots.at(-1);
     let sessionEvidence;
     if (sessionMode && phase === 'after') {
       assert.equal(latest.sessions?.length, 1);
       assert.equal(latest.sessions[0].role, sourceRole);
-      assert.equal(latest.sessions[0].activity?.toolName, 'bash');
+      assert.equal(latest.sessions[0].activity?.toolName, toolName);
       assert.equal(latest.trace, undefined);
       assert.notEqual(latest.sessions[0].id, pending?.externalId);
       assert.equal(await page.$('.bh-composer-activity-bot-header'), null);
@@ -492,7 +594,7 @@ try {
         rows.map((row) => row.textContent),
       );
       assert.equal(sessionEvidence.length, latest.sessions.length);
-      assert.ok(sessionEvidence[0].includes('bash'));
+      assert.ok(sessionEvidence[0].includes(toolName));
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('.bh-composer-activity-status');
       const refreshed = await rpc('activitySnapshot');
@@ -568,6 +670,16 @@ try {
         ? { name: record.event.data.name }
         : {}),
     }));
+  const nativeTitle = native.records.findLast((record) => record.event.type === 'session/title')
+    ?.event.data.title;
+  if (compactSessions && sourceRole === 'assignment') {
+    assert.ok(
+      typeof nativeTitle === 'string' && nativeTitle.length > 0,
+      'Actual Assignment needs a logged native DSH title',
+    );
+    assert.equal(snapshots.at(-1)?.sessions?.[0]?.name, nativeTitle);
+    assert.ok(sourceRows[0].name.startsWith(nativeTitle));
+  }
   assert.ok(nativeEvents.some((event) => event.type === 'tool/call' && event.name === toolName));
   if (phase === 'after' && process.env.BH_E2E_HOLD !== 'true') {
     assert.ok(nativeEvents.some((event) => event.type === 'tool/result'));
@@ -580,6 +692,7 @@ try {
         bot: { slug: bot.slug, displayName: bot.displayName },
         route,
         sourceRole,
+        ...(compactSessions ? { compactSessions: true, nativeTitle } : {}),
         colorScheme,
         phase,
         snapshots,

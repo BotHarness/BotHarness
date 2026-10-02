@@ -4,6 +4,7 @@ import {
   activityEffectForToolKind,
   toolKindForView,
   isPublicToolDetail,
+  isSessionActivityName,
   type PersonaBotToolActivity,
 } from './tool-activity.js';
 import type { SessionOwnership, SessionOwnershipRecord } from '../sessions/ownership.js';
@@ -80,8 +81,17 @@ export function createDshActivityProjection(options: {
   const { ownership, states } = options;
   const now = options.now ?? (() => new Date());
 
+  const names = new Map<string, string>();
   const pending = new Map<string, Map<string, PersonaBotToolActivity>>();
   const project = (sessionId: string, event: DshSessionEvent): SessionState | undefined => {
+    if (event.type === 'session/title') {
+      const title =
+        typeof event.data === 'object' && event.data !== null && 'title' in event.data
+          ? event.data.title
+          : undefined;
+      if (isSessionActivityName(title)) names.set(sessionId, title);
+      else names.delete(sessionId);
+    }
     const state = sessionStateForEvent(event);
     if (state === undefined) return undefined;
     let calls = pending.get(sessionId);
@@ -169,7 +179,11 @@ export function createDshActivityProjection(options: {
     handleSessionEvent(sessionId, event) {
       const owner = ownership.resolve(sessionId);
       if (owner === undefined) return;
-      const state = project(sessionId, event);
+      const state =
+        project(sessionId, event) ??
+        (event.type === 'session/title'
+          ? states.snapshot(owner.botSlug).sessions[sessionId]
+          : undefined);
       if (state === undefined) return;
       states.setSessionState(
         owner.botSlug,
@@ -177,15 +191,23 @@ export function createDshActivityProjection(options: {
         state,
         activityForSession(sessionId, owner),
         owner.provenance === 'subagent' ? 'subagent' : owner.rootRole,
+        names.get(sessionId),
       );
     },
     handleAgentCreated(session) {
-      return attribute(session);
+      const attributed = attribute(session);
+      if (ownership.resolve(session.id) !== undefined) {
+        for (const event of session.snapshotEvents()) {
+          if (event.type === 'session/title') project(session.id, event);
+        }
+      }
+      return attributed;
     },
     handleSessionDisposed(sessionId) {
       const owner = ownership.resolve(sessionId);
       if (owner === undefined) return;
       pending.delete(sessionId);
+      names.delete(sessionId);
       states.clearSession(owner.botSlug, sessionId);
     },
     rebuild(sessions) {
@@ -210,6 +232,7 @@ export function createDshActivityProjection(options: {
           continue;
         }
         pending.delete(session.id);
+        names.delete(session.id);
         let state: SessionState | undefined;
         for (const event of session.snapshotEvents()) state = project(session.id, event) ?? state;
         if (state === undefined) continue;
@@ -220,6 +243,7 @@ export function createDshActivityProjection(options: {
           state,
           role: owner.provenance === 'subagent' ? 'subagent' : owner.rootRole,
           ...(activity === undefined ? {} : { activity }),
+          ...(names.get(session.id) === undefined ? {} : { name: names.get(session.id)! }),
         });
         rebuilt += 1;
       }

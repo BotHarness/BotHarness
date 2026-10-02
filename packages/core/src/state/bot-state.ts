@@ -4,6 +4,7 @@ import {
   type PersonaBotSessionActivity,
   type ActivitySourceRole,
   isPublicToolDetail,
+  isSessionActivityName,
   type PersonaBotToolActivity,
 } from './tool-activity.js';
 
@@ -43,6 +44,7 @@ export interface BotStateTracker {
     state: SessionState,
     activity?: PersonaBotToolActivity,
     role?: ActivitySourceRole,
+    name?: string,
   ): void;
   activity(slug: string): PersonaBotToolActivity | undefined;
   sessionActivity(slug: string): readonly PersonaBotSessionActivity[];
@@ -53,6 +55,7 @@ export interface BotStateTracker {
       state: SessionState;
       activity?: PersonaBotToolActivity;
       role?: ActivitySourceRole;
+      name?: string;
     }[],
   ): void;
   onActivity(listener: (event: PersonaBotActivityEvent) => void): () => void;
@@ -181,7 +184,14 @@ export function createBotStateTracker(): BotStateTracker {
       rebuilding = true;
       try {
         for (const row of rows)
-          tracker.setSessionState(row.slug, row.sessionId, row.state, row.activity, row.role);
+          tracker.setSessionState(
+            row.slug,
+            row.sessionId,
+            row.state,
+            row.activity,
+            row.role,
+            row.name,
+          );
       } finally {
         rebuilding = false;
       }
@@ -191,7 +201,7 @@ export function createBotStateTracker(): BotStateTracker {
       rebuildNotifications.clear();
       for (const event of rebuildEvents.splice(0)) emit(event);
     },
-    setSessionState(slug, sessionId, state, activity, role) {
+    setSessionState(slug, sessionId, state, activity, role, name) {
       const sessions = sessionsOf(slug);
       const previousAggregate = aggregateSessionStates(toRecord(sessions));
       const previousState = sessions.get(sessionId);
@@ -201,6 +211,7 @@ export function createBotStateTracker(): BotStateTracker {
         role ??
         previousDetail?.role ??
         (activity?.sources?.length === 1 ? activity.sources[0]?.role : undefined);
+      const sessionName = isSessionActivityName(name) ? name : undefined;
       const nextActivity = state === 'working' ? activity : undefined;
       if (nextActivity === undefined) tools.delete(sessionId);
       else
@@ -222,6 +233,7 @@ export function createBotStateTracker(): BotStateTracker {
       const changed =
         previousState !== state ||
         previousDetail?.role !== sourceRole ||
+        previousDetail?.name !== sessionName ||
         JSON.stringify(previousActivity) !== JSON.stringify(tools.get(sessionId));
       if (changed) {
         revision += 1;
@@ -229,6 +241,7 @@ export function createBotStateTracker(): BotStateTracker {
           sessionDetails.set(sessionId, {
             id: previousDetail?.id ?? `activity-${randomUUID()}`,
             role: sourceRole,
+            ...(sessionName === undefined ? {} : { name: sessionName }),
             at: Date.now(),
             revision,
           });

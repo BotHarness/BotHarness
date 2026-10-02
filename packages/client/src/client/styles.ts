@@ -2365,7 +2365,7 @@ button.bh-profile-heat-cell:focus-visible {
   overflow: auto;
   display: flex;
   flex-direction: column;
-  padding: 74px 18px 10px;
+  padding: 74px 18px calc(10px + var(--bh-activity-overlay-inset, 0px));
   overscroll-behavior: contain;
 }
 .bh-chat-empty {
@@ -2955,6 +2955,8 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   font-size: 11px;
 }
 .bh-composer-shell {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -3040,6 +3042,13 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 }
 
 .bh-composer-activity-status {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  container-type: inline-size;
+  background: transparent;
   min-height: 28px;
   min-width: 0;
   padding: 0 6px;
@@ -3054,6 +3063,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   display: none;
 }
 .bh-composer-activity-toggle {
+  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3066,16 +3076,18 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-composer-activity-toggle::-webkit-details-marker { display: none; }
 .bh-composer-activity-toggle:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
 .bh-composer-activity-status:not([open]) .bh-composer-activity-details { display: none; }
-.bh-composer-activity-details { display: grid; gap: 8px; max-width: 600px; margin: 8px 16px 0 36px; padding: 12px; border-radius: var(--bh-composer-radius-panel); background: var(--bh-composer-panel-bg); }
-.bh-composer-activity-bot { min-width: 0; }
- .bh-composer-activity-session { min-width: 0; padding: 8px; border: 1px solid var(--bh-overview-border); background: var(--bh-overview-bg); border-radius: var(--bh-overview-radius-control); }
-.bh-composer-activity-session-header { display: flex; align-items: center; gap: 8px; }
-.bh-composer-activity-session-header time { flex: none; font-size: var(--bh-overview-font); color: var(--bh-overview-muted); font-variant-numeric: tabular-nums; }
-.bh-composer-activity-session-latest { display: block; margin-top: 4px; margin-left: 24px; overflow-wrap: anywhere; font-size: var(--bh-overview-font); color: var(--bh-overview-muted); }
-.bh-composer-activity-sources { display: flex; flex-direction: column; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.bh-composer-activity-details { pointer-events: auto; display: flex; flex-direction: column; gap: 4px; max-height: min(40vh, 320px); overflow-y: auto; margin: 8px 0 0; padding: 0; list-style: none; background: transparent; }
+.bh-composer-activity-session { flex: none; pointer-events: auto; display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 40px; padding: 8px 12px; border: 1px solid var(--bh-overview-border); background: var(--bh-overview-bg); border-radius: var(--bh-overview-radius-control); }
+.bh-composer-activity-session time { flex: none; margin-left: auto; font-size: var(--bh-overview-font); color: var(--bh-overview-muted); font-variant-numeric: tabular-nums; }
+.bh-composer-activity-session-latest { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--bh-overview-font); color: var(--bh-overview-muted); }
 .bh-composer-activity-source { color: var(--bh-overview-label); }
-.bh-composer-activity-source-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bh-composer-activity-source-label { flex: 0 1 auto; max-width: 40%; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--bh-overview-label); }
 .bh-composer-activity-source-count { flex-shrink: 0; color: var(--bh-overview-muted); font-variant-numeric: tabular-nums; }
+@container (max-width: 480px) {
+  .bh-composer-activity-session { flex-wrap: wrap; }
+  .bh-composer-activity-source-label { flex: 1; max-width: none; }
+  .bh-composer-activity-session-latest { order: 1; flex-basis: 100%; padding-left: 24px; }
+}
 .bh-composer-activity-summary {
   min-width: 0;
   flex: 1;

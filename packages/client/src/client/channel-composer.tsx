@@ -86,6 +86,7 @@ export interface ChannelComposerProps {
   onAddFiles?(files: File[]): void;
   onRetryAttachment?(id: string): void;
   onRemoveAttachment?(id: string): void;
+  onActivityOverlayResize?(height: number): void;
   activity?: ChannelComposerActivity | undefined;
   mentionCandidates?: readonly BotSummary[] | undefined;
   mentions?: readonly SelectedMention[] | undefined;
@@ -295,14 +296,29 @@ export function fitComposerTextarea(
 function PersonaBotActivityStatus({
   activity,
   t,
+  onResize,
 }: {
   activity: ChannelComposerActivity | undefined;
   t: BotHarnessTranslate;
+  onResize?: ((height: number) => void) | undefined;
 }): ReactElement | null {
+  const overlayMount = useMountedResource<HTMLDetailsElement>(
+    (element) => {
+      if (onResize === undefined) return;
+      onResize(element.getBoundingClientRect().height);
+      const observer = new ResizeObserver(() => onResize(element.getBoundingClientRect().height));
+      observer.observe(element);
+      return () => {
+        observer.disconnect();
+        onResize(0);
+      };
+    },
+    [onResize],
+  );
   if (activity === undefined || activity.items.length === 0) return null;
 
   return (
-    <details className="bh-composer-activity-status">
+    <details ref={overlayMount} className="bh-composer-activity-status">
       <summary className="bh-composer-activity-toggle">
         <PersonaBotFacepile
           t={t}
@@ -315,56 +331,68 @@ function PersonaBotActivityStatus({
         </span>
         <IconChevronDownOutlineRegular className="bh-composer-activity-chevron" size={14} />
       </summary>
-      <div className="bh-composer-activity-details">
-        {activity.items.map((item) => (
-          <div className="bh-composer-activity-bot" key={item.personaBotId}>
-            {item.sessions !== undefined ? (
-              <ul className="bh-composer-activity-sources" aria-label={item.name}>
-                {item.sessions.map((session) => {
-                  const label = t(`activity.source.${session.role}`);
-                  const peers = item.sessions?.filter((peer) => peer.role === session.role) ?? [];
-                  const heading =
-                    peers.length > 1
-                      ? `${label} ${peers.findIndex((peer) => peer.id === session.id) + 1}`
-                      : label;
-                  return (
-                    <li className="bh-composer-activity-session" key={session.id}>
-                      <div className="bh-composer-activity-session-header">
-                        {activity.items.length > 1 && (
-                          <PersonaBotAvatar
-                            personaBotId={item.personaBotId}
-                            name={item.name}
-                            src={item.src}
-                            state={session.state}
-                            size={20}
-                            t={t}
-                          />
-                        )}
-                        <SessionRoleIcon role={session.role} label={label} />
-                        <span className="bh-composer-activity-source-label">{heading}</span>
-                        <time dateTime={new Date(session.at).toISOString()}>
-                          {new Date(session.at).toLocaleTimeString(undefined, {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                          })}
-                        </time>
-                      </div>
-                      <span className="bh-composer-activity-session-latest" role="status">
-                        {sessionLatestSummary(session, t)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <span className="bh-composer-activity-session-latest">
-                {personaBotActivitySummary(item.state ?? 'idle', item.activity, t)}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
+      <ul className="bh-composer-activity-details" aria-label={activity.summary}>
+        {activity.items.flatMap((item) =>
+          item.sessions !== undefined
+            ? item.sessions.map((session) => {
+                const roleLabel = t(`activity.source.${session.role}`);
+                const label =
+                  session.role === 'orchestrator'
+                    ? roleLabel
+                    : (session.name ?? t('activity.session.untitled'));
+                const latest = sessionLatestSummary(session, t);
+                return (
+                  <li className="bh-composer-activity-session" key={session.id}>
+                    {activity.items.length > 1 && (
+                      <PersonaBotAvatar
+                        personaBotId={item.personaBotId}
+                        name={item.name}
+                        src={item.src}
+                        state={session.state}
+                        size={20}
+                        t={t}
+                      />
+                    )}
+                    <SessionRoleIcon role={session.role} label={roleLabel} />
+                    <span className="bh-composer-activity-source-label" title={label}>
+                      {label}
+                    </span>
+                    <span
+                      className="bh-composer-activity-session-latest"
+                      role="status"
+                      title={latest}
+                    >
+                      {latest}
+                    </span>
+                    <time dateTime={new Date(session.at).toISOString()}>
+                      {new Date(session.at).toLocaleTimeString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })}
+                    </time>
+                  </li>
+                );
+              })
+            : [
+                <li className="bh-composer-activity-session" key={item.personaBotId}>
+                  {activity.items.length > 1 && (
+                    <PersonaBotAvatar
+                      personaBotId={item.personaBotId}
+                      name={item.name}
+                      src={item.src}
+                      state={item.state}
+                      size={20}
+                      t={t}
+                    />
+                  )}
+                  <span className="bh-composer-activity-session-latest">
+                    {personaBotActivitySummary(item.state ?? 'idle', item.activity, t)}
+                  </span>
+                </li>,
+              ],
+        )}
+      </ul>
     </details>
   );
 }
@@ -378,6 +406,7 @@ export function ChannelComposer({
   onAddFiles,
   onRetryAttachment,
   onRemoveAttachment,
+  onActivityOverlayResize,
   activity,
   mentionCandidates = [],
   mentions = [],
@@ -742,7 +771,7 @@ export function ChannelComposer({
           ))}
         </div>
       ) : null}
-      <PersonaBotActivityStatus activity={activity} t={t} />
+      <PersonaBotActivityStatus activity={activity} t={t} onResize={onActivityOverlayResize} />
       <div
         className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}${fit.animateFirstExpand ? ' bh-composer-first-expand' : ''}${reply === undefined ? '' : ' bh-composer-replying'}${hasFooter ? ' bh-composer-with-footer' : ''}`}
         data-layout={fit.expanded ? 'expanded' : 'compact'}

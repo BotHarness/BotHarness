@@ -12,6 +12,7 @@ const activity = {
 const session = {
   id: 'activity-11111111-1111-4111-8111-111111111111',
   role: 'assignment',
+  name: 'Verify compact activity',
   revision: 2,
   at: 2000,
   state: 'working',
@@ -47,6 +48,9 @@ describe('safe per-Session activity transport', () => {
       [session, session],
       [{ ...session, id: 'native-private-session' }],
       [{ ...session, role: 'unknown' }],
+      [{ ...session, name: '' }],
+      [{ ...session, name: 'bad\nname' }],
+      [{ ...session, name: 'x'.repeat(1025) }],
       [{ ...session, revision: 4 }],
       [{ ...session, at: -1 }],
       [{ ...session, at: 8_640_000_000_000_001 }],

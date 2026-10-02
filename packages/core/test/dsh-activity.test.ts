@@ -137,3 +137,49 @@ it('keeps each restored Session latest activity separate and updates only the ma
   projection.handleSessionDisposed('second');
   expect(states.sessionActivity('ada')).toEqual([]);
 });
+
+it('projects native Session titles on create, rename and rebuild without changing the active state or opaque identity', () => {
+  const states = createBotStateTracker();
+  const ownership = createTestOwnership({ task: { botSlug: 'ada', rootRole: 'assignment' } });
+  const projection = createDshActivityProjection({ ownership, states });
+  const title = (name: string | null) => ({
+    type: 'session/title',
+    time: 1,
+    data: { title: name },
+  });
+  const session = {
+    id: 'task',
+    header: {},
+    snapshotEvents: () => [title('Inspect layout'), event('step/start')],
+  };
+  projection.handleAgentCreated(session);
+  projection.handleSessionEvent('task', event('step/start'));
+  const first = states.sessionActivity('ada')[0];
+  expect(first).toMatchObject({ name: 'Inspect layout', role: 'assignment', state: 'thinking' });
+  projection.handleSessionEvent('task', title('Verify compact activity'));
+  expect(states.sessionActivity('ada')[0]).toMatchObject({
+    id: first?.id,
+    name: 'Verify compact activity',
+    state: 'thinking',
+  });
+  expect(states.version().revision).toBeGreaterThan(first?.revision ?? 0);
+  projection.handleSessionEvent('task', title(null));
+  expect(states.sessionActivity('ada')[0]?.name).toBeUndefined();
+  projection.handleSessionEvent('task', title('bad\nname'));
+  expect(states.sessionActivity('ada')[0]?.name).toBeUndefined();
+  projection.rebuild([session]);
+  expect(states.sessionActivity('ada')[0]).toMatchObject({
+    id: first?.id,
+    name: 'Inspect layout',
+    state: 'thinking',
+  });
+  const cold = createBotStateTracker();
+  createDshActivityProjection({ ownership, states: cold }).rebuild([session]);
+  expect(cold.sessionActivity('ada')[0]).toMatchObject({
+    name: 'Inspect layout',
+    state: 'thinking',
+  });
+  projection.handleSessionDisposed('task');
+  projection.handleSessionEvent('task', event('step/start'));
+  expect(states.sessionActivity('ada')[0]?.name).toBeUndefined();
+});

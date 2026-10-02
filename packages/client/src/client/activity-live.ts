@@ -1,4 +1,7 @@
-import type { PersonaBotSessionActivity } from '../../../core/src/state/tool-activity.js';
+import {
+  isSessionActivityName,
+  type PersonaBotSessionActivity,
+} from '../../../core/src/state/tool-activity.js';
 import { parsePublicToolActivity } from './activity-detail.js';
 import { PERSONA_BOT_ACTIVITY_STATES } from './avatar.js';
 import type { ClientStore, PersonaBotActivitySnapshot } from './store.js';
@@ -58,6 +61,7 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
             ) ||
             ids.has(entry.id) ||
             role === undefined ||
+            (entry.name !== undefined && !isSessionActivityName(entry.name)) ||
             sessionState === undefined ||
             sessionState === 'idle' ||
             !Number.isSafeInteger(entry.revision) ||
@@ -78,6 +82,7 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
           sessions.push({
             id: entry.id,
             role,
+            ...(entry.name === undefined ? {} : { name: entry.name }),
             revision: entry.revision,
             at: entry.at,
             state: sessionState,
