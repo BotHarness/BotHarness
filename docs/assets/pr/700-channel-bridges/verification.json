@@ -1,0 +1,54 @@
+{
+  "baseline": "23d5acd51207affacdc63092ea5256f147ee6b51",
+  "verification": {
+    "verifiedAt": "2026-10-02T18:44:33.059938+00:00",
+    "code": "4320d789",
+    "sourceCounts": {
+      "BH700 CUTOFF PAUSED": 0,
+      "BH700 CUTOFF DELETED": 0,
+      "BH700 CUTOFF ORDINARY PROBE": 0,
+      "BH700 CUTOFF FRESH": 1,
+      "BH700 CUTOFF ALL 1": 1,
+      "BH700 CUTOFF ALL 2": 1
+    },
+    "replyStates": {
+      "BH700-CUTOFF-OK": ["provider-accepted"],
+      "BH700-CUTOFF-ALL-OK": ["provider-accepted"]
+    },
+    "finalPolicy": {
+      "collection": "mentions",
+      "wake": "digest",
+      "count": 5,
+      "intervalSeconds": 30
+    },
+    "initialLateDeletedProbeRetained": 1
+  },
+  "modelTools": [
+    {
+      "name": "channel_read",
+      "turn": 48
+    },
+    {
+      "name": "bridge_reply",
+      "turn": 48,
+      "text": "BH700-CUTOFF-OK"
+    },
+    {
+      "name": "channel_read",
+      "turn": 49
+    },
+    {
+      "name": "bridge_reply",
+      "turn": 49,
+      "text": "BH700-CUTOFF-ALL-OK"
+    }
+  ],
+  "automated": {
+    "passed": 1977,
+    "skipped": 2,
+    "typecheck": "passed",
+    "lint": "passed (existing warnings)",
+    "format": "passed",
+    "build": "passed"
+  }
+}
