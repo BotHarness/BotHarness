@@ -19,7 +19,7 @@ import {
 import {
   PersonaBotAvatar,
   PersonaBotFacepile,
-  personaBotActivityLabel,
+  personaBotActivitySummary,
   type PersonaBotFacepileItem,
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
@@ -611,6 +611,7 @@ function ConversationView({
     name: member.displayName,
     src: member.avatar,
     state: personaBotActivity(state, member),
+    activity: member.activity,
   }));
   const activeFacepile = channelFacepile.filter((item) => item.state !== 'idle');
   const composerFacepile: PersonaBotFacepileItem[] =
@@ -624,6 +625,7 @@ function ConversationView({
               name: bot.displayName,
               src: bot.avatar,
               state: botActivity,
+              activity: bot.activity,
             },
           ];
   const composerActivity: ChannelComposerActivity | undefined =
@@ -633,7 +635,7 @@ function ConversationView({
           items: composerFacepile,
           summary:
             composerFacepile.length === 1
-              ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivityLabel(composerFacepile[0]?.state ?? 'idle', t)}`
+              ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivitySummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, t)}`
               : t('main.activity.bots', { count: composerFacepile.length }),
         };
   const channelId = channel?.id;

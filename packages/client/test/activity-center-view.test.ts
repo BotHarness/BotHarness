@@ -154,3 +154,34 @@ it('returns to the last Activity Center tab after DM navigation and a new client
   await next.openActivityCenter();
   expect(reloaded.getSnapshot().selection).toEqual({ kind: 'inbox', view: 'overview' });
 });
+
+it('keeps the explicit tab in memory when storage still returns an older tab and rejects writes', async () => {
+  const { createStore } = await import('../src/client/store.js');
+  const storage = {
+    getItem: () => 'inbox',
+    setItem: () => {
+      throw new Error('storage refused');
+    },
+  };
+  const call = async (endpoint: string) => ({
+    ok: true as const,
+    value:
+      endpoint === 'humanAttentionStatus'
+        ? { unreadCount: 0, hasAction: false }
+        : endpoint === 'activityOverview'
+          ? { actionCount: 0, bots: [] }
+          : { items: [] },
+  });
+  const local = createStore();
+  const actions = createActions(call, local, undefined, storage);
+  await actions.openActivityCenter();
+  expect(local.getSnapshot().selection).toEqual({ kind: 'inbox' });
+  await actions.openActivityCenter('overview');
+  local.select({ kind: 'channel', channelId: 'dm-ada' });
+  await actions.openActivityCenter();
+  expect(local.getSnapshot().selection).toEqual({ kind: 'inbox', view: 'overview' });
+  await actions.openHumanInbox();
+  local.select({ kind: 'bot', slug: 'ada' });
+  await actions.openActivityCenter();
+  expect(local.getSnapshot().selection).toEqual({ kind: 'inbox' });
+});

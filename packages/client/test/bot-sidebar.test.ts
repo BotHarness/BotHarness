@@ -103,6 +103,7 @@ const DM_CHANNEL: ChannelSummary = {
 function stubActions(): BridgeActions {
   return {
     messagingChannelTarget: async () => undefined,
+    messagingThreadPolicy: async () => undefined,
     messagingGroupPolicy: async () => undefined,
     messagingReceive: vi.fn(async () => undefined),
     messagingSource: vi.fn(async () => {
@@ -171,6 +172,14 @@ function stubActions(): BridgeActions {
     loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     openChannelAtMessage: vi.fn(async () => undefined),
+    dismissHumanInbox: vi.fn(async () => undefined),
+    humanInboxContextPage: vi.fn(async () => ({
+      entries: [],
+      olderCursor: null,
+      newerCursor: null,
+      hasOlder: false,
+      hasNewer: false,
+    })),
     humanInboxContext: vi.fn(async () => []),
     replyFromHumanInbox: vi.fn(async () => {
       throw new Error('No reply expected');

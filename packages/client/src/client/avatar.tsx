@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactElement } from 'react';
 
+import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activity.js';
+
 import { blobatar } from 'blobatar';
 
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
@@ -28,6 +30,7 @@ export interface PersonaBotAvatarProps {
   src?: string | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
+  activity?: PersonaBotToolActivity | undefined;
   indicator?: boolean | undefined;
   t?: BotHarnessTranslate | undefined;
   className?: string | undefined;
@@ -39,6 +42,7 @@ export interface PersonaBotFacepileItem {
   src?: string | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
+  activity?: PersonaBotToolActivity | undefined;
 }
 
 const FALLBACK_HUES = [225, 262, 12, 152, 47, 200];
@@ -79,6 +83,31 @@ export function personaBotActivityLabel(
     case 'blocked':
       return t('activity.blocked');
   }
+}
+
+export function personaBotActivitySummary(
+  state: PersonaBotActivityState,
+  activity: PersonaBotToolActivity | undefined,
+  t: BotHarnessTranslate = zhTranslate,
+): string {
+  if (state !== 'working' || activity === undefined) return personaBotActivityLabel(state, t);
+  const label =
+    activity.effect === 'searching'
+      ? t('activity.searching')
+      : activity.effect === 'coding'
+        ? t('activity.coding')
+        : activity.effect === 'executing'
+          ? t('activity.executing')
+          : t('activity.working');
+  return [
+    label,
+    activity.toolName,
+    activity.activeToolCount > 1
+      ? t('activity.toolCount', { count: activity.activeToolCount })
+      : undefined,
+  ]
+    .filter((value) => value !== undefined)
+    .join(' · ');
 }
 
 function BlobatarMedia({ seed }: { seed: string }): ReactElement {
@@ -143,11 +172,14 @@ export function PersonaBotAvatar({
   src,
   state = 'idle',
   effect,
+  activity,
   indicator = true,
   className,
   t = zhTranslate,
 }: PersonaBotAvatarProps): ReactElement {
-  const resolvedEffect = effect ?? defaultActivityEffect(state);
+  const resolvedEffect =
+    effect ?? (state === 'working' ? activity?.effect : undefined) ?? defaultActivityEffect(state);
+  const summary = personaBotActivitySummary(state, activity, t);
   const mediaKind = src === undefined || src.length === 0 ? 'blob' : 'image';
   const active = state === 'thinking' || state === 'working';
   const classes = ['bh-persona-avatar', className].filter(Boolean).join(' ');
@@ -160,8 +192,9 @@ export function PersonaBotAvatar({
       data-effect={resolvedEffect}
       data-media={mediaKind}
       data-active={active ? 'true' : 'false'}
+      title={`${name} · ${summary}`}
       role="img"
-      aria-label={t('avatar.label', { name, activity: personaBotActivityLabel(state, t) })}
+      aria-label={t('avatar.label', { name, activity: summary })}
     >
       <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
       {indicator ? <ActivityIndicator state={state} /> : null}

@@ -1,4 +1,11 @@
 import {
+  commitThreadReceptionPolicy,
+  threadReceptionPolicy,
+  type ThreadReceptionInput,
+  type ThreadReceptionPolicy,
+  type ThreadReceptionView,
+} from './thread-policy.js';
+import {
   commitGroupReceptionPolicy,
   groupReceptionPolicy,
   initializeGroupReceptionPolicy,
@@ -80,6 +87,13 @@ export interface InboundMessaging {
     input: GroupReceptionInput,
     editor: BotSourcePolicyEditor,
   ): Promise<GroupReceptionPolicy>;
+  threads(botSlug: string, grantId: string): ThreadReceptionView[];
+  setThread(
+    botSlug: string,
+    sourceEventId: string,
+    input: ThreadReceptionInput,
+    editor: BotSourcePolicyEditor,
+  ): Promise<ThreadReceptionPolicy>;
   ordinaryDelivery(grantId: string): 'verified' | 'unverified';
   status(grantId: string): 'off' | 'connecting' | 'receiving' | 'unavailable';
   available(botSlug: string, sourceEventId: string): boolean;
@@ -120,6 +134,7 @@ export function createInboundMessaging(options: {
     {
       token: object;
       ordinaryVerified?: boolean;
+      ordinaryThreads: Map<string, string>;
       revision: number;
       controller: AbortController;
       dispose: (() => void) | undefined;
@@ -287,6 +302,7 @@ export function createInboundMessaging(options: {
       return;
     const lease = {
       ordinaryVerified: false,
+      ordinaryThreads: new Map<string, string>(),
       token: entry.token,
       revision: value.revision,
       controller: new AbortController(),
@@ -339,6 +355,15 @@ export function createInboundMessaging(options: {
               }),
             );
           }
+          if (
+            !event.mentionedAccount &&
+            event.reply.threadId &&
+            event.reply.rootId &&
+            event.reply.parentId &&
+            event.reply.conversationId === event.conversation.id
+          ) {
+            lease.ordinaryThreads.set(event.reply.threadId, event.reply.rootId);
+          }
           let placement: ChannelMessageCommit | undefined;
           const id = transaction(
             (db) => {
@@ -347,7 +372,29 @@ export function createInboundMessaging(options: {
               if (value.receiveTargetChannelId)
                 bridgeChannel(db, value.receiveTargetChannelId, value.botSlug);
               const reception = groupReceptionPolicy(db, value.id);
-              if (!event.mentionedAccount && reception.collection !== 'all') return undefined;
+              const thread = event.reply.threadId
+                ? threadReceptionPolicy(db, value.id, event.reply.threadId)
+                : undefined;
+              if (
+                thread &&
+                (thread.fingerprint !== value.fingerprint ||
+                  thread.conversationId !== event.conversation.id ||
+                  thread.rootId !== event.reply.rootId)
+              )
+                throw new MessagingError('thread-route-mismatch');
+              if (
+                !event.mentionedAccount &&
+                (thread?.mode === 'exclude' ||
+                  (thread?.mode !== 'follow' && reception.collection !== 'all'))
+              )
+                return undefined;
+              if (
+                !event.mentionedAccount &&
+                thread?.mode === 'follow' &&
+                (!event.reply.rootId || !event.reply.parentId)
+              )
+                throw new MessagingError('thread-route-mismatch');
+              const ordinary = thread?.mode === 'follow' && thread.wake ? thread.wake : reception;
               const id = persistSource(db, value, event);
               const row = db
                 .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
@@ -357,11 +404,11 @@ export function createInboundMessaging(options: {
               placement = placeBridgeSource(db, { ...source, body: event.text }, value.botSlug);
               const reason = event.mentionedAccount ? 'group-mention' : 'group-ordinary';
               const policy = options.sourcePolicy.resolveIn(db, value.botSlug, reason);
-              const wake = event.mentionedAccount ? policy.wake : reception.wake;
+              const wake = event.mentionedAccount ? policy.wake : ordinary.wake;
               db.prepare(`INSERT OR IGNORE INTO inbox_admissions
               (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
-               wake_policy_revision, wake_mode, wake_count, wake_interval_ms)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+               wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
                 id,
                 value.botSlug,
                 reason,
@@ -372,13 +419,14 @@ export function createInboundMessaging(options: {
                 !event.mentionedAccount && (wake === 'immediate' || wake === 'digest')
                   ? wake === 'immediate'
                     ? 1
-                    : reception.count
+                    : ordinary.count
                   : null,
                 !event.mentionedAccount && (wake === 'immediate' || wake === 'digest')
                   ? wake === 'immediate'
                     ? 0
-                    : reception.intervalSeconds * 1000
+                    : ordinary.intervalSeconds * 1000
                   : null,
+                thread?.revision ?? null,
               );
               return id;
             },
@@ -638,6 +686,149 @@ export function createInboundMessaging(options: {
           grantId: id,
           revision: policy.revision,
           editor: editor.kind,
+        }),
+      );
+      return policy;
+    },
+    threads(botSlug, id) {
+      const value = grant(id);
+      if (
+        value.botSlug !== botSlug ||
+        value.revokedAt ||
+        value.suspendedReason ||
+        !options.isBotActive(botSlug)
+      )
+        throw new MessagingError('grant-unavailable');
+      if (value.platform !== 'feishu') return [];
+      return database.read((db) => {
+        const rows = db
+          .prepare(`WITH candidates AS (
+          SELECT s.source_event_id, s.payload_json, s.body, s.created_at,
+            row_number() OVER (PARTITION BY json_extract(s.payload_json, '$.external.event.reply.threadId') ORDER BY s.created_at DESC, s.source_event_id DESC) AS rank
+          FROM source_events s JOIN inbox_admissions a ON a.source_event_id = s.source_event_id
+          WHERE a.bot_slug = ? AND s.source_kind = 'bridge-message'
+            AND json_extract(s.payload_json, '$.external.grantId') = ?
+            AND json_extract(s.payload_json, '$.external.grantRevision') = ?
+            AND json_extract(s.payload_json, '$.external.event.reply.threadId') IS NOT NULL
+        ) SELECT source_event_id, payload_json, body FROM candidates WHERE rank = 1 ORDER BY created_at DESC LIMIT 50`)
+          .all(botSlug, id, value.revision) as {
+          source_event_id: string;
+          payload_json: string;
+          body: string;
+        }[];
+        const seen = new Set<string>();
+        return rows
+          .flatMap((row) => {
+            const source = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;
+            const route = source.event.reply;
+            if (
+              source.grantId !== id ||
+              source.grantRevision !== value.revision ||
+              !route.threadId ||
+              !route.rootId ||
+              !route.parentId ||
+              seen.has(route.threadId)
+            )
+              return [];
+            seen.add(route.threadId);
+            const policy = threadReceptionPolicy(db, id, route.threadId) ?? {
+              threadId: route.threadId,
+              conversationId: route.conversationId,
+              rootId: route.rootId,
+              anchorSourceEventId: row.source_event_id,
+              fingerprint: value.fingerprint,
+              mode: 'inherit' as const,
+              wake: null,
+              revision: 0,
+              changedAt: '',
+              editor: { kind: 'built-in' as const },
+            };
+            return [
+              {
+                ...policy,
+                preview: source.event.mentions
+                  .reduce(
+                    (text, mention) =>
+                      text.replaceAll(mention.key, '@' + (mention.name ?? mention.id)),
+                    row.body,
+                  )
+                  .slice(0, 120),
+                anchorSourceEventId: row.source_event_id,
+                ordinaryDelivery:
+                  valid(value) &&
+                  leases.get(id)?.ordinaryThreads.get(route.threadId) === route.rootId
+                    ? ('verified' as const)
+                    : ('unverified' as const),
+              },
+            ];
+          })
+          .slice(0, 50);
+      });
+    },
+    async setThread(botSlug, sourceEventId, input, editor) {
+      const source = read(botSlug, sourceEventId);
+      const value = grant(source.grantId);
+      if (
+        value.botSlug !== botSlug ||
+        !valid(value) ||
+        source.grantRevision !== value.revision ||
+        (editor.kind === 'bot' && editor.botSlug !== botSlug)
+      )
+        throw new MessagingError('grant-unavailable');
+      const route = source.event.reply;
+      if (
+        value.platform !== 'feishu' ||
+        !route.threadId ||
+        !route.rootId ||
+        !route.parentId ||
+        route.conversationId !== value.receiveScope?.conversationId ||
+        source.event.fingerprint !== value.fingerprint
+      )
+        throw new MessagingError('thread-unavailable');
+      const entry = providers.get(value.providerId)!;
+      const lease = leases.get(value.id)!;
+      const inspected = await entry.provider.inspect(value.accountRef, value.targetRef);
+      if (
+        providers.get(value.providerId) !== entry ||
+        inspected.account.fingerprint !== value.fingerprint ||
+        inspected.target.digest !== value.targetDigest ||
+        inspected.target.receiveScope?.conversationId !== route.conversationId
+      )
+        throw new MessagingError('rebind-required');
+      if (input.mode === 'follow' && lease.ordinaryThreads.get(route.threadId) !== route.rootId)
+        throw new MessagingError('thread-delivery-unverified');
+      const policy = transaction(
+        (db) => {
+          if (
+            !valid(grant(value.id)) ||
+            grant(value.id).revision !== value.revision ||
+            leases.get(value.id) !== lease
+          )
+            throw new MessagingError('grant-unavailable');
+          return commitThreadReceptionPolicy(
+            db,
+            value.id,
+            {
+              threadId: route.threadId!,
+              conversationId: route.conversationId,
+              rootId: route.rootId!,
+              anchorSourceEventId: sourceEventId,
+              fingerprint: value.fingerprint,
+            },
+            input,
+            editor,
+          );
+        },
+        ['grants', 'bot-inbox'],
+      );
+      options.warn?.(
+        JSON.stringify({
+          event: 'messaging-thread-policy',
+          phase: 'committed',
+          grantId: value.id,
+          revision: policy.revision,
+          editor: editor.kind,
+          mode: policy.mode,
         }),
       );
       return policy;

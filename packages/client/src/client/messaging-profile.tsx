@@ -1,3 +1,4 @@
+import { ThreadReceptionSettings } from './thread-reception-settings.js';
 import type {
   GroupReceptionInput,
   GroupReceptionPolicy,
@@ -19,6 +20,7 @@ export function MessagingProfile({
   actions: Pick<
     BridgeActions,
     | 'messagingGroupPolicy'
+    | 'messagingThreadPolicy'
     | 'messagingReceive'
     | 'messagingChannelTarget'
     | 'messagingSnapshot'
@@ -220,6 +222,21 @@ export function MessagingProfile({
                         save={(input) =>
                           operate(() => actions.messagingGroupPolicy(slug, grant.id, input))
                         }
+                      />
+                    ) : null}
+                    {grant.threadPolicies?.length ? (
+                      <ThreadReceptionSettings
+                        policies={grant.threadPolicies}
+                        busy={busy}
+                        t={t}
+                        save={async (sourceEventId, input) => {
+                          let saved = false;
+                          await operate(async () => {
+                            await actions.messagingThreadPolicy(slug, sourceEventId, input);
+                            saved = true;
+                          });
+                          return saved;
+                        }}
                       />
                     ) : null}
                     <Button

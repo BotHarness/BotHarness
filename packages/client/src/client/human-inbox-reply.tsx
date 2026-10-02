@@ -1,6 +1,13 @@
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
 import { useRef, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
+import type { TimelinePage } from './bridge.js';
+import {
+  HumanInboxDismiss,
+  HumanInboxContextEdge,
+  HumanInboxMessageSource,
+} from './human-inbox-detail-controls.js';
 import { ChannelMessageBody } from './channel-message-body.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { channelHumanName, currentMentionLabel } from './actor-names.js';
@@ -50,7 +57,12 @@ export function HumanInboxReply({
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(false);
   const [sent, setSent] = useState<ChannelMessage>();
-  const [expanded, setExpanded] = useState(false);
+  const [page, setPage] = useState<TimelinePage>();
+  const [olderShown, setOlderShown] = useState(0);
+  const [newerShown, setNewerShown] = useState(0);
+  const [edgeBusy, setEdgeBusy] = useState<'older' | 'newer'>();
+  const [edgeError, setEdgeError] = useState(false);
+  const edgePending = useRef(false);
   const loading = useRef<AbortController>();
   const attempt = useRef<{ body: string; id: string }>();
   const submitting = useRef(false);
@@ -63,7 +75,12 @@ export function HumanInboxReply({
     setContext(undefined);
     setContextError(false);
     try {
-      const messages = await actions.humanInboxContext(channelId, messageId, controller.signal);
+      const initial = await actions.humanInboxContextPage(
+        channelId,
+        { direction: 'around', around: messageId, olderLimit: 2, newerLimit: 2 },
+        controller.signal,
+      );
+      const messages = initial.entries;
       const responseId = source.category === 'handled' ? source.responseMessageId : undefined;
       const responses =
         responseId === undefined
@@ -79,6 +96,7 @@ export function HumanInboxReply({
         throw new Error('Canonical response is unavailable');
       if (!controller.signal.aborted) {
         setContext(messages);
+        setPage(initial);
         setResponse(answer);
       }
     } catch {
@@ -115,7 +133,7 @@ export function HumanInboxReply({
         observer.observe(message);
       return () => observer.disconnect();
     },
-    [actions, channelId, messageId, context, expanded],
+    [actions, channelId, messageId, context, olderShown, newerShown],
   );
   const submit = async (): Promise<void> => {
     const body = draft.trim();
@@ -152,6 +170,55 @@ export function HumanInboxReply({
           : t('humanInbox.reply.system');
   const author = (message: ChannelMessage): string => authorName(message.author);
   const target = context?.find((message) => message.id === messageId);
+  const targetIndex = context?.findIndex((message) => message.id === messageId) ?? -1;
+  const visibleMessages =
+    context?.slice(Math.max(0, targetIndex - olderShown), targetIndex + newerShown + 1) ?? [];
+  const hasOlder = targetIndex > olderShown || page?.hasOlder === true;
+  const expand = async (direction: 'older' | 'newer'): Promise<void> => {
+    if (edgePending.current || context === undefined || page === undefined) return;
+    setEdgeError(false);
+    if (direction === 'older' && targetIndex > olderShown) {
+      setOlderShown(targetIndex);
+      return;
+    }
+    if (direction === 'newer' && context.length > targetIndex + newerShown + 1) {
+      setNewerShown(context.length - targetIndex - 1);
+      return;
+    }
+    const cursor = direction === 'older' ? page.olderCursor : page.newerCursor;
+
+    edgePending.current = true;
+    setEdgeBusy(direction);
+    loading.current?.abort();
+    const controller = new AbortController();
+    loading.current = controller;
+    try {
+      const next = await actions.humanInboxContextPage(
+        channelId,
+        cursor === null
+          ? { direction: 'around', around: context.at(-1)!.id, olderLimit: 0, newerLimit: 10 }
+          : { direction, cursor, limit: 10 },
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      const additions = next.entries.filter(
+        (message) => !context.some((current) => current.id === message.id),
+      );
+      setContext(direction === 'older' ? [...additions, ...context] : [...context, ...additions]);
+      setPage(
+        direction === 'older'
+          ? { ...page, olderCursor: next.olderCursor, hasOlder: next.hasOlder }
+          : { ...page, newerCursor: next.newerCursor, hasNewer: next.hasNewer },
+      );
+      if (direction === 'older') setOlderShown(olderShown + additions.length);
+      else setNewerShown(newerShown + additions.length);
+    } catch {
+      if (!controller.signal.aborted) setEdgeError(true);
+    } finally {
+      edgePending.current = false;
+      if (!controller.signal.aborted) setEdgeBusy(undefined);
+    }
+  };
   const openSource = (id: string): void => {
     void actions.openChannelAtMessage(channelId, id).catch(() => {
       setContext(undefined);
@@ -163,174 +230,181 @@ export function HumanInboxReply({
     <section className="bh-human-inbox-reply" ref={mount} aria-label={title}>
       <div className="bh-human-inbox-reply-header">
         <h2>{title}</h2>
-        <button type="button" disabled={sending} onClick={onClose}>
-          {t(
-            isApproval
-              ? 'humanInbox.approval.close'
-              : isQuestion
-                ? 'humanInbox.question.close'
-                : isGrant
-                  ? 'humanInbox.grant.close'
-                  : 'humanInbox.reply.close',
-          )}
-        </button>
+        <HumanInboxDismiss
+          source={source}
+          actions={actions}
+          t={t}
+          disabled={sending}
+          onClose={onClose}
+        />
       </div>
       {target === undefined ? (
         <p role={contextError ? 'alert' : 'status'}>
           {t(contextError ? 'humanInbox.reply.unavailable' : 'humanInbox.loading')}
+          {contextError ? (
+            <Button size="sm" type="button" onClick={() => void reload()}>
+              {t('humanInbox.context.retry')}
+            </Button>
+          ) : null}
         </p>
       ) : (
         <div>
-          <button
-            className="bh-human-inbox-reply-context"
-            type="button"
-            aria-expanded={expanded}
-            onClick={() => setExpanded(!expanded)}
-          >
-            {t(expanded ? 'humanInbox.reply.collapse' : 'humanInbox.reply.context')}
-          </button>
-          <div ref={visibleSource} className="bh-human-inbox-message-flow">
-            {(expanded ? context! : [target]).map((message) => (
-              <article
-                key={message.id}
-                data-message-id={message.id}
-                className={
-                  'bh-human-inbox-message' +
-                  (message.id === messageId ? ' bh-human-inbox-reply-source' : '')
-                }
-              >
-                {message.author.kind === 'bot' ? (
-                  <PersonaBotAvatar
-                    personaBotId={message.author.slug}
-                    name={author(message)}
-                    src={
-                      bots.find(
-                        (bot) => message.author.kind === 'bot' && bot.slug === message.author.slug,
-                      )?.avatar
-                    }
-                    size={28}
-                    indicator={false}
-                    t={t}
+          <div className="bh-human-inbox-context-window">
+            <HumanInboxContextEdge
+              direction="older"
+              disabled={!hasOlder}
+              busy={edgeBusy !== undefined}
+              onClick={() => void expand('older')}
+              t={t}
+            />
+            <div ref={visibleSource} className="bh-human-inbox-message-flow">
+              {visibleMessages.map((message) => (
+                <article
+                  key={message.id}
+                  data-message-id={message.id}
+                  className={
+                    'bh-human-inbox-message' +
+                    (message.id === messageId ? ' bh-human-inbox-reply-source' : '')
+                  }
+                >
+                  <HumanInboxMessageSource
+                    label={t('humanInbox.open')}
+                    onClick={() => openSource(message.id)}
                   />
-                ) : (
-                  <span className="bh-human-inbox-human-avatar" aria-hidden="true">
-                    {author(message).slice(0, 1)}
-                  </span>
-                )}
-                <div className="bh-human-inbox-message-content">
-                  <div className="bh-human-inbox-message-heading">
-                    <strong>{author(message)}</strong>
-                    <time dateTime={message.at}>{new Date(message.at).toLocaleString()}</time>
-                  </div>
-                  {message.id === messageId ? (
-                    <span className="bh-human-inbox-message-target">
-                      {t(
-                        isApproval
-                          ? 'approval.requestTitle'
-                          : isQuestion
-                            ? 'question.title'
-                            : isGrant
-                              ? 'grant.requestTitle'
-                              : 'humanInbox.reply.target',
-                      )}
-                    </span>
-                  ) : null}
-                  {message.replyToPreview ? (
-                    <blockquote>
-                      <strong>{authorName(message.replyToPreview.author)}</strong>
-                      <p>{message.replyToPreview.body}</p>
-                    </blockquote>
-                  ) : null}
-                  {isNativeAction && message.id === messageId ? (
-                    <ChannelMessageBody
-                      message={message}
-                      channelId={channelId}
-                      actions={actions}
+                  {message.author.kind === 'bot' ? (
+                    <PersonaBotAvatar
+                      personaBotId={message.author.slug}
+                      name={author(message)}
+                      src={
+                        bots.find(
+                          (bot) =>
+                            message.author.kind === 'bot' && bot.slug === message.author.slug,
+                        )?.avatar
+                      }
+                      size={28}
+                      indicator={false}
                       t={t}
-                      userQuestionResolution={
-                        response?.userQuestionResolution?.state ??
-                        message.userQuestionResolution?.state ??
-                        context?.find(
-                          (entry) => entry.userQuestionResolution?.requestMessageId === messageId,
-                        )?.userQuestionResolution?.state
-                      }
-                      toolApprovalDecision={
-                        response?.toolApprovalDecision?.outcome ??
-                        context?.find(
-                          (entry) => entry.toolApprovalDecision?.requestMessageId === messageId,
-                        )?.toolApprovalDecision?.outcome
-                      }
                     />
                   ) : (
-                    <p>
-                      {referenceRuns(
-                        message.body,
-                        message.mentions ?? [],
-                        [],
-                        message.humanMentions ?? [],
-                      ).map((run, index) =>
-                        run.humanMention === undefined && run.mention === undefined ? (
-                          <span key={index}>{run.text}</span>
-                        ) : (
-                          <span
-                            key={index}
-                            className="bh-inline-mention bh-inline-mention-sent"
-                            data-human-id={run.humanMention?.humanId}
-                            data-bot-id={run.mention?.botSlug}
-                            title={t(
-                              run.humanMention === undefined
-                                ? 'message.mention.botType'
-                                : 'message.mention.humanType',
-                            )}
-                          >
-                            @
-                            {currentMentionLabel(
-                              (run.humanMention ?? run.mention)!,
-                              bots,
-                              humanMembers,
-                            )}
-                          </span>
-                        ),
-                      )}
-                    </p>
+                    <span className="bh-human-inbox-human-avatar" aria-hidden="true">
+                      {author(message).slice(0, 1)}
+                    </span>
                   )}
-                  {message.attachments?.map((attachment) => (
-                    <p key={attachment.fileId ?? attachment.hash}>{attachment.name}</p>
-                  ))}
-                </div>
-              </article>
-            ))}
-            {response === undefined ||
-            (expanded && context?.some((message) => message.id === response.id)) ? null : (
-              <article data-message-id={response.id} className="bh-human-inbox-message">
-                <span className="bh-human-inbox-human-avatar" aria-hidden="true">
-                  {author(response).slice(0, 1)}
-                </span>
-                <div className="bh-human-inbox-message-content">
-                  <div className="bh-human-inbox-message-heading">
-                    <strong>{author(response)}</strong>
-                    <time dateTime={response.at}>{new Date(response.at).toLocaleString()}</time>
+                  <div className="bh-human-inbox-message-content">
+                    <div className="bh-human-inbox-message-heading">
+                      <strong>{author(message)}</strong>
+                      <time dateTime={message.at}>{new Date(message.at).toLocaleString()}</time>
+                    </div>
+                    {message.id === messageId ? (
+                      <span className="bh-human-inbox-message-target">
+                        {t(
+                          isApproval
+                            ? 'approval.requestTitle'
+                            : isQuestion
+                              ? 'question.title'
+                              : isGrant
+                                ? 'grant.requestTitle'
+                                : 'humanInbox.reply.target',
+                        )}
+                      </span>
+                    ) : null}
+                    {message.replyToPreview ? (
+                      <blockquote>
+                        <strong>{authorName(message.replyToPreview.author)}</strong>
+                        <p>{message.replyToPreview.body}</p>
+                      </blockquote>
+                    ) : null}
+                    {isNativeAction && message.id === messageId ? (
+                      <ChannelMessageBody
+                        message={message}
+                        channelId={channelId}
+                        actions={actions}
+                        t={t}
+                        userQuestionResolution={
+                          response?.userQuestionResolution?.state ??
+                          message.userQuestionResolution?.state ??
+                          context?.find(
+                            (entry) => entry.userQuestionResolution?.requestMessageId === messageId,
+                          )?.userQuestionResolution?.state
+                        }
+                        toolApprovalDecision={
+                          response?.toolApprovalDecision?.outcome ??
+                          context?.find(
+                            (entry) => entry.toolApprovalDecision?.requestMessageId === messageId,
+                          )?.toolApprovalDecision?.outcome
+                        }
+                      />
+                    ) : (
+                      <p>
+                        {referenceRuns(
+                          message.body,
+                          message.mentions ?? [],
+                          [],
+                          message.humanMentions ?? [],
+                        ).map((run, index) =>
+                          run.humanMention === undefined && run.mention === undefined ? (
+                            <span key={index}>{run.text}</span>
+                          ) : (
+                            <span
+                              key={index}
+                              className="bh-inline-mention bh-inline-mention-sent"
+                              data-human-id={run.humanMention?.humanId}
+                              data-bot-id={run.mention?.botSlug}
+                              title={t(
+                                run.humanMention === undefined
+                                  ? 'message.mention.botType'
+                                  : 'message.mention.humanType',
+                              )}
+                            >
+                              @
+                              {currentMentionLabel(
+                                (run.humanMention ?? run.mention)!,
+                                bots,
+                                humanMembers,
+                              )}
+                            </span>
+                          ),
+                        )}
+                      </p>
+                    )}
+                    {message.attachments?.map((attachment) => (
+                      <p key={attachment.fileId ?? attachment.hash}>{attachment.name}</p>
+                    ))}
                   </div>
-                  <p>{response.body}</p>
-                  <button type="button" onClick={() => openSource(response.id)}>
-                    {t('humanInbox.handled.response')}
-                  </button>
-                </div>
-              </article>
-            )}
+                </article>
+              ))}
+              {response === undefined ||
+              visibleMessages.some((message) => message.id === response.id) ? null : (
+                <article data-message-id={response.id} className="bh-human-inbox-message">
+                  <HumanInboxMessageSource
+                    label={t('humanInbox.handled.response')}
+                    onClick={() => openSource(response.id)}
+                  />
+                  <span className="bh-human-inbox-human-avatar" aria-hidden="true">
+                    {author(response).slice(0, 1)}
+                  </span>
+                  <div className="bh-human-inbox-message-content">
+                    <div className="bh-human-inbox-message-heading">
+                      <strong>{author(response)}</strong>
+                      <time dateTime={response.at}>{new Date(response.at).toLocaleString()}</time>
+                    </div>
+                    <p>{response.body}</p>
+                  </div>
+                </article>
+              )}
+            </div>
+            <HumanInboxContextEdge
+              direction="newer"
+              disabled={false}
+              busy={edgeBusy !== undefined}
+              onClick={() => void expand('newer')}
+              t={t}
+            />
           </div>
+          {edgeError ? <p role="alert">{t('humanInbox.reply.unavailable')}</p> : null}
         </div>
       )}
-      {isNativeAction ? (
-        <div className="bh-human-inbox-reply-actions">
-          <button type="button" onClick={() => void reload()}>
-            {t('humanInbox.reply.refresh')}
-          </button>
-          <button type="button" onClick={() => openSource(messageId)}>
-            {t('humanInbox.open')}
-          </button>
-        </div>
-      ) : sent === undefined ? (
+      {isNativeAction ? null : sent === undefined ? (
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -348,29 +422,25 @@ export function HumanInboxReply({
           </label>
           {sendError ? <p role="alert">{t('humanInbox.reply.failed')}</p> : null}
           <div className="bh-human-inbox-reply-actions">
-            <button type="button" disabled={sending} onClick={() => void reload()}>
-              {t('humanInbox.reply.refresh')}
-            </button>
-            <button type="button" disabled={sending} onClick={() => openSource(messageId)}>
-              {t('humanInbox.open')}
-            </button>
-            <button
+            <Button
+              size="sm"
+              variant="primary"
               type="submit"
               disabled={
                 sending || context === undefined || contextError || draft.trim().length === 0
               }
             >
               {t(sending ? 'humanInbox.reply.sending' : 'humanInbox.reply.send')}
-            </button>
+            </Button>
           </div>
         </form>
       ) : (
         <div role="status">
           <strong>{t('humanInbox.reply.sent')}</strong>
           <p>{sent.body}</p>
-          <button type="button" onClick={() => openSource(sent.id)}>
+          <Button size="sm" variant="outline" type="button" onClick={() => openSource(sent.id)}>
             {t('humanInbox.open')}
-          </button>
+          </Button>
         </div>
       )}
     </section>

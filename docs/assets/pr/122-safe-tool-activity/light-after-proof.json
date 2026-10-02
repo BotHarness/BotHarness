@@ -1,0 +1,67 @@
+{
+  "bot": {
+    "slug": "bot-80b1aa49867841a99226fcc5e8aa5897",
+    "displayName": "Safe tool Activity QA"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "colorScheme": "light",
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "1ba36e98-a038-4302-9343-1598cf1c7437",
+      "revision": 8,
+      "slug": "bot-80b1aa49867841a99226fcc5e8aa5897",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790888990048,
+        "activeToolCount": 1
+      }
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Safe tool Activity QA：正在执行 · bash"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Safe tool Activity QA：正在执行 · bash"
+      }
+    ],
+    "summary": "Safe tool Activity QA 正在执行 · bash"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790888990048,
+      "name": "bash"
+    }
+  ],
+  "railFocusSummary": "Safe tool Activity QA · 正在执行 · bash",
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": true,
+  "actualNativeShellApproval": true,
+  "verdict": "PASS"
+}

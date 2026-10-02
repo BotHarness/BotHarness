@@ -1524,6 +1524,8 @@ export async function loadHumanAssignmentContext(
     purpose: context['purpose'],
     canReply: context['canReply'],
     reports,
+    ...(typeof context['hasOlder'] === 'boolean' ? { hasOlder: context['hasOlder'] } : {}),
+    ...(typeof context['hasNewer'] === 'boolean' ? { hasNewer: context['hasNewer'] } : {}),
     ...(reply === undefined ? {} : { reply }),
   };
 }
@@ -2008,6 +2010,15 @@ export async function loadHumanAttentionStatus(
     throw new Error('invalid Human attention status');
   return { unreadCount: row['unreadCount'] as number, hasAction: row['hasAction'] };
 }
+export async function dismissHumanInboxItem(
+  call: BridgeCall,
+  itemId: string,
+  sourceKey: string,
+): Promise<void> {
+  const value = asRecord(await unwrap(call, 'humanAttentionDismiss', { itemId, sourceKey }));
+  if (value?.['accepted'] !== true) throw new Error('Inbox dismissal was not confirmed');
+}
+
 export async function ignoreHumanAssignmentReport(
   call: BridgeCall,
   sourceEventId: string,
@@ -2783,6 +2794,14 @@ export async function setMessagingChannelTarget(
   channelId: string | null,
 ): Promise<void> {
   await unwrap(call, 'messagingChannelTarget', { slug, grantId, channelId });
+}
+export async function setMessagingThreadPolicy(
+  call: BridgeCall,
+  slug: string,
+  sourceEventId: string,
+  policy: import('../../../core/src/messaging/thread-policy.js').ThreadReceptionInput,
+): Promise<void> {
+  await unwrap(call, 'messagingThreadPolicy', { slug, sourceEventId, policy });
 }
 export async function setMessagingGroupPolicy(
   call: BridgeCall,
