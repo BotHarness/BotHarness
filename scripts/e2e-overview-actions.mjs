@@ -305,8 +305,11 @@ try {
             ).items.some((i) => i.id === item.id),
           'approval settled',
         );
-        const close = await page.$('.bh-human-inbox-action-dialog button[aria-label="关闭"]');
-        if (close) await close.click();
+        await page.evaluate(() =>
+          document
+            .querySelector('.bh-human-inbox-action-dialog button[aria-label="关闭"]')
+            ?.click(),
+        );
         await page.waitForFunction(() => !document.querySelector('.bh-human-inbox-action-dialog'));
       }
       const active = await waitFor(async () => {
