@@ -1888,6 +1888,16 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-im-threads { display: grid; gap: 8px; padding-block: 12px; }
 .bh-im-threads p { margin: 0; color: var(--dsw-alias-label-secondary); }
 .bh-im-threads td { overflow-wrap: anywhere; }
+.bh-identity-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.bh-identity-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.bh-identity-table { table-layout: fixed; }
+.bh-identity-table th:first-child { width: 17%; }
+.bh-identity-table th:nth-child(2) { width: 28%; }
+.bh-identity-table th:nth-child(3) { width: 17%; }
+.bh-identity-table th:nth-child(4) { width: 10%; }
+.bh-identity-table th:nth-child(5) { width: 28%; }
+.bh-identity-table th, .bh-identity-table td { overflow-wrap: anywhere; }
+.bh-identity-table td:last-child .bh-identity-actions { justify-content: flex-end; }
 .bh-im-threads .bh-source-policy-table th:first-child { width: 40%; }
 .bh-im-threads .bh-source-policy-table th:nth-child(2) { width: 27%; }
 .bh-im-threads .bh-source-policy-table th:nth-child(3) { width: 12%; }

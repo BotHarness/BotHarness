@@ -1308,6 +1308,22 @@ const EXTERNAL_THREAD_POLICY_MIGRATION: SchemaMigration = {
   },
 };
 
+const EXTERNAL_IDENTITY_MIGRATION: SchemaMigration = {
+  generation: 49,
+  module: 'messaging',
+  description: 'Separate Bot identity lifecycle from conversation grants',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE messaging_bindings ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE messaging_bindings ADD COLUMN display_name TEXT NOT NULL DEFAULT '';
+      UPDATE messaging_bindings SET display_name = COALESCE(
+        (SELECT json_extract(g.body, '$.accountName') FROM messaging_grants g
+         WHERE g.binding_id = messaging_bindings.id ORDER BY g.created_at DESC LIMIT 1), account_ref);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1356,4 +1372,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   EXTERNAL_GROUP_POLICY_MIGRATION,
   HUMAN_INBOX_DISMISSAL_MIGRATION,
   EXTERNAL_THREAD_POLICY_MIGRATION,
+  EXTERNAL_IDENTITY_MIGRATION,
 ]);

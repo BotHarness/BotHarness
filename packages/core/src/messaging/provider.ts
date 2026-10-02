@@ -68,6 +68,7 @@ export interface MessagingProvider {
   id: string;
   accounts(): Promise<MessagingAccount[]>;
   targets(accountRef: string): Promise<MessagingTarget[]>;
+  inspectAccount?(accountRef: string): Promise<MessagingAccount>;
   inspect(
     accountRef: string,
     targetRef: string,

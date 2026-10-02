@@ -219,13 +219,19 @@ export function createComputerToolProvider(
             const started = Date.now();
             try {
               const result = await driver.call(raw, args, execution.signal);
+              const failed =
+                typeof result === 'object' &&
+                result !== null &&
+                'isError' in result &&
+                result.isError === true;
               record(
                 slug,
                 sessionId,
                 definition.name,
                 auditSummary(raw, args),
-                'ok',
+                failed ? 'error' : 'ok',
                 Date.now() - started,
+                failed ? 'Computer driver reported a tool failure' : undefined,
               );
               return modelVisibleDriverResult(result);
             } catch (error) {
