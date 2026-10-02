@@ -98,7 +98,7 @@ await page.setExtraHTTPHeaders({ cookie });
 const snapshot = async () =>
   (await rpc('activitySnapshot')).bots.find((row) => row.slug === bot.slug);
 const messages = async () => (await rpc('channelMessages', { channelId })).messages;
-async function open() {
+async function openOnce() {
   await page.goto(origin, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('button[aria-label="Bot mode"],button[aria-label="Bot 模式"]');
   await page
@@ -116,7 +116,7 @@ async function open() {
       ?.click(),
   );
   if (!(await page.$('.bh-main')))
-    await page.click('button[aria-label="Bot mode"],button[aria-label="Bot 模式"]');
+    await page.locator('button[aria-label="Bot mode"],button[aria-label="Bot 模式"]').click();
   await page.waitForFunction(
     () =>
       document.querySelector('.bh-main') ||
@@ -133,6 +133,17 @@ async function open() {
   await page.click(`[data-channel-id="${channelId}"]`);
   await page.waitForSelector('.bh-composer-shell');
 }
+async function open() {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await openOnce();
+      return;
+    } catch (error) {
+      if (attempt === 2) throw error;
+    }
+  }
+}
+
 async function matchUi(row) {
   await page.waitForFunction(
     (id, state, effect) => {
