@@ -19,7 +19,12 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import { createPortal } from 'react-dom';
 
-import { PersonaBotAvatar, PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
+import {
+  PersonaBotAvatar,
+  PersonaBotFacepile,
+  personaBotActivitySources,
+  type PersonaBotFacepileItem,
+} from './avatar.js';
 import {
   activeMentionQuery,
   deleteSelectedMention,
@@ -314,6 +319,14 @@ function PersonaBotActivityStatus({
                     count: item.activity.activeToolCount,
                   })}
             </span>
+            {item.activity?.sources !== undefined && (
+              <span>
+                {t('activity.sourceDetails', {
+                  sources: personaBotActivitySources(item.activity, t) ?? '',
+                  count: item.activity.sources.reduce((total, source) => total + source.count, 0),
+                })}
+              </span>
+            )}
           </div>
         ))}
       </div>

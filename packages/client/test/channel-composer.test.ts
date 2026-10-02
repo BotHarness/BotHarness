@@ -59,6 +59,39 @@ describe('Channel composer', () => {
     expect(markup).toContain('data-layout="compact"');
   });
 
+  it('discloses the safe trusted execution source and active Session count', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelComposer, {
+        value: '',
+        placeholder: 'Ada',
+        sending: false,
+        activity: {
+          summary: 'Ada 正在执行',
+          items: [
+            {
+              personaBotId: 'ada',
+              name: 'Ada',
+              state: 'working',
+              activity: {
+                effect: 'executing',
+                toolKind: 'execute',
+                toolName: 'bash',
+                startedAt: 1000,
+                activeToolCount: 3,
+                sources: [{ role: 'assignment', count: 2 }],
+              },
+            },
+          ],
+        },
+        onChange: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    );
+    expect(markup).toContain('执行来源：任务会话 ×2 · 2 个会话');
+    expect(markup).toContain('bash · 3 个活动工具');
+    expect(markup).not.toContain('sessionId');
+    expect(markup).not.toContain('<details open');
+  });
   it('shows a selected Bot only inside the draft, without a second chip row', () => {
     const markup = renderToStaticMarkup(
       createElement(ChannelComposer, {

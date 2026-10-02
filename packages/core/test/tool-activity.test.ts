@@ -160,6 +160,56 @@ describe('safe tool Activity', () => {
     expect(states.snapshot('ada').state).toBe('idle');
     expect(states.activity('ada')).toBeUndefined();
   });
+  it('counts owned working Sessions separately from tools and clears completed source roles', () => {
+    const { states, projection } = setup();
+    projection.handleSessionEvent('root', call('a'));
+    projection.handleSessionEvent('root', call('b'));
+    projection.handleSessionEvent('child', call('c'));
+    expect(states.activity('ada')).toMatchObject({
+      activeToolCount: 3,
+      effect: 'searching',
+      sources: [
+        { role: 'orchestrator', count: 1 },
+        { role: 'assignment', count: 1 },
+      ],
+    });
+    projection.handleSessionEvent('root', result('a'));
+    expect(states.activity('ada')?.sources).toEqual([
+      { role: 'orchestrator', count: 1 },
+      { role: 'assignment', count: 1 },
+    ]);
+    projection.handleSessionEvent('root', result('b'));
+    expect(states.activity('ada')?.sources).toEqual([{ role: 'assignment', count: 1 }]);
+    projection.handleSessionEvent('child', result('c'));
+    expect(states.activity('ada')).toBeUndefined();
+  });
+  it('derives Subagent provenance during rebuild and ignores claimed source roles in tool payloads', () => {
+    const { states, projection } = setup();
+    const poisoned = {
+      ...call('a'),
+      data: { ...call('a').data, sourceRole: 'orchestrator', sessionId: 'private' },
+    };
+    projection.rebuild([
+      {
+        id: 'sub-one',
+        header: { parentSession: 'root', origin: 'subagent' },
+        snapshotEvents: () => [poisoned],
+      },
+      {
+        id: 'sub-two',
+        header: { parentSession: 'child', origin: 'subagent' },
+        snapshotEvents: () => [call('b')],
+      },
+    ]);
+    expect(states.activity('ada')?.sources).toEqual([{ role: 'subagent', count: 2 }]);
+    expect(JSON.stringify(personaBotActivitySnapshot(['ada'], states))).not.toMatch(
+      /private|sub-one|sub-two/,
+    );
+    projection.handleSessionDisposed('sub-one');
+    expect(states.activity('ada')?.sources).toEqual([{ role: 'subagent', count: 1 }]);
+    projection.handleSessionEvent('sub-two', { type: 'turn/end', time: 3000, data: {} });
+    expect(states.activity('ada')).toBeUndefined();
+  });
   it('keeps the outgoing authority allowlisted even when a trusted caller carries extra fields', () => {
     const states = createBotStateTracker();
     const activity = {

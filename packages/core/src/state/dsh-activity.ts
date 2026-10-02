@@ -5,7 +5,7 @@ import {
   toolKindForView,
   type PersonaBotToolActivity,
 } from './tool-activity.js';
-import type { SessionOwnership } from '../sessions/ownership.js';
+import type { SessionOwnership, SessionOwnershipRecord } from '../sessions/ownership.js';
 import type { DshSessionEvent } from '../sessions/source.js';
 import type { BotStateTracker, SessionState } from './bot-state.js';
 
@@ -135,6 +135,15 @@ export function createDshActivityProjection(options: {
     return calls.size > 0 ? 'working' : state;
   };
 
+  const activityForSession = (sessionId: string, owner: SessionOwnershipRecord) => {
+    const activity = aggregateToolActivity([...(pending.get(sessionId)?.values() ?? [])]);
+    if (activity === undefined) return undefined;
+    return {
+      ...activity,
+      sources: [{ role: owner.provenance === 'subagent' ? 'subagent' : owner.rootRole, count: 1 }],
+    } satisfies PersonaBotToolActivity;
+  };
+
   const attribute = (session: DshActivitySession): boolean => {
     if (ownership.resolve(session.id) !== undefined) return false;
     const parentId = session.header.parentSession;
@@ -158,12 +167,7 @@ export function createDshActivityProjection(options: {
       if (owner === undefined) return;
       const state = project(sessionId, event);
       if (state === undefined) return;
-      states.setSessionState(
-        owner.botSlug,
-        sessionId,
-        state,
-        aggregateToolActivity([...(pending.get(sessionId)?.values() ?? [])]),
-      );
+      states.setSessionState(owner.botSlug, sessionId, state, activityForSession(sessionId, owner));
     },
     handleAgentCreated(session) {
       return attribute(session);
@@ -202,7 +206,7 @@ export function createDshActivityProjection(options: {
           owner.botSlug,
           session.id,
           state,
-          aggregateToolActivity([...(pending.get(session.id)?.values() ?? [])]),
+          activityForSession(session.id, owner),
         );
         rebuilt += 1;
       }
