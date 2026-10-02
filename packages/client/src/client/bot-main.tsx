@@ -614,6 +614,7 @@ function ConversationView({
     src: member.avatar,
     state: personaBotActivity(state, member),
     activity: member.activity,
+    trace: member.activityTrace,
   }));
   const activeFacepile = channelFacepile.filter((item) => item.state !== 'idle');
   const composerFacepile: PersonaBotFacepileItem[] =
@@ -628,6 +629,7 @@ function ConversationView({
               src: bot.avatar,
               state: botActivity,
               activity: bot.activity,
+              trace: bot.activityTrace,
             },
           ];
   const composerActivity: ChannelComposerActivity | undefined =

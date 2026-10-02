@@ -303,3 +303,50 @@ describe('Channel composer', () => {
     expect(style).toEqual({ height: '144px', overflowY: 'auto' });
   });
 });
+
+it('shows escaped bounded history only inside the existing folded status body', () => {
+  const markup = renderToStaticMarkup(
+    createElement(ChannelComposer, {
+      value: '',
+      placeholder: 'Message',
+      sending: false,
+      onChange: () => undefined,
+      onSubmit: () => undefined,
+      activity: {
+        summary: 'Ada working',
+        items: [
+          {
+            personaBotId: 'ada',
+            name: 'Ada',
+            state: 'working',
+            trace: [
+              { revision: 1, at: 1000, state: 'thinking' },
+              {
+                revision: 2,
+                at: 2000,
+                state: 'working',
+                activity: {
+                  effect: 'generic-working',
+                  toolKind: 'other',
+                  toolName: 'browser_tabs',
+                  publicDetail: '<public operation>',
+                  startedAt: 2000,
+                  activeToolCount: 1,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  expect(markup).toContain('<details class="bh-composer-activity-status">');
+  expect(markup).toContain('aria-label="本次活动记录"');
+  expect(markup).toContain('dateTime="1970-01-01T00:00:01.000Z"');
+  expect(markup).toContain('browser_tabs');
+  expect(markup).toContain('&lt;public operation&gt;');
+  expect(markup).not.toContain('<public operation>');
+  expect(markup.indexOf('bh-composer-activity-trace')).toBeGreaterThan(
+    markup.indexOf('bh-composer-activity-details'),
+  );
+});

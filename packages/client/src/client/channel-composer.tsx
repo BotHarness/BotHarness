@@ -19,7 +19,12 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import { createPortal } from 'react-dom';
 
-import { PersonaBotAvatar, PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
+import {
+  PersonaBotAvatar,
+  PersonaBotFacepile,
+  personaBotActivitySummary,
+  type PersonaBotFacepileItem,
+} from './avatar.js';
 import {
   activeMentionQuery,
   deleteSelectedMention,
@@ -337,6 +342,25 @@ function PersonaBotActivityStatus({
                   );
                 })}
               </ul>
+            )}
+            {item.trace !== undefined && item.trace.length > 0 && (
+              <div className="bh-composer-activity-trace">
+                <span>{t('activity.recentTrace')}</span>
+                <ol aria-label={t('activity.recentTrace')}>
+                  {item.trace.map((entry) => (
+                    <li key={entry.revision}>
+                      <time dateTime={new Date(entry.at).toISOString()}>
+                        {new Date(entry.at).toLocaleTimeString(undefined, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })}
+                      </time>
+                      <span>{personaBotActivitySummary(entry.state, entry.activity, t)}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             )}
           </div>
         ))}

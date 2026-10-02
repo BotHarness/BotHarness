@@ -68,7 +68,11 @@ export type {
   UpdatePersonaBotResult,
 } from './bots/persona-bot.js';
 export { isValidSlug, MAX_SLUG_LENGTH, SLUG_PATTERN } from './bots/slug.js';
-export { aggregateSessionStates, createBotStateTracker } from './state/bot-state.js';
+export {
+  aggregateSessionStates,
+  createBotStateTracker,
+  MAX_ACTIVITY_TRACE_ENTRIES,
+} from './state/bot-state.js';
 export type {
   AggregatedState,
   BotStateEvent,
@@ -76,6 +80,7 @@ export type {
   BotStateTracker,
   PersonaBotActivityEvent,
   PersonaBotActivitySnapshot,
+  PersonaBotActivityTraceEntry,
   SessionState,
 } from './state/bot-state.js';
 export {

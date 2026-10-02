@@ -1,3 +1,4 @@
+import type { AggregatedState } from './bot-state.js';
 import type { ToolCallKind, ToolCallView } from '@deepseek-ai/dsh-tools';
 
 export type ActivityEffect =
@@ -22,6 +23,15 @@ export interface PersonaBotToolActivity {
   startedAt: number;
   activeToolCount: number;
   sources?: readonly ActivitySourceCount[];
+}
+
+export const MAX_ACTIVITY_TRACE_ENTRIES = 8;
+
+export interface PersonaBotActivityTraceEntry {
+  revision: number;
+  at: number;
+  state: Exclude<AggregatedState, 'idle'>;
+  activity?: PersonaBotToolActivity;
 }
 
 export interface PublicToolActivityDeclaration {

@@ -3076,6 +3076,11 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-composer-activity-source { color: var(--bh-overview-label); }
 .bh-composer-activity-source-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .bh-composer-activity-source-count { flex-shrink: 0; color: var(--bh-overview-muted); font-variant-numeric: tabular-nums; }
+.bh-composer-activity-trace { margin: 8px 8px 0; font-size: var(--bh-overview-font); color: var(--bh-overview-muted); }
+.bh-composer-activity-trace ol { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; max-height: 160px; overflow-y: auto; }
+.bh-composer-activity-trace li { display: flex; gap: 8px; align-items: baseline; }
+.bh-composer-activity-trace time { flex: none; font-variant-numeric: tabular-nums; }
+.bh-composer-activity-trace li > span { min-width: 0; overflow-wrap: anywhere; }
 .bh-composer-activity-summary {
   min-width: 0;
   flex: 1;

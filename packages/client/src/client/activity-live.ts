@@ -1,4 +1,8 @@
-import { isPublicToolDetail } from '../../../core/src/state/tool-activity.js';
+import {
+  MAX_ACTIVITY_TRACE_ENTRIES,
+  type PersonaBotActivityTraceEntry,
+} from '../../../core/src/state/tool-activity.js';
+import { parsePublicToolActivity } from './activity-detail.js';
 import { PERSONA_BOT_ACTIVITY_STATES } from './avatar.js';
 import type { ClientStore, PersonaBotActivitySnapshot } from './store.js';
 
@@ -30,77 +34,55 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
       )
         return undefined;
       slugs.add(bot['slug']);
-      const detail = bot['activity'];
-      let activity: PersonaBotActivitySnapshot['bots'][number]['activity'];
-      if (detail !== undefined) {
-        if (typeof detail !== 'object' || detail === null || state !== 'working') return undefined;
-        const row = detail as Record<string, unknown>;
-        const kind = ['read', 'edit', 'delete', 'move', 'search', 'execute', 'fetch', 'other'].find(
-          (value) => value === row['toolKind'],
-        );
-        const effect = [
-          'thinking-dots',
-          'searching',
-          'coding',
-          'executing',
-          'generic-working',
-        ].find((value) => value === row['effect']);
+      const activity =
+        bot['activity'] === undefined ? undefined : parsePublicToolActivity(bot['activity']);
+      if (bot['activity'] !== undefined && (activity === undefined || state !== 'working'))
+        return undefined;
+      let trace: PersonaBotActivityTraceEntry[] | undefined;
+      if (bot['trace'] !== undefined) {
         if (
-          (row['publicDetail'] !== undefined && !isPublicToolDetail(row['publicDetail'])) ||
-          kind === undefined ||
-          effect === undefined ||
-          typeof row['startedAt'] !== 'number' ||
-          !Number.isSafeInteger(row['startedAt']) ||
-          row['startedAt'] < 0 ||
-          typeof row['activeToolCount'] !== 'number' ||
-          !Number.isSafeInteger(row['activeToolCount']) ||
-          row['activeToolCount'] < 1 ||
-          (row['toolName'] !== undefined &&
-            (typeof row['toolName'] !== 'string' ||
-              !/^[A-Za-z0-9_.:/-]{1,80}$/.test(row['toolName'])))
+          state === 'idle' ||
+          !Array.isArray(bot['trace']) ||
+          bot['trace'].length === 0 ||
+          bot['trace'].length > MAX_ACTIVITY_TRACE_ENTRIES
         )
           return undefined;
-        let sources: NonNullable<typeof activity>['sources'];
-        if (row['sources'] !== undefined) {
+        trace = [];
+        let revision = -1;
+        for (const entry of bot['trace']) {
+          if (typeof entry !== 'object' || entry === null) return undefined;
+          const traceState = PERSONA_BOT_ACTIVITY_STATES.find(
+            (candidate) => candidate === entry.state,
+          );
+          const detail =
+            entry.activity === undefined ? undefined : parsePublicToolActivity(entry.activity);
           if (
-            !Array.isArray(row['sources']) ||
-            row['sources'].length < 1 ||
-            row['sources'].length > 3
+            traceState === undefined ||
+            traceState === 'idle' ||
+            !Number.isSafeInteger(entry.revision) ||
+            entry.revision <= revision ||
+            entry.revision > item['revision'] ||
+            !Number.isSafeInteger(entry.at) ||
+            entry.at < 0 ||
+            entry.at > 8_640_000_000_000_000 ||
+            (entry.activity !== undefined && (detail === undefined || traceState !== 'working'))
           )
             return undefined;
-          const roles = new Set<string>();
-          sources = [];
-          for (const source of row['sources']) {
-            if (typeof source !== 'object' || source === null) return undefined;
-            const role = (['orchestrator', 'assignment', 'subagent'] as const).find(
-              (candidate) => candidate === source.role,
-            );
-            if (
-              role === undefined ||
-              roles.has(role) ||
-              !Number.isSafeInteger(source.count) ||
-              source.count < 1
-            )
-              return undefined;
-            roles.add(role);
-            sources = [...sources, { role, count: source.count }];
-          }
-          if (sources.reduce((total, source) => total + source.count, 0) > row['activeToolCount'])
-            return undefined;
+          revision = entry.revision;
+          trace.push({
+            revision,
+            at: entry.at,
+            state: traceState,
+            ...(detail === undefined ? {} : { activity: detail }),
+          });
         }
-        activity = {
-          toolKind: kind as NonNullable<typeof activity>['toolKind'],
-          effect: effect as NonNullable<typeof activity>['effect'],
-          startedAt: row['startedAt'],
-          activeToolCount: row['activeToolCount'],
-          ...(row['toolName'] === undefined ? {} : { toolName: row['toolName'] as string }),
-          ...(row['publicDetail'] === undefined
-            ? {}
-            : { publicDetail: row['publicDetail'] as string }),
-          ...(sources === undefined ? {} : { sources }),
-        };
       }
-      bots.push({ slug: bot['slug'], state, ...(activity === undefined ? {} : { activity }) });
+      bots.push({
+        slug: bot['slug'],
+        state,
+        ...(activity === undefined ? {} : { activity }),
+        ...(trace === undefined ? {} : { trace }),
+      });
     }
     return { generation: item['generation'], revision: item['revision'], bots };
   } catch {
