@@ -1,0 +1,57 @@
+{
+  "trace": [
+    {
+      "revision": 9,
+      "at": 1790940424247,
+      "state": "thinking"
+    },
+    {
+      "revision": 10,
+      "at": 1790940426796,
+      "state": "working",
+      "activity": {
+        "effect": "generic-working",
+        "toolKind": "other",
+        "toolName": "browser_tabs",
+        "publicDetail": "Listing browser tabs",
+        "startedAt": 1790940426795,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "revision": 11,
+      "at": 1790940426882,
+      "state": "thinking"
+    },
+    {
+      "revision": 12,
+      "at": 1790940428746,
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790940428745,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "rows": [
+    "20:27:04正在思考",
+    "20:27:06正在工作 · browser_tabs · Listing browser tabs · 主会话",
+    "20:27:06正在思考",
+    "20:27:08正在执行 · bash · 主会话"
+  ]
+}

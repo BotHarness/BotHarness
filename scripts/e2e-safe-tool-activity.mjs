@@ -303,7 +303,7 @@ try {
       expectedEffect,
     );
   }
-  if (phase === 'after' && sourceRole !== undefined) {
+  if (sourceRole !== undefined) {
     const current = (await rpc('activitySnapshot')).bots.find((row) => row.slug === bot.slug);
     assert.deepEqual(current?.activity?.sources, [{ role: sourceRole, count: 1 }]);
     const sourceLabel = sourceRole === 'assignment' ? '任务会话' : '主会话';
@@ -432,7 +432,7 @@ try {
     assert.ok(expandedPanel.width < expandedPanel.parentWidth - 36);
     assert.equal(expandedPanel.radius, '20px');
     await screenshot('details.png');
-    if (phase === 'after' && sourceRole !== undefined) {
+    if (sourceRole !== undefined) {
       const measureSources = () =>
         page.$$eval('.bh-composer-activity-source', (rows) =>
           rows.map((row) => {
@@ -471,7 +471,7 @@ try {
     }
     const latest = snapshots.at(-1);
     let traceEvidence;
-    if (traceMode) {
+    if (traceMode && phase === 'after') {
       assert.ok(latest.trace?.length > 0 && latest.trace.length <= 8);
       if (sent !== undefined)
         assert.ok(
@@ -487,7 +487,7 @@ try {
       await page.waitForSelector('.bh-composer-activity-status');
       const refreshed = await rpc('activitySnapshot');
       assert.deepEqual(refreshed.bots.find((row) => row.slug === bot.slug)?.trace, latest.trace);
-      await page.click('.bh-composer-activity-status summary');
+      await page.locator('.bh-composer-activity-status summary').click();
       await page.waitForSelector('.bh-composer-activity-status[open]');
       await screenshot('trace-refresh.png');
       writeFileSync(resolve(evidence, 'trace-proof.json'), JSON.stringify(traceEvidence, null, 2));
