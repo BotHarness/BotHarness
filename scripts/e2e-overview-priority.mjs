@@ -181,7 +181,7 @@ try {
       (await rpc('channelCreate', { name: 'Release room', members: [idle.slug, decision.slug] }))
         .channel;
     for (const member of group.members)
-      await rpc('channelGroupWakePolicySet', {
+      await rpc('channelGroupWakeSet', {
         channelId: group.id,
         botSlug: member,
         mode: 'silent',
