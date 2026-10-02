@@ -1,0 +1,299 @@
+{
+  "bot": {
+    "slug": "bot-d925894f332f438ca10f55c159fdd07f",
+    "displayName": "Session layout QA dark"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "orchestrator",
+  "compactSessions": true,
+  "nativeTitle": "Run node timeout QA check",
+  "colorScheme": "dark",
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "4c9a6ec5-b270-44ed-8421-bbd2d2e5488b",
+      "revision": 27,
+      "slug": "bot-d925894f332f438ca10f55c159fdd07f",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790963149229,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      },
+      "sessions": [
+        {
+          "id": "activity-ddcd7ab2-161d-4c09-8350-3359134c8081",
+          "role": "orchestrator",
+          "name": "Run node timeout QA check",
+          "at": 1790963149230,
+          "revision": 27,
+          "state": "working",
+          "activity": {
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1790963149229,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "generation": "4c9a6ec5-b270-44ed-8421-bbd2d2e5488b",
+      "revision": 27,
+      "slug": "bot-d925894f332f438ca10f55c159fdd07f",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790963149229,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      },
+      "sessions": [
+        {
+          "id": "activity-ddcd7ab2-161d-4c09-8350-3359134c8081",
+          "role": "orchestrator",
+          "name": "Run node timeout QA check",
+          "at": 1790963149230,
+          "revision": 27,
+          "state": "working",
+          "activity": {
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1790963149229,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "generation": "4c9a6ec5-b270-44ed-8421-bbd2d2e5488b",
+      "revision": 28,
+      "slug": "bot-d925894f332f438ca10f55c159fdd07f",
+      "state": "thinking",
+      "sessions": [
+        {
+          "id": "activity-ddcd7ab2-161d-4c09-8350-3359134c8081",
+          "role": "orchestrator",
+          "name": "Run node timeout QA check",
+          "at": 1790963398138,
+          "revision": 28,
+          "state": "thinking"
+        }
+      ]
+    },
+    {
+      "generation": "4c9a6ec5-b270-44ed-8421-bbd2d2e5488b",
+      "revision": 29,
+      "slug": "bot-d925894f332f438ca10f55c159fdd07f",
+      "state": "working",
+      "activity": {
+        "effect": "generic-working",
+        "toolKind": "other",
+        "toolName": "channel_send",
+        "startedAt": 1790963400146,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      },
+      "sessions": [
+        {
+          "id": "activity-ddcd7ab2-161d-4c09-8350-3359134c8081",
+          "role": "orchestrator",
+          "name": "Run node timeout QA check",
+          "at": 1790963400175,
+          "revision": 29,
+          "state": "working",
+          "activity": {
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "channel_send",
+            "startedAt": 1790963400146,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "generation": "4c9a6ec5-b270-44ed-8421-bbd2d2e5488b",
+      "revision": 30,
+      "slug": "bot-d925894f332f438ca10f55c159fdd07f",
+      "state": "thinking",
+      "sessions": [
+        {
+          "id": "activity-ddcd7ab2-161d-4c09-8350-3359134c8081",
+          "role": "orchestrator",
+          "name": "Run node timeout QA check",
+          "at": 1790963400780,
+          "revision": 30,
+          "state": "thinking"
+        }
+      ]
+    },
+    {
+      "generation": "4c9a6ec5-b270-44ed-8421-bbd2d2e5488b",
+      "revision": 31,
+      "slug": "bot-d925894f332f438ca10f55c159fdd07f",
+      "state": "idle"
+    },
+    {
+      "generation": "4c9a6ec5-b270-44ed-8421-bbd2d2e5488b",
+      "revision": 31,
+      "slug": "bot-d925894f332f438ca10f55c159fdd07f",
+      "state": "idle"
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Session layout QA dark：正在执行 · bash · 主会话"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Session layout QA dark：正在执行 · bash · 主会话"
+      }
+    ],
+    "summary": "Session layout QA dark 正在执行 · bash · 主会话"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790963149229,
+      "name": "bash"
+    },
+    {
+      "type": "tool/result",
+      "time": 1790963398137
+    },
+    {
+      "type": "tool/call",
+      "time": 1790963400146,
+      "name": "channel_send"
+    },
+    {
+      "type": "tool/result",
+      "time": 1790963400779
+    },
+    {
+      "type": "turn/end",
+      "time": 1790963404404
+    }
+  ],
+  "railFocusSummary": "Session layout QA dark · 正在执行 · bash · 主会话",
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "disclosure": {
+    "open": false,
+    "headerBackground": "rgba(0, 0, 0, 0)",
+    "bodyHeight": 0
+  },
+  "expandedPanel": {
+    "width": 860,
+    "parentWidth": 872,
+    "leftInset": 6,
+    "radius": "0px",
+    "background": "rgba(0, 0, 0, 0)",
+    "timelineBottom": 698,
+    "disclosureBottom": 692
+  },
+  "sourceRows": [
+    {
+      "height": 40,
+      "width": 860,
+      "parentWidth": 860,
+      "clientWidth": 858,
+      "scrollWidth": 858,
+      "gap": "8px",
+      "padding": "8px 12px",
+      "radius": "6px",
+      "background": "rgb(21, 21, 23)",
+      "border": "1px solid rgba(255, 255, 255, 0.12)",
+      "fits": true,
+      "icon": "主会话",
+      "name": "主会话",
+      "nameOverflow": "ellipsis",
+      "nameTop": 661.5,
+      "latestTop": 661.5
+    }
+  ],
+  "narrowSourceRows": [
+    {
+      "height": 68,
+      "width": 336,
+      "parentWidth": 336,
+      "clientWidth": 334,
+      "scrollWidth": 334,
+      "gap": "8px",
+      "padding": "8px 12px",
+      "radius": "6px",
+      "background": "rgb(21, 21, 23)",
+      "border": "1px solid rgba(255, 255, 255, 0.12)",
+      "fits": true,
+      "icon": "主会话",
+      "name": "主会话",
+      "nameOverflow": "ellipsis",
+      "nameTop": 733,
+      "latestTop": 762
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": false,
+  "actualNativeShellApproval": true,
+  "toolName": "bash",
+  "verdict": "PASS"
+}

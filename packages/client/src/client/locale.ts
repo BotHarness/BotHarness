@@ -3,6 +3,18 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
+  'overviewMemory.title': 'Memory 活动',
+  'overviewMemory.refresh': '刷新 Memory 活动',
+  'overviewMemory.loading': '正在读取 Memory 活动…',
+  'overviewMemory.error': 'Memory 活动读取失败，请刷新重试；已显示数据可能不是最新。',
+  'overviewMemory.commits': '次提交',
+  'overviewMemory.dirty': '未提交改动',
+  'overviewMemory.clean': '无未提交改动',
+  'overviewMemory.unavailable': '仓库不可用',
+  'overviewMemory.empty': '尚无 Bot',
+  'overviewMemory.trend': '每日 Memory 提交',
+  'overviewMemory.scope':
+    '按 Host 本地日期统计仓库所有非恢复／stash 引用可达的普通 Git 提交，以提交时间为准；同一提交仅计一次。当前未提交改动单独显示，不表示需要审批。',
   'overviewUsage.title': 'Token 用量',
   'overviewUsage.range': '用量范围',
   'overviewUsage.today': '今日',
@@ -1028,6 +1040,7 @@ export const zh = {
   'activity.toolCount': '{count} 个工具',
   'activity.toolDetail': '{name} · {count} 个活动工具',
   'activity.unknownTool': '工具',
+  'activity.session.untitled': '未命名会话',
   'activity.source.orchestrator': '主会话',
   'activity.source.assignment': '任务会话',
   'activity.source.subagent': '子代理',
@@ -1064,6 +1077,19 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
+  'overviewMemory.title': 'Memory activity',
+  'overviewMemory.refresh': 'Refresh Memory activity',
+  'overviewMemory.loading': 'Loading Memory activity…',
+  'overviewMemory.error':
+    'Memory activity could not be read. Refresh to retry; displayed data may be stale.',
+  'overviewMemory.commits': 'commits',
+  'overviewMemory.dirty': 'Uncommitted changes',
+  'overviewMemory.clean': 'No uncommitted changes',
+  'overviewMemory.unavailable': 'Repository unavailable',
+  'overviewMemory.empty': 'No Bots yet',
+  'overviewMemory.trend': 'Daily Memory commits',
+  'overviewMemory.scope':
+    'Ordinary Git commits reachable from repository refs (excluding recovery/stash snapshots), counted once by committer date in the Host timezone. Current uncommitted changes are separate and do not imply an approval request.',
   'overviewUsage.title': 'Token usage',
   'overviewUsage.range': 'Usage range',
   'overviewUsage.today': 'Today',
@@ -2134,6 +2160,7 @@ export const en = {
   'activity.toolCount': '{count} tools',
   'activity.toolDetail': '{name} · {count} active tools',
   'activity.unknownTool': 'Tool',
+  'activity.session.untitled': 'Untitled Session',
   'activity.source.orchestrator': 'Orchestrator',
   'activity.source.assignment': 'Assignment',
   'activity.source.subagent': 'Subagent',

@@ -18,6 +18,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Channel sidebar entries use Lucide function icons and a single top settings gear for Sessions and Memory evolution display choices, preserving their existing preference scopes ([#718](https://github.com/BotHarness/BotHarness/issues/718)).
+- Overview Statistics adds compact per-Bot seven-day Memory Git commit trends and current uncommitted-change indicators, with explicit repository unavailability and exact daily detail ([#716](https://github.com/BotHarness/BotHarness/issues/716)).
+  Existing Bot Profile Memory activity uses the same ordinary-commit date/ref definition.
+- The expanded composer status shows each active Session’s latest safe activity inside its own compact block, without repeating the Bot name; Host revisions synchronize current rows, completed/disposed Sessions disappear and restart rebuilds the current baseline without copying Session payloads; the expanded container is transparent, desktop name/status share one line, and Assignment cards show native DSH titles ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
 - Overview Statistics shows reported token totals across Bots with today/seven-day trends, compact Profile-aligned charts, paginated Bot details and direct Profile navigation; unknown buckets and retained usage remain explicit ([#709](https://github.com/BotHarness/BotHarness/issues/709)).
 - Browser tab Activity can show the Provider-declared operation in shared sidebar/composer summaries; only bounded public text is admitted, conflicting concurrent detail is omitted, and raw URLs, titles and tool payloads remain excluded ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
@@ -263,6 +266,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- macOS Local Computer now resumes fresh observations after driver idle expiry, while expired snapshot and element tokens remain invalid ([#713](https://github.com/BotHarness/BotHarness/issues/713)).
 
 - Computer Audit now records driver-returned tool failures as errors, so refused screenshot and window requests no longer appear successful; observation content stays out of Audit ([#708](https://github.com/BotHarness/BotHarness/issues/708)).
 

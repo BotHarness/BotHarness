@@ -9,6 +9,7 @@ import {
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
+import { OverviewMemoryView } from './overview-memory-view.js';
 import { OverviewUsageView } from './overview-usage-view.js';
 import { ChannelActivityChart } from './channel-activity-chart.js';
 import { defaultStorage, type ConfigStorage } from './roster-config.js';
@@ -100,6 +101,7 @@ export function ChannelActivityView({
       </header>
       <div hidden={collapsed} className="bh-statistics-content">
         {!collapsed ? <OverviewUsageView actions={actions} t={t} /> : null}
+        {!collapsed ? <OverviewMemoryView actions={actions} t={t} /> : null}
         <header>
           <div>
             <h3>{t('channelActivity.title')}</h3>

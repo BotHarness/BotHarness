@@ -4,20 +4,21 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import type { ComputerRuntimeRunner } from '../provider.js';
-import { CUA_DRIVER_VERSION, createMcpCuaDriver, type CuaDriver } from './driver.js';
+import { createMcpCuaDriver, type CuaDriver } from './driver.js';
 
-export const LOCAL_DRIVER_ASSET = `cua-driver-rs-${CUA_DRIVER_VERSION}-darwin-universal-binary.tar.gz`;
+export const LOCAL_DRIVER_VERSION = '0.31.0';
+export const LOCAL_DRIVER_ASSET = `cua-driver-rs-${LOCAL_DRIVER_VERSION}-darwin-universal-binary.tar.gz`;
 export const LOCAL_DRIVER_SHA256 =
-  'aaaa29538fe7b1f103afb4eddeefe2dc137690f91f8074e333cfe0e76b49918d';
+  '06cd80b153bdf046dc067fb593e0fc648e780afa37a902ca0515ac25f32f9a4f';
 export const LOCAL_DRIVER_FILES = {
-  'libcua_driver_sdk.dylib': '24a5b7aa55223bd76cb60000e5d3439c7a8e84bbb8ee05b2abdd2164a7446d39',
+  'libcua_driver_sdk.dylib': 'eba4a77ec52f506e7e9bca6dc5032267a77b5f09f2b0ef4eb0f6bb93e253613f',
   'cua_driver_node_runtime.node':
-    'ced42da1c940f58c762304436d1a24ff87ae26af3bc9f17267fb18267539227b',
-  'cua-driver': 'e0d802a126a8fc90af74ef9cccd7dde5ba82feea26c3a2ad8c492ad1f444bb1e',
+    'e003290019a04ad4e17c7b74610c18ea11fdacdceeafd9f1267adba1ea79afd0',
+  'cua-driver': '7f9dfba2441502680b893dae07f5c7753ac3989dda6d2f18e9b2061884976f91',
 } as const;
 
 export function localDriverDirectory(home = homedir()): string {
-  return join(home, '.botharness', 'cua-driver', CUA_DRIVER_VERSION, 'darwin');
+  return join(home, '.botharness', 'cua-driver', LOCAL_DRIVER_VERSION, 'darwin');
 }
 
 export function localDriverEnv(): Record<string, string> {
@@ -54,7 +55,7 @@ export async function installLocalDriver(options: {
   const bytes = await (options.download?.() ??
     (async () => {
       const response = await fetch(
-        `https://github.com/trycua/cua/releases/download/cua-driver-rs-v${CUA_DRIVER_VERSION}/${LOCAL_DRIVER_ASSET}`,
+        `https://github.com/trycua/cua/releases/download/cua-driver-rs-v${LOCAL_DRIVER_VERSION}/${LOCAL_DRIVER_ASSET}`,
         {
           signal: AbortSignal.any([
             AbortSignal.timeout(120_000),
@@ -120,7 +121,7 @@ export function createLocalCuaDriver(options: {
       ensuring ??= (async () => {
         if (await verifyLocalDriver(dir))
           return { status: 'present' as const, arch: 'darwin-universal' };
-        options.onEvent?.(`phase=install version=${CUA_DRIVER_VERSION} target=local`);
+        options.onEvent?.(`phase=install version=${LOCAL_DRIVER_VERSION} target=local`);
         await installLocalDriver({ dir, runner: options.runner, signal });
         return { status: 'installed' as const, arch: 'darwin-universal' };
       })();

@@ -1,0 +1,25 @@
+{
+  "sessions": [
+    {
+      "id": "activity-fc49a2a4-b37b-4e4b-ab15-b07590f6f4cf",
+      "role": "orchestrator",
+      "at": 1790958712066,
+      "revision": 12,
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790958712065,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "rows": ["主会话01:31:52正在执行 · bash"]
+}
