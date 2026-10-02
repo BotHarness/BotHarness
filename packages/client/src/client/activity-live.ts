@@ -58,12 +58,41 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
               !/^[A-Za-z0-9_.:/-]{1,80}$/.test(row['toolName'])))
         )
           return undefined;
+        let sources: NonNullable<typeof activity>['sources'];
+        if (row['sources'] !== undefined) {
+          if (
+            !Array.isArray(row['sources']) ||
+            row['sources'].length < 1 ||
+            row['sources'].length > 3
+          )
+            return undefined;
+          const roles = new Set<string>();
+          sources = [];
+          for (const source of row['sources']) {
+            if (typeof source !== 'object' || source === null) return undefined;
+            const role = (['orchestrator', 'assignment', 'subagent'] as const).find(
+              (candidate) => candidate === source.role,
+            );
+            if (
+              role === undefined ||
+              roles.has(role) ||
+              !Number.isSafeInteger(source.count) ||
+              source.count < 1
+            )
+              return undefined;
+            roles.add(role);
+            sources = [...sources, { role, count: source.count }];
+          }
+          if (sources.reduce((total, source) => total + source.count, 0) > row['activeToolCount'])
+            return undefined;
+        }
         activity = {
           toolKind: kind as NonNullable<typeof activity>['toolKind'],
           effect: effect as NonNullable<typeof activity>['effect'],
           startedAt: row['startedAt'],
           activeToolCount: row['activeToolCount'],
           ...(row['toolName'] === undefined ? {} : { toolName: row['toolName'] as string }),
+          ...(sources === undefined ? {} : { sources }),
         };
       }
       bots.push({ slug: bot['slug'], state, ...(activity === undefined ? {} : { activity }) });

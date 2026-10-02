@@ -65,6 +65,64 @@ describe('revisioned safe tool presentation', () => {
       ),
     ).toBeUndefined();
   });
+  it.each([
+    [{ role: 'future', count: 1 }],
+    [{ role: 'assignment', count: 0 }],
+    [{ role: 'assignment', count: 0.5 }],
+    [{ role: 'assignment', count: 2 }],
+    [
+      { role: 'assignment', count: 1 },
+      { role: 'assignment', count: 1 },
+    ],
+    [],
+  ])('rejects invalid, duplicate or impossible execution source counts: %j', (...sources) => {
+    expect(
+      parseActivitySnapshot(
+        JSON.stringify({
+          generation: 'host',
+          revision: 3,
+          bots: [{ slug: 'ada', state: 'working', activity: { ...activity, sources } }],
+        }),
+      ),
+    ).toBeUndefined();
+  });
+  it('allowlists source counts and presents the same roles in the avatar and summary', () => {
+    const sources = [{ role: 'assignment' as const, count: 1 }];
+    const snapshot = parseActivitySnapshot(
+      JSON.stringify({
+        generation: 'host',
+        revision: 3,
+        bots: [
+          {
+            slug: 'ada',
+            state: 'working',
+            activity: {
+              ...activity,
+              sources: [{ ...sources[0], arguments: 'private', sessionId: 'private' }],
+            },
+          },
+        ],
+      }),
+    );
+    expect(snapshot?.bots[0]?.activity?.sources).toEqual(sources);
+    const detail = snapshot!.bots[0]!.activity!;
+    expect(personaBotActivitySummary('working', detail, zhTranslate)).toBe(
+      '正在执行 · shell · 任务会话',
+    );
+    const markup = renderToStaticMarkup(
+      createElement(PersonaBotAvatar, {
+        personaBotId: 'ada',
+        name: 'Ada',
+        size: 32,
+        state: 'working',
+        activity: detail,
+        t: zhTranslate,
+      }),
+    );
+    expect(markup).toContain('正在执行 · shell · 任务会话');
+    expect(markup).not.toContain('private');
+    expect(personaBotActivitySummary('idle', detail, zhTranslate)).toBe('空闲');
+  });
   it('renders matching safe text and effect; idle does not retain an old tool label', () => {
     const markup = renderToStaticMarkup(
       createElement(PersonaBotAvatar, {

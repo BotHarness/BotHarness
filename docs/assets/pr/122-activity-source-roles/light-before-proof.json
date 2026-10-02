@@ -1,0 +1,68 @@
+{
+  "bot": {
+    "slug": "bot-cee6b4bcad584277bc53d75c661187b1",
+    "displayName": "Activity source QA"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "orchestrator",
+  "colorScheme": "light",
+  "phase": "before",
+  "snapshots": [
+    {
+      "generation": "c7d13999-2b2e-40e6-8899-cbd1cae510e7",
+      "revision": 10,
+      "slug": "bot-cee6b4bcad584277bc53d75c661187b1",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790916299232,
+        "activeToolCount": 1
+      }
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Activity source QA：正在执行 · bash"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Activity source QA：正在执行 · bash"
+      }
+    ],
+    "summary": "Activity source QA 正在执行 · bash"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790916299232,
+      "name": "bash"
+    }
+  ],
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": false,
+  "actualNativeShellApproval": true,
+  "toolName": "bash",
+  "verdict": "PASS"
+}

@@ -11,7 +11,7 @@ const cookie = readFileSync(resolve(tmpdir(), `dsh-${basename(home)}.cookies`), 
   ';',
 )[0];
 async function rpc(method, args = {}) {
-  const endpoint = `botharness/${method}`;
+  const endpoint = method.includes('/') ? method : `botharness/${method}`;
   let response;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -60,6 +60,8 @@ const bot = process.env.BH_E2E_RECONNECT_BOT
     ).bot;
 assert.ok(bot);
 const channelId = `dm-${bot.slug}`;
+const sourceRole = process.env.BH_E2E_SOURCE_ROLE;
+assert.ok(sourceRole === undefined || ['orchestrator', 'assignment'].includes(sourceRole));
 const layout = process.env.BH_E2E_LAYOUT ?? 'row';
 await rpc('channelDm', { slug: bot.slug, displayName: bot.displayName });
 if (!process.env.BH_E2E_RECONNECT_BOT) {
@@ -72,6 +74,21 @@ if (!process.env.BH_E2E_RECONNECT_BOT) {
   ).preset;
   await rpc('modelPresetApply', { slug: bot.slug, presetId: preset.id });
 }
+let assignmentGrant;
+if (sourceRole === 'assignment' && process.env.BH_E2E_USE_PENDING !== 'true') {
+  const folder = resolve(tmpdir(), `bh122-activity-workspace-${bot.slug}`);
+  mkdirSync(folder, { recursive: true });
+  const workspace = await rpc('workspace/create', { request: { path: folder } });
+  assignmentGrant = (
+    await rpc('grantCreate', {
+      slug: bot.slug,
+      workspaceId: workspace.workspace.workspaceId,
+    })
+  ).grant;
+}
+console.log(
+  JSON.stringify({ bot: bot.slug, sourceRole, phase: process.env.BH_E2E_PHASE ?? 'after' }),
+);
 if (layout === 'row') {
   const roster = await rpc('rosterGet');
   await rpc('pinsSet', { pins: roster.pins.filter((id) => id !== channelId) });
@@ -145,6 +162,15 @@ async function screenshot(name) {
       if (input.workdir) input.workdir = '[machine-local QA directory redacted]';
       pre.textContent = JSON.stringify(input, null, 2);
     }
+    const nodes = document.createTreeWalker(
+      document.querySelector('.bh-main'),
+      NodeFilter.SHOW_TEXT,
+    );
+    while (nodes.nextNode())
+      nodes.currentNode.textContent = nodes.currentNode.textContent.replace(
+        /(?:botharness-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g,
+        '[QA reference redacted]',
+      );
   });
   await page.screenshot({ path: resolve(evidence, name) });
 }
@@ -205,7 +231,10 @@ try {
       ? undefined
       : await rpc('channelSend', {
           channelId,
-          body: 'Use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once. This is a harmless two-second QA timer. Do not use any other tool except channel_send afterwards to send the exact phrase "Safe tool activity confirmed" in this DM. Do not delegate or modify any files.',
+          body:
+            sourceRole === 'assignment'
+              ? `For this QA, create exactly one Assignment with active Workspace Grant ${assignmentGrant.id}, omitting provider/model/effort. Its purpose: use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once, then report_to_orchestrator that the harmless two-second timer completed. Do not modify files, use any other commands, or create subagents. Do not run Shell yourself. After the Assignment reports successful completion, use channel_send in this DM with exact phrase "Safe tool activity confirmed". Before completion, end your turn and await the Assignment report; do not poll it.`
+              : 'Use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once. This is a harmless two-second QA timer. Do not use any other tool except channel_send afterwards to send the exact phrase "Safe tool activity confirmed" in this DM. Do not delegate or modify any files.',
         });
   let pending;
   for (let i = 0; i < 1200; i++) {
@@ -221,6 +250,9 @@ try {
     await new Promise((done) => setTimeout(done, 200));
   }
   assert.ok(pending, 'Actual native Shell approval must be pending');
+  const toolName = pending.toolApprovalRequest.toolName;
+  assert.ok(['bash', 'pwsh'].includes(toolName), 'Registered native Shell tool name');
+  console.log(JSON.stringify({ approvalPending: true, sourceRole, toolName }));
   await page.waitForFunction(
     (id) =>
       document.querySelector(`[data-channel-id="${id}"] .bh-persona-avatar`)?.dataset.state ===
@@ -237,6 +269,17 @@ try {
           'executing',
       {},
       channelId,
+    );
+  }
+  if (phase === 'after' && sourceRole !== undefined) {
+    const current = (await rpc('activitySnapshot')).bots.find((row) => row.slug === bot.slug);
+    assert.deepEqual(current?.activity?.sources, [{ role: sourceRole, count: 1 }]);
+    const sourceLabel = sourceRole === 'assignment' ? '任务会话' : '主会话';
+    await page.waitForFunction(
+      (label) =>
+        document.querySelector('.bh-composer-activity-summary')?.textContent.includes(label),
+      {},
+      sourceLabel,
     );
   }
   const dom = await page.evaluate(
@@ -261,16 +304,23 @@ try {
   );
   await screenshot(`${phase}.png`);
   const layoutEvidence = [];
+  let sourceRows;
+  let narrowSourceRows;
+  let disclosure;
+  let expandedPanel;
   const roster = await rpc('rosterGet');
   await rpc('pinsSet', { pins: [...new Set([...roster.pins, channelId])] });
   await page.waitForSelector(`.bh-pinned[data-channel-id="${channelId}"]`);
   await page.keyboard.press('Tab');
   await page.focus(`.bh-pinned[data-channel-id="${channelId}"]`);
   if (phase === 'after')
-    await page.waitForFunction(() =>
-      Array.from(document.querySelectorAll('[role="tooltip"]')).some((e) =>
-        e.textContent.includes('bash'),
-      ),
+    await page.waitForFunction(
+      (name) =>
+        Array.from(document.querySelectorAll('[role="tooltip"]')).some((e) =>
+          e.textContent.includes(name),
+        ),
+      {},
+      toolName,
     );
   await screenshot(`${phase}-pinned.png`);
   layoutEvidence.push({
@@ -282,10 +332,7 @@ try {
   });
   await page.click('button[aria-label="收起侧边栏"],button[aria-label="Collapse sidebar"]');
   await page.waitForSelector('.bh-region-rail');
-  const rail =
-    phase === 'before'
-      ? `.bh-rail-channel[aria-label="${bot.displayName}"]`
-      : `.bh-rail-channel[data-channel-id="${channelId}"]`;
+  const rail = `.bh-rail-channel[data-channel-id="${channelId}"]`;
   await page.hover(rail);
   await page.waitForSelector('.bh-rail-preview');
   await screenshot(`${phase}-rail.png`);
@@ -298,7 +345,7 @@ try {
     await page.focus(rail);
     await page.waitForSelector('.bh-rail-preview');
     railFocusSummary = await page.$eval(rail, (button) => button.getAttribute('aria-label'));
-    assert.ok(railFocusSummary.includes('bash'));
+    assert.ok(railFocusSummary.includes(toolName));
     await screenshot('rail-focus.png');
   }
   layoutEvidence.push({
@@ -322,13 +369,74 @@ try {
     { name: 'prefers-reduced-motion', value: 'no-preference' },
     { name: 'prefers-color-scheme', value: colorScheme },
   ]);
-  if (phase === 'after') {
+  if (phase === 'after' || sourceRole !== undefined) {
+    disclosure = await page.$eval('.bh-composer-activity-status', (details) => ({
+      open: details.open,
+      headerBackground: getComputedStyle(details.querySelector('summary')).backgroundColor,
+      bodyHeight: details.querySelector('.bh-composer-activity-details').getBoundingClientRect()
+        .height,
+    }));
+    assert.equal(disclosure.open, false);
+    assert.equal(disclosure.headerBackground, 'rgba(0, 0, 0, 0)');
+    assert.equal(disclosure.bodyHeight, 0);
     const summary = await page.$('.bh-composer-activity-status summary');
     assert.ok(summary);
     await summary.focus();
     await page.keyboard.press('Enter');
     await page.waitForSelector('.bh-composer-activity-status[open]');
+    expandedPanel = await page.$eval('.bh-composer-activity-details', (panel) => {
+      const box = panel.getBoundingClientRect();
+      const parent = panel.parentElement.getBoundingClientRect();
+      const style = getComputedStyle(panel);
+      return {
+        width: box.width,
+        parentWidth: parent.width,
+        leftInset: box.left - parent.left,
+        radius: style.borderRadius,
+        background: style.backgroundColor,
+      };
+    });
+    assert.ok(expandedPanel.leftInset >= 36);
+    assert.ok(expandedPanel.width < expandedPanel.parentWidth - 36);
+    assert.equal(expandedPanel.radius, '20px');
     await screenshot('details.png');
+    if (phase === 'after' && sourceRole !== undefined) {
+      const measureSources = () =>
+        page.$$eval('.bh-composer-activity-source', (rows) =>
+          rows.map((row) => {
+            const style = getComputedStyle(row);
+            return {
+              height: row.getBoundingClientRect().height,
+              width: row.getBoundingClientRect().width,
+              parentWidth: row.parentElement.getBoundingClientRect().width,
+              clientWidth: row.clientWidth,
+              scrollWidth: row.scrollWidth,
+              gap: style.gap,
+              padding: style.padding,
+              radius: style.borderRadius,
+              background: style.backgroundColor,
+              border: style.border,
+              fits: row.scrollWidth <= row.clientWidth,
+              icon: row.querySelector('[role="img"]')?.getAttribute('aria-label'),
+              count: row.querySelector('.bh-composer-activity-source-count')?.textContent,
+            };
+          }),
+        );
+      sourceRows = await measureSources();
+      assert.ok(sourceRows.length > 0);
+      assert.ok(sourceRows.every((row) => row.height <= 44 && row.fits && row.icon));
+      await page.setViewport({ width: 420, height: 860 });
+      await page.waitForFunction(
+        () => document.querySelector('.bh-composer-activity-sources')?.clientWidth >= 180,
+      );
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      );
+      narrowSourceRows = await measureSources();
+      assert.ok(narrowSourceRows.every((row) => row.fits));
+      await screenshot('details-narrow.png');
+      await page.setViewport({ width: 1500, height: 1180 });
+    }
     const latest = snapshots.at(-1);
     assert.equal(latest.activity.toolKind, 'execute');
     assert.equal(latest.activity.effect, 'executing');
@@ -336,7 +444,7 @@ try {
       !JSON.stringify(snapshots).includes('setTimeout'),
       'No raw command in Activity snapshots',
     );
-    if (process.env.BH_E2E_HOLD !== 'true') {
+    if (phase === 'after' && process.env.BH_E2E_HOLD !== 'true') {
       await rpc('toolApprovalDecide', {
         channelId,
         messageId: pending.id,
@@ -368,10 +476,12 @@ try {
       await screenshot('settled.png');
     }
   }
-  const sessionId = (await rpc('sessions', { slug: bot.slug })).sessions.find(
-    (session) => session.role === 'orchestrator',
-  )?.sessionId;
-  assert.ok(sessionId);
+  const session = (await rpc('sessions', { slug: bot.slug })).sessions.find(
+    (session) => session.sessionId === pending.toolApprovalRequest.sessionId,
+  );
+  assert.ok(session, 'Native approval belongs to a trusted owned Session');
+  assert.equal(session.role, sourceRole ?? 'orchestrator');
+  const sessionId = session.sessionId;
   const native = await nativeSnapshot(sessionId);
   const nativeEvents = native.records
     .filter(
@@ -383,11 +493,11 @@ try {
       type: record.event.type,
       time: record.event.time,
       ...(record.event.type === 'tool/call' &&
-      ['bash', 'channel_send'].includes(record.event.data.name)
+      [toolName, 'channel_send', 'report_to_orchestrator'].includes(record.event.data.name)
         ? { name: record.event.data.name }
         : {}),
     }));
-  assert.ok(nativeEvents.some((event) => event.type === 'tool/call' && event.name === 'bash'));
+  assert.ok(nativeEvents.some((event) => event.type === 'tool/call' && event.name === toolName));
   if (phase === 'after' && process.env.BH_E2E_HOLD !== 'true') {
     assert.ok(nativeEvents.some((event) => event.type === 'tool/result'));
     assert.ok(nativeEvents.some((event) => event.type === 'turn/end'));
@@ -398,6 +508,7 @@ try {
       {
         bot: { slug: bot.slug, displayName: bot.displayName },
         route,
+        sourceRole,
         colorScheme,
         phase,
         snapshots,
@@ -405,9 +516,14 @@ try {
         nativeEvents,
         railFocusSummary,
         layoutEvidence,
+        disclosure,
+        expandedPanel,
+        sourceRows,
+        narrowSourceRows,
         reduceMotion: motion,
         heldForHumanQA: process.env.BH_E2E_HOLD === 'true',
         actualNativeShellApproval: true,
+        toolName,
         verdict: 'PASS',
       },
       null,

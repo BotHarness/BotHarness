@@ -6,6 +6,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   const Tag = ({ children }: PropsWithChildren) => createElement('span', null, children);
   return {
+    IconCodeOutlineRegular: () => null,
+    IconBranchOutlineRegular: () => null,
     Button: stub,
     IconAgentPresetOutlineRegular: stub,
     IconCheckOutlineRegular: stub,

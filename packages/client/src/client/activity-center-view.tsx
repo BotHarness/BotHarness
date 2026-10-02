@@ -5,8 +5,6 @@ import {
   IconCheckOutlineRegular,
   IconInfoOutlineRegular,
   IconAgentPresetOutlineRegular,
-  IconCodeOutlineRegular,
-  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BridgeActions } from './actions.js';
 import { useClientState } from './bot-sidebar.js';
@@ -16,6 +14,7 @@ import { HumanInboxView } from './human-inbox-view.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { NativeSessionCatalog } from './sessions-entry.js';
+import { SessionRoleIcon } from './session-role-icon.js';
 
 const EMPTY_NATIVE_SESSIONS = { ids: [], byId: {} };
 const fallbackSessions: NativeSessionCatalog = {
@@ -230,10 +229,6 @@ export function ActivityCenterView({
                           native.byId[session.sessionId]?.displayTitle ||
                           session.purpose ||
                           t('activityCenter.orchestratorPurpose');
-                        const Icon =
-                          session.role === 'orchestrator'
-                            ? IconAgentPresetOutlineRegular
-                            : IconCodeOutlineRegular;
                         return (
                           <li key={session.sessionId} data-session-id={session.sessionId}>
                             <button
@@ -242,15 +237,7 @@ export function ActivityCenterView({
                               aria-label={`${role}: ${title}`}
                               onClick={() => actions.openSession(session.sessionId)}
                             >
-                              <Tooltip label={role} side="bottom">
-                                <span
-                                  className="bh-overview-session-role"
-                                  role="img"
-                                  aria-label={role}
-                                >
-                                  <Icon size={16} />
-                                </span>
-                              </Tooltip>
+                              <SessionRoleIcon role={session.role} label={role} />
                               <span className="bh-overview-session-purpose" title={title}>
                                 {title}
                               </span>

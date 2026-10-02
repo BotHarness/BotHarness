@@ -1,4 +1,9 @@
-import { createElement, type ButtonHTMLAttributes, type PropsWithChildren } from 'react';
+import {
+  createElement,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+  type PropsWithChildren,
+} from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,6 +18,10 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     createElement('span', { 'data-file-type-icon': path }),
   IconCloseOutlineRegular: () => null,
   IconChevronDownOutlineRegular: () => null,
+  IconAgentPresetOutlineRegular: () => null,
+  IconCodeOutlineRegular: () => null,
+  IconBranchOutlineRegular: () => null,
+  Tooltip: ({ children }: { children: ReactNode }) => children,
   IconPaperclipOutlineRegular: () => null,
   IconSendOutlineRegular: () => null,
   ImageLightbox: () => null,
@@ -46,7 +55,7 @@ describe('Channel composer', () => {
       markup.indexOf('class="bh-composer bh-composer-'),
     );
     expect(markup).toContain('class="bh-avatar-facepile bh-composer-activity-facepile"');
-    expect(markup).toContain('style="width:40px;height:40px"');
+    expect(markup).toContain('style="width:28px;height:28px"');
     expect(markup).toContain('<details class="bh-composer-activity-status">');
     expect(markup).toContain('<summary');
     expect(markup).toContain('role="status" aria-live="polite"');
@@ -59,6 +68,40 @@ describe('Channel composer', () => {
     expect(markup).toContain('data-layout="compact"');
   });
 
+  it('discloses the safe trusted execution source and active Session count', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelComposer, {
+        value: '',
+        placeholder: 'Ada',
+        sending: false,
+        activity: {
+          summary: 'Ada 正在执行',
+          items: [
+            {
+              personaBotId: 'ada',
+              name: 'Ada',
+              state: 'working',
+              activity: {
+                effect: 'executing',
+                toolKind: 'execute',
+                toolName: 'bash',
+                startedAt: 1000,
+                activeToolCount: 3,
+                sources: [{ role: 'assignment', count: 2 }],
+              },
+            },
+          ],
+        },
+        onChange: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    );
+    expect(markup).toContain('role="img" aria-label="任务会话"');
+    expect(markup).toContain('2 个会话');
+    expect(markup).toContain('bash · 3 个活动工具');
+    expect(markup).not.toContain('sessionId');
+    expect(markup).not.toContain('<details open');
+  });
   it('shows a selected Bot only inside the draft, without a second chip row', () => {
     const markup = renderToStaticMarkup(
       createElement(ChannelComposer, {

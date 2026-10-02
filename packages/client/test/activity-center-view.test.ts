@@ -11,6 +11,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconInfoOutlineRegular: () => createElement('svg'),
   IconChevronDownOutlineRegular: () => createElement('svg'),
   IconCodeOutlineRegular: () => null,
+  IconBranchOutlineRegular: () => null,
   IconRightUpOutlineRegular: () => null,
   Input: () => null,
   Button: ({
