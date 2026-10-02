@@ -19,12 +19,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import { createPortal } from 'react-dom';
 
-import {
-  PersonaBotAvatar,
-  PersonaBotFacepile,
-  personaBotActivitySources,
-  type PersonaBotFacepileItem,
-} from './avatar.js';
+import { PersonaBotAvatar, PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
 import {
   activeMentionQuery,
   deleteSelectedMention,
@@ -60,6 +55,7 @@ export interface ChannelComposerActivity {
 
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
+import { SessionRoleIcon } from './session-role-icon.js';
 
 export interface ChannelComposerUpload {
   id: string;
@@ -300,7 +296,7 @@ function PersonaBotActivityStatus({
           t={t}
           className="bh-composer-activity-facepile"
           items={activity.items}
-          size={40}
+          size={28}
         />
         <span className="bh-composer-activity-summary" role="status" aria-live="polite">
           {activity.summary}
@@ -309,23 +305,33 @@ function PersonaBotActivityStatus({
       </summary>
       <div className="bh-composer-activity-details">
         {activity.items.map((item) => (
-          <div key={item.personaBotId}>
-            <strong>{item.name}</strong>
-            <span>
-              {item.activity === undefined
-                ? t('activity.noToolDetail')
-                : t('activity.toolDetail', {
-                    name: item.activity.toolName ?? t('activity.unknownTool'),
-                    count: item.activity.activeToolCount,
-                  })}
-            </span>
-            {item.activity?.sources !== undefined && (
+          <div className="bh-composer-activity-bot" key={item.personaBotId}>
+            <div className="bh-composer-activity-bot-header">
+              <strong>{item.name}</strong>
               <span>
-                {t('activity.sourceDetails', {
-                  sources: personaBotActivitySources(item.activity, t) ?? '',
-                  count: item.activity.sources.reduce((total, source) => total + source.count, 0),
-                })}
+                {item.activity === undefined
+                  ? t('activity.noToolDetail')
+                  : t('activity.toolDetail', {
+                      name: item.activity.toolName ?? t('activity.unknownTool'),
+                      count: item.activity.activeToolCount,
+                    })}
               </span>
+            </div>
+            {item.activity?.sources !== undefined && (
+              <ul className="bh-composer-activity-sources">
+                {item.activity.sources.map((source) => {
+                  const label = t(`activity.source.${source.role}`);
+                  return (
+                    <li className="bh-composer-activity-source" key={source.role}>
+                      <SessionRoleIcon role={source.role} label={label} />
+                      <span className="bh-composer-activity-source-label">{label}</span>
+                      <span className="bh-composer-activity-source-count">
+                        {t('activity.sessionCount', { count: source.count })}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
         ))}

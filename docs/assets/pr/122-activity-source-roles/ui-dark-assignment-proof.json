@@ -1,0 +1,121 @@
+{
+  "bot": {
+    "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+    "displayName": "Assignment source QA"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "assignment",
+  "colorScheme": "dark",
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 30,
+      "slug": "bot-dfdb38eff92e4a97929c7c33ef7ca29c",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "pwsh",
+        "startedAt": 1790917014311,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "assignment",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Assignment source QA：正在执行 · pwsh · 任务会话"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Assignment source QA：正在执行 · pwsh · 任务会话"
+      }
+    ],
+    "summary": "Assignment source QA 正在执行 · pwsh · 任务会话"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790917014311,
+      "name": "pwsh"
+    }
+  ],
+  "railFocusSummary": "Assignment source QA · 正在执行 · pwsh · 任务会话",
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "disclosure": {
+    "open": false,
+    "headerBackground": "rgba(0, 0, 0, 0)",
+    "bodyHeight": 0
+  },
+  "expandedPanel": {
+    "width": 600,
+    "parentWidth": 872,
+    "leftInset": 42,
+    "radius": "20px",
+    "background": "rgb(53, 54, 56)"
+  },
+  "sourceRows": [
+    {
+      "height": 40,
+      "width": 576,
+      "parentWidth": 576,
+      "clientWidth": 574,
+      "scrollWidth": 574,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(21, 21, 23)",
+      "border": "1px solid rgba(255, 255, 255, 0.12)",
+      "fits": true,
+      "icon": "任务会话",
+      "count": "1 个会话"
+    }
+  ],
+  "narrowSourceRows": [
+    {
+      "height": 40,
+      "width": 260,
+      "parentWidth": 260,
+      "clientWidth": 258,
+      "scrollWidth": 258,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(21, 21, 23)",
+      "border": "1px solid rgba(255, 255, 255, 0.12)",
+      "fits": true,
+      "icon": "任务会话",
+      "count": "1 个会话"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": true,
+  "actualNativeShellApproval": true,
+  "toolName": "pwsh",
+  "verdict": "PASS"
+}

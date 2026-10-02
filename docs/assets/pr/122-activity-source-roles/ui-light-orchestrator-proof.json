@@ -1,0 +1,121 @@
+{
+  "bot": {
+    "slug": "bot-cffe49764cbd4d1db4b1f820d4f35a21",
+    "displayName": "Activity source QA"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "orchestrator",
+  "colorScheme": "light",
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 30,
+      "slug": "bot-cffe49764cbd4d1db4b1f820d4f35a21",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790916727056,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Activity source QA：正在执行 · bash · 主会话"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Activity source QA：正在执行 · bash · 主会话"
+      }
+    ],
+    "summary": "Activity source QA 正在执行 · bash · 主会话"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790916727056,
+      "name": "bash"
+    }
+  ],
+  "railFocusSummary": "Activity source QA · 正在执行 · bash · 主会话",
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "disclosure": {
+    "open": false,
+    "headerBackground": "rgba(0, 0, 0, 0)",
+    "bodyHeight": 0
+  },
+  "expandedPanel": {
+    "width": 600,
+    "parentWidth": 872,
+    "leftInset": 42,
+    "radius": "20px",
+    "background": "rgb(245, 246, 247)"
+  },
+  "sourceRows": [
+    {
+      "height": 40,
+      "width": 576,
+      "parentWidth": 576,
+      "clientWidth": 574,
+      "scrollWidth": 574,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(255, 255, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0.1)",
+      "fits": true,
+      "icon": "主会话",
+      "count": "1 个会话"
+    }
+  ],
+  "narrowSourceRows": [
+    {
+      "height": 40,
+      "width": 260,
+      "parentWidth": 260,
+      "clientWidth": 258,
+      "scrollWidth": 258,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(255, 255, 255)",
+      "border": "1px solid rgba(0, 0, 0, 0.1)",
+      "fits": true,
+      "icon": "主会话",
+      "count": "1 个会话"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": true,
+  "actualNativeShellApproval": true,
+  "toolName": "bash",
+  "verdict": "PASS"
+}

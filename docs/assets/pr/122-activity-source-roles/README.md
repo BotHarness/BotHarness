@@ -32,3 +32,11 @@ Build and boot two independent homes with `scripts/dev-instance.mjs`: one at the
 | `BH_E2E_RECONNECT_BOT`, `BH_E2E_USE_PENDING` | reuse a Bot; `true` to capture its existing pending request |
 
 Assignment setup uses native `workspace/create`, BotHarness `grantCreate` and the registered `create_assignment` tool, with only an isolated temporary QA directory. There is no injected Activity state or direct database seed.
+
+## Overview-aligned UI follow-up
+
+Human requested the same compact Session row treatment as merged PR #702. The composer and Overview now share native role icons, the 40px minimum row with 8px padding/gap, 6px radius and existing Overview colors. Composer avatars are 28px. The disclosure defaults closed; its summary has no background. Expanded content is inset 36px from the left with a 600px cap, themed background and the same 20px rounded-panel token as the multiline input. Each aggregate source role has one row and its Session count on the right; tool count remains in the Bot header. No Session navigation or identifiers were added to Activity.
+
+`ui-*-details.png`, `ui-*-narrow.png` and `ui-*-proof.json` were captured against the same real pending approvals used above, after the style change. Both native themes and a 420px narrow viewport were inspected. Runtime proof includes the default-closed disclosure, transparent header, hidden body before opening, expanded panel inset/width/radius, measured row geometry, fit, role label, Session count, keyboard disclosure, pinned/Rail and reduced motion. Earlier `assignment-details.png` is the actual pre-alignment baseline. The Overview reference screenshots are committed by #702 under `docs/assets/pr/698-overview-actions/overview-tiles-*.png`.
+
+Overview intentionally excludes Sessions waiting on approval from its executing list; these pending-tool fixtures therefore validate the composer rather than claiming a new live Overview execution run. Existing Overview native Session navigation remains covered by its focused tests.

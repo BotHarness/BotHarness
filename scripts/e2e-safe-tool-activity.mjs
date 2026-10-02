@@ -304,6 +304,10 @@ try {
   );
   await screenshot(`${phase}.png`);
   const layoutEvidence = [];
+  let sourceRows;
+  let narrowSourceRows;
+  let disclosure;
+  let expandedPanel;
   const roster = await rpc('rosterGet');
   await rpc('pinsSet', { pins: [...new Set([...roster.pins, channelId])] });
   await page.waitForSelector(`.bh-pinned[data-channel-id="${channelId}"]`);
@@ -366,12 +370,73 @@ try {
     { name: 'prefers-color-scheme', value: colorScheme },
   ]);
   if (phase === 'after' || sourceRole !== undefined) {
+    disclosure = await page.$eval('.bh-composer-activity-status', (details) => ({
+      open: details.open,
+      headerBackground: getComputedStyle(details.querySelector('summary')).backgroundColor,
+      bodyHeight: details.querySelector('.bh-composer-activity-details').getBoundingClientRect()
+        .height,
+    }));
+    assert.equal(disclosure.open, false);
+    assert.equal(disclosure.headerBackground, 'rgba(0, 0, 0, 0)');
+    assert.equal(disclosure.bodyHeight, 0);
     const summary = await page.$('.bh-composer-activity-status summary');
     assert.ok(summary);
     await summary.focus();
     await page.keyboard.press('Enter');
     await page.waitForSelector('.bh-composer-activity-status[open]');
+    expandedPanel = await page.$eval('.bh-composer-activity-details', (panel) => {
+      const box = panel.getBoundingClientRect();
+      const parent = panel.parentElement.getBoundingClientRect();
+      const style = getComputedStyle(panel);
+      return {
+        width: box.width,
+        parentWidth: parent.width,
+        leftInset: box.left - parent.left,
+        radius: style.borderRadius,
+        background: style.backgroundColor,
+      };
+    });
+    assert.ok(expandedPanel.leftInset >= 36);
+    assert.ok(expandedPanel.width < expandedPanel.parentWidth - 36);
+    assert.equal(expandedPanel.radius, '20px');
     await screenshot('details.png');
+    if (phase === 'after' && sourceRole !== undefined) {
+      const measureSources = () =>
+        page.$$eval('.bh-composer-activity-source', (rows) =>
+          rows.map((row) => {
+            const style = getComputedStyle(row);
+            return {
+              height: row.getBoundingClientRect().height,
+              width: row.getBoundingClientRect().width,
+              parentWidth: row.parentElement.getBoundingClientRect().width,
+              clientWidth: row.clientWidth,
+              scrollWidth: row.scrollWidth,
+              gap: style.gap,
+              padding: style.padding,
+              radius: style.borderRadius,
+              background: style.backgroundColor,
+              border: style.border,
+              fits: row.scrollWidth <= row.clientWidth,
+              icon: row.querySelector('[role="img"]')?.getAttribute('aria-label'),
+              count: row.querySelector('.bh-composer-activity-source-count')?.textContent,
+            };
+          }),
+        );
+      sourceRows = await measureSources();
+      assert.ok(sourceRows.length > 0);
+      assert.ok(sourceRows.every((row) => row.height <= 44 && row.fits && row.icon));
+      await page.setViewport({ width: 420, height: 860 });
+      await page.waitForFunction(
+        () => document.querySelector('.bh-composer-activity-sources')?.clientWidth >= 180,
+      );
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      );
+      narrowSourceRows = await measureSources();
+      assert.ok(narrowSourceRows.every((row) => row.fits));
+      await screenshot('details-narrow.png');
+      await page.setViewport({ width: 1500, height: 1180 });
+    }
     const latest = snapshots.at(-1);
     assert.equal(latest.activity.toolKind, 'execute');
     assert.equal(latest.activity.effect, 'executing');
@@ -451,6 +516,10 @@ try {
         nativeEvents,
         railFocusSummary,
         layoutEvidence,
+        disclosure,
+        expandedPanel,
+        sourceRows,
+        narrowSourceRows,
         reduceMotion: motion,
         heldForHumanQA: process.env.BH_E2E_HOLD === 'true',
         actualNativeShellApproval: true,
