@@ -251,6 +251,7 @@ export interface ChannelStore {
   get(id: string): ChannelRecord | undefined;
   listHumanMembers(id: string): Array<{ humanId: string; displayName: string }>;
 
+  latestHumanMessageId?(id: string): string | undefined;
   latestMessage(id: string): ChannelMessage | undefined;
 
   hasMessage(id: string, messageId: string): boolean;

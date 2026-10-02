@@ -117,6 +117,7 @@ import {
   loadTimelinePage,
   loadReadPosition,
   markReadPosition,
+  markAllReadPositions,
   loadChannels,
   loadRoster,
   openDmChannel,
@@ -298,6 +299,7 @@ export interface BridgeActions {
   loadNewer(channelId: string): Promise<void>;
   openLatest(channelId: string): Promise<void>;
   openAround(channelId: string, messageId: string): Promise<void>;
+  markAllRead(): Promise<void>;
   markRead(channelId: string, messageId: string): Promise<void>;
   refreshChannelMessages(channelId: string): Promise<void>;
   dismissFailedMessage(channelId: string, messageId: string): boolean;
@@ -1275,6 +1277,18 @@ export function createActions(
         },
         async () => ((await readRequest())?.grantRequestResolved === true ? 'expired' : 'pending'),
       );
+    },
+    async markAllRead() {
+      try {
+        await markAllReadPositions(call);
+      } catch (error) {
+        await refreshHumanInboxStatus();
+        throw error;
+      }
+      const requestSeq = ++humanInboxStatusSeq;
+      const status = await loadHumanAttentionStatus(call);
+      if (requestSeq === humanInboxStatusSeq) clientStore.setHumanInbox(status);
+      if (currentSelection()?.kind === 'inbox') await actions.refreshHumanInbox();
     },
     async markRead(channelId, messageId) {
       await markReadPosition(call, channelId, messageId);
