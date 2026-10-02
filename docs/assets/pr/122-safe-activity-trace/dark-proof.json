@@ -501,9 +501,7 @@
       "count": "1 个会话"
     }
   ],
-  "reduceMotion": [
-    "none"
-  ],
+  "reduceMotion": ["none"],
   "heldForHumanQA": false,
   "actualNativeShellApproval": true,
   "actualBrowserToolApproval": true,
