@@ -225,7 +225,7 @@ export function ChannelBridgeTable({
                         aria-label={t('bridge.deleteFor', { name: row.name })}
                         onClick={() => open('delete', row)}
                       >
-                        {t('bridge.delete')}
+                        {t('common.delete')}
                       </Button>
                     </div>
                   </td>
