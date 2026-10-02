@@ -1,0 +1,47 @@
+{
+  "phase": "verify",
+  "calls": [
+    {
+      "name": "browser_observe",
+      "isError": false
+    },
+    {
+      "name": "browser_type",
+      "isError": false
+    },
+    {
+      "name": "browser_observe",
+      "isError": false
+    },
+    {
+      "name": "browser_click",
+      "isError": false
+    },
+    {
+      "name": "browser_observe",
+      "isError": false
+    },
+    {
+      "name": "browser_click",
+      "isError": false
+    },
+    {
+      "name": "browser_observe",
+      "isError": false
+    },
+    {
+      "name": "browser_screenshot",
+      "isError": false
+    },
+    {
+      "name": "channel_send",
+      "isError": false
+    }
+  ],
+  "fixture": {
+    "queries": [
+      "Aurora container QA"
+    ],
+    "firstResultOpens": 1
+  }
+}

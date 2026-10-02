@@ -1,0 +1,58 @@
+{
+  "implementationRevision": "f613f14e",
+  "dsh": "0.2.0-rc.1",
+  "humanViewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "image": "lscr.io/linuxserver/chrome@sha256:0614c258b65fa8acbc86d0f674efec942958b94dc341d710d27126ea3bad848c",
+  "computerAccess": false,
+  "viewerUnauthenticatedHTTP": 401,
+  "humanInteraction": {
+    "botPausedBeforeInput": true,
+    "counter": {
+      "queries": ["Aurora container QA", "human container qa"],
+      "firstResultOpens": 1
+    },
+    "disabledInteractionKeepsPause": true
+  },
+  "upload": {
+    "sourceMode": "0600",
+    "nativeToolSuccess": true,
+    "independentReadback": ["CONTAINER-UPLOAD-READABLE"]
+  },
+  "pause": {
+    "nativeScreenshotRefused": true,
+    "message": "Browser Pause is active for this PersonaBot"
+  },
+  "accessOff": {
+    "disabledAndCollapsed": true
+  },
+  "localReturn": {
+    "newNativeApprovalRequired": true,
+    "openAndObserveSuccess": true,
+    "title": "Browser interaction QA",
+    "containerRemoved": true,
+    "profileVolumeRetained": true,
+    "retainedFixtureHistoryEntriesAfterContainerRestart": 6
+  },
+  "checks": {
+    "lint": "passed",
+    "format": "passed",
+    "typecheck": "passed",
+    "tests": {
+      "passed": 2024,
+      "skipped": 3
+    },
+    "build": "passed"
+  },
+  "review": {
+    "standards": "2 findings fixed, re-review passed",
+    "spec": "2 findings fixed, re-review passed"
+  },
+  "pendingTargetApproval": {
+    "nativeOutcome": "cancelled",
+    "toolRefused": true,
+    "noRetry": true
+  }
+}
