@@ -14,7 +14,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     createElement('button', props, children as ReactNode),
 }));
 import { ChannelActivityView } from '../src/client/channel-activity-view.js';
-import { loadChannelActivityToday } from '../src/client/bridge.js';
+import { loadChannelActivityToday, type BridgeCall } from '../src/client/bridge.js';
 import { createActions } from '../src/client/actions.js';
 import { store } from '../src/client/store.js';
 import { zhTranslate } from '../src/client/locale.js';
@@ -46,7 +46,7 @@ it('expands current sender names without opening or reading the Channel, refresh
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-10-02T23:59:59Z'));
   let response = today;
-  const call = vi.fn(async (endpoint: string) => {
+  const call = vi.fn<BridgeCall>(async (endpoint) => {
     if (endpoint === 'channelActivityToday') return { ok: true, value: response };
     throw new Error('Unexpected ' + endpoint);
   });
