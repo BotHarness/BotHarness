@@ -977,11 +977,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   const toolDetails = createToolDetailIndex({
     owner: (sessionId) => core.ownership.resolve(sessionId),
     repairRevision: (sessionId) => core.ownership.repairRevision(sessionId),
-    events: (sessionId) =>
-      dshSessions
-        .list()
-        .find((session) => session.id === sessionId)
-        ?.snapshotEvents(),
+    events: (sessionId) => dshSessions.get(sessionId)?.snapshotEvents(),
   });
   new ActivityToolDetails(
     ctx,
