@@ -30,6 +30,7 @@ import type {
   OwnedSessionBot,
   ProfileActivity,
 } from './methods.js';
+import type { ChannelActivityToday } from '../channels/activity-today.js';
 import type { GroupProfileActivity } from '../channels/profile-activity.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
@@ -506,6 +507,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.botSourcePolicyReset({ slug, sourceClass }));
   }
 
+  channelActivityToday(): ChannelActivityToday {
+    return unwrap(this.methods.channelActivityToday({}));
+  }
+
   activityOverview() {
     return unwrap(this.methods.activityOverview({}));
   }
@@ -822,6 +827,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'botSourcePolicySet',
   'botSourcePolicyReset',
   'activityOverview',
+  'channelActivityToday',
   'humanAttention',
   'humanAssignmentContext',
   'humanAttentionStatus',
