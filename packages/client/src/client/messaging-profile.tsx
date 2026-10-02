@@ -1,3 +1,4 @@
+import { ExternalIdentityTable } from './external-identity-table.js';
 import { ThreadReceptionSettings } from './thread-reception-settings.js';
 import type {
   GroupReceptionInput,
@@ -19,6 +20,7 @@ export function MessagingProfile({
   slug: string;
   actions: Pick<
     BridgeActions,
+    | 'messagingIdentity'
     | 'messagingGroupPolicy'
     | 'messagingThreadPolicy'
     | 'messagingReceive'
@@ -132,215 +134,242 @@ export function MessagingProfile({
     }
   };
   return (
-    <section className="bh-profile-section bh-profile-policy-section" aria-label={t('im.title')}>
-      <details className="bh-profile-policy-details">
-        <summary className="bh-profile-policy-summary">
-          <span className="bh-profile-policy-summary-text">
-            <strong>{t('im.title')}</strong>
-            <span>{t('im.summary')}</span>
-          </span>
-          <IconChevronRightOutlineRegular />
-        </summary>
-        <div ref={mount} className="bh-profile-cards">
-          <section className="bh-profile-card">
-            {failed ? (
-              <p className="bh-error" role="alert">
-                {t('im.error')}
-              </p>
-            ) : null}
-            <Button disabled={busy} onClick={() => void operate(async () => undefined)}>
-              {t('im.refresh')}
-            </Button>
-            {snapshot === undefined ? (
-              <p>{t('im.loading')}</p>
-            ) : grant ? (
-              <>
-                <p>
-                  {grant.accountName} · {grant.targetName}{' '}
-                  <Tag tone="neutral">
-                    {grant.availability === 'available'
-                      ? t('im.bound')
-                      : grant.availability === 'rebind-required'
-                        ? t('im.rebind')
-                        : t('im.unavailable')}
-                  </Tag>
+    <>
+      <ExternalIdentityTable
+        snapshot={snapshot}
+        t={t}
+        refresh={refresh}
+        mutate={async (input) => {
+          await actions.messagingIdentity(slug, input);
+          await refresh();
+        }}
+      />
+      <section className="bh-profile-section bh-profile-policy-section" aria-label={t('im.title')}>
+        <details className="bh-profile-policy-details">
+          <summary className="bh-profile-policy-summary">
+            <span className="bh-profile-policy-summary-text">
+              <strong>{t('im.title')}</strong>
+              <span>{t('im.summary')}</span>
+            </span>
+            <IconChevronRightOutlineRegular />
+          </summary>
+          <div ref={mount} className="bh-profile-cards">
+            <section className="bh-profile-card">
+              {failed ? (
+                <p className="bh-error" role="alert">
+                  {t('im.error')}
                 </p>
-                <Button
-                  disabled={busy}
-                  onClick={() =>
-                    void operate(async () => {
-                      await actions.messagingRevoke(slug, grant.id);
-                    })
-                  }
-                >
-                  {t('im.revoke')}
-                </Button>
-                {grant.canReceive === true || grant.receiveScope !== undefined ? (
-                  <>
-                    <label className="bh-im-field">
-                      <span>{t('im.localTarget')}</span>
-                      <select
-                        aria-label={t('im.localTarget')}
-                        value={grant.receiveTargetChannelId ?? ''}
-                        disabled={busy}
-                        onChange={(event) => {
-                          const channelId = event.target.value || null;
-                          void operate(() =>
-                            actions.messagingChannelTarget(slug, grant.id, channelId),
-                          );
-                        }}
+              ) : null}
+              <Button disabled={busy} onClick={() => void operate(async () => undefined)}>
+                {t('im.refresh')}
+              </Button>
+              {snapshot === undefined ? (
+                <p>{t('im.loading')}</p>
+              ) : grant ? (
+                <>
+                  <p>
+                    {grant.accountName} · {grant.targetName}{' '}
+                    <Tag tone="neutral">
+                      {grant.availability === 'available'
+                        ? t('im.bound')
+                        : grant.availability === 'rebind-required'
+                          ? t('im.rebind')
+                          : t('im.unavailable')}
+                    </Tag>
+                  </p>
+                  <Button
+                    disabled={busy}
+                    onClick={() =>
+                      void operate(async () => {
+                        await actions.messagingRevoke(slug, grant.id);
+                      })
+                    }
+                  >
+                    {t('im.revoke')}
+                  </Button>
+                  {grant.canReceive === true || grant.receiveScope !== undefined ? (
+                    <>
+                      <label className="bh-im-field">
+                        <span>{t('im.localTarget')}</span>
+                        <select
+                          aria-label={t('im.localTarget')}
+                          value={grant.receiveTargetChannelId ?? ''}
+                          disabled={busy}
+                          onChange={(event) => {
+                            const channelId = event.target.value || null;
+                            void operate(() =>
+                              actions.messagingChannelTarget(slug, grant.id, channelId),
+                            );
+                          }}
+                        >
+                          <option value="">{t('im.inboxTarget')}</option>
+                          {grant.receiveTargetChannelId &&
+                          !snapshot.channelTargets?.some(
+                            (target) => target.id === grant.receiveTargetChannelId,
+                          ) ? (
+                            <option value={grant.receiveTargetChannelId}>
+                              {t('im.targetUnavailable')}
+                            </option>
+                          ) : null}
+                          {(snapshot.channelTargets ?? []).map((target) => (
+                            <option key={target.id} value={target.id}>
+                              {target.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <p>
+                        {grant.receiveTargetChannelId
+                          ? t('im.channelTargetHint')
+                          : t('im.receiveHint')}
+                      </p>
+                      <p>{t(`im.reception.${grant.reception ?? 'off'}`)}</p>
+                      {grant.receiveScope && grant.groupPolicy ? (
+                        <GroupReceptionSettings
+                          key={`${grant.id}:${grant.groupPolicy.revision}`}
+                          policy={grant.groupPolicy}
+                          verified={grant.ordinaryDelivery === 'verified'}
+                          busy={busy}
+                          t={t}
+                          save={(input) =>
+                            operate(() => actions.messagingGroupPolicy(slug, grant.id, input))
+                          }
+                        />
+                      ) : null}
+                      {grant.threadPolicies?.length ? (
+                        <ThreadReceptionSettings
+                          policies={grant.threadPolicies}
+                          busy={busy}
+                          t={t}
+                          save={async (sourceEventId, input) => {
+                            let saved = false;
+                            await operate(async () => {
+                              await actions.messagingThreadPolicy(slug, sourceEventId, input);
+                              saved = true;
+                            });
+                            return saved;
+                          }}
+                        />
+                      ) : null}
+                      <Button
+                        disabled={
+                          busy ||
+                          (grant.receiveScope === undefined && grant.availability !== 'available')
+                        }
+                        onClick={() =>
+                          void operate(async () => {
+                            await actions.messagingReceive(
+                              slug,
+                              grant.id,
+                              grant.receiveScope === undefined,
+                            );
+                          })
+                        }
                       >
-                        <option value="">{t('im.inboxTarget')}</option>
-                        {grant.receiveTargetChannelId &&
-                        !snapshot.channelTargets?.some(
-                          (target) => target.id === grant.receiveTargetChannelId,
-                        ) ? (
-                          <option value={grant.receiveTargetChannelId}>
-                            {t('im.targetUnavailable')}
-                          </option>
-                        ) : null}
-                        {(snapshot.channelTargets ?? []).map((target) => (
-                          <option key={target.id} value={target.id}>
-                            {target.name}
+                        {t(
+                          grant.receiveScope === undefined
+                            ? 'im.receiveEnable'
+                            : 'im.receiveDisable',
+                        )}
+                      </Button>
+                    </>
+                  ) : null}
+                  <label className="bh-im-field">
+                    <span>{t('im.message')}</span>
+                    <textarea
+                      aria-label={t('im.message')}
+                      value={text}
+                      maxLength={4000}
+                      disabled={busy}
+                      onChange={(event) => setText(event.target.value)}
+                    />
+                  </label>
+                  <Button
+                    disabled={busy || !text.trim() || grant.availability !== 'available'}
+                    onClick={() => void send()}
+                  >
+                    {t('im.send')}
+                  </Button>
+                </>
+              ) : snapshot.accounts.length === 0 ? (
+                <p>{t('im.setup')}</p>
+              ) : (
+                <>
+                  <label className="bh-im-field">
+                    <span>{t('im.account')}</span>
+                    <select
+                      aria-label={t('im.account')}
+                      value={accountKey}
+                      disabled={busy}
+                      onChange={(event) => void chooseAccount(event.target.value)}
+                    >
+                      <option value="">{t('im.select')}</option>
+                      {snapshot.accounts
+                        .filter(
+                          (item) =>
+                            snapshot.identities === undefined ||
+                            snapshot.identities.some(
+                              (i) =>
+                                i.providerId === item.providerId &&
+                                i.accountRef === item.ref &&
+                                i.enabled,
+                            ),
+                        )
+                        .map((item) => (
+                          <option
+                            key={`${item.providerId}:${item.ref}`}
+                            value={`${item.providerId}:${item.ref}`}
+                            disabled={!item.connected}
+                          >
+                            {item.name}
                           </option>
                         ))}
-                      </select>
-                    </label>
-                    <p>
-                      {grant.receiveTargetChannelId
-                        ? t('im.channelTargetHint')
-                        : t('im.receiveHint')}
-                    </p>
-                    <p>{t(`im.reception.${grant.reception ?? 'off'}`)}</p>
-                    {grant.receiveScope && grant.groupPolicy ? (
-                      <GroupReceptionSettings
-                        key={`${grant.id}:${grant.groupPolicy.revision}`}
-                        policy={grant.groupPolicy}
-                        verified={grant.ordinaryDelivery === 'verified'}
-                        busy={busy}
-                        t={t}
-                        save={(input) =>
-                          operate(() => actions.messagingGroupPolicy(slug, grant.id, input))
-                        }
-                      />
-                    ) : null}
-                    {grant.threadPolicies?.length ? (
-                      <ThreadReceptionSettings
-                        policies={grant.threadPolicies}
-                        busy={busy}
-                        t={t}
-                        save={async (sourceEventId, input) => {
-                          let saved = false;
-                          await operate(async () => {
-                            await actions.messagingThreadPolicy(slug, sourceEventId, input);
-                            saved = true;
-                          });
-                          return saved;
-                        }}
-                      />
-                    ) : null}
-                    <Button
-                      disabled={
-                        busy ||
-                        (grant.receiveScope === undefined && grant.availability !== 'available')
-                      }
-                      onClick={() =>
-                        void operate(async () => {
-                          await actions.messagingReceive(
-                            slug,
-                            grant.id,
-                            grant.receiveScope === undefined,
-                          );
-                        })
-                      }
+                    </select>
+                  </label>
+                  <label className="bh-im-field">
+                    <span>{t('im.target')}</span>
+                    <select
+                      aria-label={t('im.target')}
+                      value={targetRef}
+                      disabled={busy || !account}
+                      onChange={(event) => setTargetRef(event.target.value)}
                     >
-                      {t(
-                        grant.receiveScope === undefined ? 'im.receiveEnable' : 'im.receiveDisable',
-                      )}
-                    </Button>
-                  </>
-                ) : null}
-                <label className="bh-im-field">
-                  <span>{t('im.message')}</span>
-                  <textarea
-                    aria-label={t('im.message')}
-                    value={text}
-                    maxLength={4000}
-                    disabled={busy}
-                    onChange={(event) => setText(event.target.value)}
-                  />
-                </label>
-                <Button
-                  disabled={busy || !text.trim() || grant.availability !== 'available'}
-                  onClick={() => void send()}
-                >
-                  {t('im.send')}
-                </Button>
-              </>
-            ) : snapshot.accounts.length === 0 ? (
-              <p>{t('im.setup')}</p>
-            ) : (
-              <>
-                <label className="bh-im-field">
-                  <span>{t('im.account')}</span>
-                  <select
-                    aria-label={t('im.account')}
-                    value={accountKey}
-                    disabled={busy}
-                    onChange={(event) => void chooseAccount(event.target.value)}
+                      <option value="">{t('im.select')}</option>
+                      {targets.map((item) => (
+                        <option key={item.ref} value={item.ref}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p>{t('im.grant')}</p>
+                  <Button
+                    disabled={busy || !account || !targetRef}
+                    onClick={() => void authorize()}
                   >
-                    <option value="">{t('im.select')}</option>
-                    {snapshot.accounts.map((item) => (
-                      <option
-                        key={`${item.providerId}:${item.ref}`}
-                        value={`${item.providerId}:${item.ref}`}
-                        disabled={!item.connected}
-                      >
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="bh-im-field">
-                  <span>{t('im.target')}</span>
-                  <select
-                    aria-label={t('im.target')}
-                    value={targetRef}
-                    disabled={busy || !account}
-                    onChange={(event) => setTargetRef(event.target.value)}
-                  >
-                    <option value="">{t('im.select')}</option>
-                    {targets.map((item) => (
-                      <option key={item.ref} value={item.ref}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <p>{t('im.grant')}</p>
-                <Button disabled={busy || !account || !targetRef} onClick={() => void authorize()}>
-                  {t('im.authorize')}
-                </Button>
-              </>
-            )}
-          </section>
-          {snapshot?.intents.length ? (
-            <section className="bh-profile-card">
-              <header className="bh-profile-card-head">
-                <span className="bh-profile-card-label">{t('im.history')}</span>
-              </header>
-              {snapshot.intents.slice(0, 5).map((intent) => (
-                <div key={intent.id} className="bh-im-outcome">
-                  <Tag tone="neutral">{stateLabel(intent.state)}</Tag>
-                  <span>{intent.text}</span>
-                  {intent.state === 'unknown-outcome' ? <p>{t('im.noRetry')}</p> : null}
-                </div>
-              ))}
+                    {t('im.authorize')}
+                  </Button>
+                </>
+              )}
             </section>
-          ) : null}
-        </div>
-      </details>
-    </section>
+            {snapshot?.intents.length ? (
+              <section className="bh-profile-card">
+                <header className="bh-profile-card-head">
+                  <span className="bh-profile-card-label">{t('im.history')}</span>
+                </header>
+                {snapshot.intents.slice(0, 5).map((intent) => (
+                  <div key={intent.id} className="bh-im-outcome">
+                    <Tag tone="neutral">{stateLabel(intent.state)}</Tag>
+                    <span>{intent.text}</span>
+                    {intent.state === 'unknown-outcome' ? <p>{t('im.noRetry')}</p> : null}
+                  </div>
+                ))}
+              </section>
+            ) : null}
+          </div>
+        </details>
+      </section>
+    </>
   );
 }
 

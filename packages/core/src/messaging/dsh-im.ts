@@ -235,6 +235,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
       return result.flatMap((item) => (item.status === 'fulfilled' ? [item.value] : []));
     },
     targets,
+    inspectAccount: account,
     async inspect(accountRef, targetRef) {
       const current = await account(accountRef);
       const target = (await targets(accountRef)).find((item) => item.ref === targetRef);
