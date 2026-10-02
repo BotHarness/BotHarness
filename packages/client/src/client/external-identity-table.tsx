@@ -161,33 +161,36 @@ export function ExternalIdentityTable({
                 </td>
                 <td>
                   <div className="bh-identity-actions">
-                    <button
+                    <Button
                       type="button"
-                      className="bh-small-btn"
+                      size="sm"
+                      variant="ghost"
                       disabled={busy}
                       aria-label={t('identity.editFor', { name: row.name })}
                       onClick={() => open('edit', row)}
                     >
                       {t('identity.edit')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className="bh-small-btn"
+                      size="sm"
+                      variant="ghost"
                       disabled={busy}
                       aria-label={t('identity.reconnectFor', { name: row.name })}
                       onClick={() => open('reconnect', row)}
                     >
                       {t('identity.reconnect')}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className="bh-small-btn"
+                      size="sm"
+                      variant="ghost"
                       disabled={busy}
                       aria-label={t('identity.unbindFor', { name: row.name })}
                       onClick={() => open('unbind', row)}
                     >
                       {t('identity.unbind')}
-                    </button>
+                    </Button>
                   </div>
                 </td>
               </tr>
