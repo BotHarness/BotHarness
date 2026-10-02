@@ -328,6 +328,78 @@ describe('per-PersonaBot registration and authorization', () => {
     expect(JSON.stringify(h.audits)).not.toContain('opaque-snapshot-token');
   });
 
+  it('admits a driver screenshot through the real Native projection while keeping pixels out of Audit', async () => {
+    const h = harness({ access: true, running: true, auto: true });
+    h.created({ agent });
+    const data =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB1cAAAAASUVORK5CYII=';
+    const attachment = {
+      attachmentId: 'sha256:fixture-image',
+      mediaType: 'image/png',
+      width: 1,
+      height: 1,
+      bytes: Buffer.from(data, 'base64').length,
+    };
+    const saveImages = vi.fn(async () => [attachment]);
+    Object.assign(h.scope, {
+      get: (name: string) =>
+        name === 'attachments'
+          ? { saveImages }
+          : name === 'llm'
+            ? { resolveModelInfo: async () => ({ inputModalities: ['text', 'image'] }) }
+            : undefined,
+    });
+    h.driver.call = vi.fn(async () => ({
+      content: [{ type: 'image', mimeType: 'image/png', data }],
+      structuredContent: { window_id: 42, elements: [] },
+    }));
+    const definition = h.state.definitions.get('computer_get_window_state')!;
+    const run = execution(definition.name);
+    Object.assign(run, {
+      agent: {
+        options: { provider: 'test', model: 'vision' },
+        session: { requestHeader: () => undefined },
+      },
+    });
+    const value = JSON.parse(
+      JSON.stringify(
+        await definition.execute({ pid: 7, window_id: 42, include_screenshot: true }, run),
+      ),
+    );
+    const content = await definition.output!.render({}, value);
+    const projected = await definition.projectContent!(run, { isError: false, value, content });
+    expect(projected).toMatchObject([{ type: 'image', attachment }, { type: 'text' }]);
+    expect(saveImages).toHaveBeenCalledWith([
+      { mediaType: 'image/png', data: Buffer.from(data, 'base64') },
+    ]);
+    expect(JSON.stringify(h.audits)).not.toContain(data);
+    expect(JSON.stringify(h.audits)).not.toContain('fixture-image');
+    expect(h.audits[0]?.outcome).toBe('ok');
+  });
+
+  it('records a returned MCP screenshot failure as an error without auditing observation data', async () => {
+    const h = harness({ access: true, running: true, auto: true });
+    h.created({ agent });
+    h.driver.call = vi.fn(async () => ({
+      isError: true,
+      content: [{ type: 'text', text: 'Screen Recording denied: private-window-title' }],
+      structuredContent: { privateObservation: 'private-pixels-or-tree' },
+    }));
+    const definition = h.state.definitions.get('computer_get_window_state')!;
+    await expect(
+      definition.execute(
+        { pid: 7, window_id: 42, include_screenshot: true },
+        execution(definition.name),
+      ),
+    ).rejects.toThrow('Screen Recording denied');
+    expect(h.driver.call).toHaveBeenCalledTimes(1);
+    expect(h.audits).toMatchObject([
+      { outcome: 'error', error: 'Computer driver reported a tool failure' },
+    ]);
+    expect(JSON.stringify(h.audits)).not.toContain('private-window-title');
+    expect(JSON.stringify(h.audits)).not.toContain('private-pixels-or-tree');
+  });
+
   it('refuses a decision from the old target and requires a fresh grant after target reset', async () => {
     let scope = 'container:0';
     const h = harness({ access: true, running: true, authorizationScope: () => scope });
