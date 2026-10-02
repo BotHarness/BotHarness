@@ -17,6 +17,7 @@ export interface MemoryGit {
   log(limit?: number): MemoryCommit[];
 
   activitySince(sinceIso: string): Array<{ at: string }>;
+  activitySnapshot(sinceIso: string): { commits: Array<{ at: string }>; dirty: boolean };
 }
 
 const INIT_COMMIT_MESSAGE = 'Initialize memory repository';
@@ -24,12 +25,13 @@ const GITATTRIBUTES = '* text=auto eol=lf\n';
 const FIELD_SEPARATOR = '\u001f';
 const RECORD_SEPARATOR = '\u001e';
 
-function run(root: string, args: string[]): string {
+function run(root: string, args: string[], timeout?: number): string {
   return execFileSync('git', args, {
     cwd: root,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
+    ...(timeout === undefined ? {} : { timeout }),
   });
 }
 
@@ -114,6 +116,34 @@ export function createMemoryGit(root: string): MemoryGit {
         commits.push({ sha, date, message: rest.join(FIELD_SEPARATOR).trim() });
       }
       return commits;
+    },
+    activitySnapshot(sinceIso) {
+      const commits = run(
+        root,
+        [
+          '--no-optional-locks',
+          '-c',
+          'core.fsmonitor=false',
+          'log',
+          '--exclude=refs/botharness/recovery/*',
+          '--exclude=refs/stash',
+          '--all',
+          '--since-as-filter=' + sinceIso,
+          '--pretty=format:%cI',
+        ],
+        2000,
+      )
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((at) => ({ at }));
+      const dirty =
+        run(
+          root,
+          ['--no-optional-locks', '-c', 'core.fsmonitor=false', 'status', '--porcelain'],
+          2000,
+        ).trim().length > 0;
+      return { commits, dirty };
     },
     activitySince(sinceIso) {
       try {

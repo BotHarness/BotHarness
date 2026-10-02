@@ -5330,6 +5330,22 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-statistics-content[hidden] {display:none;}
 @media(max-width:480px){.bh-overview-unread{align-items:flex-start;flex-direction:column}.bh-overview-toolbar{gap:8px}}
 
+.bh-overview-memory {margin-top:12px;min-width:0;}
+.bh-overview-memory h3 {margin:0;font-weight:400;}
+.bh-overview-memory .bh-note {margin:0;}
+.bh-overview-memory-range {display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--dsw-alias-label-tertiary);}
+.bh-overview-memory-bots {list-style:none;margin:0;padding:0;}
+.bh-overview-memory-bots > li {display:flex;align-items:center;gap:12px;min-height:42px;padding:4px 0;border-top:1px solid var(--dsw-alias-border-l2);font-size:12px;}
+.bh-overview-memory-name {flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bh-overview-memory-bots strong {font-variant-numeric:tabular-nums;white-space:nowrap;}
+.bh-overview-memory-bots strong > span {font-weight:400;color:var(--dsw-alias-label-secondary);}
+.bh-overview-memory-trend {width:126px;flex-shrink:0;}
+.bh-overview-memory-dirty {color:var(--dsw-alias-state-warn-primary);}
+.bh-overview-memory-unavailable {color:var(--dsw-alias-label-secondary);}
+.bh-overview-memory .bh-profile-pin {flex-shrink:0;cursor:pointer;color:var(--dsw-alias-label-secondary);}
+.bh-overview-memory .bh-profile-pin:disabled {opacity:0.5;cursor:default;}
+.bh-overview-memory .bh-profile-pin:hover {background:var(--bh-hover);color:var(--bh-text);}
+@media (max-width:700px) {.bh-overview-memory-bots > li {flex-wrap:wrap;gap:6px;}.bh-overview-memory-trend {width:84px;}.bh-overview-memory-name {flex-basis:calc(100% - 36px);}.bh-overview-memory-bots .bh-profile-pin {margin-left:auto;}}
 .bh-overview-usage {margin-top:12px;min-width:0;}
 .bh-overview-usage h3 {margin:0;font-weight:400;}
 .bh-overview-usage .bh-profile-card-head {flex-wrap:wrap;}

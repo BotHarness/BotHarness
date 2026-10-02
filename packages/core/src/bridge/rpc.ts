@@ -1,4 +1,5 @@
 import type { UsageOverviewPeriod } from '../usage/overview.js';
+import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import type { HumanAssignmentContext } from '../runtime/assignment-human-context.js';
@@ -716,6 +717,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.memoryRepair({ channelId, expectedHead, repairId }));
   }
 
+  overviewMemory(after?: string): OverviewMemory {
+    return unwrap(this.methods.overviewMemory({ after }));
+  }
+
   overviewUsage(period: UsageOverviewPeriod, after?: string): OverviewUsage {
     return unwrap(this.methods.overviewUsage({ period, after }));
   }
@@ -875,6 +880,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'memorySave',
   'memoryRepair',
   'profileActivity',
+  'overviewMemory',
   'overviewUsage',
   'profileUsage',
   'groupProfileActivity',

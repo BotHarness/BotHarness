@@ -515,3 +515,5 @@ application-defined `botharness/channelActivityToday` 查询由 Channel owner �
 总览优先排列需 Human 行动的 Bot，并先展示 canonical 行动表单，再显示执行中的 Session。显式全部已读命令先固定每个 Human 可见 Channel 的消息位置，再推进既有已读游标；之后到达的消息仍未读，不改变请求解决、Inbox 移除或 Bot attention。统计复用锁定版本的 TanStack 图表与主题，以前端偏好记忆折叠状态，并保留可访问的发送者明细。 ([#705](https://github.com/BotHarness/BotHarness/issues/705)).
 
 总览 token 统计（#709）通过应用定义的 `overviewUsage(period, after?)` Typert 查询消费既有保留 Usage 权威。今日或含今日的七个 Host 本地日期返回完整整体总量／每日分项，与有界 Bot 明细分页独立；缺失报告保持可空未知，核对和历史基线状态明确。当前 Registry 名称标记行；不在当前 Bot 列表中的保留统计仍可见，但不虚构身份或 Profile 入口。Client 复用 Profile UsageChart／主题，以可清理的轮询读取已结算事实，并通过既有 DM 导航打开当前 Bot Profile。不增加账本、Channel token 归因或模型／wake 策略。
+
+总览 Memory 统计（#716）通过应用定义的 `overviewMemory(after?)` Typert 查询读取现有 Memory Service 与 Registry。每页至多十个当前 Bot；每个仓库的所有非恢复／stash 引用可达的普通 Git 提交按 committer 时间归入含今日的七个 Host 本地日期，共享提交仅计一次。当前 staged／unstaged／untracked 状态单独显示，不推断文件作者或审批需求；缺失、无效、超时或读取失败的仓库显示不可用，不伪装为零提交或 clean。查询关闭可选 Git 锁与 fsmonitor，不 stage、commit、reconcile 或建立 checkpoint；沿用 ADR-0068 的仓库权威，不增持久统计账本。Client 复用 Profile 紧凑卡片及 TanStack 主题；可展开每日值，保留已加载分页刷新，折叠 Statistics／退出视图时清理查询资源。
