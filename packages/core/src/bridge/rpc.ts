@@ -717,8 +717,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.memoryRepair({ channelId, expectedHead, repairId }));
   }
 
-  overviewMemory(after?: string): OverviewMemory {
-    return unwrap(this.methods.overviewMemory({ after }));
+  overviewMemory(after?: string): Promise<OverviewMemory> {
+    return unwrapAsync(this.methods.overviewMemory({ after }));
   }
 
   overviewUsage(period: UsageOverviewPeriod, after?: string): OverviewUsage {

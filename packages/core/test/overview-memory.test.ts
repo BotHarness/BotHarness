@@ -61,7 +61,7 @@ function setup() {
   return { registry, memory, methods, dir, git, commit };
 }
 
-it('shows ordinary Memory commits by committer day once across refs, separately from current uncommitted work', () => {
+it('shows ordinary Memory commits by committer day once across refs, separately from current uncommitted work', async () => {
   const { methods, memory, dir, git, commit } = setup();
   commit('old.md', '2026-09-25T12:00:00+09:00');
   commit('first.md', '2026-09-26T12:00:00+09:00');
@@ -71,13 +71,14 @@ it('shows ordinary Memory commits by committer day once across refs, separately 
   commit('backdated.md', '2020-01-01T12:00:00+09:00');
   writeFileSync(join(dir, 'draft.md'), 'Current uncommitted memory');
   memory.scanChanges('ada');
+  git(['config', 'status.showUntrackedFiles', 'no']);
   const indexBefore = readFileSync(join(dir, '.git', 'index'));
   const before = [
     git(['rev-parse', 'HEAD']),
     git(['status', '--porcelain']),
     git(['diff', '--cached']),
   ];
-  const result = methods.overviewMemory({});
+  const result = await methods.overviewMemory({});
   if (!result.ok) throw new Error(result.error.message);
   expect(readFileSync(join(dir, '.git', 'index'))).toEqual(indexBefore);
   expect(result.value.start).toBe('2026-09-26');
@@ -108,19 +109,19 @@ it('shows ordinary Memory commits by committer day once across refs, separately 
   ]).toEqual(before);
 });
 
-it('does not present missing or invalid repositories as zero or clean and bounds Bot pages', () => {
+it('does not present missing or invalid repositories as zero or clean and bounds Bot pages', async () => {
   const { methods, registry, dir } = setup();
   for (let i = 1; i <= 11; i++)
     registry.create({ slug: 'bot-' + String(i).padStart(2, '0'), displayName: 'Bot ' + i });
   writeFileSync(join(dir, '.git', 'HEAD'), 'invalid');
-  const first = methods.overviewMemory({});
+  const first = await methods.overviewMemory({});
   if (!first.ok) throw new Error(first.error.message);
   expect(first.value.bots).toHaveLength(10);
   expect(first.value.bots[0]).toEqual({ slug: 'ada', displayName: 'Ada', state: 'unavailable' });
   expect(first.value.nextCursor).toBe('bot-09');
-  const second = methods.overviewMemory({ after: first.value.nextCursor });
+  const second = await methods.overviewMemory({ after: first.value.nextCursor });
   if (!second.ok) throw new Error(second.error.message);
   expect(second.value.bots.map((bot) => bot.slug)).toEqual(['bot-10', 'bot-11']);
   expect(second.value.nextCursor).toBeUndefined();
-  expect(methods.overviewMemory({ after: 42 }).ok).toBe(false);
+  expect((await methods.overviewMemory({ after: 42 })).ok).toBe(false);
 }, 45000);

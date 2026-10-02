@@ -351,7 +351,7 @@ export interface BridgeMethods {
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
-  overviewMemory(payload: unknown): BridgeResult<OverviewMemory>;
+  overviewMemory(payload: unknown): Promise<BridgeResult<OverviewMemory>>;
   overviewUsage(payload: unknown): BridgeResult<OverviewUsage>;
   profileUsage(payload: unknown): BridgeResult<UsageQueryResult>;
   groupProfileActivity(payload: unknown): BridgeResult<GroupProfileActivity>;
@@ -2797,7 +2797,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         repair: deps.memory!.repairHuman({ botSlug: scope.botSlug, expectedHead, repairId }),
       }));
     },
-    overviewMemory(payload) {
+    async overviewMemory(payload) {
       const after = asObject(payload)['after'];
       if (
         after !== undefined &&
@@ -2809,7 +2809,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           ok: false,
           error: { code: 'storage-unavailable', message: 'Memory statistics unavailable' },
         };
-      return { ok: true, value: deps.memory.overviewActivity(after) };
+      return { ok: true, value: await deps.memory.overviewActivity(after) };
     },
     overviewUsage(payload) {
       const source = asObject(payload);

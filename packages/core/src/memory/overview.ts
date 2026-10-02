@@ -24,11 +24,11 @@ function localDay(date: Date): string {
     String(date.getDate()).padStart(2, '0'),
   ].join('-');
 }
-export function queryOverviewMemory(
+export async function queryOverviewMemory(
   registry: PersonaBotRegistry,
   now: Date,
   after?: string,
-): OverviewMemory {
+): Promise<OverviewMemory> {
   const date = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   date.setDate(date.getDate() - 6);
   const since = date.toISOString();
@@ -41,31 +41,33 @@ export function queryOverviewMemory(
     .list()
     .filter((bot) => bot.slug > (after ?? ''))
     .sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
-  const bots: OverviewMemoryBot[] = rows.slice(0, 10).map((bot) => {
-    const identity = { slug: bot.slug, displayName: bot.displayName };
-    const memoryDir = registry.memoryDirFor(bot.slug);
-    if (!memoryDir || !existsSync(join(memoryDir, '.git')))
-      return { ...identity, state: 'unavailable' };
-    try {
-      const snapshot = createMemoryGit(memoryDir).activitySnapshot(since);
-      const counts = days.map(() => 0);
-      for (const { at } of snapshot.commits) {
-        const instant = new Date(at);
-        if (!Number.isFinite(instant.getTime())) throw new Error('Invalid Memory commit date');
-        const index = days.indexOf(localDay(instant));
-        if (index >= 0) counts[index] = counts[index]! + 1;
+  const bots: OverviewMemoryBot[] = await Promise.all(
+    rows.slice(0, 10).map(async (bot): Promise<OverviewMemoryBot> => {
+      const identity = { slug: bot.slug, displayName: bot.displayName };
+      const memoryDir = registry.memoryDirFor(bot.slug);
+      if (!memoryDir || !existsSync(join(memoryDir, '.git')))
+        return { ...identity, state: 'unavailable' };
+      try {
+        const snapshot = await createMemoryGit(memoryDir).activitySnapshot(since);
+        const counts = days.map(() => 0);
+        for (const { at } of snapshot.commits) {
+          const instant = new Date(at);
+          if (!Number.isFinite(instant.getTime())) throw new Error('Invalid Memory commit date');
+          const index = days.indexOf(localDay(instant));
+          if (index >= 0) counts[index] = counts[index]! + 1;
+        }
+        return {
+          ...identity,
+          state: 'ready',
+          counts,
+          total: counts.reduce((sum, count) => sum + count, 0),
+          dirty: snapshot.dirty,
+        };
+      } catch {
+        return { ...identity, state: 'unavailable' };
       }
-      return {
-        ...identity,
-        state: 'ready',
-        counts,
-        total: counts.reduce((sum, count) => sum + count, 0),
-        dirty: snapshot.dirty,
-      };
-    } catch {
-      return { ...identity, state: 'unavailable' };
-    }
-  });
+    }),
+  );
   return {
     start: days[0]!,
     end: days[6]!,

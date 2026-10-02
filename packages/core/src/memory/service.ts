@@ -32,7 +32,7 @@ export interface MemoryService extends MemoryAcceptance, ReturnType<typeof creat
 
   repositoryFor(sessionId: string | undefined): MemoryRepositoryInspection | undefined;
 
-  overviewActivity?(after?: string): OverviewMemory;
+  overviewActivity?(after?: string): Promise<OverviewMemory>;
 
   activity?(botSlug: string, sinceIso: string): Array<{ at: string }>;
 }

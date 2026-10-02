@@ -5,7 +5,9 @@ import { basename, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const repo = process.env.BH_OVERVIEW_MEMORY_QA_REPO
+  ? resolve(process.env.BH_OVERVIEW_MEMORY_QA_REPO)
+  : resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const mode = process.argv[2] ?? 'check';
 const port = Number(process.env.BH_OVERVIEW_MEMORY_QA_PORT ?? 32024);
 const home = resolve(
@@ -196,7 +198,7 @@ try {
       await shot('overview-' + (dark ? 'dark' : 'light'));
     }
     if (mode === 'before') {
-      await page.setViewport({ width: 740, height: 960, deviceScaleFactor: 1 });
+      await page.setViewport({ width: 420, height: 960, deviceScaleFactor: 1 });
       await theme(false);
       await shot('overview-narrow');
     } else {
@@ -214,6 +216,7 @@ try {
       assert.equal(curator.state, 'ready');
       assert.equal(curator.dirty, true);
       assert.equal(curator.total, scene.bots[0].baseline + 2);
+      assert.deepEqual(curator.counts, [0, 0, 0, 0, 0, 1, scene.bots[0].baseline + 1]);
       assert.equal(observer.state, 'ready');
       assert.equal(observer.dirty, false);
       assert.equal(observer.total, scene.bots[1].baseline);
@@ -240,16 +243,32 @@ try {
           ]),
         before,
       );
-      await theme(false);
       const card = await page.$('.bh-overview-memory');
+      await theme(true);
+      await card.screenshot({ path: resolve(out, 'memory-compact-dark.png') });
+      await theme(false);
       await card.screenshot({
         path: resolve(out, mode === 'resume' ? 'memory-restarted.png' : 'memory-compact.png'),
       });
       await page.click('.bh-overview-memory-details summary');
+      const exactRows = await page.$$eval('.bh-overview-memory-details tbody tr', (rows) =>
+        rows.map((row) => [...row.children].map((cell) => cell.textContent)),
+      );
+      for (const bot of data.bots) {
+        const cells = exactRows.find((row) => row[0] === bot.displayName);
+        assert.deepEqual(
+          cells.slice(1),
+          bot.state === 'ready' ? bot.counts.map(String) : Array(7).fill('—'),
+        );
+      }
       await card.screenshot({ path: resolve(out, 'memory-daily-details.png') });
       await page.click('.bh-overview-memory-details summary');
-      await page.setViewport({ width: 740, height: 960, deviceScaleFactor: 1 });
+      await page.setViewport({ width: 420, height: 960, deviceScaleFactor: 1 });
       await shot('overview-narrow');
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+        true,
+      );
       await card.screenshot({ path: resolve(out, 'memory-narrow.png') });
       await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
       await page.click(`[data-memory-bot="${scene.bots[0].slug}"] button`);
