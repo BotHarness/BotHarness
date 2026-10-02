@@ -22,7 +22,7 @@ import { createFakeRosterDomain } from './roster-fixture.js';
 interface Stubs {
   tools: { register: ReturnType<typeof vi.fn>; guard: ReturnType<typeof vi.fn> };
   systemPrompt: { section: ReturnType<typeof vi.fn> };
-  sessions: { list: ReturnType<typeof vi.fn> };
+  sessions: { list: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
   agents: { create: ReturnType<typeof vi.fn>; resume: ReturnType<typeof vi.fn> };
   skills: { register: ReturnType<typeof vi.fn> };
 }
@@ -47,7 +47,7 @@ function createStubContext(): { ctx: Context; stubs: Stubs } {
   const stubs: Stubs = {
     tools: { register: vi.fn(() => () => undefined), guard: vi.fn(() => () => undefined) },
     systemPrompt: { section: vi.fn(() => () => undefined) },
-    sessions: { list: vi.fn(() => []) },
+    sessions: { list: vi.fn(() => []), get: vi.fn() },
     agents: { create: vi.fn(), resume: vi.fn() },
     skills: { register: vi.fn(() => () => undefined) },
   };

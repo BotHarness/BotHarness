@@ -17,6 +17,7 @@
 
 ### Added
 
+- 显式获授权的 Host Plugin 可通过 Activity 的不透明引用读取有界原生 Tool 参数／结果；未授权、过期或撤销后拒绝读取，Channel 活动不会公开原始内容（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 - 群 Profile 显示成员各自的有效消息提醒；明确开启收件的 Lark 普通消息保留一份共享历史，并按各成员既有数量／时间汇总或安全排队的逐条策略处理 ([#638](https://github.com/BotHarness/BotHarness/issues/638)).
 
 - 群组频道资料可通过 Attention 风格表格、独立收件 Switch 与编辑／删除弹窗管理一个已授权 Lark 频道连接器；暂停保留已收来源，删除仅移除收件路径而保留 Bot 身份和历史（[#700](https://github.com/BotHarness/BotHarness/issues/700)）。
