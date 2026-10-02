@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, createElement } from 'react';
+import type { ComputerSettings } from '../src/settings.js';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +9,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconFolderOpenOutlineRegular: () => null,
   Menu: ({ anchor }: { anchor: unknown }) => anchor,
   Switch: () => null,
+  Button: ({ children, ...props }: { children: string }) =>
+    createElement('button', props, children),
 }));
 
 import {
@@ -30,8 +33,13 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function mount(pickDirectory?: () => Promise<string | null>) {
-  let value = { exportDir: '/old', idleStopMinutes: 30, autoAllowActions: false };
+async function mount(pickDirectory?: () => Promise<string | null>, target?: 'local' | 'container') {
+  let value: ComputerSettings = {
+    exportDir: '/old',
+    idleStopMinutes: 30,
+    autoAllowActions: false,
+    ...(target === undefined ? {} : { target }),
+  };
   let listener = () => {};
   const writes: unknown[] = [];
   const prefs = new ComputerSettingsPrefs();
@@ -79,6 +87,19 @@ async function mount(pickDirectory?: () => Promise<string | null>) {
 }
 
 describe('Computer Settings transfer interaction', () => {
+  it('hides container-only controls in local mode and changes them when the accepted target changes', async () => {
+    const view = await mount(undefined, 'local');
+    expect(view.container.textContent).toContain('Check permissions');
+    expect(view.container.textContent).not.toContain('Computer export directory');
+    expect(view.container.textContent).not.toContain('Idle stop');
+    expect(view.container.textContent).not.toContain('Restore the Computer from an archive');
+    await act(async () => view.prefs.setTarget('container'));
+    expect(view.container.textContent).toContain('Computer export directory');
+    expect(view.container.textContent).toContain('Idle stop');
+    expect(view.container.textContent).not.toContain('Check permissions');
+    expect(view.writes).toEqual([{ field: 'target', value: 'container' }]);
+  });
+
   it('does not write or export until the chosen target is explicitly authorized', async () => {
     const view = await mount(async () => '/picked');
     await view.click('Export to…');
