@@ -39,9 +39,7 @@
     }
   ],
   "fixture": {
-    "queries": [
-      "Aurora container QA"
-    ],
+    "queries": ["Aurora container QA"],
     "firstResultOpens": 1
   }
 }
