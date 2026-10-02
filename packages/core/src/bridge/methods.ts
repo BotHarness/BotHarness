@@ -134,6 +134,7 @@ export interface ActivityOverview {
     displayName: string;
     avatar?: string;
     paused: boolean;
+    hasAction: boolean;
     state: AggregatedState;
     sessions: Array<{
       sessionId: string;
@@ -1146,6 +1147,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               }),
           paused: bot.paused === true,
           state: aggregateSessionStates(sessionStates),
+          hasAction:
+            deps.humanAttention!.list({ category: 'action', botSlug: bot.slug, limit: 1 }).items
+              .length > 0,
           sessions,
         };
       });

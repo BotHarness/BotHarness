@@ -1,11 +1,21 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   StateDot: () => null,
+  IconAgentPresetOutlineRegular: () => null,
+  IconCodeOutlineRegular: () => null,
+  IconRightUpOutlineRegular: () => null,
   Input: () => null,
-  Button: () => null,
+  Button: ({
+    children,
+    variant: _variant,
+    size: _size,
+    ...props
+  }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string }) =>
+    createElement('button', props, children),
+  Tooltip: ({ children }: { children: ReactNode }) => children,
   MarkdownText: () => null,
   Modal: () => null,
 }));
@@ -14,6 +24,7 @@ vi.mock('../src/client/bot-sidebar.js', async () => {
   const { store } = await import('../src/client/store.js');
   return { useClientState: () => useSyncExternalStore(store.subscribe, store.getSnapshot) };
 });
+import type { NativeSessionCatalog } from '../src/client/sessions-entry.js';
 import { ActivityCenterView } from '../src/client/activity-center-view.js';
 import { createActions } from '../src/client/actions.js';
 import { store } from '../src/client/store.js';
@@ -31,6 +42,7 @@ it('shows Overview and routes a Session to native navigation while Bot opens DM'
               {
                 slug: 'ada',
                 displayName: 'Ada',
+                hasAction: false,
                 paused: false,
                 state: 'working',
                 sessions: [
@@ -41,6 +53,14 @@ it('shows Overview and routes a Session to native navigation while Bot opens DM'
                     purpose: 'Prepare release',
                   },
                 ],
+              },
+              {
+                slug: 'idle',
+                displayName: 'Idle Bot',
+                state: 'idle',
+                paused: false,
+                hasAction: false,
+                sessions: [],
               },
             ],
           },
@@ -59,13 +79,48 @@ it('shows Overview and routes a Session to native navigation while Bot opens DM'
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
+  let native: ReturnType<NativeSessionCatalog['getSnapshot']> = { ids: [], byId: {} };
+  let notify = () => {};
+  const nativeSessions: NativeSessionCatalog = {
+    subscribe(listener) {
+      notify = listener;
+      return () => {
+        notify = () => {};
+      };
+    },
+    getSnapshot: () => native,
+    async refresh() {
+      native = {
+        ids: ['assignment-1'],
+        byId: {
+          'assignment-1': { displayTitle: 'Native release session', running: true, updatedAt: 1 },
+        },
+      };
+      notify();
+    },
+  };
   try {
     await act(async () => {
       await actions.openActivityCenter();
-      root.render(createElement(ActivityCenterView, { actions }));
+      root.render(createElement(ActivityCenterView, { actions, nativeSessions }));
     });
     expect(container.textContent).toContain('4');
-    expect(container.textContent).toContain('Prepare release');
+    expect(container.textContent).toContain('Native release session');
+    await act(async () => {
+      native = {
+        ids: ['assignment-1'],
+        byId: {
+          'assignment-1': { displayTitle: 'Renamed release session', running: true, updatedAt: 2 },
+        },
+      };
+      notify();
+    });
+    expect(container.textContent).toContain('Renamed release session');
+    expect(container.textContent).not.toContain('Native release session');
+    expect(container.querySelector('[data-bot-id=idle]')).toBeNull();
+    const idleToggle = container.querySelector('[aria-label="显示空闲 Bot"]')!;
+    await act(async () => idleToggle.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(container.querySelector('[data-bot-id=idle]')).not.toBeNull();
     const session = container.querySelector('[data-session-id="assignment-1"] button')!;
     await act(async () => {
       session.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -184,4 +239,120 @@ it('keeps the explicit tab in memory when storage still returns an older tab and
   local.select({ kind: 'bot', slug: 'ada' });
   await actions.openActivityCenter();
   expect(local.getSnapshot().selection).toEqual({ kind: 'inbox' });
+});
+
+it('keeps idle Bots with actions visible, pages their own actions and decides without entering Inbox', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  let decided = false;
+  const queries: unknown[] = [];
+  const channel = {
+    id: 'team',
+    type: 'group',
+    name: 'Team',
+    createdAt: '2026-10-02T00:00:00Z',
+    updatedAt: '2026-10-02T00:00:00Z',
+    members: ['ada'],
+    invitations: [],
+    joinRequests: [],
+  };
+  const item = (n: number) => ({
+    id: 'join:r' + n,
+    category: 'action',
+    kind: 'group-join-request',
+    botSlug: 'ada',
+    channelId: 'team',
+    channelName: 'Team',
+    summary: '',
+    requestId: 'r' + n,
+    createdAt: '2026-10-02T00:00:00Z',
+  });
+  const actions = createActions(async (endpoint, args) => {
+    if (endpoint === 'activityOverview')
+      return {
+        ok: true,
+        value: {
+          actionCount: decided ? 0 : 51,
+          bots: [
+            {
+              slug: 'ada',
+              displayName: 'Ada',
+              state: 'idle',
+              paused: false,
+              hasAction: !decided,
+              sessions: [],
+            },
+            {
+              slug: 'bea',
+              displayName: 'Bea',
+              state: 'idle',
+              paused: false,
+              hasAction: false,
+              sessions: [],
+            },
+          ],
+        },
+      };
+    if (endpoint === 'humanAttentionStatus')
+      return { ok: true, value: { unreadCount: 0, hasAction: !decided } };
+    if (endpoint === 'humanAttention') {
+      queries.push(args);
+      return {
+        ok: true,
+        value: decided
+          ? { items: [] }
+          : args['cursor'] === 'next'
+            ? { items: [item(50)] }
+            : { items: Array.from({ length: 50 }, (_, i) => item(i)), nextCursor: 'next' },
+      };
+    }
+    if (endpoint === 'channelGroupJoinDecide') {
+      decided = true;
+      return { ok: true, value: { channel } };
+    }
+    throw new Error(endpoint);
+  }, store);
+  store.setHumanInbox({
+    category: 'handled',
+    botSlug: 'bea',
+    channelId: 'elsewhere',
+    sort: 'newest',
+  });
+  store.setRoster([], []);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => {
+      await actions.openActivityCenter('overview');
+      root.render(createElement(ActivityCenterView, { actions }));
+    });
+    expect(container.querySelector('[data-bot-id=ada]')).not.toBeNull();
+    expect(container.querySelector('[data-bot-id=bea]')).toBeNull();
+    expect(container.querySelectorAll('[data-attention-id]')).toHaveLength(50);
+    expect(queries).toContainEqual({
+      category: 'action',
+      limit: 50,
+      cursor: undefined,
+      botSlug: 'ada',
+      channelId: undefined,
+      sort: 'oldest',
+    });
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('.bh-human-inbox-more')!.click(),
+    );
+    expect(container.querySelectorAll('[data-attention-id]')).toHaveLength(51);
+    const decline = [
+      ...container.querySelectorAll<HTMLButtonElement>('[data-attention-id="join:r50"] button'),
+    ].find((button) => button.textContent === '拒绝')!;
+    await act(async () => decline.click());
+    expect(decided).toBe(true);
+    expect(store.getSnapshot().selection).toEqual({ kind: 'inbox', view: 'overview' });
+    expect(store.getSnapshot().overview.value?.actionCount).toBe(0);
+    expect(container.querySelectorAll('[data-attention-id]')).toHaveLength(0);
+    expect(container.textContent).toContain('所有 Bot 都空闲');
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    store.select(undefined);
+  }
 });

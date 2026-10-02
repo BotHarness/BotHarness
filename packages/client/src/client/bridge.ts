@@ -2929,6 +2929,7 @@ export async function loadActivityOverview(call: BridgeCall): Promise<ActivityOv
       typeof bot['slug'] !== 'string' ||
       typeof bot['displayName'] !== 'string' ||
       typeof bot['paused'] !== 'boolean' ||
+      (bot['hasAction'] !== undefined && typeof bot['hasAction'] !== 'boolean') ||
       !['idle', 'thinking', 'working', 'waiting', 'blocked'].includes(String(bot['state'])) ||
       !Array.isArray(bot['sessions']) ||
       (bot['avatar'] !== undefined && typeof bot['avatar'] !== 'string')
@@ -2946,7 +2947,11 @@ export async function loadActivityOverview(call: BridgeCall): Promise<ActivityOv
         throw new Error('Invalid Overview Session');
       return session as unknown as ActivityOverview['bots'][number]['sessions'][number];
     });
-    return { ...bot, sessions } as unknown as ActivityOverview['bots'][number];
+    return {
+      ...bot,
+      hasAction: bot['hasAction'] === true,
+      sessions,
+    } as unknown as ActivityOverview['bots'][number];
   });
   return { actionCount: row['actionCount'] as number, bots };
 }

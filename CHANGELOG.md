@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Overview defaults to active Bots, keeps Bots with Human actions visible, and lets Humans answer or decide from each Bot card; compact executing Session tiles show current native names and role icons, with exact Session navigation ([#698](https://github.com/BotHarness/BotHarness/issues/698)).
+
 - PersonaBot activity now shows Host-declared tool effects and compact safe summaries in the sidebar and composer; concurrent mixed kinds fall back to generic work, and a keyboard-accessible disclosure shows only the current tool summary without raw arguments or results ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
 - Activity Center uses a compact unread chip beside Bot mode settings, switches to an aligned icon below Bot mode when collapsed, and remembers the last Overview or Inbox tab across chats and reload; expanded shows only the unread badge (hover or focus reveals an empty entry only in Bot mode) and collapsed shows its icon only in Bot mode, using a top-right red notification dot ([#679](https://github.com/BotHarness/BotHarness/issues/679)).

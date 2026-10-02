@@ -5227,11 +5227,11 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-activity-center > .bh-human-inbox {min-height:0;flex:1;}
 .bh-overview {padding:16px 24px 24px;overflow-y:auto;min-height:0;}
 .bh-overview-toolbar {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;}
-.bh-overview button {color:var(--bh-overview-label);font:inherit;cursor:pointer;}
-.bh-overview button:hover {background:var(--bh-hover);}
+.bh-overview-bot-header,.bh-overview-session,.bh-overview-action-count {color:var(--bh-overview-label);font:inherit;cursor:pointer;}
+.bh-overview-bot-header:hover,.bh-overview-session:hover,.bh-overview-action-count:hover {background:var(--bh-hover);}
 .bh-overview button:focus-visible {outline:2px solid var(--bh-accent);outline-offset:2px;}
-.bh-overview-action-count {display:flex;align-items:center;gap:24px;padding:12px 16px;border:1px solid var(--bh-overview-border);border-radius:var(--bh-overview-radius-card);background:var(--bh-overview-bg);}
-.bh-overview-action-count strong {font-size:calc(var(--bh-overview-font) + 10px);line-height:1.2;font-variant-numeric:tabular-nums;}
+.bh-overview-action-count {display:flex;align-items:center;gap:12px;padding:6px 12px;border:1px solid var(--bh-overview-border);border-radius:var(--bh-overview-radius-card);background:var(--bh-overview-bg);}
+.bh-overview-action-count strong {font-size:var(--bh-overview-font);line-height:1.2;font-variant-numeric:tabular-nums;}
 .bh-overview-refresh {margin-left:auto;padding:6px 12px;border:1px solid var(--bh-overview-border);border-radius:var(--bh-overview-radius-control);background:transparent;}
 .bh-overview-bots {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px;}
 .bh-overview-bot {min-width:0;border:1px solid var(--bh-overview-border);border-radius:var(--bh-overview-radius-card);overflow:hidden;}
@@ -5242,12 +5242,23 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-overview-bot h2 span {margin-left:6px;font-variant-numeric:tabular-nums;}
 .bh-overview-idle {margin:0;padding:4px 12px 12px;font-size:var(--bh-overview-font);color:var(--bh-overview-subtle);}
 .bh-overview-bot ul {list-style:none;margin:0;padding:0 4px 4px;}
-.bh-overview-bot li button {display:flex;align-items:start;gap:8px;text-align:left;width:100%;padding:8px;border:0;background:transparent;border-radius:var(--bh-overview-radius-control);}
+.bh-overview-bot li button {display:flex;align-items:center;gap:8px;text-align:left;width:100%;min-height:40px;padding:8px;border:1px solid var(--bh-overview-border);background:var(--bh-overview-bg);border-radius:var(--bh-overview-radius-control);}
 .bh-overview-session-role {font-size:var(--bh-overview-font);color:var(--bh-overview-muted);}
 .bh-overview-session-purpose {flex:1;min-width:0;overflow-wrap:anywhere;font-size:var(--bh-overview-font);}
-@media(max-width:720px){.bh-activity-center-header{padding:16px 16px 0}.bh-overview{padding:12px 16px 16px}.bh-overview-bot li button{flex-wrap:wrap}.bh-overview-session-purpose{flex-basis:100%;order:3}}
+@media(max-width:720px){.bh-activity-center-header{padding:16px 16px 0}.bh-overview{padding:12px 16px 16px}.bh-overview-toolbar{flex-wrap:wrap}}
 
-.bh-overview-session-purpose {display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.bh-overview-session-purpose {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bh-overview-bot ul {display:flex;flex-direction:column;gap:4px;padding:0 8px 8px;}
+.bh-overview-session-role {display:flex;align-items:center;flex-shrink:0;}
+.bh-overview-actions {padding:0;overflow:visible;}
+.bh-overview-actions .bh-human-inbox-inner {width:100%;margin:0;}
+.bh-overview-actions .bh-human-inbox-row {min-height:64px;padding:10px 12px;flex-wrap:wrap;}
+.bh-overview-actions .bh-human-inbox-row-main {flex-basis:160px;}
+.bh-overview-actions .bh-human-inbox-row-actions {margin-left:auto;}
+.bh-overview-actions .bh-human-inbox-row-title {font-weight:500;}
+.bh-overview-actions .bh-human-inbox-row:last-child {border-bottom:0;}
+.bh-overview-actions .bh-human-inbox-more {margin:8px 12px;}
+.bh-overview-actions p[role] {padding:0 12px;}
 .bh-overview-bots {align-items:start;}
 
 .bh-human-inbox-context-window { margin-top: 12px; }

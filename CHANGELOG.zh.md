@@ -17,6 +17,8 @@
 
 ### Added
 
+- 总览默认聚焦活跃 Bot，保留有 Human 待行动的 Bot，并可直接在 Bot 卡中回答或决定；正在执行的 Session 以紧凑行卡显示当前原生名称与角色图标，保留准确 Session 跳转（[#698](https://github.com/BotHarness/BotHarness/issues/698)）。
+
 - PersonaBot 在侧栏与输入框活动区域同步显示 Host 声明的工具效果和紧凑安全摘要；并发不同类别回退通用工作状态，键盘可展开当前工具摘要，不暴露原始参数或结果（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 
 - 活动中心入口改为 Bot 模式设置旁的紧凑未读 Chip；侧栏折叠后显示为 Bot 模式下方对齐的图标，跨聊天和刷新记住最后查看的总览或收件箱，展开时仅显示未读数字 badge，没有未读时仅在 Bot 模式开启后悬停或聚焦才显示入口；折叠时入口仅在 Bot 模式开启后显示，并以右上角红点提示通知（[#679](https://github.com/BotHarness/BotHarness/issues/679)）。

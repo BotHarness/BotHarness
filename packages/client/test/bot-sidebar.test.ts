@@ -162,6 +162,7 @@ function stubActions(): BridgeActions {
     refreshBotInbox: vi.fn(async () => undefined),
     openActivityCenter: vi.fn(async () => undefined),
     refreshOverview: vi.fn(async () => undefined),
+    humanActionPage: vi.fn(async () => ({ items: [] })),
     openHumanInbox: vi.fn(async () => undefined),
     refreshHumanInboxStatus: vi.fn(async () => undefined),
     refreshHumanInbox: vi.fn(async () => undefined),

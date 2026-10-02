@@ -35,7 +35,10 @@ describe('Activity Center Host query', () => {
       const methods = createBridgeMethods({ ...core });
       expect(methods.activityOverview({})).toMatchObject({
         ok: true,
-        value: { actionCount: 61, bots: [{ slug: 'ada', state: 'idle', sessions: [] }] },
+        value: {
+          actionCount: 61,
+          bots: [{ slug: 'ada', state: 'idle', hasAction: true, sessions: [] }],
+        },
       });
       expect(core.humanAttention.status()).toEqual({ unreadCount: 62, hasAction: true });
     } finally {

@@ -1,4 +1,5 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { HumanAttentionPage } from './store.js';
 import {
   readActivityCenterTab,
   writeActivityCenterTab,
@@ -239,6 +240,7 @@ export interface BridgeActions {
   refreshBotInbox(slug: string): Promise<void>;
   openActivityCenter(view?: ActivityCenterTab): Promise<void>;
   refreshOverview(): Promise<void>;
+  humanActionPage(botSlug: string, cursor?: string): Promise<HumanAttentionPage>;
   openHumanInbox(): Promise<void>;
   refreshHumanInboxStatus(): Promise<void>;
   refreshHumanInbox(category?: HumanInboxCategory, background?: boolean): Promise<void>;
@@ -1065,6 +1067,12 @@ export function createActions(
       return refreshOverview();
     },
     refreshOverview,
+    humanActionPage: (botSlug, cursor) =>
+      loadHumanAttention(call, 'action', 50, cursor, {
+        botSlug,
+        channelId: undefined,
+        sort: 'oldest',
+      }),
     openHumanInbox() {
       rememberActivityTab('inbox');
       clientStore.select({ kind: 'inbox' });
