@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Memory sidebar reads retain successful scoped content through refresh and reopening, use skeletons only before the first result, and recover through failure-only Retry actions without header refresh controls ([#719](https://github.com/BotHarness/BotHarness/issues/719)).
+
 - Overview Statistics adds compact per-Bot seven-day Memory Git commit trends and current uncommitted-change indicators, with explicit repository unavailability and exact daily detail ([#716](https://github.com/BotHarness/BotHarness/issues/716)).
   Existing Bot Profile Memory activity uses the same ordinary-commit date/ref definition.
 - The expanded composer status shows each active Session’s latest safe activity inside its own compact block, without repeating the Bot name; Host revisions synchronize current rows, completed/disposed Sessions disappear and restart rebuilds the current baseline without copying Session payloads; the expanded container is transparent, desktop name/status share one line, and Assignment cards show native DSH titles ([#122](https://github.com/BotHarness/BotHarness/issues/122)).

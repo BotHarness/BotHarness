@@ -2,31 +2,12 @@ import { useState, useSyncExternalStore, type ReactElement } from 'react';
 import {
   IconCheckOutlineRegular,
   IconEllipsisOutlineRegular,
-  IconRefreshOutlineRegular,
   Menu,
   Tooltip,
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { channelSidebarPrefs } from './channel-sidebar-prefs.js';
-
-export function MemoryRefreshHeaderAction({
-  requestRefresh,
-  t,
-}: ChannelSidebarEntryProps): ReactElement {
-  return (
-    <Tooltip label={t('memory.refresh')} side="bottom" delayMs={500}>
-      <button
-        type="button"
-        className="bh-channel-sidebar-entry-action"
-        aria-label={t('memory.refresh')}
-        onClick={() => requestRefresh?.()}
-      >
-        <IconRefreshOutlineRegular size={16} />
-      </button>
-    </Tooltip>
-  );
-}
 
 export function MemoryEvolutionHeaderAction(props: ChannelSidebarEntryProps): ReactElement {
   const [open, setOpen] = useState(false);
@@ -50,7 +31,6 @@ export function MemoryEvolutionHeaderAction(props: ChannelSidebarEntryProps): Re
   ];
   return (
     <div className="bh-memory-header-actions">
-      <MemoryRefreshHeaderAction {...props} />
       <Menu
         open={open}
         portal

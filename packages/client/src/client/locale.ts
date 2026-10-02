@@ -830,6 +830,9 @@ export const zh = {
   'fileAction.dispatched': '打开请求已发送到 Host',
 
   'memory.loading': '正在读取记忆…',
+  'memory.loadFailed': '加载失败',
+  'memory.updateFailed': '更新失败',
+  'memory.retry': '重试',
   'memory.provisional': '记忆修复尚未完成，暂不能保存。',
   'memory.repair': '修复记忆',
   'memory.repairConfirm': '恢复到最近记录的检查点。当前工作树内容会完整备份，供之后检查。',
@@ -1936,6 +1939,9 @@ export const en = {
   'fileAction.dispatched': 'Open request sent to the Host',
 
   'memory.loading': 'Loading memory…',
+  'memory.loadFailed': 'Loading failed',
+  'memory.updateFailed': 'Update failed',
+  'memory.retry': 'Retry',
   'memory.provisional': 'Memory repair is still in progress. Saving is paused.',
   'memory.repair': 'Repair memory',
   'memory.repairConfirm':
