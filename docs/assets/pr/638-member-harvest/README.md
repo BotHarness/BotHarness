@@ -26,3 +26,11 @@ Send two new marked, unmentioned messages through the real Lark Human client. Bo
 The first real count/time run on `c77ef24a` found successful local replies later causing ordinary Bot-message turns to fail Memory observation. A deterministic test reproduced that failure in under a second; `aa6869d8` skips Memory operations for ordinary Bot traffic, preserving the existing authorization boundary. Both retained admissions recovered after restart, the final real count/time run passed, and no new session failure appeared after the fixed launch. Historical failure notices remain in the QA history; they were not deleted or hidden.
 
 Only clean BotHarness UI screenshots and test-scoped results are published. Native Lark sidebars, cookies, credentials, private login links and unrelated messages are excluded. This is local QA, not deployment.
+
+## Latest-main integration
+
+Latest-main `12ff478a` (#727 Tool detail authorization) is merged into runtime `2b0cb6c6`; the before/after Client structure remains unchanged by that upstream Host-only change. `after-integrated-group-profile.png`, `after-integrated-member-modal.png`, and `after-integrated-count-time.png` are captured on the actual integrated Host. Their larger activity count reflects retained real QA history, not a reset or matched-state before/after pair.
+
+Two fresh ordinary Lark messages persisted at **20:55:26.974 UTC** and **20:55:30.590**. The count member observed both at **20:55:31.998**; the elapsed-time member at **20:55:36.976**, again 10.002 seconds after first persistence. Integrated full regression: **2027 passed / 3 skipped**, static checks and build passed, theme token guard **16 passed**. Both models searched canonical Channel history and replied locally with `BH638-INTEGRATED-COUNT-OK` / `BH638-INTEGRATED-TIME-OK`. No new external Outbox rows. Existing member policies and accepted history survived the latest-main Host restart.
+
+Visual status: light theme inspected in the real UI. Dark theme switching permission is pending in the Human prompt; no dark screenshot or dark-pass claim is made. No custom CSS or color values were added; the table and Modal reuse the existing native primitives and theme tokens. Dark Human QA remains explicitly pending if permission is not received before PR publication.

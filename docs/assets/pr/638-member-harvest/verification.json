@@ -157,6 +157,58 @@
   "automated": {
     "passed": 2020,
     "skipped": 3,
-    "focusedMemoryAndInbound": 88
-  }
+    "focusedMemoryAndInbound": 88,
+    "integratedPassed": 2027,
+    "integratedSkipped": 3,
+    "themeTokenGuard": 16
+  },
+  "integratedRuntimeCommit": "2b0cb6c6ce26d4fcd5a4a840fa3866c3855c888f",
+  "latestMain": "12ff478ae42ba9e57dc08b46fb220426b666fc78",
+  "integratedAdmissions": [
+    {
+      "created_at": "2026-10-02T20:55:26.974Z",
+      "wake_count": 2,
+      "wake_interval_ms": 120000,
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:55:31.998Z",
+      "handled_at": "2026-10-02T20:55:39.063Z",
+      "marker": "[BH638 INTEGRATED 1]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:55:26.974Z",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:55:36.976Z",
+      "handled_at": "2026-10-02T20:55:44.148Z",
+      "marker": "[BH638 INTEGRATED 1]",
+      "bot": "IM Shared Reader QA"
+    },
+    {
+      "created_at": "2026-10-02T20:55:30.590Z",
+      "wake_count": 2,
+      "wake_interval_ms": 120000,
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:55:31.998Z",
+      "handled_at": "2026-10-02T20:55:39.063Z",
+      "marker": "[BH638 INTEGRATED 2]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:55:30.590Z",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:55:36.976Z",
+      "handled_at": "2026-10-02T20:55:44.148Z",
+      "marker": "[BH638 INTEGRATED 2]",
+      "bot": "IM Shared Reader QA"
+    }
+  ],
+  "externalOutboxSinceIntegratedHost": 0
 }
