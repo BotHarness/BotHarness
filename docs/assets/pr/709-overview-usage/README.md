@@ -14,8 +14,7 @@ The model produced actual DM replies; usage was not inserted into the database o
 - `later-usage.png` / `restarted.png`: a later real reply increased the total from 106,317 to 142,268; restarting the Host retained 142,268.
 
 Today and seven-day totals were compared with both Bots' canonical Profile queries. The two-Bot
-sum matched the global total. All recorded usage happened today, so the previous six daily
-buckets correctly show zero. Calendar boundary, multiple roles/routes, unknown usage and more
+sum matched the global total. The initial 2026-10-02 captures had all calls on that date, with the earlier six daily buckets at zero. The compact follow-up was captured on 2026-10-03: Today is empty while Last 7 days retains the earlier calls. Calendar boundary, multiple roles/routes, unknown usage and more
 than twenty Bots are covered by automated tests rather than synthetic screenshot data.
 
 ## Human QA
@@ -52,3 +51,28 @@ The browser measured both Profile and Overview: **15px total font, 12px 14px car
 cache-read and cache-write buckets remain available in Details (`exact-details.png`).
 No new usage store or changes to the read-only query, pagination, Profile navigation or unread
 behavior were introduced by this UI follow-up.
+
+## Publish capture files
+
+The script writes private capture names, not these published names. `before` and `check` both
+produce `overview-light.png` / `overview-dark.png`, so publishing them under the same names would
+overwrite the comparison. `resume` adds `-restart` to page screenshots; section screenshots have
+no suffix. Use a separate capture directory for each phase (`BH_OVERVIEW_USAGE_QA_OUT`), then copy
+the successful run's PNGs into this directory using the mapping below. The shorter public names
+remain stable across PR updates. Do not publish launch logs, tokens or diagnostic-error captures.
+
+| Capture phase               | Script output                                                            | Published filename                                     |
+| --------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Initial main `before`       | `overview-light.png` / `overview-dark.png`                               | `before-light.png` / `before-dark.png`                 |
+| Previous Overview `resume`  | `usage-bot-detail-light.png` / `usage-bot-detail-dark.png`               | `compact-before-light.png` / `compact-before-dark.png` |
+| Current compact `resume`    | `overview-light-restart.png` / `overview-dark-restart.png`               | `after-light.png` / `after-dark.png`                   |
+| Current compact `resume`    | `overview-narrow-light-restart.png` / `overview-narrow-dark-restart.png` | `narrow-light.png` / `narrow-dark.png`                 |
+| Current compact `resume`    | `usage-bot-detail-light.png` / `usage-bot-detail-dark.png`               | `bot-detail-light.png` / `bot-detail-dark.png`         |
+| Current compact `resume`    | `bot-profile-restart.png`                                                | `bot-profile.png`                                      |
+| Current compact `resume`    | `usage-exact-details.png`                                                | `exact-details.png`                                    |
+| Initial 2026-10-02 `check`  | `overview-later-usage.png`                                               | `later-usage.png`                                      |
+| Initial 2026-10-02 `resume` | `overview-restarted.png`                                                 | `restarted.png`                                        |
+
+For a fresh `check` run instead of `resume`, the page captures have no `-restart` suffix;
+use their plain names for the same public targets. Keep the earlier growth/restart captures
+as dated evidence, rather than replacing them with an empty Today interval after rollover.
