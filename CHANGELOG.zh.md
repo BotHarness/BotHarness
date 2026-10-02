@@ -18,6 +18,7 @@
 ### Added
 
 - 记忆侧栏刷新与重新展开时保留上次成功内容，仅首次读取显示骨架屏，失败时通过重试恢复，并移除标题栏刷新按钮（[#719](https://github.com/BotHarness/BotHarness/issues/719)）。
+- 显式获授权的 Host Plugin 可通过 Activity 的不透明引用读取有界原生 Tool 参数／结果；未授权、过期或撤销后拒绝读取，Channel 活动不会公开原始内容（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 
 - 群组频道资料可通过 Attention 风格表格、独立收件 Switch 与编辑／删除弹窗管理一个已授权 Lark 频道连接器；暂停保留已收来源，删除仅移除收件路径而保留 Bot 身份和历史（[#700](https://github.com/BotHarness/BotHarness/issues/700)）。
 - 总览统计新增逐 Bot 近七天 Memory Git 提交趋势与当前未提交改动提示，复用紧凑 Profile 卡片，明确显示仓库不可用状态并可展开每日精确值（[#716](https://github.com/BotHarness/BotHarness/issues/716)）。
