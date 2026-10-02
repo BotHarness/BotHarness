@@ -24,15 +24,50 @@ vi.mock('@modelcontextprotocol/client/stdio', () => ({
 }));
 
 beforeEach(() => vi.clearAllMocks());
-function driver(beforeOpen?: () => Promise<void>) {
+function driver(beforeOpen?: () => Promise<void>, retryReadOnly = true) {
   return createMcpCuaDriver({
     ensure: async () => ({ status: 'present', arch: 'test' }),
     transport: { command: 'unused', args: [], env: {} },
+    retryReadOnly,
     ...(beforeOpen === undefined ? {} : { beforeOpen }),
   });
 }
 
 describe('Computer MCP process lifecycle', () => {
+  it.each(['session_ended', 'permission_denied', 'stale_element_token'])(
+    'leaves %s renewal/refusal to the owning driver without replaying a Local observation',
+    async (code) => {
+      const refused = {
+        isError: true,
+        content: [{ type: 'text', text: 'driver refusal' }],
+        structuredContent: { refusal: { code } },
+      };
+      mocks.callTool.mockResolvedValueOnce(refused);
+      const connection = driver(undefined, false);
+      expect(await connection.call('get_window_state', { pid: 42, window_id: 7 })).toBe(refused);
+      expect(mocks.callTool).toHaveBeenCalledExactlyOnceWith(
+        {
+          name: 'get_window_state',
+          arguments: { pid: 42, window_id: 7 },
+        },
+        undefined,
+      );
+      expect(mocks.close).not.toHaveBeenCalled();
+      expect(mocks.created).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(['get_window_state', 'click', 'type_text'])(
+    'does not replay %s after a Local transport error',
+    async (name) => {
+      mocks.callTool.mockRejectedValueOnce(new Error('transport ended'));
+      const connection = driver(undefined, false);
+      await expect(connection.call(name, {})).rejects.toThrow('transport ended');
+      expect(mocks.callTool).toHaveBeenCalledTimes(1);
+      expect(mocks.created).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it('does not retry an old observation after a target change closes its process', async () => {
     let rejectCall: ((error: Error) => void) | undefined;
     const observed = new Promise<void>((resolve) => {

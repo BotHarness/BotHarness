@@ -264,6 +264,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- macOS Local Computer now resumes fresh observations after driver idle expiry, while expired snapshot and element tokens remain invalid ([#713](https://github.com/BotHarness/BotHarness/issues/713)).
+
 - Computer Audit now records driver-returned tool failures as errors, so refused screenshot and window requests no longer appear successful; observation content stays out of Audit ([#708](https://github.com/BotHarness/BotHarness/issues/708)).
 
 - Inbox source avatars remain at the far right of every action row; repair-only Bot Inbox maintenance is available inside details without an extra list button ([#687](https://github.com/BotHarness/BotHarness/issues/687)).

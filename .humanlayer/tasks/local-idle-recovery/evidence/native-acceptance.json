@@ -1,0 +1,61 @@
+{
+  "issue": 713,
+  "sessionId": "botharness-5a6aeb22-fa6f-469e-8104-617f883f4a58",
+  "driverVersion": "0.31.0",
+  "idleMs": 370112,
+  "markers": {
+    "before": "7D6F6F",
+    "after": "69C4FF"
+  },
+  "oldToken": "s00000002:64",
+  "freshToken": "s00000003:64",
+  "assertions": {
+    "expiredTokenRefused": true,
+    "freshObservationReadback": true,
+    "oldTokenStillRefused": true,
+    "freshTokenClickCount": 1,
+    "accessOffComputerTools": 0,
+    "accessOffComputerCalls": 0,
+    "sameDriverCaptureRuntime": true,
+    "counterBeforeFresh": 0,
+    "osPermissionMutation": "NOT_RUN",
+    "hostRestartDuringIdle": false
+  },
+  "images": [
+    {
+      "name": "before",
+      "sha256": "e1e586035aa23e9b1e560207775af23bf53e486310a9af78d5ccf3e60a9fba13",
+      "width": 1560,
+      "height": 924,
+      "bytes": 192892
+    },
+    {
+      "name": "after",
+      "sha256": "54deaf564b9d7f3d2420c65efbc74aceb81377689a3c61665e0031925849e763",
+      "width": 1560,
+      "height": 924,
+      "bytes": 193132
+    },
+    {
+      "name": "fresh-counter",
+      "sha256": "33688a2f90873ab3837a1d66d39a748c8a82cf56d7c99655d0b90f274b134b2a",
+      "width": 1560,
+      "height": 924,
+      "bytes": 192992
+    }
+  ],
+  "beforeFix": {
+    "driverVersion": "0.28.0",
+    "idleMs": 344466,
+    "nativeDriverRefusal": "session_ended",
+    "refusalCallCount": 1,
+    "modelRetryCount": 0
+  },
+  "pin": {
+    "localVersion": "0.31.0",
+    "containerVersion": "0.28.0",
+    "upstreamRevision": "5272e492d61b96caf08e3bf434d91126c1f3dccc",
+    "archiveSha256": "06cd80b153bdf046dc067fb593e0fc648e780afa37a902ca0515ac25f32f9a4f",
+    "hostBundleSha256": "93c85d80c5cf9ce68a01a0849ee9779beabc9a9876108e87df51eb414056470c"
+  }
+}
