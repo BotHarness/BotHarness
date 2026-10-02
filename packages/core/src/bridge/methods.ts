@@ -1084,6 +1084,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     activityOverview() {
       if (deps.humanAttention === undefined) return unavailable();
+      const actionSummary = deps.humanAttention.actionSummary();
+      const actionBots = new Set(actionSummary.botSlugs);
       const waiting = new Set([
         ...(deps.userQuestions?.activeSessionIds() ?? []),
         ...(deps.toolApproval?.activeSessionIds() ?? []),
@@ -1147,13 +1149,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               }),
           paused: bot.paused === true,
           state: aggregateSessionStates(sessionStates),
-          hasAction:
-            deps.humanAttention!.list({ category: 'action', botSlug: bot.slug, limit: 1 }).items
-              .length > 0,
+          hasAction: actionBots.has(bot.slug),
           sessions,
         };
       });
-      return { ok: true, value: { actionCount: deps.humanAttention.actionCount(), bots } };
+      return { ok: true, value: { actionCount: actionSummary.count, bots } };
     },
     activitySnapshot() {
       return {

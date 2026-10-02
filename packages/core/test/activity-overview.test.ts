@@ -17,6 +17,7 @@ describe('Activity Center Host query', () => {
     const core = createCore({ dshHome: createTempRoot('bh-overview-'), agents });
     try {
       core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
       const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
       for (let i = 0; i < 61; i++)
         await core.channels.appendMessage(dm.id, {
@@ -37,9 +38,13 @@ describe('Activity Center Host query', () => {
         ok: true,
         value: {
           actionCount: 61,
-          bots: [{ slug: 'ada', state: 'idle', hasAction: true, sessions: [] }],
+          bots: [
+            { slug: 'ada', state: 'idle', hasAction: true, sessions: [] },
+            { slug: 'bea', state: 'idle', hasAction: false, sessions: [] },
+          ],
         },
       });
+      expect(core.humanAttention.actionSummary()).toEqual({ count: 61, botSlugs: ['ada'] });
       expect(core.humanAttention.status()).toEqual({ unreadCount: 62, hasAction: true });
     } finally {
       await core.runtime.close();
