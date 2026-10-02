@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Channel sidebar settings adds personal order editing with drag and keyboard controls, draft Done/Cancel/default actions, permission-safe expansion restoration and separate browser-persistent DM/group orders ([#721](https://github.com/BotHarness/BotHarness/issues/721)).
+
 - Channel sidebar entries use Lucide function icons and a single top settings gear for Sessions and Memory evolution display choices, preserving their existing preference scopes ([#718](https://github.com/BotHarness/BotHarness/issues/718)).
 - Group Channel Profile manages one authorized Lark Bridge through an Attention-style table, independent intake Switch and edit/delete Modal; pause preserves accepted sources, deletion removes intake without deleting Bot identity or history ([#700](https://github.com/BotHarness/BotHarness/issues/700)).
 - Overview Statistics adds compact per-Bot seven-day Memory Git commit trends and current uncommitted-change indicators, with explicit repository unavailability and exact daily detail ([#716](https://github.com/BotHarness/BotHarness/issues/716)).
