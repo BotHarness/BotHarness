@@ -1,3 +1,7 @@
+import type {
+  MessagingIdentity,
+  MessagingIdentityInput,
+} from '../../../core/src/messaging/identity.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { HumanAttentionPage } from './store.js';
@@ -18,6 +22,7 @@ import type {
 import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import {
   loadMessagingSnapshot,
+  manageMessagingIdentity,
   loadMessagingTargets,
   authorizeMessaging,
   revokeMessaging,
@@ -86,6 +91,7 @@ import {
   loadMemoryGitCommitDiff,
   loadProfileActivity,
   loadProfileUsage,
+  loadOverviewUsage,
   type UsageFilter,
   type UsageQueryResult,
   loadGroupProfileActivity,
@@ -196,6 +202,7 @@ export interface BridgeActions {
   messagingGroupPolicy(slug: string, grantId: string, policy: GroupReceptionInput): Promise<void>;
   messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<void>;
   messagingSource(slug: string, sourceEventId: string): Promise<ExternalSource>;
+  messagingIdentity(slug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
@@ -245,7 +252,7 @@ export interface BridgeActions {
   memoryDirectory(slug: string): Promise<string | undefined>;
   load(signal?: AbortSignal): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
-  openBot(slug: string): Promise<void>;
+  openBot(slug: string, view?: 'profile'): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
   openActivityCenter(view?: ActivityCenterTab): Promise<void>;
   refreshOverview(): Promise<void>;
@@ -339,6 +346,10 @@ export interface BridgeActions {
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
+  overviewUsage(
+    period: 'today' | 'week',
+    after?: string,
+  ): Promise<import('../../../core/src/bridge/methods.js').OverviewUsage>;
   profileUsage(channelId: string, filter: UsageFilter): Promise<UsageQueryResult>;
   channelActivityToday(): Promise<ChannelActivityToday>;
   groupProfileActivity(channelId: string): Promise<GroupProfileActivity>;
@@ -978,11 +989,15 @@ export function createActions(
       await refreshRoster(signal);
     },
     refreshRoster,
-    async openBot(slug) {
+    async openBot(slug, view) {
       const snapshot = clientStore.getSnapshot();
       const bot = snapshot.bots.find((candidate) => candidate.slug === slug);
       if (bot === undefined) return;
-      const selection: ConversationSelection = { kind: 'bot', slug };
+      const selection: ConversationSelection = {
+        kind: 'bot',
+        slug,
+        ...(view === 'profile' ? { profile: true } : {}),
+      };
       clientStore.select(selection);
       const active = currentSelection();
       if (active === undefined) return;
@@ -1606,6 +1621,7 @@ export function createActions(
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    overviewUsage: (period, after) => loadOverviewUsage(call, period, after),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     channelActivityToday: () => loadChannelActivityToday(call),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
@@ -1617,6 +1633,7 @@ export function createActions(
       setMessagingGroupPolicy(call, slug, grantId, policy),
     messagingReceive: (slug, grantId, enabled) => setMessagingReceive(call, slug, grantId, enabled),
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
+    messagingIdentity: (slug, input) => manageMessagingIdentity(call, slug, input),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
     messagingTargets: (providerId, accountRef) =>
       loadMessagingTargets(call, providerId, accountRef),

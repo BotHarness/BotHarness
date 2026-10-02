@@ -79,6 +79,7 @@ describe('bridge typert service', () => {
       'messagingGroupPolicy',
       'messagingThreadPolicy',
       'messagingSource',
+      'messagingIdentity',
       'messagingSnapshot',
       'messagingTargets',
       'messagingAuthorize',
@@ -164,6 +165,7 @@ describe('bridge typert service', () => {
       'memorySave',
       'memoryRepair',
       'profileActivity',
+      'overviewUsage',
       'profileUsage',
       'groupProfileActivity',
       'rosterGet',
@@ -353,4 +355,10 @@ describe('bridge typert service', () => {
       });
     }
   });
+});
+
+it('exports the named Overview period and cursor through the existing Typert service', () => {
+  const { service } = setup();
+  expect(parameterNames(service.overviewUsage)).toEqual(['period', 'after']);
+  expect(() => service.overviewUsage('week')).toThrow('Usage statistics unavailable');
 });

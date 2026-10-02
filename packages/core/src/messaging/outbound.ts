@@ -1,3 +1,10 @@
+import {
+  assertMessagingIdentity,
+  readMessagingIdentity,
+  type MessagingIdentity,
+  type MessagingIdentityView,
+  type MessagingIdentityInput,
+} from './identity.js';
 import type { ThreadReceptionView } from './thread-policy.js';
 import type { GroupReceptionPolicy } from './group-policy.js';
 import { bridgeChannel } from './channel-target.js';
@@ -103,6 +110,7 @@ export interface OutboxIntent {
 }
 
 export interface MessagingSnapshot {
+  identities?: MessagingIdentityView[];
   channelTargets?: { id: string; name: string }[];
   accounts: (MessagingAccount & { providerId: string })[];
   grants: (MessagingGrant & {
@@ -118,6 +126,7 @@ export interface MessagingSnapshot {
 
 export interface OutboundMessaging {
   inbound: InboundMessaging;
+  identity(botSlug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
   reply(botSlug: string, sourceEventId: string, text: string): Promise<OutboxIntent>;
   acquireFile(
     botSlug: string,
@@ -195,6 +204,40 @@ export function createOutboundMessaging(options: {
   };
   const current = (id: string, token: object) => {
     if (provider(id).token !== token) throw new MessagingError('provider-unavailable');
+  };
+  const binding = (id: string) => database.read((db) => readMessagingIdentity(db, id));
+  const enabledBinding = (id: string, revision?: number) =>
+    database.read((db) => assertMessagingIdentity(db, id, revision));
+  const bounded = async <T>(work: Promise<T>): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        work,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new MessagingError('provider-timeout')),
+            options.timeoutMs ?? 15000,
+          );
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+  const inspectIdentity = async (
+    value: Pick<MessagingIdentity, 'providerId' | 'accountRef' | 'fingerprint'>,
+  ) => {
+    const entry = provider(value.providerId);
+    const account = await bounded(
+      entry.provider.inspectAccount
+        ? entry.provider.inspectAccount(value.accountRef)
+        : entry.provider.accounts().then((rows) => rows.find((r) => r.ref === value.accountRef)),
+    );
+    current(value.providerId, entry.token);
+    if (!account || account.ref !== value.accountRef || account.fingerprint !== value.fingerprint)
+      throw new MessagingError('rebind-required');
+    if (!account.connected) throw new MessagingError('provider-unavailable');
+    return { ...account, token: entry.token };
   };
   const grant = (slug: string, id: string): MessagingGrant => {
     const row = database.read((db) =>
@@ -290,17 +333,19 @@ export function createOutboundMessaging(options: {
   const check = async (value: MessagingGrant) => {
     active(value.botSlug);
     if (value.revokedAt !== undefined) throw new MessagingError('grant-revoked');
+    const identity = enabledBinding(value.bindingId);
     if (value.suspendedReason !== undefined) throw new MessagingError('rebind-required');
     const entry = provider(value.providerId);
     let inspected;
     try {
-      inspected = await entry.provider.inspect(value.accountRef, value.targetRef);
+      inspected = await bounded(entry.provider.inspect(value.accountRef, value.targetRef));
     } catch (error) {
       current(value.providerId, entry.token);
       if (error instanceof MessagingError && error.code === 'rebind-required') suspend(value);
       throw error;
     }
     current(value.providerId, entry.token);
+    enabledBinding(value.bindingId, identity.revision);
     active(value.botSlug);
     if (!inspected.account.connected) throw new MessagingError('provider-unavailable');
     if (
@@ -313,10 +358,18 @@ export function createOutboundMessaging(options: {
       suspend(value);
       throw new MessagingError('rebind-required');
     }
-    return { ...entry, inspected };
+    return { ...entry, inspected, identityRevision: identity.revision };
   };
   const inbound = createInboundMessaging({
     database,
+    bindingAvailable(id) {
+      try {
+        enabledBinding(id);
+        return true;
+      } catch {
+        return false;
+      }
+    },
     sourcePolicy: options.sourcePolicy ?? createBotSourcePolicyStore(database),
     isBotActive: options.isBotActive,
     onAdmitted: options.onAdmitted ?? (() => undefined),
@@ -325,6 +378,134 @@ export function createOutboundMessaging(options: {
   });
   const service: OutboundMessaging = {
     inbound,
+    async identity(botSlug, input) {
+      active(botSlug);
+      if (input.kind === 'bind') {
+        const account = await inspectIdentity(input);
+        return transaction(
+          (db) => {
+            active(botSlug);
+            current(input.providerId, account.token);
+            const prior = db
+              .prepare(
+                'SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND ((provider_id = ? AND (account_ref = ? OR fingerprint = ?)) OR (bot_slug = ? AND platform = ?))',
+              )
+              .get(
+                input.providerId,
+                input.accountRef,
+                input.fingerprint,
+                botSlug,
+                account.platform,
+              );
+            if (prior) throw new MessagingError('binding-conflict');
+            const id = randomUUID();
+            db.prepare(
+              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            ).run(
+              id,
+              botSlug,
+              input.providerId,
+              account.platform,
+              input.accountRef,
+              input.fingerprint,
+              now(),
+              account.name,
+            );
+            return readMessagingIdentity(db, id);
+          },
+          ['bindings'],
+        );
+      }
+      const value = binding(input.id);
+      if (value.botSlug !== botSlug || value.revokedAt)
+        throw new MessagingError('identity-unavailable');
+      if (value.revision !== input.expectedRevision) throw new MessagingError('identity-stale');
+      if (input.kind === 'update' && (!input.name.trim() || input.name.length > 120))
+        throw new MessagingError('invalid-input');
+      const scopes = database.read((db) =>
+        db
+          .prepare('SELECT body FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL')
+          .all(value.id),
+      ) as { body: string }[];
+      const enabled =
+        input.kind === 'update' ? input.enabled : input.kind === 'reconnect' ? true : false;
+      const validatedTokens = new Map<string, object>();
+      if (enabled) {
+        const account = await inspectIdentity(value);
+        validatedTokens.set(value.providerId, account.token);
+        if (account.platform !== value.platform) throw new MessagingError('rebind-required');
+        for (const row of scopes) {
+          const g = JSON.parse(row.body) as MessagingGrant;
+          const entry = provider(g.providerId);
+          const checked = await bounded(entry.provider.inspect(g.accountRef, g.targetRef));
+          current(g.providerId, entry.token);
+          validatedTokens.set(g.providerId, entry.token);
+          if (
+            g.suspendedReason ||
+            checked.account.fingerprint !== value.fingerprint ||
+            !checked.account.connected ||
+            checked.target.digest !== g.targetDigest ||
+            checked.target.ref !== g.targetRef ||
+            checked.account.ref !== value.accountRef ||
+            checked.account.platform !== value.platform
+          )
+            throw new MessagingError('rebind-required');
+        }
+      }
+      const updated = transaction(
+        (db) => {
+          active(botSlug);
+          for (const [id, token] of validatedTokens) current(id, token);
+          const latest = readMessagingIdentity(db, value.id);
+          if (latest.revokedAt || latest.revision !== input.expectedRevision)
+            throw new MessagingError('identity-stale');
+          const currentScopes = db
+            .prepare(
+              'SELECT body FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL',
+            )
+            .all(value.id);
+          if (enabled && JSON.stringify(currentScopes) !== JSON.stringify(scopes))
+            throw new MessagingError('identity-stale');
+          const at = now();
+          db.prepare(
+            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ? WHERE id = ?',
+          ).run(
+            enabled ? 1 : 0,
+            input.kind === 'update' ? input.name.trim() : latest.name,
+            input.kind === 'unbind' ? at : null,
+            value.id,
+          );
+          if (input.kind === 'unbind') {
+            for (const row of scopes) {
+              const g = JSON.parse(row.body) as MessagingGrant;
+              db.prepare(
+                'UPDATE messaging_grants SET body = ?, revoked_at = ?, revision = ? WHERE id = ?',
+              ).run(
+                JSON.stringify({ ...g, revokedAt: at, revision: g.revision + 1 }),
+                at,
+                g.revision + 1,
+                g.id,
+              );
+            }
+          }
+          return readMessagingIdentity(db, value.id);
+        },
+        ['bindings', 'grants', 'bot-inbox'],
+      );
+      await bounded(inbound.reconcileBinding(value.id));
+      options.warn?.(
+        JSON.stringify({
+          event: 'messaging-identity',
+          phase: 'committed',
+          initiator: 'human-profile',
+          identityId: value.id,
+          revision: updated.revision,
+          enabled: updated.enabled,
+          operation: input.kind,
+        }),
+      );
+      return updated;
+    },
     async acquireFile(botSlug, sourceEventId, attachmentId, signal) {
       if (options.attachments === undefined || !inbound.available(botSlug, sourceEventId))
         throw new MessagingError('source-unavailable');
@@ -483,7 +664,7 @@ export function createOutboundMessaging(options: {
       const accounts = (
         await Promise.allSettled(
           [...providers.values()].map(async (entry) =>
-            (await entry.provider.accounts()).map((account) => ({
+            (await bounded(entry.provider.accounts())).map((account) => ({
               ...account,
               providerId: entry.provider.id,
             })),
@@ -495,6 +676,42 @@ export function createOutboundMessaging(options: {
           .prepare('SELECT body FROM messaging_grants WHERE bot_slug = ? ORDER BY created_at DESC')
           .all(botSlug),
       ) as unknown as { body: string }[];
+      const identityRows = database.read((db) =>
+        db
+          .prepare(
+            'SELECT id FROM messaging_bindings WHERE bot_slug = ? AND revoked_at IS NULL ORDER BY created_at',
+          )
+          .all(botSlug),
+      ) as { id: string }[];
+      const identities: MessagingIdentityView[] = await Promise.all(
+        identityRows.map(async ({ id }) => {
+          const value = binding(id);
+          let availability: MessagingIdentityView['availability'] = value.enabled
+            ? 'unavailable'
+            : 'paused';
+          if (value.enabled) {
+            try {
+              await inspectIdentity(value);
+              availability = 'available';
+            } catch (error) {
+              if (error instanceof MessagingError && error.code === 'rebind-required')
+                availability = 'rebind-required';
+            }
+          }
+          const latest = binding(id);
+          if (latest.revision !== value.revision)
+            availability = latest.enabled ? 'unavailable' : 'paused';
+          const scopes = rows
+            .map((r) => JSON.parse(r.body) as MessagingGrant)
+            .filter((g) => g.bindingId === id && !g.revokedAt);
+          return {
+            ...latest,
+            availability,
+            grantCount: scopes.length,
+            scopes: scopes.map((g) => g.targetName),
+          };
+        }),
+      );
       const grants = await Promise.all(
         rows.map(async (row) => {
           const value = JSON.parse(row.body) as MessagingGrant;
@@ -545,7 +762,7 @@ export function createOutboundMessaging(options: {
           }
         });
       });
-      return { accounts, grants, channelTargets, intents: history(botSlug) };
+      return { accounts, identities, grants, channelTargets, intents: history(botSlug) };
     },
     async targets(providerId, accountRef) {
       return provider(providerId).provider.targets(accountRef);
@@ -578,9 +795,26 @@ export function createOutboundMessaging(options: {
               input.botSlug,
               inspected.account.platform,
             );
-          if (existing !== undefined) throw new MessagingError('binding-conflict');
+          let reusable: MessagingIdentity | undefined;
+          if (existing !== undefined) {
+            reusable = readMessagingIdentity(db, (existing as { id: string }).id);
+            if (
+              reusable.botSlug !== input.botSlug ||
+              reusable.providerId !== input.providerId ||
+              reusable.accountRef !== input.accountRef ||
+              reusable.fingerprint !== input.fingerprint ||
+              !reusable.enabled
+            )
+              throw new MessagingError('binding-conflict');
+            const duplicate = db
+              .prepare(
+                "SELECT id FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL AND json_extract(body, '$.targetRef') = ?",
+              )
+              .get(reusable.id, input.targetRef);
+            if (duplicate) throw new MessagingError('binding-conflict');
+          }
           const at = now();
-          const bindingId = randomUUID();
+          const bindingId = reusable?.id ?? randomUUID();
           const id = randomUUID();
           const value: MessagingGrant = {
             ...input,
@@ -592,17 +826,19 @@ export function createOutboundMessaging(options: {
             revision: 1,
             createdAt: at,
           };
-          db.prepare(
-            'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          ).run(
-            bindingId,
-            input.botSlug,
-            input.providerId,
-            value.platform,
-            input.accountRef,
-            value.fingerprint,
-            at,
-          );
+          if (!reusable)
+            db.prepare(
+              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            ).run(
+              bindingId,
+              input.botSlug,
+              input.providerId,
+              value.platform,
+              input.accountRef,
+              value.fingerprint,
+              at,
+              inspected.account.name,
+            );
           db.prepare(
             'INSERT INTO messaging_grants (id, binding_id, bot_slug, revision, created_at, body) VALUES (?, ?, ?, ?, ?, ?)',
           ).run(id, bindingId, input.botSlug, 1, at, JSON.stringify(value));
@@ -622,10 +858,7 @@ export function createOutboundMessaging(options: {
             revokedAt,
             grantId,
           );
-          db.prepare('UPDATE messaging_bindings SET revoked_at = ? WHERE id = ?').run(
-            revokedAt,
-            value.bindingId,
-          );
+
           const pending = db
             .prepare("SELECT id FROM messaging_outbox WHERE grant_id = ? AND state = 'pending'")
             .all(grantId) as unknown as { id: string }[];
@@ -687,10 +920,11 @@ export function createOutboundMessaging(options: {
           inbound.read(botSlug, sourceEventId).grantId !== grantId)
       )
         throw new MessagingError('source-unavailable');
-      await check(acceptedGrant);
+      const acceptedIdentity = (await check(acceptedGrant)).identityRevision;
       const id = transaction(
         (db) => {
           active(botSlug);
+          enabledBinding(acceptedGrant.bindingId, acceptedIdentity);
           const currentGrant = grant(botSlug, grantId);
           if (
             currentGrant.revokedAt !== undefined ||
@@ -749,6 +983,7 @@ export function createOutboundMessaging(options: {
           (db) => {
             active(botSlug);
             current(acceptedGrant.providerId, entry.token);
+            enabledBinding(acceptedGrant.bindingId, acceptedIdentity);
             const value = grant(botSlug, grantId);
             if (value.revokedAt !== undefined || value.revision !== acceptedGrant.revision)
               throw new MessagingError('grant-revoked');

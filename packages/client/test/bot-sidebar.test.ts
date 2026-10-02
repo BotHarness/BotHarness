@@ -102,6 +102,9 @@ const DM_CHANNEL: ChannelSummary = {
 
 function stubActions(): BridgeActions {
   return {
+    overviewUsage: vi.fn(async () => {
+      throw new Error('unexpected Overview usage');
+    }),
     messagingChannelTarget: async () => undefined,
     messagingThreadPolicy: async () => undefined,
     messagingGroupPolicy: async () => undefined,
@@ -109,6 +112,7 @@ function stubActions(): BridgeActions {
     messagingSource: vi.fn(async () => {
       throw new Error('unexpected source read');
     }),
+    messagingIdentity: vi.fn(),
     messagingSnapshot: vi.fn(async () => ({ accounts: [], grants: [], intents: [] })),
     messagingTargets: vi.fn(async () => []),
     resolveWorkspaceGrantRequest: vi.fn(async () => undefined),

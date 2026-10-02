@@ -16,3 +16,7 @@ flowchart TB
   Gateway <--> Model
   ReadAction --> Gateway
   Remote --> ReadRPC
+  Overview --> UsageAction["actions.overviewUsage"]
+  UsageAction --> Gateway
+  Remote --> UsageRPC["overviewUsage<br/>application-defined RPC"]
+  UsageRPC --> UsageOwner["Retained Usage owner<br/>global totals / daily buckets / Bot pages"]

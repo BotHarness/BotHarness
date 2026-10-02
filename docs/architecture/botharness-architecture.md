@@ -513,3 +513,9 @@ Human Attention 在原 operational database 拥有 `human_inbox_dismissals`，�
 application-defined `botharness/channelActivityToday` 查询由 Channel owner 在既有 SQLite 中聚合 Host 本地日内可见 placement 的不同 Source Event，尊重 Human 成员与可见修订边界，排除已删 Channel、Bot 私聊及其生成的注意力通知。响应给出准确的 Human／Bot／其他计数、当前 Channel Human 昵称、Registry Bot 名字、桥接发送者标签，以及日期／时区／半开时间边界。总览使用同一尺度的紧凑堆叠条，可展开发送者明细并跳转 Channel；默认渲染 20 行且提供继续查看，完整总量不截断。视图拥有每 30 秒、午夜和手动刷新及卸载清理；查询失败显式呈现，不推进已读、不生成 wake，不增加 schema 或第二套计数存储。
 
 总览优先排列需 Human 行动的 Bot，并先展示 canonical 行动表单，再显示执行中的 Session。显式全部已读命令先固定每个 Human 可见 Channel 的消息位置，再推进既有已读游标；之后到达的消息仍未读，不改变请求解决、Inbox 移除或 Bot attention。统计复用锁定版本的 TanStack 图表与主题，以前端偏好记忆折叠状态，并保留可访问的发送者明细。 ([#705](https://github.com/BotHarness/BotHarness/issues/705)).
+
+总览 token 统计（#709）通过应用定义的 `overviewUsage(period, after?)` Typert 查询消费既有保留 Usage 权威。今日或含今日的七个 Host 本地日期返回完整整体总量／每日分项，与有界 Bot 明细分页独立；缺失报告保持可空未知，核对和历史基线状态明确。当前 Registry 名称标记行；不在当前 Bot 列表中的保留统计仍可见，但不虚构身份或 Profile 入口。Client 复用 Profile UsageChart／主题，以可清理的轮询读取已结算事实，并通过既有 DM 导航打开当前 Bot Profile。不增加账本、Channel token 归因或模型／wake 策略。
+
+### 外部身份独立生命周期（#699）
+
+[ADR-0111](../adr/0111-external-identity-lifecycle-is-independent-of-grants.md) 将应用定义的 PersonaBot 外部身份与会话 Grant 分开。Messaging 既有 bindings 表持久保存启用偏好、本地名称及 revision；仅绑定通过可信 dsh-im 的认证账号元信息，不创建 Grant 或 listener。Profile 以独立身份表／Modal 管理；Group 没有身份表。暂停停止该身份的 Consumer lease，并由同一个 Host 权限门禁拒绝未开始的 Client／Bot 外部效果；原有路线、Source Event 和政策快照保留。恢复校验同一账号和原目标 digest，不扩大范围。撤销单个 Grant 不解绑身份；明确解绑使该身份所有 Grant 失效，保留可检查配置和消息，不删除 Provider 凭据。#700 继续交付 Channel Bridge 表。

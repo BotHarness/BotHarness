@@ -19,12 +19,15 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - The expanded composer status shows each active Session’s latest safe activity inside its own compact block, without repeating the Bot name; Host revisions synchronize current rows, completed/disposed Sessions disappear and restart rebuilds the current baseline without copying Session payloads; the expanded container is transparent, desktop name/status share one line, and Assignment cards show native DSH titles ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
+- Overview Statistics shows reported token totals across Bots with today/seven-day trends, compact Profile-aligned charts, paginated Bot details and direct Profile navigation; unknown buckets and retained usage remain explicit ([#709](https://github.com/BotHarness/BotHarness/issues/709)).
 - Browser tab Activity can show the Provider-declared operation in shared sidebar/composer summaries; only bounded public text is admitted, conflicting concurrent detail is omitted, and raw URLs, titles and tool payloads remain excluded ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
 - Active tool summaries now identify trusted Orchestrator, Assignment and DSH Subagent sources, count working Sessions separately from concurrent tools, clear finished sources through the same revisioned Host projection, and use compact role rows aligned with Overview ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 - Overview prioritizes Bots waiting for Human action, adds one-click message read without resolving requests, and separates collapsible Channel statistics with the existing TanStack chart ([#705](https://github.com/BotHarness/BotHarness/issues/705)).
 
 - Added macOS Local Computer with a shared Profile target selector, explicit desktop permission checks and per-Bot authorization; fresh installations use the host desktop while legacy Docker configurations keep their target ([#694](https://github.com/BotHarness/BotHarness/issues/694)).
+
+- PersonaBot Profile separates external identities from source authorization, with account-only binding, durable pause/resume, local naming, reconnect and explicit unbind that preserves accepted history; existing grants retain their exact scopes ([#699](https://github.com/BotHarness/BotHarness/issues/699), [ADR-0111](docs/adr/0111-external-identity-lifecycle-is-independent-of-grants.md)).
 
 - Overview shows today’s Human-accessible Channel message totals with Human/Bot/other segments, current sender names and expandable details; day/timezone and read-only Channel navigation remain explicit ([#703](https://github.com/BotHarness/BotHarness/issues/703)).
 
@@ -260,6 +263,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Computer Audit now records driver-returned tool failures as errors, so refused screenshot and window requests no longer appear successful; observation content stays out of Audit ([#708](https://github.com/BotHarness/BotHarness/issues/708)).
 
 - Inbox source avatars remain at the far right of every action row; repair-only Bot Inbox maintenance is available inside details without an extra list button ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
 

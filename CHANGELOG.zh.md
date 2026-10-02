@@ -19,12 +19,15 @@
 
 - 展开的消息框状态区在每个活跃 Session 的独立紧凑卡片内显示最新安全活动，不重复 Bot 名称；Host revision 同步当前记录，完成或销毁的 Session 移出，重启后重建当前基线，不复制参数、结果或推理内容；展开区域透明，桌面名称与状态同行，Assignment 显示原生 DSH 名称（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 
+- 总览统计新增整体及逐 Bot 的今日／近七天 token 用量、对齐 Profile 的紧凑图表、分页明细和直接 Profile 导航；未知分项及保留用量保持明确（[#709](https://github.com/BotHarness/BotHarness/issues/709)）。
 - 浏览器标签页活动可在侧栏和输入框上方显示 Provider 显式声明的操作摘要；仅接纳有界公开文本，并发摘要冲突时省略，URL、页面标题和原始工具载荷不进入 Activity（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 
 - 当前工具摘要新增可信的主会话、任务会话与 DSH 子代理来源，执行会话数量与并发工具数量分开统计，已完成来源经同一版本化 Host 投影清除，展开后以与总览一致的紧凑角色行展示（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 - 总览优先展示等待 Human 的 Bot，提供一键消息已读且保留待处理请求，并以现有 TanStack 图表呈现可折叠 Channel 统计（[#705](https://github.com/BotHarness/BotHarness/issues/705)）。
 
 - 新增 macOS 本机 Computer，可在 Profile 设置中选择本机或 Docker 目标，显式检查桌面权限并按 Bot 授权；新安装默认使用本机桌面，旧 Docker 配置保留原目标（[#694](https://github.com/BotHarness/BotHarness/issues/694)）。
+
+- PersonaBot Profile 将外部身份与来源授权分开管理，支持仅绑定账号、持久启停、本地命名、重连及明确解绑，保留已收历史和既有授权的准确范围（[#699](https://github.com/BotHarness/BotHarness/issues/699)、[ADR-0111](docs/adr/0111-external-identity-lifecycle-is-independent-of-grants.md)）。
 
 - 总览展示今日可访问 Channel 的消息总量，区分 Human／Bot／其他发送者，并可展开查看当前名字与明细；明确日期与时区，统计读取不推进已读 ([#703](https://github.com/BotHarness/BotHarness/issues/703))。
 
@@ -260,6 +263,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- Computer Audit 将 driver 返回的工具失败正确记为错误，截图或窗口请求被拒绝时不再显示成功，且不记录观察内容（[#708](https://github.com/BotHarness/BotHarness/issues/708)）。
 
 - Inbox 的来源头像始终位于操作行最右侧；修复项的 Bot Inbox 维护入口移入详情，不再额外占用列表按钮 ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
 

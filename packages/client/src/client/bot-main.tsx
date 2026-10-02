@@ -570,7 +570,9 @@ function ConversationView({
   const [unseen, setUnseen] = useState(0);
   const [messageMenu, setMessageMenu] = useState<MessageMenuRequest | undefined>();
   const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
-  const [profileViewOpen, setProfileViewOpen] = useState(false);
+  const [profileViewOpen, setProfileViewOpen] = useState(
+    state.selection?.kind === 'bot' && state.selection.profile === true,
+  );
   const [profileActivity, setProfileActivity] = useState<ProfileActivity | undefined>(undefined);
   const [groupProfileActivity, setGroupProfileActivity] = useState<GroupProfileActivity>();
   const [pinnedProfileCards, setPinnedProfileCards] = useState<readonly string[]>(() =>
@@ -1558,7 +1560,7 @@ export function BotMain({
     return <ActivityCenterView actions={actions} t={t} nativeSessions={nativeSessions} />;
   const scopeKey =
     state.selection.kind === 'bot'
-      ? `bot:${state.selection.slug}`
+      ? `bot:${state.selection.slug}:${state.selection.profile ? 'profile' : 'chat'}`
       : `channel:${state.selection.channelId}`;
   return (
     <ConversationView
