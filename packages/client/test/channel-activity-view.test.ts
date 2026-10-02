@@ -94,3 +94,43 @@ it('rejects inconsistent totals instead of showing fabricated zero', async () =>
     loadChannelActivityToday(async () => ({ ok: true, value: { ...today, total: 4 } })),
   ).rejects.toThrow('Invalid Channel activity');
 });
+
+it('disables refresh while awaiting the Host and allows retry after an unavailable query', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  let complete: ((value: Awaited<ReturnType<BridgeCall>>) => void) | undefined;
+  const call = vi.fn<BridgeCall>(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+  );
+  const actions = createActions(call, store);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(createElement(ChannelActivityView, { actions, t: zhTranslate })),
+    );
+    const refresh = container.querySelector<HTMLButtonElement>('header button')!;
+    expect(refresh.disabled).toBe(true);
+    expect(refresh.getAttribute('aria-busy')).toBe('true');
+    refresh.click();
+    expect(call).toHaveBeenCalledTimes(1);
+    await act(async () =>
+      complete?.({ ok: false, error: { code: 'storage-unavailable', message: 'Unavailable' } }),
+    );
+    expect(container.querySelector('[role=alert]')).not.toBeNull();
+    expect(container.querySelector('[data-activity-total]')).toBeNull();
+    expect(refresh.disabled).toBe(false);
+    await act(async () => refresh.click());
+    expect(refresh.disabled).toBe(true);
+    await act(async () => complete?.({ ok: true, value: today }));
+    expect(refresh.disabled).toBe(false);
+    expect(container.querySelector('[role=alert]')).toBeNull();
+    expect(container.querySelector('[data-activity-total]')?.textContent).toBe('3');
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
