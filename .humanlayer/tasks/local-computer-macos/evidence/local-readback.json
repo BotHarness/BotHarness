@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-01T22:18:07.628Z",
+  "capturedAt": "2026-10-02T05:52:48.084Z",
   "driverVersion": "0.28.0",
   "runtimeHashesVerified": true,
   "target": "local",
@@ -49,5 +49,5 @@
   },
   "computerAccess": false,
   "nativeDesktopCapture": "NOT_RUN",
-  "nativeBotAction": "NOT_RUN_WAITING_HUMAN_AUTHORIZATION"
+  "nativeBotAction": "NOT_RUN_BY_THIS_READ_ONLY_PROBE"
 }

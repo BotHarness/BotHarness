@@ -302,6 +302,32 @@ describe('per-PersonaBot registration and authorization', () => {
     expect(JSON.stringify(h.audits)).not.toContain('hello');
   });
 
+  it('projects structured window IDs and element tokens into real Native model content without auditing them', async () => {
+    const h = harness({ access: true, running: true, auto: true });
+    h.created({ agent });
+    const structuredContent = {
+      windows: [{ pid: 7, window_id: 42, title: 'Task window' }],
+      elements: [{ element_token: 'opaque-snapshot-token', value: 'private field content' }],
+    };
+    h.driver.call = vi.fn(async () => ({
+      content: [{ type: 'text', text: 'Found 1 window(s).' }],
+      structuredContent,
+    }));
+    const definition = h.state.definitions.get('computer_list_windows')!;
+    const result = await definition.execute({ pid: 7 }, execution('computer_list_windows'));
+    const projected = await definition.output!.render(
+      { pid: 7 },
+      JSON.parse(JSON.stringify(result)),
+    );
+    const text = JSON.stringify(projected);
+    expect(text).toContain('window_id');
+    expect(text).toContain('opaque-snapshot-token');
+    expect(text).toContain('private field content');
+    expect(result).toMatchObject({ structuredContent });
+    expect(JSON.stringify(h.audits)).not.toContain('private field content');
+    expect(JSON.stringify(h.audits)).not.toContain('opaque-snapshot-token');
+  });
+
   it('refuses a decision from the old target and requires a fresh grant after target reset', async () => {
     let scope = 'container:0';
     const h = harness({ access: true, running: true, authorizationScope: () => scope });

@@ -92,7 +92,7 @@ const report = {
   staleTargetSetupRefused: { status: stale.status, code: stale.body.code },
   computerAccess: false,
   nativeDesktopCapture: 'NOT_RUN',
-  nativeBotAction: 'NOT_RUN_WAITING_HUMAN_AUTHORIZATION',
+  nativeBotAction: 'NOT_RUN_BY_THIS_READ_ONLY_PROBE',
 };
 writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
 console.log(

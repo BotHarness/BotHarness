@@ -11,6 +11,25 @@ import type {} from '@deepseek-ai/dsh-user-approval';
 import { COMPUTER_GUIDANCE, COMPUTER_TOOLS, FALLBACK_TOOLS, computerToolName } from './catalog.js';
 import type { CuaDriver, DriverToolDescriptor } from './driver.js';
 
+function modelVisibleDriverResult(result: unknown): unknown {
+  if (
+    typeof result !== 'object' ||
+    result === null ||
+    !('structuredContent' in result) ||
+    result.structuredContent === undefined ||
+    !('content' in result) ||
+    !Array.isArray(result.content)
+  )
+    return result;
+  return {
+    ...result,
+    content: [
+      ...result.content,
+      { type: 'text', text: JSON.stringify({ structuredContent: result.structuredContent }) },
+    ],
+  };
+}
+
 export const COMPUTER_PROVIDER_NAME = 'botharness-computer';
 
 export const COMPUTER_PROMPT_SECTION = 'botharness:computer';
@@ -208,7 +227,7 @@ export function createComputerToolProvider(
                 'ok',
                 Date.now() - started,
               );
-              return result;
+              return modelVisibleDriverResult(result);
             } catch (error) {
               record(
                 slug,
