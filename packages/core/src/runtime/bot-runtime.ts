@@ -1,3 +1,8 @@
+import type {
+  ThreadReceptionInput,
+  ThreadReceptionPolicy,
+  ThreadReceptionView,
+} from '../messaging/thread-policy.js';
 import type { GroupReceptionInput, GroupReceptionPolicy } from '../messaging/group-policy.js';
 import {
   OriginalAttachmentAccess,
@@ -183,6 +188,8 @@ export interface OrchestratorAgentRun {
       }>
     >;
     setPolicy(grantId: string, input: GroupReceptionInput): Promise<GroupReceptionPolicy>;
+    threads(): Promise<Array<ThreadReceptionView & { grantId: string; group: string }>>;
+    setThread(sourceEventId: string, input: ThreadReceptionInput): Promise<ThreadReceptionPolicy>;
     read(sourceEventId: string): ExternalSource;
     context(
       sourceEventId: string,
@@ -2487,6 +2494,25 @@ class BotRuntimeImplementation implements BotRuntime {
                     botSlug: bot.slug,
                   });
                 },
+                threads: async () => {
+                  const snapshot = await this.#externalMessaging!.snapshot(bot.slug);
+                  return snapshot.grants.flatMap((grant) =>
+                    (grant.threadPolicies ?? []).map((thread) => ({
+                      ...thread,
+                      grantId: grant.id,
+                      group: grant.targetName,
+                    })),
+                  );
+                },
+                setThread: (sourceEventId, input) => {
+                  markSideEffect();
+                  return this.#externalMessaging!.inbound.setThread(
+                    bot.slug,
+                    sourceEventId,
+                    input,
+                    { kind: 'bot', botSlug: bot.slug },
+                  );
+                },
                 read: (id: string) => {
                   const source = this.#externalMessaging!.inbound.read(bot.slug, id);
                   this.#observeExternalRead(bot.slug, [id], readAdmissions);
@@ -4547,12 +4573,15 @@ class BotRuntimeImplementation implements BotRuntime {
         MIN(e.source_event_id) AS anchor
       FROM source_events e JOIN inbox_admissions a USING(source_event_id)
       JOIN messaging_grants g ON g.id = json_extract(e.payload_json, '$.external.grantId')
+      LEFT JOIN messaging_thread_policy_revisions tp ON tp.grant_id = g.id
+        AND tp.thread_id = json_extract(e.payload_json, '$.external.event.reply.threadId')
+        AND tp.revision = a.external_thread_policy_revision
       WHERE a.bot_slug = ? AND e.source_kind = 'bridge-message' AND a.reason = 'group-ordinary'
         AND a.wake_count IS NOT NULL AND a.attempt_state = 'pending' AND a.observed_at IS NULL
         AND g.revoked_at IS NULL AND json_extract(g.body, '$.receiveScope') IS NOT NULL
         AND json_extract(g.body, '$.suspendedReason') IS NULL
         AND g.revision = json_extract(e.payload_json, '$.external.grantRevision')
-      GROUP BY g.id, a.wake_policy_revision`)
+      GROUP BY g.id, a.wake_policy_revision, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END`)
         .all(botSlug),
     ) as Array<{
       first_at: string;
@@ -4580,15 +4609,18 @@ class BotRuntimeImplementation implements BotRuntime {
         a.wake_count, a.wake_interval_ms, g.id AS grant_id,
         SUM(CASE WHEN a.reason = 'group-ordinary' THEN 1 ELSE 0 END) OVER policy AS pending_count,
         MIN(CASE WHEN a.reason = 'group-ordinary' THEN e.created_at END) OVER policy AS first_at,
-        MAX(CASE WHEN a.reason = 'group-mention' THEN 1 ELSE 0 END) OVER (PARTITION BY g.id) AS has_mention
+        MAX(CASE WHEN a.reason = 'group-mention' THEN 1 ELSE 0 END) OVER (PARTITION BY g.id, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END) AS has_mention
       FROM source_events e JOIN inbox_admissions a USING(source_event_id)
       JOIN messaging_grants g ON g.id = json_extract(e.payload_json, '$.external.grantId')
+      LEFT JOIN messaging_thread_policy_revisions tp ON tp.grant_id = g.id
+        AND tp.thread_id = json_extract(e.payload_json, '$.external.event.reply.threadId')
+        AND tp.revision = a.external_thread_policy_revision
       WHERE g.revoked_at IS NULL AND json_extract(g.body, '$.receiveScope') IS NOT NULL
         AND json_extract(g.body, '$.suspendedReason') IS NULL
         AND g.revision = json_extract(e.payload_json, '$.external.grantRevision')
         AND a.bot_slug = ? AND e.source_kind = 'bridge-message'
         AND a.attempt_state IN ('pending', 'retryable') AND a.observed_at IS NULL
-      WINDOW policy AS (PARTITION BY g.id, a.wake_policy_revision, a.reason)
+      WINDOW policy AS (PARTITION BY g.id, a.wake_policy_revision, a.reason, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END)
     ) SELECT source_event_id, body, created_at, attempt_state FROM pending
       WHERE reason = 'group-mention' OR (reason = 'group-ordinary' AND (
         wake_mode = 'all' OR (wake_mode = 'digest' AND (pending_count >= wake_count OR

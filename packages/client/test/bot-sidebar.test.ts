@@ -103,6 +103,7 @@ const DM_CHANNEL: ChannelSummary = {
 function stubActions(): BridgeActions {
   return {
     messagingChannelTarget: async () => undefined,
+    messagingThreadPolicy: async () => undefined,
     messagingGroupPolicy: async () => undefined,
     messagingReceive: vi.fn(async () => undefined),
     messagingSource: vi.fn(async () => {

@@ -1881,6 +1881,13 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   font-size: 13px;
 }
  .bh-im-group-policy { display: grid; gap: 8px; padding-block: 12px; border-block: 1px solid var(--dsw-alias-border-l2); }
+.bh-im-threads { display: grid; gap: 8px; padding-block: 12px; }
+.bh-im-threads p { margin: 0; color: var(--dsw-alias-label-secondary); }
+.bh-im-threads td { overflow-wrap: anywhere; }
+.bh-im-threads .bh-source-policy-table th:first-child { width: 40%; }
+.bh-im-threads .bh-source-policy-table th:nth-child(2) { width: 27%; }
+.bh-im-threads .bh-source-policy-table th:nth-child(3) { width: 12%; }
+.bh-im-threads .bh-source-policy-table th:nth-child(4) { width: 21%; }
 .bh-im-group-policy p { margin: 0; color: var(--dsw-alias-label-secondary); }
 .bh-im-digest-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .bh-im-field textarea { min-height: 80px; resize: vertical; }
