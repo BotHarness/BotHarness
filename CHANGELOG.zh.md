@@ -18,6 +18,7 @@
 ### Added
 
 - 总览统计新增逐 Bot 近七天 Memory Git 提交趋势与当前未提交改动提示，复用紧凑 Profile 卡片，明确显示仓库不可用状态并可展开每日精确值（[#716](https://github.com/BotHarness/BotHarness/issues/716)）。
+  既有 Bot Profile Memory 活动也统一使用相同的普通提交日期与引用口径。
 
 - 总览统计新增整体及逐 Bot 的今日／近七天 token 用量、对齐 Profile 的紧凑图表、分页明细和直接 Profile 导航；未知分项及保留用量保持明确（[#709](https://github.com/BotHarness/BotHarness/issues/709)）。
 - 浏览器标签页活动可在侧栏和输入框上方显示 Provider 显式声明的操作摘要；仅接纳有界公开文本，并发摘要冲突时省略，URL、页面标题和原始工具载荷不进入 Activity（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。

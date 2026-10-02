@@ -217,6 +217,11 @@ try {
       assert.equal(curator.dirty, true);
       assert.equal(curator.total, scene.bots[0].baseline + 2);
       assert.deepEqual(curator.counts, [0, 0, 0, 0, 0, 1, scene.bots[0].baseline + 1]);
+      const profile = await rpc('profileActivity', { channelId: scene.bots[0].dm });
+      assert.deepEqual(
+        data.days.map((day) => profile.memoryCommits.find((row) => row.day === day)?.count ?? 0),
+        curator.counts,
+      );
       assert.equal(observer.state, 'ready');
       assert.equal(observer.dirty, false);
       assert.equal(observer.total, scene.bots[1].baseline);

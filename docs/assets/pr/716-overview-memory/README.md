@@ -12,7 +12,7 @@ These captures use the production BotHarness Host/Client and native DSH API Gate
 - `bot-profile.png`: the Curator row opens its actual Bot Profile.
 - `memory-narrow.png`: 420px layout, with no document horizontal overflow.
 
-Ordinary commit totals are **Curator 4**, **Observer 2**, **Offline unavailable**. Curator has one yesterday commit and three today commits; its untracked draft is a separate current-state indicator. The totals include initial repository/Persona commits because those are ordinary history. Auxiliary recovery/stash snapshot refs are excluded. A Host restart preserves the same ordinary counts and dirty state despite new recovery observations. Reads leave HEAD, index and worktree unchanged and do not change the Human's unread count.
+Ordinary commit totals are **Curator 4**, **Observer 2**, **Offline unavailable**. Curator has one yesterday commit and three today commits; its untracked draft is a separate current-state indicator. The E2E also compares all seven daily values with the existing Bot Profile Memory activity query. Both queries now share the ordinary-commit date/ref definition. The totals include initial repository/Persona commits because those are ordinary history. Auxiliary recovery/stash snapshot refs are excluded. A Host restart preserves the same ordinary counts and dirty state despite new recovery observations. Reads leave HEAD, index and worktree unchanged and do not change the Human's unread count.
 
 ## Human QA
 

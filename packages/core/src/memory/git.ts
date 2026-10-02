@@ -34,6 +34,17 @@ function run(root: string, args: string[]): string {
   });
 }
 
+function activityArgs(sinceIso: string): string[] {
+  return [
+    'log',
+    '--exclude=refs/botharness/recovery/*',
+    '--exclude=refs/stash',
+    '--all',
+    '--since-as-filter=' + sinceIso,
+    '--pretty=format:%cI',
+  ];
+}
+
 function readActivity(root: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
@@ -128,16 +139,7 @@ export function createMemoryGit(root: string): MemoryGit {
       return commits;
     },
     async activitySnapshot(sinceIso) {
-      const commits = (
-        await readActivity(root, [
-          'log',
-          '--exclude=refs/botharness/recovery/*',
-          '--exclude=refs/stash',
-          '--all',
-          '--since-as-filter=' + sinceIso,
-          '--pretty=format:%cI',
-        ])
-      )
+      const commits = (await readActivity(root, activityArgs(sinceIso)))
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean)
@@ -155,7 +157,12 @@ export function createMemoryGit(root: string): MemoryGit {
     },
     activitySince(sinceIso) {
       try {
-        return run(root, ['log', '--all', '--since', sinceIso, '--pretty=format:%aI'])
+        return run(root, [
+          '--no-optional-locks',
+          '-c',
+          'core.fsmonitor=false',
+          ...activityArgs(sinceIso),
+        ])
           .split('\n')
           .map((line) => line.trim())
           .filter((line) => line.length > 0)
