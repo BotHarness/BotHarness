@@ -252,7 +252,7 @@ export function groupChannelIdBase(name: string): string {
   return `group-${slug.length > 0 ? slug : 'room'}`;
 }
 
-function isChannelMessageAuthor(value: unknown): value is ChannelMessageAuthor {
+export function isChannelMessageAuthor(value: unknown): value is ChannelMessageAuthor {
   if (typeof value !== 'object' || value === null) return false;
   const author = value as Record<string, unknown>;
   switch (author['kind']) {

@@ -38,6 +38,7 @@ import {
   LOCAL_HUMAN_ID,
   groupChannelIdBase,
   isChannelMessage,
+  isChannelMessageAuthor,
   isChannelRecord,
   isGroupAvatar,
   isValidChannelId,
@@ -2038,6 +2039,38 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     admissionChanged(channelId, messageId) {
       const message = this.message(channelId, messageId);
       if (message !== undefined) options.onAdmissionChanged?.(channelId, messageId, message);
+    },
+    humanMessageCounts(from, to) {
+      const rows = database.read((db) =>
+        db
+          .prepare(`
+        SELECT p.channel_id, CASE WHEN json_extract(e.payload_json, '$.external.localChannelId') IS NOT NULL
+                 THEN json_object('kind', 'bridged', 'source', COALESCE(
+                   json_extract(e.payload_json, '$.external.event.actor.name'),
+                   json_extract(e.payload_json, '$.external.event.actor.id')))
+                 ELSE json_extract(e.payload_json, '$.author') END AS author_json,
+               COUNT(DISTINCT p.source_event_id) AS count
+          FROM channel_placements p
+          JOIN source_events e ON e.source_event_id = p.source_event_id
+          JOIN channel_records c ON c.channel_id = p.channel_id
+          LEFT JOIN channel_human_members m ON m.channel_id = p.channel_id
+            AND m.human_id = ? AND m.left_at IS NULL
+         WHERE json_extract(c.record_json, '$.deletedAt') IS NULL
+           AND json_type(e.payload_json, '$.botDmAction') IS NULL
+           AND ((json_extract(c.record_json, '$.type') = 'dm'
+                 AND json_extract(c.record_json, '$.botSlug') IS NOT NULL)
+             OR (json_extract(c.record_json, '$.type') = 'group'
+                 AND m.human_id IS NOT NULL AND p.revision >= m.visible_from_revision))
+           AND julianday(e.created_at) >= julianday(?) AND julianday(e.created_at) < julianday(?)
+         GROUP BY p.channel_id, author_json
+      `)
+          .all(LOCAL_HUMAN_ID, from, to),
+      ) as Array<{ channel_id: string; author_json: string; count: number }>;
+      return rows.map((row) => {
+        const author: unknown = JSON.parse(row.author_json);
+        if (!isChannelMessageAuthor(author)) throw new Error('Invalid committed message author');
+        return { channelId: row.channel_id, author, count: row.count };
+      });
     },
     admissionActivity(botSlug, sinceIso) {
       if (!isValidSlug(botSlug)) return [];

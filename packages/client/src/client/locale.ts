@@ -3,6 +3,18 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
+  'channelActivity.title': '今日 Channel 活跃度',
+  'channelActivity.messages': '条消息',
+  'channelActivity.human': 'Human',
+  'channelActivity.bot': 'Bot',
+  'channelActivity.other': '其他',
+  'channelActivity.loading': '正在加载消息活跃度…',
+  'channelActivity.error': '消息活跃度不可用，请重试。',
+  'channelActivity.empty': '还没有可查看的 Channel',
+  'channelActivity.refresh': '更新活跃度',
+  'channelActivity.open': '打开 Channel',
+  'channelActivity.more': '显示更多 Channel',
+  'channelActivity.noSenders': '今日尚无消息',
   'activityCenter.title': '活动中心',
   'activityCenter.overview': '总览',
   'activityCenter.inbox': '收件箱',
@@ -990,6 +1002,18 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
+  'channelActivity.title': 'Today’s Channel activity',
+  'channelActivity.messages': 'messages',
+  'channelActivity.human': 'Human',
+  'channelActivity.bot': 'Bot',
+  'channelActivity.other': 'Other',
+  'channelActivity.loading': 'Loading Channel activity…',
+  'channelActivity.error': 'Channel activity unavailable. Please retry.',
+  'channelActivity.empty': 'No accessible Channels yet',
+  'channelActivity.refresh': 'Refresh activity',
+  'channelActivity.open': 'Open Channel',
+  'channelActivity.more': 'Show more Channels',
+  'channelActivity.noSenders': 'No messages today',
   'activityCenter.title': 'Activity Center',
   'activityCenter.overview': 'Overview',
   'activityCenter.inbox': 'Inbox',

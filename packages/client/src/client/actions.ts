@@ -1,4 +1,5 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { HumanAttentionPage } from './store.js';
 import {
   readActivityCenterTab,
@@ -64,6 +65,7 @@ import {
   type WorkspaceGrantView,
   loadBotAttention,
   loadActivityOverview,
+  loadChannelActivityToday,
   loadHumanAttention,
   loadHumanAttentionStatus,
   loadHumanAssignmentContext,
@@ -336,6 +338,7 @@ export interface BridgeActions {
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
   profileUsage(channelId: string, filter: UsageFilter): Promise<UsageQueryResult>;
+  channelActivityToday(): Promise<ChannelActivityToday>;
   groupProfileActivity(channelId: string): Promise<GroupProfileActivity>;
   botSourcePolicies(slug: string): Promise<BotSourcePolicyView[]>;
   setBotSourcePolicy(slug: string, edit: BotSourcePolicyEdit): Promise<void>;
@@ -1590,6 +1593,7 @@ export function createActions(
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
+    channelActivityToday: () => loadChannelActivityToday(call),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
     messagingChannelTarget: (slug, grantId, channelId) =>
       setMessagingChannelTarget(call, slug, grantId, channelId),
