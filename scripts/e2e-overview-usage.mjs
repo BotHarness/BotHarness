@@ -236,6 +236,12 @@ try {
         return overview;
       };
       const today = await compare('today');
+      if (mode === 'resume')
+        assert.equal(
+          today.totals.totalTokens,
+          JSON.parse(readFileSync(resolve(out, 'result.json'), 'utf8')).final,
+          'retained usage after Host restart',
+        );
       const unreadBefore = (await rpc('humanAttentionStatus')).unreadCount;
       await page.click('[data-usage-period=week]');
       await page.waitForFunction(
@@ -262,6 +268,14 @@ try {
         false,
       );
       await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+      await page.click('.bh-overview-usage-days summary');
+      const usageSection = await page.$('.bh-overview-usage');
+      for (const dark of [false, true]) {
+        await theme(dark);
+        await usageSection.screenshot({
+          path: resolve(out, 'usage-bot-detail-' + (dark ? 'dark' : 'light') + '.png'),
+        });
+      }
       await theme(false);
       await page.click('[data-usage-bot="' + scene.bots[0].slug + '"] button');
       await page.waitForSelector('.bh-profile-view');

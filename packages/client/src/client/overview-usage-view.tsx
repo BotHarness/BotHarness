@@ -26,6 +26,7 @@ export function OverviewUsageView({
     let active = true;
     let pending = false;
     let current: OverviewUsage | undefined;
+    let loadedPages = 1;
     let midnight: ReturnType<typeof setTimeout> | undefined;
     setValue(undefined);
     setError(false);
@@ -35,23 +36,50 @@ export function OverviewUsageView({
       setBusy(true);
       try {
         let next = await actions.overviewUsage(period, after);
-        if (after && current && (next.start !== current.start || next.end !== current.end)) {
+        if (!active) return;
+        const sameRange = current && next.start === current.start && next.end === current.end;
+        if (after && !sameRange) {
           next = await actions.overviewUsage(period);
           after = undefined;
+          if (!active) return;
+        }
+        let pages = 1;
+        if (after && current) {
+          next = {
+            ...next,
+            bots: [
+              ...current.bots,
+              ...next.bots.filter(
+                (row) => !current!.bots.some((existing) => existing.slug === row.slug),
+              ),
+            ],
+          };
+          pages = loadedPages + 1;
+        } else if (sameRange) {
+          while (pages < loadedPages && next.nextCursor) {
+            const page = await actions.overviewUsage(period, next.nextCursor);
+            if (!active) return;
+            if (page.start !== next.start || page.end !== next.end) {
+              next = await actions.overviewUsage(period);
+              pages = 1;
+              if (!active) return;
+              break;
+            }
+            next = {
+              ...page,
+              bots: [
+                ...next.bots,
+                ...page.bots.filter(
+                  (row) => !next.bots.some((existing) => existing.slug === row.slug),
+                ),
+              ],
+            };
+            pages++;
+          }
         }
         if (!active) return;
-        current = {
-          ...next,
-          bots:
-            after && current
-              ? [
-                  ...current.bots,
-                  ...next.bots.filter(
-                    (row) => !current!.bots.some((existing) => existing.slug === row.slug),
-                  ),
-                ]
-              : next.bots,
-        };
+        loadedPages = pages;
+        current = next;
         setValue(current);
         setError(false);
         if (midnight !== undefined) clearTimeout(midnight);

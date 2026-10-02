@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';

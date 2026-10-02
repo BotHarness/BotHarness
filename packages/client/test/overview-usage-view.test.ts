@@ -164,3 +164,53 @@ it('preserves unknown totals and rejects malformed usage instead of reporting ze
   value.totals.totalTokens = -1;
   await expect(loadOverviewUsage(call, 'today')).rejects.toThrow('invalid Overview usage');
 });
+it('keeps all expanded Bot pages fresh during polling and manual refresh', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-02T12:00:00Z'));
+  let total = 155;
+  const call = vi.fn<BridgeCall>(async (endpoint, args) => {
+    if (endpoint !== 'overviewUsage') throw new Error(endpoint);
+    const value = result('today', total);
+    const offset = args['after'] ? 20 : 0;
+    value.bots = Array.from({ length: offset ? 1 : 20 }, (_, i) => ({
+      ...value.totals,
+      slug: `bot-${String(offset + i).padStart(2, '0')}`,
+      displayName: `Bot ${offset + i}`,
+      current: true,
+    }));
+    if (!offset) value.nextCursor = 'bot-19';
+    return { ok: true, value };
+  });
+  const actions = createActions(call, createStore());
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(createElement(OverviewUsageView, { actions, t: zhTranslate })),
+    );
+    await act(async () =>
+      Array.from(container.querySelectorAll('button'))
+        .find((button) => button.textContent?.includes(zhTranslate('overviewUsage.more')))!
+        .click(),
+    );
+    expect(container.querySelectorAll('[data-usage-bot]')).toHaveLength(21);
+    total = 211;
+    await act(async () => vi.advanceTimersByTimeAsync(30000));
+    expect(container.querySelectorAll('[data-usage-bot]')).toHaveLength(21);
+    expect(container.querySelector('[data-usage-bot="bot-20"]')?.textContent).toContain('211');
+    expect(container.querySelector('[data-usage-total]')?.textContent).toBe('211');
+    total = 255;
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="刷新用量"]')!.click(),
+    );
+    expect(container.querySelectorAll('[data-usage-bot]')).toHaveLength(21);
+    expect(container.querySelector('[data-usage-bot="bot-00"]')?.textContent).toContain('255');
+    expect(container.querySelector('[data-usage-bot="bot-20"]')?.textContent).toContain('255');
+    expect(call.mock.calls.filter(([, args]) => args['after'] === 'bot-19')).toHaveLength(3);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
