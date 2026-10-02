@@ -1,8 +1,12 @@
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type {
+  ChannelBridgeInput,
+  ChannelBridgeSnapshot,
+} from '../../../core/src/messaging/channel-bridge.js';
 import type {
   MessagingIdentity,
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
-import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
 import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
@@ -2720,6 +2724,53 @@ export async function manageMessagingIdentity(
   )
     throw new BridgeCallError('invalid-response', 'Invalid identity result');
   return identity as unknown as MessagingIdentity;
+}
+export async function loadChannelBridges(
+  call: BridgeCall,
+  channelId: string,
+): Promise<ChannelBridgeSnapshot> {
+  const value = asRecord(await unwrap(call, 'channelBridges', { channelId }));
+  const source = (item: unknown) => {
+    const row = asRecord(item);
+    return (
+      row &&
+      ['grantId', 'botSlug', 'platform', 'accountName', 'conversationName'].every(
+        (key) => typeof row[key] === 'string',
+      ) &&
+      Number.isInteger(row['grantRevision']) &&
+      Number(row['grantRevision']) > 0 &&
+      ['verified', 'unverified'].includes(String(row['ordinaryDelivery']))
+    );
+  };
+  if (
+    !value ||
+    value['channelId'] !== channelId ||
+    !Array.isArray(value['sources']) ||
+    !value['sources'].every(source) ||
+    !Array.isArray(value['bridges']) ||
+    !value['bridges'].every((item) => {
+      const row = asRecord(item);
+      return (
+        source(item) &&
+        typeof row?.['name'] === 'string' &&
+        typeof row['enabled'] === 'boolean' &&
+        Number.isInteger(row['revision']) &&
+        Number(row['revision']) > 0 &&
+        ['mentions', 'all'].includes(String(row['collection'])) &&
+        ['available', 'unavailable', 'rebind-required'].includes(String(row['availability'])) &&
+        ['off', 'connecting', 'receiving', 'unavailable'].includes(String(row['reception']))
+      );
+    })
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid Channel Bridge snapshot');
+  return value as unknown as ChannelBridgeSnapshot;
+}
+export async function manageChannelBridge(
+  call: BridgeCall,
+  channelId: string,
+  input: ChannelBridgeInput,
+): Promise<void> {
+  await unwrap(call, 'channelBridge', { channelId, input });
 }
 export async function loadMessagingSnapshot(
   call: BridgeCall,

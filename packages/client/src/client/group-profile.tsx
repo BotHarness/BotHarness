@@ -1,3 +1,5 @@
+import { ChannelBridgeTable } from './channel-bridge-table.js';
+import type { BridgeActions } from './actions.js';
 import type { ReactElement } from 'react';
 
 import {
@@ -167,6 +169,7 @@ export function GroupProfilePopover({
 }
 
 export function GroupProfileView({
+  actions,
   channel,
   activity,
   cards,
@@ -175,7 +178,11 @@ export function GroupProfileView({
   t,
   onTogglePin,
   onClose,
-}: GroupProfileProps & { onTogglePin(id: string): void; onClose(): void }): ReactElement {
+}: GroupProfileProps & {
+  actions: Pick<BridgeActions, 'channelBridges' | 'channelBridge'>;
+  onTogglePin(id: string): void;
+  onClose(): void;
+}): ReactElement {
   return (
     <div className="bh-profile-view">
       <button type="button" className="bh-profile-back" onClick={onClose}>
@@ -216,6 +223,14 @@ export function GroupProfileView({
           })}
         </div>
       </section>
+      <ChannelBridgeTable
+        key={channel.id}
+        channelId={channel.id}
+        channelName={channel.name}
+        botNames={botNames}
+        actions={actions}
+        t={t}
+      />
     </div>
   );
 }

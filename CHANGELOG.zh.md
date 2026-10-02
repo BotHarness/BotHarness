@@ -17,6 +17,8 @@
 
 ### Added
 
+- Group Channel Profile 可通过 Attention 风格表格、独立收件 Switch 与编辑／删除弹窗管理一个已授权 Lark Bridge；暂停保留已收来源，删除仅移除收件路径而保留 Bot 身份和历史（[#700](https://github.com/BotHarness/BotHarness/issues/700)）。
+
 - 总览统计新增整体及逐 Bot 的今日／近七天 token 用量、对齐 Profile 的紧凑图表、分页明细和直接 Profile 导航；未知分项及保留用量保持明确（[#709](https://github.com/BotHarness/BotHarness/issues/709)）。
 - 浏览器标签页活动可在侧栏和输入框上方显示 Provider 显式声明的操作摘要；仅接纳有界公开文本，并发摘要冲突时省略，URL、页面标题和原始工具载荷不进入 Activity（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 

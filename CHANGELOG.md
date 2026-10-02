@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Group Channel Profile manages one authorized Lark Bridge through an Attention-style table, independent intake Switch and edit/delete Modal; pause preserves accepted sources, deletion removes intake without deleting Bot identity or history ([#700](https://github.com/BotHarness/BotHarness/issues/700)).
+
 - Overview Statistics shows reported token totals across Bots with today/seven-day trends, compact Profile-aligned charts, paginated Bot details and direct Profile navigation; unknown buckets and retained usage remain explicit ([#709](https://github.com/BotHarness/BotHarness/issues/709)).
 - Browser tab Activity can show the Provider-declared operation in shared sidebar/composer summaries; only bounded public text is admitted, conflicting concurrent detail is omitted, and raw URLs, titles and tool payloads remain excluded ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
