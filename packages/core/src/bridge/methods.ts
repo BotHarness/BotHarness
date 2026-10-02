@@ -1,3 +1,4 @@
+import type { OverviewMemory } from '../memory/overview.js';
 import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overview.js';
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
 import type { MessagingIdentity } from '../messaging/identity.js';
@@ -352,6 +353,7 @@ export interface BridgeMethods {
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
+  overviewMemory(payload: unknown): Promise<BridgeResult<OverviewMemory>>;
   overviewUsage(payload: unknown): BridgeResult<OverviewUsage>;
   profileUsage(payload: unknown): BridgeResult<UsageQueryResult>;
   groupProfileActivity(payload: unknown): BridgeResult<GroupProfileActivity>;
@@ -2842,6 +2844,20 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return memoryCall(() => ({
         repair: deps.memory!.repairHuman({ botSlug: scope.botSlug, expectedHead, repairId }),
       }));
+    },
+    async overviewMemory(payload) {
+      const after = asObject(payload)['after'];
+      if (
+        after !== undefined &&
+        (typeof after !== 'string' || after.length === 0 || after.length > 255)
+      )
+        return invalidInput('Overview Memory requires an optional Bot cursor');
+      if (deps.memory?.overviewActivity === undefined)
+        return {
+          ok: false,
+          error: { code: 'storage-unavailable', message: 'Memory statistics unavailable' },
+        };
+      return { ok: true, value: await deps.memory.overviewActivity(after) };
     },
     overviewUsage(payload) {
       const source = asObject(payload);
