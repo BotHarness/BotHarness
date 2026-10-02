@@ -196,6 +196,7 @@ export function createDshActivityProjection(options: {
       }
       let rebuilt = 0;
       let unowned = 0;
+      const rows: Parameters<BotStateTracker['rebuildSessionStates']>[0][number][] = [];
       for (const session of sessions) {
         const owner = ownership.resolve(session.id);
         if (owner === undefined) {
@@ -206,14 +207,16 @@ export function createDshActivityProjection(options: {
         let state: SessionState | undefined;
         for (const event of session.snapshotEvents()) state = project(session.id, event) ?? state;
         if (state === undefined) continue;
-        states.setSessionState(
-          owner.botSlug,
-          session.id,
+        const activity = activityForSession(session.id, owner);
+        rows.push({
+          slug: owner.botSlug,
+          sessionId: session.id,
           state,
-          activityForSession(session.id, owner),
-        );
+          ...(activity === undefined ? {} : { activity }),
+        });
         rebuilt += 1;
       }
+      states.rebuildSessionStates(rows);
       return { rebuilt, attributed, unowned };
     },
   };

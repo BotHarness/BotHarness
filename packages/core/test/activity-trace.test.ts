@@ -86,3 +86,20 @@ describe('bounded safe current Activity trace', () => {
     );
   });
 });
+
+it('publishes one final multi-Session baseline on rebuild instead of invented recovery history', () => {
+  const states = createBotStateTracker();
+  const events: PersonaBotActivityEvent[] = [];
+  states.onActivity((event) => events.push(event));
+  states.on(() => {
+    expect(states.trace('ada')[0]?.activity?.sources).toEqual([{ role: 'orchestrator', count: 2 }]);
+  });
+  states.rebuildSessionStates([
+    { slug: 'ada', sessionId: 'one', state: 'working', activity: tool },
+    { slug: 'ada', sessionId: 'two', state: 'working', activity: tool },
+  ]);
+  expect(events).toHaveLength(1);
+  expect(states.trace('ada')).toHaveLength(1);
+  expect(states.trace('ada')[0]?.activity?.sources).toEqual([{ role: 'orchestrator', count: 2 }]);
+  expect(states.trace('ada')[0]?.revision).toBe(2);
+});

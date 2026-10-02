@@ -97,3 +97,40 @@ describe('DSH activity projection', () => {
     expect(states.snapshot('ada').sessions).toEqual({ 'root-1': 'done', 'subagent-1': 'working' });
   });
 });
+
+it('rebuilds multiple pending Sessions as one final trace baseline then follows live results', () => {
+  const states = createBotStateTracker();
+  const ownership = createTestOwnership({
+    first: { botSlug: 'ada', rootRole: 'assignment' },
+    second: { botSlug: 'ada', rootRole: 'assignment' },
+  });
+  const projection = createDshActivityProjection({
+    ownership,
+    states,
+    describeCall: (_id, name) => ({
+      name,
+      view: { card: 'generic', title: 'private title', kind: 'search' },
+    }),
+  });
+  const call = (id: string) => ({
+    type: 'tool/call',
+    time: 1000,
+    data: { name: 'search', callId: id, arguments: '{"query":"private query"}' },
+  });
+  projection.rebuild([
+    { id: 'first', header: {}, snapshotEvents: () => [call('a')] },
+    { id: 'second', header: {}, snapshotEvents: () => [call('b')] },
+  ]);
+  expect(states.trace('ada')).toHaveLength(1);
+  expect(states.trace('ada')[0]?.activity?.sources).toEqual([{ role: 'assignment', count: 2 }]);
+  projection.handleSessionEvent('first', {
+    type: 'tool/result',
+    time: 2000,
+    data: { message: { toolCallId: 'a', content: 'private result' } },
+  });
+  expect(states.trace('ada')).toHaveLength(2);
+  expect(states.trace('ada')[1]?.activity?.sources).toEqual([{ role: 'assignment', count: 1 }]);
+  projection.handleSessionDisposed('first');
+  projection.handleSessionDisposed('second');
+  expect(states.trace('ada')).toEqual([]);
+});

@@ -61,6 +61,7 @@ const bot = process.env.BH_E2E_RECONNECT_BOT
 assert.ok(bot);
 const channelId = `dm-${bot.slug}`;
 const publicDetailMode = process.env.BH_E2E_PUBLIC_DETAIL === 'true';
+const traceMode = process.env.BH_E2E_TRACE === 'true';
 const expectedPublicDetail = 'Opening a new browser tab';
 const expectedEffect = publicDetailMode ? 'generic-working' : 'executing';
 const sourceRole = process.env.BH_E2E_SOURCE_ROLE;
@@ -236,7 +237,9 @@ try {
       : await rpc('channelSend', {
           channelId,
           body: publicDetailMode
-            ? 'Use browser_tabs exactly once with action open and URL https://example.com/?bhqa=private-token-for-proof . Do not use browser_open, browse other pages, delegate, or change files. After it succeeds, use channel_send to send the exact phrase "Safe tool activity confirmed" in this DM.'
+            ? traceMode
+              ? 'Use browser_tabs action=list once, then browser_tabs action=open with URL https://example.com/?qa=private-token-for-proof once. These are real harmless QA operations. Do not navigate elsewhere or call other tools except channel_send afterwards with the exact phrase Safe tool activity confirmed. Do not delegate.'
+              : 'Use browser_tabs exactly once with action open and URL https://example.com/?bhqa=private-token-for-proof . Do not use browser_open, browse other pages, delegate, or change files. After it succeeds, use channel_send to send the exact phrase "Safe tool activity confirmed" in this DM.'
             : sourceRole === 'assignment'
               ? `For this QA, create exactly one Assignment with active Workspace Grant ${assignmentGrant.id}, omitting provider/model/effort. Its purpose: use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once, then report_to_orchestrator that the harmless two-second timer completed. Do not modify files, use any other commands, or create subagents. Do not run Shell yourself. After the Assignment reports successful completion, use channel_send in this DM with exact phrase "Safe tool activity confirmed". Before completion, end your turn and await the Assignment report; do not poll it.`
               : 'Use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once. This is a harmless two-second QA timer. Do not use any other tool except channel_send afterwards to send the exact phrase "Safe tool activity confirmed" in this DM. Do not delegate or modify any files.',
@@ -244,6 +247,23 @@ try {
   let pending;
   for (let i = 0; i < 1200; i++) {
     const list = (await rpc('channelMessages', { channelId })).messages;
+    if (traceMode && sent !== undefined) {
+      const first = list.find(
+        (message) =>
+          message.at >= sent.message.at &&
+          message.toolApprovalRequest?.toolName === 'browser_tabs' &&
+          JSON.parse(message.toolApprovalRequest.input).action === 'list' &&
+          !list.some((decision) => decision.toolApprovalDecision?.requestMessageId === message.id),
+      );
+      if (first) {
+        await rpc('toolApprovalDecide', {
+          channelId,
+          messageId: first.id,
+          outcome: 'allowed-once',
+        });
+        continue;
+      }
+    }
     pending = list.find(
       (m) =>
         (sent === undefined || m.at >= sent.message.at) &&
@@ -450,6 +470,28 @@ try {
       await page.setViewport({ width: 1500, height: 1180 });
     }
     const latest = snapshots.at(-1);
+    let traceEvidence;
+    if (traceMode) {
+      assert.ok(latest.trace?.length > 0 && latest.trace.length <= 8);
+      if (sent !== undefined)
+        assert.ok(
+          latest.trace.some((entry) => entry.activity?.publicDetail === 'Listing browser tabs'),
+        );
+      const traceRows = await page.$$eval('.bh-composer-activity-trace li', (rows) =>
+        rows.map((row) => row.textContent),
+      );
+      assert.equal(traceRows.length, latest.trace.length);
+      assert.ok(traceRows.some((row) => row.includes('Opening a new browser tab')));
+      traceEvidence = { trace: latest.trace, rows: traceRows };
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('.bh-composer-activity-status');
+      const refreshed = await rpc('activitySnapshot');
+      assert.deepEqual(refreshed.bots.find((row) => row.slug === bot.slug)?.trace, latest.trace);
+      await page.click('.bh-composer-activity-status summary');
+      await page.waitForSelector('.bh-composer-activity-status[open]');
+      await screenshot('trace-refresh.png');
+      writeFileSync(resolve(evidence, 'trace-proof.json'), JSON.stringify(traceEvidence, null, 2));
+    }
     assert.equal(latest.activity.toolKind, publicDetailMode ? 'other' : 'execute');
     assert.equal(latest.activity.effect, expectedEffect);
     if (publicDetailMode) {
@@ -492,6 +534,13 @@ try {
         {},
         channelId,
       );
+      if (traceMode) {
+        const settled = (await rpc('activitySnapshot')).bots.find((row) => row.slug === bot.slug);
+        assert.equal(settled.trace, undefined);
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('.bh-composer-shell');
+        assert.equal(await page.$('.bh-composer-activity-status'), null);
+      }
       await screenshot('settled.png');
     }
   }
