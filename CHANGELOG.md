@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBot activity now shows Host-declared tool effects and compact safe summaries in the sidebar and composer; concurrent mixed kinds fall back to generic work, and a keyboard-accessible disclosure shows only the current tool summary without raw arguments or results ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
+
 - Activity Center uses a compact unread chip beside Bot mode settings, switches to an aligned icon below Bot mode when collapsed, and remembers the last Overview or Inbox tab across chats and reload; expanded shows only the unread badge (hover or focus reveals an empty entry only in Bot mode) and collapsed shows its icon only in Bot mode, using a top-right red notification dot ([#679](https://github.com/BotHarness/BotHarness/issues/679)).
 - A Human or the bound Bot can configure ordinary text collection per authorized external group, independently choosing count/time harvest, next-turn wake, mention context or silent reads; versioned Admissions preserve their original policy and ordinary traffic never interrupts an active step ([#613](https://github.com/BotHarness/BotHarness/issues/613), [ADR-0109](docs/adr/0109-external-group-collection-is-separate-from-wake.md)).
 

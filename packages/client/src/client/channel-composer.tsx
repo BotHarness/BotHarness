@@ -12,6 +12,7 @@ import {
   Button,
   FileTypeIcon,
   IconCloseOutlineRegular,
+  IconChevronDownOutlineRegular,
   IconPaperclipOutlineRegular,
   IconSendOutlineRegular,
   ImageLightbox,
@@ -288,20 +289,35 @@ function PersonaBotActivityStatus({
   if (activity === undefined || activity.items.length === 0) return null;
 
   return (
-    <div
-      className="bh-composer-activity-status"
-      role="status"
-      aria-live="polite"
-      title={activity.summary}
-    >
-      <PersonaBotFacepile
-        t={t}
-        className="bh-composer-activity-facepile"
-        items={activity.items}
-        size={40}
-      />
-      <span className="bh-composer-activity-summary">{activity.summary}</span>
-    </div>
+    <details className="bh-composer-activity-status">
+      <summary className="bh-composer-activity-toggle">
+        <PersonaBotFacepile
+          t={t}
+          className="bh-composer-activity-facepile"
+          items={activity.items}
+          size={40}
+        />
+        <span className="bh-composer-activity-summary" role="status" aria-live="polite">
+          {activity.summary}
+        </span>
+        <IconChevronDownOutlineRegular className="bh-composer-activity-chevron" size={14} />
+      </summary>
+      <div className="bh-composer-activity-details">
+        {activity.items.map((item) => (
+          <div key={item.personaBotId}>
+            <strong>{item.name}</strong>
+            <span>
+              {item.activity === undefined
+                ? t('activity.noToolDetail')
+                : t('activity.toolDetail', {
+                    name: item.activity.toolName ?? t('activity.unknownTool'),
+                    count: item.activity.activeToolCount,
+                  })}
+            </span>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 

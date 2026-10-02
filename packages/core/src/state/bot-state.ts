@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { aggregateToolActivity, type PersonaBotToolActivity } from './tool-activity.js';
 
 export type SessionState = 'thinking' | 'working' | 'waiting' | 'blocked' | 'done';
 
@@ -28,7 +29,14 @@ export type BotStateEvent =
   | { type: 'session-removed'; slug: string; sessionId: string; snapshot: BotStateSnapshot };
 
 export interface BotStateTracker {
-  setSessionState(slug: string, sessionId: string, state: SessionState): void;
+  setSessionState(
+    slug: string,
+    sessionId: string,
+    state: SessionState,
+    activity?: PersonaBotToolActivity,
+  ): void;
+  activity(slug: string): PersonaBotToolActivity | undefined;
+  onActivity(listener: (event: PersonaBotActivityEvent) => void): () => void;
   clearSession(slug: string, sessionId: string): void;
   snapshot(slug: string): BotStateSnapshot;
   version(): { generation: string; revision: number };
@@ -55,6 +63,8 @@ export function aggregateSessionStates(sessions: Record<string, SessionState>): 
 export function createBotStateTracker(): BotStateTracker {
   const bots = new Map<string, Map<string, SessionState>>();
   const listeners = new Set<(event: BotStateEvent) => void>();
+  const tools = new Map<string, PersonaBotToolActivity>();
+  const activityListeners = new Set<(event: PersonaBotActivityEvent) => void>();
   const generation = randomUUID();
   let revision = 0;
 
@@ -95,28 +105,74 @@ export function createBotStateTracker(): BotStateTracker {
     }
   };
 
+  const activityOf = (slug: string): PersonaBotToolActivity | undefined => {
+    const sessions = bots.get(slug);
+    if (sessions === undefined || aggregateSessionStates(toRecord(sessions)) !== 'working')
+      return undefined;
+    const working = [...sessions].filter(([, state]) => state === 'working');
+    const items = working.map(([id]) => tools.get(id));
+    if (items.some((item) => item === undefined)) return undefined;
+    return aggregateToolActivity(items.filter((item) => item !== undefined));
+  };
+  const notify = (slug: string, cause: PersonaBotActivityEvent['cause']): void => {
+    const activity = activityOf(slug);
+    const event: PersonaBotActivityEvent = {
+      generation,
+      revision,
+      slug,
+      state: snapshotOf(slug, bots.get(slug) ?? new Map()).state,
+      cause,
+      ...(activity === undefined ? {} : { activity }),
+    };
+    for (const listener of activityListeners) listener(event);
+  };
+
   return {
-    setSessionState(slug, sessionId, state) {
+    setSessionState(slug, sessionId, state, activity) {
       const sessions = sessionsOf(slug);
       const previousAggregate = aggregateSessionStates(toRecord(sessions));
       const previousState = sessions.get(sessionId);
+      const previousActivity = tools.get(sessionId);
+      const nextActivity = state === 'working' ? activity : undefined;
+      if (nextActivity === undefined) tools.delete(sessionId);
+      else
+        tools.set(sessionId, {
+          effect: nextActivity.effect,
+          toolKind: nextActivity.toolKind,
+          ...(nextActivity.toolName === undefined ? {} : { toolName: nextActivity.toolName }),
+          startedAt: nextActivity.startedAt,
+          activeToolCount: nextActivity.activeToolCount,
+        });
       sessions.set(sessionId, state);
       const snapshot = snapshotOf(slug, sessions);
-      if (previousState !== state) {
+      const changed =
+        previousState !== state ||
+        JSON.stringify(previousActivity) !== JSON.stringify(tools.get(sessionId));
+      if (changed) {
         revision += 1;
         emit({ type: 'session-changed', slug, sessionId, state, snapshot });
       }
       emitAggregateIfChanged(slug, snapshot, previousAggregate);
+      if (changed) notify(slug, 'session-changed');
     },
     clearSession(slug, sessionId) {
       const sessions = bots.get(slug);
       if (sessions === undefined) return;
       const previousAggregate = aggregateSessionStates(toRecord(sessions));
       if (!sessions.delete(sessionId)) return;
+      tools.delete(sessionId);
       revision += 1;
       const snapshot = snapshotOf(slug, sessions);
       emit({ type: 'session-removed', slug, sessionId, snapshot });
       emitAggregateIfChanged(slug, snapshot, previousAggregate);
+      notify(slug, 'session-removed');
+    },
+    activity: activityOf,
+    onActivity(listener) {
+      activityListeners.add(listener);
+      return () => {
+        activityListeners.delete(listener);
+      };
     },
     snapshot(slug) {
       return snapshotOf(slug, bots.get(slug) ?? new Map());
@@ -133,10 +189,19 @@ export function createBotStateTracker(): BotStateTracker {
   };
 }
 
+export interface PersonaBotActivityEvent {
+  generation: string;
+  revision: number;
+  slug: string;
+  state: AggregatedState;
+  cause: 'session-changed' | 'session-removed';
+  activity?: PersonaBotToolActivity;
+}
+
 export interface PersonaBotActivitySnapshot {
   generation: string;
   revision: number;
-  bots: { slug: string; state: AggregatedState }[];
+  bots: { slug: string; state: AggregatedState; activity?: PersonaBotToolActivity }[];
 }
 
 export function personaBotActivitySnapshot(
@@ -145,6 +210,13 @@ export function personaBotActivitySnapshot(
 ): PersonaBotActivitySnapshot {
   return {
     ...states.version(),
-    bots: slugs.map((slug) => ({ slug, state: states.snapshot(slug).state })),
+    bots: slugs.map((slug) => {
+      const activity = states.activity(slug);
+      return {
+        slug,
+        state: states.snapshot(slug).state,
+        ...(activity === undefined ? {} : { activity }),
+      };
+    }),
   };
 }
