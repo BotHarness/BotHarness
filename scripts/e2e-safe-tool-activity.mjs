@@ -63,7 +63,7 @@ const channelId = `dm-${bot.slug}`;
 const publicDetailMode = process.env.BH_E2E_PUBLIC_DETAIL === 'true';
 const traceMode = process.env.BH_E2E_TRACE === 'true';
 const expectedPublicDetail = 'Opening a new browser tab';
-const expectedEffect = publicDetailMode ? 'generic-working' : 'executing';
+const expectedEffect = publicDetailMode && !traceMode ? 'generic-working' : 'executing';
 const sourceRole = process.env.BH_E2E_SOURCE_ROLE;
 assert.ok(sourceRole === undefined || ['orchestrator', 'assignment'].includes(sourceRole));
 const layout = process.env.BH_E2E_LAYOUT ?? 'row';
@@ -238,7 +238,7 @@ try {
           channelId,
           body: publicDetailMode
             ? traceMode
-              ? 'Use browser_tabs action=list once, then browser_tabs action=open with URL https://example.com/?qa=private-token-for-proof once. These are real harmless QA operations. Do not navigate elsewhere or call other tools except channel_send afterwards with the exact phrase Safe tool activity confirmed. Do not delegate.'
+              ? 'Use browser_tabs action=list exactly once. Then use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once. Do not skip either operation, delegate, or modify any files. After both finish, use channel_send with the exact phrase Safe tool activity confirmed.'
               : 'Use browser_tabs exactly once with action open and URL https://example.com/?bhqa=private-token-for-proof . Do not use browser_open, browse other pages, delegate, or change files. After it succeeds, use channel_send to send the exact phrase "Safe tool activity confirmed" in this DM.'
             : sourceRole === 'assignment'
               ? `For this QA, create exactly one Assignment with active Workspace Grant ${assignmentGrant.id}, omitting provider/model/effort. Its purpose: use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once, then report_to_orchestrator that the harmless two-second timer completed. Do not modify files, use any other commands, or create subagents. Do not run Shell yourself. After the Assignment reports successful completion, use channel_send in this DM with exact phrase "Safe tool activity confirmed". Before completion, end your turn and await the Assignment report; do not poll it.`
@@ -269,7 +269,7 @@ try {
         (sent === undefined || m.at >= sent.message.at) &&
         !list.some((decision) => decision.toolApprovalDecision?.requestMessageId === m.id) &&
         m.toolApprovalRequest &&
-        (publicDetailMode
+        (publicDetailMode && !traceMode
           ? m.toolApprovalRequest.toolName === 'browser_tabs' &&
             JSON.parse(m.toolApprovalRequest.input).action === 'open'
           : JSON.parse(m.toolApprovalRequest.input).command ===
@@ -281,7 +281,7 @@ try {
   assert.ok(pending, 'Actual scoped tool approval must be pending');
   const toolName = pending.toolApprovalRequest.toolName;
   assert.ok(
-    (publicDetailMode ? ['browser_tabs'] : ['bash', 'pwsh']).includes(toolName),
+    (publicDetailMode && !traceMode ? ['browser_tabs'] : ['bash', 'pwsh']).includes(toolName),
     'Registered scoped tool name',
   );
   console.log(JSON.stringify({ approvalPending: true, sourceRole, toolName }));
@@ -481,7 +481,7 @@ try {
         rows.map((row) => row.textContent),
       );
       assert.equal(traceRows.length, latest.trace.length);
-      assert.ok(traceRows.some((row) => row.includes('Opening a new browser tab')));
+      assert.ok(traceRows.some((row) => row.includes('Listing browser tabs')));
       traceEvidence = { trace: latest.trace, rows: traceRows };
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('.bh-composer-activity-status');
@@ -492,9 +492,9 @@ try {
       await screenshot('trace-refresh.png');
       writeFileSync(resolve(evidence, 'trace-proof.json'), JSON.stringify(traceEvidence, null, 2));
     }
-    assert.equal(latest.activity.toolKind, publicDetailMode ? 'other' : 'execute');
+    assert.equal(latest.activity.toolKind, publicDetailMode && !traceMode ? 'other' : 'execute');
     assert.equal(latest.activity.effect, expectedEffect);
-    if (publicDetailMode) {
+    if (publicDetailMode && !traceMode) {
       assert.equal(latest.activity.publicDetail, expectedPublicDetail);
       assert.ok(dom.summary.includes(expectedPublicDetail));
       assert.ok(dom.sidebar.every((item) => item.label.includes(expectedPublicDetail)));
@@ -590,9 +590,12 @@ try {
         narrowSourceRows,
         reduceMotion: motion,
         heldForHumanQA: process.env.BH_E2E_HOLD === 'true',
-        actualNativeShellApproval: !publicDetailMode,
+        actualNativeShellApproval: traceMode || !publicDetailMode,
         ...(publicDetailMode
-          ? { actualBrowserToolApproval: true, publicDetail: expectedPublicDetail }
+          ? {
+              actualBrowserToolApproval: true,
+              ...(traceMode ? { traceMode: true } : { publicDetail: expectedPublicDetail }),
+            }
           : {}),
         toolName,
         verdict: 'PASS',

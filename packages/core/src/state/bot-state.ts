@@ -142,11 +142,7 @@ export function createBotStateTracker(): BotStateTracker {
   };
   const traceOf = (slug: string): readonly PersonaBotActivityTraceEntry[] =>
     structuredClone(traces.get(slug) ?? []);
-  const notify = (slug: string, cause: PersonaBotActivityEvent['cause']): void => {
-    if (rebuilding) {
-      rebuildNotifications.set(slug, cause);
-      return;
-    }
+  const commitTrace = (slug: string): void => {
     const activity = activityOf(slug);
     const state = snapshotOf(slug, bots.get(slug) ?? new Map()).state;
     if (state === 'idle') traces.delete(slug);
@@ -167,6 +163,10 @@ export function createBotStateTracker(): BotStateTracker {
           ].slice(-MAX_ACTIVITY_TRACE_ENTRIES),
         );
     }
+  };
+  const publishActivity = (slug: string, cause: PersonaBotActivityEvent['cause']): void => {
+    const activity = activityOf(slug);
+    const state = snapshotOf(slug, bots.get(slug) ?? new Map()).state;
     const trace = traceOf(slug);
     const event: PersonaBotActivityEvent = {
       generation,
@@ -180,6 +180,15 @@ export function createBotStateTracker(): BotStateTracker {
     for (const listener of activityListeners) listener(event);
   };
 
+  const notify = (slug: string, cause: PersonaBotActivityEvent['cause']): void => {
+    if (rebuilding) {
+      rebuildNotifications.set(slug, cause);
+      return;
+    }
+    commitTrace(slug);
+    publishActivity(slug, cause);
+  };
+
   const tracker: BotStateTracker = {
     rebuildSessionStates(rows) {
       const slugs = new Set(rows.map((row) => row.slug));
@@ -191,7 +200,10 @@ export function createBotStateTracker(): BotStateTracker {
       } finally {
         rebuilding = false;
       }
-      for (const slug of slugs) notify(slug, rebuildNotifications.get(slug) ?? 'session-changed');
+      if (slugs.size > 0) revision += 1;
+      for (const slug of slugs) commitTrace(slug);
+      for (const slug of slugs)
+        publishActivity(slug, rebuildNotifications.get(slug) ?? 'session-changed');
       rebuildNotifications.clear();
       for (const event of rebuildEvents.splice(0)) emit(event);
     },

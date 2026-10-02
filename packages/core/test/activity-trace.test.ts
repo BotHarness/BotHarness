@@ -101,5 +101,23 @@ it('publishes one final multi-Session baseline on rebuild instead of invented re
   expect(events).toHaveLength(1);
   expect(states.trace('ada')).toHaveLength(1);
   expect(states.trace('ada')[0]?.activity?.sources).toEqual([{ role: 'orchestrator', count: 2 }]);
-  expect(states.trace('ada')[0]?.revision).toBe(2);
+  expect(states.trace('ada')[0]?.revision).toBe(3);
+});
+
+it('commits all Bot baselines before publishing and versions repeated baseline resets', () => {
+  const states = createBotStateTracker();
+  const snapshots: ReturnType<typeof personaBotActivitySnapshot>[] = [];
+  states.onActivity(() => snapshots.push(personaBotActivitySnapshot(['ada', 'bob'], states)));
+  const rows = [
+    { slug: 'ada', sessionId: 'one', state: 'working', activity: tool },
+    { slug: 'bob', sessionId: 'two', state: 'thinking' },
+  ] as const;
+  states.rebuildSessionStates(rows);
+  expect(snapshots).toHaveLength(2);
+  expect(snapshots[0]).toEqual(snapshots[1]);
+  expect(snapshots[0]?.bots.every((bot) => bot.trace?.length === 1)).toBe(true);
+  const firstRevision = states.version().revision;
+  states.rebuildSessionStates(rows);
+  expect(states.version().revision).toBeGreaterThan(firstRevision);
+  expect(snapshots.at(-1)?.bots.every((bot) => bot.trace?.length === 1)).toBe(true);
 });
