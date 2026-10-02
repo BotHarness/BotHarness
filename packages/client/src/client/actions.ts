@@ -1,6 +1,11 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import { loadAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
+
+import type {
+  ChannelBridgeInput,
+  ChannelBridgeSnapshot,
+} from '../../../core/src/messaging/channel-bridge.js';
 import type {
   MessagingIdentity,
   MessagingIdentityInput,
@@ -23,6 +28,8 @@ import type {
 } from '../../../core/src/messaging/outbound.js';
 import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import {
+  loadChannelBridges,
+  manageChannelBridge,
   loadMessagingSnapshot,
   manageMessagingIdentity,
   loadMessagingTargets,
@@ -196,6 +203,8 @@ export interface HostDirectoryListing {
 }
 
 export interface BridgeActions {
+  channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
+  channelBridge(channelId: string, input: ChannelBridgeInput): Promise<void>;
   messagingChannelTarget(slug: string, grantId: string, channelId: string | null): Promise<void>;
   messagingThreadPolicy(
     slug: string,
@@ -1642,6 +1651,8 @@ export function createActions(
       setMessagingGroupPolicy(call, slug, grantId, policy),
     messagingReceive: (slug, grantId, enabled) => setMessagingReceive(call, slug, grantId, enabled),
     messagingSource: (slug, sourceEventId) => readMessagingSource(call, slug, sourceEventId),
+    channelBridges: (channelId) => loadChannelBridges(call, channelId),
+    channelBridge: (channelId, input) => manageChannelBridge(call, channelId, input),
     messagingIdentity: (slug, input) => manageMessagingIdentity(call, slug, input),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
     messagingTargets: (providerId, accountRef) =>

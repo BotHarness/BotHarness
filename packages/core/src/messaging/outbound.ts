@@ -7,7 +7,12 @@ import {
 } from './identity.js';
 import type { ThreadReceptionView } from './thread-policy.js';
 import type { GroupReceptionPolicy } from './group-policy.js';
-import { bridgeChannel } from './channel-target.js';
+import { bridgeChannel, humanBridgeChannel } from './channel-target.js';
+import {
+  channelBridgeConfiguration,
+  type ChannelBridgeSnapshot,
+  type ChannelBridgeConfiguration,
+} from './channel-bridge.js';
 import type { ChannelMessageCommit } from '../channels/store.js';
 import { attachmentIdentity, type ChannelAttachmentRef } from '../attachments/ref.js';
 import type { AttachmentStore } from '../attachments/store.js';
@@ -82,6 +87,7 @@ export interface MessagingGrant {
   createdAt: string;
   receiveScope?: { kind: 'group'; conversationId: string };
   receiveTargetChannelId?: string;
+  channelBridge?: ChannelBridgeConfiguration;
   revokedAt?: string;
   suspendedReason?: 'rebind-required';
 }
@@ -141,6 +147,7 @@ export interface OutboundMessaging {
   ): Promise<OutboxIntent>;
   register(provider: MessagingProvider): () => void;
   snapshot(botSlug: string): Promise<MessagingSnapshot>;
+  channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   targets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   authorize(input: {
     botSlug: string;
@@ -660,6 +667,45 @@ export function createOutboundMessaging(options: {
       };
     },
     history,
+    async channelBridges(channelId) {
+      const channel = database.read((db) => humanBridgeChannel(db, channelId));
+      const snapshots = await Promise.all(channel.members.map((slug) => service.snapshot(slug)));
+      const current = database.read((db) => humanBridgeChannel(db, channelId));
+      const grants = snapshots.flatMap((snapshot, index) =>
+        current.members.includes(channel.members[index]!) ? snapshot.grants : [],
+      );
+      const source = (g: MessagingSnapshot['grants'][number]) => ({
+        grantId: g.id,
+        grantRevision: g.revision,
+        botSlug: g.botSlug,
+        platform: g.platform,
+        accountName: g.accountName,
+        conversationName: g.targetName,
+        ordinaryDelivery: g.ordinaryDelivery ?? ('unverified' as const),
+      });
+      return {
+        channelId,
+        bridges: grants
+          .filter((g) => g.receiveTargetChannelId === channelId)
+          .map((g) => ({
+            ...source(g),
+            ...channelBridgeConfiguration(g),
+            availability: g.availability,
+            reception: g.reception,
+          })),
+        sources: grants
+          .filter(
+            (g) =>
+              !g.revokedAt &&
+              !g.receiveTargetChannelId &&
+              !g.channelBridge &&
+              g.platform === 'feishu' &&
+              g.availability === 'available' &&
+              g.canReceive,
+          )
+          .map(source),
+      };
+    },
     async snapshot(botSlug) {
       const accounts = (
         await Promise.allSettled(
