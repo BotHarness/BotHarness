@@ -1,0 +1,93 @@
+{
+  "baseline": "4b2420ed29acabfe6bc88697e10b7b50eb94210c",
+  "verification": {
+    "verifiedAt": "2026-10-02T18:44:33.059938+00:00",
+    "code": "4320d789",
+    "sourceCounts": {
+      "BH700 CUTOFF PAUSED": 0,
+      "BH700 CUTOFF DELETED": 0,
+      "BH700 CUTOFF ORDINARY PROBE": 0,
+      "BH700 CUTOFF FRESH": 1,
+      "BH700 CUTOFF ALL 1": 1,
+      "BH700 CUTOFF ALL 2": 1
+    },
+    "replyStates": {
+      "BH700-CUTOFF-OK": ["provider-accepted"],
+      "BH700-CUTOFF-ALL-OK": ["provider-accepted"]
+    },
+    "finalPolicy": {
+      "collection": "mentions",
+      "wake": "digest",
+      "count": 5,
+      "intervalSeconds": 30
+    },
+    "initialLateDeletedProbeRetained": 1
+  },
+  "modelTools": [
+    {
+      "name": "channel_read",
+      "turn": 48
+    },
+    {
+      "name": "bridge_reply",
+      "turn": 48,
+      "text": "BH700-CUTOFF-OK"
+    },
+    {
+      "name": "channel_read",
+      "turn": 49
+    },
+    {
+      "name": "bridge_reply",
+      "turn": 49,
+      "text": "BH700-CUTOFF-ALL-OK"
+    }
+  ],
+  "automated": {
+    "passed": 1983,
+    "skipped": 3,
+    "typecheck": "passed",
+    "lint": "passed (existing warnings)",
+    "format": "passed",
+    "build": "passed"
+  },
+  "integratedCode": "54c9a066908b90b5321b4963f84457e28c83d281",
+  "integratedModelTools": [
+    {
+      "name": "bridge_reply",
+      "turn": 50,
+      "text": "BH700-INTEGRATED-OK"
+    }
+  ],
+  "integratedVerification": {
+    "at": "2026-10-02T18:58:47.971638+00:00",
+    "sourceCount": 1,
+    "replyStates": ["provider-accepted"],
+    "excludedSourceCounts": {
+      "BH700 CUTOFF PAUSED": 0,
+      "BH700 CUTOFF DELETED": 0
+    }
+  },
+  "localizationCorrection": {
+    "beforeCode": "871f72311ff7c31cc50285ab6fed6e6057619cc1",
+    "afterCode": "b18f13d34ac76464665857db2320ae8fea44ac9a",
+    "locale": "zh",
+    "term": "频道连接器",
+    "viewport": {
+      "width": 882,
+      "height": 827
+    },
+    "theme": "light",
+    "fixtureMessages": 15,
+    "verifiedSurfaces": ["configured table", "edit Modal", "add Modal", "delete Modal"],
+    "configurationChanged": false,
+    "automated": {
+      "passed": 5,
+      "files": 2,
+      "typecheck": "passed",
+      "lint": "passed (existing warnings)",
+      "format": "passed",
+      "build": "passed"
+    }
+  }
+}

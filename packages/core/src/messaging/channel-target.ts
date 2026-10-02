@@ -3,6 +3,25 @@ import { isChannelRecord, type ChannelMessage, type ChannelRecord } from '../cha
 import type { ExternalSource } from './inbound.js';
 import { MessagingError } from './provider.js';
 
+export function humanBridgeChannel(db: DatabaseSync, channelId: string): ChannelRecord {
+  const row = db
+    .prepare('SELECT record_json FROM channel_records WHERE channel_id = ?')
+    .get(channelId) as { record_json: string } | undefined;
+  const record: unknown = row && JSON.parse(row.record_json);
+  if (
+    !isChannelRecord(record, channelId) ||
+    record.type !== 'group' ||
+    record.deletedAt ||
+    !db
+      .prepare(
+        'SELECT 1 FROM channel_human_members WHERE channel_id = ? AND human_id = ? AND left_at IS NULL',
+      )
+      .get(channelId, 'local-human')
+  )
+    throw new MessagingError('channel-unavailable');
+  return record;
+}
+
 export function bridgeChannel(
   db: DatabaseSync,
   channelId: string,

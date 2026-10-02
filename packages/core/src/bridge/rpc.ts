@@ -1,5 +1,7 @@
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
+import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
+import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import type { HumanAssignmentContext } from '../runtime/assignment-human-context.js';
@@ -146,6 +148,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
     policy: GroupReceptionInput,
   ): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.messagingGroupPolicy({ slug, grantId, policy }));
+  }
+  channelBridges(channelId: string): Promise<ChannelBridgeSnapshot> {
+    return unwrapAsync(this.methods.channelBridges({ channelId }));
+  }
+  channelBridge(channelId: string, input: ChannelBridgeInput): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.channelBridge({ channelId, input }));
   }
   messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.messagingReceive({ slug, grantId, enabled }));
@@ -723,6 +731,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.memoryRepair({ channelId, expectedHead, repairId }));
   }
 
+  overviewMemory(after?: string): Promise<OverviewMemory> {
+    return unwrapAsync(this.methods.overviewMemory({ after }));
+  }
+
   overviewUsage(period: UsageOverviewPeriod, after?: string): OverviewUsage {
     return unwrap(this.methods.overviewUsage({ period, after }));
   }
@@ -792,6 +804,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
+  'channelBridges',
+  'channelBridge',
   'messagingChannelTarget',
   'messagingReceive',
   'messagingGroupPolicy',
@@ -883,6 +897,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'memorySave',
   'memoryRepair',
   'profileActivity',
+  'overviewMemory',
   'overviewUsage',
   'profileUsage',
   'groupProfileActivity',

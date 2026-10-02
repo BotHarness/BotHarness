@@ -1324,6 +1324,20 @@ const EXTERNAL_IDENTITY_MIGRATION: SchemaMigration = {
   },
 };
 
+const CHANNEL_BRIDGE_MIGRATION: SchemaMigration = {
+  generation: 50,
+  module: 'messaging',
+  description: 'Fence Channel Bridge intake preference and retain existing grant authority',
+  migrate(database) {
+    database.exec(`UPDATE messaging_grants SET body = json_set(body, '$.channelBridge', json_object(
+      'name', json_extract(body, '$.targetName'),
+      'enabled', json(CASE WHEN json_type(body, '$.receiveScope') = 'object' THEN 'true' ELSE 'false' END),
+      'collection', COALESCE((SELECT json_extract(p.body, '$.collection') FROM messaging_group_policy_revisions p WHERE p.grant_id = messaging_grants.id ORDER BY p.revision DESC LIMIT 1), 'mentions'),
+      'revision', 1))
+      WHERE json_type(body, '$.receiveTargetChannelId') = 'text' AND json_type(body, '$.channelBridge') IS NULL;`);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1373,4 +1387,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   HUMAN_INBOX_DISMISSAL_MIGRATION,
   EXTERNAL_THREAD_POLICY_MIGRATION,
   EXTERNAL_IDENTITY_MIGRATION,
+  CHANNEL_BRIDGE_MIGRATION,
 ]);

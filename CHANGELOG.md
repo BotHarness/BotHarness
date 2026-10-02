@@ -19,6 +19,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Added a managed Container Browser target with separate profile data, the existing native Browser approval and an authenticated Human preview with explicit paused interaction; Local stays the default ([#726](https://github.com/BotHarness/BotHarness/issues/726), [ADR-0112](docs/adr/0112-browser-targets-share-capabilities-with-separate-execution-worlds.md)).
 
+- Group Channel Profile manages one authorized Lark Bridge through an Attention-style table, independent intake Switch and edit/delete Modal; pause preserves accepted sources, deletion removes intake without deleting Bot identity or history ([#700](https://github.com/BotHarness/BotHarness/issues/700)).
+- Overview Statistics adds compact per-Bot seven-day Memory Git commit trends and current uncommitted-change indicators, with explicit repository unavailability and exact daily detail ([#716](https://github.com/BotHarness/BotHarness/issues/716)).
+  Existing Bot Profile Memory activity uses the same ordinary-commit date/ref definition.
 - The expanded composer status shows each active Session’s latest safe activity inside its own compact block, without repeating the Bot name; Host revisions synchronize current rows, completed/disposed Sessions disappear and restart rebuilds the current baseline without copying Session payloads; the expanded container is transparent, desktop name/status share one line, and Assignment cards show native DSH titles ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
 - Overview Statistics shows reported token totals across Bots with today/seven-day trends, compact Profile-aligned charts, paginated Bot details and direct Profile navigation; unknown buckets and retained usage remain explicit ([#709](https://github.com/BotHarness/BotHarness/issues/709)).

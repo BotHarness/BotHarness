@@ -1,5 +1,7 @@
+import type { OverviewMemory } from '../memory/overview.js';
 import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overview.js';
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
+import { channelBridgeInput, type ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { MessagingIdentity } from '../messaging/identity.js';
 import {
   aggregateSessionStates,
@@ -250,6 +252,8 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  channelBridges(payload: unknown): Promise<BridgeResult<ChannelBridgeSnapshot>>;
+  channelBridge(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingIdentity(payload: unknown): Promise<BridgeResult<{ identity: MessagingIdentity }>>;
   messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingThreadPolicy(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
@@ -352,6 +356,7 @@ export interface BridgeMethods {
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
+  overviewMemory(payload: unknown): Promise<BridgeResult<OverviewMemory>>;
   overviewUsage(payload: unknown): BridgeResult<OverviewUsage>;
   profileUsage(payload: unknown): BridgeResult<UsageQueryResult>;
   groupProfileActivity(payload: unknown): BridgeResult<GroupProfileActivity>;
@@ -758,6 +763,25 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
   };
 
   return {
+    channelBridges(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128) })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Known Group Channel required'));
+      return messagingCall((service) => service.channelBridges(input.data.channelId));
+    },
+    channelBridge(payload) {
+      const input = z
+        .object({ channelId: z.string().min(1).max(128), input: channelBridgeInput })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid Channel Bridge command'));
+      return messagingCall(async (service) => {
+        await service.inbound.channelBridge(input.data.channelId, input.data.input);
+        return { updated: true as const };
+      });
+    },
     messagingChannelTarget(payload) {
       const input = z
         .object({
@@ -2842,6 +2866,20 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return memoryCall(() => ({
         repair: deps.memory!.repairHuman({ botSlug: scope.botSlug, expectedHead, repairId }),
       }));
+    },
+    async overviewMemory(payload) {
+      const after = asObject(payload)['after'];
+      if (
+        after !== undefined &&
+        (typeof after !== 'string' || after.length === 0 || after.length > 255)
+      )
+        return invalidInput('Overview Memory requires an optional Bot cursor');
+      if (deps.memory?.overviewActivity === undefined)
+        return {
+          ok: false,
+          error: { code: 'storage-unavailable', message: 'Memory statistics unavailable' },
+        };
+      return { ok: true, value: await deps.memory.overviewActivity(after) };
     },
     overviewUsage(payload) {
       const source = asObject(payload);

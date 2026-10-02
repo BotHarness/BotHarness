@@ -1,8 +1,13 @@
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type {
+  ChannelBridgeInput,
+  ChannelBridgeSnapshot,
+} from '../../../core/src/messaging/channel-bridge.js';
 import type {
   MessagingIdentity,
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
-import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { OverviewMemory } from '../../../core/src/memory/overview.js';
 import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
 import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
@@ -2721,6 +2726,53 @@ export async function manageMessagingIdentity(
     throw new BridgeCallError('invalid-response', 'Invalid identity result');
   return identity as unknown as MessagingIdentity;
 }
+export async function loadChannelBridges(
+  call: BridgeCall,
+  channelId: string,
+): Promise<ChannelBridgeSnapshot> {
+  const value = asRecord(await unwrap(call, 'channelBridges', { channelId }));
+  const source = (item: unknown) => {
+    const row = asRecord(item);
+    return (
+      row &&
+      ['grantId', 'botSlug', 'platform', 'accountName', 'conversationName'].every(
+        (key) => typeof row[key] === 'string',
+      ) &&
+      Number.isInteger(row['grantRevision']) &&
+      Number(row['grantRevision']) > 0 &&
+      ['verified', 'unverified'].includes(String(row['ordinaryDelivery']))
+    );
+  };
+  if (
+    !value ||
+    value['channelId'] !== channelId ||
+    !Array.isArray(value['sources']) ||
+    !value['sources'].every(source) ||
+    !Array.isArray(value['bridges']) ||
+    !value['bridges'].every((item) => {
+      const row = asRecord(item);
+      return (
+        source(item) &&
+        typeof row?.['name'] === 'string' &&
+        typeof row['enabled'] === 'boolean' &&
+        Number.isInteger(row['revision']) &&
+        Number(row['revision']) > 0 &&
+        ['mentions', 'all'].includes(String(row['collection'])) &&
+        ['available', 'unavailable', 'rebind-required'].includes(String(row['availability'])) &&
+        ['off', 'connecting', 'receiving', 'unavailable'].includes(String(row['reception']))
+      );
+    })
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid Channel Bridge snapshot');
+  return value as unknown as ChannelBridgeSnapshot;
+}
+export async function manageChannelBridge(
+  call: BridgeCall,
+  channelId: string,
+  input: ChannelBridgeInput,
+): Promise<void> {
+  await unwrap(call, 'channelBridge', { channelId, input });
+}
 export async function loadMessagingSnapshot(
   call: BridgeCall,
   slug: string,
@@ -3114,4 +3166,64 @@ export async function loadOverviewUsage(
   )
     throw new Error('invalid Overview usage');
   return value as unknown as OverviewUsage;
+}
+
+export async function loadOverviewMemory(
+  call: BridgeCall,
+  after?: string,
+): Promise<OverviewMemory> {
+  const value = asRecord(
+    await unwrap(call, 'overviewMemory', after === undefined ? {} : { after }),
+  );
+  const day = (input: unknown): input is string =>
+    typeof input === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/u.test(input) &&
+    Number.isFinite(Date.parse(input)) &&
+    new Date(input).toISOString().slice(0, 10) === input;
+  const count = (input: unknown): input is number =>
+    Number.isSafeInteger(input) && Number(input) >= 0;
+  if (
+    !value ||
+    !day(value['start']) ||
+    !day(value['end']) ||
+    !Array.isArray(value['days']) ||
+    value['days'].length !== 7 ||
+    !value['days'].every(
+      (item, index) =>
+        day(item) && Date.parse(item) === Date.parse(String(value['start'])) + index * 86400000,
+    ) ||
+    value['days'][6] !== value['end'] ||
+    typeof value['timezone'] !== 'string' ||
+    !Number.isFinite(Date.parse(String(value['readAt']))) ||
+    !Number.isFinite(Date.parse(String(value['nextRefreshAt']))) ||
+    !Array.isArray(value['bots']) ||
+    value['bots'].length > 10 ||
+    !value['bots'].every((item) => {
+      const row = asRecord(item);
+      if (
+        !row ||
+        typeof row['slug'] !== 'string' ||
+        row['slug'].length === 0 ||
+        typeof row['displayName'] !== 'string'
+      )
+        return false;
+      if (row['state'] === 'unavailable')
+        return (
+          row['total'] === undefined && row['counts'] === undefined && row['dirty'] === undefined
+        );
+      return (
+        row['state'] === 'ready' &&
+        count(row['total']) &&
+        typeof row['dirty'] === 'boolean' &&
+        Array.isArray(row['counts']) &&
+        row['counts'].length === 7 &&
+        row['counts'].every(count) &&
+        row['counts'].reduce((sum, part) => sum + part, 0) === row['total']
+      );
+    }) ||
+    (value['nextCursor'] !== undefined &&
+      (typeof value['nextCursor'] !== 'string' || value['nextCursor'].length === 0))
+  )
+    throw new Error('invalid Overview Memory');
+  return value as unknown as OverviewMemory;
 }

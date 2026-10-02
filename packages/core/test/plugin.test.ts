@@ -243,6 +243,8 @@ describe('plugin entry', () => {
     expect(
       remoteMethods(bridge as object).map((marker) => marker.exportName ?? marker.method),
     ).toEqual([
+      'channelBridges',
+      'channelBridge',
       'messagingChannelTarget',
       'messagingReceive',
       'messagingGroupPolicy',
@@ -334,6 +336,7 @@ describe('plugin entry', () => {
       'memorySave',
       'memoryRepair',
       'profileActivity',
+      'overviewMemory',
       'overviewUsage',
       'profileUsage',
       'groupProfileActivity',
