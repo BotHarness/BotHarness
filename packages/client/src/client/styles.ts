@@ -1890,6 +1890,17 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-im-threads td { overflow-wrap: anywhere; }
 .bh-identity-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .bh-identity-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.bh-bridge-table-wrap { overflow-x: auto; max-width: 100%; }
+.bh-bridge-table { min-width: 680px; }
+.bh-bridge-table th:nth-child(1) { width: 17%; }
+.bh-bridge-table th:nth-child(2) { width: 20%; }
+.bh-bridge-table th:nth-child(3) { width: 13%; }
+.bh-bridge-table th:nth-child(4) { width: 19%; }
+.bh-bridge-table th:nth-child(5) { width: 10%; }
+.bh-bridge-table th:nth-child(6) { width: 7%; }
+.bh-bridge-table th:nth-child(7) { width: 14%; }
+.bh-bridge-table td:last-child .bh-identity-actions { justify-content: flex-end; flex-wrap: wrap; }
+.bh-bridge-table th,.bh-bridge-table td{vertical-align:middle;white-space:normal;overflow-wrap:anywhere}.bh-bridge-secondary{display:block;color:var(--dsw-alias-label-secondary);font-size:12px;margin-top:4px}
 .bh-identity-table { table-layout: fixed; }
 .bh-identity-table th:first-child { width: 17%; }
 .bh-identity-table th:nth-child(2) { width: 28%; }
