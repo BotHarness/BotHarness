@@ -317,6 +317,11 @@ function PersonaBotActivityStatus({
                     })}
               </span>
             </div>
+            {item.activity?.publicDetail !== undefined && (
+              <span className="bh-composer-activity-public-detail">
+                {item.activity.publicDetail}
+              </span>
+            )}
             {item.activity?.sources !== undefined && (
               <ul className="bh-composer-activity-sources">
                 {item.activity.sources.map((source) => {

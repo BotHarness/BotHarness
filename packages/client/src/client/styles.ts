@@ -3071,6 +3071,7 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-composer-activity-bot-header { display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 8px; color: var(--bh-overview-muted); }
 .bh-composer-activity-bot-header strong { min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--bh-overview-label); }
 .bh-composer-activity-bot-header > span { min-width: 0; max-width: 70%; flex-shrink: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--bh-overview-font); }
+.bh-composer-activity-public-detail { display: block; padding: 0 8px 8px; color: var(--bh-overview-muted); font-size: var(--bh-overview-font); overflow-wrap: anywhere; }
 .bh-composer-activity-sources { display: flex; flex-direction: column; gap: 4px; list-style: none; margin: 0; padding: 0; }
 .bh-composer-activity-source { color: var(--bh-overview-label); }
 .bh-composer-activity-source-label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

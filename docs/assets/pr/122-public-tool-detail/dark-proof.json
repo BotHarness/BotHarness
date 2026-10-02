@@ -1,0 +1,190 @@
+{
+  "bot": {
+    "slug": "bot-d292aed03d5643e28fd1043db2844a54",
+    "displayName": "Public tool detail QA"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "orchestrator",
+  "colorScheme": "dark",
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 0,
+      "slug": "bot-d292aed03d5643e28fd1043db2844a54",
+      "state": "idle"
+    },
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 1,
+      "slug": "bot-d292aed03d5643e28fd1043db2844a54",
+      "state": "thinking"
+    },
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 2,
+      "slug": "bot-d292aed03d5643e28fd1043db2844a54",
+      "state": "working",
+      "activity": {
+        "effect": "generic-working",
+        "toolKind": "other",
+        "toolName": "browser_tabs",
+        "publicDetail": "Opening a new browser tab",
+        "startedAt": 1790935438363,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 3,
+      "slug": "bot-d292aed03d5643e28fd1043db2844a54",
+      "state": "thinking"
+    },
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 4,
+      "slug": "bot-d292aed03d5643e28fd1043db2844a54",
+      "state": "working",
+      "activity": {
+        "effect": "generic-working",
+        "toolKind": "other",
+        "toolName": "channel_send",
+        "startedAt": 1790935447976,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 5,
+      "slug": "bot-d292aed03d5643e28fd1043db2844a54",
+      "state": "thinking"
+    },
+    {
+      "generation": "b2c06bc6-8de6-4d9a-975e-f4e3918d9f10",
+      "revision": 6,
+      "slug": "bot-d292aed03d5643e28fd1043db2844a54",
+      "state": "idle"
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "generic-working",
+        "label": "Public tool detail QA：正在工作 · browser_tabs · Opening a new browser tab · 主会话"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "generic-working",
+        "label": "Public tool detail QA：正在工作 · browser_tabs · Opening a new browser tab · 主会话"
+      }
+    ],
+    "summary": "Public tool detail QA 正在工作 · browser_tabs · Opening a new browser tab · 主会话"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790935438363,
+      "name": "browser_tabs"
+    },
+    {
+      "type": "tool/result",
+      "time": 1790935446500
+    },
+    {
+      "type": "tool/call",
+      "time": 1790935447976,
+      "name": "channel_send"
+    },
+    {
+      "type": "tool/result",
+      "time": 1790935447993
+    },
+    {
+      "type": "turn/end",
+      "time": 1790935449732
+    }
+  ],
+  "railFocusSummary": "Public tool detail QA · 正在工作 · browser_tabs · Opening a new browser tab · 主会话",
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "generic-working"
+    },
+    {
+      "layout": "rail",
+      "effect": "generic-working"
+    }
+  ],
+  "disclosure": {
+    "open": false,
+    "headerBackground": "rgba(0, 0, 0, 0)",
+    "bodyHeight": 0
+  },
+  "expandedPanel": {
+    "width": 600,
+    "parentWidth": 872,
+    "leftInset": 42,
+    "radius": "20px",
+    "background": "rgb(53, 54, 56)"
+  },
+  "sourceRows": [
+    {
+      "height": 40,
+      "width": 576,
+      "parentWidth": 576,
+      "clientWidth": 574,
+      "scrollWidth": 574,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(21, 21, 23)",
+      "border": "1px solid rgba(255, 255, 255, 0.12)",
+      "fits": true,
+      "icon": "主会话",
+      "count": "1 个会话"
+    }
+  ],
+  "narrowSourceRows": [
+    {
+      "height": 40,
+      "width": 260,
+      "parentWidth": 260,
+      "clientWidth": 258,
+      "scrollWidth": 258,
+      "gap": "8px",
+      "padding": "8px",
+      "radius": "6px",
+      "background": "rgb(21, 21, 23)",
+      "border": "1px solid rgba(255, 255, 255, 0.12)",
+      "fits": true,
+      "icon": "主会话",
+      "count": "1 个会话"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": false,
+  "actualNativeShellApproval": false,
+  "actualBrowserToolApproval": true,
+  "publicDetail": "Opening a new browser tab",
+  "toolName": "browser_tabs",
+  "verdict": "PASS"
+}
