@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- Overview Statistics shows reported token totals across Bots with today/seven-day trends, paginated Bot details and direct Profile navigation; unknown buckets and retained usage remain explicit ([#709](https://github.com/BotHarness/BotHarness/issues/709)).
+- Overview Statistics shows reported token totals across Bots with today/seven-day trends, compact Profile-aligned charts, paginated Bot details and direct Profile navigation; unknown buckets and retained usage remain explicit ([#709](https://github.com/BotHarness/BotHarness/issues/709)).
 
 - Active tool summaries now identify trusted Orchestrator, Assignment and DSH Subagent sources, count working Sessions separately from concurrent tools, clear finished sources through the same revisioned Host projection, and use compact role rows aligned with Overview ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 - Overview prioritizes Bots waiting for Human action, adds one-click message read without resolving requests, and separates collapsible Channel statistics with the existing TanStack chart ([#705](https://github.com/BotHarness/BotHarness/issues/705)).

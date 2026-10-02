@@ -5329,20 +5329,18 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-statistics-content[hidden] {display:none;}
 @media(max-width:480px){.bh-overview-unread{align-items:flex-start;flex-direction:column}.bh-overview-toolbar{gap:8px}}
 
-.bh-overview-usage {margin:12px 0 24px;padding-bottom:20px;border-bottom:1px solid var(--bh-overview-border);min-width:0;}
-.bh-overview-usage h3,.bh-overview-usage h4 {font-size:var(--bh-overview-font);margin:0 0 8px;}
-.bh-overview-usage-controls,.bh-overview-usage-controls > div {display:flex;gap:8px;flex-wrap:wrap;}
-.bh-overview-usage-total {display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
-.bh-overview-usage-total strong {font-size:calc(var(--bh-overview-font) + 6px);font-variant-numeric:tabular-nums;}
-.bh-overview-usage-days {margin:12px 0;}
-.bh-overview-usage-days summary {cursor:pointer;}
-.bh-overview-usage-days li,.bh-overview-usage-bots li {display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--bh-overview-border);}
-.bh-overview-usage-days li > span,.bh-overview-usage-bots li > div {flex:1;min-width:0;overflow-wrap:anywhere;}
-.bh-overview-usage-bots li > div > span {display:block;color:var(--bh-overview-muted);}
-.bh-overview-usage-bots strong {font-variant-numeric:tabular-nums;}
-@media(max-width:480px){.bh-overview-usage > header{flex-direction:column;align-items:flex-start;}}
-
-.bh-overview-usage-axis {display:grid;text-align:center;font-size:var(--bh-overview-font);color:var(--bh-overview-muted);margin:4px 0 12px;}
-.bh-overview-usage-week {grid-template-columns:repeat(7,minmax(0,1fr));}
+.bh-overview-usage {margin-top:12px;min-width:0;}
+.bh-overview-usage h3 {margin:0;font-weight:400;}
+.bh-overview-usage .bh-profile-card-head {flex-wrap:wrap;}
+.bh-overview-usage-controls {display:flex;align-items:center;gap:8px;}
+.bh-overview-usage .bh-note {margin:0;}
+.bh-overview-usage-period {padding:0;}
+.bh-overview-usage .bh-usage-model-label {gap:6px;}
+.bh-overview-usage-bot-name {flex:1;}
+.bh-overview-usage-bot-name > span {display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bh-overview-usage-bot-name > span + span {color:var(--bh-overview-muted);}
+.bh-overview-usage .bh-profile-pin {flex-shrink:0;cursor:pointer;color:var(--bh-overview-muted);}
+.bh-overview-usage .bh-profile-pin:hover {background:var(--bh-hover);color:var(--bh-text);}
+.bh-overview-usage .bh-profile-pin:disabled {cursor:default;opacity:0.5;}
 .bh-statistics-content > header h3 {font-size:var(--bh-overview-font);margin:0;}
 `;

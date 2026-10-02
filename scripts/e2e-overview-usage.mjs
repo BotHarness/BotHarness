@@ -10,7 +10,9 @@ const port = Number(process.env.BH_OVERVIEW_USAGE_QA_PORT ?? 32023);
 const home = resolve(
   process.env.BH_OVERVIEW_USAGE_QA_HOME ?? resolve(tmpdir(), 'bh-709-overview-usage'),
 );
-const out = resolve(repo, '.humanlayer/tasks/issue-709', mode === 'before' ? 'before' : 'evidence');
+const out = process.env.BH_OVERVIEW_USAGE_QA_OUT
+  ? resolve(process.env.BH_OVERVIEW_USAGE_QA_OUT)
+  : resolve(repo, '.humanlayer/tasks/issue-709', mode === 'before' ? 'before' : 'evidence');
 mkdirSync(out, { recursive: true });
 const url = readFileSync(resolve(tmpdir(), `dsh-${basename(home)}-${port}.log`), 'utf8').match(
   /http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9._-]+/u,
@@ -27,13 +29,18 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
-const shot = (name) =>
-  page.screenshot({
+const shot = async (name) => {
+  await page.evaluate(() => {
+    const overview = document.querySelector('.bh-overview');
+    if (overview) overview.scrollTop = 0;
+  });
+  return page.screenshot({
     path: resolve(
       out,
       name + (mode === 'resume' && name !== 'overview-restarted' ? '-restart' : '') + '.png',
     ),
   });
+};
 const theme = async (dark) => {
   await page.emulateMediaFeatures([
     { name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' },
@@ -202,7 +209,6 @@ try {
       }
     } else {
       await page.waitForSelector('[data-usage-total]');
-      await page.waitForSelector('.bh-overview-usage .bh-profile-bar-chart svg');
       const compare = async (period) => {
         await waitFor(async () => {
           const bots = (await rpc('list')).bots;
@@ -219,9 +225,10 @@ try {
             }),
           ),
         );
-        const botTotals = scene.bots.map(
-          (bot) => overview.bots.find((row) => row.slug === bot.slug).totalTokens,
-        );
+        const botTotals = scene.bots.map((bot) => {
+          const row = overview.bots.find((row) => row.slug === bot.slug);
+          return row ? row.totalTokens : 0;
+        });
         assert.deepEqual(
           botTotals,
           profiles.map((profile) => profile.periodTotal),
@@ -236,27 +243,58 @@ try {
         return overview;
       };
       const today = await compare('today');
-      if (mode === 'resume')
-        assert.equal(
-          today.totals.totalTokens,
-          JSON.parse(readFileSync(resolve(out, 'result.json'), 'utf8')).final,
-          'retained usage after Host restart',
-        );
       const unreadBefore = (await rpc('humanAttentionStatus')).unreadCount;
       await page.click('[data-usage-period=week]');
       await page.waitForFunction(
         () =>
           document.querySelector('[data-usage-period=week]')?.getAttribute('aria-pressed') ===
-            'true' && document.querySelector('.bh-overview-usage')?.textContent?.includes('→'),
+            'true' &&
+          document.querySelectorAll('.bh-overview-usage-days li, .bh-overview-usage-days tbody tr')
+            .length === 7,
       );
       await page.waitForSelector('.bh-overview-usage .bh-profile-bar-chart svg');
       const week = await compare('week');
-      await page.click('.bh-overview-usage-days summary');
-      assert.equal(await page.$$eval('.bh-overview-usage-days li', (rows) => rows.length), 7);
+      if (mode === 'resume')
+        assert.equal(
+          week.totals.totalTokens,
+          JSON.parse(
+            readFileSync(resolve(repo, '.humanlayer/tasks/issue-709/evidence/result.json'), 'utf8'),
+          ).final,
+          'retained seven-day usage after Host restart and local date rollover',
+        );
+      assert.equal(
+        await page.$$eval(
+          '.bh-overview-usage-days li, .bh-overview-usage-days tbody tr',
+          (rows) => rows.length,
+        ),
+        7,
+      );
       assert.equal((await rpc('humanAttentionStatus')).unreadCount, unreadBefore);
       for (const dark of [false, true]) {
         await theme(dark);
         await shot('overview-' + (dark ? 'dark' : 'light'));
+      }
+      await page.click('.bh-overview-usage-days summary');
+      assert.equal(await page.$eval('.bh-overview-usage-days', (node) => node.open), true);
+      const detailsSection = await page.$('.bh-overview-usage');
+      await theme(false);
+      await detailsSection.screenshot({ path: resolve(out, 'usage-exact-details.png') });
+      await page.click('.bh-overview-usage-days summary');
+      const overviewGeometry = await page.$eval('.bh-overview-usage', (node) => {
+        const style = getComputedStyle(node);
+        return {
+          profileCard: node.classList.contains('bh-profile-card'),
+          padding: style.padding,
+          totalFont: getComputedStyle(node.querySelector('[data-usage-total]')).fontSize,
+          dailyHeight: node.querySelector('.bh-profile-bar-chart')?.getBoundingClientRect().height,
+          detailOpen: node.querySelector('details').open,
+        };
+      });
+      if (overviewGeometry.profileCard) {
+        assert.equal(overviewGeometry.detailOpen, false);
+        await page.waitForSelector(
+          '.bh-overview-usage .bh-usage-model-plot .bh-profile-bar-chart svg',
+        );
       }
       await page.setViewport({ width: 420, height: 860, deviceScaleFactor: 1 });
       for (const dark of [false, true]) {
@@ -268,7 +306,6 @@ try {
         false,
       );
       await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
-      await page.click('.bh-overview-usage-days summary');
       const usageSection = await page.$('.bh-overview-usage');
       for (const dark of [false, true]) {
         await theme(dark);
@@ -283,6 +320,26 @@ try {
         await page.$eval('.bh-profile-view', (node) =>
           node.textContent.includes('Budget Writer QA'),
         ),
+      );
+      await page.waitForSelector(
+        '.bh-profile-view .bh-model-usage-overview .bh-profile-card-total',
+      );
+      const profileGeometry = await page.$eval(
+        '.bh-profile-view .bh-model-usage-overview',
+        (node) => ({
+          padding: getComputedStyle(node.closest('.bh-profile-card')).padding,
+          totalFont: getComputedStyle(node.querySelector('.bh-profile-card-total')).fontSize,
+          dailyHeight: node.querySelector('.bh-profile-bar-chart')?.getBoundingClientRect().height,
+        }),
+      );
+      if (overviewGeometry.profileCard) {
+        assert.equal(overviewGeometry.padding, profileGeometry.padding);
+        assert.equal(overviewGeometry.totalFont, profileGeometry.totalFont);
+        assert.equal(overviewGeometry.dailyHeight, profileGeometry.dailyHeight);
+      }
+      writeFileSync(
+        resolve(out, 'geometry.json'),
+        JSON.stringify({ overviewGeometry, profileGeometry }),
       );
       await shot('bot-profile');
       if (mode !== 'resume') {

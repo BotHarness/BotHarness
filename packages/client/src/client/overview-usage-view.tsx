@@ -1,14 +1,13 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import { useRef, useState, type ReactElement } from 'react';
 import {
-  Button,
   IconRefreshOutlineRegular,
   IconRightUpOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
 import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
-import { UsageChart, UsageLegend, UsageMeasures, type UsageSummary } from './model-usage-charts.js';
+import { UsageChart, UsageLegend, type UsageSummary } from './model-usage-charts.js';
 import { useMountedResource } from './mounted-resource.js';
 export function OverviewUsageView({
   actions,
@@ -108,133 +107,167 @@ export function OverviewUsageView({
     tokens === null ? t('profile.usage.unknown') : tokens.toLocaleString();
   const rows: UsageSummary[] =
     value?.days.map((row) => ({ ...row, key: row.day, label: row.day })) ?? [];
+  const bots: UsageSummary[] =
+    value?.bots.map((bot) => ({ ...bot, key: bot.slug, label: bot.displayName })) ?? [];
   return (
-    <section ref={mount} className="bh-overview-usage" aria-label={t('overviewUsage.title')}>
-      <header>
-        <div>
-          <h3>{t('overviewUsage.title')}</h3>
-          {value ? (
-            <p>
-              {value.start}
-              {value.start === value.end ? '' : ` → ${value.end}`} · {value.timezone}
-            </p>
-          ) : null}
-        </div>
+    <section
+      ref={mount}
+      className="bh-profile-card bh-overview-usage"
+      aria-label={t('overviewUsage.title')}
+    >
+      <header className="bh-profile-card-head">
+        <h3 className="bh-profile-card-label">{t('overviewUsage.title')}</h3>
         <div className="bh-overview-usage-controls">
-          <div role="group" aria-label={t('overviewUsage.range')}>
+          <div className="bh-usage-grouping" role="group" aria-label={t('overviewUsage.range')}>
             {(['today', 'week'] as const).map((range) => (
-              <Button
+              <button
                 key={range}
-                size="sm"
-                variant={range === period ? 'primary' : 'outline'}
+                type="button"
                 aria-pressed={range === period}
                 data-usage-period={range}
                 onClick={() => setPeriod(range)}
               >
                 {t(`overviewUsage.${range}`)}
-              </Button>
+              </button>
             ))}
           </div>
-          <Button
-            size="sm"
-            variant="outline"
+          <button
+            type="button"
+            className="bh-profile-pin"
             aria-label={t('overviewUsage.refresh')}
+            title={t('overviewUsage.refresh')}
             aria-busy={busy}
             disabled={busy}
             onClick={() => refresh.current()}
           >
             <IconRefreshOutlineRegular size={16} />
-          </Button>
+          </button>
         </div>
       </header>
-      {busy && !value ? <p role="status">{t('overviewUsage.loading')}</p> : null}
-      {error ? <p role="alert">{t('overviewUsage.error')}</p> : null}
-      {value ? (
-        <>
-          <div className="bh-overview-usage-total">
-            <span>{t('overviewUsage.total')}</span>
-            <strong data-usage-total>{count(value.totals.totalTokens)}</strong>
-            <span>tokens</span>
-          </div>
-          <p>{t('overviewUsage.scope')}</p>
-          {value.freshness !== 'ready' ? (
-            <p role="status">{t(`overviewUsage.${value.freshness}`)}</p>
-          ) : null}
-          {value.legacyBaseline ? <p>{t('overviewUsage.legacy')}</p> : null}
-          {value.days.some((row) => Object.values(row).some((amount) => amount === null)) ? (
-            <p>{t('overviewUsage.partial')}</p>
-          ) : null}
-          <UsageMeasures
-            row={{ ...value.totals, key: 'total', label: t('overviewUsage.total') }}
-            t={t}
-          />
-          {rows.some((row) => row.totalTokens !== null && row.totalTokens > 0) ? (
-            <>
-              <UsageLegend rows={rows} t={t} />
-              <UsageChart rows={rows} kind="daily" label={t('overviewUsage.trend')} t={t} />
-            </>
-          ) : null}
-          <div
-            className={
-              period === 'week'
-                ? 'bh-overview-usage-axis bh-overview-usage-week'
-                : 'bh-overview-usage-axis'
-            }
-            aria-hidden="true"
-          >
-            {value.days.map((row) => (
-              <span key={row.day}>{row.day.slice(5)}</span>
-            ))}
-          </div>
-          <details className="bh-overview-usage-days">
-            <summary>{t('overviewUsage.daily')}</summary>
-            <ul>
-              {value.days.map((row) => (
-                <li key={row.day}>
-                  <span>{row.day}</span>
-                  <strong>{count(row.totalTokens)}</strong>
-                </li>
-              ))}
-            </ul>
-          </details>
-          <h4>{t('overviewUsage.bots')}</h4>
-          {value.bots.length === 0 ? (
-            <p>{t('overviewUsage.empty')}</p>
-          ) : (
-            <ul className="bh-overview-usage-bots">
-              {value.bots.map((bot) => (
-                <li key={bot.slug} data-usage-bot={bot.slug}>
+      <div className="bh-model-usage bh-model-usage-overview">
+        {busy && !value ? (
+          <p className="bh-note" role="status">
+            {t('overviewUsage.loading')}
+          </p>
+        ) : null}
+        {error ? (
+          <p className="bh-note" role="alert">
+            {t('overviewUsage.error')}
+          </p>
+        ) : null}
+        {value ? (
+          <>
+            <span className="bh-note bh-overview-usage-period">
+              {value.start} – {value.end} · {value.timezone}
+            </span>
+            <strong className="bh-profile-card-total" aria-live="polite">
+              {t('overviewUsage.total')}:{' '}
+              <span data-usage-total>{count(value.totals.totalTokens)}</span> tokens
+            </strong>
+            {value.freshness !== 'ready' ? (
+              <p className="bh-note" role="status">
+                {t(`overviewUsage.${value.freshness}`)}
+              </p>
+            ) : null}
+            {value.legacyBaseline ? <p className="bh-note">{t('overviewUsage.legacy')}</p> : null}
+            {value.days.some((row) => Object.values(row).some((amount) => amount === null)) ? (
+              <p className="bh-note">{t('overviewUsage.partial')}</p>
+            ) : null}
+            {rows.some((row) => row.totalTokens !== null && row.totalTokens > 0) ? (
+              <div className="bh-usage-daily">
+                <strong>{t('profile.usage.daily')}</strong>
+                <UsageLegend rows={rows} t={t} />
+                <UsageChart rows={rows} kind="daily" label={t('overviewUsage.trend')} t={t} />
+                <div className="bh-usage-axis-labels">
+                  <span>{value.start}</span>
+                  <span>{value.end}</span>
+                </div>
+              </div>
+            ) : null}
+            <div className="bh-usage-models">
+              <div className="bh-usage-model-heading">
+                <strong>{t('overviewUsage.bots')}</strong>
+              </div>
+              {value.bots.length === 0 ? (
+                <p className="bh-profile-empty">{t('overviewUsage.empty')}</p>
+              ) : (
+                <div className="bh-usage-model-plot">
                   <div>
-                    <strong>{bot.displayName}</strong>
-                    {!bot.current ? <span>{t('overviewUsage.retained')}</span> : null}
+                    {value.bots.map((bot) => (
+                      <div
+                        className="bh-usage-model-label"
+                        key={bot.slug}
+                        data-usage-bot={bot.slug}
+                      >
+                        <span className="bh-overview-usage-bot-name" title={bot.displayName}>
+                          <span>{bot.displayName}</span>
+                          {!bot.current ? <span>{t('overviewUsage.retained')}</span> : null}
+                        </span>
+                        <strong>{count(bot.totalTokens)}</strong>
+                        {bot.current ? (
+                          <button
+                            type="button"
+                            className="bh-profile-pin"
+                            aria-label={`${t('profile.open')}: ${bot.displayName}`}
+                            title={`${t('profile.open')}: ${bot.displayName}`}
+                            onClick={() => void actions.openBot(bot.slug, 'profile')}
+                          >
+                            <IconRightUpOutlineRegular size={16} />
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
                   </div>
-                  <strong>{count(bot.totalTokens)}</strong>
-                  {bot.current ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      aria-label={`${t('profile.open')}: ${bot.displayName}`}
-                      onClick={() => void actions.openBot(bot.slug, 'profile')}
-                    >
-                      <IconRightUpOutlineRegular size={16} />
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-          {value.nextCursor ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => refresh.current(value.nextCursor)}
-            >
-              {t('overviewUsage.more')}
-            </Button>
-          ) : null}
-        </>
-      ) : null}
+                  <UsageChart rows={bots} kind="model" label={t('overviewUsage.bots')} t={t} />
+                </div>
+              )}
+              {value.nextCursor ? (
+                <button
+                  type="button"
+                  className="bh-profile-action"
+                  disabled={busy}
+                  onClick={() => refresh.current(value.nextCursor)}
+                >
+                  {t('overviewUsage.more')}
+                </button>
+              ) : null}
+            </div>
+            <details className="bh-usage-details bh-overview-usage-days">
+              <summary>{t('profile.usage.details')}</summary>
+              <div>
+                <p className="bh-note">{t('overviewUsage.scope')}</p>
+                <div className="bh-usage-table-scroll">
+                  <table className="bh-usage-day-table">
+                    <caption>{t('overviewUsage.daily')}</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">{t('profile.usage.day')}</th>
+                        <th scope="col">{t('profile.usage.total')}</th>
+                        <th scope="col">{t('profile.tokens.uncachedInput')}</th>
+                        <th scope="col">{t('profile.usage.cacheRead')}</th>
+                        <th scope="col">{t('profile.usage.cacheWrite')}</th>
+                        <th scope="col">{t('profile.tokens.output')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {value.days.map((row) => (
+                        <tr key={row.day}>
+                          <td>{row.day}</td>
+                          <td>{count(row.totalTokens)}</td>
+                          <td>{count(row.inputTokens)}</td>
+                          <td>{count(row.cacheReadTokens)}</td>
+                          <td>{count(row.cacheWriteTokens)}</td>
+                          <td>{count(row.outputTokens)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
+          </>
+        ) : null}
+      </div>
     </section>
   );
 }

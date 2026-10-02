@@ -17,7 +17,7 @@
 
 ### Added
 
-- 总览统计新增整体及逐 Bot 的今日／近七天 token 用量、分页明细和直接 Profile 导航；未知分项及保留用量保持明确（[#709](https://github.com/BotHarness/BotHarness/issues/709)）。
+- 总览统计新增整体及逐 Bot 的今日／近七天 token 用量、对齐 Profile 的紧凑图表、分页明细和直接 Profile 导航；未知分项及保留用量保持明确（[#709](https://github.com/BotHarness/BotHarness/issues/709)）。
 
 - 当前工具摘要新增可信的主会话、任务会话与 DSH 子代理来源，执行会话数量与并发工具数量分开统计，已完成来源经同一版本化 Host 投影清除，展开后以与总览一致的紧凑角色行展示（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 - 总览优先展示等待 Human 的 Bot，提供一键消息已读且保留待处理请求，并以现有 TanStack 图表呈现可折叠 Channel 统计（[#705](https://github.com/BotHarness/BotHarness/issues/705)）。
