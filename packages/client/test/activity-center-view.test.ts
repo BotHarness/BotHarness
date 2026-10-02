@@ -666,3 +666,41 @@ it('reports failed unread reconciliation after a successful read write', async (
     store.select(undefined);
   }
 });
+
+it('preserves the read write error when status reconciliation also fails', async () => {
+  const failure = new Error('Read write refused');
+  const actions = createActions(async (endpoint) => {
+    if (endpoint === 'channelMarkAllRead') throw failure;
+    if (endpoint === 'humanAttentionStatus') throw new Error('Status unavailable');
+    throw new Error(endpoint);
+  }, store);
+  await expect(actions.markAllRead()).rejects.toBe(failure);
+});
+
+it('keeps a newer unread query when read reconciliation returns an older snapshot', async () => {
+  let release: (() => void) | undefined;
+  let queried: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => {
+    queried = resolve;
+  });
+  let statusQueries = 0;
+  const actions = createActions(async (endpoint) => {
+    if (endpoint === 'channelMarkAllRead') return { ok: true, value: { channels: 1 } };
+    if (endpoint === 'humanAttentionStatus') {
+      if (++statusQueries === 1) {
+        queried?.();
+        return new Promise((resolve) => {
+          release = () => resolve({ ok: true, value: { unreadCount: 0, hasAction: true } });
+        });
+      }
+      return { ok: true, value: { unreadCount: 1, hasAction: true } };
+    }
+    throw new Error(endpoint);
+  }, store);
+  const reading = actions.markAllRead();
+  await started;
+  await actions.refreshHumanInboxStatus();
+  release?.();
+  await reading;
+  expect(store.getSnapshot().humanInbox.unreadCount).toBe(1);
+});

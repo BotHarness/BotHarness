@@ -3,11 +3,16 @@ flowchart TB
     direction LR
     HostPlugin["Host Cordis Plugin"] --> Service["Host Service"]
     Service --> Remote["TypertRemoteService"]
+    ReadRPC["botharness/channelMarkAllRead<br/>应用定义的 RPC"] --> Channels["Channel owner<br/>可见消息位置快照"]
+    Channels --> ReadPositions["既有 Human 已读位置"]
     Remote --> Gateway["API Gateway<br/>唯一 /api interceptor"]
   end
   subgraph Browser["DSH Web Client"]
     direction LR
     ClientPlugin["Browser Cordis Plugin"] --> Model["Client model"]
+    Overview["BotHarness Overview"] --> ReadAction["actions.markAllRead"]
     Model --> Slots["Slots<br/>UI composition"]
   end
   Gateway <--> Model
+  ReadAction --> Gateway
+  Gateway --> ReadRPC

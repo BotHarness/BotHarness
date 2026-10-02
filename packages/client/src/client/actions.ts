@@ -1281,9 +1281,13 @@ export function createActions(
     async markAllRead() {
       try {
         await markAllReadPositions(call);
-      } finally {
-        clientStore.setHumanInbox(await loadHumanAttentionStatus(call));
+      } catch (error) {
+        await refreshHumanInboxStatus();
+        throw error;
       }
+      const requestSeq = ++humanInboxStatusSeq;
+      const status = await loadHumanAttentionStatus(call);
+      if (requestSeq === humanInboxStatusSeq) clientStore.setHumanInbox(status);
       if (currentSelection()?.kind === 'inbox') await actions.refreshHumanInbox();
     },
     async markRead(channelId, messageId) {

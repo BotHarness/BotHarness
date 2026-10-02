@@ -282,6 +282,7 @@ try {
       );
       await page.click('.bh-statistics-toggle');
       await page.waitForSelector('.bh-channel-statistics-chart svg');
+      assert.ok(prior.unreadCount > 0, 'mark all read starts with genuine unread');
       await page.click('[data-mark-all-read]');
       await waitFor(
         async () => (await rpc('humanAttentionStatus')).unreadCount === 0,
