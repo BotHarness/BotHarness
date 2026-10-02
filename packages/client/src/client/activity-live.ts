@@ -1,7 +1,4 @@
-import {
-  MAX_ACTIVITY_TRACE_ENTRIES,
-  type PersonaBotActivityTraceEntry,
-} from '../../../core/src/state/tool-activity.js';
+import type { PersonaBotSessionActivity } from '../../../core/src/state/tool-activity.js';
 import { parsePublicToolActivity } from './activity-detail.js';
 import { PERSONA_BOT_ACTIVITY_STATES } from './avatar.js';
 import type { ClientStore, PersonaBotActivitySnapshot } from './store.js';
@@ -38,41 +35,52 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
         bot['activity'] === undefined ? undefined : parsePublicToolActivity(bot['activity']);
       if (bot['activity'] !== undefined && (activity === undefined || state !== 'working'))
         return undefined;
-      let trace: PersonaBotActivityTraceEntry[] | undefined;
-      if (bot['trace'] !== undefined) {
-        if (
-          state === 'idle' ||
-          !Array.isArray(bot['trace']) ||
-          bot['trace'].length === 0 ||
-          bot['trace'].length > MAX_ACTIVITY_TRACE_ENTRIES
-        )
+      let sessions: PersonaBotSessionActivity[] | undefined;
+      if (bot['sessions'] !== undefined) {
+        if (state === 'idle' || !Array.isArray(bot['sessions']) || bot['sessions'].length === 0)
           return undefined;
-        trace = [];
-        let revision = -1;
-        for (const entry of bot['trace']) {
+        sessions = [];
+        const ids = new Set<string>();
+        for (const entry of bot['sessions']) {
           if (typeof entry !== 'object' || entry === null) return undefined;
-          const traceState = PERSONA_BOT_ACTIVITY_STATES.find(
+          const sessionState = PERSONA_BOT_ACTIVITY_STATES.find(
             (candidate) => candidate === entry.state,
+          );
+          const role = (['orchestrator', 'assignment', 'subagent'] as const).find(
+            (candidate) => candidate === entry.role,
           );
           const detail =
             entry.activity === undefined ? undefined : parsePublicToolActivity(entry.activity);
           if (
-            traceState === undefined ||
-            traceState === 'idle' ||
+            typeof entry.id !== 'string' ||
+            !/^activity-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(
+              entry.id,
+            ) ||
+            ids.has(entry.id) ||
+            role === undefined ||
+            sessionState === undefined ||
+            sessionState === 'idle' ||
             !Number.isSafeInteger(entry.revision) ||
-            entry.revision <= revision ||
+            entry.revision < 0 ||
             entry.revision > item['revision'] ||
             !Number.isSafeInteger(entry.at) ||
             entry.at < 0 ||
             entry.at > 8_640_000_000_000_000 ||
-            (entry.activity !== undefined && (detail === undefined || traceState !== 'working'))
+            (entry.activity !== undefined &&
+              (detail === undefined || sessionState !== 'working')) ||
+            (detail?.sources !== undefined &&
+              (detail.sources.length !== 1 ||
+                detail.sources[0]?.role !== role ||
+                detail.sources[0]?.count !== 1))
           )
             return undefined;
-          revision = entry.revision;
-          trace.push({
-            revision,
+          ids.add(entry.id);
+          sessions.push({
+            id: entry.id,
+            role,
+            revision: entry.revision,
             at: entry.at,
-            state: traceState,
+            state: sessionState,
             ...(detail === undefined ? {} : { activity: detail }),
           });
         }
@@ -81,7 +89,7 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
         slug: bot['slug'],
         state,
         ...(activity === undefined ? {} : { activity }),
-        ...(trace === undefined ? {} : { trace }),
+        ...(sessions === undefined ? {} : { sessions }),
       });
     }
     return { generation: item['generation'], revision: item['revision'], bots };

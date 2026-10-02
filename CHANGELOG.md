@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- The expanded composer status can show the current activity episode’s eight latest safe transitions, synchronized by Host revision; idle clears the record and restart begins a fresh process-local baseline, without copying Session payloads ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
+- The expanded composer status shows each active Session’s latest safe activity inside its own compact block, without repeating the Bot name; Host revisions synchronize current rows, completed/disposed Sessions disappear and restart rebuilds the current baseline without copying Session payloads ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
 - Browser tab Activity can show the Provider-declared operation in shared sidebar/composer summaries; only bounded public text is admitted, conflicting concurrent detail is omitted, and raw URLs, titles and tool payloads remain excluded ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 

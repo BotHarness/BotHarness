@@ -25,9 +25,9 @@ export interface PersonaBotToolActivity {
   sources?: readonly ActivitySourceCount[];
 }
 
-export const MAX_ACTIVITY_TRACE_ENTRIES = 8;
-
-export interface PersonaBotActivityTraceEntry {
+export interface PersonaBotSessionActivity {
+  id: string;
+  role: ActivitySourceRole;
   revision: number;
   at: number;
   state: Exclude<AggregatedState, 'idle'>;

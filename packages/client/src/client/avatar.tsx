@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactElement } from 'react';
 
-import type { PersonaBotActivityTraceEntry } from '../../../core/src/state/bot-state.js';
+import type { PersonaBotSessionActivity } from '../../../core/src/state/bot-state.js';
 import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activity.js';
 
 import { blobatar } from 'blobatar';
@@ -38,7 +38,7 @@ export interface PersonaBotAvatarProps {
 }
 
 export interface PersonaBotFacepileItem {
-  trace?: readonly PersonaBotActivityTraceEntry[] | undefined;
+  sessions?: readonly PersonaBotSessionActivity[] | undefined;
   personaBotId: string;
   name: string;
   src?: string | undefined;

@@ -171,7 +171,13 @@ export function createDshActivityProjection(options: {
       if (owner === undefined) return;
       const state = project(sessionId, event);
       if (state === undefined) return;
-      states.setSessionState(owner.botSlug, sessionId, state, activityForSession(sessionId, owner));
+      states.setSessionState(
+        owner.botSlug,
+        sessionId,
+        state,
+        activityForSession(sessionId, owner),
+        owner.provenance === 'subagent' ? 'subagent' : owner.rootRole,
+      );
     },
     handleAgentCreated(session) {
       return attribute(session);
@@ -212,6 +218,7 @@ export function createDshActivityProjection(options: {
           slug: owner.botSlug,
           sessionId: session.id,
           state,
+          role: owner.provenance === 'subagent' ? 'subagent' : owner.rootRole,
           ...(activity === undefined ? {} : { activity }),
         });
         rebuilt += 1;

@@ -98,7 +98,7 @@ describe('DSH activity projection', () => {
   });
 });
 
-it('rebuilds multiple pending Sessions as one final trace baseline then follows live results', () => {
+it('keeps each restored Session latest activity separate and updates only the matching row', () => {
   const states = createBotStateTracker();
   const ownership = createTestOwnership({
     first: { botSlug: 'ada', rootRole: 'assignment' },
@@ -121,16 +121,19 @@ it('rebuilds multiple pending Sessions as one final trace baseline then follows 
     { id: 'first', header: {}, snapshotEvents: () => [call('a')] },
     { id: 'second', header: {}, snapshotEvents: () => [call('b')] },
   ]);
-  expect(states.trace('ada')).toHaveLength(1);
-  expect(states.trace('ada')[0]?.activity?.sources).toEqual([{ role: 'assignment', count: 2 }]);
+  const before = states.sessionActivity('ada');
+  expect(before).toHaveLength(2);
+  expect(before.map((row) => row.role)).toEqual(['assignment', 'assignment']);
+  expect(before.every((row) => row.activity?.sources?.[0]?.count === 1)).toBe(true);
   projection.handleSessionEvent('first', {
     type: 'tool/result',
     time: 2000,
     data: { message: { toolCallId: 'a', content: 'private result' } },
   });
-  expect(states.trace('ada')).toHaveLength(2);
-  expect(states.trace('ada')[1]?.activity?.sources).toEqual([{ role: 'assignment', count: 1 }]);
+  expect(states.sessionActivity('ada')[0]).toMatchObject({ id: before[0]?.id, state: 'thinking' });
+  expect(states.sessionActivity('ada')[0]?.activity).toBeUndefined();
+  expect(states.sessionActivity('ada')[1]).toEqual(before[1]);
   projection.handleSessionDisposed('first');
   projection.handleSessionDisposed('second');
-  expect(states.trace('ada')).toEqual([]);
+  expect(states.sessionActivity('ada')).toEqual([]);
 });

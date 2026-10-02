@@ -1,4 +1,4 @@
-import type { PersonaBotActivityTraceEntry } from '../../../core/src/state/bot-state.js';
+import type { PersonaBotSessionActivity } from '../../../core/src/state/bot-state.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activity.js';
 import type { PersonaBotActivityState } from './avatar.js';
@@ -18,7 +18,7 @@ export interface BotSummary {
   paused?: boolean;
   aggregateState: string;
   activity?: PersonaBotToolActivity;
-  activityTrace?: readonly PersonaBotActivityTraceEntry[];
+  sessionActivity?: readonly PersonaBotSessionActivity[];
   workspaces: string[];
   createdAt: string;
 }
@@ -401,7 +401,7 @@ export interface PersonaBotActivitySnapshot {
     slug: string;
     state: PersonaBotActivityState;
     activity?: PersonaBotToolActivity;
-    trace?: readonly PersonaBotActivityTraceEntry[];
+    sessions?: readonly PersonaBotSessionActivity[];
   }[];
 }
 
@@ -561,14 +561,14 @@ export function createStore(): ClientStore {
   let activityStates = new Map<string, PersonaBotActivitySnapshot['bots'][number]>();
   const withActivity = (bot: BotSummary): BotSummary => {
     const current = activityStates.get(bot.slug);
-    const { activity: _previous, activityTrace: _previousTrace, ...rest } = bot;
+    const { activity: _previous, sessionActivity: _previousSessions, ...rest } = bot;
     return current === undefined
       ? rest
       : {
           ...rest,
           aggregateState: current.state,
           ...(current.activity === undefined ? {} : { activity: current.activity }),
-          ...(current.trace === undefined ? {} : { activityTrace: current.trace }),
+          ...(current.sessions === undefined ? {} : { sessionActivity: current.sessions }),
         };
   };
 

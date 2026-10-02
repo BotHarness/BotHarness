@@ -18,6 +18,7 @@ import {
   ImageLightbox,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import { createPortal } from 'react-dom';
+import type { PersonaBotSessionActivity } from '../../../core/src/state/tool-activity.js';
 
 import {
   PersonaBotAvatar,
@@ -52,6 +53,12 @@ import {
   type SelectedChannelRef,
 } from './channel-refs.js';
 import type { ChannelAttachmentRef } from './store.js';
+
+function sessionLatestSummary(session: PersonaBotSessionActivity, t: BotHarnessTranslate): string {
+  if (session.activity === undefined) return personaBotActivitySummary(session.state, undefined, t);
+  const { sources: _sources, ...activity } = session.activity;
+  return personaBotActivitySummary(session.state, activity, t);
+}
 
 export interface ChannelComposerActivity {
   items: readonly PersonaBotFacepileItem[];
@@ -311,56 +318,49 @@ function PersonaBotActivityStatus({
       <div className="bh-composer-activity-details">
         {activity.items.map((item) => (
           <div className="bh-composer-activity-bot" key={item.personaBotId}>
-            <div className="bh-composer-activity-bot-header">
-              <strong>{item.name}</strong>
-              <span>
-                {item.activity === undefined
-                  ? t('activity.noToolDetail')
-                  : t('activity.toolDetail', {
-                      name: item.activity.toolName ?? t('activity.unknownTool'),
-                      count: item.activity.activeToolCount,
-                    })}
-              </span>
-            </div>
-            {item.activity?.publicDetail !== undefined && (
-              <span className="bh-composer-activity-public-detail">
-                {item.activity.publicDetail}
-              </span>
-            )}
-            {item.activity?.sources !== undefined && (
-              <ul className="bh-composer-activity-sources">
-                {item.activity.sources.map((source) => {
-                  const label = t(`activity.source.${source.role}`);
+            {item.sessions !== undefined ? (
+              <ul className="bh-composer-activity-sources" aria-label={item.name}>
+                {item.sessions.map((session) => {
+                  const label = t(`activity.source.${session.role}`);
+                  const peers = item.sessions?.filter((peer) => peer.role === session.role) ?? [];
+                  const heading =
+                    peers.length > 1
+                      ? `${label} ${peers.findIndex((peer) => peer.id === session.id) + 1}`
+                      : label;
                   return (
-                    <li className="bh-composer-activity-source" key={source.role}>
-                      <SessionRoleIcon role={source.role} label={label} />
-                      <span className="bh-composer-activity-source-label">{label}</span>
-                      <span className="bh-composer-activity-source-count">
-                        {t('activity.sessionCount', { count: source.count })}
+                    <li className="bh-composer-activity-session" key={session.id}>
+                      <div className="bh-composer-activity-session-header">
+                        {activity.items.length > 1 && (
+                          <PersonaBotAvatar
+                            personaBotId={item.personaBotId}
+                            name={item.name}
+                            src={item.src}
+                            state={session.state}
+                            size={20}
+                            t={t}
+                          />
+                        )}
+                        <SessionRoleIcon role={session.role} label={label} />
+                        <span className="bh-composer-activity-source-label">{heading}</span>
+                        <time dateTime={new Date(session.at).toISOString()}>
+                          {new Date(session.at).toLocaleTimeString(undefined, {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                          })}
+                        </time>
+                      </div>
+                      <span className="bh-composer-activity-session-latest" role="status">
+                        {sessionLatestSummary(session, t)}
                       </span>
                     </li>
                   );
                 })}
               </ul>
-            )}
-            {item.trace !== undefined && item.trace.length > 0 && (
-              <div className="bh-composer-activity-trace">
-                <span>{t('activity.recentTrace')}</span>
-                <ol aria-label={t('activity.recentTrace')}>
-                  {item.trace.map((entry) => (
-                    <li key={entry.revision}>
-                      <time dateTime={new Date(entry.at).toISOString()}>
-                        {new Date(entry.at).toLocaleTimeString(undefined, {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })}
-                      </time>
-                      <span>{personaBotActivitySummary(entry.state, entry.activity, t)}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+            ) : (
+              <span className="bh-composer-activity-session-latest">
+                {personaBotActivitySummary(item.state ?? 'idle', item.activity, t)}
+              </span>
             )}
           </div>
         ))}

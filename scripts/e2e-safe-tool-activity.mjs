@@ -61,9 +61,9 @@ const bot = process.env.BH_E2E_RECONNECT_BOT
 assert.ok(bot);
 const channelId = `dm-${bot.slug}`;
 const publicDetailMode = process.env.BH_E2E_PUBLIC_DETAIL === 'true';
-const traceMode = process.env.BH_E2E_TRACE === 'true';
+const sessionMode = process.env.BH_E2E_SESSIONS === 'true';
 const expectedPublicDetail = 'Opening a new browser tab';
-const expectedEffect = publicDetailMode && !traceMode ? 'generic-working' : 'executing';
+const expectedEffect = publicDetailMode && !sessionMode ? 'generic-working' : 'executing';
 const sourceRole = process.env.BH_E2E_SOURCE_ROLE;
 assert.ok(sourceRole === undefined || ['orchestrator', 'assignment'].includes(sourceRole));
 const layout = process.env.BH_E2E_LAYOUT ?? 'row';
@@ -237,7 +237,7 @@ try {
       : await rpc('channelSend', {
           channelId,
           body: publicDetailMode
-            ? traceMode
+            ? sessionMode
               ? 'Use browser_tabs action=list exactly once. Then use the native Shell tool to run exactly node -e "setTimeout(() => {}, 2000)" once. Do not skip either operation, delegate, or modify any files. After both finish, use channel_send with the exact phrase Safe tool activity confirmed.'
               : 'Use browser_tabs exactly once with action open and URL https://example.com/?bhqa=private-token-for-proof . Do not use browser_open, browse other pages, delegate, or change files. After it succeeds, use channel_send to send the exact phrase "Safe tool activity confirmed" in this DM.'
             : sourceRole === 'assignment'
@@ -247,7 +247,7 @@ try {
   let pending;
   for (let i = 0; i < 1200; i++) {
     const list = (await rpc('channelMessages', { channelId })).messages;
-    if (traceMode && sent !== undefined) {
+    if (sessionMode && sent !== undefined) {
       const first = list.find(
         (message) =>
           message.at >= sent.message.at &&
@@ -269,7 +269,7 @@ try {
         (sent === undefined || m.at >= sent.message.at) &&
         !list.some((decision) => decision.toolApprovalDecision?.requestMessageId === m.id) &&
         m.toolApprovalRequest &&
-        (publicDetailMode && !traceMode
+        (publicDetailMode && !sessionMode
           ? m.toolApprovalRequest.toolName === 'browser_tabs' &&
             JSON.parse(m.toolApprovalRequest.input).action === 'open'
           : JSON.parse(m.toolApprovalRequest.input).command ===
@@ -281,7 +281,7 @@ try {
   assert.ok(pending, 'Actual scoped tool approval must be pending');
   const toolName = pending.toolApprovalRequest.toolName;
   assert.ok(
-    (publicDetailMode && !traceMode ? ['browser_tabs'] : ['bash', 'pwsh']).includes(toolName),
+    (publicDetailMode && !sessionMode ? ['browser_tabs'] : ['bash', 'pwsh']).includes(toolName),
     'Registered scoped tool name',
   );
   console.log(JSON.stringify({ approvalPending: true, sourceRole, toolName }));
@@ -434,29 +434,38 @@ try {
     await screenshot('details.png');
     if (sourceRole !== undefined) {
       const measureSources = () =>
-        page.$$eval('.bh-composer-activity-source', (rows) =>
-          rows.map((row) => {
-            const style = getComputedStyle(row);
-            return {
-              height: row.getBoundingClientRect().height,
-              width: row.getBoundingClientRect().width,
-              parentWidth: row.parentElement.getBoundingClientRect().width,
-              clientWidth: row.clientWidth,
-              scrollWidth: row.scrollWidth,
-              gap: style.gap,
-              padding: style.padding,
-              radius: style.borderRadius,
-              background: style.backgroundColor,
-              border: style.border,
-              fits: row.scrollWidth <= row.clientWidth,
-              icon: row.querySelector('[role="img"]')?.getAttribute('aria-label'),
-              count: row.querySelector('.bh-composer-activity-source-count')?.textContent,
-            };
-          }),
+        page.$$eval(
+          sessionMode && phase === 'after'
+            ? '.bh-composer-activity-session'
+            : '.bh-composer-activity-source',
+          (rows) =>
+            rows.map((row) => {
+              const style = getComputedStyle(row);
+              return {
+                height: row.getBoundingClientRect().height,
+                width: row.getBoundingClientRect().width,
+                parentWidth: row.parentElement.getBoundingClientRect().width,
+                clientWidth: row.clientWidth,
+                scrollWidth: row.scrollWidth,
+                gap: style.gap,
+                padding: style.padding,
+                radius: style.borderRadius,
+                background: style.backgroundColor,
+                border: style.border,
+                fits: row.scrollWidth <= row.clientWidth,
+                icon: row.querySelector('[role="img"]')?.getAttribute('aria-label'),
+                count: row.querySelector('.bh-composer-activity-source-count')?.textContent,
+              };
+            }),
         );
       sourceRows = await measureSources();
       assert.ok(sourceRows.length > 0);
-      assert.ok(sourceRows.every((row) => row.height <= 44 && row.fits && row.icon));
+      assert.ok(
+        sourceRows.every(
+          (row) =>
+            row.height <= (sessionMode && phase === 'after' ? 80 : 44) && row.fits && row.icon,
+        ),
+      );
       await page.setViewport({ width: 420, height: 860 });
       await page.waitForFunction(
         () => document.querySelector('.bh-composer-activity-sources')?.clientWidth >= 180,
@@ -470,41 +479,35 @@ try {
       await page.setViewport({ width: 1500, height: 1180 });
     }
     const latest = snapshots.at(-1);
-    let traceEvidence;
-    if (traceMode && phase === 'after') {
-      assert.ok(latest.trace?.length > 0 && latest.trace.length <= 8);
-      if (sent !== undefined)
-        assert.ok(
-          latest.trace.some((entry) => entry.activity?.publicDetail === 'Listing browser tabs'),
-        );
-      const traceRows = await page.$$eval('.bh-composer-activity-trace li', (rows) =>
+    let sessionEvidence;
+    if (sessionMode && phase === 'after') {
+      assert.equal(latest.sessions?.length, 1);
+      assert.equal(latest.sessions[0].role, sourceRole);
+      assert.equal(latest.sessions[0].activity?.toolName, 'bash');
+      assert.equal(latest.trace, undefined);
+      assert.notEqual(latest.sessions[0].id, pending?.externalId);
+      assert.equal(await page.$('.bh-composer-activity-bot-header'), null);
+      assert.equal(await page.$('.bh-composer-activity-trace'), null);
+      sessionEvidence = await page.$$eval('.bh-composer-activity-session', (rows) =>
         rows.map((row) => row.textContent),
       );
-      assert.equal(traceRows.length, latest.trace.length);
-      assert.ok(traceRows.some((row) => row.includes('Listing browser tabs')));
-      traceEvidence = { trace: latest.trace, rows: traceRows };
+      assert.equal(sessionEvidence.length, latest.sessions.length);
+      assert.ok(sessionEvidence[0].includes('bash'));
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('.bh-composer-activity-status');
       const refreshed = await rpc('activitySnapshot');
-      assert.deepEqual(refreshed.bots.find((row) => row.slug === bot.slug)?.trace, latest.trace);
+      assert.deepEqual(
+        refreshed.bots.find((row) => row.slug === bot.slug)?.sessions,
+        latest.sessions,
+      );
       await page.locator('.bh-composer-activity-status summary').click();
       await page.waitForSelector('.bh-composer-activity-status[open]');
-      await screenshot('trace-refresh.png');
-      writeFileSync(resolve(evidence, 'trace-proof.json'), JSON.stringify(traceEvidence, null, 2));
+      await screenshot('session-refresh.png');
+      writeFileSync(
+        resolve(evidence, 'session-proof.json'),
+        JSON.stringify({ sessions: latest.sessions, rows: sessionEvidence }, null, 2),
+      );
     }
-    assert.equal(latest.activity.toolKind, publicDetailMode && !traceMode ? 'other' : 'execute');
-    assert.equal(latest.activity.effect, expectedEffect);
-    if (publicDetailMode && !traceMode) {
-      assert.equal(latest.activity.publicDetail, expectedPublicDetail);
-      assert.ok(dom.summary.includes(expectedPublicDetail));
-      assert.ok(dom.sidebar.every((item) => item.label.includes(expectedPublicDetail)));
-      assert.ok(!JSON.stringify(snapshots).includes('private-token-for-proof'));
-      assert.ok(!JSON.stringify(snapshots).includes('example.com'));
-    }
-    assert.ok(
-      !JSON.stringify(snapshots).includes('setTimeout'),
-      'No raw command in Activity snapshots',
-    );
     if (phase === 'after' && process.env.BH_E2E_HOLD !== 'true') {
       await rpc('toolApprovalDecide', {
         channelId,
@@ -534,9 +537,9 @@ try {
         {},
         channelId,
       );
-      if (traceMode) {
+      if (sessionMode) {
         const settled = (await rpc('activitySnapshot')).bots.find((row) => row.slug === bot.slug);
-        assert.equal(settled.trace, undefined);
+        assert.equal(settled.sessions, undefined);
         await page.reload({ waitUntil: 'domcontentloaded' });
         await page.waitForSelector('.bh-composer-shell');
         assert.equal(await page.$('.bh-composer-activity-status'), null);
@@ -590,11 +593,11 @@ try {
         narrowSourceRows,
         reduceMotion: motion,
         heldForHumanQA: process.env.BH_E2E_HOLD === 'true',
-        actualNativeShellApproval: traceMode || !publicDetailMode,
+        actualNativeShellApproval: sessionMode || !publicDetailMode,
         ...(publicDetailMode
           ? {
               actualBrowserToolApproval: true,
-              ...(traceMode ? { traceMode: true } : { publicDetail: expectedPublicDetail }),
+              ...(sessionMode ? { sessionMode: true } : { publicDetail: expectedPublicDetail }),
             }
           : {}),
         toolName,

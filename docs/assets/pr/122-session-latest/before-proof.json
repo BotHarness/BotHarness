@@ -1,7 +1,7 @@
 {
   "bot": {
-    "slug": "bot-61d7d87bd82f46dfb19414373a23f13a",
-    "displayName": "Activity trace QA light"
+    "slug": "bot-0a2d7dea6aed47c3a2eaa851571ddc82",
+    "displayName": "Session latest QA light"
   },
   "route": {
     "provider": "deepseek-official",
@@ -13,15 +13,15 @@
   "phase": "before",
   "snapshots": [
     {
-      "generation": "d86249f4-6b51-4594-aa2e-be07da0fef78",
+      "generation": "e3a6bf29-6e12-48a6-acfd-117f9f88898d",
       "revision": 12,
-      "slug": "bot-61d7d87bd82f46dfb19414373a23f13a",
+      "slug": "bot-0a2d7dea6aed47c3a2eaa851571ddc82",
       "state": "working",
       "activity": {
         "effect": "executing",
         "toolKind": "execute",
         "toolName": "bash",
-        "startedAt": 1790940428745,
+        "startedAt": 1790958712065,
         "activeToolCount": 1,
         "sources": [
           {
@@ -30,45 +30,18 @@
           }
         ]
       },
-      "trace": [
+      "sessions": [
         {
-          "revision": 9,
-          "at": 1790940424247,
-          "state": "thinking"
-        },
-        {
-          "revision": 10,
-          "at": 1790940426796,
-          "state": "working",
-          "activity": {
-            "effect": "generic-working",
-            "toolKind": "other",
-            "toolName": "browser_tabs",
-            "publicDetail": "Listing browser tabs",
-            "startedAt": 1790940426795,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          }
-        },
-        {
-          "revision": 11,
-          "at": 1790940426882,
-          "state": "thinking"
-        },
-        {
+          "id": "activity-fc49a2a4-b37b-4e4b-ab15-b07590f6f4cf",
+          "role": "orchestrator",
+          "at": 1790958712066,
           "revision": 12,
-          "at": 1790940428746,
           "state": "working",
           "activity": {
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
-            "startedAt": 1790940428745,
+            "startedAt": 1790958712065,
             "activeToolCount": 1,
             "sources": [
               {
@@ -86,30 +59,30 @@
       {
         "state": "working",
         "effect": "executing",
-        "label": "Activity trace QA light：正在执行 · bash · 主会话"
+        "label": "Session latest QA light：正在执行 · bash · 主会话"
       }
     ],
     "composer": [
       {
         "state": "working",
         "effect": "executing",
-        "label": "Activity trace QA light：正在执行 · bash · 主会话"
+        "label": "Session latest QA light：正在执行 · bash · 主会话"
       }
     ],
-    "summary": "Activity trace QA light 正在执行 · bash · 主会话"
+    "summary": "Session latest QA light 正在执行 · bash · 主会话"
   },
   "nativeEvents": [
     {
       "type": "tool/call",
-      "time": 1790940426795
+      "time": 1790958710240
     },
     {
       "type": "tool/result",
-      "time": 1790940426882
+      "time": 1790958710465
     },
     {
       "type": "tool/call",
-      "time": 1790940428745,
+      "time": 1790958712065,
       "name": "bash"
     }
   ],
@@ -173,7 +146,7 @@
   "heldForHumanQA": true,
   "actualNativeShellApproval": true,
   "actualBrowserToolApproval": true,
-  "traceMode": true,
+  "sessionMode": true,
   "toolName": "bash",
   "verdict": "PASS"
 }

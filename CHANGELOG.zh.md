@@ -17,7 +17,7 @@
 
 ### Added
 
-- 展开的消息框状态区可查看本次活动最近八次安全变化，由 Host revision 同步；idle 时清空，重启后建立新的进程内基线，不复制 Session 参数、结果或推理内容（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
+- 展开的消息框状态区在每个活跃 Session 的独立紧凑卡片内显示最新安全活动，不重复 Bot 名称；Host revision 同步当前记录，完成或销毁的 Session 移出，重启后重建当前基线，不复制参数、结果或推理内容（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 
 - 浏览器标签页活动可在侧栏和输入框上方显示 Provider 显式声明的操作摘要；仅接纳有界公开文本，并发摘要冲突时省略，URL、页面标题和原始工具载荷不进入 Activity（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 
