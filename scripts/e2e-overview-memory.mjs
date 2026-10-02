@@ -284,6 +284,17 @@ try {
         ),
         true,
       );
+      await page.waitForFunction(
+        (expected) =>
+          [...document.querySelectorAll('.bh-profile-card')].some((card) => {
+            const label = card.querySelector('.bh-profile-card-label')?.textContent ?? '';
+            const total = card.querySelector('.bh-profile-card-total')?.textContent ?? '';
+            const numbers = total.match(/\d+/g) ?? [];
+            return label.includes('Memory') && Number(numbers.at(-1)) === expected;
+          }),
+        {},
+        profile.memoryCommits.reduce((sum, row) => sum + row.count, 0),
+      );
       await shot('memory-bot-navigation');
       writeFileSync(
         resolve(out, mode === 'resume' ? 'result-restart.json' : 'result.json'),
