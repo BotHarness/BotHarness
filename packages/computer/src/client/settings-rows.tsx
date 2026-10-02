@@ -17,14 +17,19 @@ import {
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 
 import {
+  COMPUTER_TARGET_FIELD,
   COMPUTER_AUTO_ALLOW_FIELD,
   COMPUTER_EXPORT_DIR_FIELD,
   COMPUTER_IDLE_STOP_FIELD,
   type ComputerSettings,
 } from '../settings.js';
+import { LocalComputerStatus, LOCAL_COMPUTER_COLORS } from './local-computer.js';
+import type { ComputerTarget } from '../target.js';
+
 import { PHASE_LABEL, type ComputerTranslate } from './locale.js';
 
 export interface ComputerSettingsSnapshot {
+  target: ComputerTarget;
   exportDir: string;
   idleStopMinutes: number;
   autoAllowActions: boolean;
@@ -55,6 +60,7 @@ export function displayExportDir(configured: string, hostDir: string | undefined
 
 export class ComputerSettingsPrefs {
   private snapshot: ComputerSettingsSnapshot = {
+    target: 'container',
     exportDir: '',
     idleStopMinutes: 30,
     autoAllowActions: false,
@@ -90,6 +96,13 @@ export class ComputerSettingsPrefs {
       this.listeners.delete(listener);
     };
   };
+
+  async setTarget(target: ComputerTarget): Promise<void> {
+    if (this.scope === undefined) throw new Error('Computer settings are unavailable');
+    await this.scope.set(COMPUTER_TARGET_FIELD, target);
+    this.sync();
+    if (this.snapshot.target !== target) throw new Error('Computer Target was not saved');
+  }
 
   async setExportDir(exportDir: string): Promise<void> {
     if (this.scope === undefined) throw new ExportDirRejectedError();
@@ -127,6 +140,7 @@ export class ComputerSettingsPrefs {
     const next = scope.getSnapshot();
     const value = next.value;
     this.snapshot = {
+      target: value?.target ?? 'container',
       exportDir: value?.exportDir ?? '',
       idleStopMinutes: value?.idleStopMinutes ?? 30,
       autoAllowActions: value?.autoAllowActions ?? false,
@@ -324,6 +338,9 @@ export function ComputerSettingsRows({
   PropsLocale<'botharness-computer'> &
   InjectFace<ComputerSettingsFace>): ReactElement {
   const snapshot = useSyncExternalStore(prefs.subscribe, prefs.getSnapshot);
+  const [targetOpen, setTargetOpen] = useState(false);
+  const [targetError, setTargetError] = useState<string>();
+  const [targetSaving, setTargetSaving] = useState(false);
   const [idleOpen, setIdleOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [archives, setArchives] = useState<readonly string[] | undefined>(undefined);
@@ -346,6 +363,7 @@ export function ComputerSettingsRows({
   const [liveElapsed, setLiveElapsed] = useState(0);
 
   const hostDirResource = useMountedResource<HTMLSpanElement>(() => {
+    if (snapshot.target === 'local') return;
     if (snapshot.status !== 'unavailable' && snapshot.exportDir !== '') return;
     let active = true;
     void hostExportDir()
@@ -356,7 +374,7 @@ export function ComputerSettingsRows({
     return () => {
       active = false;
     };
-  }, [hostExportDir, snapshot.status, snapshot.exportDir]);
+  }, [hostExportDir, snapshot.status, snapshot.exportDir, snapshot.target]);
 
   const busyResource = useMountedResource<HTMLSpanElement>(() => {
     setLivePhase(undefined);
@@ -545,101 +563,42 @@ export function ComputerSettingsRows({
         <div className="bh-settings-section-title">{t('section.title')}</div>
         <div className="bh-settings-section-desc">{t('section.description')}</div>
       </div>
-      <Row
-        title={t('rows.exportDir.title')}
-        description={
-          hasDir ? t('rows.exportDir.current', { dir: exportDir }) : t('rows.exportDir.empty')
-        }
-      >
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {canAdjust ? (
-            <button
-              type="button"
-              className="bh-settings-selector"
-              disabled={!writable}
-              onClick={pickExportDir}
-            >
-              <IconFolderOpenOutlineRegular size={14} />
-              {t('rows.exportDir.pick')}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="bh-settings-selector"
-            disabled={!hasDir}
-            onClick={openDir}
-          >
-            {t('rows.exportDir.open')}
-          </button>
-          <button
-            type="button"
-            className="bh-settings-selector"
-            disabled={!writable}
-            onClick={() => {
-              setManualOpen((value) => !value);
-              setManualPath(exportDir);
-            }}
-          >
-            {t('rows.exportDir.manual')}
-          </button>
-        </div>
-      </Row>
-
-      {manualOpen ? (
-        <div className="bh-settings-row">
-          <div className="bh-settings-row-text">
-            <input
-              className="bh-settings-input"
-              value={manualPath}
-              placeholder="/absolute/path"
-              aria-label={t('rows.exportDir.manual')}
-              onChange={(event) => {
-                setManualPath(event.target.value);
-              }}
-            />
-          </div>
-          <button
-            type="button"
-            className="bh-settings-selector"
-            disabled={!writable || saving || manualPath.trim() === ''}
-            onClick={saveManualPath}
-          >
-            {saving ? t('rows.exportDir.saving') : t('rows.exportDir.save')}
-          </button>
-        </div>
-      ) : null}
-      {dirNote === undefined ? null : <div className="bh-note">{dirNote}</div>}
-
-      <Row title={t('rows.idle.title')} description={t('rows.idle.description')}>
+      <Row title={t('rows.target.title')} description={t('rows.target.description')}>
         <Menu
-          open={idleOpen}
+          open={targetOpen}
           portal
           align="end"
-          items={IDLE_OPTIONS.map((minutes) => ({
-            id: String(minutes),
-            label: t('rows.idle.minutes', { minutes }),
+          items={(['local', 'container'] as const).map((id) => ({
+            id,
+            label: t(`rows.target.${id}`),
           }))}
-          selectedId={String(snapshot.idleStopMinutes)}
+          selectedId={snapshot.target}
           onSelect={(id) => {
-            setIdleOpen(false);
-            prefs.setIdleStopMinutes(Number(id));
+            setTargetOpen(false);
+            if (id !== 'local' && id !== 'container') return;
+            setTargetSaving(true);
+            setTargetError(undefined);
+            void prefs
+              .setTarget(id)
+              .catch((error: unknown) => setTargetError(String(error)))
+              .finally(() => setTargetSaving(false));
           }}
-          onClose={() => {
-            setIdleOpen(false);
-          }}
+          onClose={() => setTargetOpen(false)}
           anchor={
             <Selector
-              label={t('rows.idle.minutes', { minutes: snapshot.idleStopMinutes })}
-              open={idleOpen}
-              disabled={!writable}
-              onToggle={() => {
-                setIdleOpen((value) => !value);
-              }}
+              label={t(`rows.target.${snapshot.target}`)}
+              open={targetOpen}
+              disabled={!writable || targetSaving}
+              onToggle={() => setTargetOpen((value) => !value)}
             />
           }
         />
       </Row>
-
+      {targetError === undefined ? null : (
+        <div role="alert" className="bh-note" style={{ color: LOCAL_COMPUTER_COLORS.error }}>
+          {targetError}
+        </div>
+      )}
       <Row title={t('rows.autoAllow.title')} description={t('rows.autoAllow.description')}>
         <Switch
           checked={snapshot.autoAllowActions}
@@ -650,167 +609,279 @@ export function ComputerSettingsRows({
           label={t('rows.autoAllow.title')}
         />
       </Row>
-
-      <Row title={t('rows.exportSection.title')} description={t('rows.exportSection.description')}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {confirming === 'export' ? (
-            <>
+      {snapshot.target === 'local' ? (
+        <LocalComputerStatus t={t as ComputerTranslate} />
+      ) : (
+        <>
+          <Row
+            title={t('rows.exportDir.title')}
+            description={
+              hasDir ? t('rows.exportDir.current', { dir: exportDir }) : t('rows.exportDir.empty')
+            }
+          >
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {canAdjust ? (
+                <button
+                  type="button"
+                  className="bh-settings-selector"
+                  disabled={!writable}
+                  onClick={pickExportDir}
+                >
+                  <IconFolderOpenOutlineRegular size={14} />
+                  {t('rows.exportDir.pick')}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="bh-settings-selector"
+                disabled={!hasDir}
+                onClick={openDir}
+              >
+                {t('rows.exportDir.open')}
+              </button>
+              <button
+                type="button"
+                className="bh-settings-selector"
+                disabled={!writable}
                 onClick={() => {
-                  setConfirming(undefined);
+                  setManualOpen((value) => !value);
+                  setManualPath(exportDir);
                 }}
               >
-                {t('entry.cancel')}
+                {t('rows.exportDir.manual')}
               </button>
-              <button type="button" className="bh-settings-selector" onClick={runExport}>
-                {t('rows.authorizeExport')}
+            </div>
+          </Row>
+
+          {manualOpen ? (
+            <div className="bh-settings-row">
+              <div className="bh-settings-row-text">
+                <input
+                  className="bh-settings-input"
+                  value={manualPath}
+                  placeholder="/absolute/path"
+                  aria-label={t('rows.exportDir.manual')}
+                  onChange={(event) => {
+                    setManualPath(event.target.value);
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                className="bh-settings-selector"
+                disabled={!writable || saving || manualPath.trim() === ''}
+                onClick={saveManualPath}
+              >
+                {saving ? t('rows.exportDir.saving') : t('rows.exportDir.save')}
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="bh-settings-selector"
-              disabled={(!hasDir && !canAdjust) || busy !== undefined}
-              onClick={startExport}
-            >
-              {busy === 'export'
-                ? t('rows.exporting')
-                : canAdjust
-                  ? t('rows.exportTo')
-                  : t('rows.export')}
-            </button>
-          )}
-          {download === undefined ? null : (
-            <button
-              type="button"
-              className="bh-settings-selector"
-              onClick={() => {
-                globalThis.location?.assign(downloadUrl(download.token));
-              }}
-            >
-              {t('rows.download')}
-            </button>
-          )}
-        </div>
-      </Row>
+            </div>
+          ) : null}
+          {dirNote === undefined ? null : <div className="bh-note">{dirNote}</div>}
 
-      {confirming === 'export' ? (
-        <div className="bh-note">{t('rows.exportTarget', { dir: exportTarget ?? exportDir })}</div>
-      ) : null}
-
-      <Row title={t('rows.importSection.title')} description={t('rows.importSection.description')}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {uploadName !== undefined ? null : confirming === 'import' ? (
-            <button
-              type="button"
-              className="bh-settings-selector"
-              onClick={() => {
-                setConfirming(undefined);
-              }}
-            >
-              {t('rows.cancelImport')}
-            </button>
-          ) : (
+          <Row title={t('rows.idle.title')} description={t('rows.idle.description')}>
             <Menu
-              open={importOpen}
+              open={idleOpen}
               portal
               align="end"
-              items={(archives ?? []).map((file) => ({ id: file, label: file }))}
+              items={IDLE_OPTIONS.map((minutes) => ({
+                id: String(minutes),
+                label: t('rows.idle.minutes', { minutes }),
+              }))}
+              selectedId={String(snapshot.idleStopMinutes)}
               onSelect={(id) => {
-                setConfirming('import');
-                setArchives([id]);
+                setIdleOpen(false);
+                prefs.setIdleStopMinutes(Number(id));
               }}
               onClose={() => {
-                setImportOpen(false);
+                setIdleOpen(false);
               }}
               anchor={
                 <Selector
-                  label={busy === 'import' ? t('rows.importing') : t('rows.import')}
-                  open={importOpen}
-                  disabled={!hasDir || busy !== undefined}
-                  onToggle={openImport}
+                  label={t('rows.idle.minutes', { minutes: snapshot.idleStopMinutes })}
+                  open={idleOpen}
+                  disabled={!writable}
+                  onToggle={() => {
+                    setIdleOpen((value) => !value);
+                  }}
                 />
               }
             />
-          )}
-          {uploadName === undefined && confirming === 'import' && archives?.[0] !== undefined ? (
-            <button
-              type="button"
-              className="bh-settings-selector"
-              disabled={busy !== undefined}
-              onClick={() => {
-                const file = archives[0];
-                if (file !== undefined) runImport(file);
+          </Row>
+
+          <Row
+            title={t('rows.exportSection.title')}
+            description={t('rows.exportSection.description')}
+          >
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {confirming === 'export' ? (
+                <>
+                  <button
+                    type="button"
+                    className="bh-settings-selector"
+                    onClick={() => {
+                      setConfirming(undefined);
+                    }}
+                  >
+                    {t('entry.cancel')}
+                  </button>
+                  <button type="button" className="bh-settings-selector" onClick={runExport}>
+                    {t('rows.authorizeExport')}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="bh-settings-selector"
+                  disabled={(!hasDir && !canAdjust) || busy !== undefined}
+                  onClick={startExport}
+                >
+                  {busy === 'export'
+                    ? t('rows.exporting')
+                    : canAdjust
+                      ? t('rows.exportTo')
+                      : t('rows.export')}
+                </button>
+              )}
+              {download === undefined ? null : (
+                <button
+                  type="button"
+                  className="bh-settings-selector"
+                  onClick={() => {
+                    globalThis.location?.assign(downloadUrl(download.token));
+                  }}
+                >
+                  {t('rows.download')}
+                </button>
+              )}
+            </div>
+          </Row>
+
+          {confirming === 'export' ? (
+            <div className="bh-note">
+              {t('rows.exportTarget', { dir: exportTarget ?? exportDir })}
+            </div>
+          ) : null}
+
+          <Row
+            title={t('rows.importSection.title')}
+            description={t('rows.importSection.description')}
+          >
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {uploadName !== undefined ? null : confirming === 'import' ? (
+                <button
+                  type="button"
+                  className="bh-settings-selector"
+                  onClick={() => {
+                    setConfirming(undefined);
+                  }}
+                >
+                  {t('rows.cancelImport')}
+                </button>
+              ) : (
+                <Menu
+                  open={importOpen}
+                  portal
+                  align="end"
+                  items={(archives ?? []).map((file) => ({ id: file, label: file }))}
+                  onSelect={(id) => {
+                    setConfirming('import');
+                    setArchives([id]);
+                  }}
+                  onClose={() => {
+                    setImportOpen(false);
+                  }}
+                  anchor={
+                    <Selector
+                      label={busy === 'import' ? t('rows.importing') : t('rows.import')}
+                      open={importOpen}
+                      disabled={!hasDir || busy !== undefined}
+                      onToggle={openImport}
+                    />
+                  }
+                />
+              )}
+              {uploadName === undefined &&
+              confirming === 'import' &&
+              archives?.[0] !== undefined ? (
+                <button
+                  type="button"
+                  className="bh-settings-selector"
+                  disabled={busy !== undefined}
+                  onClick={() => {
+                    const file = archives[0];
+                    if (file !== undefined) runImport(file);
+                  }}
+                >
+                  {t('rows.authorizeImportConfirm')}
+                </button>
+              ) : null}
+              {uploadName !== undefined || confirming === 'import' ? null : (
+                <label className="bh-settings-selector">
+                  {t('rows.chooseFile')}
+                  <input
+                    type="file"
+                    accept=".tar,application/x-tar"
+                    hidden
+                    disabled={busy !== undefined}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] ?? null;
+                      event.target.value = '';
+                      takeUploadFile(file);
+                    }}
+                  />
+                </label>
+              )}
+              {uploadName === undefined ? null : (
+                <>
+                  <button
+                    type="button"
+                    className="bh-settings-selector"
+                    onClick={() => {
+                      setUploadName(undefined);
+                      uploadFile.current = null;
+                    }}
+                  >
+                    {t('entry.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    className="bh-settings-selector"
+                    disabled={busy !== undefined}
+                    onClick={runUpload}
+                  >
+                    {busy === 'upload' ? t('rows.importing') : t('rows.authorizeImportConfirm')}
+                  </button>
+                </>
+              )}
+            </div>
+          </Row>
+
+          {selectedFile === undefined ? null : (
+            <div
+              className="bh-note"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
-              {t('rows.authorizeImportConfirm')}
-            </button>
+              {selectedFile}
+            </div>
+          )}
+
+          {busy !== undefined && phaseKey !== undefined ? (
+            <div className="bh-note">
+              {`${t(phaseKey)} · ${t('entry.elapsed', { seconds: liveElapsed })}`}
+            </div>
           ) : null}
-          {uploadName !== undefined || confirming === 'import' ? null : (
-            <label className="bh-settings-selector">
-              {t('rows.chooseFile')}
-              <input
-                type="file"
-                accept=".tar,application/x-tar"
-                hidden
-                disabled={busy !== undefined}
-                onChange={(event) => {
-                  const file = event.target.files?.[0] ?? null;
-                  event.target.value = '';
-                  takeUploadFile(file);
-                }}
-              />
-            </label>
-          )}
-          {uploadName === undefined ? null : (
-            <>
-              <button
-                type="button"
-                className="bh-settings-selector"
-                onClick={() => {
-                  setUploadName(undefined);
-                  uploadFile.current = null;
-                }}
-              >
-                {t('entry.cancel')}
-              </button>
-              <button
-                type="button"
-                className="bh-settings-selector"
-                disabled={busy !== undefined}
-                onClick={runUpload}
-              >
-                {busy === 'upload' ? t('rows.importing') : t('rows.authorizeImportConfirm')}
-              </button>
-            </>
-          )}
-        </div>
-      </Row>
-
-      {selectedFile === undefined ? null : (
-        <div
-          className="bh-note"
-          style={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {selectedFile}
-        </div>
+        </>
       )}
-
-      {busy !== undefined && phaseKey !== undefined ? (
-        <div className="bh-note">
-          {`${t(phaseKey)} · ${t('entry.elapsed', { seconds: liveElapsed })}`}
-        </div>
-      ) : null}
       {snapshot.status === 'unavailable' ? (
         <div className="bh-note">{t('rows.noSettings')}</div>
       ) : null}
-      {transferNote === undefined ? null : <div className="bh-note">{transferNote}</div>}
+      {snapshot.target !== 'container' || transferNote === undefined ? null : (
+        <div className="bh-note">{transferNote}</div>
+      )}
     </div>
   );
 }

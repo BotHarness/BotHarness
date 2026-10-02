@@ -105,68 +105,13 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
     return runner.run(insideArgs(argv, user));
   };
 
-  let client: Client | undefined;
-  let opening: Promise<Client> | undefined;
-  let catalog: readonly DriverToolDescriptor[] | undefined;
-
-  const dropClient = async (): Promise<void> => {
-    const current = client;
-    client = undefined;
-    opening = undefined;
-    catalog = undefined;
-    if (current === undefined) return;
-    try {
-      await current.close();
-    } catch {}
-  };
-
-  const openClient = async (): Promise<Client> => {
-    const transport = new StdioClientTransport({
+  return createMcpCuaDriver({
+    onEvent,
+    transport: {
       command: 'docker',
       args: execArgs([CUA_DRIVER_PATH, 'mcp'], DESKTOP_USER),
       env: { PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin' },
-      stderr: 'pipe',
-    });
-    transport.stderr?.on('data', (chunk: Buffer | string) => {
-      for (const line of String(chunk).split('\n'))
-        if (line.trim() !== '') log(`driver: ${line.trim()}`);
-    });
-    const created = new Client(
-      { name: 'botharness-computer', version: '0.0.0' },
-      { capabilities: {}, versionNegotiation: { mode: 'auto' } },
-    );
-    created.onerror = (error) => log(`driver connection error: ${String(error)}`);
-    created.onclose = () => log('driver connection closed');
-    transport.onclose = () => log(`driver child exited (pid ${String(transport.pid ?? '?')})`);
-    transport.onerror = (error) => log(`driver transport error: ${String(error)}`);
-    await created.connect(transport);
-    const listed = await created.listTools();
-    catalog = listed.tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description ?? '',
-      inputSchema: (tool.inputSchema ?? {}) as Record<string, unknown>,
-      ...(tool.outputSchema === undefined ? {} : { outputSchema: tool.outputSchema }),
-    }));
-    client = created;
-    log(`driver connected: ${catalog.length} tools`);
-    return created;
-  };
-
-  const ensureClient = async (): Promise<Client> => {
-    if (client !== undefined) return client;
-    opening ??= openClient().catch(async (error: unknown) => {
-      await dropClient();
-      throw error;
-    });
-    try {
-      return await opening;
-    } catch (error) {
-      opening = undefined;
-      throw error;
-    }
-  };
-
-  return {
+    },
     async ensure(signal) {
       const machine = await runInside(['uname', '-m'], 'root', signal);
       if (machine.code !== 0) throw new Error('the Computer is not running');
@@ -186,6 +131,84 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
       log(`driver installed: ${verified.stdout.trim()}`);
       return { status: 'installed', arch };
     },
+  });
+}
+
+export function createMcpCuaDriver(options: {
+  ensure: CuaDriver['ensure'];
+  transport: { command: string; args: string[]; env: Record<string, string> };
+  onEvent?: ((detail: string) => void) | undefined;
+  retryReadOnly?: boolean;
+  beforeOpen?: () => Promise<void>;
+}): CuaDriver {
+  const log = (detail: string): void => options.onEvent?.(detail.slice(0, 300));
+  let epoch = 0;
+  let client: Client | undefined;
+  let opening: Promise<Client> | undefined;
+  let catalog: readonly DriverToolDescriptor[] | undefined;
+
+  const dropClient = async (): Promise<void> => {
+    epoch += 1;
+    const current = client;
+    const pending = opening;
+    client = undefined;
+    opening = undefined;
+    catalog = undefined;
+    try {
+      await current?.close();
+      await pending?.catch(() => undefined);
+    } catch {}
+  };
+
+  const openClient = async (): Promise<Client> => {
+    const openingEpoch = epoch;
+    await options.beforeOpen?.();
+    if (openingEpoch !== epoch) throw new Error('Computer driver connection was cancelled');
+    const transport = new StdioClientTransport({ ...options.transport, stderr: 'pipe' });
+    transport.stderr?.on('data', (chunk: Buffer | string) => {
+      for (const line of String(chunk).split('\n'))
+        if (line.trim() !== '') log(`driver: ${line.trim()}`);
+    });
+    const created = new Client(
+      { name: 'botharness-computer', version: '0.0.0' },
+      { capabilities: {}, versionNegotiation: { mode: 'auto' } },
+    );
+    created.onerror = (error) => log(`driver connection error: ${String(error)}`);
+    created.onclose = () => log('driver connection closed');
+    transport.onclose = () => log(`driver child exited (pid ${String(transport.pid ?? '?')})`);
+    transport.onerror = (error) => log(`driver transport error: ${String(error)}`);
+    let listed;
+    try {
+      await created.connect(transport);
+      listed = await created.listTools();
+      if (openingEpoch !== epoch) throw new Error('Computer driver connection was cancelled');
+    } catch (error) {
+      await created.close().catch(() => undefined);
+      throw error;
+    }
+    catalog = listed.tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description ?? '',
+      inputSchema: (tool.inputSchema ?? {}) as Record<string, unknown>,
+      ...(tool.outputSchema === undefined ? {} : { outputSchema: tool.outputSchema }),
+    }));
+    client = created;
+    log(`driver connected: ${catalog.length} tools`);
+    return created;
+  };
+
+  const ensureClient = async (): Promise<Client> => {
+    if (client !== undefined) return client;
+    const pending = (opening ??= openClient());
+    try {
+      return await pending;
+    } finally {
+      if (opening === pending) opening = undefined;
+    }
+  };
+
+  return {
+    ensure: options.ensure,
 
     async tools(signal) {
       await ensureClient();
@@ -196,15 +219,18 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
     async call(rawName, args, signal) {
       const alreadyAborted = signal?.aborted === true;
       if (alreadyAborted) throw new Error('computer driver operation aborted');
-      const options = signal === undefined ? undefined : { signal };
+      const callOptions = signal === undefined ? undefined : { signal };
       const active = await ensureClient();
+      const callEpoch = epoch;
       try {
-        return await active.callTool({ name: rawName, arguments: args }, options);
+        return await active.callTool({ name: rawName, arguments: args }, callOptions);
       } catch (error) {
+        if (callEpoch !== epoch) throw error;
         await dropClient();
-        if (alreadyAborted || !READ_ONLY_TOOLS.has(rawName)) throw error;
+        if (options.retryReadOnly === false || signal?.aborted || !READ_ONLY_TOOLS.has(rawName))
+          throw error;
         const retry = await ensureClient();
-        return await retry.callTool({ name: rawName, arguments: args }, options);
+        return await retry.callTool({ name: rawName, arguments: args }, callOptions);
       }
     },
 

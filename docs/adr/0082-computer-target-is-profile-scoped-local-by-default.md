@@ -32,3 +32,9 @@ The VPS deployment path is a decoupled installer — dependencies, profile (with
 - Local permission failures surface through the settings row and `doctor`, never as silent retries.
 - Existing profiles keep any explicit target; fresh installs default to `local`.
 - The installer and its access-method variants become their own deliverable (tracer), not part of this package.
+
+## First macOS delivery
+
+The Bundle supplies `target: local` for fresh compositions. The schema fallback remains `container` for legacy saved Computer config objects that predate the target field, because a Patch replaces the whole config object. Explicit selections are persisted through DSH configForms as a volatile Profile value. `loader/volatile-update` triggers the owning runtime to close the old driver and stop the old target, reset the cached tool catalog and session grants, then select the new internal strategy. Approval decisions carry an opaque target revision so a decision awaiting Human input cannot authorize a newly selected desktop.
+
+The pinned macOS universal binary and its runtime libraries are checked against committed SHA-256 values before execution. Its `mcp --direct --embedded` process inherits the DSH Host app's TCC identity; there is no standalone daemon or separate driver permission grant. `doctor --json` verifies installation, while `check_permissions({prompt:false})` reads Accessibility and Screen Recording. These checks do not prove direct screenshot capture readiness: the first real observation/action must still succeed, and native failures are not retried. Local setup is explicit through **Check permissions**, with no Docker probe, idle-stop policy, viewer or archive routes in the local path.
