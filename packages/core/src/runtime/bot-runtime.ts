@@ -2478,12 +2478,21 @@ class BotRuntimeImplementation implements BotRuntime {
     wakeEventIds: readonly string[] = [sourceEventId],
   ): Promise<void> {
     const readAdmissions = new Set<string>();
+    const memorySource = this.#database.read((db) =>
+      db
+        .prepare(`
+          SELECT e.source_kind, EXISTS (
+            SELECT 1 FROM inbox_admissions a
+             WHERE a.source_event_id = e.source_event_id AND a.bot_slug = ?
+               AND a.reason = 'group-ordinary'
+          ) AS ordinary
+            FROM source_events e WHERE e.source_event_id = ?
+        `)
+        .get(bot.slug, sourceEventId),
+    );
     const observeMemory =
-      this.#database.read((db) =>
-        db
-          .prepare('SELECT source_kind FROM source_events WHERE source_event_id = ?')
-          .get(sourceEventId),
-      )?.source_kind !== 'bridge-message';
+      memorySource?.source_kind !== 'bridge-message' &&
+      !(memorySource?.source_kind === 'bot-message' && memorySource.ordinary === 1);
     let memoryEventIds: string[] = [];
     let preserveObservation = false;
     const importedFiles = new Map<string, ChannelAttachmentRef>();

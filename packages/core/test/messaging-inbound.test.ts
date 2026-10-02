@@ -2307,3 +2307,29 @@ it('keeps receiving-Bot Thread thresholds separate while other members use their
     Array.from({ length: 3 }, () => ({ wake_count: 3, external_thread_policy_revision: null })),
   );
 });
+
+it('handles a local member reply after shared external harvest without granting ordinary bot traffic Memory authority', async () => {
+  const fx = await fixture();
+  const id = await collectSharedOrdinary(fx);
+  fx.core.channels.setGroupWakePolicy(id, 'ada', { mode: 'all', count: 1, intervalSeconds: 60 });
+  fx.core.channels.setGroupWakePolicy(id, 'bea', { mode: 'all', count: 1, intervalSeconds: 60 });
+  await fx.receive(ordinaryEvent('external-start'));
+  await fx.idle();
+  await fx.runs
+    .find((run) => run.bot.slug === 'ada')!
+    .channels.send({ body: 'Local shared result' });
+  await fx.idle();
+  const local = fx.core.channels.readMessages(id).find((m) => m.body === 'Local shared result')!;
+  expect(local).toBeDefined();
+  expect(
+    fx.query(
+      `SELECT a.attempt_state, a.last_error FROM inbox_admissions a JOIN source_events e USING(source_event_id) WHERE e.message_id = '${local.id}' AND a.bot_slug = 'bea'`,
+    ),
+  ).toEqual([{ attempt_state: 'handled', last_error: null }]);
+  const peerReplyTurn = fx.runs.find(
+    (r) => r.bot.slug === 'bea' && r.message.includes('Local shared result'),
+  );
+  expect(peerReplyTurn).toBeDefined();
+  expect(peerReplyTurn!.memory).toBeUndefined();
+  expect(fx.core.channels.readMessages(id).some((m) => m.sessionFailure)).toBe(false);
+});

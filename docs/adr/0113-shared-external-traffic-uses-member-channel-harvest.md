@@ -17,6 +17,8 @@ Group Profile displays each member's actual effective policy and whether it come
 
 A shared Admission grants local visibility and processing, not external-account authority. Identity-specific source reads require the canonical receiving Bot, and checked history/files/replies retain the existing current Grant/account checks. Harvest text identifies sender, platform, external message ID and Source Event, treats external content as untrusted, and requires the Bot's own authorization for external actions.
 
+External harvest and ordinary local Bot replies that follow it do not gain Memory observation or branch-control authority; the runtime skips those Memory operations instead of failing and retrying a successful Channel turn. Addressed Bot messages keep their existing Memory authorization.
+
 No schema, scheduler, credential, provider SDK or shared Inbox store is added. Existing admission revisions and history are not rewritten.
 
 ## Consequences
