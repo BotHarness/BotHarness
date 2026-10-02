@@ -21,6 +21,7 @@ export function ChannelActivityView({
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [limit, setLimit] = useState(20);
+  const [busy, setBusy] = useState(true);
   const refresh = useRef<() => void>(() => {});
   const mount = useMountedResource<HTMLElement>(() => {
     let active = true;
@@ -29,6 +30,7 @@ export function ChannelActivityView({
     const load = async (): Promise<void> => {
       if (!active || pending) return;
       pending = true;
+      setBusy(true);
       try {
         const next = await actions.channelActivityToday();
         if (!active) return;
@@ -43,6 +45,7 @@ export function ChannelActivityView({
         if (active) setStatus('error');
       } finally {
         pending = false;
+        if (active) setBusy(false);
       }
     };
     refresh.current = () => void load();
@@ -55,7 +58,7 @@ export function ChannelActivityView({
       refresh.current = () => {};
     };
   }, [actions]);
-  const max = Math.max(1, ...(value?.channels.map((row) => row.total) ?? []));
+  const max = value?.channels.reduce((largest, row) => Math.max(largest, row.total), 1) ?? 1;
   return (
     <section className="bh-channel-activity" ref={mount} aria-label={t('channelActivity.title')}>
       <header>
@@ -68,7 +71,13 @@ export function ChannelActivityView({
             </p>
           ) : null}
         </div>
-        <Button variant="outline" size="sm" onClick={() => refresh.current()}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={busy}
+          aria-busy={busy}
+          onClick={() => refresh.current()}
+        >
           {t('channelActivity.refresh')}
         </Button>
       </header>
