@@ -1,0 +1,87 @@
+{
+  "bot": {
+    "slug": "bot-cffe49764cbd4d1db4b1f820d4f35a21",
+    "displayName": "Activity source QA"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceRole": "orchestrator",
+  "colorScheme": "light",
+  "phase": "after",
+  "snapshots": [
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 22,
+      "slug": "bot-cffe49764cbd4d1db4b1f820d4f35a21",
+      "state": "idle"
+    },
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 23,
+      "slug": "bot-cffe49764cbd4d1db4b1f820d4f35a21",
+      "state": "thinking"
+    },
+    {
+      "generation": "50a44d1a-318e-456f-9a25-fd0c195ce8ff",
+      "revision": 24,
+      "slug": "bot-cffe49764cbd4d1db4b1f820d4f35a21",
+      "state": "working",
+      "activity": {
+        "effect": "executing",
+        "toolKind": "execute",
+        "toolName": "bash",
+        "startedAt": 1790916727056,
+        "activeToolCount": 1,
+        "sources": [
+          {
+            "role": "orchestrator",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "dom": {
+    "sidebar": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Activity source QA：正在执行 · bash · 主会话"
+      }
+    ],
+    "composer": [
+      {
+        "state": "working",
+        "effect": "executing",
+        "label": "Activity source QA：正在执行 · bash · 主会话"
+      }
+    ],
+    "summary": "Activity source QA 正在执行 · bash · 主会话"
+  },
+  "nativeEvents": [
+    {
+      "type": "tool/call",
+      "time": 1790916727056,
+      "name": "bash"
+    }
+  ],
+  "railFocusSummary": "Activity source QA · 正在执行 · bash · 主会话",
+  "layoutEvidence": [
+    {
+      "layout": "pinned",
+      "effect": "executing"
+    },
+    {
+      "layout": "rail",
+      "effect": "executing"
+    }
+  ],
+  "reduceMotion": ["none"],
+  "heldForHumanQA": true,
+  "actualNativeShellApproval": true,
+  "toolName": "bash",
+  "verdict": "PASS"
+}

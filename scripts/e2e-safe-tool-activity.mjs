@@ -411,10 +411,12 @@ try {
       await screenshot('settled.png');
     }
   }
-  const sessionId = (await rpc('sessions', { slug: bot.slug })).sessions.find(
-    (session) => session.role === (sourceRole ?? 'orchestrator'),
-  )?.sessionId;
-  assert.ok(sessionId);
+  const session = (await rpc('sessions', { slug: bot.slug })).sessions.find(
+    (session) => session.sessionId === pending.toolApprovalRequest.sessionId,
+  );
+  assert.ok(session, 'Native approval belongs to a trusted owned Session');
+  assert.equal(session.role, sourceRole ?? 'orchestrator');
+  const sessionId = session.sessionId;
   const native = await nativeSnapshot(sessionId);
   const nativeEvents = native.records
     .filter(
