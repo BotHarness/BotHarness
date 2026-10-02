@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "group": "group-release-review",
+  "recipientCount": 2,
+  "pausedExcluded": true,
+  "outsiderExcluded": true,
+  "silentPolicyStillMention": true,
+  "actualModelReplies": 2,
+  "staleRejected": true,
+  "dmShortcutAbsent": true,
+  "messageId": "human-6450297c-7739-4636-a38f-e5c218c0b56a"
+}

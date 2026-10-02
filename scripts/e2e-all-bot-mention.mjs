@@ -97,6 +97,7 @@ const login = async (client) => {
       .find((n) => ['继续', 'Continue'].includes(n.textContent?.trim() ?? ''))
       ?.click(),
   );
+  await client.waitForSelector('.bh-panel-glyph', { timeout: 60000 });
   if ((await client.$('.bh-region')) === null) await client.click('button:has(.bh-panel-glyph)');
   await client.waitForSelector('.bh-region');
 };
@@ -107,7 +108,7 @@ const openGroup = async (id) => {
   await login(page);
   await page.waitForSelector('[data-channel-id="' + id + '"]');
   await page.click('[data-channel-id="' + id + '"]');
-  await page.waitForSelector('.bh-composer-input');
+  await page.waitForSelector('.bh-composer-input', { visible: true });
 };
 try {
   await login(page);
@@ -116,7 +117,7 @@ try {
     if (process.env.BH_ALL_BOT_QA_REUSE === '1') {
       scene = JSON.parse(readFileSync(sceneFile, 'utf8'));
       await openGroup(scene.channelId);
-      await page.click('.bh-composer-input');
+      await page.locator('.bh-composer-input').click();
       await page.keyboard.type('@');
       await page.waitForSelector('[role=listbox]');
       await theme(false);
@@ -164,7 +165,7 @@ try {
       mkdirSync(dirname(sceneFile), { recursive: true });
       writeFileSync(sceneFile, JSON.stringify(scene));
       await openGroup(group.id);
-      await page.click('.bh-composer-input');
+      await page.locator('.bh-composer-input').click();
       await page.keyboard.type('@');
       await page.waitForSelector('[role=listbox]');
       assert.equal(
@@ -202,7 +203,7 @@ try {
       console.log('PASS restart: committed ordinary mentions and replies retained');
     } else {
       if (mode !== 'finish') {
-        await page.click('.bh-composer-input');
+        await page.locator('.bh-composer-input').click();
         await page.keyboard.type('@');
         await page.waitForSelector('[role=listbox]');
         await page.waitForFunction(() =>
@@ -259,7 +260,7 @@ try {
       await theme(true);
       await shot('replies-dark');
       await theme(false);
-      await page.click('.bh-composer-input');
+      await page.locator('.bh-composer-input').click();
       await page.keyboard.type('@');
       await page.waitForSelector('[role=listbox]');
       await click('[role=option]', '@所有 Bot仅当前群内的活跃 Bot2 个 Bot');
@@ -280,7 +281,7 @@ try {
       await shot('stale-preview');
       await rpc('resume', { slug: scene.bots[1].slug });
       await openGroup((await rpc('channelDm', { slug: scene.bots[0].slug })).channel.id);
-      await page.click('.bh-composer-input');
+      await page.locator('.bh-composer-input').click();
       await page.keyboard.type('@');
       assert.equal(
         await page.evaluate(

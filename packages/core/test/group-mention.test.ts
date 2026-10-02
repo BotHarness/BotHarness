@@ -16,6 +16,45 @@ import type {
 import { createTempRoot } from './helpers.js';
 
 describe('Group mention tracer', () => {
+  it('rejects a Bot-authored all-Bot preview without writing Source Events or Admissions', async () => {
+    const core = createCore({ dshHome: createTempRoot('botharness-all-bot-author-') });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Human shortcut only', members: ['ada'] });
+      const preview = core.channels.previewAllBotMention(group.id);
+      expect(preview.recipients).toHaveLength(1);
+      await expect(
+        core.channels.appendMessageOnce(
+          group.id,
+          {
+            id: 'bot-all-attempt',
+            at: '2026-10-03T00:00:00.000Z',
+            author: { kind: 'bot', slug: 'ada' },
+            body: '@Ada check',
+            mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+          },
+          preview,
+        ),
+      ).rejects.toThrow('All Bots requires a Human sender');
+      expect(core.channels.readMessages(group.id)).toEqual([]);
+      const counts = attachOperationalModule(core.operationalDatabase, 'all-bot-author-test').read(
+        (db) => ({
+          sources: db.prepare('SELECT COUNT(*) AS count FROM source_events').get(),
+          placements: db.prepare('SELECT COUNT(*) AS count FROM channel_placements').get(),
+          admissions: db.prepare('SELECT COUNT(*) AS count FROM inbox_admissions').get(),
+        }),
+      );
+      expect(counts).toEqual({
+        sources: { count: 0 },
+        placements: { count: 0 },
+        admissions: { count: 0 },
+      });
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('commits All Bots as ordinary mentions, survives replay after a member leaves, and reloads after restart', async () => {
     const home = createTempRoot('botharness-all-bot-');
     const runs: string[] = [];
