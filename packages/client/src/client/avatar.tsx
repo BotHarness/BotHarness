@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactElement } from 'react';
 
+import type { PersonaBotSessionActivity } from '../../../core/src/state/bot-state.js';
 import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activity.js';
 
 import { blobatar } from 'blobatar';
@@ -37,6 +38,7 @@ export interface PersonaBotAvatarProps {
 }
 
 export interface PersonaBotFacepileItem {
+  sessions?: readonly PersonaBotSessionActivity[] | undefined;
   personaBotId: string;
   name: string;
   src?: string | undefined;
