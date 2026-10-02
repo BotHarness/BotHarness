@@ -23,6 +23,7 @@ export interface PersonaBotToolActivity {
   startedAt: number;
   activeToolCount: number;
   sources?: readonly ActivitySourceCount[];
+  detailRefs?: readonly string[];
 }
 
 export interface PersonaBotSessionActivity {
@@ -124,7 +125,9 @@ export function aggregateToolActivity(
   const sources = (['orchestrator', 'assignment', 'subagent'] as const)
     .filter((role) => counts.has(role))
     .map((role) => ({ role, count: counts.get(role)! }));
+  const detailRefs = [...new Set(items.flatMap((item) => item.detailRefs ?? []))].slice(0, 256);
   return {
+    ...(detailRefs.length === 0 ? {} : { detailRefs }),
     effect: activityEffectForToolKind(toolKind),
     toolKind,
     ...(name === undefined ? {} : { toolName: name }),

@@ -18,6 +18,8 @@
 ### Added
 
 - Channel sidebar 各功能项新增 Lucide 图标，顶部齿轮集中会话与记忆演化显示设置，并保留各项原有偏好保存范围（[#718](https://github.com/BotHarness/BotHarness/issues/718)）。
+- 显式获授权的 Host Plugin 可通过 Activity 的不透明引用读取有界原生 Tool 参数／结果；未授权、过期或撤销后拒绝读取，Channel 活动不会公开原始内容（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
+
 - 群组频道资料可通过 Attention 风格表格、独立收件 Switch 与编辑／删除弹窗管理一个已授权 Lark 频道连接器；暂停保留已收来源，删除仅移除收件路径而保留 Bot 身份和历史（[#700](https://github.com/BotHarness/BotHarness/issues/700)）。
 - 总览统计新增逐 Bot 近七天 Memory Git 提交趋势与当前未提交改动提示，复用紧凑 Profile 卡片，明确显示仓库不可用状态并可展开每日精确值（[#716](https://github.com/BotHarness/BotHarness/issues/716)）。
   既有 Bot Profile Memory 活动也统一使用相同的普通提交日期与引用口径。

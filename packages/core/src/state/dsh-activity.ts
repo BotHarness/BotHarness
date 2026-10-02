@@ -9,6 +9,7 @@ import {
 } from './tool-activity.js';
 import type { SessionOwnership, SessionOwnershipRecord } from '../sessions/ownership.js';
 import type { DshSessionEvent } from '../sessions/source.js';
+import type { ToolDetailIndex } from './tool-details.js';
 import type { BotStateTracker, SessionState } from './bot-state.js';
 
 export function sessionStateForEvent(event: DshSessionEvent): SessionState | undefined {
@@ -72,6 +73,7 @@ export function createDshActivityProjection(options: {
   ownership: SessionOwnership;
   states: BotStateTracker;
   now?: () => Date;
+  details?: ToolDetailIndex;
   describeCall?(
     sessionId: string,
     name: string,
@@ -92,6 +94,7 @@ export function createDshActivityProjection(options: {
       if (isSessionActivityName(title)) names.set(sessionId, title);
       else names.delete(sessionId);
     }
+    const detailRef = options.details?.observe(sessionId, event);
     const state = sessionStateForEvent(event);
     if (state === undefined) return undefined;
     let calls = pending.get(sessionId);
@@ -130,6 +133,7 @@ export function createDshActivityProjection(options: {
           startedAt:
             Number.isSafeInteger(event.time) && event.time >= 0 ? event.time : now().getTime(),
           activeToolCount: 1,
+          ...(detailRef === undefined ? {} : { detailRefs: [detailRef] }),
         });
     } else if (event.type === 'tool/result') {
       const message = data['message'];
@@ -206,11 +210,13 @@ export function createDshActivityProjection(options: {
     handleSessionDisposed(sessionId) {
       const owner = ownership.resolve(sessionId);
       if (owner === undefined) return;
+      options.details?.revokeSession(sessionId);
       pending.delete(sessionId);
       names.delete(sessionId);
       states.clearSession(owner.botSlug, sessionId);
     },
     rebuild(sessions) {
+      options.details?.clear();
       let attributed = 0;
       let claimed = true;
       while (claimed) {

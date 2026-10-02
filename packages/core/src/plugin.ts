@@ -97,6 +97,7 @@ import {
   type BotStateTracker,
   type PersonaBotActivityEvent,
 } from './state/bot-state.js';
+import { ActivityToolDetails, createToolDetailIndex } from './state/tool-details.js';
 import { createDshActivityProjection } from './state/dsh-activity.js';
 import { readPublicToolDetail } from './state/tool-activity.js';
 import { createUsageProjection, type UsageProjection } from './usage/usage.js';
@@ -137,6 +138,7 @@ export interface BotHarnessConfig {
   enabled: boolean;
 
   agentPreset?: string;
+  activityDetailConsumers?: string[];
 }
 
 export const DEFAULT_AGENT_PRESET = 'standard';
@@ -148,6 +150,9 @@ export const DEFAULT_CONFIG: BotHarnessConfig = {
 
 export const Config = Schema.object({
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 BotHarness core'),
+  activityDetailConsumers: Schema.array(Schema.string())
+    .default([])
+    .description('Explicitly trusted Host Plugin names allowed to read Activity Tool details'),
   agentPreset: Schema.string()
     .default(DEFAULT_AGENT_PRESET)
     .description('PersonaBot 会话加入的 DSH agent preset（提供 file/Shell/grep 等普通工具）'),
@@ -969,7 +974,24 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       'botharness: PersonaBot avatar',
     );
   });
+  const toolDetails = createToolDetailIndex({
+    owner: (sessionId) => core.ownership.resolve(sessionId),
+    repairRevision: (sessionId) => core.ownership.repairRevision(sessionId),
+    events: (sessionId) => dshSessions.get(sessionId)?.snapshotEvents(),
+  });
+  new ActivityToolDetails(
+    ctx,
+    toolDetails,
+    [...(config.activityDetailConsumers ?? [])],
+    (event) => {
+      ctx.logger.info(
+        `activity-tool-detail consumer=${event.consumer} outcome=${event.outcome} bytes=${event.bytes}`,
+      );
+    },
+  );
+  ctx.effect(() => () => toolDetails.clear(), 'botharness: Activity Tool detail references');
   const activity = createDshActivityProjection({
+    details: toolDetails,
     ownership: core.ownership,
     states: core.states,
     describeCall: (sessionId, name, args) => {

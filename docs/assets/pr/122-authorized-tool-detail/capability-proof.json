@@ -1,0 +1,9 @@
+{
+  "realHost": true,
+  "allowedArguments": true,
+  "allowedResult": true,
+  "unknownRefRefused": true,
+  "unauthorizedRefused": true,
+  "revokedRefRefused": true,
+  "safeActivityOnly": true
+}
