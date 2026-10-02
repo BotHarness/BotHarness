@@ -1297,6 +1297,10 @@ window.__ModuleLoader__.load({
 			"entry.authorize.bind"
 		];
 		const BH = {
+			labelSecondary: "var(--dsw-alias-label-secondary)",
+			hoverFill: "var(--dsw-alias-interactive-bg-hover)",
+			errorPrimary: "var(--dsw-alias-state-error-primary)",
+			radiusMd: "var(--dsw-radius-md)",
 			labelPrimary: "var(--dsw-alias-label-primary, #0f1115)",
 			labelPrimaryForeground: "var(--dsw-alias-label-primary-foreground, #ffffff)",
 			borderL2: "var(--dsw-alias-border-l2, #0000001a)",
@@ -1358,15 +1362,15 @@ window.__ModuleLoader__.load({
 .bh-computer-access-control { position: relative; display: flex; align-items: center; }
 .bh-computer-access-power {
   display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-  padding: 0; border: 0; border-radius: var(--dsw-radius-md); background: transparent;
-  color: var(--dsw-alias-label-secondary); cursor: pointer;
+  padding: 0; border: 0; border-radius: ${BH.radiusMd}; background: transparent;
+  color: ${BH.labelSecondary}; cursor: pointer;
 }
-.bh-computer-access-power:hover { background: var(--dsw-alias-interactive-bg-hover); }
-.bh-computer-access-power[aria-pressed='true'] { color: var(--dsw-alias-state-business-primary); background: var(--dsw-alias-interactive-bg-hover); }
-.bh-computer-access-power:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.bh-computer-access-power:hover { background: ${BH.hoverFill}; }
+.bh-computer-access-power[aria-pressed='true'] { color: ${BH.businessPrimary}; background: ${BH.hoverFill}; }
+.bh-computer-access-power:focus-visible { outline: 2px solid ${BH.businessPrimary}; outline-offset: 2px; }
 .bh-computer-access-power:disabled { opacity: 0.5; cursor: default; }
-.bh-computer-access-power.bh-access-failed { color: var(--dsw-alias-state-error-primary); }
-.bh-computer-access-error { order: -1; padding: 0 4px; color: var(--dsw-alias-state-error-primary); font-size: 11px; line-height: 16px; white-space: nowrap; }
+.bh-computer-access-power.bh-access-failed { color: ${BH.errorPrimary}; }
+.bh-computer-access-error { order: -1; padding: 0 4px; color: ${BH.errorPrimary}; font-size: 11px; line-height: 16px; white-space: nowrap; }
 
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
