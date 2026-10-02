@@ -3030,3 +3030,9 @@ export async function loadChannelActivityToday(call: BridgeCall): Promise<Channe
     throw new BridgeCallError('invalid-response', 'Invalid Channel activity');
   return data as unknown as ChannelActivityToday;
 }
+
+export async function markAllReadPositions(call: BridgeCall): Promise<void> {
+  const row = asRecord(await unwrap(call, 'channelMarkAllRead', {}));
+  if (!row || !Number.isSafeInteger(row['channels']) || (row['channels'] as number) < 0)
+    throw new Error('invalid all-read result');
+}

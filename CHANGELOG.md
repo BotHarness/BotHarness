@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Overview prioritizes Bots waiting for Human action, adds one-click message read without resolving requests, and separates collapsible Channel statistics with the existing TanStack chart ([#705](https://github.com/BotHarness/BotHarness/issues/705)).
+
 - Overview shows today’s Human-accessible Channel message totals with Human/Bot/other segments, current sender names and expandable details; day/timezone and read-only Channel navigation remain explicit ([#703](https://github.com/BotHarness/BotHarness/issues/703)).
 
 - Overview defaults to active Bots, keeps Bots with Human actions visible, and lets Humans answer or decide from each Bot card; compact executing Session tiles show current native names and role icons, with exact Session navigation ([#698](https://github.com/BotHarness/BotHarness/issues/698)).

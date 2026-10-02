@@ -1,6 +1,9 @@
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 import {
   Button,
+  IconRefreshOutlineRegular,
+  IconCheckOutlineRegular,
+  IconInfoOutlineRegular,
   IconAgentPresetOutlineRegular,
   IconCodeOutlineRegular,
   Tooltip,
@@ -36,21 +39,57 @@ export function ActivityCenterView({
     nativeSessions.getSnapshot,
   );
   const [showIdle, setShowIdle] = useState(false);
+  const [refreshBusy, setRefreshBusy] = useState(false);
+  const [readBusy, setReadBusy] = useState(false);
+  const [readError, setReadError] = useState(false);
+  const reading = useRef(false);
+  const refreshing = useRef(false);
+  const active = useRef(false);
+  const refresh = async (): Promise<void> => {
+    if (refreshing.current) return;
+    refreshing.current = true;
+    setRefreshBusy(true);
+    try {
+      await Promise.allSettled([
+        actions.refreshOverview(),
+        actions.refreshHumanInboxStatus(),
+        nativeSessions.refresh?.(),
+      ]);
+    } finally {
+      refreshing.current = false;
+      if (active.current) setRefreshBusy(false);
+    }
+  };
+  const markRead = async (): Promise<void> => {
+    if (reading.current) return;
+    reading.current = true;
+    setReadBusy(true);
+    setReadError(false);
+    try {
+      await actions.markAllRead();
+    } catch {
+      if (active.current) setReadError(true);
+    } finally {
+      reading.current = false;
+      if (active.current) setReadBusy(false);
+    }
+  };
   const overview = state.selection?.kind === 'inbox' && state.selection.view === 'overview';
   const mount = useMountedResource<HTMLDivElement>(() => {
     if (!overview) return;
-    const refresh = (): void => {
-      void Promise.allSettled([actions.refreshOverview(), nativeSessions.refresh?.()]);
-    };
+    active.current = true;
     void nativeSessions.refresh?.().catch(() => undefined);
     const timer = window.setInterval(refresh, 5000);
-    return () => window.clearInterval(timer);
+    return () => {
+      active.current = false;
+      window.clearInterval(timer);
+    };
   }, [actions, overview, nativeSessions]);
   const value = state.overview.value;
   const bots =
-    value?.bots.filter(
-      (bot) => showIdle || bot.state !== 'idle' || bot.hasAction || bot.sessions.length > 0,
-    ) ?? [];
+    value?.bots
+      .filter((bot) => showIdle || bot.state !== 'idle' || bot.hasAction || bot.sessions.length > 0)
+      .sort((a, b) => Number(b.hasAction) - Number(a.hasAction)) ?? [];
   return (
     <div className="bh-root bh-main bh-activity-center" ref={mount}>
       <header className="bh-activity-center-header">
@@ -78,16 +117,18 @@ export function ActivityCenterView({
         <section className="bh-overview" aria-label={t('activityCenter.overview')}>
           <div className="bh-overview-toolbar">
             {value === undefined ? null : (
-              <button
+              <Button
                 className="bh-overview-action-count"
-                type="button"
+                variant={value.actionCount > 0 ? 'primary' : 'outline'}
+                size="sm"
                 onClick={() => {
                   void actions.openHumanInbox().then(() => actions.refreshHumanInbox('action'));
                 }}
               >
+                <IconInfoOutlineRegular size={16} />
                 <span>{t('activityCenter.actions')}</span>
                 <strong>{value.actionCount}</strong>
-              </button>
+              </Button>
             )}
             <Button
               variant="outline"
@@ -96,18 +137,38 @@ export function ActivityCenterView({
               aria-pressed={showIdle}
               onClick={() => setShowIdle(!showIdle)}
             >
+              <IconAgentPresetOutlineRegular size={16} />
               {t(showIdle ? 'activityCenter.hideIdle' : 'activityCenter.showIdle')}
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
-                void Promise.allSettled([actions.refreshOverview(), nativeSessions.refresh?.()])
-              }
+              disabled={refreshBusy}
+              aria-busy={refreshBusy}
+              onClick={() => void refresh()}
             >
+              <IconRefreshOutlineRegular size={16} />
               {t('activityCenter.refresh')}
             </Button>
           </div>
+          <div className="bh-overview-unread">
+            <div>
+              <strong>{state.humanInbox.unreadCount}</strong> {t('activityCenter.unread')}
+              <p>{t('activityCenter.readHint')}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              data-mark-all-read
+              disabled={readBusy || state.humanInbox.unreadCount === 0}
+              aria-busy={readBusy}
+              onClick={() => void markRead()}
+            >
+              <IconCheckOutlineRegular size={16} /> {t('activityCenter.markAllRead')}
+            </Button>
+          </div>
+          {readError ? <p role="alert">{t('activityCenter.readError')}</p> : null}
+          <h2 className="bh-overview-work-heading">{t('activityCenter.work')}</h2>
           {state.overview.status === 'loading' ? (
             <p role="status">{t('activityCenter.loading')}</p>
           ) : null}
@@ -142,6 +203,15 @@ export function ActivityCenterView({
                         : personaBotActivityLabel(bot.state, t)}
                   </span>
                 </button>
+                {bot.hasAction ? (
+                  <section
+                    className="bh-overview-bot-actions"
+                    aria-label={t('activityCenter.actions')}
+                  >
+                    <h2>{t('activityCenter.actions')}</h2>
+                    <HumanInboxView actions={actions} t={t} embedded actionBotSlug={bot.slug} />
+                  </section>
+                ) : null}
                 {bot.sessions.length === 0 ? null : (
                   <>
                     <h2>
@@ -192,15 +262,6 @@ export function ActivityCenterView({
                     </ul>
                   </>
                 )}
-                {bot.hasAction ? (
-                  <section
-                    className="bh-overview-bot-actions"
-                    aria-label={t('activityCenter.actions')}
-                  >
-                    <h2>{t('activityCenter.actions')}</h2>
-                    <HumanInboxView actions={actions} t={t} embedded actionBotSlug={bot.slug} />
-                  </section>
-                ) : null}
                 {bot.sessions.length === 0 && !bot.hasAction ? (
                   <p className="bh-overview-idle">{t('activityCenter.idle')}</p>
                 ) : null}

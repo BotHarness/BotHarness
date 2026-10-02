@@ -2,9 +2,14 @@
 import { act, createElement, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
+vi.mock('../src/client/channel-activity-chart.js', () => ({ ChannelActivityChart: () => null }));
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   StateDot: () => null,
   IconAgentPresetOutlineRegular: () => null,
+  IconRefreshOutlineRegular: () => createElement('svg'),
+  IconCheckOutlineRegular: () => createElement('svg'),
+  IconInfoOutlineRegular: () => createElement('svg'),
+  IconChevronDownOutlineRegular: () => createElement('svg'),
   IconCodeOutlineRegular: () => null,
   IconRightUpOutlineRegular: () => null,
   Input: () => null,
@@ -475,6 +480,100 @@ it('preserves the pending action page when a decision refresh overlaps load more
       await decisionReady;
     });
     expect(scopedLoads).toBe(beforeLeaving);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    store.select(undefined);
+  }
+});
+
+it('offers busy-safe mark all read without resolving actions or navigating away from Overview', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  let unread = 12;
+  let release: (() => void) | undefined;
+  let attempts = 0;
+  const actions = createActions(async (endpoint) => {
+    if (endpoint === 'activityOverview') return { ok: true, value: { actionCount: 1, bots: [] } };
+    if (endpoint === 'humanAttentionStatus')
+      return { ok: true, value: { unreadCount: unread, hasAction: true } };
+    if (endpoint === 'humanAttention') return { ok: true, value: { items: [] } };
+    if (endpoint === 'channelMarkAllRead') {
+      attempts++;
+      await new Promise<void>((done) => {
+        release = done;
+      });
+      unread = 0;
+      return { ok: true, value: { channels: 2 } };
+    }
+    throw new Error(endpoint);
+  }, store);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => {
+      await actions.openActivityCenter('overview');
+      root.render(createElement(ActivityCenterView, { actions }));
+    });
+    const button = container.querySelector<HTMLButtonElement>('[data-mark-all-read]')!;
+    expect(button).not.toBeNull();
+    expect(button.querySelector('svg')).not.toBeNull();
+    await act(async () => {
+      button.click();
+      button.click();
+    });
+    expect(attempts).toBe(1);
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    await act(async () => {
+      release?.();
+    });
+    expect(store.getSnapshot().humanInbox.unreadCount).toBe(0);
+    expect(store.getSnapshot().overview.value?.actionCount).toBe(1);
+    expect(store.getSnapshot().selection).toEqual({ kind: 'inbox', view: 'overview' });
+    expect(button.disabled).toBe(true);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    store.select(undefined);
+  }
+});
+
+it('shows a read failure, keeps the action pending, then retries successfully', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  let unread = 2;
+  let attempts = 0;
+  const actions = createActions(async (endpoint) => {
+    if (endpoint === 'activityOverview') return { ok: true, value: { actionCount: 1, bots: [] } };
+    if (endpoint === 'humanAttentionStatus')
+      return { ok: true, value: { unreadCount: unread, hasAction: true } };
+    if (endpoint === 'humanAttention') return { ok: true, value: { items: [] } };
+    if (endpoint === 'channelMarkAllRead') {
+      if (++attempts === 1) throw new Error('Storage unavailable');
+      unread = 0;
+      return { ok: true, value: { channels: 1 } };
+    }
+    throw new Error(endpoint);
+  }, store);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => {
+      await actions.openActivityCenter('overview');
+      root.render(createElement(ActivityCenterView, { actions }));
+    });
+    const button = container.querySelector<HTMLButtonElement>('[data-mark-all-read]')!;
+    await act(async () => button.click());
+    expect(container.querySelector('[role=alert]')?.textContent).toContain('请重试');
+    expect(button.disabled).toBe(false);
+    expect(store.getSnapshot().humanInbox.hasAction).toBe(true);
+    await act(async () => button.click());
+    expect(attempts).toBe(2);
+    expect(
+      [...container.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(''),
+    ).not.toContain('未能全部标为已读');
+    expect(store.getSnapshot().humanInbox.hasAction).toBe(true);
   } finally {
     await act(async () => root.unmount());
     container.remove();

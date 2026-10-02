@@ -432,6 +432,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.channelReadPosition({ channelId }));
   }
 
+  async channelMarkAllRead(): Promise<{ channels: number }> {
+    return unwrap(await this.methods.channelMarkAllRead({}));
+  }
   async channelMarkRead(
     channelId: string,
     messageId: string,
@@ -821,6 +824,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelTimeline',
   'channelReadPosition',
   'channelMarkRead',
+  'channelMarkAllRead',
   'channelSend',
   'botAttention',
   'botSourcePolicies',
