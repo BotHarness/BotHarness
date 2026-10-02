@@ -14,6 +14,12 @@ These captures use the production BotHarness Host/Client and native DSH API Gate
 
 Ordinary commit totals are **Curator 4**, **Observer 2**, **Offline unavailable**. Curator has one yesterday commit and three today commits; its untracked draft is a separate current-state indicator. The E2E also compares all seven daily values with the existing Bot Profile Memory activity query. Both queries now share the ordinary-commit date/ref definition. The totals include initial repository/Persona commits because those are ordinary history. Auxiliary recovery/stash snapshot refs are excluded. A Host restart preserves the same ordinary counts and dirty state despite new recovery observations. Reads leave HEAD, index and worktree unchanged and do not change the Human's unread count.
 
+## Profile Before capture limitation
+
+The existing Profile UI is unchanged; its Memory activity query now uses the ordinary-commit rule. The isolated baseline query returned eight commits (including internal recovery snapshots), while the revised query returns four ordinary commits. A matched Profile Before image could not be completed: the original baseline entered upgrade-required database recovery after a newer main migration; the compatible baseline's shared-dependency build then failed to activate the Client/Core plugin. These failed states are not presented as visual evidence.
+
+For a visual comparison, use a separately installed clean checkout of main `c95220ee` and this PR, each with its own dependencies. Run the same prepare scene and open Memory Curator QA's DM → avatar → View details → Memory activity, at 1440 × 900 in Chinese/light. Compare the internal-snapshot-inclusive baseline with the revised ordinary count. The published Profile After image and the read-only public-query regression/E2E checks remain available.
+
 ## Human QA
 
 1. Open Activity Center → Overview → Statistics.

@@ -201,18 +201,6 @@ try {
       await page.setViewport({ width: 420, height: 960, deviceScaleFactor: 1 });
       await theme(false);
       await shot('overview-narrow');
-      await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
-      await page.click('[data-channel-id="' + scene.bots[0].dm + '"]');
-      await page.waitForSelector('.bh-channel-island');
-      await page.click('.bh-channel-island');
-      await page.waitForSelector('.bh-profile-expand');
-      await page.click('.bh-profile-expand');
-      await page.waitForSelector('.bh-profile-view');
-      await page.waitForFunction(() =>
-        document.querySelector('.bh-profile-view')?.textContent.includes('Memory'),
-      );
-      await new Promise((done) => setTimeout(done, 1200));
-      await shot('memory-bot-navigation');
     } else {
       const before = scene.bots
         .slice(0, 2)
