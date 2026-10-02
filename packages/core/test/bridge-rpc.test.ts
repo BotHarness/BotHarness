@@ -77,6 +77,7 @@ describe('bridge typert service', () => {
       'messagingChannelTarget',
       'messagingReceive',
       'messagingGroupPolicy',
+      'messagingThreadPolicy',
       'messagingSource',
       'messagingSnapshot',
       'messagingTargets',

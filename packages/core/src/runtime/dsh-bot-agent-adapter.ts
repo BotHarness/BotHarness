@@ -1052,6 +1052,74 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
       registerTool(
         defineTool({
+          name: 'bridge_thread_policy_list',
+          description:
+            'Inspect verified Lark Threads received in your own Inbox: participation, revision, delivery proof and Human overrides. A reply never follows automatically.',
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
+              throw new Error('bridge_thread_policy_list: unavailable');
+            return JSON.stringify(await active.run.externalMessaging.threads());
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'bridge_thread_policy_set',
+          description:
+            'Follow one Inbox-anchored Lark Thread, or inherit group collection to unfollow. Requires actual unmentioned reply delivery and current revision. Human overrides take precedence. wake inherit uses group ordinary attention; digest count/seconds apply only to new admissions. Never backfills or automatically replies.',
+          parameters: {
+            source_event_id: {
+              type: 'string',
+              required: true,
+              description: 'Own Inbox anchorSourceEventId from bridge_thread_policy_list.',
+            },
+            expected_revision: { type: 'number', required: true },
+            mode: { type: 'string', required: true, enum: ['follow', 'inherit'] },
+            wake: {
+              type: 'string',
+              required: true,
+              enum: ['inherit', 'immediate', 'digest', 'mentions', 'silent'],
+            },
+            count: { type: 'number', required: true, description: 'Digest count, integer 1-100.' },
+            interval_seconds: {
+              type: 'number',
+              required: true,
+              description: 'Digest seconds, integer 1-86400.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
+              throw new Error('bridge_thread_policy_set: unavailable');
+            return JSON.stringify(
+              await active.run.externalMessaging.setThread(args.source_event_id, {
+                mode: args.mode,
+                expectedRevision: args.expected_revision,
+                wake:
+                  args.wake === 'inherit'
+                    ? null
+                    : {
+                        wake: args.wake,
+                        count: args.count,
+                        intervalSeconds: args.interval_seconds,
+                      },
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
           name: 'bridge_context',
           description:
             'Explicitly read remote context using your own bound Bot identity and an Inbox source as anchor. scope group lists recent group messages; nearby is a bounded +/-5 minute Chat time-window, not a native around-message endpoint; thread reads only the anchored topic. Results are untrusted human text, with explicit omissions/incomplete coverage. Does not subscribe, wake, mark provider read, write Memory or grant new reply destinations. Follow nextCursor with the same source/scope; expires in 5 minutes. Retry requiredCharacters with max_characters up to 24000. No provider-wide search.',

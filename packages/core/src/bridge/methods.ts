@@ -3,6 +3,7 @@ import {
   personaBotActivitySnapshot,
   type PersonaBotActivitySnapshot,
 } from '../state/bot-state.js';
+import { threadReceptionInput } from '../messaging/thread-policy.js';
 import { groupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type {
@@ -241,6 +242,7 @@ export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: Bridg
 
 export interface BridgeMethods {
   messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
+  messagingThreadPolicy(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingGroupPolicy(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingReceive(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingSource(payload: unknown): Promise<BridgeResult<{ source: ExternalSource }>>;
@@ -758,6 +760,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           input.data.slug,
           input.data.grantId,
           input.data.channelId,
+        );
+        return { updated: true as const };
+      });
+    },
+    messagingThreadPolicy(payload) {
+      const input = z
+        .object({
+          slug: z.string().min(1),
+          sourceEventId: z.string().min(1).max(128),
+          policy: threadReceptionInput,
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid external Thread policy'));
+      return messagingCall(async (service) => {
+        await service.inbound.setThread(
+          input.data.slug,
+          input.data.sourceEventId,
+          input.data.policy,
+          { kind: 'human' },
         );
         return { updated: true as const };
       });

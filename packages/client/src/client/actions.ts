@@ -22,6 +22,7 @@ import {
   sendMessaging,
   setMessagingReceive,
   setMessagingGroupPolicy,
+  setMessagingThreadPolicy,
   setMessagingChannelTarget,
   readMessagingSource,
   loadMessageAttachmentTarget,
@@ -183,6 +184,11 @@ export interface HostDirectoryListing {
 
 export interface BridgeActions {
   messagingChannelTarget(slug: string, grantId: string, channelId: string | null): Promise<void>;
+  messagingThreadPolicy(
+    slug: string,
+    sourceEventId: string,
+    policy: import('../../../core/src/messaging/thread-policy.js').ThreadReceptionInput,
+  ): Promise<void>;
   messagingGroupPolicy(slug: string, grantId: string, policy: GroupReceptionInput): Promise<void>;
   messagingReceive(slug: string, grantId: string, enabled: boolean): Promise<void>;
   messagingSource(slug: string, sourceEventId: string): Promise<ExternalSource>;
@@ -1579,6 +1585,8 @@ export function createActions(
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
     messagingChannelTarget: (slug, grantId, channelId) =>
       setMessagingChannelTarget(call, slug, grantId, channelId),
+    messagingThreadPolicy: (slug, sourceEventId, policy) =>
+      setMessagingThreadPolicy(call, slug, sourceEventId, policy),
     messagingGroupPolicy: (slug, grantId, policy) =>
       setMessagingGroupPolicy(call, slug, grantId, policy),
     messagingReceive: (slug, grantId, enabled) => setMessagingReceive(call, slug, grantId, enabled),
