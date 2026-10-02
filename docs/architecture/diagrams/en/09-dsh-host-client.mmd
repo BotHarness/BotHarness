@@ -5,7 +5,7 @@ flowchart TB
     Service --> Remote["TypertRemoteService"]
     ReadRPC["botharness/channelMarkAllRead<br/>application-defined RPC"] --> Channels["Channel owner<br/>visible message-head snapshot"]
     Channels --> ReadPositions["Existing Human read positions"]
-    Remote --> Gateway["API Gateway<br/>sole /api interceptor"]
+    Remote <--> Gateway["API Gateway<br/>sole /api interceptor"]
   end
   subgraph Browser["DSH Web Client"]
     direction LR
@@ -15,4 +15,4 @@ flowchart TB
   end
   Gateway <--> Model
   ReadAction --> Gateway
-  Gateway --> ReadRPC
+  Remote --> ReadRPC
