@@ -279,6 +279,21 @@ try {
         false,
       );
       await shot('stale-preview');
+      await rpc('pause', { slug: scene.bots[0].slug });
+      await page.locator('.bh-send-btn').click();
+      await page.waitForFunction(
+        () =>
+          document.querySelector('[data-all-bot-preview]')?.textContent?.endsWith('0') &&
+          document.querySelector('.bh-send-btn')?.disabled === true,
+      );
+      assert.equal(
+        (await rpc('channelMessages', { channelId: scene.channelId, limit: 100 })).messages.some(
+          (m) => m.body.includes('STALE_PREVIEW_DO_NOT_SEND'),
+        ),
+        false,
+      );
+      await shot('zero-recipients');
+      await rpc('resume', { slug: scene.bots[0].slug });
       await rpc('resume', { slug: scene.bots[1].slug });
       await openGroup((await rpc('channelDm', { slug: scene.bots[0].slug })).channel.id);
       await page.locator('.bh-composer-input').click();
@@ -302,6 +317,7 @@ try {
             silentPolicyStillMention: true,
             actualModelReplies: responses.length,
             staleRejected: true,
+            zeroRecipientsBlocked: true,
             dmShortcutAbsent: true,
             messageId: sent.id,
           },

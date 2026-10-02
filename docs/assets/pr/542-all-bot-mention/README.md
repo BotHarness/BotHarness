@@ -12,8 +12,9 @@ The Release review Group contains Ada QA, Bea QA and Paused QA. Outsider QA is n
 2. A Human sends one message. The Host commits ordinary Ada/Bea mentions in one message. Both real models reply `ALL_BOTS_ACK` from their separate Admissions despite the ordinary-message silent policy.
 3. The models initially requested native read-only Memory directory listings. These exact isolated-profile commands were approved once through existing tool approval; no approval was globally bypassed.
 4. Selecting two recipients and pausing Bea before sending rejects the stale send. The draft is retained with the updated **1** count and a confirmation notice. The marker `STALE_PREVIEW_DO_NOT_SEND` never appears in committed history.
-5. A Bot DM offers no all-Bot shortcut.
-6. After restarting the final build, the ordinary mentions and both replies remain. `restarted.png` records the reopened Group.
+5. Pausing the remaining selected Bot returns **0** recipients, retains the draft and disables Send. The rejected marker is still absent from history (`zero-recipients.png`).
+6. A Bot DM offers no all-Bot shortcut.
+7. After restarting the final build, the ordinary mentions and both replies remain. `restarted.png` records the reopened Group.
 
 `result.json` records the real-runtime assertions. Focused Host tests additionally cover zero recipients, forged targets, a Bot-authored attempt with no Source Event/Placement/Admission writes, changes during queued commit, same-count roster changes and same-ID replay after membership changes.
 
