@@ -287,6 +287,7 @@ describe('plugin entry', () => {
       'channelTimeline',
       'channelReadPosition',
       'channelMarkRead',
+      'channelMarkAllRead',
       'channelSend',
       'botAttention',
       'botSourcePolicies',

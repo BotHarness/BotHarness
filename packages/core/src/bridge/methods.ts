@@ -1,3 +1,4 @@
+import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
 import {
   aggregateSessionStates,
   personaBotActivitySnapshot,
@@ -286,6 +287,7 @@ export interface BridgeMethods {
   channelGroupDelete(payload: unknown): BridgeResult<{ deleted: boolean }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
   channelReadPosition(payload: unknown): BridgeResult<{ position?: ChannelReadPosition }>;
+  channelMarkAllRead(payload: unknown): Promise<BridgeResult<{ channels: number }>>;
   channelMarkRead(payload: unknown): Promise<BridgeResult<{ position: ChannelReadPosition }>>;
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[]; revision: number }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
@@ -1698,6 +1700,13 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const position = await deps.channels.markRead(channelId, messageId);
       if (position === undefined) return invalidInput('message does not belong to channel');
       return { ok: true, value: { position } };
+    },
+    async channelMarkAllRead() {
+      try {
+        return { ok: true, value: await markAllHumanMessagesRead(deps.channels) };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
     },
     async channelSend(payload) {
       const source = asObject(payload);

@@ -2,7 +2,9 @@
 import { act, createElement, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, it, vi } from 'vitest';
+vi.mock('../src/client/channel-activity-chart.js', () => ({ ChannelActivityChart: () => null }));
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  IconRefreshOutlineRegular: () => null,
   IconRightUpOutlineRegular: () => null,
   IconChevronDownOutlineRegular: () => null,
   Button: ({
@@ -112,7 +114,7 @@ it('disables refresh while awaiting the Host and allows retry after an unavailab
     await act(async () =>
       root.render(createElement(ChannelActivityView, { actions, t: zhTranslate })),
     );
-    const refresh = container.querySelector<HTMLButtonElement>('header button')!;
+    const refresh = container.querySelector<HTMLButtonElement>('header button[aria-busy]')!;
     expect(refresh.disabled).toBe(true);
     expect(refresh.getAttribute('aria-busy')).toBe('true');
     refresh.click();
@@ -132,6 +134,50 @@ it('disables refresh while awaiting the Host and allows retry after an unavailab
     expect(refresh.disabled).toBe(false);
     expect(container.querySelector('[role=alert]')).toBeNull();
     expect(container.querySelector('[data-activity-total]')?.textContent).toBe('3');
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it('persists statistics disclosure without changing message read state', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+  };
+  const calls: string[] = [];
+  const actions = createActions(async (endpoint) => {
+    calls.push(endpoint);
+    return { ok: true, value: today };
+  }, store);
+  const container = document.createElement('div');
+  document.body.append(container);
+  let root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(createElement(ChannelActivityView, { actions, t: zhTranslate, storage })),
+    );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('.bh-statistics-toggle')!.click(),
+    );
+    expect(container.querySelector<HTMLElement>('.bh-statistics-content')?.hidden).toBe(true);
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await act(async () =>
+      root.render(createElement(ChannelActivityView, { actions, t: zhTranslate, storage })),
+    );
+    expect(container.querySelector('.bh-statistics-toggle')?.getAttribute('aria-expanded')).toBe(
+      'false',
+    );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('.bh-statistics-toggle')!.click(),
+    );
+    expect(container.querySelector<HTMLElement>('.bh-statistics-content')?.hidden).toBe(false);
+    expect(calls.every((endpoint) => endpoint === 'channelActivityToday')).toBe(true);
   } finally {
     await act(async () => root.unmount());
     container.remove();
