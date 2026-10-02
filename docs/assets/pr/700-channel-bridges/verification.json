@@ -67,5 +67,27 @@
       "BH700 CUTOFF PAUSED": 0,
       "BH700 CUTOFF DELETED": 0
     }
+  },
+  "localizationCorrection": {
+    "beforeCode": "871f72311ff7c31cc50285ab6fed6e6057619cc1",
+    "afterCode": "b18f13d34ac76464665857db2320ae8fea44ac9a",
+    "locale": "zh",
+    "term": "频道连接器",
+    "viewport": {
+      "width": 882,
+      "height": 827
+    },
+    "theme": "light",
+    "fixtureMessages": 15,
+    "verifiedSurfaces": ["configured table", "edit Modal", "add Modal", "delete Modal"],
+    "configurationChanged": false,
+    "automated": {
+      "passed": 5,
+      "files": 2,
+      "typecheck": "passed",
+      "lint": "passed (existing warnings)",
+      "format": "passed",
+      "build": "passed"
+    }
   }
 }
