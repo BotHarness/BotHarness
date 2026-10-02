@@ -18,7 +18,10 @@
 ### Added
 
 - 当前工具摘要新增可信的主会话、任务会话与 DSH 子代理来源，执行会话数量与并发工具数量分开统计，已完成来源经同一版本化 Host 投影清除，展开后以与总览一致的紧凑角色行展示（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
+- 总览优先展示等待 Human 的 Bot，提供一键消息已读且保留待处理请求，并以现有 TanStack 图表呈现可折叠 Channel 统计（[#705](https://github.com/BotHarness/BotHarness/issues/705)）。
+
 - 新增 macOS 本机 Computer，可在 Profile 设置中选择本机或 Docker 目标，显式检查桌面权限并按 Bot 授权；新安装默认使用本机桌面，旧 Docker 配置保留原目标（[#694](https://github.com/BotHarness/BotHarness/issues/694)）。
+
 - 总览展示今日可访问 Channel 的消息总量，区分 Human／Bot／其他发送者，并可展开查看当前名字与明细；明确日期与时区，统计读取不推进已读 ([#703](https://github.com/BotHarness/BotHarness/issues/703))。
 
 - 总览默认聚焦活跃 Bot，保留有 Human 待行动的 Bot，并可直接在 Bot 卡中回答或决定；正在执行的 Session 以紧凑行卡显示当前原生名称与角色图标，保留准确 Session 跳转（[#698](https://github.com/BotHarness/BotHarness/issues/698)）。

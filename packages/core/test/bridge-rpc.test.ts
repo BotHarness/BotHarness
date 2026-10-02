@@ -118,6 +118,7 @@ describe('bridge typert service', () => {
       'channelTimeline',
       'channelReadPosition',
       'channelMarkRead',
+      'channelMarkAllRead',
       'channelSend',
       'botAttention',
       'botSourcePolicies',
