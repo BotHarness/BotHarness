@@ -3295,6 +3295,26 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
+.bh-channel-sidebar-head .bh-sidebar-settings-menu {
+  position: absolute;
+  top: calc((var(--bh-channel-header-height) - 28px) / 2);
+  right: 44px;
+  z-index: 7;
+}
+.bh-sidebar-settings {
+  position: static;
+}
+.bh-sidebar-settings-label {
+  padding: 8px 10px 4px;
+  color: var(--bh-overview-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-channel-sidebar-entry-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--bh-overview-muted);
+}
 .bh-channel-sidebar-entries {
   flex: 1;
   min-height: 0;

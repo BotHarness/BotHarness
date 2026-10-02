@@ -39,6 +39,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     Input: stub,
     MarkdownText: stub,
     Menu: stub,
+    MenuItemButton: stub,
     Modal: stub,
     SegmentedControl: stub,
     StateDot: stub,

@@ -17,6 +17,8 @@
 
 ### Added
 
+- Channel sidebar 各功能项新增 Lucide 图标，顶部齿轮集中会话与记忆演化显示设置，并保留各项原有偏好保存范围（[#718](https://github.com/BotHarness/BotHarness/issues/718)）。
+
 - 总览统计新增整体及逐 Bot 的今日／近七天 token 用量、对齐 Profile 的紧凑图表、分页明细和直接 Profile 导航；未知分项及保留用量保持明确（[#709](https://github.com/BotHarness/BotHarness/issues/709)）。
 - 浏览器标签页活动可在侧栏和输入框上方显示 Provider 显式声明的操作摘要；仅接纳有界公开文本，并发摘要冲突时省略，URL、页面标题和原始工具载荷不进入 Activity（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 

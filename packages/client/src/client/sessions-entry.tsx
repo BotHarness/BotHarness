@@ -1,14 +1,6 @@
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useSyncExternalStore, type ReactElement } from 'react';
 
-import {
-  IconCheckOutlineRegular,
-  IconChevronDownOutlineRegular,
-  IconEllipsisOutlineRegular,
-  Menu,
-  Tag,
-  Tooltip,
-  type MenuEntry,
-} from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconChevronDownOutlineRegular, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { useClientState } from './bot-sidebar.js';
@@ -45,74 +37,6 @@ function useSessionViewPreference(botSlug: string) {
     (listener) => subscribeSessionViewPreference(botSlug, listener),
     () => sessionViewPreferenceSnapshot(botSlug),
     () => sessionViewPreferenceSnapshot(botSlug),
-  );
-}
-
-export function SessionsHeaderAction({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
-  const [open, setOpen] = useState(false);
-  const slug = botSlug ?? '';
-  const preference = useSessionViewPreference(slug);
-  const items: MenuEntry[] = [
-    { type: 'label', id: 'scope-label', text: t('sessions.view') },
-    {
-      id: 'scope-current',
-      label: t('sessions.current'),
-      icon: preference.scope === 'current' ? <IconCheckOutlineRegular /> : undefined,
-    },
-    {
-      id: 'scope-all',
-      label: t('sessions.all'),
-      icon: preference.scope === 'all' ? <IconCheckOutlineRegular /> : undefined,
-    },
-    { type: 'separator', id: 'layout-separator' },
-    { type: 'label', id: 'layout-label', text: t('sessions.layout') },
-    {
-      id: 'layout-flat',
-      label: t('sessions.layout.flat'),
-      icon: preference.layout === 'flat' ? <IconCheckOutlineRegular /> : undefined,
-    },
-    {
-      id: 'layout-workspace',
-      label: t('sessions.layout.workspace'),
-      icon: preference.layout === 'workspace' ? <IconCheckOutlineRegular /> : undefined,
-    },
-  ];
-  return (
-    <Menu
-      open={open}
-      portal
-      dense
-      align="end"
-      anchor={
-        <Tooltip label={t('sessions.menu')} side="bottom" delayMs={500}>
-          <button
-            type="button"
-            className="bh-channel-sidebar-entry-action"
-            aria-label={t('sessions.menu')}
-            aria-expanded={open}
-            onClick={() => setOpen((value) => !value)}
-          >
-            <IconEllipsisOutlineRegular size={16} />
-          </button>
-        </Tooltip>
-      }
-      items={items}
-      onSelect={(id) => {
-        if (id === 'scope-current' || id === 'scope-all') {
-          updateSessionViewPreference(slug, (current) => ({
-            ...current,
-            scope: id === 'scope-current' ? 'current' : 'all',
-          }));
-        } else if (id === 'layout-flat' || id === 'layout-workspace') {
-          updateSessionViewPreference(slug, (current) => ({
-            ...current,
-            layout: id === 'layout-flat' ? 'flat' : 'workspace',
-          }));
-        }
-        setOpen(false);
-      }}
-      onClose={() => setOpen(false)}
-    />
   );
 }
 

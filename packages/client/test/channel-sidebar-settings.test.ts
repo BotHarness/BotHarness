@@ -1,0 +1,151 @@
+// @vitest-environment jsdom
+import { act, createElement, type ReactNode } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ChannelSidebarEntryProps } from '../src/client/channel-sidebar.js';
+
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  Menu: ({ open, anchor, children }: { open: boolean; anchor: ReactNode; children: ReactNode }) =>
+    createElement(
+      'div',
+      null,
+      anchor,
+      open ? createElement('div', { role: 'menu' }, children) : null,
+    ),
+  Tooltip: ({ children }: { children: ReactNode }) => children,
+  MenuItemButton: ({
+    onSelect,
+    children,
+    disabled,
+    icon,
+  }: {
+    onSelect: () => void;
+    children: ReactNode;
+    disabled?: boolean;
+    icon?: ReactNode;
+  }) => createElement('button', { role: 'menuitem', onClick: onSelect, disabled }, icon, children),
+}));
+import {
+  ChannelSidebarSettings,
+  MemoryDisplaySettings,
+  SessionsDisplaySettings,
+} from '../src/client/channel-sidebar-settings.js';
+import {
+  readSessionViewPreference,
+  updateSessionViewPreference,
+} from '../src/client/session-view-prefs.js';
+import {
+  channelSidebarPrefs,
+  createChannelSidebarPrefs,
+} from '../src/client/channel-sidebar-prefs.js';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+const mounted: { root: Root; container: HTMLDivElement }[] = [];
+const props = {
+  scope: 'personabot',
+  channelId: 'dm-qa',
+  botSlug: 'settings-qa',
+  actions: {},
+  t: (key: string) => key,
+} as unknown as ChannelSidebarEntryProps;
+function mount(slug = 'settings-qa', settings = true) {
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  mounted.push({ root, container });
+  act(() =>
+    root.render(
+      createElement(ChannelSidebarSettings, {
+        entryProps: { ...props, botSlug: slug },
+        entries: settings
+          ? [
+              {
+                id: 'sessions',
+                label: 'Sessions',
+                scope: 'personabot',
+                component: () => null,
+                settings: SessionsDisplaySettings,
+              },
+              {
+                id: 'memory',
+                label: 'Memory',
+                scope: 'personabot',
+                component: () => null,
+                settings: MemoryDisplaySettings,
+              },
+            ]
+          : [],
+      }),
+    ),
+  );
+  return container;
+}
+function click(container: HTMLElement, label: string) {
+  const button = [...container.querySelectorAll('button')].find(
+    (n) => n.textContent === label || n.getAttribute('aria-label') === label,
+  );
+  expect(button).toBeDefined();
+  act(() => button!.click());
+}
+afterEach(() => {
+  for (const { root, container } of mounted.splice(0)) {
+    act(() => root.unmount());
+    container.remove();
+  }
+  act(() => channelSidebarPrefs.setMemoryTerminology('memory'));
+  localStorage.clear();
+});
+
+describe('registered Channel sidebar display settings', () => {
+  it('persists Sessions choices per Bot and preserves the other choice and collapsed workspaces', () => {
+    updateSessionViewPreference('settings-qa', () => ({
+      scope: 'current',
+      layout: 'flat',
+      collapsedWorkspaces: ['ws-one'],
+    }));
+    updateSessionViewPreference('settings-other', () => ({
+      scope: 'current',
+      layout: 'flat',
+      collapsedWorkspaces: [],
+    }));
+    const container = mount();
+    click(container, 'sidebar.settings');
+    click(container, 'sessions.all');
+    expect(container.querySelector('[role=menu]')).toBeNull();
+    expect(readSessionViewPreference('settings-qa')).toEqual({
+      scope: 'all',
+      layout: 'flat',
+      collapsedWorkspaces: ['ws-one'],
+    });
+    click(container, 'sidebar.settings');
+    click(container, 'sessions.layout.workspace');
+    expect(readSessionViewPreference('settings-qa')).toEqual({
+      scope: 'all',
+      layout: 'workspace',
+      collapsedWorkspaces: ['ws-one'],
+    });
+    expect(readSessionViewPreference('settings-other').scope).toBe('current');
+    expect(readSessionViewPreference('settings-other').layout).toBe('flat');
+  });
+  it('keeps terminology shared across Bots and restores it from browser storage', () => {
+    const first = mount('memory-qa-one');
+    const second = mount('memory-qa-two');
+    click(first, 'sidebar.settings');
+    click(second, 'sidebar.settings');
+    click(first, 'memory.terms.git');
+    expect(channelSidebarPrefs.getSnapshot().memoryTerminology).toBe('git');
+    expect(createChannelSidebarPrefs(localStorage).getSnapshot().memoryTerminology).toBe('git');
+    const selected = [...second.querySelectorAll('button')].find(
+      (n) => n.textContent === 'memory.terms.git',
+    );
+    expect(selected?.querySelector('svg')).not.toBeNull();
+  });
+  it('offers a disabled empty state when current visible entries have no settings', () => {
+    const container = mount('group-qa', false);
+    click(container, 'sidebar.settings');
+    const item = container.querySelector('[role=menuitem]');
+    expect(item?.textContent).toBe('sidebar.settings.empty');
+    expect(item?.hasAttribute('disabled')).toBe(true);
+    expect(container.textContent).not.toContain('sessions.all');
+  });
+});

@@ -635,6 +635,7 @@ window.__ModuleLoader__.load({
 				if (registry === void 0) return;
 				ctx.effect(() => registry.register({
 					id: ENTRY_ID,
+					icon: "globe",
 					label: t("entry.label"),
 					order: 41,
 					scope: "personabot",
