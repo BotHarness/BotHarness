@@ -1,0 +1,44 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "actualRepairAdmission": true,
+  "rowGeometry": [
+    {
+      "sourceRightInset": 16,
+      "sourceRightmost": true,
+      "repairTextButtonAbsent": true
+    },
+    {
+      "sourceRightInset": 16,
+      "sourceRightmost": true,
+      "repairTextButtonAbsent": true
+    },
+    {
+      "sourceRightInset": 16,
+      "sourceRightmost": true,
+      "repairTextButtonAbsent": true
+    },
+    {
+      "sourceRightInset": 16,
+      "sourceRightmost": true,
+      "repairTextButtonAbsent": true
+    },
+    {
+      "sourceRightInset": 16,
+      "sourceRightmost": true,
+      "repairTextButtonAbsent": true
+    },
+    {
+      "sourceRightInset": 16,
+      "sourceRightmost": true,
+      "repairTextButtonAbsent": true
+    }
+  ],
+  "sourceAlwaysRightmost": true,
+  "repairMaintenanceOnlyInDetails": true,
+  "opensOwningBotInbox": true,
+  "requestNotReplayedOrIgnored": true,
+  "lightAndDark": true
+}

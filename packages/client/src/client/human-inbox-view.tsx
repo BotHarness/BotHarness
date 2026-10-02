@@ -81,8 +81,11 @@ export function HumanInboxView({
       await actions.openChannelAtMessage(item.channelId!, item.messageId!);
     } else if (item.kind === 'bot-message-needs-repair') {
       if (item.channelName && item.channelId && item.messageId) {
-        await actions.openChannel(item.channelId);
-        await actions.openAround(item.channelId, item.messageId);
+        try {
+          await actions.openChannelAtMessage(item.channelId, item.messageId);
+        } catch {
+          await openRepairBotInbox(item);
+        }
       } else await openRepairBotInbox(item);
     } else if (
       item.kind === 'assignment-waiting-human' ||
@@ -191,18 +194,34 @@ export function HumanInboxView({
         onClose={onClose}
       />
     ) : source.channelId !== undefined && source.messageId !== undefined ? (
-      <HumanInboxReply
-        key={source.channelId + ':' + source.messageId}
-        source={source}
-        actions={actions}
-        t={t}
-        botName={botName}
-        bots={state.bots}
-        humanMembers={
-          state.channels.find((channel) => channel.id === source.channelId)?.humanMembers ?? []
-        }
-        onClose={onClose}
-      />
+      <>
+        <HumanInboxReply
+          key={source.channelId + ':' + source.messageId}
+          source={source}
+          actions={actions}
+          t={t}
+          botName={botName}
+          bots={state.bots}
+          humanMembers={
+            state.channels.find((channel) => channel.id === source.channelId)?.humanMembers ?? []
+          }
+          onClose={onClose}
+        />
+        {source.kind === 'bot-message-needs-repair' ? (
+          <div className="bh-human-inbox-reply-actions">
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              onClick={() =>
+                void openRepairBotInbox(source).catch(() => setActionError(t('humanInbox.failed')))
+              }
+            >
+              {t('humanInbox.openBotInbox')}
+            </Button>
+          </div>
+        ) : null}
+      </>
     ) : (
       <section className="bh-human-inbox-reply" aria-label={itemTitle(source)}>
         <div className="bh-human-inbox-reply-header">
@@ -436,15 +455,6 @@ export function HumanInboxView({
                       </Button>
                     )
                   ) : null}
-                  <HumanInboxSourceButton
-                    item={item}
-                    bots={state.bots}
-                    channels={state.channels}
-                    t={t}
-                    onClick={() =>
-                      void openSource(item).catch(() => setActionError(t('humanInbox.failed')))
-                    }
-                  />
                   {item.category === 'handled' ? (
                     <Button
                       variant="primary"
@@ -457,22 +467,6 @@ export function HumanInboxView({
                       }
                     >
                       {t('humanInbox.handled.response')}
-                    </Button>
-                  ) : null}
-                  {item.kind === 'bot-message-needs-repair' &&
-                  item.channelName &&
-                  item.messageId ? (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      type="button"
-                      onClick={() =>
-                        void openRepairBotInbox(item).catch(() =>
-                          setActionError(t('humanInbox.failed')),
-                        )
-                      }
-                    >
-                      {t('humanInbox.openBotInbox')}
                     </Button>
                   ) : null}
                   {item.kind === 'group-join-request' ? (
@@ -519,6 +513,15 @@ export function HumanInboxView({
                       )}
                     </Button>
                   ) : null}
+                  <HumanInboxSourceButton
+                    item={item}
+                    bots={state.bots}
+                    channels={state.channels}
+                    t={t}
+                    onClick={() =>
+                      void openSource(item).catch(() => setActionError(t('humanInbox.failed')))
+                    }
+                  />
                 </div>
               </article>
             ))}

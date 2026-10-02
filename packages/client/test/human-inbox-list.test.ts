@@ -125,6 +125,49 @@ async function mount(source = item, resolved = false) {
 }
 
 describe('compact Human Inbox interactions', () => {
+  it('keeps repair maintenance in details and preserves source navigation and missing-source fallback', async () => {
+    const repair: HumanAttentionItem = {
+      ...item,
+      id: 'repair:event:ada',
+      category: 'action',
+      kind: 'bot-message-needs-repair',
+      botSlug: 'ada',
+      sourceEventId: 'event',
+    };
+    const view = await mount(repair);
+    try {
+      const rowActions = view.host.querySelector('.bh-human-inbox-row-actions')!;
+      expect(rowActions.querySelectorAll('button')).toHaveLength(1);
+      expect(rowActions.textContent).not.toContain('查看 Bot 收件箱');
+      await act(async () => rowActions.querySelector<HTMLButtonElement>('button')!.click());
+      expect(view.actions.openChannelAtMessage).toHaveBeenCalledWith('group', 'source');
+      view.actions.openChannelAtMessage.mockRejectedValueOnce(
+        new Error('Source no longer available'),
+      );
+      await act(async () => rowActions.querySelector<HTMLButtonElement>('button')!.click());
+      expect(view.actions.openBot).toHaveBeenCalledWith('ada');
+      view.actions.openBot.mockClear();
+      expect(view.host.querySelector('.bh-human-inbox-detail')).toBeNull();
+      await act(async () =>
+        view.host.querySelector<HTMLButtonElement>('.bh-human-inbox-row-open')!.click(),
+      );
+      const maintenance = [
+        ...view.host.querySelectorAll<HTMLButtonElement>('.bh-human-inbox-detail button'),
+      ].find((button) => button.textContent === '查看 Bot 收件箱')!;
+      expect(maintenance).toBeDefined();
+      await act(async () => maintenance.click());
+      expect(view.actions.openBot).toHaveBeenCalledWith('ada');
+      await act(async () => store.setHumanInbox({ items: [{ ...repair, channelName: '' }] }));
+      view.actions.openBot.mockClear();
+      await act(async () =>
+        rowActions.querySelector<HTMLButtonElement>('.bh-human-inbox-source-link')!.click(),
+      );
+      expect(view.actions.openBot).toHaveBeenCalledWith('ada');
+    } finally {
+      await view.close();
+    }
+  });
+
   it('opens canonical details from the row without marking the summary read', async () => {
     const view = await mount();
     try {

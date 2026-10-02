@@ -49,3 +49,15 @@ Seed before starting the Host; preserve the private launch log for the browser l
 Human QA additionally requires independent click behavior: only the row button expands the event pane. Workspace actions reuse the request card as a compact control and picker; reply, question, approval and Assignment forms use a separate native Modal. Mounted regressions cover those forms without row expansion, plus cancellation followed by another window resolving the request before reopening. Reopening rechecks canonical state and does not launch a picker for a resolved request.
 
 The upper arrow reveals only older messages and can load another canonical page; the lower arrow reveals only newer messages and can check for arrivals after a previously reached end. Both controls match the message flow width with no gap. The source icon appears on hover/focus inside each message and opens that exact placement. Dismiss persists in the owning Human Attention database preference table; Host reopen persistence, idempotency, source validation, automatic-read races and eligibility of later messages are covered by canonical SQLite/Bridge regressions. Browser evidence covers the actual command, cross-window convergence and reload; the request remains present and actionable in its original Channel.
+
+## Human QA: rightmost source and repair maintenance
+
+The `row-source-rightmost-light.png` / `row-source-rightmost-dark.png` captures use the existing isolated Overview QA Profile, with actual retained Orchestrator/Assignment work, four visible needs-repair admissions and two pending approval cards. This is a separate scenario from the three-workspace-request fixture above. `row-actions-verification.json` records all six visible source controls at the far right with a 16px inset, after every action button.
+
+The compact repair rows have no Open Bot Inbox text button. `repair-maintenance-details-dark.png` shows its preserved maintenance entry in expanded details; `repair-bot-inbox-dark.png` is an unedited element screenshot of the real owning Bot Inbox after clicking it. No request was replayed, ignored, answered or approved. Exact-source failure and missing-source fallback to the Bot Inbox are covered by mounted regressions.
+
+Run this navigation-only QA path against a task Profile containing actual repair admissions with retained Channel placements:
+
+```sh
+BH_INBOX_QA_HOME=<task-qa-home> BH_INBOX_QA_PORT=<task-qa-port> node scripts/e2e-human-inbox-list.mjs row-actions
+```

@@ -219,6 +219,113 @@ const selectFilter = async (index, label) => {
     label,
   );
 };
+if (mode === 'row-actions') {
+  try {
+    await login(page);
+    await openInbox();
+    const canonical = await rpc('humanAttention', {
+      category: 'action',
+      sort: 'oldest',
+      limit: 50,
+    });
+    const repair = canonical.items.find(
+      (item) => item.kind === 'bot-message-needs-repair' && item.channelName && item.messageId,
+    );
+    assert.ok(repair, 'Use a task QA Profile with an actual repair admission and source placement');
+    const rowGeometry = await page.evaluate(() =>
+      [...document.querySelectorAll('.bh-human-inbox-row')].map((row) => {
+        const source = row.querySelector('.bh-human-inbox-source-link');
+        const box = row.getBoundingClientRect();
+        const sourceBox = source.getBoundingClientRect();
+        const others = [...row.querySelectorAll('.bh-human-inbox-row-actions button')].filter(
+          (button) => button !== source,
+        );
+        return {
+          sourceRightInset: box.right - sourceBox.right,
+          sourceRightmost: others.every(
+            (button) => button.getBoundingClientRect().right <= sourceBox.left + 1,
+          ),
+          repairTextButtonAbsent: others.every(
+            (button) => !['查看 Bot 收件箱', 'Open Bot Inbox'].includes(button.textContent.trim()),
+          ),
+        };
+      }),
+    );
+    assert.ok(rowGeometry.length > 0);
+    for (const row of rowGeometry) {
+      assert.equal(row.sourceRightmost, true);
+      assert.equal(row.repairTextButtonAbsent, true);
+      assert.ok(Math.abs(row.sourceRightInset - 16) < 1);
+    }
+    await theme(false);
+    await shot('row-source-rightmost-light');
+    await theme(true);
+    await shot('row-source-rightmost-dark');
+    const selector =
+      '.bh-human-inbox-row[data-attention-id="' + repair.id + '"] .bh-human-inbox-row-open';
+    await page.click(selector);
+    await page.waitForSelector('.bh-human-inbox-detail .bh-human-inbox-reply-source');
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('.bh-human-inbox-detail button')].some(
+        (button) => button.textContent.trim() === '查看 Bot 收件箱',
+      ),
+    );
+    await shot('repair-maintenance-details-dark');
+    await click('.bh-human-inbox-detail button', '查看 Bot 收件箱');
+    await page.waitForFunction(() => !document.querySelector('.bh-human-inbox-detail'));
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('.bh-channel-sidebar-entry')].some(
+        (node) =>
+          node.querySelector('.bh-channel-sidebar-entry-label')?.textContent.includes('收件箱') &&
+          node.querySelector('.bh-channel-sidebar-entry-head')?.getAttribute('aria-expanded') ===
+            'true',
+      ),
+    );
+    const inboxEntry = await page.evaluateHandle(() =>
+      [...document.querySelectorAll('.bh-channel-sidebar-entry')].find(
+        (node) =>
+          node.querySelector('.bh-channel-sidebar-entry-label')?.textContent === 'Bot 收件箱',
+      ),
+    );
+    assert.ok(inboxEntry.asElement());
+    await inboxEntry
+      .asElement()
+      .screenshot({ path: resolve(out, 'repair-bot-inbox-dark.png'), waitForFonts: false });
+    await inboxEntry.dispose();
+    const stillPending = (
+      await rpc('humanAttention', { category: 'action', sort: 'oldest', limit: 50 })
+    ).items;
+    assert.ok(stillPending.some((item) => item.id === repair.id));
+    writeFileSync(
+      resolve(out, 'row-actions-verification.json'),
+      JSON.stringify(
+        {
+          viewport: { width: 1440, height: 900 },
+          actualRepairAdmission: true,
+          rowGeometry,
+          sourceAlwaysRightmost: true,
+          repairMaintenanceOnlyInDetails: true,
+          opensOwningBotInbox: true,
+          requestNotReplayedOrIgnored: true,
+          lightAndDark: true,
+        },
+        null,
+        2,
+      ),
+    );
+    console.log(
+      'PASS: rightmost source navigation, repair maintenance in details, owning Bot Inbox navigation without replay or ignore.',
+    );
+  } catch (error) {
+    console.error(error);
+    await shot('row-actions-failure').catch(() => undefined);
+    throw error;
+  } finally {
+    await browser.close();
+  }
+  process.exit(0);
+}
+
 try {
   await login(page);
   await openInbox();

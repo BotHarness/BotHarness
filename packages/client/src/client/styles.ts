@@ -5183,6 +5183,8 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
   cursor: pointer;
 }
 .bh-human-inbox-row-actions {
+  align-items: center;
+  justify-content: flex-end;
   position: relative;
   display: flex;
   flex: none;

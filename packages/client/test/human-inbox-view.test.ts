@@ -317,7 +317,7 @@ describe('Human Inbox center view', () => {
     expect(markup).not.toContain('已了解');
     expect(markup).not.toContain('同意</button>');
   });
-  it('shows a Bot repair as action with Inbox and source navigation, including a missing source', () => {
+  it('shows compact source navigation for repairs and a Bot Inbox fallback for missing sources', () => {
     store.select({ kind: 'inbox' });
     store.setHumanInbox({
       status: 'ready',
@@ -342,7 +342,7 @@ describe('Human Inbox center view', () => {
     );
     expect(markup).toContain('ada 的消息需要检查');
     expect(markup).toContain('Check the deployment');
-    expect(markup).toContain('查看 Bot 收件箱');
+    expect(markup).not.toContain('查看 Bot 收件箱</button>');
     expect(markup).toContain('查看来源');
     expect(markup).not.toContain('忽略</button>');
 
