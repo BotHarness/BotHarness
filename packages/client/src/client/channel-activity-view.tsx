@@ -82,19 +82,21 @@ export function ChannelActivityView({
     <section className="bh-channel-activity" ref={mount} aria-label={t('channelActivity.title')}>
       <header>
         <div>
-          <button
-            type="button"
-            className="bh-statistics-toggle"
-            aria-expanded={!collapsed}
-            aria-label={t('channelActivity.toggle')}
-            onClick={toggle}
-          >
-            <IconChevronDownOutlineRegular
-              size={16}
-              className={collapsed ? 'bh-channel-activity-closed' : ''}
-            />
-            <h2>{t('channelActivity.statistics')}</h2>
-          </button>
+          <h2>
+            <button
+              type="button"
+              className="bh-statistics-toggle"
+              aria-expanded={!collapsed}
+              aria-label={t('channelActivity.toggle')}
+              onClick={toggle}
+            >
+              <IconChevronDownOutlineRegular
+                size={16}
+                className={collapsed ? 'bh-channel-activity-closed' : ''}
+              />
+              {t('channelActivity.statistics')}
+            </button>
+          </h2>
           <span>{t('channelActivity.title')}</span>
           {value ? (
             <p>

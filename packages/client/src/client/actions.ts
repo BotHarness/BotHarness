@@ -1282,7 +1282,7 @@ export function createActions(
       try {
         await markAllReadPositions(call);
       } finally {
-        await refreshHumanInboxStatus();
+        clientStore.setHumanInbox(await loadHumanAttentionStatus(call));
       }
       if (currentSelection()?.kind === 'inbox') await actions.refreshHumanInbox();
     },

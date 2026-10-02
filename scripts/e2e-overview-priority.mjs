@@ -188,10 +188,14 @@ try {
         count: 5,
         intervalSeconds: 30,
       });
-    for (let n = 0; n < 6; n++)
+    for (
+      let n = (await rpc('channelMessages', { channelId: group.id })).messages.length;
+      n < 6;
+      n++
+    )
       await rpc('channelSend', {
         channelId: group.id,
-        messageId: 'qa-checklist-' + n,
+        messageId: 'human-' + crypto.randomUUID(),
         body: 'Release checklist ' + (n + 1) + ': deployment readiness.',
       });
     const choiceDm = (await rpc('channelDm', { slug: decision.slug })).channel;
@@ -288,10 +292,14 @@ try {
       await page.waitForFunction(() => document.querySelector('[data-mark-all-read]')?.disabled);
       await shot('read-with-action-pending');
       await rpc('channelSend', {
-        channelId: scene.group,
-        messageId: 'late-' + crypto.randomUUID(),
-        body: 'Late update after mark all read',
+        channelId: scene.dm,
+        messageId: 'human-' + crypto.randomUUID(),
+        body: 'Reply exactly CHANNEL_LATE_READY using channel_send once. No other work.',
       });
+      await waitFor(
+        async () => (await rpc('humanAttentionStatus')).unreadCount === 1,
+        'later Bot message unread',
+      );
       assert.equal((await rpc('humanAttentionStatus')).unreadCount, 1);
       await click(
         '[data-bot-id="' + scene.decision + '"] .bh-human-inbox-row-actions button',

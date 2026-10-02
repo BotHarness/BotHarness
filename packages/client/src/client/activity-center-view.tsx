@@ -78,6 +78,8 @@ export function ActivityCenterView({
   const mount = useMountedResource<HTMLDivElement>(() => {
     if (!overview) return;
     active.current = true;
+    setReadBusy(reading.current);
+    setRefreshBusy(refreshing.current);
     void nativeSessions.refresh?.().catch(() => undefined);
     const timer = window.setInterval(refresh, 5000);
     return () => {

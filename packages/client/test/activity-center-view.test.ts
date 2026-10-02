@@ -23,6 +23,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Tooltip: ({ children }: { children: ReactNode }) => children,
   MarkdownText: () => null,
   Modal: () => null,
+  Menu: () => null,
 }));
 vi.mock('../src/client/bot-sidebar.js', async () => {
   const { useSyncExternalStore } = await import('react');
@@ -573,6 +574,91 @@ it('shows a read failure, keeps the action pending, then retries successfully', 
     expect(
       [...container.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(''),
     ).not.toContain('未能全部标为已读');
+    expect(store.getSnapshot().humanInbox.hasAction).toBe(true);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    store.select(undefined);
+  }
+});
+
+it('reenables read after it completes while Inbox is visible and a later message arrives', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  let unread = 2;
+  let release: (() => void) | undefined;
+  const actions = createActions(async (endpoint) => {
+    if (endpoint === 'activityOverview') return { ok: true, value: { actionCount: 1, bots: [] } };
+    if (endpoint === 'humanAttentionStatus')
+      return { ok: true, value: { unreadCount: unread, hasAction: true } };
+    if (endpoint === 'humanAttention') return { ok: true, value: { items: [] } };
+    if (endpoint === 'channelMarkAllRead') {
+      await new Promise<void>((done) => {
+        release = done;
+      });
+      unread = 0;
+      return { ok: true, value: { channels: 1 } };
+    }
+    throw new Error(endpoint);
+  }, store);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => {
+      await actions.openActivityCenter('overview');
+      root.render(createElement(ActivityCenterView, { actions }));
+    });
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[data-mark-all-read]')!.click(),
+    );
+    await act(async () => actions.openHumanInbox());
+    await act(async () => {
+      release?.();
+    });
+    unread = 1;
+    await act(async () => actions.openActivityCenter('overview'));
+    expect(container.querySelector<HTMLButtonElement>('[data-mark-all-read]')?.disabled).toBe(
+      false,
+    );
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    store.select(undefined);
+  }
+});
+
+it('reports failed unread reconciliation after a successful read write', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  let marked = false;
+  const actions = createActions(async (endpoint) => {
+    if (endpoint === 'activityOverview') return { ok: true, value: { actionCount: 1, bots: [] } };
+    if (endpoint === 'humanAttentionStatus') {
+      if (marked) throw new Error('Status query unavailable');
+      return { ok: true, value: { unreadCount: 2, hasAction: true } };
+    }
+    if (endpoint === 'channelMarkAllRead') {
+      marked = true;
+      return { ok: true, value: { channels: 1 } };
+    }
+    throw new Error(endpoint);
+  }, store);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => {
+      await actions.openActivityCenter('overview');
+      root.render(createElement(ActivityCenterView, { actions }));
+    });
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[data-mark-all-read]')!.click(),
+    );
+    expect(
+      [...container.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(''),
+    ).toContain('未能全部标为已读');
+    expect(container.querySelector<HTMLButtonElement>('[data-mark-all-read]')?.disabled).toBe(
+      false,
+    );
     expect(store.getSnapshot().humanInbox.hasAction).toBe(true);
   } finally {
     await act(async () => root.unmount());

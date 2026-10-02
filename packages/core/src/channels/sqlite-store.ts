@@ -1773,6 +1773,22 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       writeRecord(updated);
       return updated;
     },
+    latestHumanMessageId(id) {
+      const row = database.read((db) =>
+        db
+          .prepare(`
+        SELECT p.message_id FROM channel_placements p
+        JOIN source_events e ON e.source_event_id = p.source_event_id
+        JOIN channel_records c ON c.channel_id = p.channel_id
+        LEFT JOIN channel_human_members h ON h.channel_id = p.channel_id AND h.human_id = ? AND h.left_at IS NULL
+        WHERE p.channel_id = ? AND (json_extract(c.record_json, '$.type') = 'dm' OR
+          (h.human_id IS NOT NULL AND p.revision >= h.visible_from_revision))
+        ORDER BY p.revision DESC LIMIT 1
+      `)
+          .get(LOCAL_HUMAN_ID, id),
+      ) as { message_id: string } | undefined;
+      return row?.message_id;
+    },
     latestMessage(id) {
       const messages = allMessages(id);
       const latest = messages.at(-1);
@@ -1839,11 +1855,20 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           };
     },
     async markRead(id, messageId) {
-      const index = allMessages(id).findIndex((message) => message.id === messageId);
-      if (index < 0) return undefined;
+      const row = database.read((db) =>
+        db
+          .prepare(`
+        SELECT p.revision, e.payload_json, e.body FROM channel_placements p
+        JOIN source_events e ON e.source_event_id = p.source_event_id
+        WHERE p.channel_id = ? AND p.message_id = ?
+      `)
+          .get(id, messageId),
+      ) as { revision: number; payload_json: string; body: string } | undefined;
+      if (row === undefined || parseMessage(row.payload_json, row.body) === undefined)
+        return undefined;
       const previous = this.readPosition(id);
-      if (previous !== undefined && previous.revision >= index + 1) return previous;
-      const position = { messageId, revision: index + 1, readAt: now().toISOString() };
+      if (previous !== undefined && previous.revision >= row.revision) return previous;
+      const position = { messageId, revision: row.revision, readAt: now().toISOString() };
       database.transaction(
         (db) =>
           db

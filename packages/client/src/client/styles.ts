@@ -5234,8 +5234,8 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-activity-center > .bh-human-inbox {min-height:0;flex:1;}
 .bh-overview {padding:16px 24px 24px;overflow-y:auto;min-height:0;}
 .bh-overview-toolbar {display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:12px;margin-bottom:16px;}
-.bh-overview-bot-header,.bh-overview-session,.bh-overview-action-count {color:var(--bh-overview-label);font:inherit;cursor:pointer;}
-.bh-overview-bot-header:hover,.bh-overview-session:hover,.bh-overview-action-count:hover {background:var(--bh-hover);}
+.bh-overview-bot-header,.bh-overview-session {color:var(--bh-overview-label);font:inherit;cursor:pointer;}
+.bh-overview-bot-header:hover,.bh-overview-session:hover {background:var(--bh-hover);}
 .bh-overview button:focus-visible {outline:2px solid var(--bh-accent);outline-offset:2px;}
 .bh-overview-action-count {display:flex;align-items:center;gap:8px;}
 .bh-overview-action-count strong {font-variant-numeric:tabular-nums;}

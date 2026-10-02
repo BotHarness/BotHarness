@@ -16,8 +16,10 @@ export async function markAllHumanMessagesRead(store: ChannelStore): Promise<{ c
     .list()
     .filter((channel) => visible(channel.id))
     .flatMap((channel) => {
-      const message = store.readHumanTimeline(channel.id, { limit: 1 })?.entries.at(-1);
-      return message === undefined ? [] : [{ channelId: channel.id, messageId: message.id }];
+      const messageId = store.latestHumanMessageId
+        ? store.latestHumanMessageId(channel.id)
+        : store.readHumanTimeline(channel.id, { limit: 1 })?.entries.at(-1)?.id;
+      return messageId === undefined ? [] : [{ channelId: channel.id, messageId }];
     });
   let channels = 0;
   for (const head of heads) {
