@@ -1,6 +1,6 @@
 export const styles = `
 /* @bh-browser-aliases:start */
-.bh-browser-body, .bh-browser-profiles {
+.bh-browser-body, .bh-browser-profiles, .bh-browser-settings, .bh-browser-viewer {
   --bh-browser-error: var(--dsw-alias-state-error-primary);
   --bh-browser-secondary: var(--dsw-alias-label-secondary);
   --bh-browser-label: var(--dsw-alias-label-primary);
@@ -47,4 +47,6 @@ export const styles = `
 .bh-browser-tab-title, .bh-browser-tab-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-browser-tab-url { color: var(--bh-browser-secondary); }
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
+.bh-browser-viewer { width: 1100px; max-width: calc(100vw - 48px); }
+.bh-browser-viewer-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 `;

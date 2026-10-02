@@ -159,6 +159,27 @@ describe('minimal CDP client', () => {
     const pending = client.send('Page.navigate');
     socket.close();
     await expect(pending).rejects.toThrow(/websocket closed/);
+    expect(client.isConnected?.()).toBe(false);
+    await expect(client.send('Target.createTarget')).rejects.toThrow(/websocket closed/);
+    expect(socket.sent).toHaveLength(2);
+  });
+
+  it('bounds an unanswered action without replaying it', async () => {
+    vi.useFakeTimers();
+    try {
+      const connecting = connectCdp('ws://127.0.0.1:1/devtools/browser/x', FakeWebSocket);
+      FakeWebSocket.last!.open();
+      const client = await connecting;
+      const result = expect(client.send('Input.dispatchMouseEvent')).rejects.toThrow(
+        'inspect the page before retrying',
+      );
+      await vi.advanceTimersByTimeAsync(30_000);
+      await result;
+      expect(FakeWebSocket.last!.sent).toHaveLength(1);
+      client.close();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
+import { registerBrowserViewer, type BrowserViewerHost } from './viewer.js';
+import type { ContainerBrowserOptions } from './runtime/container.js';
 
 import { createBrowserDiagnostics, toLogEntry } from './diagnostics.js';
 import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
@@ -17,6 +19,7 @@ import {
 export const name = 'botharness-browser';
 
 export interface BrowserConfig {
+  target?: 'local' | 'container';
   enabled: boolean;
   browserPath: string;
   headless: boolean;
@@ -25,6 +28,7 @@ export interface BrowserConfig {
 }
 
 export const DEFAULT_CONFIG: BrowserConfig = {
+  target: 'local',
   enabled: true,
   browserPath: '',
   headless: false,
@@ -33,6 +37,9 @@ export const DEFAULT_CONFIG: BrowserConfig = {
 };
 
 export const Config = Schema.object({
+  target: Schema.union([Schema.const('local'), Schema.const('container')])
+    .default('local')
+    .volatile(),
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 Browser'),
   browserPath: Schema.string()
     .default(DEFAULT_CONFIG.browserPath)
@@ -67,7 +74,12 @@ export function pinnedBrowserDirectory(): string {
   return join(root, 'browser-chromium');
 }
 
-export function apply(ctx: Context, config: BrowserConfig): void {
+export function apply(
+  ctx: Context,
+  config: Omit<BrowserConfig, 'target'> & {
+    target?: 'local' | 'container' | { get(): 'local' | 'container' };
+  },
+): void {
   if (!config.enabled) return;
 
   let logDb: LogDatabase | undefined;
@@ -88,8 +100,36 @@ export function apply(ctx: Context, config: BrowserConfig): void {
 
   const coreLookup = (): { registry?: unknown; ownership?: unknown } | undefined =>
     ctx.get('botharness') as unknown as { registry?: unknown; ownership?: unknown } | undefined;
+  const target = (): 'local' | 'container' =>
+    (typeof config.target === 'object' ? config.target.get() : config.target) ?? 'local';
+  let revision = 0;
+  const authorizationScope = (): string => `${target()}:${revision}`;
+  let switching: Promise<void> = Promise.resolve();
+  let registerViewer: ContainerBrowserOptions['onViewer'];
+  ctx.inject(['connection', 'webServer'], (viewerCtx) => {
+    const services = viewerCtx as unknown as {
+      webServer: BrowserViewerHost;
+      connection: { requestRejection(request: { headers: Headers }): number | undefined };
+    };
+    registerViewer = (prefix, upstream) =>
+      registerBrowserViewer({
+        host: services.webServer,
+        prefix,
+        upstream,
+        rejection: (headers) => services.connection.requestRejection({ headers }),
+      });
+    return () => {
+      registerViewer = undefined;
+    };
+  });
   const runtimes = createBotBrowserRuntimes({
     browserDir: profileDirectory(),
+    target,
+    onViewer: (prefix, upstream) => {
+      if (registerViewer === undefined)
+        throw new Error('The Container Browser viewer requires the DSH Web Host');
+      return registerViewer(prefix, upstream);
+    },
     installDir: pinnedBrowserDirectory(),
     ...(config.browserPath.trim() === '' ? {} : { browserPath: config.browserPath.trim() }),
     ...(config.headless ? { headless: true } : {}),
@@ -107,6 +147,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     runtimes,
     screenshotDir: join(profileDirectory(), 'screenshots'),
     isAutoAllowed: () => config.autoAllowActions,
+    beforeExecution: () => switching,
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),
     onActivity: (slug) => {
@@ -133,7 +174,26 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     ownsTool: (name: string) => ownsBrowserTool(name),
     executionSignal: (sessionId: string) => provider.executionSignal(sessionId),
     needsAuthorization: (sessionId: string) => provider.needsAuthorization(sessionId),
-    markAuthorized: (sessionId: string) => provider.markAuthorized(sessionId),
+    authorizationScope,
+    markAuthorized: (sessionId: string, expectedScope?: string) => {
+      if (expectedScope !== undefined && expectedScope !== authorizationScope()) return false;
+      provider.markAuthorized(sessionId);
+      return true;
+    },
+  });
+  ctx.on('loader/volatile-update', (paths) => {
+    if (!paths.some((path) => path[0] === 'target')) return;
+    revision += 1;
+    provider.resetRuntime();
+    switching = switching.catch(() => undefined).then(() => runtimes.stopAll());
+    void switching
+      .then(() => provider.reconcileAll())
+      .catch((error: unknown) =>
+        diagnostics.record(
+          'lifecycle',
+          `initiator=target-switch phase=refused detail=${String(error).slice(0, 200)}`,
+        ),
+      );
   });
   ctx.inject(['botharness'], (coreCtx) => {
     const core = (
@@ -197,9 +257,17 @@ export function apply(ctx: Context, config: BrowserConfig): void {
         runtimes.touch(slug);
         provider.touch(slug);
         try {
+          await switching;
+          const scope = authorizationScope();
           const requested = typeof body.tab === 'string' && body.tab !== '' ? body.tab : undefined;
           const tab = await provider.openForHuman(slug, requested);
-          return json({ ok: true, tabId: tab.tabId });
+          if (scope !== authorizationScope())
+            throw new Error('Browser Target changed while opening');
+          return json({
+            ok: true,
+            tabId: tab.tabId,
+            viewerUrl: runtimes.for(slug).viewerUrl?.() ?? null,
+          });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);
         }
@@ -215,6 +283,8 @@ export function apply(ctx: Context, config: BrowserConfig): void {
       methods: ['GET'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
+        await switching;
+        const scope = authorizationScope();
         const url = new URL(request.url);
         const slug = url.searchParams.get('slug') ?? '';
         const requested = url.searchParams.get('tab') ?? '';
@@ -248,14 +318,19 @@ export function apply(ctx: Context, config: BrowserConfig): void {
           );
           return [];
         });
+        const tabs = await provider.listTabs(slug);
+        if (scope !== authorizationScope())
+          return json({ ok: false, error: 'Browser Target changed during observation' }, 409);
         return json({
           ok: true,
           running: runtime.isRunning(),
           frame,
           focused: tabId ?? null,
           takeover: provider.isTakeover(slug),
-          tabs: await provider.listTabs(slug),
+          tabs,
           profiles,
+          target: target(),
+          viewerUrl: runtime.viewerUrl?.() ?? null,
         });
       },
     };
@@ -281,6 +356,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
         }
         runtimes.touch(slug);
         provider.touch(slug);
+        await switching;
         const takeover = provider.setTakeover(slug, body.active);
         return json({ ok: true, takeover });
       },
@@ -305,6 +381,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
         if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
         diagnostics.record('lifecycle', `stop requested (panel) slug=${slug}`);
         try {
+          await switching;
           await runtimes.stop(slug);
           provider.resetBot(slug);
           return json({ ok: true });

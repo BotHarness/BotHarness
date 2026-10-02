@@ -1,6 +1,12 @@
 export const LOCALE_NS = 'botharness-browser';
 
 export const zh = {
+  'settings.target': '操作目标',
+  'settings.local': '本机 Browser',
+  'settings.container': 'Docker Browser',
+  'entry.view.interaction': '允许 Human 操作',
+  'entry.view.close': '关闭',
+  'entry.view.container': '容器浏览器',
   'entry.label': '浏览器',
   'entry.access.title': 'Browser Access',
   'entry.access.failed': '切换 Browser Access 失败',
@@ -23,6 +29,12 @@ export const zh = {
 export type BrowserKey = keyof typeof zh;
 
 export const en: Record<BrowserKey, string> = {
+  'settings.target': 'Browser Target',
+  'settings.local': 'Local Browser',
+  'settings.container': 'Docker Browser',
+  'entry.view.interaction': 'Enable Human interaction',
+  'entry.view.close': 'Close',
+  'entry.view.container': 'Container Browser',
   'entry.label': 'Browser',
   'entry.access.title': 'Browser Access',
   'entry.access.failed': 'Failed to switch Browser Access',

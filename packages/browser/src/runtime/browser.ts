@@ -25,6 +25,7 @@ export interface BrowserTab {
 }
 
 export interface CdpClient {
+  isConnected?(): boolean;
   send(
     method: string,
     params?: Record<string, unknown>,
@@ -47,6 +48,7 @@ interface WebSocketLike {
 type WebSocketCtor = new (url: string) => WebSocketLike;
 
 export interface BotBrowserRuntimeOptions {
+  readonly execution?: BrowserExecution;
   readonly browserPath?: string;
   readonly userDataDir: string;
   readonly installDir?: string;
@@ -58,6 +60,14 @@ export interface BotBrowserRuntimeOptions {
   readonly platform?: NodeJS.Platform;
   readonly env?: NodeJS.ProcessEnv;
   readonly fileExists?: (path: string) => boolean;
+}
+
+export interface BrowserExecution {
+  start(): Promise<{ endpoint: string; binary: string }>;
+  isRunning(): boolean;
+  stop(): Promise<void>;
+  viewerUrl?(): string | undefined;
+  prepareUpload?(path: string): Promise<{ path: string; dispose(): Promise<void> }>;
 }
 
 export interface BotBrowserRuntime {
@@ -87,6 +97,7 @@ export interface BotBrowserRuntime {
   openWindow(targetId?: string): Promise<BrowserTab>;
   currentUrl(): string | undefined;
   binaryPath(): string | undefined;
+  viewerUrl?(): string | undefined;
   stop(): Promise<void>;
 }
 
@@ -186,11 +197,23 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
     listener: (params: Record<string, unknown>) => void;
   }>();
   let nextId = 1;
+  let connected = false;
   await new Promise<void>((resolve, reject) => {
-    socket.addEventListener('open', () => resolve());
-    socket.addEventListener('error', () =>
-      reject(new Error('The DevTools websocket failed to open')),
-    );
+    const timer = setTimeout(() => {
+      socket.close();
+      reject(new Error('The DevTools websocket did not open within 10s'));
+    }, 10_000);
+    const fail = (): void => {
+      clearTimeout(timer);
+      reject(new Error('The DevTools websocket failed to open'));
+    };
+    socket.addEventListener('open', () => {
+      clearTimeout(timer);
+      connected = true;
+      resolve();
+    });
+    socket.addEventListener('error', () => fail());
+    socket.addEventListener('close', fail);
   });
   socket.addEventListener('message', (event) => {
     if (typeof event.data !== 'string') return;
@@ -221,19 +244,45 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
     else entry.resolve(message.result ?? {});
   });
   socket.addEventListener('close', () => {
+    connected = false;
     for (const entry of pending.values()) entry.reject(new Error('The DevTools websocket closed'));
     pending.clear();
     subscriptions.clear();
   });
   return {
+    isConnected: () => connected,
     send(method, params = {}, sessionId) {
+      if (!connected) return Promise.reject(new Error('The DevTools websocket closed'));
       const id = nextId;
       nextId += 1;
       return new Promise<Record<string, unknown>>((resolve, reject) => {
-        pending.set(id, { resolve, reject });
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          reject(
+            new Error(
+              `DevTools ${method} did not return within 30s; inspect the page before retrying the action`,
+            ),
+          );
+        }, 30_000);
+        pending.set(id, {
+          resolve: (value) => {
+            clearTimeout(timer);
+            resolve(value);
+          },
+          reject: (error) => {
+            clearTimeout(timer);
+            reject(error);
+          },
+        });
         const payload: Record<string, unknown> = { id, method, params };
         if (sessionId !== undefined) payload['sessionId'] = sessionId;
-        socket.send(JSON.stringify(payload));
+        try {
+          socket.send(JSON.stringify(payload));
+        } catch (error) {
+          pending.delete(id);
+          clearTimeout(timer);
+          reject(error instanceof Error ? error : new Error(String(error)));
+        }
       });
     },
     subscribe(method, sessionId, listener) {
@@ -244,6 +293,10 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
       };
     },
     close() {
+      connected = false;
+      for (const entry of pending.values())
+        entry.reject(new Error('The DevTools websocket closed'));
+      pending.clear();
       subscriptions.clear();
       try {
         socket.close();
@@ -311,14 +364,31 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   let child: ChildProcess | undefined;
   let client: CdpClient | undefined;
   let starting: Promise<void> | undefined;
+  let stopping: Promise<void> | undefined;
   let binary: string | undefined;
   let lastUrl: string | undefined;
   const sessions = new Map<string, string>();
 
   const isRunning = (): boolean =>
-    child !== undefined && child.exitCode === null && !child.killed && client !== undefined;
+    client !== undefined &&
+    client.isConnected?.() !== false &&
+    (options.execution !== undefined
+      ? options.execution.isRunning()
+      : child !== undefined && child.exitCode === null && !child.killed);
 
   const launch = async (): Promise<void> => {
+    if (options.execution !== undefined) {
+      const started = await options.execution.start();
+      binary = started.binary;
+      try {
+        client = await connect(started.endpoint);
+      } catch (error) {
+        await options.execution.stop();
+        throw error;
+      }
+      onEvent('ready target=container');
+      return;
+    }
     binary = discoverBrowserBinary(
       options.browserPath,
       options.platform,
@@ -404,7 +474,11 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
   };
 
   const ensure = async (): Promise<void> => {
+    if (stopping !== undefined) await stopping;
     if (isRunning()) return;
+    client?.close();
+    client = undefined;
+    sessions.clear();
     starting ??= launch().finally(() => {
       starting = undefined;
     });
@@ -966,13 +1040,19 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return { tabId: targetId, ...(await tabInfo(targetId)) };
   };
 
-  const stop = async (): Promise<void> => {
+  const stopRuntime = async (): Promise<void> => {
+    await starting?.catch(() => undefined);
     const proc = child;
     const live = client;
     child = undefined;
     client = undefined;
     sessions.clear();
     live?.close();
+    if (options.execution !== undefined) {
+      await options.execution.stop();
+      onEvent('stopped target=container');
+      return;
+    }
     if (proc === undefined || proc.exitCode !== null) {
       if (proc !== undefined) onEvent('stopped');
       return;
@@ -991,6 +1071,13 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     onEvent('stopped');
   };
 
+  const stop = (): Promise<void> => {
+    stopping ??= stopRuntime().finally(() => {
+      stopping = undefined;
+    });
+    return stopping;
+  };
+
   return {
     ensure,
     isRunning,
@@ -1001,7 +1088,17 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     type,
     pressKey,
     scroll,
-    uploadFile,
+    async uploadFile(tabId, upload) {
+      const transferred = await options.execution?.prepareUpload?.(upload.path);
+      try {
+        await uploadFile(
+          tabId,
+          transferred === undefined ? upload : { ...upload, path: transferred.path },
+        );
+      } finally {
+        await transferred?.dispose();
+      }
+    },
     createTab,
     listTabs,
     tabInfo,
@@ -1010,6 +1107,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     openWindow,
     currentUrl: () => lastUrl,
     binaryPath: () => binary,
+    viewerUrl: () => options.execution?.viewerUrl?.(),
     stop,
   };
 }

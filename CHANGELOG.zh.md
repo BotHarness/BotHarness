@@ -17,6 +17,8 @@
 
 ### Added
 
+- 新增受管 Container Browser target，使用独立 profile 数据、既有原生 Browser 审批与认证 Human 预览，明确开启操作时先暂停 Bot；默认仍为 Local（[#726](https://github.com/BotHarness/BotHarness/issues/726)，[ADR-0112](docs/adr/0112-browser-targets-share-capabilities-with-separate-execution-worlds.md)）。
+
 - 展开的消息框状态区在每个活跃 Session 的独立紧凑卡片内显示最新安全活动，不重复 Bot 名称；Host revision 同步当前记录，完成或销毁的 Session 移出，重启后重建当前基线，不复制参数、结果或推理内容；展开区域透明，桌面名称与状态同行，Assignment 显示原生 DSH 名称（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
 
 - 总览统计新增整体及逐 Bot 的今日／近七天 token 用量、对齐 Profile 的紧凑图表、分页明细和直接 Profile 导航；未知分项及保留用量保持明确（[#709](https://github.com/BotHarness/BotHarness/issues/709)）。

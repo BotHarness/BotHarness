@@ -11,6 +11,12 @@ window.__ModuleLoader__.load({
 		//#region packages/browser/src/client/locale.ts
 		const LOCALE_NS = "botharness-browser";
 		const zh = {
+			"settings.target": "操作目标",
+			"settings.local": "本机 Browser",
+			"settings.container": "Docker Browser",
+			"entry.view.interaction": "允许 Human 操作",
+			"entry.view.close": "关闭",
+			"entry.view.container": "容器浏览器",
 			"entry.label": "浏览器",
 			"entry.access.title": "Browser Access",
 			"entry.access.failed": "切换 Browser Access 失败",
@@ -30,6 +36,12 @@ window.__ModuleLoader__.load({
 			"entry.error": "浏览器操作失败"
 		};
 		const en = {
+			"settings.target": "Browser Target",
+			"settings.local": "Local Browser",
+			"settings.container": "Docker Browser",
+			"entry.view.interaction": "Enable Human interaction",
+			"entry.view.close": "Close",
+			"entry.view.container": "Container Browser",
 			"entry.label": "Browser",
 			"entry.access.title": "Browser Access",
 			"entry.access.failed": "Failed to switch Browser Access",
@@ -178,10 +190,91 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
+		//#region packages/browser/src/client/settings.tsx
+		function BrowserTargetSettings({ scope, t }) {
+			const store = (0, react.useMemo)(() => ({
+				subscribe: (listener) => scope.subscribe(listener),
+				getSnapshot: () => scope.getSnapshot()
+			}), [scope]);
+			const snapshot = (0, react.useSyncExternalStore)(store.subscribe, store.getSnapshot);
+			const [open, setOpen] = (0, react.useState)(false);
+			const [saving, setSaving] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)();
+			const target = snapshot.value?.target ?? "local";
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: "bh-settings-rows bh-browser-settings",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: "bh-settings-section-head",
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: "bh-settings-section-title",
+							children: "Browser"
+						})
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						className: "bh-settings-row",
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: "bh-settings-row-title",
+							children: t("settings.target")
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Menu, {
+							portal: true,
+							align: "end",
+							open,
+							selectedId: target,
+							items: ["local", "container"].map((id) => ({
+								id,
+								label: t(`settings.${id}`)
+							})),
+							onClose: () => setOpen(false),
+							onSelect: (id) => {
+								setOpen(false);
+								if (id !== "local" && id !== "container") return;
+								setSaving(true);
+								setError(void 0);
+								scope.set("target", id).then(() => {
+									if (scope.getSnapshot().value?.target !== id) throw new Error("Browser Target was not saved");
+								}).catch((cause) => setError(String(cause))).finally(() => setSaving(false));
+							},
+							anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+								type: "button",
+								className: "bh-settings-selector",
+								"aria-haspopup": "menu",
+								"aria-expanded": open,
+								disabled: !snapshot.writable || saving,
+								onClick: () => setOpen(!open),
+								children: [t(`settings.${target}`), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, {})]
+							})
+						})]
+					}),
+					error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						role: "alert",
+						className: "bh-browser-error",
+						children: error
+					})
+				]
+			});
+		}
+		function registerBrowserSettings(ctx, t) {
+			ctx.inject(["configForms", "slots"], (settingsCtx) => {
+				const native = settingsCtx;
+				const scope = native.configForms.get("botharness-browser");
+				return native.slots.inject("botharness.settings.item", () => native.slots.register({
+					name: "botharness.settings.item",
+					id: "browser",
+					order: 11,
+					locale: LOCALE_NS,
+					inject: () => ({
+						scope,
+						t
+					})
+				}, BrowserTargetSettings));
+			});
+		}
+		//#endregion
 		//#region packages/browser/src/client/styles.ts
 		const styles = `
 /* @bh-browser-aliases:start */
-.bh-browser-body, .bh-browser-profiles {
+.bh-browser-body, .bh-browser-profiles, .bh-browser-settings, .bh-browser-viewer {
   --bh-browser-error: var(--dsw-alias-state-error-primary);
   --bh-browser-secondary: var(--dsw-alias-label-secondary);
   --bh-browser-label: var(--dsw-alias-label-primary);
@@ -228,6 +321,8 @@ window.__ModuleLoader__.load({
 .bh-browser-tab-title, .bh-browser-tab-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-browser-tab-url { color: var(--bh-browser-secondary); }
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
+.bh-browser-viewer { width: 1100px; max-width: calc(100vw - 48px); }
+.bh-browser-viewer-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 `;
 		//#endregion
 		//#region packages/browser/src/client/index.tsx
@@ -302,14 +397,29 @@ window.__ModuleLoader__.load({
 			let value;
 			let tab;
 			let timer;
+			let refreshing = false;
+			let refreshAgain = false;
 			const listeners = /* @__PURE__ */ new Set();
 			const refresh = async () => {
+				if (refreshing) {
+					refreshAgain = true;
+					return;
+				}
+				refreshing = true;
+				const requestedTab = tab;
 				try {
-					value = await requestJson(observationUrl(botSlug, tab));
+					const next = await requestJson(observationUrl(botSlug, requestedTab));
+					if (tab === requestedTab) value = next;
 				} catch {
-					value = void 0;
+					if (tab === requestedTab) value = void 0;
+				} finally {
+					refreshing = false;
 				}
 				for (const listener of listeners) listener();
+				if (refreshAgain && listeners.size > 0) {
+					refreshAgain = false;
+					refresh();
+				}
 			};
 			return {
 				subscribe(listener) {
@@ -405,6 +515,8 @@ window.__ModuleLoader__.load({
 			const [profileInvalid, setProfileInvalid] = (0, react.useState)(false);
 			const [profileOverride, setProfileOverride] = (0, react.useState)(void 0);
 			const [error, setError] = (0, react.useState)(void 0);
+			const [viewer, setViewer] = (0, react.useState)();
+			const [interaction, setInteraction] = (0, react.useState)(false);
 			const tabs = observation?.tabs ?? [];
 			const focused = observation?.focused ?? null;
 			const currentTab = tabs.find((tab) => tab.current);
@@ -422,6 +534,15 @@ window.__ModuleLoader__.load({
 						slug: botSlug,
 						...body
 					})
+				}).then((result) => {
+					if (endpoint === OPEN_ENDPOINT && result.viewerUrl !== void 0 && result.viewerUrl !== null) {
+						setViewer(result.viewerUrl);
+						setInteraction(false);
+					}
+					if (endpoint === STOP_ENDPOINT) {
+						setViewer(void 0);
+						setInteraction(false);
+					}
 				}).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => {
 					setBusy(false);
 					store.refresh();
@@ -568,6 +689,71 @@ window.__ModuleLoader__.load({
 							}) : null
 						]
 					}),
+					viewer === void 0 || observation?.target !== "container" || observation.viewerUrl !== viewer ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(_deepseek_ai_dsh_client_ui_primitives.Modal, {
+						open: true,
+						title: t("entry.view.container"),
+						closeLabel: t("entry.view.close"),
+						className: "bh-browser-viewer",
+						onClose: () => {
+							setViewer(void 0);
+							setInteraction(false);
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: "bh-browser-viewer-controls",
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									style: buttonStyle,
+									disabled: busy,
+									onClick: onPause,
+									children: t(paused ? "entry.view.resume" : "entry.view.pause")
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.view.interaction") }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
+									checked: interaction && paused,
+									label: t("entry.view.interaction"),
+									onChange: (next) => {
+										if (!next) {
+											setInteraction(false);
+											return;
+										}
+										if (busy || botSlug === void 0) return;
+										setBusy(true);
+										setError(void 0);
+										requestJson(TAKEOVER_ENDPOINT, {
+											method: "POST",
+											headers: { "content-type": "application/json" },
+											body: JSON.stringify({
+												slug: botSlug,
+												active: true
+											})
+										}).then((result) => setInteraction(result.takeover)).catch((cause) => setError(String(cause))).finally(() => {
+											setBusy(false);
+											store.refresh();
+										});
+									},
+									disabled: busy
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									style: buttonStyle,
+									disabled: busy,
+									onClick: () => invoke(STOP_ENDPOINT),
+									children: t("entry.view.stop")
+								})
+							]
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
+							src: viewer,
+							title: t("entry.view.container"),
+							tabIndex: interaction && paused ? 0 : -1,
+							style: {
+								width: "100%",
+								height: "min(70vh, 768px)",
+								border: 0,
+								pointerEvents: interaction && paused ? "auto" : "none"
+							}
+						}, interaction && paused ? "interactive" : "readonly")]
+					}),
 					tabs.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: { opacity: .6 },
 						children: t("entry.view.noTabs")
@@ -619,6 +805,7 @@ window.__ModuleLoader__.load({
 		}
 		function apply(ctx) {
 			const t = ctx.locale.bind(LOCALE_NS);
+			registerBrowserSettings(ctx, t);
 			ctx.effect(() => {
 				const sheet = document.createElement("style");
 				sheet.textContent = styles;
