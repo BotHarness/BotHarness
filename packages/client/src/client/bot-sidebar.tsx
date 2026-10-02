@@ -33,7 +33,11 @@ import {
   type BotModeSortMode,
 } from '../bot-mode-settings.js';
 import type { BridgeActions } from './actions.js';
-import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
+import {
+  PersonaBotAvatar,
+  personaBotActivitySummary,
+  type PersonaBotActivityState,
+} from './avatar.js';
 import { BotIcon, botBackdropUri } from './bot-icon.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
@@ -391,70 +395,80 @@ function BotRow({
     drag.marker === 'before' ? ' bh-drop-before' : drag.marker === 'after' ? ' bh-drop-after' : '';
   const sourceClass = drag.source ? ' bh-drag-source' : '';
   return (
-    <button
-      type="button"
-      data-channel-id={channel.id}
-      className={`bh-contact${selected ? ' bh-selected' : ''}${multiSelected ? ' bh-multi-selected' : ''}${showShortcutHints && shortcut !== undefined ? ' bh-shortcut-active' : ''}${markerClass}${sourceClass}`}
-      aria-pressed={multiSelected}
-      aria-keyshortcuts={shortcut}
-      title={shortcut === undefined ? undefined : t('shortcut.web.open', { key: shortcut })}
-      onClick={onActivate}
-      draggable
-      onDragStart={(event) => {
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', channel.id);
-        drag.start();
-        onPinDragStart(channel.id);
-      }}
-      onDragEnd={() => {
-        drag.end();
-        onPinDragEnd();
-      }}
-      onDragOver={(event) => {
-        if (!drag.active) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
-        drag.hover(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
-      }}
-      onDrop={(event) => {
-        if (!drag.active) return;
-        event.preventDefault();
-        event.stopPropagation();
-        drag.drop(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
-      }}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        onMenu({ channelId: channel.id, x: event.clientX, y: event.clientY });
-      }}
-      onKeyDown={(event) => {
-        const keyboardMenu = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
-        if (!keyboardMenu) return;
-        event.preventDefault();
-        const rect = event.currentTarget.getBoundingClientRect();
-        onMenu({ channelId: channel.id, x: rect.left + 8, y: rect.bottom });
-      }}
+    <Tooltip
+      label={`${bot.displayName} · ${personaBotActivitySummary(activity, bot.activity, t)}`}
+      side="right"
+      delayMs={350}
     >
-      <PersonaBotAvatar
-        t={t}
-        personaBotId={bot.slug}
-        name={bot.displayName}
-        src={bot.avatar}
-        state={activity}
-        size={34}
-      />
-      <span className="bh-body">
-        <span className="bh-top">
-          <span className="bh-name">{bot.displayName}</span>
-          {needsYou(botState) ? <span className="bh-unread" title={t('roster.needsYou')} /> : null}
+      <button
+        type="button"
+        data-channel-id={channel.id}
+        className={`bh-contact${selected ? ' bh-selected' : ''}${multiSelected ? ' bh-multi-selected' : ''}${showShortcutHints && shortcut !== undefined ? ' bh-shortcut-active' : ''}${markerClass}${sourceClass}`}
+        aria-pressed={multiSelected}
+        aria-keyshortcuts={shortcut}
+        title={shortcut === undefined ? undefined : t('shortcut.web.open', { key: shortcut })}
+        onClick={onActivate}
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', channel.id);
+          drag.start();
+          onPinDragStart(channel.id);
+        }}
+        onDragEnd={() => {
+          drag.end();
+          onPinDragEnd();
+        }}
+        onDragOver={(event) => {
+          if (!drag.active) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+          drag.hover(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
+        }}
+        onDrop={(event) => {
+          if (!drag.active) return;
+          event.preventDefault();
+          event.stopPropagation();
+          drag.drop(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          onMenu({ channelId: channel.id, x: event.clientX, y: event.clientY });
+        }}
+        onKeyDown={(event) => {
+          const keyboardMenu =
+            event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+          if (!keyboardMenu) return;
+          event.preventDefault();
+          const rect = event.currentTarget.getBoundingClientRect();
+          onMenu({ channelId: channel.id, x: rect.left + 8, y: rect.bottom });
+        }}
+      >
+        <PersonaBotAvatar
+          t={t}
+          personaBotId={bot.slug}
+          name={bot.displayName}
+          src={bot.avatar}
+          state={activity}
+          activity={bot?.activity}
+          size={34}
+        />
+        <span className="bh-body">
+          <span className="bh-top">
+            <span className="bh-name">{bot.displayName}</span>
+            {needsYou(botState) ? (
+              <span className="bh-unread" title={t('roster.needsYou')} />
+            ) : null}
+          </span>
+          <span className="bh-msg">{preview}</span>
         </span>
-        <span className="bh-msg">{preview}</span>
-      </span>
-      {showShortcutHints && shortcut !== undefined ? (
-        <kbd className="bh-shortcut-badge" aria-hidden="true">
-          {shortcut.slice(4)}
-        </kbd>
-      ) : null}
-    </button>
+        {showShortcutHints && shortcut !== undefined ? (
+          <kbd className="bh-shortcut-badge" aria-hidden="true">
+            {shortcut.slice(4)}
+          </kbd>
+        ) : null}
+      </button>
+    </Tooltip>
   );
 }
 function ChannelRow({
@@ -600,6 +614,7 @@ function RailChannel({
   };
   return (
     <HoverCard
+      inline
       openDelayMs={350}
       copyLabel={t('rail.copy')}
       copiedLabel={t('rail.copied')}
@@ -607,7 +622,12 @@ function RailChannel({
         <button
           type="button"
           className={`bh-rail-channel${selected ? ' bh-selected' : ''}${showShortcutHints && shortcut !== undefined ? ' bh-shortcut-active' : ''}`}
-          aria-label={title}
+          data-channel-id={channel.id}
+          aria-label={
+            bot === undefined
+              ? title
+              : `${title} · ${personaBotActivitySummary(activity ?? 'idle', bot.activity, t)}`
+          }
           aria-current={selected ? 'page' : undefined}
           aria-keyshortcuts={shortcut}
           onClick={open}
@@ -630,6 +650,7 @@ function RailChannel({
               name={bot.displayName}
               src={bot.avatar}
               state={activity}
+              activity={bot?.activity}
               size={32}
             />
           )}
@@ -661,6 +682,7 @@ function RailChannel({
                 name={bot.displayName}
                 src={bot.avatar}
                 state={activity}
+                activity={bot?.activity}
                 size={24}
                 indicator={false}
               />
@@ -674,6 +696,9 @@ function RailChannel({
             <span className="bh-rail-preview-description">{bot.description}</span>
           )}
           <span className="bh-rail-preview-summary">{summary}</span>
+          {bot === undefined ? null : (
+            <span>{personaBotActivitySummary(activity ?? 'idle', bot.activity, t)}</span>
+          )}
           {shortcut === undefined ? null : (
             <span className="bh-rail-preview-meta">
               {t('shortcut.web.open', { key: shortcut })}
@@ -1727,115 +1752,128 @@ export function BotSidebar({
                 const pinMarker =
                   pinReorderTarget?.channelId === channel.id ? pinReorderTarget.half : null;
                 return (
-                  <button
+                  <Tooltip
                     key={channel.id}
-                    type="button"
-                    data-channel-id={channel.id}
-                    className={`bh-pinned${selected ? ' bh-selected' : ''}${selectedChannelSet.has(channel.id) ? ' bh-multi-selected' : ''}${showShortcutHints && shortcutFor(channel.id) !== undefined ? ' bh-shortcut-active' : ''}${dragSource ? ' bh-drag-source' : ''}${pinMarker === null ? '' : ` bh-pin-drop-${pinMarker}`}`}
-                    aria-pressed={selectedChannelSet.has(channel.id)}
-                    aria-keyshortcuts={shortcutFor(channel.id)}
-                    title={
-                      shortcutFor(channel.id) === undefined
-                        ? undefined
-                        : t('shortcut.web.open', { key: shortcutFor(channel.id) ?? '' })
+                    label={
+                      bot === undefined
+                        ? channel.name
+                        : `${bot.displayName} · ${personaBotActivitySummary(personaBotActivity(state, bot), bot.activity, t)}`
                     }
-                    onClick={(event) => activateChannel(channel, event)}
-                    draggable
-                    onDragStart={(event) => {
-                      event.dataTransfer.effectAllowed = 'move';
-                      event.dataTransfer.setData('text/plain', channel.id);
-                      channelDrag.start();
-                      startPinDrag(channel.id, 'pinned');
-                    }}
-                    onDragEnd={() => {
-                      channelDrag.end();
-                      endPinDrag();
-                    }}
-                    onDragOver={(event) => {
-                      if (pinDrag?.source !== 'pinned' || pinDrag.channelId === channel.id) return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      event.dataTransfer.dropEffect = 'move';
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      setPinReorderTarget({
-                        channelId: channel.id,
-                        half: event.clientX < rect.left + rect.width / 2 ? 'before' : 'after',
-                      });
-                    }}
-                    onDragLeave={(event) => {
-                      if (
-                        event.relatedTarget instanceof Node &&
-                        event.currentTarget.contains(event.relatedTarget)
-                      ) {
-                        return;
-                      }
-                      setPinReorderTarget((current) =>
-                        current?.channelId === channel.id ? undefined : current,
-                      );
-                    }}
-                    onDrop={(event) => {
-                      if (pinDrag?.source !== 'pinned' || pinDrag.channelId === channel.id) return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      commitPinnedReorder(
-                        pinDrag.channelId,
-                        channel.id,
-                        event.clientX < rect.left + rect.width / 2 ? 'before' : 'after',
-                      );
-                    }}
-                    onContextMenu={(event) => {
-                      event.preventDefault();
-                      openChannelMenu({
-                        channelId: channel.id,
-                        pinnedView: true,
-                        x: event.clientX,
-                        y: event.clientY,
-                      });
-                    }}
-                    onKeyDown={(event) => {
-                      const keyboardMenu =
-                        event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
-                      if (!keyboardMenu) return;
-                      event.preventDefault();
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      openChannelMenu({
-                        channelId: channel.id,
-                        pinnedView: true,
-                        x: rect.left + 8,
-                        y: rect.bottom,
-                      });
-                    }}
+                    side="right"
+                    delayMs={350}
                   >
-                    {bot === undefined ? (
-                      <span
-                        className={`bh-pinned-channel-icon${channel.avatar ? ' bh-group-pinned-channel-icon' : ''}`}
-                        aria-hidden="true"
-                      >
-                        {channel.avatar ? (
-                          <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
-                        ) : (
-                          <HashIcon size={24} />
-                        )}
-                      </span>
-                    ) : (
-                      <PersonaBotAvatar
-                        t={t}
-                        personaBotId={bot.slug}
-                        name={bot.displayName}
-                        src={bot.avatar}
-                        state={personaBotActivity(state, bot)}
-                        size={54}
-                      />
-                    )}
-                    <span className="bh-name">{bot?.displayName ?? channel.name}</span>
-                    {bot === undefined ? null : <RoleBadges roles={bot.roles} />}
-                    {showShortcutHints && shortcutFor(channel.id) !== undefined ? (
-                      <kbd className="bh-shortcut-badge" aria-hidden="true">
-                        {shortcutFor(channel.id)?.slice(4)}
-                      </kbd>
-                    ) : null}
-                  </button>
+                    <button
+                      type="button"
+                      data-channel-id={channel.id}
+                      className={`bh-pinned${selected ? ' bh-selected' : ''}${selectedChannelSet.has(channel.id) ? ' bh-multi-selected' : ''}${showShortcutHints && shortcutFor(channel.id) !== undefined ? ' bh-shortcut-active' : ''}${dragSource ? ' bh-drag-source' : ''}${pinMarker === null ? '' : ` bh-pin-drop-${pinMarker}`}`}
+                      aria-pressed={selectedChannelSet.has(channel.id)}
+                      aria-keyshortcuts={shortcutFor(channel.id)}
+                      title={
+                        shortcutFor(channel.id) === undefined
+                          ? undefined
+                          : t('shortcut.web.open', { key: shortcutFor(channel.id) ?? '' })
+                      }
+                      onClick={(event) => activateChannel(channel, event)}
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', channel.id);
+                        channelDrag.start();
+                        startPinDrag(channel.id, 'pinned');
+                      }}
+                      onDragEnd={() => {
+                        channelDrag.end();
+                        endPinDrag();
+                      }}
+                      onDragOver={(event) => {
+                        if (pinDrag?.source !== 'pinned' || pinDrag.channelId === channel.id)
+                          return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        event.dataTransfer.dropEffect = 'move';
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        setPinReorderTarget({
+                          channelId: channel.id,
+                          half: event.clientX < rect.left + rect.width / 2 ? 'before' : 'after',
+                        });
+                      }}
+                      onDragLeave={(event) => {
+                        if (
+                          event.relatedTarget instanceof Node &&
+                          event.currentTarget.contains(event.relatedTarget)
+                        ) {
+                          return;
+                        }
+                        setPinReorderTarget((current) =>
+                          current?.channelId === channel.id ? undefined : current,
+                        );
+                      }}
+                      onDrop={(event) => {
+                        if (pinDrag?.source !== 'pinned' || pinDrag.channelId === channel.id)
+                          return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        commitPinnedReorder(
+                          pinDrag.channelId,
+                          channel.id,
+                          event.clientX < rect.left + rect.width / 2 ? 'before' : 'after',
+                        );
+                      }}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        openChannelMenu({
+                          channelId: channel.id,
+                          pinnedView: true,
+                          x: event.clientX,
+                          y: event.clientY,
+                        });
+                      }}
+                      onKeyDown={(event) => {
+                        const keyboardMenu =
+                          event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+                        if (!keyboardMenu) return;
+                        event.preventDefault();
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        openChannelMenu({
+                          channelId: channel.id,
+                          pinnedView: true,
+                          x: rect.left + 8,
+                          y: rect.bottom,
+                        });
+                      }}
+                    >
+                      {bot === undefined ? (
+                        <span
+                          className={`bh-pinned-channel-icon${channel.avatar ? ' bh-group-pinned-channel-icon' : ''}`}
+                          aria-hidden="true"
+                        >
+                          {channel.avatar ? (
+                            <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+                          ) : (
+                            <HashIcon size={24} />
+                          )}
+                        </span>
+                      ) : (
+                        <PersonaBotAvatar
+                          t={t}
+                          personaBotId={bot.slug}
+                          name={bot.displayName}
+                          src={bot.avatar}
+                          state={personaBotActivity(state, bot)}
+                          activity={bot.activity}
+                          size={54}
+                        />
+                      )}
+                      <span className="bh-name">{bot?.displayName ?? channel.name}</span>
+                      {bot === undefined ? null : <RoleBadges roles={bot.roles} />}
+                      {showShortcutHints && shortcutFor(channel.id) !== undefined ? (
+                        <kbd className="bh-shortcut-badge" aria-hidden="true">
+                          {shortcutFor(channel.id)?.slice(4)}
+                        </kbd>
+                      ) : null}
+                    </button>
+                  </Tooltip>
                 );
               })}
             </div>

@@ -1268,8 +1268,26 @@ const EXTERNAL_GROUP_POLICY_MIGRATION: SchemaMigration = {
   },
 };
 
-const EXTERNAL_THREAD_POLICY_MIGRATION: SchemaMigration = {
+const HUMAN_INBOX_DISMISSAL_MIGRATION: SchemaMigration = {
   generation: 47,
+  module: 'human-attention',
+  description: 'Persist Inbox-only dismissal independently of source request decisions',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE human_inbox_dismissals (
+        human_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        source_key TEXT NOT NULL,
+        through_revision INTEGER,
+        dismissed_at TEXT NOT NULL,
+        PRIMARY KEY (human_id, item_id, source_key)
+      );
+    `);
+  },
+};
+
+const EXTERNAL_THREAD_POLICY_MIGRATION: SchemaMigration = {
+  generation: 48,
   module: 'messaging',
   description: 'Version exact external Thread participation independently of group reception',
   migrate(database) {
@@ -1336,5 +1354,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   EXTERNAL_SOURCE_MIGRATION,
   HUMAN_RESPONSE_INDEX_MIGRATION,
   EXTERNAL_GROUP_POLICY_MIGRATION,
+  HUMAN_INBOX_DISMISSAL_MIGRATION,
   EXTERNAL_THREAD_POLICY_MIGRATION,
 ]);

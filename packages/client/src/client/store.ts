@@ -1,4 +1,5 @@
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
+import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activity.js';
 import type { PersonaBotActivityState } from './avatar.js';
 import type { RosterConfig } from './roster-config.js';
 import type { RosterSection, TopOrderEntry } from './roster.js';
@@ -15,6 +16,7 @@ export interface BotSummary {
   avatar?: string;
   paused?: boolean;
   aggregateState: string;
+  activity?: PersonaBotToolActivity;
   workspaces: string[];
   createdAt: string;
 }
@@ -393,7 +395,7 @@ export interface ClientState {
 export interface PersonaBotActivitySnapshot {
   generation: string;
   revision: number;
-  bots: { slug: string; state: PersonaBotActivityState }[];
+  bots: { slug: string; state: PersonaBotActivityState; activity?: PersonaBotToolActivity }[];
 }
 
 export interface ClientStore {
@@ -549,10 +551,17 @@ export function createStore(): ClientStore {
   };
   const listeners = new Set<() => void>();
   let activity: PersonaBotActivitySnapshot | undefined;
-  let activityStates = new Map<string, PersonaBotActivityState>();
+  let activityStates = new Map<string, PersonaBotActivitySnapshot['bots'][number]>();
   const withActivity = (bot: BotSummary): BotSummary => {
     const current = activityStates.get(bot.slug);
-    return current === undefined ? bot : { ...bot, aggregateState: current };
+    const { activity: _previous, ...rest } = bot;
+    return current === undefined
+      ? rest
+      : {
+          ...rest,
+          aggregateState: current.state,
+          ...(current.activity === undefined ? {} : { activity: current.activity }),
+        };
   };
 
   const update = (patch: Partial<ClientState>): void => {
@@ -587,7 +596,7 @@ export function createStore(): ClientStore {
       if (activity?.generation === snapshot.generation && snapshot.revision <= activity.revision)
         return;
       activity = snapshot;
-      activityStates = new Map(snapshot.bots.map((bot) => [bot.slug, bot.state]));
+      activityStates = new Map(snapshot.bots.map((bot) => [bot.slug, bot]));
       update({ bots: state.bots.map(withActivity) });
     },
     upsertBot(incoming) {

@@ -68,6 +68,9 @@ import {
   loadHumanAssignmentContext,
   type HumanAssignmentContext,
   ignoreHumanAssignmentReport,
+  dismissHumanInboxItem,
+  type TimelinePage,
+  type TimelinePageRequest,
   loadSessions,
   loadBots,
   loadMemorySnapshot,
@@ -157,6 +160,7 @@ import type {
   ChannelSummary,
   ClientStore,
   ConversationSelection,
+  HumanAttentionItem,
   HumanInboxCategory,
   HumanInboxFilters,
   UserQuestionAnswerItem,
@@ -246,6 +250,12 @@ export interface BridgeActions {
   refreshHumanInbox(category?: HumanInboxCategory, background?: boolean): Promise<void>;
   setHumanInboxFilters(filters: HumanInboxFilters): Promise<void>;
   loadMoreHumanInbox(): Promise<void>;
+  dismissHumanInbox(item: HumanAttentionItem): Promise<void>;
+  humanInboxContextPage(
+    channelId: string,
+    request: TimelinePageRequest,
+    signal?: AbortSignal,
+  ): Promise<TimelinePage>;
   ignoreHumanReport(sourceEventId: string): Promise<void>;
   loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
@@ -1053,7 +1063,7 @@ export function createActions(
       return loadBotInboxFor(slug, selection, cursor);
     },
     openActivityCenter(view) {
-      const tab = view ?? readActivityCenterTab(navigationStorage) ?? activityTab;
+      const tab = view ?? activityTab;
       if (tab === 'inbox') return actions.openHumanInbox();
       rememberActivityTab('overview');
       clientStore.select({ kind: 'inbox', view: 'overview' });
@@ -1120,6 +1130,32 @@ export function createActions(
       return loadHumanInboxFor(state.category, selection, state.nextCursor).finally(() => {
         humanInboxPagesPending -= 1;
       });
+    },
+    async dismissHumanInbox(item) {
+      await dismissHumanInboxItem(call, item.id, item.sourceEventId ?? '');
+      humanInboxScopeVersion += 1;
+      humanInboxHeadSeq += 1;
+      humanInboxPageSeq += 1;
+      const state = clientStore.getSnapshot().humanInbox;
+      clientStore.setHumanInbox({
+        items: state.items.filter(
+          (entry) => entry.id !== item.id || entry.sourceEventId !== item.sourceEventId,
+        ),
+      });
+      void Promise.all([actions.refreshHumanInbox(), actions.refreshHumanInboxStatus()]).catch(
+        () => undefined,
+      );
+    },
+    async humanInboxContextPage(channelId, request, signal) {
+      const { page } = await loadTimelinePage(call, channelId, request, signal);
+      if (
+        request.direction === 'around' &&
+        !page.entries.some(
+          (message) => message.id === request.around && !message.pending && !message.failed,
+        )
+      )
+        throw new Error('Source message is no longer available');
+      return page;
     },
     async ignoreHumanReport(sourceEventId) {
       await ignoreHumanAssignmentReport(call, sourceEventId);

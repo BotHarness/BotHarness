@@ -128,6 +128,7 @@ describe('bridge typert service', () => {
       'humanAssignmentContext',
       'humanAttentionStatus',
       'humanAttentionIgnore',
+      'humanAttentionDismiss',
       'assignments',
       'assignment',
       'workspaceOptions',

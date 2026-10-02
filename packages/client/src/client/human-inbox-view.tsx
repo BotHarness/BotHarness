@@ -1,7 +1,8 @@
-import { useState, type ReactElement } from 'react';
+import { useId, useState, type ReactElement } from 'react';
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
+import { HumanInboxFilter, HumanInboxSourceButton } from './human-inbox-controls.js';
 
 import type { BridgeActions } from './actions.js';
-import { PersonaBotAvatar } from './avatar.js';
 import { channelSidebarPrefs, channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 import { useClientState } from './bot-sidebar.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
@@ -9,6 +10,9 @@ import { store } from './store.js';
 import type { HumanAttentionItem, HumanInboxCategory, HumanInboxFilters } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 import { HumanInboxReply } from './human-inbox-reply.js';
+import { Modal } from './modal.js';
+import { HumanInboxDismiss } from './human-inbox-detail-controls.js';
+import { HumanInboxWorkspaceAction } from './human-inbox-workspace-action.js';
 import { HumanInboxAssignment } from './human-inbox-assignment.js';
 
 const categoryCopy = {
@@ -30,9 +34,11 @@ export function HumanInboxView({
 }): ReactElement {
   const state = useClientState();
   const inbox = state.humanInbox;
+  const detailId = useId();
   const [busyId, setBusyId] = useState<string>();
   const [actionError, setActionError] = useState<string>();
   const [replySource, setReplySource] = useState<HumanAttentionItem>();
+  const [actionSource, setActionSource] = useState<HumanAttentionItem>();
 
   const mount = useMountedResource<HTMLDivElement>(() => {
     const timer = window.setInterval(() => {
@@ -75,8 +81,11 @@ export function HumanInboxView({
       await actions.openChannelAtMessage(item.channelId!, item.messageId!);
     } else if (item.kind === 'bot-message-needs-repair') {
       if (item.channelName && item.channelId && item.messageId) {
-        await actions.openChannel(item.channelId);
-        await actions.openAround(item.channelId, item.messageId);
+        try {
+          await actions.openChannelAtMessage(item.channelId, item.messageId);
+        } catch {
+          await openRepairBotInbox(item);
+        }
       } else await openRepairBotInbox(item);
     } else if (
       item.kind === 'assignment-waiting-human' ||
@@ -132,6 +141,34 @@ export function HumanInboxView({
     }
   };
 
+  const itemTitle = (item: HumanAttentionItem): string =>
+    item.kind === 'channel-unread'
+      ? (item.channelName ?? item.botSlug)
+      : item.kind === 'group-join-request'
+        ? t('humanInbox.groupJoin', {
+            bot: botName(item.botSlug),
+            channel: item.channelName ?? '',
+          })
+        : item.kind === 'user-question'
+          ? t('humanInbox.question', { bot: botName(item.botSlug) })
+          : item.kind === 'tool-approval'
+            ? t('humanInbox.approval', { bot: botName(item.botSlug) })
+            : item.kind === 'workspace-grant-request'
+              ? t('humanInbox.grant', { bot: botName(item.botSlug) })
+              : item.kind === 'assignment-waiting-human'
+                ? t('humanInbox.assignmentWaiting', { bot: botName(item.botSlug) })
+                : item.kind === 'assignment-blocked'
+                  ? t('humanInbox.assignmentBlocked', {
+                      bot: botName(item.botSlug),
+                    })
+                  : item.kind === 'assignment-report'
+                    ? t('humanInbox.assignmentReport', {
+                        bot: botName(item.botSlug),
+                      })
+                    : item.kind === 'bot-message-needs-repair'
+                      ? t('humanInbox.repair', { bot: botName(item.botSlug) })
+                      : botName(item.botSlug);
+
   const changeCategory = (category: HumanInboxCategory): void => {
     if (category === inbox.category) return;
     setActionError(undefined);
@@ -144,6 +181,65 @@ export function HumanInboxView({
     setActionError(undefined);
     void actions.setHumanInboxFilters(filters);
   };
+
+  const renderSource = (source: HumanAttentionItem, onClose: () => void): ReactElement =>
+    source.kind === 'assignment-waiting-human' || source.kind === 'assignment-blocked' ? (
+      <HumanInboxAssignment
+        key={source.assignmentSessionId + ':' + source.sourceEventId}
+        source={source}
+        actions={actions}
+        t={t}
+        botName={botName}
+        bots={state.bots}
+        onClose={onClose}
+      />
+    ) : source.channelId !== undefined && source.messageId !== undefined ? (
+      <>
+        <HumanInboxReply
+          key={source.channelId + ':' + source.messageId}
+          source={source}
+          actions={actions}
+          t={t}
+          botName={botName}
+          bots={state.bots}
+          humanMembers={
+            state.channels.find((channel) => channel.id === source.channelId)?.humanMembers ?? []
+          }
+          onClose={onClose}
+        />
+        {source.kind === 'bot-message-needs-repair' ? (
+          <div className="bh-human-inbox-reply-actions">
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              onClick={() =>
+                void openRepairBotInbox(source).catch(() => setActionError(t('humanInbox.failed')))
+              }
+            >
+              {t('humanInbox.openBotInbox')}
+            </Button>
+          </div>
+        ) : null}
+      </>
+    ) : (
+      <section className="bh-human-inbox-reply" aria-label={itemTitle(source)}>
+        <div className="bh-human-inbox-reply-header">
+          <h2>{itemTitle(source)}</h2>
+          <HumanInboxDismiss source={source} actions={actions} t={t} onClose={onClose} />
+        </div>
+        <p>{source.summary}</p>
+        <HumanInboxSourceButton
+          item={source}
+          bots={state.bots}
+          channels={state.channels}
+          t={t}
+          onClick={() =>
+            void openSource(source).catch(() => setActionError(t('humanInbox.failed')))
+          }
+        />
+      </section>
+    );
 
   return (
     <div className={embedded ? 'bh-human-inbox' : 'bh-root bh-main bh-human-inbox'} ref={mount}>
@@ -176,63 +272,52 @@ export function HumanInboxView({
         )}
         <div className="bh-human-inbox-filters">
           {inbox.category === 'unread' ? null : (
-            <label>
-              <span>{t('humanInbox.filter.bot')}</span>
-              <select
-                value={inbox.botSlug ?? ''}
-                onChange={(event) =>
-                  changeFilters({
-                    botSlug: event.target.value || undefined,
-                    channelId: inbox.channelId,
-                    sort: inbox.sort,
-                  })
-                }
-              >
-                <option value="">{t('humanInbox.filter.allBots')}</option>
-                {bots.map((bot) => (
-                  <option key={bot.slug} value={bot.slug}>
-                    {bot.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label>
-            <span>{t('humanInbox.filter.channel')}</span>
-            <select
-              value={inbox.channelId ?? ''}
-              onChange={(event) =>
+            <HumanInboxFilter
+              label={t('humanInbox.filter.bot')}
+              value={inbox.botSlug ?? ''}
+              options={[
+                { id: '', label: t('humanInbox.filter.allBots') },
+                ...bots.map((bot) => ({ id: bot.slug, label: bot.displayName })),
+              ]}
+              onChange={(value) =>
                 changeFilters({
-                  botSlug: inbox.botSlug,
-                  channelId: event.target.value || undefined,
+                  botSlug: value || undefined,
+                  channelId: inbox.channelId,
                   sort: inbox.sort,
                 })
               }
-            >
-              <option value="">{t('humanInbox.filter.allChannels')}</option>
-              {channels.map((channel) => (
-                <option key={channel.id} value={channel.id}>
-                  {channel.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>{t('humanInbox.filter.sort')}</span>
-            <select
-              value={inbox.sort}
-              onChange={(event) =>
-                changeFilters({
-                  botSlug: inbox.botSlug,
-                  channelId: inbox.channelId,
-                  sort: event.target.value === 'oldest' ? 'oldest' : 'newest',
-                })
-              }
-            >
-              <option value="newest">{t('humanInbox.filter.newest')}</option>
-              <option value="oldest">{t('humanInbox.filter.oldest')}</option>
-            </select>
-          </label>
+            />
+          )}
+          <HumanInboxFilter
+            label={t('humanInbox.filter.channel')}
+            value={inbox.channelId ?? ''}
+            options={[
+              { id: '', label: t('humanInbox.filter.allChannels') },
+              ...channels.map((channel) => ({ id: channel.id, label: channel.name })),
+            ]}
+            onChange={(value) =>
+              changeFilters({
+                botSlug: inbox.botSlug,
+                channelId: value || undefined,
+                sort: inbox.sort,
+              })
+            }
+          />
+          <HumanInboxFilter
+            label={t('humanInbox.filter.sort')}
+            value={inbox.sort}
+            options={[
+              { id: 'newest', label: t('humanInbox.filter.newest') },
+              { id: 'oldest', label: t('humanInbox.filter.oldest') },
+            ]}
+            onChange={(value) =>
+              changeFilters({
+                botSlug: inbox.botSlug,
+                channelId: inbox.channelId,
+                sort: value === 'oldest' ? 'oldest' : 'newest',
+              })
+            }
+          />
         </div>
         {actionError === undefined ? null : <p role="alert">{actionError}</p>}
         {inbox.error === undefined ? null : <p role="alert">{inbox.error}</p>}
@@ -255,45 +340,24 @@ export function HumanInboxView({
                 }
                 data-selected={replySource?.id === item.id ? 'true' : undefined}
               >
-                {item.kind === 'channel-reply' || item.kind === 'channel-mention' ? (
-                  <PersonaBotAvatar
-                    personaBotId={item.botSlug}
-                    name={botName(item.botSlug)}
-                    src={state.bots.find((bot) => bot.slug === item.botSlug)?.avatar}
-                    size={28}
-                    indicator={false}
-                    t={t}
-                  />
-                ) : null}
+                <button
+                  type="button"
+                  className="bh-human-inbox-row-open"
+                  aria-label={t('humanInbox.details', { title: itemTitle(item) })}
+                  aria-expanded={replySource?.id === item.id}
+                  aria-controls={replySource?.id === item.id ? detailId : undefined}
+                  onClick={() => {
+                    setReplySource(
+                      replySource?.id === item.id &&
+                        replySource.sourceEventId === item.sourceEventId
+                        ? undefined
+                        : item,
+                    );
+                  }}
+                />
+
                 <div className="bh-human-inbox-row-main">
-                  <div className="bh-human-inbox-row-title">
-                    {item.kind === 'channel-unread'
-                      ? item.channelName
-                      : item.kind === 'group-join-request'
-                        ? t('humanInbox.groupJoin', {
-                            bot: botName(item.botSlug),
-                            channel: item.channelName ?? '',
-                          })
-                        : item.kind === 'user-question'
-                          ? t('humanInbox.question', { bot: botName(item.botSlug) })
-                          : item.kind === 'tool-approval'
-                            ? t('humanInbox.approval', { bot: botName(item.botSlug) })
-                            : item.kind === 'workspace-grant-request'
-                              ? t('humanInbox.grant', { bot: botName(item.botSlug) })
-                              : item.kind === 'assignment-waiting-human'
-                                ? t('humanInbox.assignmentWaiting', { bot: botName(item.botSlug) })
-                                : item.kind === 'assignment-blocked'
-                                  ? t('humanInbox.assignmentBlocked', {
-                                      bot: botName(item.botSlug),
-                                    })
-                                  : item.kind === 'assignment-report'
-                                    ? t('humanInbox.assignmentReport', {
-                                        bot: botName(item.botSlug),
-                                      })
-                                    : item.kind === 'bot-message-needs-repair'
-                                      ? t('humanInbox.repair', { bot: botName(item.botSlug) })
-                                      : botName(item.botSlug)}
-                  </div>
+                  <div className="bh-human-inbox-row-title">{itemTitle(item)}</div>
                   {item.kind === 'channel-reply' || item.kind === 'channel-mention' ? (
                     <div className="bh-human-inbox-unread-meta">
                       <span>{item.channelName}</span>
@@ -328,10 +392,7 @@ export function HumanInboxView({
                       {t('humanInbox.unreadCount', { count: String(item.unreadCount ?? 0) })}
                       {' · '}
                       {new Date(item.createdAt).toLocaleString()}
-                      <details>
-                        <summary>{t('humanInbox.preview')}</summary>
-                        <p className="bh-human-inbox-row-summary">{item.summary}</p>
-                      </details>
+                      <p className="bh-human-inbox-row-summary">{item.summary}</p>
                     </div>
                   ) : null}
                   {item.kind === 'channel-reply' ||
@@ -368,40 +429,36 @@ export function HumanInboxView({
                   item.kind === 'workspace-grant-request' ||
                   item.kind === 'assignment-waiting-human' ||
                   item.kind === 'assignment-blocked' ? (
-                    <button type="button" onClick={() => setReplySource(item)}>
-                      {t(
-                        item.category === 'handled'
-                          ? 'humanInbox.handled.context'
-                          : item.kind === 'tool-approval'
-                            ? 'humanInbox.approval.handle'
-                            : item.kind === 'user-question'
-                              ? 'humanInbox.question.handle'
-                              : item.kind === 'workspace-grant-request'
-                                ? 'humanInbox.grant.handle'
-                                : item.kind === 'assignment-waiting-human' ||
-                                    item.kind === 'assignment-blocked'
-                                  ? 'humanInbox.assignment.handle'
-                                  : 'humanInbox.reply',
-                      )}
-                    </button>
+                    item.kind === 'workspace-grant-request' && item.category !== 'handled' ? (
+                      <HumanInboxWorkspaceAction source={item} actions={actions} t={t} />
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        type="button"
+                        onClick={() => setActionSource(item)}
+                      >
+                        {t(
+                          item.category === 'handled'
+                            ? 'humanInbox.handled.context'
+                            : item.kind === 'tool-approval'
+                              ? 'humanInbox.approval.handle'
+                              : item.kind === 'user-question'
+                                ? 'humanInbox.question.handle'
+                                : item.kind === 'workspace-grant-request'
+                                  ? 'humanInbox.grant.handle'
+                                  : item.kind === 'assignment-waiting-human' ||
+                                      item.kind === 'assignment-blocked'
+                                    ? 'humanInbox.assignment.handle'
+                                    : 'humanInbox.reply',
+                        )}
+                      </Button>
+                    )
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void openSource(item).catch(() => setActionError(t('humanInbox.failed')))
-                    }
-                  >
-                    {t(
-                      item.kind === 'bot-message-needs-repair' &&
-                        (!item.channelName || !item.messageId)
-                        ? 'humanInbox.openBotInbox'
-                        : item.category === 'handled' && item.assignmentSessionId !== undefined
-                          ? 'humanInbox.handled.session'
-                          : 'humanInbox.open',
-                    )}
-                  </button>
                   {item.category === 'handled' ? (
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
                       type="button"
                       onClick={() =>
                         void actions
@@ -410,45 +467,37 @@ export function HumanInboxView({
                       }
                     >
                       {t('humanInbox.handled.response')}
-                    </button>
-                  ) : null}
-                  {item.kind === 'bot-message-needs-repair' &&
-                  item.channelName &&
-                  item.messageId ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void openRepairBotInbox(item).catch(() =>
-                          setActionError(t('humanInbox.failed')),
-                        )
-                      }
-                    >
-                      {t('humanInbox.openBotInbox')}
-                    </button>
+                    </Button>
                   ) : null}
                   {item.kind === 'group-join-request' ? (
                     <>
-                      <button
+                      <Button
+                        variant="primary"
+                        size="sm"
                         type="button"
                         disabled={busyId === item.id}
                         onClick={() => void decide(item, true)}
                       >
                         {t('humanInbox.accept')}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
                         type="button"
                         disabled={busyId === item.id}
                         onClick={() => void decide(item, false)}
                       >
                         {t('humanInbox.decline')}
-                      </button>
+                      </Button>
                     </>
                   ) : item.kind === 'bot-dm-message' ||
                     item.kind === 'assignment-report' ||
                     item.kind === 'channel-unread' ||
                     ((item.kind === 'channel-reply' || item.kind === 'channel-mention') &&
                       item.isUnread) ? (
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
                       type="button"
                       disabled={busyId === item.id}
                       onClick={() => void acknowledge(item)}
@@ -462,37 +511,25 @@ export function HumanInboxView({
                             ? 'humanInbox.markRead'
                             : 'humanInbox.acknowledge',
                       )}
-                    </button>
+                    </Button>
                   ) : null}
+                  <HumanInboxSourceButton
+                    item={item}
+                    bots={state.bots}
+                    channels={state.channels}
+                    t={t}
+                    onClick={() =>
+                      void openSource(item).catch(() => setActionError(t('humanInbox.failed')))
+                    }
+                  />
                 </div>
               </article>
             ))}
           </div>
-          {replySource === undefined ? null : replySource.kind === 'assignment-waiting-human' ||
-            replySource.kind === 'assignment-blocked' ? (
-            <HumanInboxAssignment
-              key={replySource.assignmentSessionId + ':' + replySource.sourceEventId}
-              source={replySource}
-              actions={actions}
-              t={t}
-              botName={botName}
-              bots={state.bots}
-              onClose={() => setReplySource(undefined)}
-            />
-          ) : (
-            <HumanInboxReply
-              key={replySource.channelId + ':' + replySource.messageId}
-              source={replySource}
-              actions={actions}
-              t={t}
-              botName={botName}
-              bots={state.bots}
-              humanMembers={
-                state.channels.find((channel) => channel.id === replySource.channelId)
-                  ?.humanMembers ?? []
-              }
-              onClose={() => setReplySource(undefined)}
-            />
+          {replySource === undefined ? null : (
+            <div id={detailId} className="bh-human-inbox-detail">
+              {renderSource(replySource, () => setReplySource(undefined))}
+            </div>
           )}
         </div>
         {inbox.nextCursor === undefined ? null : (
@@ -503,6 +540,17 @@ export function HumanInboxView({
           >
             {t('humanInbox.more')}
           </button>
+        )}
+        {actionSource === undefined ? null : (
+          <Modal
+            open
+            title={itemTitle(actionSource)}
+            closeLabel={t('common.close')}
+            onClose={() => setActionSource(undefined)}
+            className="bh-root bh-human-inbox-action-dialog"
+          >
+            {renderSource(actionSource, () => setActionSource(undefined))}
+          </Modal>
         )}
       </main>
     </div>

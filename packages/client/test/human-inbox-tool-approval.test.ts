@@ -8,12 +8,12 @@ vi.mock('../src/client/bot-sidebar.js', async () => {
   const { store } = await import('../src/client/store.js');
   return { useClientState: () => useSyncExternalStore(store.subscribe, store.getSnapshot) };
 });
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./human-inbox-test-controls.js')),
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
   MarkdownText: () => null,
   StateDot: () => null,
-  Modal: () => null,
   Input: () => null,
 }));
 
@@ -130,6 +130,8 @@ describe('Human Inbox tool approval', () => {
         await act(async () => root.render(createElement(HumanInboxView, { actions })));
         expect(button('处理审批')).toBeDefined();
         await act(async () => button('处理审批')!.click());
+        expect(container.querySelector('.bh-human-inbox-detail')).toBeNull();
+        expect(container.querySelector('[role="dialog"]')).not.toBeNull();
         expect(container.querySelector('.bh-tool-approval-input')?.textContent).toBe(
           '{"command":"echo QA_RELEASE"}',
         );
@@ -139,7 +141,12 @@ describe('Human Inbox tool approval', () => {
           '工具审批 · ada',
         );
         expect(container.textContent).not.toContain('The separate check is queued.');
-        await act(async () => button('查看附近消息')!.click());
+        await act(async () =>
+          container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-older')!.click(),
+        );
+        await act(async () =>
+          container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-newer')!.click(),
+        );
         expect(container.textContent).toContain('Please check the release.');
         expect(container.textContent).toContain('The separate check is queued.');
         await act(async () => button(outcome === 'rejected' ? '拒绝' : '仅批准这一次')!.click());

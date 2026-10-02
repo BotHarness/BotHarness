@@ -21,6 +21,6 @@ The first production tracer supports qualified Lark Thread events only. The Huma
 
 ## Consequences
 
-Schema Generation 47 adds immutable Thread policy revisions and an optional Admission revision field. Existing groups retain mention-only collection and no Thread overrides. Runtime follows recover from existing authority; reverting to an older schema requires restoring a compatible database snapshot or a forward fix. Second-provider hierarchy and multi-route management remain separate tracers.
+Schema Generation 48 adds immutable Thread policy revisions and an optional Admission revision field. Existing groups retain mention-only collection and no Thread overrides. Runtime follows recover from existing authority; reverting to an older schema requires restoring a compatible database snapshot or a forward fix. Second-provider hierarchy and multi-route management remain separate tracers.
 
 References: [#614](https://github.com/BotHarness/BotHarness/issues/614), [#693](https://github.com/BotHarness/BotHarness/issues/693), [ADR-0109](0109-external-group-collection-is-separate-from-wake.md).

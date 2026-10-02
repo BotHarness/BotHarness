@@ -95,6 +95,7 @@ import {
   createBotStateTracker,
   personaBotActivitySnapshot,
   type BotStateTracker,
+  type PersonaBotActivityEvent,
 } from './state/bot-state.js';
 import { createDshActivityProjection } from './state/dsh-activity.js';
 import { createUsageProjection, type UsageProjection } from './usage/usage.js';
@@ -339,10 +340,7 @@ export function createCore(
         registry.list().map((bot) => bot.slug),
         states,
       ),
-    onChange: (changed) =>
-      states.on((event) => {
-        if (event.type === 'aggregate-changed') changed();
-      }),
+    onChange: (changed) => states.onActivity(() => changed()),
   });
   if (operationalDatabase.mode === 'ready')
     for (const bot of registry.list())
@@ -966,7 +964,18 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   const activity = createDshActivityProjection({
     ownership: core.ownership,
     states: core.states,
+    describeCall: (sessionId, name, args) => {
+      const agent = ctx.agents.list().find((candidate) => candidate.session.id === sessionId);
+      if (agent === undefined) return undefined;
+      const definition = ctx.tools.get(name, agent);
+      if (definition === undefined) return undefined;
+      const view = definition.presentCall?.(args);
+      return { name: definition.name, ...(view === undefined ? {} : { view }) };
+    },
   });
+  ctx.effect(() =>
+    core.states.onActivity((event) => ctx.emit('botharness/personabot/activity', event)),
+  );
 
   ctx.on(
     'session/event',
@@ -1067,4 +1076,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     order: PERSONA_SECTION_ORDER,
     text: ({ agent }) => core.memory.personaForSession(agent?.session?.id),
   });
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    'botharness/personabot/activity'(event: PersonaBotActivityEvent): void;
+  }
 }

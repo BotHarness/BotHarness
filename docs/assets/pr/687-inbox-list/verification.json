@@ -1,0 +1,64 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "canonicalFixture": {
+    "bots": 3,
+    "workspaceRequests": 3,
+    "groupMessages": 8,
+    "dmContextMessages": 24
+  },
+  "geometry": [
+    {
+      "height": 76,
+      "textInset": 16,
+      "rightInset": 16,
+      "primaryFill": "rgb(15, 17, 21)",
+      "primaryToken": "#0f1115"
+    },
+    {
+      "height": 76,
+      "textInset": 16,
+      "rightInset": 16,
+      "primaryFill": "rgb(15, 17, 21)",
+      "primaryToken": "#0f1115"
+    },
+    {
+      "height": 76,
+      "textInset": 16,
+      "rightInset": 16,
+      "primaryFill": "rgb(15, 17, 21)",
+      "primaryToken": "#0f1115"
+    }
+  ],
+  "detailPadding": 16,
+  "nativeSelectors": true,
+  "nativeKeyboardSelection": true,
+  "channelAndBotFiltering": true,
+  "compactOneRowPerItem": true,
+  "rowClickAndKeyboardOpenDetails": true,
+  "sourceLinkIndependentAndExact": true,
+  "primaryActions": true,
+  "directPrimaryRequestAction": true,
+  "listActionOpensBrowsePicker": true,
+  "listActionReopensAfterCancel": true,
+  "actionDoesNotExpandRow": true,
+  "channelAvatarNavigation": true,
+  "lightAndDark": true,
+  "contextGeometry": {
+    "upperGap": 0,
+    "lowerGap": 0,
+    "upperWidth": 581.203125,
+    "flowWidth": 581.203125,
+    "lowerWidth": 581.203125
+  },
+  "sourceGeometry": {
+    "topInset": 8,
+    "rightInset": 8
+  },
+  "independentDirectionalContext": true,
+  "hoverMessageSourceExact": true,
+  "persistentInboxOnlyDismiss": true,
+  "dismissalAcrossWindowsAndReload": true
+}

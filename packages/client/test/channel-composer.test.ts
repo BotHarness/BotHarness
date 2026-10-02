@@ -12,6 +12,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   FileTypeIcon: ({ path }: { path: string }) =>
     createElement('span', { 'data-file-type-icon': path }),
   IconCloseOutlineRegular: () => null,
+  IconChevronDownOutlineRegular: () => null,
   IconPaperclipOutlineRegular: () => null,
   IconSendOutlineRegular: () => null,
   ImageLightbox: () => null,
@@ -24,7 +25,7 @@ import {
 } from '../src/client/channel-composer.js';
 
 describe('Channel composer', () => {
-  it('renders a non-interactive live activity status outside the rounded composer', () => {
+  it('renders a compact keyboard disclosure for live activity outside the rounded composer', () => {
     const markup = renderToStaticMarkup(
       createElement(ChannelComposer, {
         value: 'hello',
@@ -46,7 +47,10 @@ describe('Channel composer', () => {
     );
     expect(markup).toContain('class="bh-avatar-facepile bh-composer-activity-facepile"');
     expect(markup).toContain('style="width:40px;height:40px"');
-    expect(markup).not.toContain('aria-expanded');
+    expect(markup).toContain('<details class="bh-composer-activity-status">');
+    expect(markup).toContain('<summary');
+    expect(markup).toContain('role="status" aria-live="polite"');
+    expect(markup).not.toContain('<details open');
     expect(markup).toContain('Ada 正在思考');
     expect(markup).toContain('<textarea');
     expect(markup).toContain('hello');

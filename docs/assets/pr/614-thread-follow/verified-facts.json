@@ -1,45 +1,82 @@
 {
-  "humanOverride": {
-    "revision": 3,
-    "mode": "follow",
-    "editor": "human",
-    "wake": "immediate",
-    "admissionRevision": 3,
-    "toolResult": "Error: human-thread-override",
-    "sessionEventSeq": 669
+  "originalPreIntegrationRun": {
+    "humanOverride": {
+      "revision": 3,
+      "mode": "follow",
+      "editor": "human",
+      "wake": "immediate",
+      "admissionRevision": 3,
+      "toolResult": "Error: human-thread-override",
+      "sessionEventSeq": 669
+    },
+    "larkReplies": [
+      {
+        "text": "BH614-ANCHOR-OK",
+        "correctThread": true,
+        "correctRoot": true,
+        "parentIsTrigger": true
+      },
+      {
+        "text": "BH614-FOLLOW-OK",
+        "correctThread": true,
+        "correctRoot": true,
+        "parentIsTrigger": true
+      },
+      {
+        "text": "BH614-DIGEST-OK",
+        "correctThread": true,
+        "correctRoot": true,
+        "parentIsTrigger": true
+      },
+      {
+        "text": "BH614-UNFOLLOW-OK",
+        "correctThread": true,
+        "correctRoot": true,
+        "parentIsTrigger": true
+      },
+      {
+        "text": "BH614-HUMAN-OVERRIDE-OK",
+        "correctThread": true,
+        "correctRoot": true,
+        "parentIsTrigger": true
+      }
+    ],
+    "excludedSamples": 5,
+    "assertions": "PASS"
   },
-  "larkReplies": [
-    {
-      "text": "BH614-ANCHOR-OK",
-      "correctThread": true,
-      "correctRoot": true,
-      "parentIsTrigger": true
+  "latestMainIntegrationRun": {
+    "baseline": "76dac30b",
+    "schemaGeneration": 48,
+    "fullTests": {
+      "pass": 1887,
+      "skip": 2,
+      "filesPassed": 229,
+      "filesSkipped": 2
     },
-    {
-      "text": "BH614-FOLLOW-OK",
-      "correctThread": true,
-      "correctRoot": true,
-      "parentIsTrigger": true
+    "sameDigestObservedAt": "2026-10-02T05:49:01.608Z",
+    "ordinaryBExcluded": true,
+    "humanOverride": {
+      "revision": 2,
+      "editor": "human",
+      "toolEventSeq": 787,
+      "toolResult": "Error: human-thread-override",
+      "outboxState": "provider-accepted",
+      "independentHumanReplyReadback": "not repeated"
     },
-    {
-      "text": "BH614-DIGEST-OK",
-      "correctThread": true,
-      "correctRoot": true,
-      "parentIsTrigger": true
-    },
-    {
-      "text": "BH614-UNFOLLOW-OK",
-      "correctThread": true,
-      "correctRoot": true,
-      "parentIsTrigger": true
-    },
-    {
-      "text": "BH614-HUMAN-OVERRIDE-OK",
-      "correctThread": true,
-      "correctRoot": true,
-      "parentIsTrigger": true
-    }
-  ],
-  "excludedSamples": 5,
-  "assertions": "PASS"
+    "larkReplies": [
+      {
+        "text": "BH614-INTEGRATED-FOLLOW-OK",
+        "correctRoot": true,
+        "correctThread": true,
+        "parentIsTrigger": true
+      },
+      {
+        "text": "BH614-INTEGRATED-DIGEST-OK",
+        "correctRoot": true,
+        "correctThread": true,
+        "parentIsTrigger": true
+      }
+    ],
+    "assertions": "PASS"
+  }
 }

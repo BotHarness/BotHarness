@@ -3,12 +3,12 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./human-inbox-test-controls.js')),
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
   MarkdownText: () => null,
   StateDot: () => null,
-  Modal: () => null,
   Input: () => null,
 }));
 
@@ -192,7 +192,12 @@ describe('Human Inbox inline reply', () => {
           ),
         ).toBe(false);
         expect(container.querySelectorAll('.bh-human-inbox-message time')).toHaveLength(1);
-        await act(async () => button('查看附近消息')?.click());
+        await act(async () =>
+          container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-older')!.click(),
+        );
+        await act(async () =>
+          container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-newer')!.click(),
+        );
         expect(
           [...container.querySelectorAll('.bh-human-inbox-message')].map((row) =>
             row.getAttribute('data-message-id'),
@@ -204,16 +209,22 @@ describe('Human Inbox inline reply', () => {
           requests.filter((request) => request.endpoint === 'channelMarkRead').at(-1)?.payload,
         ).toEqual({ channelId: 'group-team', messageId: 'newer' });
         failContext = true;
-        await act(async () => button('查看来源')?.click());
+        await act(async () =>
+          container
+            .querySelector<HTMLButtonElement>(
+              '.bh-human-inbox-reply-source .bh-human-inbox-message-source',
+            )!
+            .click(),
+        );
         expect(store.getSnapshot().selection).toEqual({ kind: 'inbox' });
         expect(container.querySelector('textarea')?.value).toBe('Launch Friday.');
         expect(container.textContent).toContain('来源已不可用');
-        await act(async () => button('刷新上下文')?.click());
+        await act(async () => button('重试')?.click());
         expect(container.textContent).toContain('来源已不可用');
         expect(container.querySelector('textarea')?.value).toBe('Launch Friday.');
         expect(button('发送回复')?.disabled).toBe(true);
         failContext = false;
-        await act(async () => button('刷新上下文')?.click());
+        await act(async () => button('重试')?.click());
         await act(async () => button('发送回复')?.click());
         expect(container.textContent).toContain('草稿已保留');
         expect(container.querySelector('textarea')?.value).toBe('Launch Friday.');
