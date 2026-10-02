@@ -18,6 +18,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Active tool summaries now identify trusted Orchestrator, Assignment and DSH Subagent sources, count working Sessions separately from concurrent tools, and clear finished sources through the same revisioned Host projection ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
+- Overview defaults to active Bots, keeps Bots with Human actions visible, and lets Humans answer or decide from each Bot card; compact executing Session tiles show current native names and role icons, with exact Session navigation ([#698](https://github.com/BotHarness/BotHarness/issues/698)).
+- PersonaBots can explicitly follow a verified Lark Thread, admit its ordinary replies with inherited or overridden harvest, and unfollow without changing group collection; Humans can inspect and override participation ([#614](https://github.com/BotHarness/BotHarness/issues/614), [ADR-0110](docs/adr/0110-external-thread-following-is-scoped-and-explicit.md)).
 
 - PersonaBot activity now shows Host-declared tool effects and compact safe summaries in the sidebar and composer; concurrent mixed kinds fall back to generic work, and a keyboard-accessible disclosure shows only the current tool summary without raw arguments or results ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
@@ -157,6 +159,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Human Inbox now uses native DSH filter menus and padded compact rows: open details by clicking a row, respond through primary actions, or jump to the exact source through its avatar and corner arrow; Activity Center keeps the current tab when browser storage rejects writes ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
+
 - PersonaBot Attention policy now compares nine source rules in a compact table, with recent wakes, inline edit actions and secondary audit details ([#670](https://github.com/BotHarness/BotHarness/issues/670)).
 
 - Browser Profile uses a searchable combobox: select an existing name or explicitly create a new one; errors use the destructive theme colour and the Browser view removes redundant help text and its duplicate page title ([#611](https://github.com/BotHarness/BotHarness/issues/611)).
@@ -246,6 +250,12 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Inbox source avatars remain at the far right of every action row; repair-only Bot Inbox maintenance is available inside details without an extra list button ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
+
+- Inbox details load older/newer context from flush edge controls, expose exact source links on message hover/focus and persist Dismiss without answering or authorizing the source request ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
+
+- Inbox list “Choose workspace” now opens the same DSH folder picker directly without expanding the event; other response actions use an independent dialog, cancellation can be retried and resolved requests do not trigger authorization ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
 
 - Computer Settings opens the native directory picker correctly, keeps the authorized export destination for the next import, and retains manual path entry when a picker is unavailable ([#166](https://github.com/BotHarness/BotHarness/issues/166)).
 

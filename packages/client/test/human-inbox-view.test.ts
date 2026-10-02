@@ -2,12 +2,12 @@ import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./human-inbox-test-controls.js')),
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
   MarkdownText: () => null,
   StateDot: () => null,
-  Modal: () => null,
   Input: () => null,
 }));
 
@@ -100,7 +100,7 @@ describe('Human Inbox center view', () => {
     expect(markup).toContain('需要我处理');
     expect(markup).toContain('全部 Bot');
     expect(markup).toContain('全部频道');
-    expect(markup).toContain('最新在前');
+    expect(markup).toContain('最早在前');
     expect(markup).toContain('aria-selected="true"');
     expect(markup).toContain('申请加入');
     expect(markup).toContain('查看来源');
@@ -129,7 +129,8 @@ describe('Human Inbox center view', () => {
       createElement(HumanInboxView, { actions: {} as BridgeActions }),
     );
     expect(markup).toContain('3 条未读');
-    expect(markup).toContain('<details>');
+    expect(markup).toContain('bh-human-inbox-row-open');
+    expect(markup).not.toContain('<details>');
     expect(markup).toContain('The draft is ready.');
     expect(markup).toContain('标为已读');
     expect(markup).not.toContain('申请加入');
@@ -316,7 +317,7 @@ describe('Human Inbox center view', () => {
     expect(markup).not.toContain('已了解');
     expect(markup).not.toContain('同意</button>');
   });
-  it('shows a Bot repair as action with Inbox and source navigation, including a missing source', () => {
+  it('shows compact source navigation for repairs and a Bot Inbox fallback for missing sources', () => {
     store.select({ kind: 'inbox' });
     store.setHumanInbox({
       status: 'ready',
@@ -341,7 +342,7 @@ describe('Human Inbox center view', () => {
     );
     expect(markup).toContain('ada 的消息需要检查');
     expect(markup).toContain('Check the deployment');
-    expect(markup).toContain('查看 Bot 收件箱');
+    expect(markup).not.toContain('查看 Bot 收件箱</button>');
     expect(markup).toContain('查看来源');
     expect(markup).not.toContain('忽略</button>');
 

@@ -125,6 +125,7 @@ export function apply(ctx: ClientContext): void {
       : consumeLastView(window as unknown as Record<string, unknown>, storage);
   let restoreBotMode = hmrView === undefined && lastView?.mode === 'bot';
   const nativeSessions = {
+    refresh: () => ctx.sessions.refresh(),
     subscribe: (listener: () => void) => ctx.sessions.list.subscribe(listener),
     getSnapshot: () => ctx.sessions.list.getSnapshot(),
   };
@@ -329,7 +330,7 @@ export function apply(ctx: ClientContext): void {
         name: 'main',
         key: PANEL_ID,
         locale: LOCALE_NS,
-        inject: () => ({ actions, channelSidebar, profileCards, nativeChatT }),
+        inject: () => ({ actions, channelSidebar, profileCards, nativeChatT, nativeSessions }),
       },
       BotPanel,
     );
@@ -420,7 +421,7 @@ export function apply(ctx: ClientContext): void {
           name: 'main',
           key: 'conversation' as MainPanelId,
           priority: -100,
-          inject: () => ({ actions, channelSidebar, profileCards, nativeChatT }),
+          inject: () => ({ actions, channelSidebar, profileCards, nativeChatT, nativeSessions }),
         },
         BotMain,
       ),

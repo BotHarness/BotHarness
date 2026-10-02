@@ -1,5 +1,6 @@
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import type { HumanAssignmentContext } from '../runtime/assignment-human-context.js';
+import type { ThreadReceptionInput } from '../messaging/thread-policy.js';
 import type { GroupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
@@ -127,6 +128,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
     channelId: string | null,
   ): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.messagingChannelTarget({ slug, grantId, channelId }));
+  }
+  messagingThreadPolicy(
+    slug: string,
+    sourceEventId: string,
+    policy: ThreadReceptionInput,
+  ): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.messagingThreadPolicy({ slug, sourceEventId, policy }));
   }
   messagingGroupPolicy(
     slug: string,
@@ -524,6 +532,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
   ): { context: HumanAssignmentContext } {
     return unwrap(this.methods.humanAssignmentContext({ slug, sessionId, sourceEventId }));
   }
+  humanAttentionDismiss(itemId: string, sourceKey: string): { accepted: boolean } {
+    return unwrap(this.methods.humanAttentionDismiss({ itemId, sourceKey }));
+  }
   humanAttentionIgnore(sourceEventId: string): { accepted: boolean } {
     return unwrap(this.methods.humanAttentionIgnore({ sourceEventId }));
   }
@@ -764,6 +775,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingChannelTarget',
   'messagingReceive',
   'messagingGroupPolicy',
+  'messagingThreadPolicy',
   'messagingSource',
   'messagingSnapshot',
   'messagingTargets',
@@ -814,6 +826,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'humanAssignmentContext',
   'humanAttentionStatus',
   'humanAttentionIgnore',
+  'humanAttentionDismiss',
   'assignments',
   'assignment',
   'workspaceOptions',

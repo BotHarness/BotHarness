@@ -1,26 +1,55 @@
-import { type ReactElement } from 'react';
+import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import {
+  Button,
+  IconAgentPresetOutlineRegular,
+  IconCodeOutlineRegular,
+  Tooltip,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BridgeActions } from './actions.js';
 import { useClientState } from './bot-sidebar.js';
 import { PersonaBotAvatar, personaBotActivityLabel } from './avatar.js';
 import { HumanInboxView } from './human-inbox-view.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
+import type { NativeSessionCatalog } from './sessions-entry.js';
+
+const EMPTY_NATIVE_SESSIONS = { ids: [], byId: {} };
+const fallbackSessions: NativeSessionCatalog = {
+  subscribe: () => () => {},
+  getSnapshot: () => EMPTY_NATIVE_SESSIONS,
+};
 
 export function ActivityCenterView({
   actions,
   t = zhTranslate,
+  nativeSessions = fallbackSessions,
 }: {
   actions: BridgeActions;
   t?: BotHarnessTranslate;
+  nativeSessions?: NativeSessionCatalog | undefined;
 }): ReactElement {
   const state = useClientState();
+  const native = useSyncExternalStore(
+    nativeSessions.subscribe,
+    nativeSessions.getSnapshot,
+    nativeSessions.getSnapshot,
+  );
+  const [showIdle, setShowIdle] = useState(false);
   const overview = state.selection?.kind === 'inbox' && state.selection.view === 'overview';
   const mount = useMountedResource<HTMLDivElement>(() => {
     if (!overview) return;
-    const timer = window.setInterval(() => void actions.refreshOverview(), 5000);
+    const refresh = (): void => {
+      void Promise.allSettled([actions.refreshOverview(), nativeSessions.refresh?.()]);
+    };
+    void nativeSessions.refresh?.().catch(() => undefined);
+    const timer = window.setInterval(refresh, 5000);
     return () => window.clearInterval(timer);
-  }, [actions, overview]);
+  }, [actions, overview, nativeSessions]);
   const value = state.overview.value;
+  const bots =
+    value?.bots.filter(
+      (bot) => showIdle || bot.state !== 'idle' || bot.hasAction || bot.sessions.length > 0,
+    ) ?? [];
   return (
     <div className="bh-root bh-main bh-activity-center" ref={mount}>
       <header className="bh-activity-center-header">
@@ -59,13 +88,24 @@ export function ActivityCenterView({
                 <strong>{value.actionCount}</strong>
               </button>
             )}
-            <button
-              className="bh-overview-refresh"
-              type="button"
-              onClick={() => void actions.refreshOverview()}
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label={t('activityCenter.showIdle')}
+              aria-pressed={showIdle}
+              onClick={() => setShowIdle(!showIdle)}
+            >
+              {t(showIdle ? 'activityCenter.hideIdle' : 'activityCenter.showIdle')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                void Promise.allSettled([actions.refreshOverview(), nativeSessions.refresh?.()])
+              }
             >
               {t('activityCenter.refresh')}
-            </button>
+            </Button>
           </div>
           {state.overview.status === 'loading' ? (
             <p role="status">{t('activityCenter.loading')}</p>
@@ -73,9 +113,11 @@ export function ActivityCenterView({
           {state.overview.status === 'error' ? (
             <p role="alert">{t('activityCenter.error')}</p>
           ) : null}
-          {value?.bots.length === 0 ? <p>{t('activityCenter.empty')}</p> : null}
+          {value === undefined || bots.length > 0 ? null : (
+            <p>{t(value.bots.length === 0 ? 'activityCenter.empty' : 'activityCenter.allIdle')}</p>
+          )}
           <div className="bh-overview-bots">
-            {value?.bots.map((bot) => (
+            {bots.map((bot) => (
               <article className="bh-overview-bot" key={bot.slug} data-bot-id={bot.slug}>
                 <button
                   className="bh-overview-bot-header"
@@ -86,7 +128,7 @@ export function ActivityCenterView({
                     personaBotId={bot.slug}
                     name={bot.displayName}
                     src={bot.avatar}
-                    size={32}
+                    size={28}
                     state={bot.state}
                     t={t}
                   />
@@ -94,40 +136,73 @@ export function ActivityCenterView({
                   <span className="bh-overview-bot-state">
                     {bot.paused
                       ? t('activityCenter.paused')
-                      : personaBotActivityLabel(bot.state, t)}
+                      : bot.state === 'idle' && bot.hasAction
+                        ? t('activityCenter.actionPending')
+                        : personaBotActivityLabel(bot.state, t)}
                   </span>
                 </button>
-                <h2>
-                  {t('activityCenter.sessions')} <span>{bot.sessions.length}</span>
-                </h2>
-                {bot.sessions.length === 0 ? (
-                  <p className="bh-overview-idle">{t('activityCenter.idle')}</p>
-                ) : (
-                  <ul>
-                    {bot.sessions.map((session) => (
-                      <li key={session.sessionId} data-session-id={session.sessionId}>
-                        <button
-                          type="button"
-                          onClick={() => actions.openSession(session.sessionId)}
-                        >
-                          <span className="bh-overview-session-role">
-                            {t(
-                              session.role === 'orchestrator'
-                                ? 'activityCenter.orchestrator'
-                                : 'activityCenter.assignment',
-                            )}
-                          </span>
-                          <span className="bh-overview-session-purpose" title={session.purpose}>
-                            {session.purpose ?? t('activityCenter.orchestratorPurpose')}
-                          </span>
-                          <span className="bh-overview-session-state">
-                            {personaBotActivityLabel(session.state, t)}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                {bot.sessions.length === 0 ? null : (
+                  <>
+                    <h2>
+                      {t('activityCenter.sessions')} <span>{bot.sessions.length}</span>
+                    </h2>
+                    <ul>
+                      {bot.sessions.map((session) => {
+                        const role = t(
+                          session.role === 'orchestrator'
+                            ? 'activityCenter.orchestrator'
+                            : 'activityCenter.assignment',
+                        );
+                        const title =
+                          native.byId[session.sessionId]?.displayTitle ||
+                          session.purpose ||
+                          t('activityCenter.orchestratorPurpose');
+                        const Icon =
+                          session.role === 'orchestrator'
+                            ? IconAgentPresetOutlineRegular
+                            : IconCodeOutlineRegular;
+                        return (
+                          <li key={session.sessionId} data-session-id={session.sessionId}>
+                            <button
+                              className="bh-overview-session"
+                              type="button"
+                              aria-label={`${role}: ${title}`}
+                              onClick={() => actions.openSession(session.sessionId)}
+                            >
+                              <Tooltip label={role} side="bottom">
+                                <span
+                                  className="bh-overview-session-role"
+                                  role="img"
+                                  aria-label={role}
+                                >
+                                  <Icon size={16} />
+                                </span>
+                              </Tooltip>
+                              <span className="bh-overview-session-purpose" title={title}>
+                                {title}
+                              </span>
+                              <span className="bh-overview-session-state">
+                                {personaBotActivityLabel(session.state, t)}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
                 )}
+                {bot.hasAction ? (
+                  <section
+                    className="bh-overview-bot-actions"
+                    aria-label={t('activityCenter.actions')}
+                  >
+                    <h2>{t('activityCenter.actions')}</h2>
+                    <HumanInboxView actions={actions} t={t} embedded actionBotSlug={bot.slug} />
+                  </section>
+                ) : null}
+                {bot.sessions.length === 0 && !bot.hasAction ? (
+                  <p className="bh-overview-idle">{t('activityCenter.idle')}</p>
+                ) : null}
               </article>
             ))}
           </div>

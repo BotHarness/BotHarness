@@ -45,12 +45,15 @@ export interface HumanAttentionPage {
 }
 
 export interface HumanAttentionQuery {
+  item(id: string, sourceKey?: string): HumanAttentionItem | undefined;
   assignmentContext(
     botSlug: string,
     sessionId: string,
     sourceEventId: string,
   ): HumanAssignmentContext | undefined;
   list(input: {
+    itemId?: string;
+    includeDismissed?: boolean;
     category?: HumanAttentionCategory;
     sort?: HumanAttentionSort;
     botSlug?: string;
@@ -60,6 +63,7 @@ export interface HumanAttentionQuery {
   }): HumanAttentionPage;
   status(): { unreadCount: number; hasAction: boolean };
   actionCount(): number;
+  actionSummary(): { count: number; botSlugs: string[] };
 }
 
 interface AttentionRow {
@@ -327,6 +331,34 @@ export function createHumanAttentionQuery(
   activeToolApprovalMessageIds: () => readonly string[] = () => [],
 ): HumanAttentionQuery {
   return {
+    item(id, sourceKey) {
+      if (id.startsWith('unread:') && sourceKey !== undefined) {
+        const row = database.read(
+          (db) =>
+            db
+              .prepare(`${CHANNEL_ATTENTION_CTE}
+          SELECT 'unread:' || channel_id AS id, 'unread' AS category, 'channel-unread' AS kind,
+                 created_at, channel_id, channel_name, coalesce(bot_slug, '') AS bot_slug,
+                 body AS summary, NULL AS request_id, message_id, NULL AS assignment_session_id, source_event_id
+            FROM visible_messages WHERE ('unread:' || channel_id) = ? AND source_event_id = ? AND is_reply = 0 AND is_mention = 0 LIMIT 1
+        `)
+              .get(LOCAL_HUMAN_ID, LOCAL_HUMAN_ID, id, sourceKey) as AttentionRow | undefined,
+        );
+        return row === undefined ? undefined : attentionItem(row);
+      }
+      const prefix = id.split(':')[0];
+      const category =
+        prefix === 'unread'
+          ? 'unread'
+          : prefix === 'reply'
+            ? 'replies'
+            : prefix === 'report'
+              ? 'info'
+              : prefix === 'handled'
+                ? 'handled'
+                : 'action';
+      return this.list({ category, itemId: id, includeDismissed: true, limit: 1 }).items[0];
+    },
     assignmentContext(botSlug, sessionId, sourceEventId) {
       return readHumanAssignmentContext(database, botSlug, sessionId, sourceEventId);
     },
@@ -345,9 +377,15 @@ export function createHumanAttentionQuery(
         input.channelId ?? null,
         sort,
       ]);
+      const dismissFilter = (id: string, source: string): string =>
+        input.includeDismissed
+          ? ''
+          : `AND NOT EXISTS (SELECT 1 FROM human_inbox_dismissals d WHERE d.human_id = '${LOCAL_HUMAN_ID}' AND d.item_id = ${id} AND d.source_key = coalesce(${source}, ''))`;
       const cursor = input.cursor === undefined ? undefined : decodeCursor(input.cursor, filters);
       if (category === 'handled') {
         const pageParameters = [
+          input.itemId ?? null,
+          input.itemId ?? null,
           input.botSlug ?? null,
           input.botSlug ?? null,
           input.channelId ?? null,
@@ -403,6 +441,8 @@ SELECT 'handled:' || request.source_event_id AS id,
                   OR json_extract(request.payload_json, '$.grantRequest') = 1)
 
 
+             AND (? IS NULL OR ('handled:' || request.source_event_id) = ?)
+             ${dismissFilter("'handled:' || request.source_event_id", 'request.source_event_id')}
              AND (? IS NULL OR request.bot_slug = ?) AND (? IS NULL OR c.channel_id = ?)
              AND (? IS NULL OR response.created_at ${cursorComparison} ? OR
                   (response.created_at = ? AND ('handled:' || request.source_event_id) ${cursorComparison} ?))
@@ -434,6 +474,8 @@ SELECT 'handled:' || request.source_event_id AS id,
                  AND earlier.rowid < response.rowid)
              AND json_extract(request.payload_json, '$.assignmentReport.state') IN ('blocked', 'waiting-human')
 
+             AND (? IS NULL OR ('handled:' || request.source_event_id) = ?)
+             ${dismissFilter("'handled:' || request.source_event_id", 'request.source_event_id')}
              AND (? IS NULL OR a.bot_slug = ?) AND (? IS NULL OR c.channel_id = ?)
              AND (? IS NULL OR response.created_at ${cursorComparison} ? OR
                   (response.created_at = ? AND ('handled:' || request.source_event_id) ${cursorComparison} ?))
@@ -471,6 +513,8 @@ SELECT 'handled:' || request.source_event_id AS id,
                  revision > read_revision AS is_unread, is_mention
             FROM visible_messages
            WHERE (is_reply = 1 OR is_mention = 1)
+             AND (? IS NULL OR ('reply:' || source_event_id) = ?)
+             ${dismissFilter("'reply:' || source_event_id", 'source_event_id')}
              AND (? IS NULL OR bot_slug = ?)
              AND (? IS NULL OR channel_id = ?)
              AND (? IS NULL OR created_at ${cursorComparison} ? OR
@@ -481,6 +525,8 @@ SELECT 'handled:' || request.source_event_id AS id,
             .all(
               LOCAL_HUMAN_ID,
               LOCAL_HUMAN_ID,
+              input.itemId ?? null,
+              input.itemId ?? null,
               input.botSlug ?? null,
               input.botSlug ?? null,
               input.channelId ?? null,
@@ -539,7 +585,7 @@ SELECT 'handled:' || request.source_event_id AS id,
             db
               .prepare(`${CHANNEL_ATTENTION_CTE},
           filtered_unread AS (
-            SELECT * FROM visible_unread WHERE is_reply = 0 AND is_mention = 0 AND (? IS NULL OR bot_slug = ?)
+            SELECT * FROM visible_unread v WHERE ${input.includeDismissed ? '' : `NOT EXISTS (SELECT 1 FROM human_inbox_dismissals d WHERE d.human_id = '${LOCAL_HUMAN_ID}' AND d.item_id = 'unread:' || v.channel_id AND v.revision <= d.through_revision) AND`} is_reply = 0 AND is_mention = 0 AND (? IS NULL OR bot_slug = ?)
           ),
           unread_channels AS (
             SELECT channel_id, count(DISTINCT source_event_id) AS unread_count, max(revision) AS last_revision
@@ -551,7 +597,8 @@ SELECT 'handled:' || request.source_event_id AS id,
             FROM unread_channels u
             JOIN filtered_unread v
               ON v.channel_id = u.channel_id AND v.revision = u.last_revision
-           WHERE (? IS NULL OR v.channel_id = ?)
+           WHERE (? IS NULL OR ('unread:' || v.channel_id) = ?)
+             AND (? IS NULL OR v.channel_id = ?)
              AND (? IS NULL OR v.created_at ${cursorComparison} ? OR
                   (v.created_at = ? AND v.channel_id ${cursorComparison} ?))
            ORDER BY v.created_at ${direction}, v.channel_id ${direction}
@@ -562,6 +609,8 @@ SELECT 'handled:' || request.source_event_id AS id,
                 LOCAL_HUMAN_ID,
                 input.botSlug ?? null,
                 input.botSlug ?? null,
+                input.itemId ?? null,
+                input.itemId ?? null,
                 input.channelId ?? null,
                 input.channelId ?? null,
                 cursor?.createdAt ?? null,
@@ -618,6 +667,8 @@ SELECT 'handled:' || request.source_event_id AS id,
         ${ACTION_ATTENTION_CTE}
         SELECT * FROM attention
          WHERE category = ?
+           AND (? IS NULL OR id = ?)
+           ${dismissFilter('attention.id', 'attention.source_event_id')}
            AND (? IS NULL OR bot_slug = ?)
            AND (? IS NULL OR channel_id = ?)
            AND (? IS NULL OR created_at ${cursorComparison} ? OR
@@ -629,6 +680,8 @@ SELECT 'handled:' || request.source_event_id AS id,
               JSON.stringify(activeQuestionMessageIds()),
               JSON.stringify(activeToolApprovalMessageIds()),
               category,
+              input.itemId ?? null,
+              input.itemId ?? null,
               input.botSlug ?? null,
               input.botSlug ?? null,
               input.channelId ?? null,
@@ -660,19 +713,24 @@ SELECT 'handled:' || request.source_event_id AS id,
       };
     },
     actionCount() {
-      return database.read(
+      return this.actionSummary().count;
+    },
+    actionSummary() {
+      const rows = database.read(
         (db) =>
-          (
-            db
-              .prepare(
-                `${ACTION_ATTENTION_CTE} SELECT count(DISTINCT id) AS count FROM attention WHERE category = 'action'`,
-              )
-              .get(
-                JSON.stringify(activeQuestionMessageIds()),
-                JSON.stringify(activeToolApprovalMessageIds()),
-              ) as { count: number }
-          ).count,
+          db
+            .prepare(
+              `${ACTION_ATTENTION_CTE} SELECT bot_slug, count(DISTINCT id) AS count FROM attention WHERE category = 'action' AND NOT EXISTS (SELECT 1 FROM human_inbox_dismissals d WHERE d.human_id = '${LOCAL_HUMAN_ID}' AND d.item_id = attention.id AND d.source_key = coalesce(attention.source_event_id, '')) GROUP BY bot_slug`,
+            )
+            .all(
+              JSON.stringify(activeQuestionMessageIds()),
+              JSON.stringify(activeToolApprovalMessageIds()),
+            ) as { bot_slug: string; count: number }[],
       );
+      return {
+        count: rows.reduce((total, row) => total + row.count, 0),
+        botSlugs: rows.map((row) => row.bot_slug),
+      };
     },
     status() {
       const unreadCount = database.read(
@@ -694,6 +752,7 @@ SELECT 'handled:' || request.source_event_id AS id,
 }
 
 export interface HumanAttentionDecisions {
+  dismiss(item: HumanAttentionItem): boolean;
   ignoreAssignmentReport(sourceEventId: string): boolean;
 }
 
@@ -702,6 +761,36 @@ export function createHumanAttentionDecisions(
   now: () => Date = () => new Date(),
 ): HumanAttentionDecisions {
   return {
+    dismiss(item) {
+      return database.transaction(
+        (db) => {
+          const revision =
+            item.kind === 'channel-unread' &&
+            item.channelId !== undefined &&
+            item.messageId !== undefined
+              ? (
+                  db
+                    .prepare(
+                      'SELECT revision FROM channel_placements WHERE channel_id = ? AND message_id = ?',
+                    )
+                    .get(item.channelId, item.messageId) as { revision: number } | undefined
+                )?.revision
+              : undefined;
+          if (item.kind === 'channel-unread' && revision === undefined) return false;
+          db.prepare(
+            'INSERT OR IGNORE INTO human_inbox_dismissals (human_id, item_id, source_key, through_revision, dismissed_at) VALUES (?, ?, ?, ?, ?)',
+          ).run(
+            LOCAL_HUMAN_ID,
+            item.id,
+            item.sourceEventId ?? '',
+            revision ?? null,
+            now().toISOString(),
+          );
+          return true;
+        },
+        ['human-attention'],
+      );
+    },
     ignoreAssignmentReport(sourceEventId) {
       return database.transaction(
         (db) => {

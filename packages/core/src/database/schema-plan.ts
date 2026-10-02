@@ -1268,6 +1268,46 @@ const EXTERNAL_GROUP_POLICY_MIGRATION: SchemaMigration = {
   },
 };
 
+const HUMAN_INBOX_DISMISSAL_MIGRATION: SchemaMigration = {
+  generation: 47,
+  module: 'human-attention',
+  description: 'Persist Inbox-only dismissal independently of source request decisions',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE human_inbox_dismissals (
+        human_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        source_key TEXT NOT NULL,
+        through_revision INTEGER,
+        dismissed_at TEXT NOT NULL,
+        PRIMARY KEY (human_id, item_id, source_key)
+      );
+    `);
+  },
+};
+
+const EXTERNAL_THREAD_POLICY_MIGRATION: SchemaMigration = {
+  generation: 48,
+  module: 'messaging',
+  description: 'Version exact external Thread participation independently of group reception',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_thread_policy_revisions (
+        grant_id TEXT NOT NULL REFERENCES messaging_grants(id),
+        thread_id TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        body TEXT NOT NULL,
+        PRIMARY KEY (grant_id, thread_id, revision)
+      );
+      CREATE TRIGGER messaging_thread_policy_no_update BEFORE UPDATE ON messaging_thread_policy_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging Thread Policy revisions are immutable'); END;
+      CREATE TRIGGER messaging_thread_policy_no_delete BEFORE DELETE ON messaging_thread_policy_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging Thread Policy revisions are immutable'); END;
+      ALTER TABLE inbox_admissions ADD COLUMN external_thread_policy_revision INTEGER;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1314,4 +1354,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   EXTERNAL_SOURCE_MIGRATION,
   HUMAN_RESPONSE_INDEX_MIGRATION,
   EXTERNAL_GROUP_POLICY_MIGRATION,
+  HUMAN_INBOX_DISMISSAL_MIGRATION,
+  EXTERNAL_THREAD_POLICY_MIGRATION,
 ]);

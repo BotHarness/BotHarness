@@ -28,6 +28,7 @@ import {
 import { useMountedResource } from './mounted-resource.js';
 
 export interface NativeSessionCatalog {
+  refresh?(): Promise<void>;
   subscribe(listener: () => void): () => void;
   getSnapshot(): {
     ids: readonly string[];

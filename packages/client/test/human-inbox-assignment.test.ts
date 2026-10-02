@@ -8,12 +8,12 @@ vi.mock('../src/client/bot-sidebar.js', async () => {
   const { store } = await import('../src/client/store.js');
   return { useClientState: () => useSyncExternalStore(store.subscribe, store.getSnapshot) };
 });
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./human-inbox-test-controls.js')),
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
   MarkdownText: () => null,
   StateDot: () => null,
-  Modal: () => null,
   Input: () => null,
 }));
 
@@ -102,9 +102,13 @@ describe('Human Inbox Assignment reply', () => {
     try {
       await act(async () => root.render(createElement(HumanInboxView, { actions })));
       await act(async () => button('回应事项').click());
+      expect(container.querySelector('.bh-human-inbox-detail')).toBeNull();
+      expect(container.querySelector('[role="dialog"]')).not.toBeNull();
       expect(container.textContent).toContain('Launch review');
       expect(container.textContent).not.toContain('Dependencies ready');
-      await act(async () => button('查看附近报告').click());
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>('.bh-human-inbox-context-older')!.click(),
+      );
       expect(container.textContent).toContain('Dependencies ready');
       const input = container.querySelector('textarea')!;
       await act(async () => {

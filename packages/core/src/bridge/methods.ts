@@ -3,6 +3,7 @@ import {
   personaBotActivitySnapshot,
   type PersonaBotActivitySnapshot,
 } from '../state/bot-state.js';
+import { threadReceptionInput } from '../messaging/thread-policy.js';
 import { groupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type {
@@ -134,6 +135,7 @@ export interface ActivityOverview {
     displayName: string;
     avatar?: string;
     paused: boolean;
+    hasAction: boolean;
     state: AggregatedState;
     sessions: Array<{
       sessionId: string;
@@ -241,6 +243,7 @@ export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: Bridg
 
 export interface BridgeMethods {
   messagingChannelTarget(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
+  messagingThreadPolicy(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingGroupPolicy(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingReceive(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingSource(payload: unknown): Promise<BridgeResult<{ source: ExternalSource }>>;
@@ -293,6 +296,7 @@ export interface BridgeMethods {
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
   humanAssignmentContext(payload: unknown): BridgeResult<{ context: HumanAssignmentContext }>;
   humanAttentionStatus(payload: unknown): BridgeResult<{ unreadCount: number; hasAction: boolean }>;
+  humanAttentionDismiss(payload: unknown): BridgeResult<{ accepted: boolean }>;
   humanAttentionIgnore(payload: unknown): BridgeResult<{ accepted: boolean }>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
@@ -761,6 +765,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return { updated: true as const };
       });
     },
+    messagingThreadPolicy(payload) {
+      const input = z
+        .object({
+          slug: z.string().min(1),
+          sourceEventId: z.string().min(1).max(128),
+          policy: threadReceptionInput,
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid external Thread policy'));
+      return messagingCall(async (service) => {
+        await service.inbound.setThread(
+          input.data.slug,
+          input.data.sourceEventId,
+          input.data.policy,
+          { kind: 'human' },
+        );
+        return { updated: true as const };
+      });
+    },
     messagingGroupPolicy(payload) {
       const input = z
         .object({
@@ -1082,6 +1106,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     activityOverview() {
       if (deps.humanAttention === undefined) return unavailable();
+      const actionSummary = deps.humanAttention.actionSummary();
+      const actionBots = new Set(actionSummary.botSlugs);
       const waiting = new Set([
         ...(deps.userQuestions?.activeSessionIds() ?? []),
         ...(deps.toolApproval?.activeSessionIds() ?? []),
@@ -1145,10 +1171,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               }),
           paused: bot.paused === true,
           state: aggregateSessionStates(sessionStates),
+          hasAction: actionBots.has(bot.slug),
           sessions,
         };
       });
-      return { ok: true, value: { actionCount: deps.humanAttention.actionCount(), bots } };
+      return { ok: true, value: { actionCount: actionSummary.count, bots } };
     },
     activitySnapshot() {
       return {
@@ -2211,6 +2238,30 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           },
         },
       };
+    },
+    humanAttentionDismiss(payload) {
+      const source = asObject(payload);
+      const itemId = asNonBlank(source, 'itemId');
+      const sourceKey = source?.['sourceKey'];
+      if (
+        itemId === undefined ||
+        itemId.length > 350 ||
+        typeof sourceKey !== 'string' ||
+        sourceKey.length > 150
+      )
+        return invalidInput('itemId and sourceKey are required');
+      try {
+        const item = deps.humanAttention?.item(itemId, sourceKey);
+        if (
+          item === undefined ||
+          (item.sourceEventId ?? '') !== sourceKey ||
+          deps.humanAttentionDecisions?.dismiss(item) !== true
+        )
+          return invalidInput('Inbox item is no longer available');
+        return { ok: true, value: { accepted: true } };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
     },
     humanAttentionIgnore(payload) {
       const source = asObject(payload);

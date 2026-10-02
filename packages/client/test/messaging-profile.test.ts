@@ -9,6 +9,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: (props: ButtonHTMLAttributes<HTMLButtonElement>) => createElement('button', props),
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
   IconChevronRightOutlineRegular: () => null,
+  Modal: ({ open, children }: PropsWithChildren<{ open: boolean }>) =>
+    open ? createElement('div', { role: 'dialog' }, children) : null,
 }));
 
 import { MessagingProfile } from '../src/client/messaging-profile.js';
@@ -65,6 +67,7 @@ it('requires explicit target authorization and an explicit send; unknown outcome
   const actions: Pick<
     BridgeActions,
     | 'messagingGroupPolicy'
+    | 'messagingThreadPolicy'
     | 'messagingReceive'
     | 'messagingChannelTarget'
     | 'messagingSnapshot'
@@ -73,6 +76,7 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     | 'messagingRevoke'
     | 'messagingSend'
   > = {
+    messagingThreadPolicy: async () => undefined,
     messagingGroupPolicy: async () => undefined,
     messagingChannelTarget: async () => undefined,
     messagingReceive: async () => undefined,
@@ -206,6 +210,7 @@ it('changes group intake only after the Human toggles it and can stop it when th
     throw new Error('unexpected send');
   });
   const actions = {
+    messagingThreadPolicy: async () => undefined,
     messagingGroupPolicy: async () => undefined,
     messagingChannelTarget,
     messagingReceive,
@@ -300,6 +305,7 @@ it('gates full collection on live ordinary delivery and saves collection indepen
   const messagingGroupPolicy = vi.fn(async () => undefined);
   const actions = {
     messagingGroupPolicy,
+    messagingThreadPolicy: async () => undefined,
     messagingReceive: async () => undefined,
     messagingChannelTarget: async () => undefined,
     messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
@@ -364,6 +370,78 @@ it('gates full collection on live ordinary delivery and saves collection indepen
       count: 5,
       intervalSeconds: 30,
     });
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it('shows per-Thread state, refuses unverified follow and saves the exact Human revision from the Modal', async () => {
+  const { ThreadReceptionSettings } = await import('../src/client/thread-reception-settings.js');
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  let verified = false;
+  const save = vi.fn(async () => true);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const render = () =>
+    root.render(
+      createElement(ThreadReceptionSettings, {
+        policies: [
+          {
+            threadId: 'omt-topic',
+            conversationId: 'oc-team',
+            rootId: 'om-root',
+            anchorSourceEventId: 'source-one',
+            fingerprint: 'a'.repeat(64),
+            mode: 'inherit',
+            revision: 7,
+            wake: null,
+            changedAt: '',
+            editor: { kind: 'bot', botSlug: 'ada' },
+            ordinaryDelivery: verified ? 'verified' : 'unverified',
+            preview: 'Test Thread message',
+          },
+        ],
+        busy: false,
+        t: zhTranslate,
+        save,
+      }),
+    );
+  const manage = () =>
+    [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === zhTranslate('im.threadManage'),
+    )!;
+  const mode = () => container.querySelector<HTMLSelectElement>('[role="dialog"] select')!;
+  const submit = () =>
+    [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === zhTranslate('im.threadSave'),
+    )!;
+  try {
+    await act(async () => render());
+    expect(container.querySelector('table')?.textContent).toContain('Test Thread message');
+    await act(async () => manage().click());
+    await act(async () => {
+      mode().value = 'follow';
+      mode().dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(submit().disabled).toBe(true);
+    expect(container.textContent).toContain(zhTranslate('im.threadUnverified'));
+    verified = true;
+    await act(async () => render());
+    await act(async () => manage().click());
+    await act(async () => {
+      mode().value = 'follow';
+      mode().dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(submit().disabled).toBe(false);
+    await act(async () => submit().click());
+    expect(save).toHaveBeenCalledExactlyOnceWith('source-one', {
+      mode: 'follow',
+      expectedRevision: 7,
+      wake: null,
+    });
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
     container.remove();
