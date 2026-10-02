@@ -1,3 +1,4 @@
+import { queryOverviewMemory, type OverviewMemory } from './overview.js';
 import { createMemoryFiles } from './file-actions.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import { attachOperationalModule, type OperationalDatabaseOwner } from '../database/owner.js';
@@ -30,6 +31,8 @@ export interface MemoryService extends MemoryAcceptance, ReturnType<typeof creat
   memoryDirFor(sessionId: string | undefined): string | undefined;
 
   repositoryFor(sessionId: string | undefined): MemoryRepositoryInspection | undefined;
+
+  overviewActivity?(after?: string): Promise<OverviewMemory>;
 
   activity?(botSlug: string, sinceIso: string): Array<{ at: string }>;
 }
@@ -138,6 +141,8 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     repairHuman: (input) => requireAcceptance().repairHuman(input),
     memoryDirFor,
     repositoryFor,
+    overviewActivity: (after) =>
+      queryOverviewMemory(registry, options.now?.() ?? new Date(), after),
     activity: (botSlug, sinceIso) => {
       const memoryDir = registry.memoryDirFor(botSlug);
       return memoryDir === undefined ? [] : createMemoryGit(memoryDir).activitySince(sinceIso);

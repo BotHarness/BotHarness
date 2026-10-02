@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -17,6 +17,7 @@ export interface MemoryGit {
   log(limit?: number): MemoryCommit[];
 
   activitySince(sinceIso: string): Array<{ at: string }>;
+  activitySnapshot(sinceIso: string): Promise<{ commits: Array<{ at: string }>; dirty: boolean }>;
 }
 
 const INIT_COMMIT_MESSAGE = 'Initialize memory repository';
@@ -30,6 +31,28 @@ function run(root: string, args: string[]): string {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
+  });
+}
+
+function activityArgs(sinceIso: string): string[] {
+  return [
+    'log',
+    '--exclude=refs/botharness/recovery/*',
+    '--exclude=refs/stash',
+    '--all',
+    '--since-as-filter=' + sinceIso,
+    '--pretty=format:%cI',
+  ];
+}
+
+function readActivity(root: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'git',
+      ['--no-optional-locks', '-c', 'core.fsmonitor=false', ...args],
+      { cwd: root, encoding: 'utf8', windowsHide: true, timeout: 2000 },
+      (error, stdout) => (error === null ? resolve(stdout) : reject(error)),
+    );
   });
 }
 
@@ -115,9 +138,31 @@ export function createMemoryGit(root: string): MemoryGit {
       }
       return commits;
     },
+    async activitySnapshot(sinceIso) {
+      const commits = (await readActivity(root, activityArgs(sinceIso)))
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((at) => ({ at }));
+      const dirty =
+        (
+          await readActivity(root, [
+            'status',
+            '--porcelain',
+            '--untracked-files=all',
+            '--ignore-submodules=none',
+          ])
+        ).trim().length > 0;
+      return { commits, dirty };
+    },
     activitySince(sinceIso) {
       try {
-        return run(root, ['log', '--all', '--since', sinceIso, '--pretty=format:%aI'])
+        return run(root, [
+          '--no-optional-locks',
+          '-c',
+          'core.fsmonitor=false',
+          ...activityArgs(sinceIso),
+        ])
           .split('\n')
           .map((line) => line.trim())
           .filter((line) => line.length > 0)

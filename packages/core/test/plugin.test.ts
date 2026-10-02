@@ -336,6 +336,7 @@ describe('plugin entry', () => {
       'memorySave',
       'memoryRepair',
       'profileActivity',
+      'overviewMemory',
       'overviewUsage',
       'profileUsage',
       'groupProfileActivity',
