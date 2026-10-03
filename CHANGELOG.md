@@ -19,6 +19,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Shared Channel members can explicitly answer an external Lark source using their own independently authorized identity, with inspectable sender/source details and one durable reply per member/source ([#637](https://github.com/BotHarness/BotHarness/issues/637)).
 
+- Orchestrators can explicitly wait for an owned Assignment report or completion; shared Activity presents Assignment work during that bounded wait and restores Orchestrator selection on report, cancellation or timeout ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
+- Added explicit observe, type and click control of one Human-selected daily Chrome document through the official Playwright extension, with separate confirmation, Pause/Resume and automatic revocation ([#766](https://github.com/BotHarness/BotHarness/issues/766), [guide](docs/daily-browser.md), [ADR-0121](docs/adr/0121-daily-chrome-control-is-bound-to-one-selected-document.md)).
+
 - Assignment reports awaiting a Human answer or blocked decision now share independent Activity badge counts with sidebar, composer and Overview; canonical responses, dismissal and stop clear the counts, and unresolved durable reports survive restart ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - A Human can route multiple authorized Lark groups into shared Channels, explicit Bot DMs or Inbox-only targets, with independent connector switches, one canonical message and one processing unit per overlapping Bot; each receiving path retains its own policy evidence ([#635](https://github.com/BotHarness/BotHarness/issues/635), [ADR-0120](docs/adr/0120-multiple-bridge-routes-retain-canonical-sources.md)).

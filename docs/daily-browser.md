@@ -29,3 +29,21 @@ The Channel sidebar shows the shared title and address. The extension also shows
 Choose **Return tab** in the extension or BotHarness sidebar. The tab stays open. Navigation, reload, closure, Browser Access removal, changing Browser Target, Host restart, browser restart, or disconnection also end borrowing. The maximum lease is 30 minutes; 45 seconds without polling invalidates a connection, checked on every operation and by a ten-second cleanup interval. Start a new pairing and Share flow to lend a tab again.
 
 Internal browser pages, extension pages and browser-owned viewers cannot be shared through this flow. If pairing fails, check the local address, create a fresh code, and open the extension on an ordinary HTTP/HTTPS page.
+
+## Control one existing Chrome document
+
+Choose **Daily Chrome · Control** in Bot settings → Browser Target. This is separate from the read-only extension above.
+
+1. Install Microsoft's [Playwright extension 0.4.0](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm) in the Chrome profile you already use. It requests debugger, tabs, tabGroups and all-sites permissions.
+2. Enable Browser Access for the selected PersonaBot. Computer Access can remain off.
+3. In its Browser entry choose **Connect existing page**. In Chrome, select one existing HTTP(S) tab in the official connection page. Keep the connection dialog enabled; BotHarness does not use its bypass token.
+4. Check the selected title and URL in BotHarness. **Connected · control not granted** allows no Bot observation or action yet. Choose **Allow control of this document** explicitly.
+5. Ask the Bot to read or edit that page in DM. Approve its first Browser operation using the existing native Session approval. This target offers only observe, text input and clicks using current observation refs.
+6. Choose **Pause Bot** to edit the page yourself, then **Resume**. The Bot must observe again before acting.
+7. Choose **Return tab** to end the grant. Your tab stays open.
+
+Navigation or reload, closing/removing the selected tab, extension disconnection, Access removal, target/profile changes and Host restart also end control. Reconnect and explicitly authorize again. Adding tabs to an extension group does not expand the Bot's document grant. The Human continues using their own Chrome window; this target does not provide a Container Viewer, screenshots, navigation or the other managed Browser tools.
+
+The connector is pinned to `playwright-core@1.64.0-alpha-1790635538000` and official extension protocol 2. A connection waiting for tab selection can be cancelled from the Browser entry. Errors appear there; if the extension is missing, install it in the profile Chrome opens, then retry. Managed Local/Docker Browser and read-only Daily Browser retain their existing behavior.
+
+Input and clicks bring the authorized tab to the foreground; observation does not switch tabs.

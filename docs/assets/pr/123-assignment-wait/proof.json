@@ -1,0 +1,1057 @@
+{
+  "waiting": {
+    "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+    "revision": 36,
+    "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+    "state": "working",
+    "attention": {
+      "approvalCount": 1
+    },
+    "activity": {
+      "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+      "effect": "executing",
+      "toolKind": "execute",
+      "toolName": "pwsh",
+      "startedAt": 1791046111404,
+      "activeToolCount": 1,
+      "sources": [
+        {
+          "role": "assignment",
+          "count": 1
+        }
+      ]
+    },
+    "sessions": [
+      {
+        "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+        "role": "orchestrator",
+        "name": "Verify assignment with shell wait",
+        "at": 1791046110737,
+        "revision": 33,
+        "state": "working",
+        "activity": {
+          "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+          "effect": "generic-working",
+          "toolKind": "other",
+          "toolName": "wait_for_assignment",
+          "startedAt": 1791046110737,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "orchestrator",
+              "count": 1
+            }
+          ]
+        }
+      },
+      {
+        "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+        "role": "assignment",
+        "name": "Verify 25-second shell wait",
+        "at": 1791046111405,
+        "revision": 35,
+        "state": "working",
+        "activity": {
+          "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+          "effect": "executing",
+          "toolKind": "execute",
+          "toolName": "pwsh",
+          "startedAt": 1791046111404,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "assignment",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "working": {
+    "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+    "revision": 37,
+    "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+    "state": "working",
+    "activity": {
+      "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+      "effect": "executing",
+      "toolKind": "execute",
+      "toolName": "pwsh",
+      "startedAt": 1791046111404,
+      "activeToolCount": 1,
+      "sources": [
+        {
+          "role": "assignment",
+          "count": 1
+        }
+      ]
+    },
+    "sessions": [
+      {
+        "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+        "role": "orchestrator",
+        "name": "Verify assignment with shell wait",
+        "at": 1791046110737,
+        "revision": 33,
+        "state": "working",
+        "activity": {
+          "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+          "effect": "generic-working",
+          "toolKind": "other",
+          "toolName": "wait_for_assignment",
+          "startedAt": 1791046110737,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "orchestrator",
+              "count": 1
+            }
+          ]
+        }
+      },
+      {
+        "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+        "role": "assignment",
+        "name": "Verify 25-second shell wait",
+        "at": 1791046111405,
+        "revision": 35,
+        "state": "working",
+        "activity": {
+          "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+          "effect": "executing",
+          "toolKind": "execute",
+          "toolName": "pwsh",
+          "startedAt": 1791046111404,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "assignment",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "final": {
+    "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+    "revision": 48,
+    "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+    "state": "idle"
+  },
+  "frames": [
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 24,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 25,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "at": 1791046107399,
+              "revision": 25,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 26,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify Assignment waiting now. Use",
+              "at": 1791046108024,
+              "revision": 26,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 27,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046108954,
+              "revision": 27,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 28,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-bf31dbff-ee61-41a8-8830-c3e2d75e2386"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "create_assignment",
+            "startedAt": 1791046109464,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046109464,
+              "revision": 28,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-bf31dbff-ee61-41a8-8830-c3e2d75e2386"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "create_assignment",
+                "startedAt": 1791046109464,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 29,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046109485,
+              "revision": 29,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 30,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046109485,
+              "revision": 29,
+              "state": "thinking"
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "at": 1791046109533,
+              "revision": 30,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 31,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046109485,
+              "revision": 29,
+              "state": "thinking"
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Run exactly one native Shell",
+              "at": 1791046109697,
+              "revision": 31,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 32,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046109485,
+              "revision": 29,
+              "state": "thinking"
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046110590,
+              "revision": 32,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 33,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "wait_for_assignment",
+            "startedAt": 1791046110737,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046110737,
+              "revision": 33,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791046110737,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046110590,
+              "revision": 32,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 34,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046110737,
+              "revision": 33,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791046110737,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046110590,
+              "revision": 32,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 35,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "pwsh",
+            "startedAt": 1791046111404,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "assignment",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046110737,
+              "revision": 33,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791046110737,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046111405,
+              "revision": 35,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "pwsh",
+                "startedAt": 1791046111404,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "assignment",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 36,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "pwsh",
+            "startedAt": 1791046111404,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "assignment",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046110737,
+              "revision": 33,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791046110737,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046111405,
+              "revision": 35,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "pwsh",
+                "startedAt": 1791046111404,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "assignment",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 37,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "pwsh",
+            "startedAt": 1791046111404,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "assignment",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046110737,
+              "revision": 33,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791046110737,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046111405,
+              "revision": 35,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-d2c67896-2dc4-4765-877a-fbe261158242"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "pwsh",
+                "startedAt": 1791046111404,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "assignment",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 38,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046110737,
+              "revision": 33,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791046110737,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046137569,
+              "revision": 38,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 39,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-8b29be21-1c11-4326-b6a5-92ffa34edbb2"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "report_to_orchestrator",
+            "startedAt": 1791046138593,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "assignment",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046110737,
+              "revision": 33,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791046110737,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046138594,
+              "revision": 39,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-8b29be21-1c11-4326-b6a5-92ffa34edbb2"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "report_to_orchestrator",
+                "startedAt": 1791046138593,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "assignment",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 40,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "wait_for_assignment",
+            "startedAt": 1791046110737,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046110737,
+              "revision": 33,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-032246d0-976d-426c-a88f-1635d0233807"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791046110737,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046138594,
+              "revision": 39,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-8b29be21-1c11-4326-b6a5-92ffa34edbb2"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "report_to_orchestrator",
+                "startedAt": 1791046138593,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "assignment",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 41,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046138620,
+              "revision": 41,
+              "state": "thinking"
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046138594,
+              "revision": 39,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-8b29be21-1c11-4326-b6a5-92ffa34edbb2"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "report_to_orchestrator",
+                "startedAt": 1791046138593,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "assignment",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 42,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046138620,
+              "revision": 41,
+              "state": "thinking"
+            },
+            {
+              "id": "activity-cc23efc2-6658-4e41-90de-53289cee83a3",
+              "role": "assignment",
+              "name": "Verify 25-second shell wait",
+              "at": 1791046138622,
+              "revision": 42,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 43,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046138620,
+              "revision": 41,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 44,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-7202293d-5e85-4508-a1ec-ae136c4a2d15"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "channel_send",
+            "startedAt": 1791046140204,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046140205,
+              "revision": 44,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-7202293d-5e85-4508-a1ec-ae136c4a2d15"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "channel_send",
+                "startedAt": 1791046140204,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 45,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046140225,
+              "revision": 45,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 46,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 47,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6efd1867-a0ee-43ff-9052-8bdf56f3faaa",
+              "role": "orchestrator",
+              "name": "Verify assignment with shell wait",
+              "at": 1791046144301,
+              "revision": 47,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "c79044ae-5a40-46a7-9864-e4ef6aa2cf68",
+      "revision": 48,
+      "bots": [
+        {
+          "slug": "bot-522e2b6ccdd542c1b63564b816a8fe2b",
+          "state": "idle"
+        }
+      ]
+    }
+  ],
+  "clientErrors": []
+}

@@ -1,4 +1,4 @@
-# ADR-0121: Shared-source replies use responder-owned authorization
+# ADR-0122: Shared-source replies use responder-owned authorization
 
 - Status: Accepted
 - Date: 2026-10-04

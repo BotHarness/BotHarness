@@ -88,6 +88,7 @@ const BOT_TOOL_NAMES = new Set([
   'list_workspace_grants',
   'list_assignments',
   'inspect_assignment',
+  'wait_for_assignment',
   'send_assignment_request',
   'stop_assignment',
   'channel_list',

@@ -91,7 +91,10 @@ export default defineConfig([
     clean: true,
   },
   {
-    entry: ['packages/browser/src/index.ts'],
+    entry: {
+      index: 'packages/browser/src/index.ts',
+      'daily-worker': 'packages/browser/src/daily-worker.ts',
+    },
     outDir: 'packages/browser/dist',
     format: ['esm'],
     platform: 'node',
