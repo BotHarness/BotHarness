@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createConnection } from 'node:net';
 
 import {
   CONTAINER_BROWSER_IMAGE,
@@ -8,6 +12,57 @@ import {
 } from '../src/runtime/container.js';
 
 describe('Container Browser execution boundary', () => {
+  it('releases the old loopback relay and unique viewer registration before relaunch', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'browser-relaunch-'));
+    const identity = containerBrowserIdentity(directory);
+    let owned = false;
+    let registered = false;
+    const release = vi.fn(() => {
+      registered = false;
+    });
+    const execution = createContainerBrowserExecution({
+      profileDirectory: directory,
+      run: async (args) => {
+        if (args[0] === 'ps') return owned ? 'owned' : '';
+        if (args[0] === 'inspect' || (args[0] === 'volume' && args[1] === 'inspect'))
+          return identity;
+        if (args[0] === 'run' && args[1] === '-d') owned = true;
+        if (args[0] === 'rm') owned = false;
+        if (args[0] === 'exec')
+          return JSON.stringify({
+            webSocketDebuggerUrl: 'ws://127.0.0.1:9222/devtools/browser/qa',
+          });
+        if (args[0] === 'port') return '127.0.0.1:12345';
+        return '';
+      },
+      onViewer: () => {
+        if (registered) throw new Error('duplicate viewer');
+        registered = true;
+        return release;
+      },
+    });
+    try {
+      const first = await execution.start();
+      await execution.start();
+      expect(release).toHaveBeenCalledOnce();
+      expect(execution.isRunning()).toBe(true);
+      const oldPort = Number(new URL(first.endpoint).port);
+      await expect(
+        new Promise<void>((resolve, reject) => {
+          const socket = createConnection(oldPort, '127.0.0.1');
+          socket.once('connect', () => {
+            socket.destroy();
+            resolve();
+          });
+          socket.once('error', reject);
+        }),
+      ).rejects.toMatchObject({ code: 'ECONNREFUSED' });
+    } finally {
+      await execution.stop();
+      await rm(directory, { recursive: true, force: true });
+    }
+    expect(release).toHaveBeenCalledTimes(2);
+  });
   it('keeps identity profile-scoped and separates named profiles', () => {
     expect(containerBrowserIdentity('/qa/profile/browser')).toBe(
       containerBrowserIdentity('/qa/profile/browser'),

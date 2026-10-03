@@ -381,6 +381,14 @@ export function apply(
         if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
         diagnostics.record('lifecycle', `stop requested (panel) slug=${slug}`);
         try {
+          const pendingSwitch = switching;
+          await pendingSwitch.catch(async () => {
+            await runtimes.stopAll();
+            if (switching === pendingSwitch) {
+              switching = Promise.resolve();
+              await provider.reconcileAll();
+            }
+          });
           await switching;
           await runtimes.stop(slug);
           provider.resetBot(slug);

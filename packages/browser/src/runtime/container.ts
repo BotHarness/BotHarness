@@ -154,6 +154,7 @@ export function createContainerBrowserExecution(
     let phase = 'docker';
     event('initiator=browser phase=start target=container');
     try {
+      await closeRelay();
       await run(['info', '--format', '{{.ServerVersion}}']);
       phase = 'owner-check';
       await stopOwned();
