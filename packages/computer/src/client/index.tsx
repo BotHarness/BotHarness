@@ -1,5 +1,9 @@
 import {
-  Fragment,
+  RemoteViewer,
+  type ViewerLifecycleEvent,
+} from '../../../client/src/client/remote-viewer/index.js';
+import { BH } from '../../../client/src/client/remote-viewer/tokens.js';
+import {
   useCallback,
   useRef,
   useState,
@@ -7,25 +11,8 @@ import {
   type CSSProperties,
   type ComponentType,
   type ReactElement,
-  type RefCallback,
 } from 'react';
-import {
-  dotStateFor,
-  isExitReport,
-  nextExpanded,
-  smoothPhase,
-  statusKeyFor,
-  stopKey,
-  type FramePhase,
-} from './viewer-state.js';
-import {
-  LOSS_REMOUNT_AFTER,
-  nextStreamTracker,
-  sampleSurface,
-  shouldAutoReload,
-  shouldRemountLoss,
-  type StreamTracker,
-} from './frame-liveness.js';
+import { isExitReport } from './viewer-state.js';
 import { reportViewerEvent, viewerEventText } from './viewer-events.js';
 import {
   LOCALE_NS,
@@ -35,13 +22,7 @@ import {
   type ComputerKey,
   type ComputerTranslate,
 } from './locale.js';
-import {
-  Button,
-  IconFullscreenOutlineRegular,
-  Pill,
-  StateDot,
-  Tooltip,
-} from '@deepseek-ai/dsh-client-ui-primitives';
+import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 
@@ -57,6 +38,22 @@ import { LocalComputerStatus } from './local-computer.js';
 import { useMountedResource } from './mounted-resource.js';
 
 import { AccessPowerIcon } from './access-power-icon.js';
+
+const ACCESS_STYLE = `
+.bh-computer-access-control { position: relative; display: flex; align-items: center; }
+.bh-computer-access-power {
+  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: ${BH.radiusMd}; background: transparent;
+  color: ${BH.labelSecondary}; cursor: pointer;
+}
+.bh-computer-access-power:hover { background: ${BH.hoverFill}; }
+.bh-computer-access-power[aria-pressed='true'] { color: ${BH.businessPrimary}; background: ${BH.hoverFill}; }
+.bh-computer-access-power:focus-visible { outline: 2px solid ${BH.businessPrimary}; outline-offset: 2px; }
+.bh-computer-access-power:disabled { opacity: 0.5; cursor: default; }
+.bh-computer-access-power.bh-access-failed { color: ${BH.errorPrimary}; }
+.bh-computer-access-error { order: -1; padding: 0 4px; color: ${BH.errorPrimary}; font-size: 11px; line-height: 16px; white-space: nowrap; }
+
+`;
 
 export const name = 'botharness-computer-client';
 
@@ -153,23 +150,6 @@ const AUTHORIZATION_POINTS: readonly ComputerKey[] = [
   'entry.authorize.bind',
 ];
 
-const BH = {
-  labelSecondary: 'var(--dsw-alias-label-secondary)',
-  hoverFill: 'var(--dsw-alias-interactive-bg-hover)',
-  errorPrimary: 'var(--dsw-alias-state-error-primary)',
-  radiusMd: 'var(--dsw-radius-md)',
-  labelPrimary: 'var(--dsw-alias-label-primary, #0f1115)',
-  labelPrimaryForeground: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
-  borderL2: 'var(--dsw-alias-border-l2, #0000001a)',
-  borderL3: 'var(--dsw-alias-border-l3, #0000001f)',
-  borderL4: 'var(--dsw-alias-border-l4, #00000029)',
-  bgBase: 'var(--dsw-alias-bg-base, #ffffff)',
-  buttonPrimaryFill: 'var(--dsw-alias-button-primary-fill, #0f1115)',
-  buttonElevatedFill: 'var(--dsw-alias-button-elevated-fill, transparent)',
-  businessPrimary: 'var(--dsw-alias-state-business-primary, #4176e6)',
-  hoverScrim: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
-} as const;
-
 const noteStyle: CSSProperties = { opacity: 0.7, fontSize: 12, whiteSpace: 'pre-wrap' };
 const buttonStyle: CSSProperties = {
   padding: '4px 10px',
@@ -194,13 +174,6 @@ const terminalStyle: CSSProperties = {
   wordBreak: 'break-all',
 };
 
-const VIDEO_SURFACE = {
-  background: '#000000',
-  spinnerTrack: 'rgba(255, 255, 255, 0.18)',
-  spinnerArc: '#ffffff',
-  onVideo: '#ffffff',
-} as const;
-
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 800;
 
@@ -208,246 +181,6 @@ function designOf(resolution: string | undefined): { width: number; height: numb
   const match = /^(\d{2,5})x(\d{2,5})$/u.exec(resolution ?? '');
   if (match === null) return { width: DESIGN_WIDTH, height: DESIGN_HEIGHT };
   return { width: Number(match[1]), height: Number(match[2]) };
-}
-
-const SPIN_STYLE = `
-.bh-computer-access-control { position: relative; display: flex; align-items: center; }
-.bh-computer-access-power {
-  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-  padding: 0; border: 0; border-radius: ${BH.radiusMd}; background: transparent;
-  color: ${BH.labelSecondary}; cursor: pointer;
-}
-.bh-computer-access-power:hover { background: ${BH.hoverFill}; }
-.bh-computer-access-power[aria-pressed='true'] { color: ${BH.businessPrimary}; background: ${BH.hoverFill}; }
-.bh-computer-access-power:focus-visible { outline: 2px solid ${BH.businessPrimary}; outline-offset: 2px; }
-.bh-computer-access-power:disabled { opacity: 0.5; cursor: default; }
-.bh-computer-access-power.bh-access-failed { color: ${BH.errorPrimary}; }
-.bh-computer-access-error { order: -1; padding: 0 4px; color: ${BH.errorPrimary}; font-size: 11px; line-height: 16px; white-space: nowrap; }
-
-@keyframes bc-spin { to { transform: rotate(360deg); } }
-`;
-
-function useStreamPhase(onSample: (phase: FramePhase) => void): RefCallback<HTMLIFrameElement> {
-  return useMountedResource<HTMLIFrameElement>(
-    (iframe) => {
-      let active = true;
-      let tracker: StreamTracker = { misses: 0, busyStreak: 0, quiet: 0 };
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const check = (): void => {
-        if (!active) return;
-        let doc: Document | null = null;
-        try {
-          doc = iframe.contentDocument;
-        } catch {
-          doc = null;
-        }
-        const next = nextStreamTracker(tracker, sampleSurface(doc));
-        tracker = next.tracker;
-        onSample(next.phase);
-        timer = setTimeout(check, 1000);
-      };
-      timer = setTimeout(check, 300);
-      return () => {
-        active = false;
-        if (timer !== undefined) clearTimeout(timer);
-      };
-    },
-    [onSample],
-  );
-}
-
-export function ScreenIndicator({ label = '连接中' }: { readonly label?: string }): ReactElement {
-  const size = 26;
-  const stroke = 2;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'grid',
-        placeItems: 'center',
-        background: VIDEO_SURFACE.background,
-        color: VIDEO_SURFACE.onVideo,
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-        <svg
-          width={size}
-          height={size}
-          style={{ animation: 'bc-spin 1.1s linear infinite' }}
-          aria-hidden="true"
-        >
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={VIDEO_SURFACE.spinnerTrack}
-            strokeWidth={stroke}
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={VIDEO_SURFACE.spinnerArc}
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={`${String(circumference * 0.28)} ${String(circumference * 0.72)}`}
-          />
-        </svg>
-        <span style={{ fontSize: 12.5, opacity: 0.7 }}>{label}</span>
-      </div>
-    </div>
-  );
-}
-
-function ScreenEmpty({
-  t,
-  onRetry,
-}: {
-  readonly t: ComputerTranslate;
-  readonly onRetry: () => void;
-}): ReactElement {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'grid',
-        placeItems: 'center',
-        background: VIDEO_SURFACE.background,
-        color: VIDEO_SURFACE.onVideo,
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 12.5, opacity: 0.75 }}>{t('entry.noScreen')}</span>
-        <Button variant="toolbar" size="sm" onClick={onRetry}>
-          {t('entry.reconnect')}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-export interface StreamOverlayProps {
-  readonly phase: FramePhase;
-  readonly reconnecting: boolean;
-  readonly hovered: boolean;
-  readonly t: ComputerTranslate;
-  readonly onRetry: () => void;
-  readonly onOpen: () => void;
-}
-
-export function StreamOverlay(props: StreamOverlayProps): ReactElement | null {
-  const { phase, reconnecting, hovered, t, onRetry, onOpen } = props;
-  if (phase === 'connecting') {
-    return <ScreenIndicator label={t(statusKeyFor(phase, reconnecting))} />;
-  }
-  if (phase === 'empty') {
-    return <ScreenEmpty t={t} onRetry={onRetry} />;
-  }
-  if (!hovered) return null;
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'grid',
-        placeItems: 'center',
-        background: BH.hoverScrim,
-        borderRadius: 8,
-      }}
-    >
-      <Pill
-        onClick={onOpen}
-        style={{
-          background: BH.businessPrimary,
-          color: BH.labelPrimaryForeground,
-          height: 28,
-          padding: '0 12px',
-          fontSize: 13,
-          gap: 6,
-        }}
-      >
-        <IconFullscreenOutlineRegular size={14} />
-        {t('entry.openFullscreen')}
-      </Pill>
-    </div>
-  );
-}
-
-interface ScaledFrameProps {
-  readonly title: string;
-  readonly design: { width: number; height: number };
-  readonly interactive: boolean;
-  readonly fit?: 'width' | 'contain';
-  readonly iframeRef?: RefCallback<HTMLIFrameElement>;
-}
-
-function ScaledFrame({
-  title,
-  design,
-  interactive,
-  fit = 'width',
-  iframeRef,
-}: ScaledFrameProps): ReactElement {
-  const DESIGN_WIDTH = design.width;
-  const DESIGN_HEIGHT = design.height;
-  const [box, setBox] = useState({ width: DESIGN_WIDTH, height: DESIGN_HEIGHT });
-  const resizeResource = useMountedResource<HTMLDivElement>((element) => {
-    const update = (): void => setBox({ width: element.clientWidth, height: element.clientHeight });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const scale =
-    fit === 'contain'
-      ? Math.min(box.width / DESIGN_WIDTH, box.height / DESIGN_HEIGHT)
-      : box.width / DESIGN_WIDTH;
-  const offsetX = fit === 'contain' ? Math.max(0, (box.width - DESIGN_WIDTH * scale) / 2) : 0;
-  const offsetY = fit === 'contain' ? Math.max(0, (box.height - DESIGN_HEIGHT * scale) / 2) : 0;
-
-  return (
-    <div
-      ref={resizeResource}
-      style={{
-        position: 'relative',
-        width: '100%',
-        ...(fit === 'width'
-          ? {
-              aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
-              border: `1px solid ${BH.borderL3}`,
-              borderRadius: 8,
-            }
-          : { height: '100%' }),
-        overflow: 'hidden',
-        background: VIDEO_SURFACE.background,
-      }}
-    >
-      <iframe
-        ref={iframeRef}
-        title={title}
-        src={VIEWER_SRC}
-        tabIndex={interactive ? 0 : -1}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: DESIGN_WIDTH,
-          height: DESIGN_HEIGHT,
-          border: 'none',
-          transform: `translate(${String(offsetX)}px, ${String(offsetY)}px) scale(${String(scale)})`,
-          transformOrigin: 'top left',
-          pointerEvents: interactive ? 'auto' : 'none',
-        }}
-      />
-    </div>
-  );
 }
 
 export interface RecentLogRow {
@@ -513,114 +246,11 @@ export function RecentLogs({ t }: { readonly t: ComputerTranslate }): ReactEleme
   );
 }
 
-function CollapseIcon(): ReactElement {
-  return (
-    <svg
-      width={15}
-      height={15}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <polyline points="4 14 10 14 10 20" />
-      <polyline points="20 10 14 10 14 4" />
-      <line x1="14" y1="10" x2="21" y2="3" />
-      <line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
-  );
-}
-
-export interface ViewerTitleBarProps {
-  readonly t: ComputerTranslate;
-  readonly title: string;
-  readonly phase: FramePhase;
-  readonly reconnecting: boolean;
-  readonly busy: boolean;
-  readonly stopping: boolean;
-  readonly interactive: boolean;
-  readonly onToggleInteractive: () => void;
-  readonly onStop: () => void;
-  readonly onCollapse: () => void;
-}
-
-function StopButton({
-  t,
-  busy,
-  stopping,
-  onStop,
-}: {
-  readonly t: ComputerTranslate;
-  readonly busy: boolean;
-  readonly stopping: boolean;
-  readonly onStop: () => void;
-}): ReactElement {
-  return (
-    <Button variant="ghost" size="sm" disabled={busy || stopping} onClick={onStop}>
-      {busy || stopping ? t('entry.stopping') : t('entry.stop')}
-    </Button>
-  );
-}
-
-export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
-  const {
-    t,
-    title,
-    phase,
-    reconnecting,
-    busy,
-    stopping,
-    interactive,
-    onToggleInteractive,
-    onStop,
-    onCollapse,
-  } = props;
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        height: 44,
-        flex: '0 0 auto',
-        padding: '0 8px 0 14px',
-        borderBottom: `1px solid ${BH.borderL2}`,
-        color: BH.labelPrimary,
-        background: BH.bgBase,
-      }}
-    >
-      <StateDot state={dotStateFor(phase)} />
-      <strong style={{ fontSize: 13, fontWeight: 600 }}>{title}</strong>
-      <span style={{ fontSize: 12, opacity: 0.65 }}>{t(statusKeyFor(phase, reconnecting))}</span>
-      {interactive ? null : (
-        <span style={{ fontSize: 12, opacity: 0.65 }}>{t('entry.watchOnly')}</span>
-      )}
-      <span style={{ flex: 1 }} />
-      <Button
-        variant={interactive ? 'ghost' : 'primary'}
-        size="sm"
-        aria-pressed={interactive}
-        onClick={onToggleInteractive}
-        title={t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
-      >
-        {t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
-      </Button>
-      <StopButton t={t} busy={busy} stopping={stopping} onStop={onStop} />
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onCollapse}
-        aria-label={t('entry.collapseFullscreen')}
-        title={t('entry.collapseFullscreen')}
-      >
-        <CollapseIcon />
-      </Button>
-    </div>
-  );
-}
+export {
+  ScreenIndicator,
+  StreamOverlay,
+  ViewerTitleBar,
+} from '../../../client/src/client/remote-viewer/index.js';
 
 function RunningCard({
   t,
@@ -637,268 +267,21 @@ function RunningCard({
   readonly resolution?: string;
   readonly onStop: () => void;
 }): ReactElement {
-  const entryRef = useRef<HTMLDivElement>(null);
-  const mounted = useRef(false);
-  const [hovered, setHovered] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [inputEnabled, setInputEnabled] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [reconnecting, setReconnecting] = useState(false);
-  const wasReady = useRef(false);
-  const autoReloads = useRef(0);
-  const lossStreak = useRef(0);
-  const phaseRef = useRef<FramePhase>('connecting');
-  const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
-  const design = designOf(resolution);
-
-  const [smooth, setSmooth] = useState<{ phase: FramePhase; streak: number }>({
-    phase: 'connecting',
-    streak: 0,
-  });
-  const resetFrame = useCallback(() => {
-    phaseRef.current = 'connecting';
-    setSmooth({ phase: 'connecting', streak: 0 });
-    setReloadKey((key) => key + 1);
+  const onEvent = useCallback((event: ViewerLifecycleEvent) => {
+    void reportViewerEvent(undefined, viewerEventText(event));
   }, []);
-  const onSample = useCallback(
-    (nextPhase: FramePhase): void => {
-      const fromPhase = phaseRef.current;
-      if (fromPhase !== nextPhase) {
-        phaseRef.current = nextPhase;
-        setSmooth((current) => smoothPhase(current.phase, nextPhase, current.streak));
-        void reportViewerEvent(
-          undefined,
-          viewerEventText({ type: 'phase', from: fromPhase, to: nextPhase }),
-        );
-      }
-      if (nextPhase === 'live') {
-        wasReady.current = true;
-        autoReloads.current = 0;
-        lossStreak.current = 0;
-        setReconnecting(false);
-        return;
-      }
-      if (wasReady.current) {
-        lossStreak.current += 1;
-        if (shouldRemountLoss(lossStreak.current)) {
-          wasReady.current = false;
-          lossStreak.current = 0;
-          void reportViewerEvent(
-            undefined,
-            viewerEventText({ type: 'loss-remount', streak: LOSS_REMOUNT_AFTER }),
-          );
-          setReconnecting(true);
-          resetFrame();
-          return;
-        }
-      }
-      if (
-        fromPhase !== nextPhase &&
-        shouldAutoReload(nextPhase, wasReady.current, autoReloads.current)
-      ) {
-        autoReloads.current += 1;
-        void reportViewerEvent(
-          undefined,
-          viewerEventText({ type: 'auto-reload', attempt: autoReloads.current }),
-        );
-        resetFrame();
-      }
-    },
-    [resetFrame],
-  );
-  const streamRef = useStreamPhase(onSample);
-  const phase = smooth.phase;
-
-  const reconnect = (): void => {
-    void reportViewerEvent(undefined, viewerEventText({ type: 'manual-retry' }));
-    setReconnecting(true);
-    autoReloads.current = 0;
-    lossStreak.current = 0;
-    wasReady.current = false;
-    resetFrame();
-  };
-  const openViewer = (): void => {
-    setExpanded(nextExpanded('open'));
-    void reportViewerEvent(undefined, viewerEventText({ type: 'overlay', open: true }));
-  };
-  const collapseViewer = (): void => {
-    setInputEnabled(false);
-    setExpanded(nextExpanded('collapse'));
-    void reportViewerEvent(undefined, viewerEventText({ type: 'overlay', open: false }));
-    requestAnimationFrame(() => entryRef.current?.focus());
-  };
-  const dialogResource = useMountedResource<HTMLDivElement>(
-    (dialog) => {
-      if (!mounted.current) {
-        mounted.current = true;
-        void reportViewerEvent(undefined, viewerEventText({ type: 'mount' }));
-      }
-      if (!expanded) return;
-      const onKey = (event: KeyboardEvent): void => {
-        if (event.key !== 'Tab') return;
-        const focusable = [
-          ...dialog.querySelectorAll<HTMLElement>(
-            'button, [href], iframe, [tabindex]:not([tabindex="-1"])',
-          ),
-        ].filter((element) => element.tabIndex !== -1);
-        const first = focusable[0];
-        const last = focusable.at(-1);
-        if (first === undefined || last === undefined) return;
-        const active = document.activeElement;
-        if (event.shiftKey && (active === first || active === dialog)) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && active === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      };
-      document.addEventListener('keydown', onKey);
-      const previousOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      dialog.focus();
-      return () => {
-        document.removeEventListener('keydown', onKey);
-        document.body.style.overflow = previousOverflow;
-      };
-    },
-    [expanded],
-  );
-
-  const statusText = t(statusKeyFor(phase, reconnecting));
-  const openable = phase === 'live' && !expanded;
-
-  const overlay = (
-    <StreamOverlay
-      phase={phase}
-      reconnecting={reconnecting}
-      hovered={expanded ? false : hovered}
-      t={t}
-      onRetry={reconnect}
-      onOpen={openViewer}
-    />
-  );
-
-  const stopLabel = t(stopKey(busy, stopping));
-  const rowButton = (disabled: boolean): CSSProperties => ({
-    flex: 1,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 28,
-    padding: '0 10px',
-    borderRadius: 14,
-    border: `1px solid ${BH.borderL3}`,
-    background: BH.buttonElevatedFill,
-    color: BH.labelPrimary,
-    fontSize: 12,
-    ...(disabled ? { opacity: 0.4, cursor: 'not-allowed' } : { cursor: 'pointer' }),
-  });
-
   return (
-    <div
-      ref={dialogResource}
-      role={expanded ? 'dialog' : undefined}
-      aria-modal={expanded ? true : undefined}
-      aria-label={expanded ? title : undefined}
-      tabIndex={expanded ? -1 : undefined}
-      style={
-        expanded
-          ? {
-              position: 'fixed',
-              inset: 0,
-              zIndex: 100,
-              display: 'flex',
-              flexDirection: 'column',
-              background: BH.bgBase,
-              color: BH.labelPrimary,
-            }
-          : { display: 'flex', flexDirection: 'column', gap: 8 }
-      }
-    >
-      {expanded ? (
-        <ViewerTitleBar
-          key="viewer-titlebar"
-          t={t}
-          title={title}
-          phase={phase}
-          reconnecting={reconnecting}
-          busy={busy}
-          stopping={stopping}
-          interactive={inputEnabled}
-          onToggleInteractive={() => setInputEnabled((current) => !current)}
-          onStop={onStop}
-          onCollapse={collapseViewer}
-        />
-      ) : null}
-      <div
-        key="viewer-frame"
-        ref={entryRef}
-        role={openable ? 'button' : undefined}
-        tabIndex={openable ? 0 : undefined}
-        aria-label={openable ? t('entry.openFullscreen') : statusText}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={() => {
-          if (openable) openViewer();
-        }}
-        onKeyDown={(event) => {
-          if (!openable) return;
-          if (event.key !== 'Enter' && event.key !== ' ') return;
-          event.preventDefault();
-          openViewer();
-        }}
-        style={
-          expanded
-            ? { position: 'relative', flex: 1, minHeight: 0 }
-            : { position: 'relative', cursor: openable ? 'pointer' : 'default' }
-        }
-      >
-        <ScaledFrame
-          key={reloadKey}
-          title={title}
-          design={design}
-          interactive={expanded && inputEnabled}
-          fit={expanded ? 'contain' : 'width'}
-          iframeRef={streamRef}
-        />
-        {overlay}
-      </div>
-      {expanded ? null : (
-        <Fragment key="viewer-chrome">
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: BH.labelPrimary,
-              opacity: 0.9,
-              textAlign: 'center',
-            }}
-          >
-            {title}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              disabled={busy || stopping}
-              onClick={onStop}
-              style={rowButton(busy || stopping)}
-            >
-              {stopLabel}
-            </button>
-            <button
-              type="button"
-              onClick={reconnect}
-              title={t('entry.reconnect')}
-              style={rowButton(false)}
-            >
-              {t('entry.reconnect')}
-            </button>
-          </div>
-          <RecentLogs t={t} />
-        </Fragment>
-      )}
-    </div>
+    <RemoteViewer
+      t={t}
+      title={t('entry.screen.title', { name: botSlug ?? 'PersonaBot' })}
+      src={VIEWER_SRC}
+      design={designOf(resolution)}
+      busy={busy}
+      stopping={stopping}
+      onStop={onStop}
+      footer={<RecentLogs t={t} />}
+      onEvent={onEvent}
+    />
   );
 }
 
@@ -946,7 +329,6 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
     onApprove,
     onCancel,
   } = props;
-  const design = designOf(resolution);
 
   if (!runtimeAvailable) {
     return <div style={noteStyle}>{t(SETUP_GUIDANCE_KEY)}</div>;
@@ -1411,7 +793,7 @@ export function apply(ctx: ClientContext): void {
     if (typeof document === 'undefined') return () => {};
     const style = document.createElement('style');
     style.setAttribute('data-botharness-computer', 'client');
-    style.textContent = SPIN_STYLE;
+    style.textContent = ACCESS_STYLE;
     document.head.appendChild(style);
     return () => {
       style.remove();

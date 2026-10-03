@@ -76,6 +76,41 @@ describe('Channel message visual groups', () => {
     ).toEqual([['before'], ['left'], ['after']]);
   });
 
+  it('gives each external source its own header so opening details cannot select a neighboring event', () => {
+    const origin = {
+      sourceEventId: 'first-source',
+      platform: 'feishu',
+      conversationId: 'group-a',
+      conversationName: 'Group A',
+      messageId: 'first-message',
+      senderId: 'same-user',
+    };
+    const groups = groupChannelMessages([
+      { ...message('first', 0, { kind: 'bridged', source: 'same-user' }), bridgeOrigin: origin },
+      {
+        ...message('second', 1, { kind: 'bridged', source: 'same-user' }),
+        bridgeOrigin: {
+          ...origin,
+          sourceEventId: 'second-source',
+          messageId: 'second-message',
+        },
+      },
+      {
+        ...message('third', 2, { kind: 'bridged', source: 'same-user' }),
+        bridgeOrigin: {
+          ...origin,
+          sourceEventId: 'third-source',
+          conversationId: 'group-b',
+          conversationName: 'Group B',
+        },
+      },
+    ]);
+    expect(groups.map((g) => g.messages.map((m) => m.id))).toEqual([
+      ['first'],
+      ['second'],
+      ['third'],
+    ]);
+  });
   it('never merges bridged messages from different sources', () => {
     const groups = groupChannelMessages([
       message('feishu', 0, { kind: 'bridged', source: 'Feishu' }),

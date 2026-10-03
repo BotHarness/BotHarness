@@ -1,0 +1,33 @@
+{
+  "issue": 736,
+  "sourceRevision": "964a1389b4721d544569a345d830fa6661366abb",
+  "baselineRevision": "97f5941a61527ffb12f417321c72f6c32e80c0f1",
+  "captureDate": "2026-10-03",
+  "timezone": "Asia/Tokyo",
+  "viewport": { "width": 610, "height": 827 },
+  "sidebarClip": { "x": 290, "y": 0, "width": 320, "height": 827 },
+  "theme": "light",
+  "locale": "en",
+  "browserProfile": "default",
+  "runtime": { "browser": "Docker", "computer": "Docker" },
+  "browserInteraction": {
+    "verifiedQuery": "viewer qa",
+    "fixtureQueries": ["viewer qa"],
+    "firstResultOpens": 1,
+    "finalTitle": "Aurora field notes",
+    "finalMarker": "INTERACTION-FIRST-RESULT",
+    "pausePreservedAfterDisablingInputAndCollapse": true,
+    "collapsedIframeInert": true,
+    "collapsedIframePointerEvents": "none",
+    "keyboardCollapseFocus": "Open fullscreen",
+    "bodyOverflowRestored": true
+  },
+  "computerInteraction": {
+    "command": "echo viewer-computer-qa",
+    "output": "viewer-computer-qa",
+    "collapseFocus": "Open fullscreen",
+    "bodyOverflowRestored": true
+  },
+  "automated": { "fullPassed": 2089, "fullSkipped": 3, "finalFocusedPassed": 49 },
+  "humanQA": "pending"
+}

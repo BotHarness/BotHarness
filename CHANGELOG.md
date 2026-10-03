@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - PersonaBot avatars and the composer show live native Tool approval counts independently of execution; the existing revisioned Host snapshot/live stream clears accepted, rejected and cancelled requests without replaying stale approvals ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
+- Bots can explicitly share one own-Inbox external source into a joined team Channel, showing the clickable Bridge source above the original message with details in a Modal, and preserving provenance and independent member attention without forwarding future traffic or borrowing external identities ([#636](https://github.com/BotHarness/BotHarness/issues/636)).
+
 - Activity Center Overview uses the Host-selected execution state and safe Tool summary shared with sidebar/composer; pending native questions and approvals remain separate Human actions while live owned Session cards stay visible ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Active Orchestrator work determines the shared Bot Activity without concurrent Assignment Tool details overriding it; expanded Session rows still show both, and finishing the Orchestrator returns presentation to remaining Assignment work ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
@@ -194,6 +196,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- Unified Container Browser and Docker Computer preview, fullscreen and explicit interaction controls in one shared Viewer; Browser waits for Host Pause before enabling input and keeps Pause when the view collapses ([#736](https://github.com/BotHarness/BotHarness/issues/736)).
 
 - Human Inbox now uses native DSH filter menus and padded compact rows: open details by clicking a row, respond through primary actions, or jump to the exact source through its avatar and corner arrow; Activity Center keeps the current tab when browser storage rejects writes ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
 

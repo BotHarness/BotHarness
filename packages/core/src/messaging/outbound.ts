@@ -179,6 +179,7 @@ export function createOutboundMessaging(options: {
   sourcePolicy?: BotSourcePolicyStore;
   onAdmitted?(botSlug: string, sourceEventId: string): void;
   onPlaced?(commit: ChannelMessageCommit): void;
+  onShared?(botSlugs: string[]): void;
   timeoutMs?: number;
   recover?: boolean;
   now?: () => Date;
@@ -381,6 +382,7 @@ export function createOutboundMessaging(options: {
     isBotActive: options.isBotActive,
     onAdmitted: options.onAdmitted ?? (() => undefined),
     ...(options.onPlaced ? { onPlaced: options.onPlaced } : {}),
+    ...(options.onShared ? { onShared: options.onShared } : {}),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   const service: OutboundMessaging = {
