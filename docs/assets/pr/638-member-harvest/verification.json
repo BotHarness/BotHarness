@@ -1,0 +1,228 @@
+{
+  "runtimeCommit": "aa6869d813ce146ecfda933373b45c7b09571d77",
+  "baselineMain": "b0cf3b85d5c7a179837e55ded032ca786e10c882",
+  "viewport": {
+    "width": 882,
+    "height": 827,
+    "locale": "zh",
+    "theme": "light"
+  },
+  "admissions": [
+    {
+      "created_at": "2026-10-02T20:43:58.922Z",
+      "wake_count": 1,
+      "wake_interval_ms": 0,
+      "wake_mode": "all",
+      "wake_policy_revision": 2,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:43:59.964Z",
+      "handled_at": "2026-10-02T20:44:18.951Z",
+      "marker": "[BH638 QUEUE 1]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:43:58.922Z",
+      "wake_count": null,
+      "wake_interval_ms": null,
+      "wake_mode": "silent",
+      "wake_policy_revision": 2,
+      "attempt_state": "pending",
+      "observed_at": null,
+      "handled_at": null,
+      "marker": "[BH638 QUEUE 1]",
+      "bot": "IM Shared Reader QA"
+    },
+    {
+      "created_at": "2026-10-02T20:44:02.767Z",
+      "wake_count": 1,
+      "wake_interval_ms": 0,
+      "wake_mode": "all",
+      "wake_policy_revision": 2,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:44:18.954Z",
+      "handled_at": "2026-10-02T20:44:25.769Z",
+      "marker": "[BH638 QUEUE 2]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:44:02.767Z",
+      "wake_count": null,
+      "wake_interval_ms": null,
+      "wake_mode": "silent",
+      "wake_policy_revision": 2,
+      "attempt_state": "pending",
+      "observed_at": null,
+      "handled_at": null,
+      "marker": "[BH638 QUEUE 2]",
+      "bot": "IM Shared Reader QA"
+    },
+    {
+      "created_at": "2026-10-02T20:44:06.527Z",
+      "wake_count": 1,
+      "wake_interval_ms": 0,
+      "wake_mode": "all",
+      "wake_policy_revision": 2,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:44:18.954Z",
+      "handled_at": "2026-10-02T20:44:25.769Z",
+      "marker": "[BH638 QUEUE 3]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:44:06.527Z",
+      "wake_count": null,
+      "wake_interval_ms": null,
+      "wake_mode": "silent",
+      "wake_policy_revision": 2,
+      "attempt_state": "pending",
+      "observed_at": null,
+      "handled_at": null,
+      "marker": "[BH638 QUEUE 3]",
+      "bot": "IM Shared Reader QA"
+    },
+    {
+      "created_at": "2026-10-02T20:44:10.220Z",
+      "wake_count": 1,
+      "wake_interval_ms": 0,
+      "wake_mode": "all",
+      "wake_policy_revision": 2,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:44:18.954Z",
+      "handled_at": "2026-10-02T20:44:25.769Z",
+      "marker": "[BH638 QUEUE 4]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:44:10.220Z",
+      "wake_count": null,
+      "wake_interval_ms": null,
+      "wake_mode": "silent",
+      "wake_policy_revision": 2,
+      "attempt_state": "pending",
+      "observed_at": null,
+      "handled_at": null,
+      "marker": "[BH638 QUEUE 4]",
+      "bot": "IM Shared Reader QA"
+    },
+    {
+      "created_at": "2026-10-02T20:48:09.523Z",
+      "wake_count": 2,
+      "wake_interval_ms": 120000,
+      "wake_mode": "digest",
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:48:14.523Z",
+      "handled_at": "2026-10-02T20:48:21.479Z",
+      "marker": "[BH638 FINAL COUNT 1]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:48:09.523Z",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "wake_mode": "digest",
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:48:19.525Z",
+      "handled_at": "2026-10-02T20:48:26.314Z",
+      "marker": "[BH638 FINAL COUNT 1]",
+      "bot": "IM Shared Reader QA"
+    },
+    {
+      "created_at": "2026-10-02T20:48:13.326Z",
+      "wake_count": 2,
+      "wake_interval_ms": 120000,
+      "wake_mode": "digest",
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:48:14.523Z",
+      "handled_at": "2026-10-02T20:48:21.479Z",
+      "marker": "[BH638 FINAL COUNT 2]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:48:13.326Z",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "wake_mode": "digest",
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:48:19.525Z",
+      "handled_at": "2026-10-02T20:48:26.314Z",
+      "marker": "[BH638 FINAL COUNT 2]",
+      "bot": "IM Shared Reader QA"
+    }
+  ],
+  "externalOutboxSinceFixedHost": 0,
+  "automated": {
+    "passed": 2020,
+    "skipped": 3,
+    "focusedMemoryAndInbound": 88,
+    "integratedPassed": 2027,
+    "integratedSkipped": 3,
+    "themeTokenGuard": 16
+  },
+  "integratedRuntimeCommit": "2b0cb6c6ce26d4fcd5a4a840fa3866c3855c888f",
+  "latestMain": "12ff478ae42ba9e57dc08b46fb220426b666fc78",
+  "integratedAdmissions": [
+    {
+      "created_at": "2026-10-02T20:55:26.974Z",
+      "wake_count": 2,
+      "wake_interval_ms": 120000,
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:55:31.998Z",
+      "handled_at": "2026-10-02T20:55:39.063Z",
+      "marker": "[BH638 INTEGRATED 1]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:55:26.974Z",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:55:36.976Z",
+      "handled_at": "2026-10-02T20:55:44.148Z",
+      "marker": "[BH638 INTEGRATED 1]",
+      "bot": "IM Shared Reader QA"
+    },
+    {
+      "created_at": "2026-10-02T20:55:30.590Z",
+      "wake_count": 2,
+      "wake_interval_ms": 120000,
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:55:31.998Z",
+      "handled_at": "2026-10-02T20:55:39.063Z",
+      "marker": "[BH638 INTEGRATED 2]",
+      "bot": "IM Artifact QA"
+    },
+    {
+      "created_at": "2026-10-02T20:55:30.590Z",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "wake_policy_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-02T20:55:36.976Z",
+      "handled_at": "2026-10-02T20:55:44.148Z",
+      "marker": "[BH638 INTEGRATED 2]",
+      "bot": "IM Shared Reader QA"
+    }
+  ],
+  "externalOutboxSinceIntegratedHost": 0,
+  "visual": {
+    "runtimeCommit": "2b0cb6c6ce26d4fcd5a4a840fa3866c3855c888f",
+    "themesInspected": ["light", "dark"],
+    "originalTheme": "light",
+    "restoredTheme": "light",
+    "nativeSettingsControl": true,
+    "policySavedDuringThemeCheck": false,
+    "darkScreenshots": [
+      "after-integrated-group-profile-dark.png",
+      "after-integrated-member-modal-dark.png"
+    ],
+    "result": "member table and policy Modal readable; native selection, inputs and buttons visible",
+    "humanFeatureQA": "pending"
+  }
+}
