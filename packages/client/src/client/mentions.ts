@@ -1,9 +1,16 @@
-export interface SelectedMention {
-  botSlug: string;
+import type { AllBotPreview } from '../../../core/src/channels/all-bot-mention.js';
+export type SelectedMention = {
   label: string;
   start: number;
   end: number;
-}
+} & (
+  | { botSlug: string; kind?: never; preview?: never }
+  | {
+      kind: 'all-bots';
+      preview: AllBotPreview;
+      botSlug?: never;
+    }
+);
 
 export interface MentionQuery {
   start: number;
@@ -63,7 +70,12 @@ export function selectMention(
   const trailing = value[query.end] === ' ' ? '' : ' ';
   const next = value.slice(0, query.start) + token + trailing + value.slice(query.end);
   const rebased = rebaseMentions(value, next, mentions);
-  const selected = { botSlug, label, start: query.start, end: query.start + token.length };
+  const selected: SelectedMention = {
+    botSlug,
+    label,
+    start: query.start,
+    end: query.start + token.length,
+  };
   return {
     value: next,
     mentions: [...rebased, selected].sort((a, b) => a.start - b.start),

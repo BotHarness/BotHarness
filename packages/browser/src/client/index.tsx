@@ -46,6 +46,7 @@ interface ChannelSidebarRegistryLike {
   register(entry: {
     readonly id: string;
     readonly label: string;
+    readonly icon?: string;
     readonly order: number;
     readonly scope: 'channel' | 'personabot';
     readonly component: ComponentType<ChannelSidebarEntryProps>;
@@ -537,6 +538,7 @@ export function apply(ctx: BrowserClientContext): void {
       () =>
         registry.register({
           id: ENTRY_ID,
+          icon: 'globe',
           label: t('entry.label'),
           order: 41,
           scope: 'personabot',

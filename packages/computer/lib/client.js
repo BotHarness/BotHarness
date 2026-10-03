@@ -2404,6 +2404,7 @@ window.__ModuleLoader__.load({
 				if (registry === void 0) return;
 				ctx.effect(() => registry.register({
 					id: ENTRY_ID,
+					icon: "monitor",
 					label: t("entry.label"),
 					order: 40,
 					scope: "personabot",
