@@ -337,8 +337,13 @@ describe('Memory Git graph sidebar', () => {
     await act(async () => root.render(createElement(MemoryEntry, props)));
     act(() => root.render(null));
     await act(async () => root.render(createElement(MemoryEntry, props)));
-    expect(container.textContent).toContain('Snapshot refresh failed');
-    expect(container.textContent).toContain('Graph refresh failed');
+    const reasons = [...container.querySelectorAll('[role=alert]')].map((node) =>
+      node.getAttribute('title'),
+    );
+    expect(reasons).toContain('Snapshot refresh failed');
+    expect(reasons).toContain('Graph refresh failed');
+    expect(container.textContent).toContain('更新失败');
+    expect(container.querySelector('.bh-memory-retry')).not.toBeNull();
     expect(container.querySelector('#bh-memory-branch-choice')).not.toBeNull();
   });
 
@@ -771,10 +776,10 @@ describe('Memory Git graph sidebar', () => {
         }),
       );
     });
-    expect(container.querySelector('.bh-memory-history [role="alert"]')?.textContent).toBe(
+    expect(container.querySelector('.bh-memory-history [role="alert"]')?.textContent).toContain(
       'Unknown Memory Git commit',
     );
-    expect(container.querySelector('.bh-memory-history .bh-note')).toBeNull();
+    expect(container.querySelector('.bh-memory-history .bh-skeleton')).toBeNull();
   });
 
   it('replaces chat and composer with a diff, then restores the draft and original scroll after switching commits', async () => {

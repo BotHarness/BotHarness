@@ -3,8 +3,14 @@ import type { MemorySnapshot } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { MemoryFileTree } from './memory-file-tree.js';
 import { useMountedResource } from './mounted-resource.js';
+import { cachedMemory } from './memory-read-cache.js';
+import { LoadingSkeleton } from './loading-skeleton.js';
+import { MemoryLoadFeedback } from './memory-load-feedback.js';
 
-export function MemoryFilesEntry({
+export function MemoryFilesEntry(props: ChannelSidebarEntryProps): ReactElement {
+  return <MemoryFilesForScope key={cachedMemory(props.actions, props.channelId).key} {...props} />;
+}
+function MemoryFilesForScope({
   actions,
   botSlug,
   channelId,
@@ -14,8 +20,11 @@ export function MemoryFilesEntry({
   refreshRevision,
   t,
 }: ChannelSidebarEntryProps): ReactElement {
-  const [snapshot, setSnapshot] = useState<MemorySnapshot>();
-  const [error, setError] = useState<string>();
+  const cache = cachedMemory(actions, channelId);
+  const [snapshot, setSnapshot] = useState<MemorySnapshot | undefined>(cache.snapshot);
+  const [error, setError] = useState<string | undefined>(cache.snapshotError);
+  const [pending, setPending] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   const mount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
@@ -28,16 +37,23 @@ export function MemoryFilesEntry({
         return;
       }
       inFlight = true;
+      setPending(true);
       try {
         const next = await actions.memorySnapshot(channelId);
         if (active) {
+          cache.snapshot = next;
+          cache.snapshotError = undefined;
           setSnapshot(next);
           setError(undefined);
         }
       } catch (failure) {
-        if (active) setError(failure instanceof Error ? failure.message : String(failure));
+        if (active) {
+          cache.snapshotError = failure instanceof Error ? failure.message : String(failure);
+          setError(cache.snapshotError);
+        }
       } finally {
         inFlight = false;
+        if (active) setPending(false);
         if (active) timer = setTimeout(() => void load(), 15_000);
       }
     };
@@ -55,18 +71,20 @@ export function MemoryFilesEntry({
       window.removeEventListener('focus', onVisible);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [actions, channelId, conversationRevision, refreshRevision]);
+  }, [actions, channelId, conversationRevision, refreshRevision, retry]);
 
   return (
     <div className="bh-memory-entry" ref={mount}>
-      {error === undefined ? null : (
-        <div className="bh-error" role="alert">
-          {error}
-        </div>
-      )}
+      <MemoryLoadFeedback
+        error={error}
+        loaded={snapshot !== undefined}
+        pending={pending}
+        onRetry={() => setRetry((value) => value + 1)}
+        t={t}
+      />
       {snapshot === undefined ? (
         error === undefined ? (
-          <div className="bh-note">{t('memory.loading')}</div>
+          <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />
         ) : null
       ) : snapshot.files.length === 0 ? (
         <div className="bh-note">{t('memory.empty')}</div>
