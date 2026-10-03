@@ -418,6 +418,7 @@ export function createCore(
   };
 
   runtime = createBotRuntime({
+    beginAssignmentWait: (slug, sessionId) => states.beginAssignmentWait(slug, sessionId),
     database: operationalDatabase,
     externalMessaging,
     sourcePolicy,
