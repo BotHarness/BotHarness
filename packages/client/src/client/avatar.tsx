@@ -145,7 +145,9 @@ export function personaBotPresentationSummary(
       ? t('activity.approvalCount', { count: attention.approvalCount })
       : undefined,
     attention?.questionCount
-      ? t('activity.questionCount', { count: attention.questionCount })
+      ? t(attention.questionCount === 1 ? 'activity.questionCountOne' : 'activity.questionCount', {
+          count: attention.questionCount,
+        })
       : undefined,
   ]
     .filter(Boolean)

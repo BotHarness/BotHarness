@@ -150,7 +150,7 @@ async function assertUI(scene, count) {
   );
   if (count) {
     const summary = await page.$eval('.bh-composer-activity-summary', (node) => node.textContent);
-    assert.match(summary, /1 个问题待回答|1 questions awaiting an answer/);
+    assert.match(summary, /1 个问题待回答|1 question(?:s)? awaiting an answer/);
   }
 }
 async function prepare() {
