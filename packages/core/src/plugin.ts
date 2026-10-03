@@ -615,6 +615,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     core.ownership,
     (agent) => ctx.agents.get(agent.id) === agent,
     (message) => ctx.logger.warn(message),
+    (slug, count) => core.states.setQuestionCount(slug, count),
   );
   ctx.effect(() => () => userQuestions.close(), 'botharness: Channel user questions');
   ctx.on(
@@ -1062,6 +1063,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.on(
     'agent/disposed',
     ({ agent }) => {
+      userQuestions.cancelSession(agent.session.id);
       activity.handleSessionDisposed(agent.session.id);
     },
     { global: true },

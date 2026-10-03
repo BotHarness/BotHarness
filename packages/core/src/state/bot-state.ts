@@ -16,6 +16,7 @@ export type { PersonaBotSessionActivity } from './tool-activity.js';
 
 export interface PersonaBotAttention {
   approvalCount: number;
+  questionCount?: number;
 }
 
 export interface BotStateSnapshot {
@@ -43,6 +44,7 @@ export type BotStateEvent =
   | { type: 'session-removed'; slug: string; sessionId: string; snapshot: BotStateSnapshot };
 
 export interface BotStateTracker {
+  setQuestionCount(slug: string, count: number): void;
   setApprovalCount(slug: string, count: number): void;
   setSessionState(
     slug: string,
@@ -91,9 +93,13 @@ export function aggregateSessionStates(sessions: Record<string, SessionState>): 
 export function createBotStateTracker(): BotStateTracker {
   const bots = new Map<string, Map<string, SessionState>>();
   const approvalCounts = new Map<string, number>();
+  const questionCounts = new Map<string, number>();
   const attentionOf = (slug: string): PersonaBotAttention | undefined => {
     const count = approvalCounts.get(slug);
-    return count === undefined ? undefined : { approvalCount: count };
+    const questionCount = questionCounts.get(slug);
+    return count === undefined && questionCount === undefined
+      ? undefined
+      : { approvalCount: count ?? 0, ...(questionCount === undefined ? {} : { questionCount }) };
   };
   const listeners = new Set<(event: BotStateEvent) => void>();
   const tools = new Map<string, PersonaBotToolActivity>();
@@ -208,6 +214,14 @@ export function createBotStateTracker(): BotStateTracker {
   };
 
   const tracker: BotStateTracker = {
+    setQuestionCount(slug, count) {
+      if (!Number.isSafeInteger(count) || count < 0) return;
+      if ((questionCounts.get(slug) ?? 0) === count) return;
+      if (count === 0) questionCounts.delete(slug);
+      else questionCounts.set(slug, count);
+      revision += 1;
+      notify(slug, 'attention-changed');
+    },
     setApprovalCount(slug, count) {
       if (!Number.isSafeInteger(count) || count < 0) return;
       if ((approvalCounts.get(slug) ?? 0) === count) return;
