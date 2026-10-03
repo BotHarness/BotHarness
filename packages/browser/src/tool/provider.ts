@@ -270,11 +270,17 @@ export function createBrowserToolProvider(
   ): Promise<{ content: BrowserToolContent[] }> => {
     const profile = options.profile?.();
     if (profile !== undefined) {
+      const state = botTabs(slug);
+      const revision = state.controlRevision;
       const value = await profile.command(slug, raw, args, signal);
       if (raw === 'observe') {
         const observation = value as BrowserObservation;
-        if (!takeovers.has(slug))
-          botTabs(slug).observedControlRevision = botTabs(slug).controlRevision;
+        if (
+          !takeovers.has(slug) &&
+          tabsByBot.get(slug) === state &&
+          state.controlRevision === revision
+        )
+          state.observedControlRevision = revision;
         return {
           content: [
             {

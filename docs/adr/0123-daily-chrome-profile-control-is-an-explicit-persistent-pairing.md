@@ -1,4 +1,4 @@
-# ADR-0122: Daily Chrome Profile control uses explicit persistent pairing
+# ADR-0123: Daily Chrome Profile control uses explicit persistent pairing
 
 - Status: Accepted
 - Date: 2026-10-04

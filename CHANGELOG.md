@@ -17,7 +17,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- Added explicit Chrome Profile pairing for cross-tab discovery, navigation and ref-based webpage control, preserving Browser Access, Session approval and Pause ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0122](docs/adr/0122-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
+- Added explicit Chrome Profile pairing for cross-tab discovery, navigation and ref-based webpage control, preserving Browser Access, Session approval and Pause ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0123](docs/adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
+
+- Shared Channel members can explicitly answer an external Lark source using their own independently authorized identity, with inspectable sender/source details and one durable reply per member/source ([#637](https://github.com/BotHarness/BotHarness/issues/637)).
 
 - Orchestrators can explicitly wait for an owned Assignment report or completion; shared Activity presents Assignment work during that bounded wait and restores Orchestrator selection on report, cancellation or timeout ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
