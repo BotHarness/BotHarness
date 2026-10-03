@@ -2,11 +2,18 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
   const { createElement } = await import('react');
   return {
+    Modal: (p: { children: ReactNode; title: string; onClose(): void }) =>
+      createElement(
+        'div',
+        { role: 'dialog', 'aria-label': p.title },
+        createElement('button', { onClick: p.onClose }, 'Close'),
+        p.children,
+      ),
     Switch: (p: { checked: boolean; label: string; onChange(v: boolean): void }) =>
       createElement('button', {
         role: 'switch',
@@ -23,6 +30,8 @@ import { en } from '../src/client/locale.js';
 let root: Root;
 let host: HTMLDivElement;
 let current: string;
+let target: 'local' | 'container';
+let takeover: boolean;
 const urls: string[] = [];
 const tabs = [
   { targetId: 'home', title: 'Home', url: 'http://fixture/home' },
@@ -34,7 +43,9 @@ function observation(url: string): object {
     focused: preview,
     running: true,
     frame: `frame:${preview}`,
-    takeover: false,
+    takeover,
+    target,
+    viewerUrl: target === 'container' ? '/viewer/qa/' : null,
     tabs: tabs.map((t) => ({ ...t, current: t.targetId === current })),
   };
 }
@@ -50,11 +61,14 @@ beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.useFakeTimers();
   current = 'work';
+  target = 'local';
+  takeover = false;
   urls.length = 0;
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
       urls.push(url);
+      if (url === '/api/browser/takeover') takeover = JSON.parse(String(init?.body)).active;
       return { ok: true, json: async () => observation(url) };
     }),
   );
@@ -67,7 +81,8 @@ beforeEach(async () => {
     effect: (callback) => {
       callback();
     },
-    inject: (_names, callback) =>
+    inject: (names, callback) => {
+      if (names.includes('configForms')) return;
       callback({
         channelSidebar: {
           register: (entry: { component: typeof Body }) => {
@@ -78,7 +93,8 @@ beforeEach(async () => {
         connection: {
           rpc: { call: async () => ({ ok: true, value: { bots: [{ slug: 'qa' }] } }) },
         },
-      } as unknown as BrowserClientContext),
+      } as unknown as BrowserClientContext);
+    },
   });
   await act(async () => root.render(createElement(Body!, { botSlug: 'qa' })));
 });
@@ -113,5 +129,62 @@ describe('Browser current work versus Human preview', () => {
     expect(host.querySelector('button[title]')?.getAttribute('title')).toBe('http://fixture/work');
     expect(current).toBe('work');
     expect(urls.every((url) => url.startsWith('/api/browser/observation?'))).toBe(true);
+  });
+});
+
+describe('Container Human viewer', () => {
+  it('requires explicit interaction, pauses first and remounts read-only on Resume', async () => {
+    target = 'container';
+    await poll();
+    await act(async () =>
+      [...host.querySelectorAll('button')]
+        .find((b) => b.textContent === 'Open Bot Browser')!
+        .click(),
+    );
+    const readonly = host.querySelector('iframe')!;
+    expect(readonly.style.pointerEvents).toBe('none');
+    expect(readonly.tabIndex).toBe(-1);
+    await click('[aria-label="Enable Human interaction"]');
+    expect(takeover).toBe(true);
+    expect(host.querySelector('iframe')!.style.pointerEvents).toBe('auto');
+    expect(host.querySelector('iframe')).not.toBe(readonly);
+    await click('[aria-label="Enable Human interaction"]');
+    expect(takeover).toBe(true);
+    expect(host.querySelector('iframe')!.style.pointerEvents).toBe('none');
+    await act(async () =>
+      [...host.querySelector('[role="dialog"]')!.querySelectorAll('button')]
+        .find((b) => b.textContent === 'Resume')!
+        .click(),
+    );
+    expect(takeover).toBe(false);
+    expect(host.querySelector('iframe')!.style.pointerEvents).toBe('none');
+    await act(async () =>
+      [...host.querySelector('[role="dialog"]')!.querySelectorAll('button')]
+        .find((b) => b.textContent === 'Close')!
+        .click(),
+    );
+    expect(host.querySelector('iframe')).toBeNull();
+  });
+  it('coalesces slow observation polls while Human Open remains available', async () => {
+    let resolve!: (response: object) => void;
+    const delayed = new Promise<object>((done) => {
+      resolve = done;
+    });
+    const fetch = vi.mocked(globalThis.fetch);
+    fetch.mockImplementationOnce(() => delayed as Promise<Response>);
+    await poll();
+    const count = fetch.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(fetch.mock.calls.length).toBe(count);
+    await act(async () =>
+      [...host.querySelectorAll('button')]
+        .find((b) => b.textContent === 'Open Bot Browser')!
+        .click(),
+    );
+    expect(fetch.mock.calls.at(-1)?.[0]).toBe('/api/browser/open');
+    await act(async () => resolve({ ok: true, json: async () => observation('/observation') }));
+    expect(fetch.mock.calls.length).toBe(count + 2);
   });
 });

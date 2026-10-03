@@ -19,6 +19,7 @@
 
 - 活跃 Orchestrator 决定共享 Bot 活动，并发 Assignment 的工具详情不再覆盖主状态；展开后仍显示双方 Session，Orchestrator 结束后恢复展示仍在执行的 Assignment（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
+- 新增受管 Container Browser target，使用独立 profile 数据、既有原生 Browser 审批与认证 Human 预览，明确开启操作时先暂停 Bot；默认仍为 Local（[#726](https://github.com/BotHarness/BotHarness/issues/726)，[ADR-0114](docs/adr/0114-browser-targets-share-capabilities-with-separate-execution-worlds.md)）。
 - Channel sidebar 设置新增个人排序编辑，支持拖动与键盘、完成／取消／恢复默认草稿操作，恢复展开时保留权限限制，并分别保存 DM 与群组的浏览器顺序 ([#721](https://github.com/BotHarness/BotHarness/issues/721)).
 
 - Computer 与 Browser Access 改用紧凑 Lucide Power 按钮，提供本地化授权操作、Host 确认状态、处理中防重与失败提示 ([#720](https://github.com/BotHarness/BotHarness/issues/720)).
@@ -30,6 +31,7 @@
 - Human 可在群聊组合器一次选择 `@所有 Bot` 并查看活跃接收人数；单个 Bot 的提及菜单仅显示头像、名称及角色标签；过期预览须重新确认发送，提交的消息沿用逐个 @Bot 的 attention 与 wake policy（[#542](https://github.com/BotHarness/BotHarness/issues/542)）。
 
 - 显式获授权的 Host Plugin 可通过 Activity 的不透明引用读取有界原生 Tool 参数／结果；未授权、过期或撤销后拒绝读取，Channel 活动不会公开原始内容（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
+- 群 Profile 显示成员各自的有效消息提醒；明确开启收件的 Lark 普通消息保留一份共享历史，并按各成员既有数量／时间汇总或安全排队的逐条策略处理 ([#638](https://github.com/BotHarness/BotHarness/issues/638)).
 
 - 群组频道资料可通过 Attention 风格表格、独立收件 Switch 与编辑／删除弹窗管理一个已授权 Lark 频道连接器；暂停保留已收来源，删除仅移除收件路径而保留 Bot 身份和历史（[#700](https://github.com/BotHarness/BotHarness/issues/700)）。
 - 总览统计新增逐 Bot 近七天 Memory Git 提交趋势与当前未提交改动提示，复用紧凑 Profile 卡片，明确显示仓库不可用状态并可展开每日精确值（[#716](https://github.com/BotHarness/BotHarness/issues/716)）。

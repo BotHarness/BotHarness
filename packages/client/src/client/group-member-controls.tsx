@@ -325,7 +325,7 @@ function MembersHeaderActionForChannel({
   );
 }
 
-function MemberWakePolicyModal({
+export function MemberWakePolicyModal({
   group,
   slug,
   name,
@@ -336,7 +336,7 @@ function MemberWakePolicyModal({
   group: ChannelSummary;
   slug: string;
   name: string;
-  actions: BridgeActions;
+  actions: Pick<BridgeActions, 'setGroupWakePolicy'>;
   t: BotHarnessTranslate;
   onClose: () => void;
 }): ReactElement {

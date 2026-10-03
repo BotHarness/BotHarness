@@ -1,4 +1,5 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
 import { loadAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
 
@@ -56,6 +57,7 @@ import {
   decideGroupJoin,
   removeGroupMember,
   setGroupWakePolicy,
+  loadGroupWakePolicies,
   deleteGroupChannel,
   createPersonaBot,
   createRosterSection,
@@ -448,6 +450,7 @@ export interface BridgeActions {
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
   decideGroupJoin(channelId: string, requestId: string, accept: boolean): Promise<boolean>;
   removeGroupMember(channelId: string, botSlug: string): Promise<boolean>;
+  groupWakePolicies(channelId: string): Promise<GroupMemberWakePolicy[]>;
   setGroupWakePolicy(
     channelId: string,
     botSlug: string,
@@ -1987,6 +1990,9 @@ export function createActions(
         console.warn('botharness: Group member removal failed', error);
         return false;
       }
+    },
+    groupWakePolicies(channelId) {
+      return loadGroupWakePolicies(call, channelId);
     },
     async setGroupWakePolicy(channelId, botSlug, policy) {
       try {

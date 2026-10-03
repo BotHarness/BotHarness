@@ -1,3 +1,4 @@
+import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
@@ -387,6 +388,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   channelGroupMemberRemove(channelId: string, botSlug: string): { channel: ChannelRecord } {
     return unwrap(this.methods.channelGroupMemberRemove({ channelId, botSlug }));
+  }
+
+  channelGroupWakePolicies(channelId: string): { members: GroupMemberWakePolicy[] } {
+    return unwrap(this.methods.channelGroupWakePolicies({ channelId }));
   }
 
   channelGroupWakeSet(
@@ -853,6 +858,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelGroupMemberRemove',
   'channelGroupJoinDecide',
   'channelGroupWakeSet',
+  'channelGroupWakePolicies',
   'channelGroupDelete',
   'channelMessages',
   'channelTimeline',
