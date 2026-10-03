@@ -17,6 +17,8 @@
 
 ### Added
 
+- Assignment 等待 Human 回答或受阻的报告现在通过侧栏、消息框和总览共享独立 Activity 待办数；权威回复、隐藏待办或停止会清除提示，未解决的持久化报告在重启后保留 ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - Human 可将多个已授权 Lark 群接入共享 Channel、明确的 Bot DM 或仅 Inbox 目标；连接器分别启停，同一来源保留一份 canonical 内容，重叠收到的 Bot 只处理一次，各接收路径独立保留策略证据（[#635](https://github.com/BotHarness/BotHarness/issues/635)、[ADR-0120](docs/adr/0120-multiple-bridge-routes-retain-canonical-sources.md)）。
 
 - Bot 原生待回答问题与工具审批共同显示在共享待办数字中，悬浮说明分别展示数量，回答或取消后及时清除，执行动画保持独立 ([#123](https://github.com/BotHarness/BotHarness/issues/123))。

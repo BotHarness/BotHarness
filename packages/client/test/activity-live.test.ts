@@ -296,3 +296,20 @@ it('accepts only safe question counts in the same baseline and revisioned live e
     parseActivitySnapshot(baseline({ approvalCount: Number.MAX_SAFE_INTEGER, questionCount: 1 })),
   ).toBeUndefined();
 });
+
+it('parses safe Assignment counts and rejects unsafe or overflowing attention', () => {
+  const attention = { approvalCount: 0, waitingHumanCount: 1, blockedCount: 2 };
+  const baseline = (value: unknown) =>
+    JSON.stringify({
+      generation: 'host',
+      revision: 9,
+      bots: [{ slug: 'ada', state: 'idle', attention: value }],
+    });
+  expect(parseActivitySnapshot(baseline(attention))?.bots[0]?.attention).toEqual(attention);
+  for (const key of ['waitingHumanCount', 'blockedCount'])
+    for (const count of [-1, 0, 1.5, '1', Number.MAX_SAFE_INTEGER + 1])
+      expect(parseActivitySnapshot(baseline({ ...attention, [key]: count }))).toBeUndefined();
+  expect(
+    parseActivitySnapshot(baseline({ ...attention, approvalCount: Number.MAX_SAFE_INTEGER })),
+  ).toBeUndefined();
+});

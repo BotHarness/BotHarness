@@ -1,0 +1,15 @@
+{
+  "previousGeneration": "7be19d33-e41f-4b75-bebd-f90f162f5892",
+  "baseline": {
+    "generation": "4b3af12e-bb55-46f7-9bab-03b1a982767d",
+    "revision": 1,
+    "slug": "bot-166b8992b56c4c3f891b550e10470026",
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "waitingHumanCount": 1
+    }
+  },
+  "durablePendingRetained": true,
+  "historyDidNotFabricateExecution": true
+}

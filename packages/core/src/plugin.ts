@@ -344,6 +344,23 @@ export function createCore(
     options.activeToolApprovalMessageIds,
   );
   const humanAttentionDecisions = createHumanAttentionDecisions(humanAttentionDatabase);
+  if (operationalDatabase.mode === 'ready') {
+    const refreshAssignmentAttention = () =>
+      states.replaceAssignmentAttention(
+        humanAttention
+          .assignmentAttention()
+          .filter((row) => registry.get(row.botSlug) !== undefined),
+      );
+    refreshAssignmentAttention();
+    operationalDatabase.subscribe(({ topics }) => {
+      if (
+        topics.some((topic) =>
+          ['assignments', 'source-event', 'channel', 'human-attention', 'usage'].includes(topic),
+        )
+      )
+        refreshAssignmentAttention();
+    });
+  }
   live = createChannelLiveHub(channels, {
     snapshot: () =>
       personaBotActivitySnapshot(
