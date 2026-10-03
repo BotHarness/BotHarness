@@ -1,4 +1,17 @@
 export const styles = `
+.bh-browser-access-control { position: relative; display: flex; align-items: center; }
+.bh-browser-access-power {
+  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: var(--dsw-radius-md); background: transparent;
+  color: var(--dsw-alias-label-secondary); cursor: pointer;
+}
+.bh-browser-access-power:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.bh-browser-access-power[aria-pressed='true'] { color: var(--dsw-alias-state-business-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.bh-browser-access-power:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.bh-browser-access-power:disabled { opacity: 0.5; cursor: default; }
+.bh-browser-access-power.bh-access-failed { color: var(--dsw-alias-state-error-primary); }
+.bh-browser-access-error { order: -1; padding: 0 4px; color: var(--dsw-alias-state-error-primary); font-size: 11px; line-height: 16px; white-space: nowrap; }
+
 /* @bh-browser-aliases:start */
 .bh-browser-body, .bh-browser-profiles {
   --bh-browser-error: var(--dsw-alias-state-error-primary);
