@@ -1,0 +1,11 @@
+{
+  "realConcurrentSessions": true,
+  "selectedOrchestrator": true,
+  "assignmentRowPreserved": true,
+  "sidebarComposerMatched": true,
+  "reconnectPreservedSnapshot": true,
+  "defaultCollapsed": true,
+  "handedOffToAssignment": true,
+  "realAssignmentReportAndReply": true,
+  "settledIdle": true
+}

@@ -106,9 +106,22 @@ export function createBotStateTracker(): BotStateTracker {
   const toRecord = (sessions: Map<string, SessionState>): Record<string, SessionState> =>
     Object.fromEntries(sessions);
 
+  const presentationSessions = (sessions: Map<string, SessionState>): Map<string, SessionState> => {
+    const orchestrators = [...sessions].filter(
+      ([id, state]) =>
+        sessionDetails.get(id)?.role === 'orchestrator' &&
+        (state === 'thinking' || state === 'working'),
+    );
+    return orchestrators.length === 0 ? sessions : new Map(orchestrators);
+  };
+
   const snapshotOf = (slug: string, sessions: Map<string, SessionState>): BotStateSnapshot => {
     const detail = toRecord(sessions);
-    return { slug, state: aggregateSessionStates(detail), sessions: detail };
+    return {
+      slug,
+      state: aggregateSessionStates(toRecord(presentationSessions(sessions))),
+      sessions: detail,
+    };
   };
 
   const emit = (event: BotStateEvent): void => {
@@ -136,7 +149,8 @@ export function createBotStateTracker(): BotStateTracker {
   };
 
   const activityOf = (slug: string): PersonaBotToolActivity | undefined => {
-    const sessions = bots.get(slug);
+    const owned = bots.get(slug);
+    const sessions = owned === undefined ? undefined : presentationSessions(owned);
     if (sessions === undefined || aggregateSessionStates(toRecord(sessions)) !== 'working')
       return undefined;
     const working = [...sessions].filter(([, state]) => state === 'working');
@@ -203,7 +217,7 @@ export function createBotStateTracker(): BotStateTracker {
     },
     setSessionState(slug, sessionId, state, activity, role, name) {
       const sessions = sessionsOf(slug);
-      const previousAggregate = aggregateSessionStates(toRecord(sessions));
+      const previousAggregate = snapshotOf(slug, sessions).state;
       const previousState = sessions.get(sessionId);
       const previousActivity = tools.get(sessionId);
       const previousDetail = sessionDetails.get(sessionId);
@@ -232,7 +246,6 @@ export function createBotStateTracker(): BotStateTracker {
             : { sources: nextActivity.sources.map(({ role, count }) => ({ role, count })) }),
         });
       sessions.set(sessionId, state);
-      const snapshot = snapshotOf(slug, sessions);
       const changed =
         previousState !== state ||
         previousDetail?.role !== sourceRole ||
@@ -248,6 +261,9 @@ export function createBotStateTracker(): BotStateTracker {
             at: Date.now(),
             revision,
           });
+      }
+      const snapshot = snapshotOf(slug, sessions);
+      if (changed) {
         notify(slug, 'session-changed');
         emit({ type: 'session-changed', slug, sessionId, state, snapshot });
       }
@@ -256,7 +272,7 @@ export function createBotStateTracker(): BotStateTracker {
     clearSession(slug, sessionId) {
       const sessions = bots.get(slug);
       if (sessions === undefined) return;
-      const previousAggregate = aggregateSessionStates(toRecord(sessions));
+      const previousAggregate = snapshotOf(slug, sessions).state;
       if (!sessions.delete(sessionId)) return;
       tools.delete(sessionId);
       sessionDetails.delete(sessionId);

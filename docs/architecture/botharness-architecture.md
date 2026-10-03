@@ -392,6 +392,8 @@ Client 通过一个 Avatar module 在侧栏行、响应式 Pin Grid、消息、�
 
 Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharness-core.activityDetailConsumers` 显式列出受信任的 Host Plugin runtime name；Cordis Service caller Context 提供实际调用方 Fiber，只有处于 ACTIVE 的允许 Consumer 才可读取。它是受信任 Host Plugin 之间的部署授权边界，不是同进程恶意代码沙箱。服务不注册 Browser RPC 或 Fetch 详情端点；opaque reference 本身不授予权限，也不是 Session 显示 key。每次读取审计 Consumer、结果与字节数，不记录 reference、原生 Session ID、参数或结果。
 
+共享状态与 Tool 摘要优先选择活跃 Orchestrator Session，安全的展开列表仍保留双方 Session；Orchestrator 结束后恢复展示剩余已归属 Session 的活动。#123 首片不推断等待标记或建立新的 attention 生命周期；明确等待 Assignment 与完整正交 attention 仍属后续契约。
+
 引用表只保存指向原生 SessionEvent 的 process-local locator，最多 256 项，有效期五分钟；请求时校验当前归属及归属模块的进程内单调 repair revision，再从存活 Session 的 canonical snapshot 读取精确 Tool arguments 与配对 result（包括原生 meta），返回独立 JSON 副本，完整数据超过 64 KiB 时拒绝。归属改变、原生事实消失、Turn 边界、Session disposal、projection rebuild 或 Host disposal 均使旧引用失效；无持久 payload 副本或 replay。已完成 Tool 的 Consumer 可在当前 Turn 内使用此前收到的引用读取结果，Activity 则继续只显示当前待执行工具。
 
 ## 6 · 持久化、导出与恢复边界
