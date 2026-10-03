@@ -27,9 +27,15 @@ export interface ChannelSidebarEntryProps {
   t: BotHarnessTranslate;
 }
 
+export interface ChannelSidebarSettingsProps extends ChannelSidebarEntryProps {
+  onClose(): void;
+}
+
 export interface ChannelSidebarEntry {
   id: string;
   label: string;
+  icon?: string;
+  settings?: ComponentType<ChannelSidebarSettingsProps>;
   order?: number;
   scope: ChannelSidebarScope;
   component: ComponentType<ChannelSidebarEntryProps>;

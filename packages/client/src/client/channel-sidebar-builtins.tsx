@@ -19,16 +19,13 @@ import { formatRelativeTime } from './labels.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import { MemoryEntry } from './memory-entry.js';
 import { MemoryFilesEntry } from './memory-files-entry.js';
-import { MemoryEvolutionHeaderAction, MemoryRefreshHeaderAction } from './memory-header-action.js';
+import { MemoryRefreshHeaderAction } from './memory-header-action.js';
+import { MemoryDisplaySettings, SessionsDisplaySettings } from './channel-sidebar-settings.js';
 import { Modal } from './modal.js';
 import { ExternalSourceContent } from './external-source-content.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
-import {
-  SessionsEntry,
-  SessionsHeaderAction,
-  type NativeSessionCatalog,
-} from './sessions-entry.js';
+import { SessionsEntry, type NativeSessionCatalog } from './sessions-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotAttentionItem, ChannelSummary } from './store.js';
 
@@ -518,6 +515,7 @@ export function createChannelSidebarBuiltins(
   return [
     {
       id: 'memory-files',
+      icon: 'files',
       label: t('entry.memoryFiles'),
       order: 5,
       scope: 'personabot',
@@ -526,22 +524,26 @@ export function createChannelSidebarBuiltins(
     },
     {
       id: 'memory-evolution',
+      icon: 'git-branch',
       label: t('entry.memoryEvolution'),
       order: 6,
       scope: 'personabot',
       component: MemoryEvolutionEntry,
-      headerAction: MemoryEvolutionHeaderAction,
+      headerAction: MemoryRefreshHeaderAction,
+      settings: MemoryDisplaySettings,
     },
     {
       id: 'sessions',
+      icon: 'messages-square',
       label: t('entry.sessions'),
       order: 10,
       scope: 'personabot',
       component: SessionsWithNative,
-      headerAction: SessionsHeaderAction,
+      settings: SessionsDisplaySettings,
     },
     {
       id: 'bot-inbox',
+      icon: 'inbox',
       label: t('entry.botInbox'),
       order: 15,
       scope: 'personabot',
@@ -554,6 +556,7 @@ export function createChannelSidebarBuiltins(
     },
     {
       id: 'workspace-grants',
+      icon: 'folder-key',
       label: t('entry.workspaceGrants'),
       order: 20,
       scope: 'personabot',
@@ -561,6 +564,7 @@ export function createChannelSidebarBuiltins(
     },
     {
       id: 'members',
+      icon: 'users',
       label: t('entry.members'),
       order: 10,
       scope: 'channel',
@@ -570,6 +574,7 @@ export function createChannelSidebarBuiltins(
     },
     {
       id: 'group-management',
+      icon: 'settings-2',
       label: t('entry.groupManagement'),
       order: 20,
       scope: 'channel',

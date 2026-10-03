@@ -33,6 +33,8 @@ import {
 import type { BotHarnessTranslate } from './locale.js';
 import type { ClientState } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
+import { ChannelSidebarIcon } from './channel-sidebar-icon.js';
+import { ChannelSidebarSettings } from './channel-sidebar-settings.js';
 
 function matchesNarrow(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -169,6 +171,9 @@ export function ChannelSidebarEntrySection({
             aria-hidden="true"
           >
             <IconChevronDownOutlineRegular size={14} />
+          </span>
+          <span className="bh-channel-sidebar-entry-icon" aria-hidden="true">
+            <ChannelSidebarIcon name={entry.icon} />
           </span>
           <span className="bh-channel-sidebar-entry-label">{entry.label}</span>
           {Badge === undefined ? null : (
@@ -330,7 +335,15 @@ export function ChannelSidebar({
           onDoubleClick={() => controller.setWidth(DEFAULT_CHANNEL_SIDEBAR_WIDTH)}
         />
       )}
-      <div className="bh-channel-sidebar-head" aria-hidden="true" />
+      <div className="bh-channel-sidebar-head">
+        {entryProps === undefined ? null : (
+          <ChannelSidebarSettings
+            key={controller.scopeKey}
+            entries={visibleEntries}
+            entryProps={entryProps}
+          />
+        )}
+      </div>
       <div className="bh-channel-sidebar-entries">
         {entryProps === undefined ? null : visibleEntries.length === 0 ? (
           <div className="bh-note">{t('sidebar.empty')}</div>

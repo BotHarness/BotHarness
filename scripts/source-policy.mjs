@@ -16,6 +16,7 @@ const generatedPrefixes = [
   'apps/docs/.astro/',
 ];
 const licenseHeaderHashes = new Map([
+  ['packages/client/src/client/channel-sidebar-icon.tsx', '473ded718879faec'],
   ['packages/client/src/client/hash-icon.tsx', '8d64b9069cfcfaab'],
   ['packages/client/src/client/inbox-icon.tsx', '8412a9519ce369b7'],
 ]);
