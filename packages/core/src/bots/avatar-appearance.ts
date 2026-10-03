@@ -1,5 +1,6 @@
 export const AVATAR_PARTS = {
   head: ['round', 'oval', 'square', 'long', 'heart', 'vchin', 'chubby', 'diamond'],
+  pose: ['front', 'left', 'right'],
   hair: [
     'crop',
     'sweep',
@@ -65,6 +66,7 @@ export const DEFAULT_ILLUSTRATED_RECIPE: IllustratedAvatarRecipe = {
   assetVersion: 1,
   rigVersion: 1,
   head: 'round',
+  pose: 'front',
   hair: 'crop',
   eyes: 'round',
   brows: 'soft',
@@ -615,6 +617,10 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   const hair = recipe.hairColor;
   const left = Math.round(16 - head.half);
   const right = Math.round(15 + head.half);
+  const turned = recipe.pose !== 'front';
+  const turn = turned ? -1 : 0;
+  const dx = turn * 2;
+  const headMask: Mask = (x, y) => head.mask(x - turn, y);
 
   const tile = blank();
   paint(tile, inTile, mix(PAPER, recipe.shirtColor, 0.18));
@@ -639,14 +645,18 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   dots(
     base,
     [
-      [left - 1, 15],
-      [left - 1, 16],
-      [right + 1, 15],
-      [right + 1, 16],
+      ...(turned
+        ? []
+        : ([
+            [left - 1, 15],
+            [left - 1, 16],
+          ] as Point[])),
+      [right + 1 + turn, 15],
+      [right + 1 + turn, 16],
     ],
     skin,
   );
-  paint(base, head.mask, skin);
+  paint(base, headMask, skin);
   paint(base, masks.front, hair);
   for (let y = SIZE - 1; y > 0; y--)
     for (let x = 0; x < SIZE; x++)
@@ -669,21 +679,25 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
 
   const face = blank();
   const my = head.mouth;
-  const [lx, rx] = EYE_X;
+  const lx = EYE_X[0] + dx;
+  const rx = EYE_X[1] + dx;
+  const far = (rows: readonly string[]) => (turned ? rows.map((row) => row.slice(1)) : rows);
+  const farShift = turned ? 1 : 0;
+  const cx = 16 + dx;
   const brow = { B: shade(hair, 0.6) };
   if (BROWS[recipe.brows].length) {
     const browTop = EYE_TOP - 1 - BROWS[recipe.brows].length;
-    sprite(face, BROWS[recipe.brows], lx - 1, browTop, brow);
+    sprite(face, far(BROWS[recipe.brows]), lx - 1 + farShift, browTop, brow);
     sprite(face, BROWS[recipe.brows], rx, browTop, brow, true);
   }
   const noseShade = shade(skin, 0.74);
-  if (recipe.nose === 'dot') dots(face, [[16, my - 2]], noseShade);
+  if (recipe.nose === 'dot') dots(face, [[cx, my - 2]], noseShade);
   if (recipe.nose === 'button')
     dots(
       face,
       [
-        [15, my - 2],
-        [16, my - 2],
+        [cx - 1, my - 2],
+        [cx, my - 2],
       ],
       shade(skin, 0.82),
     );
@@ -691,9 +705,9 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     dots(
       face,
       [
-        [16, my - 3],
-        [16, my - 2],
-        [15, my - 2],
+        [cx, my - 3],
+        [cx, my - 2],
+        [cx - 1, my - 2],
       ],
       shade(skin, 0.68),
     );
@@ -708,7 +722,7 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     o: ['.K.', 'K.K', '.K.'],
   };
   const shape = mouths[recipe.mouth];
-  sprite(face, shape, 16 - Math.floor(shape[0]!.length / 2), my, {
+  sprite(face, shape, cx - Math.floor(shape[0]!.length / 2), my, {
     K: MOUTH,
     W: WHITE,
     M: TONGUE,
@@ -718,17 +732,21 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     paint(
       face,
       (x, y) =>
-        y === my - 1 && (x === left + 2 || x === left + 3 || x === right - 3 || x === right - 2),
+        y === my - 1 &&
+        (x === left + 3 + dx ||
+          (!turned && x === left + 2) ||
+          x === right - 3 + dx ||
+          x === right - 2 + dx),
       BLUSH,
     );
   if (recipe.cheeks === 'freckles')
     dots(
       face,
       [
-        [left + 2, my - 1],
-        [left + 4, my],
-        [right - 4, my],
-        [right - 2, my - 1],
+        [left + 3 + dx, my - 1],
+        [left + 4 + dx, my],
+        [right - 4 + dx, my],
+        [right - 2 + dx, my - 1],
       ],
       shade(skin, 0.68),
     );
@@ -736,37 +754,47 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   const eyePalette = { K: INK, W: WHITE, I: shade(recipe.eyeColor, 0.72), L: recipe.eyeColor };
   const eyes = blank();
   const style = EYES[recipe.eyes];
-  sprite(eyes, style, lx + 3 - style[0]!.length, EYE_TOP, eyePalette);
+  sprite(eyes, far(style), lx + 3 - style[0]!.length + farShift, EYE_TOP, eyePalette);
   sprite(eyes, recipe.eyes === 'wink' ? CLOSED : style, rx, EYE_TOP, eyePalette, true);
   const closed = blank();
-  sprite(closed, CLOSED, lx, EYE_TOP, eyePalette);
+  sprite(closed, far(CLOSED), lx + farShift, EYE_TOP, eyePalette);
   sprite(closed, CLOSED, rx, EYE_TOP, eyePalette, true);
 
   const glasses = blank();
-  const frame = (cx: number, round: boolean) =>
+  const frame = (fx: number, round: boolean, width = 3) =>
     paint(
       glasses,
       (x, y) => {
-        const inside = x >= cx && x <= cx + 2 && y >= EYE_TOP && y <= EYE_TOP + 3;
-        const box = x >= cx - 1 && x <= cx + 3 && y >= EYE_TOP - 1 && y <= EYE_TOP + 4;
-        const corner = (x === cx - 1 || x === cx + 3) && (y === EYE_TOP - 1 || y === EYE_TOP + 4);
+        const inside = x >= fx && x < fx + width && y >= EYE_TOP && y <= EYE_TOP + 3;
+        const box = x >= fx - 1 && x <= fx + width && y >= EYE_TOP - 1 && y <= EYE_TOP + 4;
+        const corner =
+          (x === fx - 1 || x === fx + width) && (y === EYE_TOP - 1 || y === EYE_TOP + 4);
         return box && !inside && !(round && corner);
       },
       INK,
     );
+  const farX = lx + farShift;
+  const farWidth = turned ? 2 : 3;
   if (recipe.glasses === 'round' || recipe.glasses === 'square') {
-    frame(lx, recipe.glasses === 'round');
+    frame(farX, recipe.glasses === 'round', farWidth);
     frame(rx, recipe.glasses === 'round');
-    paint(glasses, (x, y) => y === EYE_TOP && x >= lx + 4 && x <= rx - 2, INK);
+    paint(glasses, (x, y) => y === EYE_TOP && x >= farX + farWidth + 1 && x <= rx - 2, INK);
   }
   if (recipe.glasses === 'shades') {
-    for (const cx of EYE_X)
-      paint(glasses, (x, y) => x >= cx - 1 && x <= cx + 3 && y >= EYE_TOP && y <= EYE_TOP + 3, INK);
-    paint(glasses, (x, y) => y === EYE_TOP && x >= lx + 4 && x <= rx - 2, INK);
+    for (const [fx, width] of [
+      [farX, farWidth],
+      [rx, 3],
+    ] as const)
+      paint(
+        glasses,
+        (x, y) => x >= fx - 1 && x <= fx + width && y >= EYE_TOP && y <= EYE_TOP + 3,
+        INK,
+      );
+    paint(glasses, (x, y) => y === EYE_TOP && x >= farX + farWidth + 1 && x <= rx - 2, INK);
     dots(
       glasses,
       [
-        [lx, EYE_TOP + 1],
+        [farX, EYE_TOP + 1],
         [rx, EYE_TOP + 1],
       ],
       '#7d7b88',
@@ -791,15 +819,18 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     return `<g data-avatar-mark="${mark}" opacity="0">${rects(grid)}</g>`;
   }).join('');
 
+  const facing = (grid: Grid): Grid =>
+    recipe.pose === 'right' ? grid.map((row) => [...row].reverse()) : grid;
+
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="512" height="512" shape-rendering="crispEdges" aria-hidden="true">`,
     rects(tile),
-    `<g class="bh-illustrated-body">${rects(clip(outline(body)))}</g>`,
-    `<g class="bh-illustrated-head">${rects(clip(outline(base)))}`,
-    `<g class="bh-illustrated-face">${rects(face)}`,
-    `<g class="bh-illustrated-gaze">${rects(eyes)}</g>`,
-    `<g class="bh-illustrated-blink" opacity="0">${rects(closed)}</g>`,
-    `${rects(glasses)}</g></g>`,
+    `<g class="bh-illustrated-body">${rects(facing(clip(outline(body))))}</g>`,
+    `<g class="bh-illustrated-head">${rects(facing(clip(outline(base))))}`,
+    `<g class="bh-illustrated-face">${rects(facing(face))}`,
+    `<g class="bh-illustrated-gaze">${rects(facing(eyes))}</g>`,
+    `<g class="bh-illustrated-blink" opacity="0">${rects(facing(closed))}</g>`,
+    `${rects(facing(glasses))}</g></g>`,
     `<g class="bh-illustrated-marks">${marks}</g>`,
     '</svg>',
   ].join('');

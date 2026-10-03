@@ -2102,6 +2102,7 @@ describe('bridge methods', () => {
       assetVersion: 1,
       rigVersion: 1,
       head: 'round',
+      pose: 'left',
       hair: 'sweep',
       eyes: 'sparkle',
       brows: 'raised',

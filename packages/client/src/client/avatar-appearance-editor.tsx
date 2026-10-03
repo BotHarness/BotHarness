@@ -16,6 +16,7 @@ type Category = AvatarPart | 'colors';
 
 const CATEGORIES: readonly Category[] = [
   'head',
+  'pose',
   'hair',
   'eyes',
   'brows',
