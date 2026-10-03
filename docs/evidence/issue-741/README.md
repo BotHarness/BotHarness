@@ -19,6 +19,8 @@ The synthetic fixture in `scripts/e2e-daily-browser-fixture.py` creates an HttpO
 7. Reload the final extension implementation, pair/share again, and observe through another real Bot turn. The account and marker are read again.
 8. Human follows the page's link to another URL. The lease is immediately removed, the sidebar shows No shared tab, and the original Human tab remains open.
 
+After integration with main `c3349cdc`, a restarted Host and another real approved `browser_observe` refused with No shared tab; the Bot reported the current refusal without reusing its previous snapshot. The subsequent `bf4a4953` integration was covered by focused regression and build checks.
+
 The final text collector was exercised in step 7. Screenshots of the first successful observation, Return refusal and final navigation state record the key interaction states; native approval cards containing task-local paths are omitted or excluded by capture cropping.
 
 ## Screenshots
@@ -41,12 +43,13 @@ Pairing codes, lease tokens, Host login cookies and credentials are absent from 
 ## Automated validation
 
 - `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm build`, `pnpm changelog:check`, `pnpm skill:changelog:check`: passed.
-- `pnpm test`: **2111 passed, 3 skipped** across **258 passed, 3 skipped** files; original assertions and timeouts retained.
+- `pnpm test` after integration with main `c3349cdc`: **2118 passed, 3 skipped** across **259 passed, 3 skipped** files; original assertions and timeouts retained.
+- Final integration with main `bf4a4953`: Browser, Client, native Tool approval, Bot state and adapter regression **942 passed, 2 skipped** across **111 passed, 2 skipped** files. The Browser implementation did not change during either integration.
 - Focused borrowed authority, Browser Tools, Host service and Container execution: 87 passed.
 - New real HTTP boundary tests: origin refusal, preflight, prefix matching, one-use pairing, Origin/token binding, return, methods and body limits.
 - New worker tests: immediate Return/re-pair polling and navigation during pending Share.
 - New DOM test: password/textarea values and hidden text excluded, bounded rendered output.
-- `pnpm og:font` and docs build: passed, 288 generated pages.
+- `pnpm og:font` and docs build: passed; final docs build generated 290 pages.
 
 An initial full run overlapped a separate docs build and failed from a shared output-directory race; a Group invitation test also exceeded its existing timeout under that load. The Group test passed separately and the full suite passed when rerun serially. Those initial failures were not treated as feature fixes.
 
