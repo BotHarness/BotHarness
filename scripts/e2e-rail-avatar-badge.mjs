@@ -180,7 +180,56 @@ try {
         (node) => node.closest('.bh-rail-group').querySelector('.bh-rail-channel') === node,
       );
       assert.equal(firstInGroup, true, 'verify the group first row at the vertical clipping edge');
-      proof.cases.push({ pinned, theme, firstInGroup, ...geometry });
+      const motion = await entry.evaluate(async (node) => {
+        const marker = node.querySelector('.bh-avatar-botui');
+        if (!marker) throw Error('real working BotUI marker missing');
+        const box = marker.getBoundingClientRect();
+        const avatar = marker.parentElement.getBoundingClientRect();
+        const dots = [...marker.querySelectorAll('i')];
+        const frame = () =>
+          dots.map((dot) => ({
+            opacity: getComputedStyle(dot).opacity,
+            scale: getComputedStyle(dot).scale,
+          }));
+        const preference = document.documentElement.dataset.botharnessMotion;
+        try {
+          document.documentElement.dataset.botharnessMotion = 'full';
+          const before = frame();
+          await new Promise((resolve) => setTimeout(resolve, 220));
+          const animated = JSON.stringify(before) !== JSON.stringify(frame());
+          document.documentElement.dataset.botharnessMotion = 'reduce';
+          const still = frame();
+          await new Promise((resolve) => setTimeout(resolve, 220));
+          const reducedStill = JSON.stringify(still) === JSON.stringify(frame());
+          return {
+            state: marker.dataset.botuiState,
+            preset: marker.firstElementChild?.dataset.preset,
+            dots: dots.length,
+            animated,
+            reducedStill,
+            insideAvatar:
+              box.left >= avatar.left &&
+              box.right <= avatar.right &&
+              box.top >= avatar.top &&
+              box.bottom <= avatar.bottom,
+            legacyDotPresent: node.querySelector('.bh-avatar-indicator') !== null,
+          };
+        } finally {
+          if (preference === undefined) delete document.documentElement.dataset.botharnessMotion;
+          else document.documentElement.dataset.botharnessMotion = preference;
+        }
+      });
+      assert.equal(motion.state, hostBot.state, 'BotUI must follow actual Host execution');
+      assert.equal(motion.animated, true, 'BotUI working matrix must animate');
+      assert.equal(motion.reducedStill, true, 'shared reduced motion must stop BotUI');
+      assert.equal(motion.insideAvatar, true, 'BotUI must fit inside the avatar');
+      assert.equal(
+        motion.legacyDotPresent,
+        false,
+        'active Bot must not retain the static blue dot',
+      );
+      proof.cases.push({ pinned, theme, firstInGroup, motion, ...geometry });
+
       await page.screenshot({
         path: resolve(evidence, `rail-${pinned ? 'pinned' : 'ordinary'}-${theme}.png`),
         clip: { x: 0, y: 170, width: 75, height: 160 },

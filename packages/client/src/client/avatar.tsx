@@ -1,4 +1,5 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useCallback, useMemo, useState, type ReactElement } from 'react';
+import { buildCss, presetForState, resolveOptions } from '@botharness/botui-core';
 
 import type {
   PersonaBotAttention,
@@ -188,17 +189,34 @@ function AvatarMedia({
   return <BlobatarMedia seed={personaBotId || name} />;
 }
 
+function BotUIActivityIndicator({ state }: { state: 'thinking' | 'working' }): ReactElement {
+  const mount = useCallback(
+    (element: HTMLSpanElement | null) => {
+      if (element === null) return;
+      const matrix = buildCss(
+        resolveOptions({
+          preset: presetForState(state),
+          renderer: 'css',
+          size: 12,
+          cols: 3,
+          rows: 3,
+          silhouette: 'square',
+          dot: 'circle',
+          color: 'inherit',
+        }),
+      );
+      element.replaceChildren(...(matrix === null ? [] : [matrix]));
+    },
+    [state],
+  );
+  return (
+    <span ref={mount} className="bh-avatar-botui" data-botui-state={state} aria-hidden="true" />
+  );
+}
+
 function ActivityIndicator({ state }: { state: PersonaBotActivityState }): ReactElement | null {
   if (state === 'idle') return null;
-  if (state === 'thinking') {
-    return (
-      <span className="bh-avatar-indicator bh-avatar-thinking" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </span>
-    );
-  }
+  if (state === 'thinking' || state === 'working') return <BotUIActivityIndicator state={state} />;
   return <span className="bh-avatar-indicator" aria-hidden="true" />;
 }
 

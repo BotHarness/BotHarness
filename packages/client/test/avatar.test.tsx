@@ -40,7 +40,7 @@ const SENDING_CONVERSATION: ConversationState = {
 const ADA_SELECTION: ConversationSelection = { kind: 'bot', slug: 'ada' };
 
 describe('PersonaBotAvatar', () => {
-  it('renders thinking motion and the three-dot state indicator from one state', () => {
+  it('renders a BotUI thinking marker from the shared Host state', () => {
     const markup = renderToStaticMarkup(
       createElement(PersonaBotAvatar, {
         personaBotId: 'ada',
@@ -53,7 +53,8 @@ describe('PersonaBotAvatar', () => {
     expect(markup).toContain('data-state="thinking"');
     expect(markup).toContain('data-effect="thinking-dots"');
     expect(markup).toContain('data-media="blob"');
-    expect(markup.match(/<i><\/i>/g)).toHaveLength(3);
+    expect(markup).toContain('data-botui-state="thinking"');
+    expect(markup).not.toContain('bh-avatar-indicator');
   });
 
   it('keeps custom image media still while the shared activity frame stays active', () => {

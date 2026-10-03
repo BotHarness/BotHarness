@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@blobatar/react": "^2.7.0",
+    "@botharness/botui-core": "0.3.0",
     "blobatar": "^2.7.0"
   },
   "devDependencies": {

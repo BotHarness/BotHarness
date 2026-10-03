@@ -5,6 +5,15 @@
       "pinned": false,
       "theme": "light",
       "firstInGroup": true,
+      "motion": {
+        "state": "working",
+        "preset": "morph",
+        "dots": 9,
+        "animated": true,
+        "reducedStill": true,
+        "insideAvatar": true,
+        "legacyDotPresent": false
+      },
       "badge": {
         "x": 29.5,
         "y": 252,
@@ -85,6 +94,15 @@
       "pinned": false,
       "theme": "dark",
       "firstInGroup": true,
+      "motion": {
+        "state": "working",
+        "preset": "morph",
+        "dots": 9,
+        "animated": true,
+        "reducedStill": true,
+        "insideAvatar": true,
+        "legacyDotPresent": false
+      },
       "badge": {
         "x": 29.5,
         "y": 252,
@@ -165,6 +183,15 @@
       "pinned": true,
       "theme": "light",
       "firstInGroup": true,
+      "motion": {
+        "state": "working",
+        "preset": "morph",
+        "dots": 9,
+        "animated": true,
+        "reducedStill": true,
+        "insideAvatar": true,
+        "legacyDotPresent": false
+      },
       "badge": {
         "x": 29.5,
         "y": 252,
@@ -245,6 +272,15 @@
       "pinned": true,
       "theme": "dark",
       "firstInGroup": true,
+      "motion": {
+        "state": "working",
+        "preset": "morph",
+        "dots": 9,
+        "animated": true,
+        "reducedStill": true,
+        "insideAvatar": true,
+        "legacyDotPresent": false
+      },
       "badge": {
         "x": 29.5,
         "y": 252,

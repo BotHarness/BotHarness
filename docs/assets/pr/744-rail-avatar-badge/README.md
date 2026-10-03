@@ -24,3 +24,11 @@ Screenshots are direct cropped browser viewport captures. No image editing, auth
 ## CodeRabbit cookie-scope fix
 
 The E2E browser now uses a host-scoped HTTP-only cookie rather than a page-wide Cookie header. An intercepted foreign-avatar request (no external network) carried the cookie with the old header setup, but not with the fixed cookie setup; both contexts loaded the authenticated native DSH shell. `cookie-origin-proof.json` publishes only those booleans. The fixed authentication also passed all four real Rail cases and restored the original pins.
+
+## BotUI execution marker
+
+Human requested replacing the adjacent static blue execution dot with BotUI. The official `@botharness/botui-core` 0.3.0 engine is bundled into the Client; its public CSS geometry, state presets and keyframes render a 12px 3×3 matrix. Thinking uses spiral and working uses morph. No JavaScript frame loop, interval or state store is added. Idle hides this marker; existing waiting/blocked warning indicators retain their semantics. All consumers retain the Host-selected state and independent native approval count.
+
+The four current screenshots show a real working Bot, Host count 2 and the BotUI matrix. The proof records actual animation across 220ms samples, a stable reduced-motion sample, marker containment and absence of the old static blue marker. Shared motion preferences are restored after each presentation check. A focused mounted React test covers thinking→working→idle, retained approval count, stable geometry during ordinary rerenders and removal on unmount without requesting an animation frame. The Client bundle test confirms BotUI is bundled, not a new DSH external requirement.
+
+The latest main introduced two ADR-0116 documents. This branch renumbers only the editable-avatar design ADR and its references to the free number 0117; its accepted design content is unchanged. The native Browser ADR remains 0116. This clears the actual duplicate-number CI failure.
