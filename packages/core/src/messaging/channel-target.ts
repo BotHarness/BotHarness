@@ -1,5 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite';
-import { isChannelRecord, type ChannelMessage, type ChannelRecord } from '../channels/channel.js';
+import {
+  dmChannelId,
+  isChannelRecord,
+  type ChannelMessage,
+  type ChannelRecord,
+} from '../channels/channel.js';
 import type { ExternalSource } from './inbound.js';
 import { MessagingError } from './provider.js';
 
@@ -10,13 +15,17 @@ export function humanBridgeChannel(db: DatabaseSync, channelId: string): Channel
   const record: unknown = row && JSON.parse(row.record_json);
   if (
     !isChannelRecord(record, channelId) ||
-    record.type !== 'group' ||
+    (record.type === 'dm' &&
+      (!record.botSlug ||
+        record.members.length !== 1 ||
+        record.id !== dmChannelId(record.botSlug))) ||
     record.deletedAt ||
-    !db
-      .prepare(
-        'SELECT 1 FROM channel_human_members WHERE channel_id = ? AND human_id = ? AND left_at IS NULL',
-      )
-      .get(channelId, 'local-human')
+    (record.type !== 'dm' &&
+      !db
+        .prepare(
+          'SELECT 1 FROM channel_human_members WHERE channel_id = ? AND human_id = ? AND left_at IS NULL',
+        )
+        .get(channelId, 'local-human'))
   )
     throw new MessagingError('channel-unavailable');
   return record;
@@ -34,10 +43,14 @@ export function bridgeChannel(
   const record: unknown = row && JSON.parse(row.record_json);
   if (
     !isChannelRecord(record, channelId) ||
-    record.type !== 'group' ||
+    (record.type === 'dm' &&
+      (!record.botSlug ||
+        record.members.length !== 1 ||
+        record.id !== dmChannelId(record.botSlug))) ||
     record.deletedAt ||
     !record.members.includes(botSlug) ||
     (human &&
+      record.type !== 'dm' &&
       !db
         .prepare(
           'SELECT 1 FROM channel_human_members WHERE channel_id = ? AND human_id = ? AND left_at IS NULL',
@@ -75,8 +88,10 @@ export function placeBridgeSource(
   if (!source.localChannelId) return;
   bridgeChannel(db, source.localChannelId, botSlug);
   const prior = db
-    .prepare('SELECT channel_id FROM channel_placements WHERE source_event_id = ?')
-    .get(source.id) as { channel_id: string } | undefined;
+    .prepare(
+      'SELECT channel_id FROM channel_placements WHERE source_event_id = ? AND channel_id = ?',
+    )
+    .get(source.id, source.localChannelId) as { channel_id: string } | undefined;
   if (prior) {
     if (prior.channel_id !== source.localChannelId) throw new MessagingError('source-conflict');
     return;
@@ -90,7 +105,7 @@ export function placeBridgeSource(
     'INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id) VALUES (?, ?, ?, ?)',
   ).run(source.localChannelId, next.revision, source.id, source.id);
   db.prepare(
-    'UPDATE source_events SET channel_id = ?, message_id = ? WHERE source_event_id = ?',
+    'UPDATE source_events SET channel_id = ?, message_id = ? WHERE source_event_id = ? AND channel_id IS NULL',
   ).run(source.localChannelId, source.id, source.id);
   return {
     channelId: source.localChannelId,

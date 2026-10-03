@@ -10,8 +10,25 @@ export interface ChannelBridgeConfiguration {
   defaultRevision?: number;
   intakeAfter?: string;
 }
+export interface ChannelBridgeRoute extends ChannelBridgeConfiguration {
+  id: string;
+  channelId: string | null;
+}
+export function channelBridgeRoutes(grant: MessagingGrant): ChannelBridgeRoute[] {
+  if (grant.bridgeRoutes) return grant.bridgeRoutes;
+  if (!grant.receiveScope && !grant.channelBridge) return [];
+  return [
+    {
+      ...channelBridgeConfiguration(grant),
+      id: grant.id,
+      channelId: grant.receiveTargetChannelId ?? null,
+    },
+  ];
+}
 const fields = {
   grantId: z.string().uuid(),
+  routeId: z.string().uuid().optional(),
+  delivery: z.enum(['channel', 'inbox']).optional(),
   expectedGrantRevision: z.number().int().positive(),
 };
 const configuration = {
@@ -47,12 +64,15 @@ export interface ChannelBridgeSource {
   ordinaryDelivery: 'verified' | 'unverified';
 }
 export interface ChannelBridgeRow extends ChannelBridgeSource, ChannelBridgeConfiguration {
+  routeId?: string;
+  delivery?: 'channel' | 'inbox';
   availability: MessagingSnapshot['grants'][number]['availability'];
   reception: MessagingSnapshot['grants'][number]['reception'];
 }
 export interface ChannelBridgeSnapshot {
   channelId: string;
   bridges: ChannelBridgeRow[];
+  canTargetInbox?: boolean;
   sources: ChannelBridgeSource[];
 }
 export function channelBridgeConfiguration(grant: MessagingGrant): ChannelBridgeConfiguration {

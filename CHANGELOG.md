@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Assignment reports awaiting a Human answer or blocked decision now share independent Activity badge counts with sidebar, composer and Overview; canonical responses, dismissal and stop clear the counts, and unresolved durable reports survive restart ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
+- A Human can route multiple authorized Lark groups into shared Channels, explicit Bot DMs or Inbox-only targets, with independent connector switches, one canonical message and one processing unit per overlapping Bot; each receiving path retains its own policy evidence ([#635](https://github.com/BotHarness/BotHarness/issues/635), [ADR-0120](docs/adr/0120-multiple-bridge-routes-retain-canonical-sources.md)).
+
 - Pending native Bot questions now contribute to the shared attention badge alongside Tool approvals, with distinct hover counts and immediate clearing after answer or cancellation; execution motion remains independent ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Added Lark platform behavior defaults in Bot settings, with explicit Profile inheritance, preserved custom settings, stale-save protection, and revisioned future-message intake/harvest and identity pause behavior. ([#701](https://github.com/BotHarness/BotHarness/issues/701))

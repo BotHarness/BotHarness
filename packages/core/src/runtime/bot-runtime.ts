@@ -682,7 +682,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
     if (unit.external !== undefined) {
-      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
+      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
     }
     if (unit.sourceKind === 'memory-change') {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
@@ -927,6 +927,13 @@ class BotRuntimeImplementation implements BotRuntime {
           message_id: string | null;
         }
       | undefined;
+    if (
+      row?.reason === 'group-ordinary' &&
+      this.#externalMessaging.inbound.read(botSlug, sourceEventId).receptionPaths
+    ) {
+      this.#checkHarvestReadiness(botSlug);
+      return;
+    }
     if (row?.reason === 'group-ordinary' && row.channel_id && row.message_id) {
       this.#admitChannelMessage(row.channel_id, row.message_id, 'group-ordinary');
       return;
@@ -986,7 +993,7 @@ class BotRuntimeImplementation implements BotRuntime {
         : undefined;
       const contextIds = context?.rows.map((item) => item.source_event_id) ?? [];
       const included = units.map((item) => item.sourceEventId);
-      this.#setObserved(included, this.#now().toISOString());
+      this.#setObserved(included, this.#now().toISOString(), botSlug);
       this.#markAdmissionsSideEffect(botSlug, [...included, ...contextIds]);
       let delivered = false;
       try {
@@ -997,7 +1004,7 @@ class BotRuntimeImplementation implements BotRuntime {
           ),
         );
       } catch {
-        this.#setObserved(included, null);
+        this.#setObserved(included, null, botSlug);
         this.#settleHarvestFailure(botSlug, contextIds, 'external-steer-failed');
         return;
       }
@@ -1006,11 +1013,11 @@ class BotRuntimeImplementation implements BotRuntime {
           this.#observeAdmission(row.source_event_id, botSlug, context!.channelId, row.message_id);
         const settled = active.then(
           () => {
-            this.#markReportsHandled(included);
+            this.#markReportsHandled(included, botSlug);
             this.#settleHarvestHandled(botSlug, contextIds);
           },
           () => {
-            this.#setObserved(included, null);
+            this.#setObserved(included, null, botSlug);
             this.#settleHarvestFailure(botSlug, contextIds, 'external-steered-turn-failed');
           },
         );
@@ -1551,6 +1558,7 @@ class BotRuntimeImplementation implements BotRuntime {
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary' AND e.channel_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM messaging_source_paths rp WHERE rp.source_event_id = e.source_event_id)
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
          GROUP BY a.wake_policy_revision, a.source_policy_revision, a.external_default_revision, a.external_thread_policy_revision,
@@ -1704,6 +1712,7 @@ class BotRuntimeImplementation implements BotRuntime {
             FROM inbox_admissions a
             JOIN source_events e ON e.source_event_id = a.source_event_id
            WHERE a.bot_slug = ? AND a.reason = 'group-ordinary' AND e.channel_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM messaging_source_paths rp WHERE rp.source_event_id = e.source_event_id)
              AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
              AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id IS NOT NULL
            ORDER BY e.channel_id
@@ -1718,9 +1727,19 @@ class BotRuntimeImplementation implements BotRuntime {
     const bot = this.#registry.get(botSlug);
     if (bot === undefined || bot.paused === true) return;
     const collected = this.#collectInbox(botSlug);
-    const externalContextChannels = collected.units.flatMap((unit) =>
-      unit.external?.localChannelId ? [unit.external.localChannelId] : [],
-    );
+    const externalContextChannels = [
+      ...new Set(
+        collected.units.flatMap((unit) =>
+          unit.external?.receptionPaths
+            ? unit.external.receptionPaths.flatMap((path) =>
+                path.channelId ? [path.channelId] : [],
+              )
+            : unit.external?.localChannelId
+              ? [unit.external.localChannelId]
+              : [],
+        ),
+      ),
+    ];
     const claimed = this.#claimHarvest(
       botSlug,
       externalContextChannels,
@@ -1774,7 +1793,7 @@ class BotRuntimeImplementation implements BotRuntime {
         },
         ['bot-inbox'],
       );
-    this.#setObserved(collected.eventIds, timestamp);
+    this.#setObserved(collected.eventIds, timestamp, botSlug);
     let orchestrator: { sessionId: string; resume: boolean } | undefined;
     try {
       orchestrator = this.#ensureOrchestrator(bot, timestamp);
@@ -1804,7 +1823,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.eventIds,
         [...new Set([...includedIds, ...collected.eventIds])],
       );
-      this.#markReportsHandled(collected.eventIds);
+      this.#markReportsHandled(collected.eventIds, botSlug);
       this.#settleHarvestHandled(botSlug, includedIds);
       for (const digest of claimed.digests) {
         this.#digestRetryAt.delete(`${botSlug}:${digest.channelId}`);
@@ -1824,7 +1843,7 @@ class BotRuntimeImplementation implements BotRuntime {
         );
       }
     } catch (error) {
-      this.#setObserved(collected.eventIds, null);
+      this.#setObserved(collected.eventIds, null, botSlug);
       this.#database.transaction(
         (db) => {
           for (const id of collected.eventIds)
@@ -1953,6 +1972,7 @@ class BotRuntimeImplementation implements BotRuntime {
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary' AND e.channel_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM messaging_source_paths rp WHERE rp.source_event_id = e.source_event_id)
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable')
          GROUP BY e.channel_id, a.wake_policy_revision, a.source_policy_revision, default_revision, thread_revision, thread_scope
@@ -1990,6 +2010,7 @@ class BotRuntimeImplementation implements BotRuntime {
             FROM inbox_admissions a
             JOIN source_events e ON e.source_event_id = a.source_event_id
            WHERE a.bot_slug = ? AND a.reason = 'group-ordinary' AND e.channel_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM messaging_source_paths rp WHERE rp.source_event_id = e.source_event_id)
              AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
              AND a.attempt_state IN ('pending', 'retryable')
              AND e.channel_id = ? AND a.wake_policy_revision = ?
@@ -2078,6 +2099,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const base = `
       FROM inbox_admissions a JOIN source_events e ON e.source_event_id = a.source_event_id
      WHERE a.bot_slug = ? AND a.reason = 'group-ordinary' AND e.channel_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM messaging_source_paths rp WHERE rp.source_event_id = e.source_event_id)
        AND a.wake_mode IN ('all', 'digest', 'mentions')
        AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?`;
     const total = database.prepare(`SELECT COUNT(*) AS count ${base}`).get(botSlug, channelId) as {
@@ -2422,7 +2444,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const orchestrator = this.#ensureOrchestrator(bot, timestamp);
 
     const collected = this.#collectInbox(bot.slug);
-    this.#setObserved(collected.eventIds, timestamp);
+    this.#setObserved(collected.eventIds, timestamp, bot.slug);
     try {
       this.#observeAdmission(claim.sourceEventId, bot.slug, channelId, messageId);
       await this.#runOrchestratorTurn(
@@ -2437,7 +2459,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.eventIds,
       );
     } catch (error) {
-      this.#setObserved(collected.eventIds, null);
+      this.#setObserved(collected.eventIds, null, bot.slug);
       this.#markSourceEventFailed(claim.sourceEventId);
       await this.#publishSessionFailure({
         channelId,
@@ -2448,7 +2470,7 @@ class BotRuntimeImplementation implements BotRuntime {
       });
       throw error;
     }
-    this.#markReportsHandled(collected.eventIds);
+    this.#markReportsHandled(collected.eventIds, bot.slug);
     const handledAt = this.#now().toISOString();
     this.#database.transaction(
       (database) => {
@@ -4727,7 +4749,8 @@ class BotRuntimeImplementation implements BotRuntime {
       LEFT JOIN messaging_thread_policy_revisions tp ON tp.grant_id = g.id
         AND tp.thread_id = json_extract(e.payload_json, '$.external.event.reply.threadId')
         AND tp.revision = a.external_thread_policy_revision
-      WHERE a.bot_slug = ? AND e.source_kind = 'bridge-message' AND e.channel_id IS NULL AND a.reason = 'group-ordinary'
+      WHERE a.bot_slug = ? AND e.source_kind = 'bridge-message' AND e.channel_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM messaging_source_paths rp WHERE rp.source_event_id = e.source_event_id) AND a.reason = 'group-ordinary'
         AND a.wake_count IS NOT NULL AND a.attempt_state = 'pending' AND a.observed_at IS NULL
         AND g.revoked_at IS NULL AND json_extract(g.body, '$.receiveScope') IS NOT NULL
         AND json_extract(g.body, '$.suspendedReason') IS NULL
@@ -4744,7 +4767,10 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#armDigest(
       botSlug,
       `external:${botSlug}`,
-      rows.filter((row) => this.#externalMessaging?.inbound.available(botSlug, row.anchor)),
+      [
+        ...rows.filter((row) => this.#externalMessaging?.inbound.available(botSlug, row.anchor)),
+        ...(this.#externalMessaging?.inbound.pendingPaths(botSlug, this.#now()).digests ?? []),
+      ],
       () => this.#scheduleExternalDigest(botSlug),
     );
   }
@@ -4753,7 +4779,7 @@ class BotRuntimeImplementation implements BotRuntime {
     botSlug: string,
     includeContext = false,
   ): Array<{ source_event_id: string; body: string; created_at: string; attempt_state: string }> {
-    return this.#database.read((db) =>
+    const legacy = this.#database.read((db) =>
       db
         .prepare(`WITH pending AS (
       SELECT e.source_event_id, e.body, e.created_at, a.attempt_state, a.reason, a.wake_mode,
@@ -4770,6 +4796,7 @@ class BotRuntimeImplementation implements BotRuntime {
         AND json_extract(g.body, '$.suspendedReason') IS NULL
         AND g.revision = json_extract(e.payload_json, '$.external.grantRevision')
         AND a.bot_slug = ? AND e.source_kind = 'bridge-message'
+        AND NOT EXISTS (SELECT 1 FROM messaging_source_paths rp WHERE rp.source_event_id = e.source_event_id)
         AND (a.reason != 'group-ordinary' OR e.channel_id IS NULL)
         AND a.attempt_state IN ('pending', 'retryable') AND a.observed_at IS NULL
       WINDOW policy AS (PARTITION BY g.id, a.wake_policy_revision, a.source_policy_revision, a.external_default_revision, a.reason, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END)
@@ -4787,6 +4814,16 @@ class BotRuntimeImplementation implements BotRuntime {
       created_at: string;
       attempt_state: string;
     }>;
+    const routed =
+      this.#externalMessaging?.inbound.pendingPaths(botSlug, this.#now(), includeContext).ready ??
+      [];
+    return [...legacy, ...routed]
+      .sort(
+        (a, b) =>
+          a.created_at.localeCompare(b.created_at) ||
+          a.source_event_id.localeCompare(b.source_event_id),
+      )
+      .slice(0, 20);
   }
 
   #collectInbox(botSlug: string): { units: InboxUnit[]; eventIds: string[] } {
@@ -5052,7 +5089,7 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
-  #setObserved(sourceEventIds: string[], at: string | null): void {
+  #setObserved(sourceEventIds: string[], at: string | null, botSlug?: string): void {
     if (sourceEventIds.length === 0) return;
     const placeholders = sourceEventIds.map(() => '?').join(', ');
     this.#database.transaction(
@@ -5074,15 +5111,16 @@ class BotRuntimeImplementation implements BotRuntime {
                    END
              WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary')
                AND attempt_state IN ('pending', 'retryable', 'running')
+               AND (? IS NULL OR bot_slug = ?)
                AND source_event_id IN (${placeholders})
           `)
-          .run(at, at, ...sourceEventIds);
+          .run(at, at, botSlug ?? null, botSlug ?? null, ...sourceEventIds);
       },
       ['source-event', 'bot-inbox'],
     );
   }
 
-  #markReportsHandled(sourceEventIds: string[]): void {
+  #markReportsHandled(sourceEventIds: string[], botSlug?: string): void {
     if (sourceEventIds.length === 0) return;
     const placeholders = sourceEventIds.map(() => '?').join(', ');
     this.#database.transaction(
@@ -5092,9 +5130,10 @@ class BotRuntimeImplementation implements BotRuntime {
             UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
              WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary')
                AND attempt_state = 'running'
+               AND (? IS NULL OR bot_slug = ?)
                AND source_event_id IN (${placeholders})
           `)
-          .run(this.#now().toISOString(), ...sourceEventIds),
+          .run(this.#now().toISOString(), botSlug ?? null, botSlug ?? null, ...sourceEventIds),
       ['bot-inbox'],
     );
   }
