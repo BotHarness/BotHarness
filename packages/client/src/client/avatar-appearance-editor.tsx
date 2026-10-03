@@ -44,9 +44,12 @@ const SWATCHES: Record<AvatarColor, readonly string[]> = {
     '#8a5a36',
     '#e2b04a',
     '#c4452f',
-    '#9aa3ad',
+    '#d9475a',
     '#f06292',
+    '#3fc1b8',
     '#5a7be0',
+    '#9aa3ad',
+    '#f4f1ec',
   ],
   eyeColor: [
     '#3f7fbf',

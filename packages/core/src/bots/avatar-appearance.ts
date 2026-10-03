@@ -12,6 +12,13 @@ export const AVATAR_PARTS = {
     'bun',
     'pigtails',
     'afro',
+    'twintails',
+    'drills',
+    'ponytail',
+    'sidetail',
+    'hime',
+    'odango',
+    'messy',
     'none',
   ],
   eyes: ['round', 'dot', 'sparkle', 'lashes', 'sleepy', 'happy', 'wink', 'sharp'],
@@ -20,7 +27,20 @@ export const AVATAR_PARTS = {
   mouth: ['smile', 'grin', 'open', 'flat', 'smirk', 'cat', 'tongue', 'o'],
   cheeks: ['blush', 'freckles', 'none'],
   glasses: ['none', 'round', 'square', 'shades', 'monocle'],
-  accessory: ['none', 'beanie', 'cap', 'headphones', 'flower', 'bow', 'earring', 'crown', 'halo'],
+  accessory: [
+    'none',
+    'beanie',
+    'cap',
+    'headphones',
+    'flower',
+    'bow',
+    'earring',
+    'crown',
+    'halo',
+    'catears',
+    'hairclip',
+    'horns',
+  ],
 } as const;
 
 export type AvatarPart = keyof typeof AVATAR_PARTS;
@@ -261,7 +281,9 @@ const BROWS: Record<IllustratedAvatarRecipe['brows'], readonly string[]> = {
   none: [],
 };
 
-function hairMasks(recipe: IllustratedAvatarRecipe): { back: Mask; front: Mask } {
+type HairMasks = { back: Mask; front: Mask; bands?: Mask; ties?: Point[] };
+
+function hairMasks(recipe: IllustratedAvatarRecipe): HairMasks {
   const head = HEADS[recipe.head];
   const left = Math.round(16 - head.half);
   const right = Math.round(15 + head.half);
@@ -343,6 +365,92 @@ function hairMasks(recipe: IllustratedAvatarRecipe): { back: Mask; front: Mask }
         back: ellipse(16, 11.6, head.half + 5.6, 11.2),
         front: (x, y) => cap(x, y) && y <= 8,
       };
+    case 'twintails':
+    case 'drills': {
+      const drills = recipe.hair === 'drills';
+      const tails: Mask = drills
+        ? (x, y) =>
+            (ellipse(left - 2.2, 16, 3.4, 8.6)(x, y) || ellipse(right + 3.2, 16, 3.4, 8.6)(x, y)) &&
+            y >= 7
+        : (x, y) =>
+            (ellipse(left - 2.4, 19, 3, 12.6)(x, y) || ellipse(right + 3.4, 19, 3, 12.6)(x, y)) &&
+            y >= 7;
+      return {
+        back: tails,
+        front: (x, y) =>
+          cap(x, y) &&
+          (y <= 9 ||
+            (y === 10 && x % 3 !== 1) ||
+            (y <= 18 && (x === left || x === left + 1 || x === right - 1 || x === right))),
+        ...(drills
+          ? { bands: (x: number, y: number) => tails(x, y) && (y + Math.floor(x / 2)) % 3 === 0 }
+          : {}),
+        ties: [
+          [left - 2, 8],
+          [left - 1, 8],
+          [right + 1, 8],
+          [right + 2, 8],
+        ],
+      };
+    }
+    case 'ponytail':
+      return {
+        back: (x, y) =>
+          ellipse(right + 1.6, 7.6, 2.6, 2.4)(x, y) || ellipse(right + 3.2, 15.5, 2.6, 8.2)(x, y),
+        front: (x, y) => cap(x, y) && (y <= 9 || (y === 10 && x % 2 === 0) || (y <= 14 && side(x))),
+        ties: [
+          [right + 1, 9],
+          [right + 2, 9],
+        ],
+      };
+    case 'sidetail':
+      return {
+        back: (x, y) => ellipse(left - 2.2, 19, 3, 8.4)(x, y) && y >= 10,
+        front: (x, y) =>
+          cap(x, y) && (y <= 8 || (y <= 11 && x <= 16 - (y - 8) * 2) || (y <= 14 && side(x))),
+        ties: [
+          [left - 3, 11],
+          [left - 2, 11],
+          [left - 1, 11],
+        ],
+      };
+    case 'hime':
+      return {
+        back: (x, y) =>
+          (ellipse(16, 13, head.half + 2.2, 10.2)(x, y) && y <= 16) ||
+          (y > 15 && y <= 28 && x >= left - 2 && x <= right + 2 && (x <= left || x >= right)),
+        front: (x, y) =>
+          cap(x, y) &&
+          (y <= 10 ||
+            (y <= 20 && (x === left || x === left + 1 || x === right - 1 || x === right))),
+      };
+    case 'odango':
+      return {
+        back: none,
+        front: (x, y) =>
+          (cap(x, y) && (y <= 9 || (y === 10 && x % 2 === 1) || (y <= 13 && side(x)))) ||
+          ellipse(left + 2, 3.2, 3, 2.8)(x, y) ||
+          ellipse(right - 1, 3.2, 3, 2.8)(x, y),
+      };
+    case 'messy': {
+      const strand: Point[] = [
+        [16, 2],
+        [17, 1],
+        [18, 0],
+        [19, 0],
+        [17, 2],
+      ];
+      return {
+        back: none,
+        front: (x, y) =>
+          (cap(x, y) &&
+            (y <= 9 ||
+              (y === 10 && x % 4 < 2) ||
+              (y === 11 && x % 4 === 0) ||
+              (y <= 14 && side(x)))) ||
+          strand.some(([sx, sy]) => sx === x && sy === y),
+      };
+    }
   }
 }
 
@@ -423,6 +531,28 @@ function accessory(recipe: IllustratedAvatarRecipe, grid: Grid): void {
         GOLD,
       );
       return;
+    case 'catears': {
+      const ear = ['X...', 'XX..', 'XPX.', 'XPPX', 'XXXX'];
+      const palette = { X: recipe.hairColor, P: '#f4a3b5' };
+      sprite(grid, ear, left + 1, 1, palette);
+      sprite(grid, ear, right - 4, 1, palette, true);
+      return;
+    }
+    case 'hairclip':
+      sprite(grid, ['C.C', '.C.', 'C.C'], right - 5, 7, { C: '#e5566a' });
+      dots(
+        grid,
+        [
+          [right - 2, 8],
+          [right - 1, 8],
+        ],
+        GOLD,
+      );
+      return;
+    case 'horns':
+      sprite(grid, ['.H', 'HH', 'Hh'], left + 2, 1, { H: '#5b3a6e', h: '#7d5694' });
+      sprite(grid, ['.H', 'HH', 'Hh'], right - 3, 1, { H: '#5b3a6e', h: '#7d5694' }, true);
+      return;
   }
 }
 
@@ -464,6 +594,7 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   const masks = hairMasks(recipe);
   const base = blank();
   paint(base, masks.back, shade(hair, 0.86));
+  if (masks.bands) paint(base, masks.bands, shade(hair, 0.7));
   dots(
     base,
     [
@@ -492,6 +623,7 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     if (y !== undefined && base[y + 1]?.[x] === hair && base[y + 2]?.[x] === hair)
       base[y + 1]![x] = highlight;
   }
+  if (masks.ties) dots(base, masks.ties, shade(recipe.shirtColor, 0.8));
   accessory(recipe, base);
 
   const face = blank();

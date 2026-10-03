@@ -78,7 +78,7 @@ describe('Profile Avatar Appearance editing', () => {
       await click('[data-avatar-option="hair:bob"]');
       expect(container.querySelector('[data-avatar-preview] svg')).not.toBeNull();
       expect(container.querySelector('[data-approval-count="2"]')).not.toBeNull();
-      expect(container.querySelectorAll('[data-avatar-option^="hair:"]')).toHaveLength(12);
+      expect(container.querySelectorAll('[data-avatar-option^="hair:"]')).toHaveLength(19);
       expect(
         container.querySelector('[data-avatar-option="hair:bob"]')?.getAttribute('aria-pressed'),
       ).toBe('true');

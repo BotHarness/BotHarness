@@ -98,14 +98,15 @@ outline on a recipe-tinted rounded tile. The recipe selects nine parts plus
 four colours:
 
 - head (4)
-- hair (12)
+- hair (19, including anime long twin tails, drill twin tails, high and side
+  ponytails, hime cut, twin buns and messy with ahoge)
 - eyes (8)
 - brows (6)
 - nose (4)
 - mouth (8)
 - cheeks (3)
 - glasses (5)
-- accessory (9)
+- accessory (12, including cat ears, hair clip and little horns)
 - skin, hair, eye and shirt colour
 
 After Human judged the first pixel pass correct in direction but not yet
