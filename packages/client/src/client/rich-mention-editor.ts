@@ -1,3 +1,4 @@
+import type { AllBotPreview } from '../../../core/src/channels/all-bot-mention.js';
 import type { SelectedMention } from './mentions.js';
 import { referenceRuns, type SelectedChannelRef } from './channel-refs.js';
 import type { BotSummary } from './store.js';
@@ -17,12 +18,24 @@ export interface RichMentionDraft {
 function token(
   node: Node,
 ):
+  | { kind: 'all-bots'; preview: AllBotPreview; label: string }
   | { kind: 'bot'; botSlug: string; label: string }
   | { kind: 'channel'; channelId: string; label: string }
   | undefined {
   if (!(node instanceof HTMLElement)) return undefined;
   const label = node.dataset.mentionLabel;
   if (label === undefined) return undefined;
+  if (node.dataset.allBotPreview !== undefined) {
+    try {
+      return {
+        kind: 'all-bots',
+        label,
+        preview: JSON.parse(node.dataset.allBotPreview) as AllBotPreview,
+      };
+    } catch {
+      return undefined;
+    }
+  }
   const botSlug = node.dataset.botId;
   if (botSlug !== undefined) return { kind: 'bot', botSlug, label };
   const channelId = node.dataset.channelId;
@@ -67,6 +80,16 @@ export function renderRichMentionDraft(
       continue;
     }
     const mention = run.mention;
+    if (mention.kind === 'all-bots') {
+      const badge = document.createElement('span');
+      badge.className = 'bh-inline-mention bh-inline-mention-sent bh-composer-inline-mention';
+      badge.contentEditable = 'false';
+      badge.dataset.allBotPreview = JSON.stringify(mention.preview);
+      badge.dataset.mentionLabel = mention.label;
+      badge.textContent = '@' + mention.label + ' · ' + mention.preview.recipients.length;
+      nodes.push(badge);
+      continue;
+    }
     const bot = bots.find((candidate) => candidate.slug === mention.botSlug);
     const badge = document.createElement('span');
     badge.className = 'bh-inline-mention bh-inline-mention-sent bh-composer-inline-mention';
@@ -99,8 +122,16 @@ export function readRichMentionDraft(editor: HTMLElement): RichMentionDraft {
     const mention = token(node);
     if (mention !== undefined) {
       const start = value.length;
-      value += (mention.kind === 'bot' ? '@' : '#') + mention.label;
-      if (mention.kind === 'bot')
+      value += (mention.kind === 'channel' ? '#' : '@') + mention.label;
+      if (mention.kind === 'all-bots')
+        mentions.push({
+          kind: 'all-bots',
+          preview: mention.preview,
+          label: mention.label,
+          start,
+          end: value.length,
+        });
+      else if (mention.kind === 'bot')
         mentions.push({ botSlug: mention.botSlug, label: mention.label, start, end: value.length });
       else
         channelRefs.push({
@@ -137,6 +168,7 @@ export function sameRichMentionDraft(
     left.mentions.every(
       (item, index) =>
         item.botSlug === mentions[index]?.botSlug &&
+        JSON.stringify(item.preview) === JSON.stringify(mentions[index]?.preview) &&
         item.label === mentions[index]?.label &&
         item.start === mentions[index]?.start &&
         item.end === mentions[index]?.end,
