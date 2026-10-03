@@ -1360,6 +1360,41 @@ const MESSAGING_DEFAULTS_MIGRATION: SchemaMigration = {
   },
 };
 
+const BRIDGE_ROUTES_MIGRATION: SchemaMigration = {
+  generation: 52,
+  module: 'messaging',
+  description:
+    'Retain one Source Event with distinct Channel placements and per-member reception paths',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE channel_placements_multiple (
+        channel_id TEXT NOT NULL REFERENCES channel_records(channel_id),
+        revision INTEGER NOT NULL,
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        message_id TEXT NOT NULL,
+        PRIMARY KEY(channel_id, revision),
+        UNIQUE(channel_id, source_event_id), UNIQUE(channel_id, message_id)
+      );
+      INSERT INTO channel_placements_multiple SELECT * FROM channel_placements;
+      DROP TABLE channel_placements;
+      ALTER TABLE channel_placements_multiple RENAME TO channel_placements;
+      CREATE INDEX channel_placements_source ON channel_placements(source_event_id);
+      CREATE TABLE messaging_source_paths (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL, grant_id TEXT NOT NULL REFERENCES messaging_grants(id),
+        route_id TEXT NOT NULL, channel_id TEXT REFERENCES channel_records(channel_id),
+        body TEXT NOT NULL,
+        PRIMARY KEY(source_event_id, bot_slug, route_id)
+      );
+      CREATE INDEX messaging_paths_member ON messaging_source_paths(bot_slug, route_id);
+      CREATE TRIGGER messaging_paths_no_update BEFORE UPDATE ON messaging_source_paths
+        BEGIN SELECT RAISE(ABORT, 'Reception path snapshots are immutable'); END;
+      CREATE TRIGGER messaging_paths_no_delete BEFORE DELETE ON messaging_source_paths
+        BEGIN SELECT RAISE(ABORT, 'Reception path snapshots are immutable'); END;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1411,4 +1446,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   EXTERNAL_IDENTITY_MIGRATION,
   CHANNEL_BRIDGE_MIGRATION,
   MESSAGING_DEFAULTS_MIGRATION,
+  BRIDGE_ROUTES_MIGRATION,
 ]);

@@ -112,7 +112,8 @@ export function createBotAttentionQuery(
             .prepare(`
         WITH attention AS (
           SELECT a.source_event_id, a.bot_slug, a.reason, a.attempt_state,
-                 a.observed_at, a.handled_at, a.ignored_at, e.source_kind, e.channel_id,
+                 a.observed_at, a.handled_at, a.ignored_at, e.source_kind,
+                 CASE WHEN e.source_kind = 'bridge-message' THEN p.channel_id ELSE e.channel_id END AS channel_id,
                  e.message_id, p.message_id AS placed_message_id,
                  e.assignment_session_id,
                  assignment.session_id AS available_assignment_session_id,
@@ -133,6 +134,9 @@ export function createBotAttentionQuery(
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
           LEFT JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            AND p.channel_id = (SELECT MIN(p2.channel_id) FROM channel_placements p2
+              JOIN channel_records c2 ON c2.channel_id = p2.channel_id, json_each(c2.record_json, '$.members') member
+              WHERE p2.source_event_id = e.source_event_id AND member.value = a.bot_slug)
           LEFT JOIN assignments assignment
             ON assignment.session_id = e.assignment_session_id AND assignment.bot_slug = a.bot_slug
           WHERE a.bot_slug = ?

@@ -151,6 +151,13 @@ describe('PersonaBot Profile surface', () => {
           appliedAt: '2026-09-21T00:00:00.000Z',
         },
       })),
+      channelBridges: vi.fn(async () => ({
+        channelId: 'dm-ada',
+        canTargetInbox: true,
+        sources: [],
+        bridges: [],
+      })),
+      channelBridge: vi.fn(async () => undefined),
       renameChannel,
       setBotAvatar,
       profileActivity,
@@ -217,15 +224,16 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-profile-popover')).toBeNull();
       expect(container.querySelector('.bh-profile-view')).not.toBeNull();
       const sections = container.querySelectorAll('.bh-profile-view > .bh-profile-section');
-      expect(sections.length).toBe(5);
+      expect(sections.length).toBe(6);
       expect(sections[0]?.getAttribute('aria-label')).toBe('活动概览');
       expect(sections[1]?.getAttribute('aria-label')).toBe('模型预设');
       expect(sections[2]?.getAttribute('aria-label')).toBe('外部身份');
       expect(sections[3]?.getAttribute('aria-label')).toBe('频道连接器与授权');
-      expect(sections[4]?.getAttribute('aria-label')).toBe('提醒策略');
+      expect(sections[4]?.getAttribute('aria-label')).toBe('频道连接器');
+      expect(sections[5]?.getAttribute('aria-label')).toBe('提醒策略');
       expect(sections[1]?.querySelector('summary')?.textContent).toContain('节省成本');
       expect(sections[1]?.querySelector('summary')?.textContent).toContain('修订 3');
-      const policyDetails = sections[4]?.querySelector<HTMLDetailsElement>(
+      const policyDetails = sections[5]?.querySelector<HTMLDetailsElement>(
         '.bh-profile-policy-details',
       );
       expect(policyDetails?.open).toBe(false);

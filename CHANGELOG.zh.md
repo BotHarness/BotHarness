@@ -17,6 +17,8 @@
 
 ### Added
 
+- Human 可将多个已授权 Lark 群接入共享 Channel、明确的 Bot DM 或仅 Inbox 目标；连接器分别启停，同一来源保留一份 canonical 内容，重叠收到的 Bot 只处理一次，各接收路径独立保留策略证据（[#635](https://github.com/BotHarness/BotHarness/issues/635)、[ADR-0120](docs/adr/0120-multiple-bridge-routes-retain-canonical-sources.md)）。
+
 - Bot 原生待回答问题与工具审批共同显示在共享待办数字中，悬浮说明分别展示数量，回答或取消后及时清除，执行动画保持独立 ([#123](https://github.com/BotHarness/BotHarness/issues/123))。
 
 - 在 Bot 设置中新增 Lark 平台行为默认值；Profile 可继承或自定义，保留既有配置、拒绝陈旧保存，并以版本快照管理后续消息收件／汇总及身份暂停。 ([#701](https://github.com/BotHarness/BotHarness/issues/701))

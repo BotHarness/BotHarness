@@ -216,7 +216,7 @@ const ACTION_ATTENTION_CTE = `WITH attention AS (
                  p.message_id, NULL AS assignment_session_id, e.source_event_id
             FROM inbox_admissions a
             JOIN source_events e ON e.source_event_id = a.source_event_id
-            LEFT JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            LEFT JOIN channel_placements p ON p.source_event_id = e.source_event_id AND p.channel_id = e.channel_id
             LEFT JOIN channel_records c ON c.channel_id = e.channel_id
            WHERE a.attempt_state = 'needs-repair'
              AND e.channel_id IS NOT NULL

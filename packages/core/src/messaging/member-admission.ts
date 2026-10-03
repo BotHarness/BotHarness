@@ -1,3 +1,6 @@
+import { recordReceptionPath } from './reception-paths.js';
+import type { MessagingGrant } from './outbound.js';
+import type { ChannelBridgeRoute } from './channel-bridge.js';
 import { messagingDefaults, externalMemberWake } from './defaults.js';
 import type { DatabaseSync } from 'node:sqlite';
 import type { ChannelRecord } from '../channels/channel.js';
@@ -15,6 +18,7 @@ export function admitBridgeMembers(
     wake: NonNullable<ThreadReceptionPolicy['wake']>;
     revision: number;
   },
+  path?: { grant: MessagingGrant; route: ChannelBridgeRoute; threadId?: string },
 ): string[] {
   const admitted: string[] = [];
   for (const botSlug of channel.members) {
@@ -49,6 +53,18 @@ export function admitBridgeMembers(
         thread?.revision ?? null,
         defaults.revision,
       );
+    if (path)
+      recordReceptionPath(db, sourceEventId, botSlug, path.grant, path.route, {
+        reason: 'group-ordinary',
+        mode,
+        count: mode === 'all' ? 1 : (thread?.wake.count ?? policy.count),
+        intervalMs:
+          mode === 'all' ? 0 : (thread?.wake.intervalSeconds ?? policy.intervalSeconds) * 1000,
+        policyRevision: policy.revision,
+        sourceRevision: rule.revision,
+        defaultRevision: defaults.revision,
+        ...(thread ? { threadRevision: thread.revision, threadId: path.threadId } : {}),
+      });
     if (result.changes > 0) admitted.push(botSlug);
   }
   return admitted;

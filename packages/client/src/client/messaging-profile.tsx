@@ -198,7 +198,7 @@ export function MessagingProfile({
                   >
                     {t('im.revoke')}
                   </Button>
-                  {grant.channelBridge ? (
+                  {grant.channelBridge || grant.bridgeRoutes ? (
                     <p>{t('bridge.managed')}</p>
                   ) : grant.canReceive === true || grant.receiveScope !== undefined ? (
                     <>

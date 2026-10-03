@@ -1,4 +1,11 @@
 import {
+  currentReceptionPaths,
+  recordReceptionPath,
+  pendingReceptionPaths,
+  type ReceptionPath,
+} from './reception-paths.js';
+import { fanoutMessagingConsumer } from './consumer-fanout.js';
+import {
   commitThreadReceptionPolicy,
   threadReceptionPolicy,
   type ThreadReceptionInput,
@@ -18,7 +25,7 @@ import { admitBridgeMembers } from './member-admission.js';
 import { messagingDefaults } from './defaults.js';
 import { assertMessagingIdentity } from './identity.js';
 import {
-  channelBridgeConfiguration,
+  channelBridgeRoutes,
   channelBridgeInput,
   type ChannelBridgeInput,
 } from './channel-bridge.js';
@@ -84,6 +91,7 @@ export interface ExternalSource {
   receptionRevision?: number;
   bridgeRevision?: number;
   localChannelId?: string;
+  receptionPaths?: ReceptionPath[];
   report?: RelatedReport;
   contextReads?: ExternalContextRead[];
   contextMessages?: ExternalContextResult['messages'];
@@ -119,6 +127,11 @@ export interface InboundMessaging {
   ordinaryDelivery(grantId: string): 'verified' | 'unverified';
   status(grantId: string): 'off' | 'connecting' | 'receiving' | 'unavailable';
   available(botSlug: string, sourceEventId: string): boolean;
+  pendingPaths(
+    botSlug: string,
+    now: Date,
+    context?: boolean,
+  ): ReturnType<typeof pendingReceptionPaths>;
   sourceSignal(botSlug: string, sourceEventId: string): AbortSignal;
   read(botSlug: string, sourceEventId: string): ExternalSource;
   share(botSlug: string, sourceEventId: string, channelId: string): InboxSourceShare;
@@ -167,7 +180,10 @@ export function createInboundMessaging(options: {
       clearTimeout(timer);
     }
   };
-  const providers = new Map<string, { provider: MessagingProvider; token: object }>();
+  const providers = new Map<
+    string,
+    { provider: MessagingProvider; token: object; consume?: MessagingProvider['consume'] }
+  >();
   const leases = new Map<
     string,
     {
@@ -259,7 +275,9 @@ export function createInboundMessaging(options: {
         defaultRevision: messagingDefaults(db, value.platform).revision,
         receptionRevision: groupReceptionPolicy(db, value.id).revision,
         ...(value.channelBridge ? { bridgeRevision: value.channelBridge.revision } : {}),
-        ...(value.receiveTargetChannelId ? { localChannelId: value.receiveTargetChannelId } : {}),
+        ...(!value.bridgeRoutes && value.receiveTargetChannelId
+          ? { localChannelId: value.receiveTargetChannelId }
+          : {}),
       };
       db.prepare(`INSERT INTO source_events (source_event_id, source_kind, bot_slug, body, created_at, payload_json)
         VALUES (?, 'bridge-message', ?, ?, ?, ?)`).run(
@@ -288,6 +306,7 @@ export function createInboundMessaging(options: {
     lease?.dispose?.();
   };
   const targetAvailable = (value: MessagingGrant): boolean => {
+    if (value.bridgeRoutes) return true;
     if (!value.receiveTargetChannelId) return true;
     try {
       database.read((db) => bridgeChannel(db, value.receiveTargetChannelId!, value.botSlug));
@@ -298,6 +317,7 @@ export function createInboundMessaging(options: {
     }
   };
   const valid = (value: MessagingGrant): boolean => {
+    value = grant(value.id);
     const lease = leases.get(value.id);
     return (
       !closed &&
@@ -329,6 +349,14 @@ export function createInboundMessaging(options: {
         .all(value.botSlug, value.id, value.revision),
     ) as { source_event_id: string }[];
     for (const row of rows) options.onAdmitted(value.botSlug, row.source_event_id);
+    const pending = database.read((db) =>
+      db
+        .prepare(`SELECT DISTINCT p.bot_slug FROM messaging_source_paths p
+      JOIN inbox_admissions a ON a.source_event_id = p.source_event_id AND a.bot_slug = p.bot_slug
+      WHERE p.grant_id = ? AND a.attempt_state IN ('pending', 'retryable') AND a.observed_at IS NULL`)
+        .all(value.id),
+    ) as { bot_slug: string }[];
+    options.onShared?.(pending.map((row) => row.bot_slug));
   };
   const start = async (value: MessagingGrant, attempt = 0) => {
     stop(value.id);
@@ -363,7 +391,7 @@ export function createInboundMessaging(options: {
       )
         throw new MessagingError('rebind-required');
       transaction((db) => initializeGroupReceptionPolicy(db, value.id));
-      const dispose = await entry.provider.consume({
+      const dispose = await entry.consume!({
         accountRef: value.accountRef,
         fingerprint: value.fingerprint,
         signal: lease.controller.signal,
@@ -401,6 +429,180 @@ export function createInboundMessaging(options: {
             event.conversation.id !== value.receiveScope!.conversationId
           )
             return { accepted: true };
+          if (!event.mentionedAccount) {
+            lease.ordinaryVerified = true;
+            if (
+              event.reply.threadId &&
+              event.reply.rootId &&
+              event.reply.parentId &&
+              event.reply.conversationId === event.conversation.id
+            )
+              lease.ordinaryThreads.set(event.reply.threadId, event.reply.rootId);
+          }
+          if (latest.bridgeRoutes) {
+            const placed: ChannelMessageCommit[] = [];
+            const members = new Set<string>();
+            const id = transaction(
+              (db) => {
+                signal.throwIfAborted();
+                lease.controller.signal.throwIfAborted();
+                if (latest.receiveAfter && Date.parse(event.at) < Date.parse(latest.receiveAfter))
+                  return undefined;
+                const reception = groupReceptionPolicy(db, value.id);
+                const thread = event.reply.threadId
+                  ? threadReceptionPolicy(db, value.id, event.reply.threadId)
+                  : undefined;
+                if (
+                  thread &&
+                  (thread.fingerprint !== value.fingerprint ||
+                    thread.conversationId !== event.conversation.id ||
+                    thread.rootId !== event.reply.rootId)
+                )
+                  throw new MessagingError('thread-route-mismatch');
+                if (
+                  !event.mentionedAccount &&
+                  thread?.mode === 'follow' &&
+                  (!event.reply.rootId || !event.reply.parentId)
+                )
+                  throw new MessagingError('thread-route-mismatch');
+                const routes = channelBridgeRoutes(latest).filter((route) => {
+                  if (
+                    !route.enabled ||
+                    (route.intakeAfter && Date.parse(event.at) < Date.parse(route.intakeAfter))
+                  )
+                    return false;
+                  if (
+                    !event.mentionedAccount &&
+                    (thread?.mode === 'exclude' ||
+                      (thread?.mode !== 'follow' &&
+                        (route.collectionInheritance === 'inherit'
+                          ? messagingDefaults(db, latest.platform).collection
+                          : route.collection) !== 'all'))
+                  )
+                    return false;
+                  if (route.channelId) {
+                    try {
+                      bridgeChannel(db, route.channelId, value.botSlug, true);
+                    } catch {
+                      return false;
+                    }
+                  }
+                  return true;
+                });
+                if (!routes.length) return undefined;
+                const candidate = sourceId(latest, event);
+                const existing = db
+                  .prepare(`SELECT 1 FROM messaging_source_paths WHERE source_event_id = ?
+                    UNION ALL SELECT 1 FROM inbox_admissions WHERE source_event_id = ?
+                    UNION ALL SELECT 1 FROM channel_placements WHERE source_event_id = ?
+                    LIMIT 1`)
+                  .get(candidate, candidate, candidate);
+                const id = persistSource(db, latest, event);
+                if (existing) return id;
+                const row = db
+                  .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
+                  .get(id) as { payload_json: string };
+                const source = (JSON.parse(row.payload_json) as { external: ExternalSource })
+                  .external;
+                for (const route of routes) {
+                  if (route.channelId) {
+                    const commit = placeBridgeSource(
+                      db,
+                      { ...source, body: event.text, localChannelId: route.channelId },
+                      value.botSlug,
+                    );
+                    if (commit) placed.push(commit);
+                    if (!event.mentionedAccount) {
+                      const channel = bridgeChannel(db, route.channelId, value.botSlug);
+                      for (const slug of admitBridgeMembers(
+                        db,
+                        id,
+                        channel,
+                        options.sourcePolicy,
+                        options.isBotActive,
+                        thread?.mode === 'follow' && thread.wake
+                          ? { botSlug: value.botSlug, wake: thread.wake, revision: thread.revision }
+                          : undefined,
+                        {
+                          grant: latest,
+                          route,
+                          ...(event.reply.threadId ? { threadId: event.reply.threadId } : {}),
+                        },
+                      ))
+                        members.add(slug);
+                      continue;
+                    }
+                  }
+                  const reason = event.mentionedAccount ? 'group-mention' : 'group-ordinary';
+                  const policy = options.sourcePolicy.resolveIn(db, value.botSlug, reason);
+                  const ordinary =
+                    thread?.mode === 'follow' && thread.wake ? thread.wake : reception;
+                  const wake = event.mentionedAccount
+                    ? policy.wake
+                    : thread?.wake || reception.inheritance === 'custom' || !policy.overrideActive
+                      ? ordinary.wake
+                      : policy.wake;
+                  const count =
+                    reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
+                      ? (policy.digestCount ?? ordinary.count)
+                      : ordinary.count;
+                  const seconds =
+                    reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
+                      ? (policy.digestIntervalSeconds ?? ordinary.intervalSeconds)
+                      : ordinary.intervalSeconds;
+                  db.prepare(`INSERT OR IGNORE INTO inbox_admissions (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
+                  wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision, external_default_revision)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+                    id,
+                    value.botSlug,
+                    reason,
+                    policy.revision,
+                    wake,
+                    reception.revision,
+                    wake === 'immediate' ? 'all' : wake,
+                    wake === 'immediate' ? 1 : count,
+                    wake === 'immediate' ? 0 : seconds * 1000,
+                    thread?.revision ?? null,
+                    reception.defaultRevision ?? null,
+                  );
+                  recordReceptionPath(db, id, value.botSlug, latest, route, {
+                    reason,
+                    mode: wake,
+                    count,
+                    intervalMs: seconds * 1000,
+                    policyRevision: reception.revision,
+                    sourceRevision: policy.revision,
+                    defaultRevision: reception.defaultRevision ?? 0,
+                    ...(thread?.mode === 'follow'
+                      ? { threadRevision: thread.revision, threadId: event.reply.threadId }
+                      : {}),
+                  });
+                  members.add(value.botSlug);
+                }
+                return id;
+              },
+              ['source-event', 'channel', 'bot-inbox'],
+            );
+            if (id) {
+              for (const commit of placed) {
+                try {
+                  options.onPlaced?.(commit);
+                } catch {
+                  options.warn?.('bridge-channel-publication-failed');
+                }
+              }
+              try {
+                options.onShared?.([...members]);
+              } catch {
+                options.warn?.('bridge-share-wake-failed');
+              }
+              for (const slug of members)
+                setImmediate(() => {
+                  if (!closed) options.onAdmitted(slug, id);
+                });
+            }
+            return { accepted: true };
+          }
           if (
             !targetAvailable(latest) ||
             latest.channelBridge?.enabled === false ||
@@ -602,14 +804,27 @@ export function createInboundMessaging(options: {
       db
         .prepare(`SELECT e.payload_json, e.body FROM source_events e
       JOIN inbox_admissions a USING(source_event_id)
-      WHERE e.source_event_id = ? AND a.bot_slug = ? AND e.bot_slug = ? AND e.source_kind = 'bridge-message'`)
-        .get(id, botSlug, botSlug),
+      WHERE e.source_event_id = ? AND a.bot_slug = ? AND e.source_kind = 'bridge-message'`)
+        .get(id, botSlug),
     ) as { payload_json: string; body: string } | undefined;
     if (!row) throw new MessagingError('source-unavailable');
     const retained = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;
-    if (retained.localChannelId)
+    const routed = database.read((db) =>
+      db.prepare('SELECT 1 FROM messaging_source_paths WHERE source_event_id = ?').get(id),
+    );
+    const paths = database.read((db) =>
+      currentReceptionPaths(db, botSlug, id, undefined, 'history'),
+    );
+    if (routed && !paths.length) throw new MessagingError('source-unavailable');
+    if (!routed && grant(retained.grantId).botSlug !== botSlug)
+      throw new MessagingError('source-unavailable');
+    if (!routed && retained.localChannelId)
       database.read((db) => bridgeChannel(db, retained.localChannelId!, botSlug));
-    const latest = retained.contextReads?.filter((item) => item.outcome === 'read').at(-1);
+    const ownsContext = grant(retained.grantId).botSlug === botSlug;
+    const { contextReads, ...sharedSource } = retained;
+    const latest = ownsContext
+      ? contextReads?.filter((item) => item.outcome === 'read').at(-1)
+      : undefined;
     const contextMessages: ExternalContextResult['messages'] = [];
     for (const sourceEventId of latest?.sourceEventIds ?? []) {
       const context = database.read((db) =>
@@ -636,14 +851,29 @@ export function createInboundMessaging(options: {
     return {
       ...(report ? { report } : {}),
       ...(contextMessages.length === 0 ? {} : { contextMessages }),
-      ...(JSON.parse(row.payload_json) as { external: Omit<ExternalSource, 'body'> }).external,
+      ...sharedSource,
+      ...(ownsContext && contextReads ? { contextReads } : {}),
+      ...(routed
+        ? {
+            receptionPaths: paths,
+            ...(paths.find((path) => path.channelId)?.channelId
+              ? { localChannelId: paths.find((path) => path.channelId)!.channelId! }
+              : {}),
+          }
+        : {}),
       body: row.body,
     };
   };
   const service: InboundMessaging = {
     register(provider) {
       const token = {};
-      providers.set(provider.id, { provider, token });
+      providers.set(provider.id, {
+        provider,
+        token,
+        ...(provider.consume
+          ? { consume: fanoutMessagingConsumer(provider.consume.bind(provider)) }
+          : {}),
+      });
       const rows = database.read((db) =>
         db.prepare('SELECT body FROM messaging_grants WHERE revoked_at IS NULL').all(),
       ) as { body: string }[];
@@ -661,17 +891,23 @@ export function createInboundMessaging(options: {
     async channelBridge(channelId, rawInput) {
       const input = channelBridgeInput.parse(rawInput);
       const value = grant(input.grantId);
-      const configuration = channelBridgeConfiguration(value);
-      database.read((db) => bridgeChannel(db, channelId, value.botSlug, true));
+      const channel = database.read((db) => bridgeChannel(db, channelId, value.botSlug, true));
+      const target = input.delivery === 'inbox' ? null : channelId;
+      if (target === null && channel.type !== 'dm') throw new MessagingError('channel-unavailable');
+      const routes = channelBridgeRoutes(value);
+      const configuration = routes.find((route) =>
+        input.routeId ? route.id === input.routeId : route.channelId === target,
+      );
       if (
         value.revision !== input.expectedGrantRevision ||
-        (input.kind !== 'add' && configuration.revision !== input.expectedRevision)
+        (input.kind !== 'add' &&
+          (!configuration || configuration.revision !== input.expectedRevision))
       )
         throw new MessagingError('bridge-stale');
       if (
         input.kind === 'add'
-          ? !!value.receiveTargetChannelId || !!value.channelBridge
-          : value.receiveTargetChannelId !== channelId
+          ? routes.some((route) => route.channelId === target)
+          : configuration?.channelId !== target
       )
         throw new MessagingError('bridge-unavailable');
       let inspected: Awaited<ReturnType<MessagingProvider['inspect']>> | undefined;
@@ -705,22 +941,21 @@ export function createInboundMessaging(options: {
       const updated = transaction(
         (db) => {
           const latest = grant(value.id);
+          const currentRoutes = channelBridgeRoutes(latest);
+          const current = currentRoutes.find((route) => route.id === configuration?.id);
+          bridgeChannel(db, channelId, latest.botSlug, true);
+          if (
+            latest.revision !== input.expectedGrantRevision ||
+            (input.kind !== 'add' && (!current || current.revision !== input.expectedRevision)) ||
+            (input.kind === 'add' && currentRoutes.some((route) => route.channelId === target))
+          )
+            throw new MessagingError('bridge-stale');
           if (
             input.kind !== 'delete' &&
             input.expectedDefaultRevision !== undefined &&
             input.expectedDefaultRevision !== messagingDefaults(db, latest.platform).revision
           )
             throw new MessagingError('defaults-stale');
-          bridgeChannel(db, channelId, latest.botSlug, true);
-          if (
-            latest.revision !== input.expectedGrantRevision ||
-            (input.kind !== 'add' &&
-              channelBridgeConfiguration(latest).revision !== input.expectedRevision) ||
-            (input.kind === 'add'
-              ? !!latest.receiveTargetChannelId || !!latest.channelBridge
-              : latest.receiveTargetChannelId !== channelId)
-          )
-            throw new MessagingError('bridge-stale');
           if (entry) {
             assertMessagingIdentity(db, latest.bindingId);
             if (
@@ -731,45 +966,47 @@ export function createInboundMessaging(options: {
             )
               throw new MessagingError('grant-unavailable');
           }
-          const {
-            receiveScope: _scope,
-            receiveTargetChannelId: _channel,
-            channelBridge: _bridge,
-            ...rest
-          } = latest;
-          const next: MessagingGrant =
+          const nextRoutes =
             input.kind === 'delete'
-              ? { ...rest, revision: latest.revision + 1 }
-              : {
-                  ...latest,
-                  receiveTargetChannelId: channelId,
-                  ...(inspected ? { receiveScope: inspected.target.receiveScope } : {}),
-                  revision: input.kind === 'add' ? latest.revision + 1 : latest.revision,
-                  channelBridge: {
+              ? currentRoutes.filter((route) => route.id !== current!.id)
+              : [
+                  ...currentRoutes.filter((route) => route.id !== current?.id),
+                  {
+                    id: current?.id ?? randomUUID(),
+                    channelId: target,
                     name: input.name,
                     enabled: input.enabled,
                     collection: input.collection,
                     collectionInheritance: input.collectionInheritance ?? 'custom',
-                    revision: input.kind === 'add' ? 1 : configuration.revision + 1,
-                    ...(input.kind === 'add' ||
-                    (input.enabled && (!configuration.enabled || !configuration.intakeAfter))
+                    revision: (current?.revision ?? 0) + 1,
+                    ...(input.kind === 'add' || (input.enabled && !current?.enabled)
                       ? { intakeAfter: new Date().toISOString() }
-                      : configuration.intakeAfter
-                        ? { intakeAfter: configuration.intakeAfter }
+                      : current?.intakeAfter
+                        ? { intakeAfter: current.intakeAfter }
                         : {}),
                   },
-                };
+                ];
+          const { channelBridge: _bridge, receiveTargetChannelId: _target, ...rest } = latest;
+          const { receiveScope: priorScope, ...withoutScope } = rest;
+          const next: MessagingGrant = {
+            ...withoutScope,
+            bridgeRoutes: nextRoutes,
+            revision: nextRoutes.length ? latest.revision : latest.revision + 1,
+            ...(nextRoutes.length && (inspected?.target.receiveScope ?? priorScope)
+              ? { receiveScope: inspected?.target.receiveScope ?? priorScope }
+              : {}),
+          };
           db.prepare('UPDATE messaging_grants SET body = ?, revision = ? WHERE id = ?').run(
             JSON.stringify(next),
             next.revision,
-            value.id,
+            latest.id,
           );
           return next;
         },
         ['grants', 'channel', 'bot-inbox'],
       );
-      if (input.kind === 'delete') stop(value.id);
-      else if (input.kind === 'add' || !valid(updated)) await bounded(start(updated));
+      if (!updated.receiveScope) stop(value.id);
+      else if (!valid(updated)) await bounded(start(updated));
       options.warn?.(
         JSON.stringify({
           event: 'messaging-channel-bridge',
@@ -778,7 +1015,7 @@ export function createInboundMessaging(options: {
           channelId,
           grantId: value.id,
           operation: input.kind,
-          revision: updated.channelBridge?.revision,
+          routeId: configuration?.id,
         }),
       );
     },
@@ -855,7 +1092,9 @@ export function createInboundMessaging(options: {
             !options.isBotActive(botSlug)
           )
             throw new MessagingError('grant-unavailable');
-          if (channelId !== null) bridgeChannel(db, channelId, botSlug, true);
+          if (value.bridgeRoutes) throw new MessagingError('bridge-stale');
+          if (channelId !== null && bridgeChannel(db, channelId, botSlug, true).type !== 'group')
+            throw new MessagingError('channel-unavailable');
           const { receiveTargetChannelId: _old, channelBridge: _bridge, ...rest } = value;
           const next: MessagingGrant = {
             ...rest,
@@ -1106,17 +1345,29 @@ export function createInboundMessaging(options: {
     },
     status(id) {
       const value = grant(id);
-      if (!value.receiveScope || value.revokedAt || value.channelBridge?.enabled === false)
+      if (
+        !value.receiveScope ||
+        value.revokedAt ||
+        value.channelBridge?.enabled === false ||
+        (value.bridgeRoutes && !value.bridgeRoutes.some((route) => route.enabled))
+      )
         return 'off';
       if (!targetAvailable(value)) return 'unavailable';
       const lease = leases.get(id);
       if (valid(value)) return 'receiving';
       return lease && !lease.controller.signal.aborted ? 'connecting' : 'unavailable';
     },
+    pendingPaths(botSlug, now, context = false) {
+      return database.read((db) => pendingReceptionPaths(db, botSlug, now, valid, context));
+    },
     available(botSlug, id) {
       try {
         const source = read(botSlug, id);
         const value = grant(source.grantId);
+        if (source.receptionPaths)
+          return database.read(
+            (db) => currentReceptionPaths(db, botSlug, id, valid, 'reply').length > 0,
+          );
         return (
           value.botSlug === botSlug &&
           valid(value) &&
@@ -1131,6 +1382,7 @@ export function createInboundMessaging(options: {
     sourceSignal(botSlug, sourceEventId) {
       const source = read(botSlug, sourceEventId);
       const value = grant(source.grantId);
+      if (value.botSlug !== botSlug) throw new MessagingError('grant-unavailable');
       if (!valid(value)) throw new MessagingError('source-unavailable');
       return leases.get(value.id)!.controller.signal;
     },
@@ -1215,6 +1467,7 @@ export function createInboundMessaging(options: {
       const entry = providers.get(value.providerId);
       const lease = leases.get(value.id);
       if (
+        value.botSlug !== botSlug ||
         !valid(value) ||
         !lease ||
         source.grantRevision !== value.revision ||

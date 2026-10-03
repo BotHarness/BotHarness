@@ -30,6 +30,7 @@ export function ChannelBridgeTable({
   const [selected, setSelected] = useState<ChannelBridgeRow>();
   const [sourceId, setSourceId] = useState('');
   const [name, setName] = useState('');
+  const [delivery, setDelivery] = useState<'channel' | 'inbox'>('channel');
   const [enabled, setEnabled] = useState(true);
   const [collection, setCollection] = useState<'mentions' | 'all' | 'inherit'>('inherit');
   const [busy, setBusy] = useState(false);
@@ -38,6 +39,11 @@ export function ChannelBridgeTable({
   const refreshRequest = useRef(0);
   const generation = useRef(0);
   const source = mode === 'add' ? snapshot?.sources.find((s) => s.grantId === sourceId) : selected;
+  const alreadyConnected =
+    mode === 'add' &&
+    snapshot?.bridges.some(
+      (row) => row.grantId === sourceId && (row.delivery ?? 'channel') === delivery,
+    );
   const refresh = async () => {
     const sequence = ++refreshRequest.current;
     const version = generation.current;
@@ -89,6 +95,7 @@ export function ChannelBridgeTable({
   };
   const open = (next: typeof mode, row?: ChannelBridgeRow) => {
     setMode(next);
+    setDelivery(row?.delivery ?? 'channel');
     setSelected(row);
     setName(row?.name ?? '');
     setSourceId('');
@@ -100,6 +107,8 @@ export function ChannelBridgeTable({
   };
   const update = (row: ChannelBridgeRow, preference: boolean): ChannelBridgeInput => ({
     kind: 'update',
+    ...(row.routeId ? { routeId: row.routeId } : {}),
+    ...(row.delivery ? { delivery: row.delivery } : {}),
     grantId: row.grantId,
     expectedGrantRevision: row.grantRevision,
     expectedRevision: row.revision,
@@ -111,7 +120,12 @@ export function ChannelBridgeTable({
   });
   const save = async () => {
     if (!source) return;
-    const base = { grantId: source.grantId, expectedGrantRevision: source.grantRevision };
+    const base = {
+      grantId: source.grantId,
+      expectedGrantRevision: source.grantRevision,
+      ...(mode === 'add' || selected?.delivery ? { delivery } : {}),
+      ...(selected?.routeId && mode !== 'add' ? { routeId: selected.routeId } : {}),
+    };
     const input: ChannelBridgeInput =
       mode === 'delete' && selected
         ? { kind: 'delete', ...base, expectedRevision: selected.revision }
@@ -195,9 +209,12 @@ export function ChannelBridgeTable({
             </thead>
             <tbody>
               {snapshot.bridges.map((row) => (
-                <tr key={row.grantId}>
+                <tr key={row.routeId ?? row.grantId}>
                   <th scope="row">
                     {row.name}
+                    {row.delivery === 'inbox' ? (
+                      <span className="bh-bridge-secondary">{t('bridge.inboxOnly')}</span>
+                    ) : null}
                     <span className="bh-bridge-secondary">Lark / 飞书</span>
                   </th>
                   <td>{row.conversationName}</td>
@@ -307,7 +324,14 @@ export function ChannelBridgeTable({
               >
                 <option value="">{t('im.select')}</option>
                 {snapshot?.sources.map((s) => (
-                  <option key={s.grantId} value={s.grantId}>
+                  <option
+                    key={s.grantId}
+                    value={s.grantId}
+                    disabled={snapshot.bridges.some(
+                      (row) =>
+                        row.grantId === s.grantId && (row.delivery ?? 'channel') === delivery,
+                    )}
+                  >
                     {s.conversationName} · {s.accountName}
                   </option>
                 ))}
@@ -323,7 +347,26 @@ export function ChannelBridgeTable({
             <p>{t('bridge.receiver', { name: source.accountName })}</p>
           </>
         ) : null}
-        <p>{t('bridge.target', { name: channelName })}</p>
+        {mode === 'add' && snapshot?.canTargetInbox ? (
+          <label className="bh-im-field">
+            <span>{t('bridge.destination')}</span>
+            <select
+              value={delivery}
+              disabled={busy}
+              onChange={(e) => setDelivery(e.target.value === 'inbox' ? 'inbox' : 'channel')}
+            >
+              <option value="channel">{t('bridge.dmTarget', { name: channelName })}</option>
+              <option value="inbox">{t('bridge.inboxOnly')}</option>
+            </select>
+          </label>
+        ) : (
+          <p>
+            {delivery === 'inbox'
+              ? t('bridge.inboxOnly')
+              : t('bridge.target', { name: channelName })}
+          </p>
+        )}
+        {delivery === 'inbox' ? <p>{t('bridge.inboxOnlyHint')}</p> : null}
         {mode === 'delete' ? (
           <>
             <p>{t('bridge.deleteImpact')}</p>
@@ -373,7 +416,7 @@ export function ChannelBridgeTable({
           </>
         )}
         <Button
-          disabled={busy || !source || (mode !== 'delete' && !name.trim())}
+          disabled={busy || !source || alreadyConnected || (mode !== 'delete' && !name.trim())}
           onClick={() => void operate(save, true)}
         >
           {t(

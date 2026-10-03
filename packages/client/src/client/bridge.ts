@@ -2837,6 +2837,7 @@ export async function loadChannelBridges(
   if (
     !value ||
     value['channelId'] !== channelId ||
+    (value['canTargetInbox'] !== undefined && typeof value['canTargetInbox'] !== 'boolean') ||
     !Array.isArray(value['sources']) ||
     !value['sources'].every(source) ||
     !Array.isArray(value['bridges']) ||
@@ -2844,6 +2845,9 @@ export async function loadChannelBridges(
       const row = asRecord(item);
       return (
         source(item) &&
+        (row?.['routeId'] === undefined || typeof row['routeId'] === 'string') &&
+        (row?.['delivery'] === undefined ||
+          ['channel', 'inbox'].includes(String(row['delivery']))) &&
         typeof row?.['name'] === 'string' &&
         typeof row['enabled'] === 'boolean' &&
         Number.isInteger(row['revision']) &&
@@ -3045,6 +3049,32 @@ export async function readMessagingSource(
     replay['gapPossible'] !== true
   )
     throw new BridgeCallError('invalid-response', 'Invalid source');
+  if (
+    source?.['receptionPaths'] !== undefined &&
+    (!Array.isArray(source['receptionPaths']) ||
+      !source['receptionPaths'].every((value) => {
+        const path = asRecord(value);
+        return (
+          path &&
+          strings(path, ['routeId', 'grantId', 'reason', 'mode']) &&
+          (path['channelId'] === null || typeof path['channelId'] === 'string') &&
+          ['group-mention', 'group-ordinary'].includes(String(path['reason'])) &&
+          ['all', 'immediate', 'digest', 'mentions', 'silent', 'context', 'conditional'].includes(
+            String(path['mode']),
+          ) &&
+          [
+            'grantRevision',
+            'routeRevision',
+            'count',
+            'intervalMs',
+            'policyRevision',
+            'sourceRevision',
+            'defaultRevision',
+          ].every((key) => Number.isInteger(path[key]))
+        );
+      }))
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid reception paths');
   if (
     source?.['contextReads'] !== undefined &&
     (!Array.isArray(source['contextReads']) ||
