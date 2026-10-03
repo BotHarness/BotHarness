@@ -96,6 +96,20 @@ const DSH_CONTEXT_DIAGRAMS_EN = [
 
 export const PAGES = [
   {
+    slug: 'docs/daily-browser',
+    order: 22,
+    en: {
+      source: 'docs/daily-browser.md',
+      title: 'Share a browser tab',
+      description: 'Explicitly lend one daily-browser tab read-only to a PersonaBot.',
+    },
+    zh: {
+      source: 'docs/daily-browser.zh.md',
+      title: '分享浏览器标签页',
+      description: '将日常浏览器的一个标签页明确借给 PersonaBot 只读观察。',
+    },
+  },
+  {
     slug: 'docs/file-open',
     order: 21,
     en: {

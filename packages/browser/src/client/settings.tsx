@@ -7,7 +7,7 @@ interface TargetScope {
   getSnapshot(): {
     status: string;
     writable: boolean;
-    value: { target?: 'local' | 'container' } | undefined;
+    value: { target?: 'local' | 'container' | 'extension' } | undefined;
   };
   subscribe(listener: () => void): () => void;
   set(field: string, value: unknown): Promise<void>;
@@ -44,14 +44,14 @@ export function BrowserTargetSettings({
           align="end"
           open={open}
           selectedId={target}
-          items={(['local', 'container'] as const).map((id) => ({
+          items={(['local', 'container', 'extension'] as const).map((id) => ({
             id,
             label: t(`settings.${id}`),
           }))}
           onClose={() => setOpen(false)}
           onSelect={(id) => {
             setOpen(false);
-            if (id !== 'local' && id !== 'container') return;
+            if (id !== 'local' && id !== 'container' && id !== 'extension') return;
             setSaving(true);
             setError(undefined);
             void scope

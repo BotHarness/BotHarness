@@ -5,6 +5,8 @@ import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 import { registerBrowserViewer, type BrowserViewerHost } from './viewer.js';
 import type { ContainerBrowserOptions } from './runtime/container.js';
+import { createBorrowService } from './borrow.js';
+import { registerBorrowHttp } from './borrow-http.js';
 
 import { createBrowserDiagnostics, toLogEntry } from './diagnostics.js';
 import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
@@ -19,7 +21,7 @@ import {
 export const name = 'botharness-browser';
 
 export interface BrowserConfig {
-  target?: 'local' | 'container';
+  target?: 'local' | 'container' | 'extension';
   enabled: boolean;
   browserPath: string;
   headless: boolean;
@@ -37,7 +39,11 @@ export const DEFAULT_CONFIG: BrowserConfig = {
 };
 
 export const Config = Schema.object({
-  target: Schema.union([Schema.const('local'), Schema.const('container')])
+  target: Schema.union([
+    Schema.const('local'),
+    Schema.const('container'),
+    Schema.const('extension'),
+  ])
     .default('local')
     .volatile(),
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 Browser'),
@@ -77,7 +83,7 @@ export function pinnedBrowserDirectory(): string {
 export function apply(
   ctx: Context,
   config: Omit<BrowserConfig, 'target'> & {
-    target?: 'local' | 'container' | { get(): 'local' | 'container' };
+    target?: 'local' | 'container' | 'extension' | { get(): 'local' | 'container' | 'extension' };
   },
 ): void {
   if (!config.enabled) return;
@@ -100,10 +106,10 @@ export function apply(
 
   const coreLookup = (): { registry?: unknown; ownership?: unknown } | undefined =>
     ctx.get('botharness') as unknown as { registry?: unknown; ownership?: unknown } | undefined;
-  const target = (): 'local' | 'container' =>
+  const target = (): 'local' | 'container' | 'extension' =>
     (typeof config.target === 'object' ? config.target.get() : config.target) ?? 'local';
   let revision = 0;
-  const authorizationScope = (): string => `${target()}:${revision}`;
+  const authorizationScope = (): string => `${target()}:${revision}:${borrow.revision}`;
   let switching: Promise<void> = Promise.resolve();
   let registerViewer: ContainerBrowserOptions['onViewer'];
   ctx.inject(['connection', 'webServer'], (viewerCtx) => {
@@ -124,7 +130,7 @@ export function apply(
   });
   const runtimes = createBotBrowserRuntimes({
     browserDir: profileDirectory(),
-    target,
+    target: () => (target() === 'container' ? 'container' : 'local'),
     onViewer: (prefix, upstream) => {
       if (registerViewer === undefined)
         throw new Error('The Container Browser viewer requires the DSH Web Host');
@@ -142,16 +148,36 @@ export function apply(
     },
   });
 
+  const borrow = createBorrowService({
+    enabled: () => target() === 'extension',
+    bot: (slug) => {
+      const registry = coreLookup()?.registry as
+        | { get(slug: string): { browserAccess?: boolean; displayName?: string } | undefined }
+        | undefined;
+      const bot = registry?.get(slug);
+      return bot === undefined
+        ? undefined
+        : { displayName: bot.displayName ?? slug, browserAccess: bot.browserAccess === true };
+    },
+    onChange: (slug) => provider.invalidateBot(slug),
+    note: (event) => diagnostics.record('lifecycle', event),
+  });
+  ctx.inject(['webServer'], (borrowCtx) => {
+    const host = (borrowCtx as unknown as { webServer: BrowserViewerHost }).webServer;
+    return registerBorrowHttp(host, borrow);
+  });
+
   const provider = createBrowserToolProvider({
     ctx,
     runtimes,
     screenshotDir: join(profileDirectory(), 'screenshots'),
     isAutoAllowed: () => config.autoAllowActions,
     beforeExecution: () => switching,
+    borrowed: () => (target() === 'extension' ? borrow : undefined),
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),
     onActivity: (slug) => {
-      runtimes.touch(slug);
+      if (target() !== 'extension') runtimes.touch(slug);
     },
     core: () => {
       const core = coreLookup();
@@ -162,7 +188,19 @@ export function apply(
     },
   });
   ctx.provide('botharnessBrowserTools', {
-    reconcileBot: (slug: string) => provider.reconcileBot(slug),
+    reconcileBot: (slug: string) => {
+      if (
+        !(
+          (
+            coreLookup()?.registry as
+              | { get(slug: string): { browserAccess?: boolean } | undefined }
+              | undefined
+          )?.get(slug)?.browserAccess === true
+        )
+      )
+        borrow.returnBot(slug);
+      return provider.reconcileBot(slug);
+    },
     resetBot: (slug: string) => {
       const started = Date.now();
       provider.resetBot(slug);
@@ -184,6 +222,7 @@ export function apply(
   ctx.on('loader/volatile-update', (paths) => {
     if (!paths.some((path) => path[0] === 'target')) return;
     revision += 1;
+    borrow.clear();
     provider.resetRuntime();
     switching = switching.catch(() => undefined).then(() => runtimes.stopAll());
     void switching
@@ -221,6 +260,7 @@ export function apply(
   });
   ctx.effect(
     () => () => {
+      borrow.dispose();
       void provider.dispose();
     },
     'botharness-browser: tool provider',
@@ -240,11 +280,43 @@ export function apply(
     const json = (value: unknown, status = 200): Response =>
       Response.json(value as Record<string, unknown>, { status });
 
+    for (const action of ['pair', 'return'] as const) {
+      connectionCtx.effect(
+        () =>
+          connection.fetch.register({
+            path: `/api/browser/borrow/${action}`,
+            methods: ['POST'],
+            requestBody: 'buffered',
+            async fetch(request) {
+              try {
+                const body = (await request.json()) as { slug?: unknown };
+                if (typeof body.slug !== 'string' || body.slug === '')
+                  throw new Error('PersonaBot is required');
+                await switching;
+                if (action === 'return') {
+                  borrow.returnBot(body.slug);
+                  return json({ ok: true });
+                }
+                return json({ ok: true, ...borrow.pair(body.slug) });
+              } catch (error) {
+                return json(
+                  { ok: false, error: error instanceof Error ? error.message : 'Pairing failed' },
+                  409,
+                );
+              }
+            },
+          }),
+        `botharness-browser: borrowed ${action}`,
+      );
+    }
+
     const openRoute = {
       path: '/api/browser/open',
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
+        if (target() === 'extension')
+          return json({ ok: false, error: 'Share a tab through the Daily Browser extension' }, 409);
         let body: { slug?: unknown; tab?: unknown } = {};
         try {
           body = (await request.json()) as typeof body;
@@ -288,6 +360,17 @@ export function apply(
         const url = new URL(request.url);
         const slug = url.searchParams.get('slug') ?? '';
         const requested = url.searchParams.get('tab') ?? '';
+        if (target() === 'extension')
+          return json({
+            ok: true,
+            target: 'extension',
+            running: false,
+            frame: null,
+            focused: null,
+            takeover: false,
+            tabs: [],
+            borrowed: borrow.view(slug) ?? null,
+          });
         if (slug === '') {
           return json({
             ok: true,
@@ -344,6 +427,8 @@ export function apply(
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
+        if (target() === 'extension')
+          return json({ ok: false, error: 'Daily Browser is read-only; use Return tab' }, 409);
         let body: { slug?: unknown; active?: unknown } = {};
         try {
           body = (await request.json()) as typeof body;
@@ -379,6 +464,10 @@ export function apply(
         }
         const slug = typeof body.slug === 'string' ? body.slug : '';
         if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
+        if (target() === 'extension') {
+          borrow.returnBot(slug);
+          return json({ ok: true });
+        }
         diagnostics.record('lifecycle', `stop requested (panel) slug=${slug}`);
         try {
           const pendingSwitch = switching;

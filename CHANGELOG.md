@@ -17,6 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Humans can explicitly lend one daily Chrome tab read-only to a PersonaBot through a local extension, reuse its login state with `browser_observe`, and return it from the extension or Channel sidebar; navigation, lost connection and restart revoke the temporary lease ([#741](https://github.com/BotHarness/BotHarness/issues/741), [guide](docs/daily-browser.md), [ADR-0116](docs/adr/0116-daily-browser-tabs-use-explicit-ephemeral-borrowing.md)).
 - PersonaBot avatars and the composer show live native Tool approval counts independently of execution; the existing revisioned Host snapshot/live stream clears accepted, rejected and cancelled requests without replaying stale approvals ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Bots can explicitly share one own-Inbox external source into a joined team Channel, showing the clickable Bridge source above the original message with details in a Modal, and preserving provenance and independent member attention without forwarding future traffic or borrowing external identities ([#636](https://github.com/BotHarness/BotHarness/issues/636)).
