@@ -521,6 +521,7 @@ function hairMasks(recipe: IllustratedAvatarRecipe, left: number, right: number)
 
 function accessory(recipe: IllustratedAvatarRecipe, grid: Grid, left: number, right: number): void {
   const head = HEADS[recipe.head];
+  const turned = recipe.pose !== 'front';
   const shirt = recipe.shirtColor;
   switch (recipe.accessory) {
     case 'none':
@@ -560,7 +561,7 @@ function accessory(recipe: IllustratedAvatarRecipe, grid: Grid, left: number, ri
         (x, y) =>
           y >= 20 &&
           y <= 28 &&
-          ((x >= left - 4 && x <= left - 1) || (x >= right + 1 && x <= right + 4)),
+          ((!turned && x >= left - 4 && x <= left - 1) || (x >= right + 1 && x <= right + 4)),
         '#e25d6a',
       );
       return;
@@ -577,8 +578,12 @@ function accessory(recipe: IllustratedAvatarRecipe, grid: Grid, left: number, ri
       dots(
         grid,
         [
-          [left - 2, 28],
-          [left - 2, 29],
+          ...(turned
+            ? []
+            : ([
+                [left - 2, 28],
+                [left - 2, 29],
+              ] as Point[])),
           [right + 2, 28],
           [right + 2, 29],
         ],
@@ -664,8 +669,8 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   const skin = recipe.skinColor;
   const hair = recipe.hairColor;
   const turned = recipe.pose !== 'front';
-  const shift = turned ? -2 : 0;
-  const dx = turned ? -4 : 0;
+  const shift = turned ? -1 : 0;
+  const dx = turned ? -3 : 0;
   const left = Math.round(CX - head.half) + shift;
   const right = Math.round(CX - 1 + head.half) + shift;
   const headMask: Mask = (x, y) => head.mask(x - shift, y);
@@ -709,7 +714,7 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     shade(skin, 0.8),
   );
 
-  const masks = hairMasks(recipe, left, right);
+  const masks = hairMasks(recipe, turned ? left - 2 : left, right);
   const base = blank();
   paint(base, masks.back, shade(hair, 0.86));
   if (masks.bands) paint(base, masks.bands, shade(hair, 0.7));
@@ -742,8 +747,6 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
       );
   }
   paint(base, masks.front, hair);
-  if (turned)
-    paint(base, (x, y) => masks.front(x, 12) && x <= left + 3 && y <= 30 && headMask(x, y), hair);
   const edgeShade = shade(hair, 0.72);
   for (let y = SIZE - 1; y > 0; y--)
     for (let x = 0; x < SIZE; x++)
@@ -769,10 +772,10 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   const face = blank();
   const my = head.mouth;
   const lx = EYE_X[0] + dx;
-  const rx = EYE_X[1] + dx;
+  const rx = EYE_X[1] + dx + (turned ? 1 : 0);
   const cx = CX + dx;
   const far = (rows: readonly string[]) => (turned ? rows.map((row) => row.slice(1)) : rows);
-  const farShift = turned ? 1 : 0;
+  const farShift = turned ? 2 : 0;
   const brow = { B: shade(hair, 0.6) };
   const brows = BROWS[recipe.brows];
   if (brows.length) {
