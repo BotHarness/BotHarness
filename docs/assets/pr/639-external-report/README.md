@@ -11,3 +11,7 @@ Persistence read-back: one canonical sent Outbox intent, zero report Source Even
 This is a requested one-off report, not a newly implemented recurring scheduler. Own-echo delivery was not observed from Lark; authenticated echo, replay, wrong identity/source and unknown-outcome cases have focused automated coverage. Dark appearance and other Providers are unqualified. Receipt means platform acceptance, not Human read status. The retained first incorrect thread endpoint returned 404; final proof uses the pinned SDK's supported message-list thread container. No extra permissions were requested.
 
 BotHarness full regression: 2108 passed, 3 skipped; final Client Modal coverage: 5 passed. Type, format, lint, bilingual Release Ledger and production build checks passed. Qualified runtime Provider `2dcd07845ce0411afdcff286242f1dd4bc502da9`: 3476 tests passed. Separately rebased minimal upstream receipt contribution: 3643 passed/build/package check; it does not include BotHarness's consumer/echo/file/history fork extensions and was not substituted into the live Profile.
+
+## Chinese topic explanation
+
+[Download the standalone interactive HTML](show-me-lark-topic.html). It embeds both SVG diagrams and explains native thread/root/parent IDs, admission and wake separately. The rules simulator sends no real messages; original qualification remains pinned to `a49dc941`.

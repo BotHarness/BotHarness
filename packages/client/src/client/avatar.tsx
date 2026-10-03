@@ -1,6 +1,9 @@
 import { useMemo, useState, type ReactElement } from 'react';
 
-import type { PersonaBotSessionActivity } from '../../../core/src/state/bot-state.js';
+import type {
+  PersonaBotAttention,
+  PersonaBotSessionActivity,
+} from '../../../core/src/state/bot-state.js';
 import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activity.js';
 
 import { blobatar } from 'blobatar';
@@ -32,6 +35,7 @@ export interface PersonaBotAvatarProps {
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
+  attention?: PersonaBotAttention | undefined;
   indicator?: boolean | undefined;
   t?: BotHarnessTranslate | undefined;
   className?: string | undefined;
@@ -45,6 +49,7 @@ export interface PersonaBotFacepileItem {
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
+  attention?: PersonaBotAttention | undefined;
 }
 
 const FALLBACK_HUES = [225, 262, 12, 152, 47, 200];
@@ -126,6 +131,22 @@ export function personaBotActivitySummary(
     .join(' · ');
 }
 
+export function personaBotPresentationSummary(
+  state: PersonaBotActivityState,
+  activity: PersonaBotToolActivity | undefined,
+  attention: PersonaBotAttention | undefined,
+  t: BotHarnessTranslate = zhTranslate,
+): string {
+  return [
+    personaBotActivitySummary(state, activity, t),
+    attention === undefined
+      ? undefined
+      : t('activity.approvalCount', { count: attention.approvalCount }),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function BlobatarMedia({ seed }: { seed: string }): ReactElement {
   const markup = useMemo(() => {
     try {
@@ -189,13 +210,14 @@ export function PersonaBotAvatar({
   state = 'idle',
   effect,
   activity,
+  attention,
   indicator = true,
   className,
   t = zhTranslate,
 }: PersonaBotAvatarProps): ReactElement {
   const resolvedEffect =
     effect ?? (state === 'working' ? activity?.effect : undefined) ?? defaultActivityEffect(state);
-  const summary = personaBotActivitySummary(state, activity, t);
+  const summary = personaBotPresentationSummary(state, activity, attention, t);
   const mediaKind = src === undefined || src.length === 0 ? 'blob' : 'image';
   const active = state === 'thinking' || state === 'working';
   const classes = ['bh-persona-avatar', className].filter(Boolean).join(' ');
@@ -214,6 +236,15 @@ export function PersonaBotAvatar({
     >
       <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
       {indicator ? <ActivityIndicator state={state} /> : null}
+      {indicator && attention !== undefined ? (
+        <span
+          className="bh-avatar-attention"
+          data-approval-count={attention.approvalCount}
+          aria-hidden="true"
+        >
+          {attention.approvalCount > 99 ? '99+' : attention.approvalCount}
+        </span>
+      ) : null}
     </span>
   );
 }

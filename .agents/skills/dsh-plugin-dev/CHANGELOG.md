@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded WebServer prefix slash matching and the raw HTTP peer boundary in the [local development guide](../dsh-dev/SKILL.md), verified against pinned DSH 0.2.0 RC1 source and a real extension pairing/observation flow ([#741](https://github.com/BotHarness/BotHarness/issues/741)).
+
 - Recorded native configForms scope receiver preservation in the [local development guide](../dsh-dev/SKILL.md), verified against pinned DSH 0.2.0 RC1 settings and persisted Browser Target after Host restart ([#726](https://github.com/BotHarness/BotHarness/issues/726)).
 
 - Recorded directory picker capability differences and native selection fallback in the [local development guide](../dsh-dev/SKILL.md), verified against pinned DSH 0.2.0 RC1 with a real Inbox Grant flow ([#552](https://github.com/BotHarness/BotHarness/issues/552)).

@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "BotHarness Daily Browser",
+  "version": "0.1.0",
+  "minimum_chrome_version": "120",
+  "description": "Explicitly share one tab read-only with a PersonaBot, then return it.",
+  "permissions": ["activeTab", "scripting", "storage", "alarms"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "background": { "service_worker": "worker.mjs", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "Share this tab with a PersonaBot" },
+  "commands": {
+    "_execute_action": { "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" } }
+  }
+}

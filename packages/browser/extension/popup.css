@@ -1,0 +1,58 @@
+:root {
+  color-scheme: light dark;
+  font:
+    13px/1.5 system-ui,
+    sans-serif;
+}
+body {
+  width: 300px;
+  margin: 0;
+  padding: 16px;
+  color: CanvasText;
+  background: Canvas;
+}
+h1 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+form,
+section {
+  display: grid;
+  gap: 8px;
+}
+[hidden] {
+  display: none;
+}
+label {
+  font-weight: 500;
+}
+input,
+button {
+  box-sizing: border-box;
+  font: inherit;
+  padding: 8px;
+  border: 1px solid GrayText;
+  border-radius: 6px;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+p {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+#error {
+  color: firebrick;
+}
+#error:empty {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  #error {
+    color: salmon;
+  }
+}

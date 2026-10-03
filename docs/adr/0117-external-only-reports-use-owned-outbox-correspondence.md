@@ -1,4 +1,4 @@
-# ADR-0116: External-only reports use owned Outbox correspondence
+# ADR-0117: External-only reports use owned Outbox correspondence
 
 Status: Accepted
 

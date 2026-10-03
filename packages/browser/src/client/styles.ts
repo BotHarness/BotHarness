@@ -1,5 +1,8 @@
 export const styles = `
 .bh-browser-access-control { position: relative; display: flex; align-items: center; }
+.bh-browser-borrow { display: grid; gap: 8px; font-size: 12.5px; }
+.bh-browser-borrow-title, .bh-browser-borrow-url { overflow-wrap: anywhere; }
+.bh-browser-borrow-url { color: var(--bh-browser-secondary); }
 .bh-browser-access-power {
   display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
   padding: 0; border: 0; border-radius: var(--dsw-radius-md); background: transparent;

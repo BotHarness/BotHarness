@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>BotHarness Daily Browser</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>Share this tab</h1>
+    <form id="pair-form">
+      <label for="host">BotHarness address</label
+      ><input id="host" type="url" value="http://127.0.0.1:2999" required />
+      <label for="code">Pairing code</label><input id="code" autocomplete="off" required />
+      <button type="submit">Connect</button>
+    </form>
+    <section id="consent" hidden>
+      <p id="recipient"></p>
+      <p id="page"></p>
+      <p>Only this page is shared, read-only. Navigation or closing the tab ends sharing.</p>
+      <button id="share" type="button">Share current tab read-only</button>
+      <button id="return" type="button">Return tab</button>
+    </section>
+    <p id="error" role="alert"></p>
+    <script type="module" src="popup.mjs"></script>
+  </body>
+</html>

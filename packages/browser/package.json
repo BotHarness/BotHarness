@@ -6,6 +6,7 @@
   "files": [
     "dist",
     "lib",
+    "extension",
     "cordis.patch.yml"
   ],
   "type": "module",
