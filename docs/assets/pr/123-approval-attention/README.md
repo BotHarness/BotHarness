@@ -29,3 +29,5 @@ One preceding model run requested an extra `get_goal` approval, so the expected 
 ## Shared presentation labels
 
 The final Client follow-up makes sidebar hover text, pinned hover text, Rail button accessible names and Rail previews reuse the same execution-plus-attention summary as the avatar and composer. A Rail rendering regression verifies the Bot name, working state and two pending approvals together; 65 focused Client assertions and typecheck, lint and build passed. The real retained Human QA Host still reports working with two approvals.
+
+A real keyboard-focus/hover capture after collapsing the native sidebar also confirms `2 个工具待审批` in both the Rail button accessible name and its preview. `rail-attention.png` is a direct browser viewport-region screenshot; no raster editing was applied.
