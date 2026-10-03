@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type ReactElement } from 'react';
 import { buildCss, presetForState, resolveOptions } from '@botharness/botui-core';
+import { attentionCount } from './activity-attention.js';
 
 import type {
   PersonaBotAttention,
@@ -147,9 +148,14 @@ export function personaBotPresentationSummary(
 ): string {
   return [
     personaBotActivitySummary(state, activity, t),
-    attention === undefined
-      ? undefined
-      : t('activity.approvalCount', { count: attention.approvalCount }),
+    attention?.approvalCount
+      ? t('activity.approvalCount', { count: attention.approvalCount })
+      : undefined,
+    attention?.questionCount
+      ? t(attention.questionCount === 1 ? 'activity.questionCountOne' : 'activity.questionCount', {
+          count: attention.questionCount,
+        })
+      : undefined,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -284,9 +290,10 @@ export function PersonaBotAvatar({
         <span
           className="bh-avatar-attention"
           data-approval-count={attention.approvalCount}
+          data-question-count={attention.questionCount ?? 0}
           aria-hidden="true"
         >
-          {attention.approvalCount > 99 ? '99+' : attention.approvalCount}
+          {attentionCount(attention) > 99 ? '99+' : attentionCount(attention)}
         </span>
       ) : null}
     </span>

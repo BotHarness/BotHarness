@@ -1,0 +1,13 @@
+{
+  "baseline": {
+    "generation": "825bedee-5551-4531-ad42-2ca7b5d5c445",
+    "revision": 2,
+    "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+    "state": "idle"
+  },
+  "historical": {
+    "status": "expired"
+  },
+  "previousGeneration": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+  "historicalRequestRetained": true
+}

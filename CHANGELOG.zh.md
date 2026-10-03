@@ -19,6 +19,8 @@
 
 - PersonaBot Profile 可预览、取消和保存原创人物头像，选择脸型、发型、眼镜与颜色；保存外形在侧栏与 Profile 大图保持一致，消费现有活动和独立审批 attention，并在重启后恢复（[#751](https://github.com/BotHarness/BotHarness/issues/751)）。
 
+- Bot 原生待回答问题与工具审批共同显示在共享待办数字中，悬浮说明分别展示数量，回答或取消后及时清除，执行动画保持独立 ([#123](https://github.com/BotHarness/BotHarness/issues/123))。
+
 - 在 Bot 设置中新增 Lark 平台行为默认值；Profile 可继承或自定义，保留既有配置、拒绝陈旧保存，并以版本快照管理后续消息收件／汇总及身份暂停。 ([#701](https://github.com/BotHarness/BotHarness/issues/701))
 
 - Bot 可只向已授权 Lark 发送报告，在 Profile 查看 canonical Outbox 正文和可信外部消息 ID，再关联真正的带 @ 回复并在原外部话题回答，不镜像到本地 DM／Channel（[#639](https://github.com/BotHarness/BotHarness/issues/639)）。
