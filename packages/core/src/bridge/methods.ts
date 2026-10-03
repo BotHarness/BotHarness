@@ -1,3 +1,4 @@
+import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import {
   parseAllBotMention,
   expandAllBotMention,
@@ -303,6 +304,7 @@ export interface BridgeMethods {
   channelGroupInviteCancel(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupJoinDecide(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupMemberRemove(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
+  channelGroupWakePolicies(payload: unknown): BridgeResult<{ members: GroupMemberWakePolicy[] }>;
   channelGroupWakeSet(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupDelete(payload: unknown): BridgeResult<{ deleted: boolean }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
@@ -1683,6 +1685,33 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(String(error));
       }
     },
+    channelGroupWakePolicies(payload) {
+      const parsed = z.object({ channelId: z.string().min(1) }).safeParse(asObject(payload));
+      if (!parsed.success) return invalidInput('invalid Group channel');
+      try {
+        const channel = deps.channels.get(parsed.data.channelId);
+        if (
+          channel?.type !== 'group' ||
+          channel.deletedAt ||
+          !deps.channels
+            .listHumanMembers(channel.id)
+            .some((member) => member.humanId === 'local-human')
+        )
+          return invalidInput('Group channel unavailable');
+        return {
+          ok: true,
+          value: {
+            members: channel.members.map((botSlug) => ({
+              botSlug,
+              inherited: channel.wakePolicies?.[botSlug] === undefined,
+              policy: deps.channels.getGroupWakePolicy(channel.id, botSlug),
+            })),
+          },
+        };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
     channelGroupWakeSet(payload) {
       const parsed = z
         .object({
@@ -1698,6 +1727,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const bot = deps.registry.get(botSlug);
       if (bot === undefined || bot.paused === true) return unknownBot(botSlug);
       try {
+        const group = deps.channels.get(channelId);
+        if (
+          group?.type !== 'group' ||
+          group.deletedAt ||
+          !deps.channels
+            .listHumanMembers(channelId)
+            .some((member) => member.humanId === 'local-human')
+        )
+          return invalidInput('Group channel unavailable');
         return {
           ok: true,
           value: {

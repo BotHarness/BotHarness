@@ -1,3 +1,4 @@
+import { GroupWakePolicyTable } from './group-wake-policy-table.js';
 import { ChannelBridgeTable } from './channel-bridge-table.js';
 import type { BridgeActions } from './actions.js';
 import type { ReactElement } from 'react';
@@ -179,7 +180,10 @@ export function GroupProfileView({
   onTogglePin,
   onClose,
 }: GroupProfileProps & {
-  actions: Pick<BridgeActions, 'channelBridges' | 'channelBridge'>;
+  actions: Pick<
+    BridgeActions,
+    'channelBridges' | 'channelBridge' | 'groupWakePolicies' | 'setGroupWakePolicy'
+  >;
   onTogglePin(id: string): void;
   onClose(): void;
 }): ReactElement {
@@ -223,6 +227,13 @@ export function GroupProfileView({
           })}
         </div>
       </section>
+      <GroupWakePolicyTable
+        key={`wake:${channel.id}`}
+        channel={channel}
+        botNames={botNames}
+        actions={actions}
+        t={t}
+      />
       <ChannelBridgeTable
         key={channel.id}
         channelId={channel.id}
