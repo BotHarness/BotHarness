@@ -251,12 +251,13 @@ const roundedRect =
   };
 
 const taper =
-  (top: Mask, from: number, width: number, chin: number): Mask =>
+  (top: Mask, from: number, width: number, end: number, chin: number): Mask =>
   (x, y) => {
     const cy = y + 0.5;
     if (cy <= from) return top(x, y);
     if (cy > chin) return false;
-    return Math.abs(x + 0.5 - 16) <= width - (width - 1.4) * ((cy - from) / (chin - from));
+    const t = (cy - from) / (chin - from);
+    return Math.abs(x + 0.5 - 16) <= width - (width - end) * t ** 1.6;
   };
 
 const HEADS = {
@@ -265,32 +266,34 @@ const HEADS = {
   square: { mask: roundedRect(7, 6, 24, 23, 2), half: 9, chin: 23, mouth: 20 },
   long: { mask: ellipse(16, 15.4, 7.8, 10.6), half: 7.8, chin: 25, mouth: 21 },
   heart: {
-    mask: taper(ellipse(16, 15, 10, 9.4), 15, 10, 24.6),
-    half: 10,
-    chin: 24,
+    mask: taper(ellipse(16, 15, 9.8, 9.4), 15, 9.8, 4.4, 24),
+    half: 9.8,
+    chin: 23,
     mouth: 20,
   },
   vchin: {
     mask: taper(
       (x, y) => ellipse(16, 15, 9.2, 9.4)(x, y) || (y + 0.5 > 15 && Math.abs(x + 0.5 - 16) <= 9.2),
-      18.5,
+      17.5,
       9.2,
-      24.6,
+      3.6,
+      24,
     ),
     half: 9.2,
-    chin: 24,
+    chin: 23,
     mouth: 20,
   },
-  chubby: { mask: ellipse(16, 15.8, 11.2, 8.2), half: 11, chin: 23, mouth: 20 },
+  chubby: { mask: ellipse(16, 15.4, 10.4, 8.6), half: 10.4, chin: 23, mouth: 20 },
   diamond: {
     mask: taper(
-      (x, y) => y + 0.5 >= 5.5 && Math.abs(x + 0.5 - 16) <= 4 + 6 * ((y + 0.5 - 5.5) / 9.5),
+      (x, y) => y + 0.5 >= 5.5 && Math.abs(x + 0.5 - 16) <= 6.4 + 3.2 * ((y + 0.5 - 5.5) / 9.5),
       15,
-      10,
-      24.6,
+      9.6,
+      4.4,
+      24,
     ),
     half: 9.4,
-    chin: 24,
+    chin: 23,
     mouth: 20,
   },
 } as const;
