@@ -10,6 +10,10 @@ export interface GroupProfileActivityDay {
 
 export interface GroupProfileAuthorActivity {
   author: ChannelMessage['author'];
+  bridgeOrigin?: Pick<
+    NonNullable<ChannelMessage['bridgeOrigin']>,
+    'platform' | 'conversationId' | 'conversationName'
+  >;
   total: number;
   days: GroupProfileActivityDay[];
 }
@@ -31,7 +35,12 @@ function localDay(at: string): string | undefined {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function authorKey(author: ChannelMessage['author']): string {
+function authorKey({
+  author,
+  bridgeOrigin,
+}: Pick<GroupProfileAuthorActivity, 'author' | 'bridgeOrigin'>): string {
+  if (author.kind === 'bridged' && bridgeOrigin)
+    return JSON.stringify(['bridged-source', bridgeOrigin.platform, bridgeOrigin.conversationId]);
   return author.kind === 'bot'
     ? `bot:${author.slug}`
     : author.kind === 'bridged'
@@ -48,7 +57,7 @@ export function groupProfileActivity(
   const days = new Map<string, number>();
   const authors = new Map<
     string,
-    { author: ChannelMessage['author']; total: number; days: Map<string, number> }
+    Omit<GroupProfileAuthorActivity, 'days'> & { days: Map<string, number> }
   >();
   let cursor: string | undefined;
   do {
@@ -62,12 +71,16 @@ export function groupProfileActivity(
       const day = localDay(message.at);
       if (day === undefined) continue;
       days.set(day, (days.get(day) ?? 0) + 1);
-      const key = authorKey(message.author);
+      const key = authorKey(message);
       const entry = authors.get(key) ?? {
         author: message.author,
         total: 0,
         days: new Map<string, number>(),
       };
+      if (message.author.kind === 'bridged' && message.bridgeOrigin && !entry.bridgeOrigin) {
+        const { platform, conversationId, conversationName } = message.bridgeOrigin;
+        entry.bridgeOrigin = { platform, conversationId, conversationName };
+      }
       entry.total += 1;
       entry.days.set(day, (entry.days.get(day) ?? 0) + 1);
       authors.set(key, entry);
@@ -84,11 +97,12 @@ export function groupProfileActivity(
     today: localDay(now.toISOString()) ?? '',
     days: sortedDays(days),
     authors: [...authors.values()]
-      .map(({ author, total, days: authorDays }) => ({
+      .map(({ author, bridgeOrigin, total, days: authorDays }) => ({
         author,
+        ...(bridgeOrigin ? { bridgeOrigin } : {}),
         total,
         days: sortedDays(authorDays),
       }))
-      .sort((a, b) => b.total - a.total || authorKey(a.author).localeCompare(authorKey(b.author))),
+      .sort((a, b) => b.total - a.total || authorKey(a).localeCompare(authorKey(b))),
   };
 }

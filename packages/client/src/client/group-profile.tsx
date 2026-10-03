@@ -1,3 +1,4 @@
+import { bridgeSourceLabel } from './bridge-source-label.js';
 import { GroupWakePolicyTable } from './group-wake-policy-table.js';
 import { ChannelBridgeTable } from './channel-bridge-table.js';
 import type { BridgeActions } from './actions.js';
@@ -45,7 +46,9 @@ function authorName(
     case 'human':
       return t('groupProfile.human');
     case 'bridged':
-      return t('groupProfile.external', { source: entry.author.source });
+      return t('groupProfile.external', {
+        source: entry.bridgeOrigin ? bridgeSourceLabel(entry.bridgeOrigin, t) : entry.author.source,
+      });
     case 'system':
       return t('groupProfile.system');
   }
@@ -87,7 +90,13 @@ function GroupMembersCard({
               entry.author.kind === 'bot'
                 ? `bot:${entry.author.slug}`
                 : entry.author.kind === 'bridged'
-                  ? `bridged:${entry.author.source}`
+                  ? entry.bridgeOrigin
+                    ? JSON.stringify([
+                        'bridged-source',
+                        entry.bridgeOrigin.platform,
+                        entry.bridgeOrigin.conversationId,
+                      ])
+                    : `bridged:${entry.author.source}`
                   : entry.author.kind;
             return (
               <li key={key}>

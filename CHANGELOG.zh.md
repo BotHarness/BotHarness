@@ -301,6 +301,8 @@
 
 ### Fixed
 
+- Group Profile 的成员消息活跃使用外部平台与来源群名称，同一来源的发送人合并统计，不同来源分别显示（[#769](https://github.com/BotHarness/BotHarness/issues/769)）。
+
 - 折叠应用侧栏 Rail 中的 PersonaBot 数字头像徽标完整显示，首行与置顶频道不再被裁切，同时保持原生侧栏滚动行为（[#744](https://github.com/BotHarness/BotHarness/issues/744)）。
 
 - macOS Local Computer 在 driver 空闲过期后可继续取得新的观察，旧 snapshot 和 element token 仍保持失效（[#713](https://github.com/BotHarness/BotHarness/issues/713)）。

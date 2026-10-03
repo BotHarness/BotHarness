@@ -301,6 +301,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Group Profile member message activity identifies external traffic by its platform and source group name, combining senders within one source while keeping different sources separate ([#769](https://github.com/BotHarness/BotHarness/issues/769)).
+
 - Numeric PersonaBot avatar badges remain fully visible in the collapsed app Rail, including the first and pinned Channel rows, without changing native sidebar scrolling ([#744](https://github.com/BotHarness/BotHarness/issues/744)).
 
 - macOS Local Computer now resumes fresh observations after driver idle expiry, while expired snapshot and element tokens remain invalid ([#713](https://github.com/BotHarness/BotHarness/issues/713)).
