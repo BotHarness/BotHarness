@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Orchestrators can explicitly wait for an owned Assignment report or completion; shared Activity presents Assignment work during that bounded wait and restores Orchestrator selection on report, cancellation or timeout ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - Assignment reports awaiting a Human answer or blocked decision now share independent Activity badge counts with sidebar, composer and Overview; canonical responses, dismissal and stop clear the counts, and unresolved durable reports survive restart ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - A Human can route multiple authorized Lark groups into shared Channels, explicit Bot DMs or Inbox-only targets, with independent connector switches, one canonical message and one processing unit per overlapping Bot; each receiving path retains its own policy evidence ([#635](https://github.com/BotHarness/BotHarness/issues/635), [ADR-0120](docs/adr/0120-multiple-bridge-routes-retain-canonical-sources.md)).
