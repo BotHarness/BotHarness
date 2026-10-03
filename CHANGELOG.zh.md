@@ -17,6 +17,8 @@
 
 ### Added
 
+- Assignment 等待 Human 回答或受阻的报告现在通过侧栏、消息框和总览共享独立 Activity 待办数；权威回复、隐藏待办或停止会清除提示，未解决的持久化报告在重启后保留 ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - Bot 原生待回答问题与工具审批共同显示在共享待办数字中，悬浮说明分别展示数量，回答或取消后及时清除，执行动画保持独立 ([#123](https://github.com/BotHarness/BotHarness/issues/123))。
 
 - 在 Bot 设置中新增 Lark 平台行为默认值；Profile 可继承或自定义，保留既有配置、拒绝陈旧保存，并以版本快照管理后续消息收件／汇总及身份暂停。 ([#701](https://github.com/BotHarness/BotHarness/issues/701))

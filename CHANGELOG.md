@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Assignment reports awaiting a Human answer or blocked decision now share independent Activity badge counts with sidebar, composer and Overview; canonical responses, dismissal and stop clear the counts, and unresolved durable reports survive restart ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - Pending native Bot questions now contribute to the shared attention badge alongside Tool approvals, with distinct hover counts and immediate clearing after answer or cancellation; execution motion remains independent ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Added Lark platform behavior defaults in Bot settings, with explicit Profile inheritance, preserved custom settings, stale-save protection, and revisioned future-message intake/harvest and identity pause behavior. ([#701](https://github.com/BotHarness/BotHarness/issues/701))

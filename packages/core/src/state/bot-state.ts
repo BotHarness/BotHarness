@@ -17,6 +17,8 @@ export type { PersonaBotSessionActivity } from './tool-activity.js';
 export interface PersonaBotAttention {
   approvalCount: number;
   questionCount?: number;
+  waitingHumanCount?: number;
+  blockedCount?: number;
 }
 
 export interface BotStateSnapshot {
@@ -44,6 +46,13 @@ export type BotStateEvent =
   | { type: 'session-removed'; slug: string; sessionId: string; snapshot: BotStateSnapshot };
 
 export interface BotStateTracker {
+  replaceAssignmentAttention(
+    rows: readonly {
+      botSlug: string;
+      waitingHumanCount: number;
+      blockedCount: number;
+    }[],
+  ): void;
   setQuestionCount(slug: string, count: number): void;
   setApprovalCount(slug: string, count: number): void;
   setSessionState(
@@ -94,12 +103,24 @@ export function createBotStateTracker(): BotStateTracker {
   const bots = new Map<string, Map<string, SessionState>>();
   const approvalCounts = new Map<string, number>();
   const questionCounts = new Map<string, number>();
+  const assignmentAttention = new Map<
+    string,
+    { waitingHumanCount: number; blockedCount: number }
+  >();
   const attentionOf = (slug: string): PersonaBotAttention | undefined => {
     const count = approvalCounts.get(slug);
     const questionCount = questionCounts.get(slug);
-    return count === undefined && questionCount === undefined
+    const assignment = assignmentAttention.get(slug);
+    return count === undefined && questionCount === undefined && assignment === undefined
       ? undefined
-      : { approvalCount: count ?? 0, ...(questionCount === undefined ? {} : { questionCount }) };
+      : {
+          approvalCount: count ?? 0,
+          ...(questionCount === undefined ? {} : { questionCount }),
+          ...(assignment?.waitingHumanCount
+            ? { waitingHumanCount: assignment.waitingHumanCount }
+            : {}),
+          ...(assignment?.blockedCount ? { blockedCount: assignment.blockedCount } : {}),
+        };
   };
   const listeners = new Set<(event: BotStateEvent) => void>();
   const tools = new Map<string, PersonaBotToolActivity>();
@@ -214,6 +235,38 @@ export function createBotStateTracker(): BotStateTracker {
   };
 
   const tracker: BotStateTracker = {
+    replaceAssignmentAttention(rows) {
+      if (
+        rows.some(
+          (row) =>
+            !Number.isSafeInteger(row.waitingHumanCount) ||
+            row.waitingHumanCount < 0 ||
+            !Number.isSafeInteger(row.blockedCount) ||
+            row.blockedCount < 0,
+        )
+      )
+        return;
+      const next = new Map(
+        rows
+          .filter((row) => row.waitingHumanCount + row.blockedCount > 0)
+          .map(({ botSlug, waitingHumanCount, blockedCount }) => [
+            botSlug,
+            { waitingHumanCount, blockedCount },
+          ]),
+      );
+      const changed = [...new Set([...assignmentAttention.keys(), ...next.keys()])].filter(
+        (slug) =>
+          (assignmentAttention.get(slug)?.waitingHumanCount ?? 0) !==
+            (next.get(slug)?.waitingHumanCount ?? 0) ||
+          (assignmentAttention.get(slug)?.blockedCount ?? 0) !==
+            (next.get(slug)?.blockedCount ?? 0),
+      );
+      assignmentAttention.clear();
+      for (const [slug, counts] of next) assignmentAttention.set(slug, counts);
+      if (changed.length === 0) return;
+      revision += 1;
+      for (const slug of changed) notify(slug, 'attention-changed');
+    },
     setQuestionCount(slug, count) {
       if (!Number.isSafeInteger(count) || count < 0) return;
       if ((questionCounts.get(slug) ?? 0) === count) return;

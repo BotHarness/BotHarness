@@ -62,6 +62,11 @@ export interface HumanAttentionQuery {
     limit?: number;
   }): HumanAttentionPage;
   status(): { unreadCount: number; hasAction: boolean };
+  assignmentAttention(): Array<{
+    botSlug: string;
+    waitingHumanCount: number;
+    blockedCount: number;
+  }>;
   actionCount(): number;
   actionSummary(): { count: number; botSlugs: string[] };
 }
@@ -711,6 +716,27 @@ SELECT 'handled:' || request.source_event_id AS id,
             }
           : {}),
       };
+    },
+    assignmentAttention() {
+      return database.read(
+        (db) =>
+          db
+            .prepare(`${ACTION_ATTENTION_CTE}
+          SELECT bot_slug AS botSlug,
+                 sum(kind = 'assignment-waiting-human') AS waitingHumanCount,
+                 sum(kind = 'assignment-blocked') AS blockedCount
+            FROM attention
+           WHERE kind IN ('assignment-waiting-human', 'assignment-blocked')
+             AND NOT EXISTS (SELECT 1 FROM human_inbox_dismissals d
+               WHERE d.human_id = '${LOCAL_HUMAN_ID}' AND d.item_id = attention.id
+                 AND d.source_key = coalesce(attention.source_event_id, ''))
+           GROUP BY bot_slug`)
+            .all('[]', '[]') as Array<{
+            botSlug: string;
+            waitingHumanCount: number;
+            blockedCount: number;
+          }>,
+      );
     },
     actionCount() {
       return this.actionSummary().count;

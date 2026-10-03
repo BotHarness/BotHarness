@@ -77,3 +77,21 @@ it('uses singular and plural English question labels in the visible and accessib
     expect(markup).toContain(`aria-label="Ada: Working · ${label}"`);
   }
 });
+
+it('shows Assignment waiting and blocked counts without changing idle or working motion', () => {
+  for (const state of ['idle', 'working'] as const) {
+    const markup = renderToStaticMarkup(
+      createElement(PersonaBotAvatar, {
+        personaBotId: 'ada',
+        name: 'Ada',
+        size: 32,
+        state,
+        attention: { approvalCount: 0, waitingHumanCount: 1, blockedCount: 2 },
+      }),
+    );
+    expect(markup).toContain(`data-state="${state}"`);
+    expect(markup).toContain('1 个任务等待你回答');
+    expect(markup).toContain('2 个任务受阻');
+    expect(markup).toMatch(/data-blocked-count="2"[^>]*>3<\/span>/);
+  }
+});
