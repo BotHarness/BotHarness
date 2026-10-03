@@ -1,6 +1,6 @@
 # PersonaBot 可组合 SVG Avatar：设计探索
 
-日期：2026-10-03。状态：`grill-with-docs` 访谈完成，Human 已在 Q20 确认完整设计；本文件保留研究与选择依据，规范目标见 [Accepted ADR-0116](../adr/0116-editable-avatar-appearance-is-independent-of-activity.md)，**不代表功能已实现或获实施授权**。
+日期：2026-10-03。状态：`grill-with-docs` 访谈完成，Human 已在 Q20 确认完整设计；本文件保留研究与选择依据，规范目标见 [Accepted ADR-0118](../adr/0118-editable-avatar-appearance-is-independent-of-activity.md)，**不代表功能已实现或获实施授权**。
 
 设计探索阶段只授权调研、提问与工作流文档。Q20 确认后，Human 另行授权提交设计文档、创建 PR 和准备本地 `/to-spec` handoff；仍没有功能实现、发布 spec 或合并授权。文档 PR 追踪 [#743](https://github.com/BotHarness/BotHarness/issues/743)，本地继续入口见 [handoff](2026-10-03-svg-avatar-to-spec-handoff.md)。
 
@@ -12,7 +12,7 @@
 
 产品术语使用根 CONTEXT：PersonaBot 是持续身份，Agent 是单个 Session 的执行器；Avatar 是跨 Binding 的共享视觉表达；Bot state 是执行事实的 presentation，不是 mood。DSH 的 SessionEvent/Projection/Service/Typert/API Gateway 是平台 seam；捏脸配方、角色家族、部件协议、姿态与动作映射都是 application-defined。
 
-Q9 与 Q11 确认后，已将 Avatar Family（形象家族）写入双语 CONTEXT，并按公共词汇表文档规则补充双语 Release Ledger；仅记录产品术语，不声明功能已交付。Q20 已确认完整方案：[Accepted ADR-0116](../adr/0116-editable-avatar-appearance-is-independent-of-activity.md) 将保存外形、活动事实与动画呈现的归属明确分开，Avatar Appearance（保存外形）已补入双语 CONTEXT，并集成到 living architecture 的待交付设计目标。没有进入实现。
+Q9 与 Q11 确认后，已将 Avatar Family（形象家族）写入双语 CONTEXT，并按公共词汇表文档规则补充双语 Release Ledger；仅记录产品术语，不声明功能已交付。Q20 已确认完整方案：[Accepted ADR-0118](../adr/0118-editable-avatar-appearance-is-independent-of-activity.md) 将保存外形、活动事实与动画呈现的归属明确分开，Avatar Appearance（保存外形）已补入双语 CONTEXT，并集成到 living architecture 的待交付设计目标。没有进入实现。
 
 ## 已确认与问题 frontier
 
