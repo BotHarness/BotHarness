@@ -16,33 +16,16 @@ import { MemoryWorkingGroups } from './memory-working-groups.js';
 import { MemoryRecovery } from './memory-recovery.js';
 import { useMountedResource } from './mounted-resource.js';
 
-type MemoryCache = {
-  snapshot: MemorySnapshot | undefined;
-  graph: MemoryGitGraph | undefined;
-  working: MemoryWorkingChange[] | undefined;
-  files: Map<string, { path: string; body: string; head: string; binary?: boolean }>;
-};
-const memoryCaches = new WeakMap<ChannelSidebarEntryProps['actions'], Map<string, MemoryCache>>();
+import { cachedMemory } from './memory-read-cache.js';
+import { MemoryLoadFeedback } from './memory-load-feedback.js';
 
-function cachedMemory(
-  actions: ChannelSidebarEntryProps['actions'],
-  channelId: string,
-): MemoryCache {
-  let channels = memoryCaches.get(actions);
-  if (channels === undefined) {
-    channels = new Map();
-    memoryCaches.set(actions, channels);
-  }
-  let cache = channels.get(channelId);
-  if (cache === undefined) {
-    cache = { snapshot: undefined, graph: undefined, working: undefined, files: new Map() };
-    channels.set(channelId, cache);
-    if (channels.size > 30) channels.delete(channels.keys().next().value!);
-  }
-  return cache;
+export function MemoryEntry(
+  props: ChannelSidebarEntryProps & { showFiles?: boolean },
+): ReactElement {
+  return <MemoryEntryForScope key={cachedMemory(props.actions, props.channelId).key} {...props} />;
 }
 
-export function MemoryEntry({
+function MemoryEntryForScope({
   actions,
   channelId,
   conversationRevision,
@@ -66,7 +49,10 @@ export function MemoryEntry({
   const [graph, setGraph] = useState<MemoryGitGraph | undefined>(cache.graph);
   const [working, setWorking] = useState<MemoryWorkingChange[]>(cache.working ?? []);
   const [workingLoaded, setWorkingLoaded] = useState(cache.working !== undefined);
-  const [workingError, setWorkingError] = useState<string>();
+  const [workingError, setWorkingError] = useState<string | undefined>(cache.workingError);
+  const [workingPending, setWorkingPending] = useState(false);
+  const [graphPending, setGraphPending] = useState(false);
+  const [snapshotPending, setSnapshotPending] = useState(false);
   const memoryRequestGeneration = useRef(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [path, setPath] = useState<string | undefined>(initialPath);
@@ -92,8 +78,8 @@ export function MemoryEntry({
   const [confirmRepair, setConfirmRepair] = useState(false);
   const [repairArchive, setRepairArchive] = useState<string>();
   const [error, setError] = useState<string>();
-  const [snapshotError, setSnapshotError] = useState<string>();
-  const [graphError, setGraphError] = useState<string>();
+  const [snapshotError, setSnapshotError] = useState<string | undefined>(cache.snapshotError);
+  const [graphError, setGraphError] = useState<string | undefined>(cache.graphError);
   const lanes = layoutMemoryGitLanes(graph?.commits ?? []);
   const branchQuery = branchFilter.trim().toLocaleLowerCase();
   const filteredBranches = (graph?.branches ?? []).filter((branch) =>
@@ -118,8 +104,6 @@ export function MemoryEntry({
     let graphTimer: ReturnType<typeof setTimeout> | undefined;
     let graphInFlight = false;
     setError(undefined);
-    setSnapshotError(undefined);
-    setGraphError(undefined);
     const loadGraph = (): void => {
       if (!active || requestGeneration !== memoryRequestGeneration.current || graphInFlight) return;
       if (document.visibilityState === 'hidden') {
@@ -127,6 +111,7 @@ export function MemoryEntry({
         return;
       }
       graphInFlight = true;
+      setGraphPending(true);
       void actions
         .memoryGitGraph(channelId, 0)
         .then(
@@ -141,6 +126,7 @@ export function MemoryEntry({
                 : next;
             cache.graph = merged;
             setGraph(merged);
+            cache.graphError = undefined;
             setGraphError(undefined);
             setBranchChoice((current) =>
               next.branches.includes(current)
@@ -149,12 +135,16 @@ export function MemoryEntry({
             );
           },
           (failure: unknown) => {
-            if (active && requestGeneration === memoryRequestGeneration.current)
-              setGraphError(failure instanceof Error ? failure.message : String(failure));
+            if (active && requestGeneration === memoryRequestGeneration.current) {
+              cache.graphError = failure instanceof Error ? failure.message : String(failure);
+              setGraphError(cache.graphError);
+            }
           },
         )
         .finally(() => {
           graphInFlight = false;
+          if (active && requestGeneration === memoryRequestGeneration.current)
+            setGraphPending(false);
           if (active && !showFiles) graphTimer = setTimeout(loadGraph, 20_000);
         });
     };
@@ -174,21 +164,30 @@ export function MemoryEntry({
         document.removeEventListener('visibilitychange', onVisible);
       };
     }
+    setSnapshotPending(true);
     void actions
       .memorySnapshot(channelId)
       .then((next) => {
         if (!active || requestGeneration !== memoryRequestGeneration.current) return;
         cache.snapshot = next;
+        cache.snapshotError = undefined;
+        setSnapshotError(undefined);
         setSnapshot(next);
         setPath((current) =>
           current !== undefined && next.files.includes(current) ? current : next.files[0],
         );
       })
       .catch((failure: unknown) => {
-        if (active && requestGeneration === memoryRequestGeneration.current)
-          setSnapshotError(failure instanceof Error ? failure.message : String(failure));
+        if (active && requestGeneration === memoryRequestGeneration.current) {
+          cache.snapshotError = failure instanceof Error ? failure.message : String(failure);
+          setSnapshotError(cache.snapshotError);
+        }
       })
-      .finally(loadGraph);
+      .finally(() => {
+        if (active && requestGeneration === memoryRequestGeneration.current)
+          setSnapshotPending(false);
+        loadGraph();
+      });
     return () => {
       active = false;
       clearTimeout(graphTimer);
@@ -200,7 +199,6 @@ export function MemoryEntry({
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let inFlight = false;
-    setWorkingError(undefined);
     const load = (): void => {
       if (!active || inFlight) return;
       if (document.visibilityState === 'hidden') {
@@ -208,6 +206,7 @@ export function MemoryEntry({
         return;
       }
       inFlight = true;
+      setWorkingPending(true);
       void actions
         .memoryWorkingChanges(channelId)
         .then(
@@ -216,18 +215,20 @@ export function MemoryEntry({
               cache.working = next;
               setWorking(next);
               setWorkingLoaded(true);
+              cache.workingError = undefined;
               setWorkingError(undefined);
             }
           },
           (failure: unknown) => {
             if (active) {
-              setWorkingLoaded(true);
-              setWorkingError(failure instanceof Error ? failure.message : String(failure));
+              cache.workingError = failure instanceof Error ? failure.message : String(failure);
+              setWorkingError(cache.workingError);
             }
           },
         )
         .finally(() => {
           inFlight = false;
+          if (active) setWorkingPending(false);
           if (active) timer = setTimeout(load, 15_000);
         });
     };
@@ -405,21 +406,21 @@ export function MemoryEntry({
           {error}
         </div>
       )}
+      {showFiles ? (
+        <MemoryLoadFeedback
+          error={snapshotError}
+          loaded={snapshot !== undefined}
+          pending={snapshotPending}
+          onRetry={() => setRefresh((value) => value + 1)}
+          t={t}
+        />
+      ) : null}
       {!showFiles ? null : snapshot === undefined ? (
         snapshotError === undefined ? (
           <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />
-        ) : (
-          <div className="bh-error" role="alert">
-            {snapshotError}
-          </div>
-        )
+        ) : null
       ) : (
         <>
-          {snapshotError === undefined ? null : (
-            <div className="bh-error" role="alert">
-              {snapshotError}
-            </div>
-          )}
           {snapshot.provisional ? (
             <div className="bh-note" role="status">
               {t('memory.provisional')}
@@ -495,28 +496,28 @@ export function MemoryEntry({
         </>
       )}
       <div className="bh-memory-history" ref={workingMount}>
+        <MemoryLoadFeedback
+          error={graphError}
+          loaded={graph !== undefined}
+          pending={graphPending}
+          onRetry={() => setRefresh((value) => value + 1)}
+          t={t}
+        />
         {graph === undefined ? (
           graphError === undefined ? (
             <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />
-          ) : (
-            <div className="bh-error" role="alert">
-              {graphError}
-            </div>
-          )
+          ) : null
         ) : (
           <>
-            {graphError === undefined ? null : (
-              <div className="bh-error" role="alert">
-                {graphError}
-              </div>
-            )}
             {!showFiles ? (
               <>
-                {workingError === undefined ? null : (
-                  <div className="bh-error" role="alert">
-                    {workingError}
-                  </div>
-                )}
+                <MemoryLoadFeedback
+                  error={workingError}
+                  loaded={workingLoaded}
+                  pending={workingPending}
+                  onRetry={() => setRefresh((value) => value + 1)}
+                  t={t}
+                />
                 {workingLoaded ? (
                   <MemoryWorkingGroups
                     changes={working}
@@ -524,9 +525,9 @@ export function MemoryEntry({
                     onSelect={onMemoryWorkingSelect}
                     t={t}
                   />
-                ) : (
+                ) : workingError === undefined ? (
                   <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />
-                )}
+                ) : null}
               </>
             ) : null}
             <div className="bh-memory-branch-control">

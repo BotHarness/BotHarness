@@ -1,11 +1,12 @@
 import {
   useId,
+  useRef,
   useState,
   useSyncExternalStore,
   type ComponentType,
   type ReactElement,
 } from 'react';
-import { Modal, Switch } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Modal, Switch, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
 import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
@@ -18,6 +19,8 @@ const OBSERVATION_ENDPOINT = '/api/browser/observation';
 const TAKEOVER_ENDPOINT = '/api/browser/takeover';
 const OPEN_ENDPOINT = '/api/browser/open';
 const STOP_ENDPOINT = '/api/browser/stop';
+
+import { AccessPowerIcon } from './access-power-icon.js';
 
 export const name = 'botharness-browser-client';
 
@@ -44,6 +47,7 @@ interface ChannelSidebarRegistryLike {
   register(entry: {
     readonly id: string;
     readonly label: string;
+    readonly icon?: string;
     readonly order: number;
     readonly scope: 'channel' | 'personabot';
     readonly component: ComponentType<ChannelSidebarEntryProps>;
@@ -102,7 +106,7 @@ interface ReadableStore<T> {
 
 function createBotInfoStore(
   botSlug: string | undefined,
-): ReadableStore<BotInfoView> & { refresh(): void } {
+): ReadableStore<BotInfoView> & { refresh(): void; setAccess(enabled: boolean): void } {
   let info: BotInfoView = {
     displayName: undefined,
     browserAccess: undefined,
@@ -141,7 +145,7 @@ function createBotInfoStore(
             typeof match.displayName === 'string' && match.displayName.length > 0
               ? match.displayName
               : undefined,
-          browserAccess: typeof match.browserAccess === 'boolean' ? match.browserAccess : undefined,
+          browserAccess: match.browserAccess === true,
           browserProfile:
             typeof match.browserProfile === 'string' && match.browserProfile !== ''
               ? match.browserProfile
@@ -153,6 +157,10 @@ function createBotInfoStore(
       .catch(() => undefined);
   };
   return {
+    setAccess(enabled) {
+      info = { ...info, browserAccess: enabled };
+      for (const listener of listeners) listener();
+    },
     subscribe(listener) {
       if (!started) {
         started = true;
@@ -239,11 +247,12 @@ function BrowserHeaderAction({
   setExpanded,
 }: ChannelSidebarEntryProps): ReactElement {
   const [store] = useState(() => createBotInfoStore(botSlug));
-  const [override, setOverride] = useState<boolean | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  const [error, setError] = useState(false);
   const subscribe = (listener: () => void): (() => void) => {
     const sync = (): void => {
-      const access = override ?? store.getSnapshot().browserAccess === true;
+      const access = store.getSnapshot().browserAccess === true;
       setExpandable?.(access);
     };
     const unsubscribe = store.subscribe(() => {
@@ -254,43 +263,67 @@ function BrowserHeaderAction({
     return unsubscribe;
   };
   const info = useSyncExternalStore(subscribe, store.getSnapshot);
-  const accessOn = override ?? info.browserAccess === true;
+  const accessOn = info.browserAccess === true;
 
   const onToggle = (next: boolean): void => {
     const rpc = connectionRpc;
-    if (rpc === undefined || botSlug === undefined || busy) return;
-    const previous = accessOn;
-    setOverride(next);
+    if (rpc === undefined || botSlug === undefined || inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
-    setExpandable?.(next);
-    if (next) setExpanded?.(true);
+    setError(false);
     void rpc
       .call('/api', 'botharness/browserAccessSet', { args: { slug: botSlug, enabled: next } })
       .then((result) => {
         if (!result.ok) {
-          setOverride(previous);
-          setExpandable?.(previous);
+          setError(true);
           return;
         }
         const value = result.value as { bot?: { browserAccess?: unknown } };
         const applied = value.bot?.browserAccess === true;
-        setOverride(applied);
+        store.setAccess(applied);
         setExpandable?.(applied);
+        setExpanded?.(applied);
       })
       .catch(() => {
-        setOverride(previous);
-        setExpandable?.(previous);
+        setError(true);
       })
-      .finally(() => setBusy(false));
+      .finally(() => {
+        inFlight.current = false;
+        setBusy(false);
+      });
   };
 
+  const label = t(accessOn ? 'entry.access.disable' : 'entry.access.enable');
   return (
-    <Switch
-      checked={accessOn}
-      disabled={busy || botSlug === undefined}
-      onChange={onToggle}
-      label={t('entry.access.title')}
-    />
+    <span className="bh-browser-access-control">
+      <Tooltip
+        label={error ? t('entry.access.failed') + ': ' + label : label}
+        side="bottom"
+        delayMs={500}
+      >
+        <button
+          type="button"
+          className={`bh-browser-access-power${error ? ' bh-access-failed' : ''}`}
+          aria-label={label}
+          aria-pressed={accessOn}
+          aria-busy={busy}
+          disabled={
+            busy ||
+            botSlug === undefined ||
+            connectionRpc === undefined ||
+            info.browserAccess === undefined
+          }
+          onClick={() => onToggle(!accessOn)}
+        >
+          <AccessPowerIcon />
+        </button>
+      </Tooltip>
+      {error ? (
+        <span className="bh-browser-access-error" role="alert" title={t('entry.access.failed')}>
+          {t('entry.access.failureHint')}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -582,7 +615,7 @@ function createBrowserBody(t: BrowserTranslate): ComponentType<ChannelSidebarEnt
 
 function createBrowserHeader(t: BrowserTranslate): ComponentType<ChannelSidebarEntryProps> {
   return function BrowserHeaderView(props: Omit<ChannelSidebarEntryProps, 't'>): ReactElement {
-    return <BrowserHeaderAction {...props} t={t} />;
+    return <BrowserHeaderAction key={props.botSlug} {...props} t={t} />;
   };
 }
 
@@ -606,6 +639,7 @@ export function apply(ctx: BrowserClientContext): void {
       () =>
         registry.register({
           id: ENTRY_ID,
+          icon: 'globe',
           label: t('entry.label'),
           order: 41,
           scope: 'personabot',

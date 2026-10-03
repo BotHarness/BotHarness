@@ -18,6 +18,12 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Added a managed Container Browser target with separate profile data, the existing native Browser approval and an authenticated Human preview with explicit paused interaction; Local stays the default ([#726](https://github.com/BotHarness/BotHarness/issues/726), [ADR-0113](docs/adr/0113-browser-targets-share-capabilities-with-separate-execution-worlds.md)).
+- Computer and Browser Access use compact Lucide Power controls with localized permission actions, Host-confirmed state, pending guards and failure feedback ([#720](https://github.com/BotHarness/BotHarness/issues/720)).
+
+- Memory sidebar reads retain successful scoped content through refresh and reopening, use skeletons only before the first result, and recover through failure-only Retry actions without header refresh controls ([#719](https://github.com/BotHarness/BotHarness/issues/719)).
+
+- Channel sidebar entries use Lucide function icons and a single top settings gear for Sessions and Memory evolution display choices, preserving their existing preference scopes ([#718](https://github.com/BotHarness/BotHarness/issues/718)).
+
 - Humans can select `@All Bots` in a Group composer with an explicit active-recipient count; individual Bot picker rows show only avatar, name and role labels; stale previews require a fresh send and the committed message follows existing per-Bot mention attention and wake policies ([#542](https://github.com/BotHarness/BotHarness/issues/542)).
 
 - Explicitly trusted Host Plugins can read bounded canonical Tool arguments/results from opaque Activity references; unauthorized, expired and revoked reads fail closed without exposing payloads to Channel activity ([#122](https://github.com/BotHarness/BotHarness/issues/122)).

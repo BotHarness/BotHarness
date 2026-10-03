@@ -384,6 +384,8 @@ export const zh = {
   'composer.placeholder': '发消息给 {name}',
   'sidebar.expand': '展开 Channel sidebar',
   'sidebar.collapse': '收起 Channel sidebar',
+  'sidebar.settings': 'Channel sidebar 显示设置',
+  'sidebar.settings.empty': '暂无显示设置',
   'sidebar.resize.label': '调整 Channel sidebar 宽度',
   'sidebar.empty': '还没有可显示的面板。',
   'sidebar.region': 'Channel sidebar',
@@ -875,6 +877,9 @@ export const zh = {
   'fileAction.dispatched': '打开请求已发送到 Host',
 
   'memory.loading': '正在读取记忆…',
+  'memory.loadFailed': '加载失败',
+  'memory.updateFailed': '更新失败',
+  'memory.retry': '重试',
   'memory.provisional': '记忆修复尚未完成，暂不能保存。',
   'memory.repair': '修复记忆',
   'memory.repairConfirm': '恢复到最近记录的检查点。当前工作树内容会完整备份，供之后检查。',
@@ -1520,6 +1525,8 @@ export const en = {
   'composer.placeholder': 'Message {name}',
   'sidebar.expand': 'Expand the Channel sidebar',
   'sidebar.collapse': 'Collapse the Channel sidebar',
+  'sidebar.settings': 'Channel sidebar display settings',
+  'sidebar.settings.empty': 'No display settings available',
   'sidebar.resize.label': 'Resize the Channel sidebar',
   'sidebar.empty': 'No panels to show yet.',
   'sidebar.region': 'Channel sidebar',
@@ -2036,6 +2043,9 @@ export const en = {
   'fileAction.dispatched': 'Open request sent to the Host',
 
   'memory.loading': 'Loading memory…',
+  'memory.loadFailed': 'Loading failed',
+  'memory.updateFailed': 'Update failed',
+  'memory.retry': 'Retry',
   'memory.provisional': 'Memory repair is still in progress. Saving is paused.',
   'memory.repair': 'Repair memory',
   'memory.repairConfirm':

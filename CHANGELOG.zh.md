@@ -18,6 +18,12 @@
 ### Added
 
 - 新增受管 Container Browser target，使用独立 profile 数据、既有原生 Browser 审批与认证 Human 预览，明确开启操作时先暂停 Bot；默认仍为 Local（[#726](https://github.com/BotHarness/BotHarness/issues/726)，[ADR-0113](docs/adr/0113-browser-targets-share-capabilities-with-separate-execution-worlds.md)）。
+- Computer 与 Browser Access 改用紧凑 Lucide Power 按钮，提供本地化授权操作、Host 确认状态、处理中防重与失败提示 ([#720](https://github.com/BotHarness/BotHarness/issues/720)).
+
+- 记忆侧栏刷新与重新展开时保留上次成功内容，仅首次读取显示骨架屏，失败时通过重试恢复，并移除标题栏刷新按钮（[#719](https://github.com/BotHarness/BotHarness/issues/719)）。
+
+- Channel sidebar 各功能项新增 Lucide 图标，顶部齿轮集中会话与记忆演化显示设置，并保留各项原有偏好保存范围（[#718](https://github.com/BotHarness/BotHarness/issues/718)）。
+
 - Human 可在群聊组合器一次选择 `@所有 Bot` 并查看活跃接收人数；单个 Bot 的提及菜单仅显示头像、名称及角色标签；过期预览须重新确认发送，提交的消息沿用逐个 @Bot 的 attention 与 wake policy（[#542](https://github.com/BotHarness/BotHarness/issues/542)）。
 
 - 显式获授权的 Host Plugin 可通过 Activity 的不透明引用读取有界原生 Tool 参数／结果；未授权、过期或撤销后拒绝读取，Channel 活动不会公开原始内容（[#122](https://github.com/BotHarness/BotHarness/issues/122)）。
