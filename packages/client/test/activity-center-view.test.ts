@@ -70,6 +70,15 @@ it('shows Overview and routes a Session to native navigation while Bot opens DM'
                 ],
               },
               {
+                slug: 'info',
+                displayName: 'Report Bot',
+                state: 'idle',
+                paused: false,
+                hasAction: false,
+                sessions: [],
+                attention: { approvalCount: 0, informationalCount: 1 },
+              },
+              {
                 slug: 'idle',
                 displayName: 'Idle Bot',
                 state: 'idle',
@@ -133,6 +142,8 @@ it('shows Overview and routes a Session to native navigation while Bot opens DM'
     expect(container.textContent).toContain('Renamed release session');
     expect(container.textContent).not.toContain('Native release session');
     expect(container.querySelector('[data-bot-id=idle]')).toBeNull();
+    expect(container.querySelector('[data-bot-id=info] .bh-avatar-information')).not.toBeNull();
+    expect(container.querySelector('[data-bot-id=info] .bh-avatar-attention')).toBeNull();
     expect(container.querySelector('[data-bot-id=ada] .bh-overview-bot-state')?.textContent).toBe(
       '正在执行 · bash · 主会话',
     );

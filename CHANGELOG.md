@@ -18,6 +18,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Shared Channel members can explicitly answer an external Lark source using their own independently authorized identity, with inspectable sender/source details and one durable reply per member/source ([#637](https://github.com/BotHarness/BotHarness/issues/637)).
+- Completed Assignment reports now show a neutral information indicator across PersonaBot Activity views, separate from action-required badge counts; Inbox dismissal or ignore clears it without changing execution ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - Pending Workspace Grant requests now contribute to PersonaBot attention across the sidebar, composer and Overview; authorized replies or Inbox dismissal clear the indicator without changing execution ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Orchestrators can explicitly wait for an owned Assignment report or completion; shared Activity presents Assignment work during that bounded wait and restores Orchestrator selection on report, cancellation or timeout ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
