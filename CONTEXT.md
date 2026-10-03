@@ -43,7 +43,7 @@ The current presentation of one PersonaBot, projected from its owned Orchestrato
 _Avoid_: status, mood, presence
 
 **Avatar**:
-A PersonaBot's shared visual representation across its Bindings: deterministic Blobatar media, Human-supplied image media, or a composed Avatar Appearance inside one Bot-state Activity Frame. Animated media expresses shared activity facts without changing saved appearance; custom images remain still while the frame carries activity. Each renderer consumes the same state.
+A PersonaBot's shared visual representation across its Bindings: deterministic Blobatar media, Human-supplied image media, or a composed Avatar Appearance inside one Bot-state Activity Frame. Animated media expresses shared activity facts without changing saved appearance; custom images remain still while the frame carries activity, and each renderer consumes the same state.
 _Avoid_: profile picture, skin
 
 **Avatar Family**:

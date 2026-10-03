@@ -38,7 +38,7 @@ The complete design is accepted. This records the agreed target, not delivered r
 
 ## Consequences and validation
 
-Part counts and performance budgets must come from visual and runtime measurement. First prove a narrow Host→registry→bridge→Client path for one family, validate it with Human, then reuse the same semantics for the second family within the agreed first-release scope. Each working slice must include editing/save/re-read, real tool activity and a runnable in-harness view. Add native attention only through its owning shared contract; do not independently implement #123's work.
+Part counts and performance budgets must come from visual and runtime measurement. First prove a narrow Host→registry→bridge→Client path for one family, validate it with Human, then reuse the same semantics for the second family within the agreed first-release scope. Each working slice must include editing/save/re-read, real tool activity, independent attention and a runnable in-harness view. The first slice depends on the #123 owner's delivered shared attention contract; if unavailable, record that dependency rather than defer attention past the second family or independently implement #123's work.
 
 The proposed implementation baseline is controlled inline SVG in the existing React Client, with stable nodes and validated parameters. Use browser transforms/opacity for ordinary part motion and a bounded pose sampler where path/particle geometry needs it; compare this candidate in the first slice before committing to any new animation dependency. Preset artwork is trusted catalog content; input remains data, never imported executable markup. Existing bounded raster-image avatars and deterministic fallback remain compatible alternatives.
 

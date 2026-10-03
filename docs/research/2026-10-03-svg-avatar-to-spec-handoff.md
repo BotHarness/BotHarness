@@ -40,7 +40,7 @@
 - questions、其余 attention axes、explicit waiting-on-Assignment 仍属 #123 后续。等待 Assignment 暂无 declared Host 来源，不从模型文字／approval／后台活动推断，不接管其他 owner 的共享合同。
 - 对照 [#124](https://github.com/BotHarness/BotHarness/issues/124) Group activity、[#130](https://github.com/BotHarness/BotHarness/issues/130) Live2D hub、#17/#76，避免重复承接它们的范围。
 
-建议采用一个现有高层行为 seam：Profile 编辑／保存 → Registry → bridge 重读 → Roster／大图同一外形 → 实际 Tool activity 经共享 Projection 驱动动作 → 重连／重启恢复；attention 只接 owning contract。先一个家族完成生产纵向切片并获 Human 验收，再复用到第二家族；**两个家族、细分编辑、短点阵过渡、版本回退都在首版**，顺序不能缩减总目标。
+建议采用一个现有高层行为 seam：Profile 编辑／保存 → Registry → bridge 重读 → Roster／大图同一外形 → 实际 Tool activity 经共享 Projection 驱动动作 → 重连／重启恢复；首切片的独立 attention 只接 #123 owner 已交付的 owning contract，尚不可用时保留明确依赖。先一个家族验证执行与 attention 并存、完成生产纵向切片并获 Human 验收，再复用到第二家族；**两个家族、细分编辑、短点阵过渡、版本回退都在首版**，顺序不能缩减总目标。
 
 测试关注外部行为：Save/Cancel 与恢复、非法/冲突参数拒绝、极值组合可动、两家族 small/large、多实例 ID、快速切换连续性与粒子容量、reduce/hidden/断连/释放、缺版本保外形、recipe round trip 和导入安全；读取现有 Registry/bridge/activity/Avatar tests 作为 prior art。在真实浏览器量帧时间、内存、资产及 bundle 增量；1／8／32 个可见活动头像只是初始测量梯度，没有已验证性能预算。
 
