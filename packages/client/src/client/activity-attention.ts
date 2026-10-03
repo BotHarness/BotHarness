@@ -15,6 +15,7 @@ export function parsePublicAttention(value: unknown): PersonaBotAttention | unde
     'waitingHumanCount',
     'blockedCount',
     'workspaceGrantCount',
+    'informationalCount',
   ] as const) {
     const count: unknown = Reflect.get(value, key);
     if (count === undefined) continue;
@@ -22,7 +23,9 @@ export function parsePublicAttention(value: unknown): PersonaBotAttention | unde
     attention[key] = count;
   }
   const total = attentionCount(attention);
-  return Number.isSafeInteger(total) && total > 0 ? attention : undefined;
+  return Number.isSafeInteger(total) && (total > 0 || (attention.informationalCount ?? 0) > 0)
+    ? attention
+    : undefined;
 }
 
 export function attentionCount(attention: PersonaBotAttention | undefined): number {
