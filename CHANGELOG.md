@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Active Orchestrator work determines the shared Bot Activity without concurrent Assignment Tool details overriding it; expanded Session rows still show both, and finishing the Orchestrator returns presentation to remaining Assignment work ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
+- Humans can select `@All Bots` in a Group composer with an explicit active-recipient count; individual Bot picker rows show only avatar, name and role labels; stale previews require a fresh send and the committed message follows existing per-Bot mention attention and wake policies ([#542](https://github.com/BotHarness/BotHarness/issues/542)).
+
 - Explicitly trusted Host Plugins can read bounded canonical Tool arguments/results from opaque Activity references; unauthorized, expired and revoked reads fail closed without exposing payloads to Channel activity ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
 - Group Channel Profile manages one authorized Lark Bridge through an Attention-style table, independent intake Switch and edit/delete Modal; pause preserves accepted sources, deletion removes intake without deleting Bot identity or history ([#700](https://github.com/BotHarness/BotHarness/issues/700)).
