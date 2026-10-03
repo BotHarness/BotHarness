@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBot Profile can preview, cancel and save an original illustrated avatar with face, hair, glasses and color choices; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
+
 - Added Lark platform behavior defaults in Bot settings, with explicit Profile inheritance, preserved custom settings, stale-save protection, and revisioned future-message intake/harvest and identity pause behavior. ([#701](https://github.com/BotHarness/BotHarness/issues/701))
 
 - Bots can send an authorized report only to Lark, inspect its canonical Outbox content and checked external message ID in Profile, then associate a genuine mentioned reply with that report and answer in its original external topic without a local DM/Channel mirror ([#639](https://github.com/BotHarness/BotHarness/issues/639)).

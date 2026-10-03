@@ -2092,6 +2092,72 @@ describe('bridge methods', () => {
     });
   });
 
+  it('saves an illustrated appearance through its DM, derives a bounded snapshot, and preserves it after rejected input', async () => {
+    const { root, registry, channels, methods, states } = setup();
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    const recipe = {
+      schemaVersion: 1,
+      family: 'illustrated',
+      assetVersion: 1,
+      rigVersion: 1,
+      head: 'soft',
+      hair: 'sweep',
+      accessory: 'glasses',
+      skinColor: '#ebbd9f',
+      hairColor: '#44332c',
+      shirtColor: '#6c8cbd',
+    };
+    const result = methods.botAppearanceSet({ channelId: dm.id, recipe });
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        bot: { appearance: { recipe }, avatar: expect.stringContaining('/bot-avatar?slug=ada') },
+      },
+    });
+    const saved = registry.get('ada')!;
+    expect(saved.appearance?.revision).toMatch(/^[a-f0-9]{64}$/);
+    expect(saved.avatar).toMatch(/^data:image\/png;base64,/);
+    const bytes = Buffer.from(saved.avatar!.split(',')[1]!, 'base64');
+    expect(bytes.byteLength).toBeLessThanOrEqual(131_072);
+    expect(bytes.readUInt32BE(16)).toBe(512);
+    expect(bytes.readUInt32BE(20)).toBe(512);
+    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')).toEqual(saved);
+    expect(methods.list({})).toMatchObject({
+      ok: true,
+      value: { bots: [{ appearance: { recipe, revision: saved.appearance?.revision } }] },
+    });
+    states.setApprovalCount('ada', 2);
+    for (const invalid of [
+      { ...recipe, head: 'unknown' },
+      { ...recipe, hairColor: 'url(https://evil)' },
+      { ...recipe, rigVersion: 9 },
+      { ...recipe, script: 'payload' },
+    ]) {
+      expect(methods.botAppearanceSet({ channelId: dm.id, recipe: invalid })).toMatchObject({
+        ok: false,
+        error: { code: 'invalid-input' },
+      });
+      expect(registry.get('ada')).toEqual(saved);
+    }
+    expect(
+      methods.botAppearanceSet({
+        channelId: channels.createGroup({ name: 'Group', members: ['ada'] }).id,
+        recipe,
+      }),
+    ).toMatchObject({ ok: false });
+    expect(states.snapshot('ada').attention).toEqual({ approvalCount: 2 });
+    const { createBotAvatarHttp, BOT_AVATAR_PATH } = await import('../src/bots/avatar-http.js');
+    const response = await createBotAvatarHttp(registry)(
+      new Request(`http://host${BOT_AVATAR_PATH}?slug=ada`),
+    );
+    expect(response.status).toBe(200);
+    expect(Buffer.from(await response.arrayBuffer())).toEqual(bytes);
+    expect(methods.botAvatarSet({ channelId: dm.id, avatar: null }).ok).toBe(true);
+    expect(registry.get('ada')?.appearance).toBeUndefined();
+    expect(registry.get('ada')?.avatar).toBeUndefined();
+  });
+
   it('sets, maps, and clears one PersonaBot custom avatar inside its DM', () => {
     const avatar =
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=';

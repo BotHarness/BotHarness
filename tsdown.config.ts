@@ -68,6 +68,7 @@ export default defineConfig([
     dts: true,
     clean: true,
     external: [
+      '@resvg/resvg-js',
       '@deepseek-ai/dsh-agent',
       '@deepseek-ai/dsh-llm',
       '@deepseek-ai/dsh-session',

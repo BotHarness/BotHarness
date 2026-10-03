@@ -1,4 +1,5 @@
 import { isPersonaBotModelPlan, type PersonaBotModelPlan } from '../models/presets.js';
+import { isAvatarAppearance, type AvatarAppearance } from './avatar-appearance.js';
 
 export interface PersonaBotRecord {
   slug: string;
@@ -8,6 +9,7 @@ export interface PersonaBotRecord {
   tag?: string;
   description?: string;
   avatar?: string;
+  appearance?: AvatarAppearance;
   model?: string;
   modelPlan?: PersonaBotModelPlan;
   preset?: string;
@@ -100,6 +102,11 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
   if (record['browserAccess'] !== undefined && typeof record['browserAccess'] !== 'boolean')
     return false;
   if (record['browserProfile'] !== undefined && typeof record['browserProfile'] !== 'string')
+    return false;
+  if (
+    record['appearance'] !== undefined &&
+    (!isAvatarAppearance(record['appearance']) || !isPersonaBotAvatar(record['avatar']))
+  )
     return false;
   if (!Array.isArray(record['workspaces'])) return false;
   if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;

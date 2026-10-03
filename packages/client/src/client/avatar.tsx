@@ -10,6 +10,11 @@ import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activi
 import { blobatar } from 'blobatar';
 
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
+import {
+  isAvatarAppearance,
+  type AvatarAppearance,
+} from '../../../core/src/bots/avatar-appearance.js';
+import { IllustratedAvatar } from './illustrated-avatar.js';
 
 export const PERSONA_BOT_ACTIVITY_STATES = [
   'idle',
@@ -33,6 +38,7 @@ export interface PersonaBotAvatarProps {
   name: string;
   size: number;
   src?: string | undefined;
+  appearance?: AvatarAppearance | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
@@ -47,6 +53,7 @@ export interface PersonaBotFacepileItem {
   personaBotId: string;
   name: string;
   src?: string | undefined;
+  appearance?: AvatarAppearance | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
@@ -229,6 +236,7 @@ export function PersonaBotAvatar({
   name,
   size,
   src,
+  appearance,
   state = 'idle',
   effect,
   activity,
@@ -240,7 +248,12 @@ export function PersonaBotAvatar({
   const resolvedEffect =
     effect ?? (state === 'working' ? activity?.effect : undefined) ?? defaultActivityEffect(state);
   const summary = personaBotPresentationSummary(state, activity, attention, t);
-  const mediaKind = src === undefined || src.length === 0 ? 'blob' : 'image';
+  const composed = isAvatarAppearance(appearance);
+  const mediaKind = composed
+    ? 'composed'
+    : src === undefined || src.length === 0
+      ? 'blob'
+      : 'image';
   const active = state === 'thinking' || state === 'working';
   const classes = ['bh-persona-avatar', className].filter(Boolean).join(' ');
 
@@ -256,7 +269,16 @@ export function PersonaBotAvatar({
       role="img"
       aria-label={t('avatar.label', { name, activity: summary })}
     >
-      <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
+      {composed ? (
+        <IllustratedAvatar
+          recipe={appearance.recipe}
+          state={state}
+          effect={resolvedEffect ?? 'generic-working'}
+          size={size}
+        />
+      ) : (
+        <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
+      )}
       {indicator ? <ActivityIndicator state={state} /> : null}
       {indicator && attention !== undefined ? (
         <span

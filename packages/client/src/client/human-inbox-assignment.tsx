@@ -212,6 +212,7 @@ export function HumanInboxAssignment({
                     personaBotId={source.botSlug}
                     name={botName(source.botSlug)}
                     src={bots.find((bot) => bot.slug === source.botSlug)?.avatar}
+                    appearance={bots.find((bot) => bot.slug === source.botSlug)?.appearance}
                     size={28}
                     indicator={false}
                     t={t}

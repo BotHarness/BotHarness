@@ -1,4 +1,9 @@
 import { parsePublicAttention } from './activity-attention.js';
+import {
+  isAvatarAppearance,
+  type AvatarAppearance,
+  type IllustratedAvatarRecipe,
+} from '../../../core/src/bots/avatar-appearance.js';
 import { parsePublicToolActivity } from './activity-detail.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type {
@@ -426,6 +431,7 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
     roles: roles.length > 0 ? roles : typeof legacyTag === 'string' ? [legacyTag] : [],
     ...(typeof description === 'string' ? { description } : {}),
     ...(typeof avatar === 'string' ? { avatar } : {}),
+    ...(isAvatarAppearance(record['appearance']) ? { appearance: record['appearance'] } : {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
   };
 }
@@ -1120,6 +1126,7 @@ export interface SessionBotOwner {
   botSlug: string;
   displayName: string;
   avatar?: string;
+  appearance?: AvatarAppearance;
   role: 'orchestrator' | 'assignment';
 }
 
@@ -1137,6 +1144,7 @@ export function parseSessionBotOwner(value: unknown): SessionBotOwner | undefine
     botSlug,
     displayName,
     ...(typeof avatar === 'string' && avatar.length > 0 ? { avatar } : {}),
+    ...(isAvatarAppearance(owner['appearance']) ? { appearance: owner['appearance'] } : {}),
     role,
   };
 }
@@ -1318,6 +1326,17 @@ export async function setBotAvatar(
   const value = asRecord(await unwrap(call, 'botAvatarSet', { channelId, avatar }));
   const bot = parseBotSummary(value?.['bot']);
   if (bot === undefined) throw new Error('invalid botAvatarSet response');
+  return bot;
+}
+
+export async function setBotAppearance(
+  call: BridgeCall,
+  channelId: string,
+  recipe: IllustratedAvatarRecipe,
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'botAppearanceSet', { channelId, recipe }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid botAppearanceSet response');
   return bot;
 }
 

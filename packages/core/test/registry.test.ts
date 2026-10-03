@@ -3,9 +3,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createPersonaBotRegistry, isValidSlug } from '../src/index.js';
+import * as atomicFiles from '../src/fs/atomic-write.js';
+import { DEFAULT_ILLUSTRATED_RECIPE } from '../src/bots/avatar-appearance.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
 
 const roots: string[] = [];
@@ -39,6 +41,28 @@ describe('isValidSlug', () => {
 });
 
 describe('createPersonaBotRegistry', () => {
+  it('retains the committed appearance when the atomic writer refuses the next save', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    expect(registry.setAppearance('ada', DEFAULT_ILLUSTRATED_RECIPE).ok).toBe(true);
+    const original = readFileSync(join(root, 'ada', 'bot.json'), 'utf8');
+    const writer = vi.spyOn(atomicFiles, 'atomicWriteFile').mockImplementation(() => {
+      throw new Error('write refused');
+    });
+    try {
+      expect(() =>
+        registry.setAppearance('ada', { ...DEFAULT_ILLUSTRATED_RECIPE, hair: 'bob' }),
+      ).toThrow('write refused');
+      expect(readFileSync(join(root, 'ada', 'bot.json'), 'utf8')).toBe(original);
+      expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance?.recipe.hair).toBe(
+        'sweep',
+      );
+    } finally {
+      writer.mockRestore();
+    }
+  });
+
   it('clones Git history into Memory, preserves HEAD, and leaves no Bot after failure', async () => {
     const root = createRoot();
     const source = join(root, 'source');

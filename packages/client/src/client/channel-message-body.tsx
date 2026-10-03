@@ -691,6 +691,7 @@ export function ChannelMessageBody({
             personaBotId={mention.botSlug}
             name={bot?.displayName ?? mention.label}
             src={bot?.avatar}
+            appearance={bot?.appearance}
             size={16}
             indicator={false}
             t={t}
