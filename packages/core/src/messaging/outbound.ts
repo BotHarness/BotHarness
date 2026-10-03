@@ -818,9 +818,26 @@ export function createOutboundMessaging(options: {
       const matches: MessagingGrant[] = [];
       for (const row of rows) {
         const value = JSON.parse(row.body) as MessagingGrant;
-        if (value.platform !== source.platform || value.revokedAt || value.suspendedReason)
+        if (
+          value.platform !== source.platform ||
+          value.revokedAt ||
+          value.suspendedReason ||
+          (value.receiveScope !== undefined &&
+            value.receiveScope.conversationId !== source.event.conversation.id)
+        )
           continue;
         sourceForReply(botSlug, sourceEventId, value);
+        const registered = provider(value.providerId);
+        const targets = await bounded(registered.provider.targets(value.accountRef));
+        current(value.providerId, registered.token);
+        if (
+          !targets.some(
+            (target) =>
+              target.ref === value.targetRef &&
+              target.receiveScope?.conversationId === source.event.conversation.id,
+          )
+        )
+          continue;
         const entry = await check(value);
         if (entry.inspected.target.receiveScope?.conversationId === source.event.conversation.id)
           matches.push(value);

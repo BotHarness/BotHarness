@@ -3327,6 +3327,39 @@ it('replies to one shared source under two independent own identities, preserves
   ).rejects.toThrow('request-conflict');
 });
 
+it('does not let an unavailable grant for a different group block the responder own-source reply', async () => {
+  const fx = await secondResponder();
+  const targets = await fx.publicService.listTargets('lark-bea');
+  const otherTarget = {
+    targetId: 'other-team',
+    name: 'Other QA group',
+    kind: 'group',
+    route: { chatId: 'oc-other' },
+  };
+  vi.spyOn(fx.publicService, 'listTargets').mockResolvedValue([...targets, otherTarget]);
+  const other = (await fx.core.externalMessaging.targets('dsh-im/feishu', 'lark-bea')).find(
+    (target) => target.ref === 'other-team',
+  )!;
+  await fx.core.externalMessaging.authorize({
+    botSlug: 'bea',
+    providerId: 'dsh-im/feishu',
+    accountRef: 'lark-bea',
+    targetRef: other.ref,
+    fingerprint: 'b'.repeat(64),
+    targetDigest: other.digest,
+  });
+  vi.mocked(fx.publicService.listTargets).mockResolvedValue(targets);
+  const reply = await fx.core.externalMessaging.reply('bea', fx.sourceId, 'Original group reply');
+  expect(reply).toMatchObject({ state: 'provider-accepted', grantId: fx.responderGrant.id });
+  expect(fx.replies).toEqual([
+    {
+      botId: 'lark-bea',
+      text: 'Original group reply',
+      route: { ...event().reply, actorId: 'ou-human-scoped-to-bea' },
+    },
+  ]);
+});
+
 it.each(['membership', 'authorization', 'identity'] as const)(
   'rechecks responder %s after preflight and refuses before the external side effect',
   async (change) => {
