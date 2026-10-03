@@ -1,3 +1,4 @@
+import { createAgentBrowserRuntime } from './runtime/agent-browser.js';
 import { dirname, join } from 'node:path';
 import { readdir } from 'node:fs/promises';
 import {
@@ -22,6 +23,7 @@ export interface BotBrowserRuntimes {
 
 export interface BotBrowserRuntimesOptions {
   readonly target?: () => 'local' | 'container';
+  readonly driver?: () => 'current' | 'agent-browser';
   readonly onViewer?: ContainerBrowserOptions['onViewer'];
   readonly browserDir: string;
   readonly installDir: string;
@@ -66,14 +68,19 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
       ? options.browserDir
       : join(dirname(options.browserDir), 'browser-profiles', profile);
 
-  const entryFor = (slug: string): { runtime: BotBrowserRuntime; lastActivity: number } => {
+  const identityFor = (slug: string) => {
     const profile = profileOf(slug);
     const target = options.target?.() ?? 'local';
-    const key = `${target}:${profile}`;
+    const driver = target === 'local' ? (options.driver?.() ?? 'current') : 'current';
+    return { profile, target, driver, key: `${target}:${driver}:${profile}` };
+  };
+
+  const entryFor = (slug: string): { runtime: BotBrowserRuntime; lastActivity: number } => {
+    const { profile, target, driver, key } = identityFor(slug);
     const existing = entries.get(key);
     if (existing !== undefined) return existing;
     const created = {
-      runtime: create({
+      runtime: (driver === 'agent-browser' ? createAgentBrowserRuntime : create)({
         ...(options.browserPath === undefined ? {} : { browserPath: options.browserPath }),
         userDataDir: directoryFor(profile),
         ...(target === 'container'
@@ -118,8 +125,7 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
       }
     },
     async stop(slug) {
-      const profile = profileOf(slug);
-      const key = `${options.target?.() ?? 'local'}:${profile}`;
+      const { key } = identityFor(slug);
       const entry = entries.get(key);
       if (entry === undefined) return;
       await entry.runtime.stop();

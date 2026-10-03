@@ -218,6 +218,43 @@ function execution(name: string): ToolRunContext {
 }
 
 describe('curated catalog and audit redaction', () => {
+  it('candidate observation cannot survive Pause and Resume in flight', async () => {
+    const h = harness({ access: true, auto: true });
+    h.runtime.runWithSignal = async (_signal, action, guard) => {
+      guard?.();
+      return action();
+    };
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const observe = h.runtime.observe;
+    h.runtime.observe = vi.fn(async (tab) => {
+      h.provider.setTakeover('bot-a', true);
+      h.provider.setTakeover('bot-a', false);
+      return observe(tab);
+    });
+    await expect(
+      h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe')),
+    ).rejects.toThrow('Browser control changed during the call');
+    await expect(
+      h.state.definitions.get('browser_click')!.execute({ ref: 'e1' }, execution('browser_click')),
+    ).rejects.toThrow(/Resume.*browser_observe/);
+    expect(h.runtime.click).not.toHaveBeenCalled();
+  });
+  it('rejects reuse of managed tools by a foreign Session before runtime or approval', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    const foreign = {
+      ...execution('browser_open'),
+      agent: { id: 'foreign-session' } as unknown as Agent,
+    };
+    await expect(
+      h.state.definitions.get('browser_open')!.execute({ url: 'https://example.com' }, foreign),
+    ).rejects.toThrow('owning PersonaBot Session');
+    expect(h.runtime.ensure).not.toHaveBeenCalled();
+    expect(h.runtime.open).not.toHaveBeenCalled();
+  });
   it('owns exactly the curated model-facing names', () => {
     expect(ownsBrowserTool('browser_open')).toBe(true);
     expect(ownsBrowserTool('browser_observe')).toBe(true);

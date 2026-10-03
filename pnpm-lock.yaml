@@ -335,6 +335,9 @@ importers:
       '@puppeteer/browsers':
         specifier: 3.2.2
         version: 3.2.2
+      agent-browser:
+        specifier: 0.38.2
+        version: 0.38.2
       playwright-core:
         specifier: 1.64.0-alpha-1790635538000
         version: 1.64.0-alpha-1790635538000
@@ -6238,6 +6241,11 @@ packages:
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
+
+  agent-browser@0.38.2:
+    resolution: {integrity: sha512-b/7hvo2RrqocvybjB9kwpX12kGkxkFvtdJ4XPDoott5TLK2n3aPX+lYg7ALd+2YvPi2LrTKGzQYu/rxZC2Y7ZA==}
+    engines: {node: '>=24.0.0', pnpm: '>=11.0.0'}
+    hasBin: true
 
   ajv-draft-04@1.0.0:
     resolution: {integrity: sha512-mv00Te6nmYbRp5DCwclxtt7yV/joXJPGS7nM+97GdxvuttCOfgI3K4U25zboyeX0O+myI8ERluxQe5wljMmVIw==}
@@ -15954,6 +15962,8 @@ snapshots:
       negotiator: 1.1.0
 
   agent-base@7.1.4: {}
+
+  agent-browser@0.38.2: {}
 
   ajv-draft-04@1.0.0(ajv@8.20.0):
     optionalDependencies:

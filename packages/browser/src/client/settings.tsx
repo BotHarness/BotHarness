@@ -8,11 +8,81 @@ interface TargetScope {
     status: string;
     writable: boolean;
     value:
-      | { target?: 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control' }
+      | {
+          target?: 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control';
+          localDriver?: 'current' | 'agent-browser';
+        }
       | undefined;
   };
   subscribe(listener: () => void): () => void;
   set(field: string, value: unknown): Promise<void>;
+}
+
+function ConfigChoice({
+  scope,
+  field,
+  value,
+  writable,
+  title,
+  items,
+}: {
+  scope: TargetScope;
+  field: 'target' | 'localDriver';
+  value: string;
+  writable: boolean;
+  title: string;
+  items: { id: string; label: string }[];
+}): ReactElement {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string>();
+  return (
+    <>
+      <div className="bh-settings-row">
+        <div className="bh-settings-row-title">{title}</div>
+        <Menu
+          portal
+          align="end"
+          open={open}
+          selectedId={value}
+          items={items}
+          onClose={() => setOpen(false)}
+          onSelect={(id) => {
+            setOpen(false);
+            if (!items.some((item) => item.id === id)) return;
+            setSaving(true);
+            setError(undefined);
+            void scope
+              .set(field, id)
+              .then(() => {
+                if (scope.getSnapshot().value?.[field] !== id)
+                  throw new Error('Browser setting was not saved');
+              })
+              .catch((cause: unknown) => setError(String(cause)))
+              .finally(() => setSaving(false));
+          }}
+          anchor={
+            <button
+              type="button"
+              className="bh-settings-selector"
+              aria-haspopup="menu"
+              aria-expanded={open}
+              disabled={!writable || saving}
+              onClick={() => setOpen(!open)}
+            >
+              {items.find((item) => item.id === value)?.label ?? value}
+              <IconChevronDownOutlineRegular />
+            </button>
+          }
+        />
+      </div>
+      {error === undefined ? null : (
+        <div role="alert" className="bh-browser-error">
+          {error}
+        </div>
+      )}
+    </>
+  );
 }
 
 export function BrowserTargetSettings({
@@ -30,69 +100,34 @@ export function BrowserTargetSettings({
     [scope],
   );
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot);
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | undefined>();
   const target = snapshot.value?.target ?? 'local';
   return (
     <div className="bh-settings-rows bh-browser-settings">
       <div className="bh-settings-section-head">
         <div className="bh-settings-section-title">Browser</div>
       </div>
-      <div className="bh-settings-row">
-        <div className="bh-settings-row-title">{t('settings.target')}</div>
-        <Menu
-          portal
-          align="end"
-          open={open}
-          selectedId={target}
-          items={(
-            ['local', 'container', 'extension', 'daily-control', 'profile-control'] as const
-          ).map((id) => ({
+      <ConfigChoice
+        scope={scope}
+        field="target"
+        value={target}
+        writable={snapshot.writable}
+        title={t('settings.target')}
+        items={(
+          ['local', 'container', 'extension', 'daily-control', 'profile-control'] as const
+        ).map((id) => ({ id, label: t(`settings.${id}`) }))}
+      />
+      {target !== 'local' ? null : (
+        <ConfigChoice
+          scope={scope}
+          field="localDriver"
+          value={snapshot.value?.localDriver ?? 'current'}
+          writable={snapshot.writable}
+          title={t('settings.localDriver')}
+          items={(['current', 'agent-browser'] as const).map((id) => ({
             id,
-            label: t(`settings.${id}`),
+            label: t(`settings.driver.${id}`),
           }))}
-          onClose={() => setOpen(false)}
-          onSelect={(id) => {
-            setOpen(false);
-            if (
-              id !== 'local' &&
-              id !== 'container' &&
-              id !== 'extension' &&
-              id !== 'daily-control' &&
-              id !== 'profile-control'
-            )
-              return;
-            setSaving(true);
-            setError(undefined);
-            void scope
-              .set('target', id)
-              .then(() => {
-                if (scope.getSnapshot().value?.target !== id)
-                  throw new Error('Browser Target was not saved');
-              })
-              .catch((cause: unknown) => setError(String(cause)))
-              .finally(() => setSaving(false));
-          }}
-          anchor={
-            <button
-              type="button"
-              className="bh-settings-selector"
-              aria-haspopup="menu"
-              aria-expanded={open}
-              disabled={!snapshot.writable || saving}
-              onClick={() => setOpen(!open)}
-            >
-              {t(`settings.${target}`)}
-              <IconChevronDownOutlineRegular />
-            </button>
-          }
         />
-      </div>
-      {error === undefined ? null : (
-        <div role="alert" className="bh-browser-error">
-          {error}
-        </div>
       )}
     </div>
   );
