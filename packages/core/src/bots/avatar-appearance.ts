@@ -76,13 +76,20 @@ export function canonicalAvatarRecipe(recipe: IllustratedAvatarRecipe): Illustra
   };
 }
 
-const INK = '#2a2430';
+const ART = {
+  ink: '#2a2430',
+  paper: '#faf6f0',
+  shade: '#000',
+  light: '#fff',
+  blush: '#f26b6b',
+  tongue: '#e96f6f',
+} as const;
 const FACES = {
   soft: {
     head: 'M64 27C84 27 96 41 96 61C96 83 82 98 64 98C46 98 32 83 32 61C32 41 44 27 64 27Z',
-    hair: '',
-    eyes: [50, 78, 63],
-    ears: [31, 97, 66],
+    hairTransform: '',
+    eyes: { left: 50, right: 78, y: 63 },
+    ears: { left: 31, right: 97, y: 66 },
     browY: 54,
     noseY: 71,
     mouthY: 82,
@@ -90,9 +97,9 @@ const FACES = {
   },
   long: {
     head: 'M64 25C82 25 93 39 93 60C93 86 80 103 64 103C48 103 35 86 35 60C35 39 46 25 64 25Z',
-    hair: ' transform="translate(64 0) scale(.92 1) translate(-64 -1.5)"',
-    eyes: [51, 77, 63],
-    ears: [34, 94, 66],
+    hairTransform: ' transform="translate(64 0) scale(.92 1) translate(-64 -1.5)"',
+    eyes: { left: 51, right: 77, y: 63 },
+    ears: { left: 34, right: 94, y: 66 },
     browY: 54,
     noseY: 73,
     mouthY: 86,
@@ -119,6 +126,7 @@ const HAIR = {
     shine: 'M68 22C78 23 86 28 91 36C88 36 84 31 79 28C75 26 71 25 68 25Z',
   },
 } as const;
+const NECK = 'M54 84L74 84L74 100Q64 106 54 100Z';
 const SHIRT = 'M17.5 108C26 101 41 97 53 96L75 96C87 97 102 101 110.5 108A64 64 0 0 1 17.5 108Z';
 
 export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
@@ -126,30 +134,30 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   const { skinColor, hairColor, shirtColor } = recipe;
   const face = FACES[recipe.head];
   const hair = HAIR[recipe.hair];
-  const [lx, rx, ey] = face.eyes;
-  const [lEar, rEar, earY] = face.ears;
+  const { left: lx, right: rx, y: ey } = face.eyes;
+  const { left: lEar, right: rEar, y: earY } = face.ears;
   const { browY, noseY, mouthY, cheekY } = face;
   const glasses =
     recipe.accessory === 'glasses'
-      ? `<g fill="#fff" fill-opacity=".18" stroke="${INK}" stroke-width="2.4"><rect x="${lx - 9.5}" y="${ey - 7.5}" width="19" height="15" rx="5.5"/><rect x="${rx - 9.5}" y="${ey - 7.5}" width="19" height="15" rx="5.5"/><path d="M${lx + 9.5} ${ey - 2}Q64 ${ey - 5} ${rx - 9.5} ${ey - 2}" fill="none"/></g>`
+      ? `<g fill="${ART.light}" fill-opacity=".18" stroke="${ART.ink}" stroke-width="2.4"><rect x="${lx - 9.5}" y="${ey - 7.5}" width="19" height="15" rx="5.5"/><rect x="${rx - 9.5}" y="${ey - 7.5}" width="19" height="15" rx="5.5"/><path d="M${lx + 9.5} ${ey - 2}Q64 ${ey - 5} ${rx - 9.5} ${ey - 2}" fill="none"/></g>`
       : '';
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512" aria-hidden="true">',
-    `<circle cx="64" cy="64" r="64" fill="#faf6f0"/><circle cx="64" cy="64" r="64" fill="${shirtColor}" fill-opacity=".2"/>`,
-    `<g class="bh-illustrated-body"><path d="M54 84L74 84L74 100Q64 106 54 100Z" fill="${skinColor}"/><path d="M54 84L74 84L74 100Q64 106 54 100Z" fill="#000" fill-opacity=".12"/><path d="${SHIRT}" fill="${shirtColor}"/><path d="M52 96.2Q64 108 76 96.2L73 96.2Q64 103 55 96.2Z" fill="#000" fill-opacity=".14"/></g>`,
+    `<circle cx="64" cy="64" r="64" fill="${ART.paper}"/><circle cx="64" cy="64" r="64" fill="${shirtColor}" fill-opacity=".2"/>`,
+    `<g class="bh-illustrated-body"><path d="${NECK}" fill="${skinColor}"/><path d="${NECK}" fill="${ART.shade}" fill-opacity=".12"/><path d="${SHIRT}" fill="${shirtColor}"/><path d="M52 96.2Q64 108 76 96.2L73 96.2Q64 103 55 96.2Z" fill="${ART.shade}" fill-opacity=".14"/></g>`,
     '<g class="bh-illustrated-head">',
-    hair.back ? `<path d="${hair.back}" fill="${hairColor}"${face.hair}/>` : '',
+    hair.back ? `<path d="${hair.back}" fill="${hairColor}"${face.hairTransform}/>` : '',
     `<g fill="${skinColor}"><circle cx="${lEar}" cy="${earY}" r="6.5"/><circle cx="${rEar}" cy="${earY}" r="6.5"/></g>`,
-    `<g fill="#000" fill-opacity=".1"><circle cx="${lEar}" cy="${earY}" r="2.6"/><circle cx="${rEar}" cy="${earY}" r="2.6"/></g>`,
+    `<g fill="${ART.shade}" fill-opacity=".1"><circle cx="${lEar}" cy="${earY}" r="2.6"/><circle cx="${rEar}" cy="${earY}" r="2.6"/></g>`,
     `<path d="${face.head}" fill="${skinColor}"/>`,
-    `<g${face.hair}><path d="${hair.front}" fill="#000" fill-opacity=".09" transform="translate(0 3)"/><path d="${hair.front}" fill="${hairColor}"/><path d="${hair.shine}" fill="#fff" fill-opacity=".22"/></g>`,
+    `<g${face.hairTransform}><path d="${hair.front}" fill="${ART.shade}" fill-opacity=".09" transform="translate(0 3)"/><path d="${hair.front}" fill="${hairColor}"/><path d="${hair.shine}" fill="${ART.light}" fill-opacity=".22"/></g>`,
     '<g class="bh-illustrated-face">',
-    `<g fill="#f26b6b" fill-opacity=".26"><ellipse cx="${lx - 6}" cy="${cheekY}" rx="5.5" ry="3.5"/><ellipse cx="${rx + 6}" cy="${cheekY}" rx="5.5" ry="3.5"/></g>`,
-    `<path d="M${lx - 6.5} ${browY + 0.5}Q${lx} ${browY - 2.5} ${lx + 6} ${browY}M${rx - 6} ${browY}Q${rx} ${browY - 2.5} ${rx + 6.5} ${browY + 0.5}" fill="none" stroke="${INK}" stroke-opacity=".85" stroke-width="2.8" stroke-linecap="round"/>`,
-    `<g class="bh-illustrated-gaze"><g fill="${INK}"><ellipse cx="${lx}" cy="${ey}" rx="3.5" ry="4.1"/><ellipse cx="${rx}" cy="${ey}" rx="3.5" ry="4.1"/></g><g fill="#fff"><circle cx="${lx + 1.3}" cy="${ey - 1.5}" r="1.2"/><circle cx="${rx + 1.3}" cy="${ey - 1.5}" r="1.2"/></g></g>`,
-    `<path d="M64.5 ${noseY - 4}Q61 ${noseY + 2} 63 ${noseY + 3.5}Q65 ${noseY + 4.5} 67 ${noseY + 3}" fill="none" stroke="#000" stroke-opacity=".22" stroke-width="2.2" stroke-linecap="round"/>`,
-    `<path d="M57 ${mouthY}Q64 ${mouthY + 1.6} 71 ${mouthY}Q69.5 ${mouthY + 7.5} 64 ${mouthY + 7.5}Q58.5 ${mouthY + 7.5} 57 ${mouthY}Z" fill="${INK}"/>`,
-    `<path d="M59.8 ${mouthY + 5.3}Q64 ${mouthY + 3.3} 68.2 ${mouthY + 5.3}Q66.4 ${mouthY + 7.5} 64 ${mouthY + 7.5}Q61.6 ${mouthY + 7.5} 59.8 ${mouthY + 5.3}Z" fill="#e96f6f"/>`,
+    `<g fill="${ART.blush}" fill-opacity=".26"><ellipse cx="${lx - 6}" cy="${cheekY}" rx="5.5" ry="3.5"/><ellipse cx="${rx + 6}" cy="${cheekY}" rx="5.5" ry="3.5"/></g>`,
+    `<path d="M${lx - 6.5} ${browY + 0.5}Q${lx} ${browY - 2.5} ${lx + 6} ${browY}M${rx - 6} ${browY}Q${rx} ${browY - 2.5} ${rx + 6.5} ${browY + 0.5}" fill="none" stroke="${ART.ink}" stroke-opacity=".85" stroke-width="2.8" stroke-linecap="round"/>`,
+    `<g class="bh-illustrated-gaze"><g fill="${ART.ink}"><ellipse cx="${lx}" cy="${ey}" rx="3.5" ry="4.1"/><ellipse cx="${rx}" cy="${ey}" rx="3.5" ry="4.1"/></g><g fill="${ART.light}"><circle cx="${lx + 1.3}" cy="${ey - 1.5}" r="1.2"/><circle cx="${rx + 1.3}" cy="${ey - 1.5}" r="1.2"/></g></g>`,
+    `<path d="M64.5 ${noseY - 4}Q61 ${noseY + 2} 63 ${noseY + 3.5}Q65 ${noseY + 4.5} 67 ${noseY + 3}" fill="none" stroke="${ART.shade}" stroke-opacity=".22" stroke-width="2.2" stroke-linecap="round"/>`,
+    `<path d="M57 ${mouthY}Q64 ${mouthY + 1.6} 71 ${mouthY}Q69.5 ${mouthY + 7.5} 64 ${mouthY + 7.5}Q58.5 ${mouthY + 7.5} 57 ${mouthY}Z" fill="${ART.ink}"/>`,
+    `<path d="M59.8 ${mouthY + 5.3}Q64 ${mouthY + 3.3} 68.2 ${mouthY + 5.3}Q66.4 ${mouthY + 7.5} 64 ${mouthY + 7.5}Q61.6 ${mouthY + 7.5} 59.8 ${mouthY + 5.3}Z" fill="${ART.tongue}"/>`,
     glasses,
     '</g></g></svg>',
   ].join('');

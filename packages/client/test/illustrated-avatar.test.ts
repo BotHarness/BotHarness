@@ -114,3 +114,68 @@ it('keeps an idle small avatar still while the large avatar only blinks', async 
     node.remove();
   }
 });
+
+it('loops the gaze only on the large working avatar and keeps waiting avatars still', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const loops: { target: Element; frames: Keyframe[] }[] = [];
+  const animate = vi.fn(function (
+    this: Element,
+    frames: Keyframe[],
+    options: KeyframeAnimationOptions,
+  ) {
+    if (options.iterations === Infinity) loops.push({ target: this, frames });
+    return { cancel: vi.fn(), finished: Promise.resolve() };
+  });
+  const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
+  Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate });
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const props = {
+    personaBotId: 'ada',
+    name: 'Ada',
+    appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
+  };
+  const classes = () => loops.map((loop) => loop.target.getAttribute('class'));
+  try {
+    await act(async () =>
+      root.render(
+        createElement(PersonaBotAvatar, {
+          ...props,
+          size: 34,
+          state: 'working',
+          effect: 'searching',
+        }),
+      ),
+    );
+    expect(classes()).toEqual(['bh-illustrated-head']);
+    loops.length = 0;
+    await act(async () =>
+      root.render(
+        createElement(PersonaBotAvatar, {
+          ...props,
+          size: 160,
+          state: 'working',
+          effect: 'searching',
+        }),
+      ),
+    );
+    expect(classes()).toEqual(['bh-illustrated-head', 'bh-illustrated-gaze']);
+    const gaze = loops[1]!.frames.map((frame) => String(frame.transform));
+    expect(gaze).toContain('translate(2.4px, 0px) scaleY(1)');
+    expect(gaze).toContain('translate(-2.4px, 0px) scaleY(1)');
+    expect(gaze).toContain('translate(0px, 0px) scaleY(0.12)');
+    loops.length = 0;
+    await act(async () =>
+      root.render(createElement(PersonaBotAvatar, { ...props, size: 160, state: 'waiting' })),
+    );
+    expect(loops).toHaveLength(0);
+  } finally {
+    await act(() => root.unmount());
+    if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
+    else Reflect.deleteProperty(Element.prototype, 'animate');
+    Reflect.deleteProperty(document, 'hidden');
+    node.remove();
+  }
+});

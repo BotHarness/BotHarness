@@ -52,7 +52,8 @@ export function IllustratedAvatar({
           executing: `rotate(${amplitude}deg)`,
           'generic-working': `translateY(${-amplitude / 2}%)`,
         };
-        const reach = compact ? 0.8 : 2;
+        const reach = 2;
+        const blink = 0.12;
         const looks: Record<PersonaBotActivityEffect, [number, number]> = {
           'thinking-dots': [-0.8, -1],
           searching: [1.2, 0],
@@ -60,22 +61,25 @@ export function IllustratedAvatar({
           executing: [0.8, 0.3],
           'generic-working': [0, -0.5],
         };
+        const glance: Record<PersonaBotActivityEffect, 1 | -1> = {
+          'thinking-dots': 1,
+          searching: -1,
+          coding: 1,
+          executing: 1,
+          'generic-working': 1,
+        };
         const look = (x: number, y: number, open = 1) =>
           `translate(${x * reach}px, ${y * reach}px) scaleY(${open})`;
         const gazeFrames = (): Keyframe[] => {
           const [x, y] = looks[effect];
-          const away = effect === 'searching' ? look(-x, y) : look(x, y);
+          const away = look(glance[effect] * x, y);
           return [
             { offset: 0, transform: look(0, 0) },
             { offset: 0.3, transform: look(x, y) },
             { offset: 0.55, transform: away },
-            ...(compact
-              ? []
-              : [
-                  { offset: 0.6, transform: look(0, 0) },
-                  { offset: 0.63, transform: look(0, 0, 0.12) },
-                  { offset: 0.66, transform: look(0, 0) },
-                ]),
+            { offset: 0.6, transform: look(0, 0) },
+            { offset: 0.63, transform: look(0, 0, blink) },
+            { offset: 0.66, transform: look(0, 0) },
             { offset: 1, transform: look(0, 0) },
           ];
         };
@@ -101,13 +105,13 @@ export function IllustratedAvatar({
             )
               return;
             if (state !== 'thinking' && state !== 'working') {
-              if (compact) return;
+              if (compact || state !== 'idle') return;
               animations.add(
                 gaze.animate(
                   [
                     { offset: 0, transform: look(0, 0) },
                     { offset: 0.94, transform: look(0, 0) },
-                    { offset: 0.97, transform: look(0, 0, 0.12) },
+                    { offset: 0.97, transform: look(0, 0, blink) },
                     { offset: 1, transform: look(0, 0) },
                   ],
                   { duration: 4800, iterations: Infinity, easing: 'ease-in-out' },
@@ -121,9 +125,10 @@ export function IllustratedAvatar({
                 { duration: compact ? 1300 : 1900, iterations: Infinity, easing: 'ease-in-out' },
               ),
             );
+            if (compact) return;
             animations.add(
               gaze.animate(gazeFrames(), {
-                duration: compact ? 1700 : 2600,
+                duration: 2600,
                 iterations: Infinity,
                 easing: 'ease-in-out',
               }),

@@ -104,13 +104,17 @@ clip paths or ids. All 12 head/hair/accessory combinations and five palettes
 are on the [catalog sheet](../assets/pr/751-avatar/redesign-catalog.png).
 
 Motion keeps the same lifecycle and node contract: each working effect now has
-its own gaze direction, the large avatar blinks once per loop and occasionally
-while idle, and small avatars stay still when idle and use shorter, smaller
-moves while working.
+its own gaze direction, and the large avatar blinks once per working loop and
+occasionally while idle (not while waiting or blocked). Small avatars stay
+still unless working, and then move only the head, because gaze offsets below
+one screen pixel would be invisible.
 
 The recipe schema, asset version and rig version are unchanged: version 1 has
 not shipped, so this redesign replaces the unreleased asset rather than adding
-a second one. The QA profile was saved again so its snapshot and revision were
+a second one. A record saved before this commit keeps its earlier snapshot
+and revision while the live SVG draws the new artwork, so any development
+Profile that saved an illustrated Avatar on this branch must save it again;
+the QA profile was re-saved so its snapshot and revision were
 derived from the new artwork. All runtime steps above were re-run against the
 rebuilt Host: draft/Cancel/Save/reload, real Assignment work with one pending
 native approval in both themes, reduced motion, offscreen and unmount cleanup,
