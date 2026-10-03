@@ -798,6 +798,13 @@ window.__ModuleLoader__.load({
 		//#region packages/browser/src/client/locale.ts
 		const LOCALE_NS = "botharness-browser";
 		const zh = {
+			"settings.daily-control": "日常 Chrome · 控制",
+			"entry.daily.install": "安装 Playwright 扩展",
+			"entry.daily.connect": "连接现有页面",
+			"entry.daily.select": "请在 Chrome 中选择一个现有标签页",
+			"entry.daily.confirm": "已连接，尚未允许操作",
+			"entry.daily.controlled": "已允许此页面的读取、输入和点击",
+			"entry.daily.allow": "允许控制此页面",
 			"entry.live": "已连接",
 			"entry.noScreen": "暂无画面",
 			"entry.connecting": "连接中",
@@ -846,6 +853,13 @@ window.__ModuleLoader__.load({
 			"entry.error": "浏览器操作失败"
 		};
 		const en = {
+			"settings.daily-control": "Daily Chrome · Control",
+			"entry.daily.install": "Install Playwright extension",
+			"entry.daily.connect": "Connect existing page",
+			"entry.daily.select": "Select one existing Chrome tab",
+			"entry.daily.confirm": "Connected · control not granted",
+			"entry.daily.controlled": "This document allows observe, type and click",
+			"entry.daily.allow": "Allow control of this document",
 			"entry.live": "Connected",
 			"entry.noScreen": "No screen",
 			"entry.connecting": "Connecting",
@@ -1057,7 +1071,8 @@ window.__ModuleLoader__.load({
 							items: [
 								"local",
 								"container",
-								"extension"
+								"extension",
+								"daily-control"
 							].map((id) => ({
 								id,
 								label: t(`settings.${id}`)
@@ -1065,7 +1080,7 @@ window.__ModuleLoader__.load({
 							onClose: () => setOpen(false),
 							onSelect: (id) => {
 								setOpen(false);
-								if (id !== "local" && id !== "container" && id !== "extension") return;
+								if (id !== "local" && id !== "container" && id !== "extension" && id !== "daily-control") return;
 								setSaving(true);
 								setError(void 0);
 								scope.set("target", id).then(() => {
@@ -1105,6 +1120,99 @@ window.__ModuleLoader__.load({
 						t
 					})
 				}, BrowserTargetSettings));
+			});
+		}
+		//#endregion
+		//#region packages/browser/src/client/daily-browser.tsx
+		function DailyBrowserControl({ slug, view, enabled, paused, t, refresh }) {
+			const [busy, setBusy] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)();
+			const mounted = (0, react.useRef)(false);
+			const resource = (0, react.useCallback)((node) => {
+				mounted.current = node !== null;
+			}, []);
+			const invoke = (action) => {
+				if (busy || slug === void 0) return;
+				setBusy(true);
+				setError(void 0);
+				fetch(action === "pause" ? "/api/browser/takeover" : `/api/browser/daily/${action}`, {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						slug,
+						...action === "pause" ? { active: !paused } : {}
+					})
+				}).then(async (response) => {
+					const body = await response.json();
+					if (!response.ok || !body.ok) throw new Error(body.error ?? t("entry.error"));
+				}).catch((cause) => {
+					if (mounted.current) setError(cause instanceof Error ? cause.message : t("entry.error"));
+				}).finally(() => {
+					if (mounted.current) {
+						setBusy(false);
+						refresh();
+					}
+				});
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: resource,
+				className: "bh-browser-body bh-browser-borrow",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("settings.daily-control") }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
+						className: "bh-browser-daily-install",
+						href: "https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm",
+						target: "_blank",
+						rel: "noreferrer",
+						children: t("entry.daily.install")
+					}),
+					view === null || view.state === "error" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						size: "sm",
+						disabled: !enabled || busy,
+						onClick: () => invoke("connect"),
+						children: t("entry.daily.connect")
+					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							role: "status",
+							children: t(view.state === "connecting" ? "entry.daily.select" : view.state === "confirm" ? "entry.daily.confirm" : "entry.daily.controlled")
+						}),
+						view.url === "" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+							className: "bh-browser-borrow-title",
+							children: view.title || view.url
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: "bh-browser-borrow-url",
+							children: view.url
+						})] }),
+						view.state === "confirm" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+							size: "sm",
+							disabled: !enabled || busy,
+							onClick: () => invoke("grant"),
+							children: t("entry.daily.allow")
+						}) : null,
+						view.state === "controlled" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+							size: "sm",
+							disabled: busy,
+							onClick: () => invoke("pause"),
+							children: t(paused ? "entry.view.resume" : "entry.view.pause")
+						}) : null,
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+							size: "sm",
+							disabled: busy,
+							onClick: () => invoke("return"),
+							children: t(view.state === "connecting" ? "entry.borrow.cancel" : "entry.borrow.return")
+						})
+					] }),
+					view?.error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						role: "alert",
+						className: "bh-browser-error",
+						children: view.error
+					}),
+					error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						role: "alert",
+						className: "bh-browser-error",
+						children: error
+					})
+				]
 			});
 		}
 		//#endregion
@@ -1200,7 +1308,8 @@ window.__ModuleLoader__.load({
 		const styles = `
 .bh-browser-access-control { position: relative; display: flex; align-items: center; }
 .bh-browser-borrow { display: grid; gap: 8px; font-size: 12.5px; }
-.bh-browser-borrow-title, .bh-browser-borrow-url { overflow-wrap: anywhere; }
+.bh-browser-borrow-title, .bh-browser-daily-install { color: var(--bh-browser-label); text-underline-offset: 3px; }
+.bh-browser-borrow-url { overflow-wrap: anywhere; }
 .bh-browser-borrow-url { color: var(--bh-browser-secondary); }
 .bh-browser-access-power {
   display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
@@ -1660,6 +1769,14 @@ window.__ModuleLoader__.load({
 					store.refresh();
 				});
 			};
+			if (observation?.target === "daily-control") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(DailyBrowserControl, {
+				slug: botSlug,
+				view: observation.daily ?? null,
+				enabled: info.browserAccess === true,
+				paused,
+				t,
+				refresh: store.refresh
+			}, botSlug);
 			if (observation?.target === "extension") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(BorrowedBrowser, {
 				slug: botSlug,
 				tab: observation.borrowed,
