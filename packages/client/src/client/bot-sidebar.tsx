@@ -451,6 +451,7 @@ function BotRow({
           src={bot.avatar}
           state={activity}
           activity={bot?.activity}
+          attention={bot?.attention}
           size={34}
         />
         <span className="bh-body">
@@ -651,6 +652,7 @@ function RailChannel({
               src={bot.avatar}
               state={activity}
               activity={bot?.activity}
+              attention={bot?.attention}
               size={32}
             />
           )}
@@ -683,6 +685,7 @@ function RailChannel({
                 src={bot.avatar}
                 state={activity}
                 activity={bot?.activity}
+                attention={bot?.attention}
                 size={24}
                 indicator={false}
               />
@@ -1862,6 +1865,7 @@ export function BotSidebar({
                           src={bot.avatar}
                           state={personaBotActivity(state, bot)}
                           activity={bot.activity}
+                          attention={bot.attention}
                           size={54}
                         />
                       )}

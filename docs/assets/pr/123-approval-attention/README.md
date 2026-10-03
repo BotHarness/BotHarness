@@ -1,0 +1,15 @@
+# Native Tool approval attention — #123
+
+Real isolated DSH 0.2.0-rc.1 with actual DeepSeek V4 Pro/off, Node 24.21.0.
+
+1. Open Bot mode and `Approval attention QA`.
+2. Two owned native Sessions request one browser list and one harmless two-second Node timer. Sidebar, composer and Overview show approval count 2 independently of Orchestrator execution; safe Session rows remain visible.
+3. Reload: execution and count are unchanged; the composer disclosure starts closed.
+4. Approve browser list once: one approval remains and the Assignment becomes the execution source.
+5. Approve only the timer once: actual report and Channel reply complete; execution settles idle and approval badges disappear.
+
+`proof.json` contains 14 assertions executed by `scripts/e2e-orchestrator-activity.mjs` with `BH_E2E_APPROVAL_ATTENTION=true`. The runtime uses the existing authenticated API Gateway. Published captures redact only machine-local working directories in the rendered approval cards; raw payload and private authentication are not published.
+
+Focused tests additionally exercise rejection, abort, invalidated ownership, untracking, broker disposal, commit failure and cancellation during commit, notification failure, parser safety and a new Host baseline.
+
+This is one #123 slice: other attention kinds and explicit waiting-on-Assignment remain open.

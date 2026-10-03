@@ -14,7 +14,12 @@ export type AggregatedState = 'idle' | 'thinking' | 'working' | 'waiting' | 'blo
 
 export type { PersonaBotSessionActivity } from './tool-activity.js';
 
+export interface PersonaBotAttention {
+  approvalCount: number;
+}
+
 export interface BotStateSnapshot {
+  attention?: PersonaBotAttention;
   slug: string;
   state: AggregatedState;
   sessions: Record<string, SessionState>;
@@ -38,6 +43,7 @@ export type BotStateEvent =
   | { type: 'session-removed'; slug: string; sessionId: string; snapshot: BotStateSnapshot };
 
 export interface BotStateTracker {
+  setApprovalCount(slug: string, count: number): void;
   setSessionState(
     slug: string,
     sessionId: string,
@@ -84,6 +90,11 @@ export function aggregateSessionStates(sessions: Record<string, SessionState>): 
 
 export function createBotStateTracker(): BotStateTracker {
   const bots = new Map<string, Map<string, SessionState>>();
+  const approvalCounts = new Map<string, number>();
+  const attentionOf = (slug: string): PersonaBotAttention | undefined => {
+    const count = approvalCounts.get(slug);
+    return count === undefined ? undefined : { approvalCount: count };
+  };
   const listeners = new Set<(event: BotStateEvent) => void>();
   const tools = new Map<string, PersonaBotToolActivity>();
   const activityListeners = new Set<(event: PersonaBotActivityEvent) => void>();
@@ -117,10 +128,12 @@ export function createBotStateTracker(): BotStateTracker {
 
   const snapshotOf = (slug: string, sessions: Map<string, SessionState>): BotStateSnapshot => {
     const detail = toRecord(sessions);
+    const attention = attentionOf(slug);
     return {
       slug,
       state: aggregateSessionStates(toRecord(presentationSessions(sessions))),
       sessions: detail,
+      ...(attention === undefined ? {} : { attention }),
     };
   };
 
@@ -172,12 +185,14 @@ export function createBotStateTracker(): BotStateTracker {
     const activity = activityOf(slug);
     const state = snapshotOf(slug, bots.get(slug) ?? new Map()).state;
     const sessions = sessionActivityOf(slug);
+    const attention = attentionOf(slug);
     const event: PersonaBotActivityEvent = {
       generation,
       revision,
       slug,
       state,
       cause,
+      ...(attention === undefined ? {} : { attention }),
       ...(sessions.length === 0 ? {} : { sessions }),
       ...(activity === undefined ? {} : { activity }),
     };
@@ -193,6 +208,14 @@ export function createBotStateTracker(): BotStateTracker {
   };
 
   const tracker: BotStateTracker = {
+    setApprovalCount(slug, count) {
+      if (!Number.isSafeInteger(count) || count < 0) return;
+      if ((approvalCounts.get(slug) ?? 0) === count) return;
+      if (count === 0) approvalCounts.delete(slug);
+      else approvalCounts.set(slug, count);
+      revision += 1;
+      notify(slug, 'attention-changed');
+    },
     rebuildSessionStates(rows) {
       const slugs = new Set(rows.map((row) => row.slug));
       rebuilding = true;
@@ -311,7 +334,8 @@ export interface PersonaBotActivityEvent {
   revision: number;
   slug: string;
   state: AggregatedState;
-  cause: 'session-changed' | 'session-removed';
+  cause: 'session-changed' | 'session-removed' | 'attention-changed';
+  attention?: PersonaBotAttention;
   activity?: PersonaBotToolActivity;
   sessions?: readonly PersonaBotSessionActivity[];
 }
@@ -322,6 +346,7 @@ export interface PersonaBotActivitySnapshot {
   bots: {
     slug: string;
     state: AggregatedState;
+    attention?: PersonaBotAttention;
     activity?: PersonaBotToolActivity;
     sessions?: readonly PersonaBotSessionActivity[];
   }[];
@@ -336,9 +361,11 @@ export function personaBotActivitySnapshot(
     bots: slugs.map((slug) => {
       const activity = states.activity(slug);
       const sessions = states.sessionActivity(slug);
+      const snapshot = states.snapshot(slug);
       return {
         slug,
-        state: states.snapshot(slug).state,
+        state: snapshot.state,
+        ...(snapshot.attention === undefined ? {} : { attention: snapshot.attention }),
         ...(activity === undefined ? {} : { activity }),
         ...(sessions.length === 0 ? {} : { sessions }),
       };

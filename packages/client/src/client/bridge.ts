@@ -1,3 +1,4 @@
+import { parsePublicAttention } from './activity-attention.js';
 import { parsePublicToolActivity } from './activity-detail.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
@@ -3071,6 +3072,7 @@ export async function loadActivityOverview(call: BridgeCall): Promise<ActivityOv
       typeof bot['displayName'] !== 'string' ||
       typeof bot['paused'] !== 'boolean' ||
       (bot['hasAction'] !== undefined && typeof bot['hasAction'] !== 'boolean') ||
+      (bot['attention'] !== undefined && parsePublicAttention(bot['attention']) === undefined) ||
       !['idle', 'thinking', 'working', 'waiting', 'blocked'].includes(String(bot['state'])) ||
       !Array.isArray(bot['sessions']) ||
       (bot['avatar'] !== undefined && typeof bot['avatar'] !== 'string')
@@ -3095,6 +3097,9 @@ export async function loadActivityOverview(call: BridgeCall): Promise<ActivityOv
     return {
       ...bot,
       hasAction: bot['hasAction'] === true,
+      ...(bot['attention'] === undefined
+        ? {}
+        : { attention: parsePublicAttention(bot['attention']) }),
       ...(activity === undefined ? {} : { activity }),
       sessions,
     } as unknown as ActivityOverview['bots'][number];

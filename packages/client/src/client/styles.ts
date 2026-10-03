@@ -686,6 +686,23 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
 .bh-persona-avatar[data-media='blob'][data-effect='executing'] .bh-avatar-media {
   animation: bh-avatar-execute 900ms var(--ds-ease-in-out) infinite;
 }
+.bh-avatar-attention {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--dsw-alias-label-inverse);
+  background: var(--dsw-alias-state-error-primary);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 600;
+}
 .bh-avatar-indicator {
   position: absolute;
   right: -2px;

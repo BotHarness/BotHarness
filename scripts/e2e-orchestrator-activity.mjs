@@ -151,6 +151,20 @@ async function open() {
 }
 
 async function matchUi(row) {
+  if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true') {
+    await page.waitForFunction(
+      (id, count) => {
+        const sidebar = document.querySelector(`[data-channel-id="${id}"] .bh-persona-avatar`);
+        const composer = document.querySelector('.bh-composer-shell .bh-persona-avatar');
+        const approvalCount = (avatar) =>
+          Number(avatar?.querySelector('[data-approval-count]')?.dataset.approvalCount ?? 0);
+        return approvalCount(sidebar) === count && approvalCount(composer) === count;
+      },
+      {},
+      channelId,
+      row.attention?.approvalCount ?? 0,
+    );
+  }
   await page.waitForFunction(
     (id, state, effect) => {
       const sidebar = document.querySelector(`[data-channel-id="${id}"] .bh-persona-avatar`);
@@ -195,6 +209,8 @@ async function overview(row, approvals, name) {
   assert.equal(selected.state, row.state);
   assert.deepEqual(selected.activity, row.activity);
   assert.equal(selected.hasAction, approvals > 0);
+  if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true')
+    assert.deepEqual(selected.attention, row.attention);
   assert.equal(value.actionCount, approvals);
   const roots =
     row.sessions?.filter(
@@ -227,6 +243,18 @@ async function overview(row, approvals, name) {
       (slug, count) =>
         document.querySelectorAll(`[data-bot-id="${slug}"] [data-attention-id^="approval:"]`)
           .length === count,
+      {},
+      bot.slug,
+      approvals,
+    );
+  }
+  if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true') {
+    await page.waitForFunction(
+      (slug, count) =>
+        Number(
+          document.querySelector(`[data-bot-id="${slug}"] [data-approval-count]`)?.dataset
+            .approvalCount ?? 0,
+        ) === count,
       {},
       bot.slug,
       approvals,
@@ -287,6 +315,8 @@ try {
   assert.deepEqual(both.activity.sources, [{ role: 'orchestrator', count: 1 }]);
   assert.equal(both.activity.toolName, 'browser_tabs');
   assert.equal(both.activity.activeToolCount, 1);
+  if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true')
+    assert.deepEqual(both.attention, { approvalCount: 2 });
   await matchUi(both);
   await screenshot('orchestrator-selected.png');
   await overview(both, 2, 'overview-orchestrator.png');
@@ -328,6 +358,8 @@ try {
     );
     assert.ok(['bash', 'pwsh'].includes(handoff.activity.toolName));
     assert.equal(handoff.activity.effect, 'executing');
+    if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true')
+      assert.deepEqual(handoff.attention, { approvalCount: 1 });
     await matchUi(handoff);
     await screenshot('assignment-selected.png');
     await overview(handoff, 1, 'overview-assignment.png');
@@ -350,6 +382,7 @@ try {
       'real report and Channel reply',
     );
     const idle = await until(snapshot, (row) => row?.state === 'idle', 'settled idle');
+    if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true') assert.equal(idle.attention, undefined);
     await matchUi(idle);
     await screenshot('settled.png', false);
     await page
@@ -365,6 +398,9 @@ try {
     );
     await screenshot('overview-settled.png', false);
     const proof = {
+      ...(process.env.BH_E2E_APPROVAL_ATTENTION === 'true'
+        ? { revisionedApprovalIndicatorsMatched: true, approvalCountDecreasedAndCleared: true }
+        : {}),
       realConcurrentSessions: true,
       selectedOrchestrator: true,
       assignmentRowPreserved: true,

@@ -242,3 +242,39 @@ describe('live PersonaBot activity', () => {
     expect(parseActivitySnapshot('{')).toBeUndefined();
   });
 });
+
+it('validates safe attention and clears it on a new Host baseline without rewriting execution', () => {
+  const baseline = (attention?: unknown) =>
+    JSON.stringify({
+      generation: 'host-one',
+      revision: 5,
+      bots: [{ slug: 'ada', state: 'working', ...(attention === undefined ? {} : { attention }) }],
+    });
+  const snapshot = parseActivitySnapshot(baseline({ approvalCount: 2, arguments: 'private' }));
+  expect(snapshot?.bots[0]?.attention).toEqual({ approvalCount: 2 });
+  for (const invalid of [
+    null,
+    {},
+    { approvalCount: -1 },
+    { approvalCount: 0 },
+    { approvalCount: 1.5 },
+    { approvalCount: Number.MAX_SAFE_INTEGER + 1 },
+  ]) {
+    expect(parseActivitySnapshot(baseline(invalid))).toBeUndefined();
+  }
+  const store = createStore();
+  store.setRoster([BOT], []);
+  store.applyActivity(snapshot!);
+  store.setRoster([BOT], []);
+  expect(store.getSnapshot().bots[0]).toMatchObject({
+    aggregateState: 'working',
+    attention: { approvalCount: 2 },
+  });
+  store.applyActivity({
+    generation: 'host-two',
+    revision: 0,
+    bots: [{ slug: 'ada', state: 'idle' }],
+  });
+  expect(store.getSnapshot().bots[0]?.attention).toBeUndefined();
+  expect(store.getSnapshot().bots[0]?.aggregateState).toBe('idle');
+});
