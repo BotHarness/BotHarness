@@ -129,8 +129,10 @@ pixels, with these refinements:
 - 5×6 eyes with glints
 - softer chins
 - pastel tile with optional corner decorations
-- turned angles that wrap the far cheek in hair, add a nose bump to the
-  contour, narrow the far eye and lens, and hide the far ear
+- turned angles that shift the face slightly, add a nose bump to the contour,
+  narrow the far eye and move it toward the nose line, and hide far-side ears,
+  cups and earrings (Human rejected a first version that covered the far cheek
+  with hair)
 
 All parts are trusted catalog data rendered as merged `<rect>` runs with
 `crispEdges`. There are no paths, `defs`, ids or external references.
