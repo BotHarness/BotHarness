@@ -48,6 +48,16 @@ it('keeps same-Bot SVG instances independent and releases mounted animation reso
     );
     expect(containers.every((node) => node.querySelector('[id]') === null)).toBe(true);
     await act(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(animations.every((animation) => animation.cancel.mock.calls.length === 1)).toBe(true);
+    await act(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(animate).toHaveBeenCalledTimes(8);
+    await act(() => {
       document.documentElement.dataset['botharnessMotion'] = 'reduce';
     });
     expect(animations.every((animation) => animation.cancel.mock.calls.length === 1)).toBe(true);
@@ -55,7 +65,7 @@ it('keeps same-Bot SVG instances independent and releases mounted animation reso
       containers.every((node) => node.querySelector('[data-approval-count="1"]') !== null),
     ).toBe(true);
     await act(() => roots.forEach((root) => root.unmount()));
-    expect(animate).toHaveBeenCalledTimes(4);
+    expect(animate).toHaveBeenCalledTimes(8);
   } finally {
     await act(() => roots.forEach((root) => root.unmount()));
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
