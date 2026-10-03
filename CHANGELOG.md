@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- Added explicit observe, type and click control of one Human-selected daily Chrome document through the official Playwright extension, with separate confirmation, Pause/Resume and automatic revocation ([#766](https://github.com/BotHarness/BotHarness/issues/766), [guide](docs/daily-browser.md), [ADR-0120](docs/adr/0120-daily-chrome-control-is-bound-to-one-selected-document.md)).
+- Added explicit observe, type and click control of one Human-selected daily Chrome document through the official Playwright extension, with separate confirmation, Pause/Resume and automatic revocation ([#766](https://github.com/BotHarness/BotHarness/issues/766), [guide](docs/daily-browser.md), [ADR-0121](docs/adr/0121-daily-chrome-control-is-bound-to-one-selected-document.md)).
 
 - Assignment reports awaiting a Human answer or blocked decision now share independent Activity badge counts with sidebar, composer and Overview; canonical responses, dismissal and stop clear the counts, and unresolved durable reports survive restart ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 

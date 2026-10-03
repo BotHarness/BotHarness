@@ -1,4 +1,4 @@
-# ADR-0120: Daily Chrome control is bound to one selected document
+# ADR-0121: Daily Chrome control is bound to one selected document
 
 - Status: Accepted
 - Date: 2026-10-04
