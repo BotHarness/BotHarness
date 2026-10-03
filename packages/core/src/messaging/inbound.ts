@@ -490,9 +490,13 @@ export function createInboundMessaging(options: {
                   return true;
                 });
                 if (!routes.length) return undefined;
+                const candidate = sourceId(latest, event);
                 const existing = db
-                  .prepare('SELECT 1 FROM source_events WHERE source_event_id = ?')
-                  .get(sourceId(latest, event));
+                  .prepare(`SELECT 1 FROM messaging_source_paths WHERE source_event_id = ?
+                    UNION ALL SELECT 1 FROM inbox_admissions WHERE source_event_id = ?
+                    UNION ALL SELECT 1 FROM channel_placements WHERE source_event_id = ?
+                    LIMIT 1`)
+                  .get(candidate, candidate, candidate);
                 const id = persistSource(db, latest, event);
                 if (existing) return id;
                 const row = db
@@ -816,7 +820,11 @@ export function createInboundMessaging(options: {
       throw new MessagingError('source-unavailable');
     if (!routed && retained.localChannelId)
       database.read((db) => bridgeChannel(db, retained.localChannelId!, botSlug));
-    const latest = retained.contextReads?.filter((item) => item.outcome === 'read').at(-1);
+    const ownsContext = grant(retained.grantId).botSlug === botSlug;
+    const { contextReads, ...sharedSource } = retained;
+    const latest = ownsContext
+      ? contextReads?.filter((item) => item.outcome === 'read').at(-1)
+      : undefined;
     const contextMessages: ExternalContextResult['messages'] = [];
     for (const sourceEventId of latest?.sourceEventIds ?? []) {
       const context = database.read((db) =>
@@ -843,7 +851,8 @@ export function createInboundMessaging(options: {
     return {
       ...(report ? { report } : {}),
       ...(contextMessages.length === 0 ? {} : { contextMessages }),
-      ...(JSON.parse(row.payload_json) as { external: Omit<ExternalSource, 'body'> }).external,
+      ...sharedSource,
+      ...(ownsContext && contextReads ? { contextReads } : {}),
       ...(routed
         ? {
             receptionPaths: paths,

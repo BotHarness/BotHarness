@@ -2996,8 +2996,81 @@ it('routes one source to two Groups, an explicit DM and Inbox with one member ad
   expect(fx.replies).toHaveLength(1);
   expect(fx.subscriptions).toBe(1);
 });
+it.each(['channel', 'inbox'] as const)(
+  'delivers a context-only cached source through a managed %s route exactly once',
+  async (delivery) => {
+    const cached = event({
+      messageId: 'om-context-before-live',
+      eventId: 'context-before-live',
+      text: 'Mention cached before its live delivery',
+      at: new Date(Date.now() + 60000).toISOString(),
+      reply: { ...event().reply, messageId: 'om-context-before-live' },
+    });
+    const fx = await fixture({
+      history: async (_account, _route, query) => ({
+        version: 1,
+        scope: query.scope,
+        events: [cached],
+        omitted: 0,
+        hasMore: false,
+        coverage: 'provider-visible-human-text',
+      }),
+    });
+    const target =
+      delivery === 'channel'
+        ? createRouteGroup(fx, 'Context before live')
+        : fx.core.channels.getOrCreateDm('ada', 'Ada')!.id;
+    await addRoute(fx, target, delivery);
+    await fx.receive(event({ at: new Date(Date.now() + 100).toISOString() }));
+    await fx.idle();
+    const anchor = fx.core.attention.list({ botSlug: 'ada' }).items[0]!.id;
+    const page = await fx.core.externalMessaging.inbound.context('ada', anchor, 'test-read', {
+      scope: 'group',
+    });
+    expect(page.messages.map((message) => message.text)).toContain(cached.text);
+    expect(
+      fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'"),
+    ).toHaveLength(2);
+    expect(fx.query('SELECT * FROM messaging_source_paths')).toHaveLength(1);
+    expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(1);
+    expect(fx.runs).toHaveLength(1);
+
+    await fx.receive(cached);
+    await fx.idle();
+    expect(fx.query('SELECT * FROM messaging_source_paths')).toHaveLength(2);
+    expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(2);
+    expect(fx.query('SELECT * FROM channel_placements')).toHaveLength(
+      delivery === 'channel' ? 2 : 0,
+    );
+    expect(fx.runs).toHaveLength(2);
+
+    await fx.receive(cached);
+    await fx.idle();
+    await fx.restart();
+    await fx.receive(cached);
+    await fx.idle();
+    expect(
+      fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'"),
+    ).toHaveLength(2);
+    expect(fx.query('SELECT * FROM messaging_source_paths')).toHaveLength(2);
+    expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(2);
+    expect(fx.query('SELECT * FROM channel_placements')).toHaveLength(
+      delivery === 'channel' ? 2 : 0,
+    );
+    expect(fx.runs).toHaveLength(2);
+  },
+);
 it('uses any eligible reception path without letting a silent first path suppress another member or consume its digest', async () => {
-  const fx = await fixture();
+  const fx = await fixture({
+    history: async (_account, _route, query) => ({
+      version: 1,
+      scope: query.scope,
+      events: [contextEvent('om-private-history', 'Receiver-only provider history')],
+      omitted: 0,
+      hasMore: false,
+      coverage: 'provider-visible-human-text',
+    }),
+  });
   expect(fx.core.registry.create({ slug: 'bea', displayName: 'Bea' }).ok).toBe(true);
   const first = createRouteGroup(fx, 'Silent path', ['ada', 'bea']);
   const second = createRouteGroup(fx, 'Immediate path', ['ada']);
@@ -3059,6 +3132,15 @@ it('uses any eligible reception path without letting a silent first path suppres
       scope: 'group',
     }),
   ).rejects.toThrow('source-unavailable');
+  await fx.core.externalMessaging.inbound.context('ada', sharedId, 'owner-context', {
+    scope: 'group',
+  });
+  expect(fx.core.externalMessaging.inbound.read('ada', sharedId).contextMessages?.[0]?.text).toBe(
+    'Receiver-only provider history',
+  );
+  const secondary = fx.core.externalMessaging.inbound.read('bea', sharedId);
+  expect(secondary.contextMessages).toBeUndefined();
+  expect(secondary.contextReads).toBeUndefined();
   expect(fx.query('SELECT bot_slug,attempt_state FROM inbox_admissions ORDER BY bot_slug')).toEqual(
     [
       { bot_slug: 'ada', attempt_state: 'handled' },
