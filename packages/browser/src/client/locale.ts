@@ -1,6 +1,15 @@
 export const LOCALE_NS = 'botharness-browser';
 
 export const zh = {
+  'entry.profile.install': '安装 BotHarness Profile 控制扩展',
+  'entry.profile.instructions':
+    '在 BotHarness Profile 控制扩展中输入地址和配对码，并确认允许整个 Profile。',
+  'entry.profile.forget': '解除 Profile 配对',
+  'entry.profile.disconnected': 'Profile 已配对，连接已断开',
+  'entry.profile.connected': 'Profile 已连接',
+  'entry.profile.pair': '配对 Chrome Profile',
+  'entry.profile.scope': '此 Chrome Profile 的所有普通网页标签页',
+  'settings.profile-control': '日常 Chrome · 整个 Profile',
   'settings.daily-control': '日常 Chrome · 控制',
   'entry.daily.install': '安装 Playwright 扩展',
   'entry.daily.connect': '连接现有页面',
@@ -62,6 +71,15 @@ export const zh = {
 export type BrowserKey = keyof typeof zh;
 
 export const en: Record<BrowserKey, string> = {
+  'entry.profile.install': 'Install BotHarness Profile Control extension',
+  'entry.profile.instructions':
+    'Enter the address and code in the BotHarness Profile Control extension and confirm Profile-wide access.',
+  'entry.profile.forget': 'Forget Profile pairing',
+  'entry.profile.disconnected': 'Profile paired · disconnected',
+  'entry.profile.connected': 'Profile connected',
+  'entry.profile.pair': 'Pair Chrome Profile',
+  'entry.profile.scope': 'All ordinary webpage tabs in this Chrome Profile',
+  'settings.profile-control': 'Daily Chrome · Entire Profile',
   'settings.daily-control': 'Daily Chrome · Control',
   'entry.daily.install': 'Install Playwright extension',
   'entry.daily.connect': 'Connect existing page',

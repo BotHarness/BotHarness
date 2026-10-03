@@ -134,6 +134,7 @@ export interface InboundMessaging {
   ): ReturnType<typeof pendingReceptionPaths>;
   sourceSignal(botSlug: string, sourceEventId: string): AbortSignal;
   read(botSlug: string, sourceEventId: string): ExternalSource;
+  readShared(botSlug: string, sourceEventId: string): ExternalSource;
   share(botSlug: string, sourceEventId: string, channelId: string): InboxSourceShare;
   context(
     botSlug: string,
@@ -142,6 +143,7 @@ export interface InboundMessaging {
     query: ExternalContextQuery,
     signal?: AbortSignal,
   ): Promise<ExternalContextResult>;
+  ensureReplyConsumer(botSlug: string, grantId: string, signal: AbortSignal): Promise<void>;
   reconcileBinding(bindingId: string): Promise<void>;
   revoke(grantId: string): void;
   close(): void;
@@ -196,6 +198,7 @@ export function createInboundMessaging(options: {
     }
   >();
   const retries = new Map<string, { timer: ReturnType<typeof setTimeout>; token: object }>();
+  const replyStarts = new Map<string, Promise<void>>();
   let closed = false;
   const cursors = new Map<
     string,
@@ -316,7 +319,7 @@ export function createInboundMessaging(options: {
       throw error;
     }
   };
-  const valid = (value: MessagingGrant): boolean => {
+  const valid = (value: MessagingGrant, reception = true): boolean => {
     value = grant(value.id);
     const lease = leases.get(value.id);
     return (
@@ -326,7 +329,7 @@ export function createInboundMessaging(options: {
       options.isBotActive(value.botSlug) &&
       value.revokedAt === undefined &&
       value.suspendedReason === undefined &&
-      value.receiveScope !== undefined &&
+      (!reception || value.receiveScope !== undefined) &&
       lease !== undefined &&
       lease.dispose !== undefined &&
       !lease.controller.signal.aborted &&
@@ -358,7 +361,7 @@ export function createInboundMessaging(options: {
     ) as { bot_slug: string }[];
     options.onShared?.(pending.map((row) => row.bot_slug));
   };
-  const start = async (value: MessagingGrant, attempt = 0) => {
+  const start = async (value: MessagingGrant, attempt = 0, replyOnly = false) => {
     stop(value.id);
     const entry = providers.get(value.providerId);
     if (
@@ -366,7 +369,7 @@ export function createInboundMessaging(options: {
       options.bindingAvailable?.(value.bindingId) === false ||
       !entry?.provider.consume ||
       !entry.provider.reply ||
-      !value.receiveScope ||
+      (!value.receiveScope && !replyOnly) ||
       value.revokedAt ||
       value.suspendedReason ||
       !options.isBotActive(value.botSlug)
@@ -387,7 +390,9 @@ export function createInboundMessaging(options: {
       if (
         inspected.account.fingerprint !== value.fingerprint ||
         inspected.target.digest !== value.targetDigest ||
-        inspected.target.receiveScope?.conversationId !== value.receiveScope.conversationId
+        (value.receiveScope
+          ? inspected.target.receiveScope?.conversationId !== value.receiveScope.conversationId
+          : !inspected.target.receiveScope)
       )
         throw new MessagingError('rebind-required');
       transaction((db) => initializeGroupReceptionPolicy(db, value.id));
@@ -399,12 +404,22 @@ export function createInboundMessaging(options: {
           signal.throwIfAborted();
           lease.controller.signal.throwIfAborted();
           if (
-            !valid(value) ||
+            !valid(value, false) ||
             leases.get(value.id) !== lease ||
             providers.get(value.providerId)?.token !== entry.token
           )
             throw new MessagingError('consumer-unavailable');
-          transaction((db) => recordReportEcho(db, value, event), ['outbox']);
+          transaction(
+            (db) =>
+              recordReportEcho(
+                db,
+                inspected.target.receiveScope
+                  ? { ...value, receiveScope: inspected.target.receiveScope }
+                  : value,
+                event,
+              ),
+            ['outbox'],
+          );
           return { accepted: true };
         },
         onEvent: async (event, signal) => {
@@ -424,6 +439,7 @@ export function createInboundMessaging(options: {
             throw new MessagingError('consumer-unavailable');
           if (event.fingerprint !== value.fingerprint || event.botId !== value.accountRef)
             throw new MessagingError('untrusted-source');
+          if (!latest.receiveScope) return { accepted: true };
           if (
             event.conversation.kind !== 'group' ||
             event.conversation.id !== value.receiveScope!.conversationId
@@ -757,7 +773,7 @@ export function createInboundMessaging(options: {
       options.warn?.(
         JSON.stringify({
           event: 'messaging-inbound',
-          phase: 'receiving',
+          phase: value.receiveScope ? 'receiving' : 'reply-connection',
           grantId: value.id,
           durationMs: Date.now() - startedAt,
         }),
@@ -779,7 +795,7 @@ export function createInboundMessaging(options: {
           if (closed || providers.get(value.providerId) !== entry) return;
           try {
             const latest = grant(value.id);
-            if (latest.revision === value.revision) void start(latest, attempt + 1);
+            if (latest.revision === value.revision) void start(latest, attempt + 1, replyOnly);
           } catch {
             stop(value.id);
           }
@@ -864,7 +880,40 @@ export function createInboundMessaging(options: {
       body: row.body,
     };
   };
+  const readShared = (botSlug: string, id: string): ExternalSource => {
+    const row = database.read((db) =>
+      db
+        .prepare(
+          "SELECT payload_json, body FROM source_events WHERE source_event_id = ? AND source_kind = 'bridge-message'",
+        )
+        .get(id),
+    ) as { payload_json: string; body: string } | undefined;
+    if (!row) throw new MessagingError('source-unavailable');
+    const retained = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;
+    if (grant(retained.grantId).botSlug === botSlug) return read(botSlug, id);
+    const channelId = database.read((db) => {
+      const placements = db
+        .prepare(
+          'SELECT channel_id FROM channel_placements WHERE source_event_id = ? ORDER BY channel_id',
+        )
+        .all(id) as { channel_id: string }[];
+      for (const placement of placements) {
+        try {
+          const channel = bridgeChannel(db, placement.channel_id, botSlug);
+          if (channel.type === 'group') return channel.id;
+        } catch (error) {
+          if (!(error instanceof MessagingError)) throw error;
+        }
+      }
+      return undefined;
+    });
+    if (!channelId || retained.event.conversation.kind !== 'group')
+      throw new MessagingError('source-unavailable');
+    const { contextReads: _reads, receptionPaths: _paths, ...shared } = retained;
+    return { ...shared, body: row.body, localChannelId: channelId };
+  };
   const service: InboundMessaging = {
+    readShared,
     register(provider) {
       const token = {};
       providers.set(provider.id, {
@@ -1653,6 +1702,30 @@ export function createInboundMessaging(options: {
         }
         throw error;
       }
+    },
+    async ensureReplyConsumer(botSlug, id, signal) {
+      signal.throwIfAborted();
+      const value = grant(id);
+      if (value.botSlug !== botSlug) throw new MessagingError('grant-unavailable');
+      if (!valid(value, false)) {
+        const token = providers.get(value.providerId)?.token;
+        let pending = replyStarts.get(id);
+        if (!pending) {
+          pending = bounded(start(value, 0, true));
+          replyStarts.set(id, pending);
+        }
+        try {
+          await pending;
+        } catch (error) {
+          const lease = leases.get(id);
+          if (lease?.revision === value.revision && lease.token === token) stop(id);
+          throw error;
+        } finally {
+          if (replyStarts.get(id) === pending) replyStarts.delete(id);
+        }
+      }
+      signal.throwIfAborted();
+      if (!valid(value, false)) throw new MessagingError('consumer-unavailable');
     },
     async reconcileBinding(bindingId) {
       const rows = database.read((db) =>

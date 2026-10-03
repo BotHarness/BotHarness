@@ -19,6 +19,10 @@
 
 - PersonaBot Profile 可预览、取消和保存原创像素人物头像，按仿 Notion 脸谱的分类选择脸型、发型、眼睛、眉毛、鼻子、嘴巴、脸颊、眼镜、配饰以及肤色、发色、眼睛与衣服颜色、朝向、服装和背景装饰；未保存或上传头像的 Bot 按名字生成默认像素形象，创建时即可预览；保存外形在侧栏与 Profile 大图保持一致，消费现有活动和独立审批 attention，并在重启后恢复（[#751](https://github.com/BotHarness/BotHarness/issues/751)）。
 
+- 新增显式 Chrome Profile 配对，支持跨标签页发现、导航与基于引用的网页控制，保留 Browser Access、Session 审批和暂停 ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0123](docs/adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
+
+- 共享 Channel 成员可用自己独立授权的身份明确回复外部 Lark 来源，查看发送身份与来源详情，并按成员／来源保留唯一持久回复记录（[#637](https://github.com/BotHarness/BotHarness/issues/637)）。
+
 - Orchestrator 可明确等待所属 Assignment 的报告或完成；共享 Activity 在有界等待期间呈现 Assignment 工作，并在报告、取消或超时后恢复 Orchestrator 选择（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
 - 新增通过官方 Playwright 扩展读取、输入和点击 Human 选定的日常 Chrome 单文档，提供独立确认、暂停／继续和自动撤销授权（[#766](https://github.com/BotHarness/BotHarness/issues/766)、[指南](docs/daily-browser.md)、[ADR-0121](docs/adr/0121-daily-chrome-control-is-bound-to-one-selected-document.md)）。

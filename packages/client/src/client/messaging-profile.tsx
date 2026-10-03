@@ -37,6 +37,7 @@ export function MessagingProfile({
   t: BotHarnessTranslate;
 }): ReactElement {
   const [report, setReport] = useState<OutboxIntent>();
+  const origin = report?.reply ?? report?.report;
   const [snapshot, setSnapshot] = useState<MessagingSnapshot>();
   const [accountKey, setAccountKey] = useState('');
   const [targets, setTargets] = useState<MessagingTarget[]>([]);
@@ -373,11 +374,13 @@ export function MessagingProfile({
                 {snapshot.intents.slice(0, 5).map((intent) => (
                   <div key={intent.id} className="bh-im-outcome">
                     <Tag tone="neutral">{stateLabel(intent.state)}</Tag>
-                    {intent.report ? (
+                    {intent.report || intent.reply ? (
                       <Button
                         type="button"
                         variant="outline"
-                        aria-label={t('im.inspectReport', { name: intent.report.targetName })}
+                        aria-label={t(intent.reply ? 'im.inspectReply' : 'im.inspectReport', {
+                          name: (intent.reply ?? intent.report)!.targetName,
+                        })}
                         onClick={() => setReport(intent)}
                       >
                         {intent.text.slice(0, 100)}
@@ -406,12 +409,12 @@ export function MessagingProfile({
             <header className="bh-external-route">
               <div className="bh-external-route-head">
                 <span className="bh-external-platform">
-                  {report.report?.platform === 'feishu' ? 'Lark / 飞书' : report.report?.platform}
+                  {origin?.platform === 'feishu' ? 'Lark / 飞书' : origin?.platform}
                 </span>
                 <Tag tone="neutral">{stateLabel(report.state)}</Tag>
               </div>
-              <strong>{report.report?.targetName}</strong>
-              <span>{t('im.sentAs', { name: report.report?.accountName ?? report.botSlug })}</span>
+              <strong>{origin?.targetName}</strong>
+              <span>{t('im.sentAs', { name: origin?.accountName ?? report.botSlug })}</span>
               <p className="bh-external-context-hint">{t('im.externalOnly')}</p>
             </header>
             <article className="bh-external-message">
@@ -420,7 +423,7 @@ export function MessagingProfile({
               </span>
               <div className="bh-external-message-main">
                 <header className="bh-external-message-head">
-                  <strong>{report.report?.accountName}</strong>
+                  <strong>{origin?.accountName}</strong>
                   <time dateTime={report.createdAt}>
                     {new Date(report.createdAt).toLocaleString()}
                   </time>
@@ -442,8 +445,18 @@ export function MessagingProfile({
                   {t('im.externalMessageId')}: {report.receipt?.messageId ?? t('im.notAvailable')}
                 </p>
                 <p>
-                  {t('im.conversationId')}: {report.report?.conversationId}
+                  {t('im.conversationId')}: {origin?.conversationId}
                 </p>
+                {report.sourceEventId ? (
+                  <p>
+                    {t('im.sourceEventId')}: {report.sourceEventId}
+                  </p>
+                ) : null}
+                {report.reply?.route.threadId ? (
+                  <p>
+                    {t('im.threadId')}: {report.reply.route.threadId}
+                  </p>
+                ) : null}
                 {report.reason ? <p>{report.reason}</p> : null}
               </div>
             </details>

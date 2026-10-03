@@ -7,7 +7,9 @@ interface TargetScope {
   getSnapshot(): {
     status: string;
     writable: boolean;
-    value: { target?: 'local' | 'container' | 'extension' | 'daily-control' } | undefined;
+    value:
+      | { target?: 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control' }
+      | undefined;
   };
   subscribe(listener: () => void): () => void;
   set(field: string, value: unknown): Promise<void>;
@@ -44,7 +46,9 @@ export function BrowserTargetSettings({
           align="end"
           open={open}
           selectedId={target}
-          items={(['local', 'container', 'extension', 'daily-control'] as const).map((id) => ({
+          items={(
+            ['local', 'container', 'extension', 'daily-control', 'profile-control'] as const
+          ).map((id) => ({
             id,
             label: t(`settings.${id}`),
           }))}
@@ -55,7 +59,8 @@ export function BrowserTargetSettings({
               id !== 'local' &&
               id !== 'container' &&
               id !== 'extension' &&
-              id !== 'daily-control'
+              id !== 'daily-control' &&
+              id !== 'profile-control'
             )
               return;
             setSaving(true);

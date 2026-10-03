@@ -614,6 +614,8 @@ export const zh = {
   'im.reportTitle': '外部发送详情',
   'im.relatedReport': '回复的原始报告',
   'im.inspectReport': '查看发送到 {name} 的报告',
+  'im.inspectReply': '查看回复到 {name} 的消息',
+  'im.threadId': '话题 ID',
   'im.sentAs': '发送身份：{name}',
   'im.externalOnly': '仅发送到外部平台，未加入本地频道历史。平台接受不代表对方已读。',
   'im.echoConfirmed': '已核对平台自身消息回传。',
@@ -1954,6 +1956,8 @@ export const en = {
   'im.reportTitle': 'External send details',
   'im.relatedReport': 'Original report being replied to',
   'im.inspectReport': 'Inspect report sent to {name}',
+  'im.inspectReply': 'Inspect reply sent to {name}',
+  'im.threadId': 'Topic ID',
   'im.sentAs': 'Sent as {name}',
   'im.externalOnly':
     'Sent only to the external platform, without local Channel history. Platform acceptance does not mean the recipient has read it.',

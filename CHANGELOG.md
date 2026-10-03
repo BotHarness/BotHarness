@@ -19,6 +19,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - PersonaBot Profile can preview, cancel and save an original pixel-art avatar from a Notion-Faces-style catalog of face, hair, eyes, brows, nose, mouth, cheeks, glasses, accessory, skin/hair/eye/shirt color, angle, outfit and backdrop; Bots without a saved or uploaded avatar get a name-seeded pixel default that the create dialog previews; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 
+- Added explicit Chrome Profile pairing for cross-tab discovery, navigation and ref-based webpage control, preserving Browser Access, Session approval and Pause ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0123](docs/adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
+
+- Shared Channel members can explicitly answer an external Lark source using their own independently authorized identity, with inspectable sender/source details and one durable reply per member/source ([#637](https://github.com/BotHarness/BotHarness/issues/637)).
+
 - Orchestrators can explicitly wait for an owned Assignment report or completion; shared Activity presents Assignment work during that bounded wait and restores Orchestrator selection on report, cancellation or timeout ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Added explicit observe, type and click control of one Human-selected daily Chrome document through the official Playwright extension, with separate confirmation, Pause/Resume and automatic revocation ([#766](https://github.com/BotHarness/BotHarness/issues/766), [guide](docs/daily-browser.md), [ADR-0121](docs/adr/0121-daily-chrome-control-is-bound-to-one-selected-document.md)).

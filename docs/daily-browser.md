@@ -47,3 +47,16 @@ Navigation or reload, closing/removing the selected tab, extension disconnection
 The connector is pinned to `playwright-core@1.64.0-alpha-1790635538000` and official extension protocol 2. A connection waiting for tab selection can be cancelled from the Browser entry. Errors appear there; if the extension is missing, install it in the profile Chrome opens, then retry. Managed Local/Docker Browser and read-only Daily Browser retain their existing behavior.
 
 Input and clicks bring the authorized tab to the foreground; observation does not switch tabs.
+
+## Chrome Profile control
+
+Choose **Browser Target → Daily Chrome · Entire Profile** to explicitly authorize this wider mode. It is separate from the read-only extension and Microsoft's single-document extension.
+
+1. Load `packages/browser/profile-extension` (or `profile-extension` in the installed Browser package) using **chrome://extensions → Developer mode → Load unpacked**. This first-party extension is currently unpacked source, not a Chrome Store release. It requests tabs, scripting, debugger, local storage and ordinary HTTP(S) site access; private tabs are excluded.
+2. In BotHarness, choose **Pair Chrome Profile**. Enter the local Host address and single-use five-minute code in the **BotHarness Chrome Profile Control** popup. Check **Allow Profile-wide Browser control**, then pair. Installing alone does not pair or grant a Bot access.
+3. Enable Browser Access for the intended PersonaBot, approve its native Session action (unless you explicitly enabled automatic Browser approval), and ask it to list/select tabs. Computer Access can stay off. All existing/new ordinary webpage tabs in this Chrome Profile are discoverable; pairing is not repeated after navigation/reload.
+4. Tools in this slice: `browser_tabs` list/select, `browser_open` to navigate/reload the selected tab, `browser_observe`, ref-based `browser_type` and `browser_click`. Observe after selecting, navigation, Human input, Resume and each mutation. Creating/closing tabs, screenshots, keyboard, scroll and upload remain unsupported here.
+5. Use **Pause Bot** before editing. Pause waits for issued work to drain; Resume requires fresh observation. Other enabled Bots share the paired Profile, with serialized operations and separate refs/selections.
+6. Browser Access off blocks that Bot. **Forget Profile pairing** revokes the shared binding for all Bots. Browser/Host restart preserves pairing but clears live refs, selection and native Session authority. Use **Reconnect** in the extension if the transport stops. Chrome may refuse debugger attachment when DevTools or another debugger is attached; close the competing debugger and observe again.
+
+Only a local HTTP Host is supported. Missing polling for 45 seconds makes the connection unavailable; commands time out after 12 seconds. Page changes or a refusal require a fresh observation. Native Chrome debugging indicators may appear during input. Repeated connection is not a consent shortcut into other Chrome Profiles. This slice is qualified with Chrome for Testing, not an assertion of Edge or full Local/Container tool parity.
