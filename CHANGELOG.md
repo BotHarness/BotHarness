@@ -409,6 +409,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Defined Avatar Family and Avatar Appearance, with separate ownership for editable appearance, shared activity facts and transient renderer poses; runtime behavior is unchanged ([Context](CONTEXT.md), [ADR-0116](docs/adr/0116-editable-avatar-appearance-is-independent-of-activity.md), [#743](https://github.com/BotHarness/BotHarness/issues/743)).
 - Added a compressed multi-bot concept illustration to both README introductions, keeping it clearly labelled alongside real product screenshots ([#643](https://github.com/BotHarness/BotHarness/issues/643)).
 
 - Replaced the early milestone README with bilingual product screenshots, current source-preview setup, and explicit Computer/Browser authorization (including Auto-allow) and temporary-fork IM delivery boundaries ([#643](https://github.com/BotHarness/BotHarness/issues/643)).
