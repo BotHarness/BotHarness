@@ -1,3 +1,4 @@
+import { ChannelBridgeTable } from './channel-bridge-table.js';
 import { MessagingProfile } from './messaging-profile.js';
 import { useRef, useState, type FormEvent, type ReactElement } from 'react';
 
@@ -434,6 +435,13 @@ export function ProfileView({
       )}
       <ModelPresetProfile key={bot.slug} slug={bot.slug} actions={actions} t={t} />
       <MessagingProfile key={`im-${bot.slug}`} slug={bot.slug} actions={actions} t={t} />
+      <ChannelBridgeTable
+        channelId={channel.id}
+        channelName={channel.name}
+        botNames={new Map([[bot.slug, bot.displayName]])}
+        actions={actions}
+        t={t}
+      />
       <section
         className="bh-profile-section bh-profile-policy-section"
         aria-label={t('sourcePolicy.title')}
