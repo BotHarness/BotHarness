@@ -48,6 +48,7 @@ export const CSS =
   --bh-overview-radius-card: 8px;
   --bh-entry-radius-rail: 12px;
   --bh-entry-notification: var(--dsw-alias-state-error-primary);
+  --bh-entry-notification-label: var(--dsw-alias-label-primary-foreground);
   --bh-overview-radius-control: 6px;
   --bh-overview-label: var(--dsw-alias-label-primary);
   --bh-overview-muted: var(--dsw-alias-label-secondary);
@@ -697,8 +698,8 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  color: var(--dsw-alias-label-inverse);
-  background: var(--dsw-alias-state-error-primary);
+  color: var(--bh-entry-notification-label);
+  background: var(--bh-entry-notification);
   font-size: 10px;
   line-height: 14px;
   font-weight: 600;

@@ -1,0 +1,14 @@
+{
+  "realHostRestart": true,
+  "before": {
+    "state": "working",
+    "approvalCount": 2
+  },
+  "after": {
+    "state": "idle",
+    "approvalCount": 0
+  },
+  "newGeneration": true,
+  "historicalRequestCards": 2,
+  "staleApprovalNotReplayed": true
+}
