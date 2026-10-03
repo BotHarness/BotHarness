@@ -25,6 +25,7 @@ const CATEGORIES: readonly Category[] = [
   'cheeks',
   'glasses',
   'accessory',
+  'backdrop',
   'colors',
 ];
 

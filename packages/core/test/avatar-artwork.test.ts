@@ -44,18 +44,18 @@ describe('illustrated Avatar artwork', () => {
         expect(svg).toContain(`class="bh-illustrated-${node}"`);
       for (const mark of AVATAR_MARKS)
         expect(svg).toContain(`data-avatar-mark="${mark}" opacity="0"`);
-      expect(svg.match(/<rect/gu)!.length).toBeLessThan(1200);
+      expect(svg.match(/<rect/gu)!.length).toBeLessThan(2600);
     }
   });
 
   it('joins both lenses of framed glasses with a continuous bridge', () => {
     for (const [glasses, from, to] of [
-      ['round', 12, 19],
-      ['square', 12, 19],
+      ['round', 19, 28],
+      ['square', 19, 28],
     ] as const) {
       const svg = illustratedAvatarSvg({ ...DEFAULT_ILLUSTRATED_RECIPE, glasses });
       const row = [
-        ...svg.matchAll(/<rect x="(\d+)" y="13" width="(\d+)" height="1" fill="#2a2230"\/>/gu),
+        ...svg.matchAll(/<rect x="(\d+)" y="22" width="(\d+)" height="1" fill="#2a2230"\/>/gu),
       ];
       const covered = new Set(
         row.flatMap(([, x, w]) => Array.from({ length: Number(w) }, (_, i) => Number(x) + i)),
@@ -66,8 +66,8 @@ describe('illustrated Avatar artwork', () => {
 
   it('keeps every static pixel inside the rounded tile', () => {
     const inside = (x: number, y: number) => {
-      const clamp = (v: number) => Math.min(Math.max(v, 6), 26);
-      return (x + 0.5 - clamp(x + 0.5)) ** 2 + (y + 0.5 - clamp(y + 0.5)) ** 2 <= 36;
+      const clamp = (v: number) => Math.min(Math.max(v, 9), 39);
+      return (x + 0.5 - clamp(x + 0.5)) ** 2 + (y + 0.5 - clamp(y + 0.5)) ** 2 <= 81;
     };
     for (const recipe of [...variants, ...crowded]) {
       const svg = illustratedAvatarSvg(recipe).replace(/<g data-avatar-mark[\s\S]*?<\/g>/gu, '');

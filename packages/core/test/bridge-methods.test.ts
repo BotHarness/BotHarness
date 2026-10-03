@@ -2110,6 +2110,7 @@ describe('bridge methods', () => {
       mouth: 'grin',
       cheeks: 'freckles',
       glasses: 'round',
+      backdrop: 'hearts',
       accessory: 'headphones',
       skinColor: '#ebbd9f',
       hairColor: '#44332c',

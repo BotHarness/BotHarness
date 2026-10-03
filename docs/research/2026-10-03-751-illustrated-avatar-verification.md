@@ -93,11 +93,12 @@ pixel directions were then compared at 22/34/64/160px in both themes
 **pixel art with a much richer part catalog** modelled on Notion Faces' many
 choices.
 
-The illustrated family is now an original 32×32 pixel portrait with a 1px ink
+The illustrated family is now an original 48×48 pixel portrait with a 1px ink
 outline on a recipe-tinted rounded tile. The recipe selects nine parts plus
 four colours:
 
 - head (8: round, oval, square, long, heart, pointed chin, chubby, diamond)
+- angle (front, left 30°, right 30°)
 - hair (19, including anime long twin tails, drill twin tails, high and side
   ponytails, hime cut, twin buns and messy with ahoge)
 - eyes (8)
@@ -107,6 +108,7 @@ four colours:
 - cheeks (3)
 - glasses (5)
 - accessory (12, including cat ears, hair clip and little horns)
+- backdrop decoration (sparkles, hearts, stars, dots, none)
 - skin, hair, eye and shirt colour
 
 After Human judged the first pixel pass correct in direction but not yet
@@ -118,6 +120,17 @@ assets):
 - 3×4 eyes with an iris colour, a dark lash row and a highlight
 - three-tone hair (base, shadow edge, highlight band)
 - hue-matched dark outlines instead of pure black
+
+Human then supplied two direction images: a finer, softer version of this
+design and a three-quarter pixel portrait. The grid moved from 32 to 48
+pixels, with these refinements:
+
+- fringes split into pointed locks with strand shading
+- 5×6 eyes with glints
+- softer chins
+- pastel tile with optional corner decorations
+- turned angles that wrap the far cheek in hair, add a nose bump to the
+  contour, narrow the far eye and lens, and hide the far ear
 
 All parts are trusted catalog data rendered as merged `<rect>` runs with
 `crispEdges`. There are no paths, `defs`, ids or external references.
