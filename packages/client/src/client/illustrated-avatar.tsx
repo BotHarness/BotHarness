@@ -43,13 +43,41 @@ export function IllustratedAvatar({
           document.documentElement.dataset['botharnessMotion'] === 'reduce'
         )
           return;
-        const amplitude = size <= 64 ? 1 : 3;
+        const compact = size <= 64;
+        const amplitude = compact ? 1 : 3;
         const poses: Record<PersonaBotActivityEffect, string> = {
-          'thinking-dots': `rotate(${-amplitude}deg)`,
-          searching: `translateX(${amplitude}%) rotate(${amplitude}deg)`,
-          coding: `translateY(${amplitude}%) rotate(${-amplitude}deg)`,
+          'thinking-dots': `translateY(${-amplitude / 3}%) rotate(${-amplitude}deg)`,
+          searching: `translateX(${amplitude / 2}%) rotate(${amplitude}deg)`,
+          coding: `translateY(${amplitude / 2}%) rotate(${-amplitude / 2}deg)`,
           executing: `rotate(${amplitude}deg)`,
-          'generic-working': `translateY(${-amplitude}%)`,
+          'generic-working': `translateY(${-amplitude / 2}%)`,
+        };
+        const reach = compact ? 0.8 : 2;
+        const looks: Record<PersonaBotActivityEffect, [number, number]> = {
+          'thinking-dots': [-0.8, -1],
+          searching: [1.2, 0],
+          coding: [0.3, 1],
+          executing: [0.8, 0.3],
+          'generic-working': [0, -0.5],
+        };
+        const look = (x: number, y: number, open = 1) =>
+          `translate(${x * reach}px, ${y * reach}px) scaleY(${open})`;
+        const gazeFrames = (): Keyframe[] => {
+          const [x, y] = looks[effect];
+          const away = effect === 'searching' ? look(-x, y) : look(x, y);
+          return [
+            { offset: 0, transform: look(0, 0) },
+            { offset: 0.3, transform: look(x, y) },
+            { offset: 0.55, transform: away },
+            ...(compact
+              ? []
+              : [
+                  { offset: 0.6, transform: look(0, 0) },
+                  { offset: 0.63, transform: look(0, 0, 0.12) },
+                  { offset: 0.66, transform: look(0, 0) },
+                ]),
+            { offset: 1, transform: look(0, 0) },
+          ];
         };
         const enter = head.animate(
           [{ transform: start === 'none' ? 'none' : start }, { transform: 'none' }],
@@ -65,7 +93,6 @@ export function IllustratedAvatar({
           .then(() => {
             animations.delete(enter);
             animations.delete(gazeEnter);
-            if (state !== 'thinking' && state !== 'working') return;
             if (
               disposed ||
               !visible ||
@@ -73,21 +100,33 @@ export function IllustratedAvatar({
               document.documentElement.dataset['botharnessMotion'] === 'reduce'
             )
               return;
+            if (state !== 'thinking' && state !== 'working') {
+              if (compact) return;
+              animations.add(
+                gaze.animate(
+                  [
+                    { offset: 0, transform: look(0, 0) },
+                    { offset: 0.94, transform: look(0, 0) },
+                    { offset: 0.97, transform: look(0, 0, 0.12) },
+                    { offset: 1, transform: look(0, 0) },
+                  ],
+                  { duration: 4800, iterations: Infinity, easing: 'ease-in-out' },
+                ),
+              );
+              return;
+            }
             animations.add(
               head.animate(
                 [{ transform: 'none' }, { transform: poses[effect] }, { transform: 'none' }],
-                { duration: size <= 64 ? 1300 : 1900, iterations: Infinity, easing: 'ease-in-out' },
+                { duration: compact ? 1300 : 1900, iterations: Infinity, easing: 'ease-in-out' },
               ),
             );
             animations.add(
-              gaze.animate(
-                [
-                  { transform: 'translateX(0)' },
-                  { transform: `translateX(${effect === 'searching' ? amplitude : -amplitude}px)` },
-                  { transform: 'translateX(0)' },
-                ],
-                { duration: 1700, iterations: Infinity, easing: 'ease-in-out' },
-              ),
+              gaze.animate(gazeFrames(), {
+                duration: compact ? 1700 : 2600,
+                iterations: Infinity,
+                easing: 'ease-in-out',
+              }),
             );
           })
           .catch(() => undefined);

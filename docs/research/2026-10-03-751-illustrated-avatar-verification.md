@@ -83,3 +83,36 @@ Screenshots and original browser recordings are under
 [`docs/assets/pr/751-avatar`](../assets/pr/751-avatar/). The PR embeds the matched
 Before/After views and uploaded playable videos. Detailed editing, the abstract
 family, compatibility fallback and full mixed-family scale remain #752–#757.
+
+## Artwork redesign (2026-10-04)
+
+Human rejected the first artwork as unattractive. Diagnosis of that version:
+uniform 2px outlines everywhere, which blurred into noise at 22/34px; heavy
+glasses and an L-shaped nose dominated the face; a floating bust with no
+backdrop lost its silhouette, and dark outlines and hair sank into the dark
+shell; the helmet-like hair masses barely differed between styles.
+
+Three original directions were compared at 22/34/64/160px in both themes
+([sheet](../assets/pr/751-avatar/redesign-directions.png)): flat colour on a
+tinted disc, bold ink on a disc, and an outline-only sketch. The flat-disc
+direction was chosen and polished: outline-free shapes with light volume
+(hair shadow and highlight, ear and neck shading, cheeks), larger eyes with
+catch-lights and an open smile, distinct sweep/crop/bob silhouettes, rounded
+glasses, and an opaque recipe-tinted disc so dark hair stays readable on dark
+shells. Shoulders follow the disc edge, so the markup still needs no `defs`,
+clip paths or ids. All 12 head/hair/accessory combinations and five palettes
+are on the [catalog sheet](../assets/pr/751-avatar/redesign-catalog.png).
+
+Motion keeps the same lifecycle and node contract: each working effect now has
+its own gaze direction, the large avatar blinks once per loop and occasionally
+while idle, and small avatars stay still when idle and use shorter, smaller
+moves while working.
+
+The recipe schema, asset version and rig version are unchanged: version 1 has
+not shipped, so this redesign replaces the unreleased asset rather than adding
+a second one. The QA profile was saved again so its snapshot and revision were
+derived from the new artwork. All runtime steps above were re-run against the
+rebuilt Host: draft/Cancel/Save/reload, real Assignment work with one pending
+native approval in both themes, reduced motion, offscreen and unmount cleanup,
+narrow layouts and a Host restart. With 4 visible instances, steady rAF p95
+was 16.7ms.

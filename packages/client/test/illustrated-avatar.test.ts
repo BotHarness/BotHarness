@@ -76,3 +76,41 @@ it('keeps same-Bot SVG instances independent and releases mounted animation reso
     containers.forEach((node) => node.remove());
   }
 });
+
+it('keeps an idle small avatar still while the large avatar only blinks', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const loops: Element[] = [];
+  const animate = vi.fn(function (
+    this: Element,
+    _frames: Keyframe[],
+    options: KeyframeAnimationOptions,
+  ) {
+    if (options.iterations === Infinity) loops.push(this);
+    return { cancel: vi.fn(), finished: Promise.resolve() };
+  });
+  const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
+  Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate });
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const props = {
+    personaBotId: 'ada',
+    name: 'Ada',
+    state: 'idle' as const,
+    appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
+  };
+  try {
+    await act(async () => root.render(createElement(PersonaBotAvatar, { ...props, size: 34 })));
+    expect(loops).toHaveLength(0);
+    await act(async () => root.render(createElement(PersonaBotAvatar, { ...props, size: 160 })));
+    expect(loops).toHaveLength(1);
+    expect(loops[0]!.getAttribute('class')).toBe('bh-illustrated-gaze');
+  } finally {
+    await act(() => root.unmount());
+    if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
+    else Reflect.deleteProperty(Element.prototype, 'animate');
+    Reflect.deleteProperty(document, 'hidden');
+    node.remove();
+  }
+});
