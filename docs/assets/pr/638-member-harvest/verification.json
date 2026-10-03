@@ -210,5 +210,19 @@
       "bot": "IM Shared Reader QA"
     }
   ],
-  "externalOutboxSinceIntegratedHost": 0
+  "externalOutboxSinceIntegratedHost": 0,
+  "visual": {
+    "runtimeCommit": "2b0cb6c6ce26d4fcd5a4a840fa3866c3855c888f",
+    "themesInspected": ["light", "dark"],
+    "originalTheme": "light",
+    "restoredTheme": "light",
+    "nativeSettingsControl": true,
+    "policySavedDuringThemeCheck": false,
+    "darkScreenshots": [
+      "after-integrated-group-profile-dark.png",
+      "after-integrated-member-modal-dark.png"
+    ],
+    "result": "member table and policy Modal readable; native selection, inputs and buttons visible",
+    "humanFeatureQA": "pending"
+  }
 }
