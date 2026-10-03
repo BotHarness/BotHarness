@@ -2112,6 +2112,7 @@ describe('bridge methods', () => {
       accessory: 'headphones',
       skinColor: '#ebbd9f',
       hairColor: '#44332c',
+      eyeColor: '#2f9e8f',
       shirtColor: '#6c8cbd',
     };
     const result = methods.botAppearanceSet({ channelId: dm.id, recipe });

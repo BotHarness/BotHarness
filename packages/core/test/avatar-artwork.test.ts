@@ -50,12 +50,12 @@ describe('illustrated Avatar artwork', () => {
 
   it('joins both lenses of framed glasses with a continuous bridge', () => {
     for (const [glasses, from, to] of [
-      ['round', 14, 17],
-      ['square', 13, 18],
+      ['round', 12, 19],
+      ['square', 12, 19],
     ] as const) {
       const svg = illustratedAvatarSvg({ ...DEFAULT_ILLUSTRATED_RECIPE, glasses });
       const row = [
-        ...svg.matchAll(/<rect x="(\d+)" y="14" width="(\d+)" height="1" fill="#1d1b22"\/>/gu),
+        ...svg.matchAll(/<rect x="(\d+)" y="13" width="(\d+)" height="1" fill="#2a2230"\/>/gu),
       ];
       const covered = new Set(
         row.flatMap(([, x, w]) => Array.from({ length: Number(w) }, (_, i) => Number(x) + i)),

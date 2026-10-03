@@ -95,7 +95,7 @@ choices.
 
 The illustrated family is now an original 32×32 pixel portrait with a 1px ink
 outline on a recipe-tinted rounded tile. The recipe selects nine parts plus
-three colours:
+four colours:
 
 - head (4)
 - hair (12)
@@ -106,7 +106,17 @@ three colours:
 - cheeks (3)
 - glasses (5)
 - accessory (9)
-- skin, hair and shirt colour
+- skin, hair, eye and shirt colour
+
+After Human judged the first pixel pass correct in direction but not yet
+attractive, Picrew pixel image makers were studied for what makes them appealing.
+The portrait was then redrawn on those principles (original artwork, no copied
+assets):
+
+- chibi proportions, with the face filling most of the tile
+- 3×4 eyes with an iris colour, a dark lash row and a highlight
+- three-tone hair (base, shadow edge, highlight band)
+- hue-matched dark outlines instead of pure black
 
 All parts are trusted catalog data rendered as merged `<rect>` runs with
 `crispEdges`. There are no paths, `defs`, ids or external references.

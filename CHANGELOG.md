@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- PersonaBot Profile can preview, cancel and save an original pixel-art avatar from a Notion-Faces-style catalog of face, hair, eyes, brows, nose, mouth, cheeks, glasses, accessory and color choices; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
+- PersonaBot Profile can preview, cancel and save an original pixel-art avatar from a Notion-Faces-style catalog of face, hair, eyes, brows, nose, mouth, cheeks, glasses, accessory, skin/hair/eye/shirt color; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 
 - A Human can route multiple authorized Lark groups into shared Channels, explicit Bot DMs or Inbox-only targets, with independent connector switches, one canonical message and one processing unit per overlapping Bot; each receiving path retains its own policy evidence ([#635](https://github.com/BotHarness/BotHarness/issues/635), [ADR-0120](docs/adr/0120-multiple-bridge-routes-retain-canonical-sources.md)).
 
