@@ -1,0 +1,7 @@
+{
+  "turn": 14,
+  "browserToolCalls": 0,
+  "report": [
+    "简短报告：Browser tools 不可用\n\n- 本轮我的工具清单中已不存在任何 Browser 工具（browser_tabs / browser_observe / browser_open / browser_type / browser_click 均缺失），因此 browser_observe 无法调用——不是被拒绝，而是工具本身已不在会话工具集里。\n- 未发出任何伪造调用，未使用 Computer、Shell 或任何其他方式绕过，未做任何导航或页面操作。\n\n结论：Browser Access 关闭已生效，Browser 通道当前完全不可用；需要复测时请在 Browser 入口重新开启 Access（或 Resume）后再让我执行。"
+  ]
+}
