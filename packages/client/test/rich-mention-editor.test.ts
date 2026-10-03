@@ -36,6 +36,38 @@ import {
 } from '../src/client/rich-mention-editor.js';
 
 describe('rich mention editor', () => {
+  it('keeps the All Bots preview through editing and shows its count without a synthetic Bot ID', () => {
+    const editor = document.createElement('div');
+    const preview = {
+      revision: 'snapshot',
+      recipients: [
+        { botSlug: 'ada', label: 'Ada' },
+        { botSlug: 'bea', label: 'Bea' },
+      ],
+    };
+    renderRichMentionDraft(
+      editor,
+      '@All Bots check',
+      [{ kind: 'all-bots', preview, label: 'All Bots', start: 0, end: 9 }],
+      [],
+    );
+    expect(editor.querySelector('[data-all-bot-preview]')?.textContent).toBe('@All Bots · 2');
+    expect(editor.querySelector('[data-bot-id]')).toBeNull();
+    expect(readRichMentionDraft(editor)).toEqual({
+      value: '@All Bots check',
+      mentions: [{ kind: 'all-bots', preview, label: 'All Bots', start: 0, end: 9 }],
+      channelRefs: [],
+    });
+    expect(
+      deleteSelectedMention(
+        '@All Bots check',
+        [{ kind: 'all-bots', preview, label: 'All Bots', start: 0, end: 9 }],
+        9,
+        9,
+        'Backspace',
+      ),
+    ).toMatchObject({ value: 'check', mentions: [] });
+  });
   it('renders the same avatar badge inside the live Group composer', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');

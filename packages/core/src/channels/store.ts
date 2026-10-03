@@ -1,3 +1,4 @@
+import { allBotPreview, assertAllBotPreview, type AllBotPreview } from './all-bot-mention.js';
 import type { AttachmentMigrationResult } from '../attachments/legacy-migration.js';
 import { projectAttachmentFiles } from '../attachments/message-files.js';
 import { assertGrantRequestReply, isGrantRequestResolved } from './grant-request.js';
@@ -51,6 +52,7 @@ export interface ChannelStoreOptions {
   onAdmissionChanged?: (channelId: string, messageId: string, message: ChannelMessage) => void;
   onHumanReadChanged?: (channelId: string, humanId: string, revision: number) => void;
   warn?: (message: string) => void;
+  isBotActive?: (botSlug: string) => boolean;
   botDisplayName?: (botSlug: string) => string | undefined;
 }
 
@@ -333,7 +335,12 @@ export interface ChannelStore {
 
   deleteGroup(channelId: string): void;
   rename(id: string, name: string): ChannelRecord | undefined;
-  appendMessageOnce(id: string, message: ChannelMessage): Promise<ChannelAppendOnceResult>;
+  previewAllBotMention(id: string): AllBotPreview;
+  appendMessageOnce(
+    id: string,
+    message: ChannelMessage,
+    preview?: AllBotPreview,
+  ): Promise<ChannelAppendOnceResult>;
   readPosition(id: string): ChannelReadPosition | undefined;
   markRead(id: string, messageId: string): Promise<ChannelReadPosition | undefined>;
   appendMessage(id: string, message: ChannelMessage): Promise<ChannelMessage | undefined>;
@@ -781,7 +788,16 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         return projected;
       });
     },
-    appendMessageOnce(id, message) {
+    previewAllBotMention(id) {
+      const channel = read(id);
+      if (channel === undefined) throw new Error('Group Channel not found');
+      return allBotPreview(
+        channel,
+        options.isBotActive ?? (() => false),
+        options.botDisplayName ?? (() => undefined),
+      );
+    },
+    appendMessageOnce(id, message, preview) {
       return enqueue(id, () => {
         const record = read(id);
         if (record === undefined) return { status: 'missing' };
@@ -793,6 +809,17 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
             status: 'existing',
             message: projectReply(existing, messageIndex(priorMessages)),
           };
+        }
+        if (preview !== undefined) {
+          if (message.author.kind !== 'human') throw new Error('All Bots requires a Human sender');
+          assertAllBotPreview(
+            allBotPreview(
+              record,
+              options.isBotActive ?? (() => false),
+              options.botDisplayName ?? (() => undefined),
+            ),
+            preview,
+          );
         }
         if (
           message.replyTo !== undefined &&

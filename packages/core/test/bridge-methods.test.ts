@@ -50,6 +50,8 @@ function setup(
     rootDir: join(root, 'channels'),
     attachments,
     now: tickingNow(),
+    isBotActive: (slug) => registry.get(slug) !== undefined && registry.get(slug)?.paused !== true,
+    botDisplayName: (slug) => registry.get(slug)?.displayName,
   });
   let botIdIndex = 0;
   return {
@@ -86,6 +88,131 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('does not expand pasted text, DM selections, empty previews or forged recipient lists', async () => {
+    const { registry, channels, methods } = setup();
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.create({ slug: 'outsider', displayName: 'Outsider' });
+    const group = channels.createGroup({ name: 'Bounded', members: ['ada'] });
+    const preview = methods.channelAllBotPreview({ channelId: group.id });
+    if (!preview.ok) throw new Error('Expected preview');
+    const selection = { start: 0, end: 9, label: 'All Bots', preview: preview.value };
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    expect(
+      await methods.channelSend({
+        channelId: dm.id,
+        body: '@All Bots check',
+        allBotMention: selection,
+      }),
+    ).toMatchObject({ ok: false });
+    expect(
+      await methods.channelSend({
+        channelId: group.id,
+        body: '@All Bots check',
+        allBotMention: {
+          ...selection,
+          preview: { ...preview.value, recipients: [{ botSlug: 'outsider', label: 'Outsider' }] },
+        },
+      }),
+    ).toMatchObject({ ok: false });
+    registry.setPaused('ada', true);
+    const empty = methods.channelAllBotPreview({ channelId: group.id });
+    if (!empty.ok) throw new Error('Expected empty preview');
+    expect(empty.value.recipients).toEqual([]);
+    expect(
+      await methods.channelSend({
+        channelId: group.id,
+        body: '@All Bots check',
+        allBotMention: { ...selection, preview: empty.value },
+      }),
+    ).toMatchObject({ ok: false });
+    expect(
+      await methods.channelSend({ channelId: group.id, body: '@All Bots plain text' }),
+    ).toMatchObject({ ok: true, value: { message: { body: '@All Bots plain text' } } });
+    expect(channels.readMessages(group.id)).toHaveLength(1);
+    expect(channels.readMessages(group.id)[0]?.mentions).toBeUndefined();
+  });
+  it('rejects All Bots when eligibility changes while the Channel commit is queued', async () => {
+    const { registry, channels, methods } = setup();
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    const group = channels.createGroup({ name: 'Queued preview', members: ['ada'] });
+    const preview = methods.channelAllBotPreview({ channelId: group.id });
+    if (!preview.ok) throw new Error('Expected preview');
+    const sending = methods.channelSend({
+      channelId: group.id,
+      body: '@All Bots check',
+      allBotMention: { start: 0, end: 9, label: 'All Bots', preview: preview.value },
+    });
+    registry.setPaused('ada', true);
+    expect(await sending).toMatchObject({ ok: false, error: { code: 'all-bot-preview-changed' } });
+    expect(channels.readMessages(group.id)).toEqual([]);
+  });
+  it('rejects a stale All Bots preview even when the new recipient count is unchanged', async () => {
+    const { registry, channels, methods } = setup();
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.create({ slug: 'bea', displayName: 'Bea' });
+    const group = channels.createGroup({ name: 'Stale', members: ['ada', 'bea'] });
+    registry.setPaused('bea', true);
+    const preview = methods.channelAllBotPreview({ channelId: group.id });
+    if (!preview.ok) throw new Error('Expected preview');
+    registry.setPaused('bea', false);
+    registry.setPaused('ada', true);
+    const result = await methods.channelSend({
+      channelId: group.id,
+      body: '@All Bots check',
+      allBotMention: { start: 0, end: 9, label: 'All Bots', preview: preview.value },
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: 'all-bot-preview-changed',
+        details: { preview: { recipients: [{ botSlug: 'bea', label: 'Bea' }] } },
+      },
+    });
+    expect(channels.readMessages(group.id)).toEqual([]);
+    expect(methods.channelAllBotPreview({ channelId: group.id })).toMatchObject({
+      ok: true,
+      value: { recipients: [{ botSlug: 'bea', label: 'Bea' }] },
+    });
+  });
+  it('Human selects all active joined Bots once and sends ordinary explicit mentions', async () => {
+    const { registry, channels, methods } = setup();
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.create({ slug: 'bea', displayName: 'Bea' });
+    registry.create({ slug: 'archived', displayName: 'Archived' });
+    registry.setPaused('archived', true);
+    registry.create({ slug: 'outsider', displayName: 'Outsider' });
+    const group = channels.createGroup({ name: 'All Bots', members: ['bea', 'archived', 'ada'] });
+    const preview = methods.channelAllBotPreview({ channelId: group.id });
+    expect(preview).toMatchObject({
+      ok: true,
+      value: {
+        recipients: [
+          { botSlug: 'ada', label: 'Ada' },
+          { botSlug: 'bea', label: 'Bea' },
+        ],
+      },
+    });
+    if (!preview.ok) throw new Error('Expected preview');
+    const result = await methods.channelSend({
+      channelId: group.id,
+      body: '@所有 Bot 请核对',
+      allBotMention: { start: 0, end: 7, label: '所有 Bot', preview: preview.value },
+      messageId: 'human-3c44062a-4083-4a74-aeaf-4ec98a4d29e1',
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        message: {
+          body: '@Ada @Bea 请核对',
+          mentions: [
+            { botSlug: 'ada', label: 'Ada', start: 0, end: 4 },
+            { botSlug: 'bea', label: 'Bea', start: 5, end: 9 },
+          ],
+        },
+      },
+    });
+    expect(channels.readMessages(group.id)).toHaveLength(1);
+  });
   it('queries the same versioned Host activity used by the stream', () => {
     const { registry, states, methods } = setup();
     registry.create({ slug: 'ada', displayName: 'Ada' });
