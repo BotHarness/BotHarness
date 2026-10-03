@@ -64,6 +64,22 @@ describe('illustrated Avatar artwork', () => {
     }
   });
 
+  it('keeps every static pixel inside the rounded tile', () => {
+    const inside = (x: number, y: number) => {
+      const clamp = (v: number) => Math.min(Math.max(v, 6), 26);
+      return (x + 0.5 - clamp(x + 0.5)) ** 2 + (y + 0.5 - clamp(y + 0.5)) ** 2 <= 36;
+    };
+    for (const recipe of [...variants, ...crowded]) {
+      const svg = illustratedAvatarSvg(recipe).replace(/<g data-avatar-mark[\s\S]*?<\/g>/gu, '');
+      for (const [, x, y, w] of svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)"/gu))
+        for (let i = 0; i < Number(w); i++)
+          expect(
+            inside(Number(x) + i, Number(y)),
+            `${recipe.hair}/${recipe.accessory} ${x},${y}`,
+          ).toBe(true);
+    }
+  });
+
   it('rejects unknown parts and keeps the recipe closed', () => {
     expect(isIllustratedAvatarRecipe(DEFAULT_ILLUSTRATED_RECIPE)).toBe(true);
     for (const invalid of [

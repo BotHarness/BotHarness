@@ -135,6 +135,29 @@ function shade(hex: string, k: number): string {
     .join('')}`;
 }
 
+function mix(base: string, tint: string, k: number): string {
+  const channel = (hex: string, bit: number) => (Number.parseInt(hex.slice(1), 16) >> bit) & 255;
+  return `#${[16, 8, 0]
+    .map((bit) =>
+      Math.round(channel(base, bit) * (1 - k) + channel(tint, bit) * k)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+}
+
+const TILE_RADIUS = 6;
+const inTile = (x: number, y: number) => {
+  const clamp = (v: number) => Math.min(Math.max(v, TILE_RADIUS), SIZE - TILE_RADIUS);
+  const cx = x + 0.5;
+  const cy = y + 0.5;
+  return (cx - clamp(cx)) ** 2 + (cy - clamp(cy)) ** 2 <= TILE_RADIUS ** 2;
+};
+
+function clip(grid: Grid): Grid {
+  return grid.map((row, y) => row.map((cell, x) => (inTile(x, y) ? cell : undefined)));
+}
+
 function paint(grid: Grid, test: (x: number, y: number) => boolean, color: string): void {
   for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) if (test(x, y)) grid[y]![x] = color;
 }
@@ -883,6 +906,9 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     );
   }
 
+  const tile = blank();
+  paint(tile, inTile, mix(PAPER, recipe.shirtColor, 0.16));
+
   const marks = AVATAR_MARKS.map((mark) => {
     const grid = blank();
     dots(grid, MARKS[mark].points, MARKS[mark].color);
@@ -891,9 +917,9 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="512" height="512" shape-rendering="crispEdges" aria-hidden="true">`,
-    `<rect width="${SIZE}" height="${SIZE}" rx="7" fill="${PAPER}"/><rect width="${SIZE}" height="${SIZE}" rx="7" fill="${recipe.shirtColor}" fill-opacity=".16"/>`,
-    `<g class="bh-illustrated-body">${rects(outline(body))}</g>`,
-    `<g class="bh-illustrated-head">${rects(outline(base))}`,
+    rects(tile),
+    `<g class="bh-illustrated-body">${rects(clip(outline(body)))}</g>`,
+    `<g class="bh-illustrated-head">${rects(clip(outline(base)))}`,
     `<g class="bh-illustrated-face">${rects(face)}`,
     `<g class="bh-illustrated-gaze">${rects(eyes)}</g>`,
     `<g class="bh-illustrated-blink" opacity="0">${rects(closed)}</g>`,
