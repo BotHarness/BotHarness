@@ -1,6 +1,6 @@
 # #123 — Overview shares Host execution; attention remains independent
 
-Real isolated DSH 0.2.0-rc.1 with actual DeepSeek V4 Pro/off Orchestrator and Assignment Sessions. No mock UI, SessionEvents or model replies.
+Real isolated DSH 0.2.0-rc.1 with actual DeepSeek V4 Pro/off Orchestrator and Assignment Sessions. No mock UI, SessionEvents or model replies. The committed captures and proof were refreshed against integrated main `aab3239e`, including the newly merged member Channel harvest and Container Browser changes, on 2026-10-03. All 12 assertions passed again in a fresh isolated home; the prior Human QA home was preserved.
 
 1. Human grants one isolated workspace. Orchestrator creates a bounded Assignment then calls native `browser_tabs/list`; Assignment calls native Shell for exactly `node -e "setTimeout(() => {}, 2000)"`.
 2. Both actual native approval cards remain pending. Overview and sidebar/composer select Orchestrator and the same safe registered Tool summary. Overview separately displays two Human actions and two live owned root Session cards.
