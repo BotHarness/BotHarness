@@ -47,3 +47,16 @@ Daily Browser 让一个 PersonaBot 读取你在 Chrome 或 Edge 中明确分享�
 连接器固定为 `playwright-core@1.64.0-alpha-1790635538000`、官方扩展 protocol 2。等待选择页面时，可在 Browser entry 取消连接。连接错误也显示在那里；缺少扩展时先在 Chrome 实际打开的 Profile 安装后重试。本机／Docker Browser 和只读日常浏览器保留现有功能。
 
 输入和点击会唤起已授权的标签页；观察不会切换标签页。
+
+## Chrome Profile 控制
+
+选择 **Browser Target → 日常 Chrome · 整个 Profile**，明确授权更大的范围。它与只读借用扩展及微软的单文档扩展分别独立。
+
+1. 在 **chrome://extensions → 开发者模式 → 加载已解压的扩展程序** 中选择 `packages/browser/profile-extension`，或已安装 Browser 包中的 `profile-extension`。当前分发方式是源码目录，尚未上架 Chrome 商店；权限包含 tabs、scripting、debugger、本地存储和普通 HTTP(S) 网站，排除无痕标签页。
+2. 在 BotHarness 点击 **配对 Chrome Profile**，将本地地址和五分钟内有效的一次性配对码填入 **BotHarness Chrome Profile Control** 扩展，勾选允许整个 Profile 后配对。仅安装不会自动配对或授权 Bot。
+3. 为目标 PersonaBot 开启 Browser Access，并批准其原生 Session 操作，除非你明确启用了自动 Browser 审批。此 Profile 内所有已有和新开的普通网页都可发现；导航和刷新后无需重新配对，Computer Access 可以保持关闭。
+4. 本切片提供 `browser_tabs` list/select、在选中标签页导航或刷新的 `browser_open`、`browser_observe`、基于 ref 的输入和点击。选择、导航、Human 编辑、继续以及每次修改后都重新观察。创建／关闭标签页、截图、键盘、滚动和上传尚未提供。
+5. 编辑前点击 **暂停 Bot**，它等待已发出的操作结束再确认。继续后需要重新观察。多个授权 Bot 共享此 Profile，操作串行，各有选择与引用。
+6. 关闭 Browser Access 阻止该 Bot；**解除 Profile 配对** 则撤销所有 Bot 的共享绑定。浏览器或 Host 重启保留配对，但清除选择、引用和原生 Session 授权。连接中断可在扩展点击 Reconnect。DevTools 或其他调试器占用时，Chrome 可能拒绝输入，请关闭冲突调试器再观察。
+
+只支持本机 HTTP Host；45 秒没有轮询则连接不可用，命令超时为 12 秒。页面变化或拒绝后重新观察。输入时可能出现 Chrome 原生调试提示。本切片通过 Chrome for Testing 验证，不代表 Edge 或 Local／Container 的完整工具能力已经相同。

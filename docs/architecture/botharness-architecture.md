@@ -337,6 +337,8 @@ Daily Browser（[#741](https://github.com/BotHarness/BotHarness/issues/741)，[A
 
 日常 Chrome 的明确控制是独立的 `daily-control` Target（ADR-0121，#766），不升级 `extension` 只读借用。现有 Browser Tool Provider 仍拥有 Access、可信 Session ownership、原生审批、Pause、Audit 和注册生命周期；独立 Subprocess 运行固定版本官方 Playwright 扩展连接器。Human 先在官方扩展选择一个已有页面，再在 Browser entry 单独允许控制该文档。Bot 只得到 observe、type 和 ref-based click；每次观察的 refs 绑定原始 DOM 节点，Resume 必须重新观察。连接捕获的 Page 不跟随标签组或其他页；主文档导航／刷新、关闭、断连、归还、Access 或 Target／profile 变化、Host 退出撤销进程内授权和在途结果，重启不恢复，Human 标签保留。Computer 授权独立；[安装与操作指南](../daily-browser.zh.md)。
 
+显式 `profile-control` 通过第一方受限扩展持久配对一个 Human Chrome Profile；Browser Access 与原生 Session 审批分别生效。只能操作普通网页；配对哈希持久化，但引用、选择、待执行命令和 Session 授权不恢复。多个 Bot 操作串行；导航使引用失效，暂停等待已发出操作结束。见 [ADR-0123](../adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)。
+
 Browser entry 的 header Access 开关控制展开：关闭即折叠并锁定，开启在同一次交互中展开。平面标签列表置顶 Provider 当前 Bot Tab，并显示标题与 URL。跟随开启时预览 Bot 当前工作页；关闭时固定当前画面所对应的 target，直到 Human 选择另一个已归属标签。预览只读取 observation，不改变 Provider 的当前标签与 Agent 控制；Pause 仍是独立的 Host command。
 
 Human 的「打开 Bot 浏览器」通过现有进程内 per-Bot 标签页 Provider：唤起仍存活且归属此 Bot 的预览页（或当前页），恢复最小化窗口；Human 预览其他页时不改变 Bot 当前页指针。已关闭的归属页被清理，优先复用仍存活的归属页，否则创建一个归属此 Bot 的空白 Human 标签页。重复打开与 Bot 操作共用 per-Bot 队列并复用该页，不唤起或登记共享浏览器 profile 中其他 Bot 的页。Human 前台聚焦与 Agent 后台操作保持独立。

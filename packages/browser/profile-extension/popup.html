@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>BotHarness Profile Control</title>
+  </head>
+  <body>
+    <h1>Chrome Profile control</h1>
+    <p>
+      Pair this Profile once. Bots with Browser Access may read, navigate, type and click in all
+      ordinary webpage tabs. Private tabs and browser pages are excluded.
+    </p>
+    <form id="pair">
+      <label
+        >Local BotHarness address<input
+          id="host"
+          type="url"
+          required
+          placeholder="http://127.0.0.1:3140" /></label
+      ><label>Pairing code<input id="code" required autocomplete="off" /></label
+      ><label class="consent"
+        ><input id="consent" type="checkbox" required />Allow Profile-wide Browser control</label
+      ><button>Pair this Chrome Profile</button>
+    </form>
+    <div id="connected" hidden>
+      <p>
+        Profile paired. Browser Access and Session approval still apply. Pause or revoke access in
+        BotHarness.
+      </p>
+      <button id="reconnect">Reconnect</button><button id="forget">Disconnect extension</button>
+    </div>
+    <p id="status" role="status"></p>
+    <script type="module" src="popup.mjs"></script>
+  </body>
+</html>
