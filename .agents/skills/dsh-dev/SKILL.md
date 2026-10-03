@@ -96,6 +96,8 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 
 | 38 | Native configForms scope methods lose their receiver in React | Settings crashes inside getSnapshot/subscribe despite a ready native scope | Pinned DSH 0.2.0 RC1 scope methods use their instance. Pass stable useMemo closures that call scope.getSnapshot() and scope.subscribe(listener), rather than unbound methods, to useSyncExternalStore. Verify native volatile persistence after Host restart and cover a class-based scope fixture (#726). |
 
+| 39 | WebServer prefix registration includes a trailing slash | Extension POST/OPTIONS falls through to generic 405 even though the Plugin and authenticated API work | Pinned DSH 0.2.0 RC1 WebServer matches `pathname === prefix` or `pathname.startsWith(prefix + '/')`. Register `/my-plugin/extension`, then call `/my-plugin/extension/pair`. Check preflight on the running raw HTTP route. Connection fetch requests carry transport URLs, so enforce actual network peer checks at the WebServer adapter rather than interpreting `Request.url` as the bind address (#741). |
+
 ## Reference
 
 Pinned DSH 0.2.0 RC1 selects one directory picker interaction at boot. A loopback Windows Host commonly serves native; uiWorkspace.listDirectory() then throws DirectoryBrowseError with rpcError.code = directory-picker/unavailable. A consumer may fall back to uiWorkspace.pickDirectory() only for this capability refusal; unreadable directories and other failures remain errors, and cancellation returns no selection. Authorization still follows an explicit Human choice.
