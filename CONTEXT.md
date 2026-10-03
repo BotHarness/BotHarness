@@ -43,8 +43,16 @@ The current presentation of one PersonaBot, projected from its owned Orchestrato
 _Avoid_: status, mood, presence
 
 **Avatar**:
-A PersonaBot's shared visual representation across its Bindings: deterministic Blobatar media or Human-supplied image media inside one Bot-state Activity Frame. Blobatar media may animate while working or thinking; custom images remain still while the frame carries activity, and later renderers such as Live2D consume the same state.
+A PersonaBot's shared visual representation across its Bindings: deterministic Blobatar media, Human-supplied image media, or a composed Avatar Appearance inside one Bot-state Activity Frame. Animated media expresses shared activity facts without changing saved appearance; custom images remain still while the frame carries activity. Each renderer consumes the same state.
 _Avoid_: profile picture, skin
+
+**Avatar Family**:
+A category of Avatar forms with compatible appearance choices that a Human can combine. Each family expresses the same Bot state in its own visual language; an appearance choice is shared across families only when it is explicitly compatible.
+_Avoid_: Persona, Bot type, mode, skin
+
+**Avatar Appearance**:
+A PersonaBot's saved visual choices: its Avatar Family, compatible parts, colors and editable geometry. The same choices apply across Bindings and return after temporary motion or deformation; they are independent of Persona and current Bot state.
+_Avoid_: Persona, pose, mood, skin
 
 **Model Preset**:
 A reusable, deployment-local Human-authored model plan for PersonaBots: one Orchestrator provider, model, and reasoning effort, plus allowed Assignment models and efforts with a default. Applying it copies the plan to a PersonaBot; later preset edits do not update that copy.
