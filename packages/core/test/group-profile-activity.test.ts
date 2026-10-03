@@ -51,4 +51,100 @@ describe('Group Profile activity', () => {
       ]),
     );
   });
+  it('groups external activity by platform and conversation while retaining totals and legacy authors', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'botharness-group-profile-'));
+    roots.push(root);
+    const channels = createChannelStore({ rootDir: root });
+    const group = channels.createGroup({ name: 'Sources', members: ['ada'] });
+    const now = new Date('2026-10-04T12:00:00.000Z');
+    const sources = [
+      {
+        platform: 'feishu',
+        conversationId: 'group-a',
+        conversationName: 'Old name',
+        sender: 'qa-first',
+      },
+      {
+        platform: 'feishu',
+        conversationId: 'group-a',
+        conversationName: 'Shared name',
+        sender: 'qa-second',
+      },
+      {
+        platform: 'feishu',
+        conversationId: 'group-b',
+        conversationName: 'Shared name',
+        sender: 'qa-first',
+      },
+      {
+        platform: 'slack',
+        conversationId: 'group-a',
+        conversationName: 'Shared name',
+        sender: 'qa-first',
+      },
+    ];
+    for (const [index, source] of sources.entries()) {
+      await channels.appendMessage(group.id, {
+        id: `external-${index}`,
+        at: `2026-10-04T11:00:0${index}.000Z`,
+        author: { kind: 'bridged', source: source.sender },
+        body: `External message ${index}`,
+        bridgeOrigin: {
+          platform: source.platform,
+          conversationId: source.conversationId,
+          conversationName: source.conversationName,
+          senderId: source.sender,
+          sourceEventId: `source-${index}`,
+          messageId: `message-${index}`,
+        },
+      });
+    }
+    await channels.appendMessage(group.id, {
+      id: 'legacy',
+      at: '2026-10-04T11:01:00.000Z',
+      author: { kind: 'bridged', source: 'legacy-source' },
+      body: 'No retained origin metadata',
+    });
+    const activity = groupProfileActivity(channels, group.id, now);
+    expect(activity.days.reduce((total, day) => total + day.count, 0)).toBe(5);
+    expect(activity.authors).toHaveLength(4);
+    expect(activity.authors[0]).toMatchObject({
+      bridgeOrigin: {
+        platform: 'feishu',
+        conversationId: 'group-a',
+        conversationName: 'Shared name',
+      },
+      total: 2,
+    });
+    expect(
+      activity.authors
+        .filter((entry) => entry.bridgeOrigin)
+        .map((entry) => [
+          entry.bridgeOrigin!.platform,
+          entry.bridgeOrigin!.conversationId,
+          entry.total,
+        ]),
+    ).toEqual(
+      expect.arrayContaining([
+        ['feishu', 'group-a', 2],
+        ['feishu', 'group-b', 1],
+        ['slack', 'group-a', 1],
+      ]),
+    );
+    expect(
+      activity.authors.find(
+        (entry) => entry.author.kind === 'bridged' && entry.author.source === 'legacy-source',
+      ),
+    ).toEqual({
+      author: { kind: 'bridged', source: 'legacy-source' },
+      total: 1,
+      days: [{ day: '2026-10-04', count: 1 }],
+    });
+    expect(
+      channels.readMessages(group.id).find((message) => message.id === 'external-0')!.author,
+    ).toEqual({
+      kind: 'bridged',
+      source: 'qa-first',
+    });
+  });
 });
