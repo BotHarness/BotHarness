@@ -32,6 +32,7 @@ export function IllustratedAvatar({
       };
       const sync = () => {
         const start = getComputedStyle(head).transform;
+        const gazeStart = getComputedStyle(gaze).transform;
         stop();
         head.style.transform = 'none';
         gaze.style.transform = 'none';
@@ -55,9 +56,15 @@ export function IllustratedAvatar({
           { duration: 180, easing: 'ease-out' },
         );
         animations.add(enter);
-        enter.finished
+        const gazeEnter = gaze.animate(
+          [{ transform: gazeStart || 'none' }, { transform: 'none' }],
+          { duration: 180, easing: 'ease-out' },
+        );
+        animations.add(gazeEnter);
+        Promise.all([enter.finished, gazeEnter.finished])
           .then(() => {
             animations.delete(enter);
+            animations.delete(gazeEnter);
             if (state !== 'thinking' && state !== 'working') return;
             if (
               disposed ||
@@ -103,8 +110,10 @@ export function IllustratedAvatar({
       return () => {
         disposed = true;
         const pose = getComputedStyle(head).transform;
+        const gazePose = getComputedStyle(gaze).transform;
         stop();
         head.style.transform = pose;
+        gaze.style.transform = gazePose;
         observer?.disconnect();
         motion.disconnect();
         document.removeEventListener('visibilitychange', sync);

@@ -41,8 +41,8 @@ it('keeps same-Bot SVG instances independent and releases mounted animation reso
   };
   try {
     await act(() => roots.forEach((root) => root.render(createElement(PersonaBotAvatar, props))));
-    expect(animations).toHaveLength(2);
-    expect(animations[0]!.target).not.toBe(animations[1]!.target);
+    expect(animations).toHaveLength(4);
+    expect(animations[0]!.target).not.toBe(animations[2]!.target);
     expect(containers[0]!.querySelector('svg')!.innerHTML).toBe(
       containers[1]!.querySelector('svg')!.innerHTML,
     );
@@ -55,7 +55,7 @@ it('keeps same-Bot SVG instances independent and releases mounted animation reso
       containers.every((node) => node.querySelector('[data-approval-count="1"]') !== null),
     ).toBe(true);
     await act(() => roots.forEach((root) => root.unmount()));
-    expect(animate).toHaveBeenCalledTimes(2);
+    expect(animate).toHaveBeenCalledTimes(4);
   } finally {
     await act(() => roots.forEach((root) => root.unmount()));
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
