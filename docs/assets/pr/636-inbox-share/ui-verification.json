@@ -1,0 +1,39 @@
+{
+  "runtime": "e0df97921a2443e2a9c1b99f6081f5f21794de14",
+  "integratedMain": "c943506b",
+  "beforeUI": "f472fc8f35a65cb6d350135b49645fb5058f9278",
+  "verifiedAt": "2026-10-03T06:28:35.357379+00:00",
+  "ui": {
+    "browser": "Chrome",
+    "viewport": [882, 827],
+    "locale": "zh",
+    "theme": "light",
+    "sourceHeader": "【Lark/飞书 BotHarness IM QA #78】",
+    "headerFont": "11px / 16.5px",
+    "bubbleHasOnlyOriginalText": true,
+    "inlineDisclosureCount": 0,
+    "sourceButtonOpensModal": true,
+    "escapeClosesModal": true,
+    "focusReturnsToSourceButton": true,
+    "darkTheme": "not exercised; temporary theme-change confirmation pending"
+  },
+  "authorityRevalidation": {
+    "originalRealProviderModelEvidence": "verification.json",
+    "canonicalPlacements": 1,
+    "ownerAdmissions": 1,
+    "handledMembers": 2,
+    "externalOutbox": 0,
+    "futurePrivatePlacements": 0,
+    "grantRemainsInboxOnly": true
+  },
+  "validation": {
+    "fullPassed": 2097,
+    "fullSkipped": 3,
+    "finalFocusedPassed": 36,
+    "lint": "passed",
+    "format": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "docsPages": 286
+  }
+}

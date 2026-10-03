@@ -15,8 +15,18 @@ The authorized Human sent `[BH636 SHARE 1]` with the existing `botharness-im-tes
 
 ## Human QA
 
-Keep the existing QA Host on port 32602. Open **Inbox 分享 QA #636**, expand the source label and its receipt indicator, and read the helper's local response. The bound Bot Profile's existing intake destination is Inbox-only. Send one new eligible QA-group message asking **IM Artifact QA** to share that source into `group-inbox-qa-636`; ask it to retry the same source/destination. The helper may read/discuss locally using its own policy. A later message without an explicit share stays in the receiving Inbox. Do not create new identities, permissions or parallel receivers for this path.
+Keep the existing QA Host on port 32602. Open **Inbox 分享 QA #636**, click the source label to open its provenance Modal and open the receipt indicator, and read the helper's local response. The bound Bot Profile's existing intake destination is Inbox-only. Send one new eligible QA-group message asking **IM Artifact QA** to share that source into `group-inbox-qa-636`; ask it to retry the same source/destination. The helper may read/discuss locally using its own policy. A later message without an explicit share stays in the receiving Inbox. Do not create new identities, permissions or parallel receivers for this path.
 
 The first slice permits the initial Group placement only. Another destination or an already Channel-targeted source is refused; multi-placement belongs to #635. Focused regression checks foreign sources, DM destinations, membership removal, Grant revocation, silent helpers, later joiners, persistence/retry and unavailable late Tool calls. No recall/edit synchronization is added.
 
 Validation: 75 focused tests; full 2072 PASS / 3 SKIP; lint, format, typecheck, build and docs build passed. GitHub CI is separately reported on the PR.
+
+## Human QA UI revision
+
+The source now occupies the author position **above** the bubble; clicking it opens the native details Modal. The bubble retains the original external text without inline provenance. Each external source has its own header so neighboring events cannot accidentally share a details control. Ordinary Human/Bot grouping is unchanged. Sender ID remains available in the Modal even when the Provider cannot supply a sender name.
+
+Integrated main `c943506b`; code/runtime `e0df97921a2443e2a9c1b99f6081f5f21794de14`. The existing real Lark/model fixture was re-read through the restarted Host and the canonical authority checks above passed again; no new external message was required for this presentation-only revision. The original model execution retains its original runtime anchor in `verification.json`.
+
+Matched Chinese/light 882 × 827 UI pair: `before-source-inline.png` is the Human-reviewed pre-revision UI (`f472fc8f`), `after-source-author.png` is the current source-author presentation; `after-source-modal.png` shows the new interaction, replacing the historical inline-expanded `after-provenance.png`. `after-independent-receipts.png` was refreshed on the new code. Esc closes the native Modal and restores focus to the source button. Dark-theme interaction was not exercised because temporary theme switching still awaits confirmation.
+
+Current validation: 2097 full PASS / 3 SKIP; 36 final focused UI/grouping/token tests; lint, format, typecheck, build, and 286-page docs build passed. See `ui-verification.json`. GitHub CI is separately verified at the final PR head.
