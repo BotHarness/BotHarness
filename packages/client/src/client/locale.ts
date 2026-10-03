@@ -3,6 +3,33 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
+  'defaults.externalWake': 'Lark 普通消息',
+  'defaults.restore': '恢复继承',
+  'defaults.threshold': '汇总阈值',
+  'defaults.save': '保存平台默认设置',
+  'defaults.title': '外部平台默认行为',
+  'defaults.summary':
+    '新配置默认继承；Profile 可自定义，也可恢复继承。消息收件、处理和回复分别判断。',
+  'defaults.intake': '消息收件与处理默认值',
+  'defaults.identity': '绑定后的身份默认行为',
+  'defaults.enableIdentity': '启用继承默认设置的外部身份',
+  'defaults.identityOrigin': '身份启停设置来源',
+  'defaults.collection': '默认收件条件',
+  'defaults.wake': '普通消息默认处理方式',
+  'defaults.count': '默认汇总条数',
+  'defaults.seconds': '默认汇总秒数',
+  'defaults.authorization':
+    '仅支持已验证的 Lark / 飞书。全量收件仍需平台权限与实际投递能力；@Bot 继续沿用直接提醒策略。',
+  'defaults.scope':
+    '修改只影响仍在继承的配置及后续事件。不会绑定账号、扩大群授权、创建连接器、跟进话题或自动回复。',
+  'defaults.revision': '当前全局版本：{revision}',
+  'defaults.inherited': '继承全局默认',
+  'defaults.custom': '自定义',
+  'defaults.origin': '设置来源',
+  'defaults.restoreHint': '选择继承并保存，即使用当前全局默认值。现有自定义保留原来的选择。',
+  'defaults.stale': '设置已被其他操作修改。刷新后重新确认；草稿尚未保存。',
+  'defaults.failed': '默认设置操作失败，请刷新重试。',
+
   'groupWake.title': '成员消息提醒',
   'groupWake.summary': '各成员独立决定何时处理消息。外部收件条件在「频道连接器」中管理。',
   'groupWake.editAction': '编辑',
@@ -1163,6 +1190,35 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
+  'defaults.externalWake': 'Lark ordinary messages',
+  'defaults.restore': 'Restore inheritance',
+  'defaults.threshold': 'Harvest threshold',
+  'defaults.save': 'Save platform defaults',
+  'defaults.title': 'External platform defaults',
+  'defaults.summary':
+    'New configurations inherit by default. Customize in Profile or restore inheritance. Intake, processing and replies are separate decisions.',
+  'defaults.intake': 'Message intake and processing defaults',
+  'defaults.identity': 'Identity behavior after binding',
+  'defaults.enableIdentity': 'Enable external identities that inherit defaults',
+  'defaults.identityOrigin': 'Identity behavior origin',
+  'defaults.collection': 'Default intake condition',
+  'defaults.wake': 'Default ordinary-message processing',
+  'defaults.count': 'Default digest count',
+  'defaults.seconds': 'Default digest seconds',
+  'defaults.authorization':
+    'Qualified Lark / Feishu only. Full intake still requires platform permission and observed delivery capability. @Bot keeps its direct-address policy.',
+  'defaults.scope':
+    'Changes affect inheriting configurations and future events only. They never bind accounts, expand group authorization, create bridges, follow topics or force replies.',
+  'defaults.revision': 'Current global revision: {revision}',
+  'defaults.inherited': 'Inherit global defaults',
+  'defaults.custom': 'Custom',
+  'defaults.origin': 'Policy origin',
+  'defaults.restoreHint':
+    'Select inheritance and save to use current global defaults. Existing custom configurations keep their choices.',
+  'defaults.stale':
+    'Settings changed elsewhere. Refresh and reconfirm; your draft has not been saved.',
+  'defaults.failed': 'Could not update defaults. Refresh and try again.',
+
   'groupWake.title': 'Member attention',
   'groupWake.summary':
     'Each member decides when to process messages. Manage external intake separately in Channel Bridges.',

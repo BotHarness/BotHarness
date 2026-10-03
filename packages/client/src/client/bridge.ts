@@ -1,6 +1,10 @@
 import { parsePublicAttention } from './activity-attention.js';
 import { parsePublicToolActivity } from './activity-detail.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type {
+  MessagingDefaults,
+  MessagingDefaultsInput,
+} from '../../../core/src/messaging/defaults.js';
 import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
 
@@ -1396,6 +1400,7 @@ export async function setGroupWakePolicy(
     mode: 'all' | 'mentions' | 'digest' | 'silent';
     count: number;
     intervalSeconds: number;
+    inherit?: boolean;
   },
 ): Promise<ChannelSummary> {
   const value = asRecord(
@@ -2783,6 +2788,34 @@ export async function manageMessagingIdentity(
   )
     throw new BridgeCallError('invalid-response', 'Invalid identity result');
   return identity as unknown as MessagingIdentity;
+}
+export async function loadMessagingDefaults(call: BridgeCall): Promise<MessagingDefaults> {
+  const value = asRecord(await unwrap(call, 'messagingDefaults', {}));
+  if (
+    !value ||
+    value['platform'] !== 'feishu' ||
+    !Number.isInteger(value['revision']) ||
+    Number(value['revision']) < 0 ||
+    typeof value['changedAt'] !== 'string' ||
+    typeof value['identityEnabled'] !== 'boolean' ||
+    !['mentions', 'all'].includes(String(value['collection'])) ||
+    !['immediate', 'digest', 'mentions', 'silent'].includes(String(value['wake'])) ||
+    !Number.isInteger(value['count']) ||
+    !Number.isInteger(value['intervalSeconds']) ||
+    Number(value['count']) < 1 ||
+    Number(value['count']) > 100 ||
+    Number(value['intervalSeconds']) < 1 ||
+    Number(value['intervalSeconds']) > 86400
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid platform defaults');
+  return value as unknown as MessagingDefaults;
+}
+export async function saveMessagingDefaults(
+  call: BridgeCall,
+  input: MessagingDefaultsInput,
+): Promise<MessagingDefaults> {
+  await unwrap(call, 'messagingDefaultsSet', { input });
+  return loadMessagingDefaults(call);
 }
 export async function loadChannelBridges(
   call: BridgeCall,

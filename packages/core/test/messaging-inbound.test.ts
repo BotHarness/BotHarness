@@ -2728,3 +2728,144 @@ it('refuses receipt-less providers before dispatch and preserves one unknown pos
   ).toBe(report.id);
   expect(fx.publicService.sendChecked).toHaveBeenCalledTimes(1);
 });
+
+it('resolves platform defaults for future admissions, keeps custom and Thread policy authority, and separates digest revisions', async () => {
+  const fx = await fixture();
+  await fx.enable();
+  const messaging = fx.core.externalMessaging;
+  const save = (collection: 'mentions' | 'all', count: number) => {
+    const { revision, changedAt: _at, ...preferences } = messaging.defaults();
+    return messaging.setDefaults({
+      ...preferences,
+      expectedRevision: revision,
+      collection,
+      count,
+      intervalSeconds: 300,
+    });
+  };
+  expect(messaging.inbound.policy('ada', fx.grant.id).inheritance).toBe('inherit');
+  await fx.receive(ordinaryEvent('defaults-before'));
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind='bridge-message'")).toHaveLength(
+    0,
+  );
+  await save('all', 5);
+  await fx.receive(ordinaryEvent('defaults-old-threshold'));
+  await fx.idle();
+  expect(fx.runs).toHaveLength(0);
+  await save('all', 1);
+  await fx.receive(ordinaryEvent('defaults-new-threshold'));
+  await fx.idle();
+  const admissions = fx.query(
+    "SELECT e.body, a.external_default_revision AS revision, a.wake_count AS count, a.observed_at AS observed FROM source_events e JOIN inbox_admissions a USING (source_event_id) WHERE e.source_kind='bridge-message' ORDER BY e.rowid",
+  );
+  expect(admissions).toMatchObject([
+    { revision: 1, count: 5, observed: null },
+    { revision: 2, count: 1 },
+  ]);
+  expect(fx.runs).toHaveLength(1);
+  const prior = messaging.inbound.policy('ada', fx.grant.id);
+  await messaging.inbound.setPolicy(
+    'ada',
+    fx.grant.id,
+    {
+      collection: 'mentions',
+      wake: 'silent',
+      count: 7,
+      intervalSeconds: 300,
+      inheritance: 'custom',
+      expectedRevision: prior.revision,
+    },
+    { kind: 'human' },
+  );
+  await save('all', 2);
+  expect(messaging.inbound.policy('ada', fx.grant.id)).toMatchObject({
+    collection: 'mentions',
+    wake: 'silent',
+    count: 7,
+    inheritance: 'custom',
+  });
+  await fx.receive(ordinaryEvent('defaults-custom-skipped'));
+  expect(
+    fx.query("SELECT * FROM source_events WHERE body LIKE '%defaults-custom-skipped%'"),
+  ).toHaveLength(0);
+  await messaging.inbound.setPolicy(
+    'ada',
+    fx.grant.id,
+    {
+      collection: 'mentions',
+      wake: 'silent',
+      count: 7,
+      intervalSeconds: 300,
+      inheritance: 'inherit',
+      expectedRevision: messaging.inbound.policy('ada', fx.grant.id).revision,
+    },
+    { kind: 'human' },
+  );
+  expect(messaging.inbound.policy('ada', fx.grant.id)).toMatchObject({
+    collection: 'all',
+    wake: 'digest',
+    count: 2,
+    defaultRevision: 3,
+    inheritance: 'inherit',
+  });
+  await fx.restart();
+  expect(fx.core.externalMessaging.inbound.policy('ada', fx.grant.id)).toMatchObject({
+    count: 2,
+    defaultRevision: 3,
+  });
+});
+it('inherited full collection does not pretend that ordinary delivery was qualified', async () => {
+  const fx = await fixture();
+  const channelId = await addManagedBridge(fx);
+  const row = await bridgeRow(fx, channelId);
+  await fx.core.externalMessaging.inbound.channelBridge(channelId, {
+    kind: 'update',
+    grantId: row.grantId,
+    expectedGrantRevision: row.grantRevision,
+    expectedRevision: row.revision,
+    name: row.name,
+    enabled: true,
+    collection: 'mentions',
+    collectionInheritance: 'inherit',
+  });
+  const { revision, changedAt: _at, ...preferences } = fx.core.externalMessaging.defaults();
+  await fx.core.externalMessaging.setDefaults({
+    ...preferences,
+    expectedRevision: revision,
+    collection: 'all',
+    count: 1,
+  });
+  expect(await bridgeRow(fx, channelId)).toMatchObject({
+    collection: 'all',
+    collectionInheritance: 'inherit',
+    ordinaryDelivery: 'unverified',
+  });
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(0);
+  await fx.receive(managedEvent(fx, { mentionedAccount: false, mentions: [] }));
+  expect(await bridgeRow(fx, channelId)).toMatchObject({ ordinaryDelivery: 'verified' });
+  expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+});
+
+it('rejects late pre-resume events after an inherited global identity pause', async () => {
+  const f = await fixture();
+  await f.enable();
+  const save = (identityEnabled: boolean) => {
+    const { revision, changedAt: _at, ...preferences } = f.core.externalMessaging.defaults();
+    return f.core.externalMessaging.setDefaults({
+      ...preferences,
+      expectedRevision: revision,
+      identityEnabled,
+    });
+  };
+  const beforePause = new Date(Date.now() - 1000).toISOString();
+  await save(false);
+  await save(true);
+  await f.receive(event({ eventId: 'old', at: beforePause }));
+  expect(
+    f.query("SELECT source_event_id FROM source_events WHERE source_kind = 'bridge-message'"),
+  ).toHaveLength(0);
+  await f.receive(event({ eventId: 'new', at: new Date(Date.now() + 1000).toISOString() }));
+  expect(
+    f.query("SELECT source_event_id FROM source_events WHERE source_kind = 'bridge-message'"),
+  ).toHaveLength(1);
+});

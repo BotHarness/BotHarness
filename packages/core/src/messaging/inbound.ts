@@ -15,6 +15,7 @@ import {
 import type { BotSourcePolicyEditor } from '../runtime/source-policy.js';
 import { bridgeChannel, placeBridgeSource } from './channel-target.js';
 import { admitBridgeMembers } from './member-admission.js';
+import { messagingDefaults } from './defaults.js';
 import { assertMessagingIdentity } from './identity.js';
 import {
   channelBridgeConfiguration,
@@ -79,6 +80,9 @@ export interface ExternalSource {
   event: Omit<MessagingInboundEvent, 'text'>;
   grantId: string;
   grantRevision: number;
+  defaultRevision?: number;
+  receptionRevision?: number;
+  bridgeRevision?: number;
   localChannelId?: string;
   report?: RelatedReport;
   contextReads?: ExternalContextRead[];
@@ -252,6 +256,9 @@ export function createInboundMessaging(options: {
         event: evidence,
         grantId: value.id,
         grantRevision: value.revision,
+        defaultRevision: messagingDefaults(db, value.platform).revision,
+        receptionRevision: groupReceptionPolicy(db, value.id).revision,
+        ...(value.channelBridge ? { bridgeRevision: value.channelBridge.revision } : {}),
         ...(value.receiveTargetChannelId ? { localChannelId: value.receiveTargetChannelId } : {}),
       };
       db.prepare(`INSERT INTO source_events (source_event_id, source_kind, bot_slug, body, created_at, payload_json)
@@ -427,6 +434,8 @@ export function createInboundMessaging(options: {
               lease.controller.signal.throwIfAborted();
               if (value.receiveTargetChannelId)
                 bridgeChannel(db, value.receiveTargetChannelId, value.botSlug);
+              if (latest.receiveAfter && Date.parse(event.at) < Date.parse(latest.receiveAfter))
+                return undefined;
               const reception = groupReceptionPolicy(db, value.id);
               const thread = event.reply.threadId
                 ? threadReceptionPolicy(db, value.id, event.reply.threadId)
@@ -442,7 +451,9 @@ export function createInboundMessaging(options: {
                 !event.mentionedAccount &&
                 (thread?.mode === 'exclude' ||
                   (thread?.mode !== 'follow' &&
-                    (latest.channelBridge?.collection ?? reception.collection) !== 'all'))
+                    (latest.channelBridge?.collectionInheritance === 'inherit'
+                      ? messagingDefaults(db, value.platform).collection
+                      : (latest.channelBridge?.collection ?? reception.collection)) !== 'all'))
               )
                 return undefined;
               if (
@@ -452,7 +463,7 @@ export function createInboundMessaging(options: {
               )
                 throw new MessagingError('thread-route-mismatch');
               const ordinary = thread?.mode === 'follow' && thread.wake ? thread.wake : reception;
-              const id = persistSource(db, value, event);
+              const id = persistSource(db, latest, event);
               const row = db
                 .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
                 .get(id) as { payload_json: string };
@@ -475,11 +486,23 @@ export function createInboundMessaging(options: {
               if (!event.mentionedAccount && source.localChannelId) return id;
               const reason = event.mentionedAccount ? 'group-mention' : 'group-ordinary';
               const policy = options.sourcePolicy.resolveIn(db, value.botSlug, reason);
-              const wake = event.mentionedAccount ? policy.wake : ordinary.wake;
+              const wake = event.mentionedAccount
+                ? policy.wake
+                : thread?.wake || reception.inheritance === 'custom' || !policy.overrideActive
+                  ? ordinary.wake
+                  : policy.wake;
+              const count =
+                reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
+                  ? (policy.digestCount ?? ordinary.count)
+                  : ordinary.count;
+              const seconds =
+                reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
+                  ? (policy.digestIntervalSeconds ?? ordinary.intervalSeconds)
+                  : ordinary.intervalSeconds;
               db.prepare(`INSERT OR IGNORE INTO inbox_admissions
               (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
-               wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+               wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision, external_default_revision)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
                 id,
                 value.botSlug,
                 reason,
@@ -490,14 +513,15 @@ export function createInboundMessaging(options: {
                 !event.mentionedAccount && (wake === 'immediate' || wake === 'digest')
                   ? wake === 'immediate'
                     ? 1
-                    : ordinary.count
+                    : count
                   : null,
                 !event.mentionedAccount && (wake === 'immediate' || wake === 'digest')
                   ? wake === 'immediate'
                     ? 0
-                    : ordinary.intervalSeconds * 1000
+                    : seconds * 1000
                   : null,
                 thread?.revision ?? null,
+                reception.defaultRevision ?? null,
               );
               return id;
             },
@@ -671,12 +695,22 @@ export function createInboundMessaging(options: {
           !inspected.target.receiveScope
         )
           throw new MessagingError('rebind-required');
-        if (input.collection === 'all' && !leases.get(value.id)?.ordinaryVerified)
+        if (
+          input.collectionInheritance !== 'inherit' &&
+          input.collection === 'all' &&
+          !leases.get(value.id)?.ordinaryVerified
+        )
           throw new MessagingError('ordinary-delivery-unverified');
       }
       const updated = transaction(
         (db) => {
           const latest = grant(value.id);
+          if (
+            input.kind !== 'delete' &&
+            input.expectedDefaultRevision !== undefined &&
+            input.expectedDefaultRevision !== messagingDefaults(db, latest.platform).revision
+          )
+            throw new MessagingError('defaults-stale');
           bridgeChannel(db, channelId, latest.botSlug, true);
           if (
             latest.revision !== input.expectedGrantRevision ||
@@ -715,6 +749,7 @@ export function createInboundMessaging(options: {
                     name: input.name,
                     enabled: input.enabled,
                     collection: input.collection,
+                    collectionInheritance: input.collectionInheritance ?? 'custom',
                     revision: input.kind === 'add' ? 1 : configuration.revision + 1,
                     ...(input.kind === 'add' ||
                     (input.enabled && (!configuration.enabled || !configuration.intakeAfter))
@@ -724,21 +759,6 @@ export function createInboundMessaging(options: {
                         : {}),
                   },
                 };
-          if (input.kind !== 'delete') {
-            const policy = groupReceptionPolicy(db, value.id);
-            if (policy.collection !== input.collection)
-              commitGroupReceptionPolicy(
-                db,
-                value.id,
-                {
-                  collection: input.collection,
-                  wake: policy.wake,
-                  count: policy.count,
-                  intervalSeconds: policy.intervalSeconds,
-                },
-                { kind: 'human' },
-              );
-          }
           db.prepare('UPDATE messaging_grants SET body = ?, revision = ? WHERE id = ?').run(
             JSON.stringify(next),
             next.revision,
@@ -892,7 +912,11 @@ export function createInboundMessaging(options: {
         inspected.target.receiveScope?.conversationId !== value.receiveScope?.conversationId
       )
         throw new MessagingError('rebind-required');
-      if (input.collection === 'all' && !leases.get(id)?.ordinaryVerified)
+      if (
+        input.inheritance !== 'inherit' &&
+        input.collection === 'all' &&
+        !leases.get(id)?.ordinaryVerified
+      )
         throw new MessagingError('ordinary-delivery-unverified');
       const policy = transaction(
         (db) => {
@@ -900,13 +924,19 @@ export function createInboundMessaging(options: {
             throw new MessagingError('grant-unavailable');
           const policy = commitGroupReceptionPolicy(db, id, input, editor);
           const latest = grant(id);
-          if (latest.channelBridge && latest.channelBridge.collection !== input.collection) {
+          if (
+            latest.channelBridge &&
+            (latest.channelBridge.collection !== input.collection ||
+              (latest.channelBridge.collectionInheritance ?? 'custom') !==
+                (input.inheritance ?? 'custom'))
+          ) {
             db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
               JSON.stringify({
                 ...latest,
                 channelBridge: {
                   ...latest.channelBridge,
                   collection: input.collection,
+                  collectionInheritance: input.inheritance ?? 'custom',
                   revision: latest.channelBridge.revision + 1,
                 },
               }),

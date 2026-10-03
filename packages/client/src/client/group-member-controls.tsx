@@ -356,11 +356,16 @@ export function MemberWakePolicyModal({
     Number.isSafeInteger(seconds) &&
     seconds >= 1 &&
     seconds <= 3600;
-  const save = async (): Promise<void> => {
+  const save = async (inherit = false): Promise<void> => {
     setBusy(true);
     try {
       if (
-        await actions.setGroupWakePolicy(group.id, slug, { mode, count, intervalSeconds: seconds })
+        await actions.setGroupWakePolicy(group.id, slug, {
+          mode,
+          count,
+          intervalSeconds: seconds,
+          ...(inherit ? { inherit } : {}),
+        })
       )
         onClose();
       else setError(true);
@@ -376,6 +381,9 @@ export function MemberWakePolicyModal({
       title={t('members.policy.title', { bot: name })}
       footer={
         <>
+          <Button variant="outline" disabled={busy} onClick={() => void save(true)}>
+            {t('defaults.restore')}
+          </Button>
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel')}
           </Button>

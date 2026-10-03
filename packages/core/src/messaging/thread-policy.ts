@@ -8,7 +8,14 @@ export const threadReceptionInput = z
   .object({
     mode: z.enum(['follow', 'inherit', 'exclude']),
     expectedRevision: z.number().int().min(0),
-    wake: groupReceptionInput.omit({ collection: true }).nullable(),
+    wake: groupReceptionInput
+      .omit({
+        collection: true,
+        inheritance: true,
+        expectedRevision: true,
+        expectedDefaultRevision: true,
+      })
+      .nullable(),
   })
   .strict();
 export type ThreadReceptionInput = z.infer<typeof threadReceptionInput>;

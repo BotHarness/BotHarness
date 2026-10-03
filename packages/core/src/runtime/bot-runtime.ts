@@ -1,3 +1,4 @@
+import { externalMemberWake } from '../messaging/defaults.js';
 import type {
   ThreadReceptionInput,
   ThreadReceptionPolicy,
@@ -192,6 +193,7 @@ export interface OrchestratorAgentRun {
         group: string;
         policy: GroupReceptionPolicy;
         ordinaryDelivery: 'verified' | 'unverified';
+        memberWake?: ReturnType<typeof externalMemberWake>;
       }>
     >;
     setPolicy(grantId: string, input: GroupReceptionInput): Promise<GroupReceptionPolicy>;
@@ -1551,7 +1553,7 @@ class BotRuntimeImplementation implements BotRuntime {
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary' AND e.channel_id IS NOT NULL
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
-         GROUP BY a.wake_policy_revision, a.source_policy_revision, a.external_thread_policy_revision,
+         GROUP BY a.wake_policy_revision, a.source_policy_revision, a.external_default_revision, a.external_thread_policy_revision,
                   CASE WHEN a.external_thread_policy_revision IS NOT NULL THEN json_extract(e.payload_json, '$.external.event.reply.threadId') ELSE '' END
       `)
         .all(botSlug, channelId),
@@ -1944,7 +1946,7 @@ class BotRuntimeImplementation implements BotRuntime {
         const groups = database
           .prepare(`
         SELECT e.channel_id AS channel_id, a.wake_policy_revision AS revision,
-               a.source_policy_revision AS source_revision, a.external_thread_policy_revision AS thread_revision,
+               a.source_policy_revision AS source_revision, a.external_default_revision AS default_revision, a.external_thread_policy_revision AS thread_revision,
                CASE WHEN a.external_thread_policy_revision IS NOT NULL THEN json_extract(e.payload_json, '$.external.event.reply.threadId') ELSE '' END AS thread_scope,
                MIN(e.created_at) AS first_at, a.wake_interval_ms AS interval_ms,
                a.wake_count AS wake_count, COUNT(*) AS count
@@ -1953,13 +1955,14 @@ class BotRuntimeImplementation implements BotRuntime {
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary' AND e.channel_id IS NOT NULL
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable')
-         GROUP BY e.channel_id, a.wake_policy_revision, a.source_policy_revision, thread_revision, thread_scope
+         GROUP BY e.channel_id, a.wake_policy_revision, a.source_policy_revision, default_revision, thread_revision, thread_scope
          ORDER BY first_at, channel_id
       `)
           .all(botSlug) as unknown as Array<{
           channel_id: string;
           revision: number;
           source_revision: number | null;
+          default_revision: number | null;
           thread_revision: number | null;
           thread_scope: string;
           first_at: string;
@@ -1990,7 +1993,7 @@ class BotRuntimeImplementation implements BotRuntime {
              AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
              AND a.attempt_state IN ('pending', 'retryable')
              AND e.channel_id = ? AND a.wake_policy_revision = ?
-             AND a.source_policy_revision IS ? AND a.external_thread_policy_revision IS ?
+             AND a.source_policy_revision IS ? AND a.external_default_revision IS ? AND a.external_thread_policy_revision IS ?
              AND CASE WHEN a.external_thread_policy_revision IS NOT NULL THEN json_extract(e.payload_json, '$.external.event.reply.threadId') ELSE '' END = ?
            ORDER BY e.created_at, e.rowid LIMIT 100
         `)
@@ -1999,6 +2002,7 @@ class BotRuntimeImplementation implements BotRuntime {
               group.channel_id,
               group.revision,
               group.source_revision,
+              group.default_revision,
               group.thread_revision,
               group.thread_scope,
             ) as unknown as DigestRow[];
@@ -2614,6 +2618,19 @@ class BotRuntimeImplementation implements BotRuntime {
                       grantId: grant.id,
                       group: grant.targetName,
                       policy: grant.groupPolicy!,
+                      ...(grant.receiveTargetChannelId &&
+                      this.#channels.get(grant.receiveTargetChannelId)
+                        ? {
+                            memberWake: externalMemberWake(
+                              this.#channels.get(grant.receiveTargetChannelId)!,
+                              bot.slug,
+                              this.#sourcePolicy
+                                .list(bot.slug)
+                                .find((rule) => rule.sourceClass === 'group-ordinary'),
+                              this.#externalMessaging!.defaults(),
+                            ),
+                          }
+                        : {}),
                       ordinaryDelivery: grant.ordinaryDelivery ?? 'unverified',
                     }));
                 },
@@ -4715,7 +4732,7 @@ class BotRuntimeImplementation implements BotRuntime {
         AND g.revoked_at IS NULL AND json_extract(g.body, '$.receiveScope') IS NOT NULL
         AND json_extract(g.body, '$.suspendedReason') IS NULL
         AND g.revision = json_extract(e.payload_json, '$.external.grantRevision')
-      GROUP BY g.id, a.wake_policy_revision, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END`)
+      GROUP BY g.id, a.wake_policy_revision, a.source_policy_revision, a.external_default_revision, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END`)
         .all(botSlug),
     ) as Array<{
       first_at: string;
@@ -4755,7 +4772,7 @@ class BotRuntimeImplementation implements BotRuntime {
         AND a.bot_slug = ? AND e.source_kind = 'bridge-message'
         AND (a.reason != 'group-ordinary' OR e.channel_id IS NULL)
         AND a.attempt_state IN ('pending', 'retryable') AND a.observed_at IS NULL
-      WINDOW policy AS (PARTITION BY g.id, a.wake_policy_revision, a.reason, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END)
+      WINDOW policy AS (PARTITION BY g.id, a.wake_policy_revision, a.source_policy_revision, a.external_default_revision, a.reason, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END)
     ) SELECT source_event_id, body, created_at, attempt_state FROM pending
       WHERE reason = 'group-mention' OR (reason = 'group-ordinary' AND (
         wake_mode = 'all' OR (wake_mode = 'digest' AND (pending_count >= wake_count OR

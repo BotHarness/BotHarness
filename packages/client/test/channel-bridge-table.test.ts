@@ -113,6 +113,7 @@ it('Bridge Switch failures refresh committed state and stale edits preserve the 
       expectedGrantRevision: 9,
       expectedRevision: 3,
       name: 'Retained draft',
+      collectionInheritance: 'custom',
       enabled: true,
       collection: 'mentions',
     });

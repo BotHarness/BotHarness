@@ -1,3 +1,4 @@
+import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 import { parseChannelMessage } from './bridge.js';
 import type { BridgeActions } from './actions.js';
 import type { ChannelDraft, ClientStore } from './store.js';
@@ -433,9 +434,9 @@ export function mountChannelLive(
 export function mountRosterLive(
   store: ClientStore,
   actions: BridgeActions,
-  makeSource: (url: string) => EventSource = (url) => new EventSource(url),
+  makeSource?: (url: string) => EventSource,
 ): () => void {
-  let source: EventSource | undefined;
+  let stopSource: (() => void) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let dragging = false;
   let deferred = false;
@@ -476,14 +477,17 @@ export function mountRosterLive(
   };
   const sync = (): void => {
     if (store.getSnapshot().mode === 'bot') {
-      if (source !== undefined) return;
-      source = makeSource('/api/botharness/stream?scope=roster');
-      source.onopen = schedule;
-      source.addEventListener('roster/changed', schedule);
+      if (stopSource !== undefined) return;
+      if (makeSource) {
+        const source = makeSource('/api/botharness/stream?scope=roster');
+        source.onopen = schedule;
+        source.addEventListener('roster/changed', schedule);
+        stopSource = () => source.close();
+      } else stopSource = subscribeMessagingDefaults(schedule);
       return;
     }
-    source?.close();
-    source = undefined;
+    stopSource?.();
+    stopSource = undefined;
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
     refreshController?.abort();
@@ -500,7 +504,7 @@ export function mountRosterLive(
   return () => {
     disposed = true;
     unsubscribe();
-    source?.close();
+    stopSource?.();
     if (timer !== undefined) clearTimeout(timer);
     refreshController?.abort();
     refreshController = undefined;

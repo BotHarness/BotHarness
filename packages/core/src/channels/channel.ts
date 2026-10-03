@@ -24,6 +24,12 @@ export interface GroupMemberWakePolicy {
   botSlug: string;
   inherited: boolean;
   policy: GroupWakePolicyView;
+  external?: {
+    platform: 'feishu';
+    policy: GroupWakePolicy;
+    origin: 'channel' | 'bot' | 'platform';
+    defaultRevision: number;
+  };
 }
 
 export const DEFAULT_GROUP_WAKE_POLICY: GroupWakePolicy = {

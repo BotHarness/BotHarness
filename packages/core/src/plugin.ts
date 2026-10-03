@@ -278,6 +278,7 @@ export function createCore(
     attachOperationalModule(operationalDatabase, 'bot-inbox'),
   );
   const externalMessaging = createOutboundMessaging({
+    onDefaultsChanged: () => live?.publishRosterCommitted(),
     attachments,
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     sourcePolicy,

@@ -1,3 +1,4 @@
+import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 import { Modal } from './modal.js';
 import type { OutboxIntent } from '../../../core/src/messaging/outbound.js';
 import { ExternalIdentityTable } from './external-identity-table.js';
@@ -45,15 +46,18 @@ export function MessagingProfile({
   const [failed, setFailed] = useState(false);
   const generation = useRef(0);
   const mounted = useRef(false);
+  const refreshRequest = useRef(0);
   const request = useRef<{ id: string; grantId: string; text: string }>();
   const account = snapshot?.accounts.find(
     (item) => `${item.providerId}:${item.ref}` === accountKey,
   );
   const grant = snapshot?.grants.find((item) => item.revokedAt === undefined);
   const refresh = async () => {
+    const sequence = ++refreshRequest.current;
     const version = generation.current;
     const value = await actions.messagingSnapshot(slug);
-    if (mounted.current && version === generation.current) setSnapshot(value);
+    if (mounted.current && version === generation.current && sequence === refreshRequest.current)
+      setSnapshot(value);
   };
   const mount = useMountedResource<HTMLDivElement>(() => {
     mounted.current = true;
@@ -61,7 +65,11 @@ export function MessagingProfile({
     void refresh().catch(() => {
       if (mounted.current) setFailed(true);
     });
+    const unsubscribeDefaults = subscribeMessagingDefaults(
+      () => void refresh().catch(() => undefined),
+    );
     return () => {
+      unsubscribeDefaults();
       mounted.current = false;
       ++generation.current;
     };
@@ -231,7 +239,7 @@ export function MessagingProfile({
                       <p>{t(`im.reception.${grant.reception ?? 'off'}`)}</p>
                       {grant.receiveScope && grant.groupPolicy ? (
                         <GroupReceptionSettings
-                          key={`${grant.id}:${grant.groupPolicy.revision}`}
+                          key={`${grant.id}:${grant.groupPolicy.revision}:${grant.groupPolicy.defaultRevision ?? 0}`}
                           policy={grant.groupPolicy}
                           verified={grant.ordinaryDelivery === 'verified'}
                           busy={busy}
@@ -460,6 +468,7 @@ function GroupReceptionSettings({
   save(input: GroupReceptionInput): Promise<void>;
 }): ReactElement {
   const [collection, setCollection] = useState(policy.collection);
+  const [inheritance, setInheritance] = useState(policy.inheritance ?? 'custom');
   const [wake, setWake] = useState(policy.wake);
   const [count, setCount] = useState(String(policy.count));
   const [seconds, setSeconds] = useState(String(policy.intervalSeconds));
@@ -473,6 +482,7 @@ function GroupReceptionSettings({
     numericSeconds >= 1 &&
     numericSeconds <= 86400;
   const changed =
+    inheritance !== (policy.inheritance ?? 'custom') ||
     collection !== policy.collection ||
     wake !== policy.wake ||
     numericCount !== policy.count ||
@@ -481,11 +491,27 @@ function GroupReceptionSettings({
     <section className="bh-im-group-policy" aria-label={t('im.groupPolicy')}>
       <strong>{t('im.groupPolicy')}</strong>
       <label className="bh-im-field">
+        <span>{t('defaults.origin')}</span>
+        <select
+          aria-label={t('defaults.origin')}
+          value={inheritance}
+          disabled={busy}
+          onChange={(e) => setInheritance(e.target.value === 'inherit' ? 'inherit' : 'custom')}
+        >
+          <option value="inherit">{t('defaults.inherited')}</option>
+          <option value="custom">{t('defaults.custom')}</option>
+        </select>
+      </label>
+      <p>
+        {t('defaults.restoreHint')}
+        {policy.defaultRevision !== undefined ? ` · v${policy.defaultRevision}` : ''}
+      </p>
+      <label className="bh-im-field">
         <span>{t('im.collection')}</span>
         <select
           aria-label={t('im.collection')}
           value={collection}
-          disabled={busy}
+          disabled={busy || inheritance === 'inherit'}
           onChange={(event) =>
             setCollection(event.target.value as GroupReceptionInput['collection'])
           }
@@ -502,7 +528,7 @@ function GroupReceptionSettings({
         <select
           aria-label={t('im.ordinaryWake')}
           value={wake}
-          disabled={busy || collection !== 'all'}
+          disabled={busy || inheritance === 'inherit' || collection !== 'all'}
           onChange={(event) => setWake(event.target.value as GroupReceptionInput['wake'])}
         >
           {(['digest', 'immediate', 'mentions', 'silent'] as const).map((mode) => (
@@ -522,7 +548,7 @@ function GroupReceptionSettings({
               min="1"
               max="100"
               value={count}
-              disabled={busy || collection !== 'all'}
+              disabled={busy || inheritance === 'inherit' || collection !== 'all'}
               onChange={(event) => setCount(event.target.value)}
             />
           </label>
@@ -534,7 +560,7 @@ function GroupReceptionSettings({
               min="1"
               max="86400"
               value={seconds}
-              disabled={busy || collection !== 'all'}
+              disabled={busy || inheritance === 'inherit' || collection !== 'all'}
               onChange={(event) => setSeconds(event.target.value)}
             />
           </label>
@@ -554,9 +580,24 @@ function GroupReceptionSettings({
         })}
       </p>
       <Button
-        disabled={busy || !valid || !changed || (collection === 'all' && !verified)}
+        disabled={
+          busy ||
+          !valid ||
+          !changed ||
+          (inheritance !== 'inherit' && collection === 'all' && !verified)
+        }
         onClick={() =>
-          void save({ collection, wake, count: numericCount, intervalSeconds: numericSeconds })
+          void save({
+            collection,
+            wake,
+            count: numericCount,
+            intervalSeconds: numericSeconds,
+            inheritance,
+            expectedRevision: policy.revision,
+            ...(policy.defaultRevision !== undefined
+              ? { expectedDefaultRevision: policy.defaultRevision }
+              : {}),
+          })
         }
       >
         {t('im.policySave')}

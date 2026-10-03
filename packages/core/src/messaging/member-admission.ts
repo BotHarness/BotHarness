@@ -1,6 +1,7 @@
+import { messagingDefaults, externalMemberWake } from './defaults.js';
 import type { DatabaseSync } from 'node:sqlite';
 import type { ChannelRecord } from '../channels/channel.js';
-import { defaultGroupWakePolicy, type BotSourcePolicyStore } from '../runtime/source-policy.js';
+import { type BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { ThreadReceptionPolicy } from './thread-policy.js';
 
 export function admitBridgeMembers(
@@ -19,7 +20,8 @@ export function admitBridgeMembers(
   for (const botSlug of channel.members) {
     if (!isBotActive(botSlug)) continue;
     const rule = sourcePolicy.resolveIn(db, botSlug, 'group-ordinary');
-    const policy = channel.wakePolicies?.[botSlug] ?? defaultGroupWakePolicy(rule);
+    const defaults = messagingDefaults(db);
+    const { policy } = externalMemberWake(channel, botSlug, rule, defaults);
     const thread = followed?.botSlug === botSlug ? followed : undefined;
     const mode = thread
       ? thread.wake.wake === 'immediate'
@@ -29,8 +31,8 @@ export function admitBridgeMembers(
     const result = db
       .prepare(`INSERT OR IGNORE INTO inbox_admissions
       (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
-       wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision)
-      VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?, ?, ?, ?)`)
+       wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision, external_default_revision)
+      VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(
         sourceEventId,
         botSlug,
@@ -45,6 +47,7 @@ export function admitBridgeMembers(
             ? (thread?.wake.intervalSeconds ?? policy.intervalSeconds) * 1000
             : null,
         thread?.revision ?? null,
+        defaults.revision,
       );
     if (result.changes > 0) admitted.push(botSlug);
   }

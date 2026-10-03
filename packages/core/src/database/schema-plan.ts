@@ -1338,6 +1338,28 @@ const CHANNEL_BRIDGE_MIGRATION: SchemaMigration = {
   },
 };
 
+const MESSAGING_DEFAULTS_MIGRATION: SchemaMigration = {
+  generation: 51,
+  module: 'messaging',
+  description: 'Version platform preferences and preserve existing explicit Profile behavior',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_default_revisions (
+        platform TEXT NOT NULL CHECK (platform = 'feishu'),
+        revision INTEGER NOT NULL CHECK (revision > 0), body TEXT NOT NULL,
+        PRIMARY KEY (platform, revision)
+      );
+      CREATE TRIGGER messaging_defaults_no_update BEFORE UPDATE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+      CREATE TRIGGER messaging_defaults_no_delete BEFORE DELETE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+      ALTER TABLE messaging_bindings ADD COLUMN enabled_inherited INTEGER NOT NULL DEFAULT 0;
+      UPDATE messaging_grants SET body = json_set(body, '$.receptionInheritance', 'custom');
+      ALTER TABLE inbox_admissions ADD COLUMN external_default_revision INTEGER;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1388,4 +1410,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   EXTERNAL_THREAD_POLICY_MIGRATION,
   EXTERNAL_IDENTITY_MIGRATION,
   CHANNEL_BRIDGE_MIGRATION,
+  MESSAGING_DEFAULTS_MIGRATION,
 ]);

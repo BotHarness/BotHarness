@@ -6,6 +6,12 @@ import {
   type MessagingIdentityInput,
 } from './identity.js';
 import type { ThreadReceptionView } from './thread-policy.js';
+import {
+  messagingDefaults,
+  commitMessagingDefaults,
+  type MessagingDefaults,
+  type MessagingDefaultsInput,
+} from './defaults.js';
 import type { GroupReceptionPolicy } from './group-policy.js';
 import { bridgeChannel, humanBridgeChannel } from './channel-target.js';
 import {
@@ -86,8 +92,10 @@ export interface MessagingGrant {
   targetDigest: string;
   revision: number;
   createdAt: string;
+  receiveAfter?: string;
   receiveScope?: { kind: 'group'; conversationId: string };
   receiveTargetChannelId?: string;
+  receptionInheritance?: 'inherit' | 'custom';
   channelBridge?: ChannelBridgeConfiguration;
   revokedAt?: string;
   suspendedReason?: 'rebind-required';
@@ -147,6 +155,8 @@ export interface MessagingSnapshot {
 
 export interface OutboundMessaging {
   inbound: InboundMessaging;
+  defaults(): MessagingDefaults;
+  setDefaults(input: MessagingDefaultsInput): Promise<MessagingDefaults>;
   identity(botSlug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
   reply(botSlug: string, sourceEventId: string, text: string): Promise<OutboxIntent>;
   acquireFile(
@@ -195,6 +205,7 @@ export function createOutboundMessaging(options: {
   attachments?: AttachmentStore;
   isBotActive(slug: string): boolean;
   sourcePolicy?: BotSourcePolicyStore;
+  onDefaultsChanged?: () => void;
   onAdmitted?(botSlug: string, sourceEventId: string): void;
   onPlaced?(commit: ChannelMessageCommit): void;
   onShared?(botSlugs: string[]): void;
@@ -411,6 +422,36 @@ export function createOutboundMessaging(options: {
   });
   const service: OutboundMessaging = {
     inbound,
+    defaults() {
+      return database.read((db) => messagingDefaults(db));
+    },
+    async setDefaults(input) {
+      const prior = service.defaults();
+      const value = transaction(
+        (db) => commitMessagingDefaults(db, input),
+        ['bindings', 'grants', 'channel', 'bot-inbox'],
+      );
+      const identities = database.read((db) =>
+        db
+          .prepare(
+            'SELECT id FROM messaging_bindings WHERE platform = ? AND enabled_inherited = 1 AND revoked_at IS NULL',
+          )
+          .all(value.platform),
+      ) as { id: string }[];
+      if (prior.identityEnabled !== value.identityEnabled)
+        await Promise.allSettled(identities.map(({ id }) => bounded(inbound.reconcileBinding(id))));
+      options.onDefaultsChanged?.();
+      options.warn?.(
+        JSON.stringify({
+          event: 'messaging-defaults',
+          phase: 'committed',
+          initiator: 'human-settings',
+          revision: value.revision,
+          platform: value.platform,
+        }),
+      );
+      return value;
+    },
     async identity(botSlug, input) {
       active(botSlug);
       if (input.kind === 'bind') {
@@ -433,7 +474,7 @@ export function createOutboundMessaging(options: {
             if (prior) throw new MessagingError('binding-conflict');
             const id = randomUUID();
             db.prepare(
-              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             ).run(
               id,
               botSlug,
@@ -443,6 +484,7 @@ export function createOutboundMessaging(options: {
               input.fingerprint,
               now(),
               account.name,
+              account.platform === 'feishu' ? 1 : 0,
             );
             return readMessagingIdentity(db, id);
           },
@@ -461,7 +503,15 @@ export function createOutboundMessaging(options: {
           .all(value.id),
       ) as { body: string }[];
       const enabled =
-        input.kind === 'update' ? input.enabled : input.kind === 'reconnect' ? true : false;
+        input.kind === 'update'
+          ? input.inheritEnabled
+            ? service.defaults().identityEnabled
+            : input.enabled
+          : input.kind === 'reconnect'
+            ? value.enabledInheritance === 'inherit'
+              ? service.defaults().identityEnabled
+              : true
+            : false;
       const validatedTokens = new Map<string, object>();
       if (enabled) {
         const account = await inspectIdentity(value);
@@ -490,6 +540,12 @@ export function createOutboundMessaging(options: {
           active(botSlug);
           for (const [id, token] of validatedTokens) current(id, token);
           const latest = readMessagingIdentity(db, value.id);
+          if (
+            input.kind === 'update' &&
+            input.expectedDefaultRevision !== undefined &&
+            input.expectedDefaultRevision !== latest.defaultRevision
+          )
+            throw new MessagingError('defaults-stale');
           if (latest.revokedAt || latest.revision !== input.expectedRevision)
             throw new MessagingError('identity-stale');
           const currentScopes = db
@@ -501,11 +557,18 @@ export function createOutboundMessaging(options: {
             throw new MessagingError('identity-stale');
           const at = now();
           db.prepare(
-            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ? WHERE id = ?',
+            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ? WHERE id = ?',
           ).run(
             enabled ? 1 : 0,
             input.kind === 'update' ? input.name.trim() : latest.name,
             input.kind === 'unbind' ? at : null,
+            input.kind === 'update'
+              ? input.inheritEnabled
+                ? 1
+                : 0
+              : latest.enabledInheritance === 'inherit'
+                ? 1
+                : 0,
             value.id,
           );
           if (input.kind === 'unbind') {
@@ -720,6 +783,7 @@ export function createOutboundMessaging(options: {
         accountName: g.accountName,
         conversationName: g.targetName,
         ordinaryDelivery: g.ordinaryDelivery ?? ('unverified' as const),
+        defaultRevision: service.defaults().revision,
       });
       return {
         channelId,
@@ -728,6 +792,11 @@ export function createOutboundMessaging(options: {
           .map((g) => ({
             ...source(g),
             ...channelBridgeConfiguration(g),
+            collection:
+              g.channelBridge?.collectionInheritance === 'inherit'
+                ? service.defaults().collection
+                : channelBridgeConfiguration(g).collection,
+            defaultRevision: service.defaults().revision,
             availability: g.availability,
             reception: g.reception,
           })),
@@ -917,7 +986,7 @@ export function createOutboundMessaging(options: {
           };
           if (!reusable)
             db.prepare(
-              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+              'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name, enabled_inherited) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             ).run(
               bindingId,
               input.botSlug,
@@ -927,6 +996,7 @@ export function createOutboundMessaging(options: {
               value.fingerprint,
               at,
               inspected.account.name,
+              value.platform === 'feishu' ? 1 : 0,
             );
           db.prepare(
             'INSERT INTO messaging_grants (id, binding_id, bot_slug, revision, created_at, body) VALUES (?, ?, ?, ?, ?, ?)',

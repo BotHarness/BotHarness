@@ -1,5 +1,6 @@
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
+import type { MessagingDefaults, MessagingDefaultsInput } from '../messaging/defaults.js';
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
@@ -151,6 +152,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
     policy: GroupReceptionInput,
   ): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.messagingGroupPolicy({ slug, grantId, policy }));
+  }
+  messagingDefaults(): Promise<MessagingDefaults> {
+    return unwrapAsync(this.methods.messagingDefaults({}));
+  }
+  messagingDefaultsSet(input: MessagingDefaultsInput): Promise<MessagingDefaults> {
+    return unwrapAsync(this.methods.messagingDefaultsSet(input));
   }
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot> {
     return unwrapAsync(this.methods.channelBridges({ channelId }));
@@ -400,9 +407,17 @@ export class BotharnessBridgeService extends TypertRemoteService {
     mode: 'all' | 'mentions' | 'digest' | 'silent',
     count: number,
     intervalSeconds: number,
+    inherit?: boolean,
   ): { channel: ChannelRecord } {
     return unwrap(
-      this.methods.channelGroupWakeSet({ channelId, botSlug, mode, count, intervalSeconds }),
+      this.methods.channelGroupWakeSet({
+        channelId,
+        botSlug,
+        mode,
+        count,
+        intervalSeconds,
+        ...(inherit === undefined ? {} : { inherit }),
+      }),
     );
   }
 
@@ -816,6 +831,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
+  'messagingDefaults',
+  'messagingDefaultsSet',
   'channelBridges',
   'channelBridge',
   'messagingChannelTarget',

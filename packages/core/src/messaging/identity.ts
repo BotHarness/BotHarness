@@ -1,4 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
+import { messagingDefaults } from './defaults.js';
 import { MessagingError } from './provider.js';
 
 export interface MessagingIdentity {
@@ -10,13 +11,23 @@ export interface MessagingIdentity {
   fingerprint: string;
   name: string;
   enabled: boolean;
+  enabledInheritance?: 'inherit' | 'custom';
+  defaultRevision?: number;
   revision: number;
   createdAt: string;
   revokedAt?: string;
 }
 export type MessagingIdentityInput =
   | { kind: 'bind'; providerId: string; accountRef: string; fingerprint: string }
-  | { kind: 'update'; id: string; expectedRevision: number; name: string; enabled: boolean }
+  | {
+      kind: 'update';
+      id: string;
+      expectedRevision: number;
+      name: string;
+      enabled: boolean;
+      inheritEnabled?: boolean | undefined;
+      expectedDefaultRevision?: number | undefined;
+    }
   | { kind: 'reconnect'; id: string; expectedRevision: number }
   | { kind: 'unbind'; id: string; expectedRevision: number };
 export type MessagingIdentityView = MessagingIdentity & {
@@ -33,6 +44,7 @@ interface BindingRow {
   fingerprint: string;
   display_name: string;
   enabled: number;
+  enabled_inherited: number;
   revision: number;
   created_at: string;
   revoked_at: string | null;
@@ -50,7 +62,12 @@ export function readMessagingIdentity(db: DatabaseSync, id: string): MessagingId
     accountRef: r.account_ref,
     fingerprint: r.fingerprint,
     name: r.display_name,
-    enabled: r.enabled === 1,
+    enabled:
+      r.enabled_inherited === 1
+        ? messagingDefaults(db, r.platform).identityEnabled
+        : r.enabled === 1,
+    enabledInheritance: r.enabled_inherited === 1 ? 'inherit' : 'custom',
+    defaultRevision: messagingDefaults(db, r.platform).revision,
     revision: r.revision,
     createdAt: r.created_at,
     ...(r.revoked_at ? { revokedAt: r.revoked_at } : {}),
