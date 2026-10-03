@@ -1,0 +1,848 @@
+{
+  "pending": {
+    "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+    "revision": 18,
+    "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+    "state": "working",
+    "attention": {
+      "approvalCount": 0,
+      "questionCount": 1
+    },
+    "activity": {
+      "detailRefs": ["tool-detail-49b08874-8e24-4c73-8eb0-bdaf33349dbe"],
+      "effect": "generic-working",
+      "toolKind": "other",
+      "toolName": "ask_user_question",
+      "startedAt": 1791036715184,
+      "activeToolCount": 1,
+      "sources": [
+        {
+          "role": "orchestrator",
+          "count": 1
+        }
+      ]
+    },
+    "sessions": [
+      {
+        "id": "activity-da9dfcd1-213c-4620-a4d6-f2aa8dfda106",
+        "role": "orchestrator",
+        "name": "Ask about release channel then report",
+        "at": 1791036715184,
+        "revision": 17,
+        "state": "working",
+        "activity": {
+          "detailRefs": ["tool-detail-49b08874-8e24-4c73-8eb0-bdaf33349dbe"],
+          "effect": "generic-working",
+          "toolKind": "other",
+          "toolName": "ask_user_question",
+          "startedAt": 1791036715184,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "orchestrator",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "refreshed": {
+    "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+    "revision": 18,
+    "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+    "state": "working",
+    "attention": {
+      "approvalCount": 0,
+      "questionCount": 1
+    },
+    "activity": {
+      "detailRefs": ["tool-detail-49b08874-8e24-4c73-8eb0-bdaf33349dbe"],
+      "effect": "generic-working",
+      "toolKind": "other",
+      "toolName": "ask_user_question",
+      "startedAt": 1791036715184,
+      "activeToolCount": 1,
+      "sources": [
+        {
+          "role": "orchestrator",
+          "count": 1
+        }
+      ]
+    },
+    "sessions": [
+      {
+        "id": "activity-da9dfcd1-213c-4620-a4d6-f2aa8dfda106",
+        "role": "orchestrator",
+        "name": "Ask about release channel then report",
+        "at": 1791036715184,
+        "revision": 17,
+        "state": "working",
+        "activity": {
+          "detailRefs": ["tool-detail-49b08874-8e24-4c73-8eb0-bdaf33349dbe"],
+          "effect": "generic-working",
+          "toolKind": "other",
+          "toolName": "ask_user_question",
+          "startedAt": 1791036715184,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "orchestrator",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "answeredHost": {
+    "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+    "revision": 20,
+    "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+    "state": "thinking",
+    "sessions": [
+      {
+        "id": "activity-da9dfcd1-213c-4620-a4d6-f2aa8dfda106",
+        "role": "orchestrator",
+        "name": "Ask about release channel then report",
+        "at": 1791036718781,
+        "revision": 20,
+        "state": "thinking"
+      }
+    ]
+  },
+  "nativeReplyVerified": true,
+  "nativeCancelAccepted": true,
+  "offlineBadgeRetained": "1",
+  "restoredWithoutReload": true,
+  "frames": [
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 13,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 14,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "thinking"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 15,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "thinking"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 16,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "thinking"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 17,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 18,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 18,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 18,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 19,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 20,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "thinking"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 21,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 22,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "thinking"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 23,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 24,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "thinking"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 25,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 26,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 27,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 28,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "thinking"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 29,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 30,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "thinking"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 31,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working"
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+      "revision": 32,
+      "bots": [
+        {
+          "slug": "bot-56effd2d697a4abf9c441b798251bcee",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-8dce6612d726482fae48c6f76a6bb9f9",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "questionCount": 1
+          }
+        },
+        {
+          "slug": "bot-c348481e18ae499fbd08b269570d900d",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-e261fc9428114427851be4efd7c51540",
+          "state": "idle"
+        }
+      ]
+    }
+  ],
+  "beforeRestart": {
+    "generation": "4746c64a-6299-4d90-ba33-f27ca1eff731",
+    "revision": 32,
+    "slug": "bot-bb97561dbb224508baea27b04783a3c2",
+    "state": "working",
+    "attention": {
+      "approvalCount": 0,
+      "questionCount": 1
+    },
+    "activity": {
+      "detailRefs": ["tool-detail-99784dfa-15cf-4026-971b-2cb4ae2cdf7b"],
+      "effect": "generic-working",
+      "toolKind": "other",
+      "toolName": "ask_user_question",
+      "startedAt": 1791036730396,
+      "activeToolCount": 1,
+      "sources": [
+        {
+          "role": "orchestrator",
+          "count": 1
+        }
+      ]
+    },
+    "sessions": [
+      {
+        "id": "activity-da9dfcd1-213c-4620-a4d6-f2aa8dfda106",
+        "role": "orchestrator",
+        "name": "Ask about release channel then report",
+        "at": 1791036730396,
+        "revision": 31,
+        "state": "working",
+        "activity": {
+          "detailRefs": ["tool-detail-99784dfa-15cf-4026-971b-2cb4ae2cdf7b"],
+          "effect": "generic-working",
+          "toolKind": "other",
+          "toolName": "ask_user_question",
+          "startedAt": 1791036730396,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "orchestrator",
+              "count": 1
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

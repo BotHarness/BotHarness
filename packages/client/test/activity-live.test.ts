@@ -278,3 +278,21 @@ it('validates safe attention and clears it on a new Host baseline without rewrit
   expect(store.getSnapshot().bots[0]?.attention).toBeUndefined();
   expect(store.getSnapshot().bots[0]?.aggregateState).toBe('idle');
 });
+
+it('accepts only safe question counts in the same baseline and revisioned live event', () => {
+  const baseline = (attention: unknown) =>
+    JSON.stringify({
+      generation: 'host',
+      revision: 8,
+      bots: [{ slug: 'ada', state: 'working', attention }],
+    });
+  expect(
+    parseActivitySnapshot(baseline({ approvalCount: 0, questionCount: 1, question: 'private' }))
+      ?.bots[0]?.attention,
+  ).toEqual({ approvalCount: 0, questionCount: 1 });
+  for (const questionCount of [-1, 0, 1.5, '1', Number.MAX_SAFE_INTEGER + 1])
+    expect(parseActivitySnapshot(baseline({ approvalCount: 0, questionCount }))).toBeUndefined();
+  expect(
+    parseActivitySnapshot(baseline({ approvalCount: Number.MAX_SAFE_INTEGER, questionCount: 1 })),
+  ).toBeUndefined();
+});
