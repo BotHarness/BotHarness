@@ -194,6 +194,7 @@ export function ActivityCenterView({
                     size={28}
                     state={bot.state}
                     activity={bot.activity}
+                    attention={bot.attention}
                     t={t}
                   />
                   <span className="bh-overview-bot-name">{bot.displayName}</span>

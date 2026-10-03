@@ -17,6 +17,8 @@
 
 ### Added
 
+- PersonaBot 头像与输入框上方独立显示原生工具待审批数量；现有版本化 Host 快照／实时流在批准、拒绝和取消后清除提示，不将历史审批重播为当前等待 ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - Bot 可明确将自己 Inbox 的一条外部来源分享到已加入的团队频道，在原始消息上方显示可点击的 Bridge 来源、用 Modal 展示详情，并保留来源和各成员独立提醒，不转发后续收件或借用外部身份（[#636](https://github.com/BotHarness/BotHarness/issues/636)）。
 
 - 活动中心总览沿用侧栏／消息框的 Host 执行状态与安全工具摘要；原生问题和审批保持独立 Human 待办，活跃且归属明确的 Session 卡片仍可见（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。

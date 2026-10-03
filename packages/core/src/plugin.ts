@@ -604,6 +604,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         .sort();
       return JSON.stringify(['orchestrator', cwd, activeIds]);
     },
+    {
+      changed: (slug, count) => core.states.setApprovalCount(slug, count),
+      warn: (message) => ctx.logger.warn(message),
+    },
   );
   userQuestions = new ChannelUserQuestions(
     core.channels,

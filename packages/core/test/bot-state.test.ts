@@ -142,3 +142,29 @@ describe('createBotStateTracker', () => {
     expect(count).toBe(2);
   });
 });
+
+describe('orthogonal approval attention', () => {
+  it('publishes a revision without rewriting Session facts or execution selection', () => {
+    const tracker = createBotStateTracker();
+    tracker.setSessionState('ada', 'root', 'working', undefined, 'orchestrator');
+    const original = tracker.snapshot('ada');
+    const events: unknown[] = [];
+    tracker.onActivity((event) => events.push(event));
+    const revision = tracker.version().revision;
+    tracker.setApprovalCount('ada', 2);
+    expect(tracker.snapshot('ada')).toEqual({ ...original, attention: { approvalCount: 2 } });
+    expect(tracker.version().revision).toBe(revision + 1);
+    expect(events[0]).toMatchObject({
+      state: 'working',
+      cause: 'attention-changed',
+      attention: { approvalCount: 2 },
+    });
+    tracker.setApprovalCount('ada', 2);
+    tracker.setApprovalCount('ada', -1);
+    expect(events).toHaveLength(1);
+    tracker.setApprovalCount('ada', 0);
+    expect(tracker.snapshot('ada')).toEqual(original);
+    expect(events[1]).not.toHaveProperty('attention');
+    expect(createBotStateTracker().snapshot('ada').attention).toBeUndefined();
+  });
+});

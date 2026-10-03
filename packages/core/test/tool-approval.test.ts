@@ -12,7 +12,10 @@ const botSlug = 'ada';
 const sessionId = 'botharness-assignment-test';
 const channelId = 'dm-ada';
 
-function fixture() {
+function fixture(attention?: {
+  changed(slug: string, count: number): void;
+  warn(message: string): void;
+}) {
   const messages: ChannelMessage[] = [];
   const channel = { id: channelId, type: 'dm', botSlug } as ChannelRecord;
   const channels = {
@@ -29,12 +32,12 @@ function fixture() {
     ),
   } as unknown as SessionOwnership;
   const agent = { session: { id: sessionId, header: { cwd: '/tmp/project' } } } as Agent;
-  const broker = new ChannelToolApproval(channels, ownership);
-  const execution = (signal?: AbortSignal): ToolExecution =>
+  const broker = new ChannelToolApproval(channels, ownership, undefined, undefined, attention);
+  const execution = (signal?: AbortSignal, callId = 'call-1'): ToolExecution =>
     ({
       agent,
       name: 'bash',
-      callId: 'call-1',
+      callId,
       arguments: { command: 'pwd && ls' },
       token: Symbol('call'),
       signal,
@@ -181,5 +184,106 @@ describe('Channel tool approval', () => {
     ).toBeUndefined();
     expect(state.messages).toHaveLength(0);
     state.broker.close();
+  });
+});
+
+describe('committed native approval attention', () => {
+  it('counts concurrent requests, preserves a rejected sibling, and clears before execution resumes', async () => {
+    const changed = vi.fn();
+    const state = fixture({ changed, warn: vi.fn() });
+    state.broker.track(state.execution());
+    const second = state.execution(undefined, 'call-2');
+    state.broker.track(second);
+    const firstAnswer = state.broker.ask({
+      agent: state.agent,
+      toolName: 'bash',
+      callId: 'call-1',
+    });
+    const secondAnswer = state.broker.ask({
+      agent: state.agent,
+      toolName: 'bash',
+      callId: 'call-2',
+    });
+    await vi.waitFor(() => expect(changed).toHaveBeenLastCalledWith(botSlug, 2));
+    expect(await state.broker.decide('other', state.messages[0]!.id, 'allowed-once')).toBe(false);
+    expect(changed).toHaveBeenLastCalledWith(botSlug, 2);
+    expect(await state.broker.decide(botSlug, state.messages[0]!.id, 'rejected')).toBe(true);
+    expect(await firstAnswer).toBe('rejected');
+    expect(changed).toHaveBeenLastCalledWith(botSlug, 1);
+    state.broker.close();
+    expect(await secondAnswer).toBe('cancelled');
+    expect(changed).toHaveBeenLastCalledWith(botSlug, 0);
+  });
+
+  it.each(['abort', 'untrack', 'ownership', 'close'] as const)(
+    'clears committed attention on %s',
+    async (cause) => {
+      const changed = vi.fn();
+      const state = fixture({ changed, warn: vi.fn() });
+      const controller = new AbortController();
+      const untrack = state.broker.track(state.execution());
+      const answer = state.broker.ask({
+        agent: state.agent,
+        toolName: 'bash',
+        callId: 'call-1',
+        signal: controller.signal,
+      });
+      await vi.waitFor(() => expect(changed).toHaveBeenLastCalledWith(botSlug, 1));
+      if (cause === 'abort') controller.abort();
+      if (cause === 'untrack') untrack?.();
+      if (cause === 'ownership') {
+        vi.mocked(state.ownership.resolve).mockReturnValue(undefined);
+        state.broker.cancelInvalid();
+      }
+      if (cause === 'close') state.broker.close();
+      await answer;
+      expect(changed).toHaveBeenLastCalledWith(botSlug, 0);
+    },
+  );
+
+  it('does not publish failed or aborted-before-commit requests', async () => {
+    const changed = vi.fn();
+    const state = fixture({ changed, warn: vi.fn() });
+    state.broker.track(state.execution());
+    vi.mocked(state.channels.appendMessage).mockResolvedValueOnce(undefined);
+    expect(await state.broker.ask({ agent: state.agent, toolName: 'bash', callId: 'call-1' })).toBe(
+      'unavailable',
+    );
+    expect(changed).not.toHaveBeenCalled();
+    let commit!: () => void;
+    vi.mocked(state.channels.appendMessage).mockImplementationOnce(
+      (_id, message) =>
+        new Promise((resolve) => {
+          commit = () => resolve(message);
+        }),
+    );
+    const controller = new AbortController();
+    const answer = state.broker.ask({
+      agent: state.agent,
+      toolName: 'bash',
+      callId: 'call-1',
+      signal: controller.signal,
+    });
+    controller.abort();
+    commit();
+    expect(await answer).toBe('cancelled');
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it('does not change approval outcome if presentation publication fails', async () => {
+    const warn = vi.fn();
+    const state = fixture({
+      changed: () => {
+        throw new Error('offline observer');
+      },
+      warn,
+    });
+    state.broker.track(state.execution());
+    const answer = state.broker.ask({ agent: state.agent, toolName: 'bash', callId: 'call-1' });
+    await vi.waitFor(() =>
+      expect(warn).toHaveBeenCalledWith('tool-approval-attention-publication-failed'),
+    );
+    expect(await state.broker.decide(botSlug, state.messages[0]!.id, 'allowed-once')).toBe(true);
+    expect(await answer).toBe('allowed-once');
   });
 });
