@@ -5,6 +5,8 @@ import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 import { registerBrowserViewer, type BrowserViewerHost } from './viewer.js';
 import type { ContainerBrowserOptions } from './runtime/container.js';
+import { createProfileControl } from './profile-control.js';
+import { registerProfileHttp } from './profile-http.js';
 import { createDailyControl } from './daily.js';
 import { createBorrowService } from './borrow.js';
 import { registerBorrowHttp } from './borrow-http.js';
@@ -22,7 +24,7 @@ import {
 export const name = 'botharness-browser';
 
 export interface BrowserConfig {
-  target?: 'local' | 'container' | 'extension' | 'daily-control';
+  target?: 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control';
   enabled: boolean;
   browserPath: string;
   headless: boolean;
@@ -45,6 +47,7 @@ export const Config = Schema.object({
     Schema.const('container'),
     Schema.const('extension'),
     Schema.const('daily-control'),
+    Schema.const('profile-control'),
   ])
     .default('local')
     .volatile(),
@@ -90,7 +93,8 @@ export function apply(
       | 'container'
       | 'extension'
       | 'daily-control'
-      | { get(): 'local' | 'container' | 'extension' | 'daily-control' };
+      | 'profile-control'
+      | { get(): 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control' };
   },
 ): void {
   if (!config.enabled) return;
@@ -113,11 +117,11 @@ export function apply(
 
   const coreLookup = (): { registry?: unknown; ownership?: unknown } | undefined =>
     ctx.get('botharness') as unknown as { registry?: unknown; ownership?: unknown } | undefined;
-  const target = (): 'local' | 'container' | 'extension' | 'daily-control' =>
+  const target = (): 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control' =>
     (typeof config.target === 'object' ? config.target.get() : config.target) ?? 'local';
   let revision = 0;
   const authorizationScope = (): string =>
-    `${target()}:${revision}:${borrow.revision}:${daily.revision}`;
+    `${target()}:${revision}:${borrow.revision}:${daily.revision}:${profile.revision}`;
   let switching: Promise<void> = Promise.resolve();
   let registerViewer: ContainerBrowserOptions['onViewer'];
   ctx.inject(['connection', 'webServer'], (viewerCtx) => {
@@ -191,12 +195,37 @@ export function apply(
     note: (detail) => diagnostics.record('lifecycle', detail),
   });
 
+  const profile = createProfileControl({
+    file: join(profileDirectory(), 'daily-profile-pairing.json'),
+    enabled: () => target() === 'profile-control',
+    allowed: (slug) =>
+      (
+        coreLookup()?.registry as
+          | { get(slug: string): { browserAccess?: boolean } | undefined }
+          | undefined
+      )?.get(slug)?.browserAccess === true,
+    onChange: () => {
+      for (const bot of (
+        coreLookup()?.registry as { list(): { slug: string }[] } | undefined
+      )?.list() ?? [])
+        provider.invalidateBot(bot.slug);
+    },
+    note: (detail) => diagnostics.record('lifecycle', detail),
+  });
+  ctx.inject(['webServer'], (profileCtx) =>
+    registerProfileHttp(
+      (profileCtx as unknown as { webServer: BrowserViewerHost }).webServer,
+      profile,
+    ),
+  );
+
   const provider = createBrowserToolProvider({
     ctx,
     runtimes,
     screenshotDir: join(profileDirectory(), 'screenshots'),
     isAutoAllowed: () => config.autoAllowActions,
     beforeExecution: () => switching,
+    profile: () => (target() === 'profile-control' ? profile : undefined),
     daily: () => (target() === 'daily-control' ? daily : undefined),
     borrowed: () => (target() === 'extension' ? borrow : undefined),
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
@@ -225,12 +254,14 @@ export function apply(
       ) {
         borrow.returnBot(slug);
         daily.returnBot(slug);
+        profile.returnBot(slug);
       }
       return provider.reconcileBot(slug);
     },
     resetBot: (slug: string) => {
       const started = Date.now();
       daily.returnBot(slug);
+      profile.returnBot(slug);
       provider.resetBot(slug);
       diagnostics.record(
         'lifecycle',
@@ -252,6 +283,7 @@ export function apply(
     revision += 1;
     borrow.clear();
     daily.clear();
+    profile.clear();
     provider.resetRuntime();
     switching = switching.catch(() => undefined).then(() => runtimes.stopAll());
     void switching
@@ -291,6 +323,7 @@ export function apply(
     () => () => {
       borrow.dispose();
       daily.clear();
+      profile.dispose();
       void provider.dispose();
     },
     'botharness-browser: tool provider',
@@ -309,6 +342,28 @@ export function apply(
     const connection = (connectionCtx as unknown as { connection: HostConnectionLike }).connection;
     const json = (value: unknown, status = 200): Response =>
       Response.json(value as Record<string, unknown>, { status });
+
+    for (const action of ['pair', 'forget'] as const) {
+      connectionCtx.effect(
+        () =>
+          connection.fetch.register({
+            path: `/api/browser/profile/${action}`,
+            methods: ['POST'],
+            requestBody: 'buffered',
+            async fetch() {
+              try {
+                return json({
+                  ok: true,
+                  ...(action === 'pair' ? await profile.pair() : (await profile.forget(), {})),
+                });
+              } catch {
+                return json({ ok: false, error: 'Chrome Profile pairing unavailable' }, 409);
+              }
+            },
+          }),
+        `botharness-browser: profile ${action}`,
+      );
+    }
 
     for (const action of ['connect', 'grant', 'return'] as const) {
       connectionCtx.effect(
@@ -378,7 +433,11 @@ export function apply(
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
-        if (target() === 'extension' || target() === 'daily-control')
+        if (
+          target() === 'extension' ||
+          target() === 'daily-control' ||
+          target() === 'profile-control'
+        )
           return json(
             { ok: false, error: 'Connect a Daily Browser document in the Browser entry' },
             409,
@@ -426,6 +485,17 @@ export function apply(
         const url = new URL(request.url);
         const slug = url.searchParams.get('slug') ?? '';
         const requested = url.searchParams.get('tab') ?? '';
+        if (target() === 'profile-control')
+          return json({
+            ok: true,
+            target: 'profile-control',
+            running: false,
+            frame: null,
+            focused: null,
+            takeover: provider.isTakeover(slug),
+            tabs: [],
+            profile: await profile.view(),
+          });
         if (target() === 'daily-control')
           return json({
             ok: true,
@@ -534,6 +604,17 @@ export function apply(
             );
           }
         }
+        if (target() === 'profile-control') {
+          try {
+            await profile.pause(slug, body.active);
+          } catch {
+            profile.returnBot(slug);
+            return json(
+              { ok: false, error: 'Chrome Profile disconnected; reconnect and observe again' },
+              409,
+            );
+          }
+        }
         return json({ ok: true, takeover });
       },
     };
@@ -555,6 +636,10 @@ export function apply(
         }
         const slug = typeof body.slug === 'string' ? body.slug : '';
         if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
+        if (target() === 'profile-control') {
+          await profile.forget();
+          return json({ ok: true });
+        }
         if (target() === 'daily-control') {
           daily.returnBot(slug);
           return json({ ok: true });

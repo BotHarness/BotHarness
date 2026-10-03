@@ -798,6 +798,14 @@ window.__ModuleLoader__.load({
 		//#region packages/browser/src/client/locale.ts
 		const LOCALE_NS = "botharness-browser";
 		const zh = {
+			"entry.profile.install": "安装 BotHarness Profile 控制扩展",
+			"entry.profile.instructions": "在 BotHarness Profile 控制扩展中输入地址和配对码，并确认允许整个 Profile。",
+			"entry.profile.forget": "解除 Profile 配对",
+			"entry.profile.disconnected": "Profile 已配对，连接已断开",
+			"entry.profile.connected": "Profile 已连接",
+			"entry.profile.pair": "配对 Chrome Profile",
+			"entry.profile.scope": "此 Chrome Profile 的所有普通网页标签页",
+			"settings.profile-control": "日常 Chrome · 整个 Profile",
 			"settings.daily-control": "日常 Chrome · 控制",
 			"entry.daily.install": "安装 Playwright 扩展",
 			"entry.daily.connect": "连接现有页面",
@@ -853,6 +861,14 @@ window.__ModuleLoader__.load({
 			"entry.error": "浏览器操作失败"
 		};
 		const en = {
+			"entry.profile.install": "Install BotHarness Profile Control extension",
+			"entry.profile.instructions": "Enter the address and code in the BotHarness Profile Control extension and confirm Profile-wide access.",
+			"entry.profile.forget": "Forget Profile pairing",
+			"entry.profile.disconnected": "Profile paired · disconnected",
+			"entry.profile.connected": "Profile connected",
+			"entry.profile.pair": "Pair Chrome Profile",
+			"entry.profile.scope": "All ordinary webpage tabs in this Chrome Profile",
+			"settings.profile-control": "Daily Chrome · Entire Profile",
 			"settings.daily-control": "Daily Chrome · Control",
 			"entry.daily.install": "Install Playwright extension",
 			"entry.daily.connect": "Connect existing page",
@@ -1072,7 +1088,8 @@ window.__ModuleLoader__.load({
 								"local",
 								"container",
 								"extension",
-								"daily-control"
+								"daily-control",
+								"profile-control"
 							].map((id) => ({
 								id,
 								label: t(`settings.${id}`)
@@ -1080,7 +1097,7 @@ window.__ModuleLoader__.load({
 							onClose: () => setOpen(false),
 							onSelect: (id) => {
 								setOpen(false);
-								if (id !== "local" && id !== "container" && id !== "extension" && id !== "daily-control") return;
+								if (id !== "local" && id !== "container" && id !== "extension" && id !== "daily-control" && id !== "profile-control") return;
 								setSaving(true);
 								setError(void 0);
 								scope.set("target", id).then(() => {
@@ -1120,6 +1137,95 @@ window.__ModuleLoader__.load({
 						t
 					})
 				}, BrowserTargetSettings));
+			});
+		}
+		//#endregion
+		//#region packages/browser/src/client/profile-browser.tsx
+		function ProfileBrowserControl({ slug, view, paused, enabled, t, refresh }) {
+			const [pair, setPair] = (0, react.useState)();
+			const [busy, setBusy] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)();
+			const active = (0, react.useRef)(false);
+			const sequence = (0, react.useRef)(0);
+			const resource = (0, react.useCallback)((node) => {
+				active.current = node !== null;
+				if (node === null) sequence.current += 1;
+			}, []);
+			const invoke = (action) => {
+				if (slug === void 0 || busy) return;
+				const request = ++sequence.current;
+				setBusy(true);
+				setError(void 0);
+				setPair(void 0);
+				fetch(action === "pause" ? "/api/browser/takeover" : `/api/browser/profile/${action}`, {
+					method: "POST",
+					cache: "no-store",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						slug,
+						...action === "pause" ? { active: !paused } : {}
+					})
+				}).then(async (response) => {
+					const body = await response.json();
+					if (!response.ok || !body.ok) throw new Error(body.error ?? t("entry.error"));
+					if (!active.current || sequence.current !== request) return;
+					if (action === "pair" && body.code !== void 0 && body.expiresAt !== void 0) setPair({
+						code: body.code,
+						expiresAt: body.expiresAt
+					});
+				}).catch((cause) => {
+					if (active.current && sequence.current === request) setError(cause instanceof Error ? cause.message : t("entry.error"));
+				}).finally(() => {
+					if (active.current && sequence.current === request) {
+						setBusy(false);
+						refresh();
+					}
+				});
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: resource,
+				className: "bh-browser-body bh-browser-borrow",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("settings.profile-control") }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.profile.scope") }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
+						className: "bh-browser-daily-install",
+						href: "https://github.com/BotHarness/BotHarness/blob/main/docs/daily-browser.md#chrome-profile-control",
+						target: "_blank",
+						rel: "noreferrer",
+						children: t("entry.profile.install")
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+						role: "status",
+						children: [view?.paired ? t(view.connected ? "entry.profile.connected" : "entry.profile.disconnected") : t("entry.view.noTabs"), view?.connected ? ` · ${view.tabs}` : ""]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						size: "sm",
+						disabled: busy,
+						onClick: () => invoke(view?.paired ? "forget" : "pair"),
+						children: t(view?.paired ? "entry.profile.forget" : "entry.profile.pair")
+					}),
+					view?.connected ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						size: "sm",
+						disabled: !enabled || busy,
+						onClick: () => invoke("pause"),
+						children: t(paused ? "entry.view.resume" : "entry.view.pause")
+					}) : null,
+					view?.paired || pair === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.profile.instructions") }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+							"aria-label": t("entry.borrow.code"),
+							value: pair.code,
+							readOnly: true
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: location.origin })
+					] }),
+					error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						role: "alert",
+						className: "bh-browser-error",
+						children: error
+					})
+				]
 			});
 		}
 		//#endregion
@@ -1769,6 +1875,14 @@ window.__ModuleLoader__.load({
 					store.refresh();
 				});
 			};
+			if (observation?.target === "profile-control") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProfileBrowserControl, {
+				slug: botSlug,
+				view: observation.profile,
+				enabled: info.browserAccess === true,
+				paused,
+				t,
+				refresh: store.refresh
+			}, botSlug);
 			if (observation?.target === "daily-control") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(DailyBrowserControl, {
 				slug: botSlug,
 				view: observation.daily ?? null,

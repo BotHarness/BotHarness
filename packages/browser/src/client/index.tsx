@@ -15,6 +15,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots';
 import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
 import { ProfileCombobox } from './profile-combobox.js';
 import { registerBrowserSettings } from './settings.js';
+import { ProfileBrowserControl } from './profile-browser.js';
+import type { ProfileView } from '../profile-control.js';
 import { DailyBrowserControl } from './daily-browser.js';
 import type { DailyView } from '../daily.js';
 import { BorrowedBrowser, type BorrowedTabView } from './borrowed-browser.js';
@@ -86,8 +88,9 @@ interface BrowserTabView {
 }
 
 interface BrowserObservation {
-  readonly target?: 'local' | 'container' | 'extension' | 'daily-control';
+  readonly target?: 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control';
   readonly daily?: DailyView | null;
+  readonly profile?: ProfileView;
   readonly borrowed?: BorrowedTabView | null;
   readonly viewerUrl?: string | null;
   readonly running: boolean;
@@ -539,6 +542,19 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         store.refresh();
       });
   };
+
+  if (observation?.target === 'profile-control')
+    return (
+      <ProfileBrowserControl
+        key={botSlug}
+        slug={botSlug}
+        view={observation.profile}
+        enabled={info.browserAccess === true}
+        paused={paused}
+        t={t}
+        refresh={store.refresh}
+      />
+    );
 
   if (observation?.target === 'daily-control')
     return (

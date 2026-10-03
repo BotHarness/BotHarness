@@ -38,7 +38,14 @@ describe('Browser Target native settings seam', () => {
       value = {
         status: 'ready',
         writable: true,
-        value: { target: 'local' as 'local' | 'container' | 'extension' | 'daily-control' },
+        value: {
+          target: 'local' as
+            | 'local'
+            | 'container'
+            | 'extension'
+            | 'daily-control'
+            | 'profile-control',
+        },
       };
       listeners = new Set<() => void>();
       getSnapshot() {
@@ -53,7 +60,8 @@ describe('Browser Target native settings seam', () => {
           target !== 'local' &&
           target !== 'container' &&
           target !== 'extension' &&
-          target !== 'daily-control'
+          target !== 'daily-control' &&
+          target !== 'profile-control'
         )
           throw new Error('invalid target');
         this.value = { ...this.value, value: { target } };
@@ -76,7 +84,7 @@ describe('Browser Target native settings seam', () => {
       expect(choice).toBeDefined();
       await act(async () => choice!.click());
       expect(scope.getSnapshot().value.target).toBe('container');
-      for (const target of ['extension', 'daily-control'] as const) {
+      for (const target of ['extension', 'daily-control', 'profile-control'] as const) {
         await act(async () => host.querySelector('button')!.click());
         const next = [...host.querySelectorAll('button')].find(
           (button) => button.textContent === `settings.${target}`,
