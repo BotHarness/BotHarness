@@ -37,6 +37,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
     Pill: control,
     StateDot: dot,
     Switch: toggle,
+    Tooltip: ({ children }: { children: import('react').ReactNode }) => children,
   };
 });
 
@@ -498,7 +499,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('Computer entry access switch', () => {
+describe('Computer entry Access Power control', () => {
   it('shows the Bot Computer Access and toggles it through the bridge', async () => {
     const calls: { endpoint: string; payload: unknown }[] = [];
     const rpcCall: RpcCall = async (_channel, endpoint, payload) => {
@@ -517,9 +518,9 @@ describe('Computer entry access switch', () => {
     const view = mountHeader(rpcCall, 'ada');
     try {
       await view.render();
-      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
+      const toggle = view.container.querySelector<HTMLButtonElement>('.bh-computer-access-power');
       expect(toggle).not.toBeNull();
-      expect(toggle?.getAttribute('aria-checked')).toBe('false');
+      expect(toggle?.getAttribute('aria-pressed')).toBe('false');
       expect(view.expandableCalls).toContain(false);
 
       await act(async () => {
@@ -530,7 +531,7 @@ describe('Computer entry access switch', () => {
         endpoint: 'botharness/computerAccessSet',
         payload: { args: { slug: 'ada', enabled: true } },
       });
-      expect(toggle?.getAttribute('aria-checked')).toBe('true');
+      expect(toggle?.getAttribute('aria-pressed')).toBe('true');
       expect(view.expandableCalls.at(-1)).toBe(true);
       expect(view.expandCalls).toContain(true);
     } finally {
@@ -538,7 +539,7 @@ describe('Computer entry access switch', () => {
     }
   });
 
-  it('rolls the switch back when the write rejects', async () => {
+  it('rolls the Power button back when the write rejects', async () => {
     const rpcCall: RpcCall = async (_channel, endpoint) => {
       if (endpoint === 'botharness/list') {
         return { ok: true, value: { bots: [{ slug: 'ada', computerAccess: true }] } };
@@ -548,21 +549,24 @@ describe('Computer entry access switch', () => {
     const view = mountHeader(rpcCall, 'ada');
     try {
       await view.render();
-      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
-      expect(toggle?.getAttribute('aria-checked')).toBe('true');
+      const toggle = view.container.querySelector<HTMLButtonElement>('.bh-computer-access-power');
+      expect(toggle?.getAttribute('aria-pressed')).toBe('true');
 
       await act(async () => {
         toggle?.click();
       });
 
-      expect(toggle?.getAttribute('aria-checked')).toBe('true');
+      expect(toggle?.getAttribute('aria-pressed')).toBe('true');
       expect(view.expandableCalls.at(-1)).toBe(true);
+      expect(view.container.querySelector('[role=alert]')?.getAttribute('title')).toContain(
+        '切换 Computer Access 失败',
+      );
     } finally {
       await view.dispose();
     }
   });
 
-  it('disables the switch while the write is in flight', async () => {
+  it('disables the Power button while the write is in flight', async () => {
     let release: ((result: { ok: true; value: unknown }) => void) | undefined;
     const rpcCall: RpcCall = (_channel, endpoint) => {
       if (endpoint === 'botharness/list') {
@@ -578,34 +582,36 @@ describe('Computer entry access switch', () => {
     const view = mountHeader(rpcCall, 'ada');
     try {
       await view.render();
-      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
+      const toggle = view.container.querySelector<HTMLButtonElement>('.bh-computer-access-power');
       await act(async () => {
         toggle?.click();
       });
       expect(toggle?.disabled).toBe(true);
+      expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+      expect(view.expandCalls).toEqual([]);
       await act(async () => {
         release?.({ ok: true, value: { bot: { slug: 'ada', computerAccess: true } } });
       });
       expect(toggle?.disabled).toBe(false);
-      expect(toggle?.getAttribute('aria-checked')).toBe('true');
+      expect(toggle?.getAttribute('aria-pressed')).toBe('true');
     } finally {
       await view.dispose();
     }
   });
 
-  it('disables the switch when the sidebar entry has no PersonaBot slug', async () => {
+  it('disables the Power button when the sidebar entry has no PersonaBot slug', async () => {
     const rpcCall: RpcCall = async () => ({ ok: true, value: {} });
     const view = mountHeader(rpcCall, undefined);
     try {
       await view.render();
-      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
+      const toggle = view.container.querySelector<HTMLButtonElement>('.bh-computer-access-power');
       expect(toggle?.disabled).toBe(true);
     } finally {
       await view.dispose();
     }
   });
 
-  it('keeps the access switch out of the body while guidance and the viewer render', async () => {
+  it('keeps the Access Power control out of the body while guidance and the viewer render', async () => {
     const rpcCall: RpcCall = async (_channel, endpoint) => {
       if (endpoint === 'botharness/list') {
         return { ok: true, value: { bots: [{ slug: 'ada', computerAccess: true }] } };
@@ -615,7 +621,7 @@ describe('Computer entry access switch', () => {
     const guidance = mountEntry(rpcCall, 'ada', { probeAvailable: false });
     try {
       await guidance.render();
-      expect(guidance.container.querySelector('button[role="switch"]')).toBeNull();
+      expect(guidance.container.querySelector('.bh-computer-access-power')).toBeNull();
       expect(guidance.container.textContent).toContain('未检测到容器运行时');
     } finally {
       await guidance.dispose();
@@ -623,7 +629,7 @@ describe('Computer entry access switch', () => {
     const running = mountEntry(rpcCall, 'ada', { state: 'running' });
     try {
       await running.render();
-      expect(running.container.querySelector('button[role="switch"]')).toBeNull();
+      expect(running.container.querySelector('.bh-computer-access-power')).toBeNull();
       expect(running.container.querySelector('iframe')).not.toBeNull();
     } finally {
       await running.dispose();

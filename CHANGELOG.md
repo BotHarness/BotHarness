@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Computer and Browser Access use compact Lucide Power controls with localized permission actions, Host-confirmed state, pending guards and failure feedback ([#720](https://github.com/BotHarness/BotHarness/issues/720)).
+
 - Memory sidebar reads retain successful scoped content through refresh and reopening, use skeletons only before the first result, and recover through failure-only Retry actions without header refresh controls ([#719](https://github.com/BotHarness/BotHarness/issues/719)).
 
 - Channel sidebar entries use Lucide function icons and a single top settings gear for Sessions and Memory evolution display choices, preserving their existing preference scopes ([#718](https://github.com/BotHarness/BotHarness/issues/718)).
