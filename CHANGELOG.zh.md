@@ -408,6 +408,7 @@
 
 ### Documentation
 
+- 定义 Avatar Family（形象家族）和 Avatar Appearance（保存外形），将可编辑外形、共享活动事实与 renderer 瞬时姿态分别归属；运行时行为未改变（[Context](CONTEXT.md)、[ADR-0116](docs/adr/0116-editable-avatar-appearance-is-independent-of-activity.md)、[#743](https://github.com/BotHarness/BotHarness/issues/743)）。
 - 在中英文 README 顶部加入压缩后的多 Bot 概念插画，明确标注插画，并保留真实产品截图（[#643](https://github.com/BotHarness/BotHarness/issues/643)）。
 
 - 将早期里程碑 README 更新为双语产品截图介绍、当前源码预览配置与 Computer/Browser 授权（含 Auto-allow）与临时 fork IM 的明确交付边界（[#643](https://github.com/BotHarness/BotHarness/issues/643)）。
