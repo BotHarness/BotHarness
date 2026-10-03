@@ -628,6 +628,7 @@ function accessory(
   left: number,
   right: number,
   far: number,
+  nearEar: number,
 ): void {
   const head = HEADS[recipe.head];
   const shirt = recipe.shirtColor;
@@ -656,23 +657,34 @@ function accessory(
       dots(grid, [[CX, 5]], mix(shirt, WHITE, 0.5));
       return;
     case 'headphones':
-      paint(
-        grid,
-        (x, y) =>
-          ellipse(CX, 19.5, head.half + 4, 16.6)(x, y) &&
-          !ellipse(CX, 19.5, head.half + 2.6, 15.2)(x, y) &&
-          y <= 20,
-        '#5d5b66',
-      );
-      paint(
-        grid,
-        (x, y) =>
-          y >= 20 &&
-          y <= 28 &&
-          ((far !== -1 && x >= left - 4 && x <= left - 1) ||
-            (far !== 1 && x >= right + 1 && x <= right + 4)),
-        '#e25d6a',
-      );
+      {
+        const reach = far === 0 ? head.half + 4 : Math.abs(nearEar - CX) + 2.5;
+        paint(
+          grid,
+          (x, y) =>
+            ellipse(CX, 19.5, reach, 16.6)(x, y) &&
+            !ellipse(CX, 19.5, reach - 1.4, 15.2)(x, y) &&
+            y <= 20,
+          '#5d5b66',
+        );
+      }
+      if (far === 0)
+        paint(
+          grid,
+          (x, y) =>
+            y >= 20 &&
+            y <= 28 &&
+            ((x >= left - 4 && x <= left - 1) || (x >= right + 1 && x <= right + 4)),
+          '#e25d6a',
+        );
+      else {
+        paint(
+          grid,
+          (x, y) => y >= 19 && y <= 29 && Math.abs(x + 0.5 - nearEar - 0.5) <= 2,
+          '#e25d6a',
+        );
+        paint(grid, (x, y) => y >= 21 && y <= 27 && x === nearEar + far, '#b9404e');
+      }
       return;
     case 'flower':
       sprite(grid, ['.P.P.', 'PPYPP', '.YYY.', 'PPYPP', '.P.P.'], 33, 5, { P: '#f59fba', Y: GOLD });
@@ -687,17 +699,16 @@ function accessory(
       dots(
         grid,
         [
-          ...(far === -1
-            ? []
-            : ([
+          ...(far === 0
+            ? ([
                 [left - 2, 28],
                 [left - 2, 29],
-              ] as Point[])),
-          ...(far === 1
-            ? []
-            : ([
                 [right + 2, 28],
                 [right + 2, 29],
+              ] as Point[])
+            : ([
+                [nearEar, 28],
+                [nearEar, 29],
               ] as Point[])),
         ],
         GOLD,
@@ -959,12 +970,13 @@ function renderFigure(
   const R = head.half;
   const left = Math.round(CX - head.half);
   const right = Math.round(CX - 1 + head.half);
-  const chinShift = R * sinY * 0.45;
-  const faceTop = 20;
+  const chinShift = R * sinY * 0.2;
+  const faceTop = head.mouth - 2;
   const headMask: Mask = (x, y) => {
     const t = Math.min(1, Math.max(0, (y + 0.5 - faceTop) / (head.chin - faceTop)));
     return head.mask(x - chinShift * t, y);
   };
+  const earX = Math.round(CX + R * Math.sin(yaw - far * (Math.PI / 2)));
   const frontShift = Math.round(R * sinY * 0.35);
   const backShift = Math.round(-R * sinY * 0.3);
 
@@ -1023,7 +1035,7 @@ function renderFigure(
       );
   }
   const front: Mask = (x, y) =>
-    masks.front(x - frontShift, y) && (y > 17 || cap(x, y) || masks.front(x, y));
+    masks.front(x - frontShift, y) || (y <= 9 && cap(x, y) && masks.front(x, y));
   paint(base, front, hair);
   if (turned)
     paint(
@@ -1059,7 +1071,6 @@ function renderFigure(
     if (x % 2 === 0 && base[y + 3]?.[x] === hair) base[y + 3]![x] = highlight;
   }
   if (turned) {
-    const earX = Math.round(CX + R * Math.sin(yaw - far * (Math.PI / 2)));
     sprite(base, ['SS', 'SE', 'SE', 'SS', '.S'], earX - 1, 22, { S: skin, E: shade(skin, 0.8) });
   }
   if (masks.ties)
@@ -1068,7 +1079,7 @@ function renderFigure(
       masks.ties.map(([x, y]) => [x + backShift, y] as Point),
       shade(recipe.shirtColor, 0.8),
     );
-  accessory(recipe, base, left, right, far);
+  accessory(recipe, base, left, right, far, earX);
 
   const face = blank();
   const my = head.mouth;
