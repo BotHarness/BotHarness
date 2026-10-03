@@ -202,6 +202,10 @@ function BotUIActivityIndicator({ state }: { state: 'thinking' | 'working' }): R
           rows: 3,
           silhouette: 'square',
           dot: 'circle',
+          dotSize: 1,
+          gapX: 0.15,
+          gapY: 0.15,
+          grow: 0,
           color: 'inherit',
         }),
       );

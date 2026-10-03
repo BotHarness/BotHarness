@@ -729,8 +729,10 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 12px;
-  height: 12px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
   border-radius: 3px;
   color: var(--bh-accent);
   background: var(--dsw-alias-bg-base);

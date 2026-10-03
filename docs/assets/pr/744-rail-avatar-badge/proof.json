@@ -9,6 +9,17 @@
         "state": "working",
         "preset": "morph",
         "dots": 9,
+        "padding": {
+          "left": 2,
+          "right": 2,
+          "top": 2,
+          "bottom": 2
+        },
+        "centerOffset": {
+          "x": 0,
+          "y": 0
+        },
+        "dotPitchShare": 0.8696,
         "animated": true,
         "reducedStill": true,
         "insideAvatar": true,
@@ -98,6 +109,17 @@
         "state": "working",
         "preset": "morph",
         "dots": 9,
+        "padding": {
+          "left": 2,
+          "right": 2,
+          "top": 2,
+          "bottom": 2
+        },
+        "centerOffset": {
+          "x": 0,
+          "y": 0
+        },
+        "dotPitchShare": 0.8696,
         "animated": true,
         "reducedStill": true,
         "insideAvatar": true,
@@ -187,6 +209,17 @@
         "state": "working",
         "preset": "morph",
         "dots": 9,
+        "padding": {
+          "left": 2,
+          "right": 2,
+          "top": 2,
+          "bottom": 2
+        },
+        "centerOffset": {
+          "x": 0,
+          "y": 0
+        },
+        "dotPitchShare": 0.8696,
         "animated": true,
         "reducedStill": true,
         "insideAvatar": true,
@@ -276,6 +309,17 @@
         "state": "working",
         "preset": "morph",
         "dots": 9,
+        "padding": {
+          "left": 2,
+          "right": 2,
+          "top": 2,
+          "bottom": 2
+        },
+        "centerOffset": {
+          "x": 0,
+          "y": 0
+        },
+        "dotPitchShare": 0.8696,
         "animated": true,
         "reducedStill": true,
         "insideAvatar": true,

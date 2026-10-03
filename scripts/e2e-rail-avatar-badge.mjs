@@ -185,6 +185,21 @@ try {
         if (!marker) throw Error('real working BotUI marker missing');
         const box = marker.getBoundingClientRect();
         const avatar = marker.parentElement.getBoundingClientRect();
+        const matrix = marker.firstElementChild;
+        const inner = matrix.getBoundingClientRect();
+        const padding = {
+          left: inner.left - box.left,
+          right: box.right - inner.right,
+          top: inner.top - box.top,
+          bottom: box.bottom - inner.bottom,
+        };
+        const centerOffset = {
+          x: (inner.left + inner.right - box.left - box.right) / 2,
+          y: (inner.top + inner.bottom - box.top - box.bottom) / 2,
+        };
+        const dotPitchShare = Number.parseFloat(
+          getComputedStyle(matrix).getPropertyValue('--botui-fill'),
+        );
         const dots = [...marker.querySelectorAll('i')];
         const frame = () =>
           dots.map((dot) => ({
@@ -205,6 +220,9 @@ try {
             state: marker.dataset.botuiState,
             preset: marker.firstElementChild?.dataset.preset,
             dots: dots.length,
+            padding,
+            centerOffset,
+            dotPitchShare,
             animated,
             reducedStill,
             insideAvatar:
@@ -222,6 +240,15 @@ try {
       assert.equal(motion.state, hostBot.state, 'BotUI must follow actual Host execution');
       assert.equal(motion.animated, true, 'BotUI working matrix must animate');
       assert.equal(motion.reducedStill, true, 'shared reduced motion must stop BotUI');
+      assert.ok(
+        Object.values(motion.padding).every((value) => value >= 1.9),
+        'BotUI needs even 2px inner padding',
+      );
+      assert.ok(
+        Object.values(motion.centerOffset).every((value) => Math.abs(value) < 0.1),
+        'BotUI matrix must be centered on both axes',
+      );
+      assert.ok(motion.dotPitchShare >= 0.86, 'BotUI dots must fill most of their pitch');
       assert.equal(motion.insideAvatar, true, 'BotUI must fit inside the avatar');
       assert.equal(
         motion.legacyDotPresent,
