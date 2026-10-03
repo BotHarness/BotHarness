@@ -458,6 +458,7 @@ export interface BridgeActions {
       mode: 'all' | 'mentions' | 'digest' | 'silent';
       count: number;
       intervalSeconds: number;
+      inherit?: boolean;
     },
   ): Promise<boolean>;
   deleteGroupChannel(channelId: string): Promise<boolean>;

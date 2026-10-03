@@ -17,6 +17,8 @@
 
 ### Added
 
+- 在 Bot 设置中新增 Lark 平台行为默认值；Profile 可继承或自定义，保留既有配置、拒绝陈旧保存，并以版本快照管理后续消息收件／汇总及身份暂停。 ([#701](https://github.com/BotHarness/BotHarness/issues/701))
+
 - Bot 可只向已授权 Lark 发送报告，在 Profile 查看 canonical Outbox 正文和可信外部消息 ID，再关联真正的带 @ 回复并在原外部话题回答，不镜像到本地 DM／Channel（[#639](https://github.com/BotHarness/BotHarness/issues/639)）。
 - Human 可通过本地扩展将日常 Chrome 的一个标签页明确借给 PersonaBot 只读观察，以 `browser_observe` 复用登录状态，并从扩展或 Channel 侧栏归还；导航、断线与重启会撤销临时借用（[#741](https://github.com/BotHarness/BotHarness/issues/741)、[指南](docs/daily-browser.md)、[ADR-0116](docs/adr/0116-daily-browser-tabs-use-explicit-ephemeral-borrowing.md)）。
 - PersonaBot 头像与输入框上方独立显示原生工具待审批数量；现有版本化 Host 快照／实时流在批准、拒绝和取消后清除提示，不将历史审批重播为当前等待 ([#123](https://github.com/BotHarness/BotHarness/issues/123)).

@@ -11,6 +11,11 @@ import type { OverviewMemory } from '../memory/overview.js';
 import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overview.js';
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
 import { channelBridgeInput, type ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
+import {
+  externalMemberWake,
+  messagingDefaultsInput,
+  type MessagingDefaults,
+} from '../messaging/defaults.js';
 import type { MessagingIdentity } from '../messaging/identity.js';
 import { personaBotActivitySnapshot, type PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import { threadReceptionInput } from '../messaging/thread-policy.js';
@@ -268,6 +273,8 @@ export interface BridgeMethods {
   messagingGroupPolicy(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingReceive(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingSource(payload: unknown): Promise<BridgeResult<{ source: ExternalSource }>>;
+  messagingDefaults(payload: unknown): Promise<BridgeResult<MessagingDefaults>>;
+  messagingDefaultsSet(payload: unknown): Promise<BridgeResult<MessagingDefaults>>;
   messagingSnapshot(payload: unknown): Promise<BridgeResult<MessagingSnapshot>>;
   messagingTargets(payload: unknown): Promise<BridgeResult<{ targets: MessagingTarget[] }>>;
   messagingAuthorize(payload: unknown): Promise<BridgeResult<{ grant: MessagingGrant }>>;
@@ -889,6 +896,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 expectedRevision: z.number().int().positive(),
                 name: z.string().trim().min(1).max(120),
                 enabled: z.boolean(),
+                inheritEnabled: z.boolean().optional(),
+                expectedDefaultRevision: z.number().int().min(0).optional(),
               })
               .strict(),
             z
@@ -914,6 +923,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return messagingCall(async (service) => ({
         identity: await service.identity(input.data.slug, input.data.input),
       }));
+    },
+    messagingDefaults() {
+      return messagingCall(async (service) => service.defaults());
+    },
+    messagingDefaultsSet(payload) {
+      const parsed = messagingDefaultsInput.safeParse(payload);
+      if (!parsed.success)
+        return Promise.resolve(invalidInput('Valid qualified platform defaults required'));
+      return messagingCall((service) => service.setDefaults(parsed.data));
     },
     messagingSnapshot(payload) {
       const slug = asSlug(payload);
@@ -1683,6 +1701,21 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               botSlug,
               inherited: channel.wakePolicies?.[botSlug] === undefined,
               policy: deps.channels.getGroupWakePolicy(channel.id, botSlug),
+              ...(deps.externalMessaging
+                ? {
+                    external: {
+                      platform: 'feishu' as const,
+                      ...externalMemberWake(
+                        channel,
+                        botSlug,
+                        deps.sourcePolicy
+                          ?.list(botSlug)
+                          .find((p) => p.sourceClass === 'group-ordinary'),
+                        deps.externalMessaging.defaults(),
+                      ),
+                    },
+                  }
+                : {}),
             })),
           },
         };
@@ -1698,10 +1731,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           mode: z.enum(['all', 'mentions', 'digest', 'silent']),
           count: z.number().int().min(1).max(100),
           intervalSeconds: z.number().int().min(1).max(3600),
+          inherit: z.boolean().optional(),
         })
         .safeParse(asObject(payload));
       if (!parsed.success) return invalidInput('invalid Group wake policy');
-      const { channelId, botSlug, mode, count, intervalSeconds } = parsed.data;
+      const { channelId, botSlug, mode, count, intervalSeconds, inherit } = parsed.data;
       const bot = deps.registry.get(botSlug);
       if (bot === undefined || bot.paused === true) return unknownBot(botSlug);
       try {
@@ -1725,6 +1759,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                   mode,
                   count,
                   intervalSeconds,
+                  ...(inherit === undefined ? {} : { inherit }),
                 },
                 { kind: 'human' },
               ),

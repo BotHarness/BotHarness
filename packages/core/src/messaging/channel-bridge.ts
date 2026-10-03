@@ -6,6 +6,8 @@ export interface ChannelBridgeConfiguration {
   enabled: boolean;
   collection: 'mentions' | 'all';
   revision: number;
+  collectionInheritance?: 'inherit' | 'custom';
+  defaultRevision?: number;
   intakeAfter?: string;
 }
 const fields = {
@@ -16,6 +18,8 @@ const configuration = {
   name: z.string().trim().min(1).max(120),
   enabled: z.boolean(),
   collection: z.enum(['mentions', 'all']),
+  collectionInheritance: z.enum(['inherit', 'custom']).optional(),
+  expectedDefaultRevision: z.number().int().min(0).optional(),
 };
 export const channelBridgeInput = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('add'), ...fields, ...configuration }).strict(),
@@ -39,6 +43,7 @@ export interface ChannelBridgeSource {
   platform: string;
   accountName: string;
   conversationName: string;
+  defaultRevision?: number;
   ordinaryDelivery: 'verified' | 'unverified';
 }
 export interface ChannelBridgeRow extends ChannelBridgeSource, ChannelBridgeConfiguration {

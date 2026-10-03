@@ -1517,19 +1517,27 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           defaultGroupWakePolicy(sourcePolicy.resolveIn(db, botSlug, 'group-ordinary')),
         );
       if (
+        !policy.inherit &&
         effective.mode === policy.mode &&
         effective.count === policy.count &&
         effective.intervalSeconds === policy.intervalSeconds
       )
         return channel;
       const changedAt = now().toISOString();
-      const revision = effective.revision + 1;
+      const recorded = database.read((db) =>
+        db
+          .prepare(
+            'SELECT MAX(revision) AS revision FROM group_wake_policy_audit WHERE channel_id = ? AND bot_slug = ?',
+          )
+          .get(channelId, botSlug),
+      ) as { revision: number | null };
+      const revision = Math.max(effective.revision, recorded.revision ?? 0) + 1;
+      const { inherit: _inherit, ...custom } = policy;
+      const policies = { ...channel.wakePolicies, [botSlug]: { ...custom, revision } };
+      if (policy.inherit) delete policies[botSlug];
       const updated: ChannelRecord = {
         ...channel,
-        wakePolicies: {
-          ...channel.wakePolicies,
-          [botSlug]: { ...policy, revision },
-        },
+        wakePolicies: policies,
         updatedAt: changedAt,
       };
       database.transaction(

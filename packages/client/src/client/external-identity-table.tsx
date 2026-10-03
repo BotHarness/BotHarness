@@ -23,6 +23,7 @@ export function ExternalIdentityTable({
   const [selected, setSelected] = useState<MessagingIdentityView>();
   const [accountKey, setAccountKey] = useState('');
   const [name, setName] = useState('');
+  const [inheritEnabled, setInheritEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const identities = snapshot?.identities ?? [];
@@ -34,6 +35,7 @@ export function ExternalIdentityTable({
     setMode(next);
     setSelected(row);
     setName(row?.name ?? '');
+    setInheritEnabled(row?.enabledInheritance === 'inherit');
     setAccountKey('');
   };
   const operate = async (operation: () => Promise<void>, close = false) => {
@@ -76,6 +78,10 @@ export function ExternalIdentityTable({
               expectedRevision: selected.revision,
               name,
               enabled: selected.enabled,
+              inheritEnabled,
+              ...(selected.defaultRevision !== undefined
+                ? { expectedDefaultRevision: selected.defaultRevision }
+                : {}),
             }
           : { kind: mode, id: selected.id, expectedRevision: selected.revision },
       );
@@ -158,6 +164,14 @@ export function ExternalIdentityTable({
                       )
                     }
                   />
+                  <span className="bh-bridge-secondary">
+                    {t(
+                      row.enabledInheritance === 'inherit'
+                        ? 'defaults.inherited'
+                        : 'defaults.custom',
+                    )}
+                    {row.enabledInheritance === 'inherit' ? ` · v${row.defaultRevision ?? 0}` : ''}
+                  </span>
                 </td>
                 <td>
                   <div className="bh-identity-actions">
@@ -260,6 +274,21 @@ export function ExternalIdentityTable({
                   maxLength={120}
                   onChange={(e) => setName(e.target.value)}
                 />
+              </label>
+            ) : null}
+            {mode === 'edit' ? (
+              <label className="bh-im-field">
+                <span>{t('defaults.identity')}</span>
+                <select
+                  aria-label={t('defaults.identityOrigin')}
+                  value={inheritEnabled ? 'inherit' : 'custom'}
+                  disabled={busy}
+                  onChange={(e) => setInheritEnabled(e.target.value === 'inherit')}
+                >
+                  <option value="inherit">{t('defaults.inherited')}</option>
+                  <option value="custom">{t('defaults.custom')}</option>
+                </select>
+                <span>{t('defaults.restoreHint')}</span>
               </label>
             ) : null}
             {mode === 'reconnect' ? <p>{t('identity.reconnectHint')}</p> : null}

@@ -1,3 +1,4 @@
+import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import { useRef, useState, type ReactElement } from 'react';
 import { Button, Switch, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
@@ -30,16 +31,19 @@ export function ChannelBridgeTable({
   const [sourceId, setSourceId] = useState('');
   const [name, setName] = useState('');
   const [enabled, setEnabled] = useState(true);
-  const [collection, setCollection] = useState<'mentions' | 'all'>('mentions');
+  const [collection, setCollection] = useState<'mentions' | 'all' | 'inherit'>('inherit');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const mounted = useRef(false);
+  const refreshRequest = useRef(0);
   const generation = useRef(0);
   const source = mode === 'add' ? snapshot?.sources.find((s) => s.grantId === sourceId) : selected;
   const refresh = async () => {
+    const sequence = ++refreshRequest.current;
     const version = generation.current;
     const next = await actions.channelBridges(channelId);
-    if (mounted.current && version === generation.current) setSnapshot(next);
+    if (mounted.current && version === generation.current && sequence === refreshRequest.current)
+      setSnapshot(next);
   };
   const mount = useMountedResource<HTMLDivElement>(() => {
     mounted.current = true;
@@ -48,7 +52,11 @@ export function ChannelBridgeTable({
     void refresh().catch(() => {
       if (mounted.current) setError(t('bridge.failed'));
     });
+    const unsubscribeDefaults = subscribeMessagingDefaults(
+      () => void refresh().catch(() => undefined),
+    );
     return () => {
+      unsubscribeDefaults();
       mounted.current = false;
       ++generation.current;
     };
@@ -85,7 +93,9 @@ export function ChannelBridgeTable({
     setName(row?.name ?? '');
     setSourceId('');
     setEnabled(row?.enabled ?? true);
-    setCollection(row?.collection ?? 'mentions');
+    setCollection(
+      row ? (row.collectionInheritance === 'inherit' ? 'inherit' : row.collection) : 'inherit',
+    );
     setError('');
   };
   const update = (row: ChannelBridgeRow, preference: boolean): ChannelBridgeInput => ({
@@ -96,6 +106,8 @@ export function ChannelBridgeTable({
     name: row.name,
     enabled: preference,
     collection: row.collection,
+    ...(row.collectionInheritance ? { collectionInheritance: row.collectionInheritance } : {}),
+    ...(row.defaultRevision !== undefined ? { expectedDefaultRevision: row.defaultRevision } : {}),
   });
   const save = async () => {
     if (!source) return;
@@ -110,9 +122,23 @@ export function ChannelBridgeTable({
               expectedRevision: selected.revision,
               name,
               enabled,
-              collection,
+              collection: collection === 'inherit' ? selected.collection : collection,
+              collectionInheritance: collection === 'inherit' ? 'inherit' : 'custom',
+              ...(selected.defaultRevision !== undefined
+                ? { expectedDefaultRevision: selected.defaultRevision }
+                : {}),
             }
-          : { kind: 'add', ...base, name, enabled, collection };
+          : {
+              kind: 'add',
+              ...base,
+              name,
+              enabled,
+              collection: collection === 'inherit' ? 'mentions' : collection,
+              collectionInheritance: collection === 'inherit' ? 'inherit' : 'custom',
+              ...(source.defaultRevision !== undefined
+                ? { expectedDefaultRevision: source.defaultRevision }
+                : {}),
+            };
     await actions.channelBridge(channelId, input);
   };
   return (
@@ -175,7 +201,22 @@ export function ChannelBridgeTable({
                     <span className="bh-bridge-secondary">Lark / 飞书</span>
                   </th>
                   <td>{row.conversationName}</td>
-                  <td>{t(row.collection === 'all' ? 'bridge.all' : 'bridge.mentions')}</td>
+                  <td>
+                    {t(row.collection === 'all' ? 'bridge.all' : 'bridge.mentions')}
+                    <span className="bh-bridge-secondary">
+                      {t(
+                        row.collectionInheritance === 'inherit'
+                          ? 'defaults.inherited'
+                          : 'defaults.custom',
+                      )}
+                      {row.collectionInheritance === 'inherit'
+                        ? ` · v${row.defaultRevision ?? 0}`
+                        : ''}
+                    </span>
+                    {row.collection === 'all' && row.ordinaryDelivery !== 'verified' ? (
+                      <span className="bh-bridge-secondary">{t('bridge.unverified')}</span>
+                    ) : null}
+                  </td>
                   <td>
                     {row.accountName}
                     <span className="bh-bridge-secondary">
@@ -304,8 +345,17 @@ export function ChannelBridgeTable({
               <select
                 value={collection}
                 disabled={busy}
-                onChange={(e) => setCollection(e.target.value === 'all' ? 'all' : 'mentions')}
+                onChange={(e) =>
+                  setCollection(
+                    e.target.value === 'inherit'
+                      ? 'inherit'
+                      : e.target.value === 'all'
+                        ? 'all'
+                        : 'mentions',
+                  )
+                }
               >
+                <option value="inherit">{t('defaults.inherited')}</option>
                 <option value="mentions">{t('bridge.mentions')}</option>
                 <option value="all" disabled={source?.ordinaryDelivery !== 'verified'}>
                   {t('bridge.all')}

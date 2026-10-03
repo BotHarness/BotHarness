@@ -1,0 +1,103 @@
+import type { ChannelRecord } from '../channels/channel.js';
+import { defaultGroupWakePolicy, type BotSourcePolicy } from '../runtime/source-policy.js';
+import { z } from 'zod';
+import type { DatabaseSync } from 'node:sqlite';
+import { MessagingError } from './provider.js';
+
+export const messagingDefaultsInput = z
+  .object({
+    platform: z.literal('feishu'),
+    expectedRevision: z.number().int().min(0),
+    collection: z.enum(['mentions', 'all']),
+    wake: z.enum(['immediate', 'digest', 'mentions', 'silent']),
+    count: z.number().int().min(1).max(100),
+    intervalSeconds: z.number().int().min(1).max(86400),
+    identityEnabled: z.boolean(),
+  })
+  .strict();
+export type MessagingDefaultsInput = z.infer<typeof messagingDefaultsInput>;
+export type MessagingDefaults = Omit<MessagingDefaultsInput, 'expectedRevision'> & {
+  revision: number;
+  changedAt: string;
+};
+export function messagingDefaults(db: DatabaseSync, platform = 'feishu'): MessagingDefaults {
+  const row = db
+    .prepare(
+      'SELECT body FROM messaging_default_revisions WHERE platform = ? ORDER BY revision DESC LIMIT 1',
+    )
+    .get(platform) as { body: string } | undefined;
+  return row
+    ? (JSON.parse(row.body) as MessagingDefaults)
+    : {
+        platform: 'feishu',
+        collection: 'mentions',
+        wake: 'digest',
+        count: 5,
+        intervalSeconds: 30,
+        identityEnabled: true,
+        revision: 0,
+        changedAt: '',
+      };
+}
+export function commitMessagingDefaults(
+  db: DatabaseSync,
+  input: MessagingDefaultsInput,
+): MessagingDefaults {
+  const parsed = messagingDefaultsInput.parse(input);
+  const prior = messagingDefaults(db, parsed.platform);
+  if (prior.revision !== parsed.expectedRevision) throw new MessagingError('defaults-stale');
+  const { expectedRevision: _expected, ...preferences } = parsed;
+  const value = {
+    ...preferences,
+    revision: prior.revision + 1,
+    changedAt: new Date().toISOString(),
+  };
+  db.prepare(
+    'INSERT INTO messaging_default_revisions (platform, revision, body) VALUES (?, ?, ?)',
+  ).run(value.platform, value.revision, JSON.stringify(value));
+  if (!prior.identityEnabled && value.identityEnabled) {
+    const rows = db
+      .prepare(
+        'SELECT g.id, g.body FROM messaging_grants g JOIN messaging_bindings b ON b.id = g.binding_id WHERE b.platform = ? AND b.enabled_inherited = 1 AND b.revoked_at IS NULL AND g.revoked_at IS NULL',
+      )
+      .all(value.platform) as { id: string; body: string }[];
+    for (const row of rows)
+      db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+        JSON.stringify({ ...JSON.parse(row.body), receiveAfter: value.changedAt }),
+        row.id,
+      );
+  }
+  if (prior.identityEnabled !== value.identityEnabled)
+    db.prepare(
+      'UPDATE messaging_bindings SET revision = revision + 1 WHERE platform = ? AND enabled_inherited = 1 AND revoked_at IS NULL',
+    ).run(value.platform);
+  return value;
+}
+
+export function externalMemberWake(
+  channel: ChannelRecord,
+  botSlug: string,
+  rule: BotSourcePolicy | undefined,
+  defaults: MessagingDefaults,
+) {
+  const custom = channel.wakePolicies?.[botSlug];
+  const policy =
+    custom ??
+    (rule?.overrideActive
+      ? defaultGroupWakePolicy(rule)
+      : {
+          mode: defaults.wake === 'immediate' ? ('all' as const) : defaults.wake,
+          count: defaults.count,
+          intervalSeconds: defaults.intervalSeconds,
+          revision: 0,
+        });
+  return {
+    policy,
+    origin: custom
+      ? ('channel' as const)
+      : rule?.overrideActive
+        ? ('bot' as const)
+        : ('platform' as const),
+    defaultRevision: defaults.revision,
+  };
+}

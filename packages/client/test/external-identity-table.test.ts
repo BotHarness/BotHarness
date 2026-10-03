@@ -104,6 +104,7 @@ it('failed Switch writes retain the committed preference; stale Modal edits reta
       id: 'binding',
       expectedRevision: 7,
       name: 'Retained edit',
+      inheritEnabled: false,
       enabled: true,
     });
   } finally {

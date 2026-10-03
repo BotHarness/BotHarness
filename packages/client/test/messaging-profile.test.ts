@@ -377,6 +377,8 @@ it('gates full collection on live ordinary delivery and saves collection indepen
     expect(messagingGroupPolicy).not.toHaveBeenCalled();
     await act(async () => button('im.policySave').click());
     expect(messagingGroupPolicy).toHaveBeenCalledExactlyOnceWith('ada', grant.id, {
+      inheritance: 'custom',
+      expectedRevision: 0,
       collection: 'all',
       wake: 'immediate',
       count: 5,

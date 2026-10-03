@@ -324,6 +324,7 @@ export interface ChannelStore {
       mode: 'all' | 'mentions' | 'digest' | 'silent';
       count: number;
       intervalSeconds: number;
+      inherit?: boolean;
     },
     actor?: GroupWakePolicyActor,
   ): ChannelRecord;

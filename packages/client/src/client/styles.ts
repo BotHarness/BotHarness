@@ -5384,6 +5384,17 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 }
 .bh-channel-options{position:absolute;right:12px;top:11px;pointer-events:auto}
 .bh-human-nickname-dialog p{margin:0}
+.bh-messaging-defaults{display:flex;flex-direction:column;gap:12px;margin-top:24px}
+.bh-messaging-defaults p{margin:0}
+.bh-messaging-defaults input{width:56px}
+.bh-messaging-defaults .bh-source-policy-table{table-layout:auto;min-width:0;width:100%;font-size:12px}
+.bh-messaging-defaults .bh-source-policy-table th,.bh-messaging-defaults .bh-source-policy-table td{width:auto;padding:10px 6px;text-align:left;vertical-align:middle}
+.bh-messaging-defaults .bh-source-policy-table th:first-child{padding-left:0;white-space:nowrap}
+.bh-messaging-defaults .bh-source-policy-table td:last-child{padding-right:0}
+.bh-messaging-defaults select{max-width:150px;width:100%}
+.bh-default-threshold{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:4px 0}
+.bh-default-threshold span{font-size:10px;color:var(--dsw-alias-label-secondary);white-space:nowrap}
+.bh-messaging-defaults input,.bh-messaging-defaults select{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:6px}
 .bh-human-name-setting{display:flex;flex-direction:column;gap:10px;margin-top:20px}
 .bh-human-name-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .bh-human-name-controls>div:first-child{flex:1 1 220px;min-width:0}

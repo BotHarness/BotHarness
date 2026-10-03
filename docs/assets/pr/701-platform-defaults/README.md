@@ -1,0 +1,24 @@
+# Platform defaults — #701 QA evidence
+
+Base: `b8f5caaa89ecc66fe241ef4b89bfc484950a9bce`. Implementation: `cd8d03a1065d754cf35682ac5a2ad57633255984`; the subsequent evidence commit changes no runtime code. Chrome, 1230 × 876, light theme, Chinese locale, the same isolated QA Profile. Before screenshots use a separate base checkout before Generation 51; after screenshots use the implemented Client/Core. Sidebar scroll positions differ to expose each relevant form. The before Bridge form shows its existing add entry point, while after shows the same collection field on an existing source's edit form.
+
+## Human replay
+
+1. Open the retained authenticated QA instance from its local launcher URL. In Bot settings, inspect the two external-platform default tables. Current global v5 is all-message intake, digest 100 messages / 5 seconds, inherited identity enabled. This is a QA choice; built-in defaults remain mention-only, digest 5 / 30 seconds, identity enabled.
+2. Open `Lark Shared Channel QA #634` → full Profile. Its connector inherits collection. `IM Artifact QA` inherits external ordinary harvest; `IM Shared Reader QA` retains its explicit 100 / 10-second Channel policy. Local-message defaults remain separately visible.
+3. Set global digest to 2 / 120 seconds. Send one synthetic ordinary message in the authorized `BotHarness IM QA #78` Lark group, then a second. The primary member processes the two-message bucket. Change global to 1 / 120 and send another: only that future admission gets the new threshold. Old admissions retain their snapshots.
+4. Set the connector to custom mention-only, then change the global preference. An ordinary unmentioned message stays outside canonical intake. Restore connector inheritance and test a future message; current defaults apply. Member modal provides a separate Restore inheritance action. No Grant, destination, Thread follow or mandatory reply is created.
+5. In PersonaBot Profile, restore identity inheritance. Disable inherited identities globally: the row becomes paused and sending refuses before dispatch. Enable this one row as custom: its own validated identity can remain enabled despite the global pause. Restore inheritance: it pauses again. Re-enable globally: the existing account/target is revalidated, future intake recovers, and a deliberately requested send reaches Lark.
+6. Search the retained Channel for `BH701 COUNT`, `BH701 REV2`, `BH701 TIME` and `BH701 RESUMED INTAKE`. Actual model replies are `BH701-COUNT-OK`, `BH701-REV2-OK`, `BH701-TIME-OK`, and `BH701-RESUMED-INBOX-OK`. Profile's recent sends contains `[BH701 RESUME]` with platform acceptance; the native Lark client independently showed that exact text.
+
+## Evidence and boundaries
+
+`e2e-proof.json` contains only selected synthetic Source Event/Admission facts and the requested test send. COUNT 1 was pending before COUNT 2; saved primary thresholds are 2/120 (v1), 1/120 (v2), 100/5 (v3 and resumed v5). Secondary remains 100/10. CUSTOM IGNORE has no canonical source. Database inspection was read-only; configuration and test events used the actual UI/API/Provider seams. No manual insertion, second Inbox store, fake model response or permission expansion was used.
+
+Full regression: 2143 PASS / 3 SKIP; lint, format, typecheck, build and both Release Ledger checks pass. Automated coverage verifies legacy migration preservation, restart, stale commands/drafts, snapshot separation, explicit Thread precedence, capability refusal, pause during async inspection and rejection of late pre-resume events. These are distinguished from real Lark observations. CI is reported in the PR, not assumed from local tests. Qualification is limited to Lark/Feishu group text; Slack/QQ/Discord/webhooks, dark/mobile layouts and human read status are not asserted.
+
+Generation 51 is forward-only. An upgraded database cannot run an older generation: use a forward fix or restore a private pre-upgrade backup with appropriate downtime. Never publish profile credentials, cookies or the database. Global changes can affect every still-inherited identity and message route; review dispatch/lease fences and per-admission snapshot partitioning before merge. Human QA and separate merge authorization remain required.
+
+## Pre-merge review follow-up
+
+The member Restore inheritance command now submits its saved valid local policy envelope instead of an unsaved invalid draft. In the running latest Client, entering count 0 disabled normal Save; Restore closed the Modal successfully and the refreshed table retained inherited Lark v5 (100/5). `restore-invalid-draft.png` and `restore-invalid-success.png` record this focused replay. A DOM regression exercises invalid draft 0 with a saved custom 2/120 policy and asserts the actual restore command and close result. Original provider/model evidence above remains anchored to the original runtime commit.
