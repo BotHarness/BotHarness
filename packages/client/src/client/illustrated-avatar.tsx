@@ -131,10 +131,10 @@ export function IllustratedAvatar({
         )
           return;
         const compact = size <= 64;
-        const enter = head.animate(
-          [{ transform: start === 'none' ? 'none' : start }, { transform: 'none' }],
-          { duration: 120, easing: 'steps(2, end)' },
-        );
+        const enter = head.animate([{ transform: start || 'none' }, { transform: 'none' }], {
+          duration: 120,
+          easing: 'steps(2, end)',
+        });
         animations.add(enter);
         const gazeEnter = gaze.animate(
           [{ transform: gazeStart || 'none' }, { transform: 'none' }],

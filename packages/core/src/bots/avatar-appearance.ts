@@ -394,8 +394,7 @@ function hairMask(recipe: IllustratedAvatarRecipe): {
       return {
         back: none,
         front: (x, y) =>
-          (crown(y, x) && y <= 9) ||
-          bumps.some(([bx, by]) => (x + 0.5 - bx - 0.5) ** 2 + (y + 0.5 - by - 0.5) ** 2 <= 4.4),
+          (crown(y, x) && y <= 9) || bumps.some(([bx, by]) => (x - bx) ** 2 + (y - by) ** 2 <= 4.4),
       };
     }
     case 'mohawk':
@@ -846,14 +845,8 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     const round = recipe.glasses === 'round';
     frame(lx, round);
     frame(rx, round);
-    dots(
-      glasses,
-      [
-        [15, EYE_Y - 1],
-        [16, EYE_Y - 1],
-      ],
-      INK,
-    );
+    for (let x = lx + (round ? 4 : 3); x <= rx - (round ? 3 : 2); x++)
+      dots(glasses, [[x, EYE_Y - 1]], INK);
   }
   if (recipe.glasses === 'shades') {
     for (const cx of EYE_X)

@@ -48,6 +48,22 @@ describe('illustrated Avatar artwork', () => {
     }
   });
 
+  it('joins both lenses of framed glasses with a continuous bridge', () => {
+    for (const [glasses, from, to] of [
+      ['round', 14, 17],
+      ['square', 13, 18],
+    ] as const) {
+      const svg = illustratedAvatarSvg({ ...DEFAULT_ILLUSTRATED_RECIPE, glasses });
+      const row = [
+        ...svg.matchAll(/<rect x="(\d+)" y="14" width="(\d+)" height="1" fill="#1d1b22"\/>/gu),
+      ];
+      const covered = new Set(
+        row.flatMap(([, x, w]) => Array.from({ length: Number(w) }, (_, i) => Number(x) + i)),
+      );
+      for (let x = from; x <= to; x++) expect(covered.has(x), `${glasses} x=${x}`).toBe(true);
+    }
+  });
+
   it('rejects unknown parts and keeps the recipe closed', () => {
     expect(isIllustratedAvatarRecipe(DEFAULT_ILLUSTRATED_RECIPE)).toBe(true);
     for (const invalid of [

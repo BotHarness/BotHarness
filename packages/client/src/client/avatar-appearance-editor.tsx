@@ -82,7 +82,11 @@ function OptionTile({
   id: string;
   onSelect(): void;
 }): ReactElement {
-  const markup = useMemo(() => illustratedAvatarSvg(recipe), [recipe]);
+  const key = JSON.stringify(recipe);
+  const markup = useMemo(
+    () => illustratedAvatarSvg(JSON.parse(key) as IllustratedAvatarRecipe),
+    [key],
+  );
   return (
     <button
       type="button"
@@ -149,22 +153,38 @@ export function AvatarAppearanceEditor({
         <p>{t('profile.avatar.designDescription')}</p>
         {draft ? (
           <fieldset disabled={busy} className="bh-avatar-editor-fields">
-            <div
-              className="bh-avatar-categories"
-              role="toolbar"
-              aria-label={t('profile.avatar.parts')}
-            >
-              {CATEGORIES.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  data-avatar-category={key}
-                  aria-pressed={category === key}
-                  onClick={() => setCategory(key)}
-                >
-                  {t(`profile.avatar.${key}`)}
-                </button>
-              ))}
+            <div className="bh-avatar-categories">
+              <div role="tablist" aria-label={t('profile.avatar.parts')}>
+                {CATEGORIES.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    id={`bh-avatar-tab-${key}`}
+                    data-avatar-category={key}
+                    aria-selected={category === key}
+                    aria-controls="bh-avatar-panel"
+                    tabIndex={category === key ? 0 : -1}
+                    onClick={() => setCategory(key)}
+                    onKeyDown={(event) => {
+                      const step =
+                        event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+                      if (!step) return;
+                      event.preventDefault();
+                      const next =
+                        CATEGORIES[
+                          (CATEGORIES.indexOf(key) + step + CATEGORIES.length) % CATEGORIES.length
+                        ]!;
+                      setCategory(next);
+                      event.currentTarget.parentElement
+                        ?.querySelector<HTMLButtonElement>(`[data-avatar-category="${next}"]`)
+                        ?.focus();
+                    }}
+                  >
+                    {t(`profile.avatar.${key}`)}
+                  </button>
+                ))}
+              </div>
               <button
                 type="button"
                 data-avatar-shuffle
@@ -175,7 +195,12 @@ export function AvatarAppearanceEditor({
               </button>
             </div>
             {category === 'colors' ? (
-              <div className="bh-avatar-colors">
+              <div
+                className="bh-avatar-colors"
+                role="tabpanel"
+                id="bh-avatar-panel"
+                aria-labelledby="bh-avatar-tab-colors"
+              >
                 {AVATAR_COLORS.map((key) => (
                   <div key={key} className="bh-avatar-color-row">
                     <span>{t(`profile.avatar.${key}`)}</span>
@@ -186,7 +211,7 @@ export function AvatarAppearanceEditor({
                         className="bh-avatar-swatch"
                         data-avatar-option={`${key}:${value}`}
                         aria-pressed={draft[key] === value}
-                        aria-label={value}
+                        aria-label={`${t(`profile.avatar.${key}`)} ${value}`}
                         style={{ background: value }}
                         onClick={() => setDraft({ ...draft, [key]: value })}
                       />
@@ -204,8 +229,9 @@ export function AvatarAppearanceEditor({
             ) : (
               <div
                 className="bh-avatar-options"
-                role="group"
-                aria-label={t(`profile.avatar.${category}`)}
+                role="tabpanel"
+                id="bh-avatar-panel"
+                aria-labelledby={`bh-avatar-tab-${category}`}
               >
                 {AVATAR_PARTS[category].map((value) => (
                   <OptionTile
