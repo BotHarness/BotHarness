@@ -304,6 +304,29 @@ describe('bridge parsers', () => {
 });
 
 describe('bridge actions', () => {
+  it('keeps All Bots intent out of failed local echoes and preserves the stale-preview error for composer recovery', async () => {
+    const preview = { revision: 'fresh', recipients: [{ botSlug: 'ada', label: 'Ada' }] };
+    const { clientStore, actions } = setup({
+      channelSend: () => {
+        throw new BridgeCallError('all-bot-preview-changed', 'changed', { preview });
+      },
+    });
+    await actions.load();
+    await actions.openChannel('group-team');
+    await expect(
+      actions.send('@All Bots check', undefined, undefined, undefined, [], [], undefined, {
+        start: 0,
+        end: 9,
+        label: 'All Bots',
+        preview,
+      }),
+    ).rejects.toMatchObject({ code: 'all-bot-preview-changed', details: { preview } });
+    expect(clientStore.getSnapshot().conversation.messages.map((m) => m.body)).toEqual([
+      'older',
+      'newer',
+    ]);
+    expect(clientStore.getSnapshot().conversation.sending).toBe(false);
+  });
   function setup(extra: Record<string, Handler> = {}) {
     const clientStore = createStore();
     let topOrder: Array<{ kind: 'section' | 'channel'; id: string }> = [];
