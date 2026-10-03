@@ -85,6 +85,7 @@ describe('Channel sidebar preferences', () => {
       expandedEntries: [],
       width: 320,
       memoryTerminology: 'memory',
+      entryOrders: { personabot: [], channel: [] },
     });
     expect(prefs.isSidebarCollapsed('personabot:ada')).toBe(false);
     expect(prefs.isEntryExpanded('personabot:ada', 'assignments')).toBe(false);
@@ -131,6 +132,7 @@ describe('Channel sidebar preferences', () => {
       expandedEntries: [],
       width: 320,
       memoryTerminology: 'memory',
+      entryOrders: { personabot: [], channel: [] },
     });
   });
 

@@ -34,6 +34,7 @@ import type { BotHarnessTranslate } from './locale.js';
 import type { ClientState } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 import { ChannelSidebarIcon } from './channel-sidebar-icon.js';
+import { moveEntry, resolveEntryOrder } from './channel-sidebar-order.js';
 import { ChannelSidebarSettings } from './channel-sidebar-settings.js';
 
 function matchesNarrow(): boolean {
@@ -125,7 +126,9 @@ export function ChannelSidebarEntrySection({
   expanded,
   onToggle,
   entryProps,
+  editing = false,
 }: {
+  editing?: boolean;
   entry: ChannelSidebarEntry;
   expanded: boolean;
   onToggle(): void;
@@ -141,9 +144,9 @@ export function ChannelSidebarEntrySection({
     ...entryProps,
     refreshRevision,
     requestRefresh: () => setRefreshRevision((value) => value + 1),
-    expanded,
+    expanded: expanded && !editing,
     setExpanded: (next: boolean) => {
-      if (next === expanded) return;
+      if (next === expanded || (editing && next)) return;
       if (next && !expandableRef.current) return;
       onToggle();
     },
@@ -159,15 +162,15 @@ export function ChannelSidebarEntrySection({
         <button
           type="button"
           className="bh-channel-sidebar-entry-head"
-          aria-expanded={expanded}
+          aria-expanded={expanded && !editing}
           aria-controls={bodyId}
           aria-disabled={expandable ? undefined : true}
-          disabled={!expandable}
+          disabled={!expandable || editing}
           style={expandable ? undefined : { cursor: 'default', opacity: 0.6 }}
           onClick={expandable ? onToggle : undefined}
         >
           <span
-            className={`bh-channel-sidebar-entry-chevron${expanded ? '' : ' bh-chevron-collapsed'}`}
+            className={`bh-channel-sidebar-entry-chevron${expanded && !editing ? '' : ' bh-chevron-collapsed'}`}
             aria-hidden="true"
           >
             <IconChevronDownOutlineRegular size={14} />
@@ -188,12 +191,163 @@ export function ChannelSidebarEntrySection({
           </span>
         )}
       </div>
-      {expanded ? (
+      {expanded && !editing ? (
         <div id={bodyId} className="bh-channel-sidebar-entry-body">
           <entry.component {...props} />
         </div>
       ) : null}
     </section>
+  );
+}
+
+export function ChannelSidebarContents({
+  entries,
+  registered = entries,
+  entryProps,
+  controller,
+  prefs = channelSidebarPrefs,
+}: {
+  entries: readonly ChannelSidebarEntry[];
+  registered?: readonly ChannelSidebarEntry[];
+  entryProps: ChannelSidebarEntryProps;
+  controller: Pick<ChannelSidebarController, 'isEntryExpanded' | 'toggleEntry'>;
+  prefs?: ChannelSidebarPrefs;
+}): ReactElement {
+  const snapshot = useSyncExternalStore(prefs.subscribe, prefs.getSnapshot, prefs.getSnapshot);
+  const [draft, setDraft] = useState<readonly string[] | undefined>();
+  const [announcement, setAnnouncement] = useState('');
+  const drag = useRef<string | undefined>(undefined);
+  const rows = useRef<HTMLDivElement>(null);
+  const editing = draft !== undefined;
+  const order = resolveEntryOrder(
+    registered.map((entry) => entry.id),
+    draft ?? snapshot.entryOrders[entryProps.scope],
+  );
+  const visible = order.flatMap((id) => entries.filter((entry) => entry.id === id));
+  const move = (id: string, target: string): void => {
+    setDraft(moveEntry(order, id, target));
+    const next = moveEntry(
+      visible.map((entry) => entry.id),
+      id,
+      target,
+    );
+    const entry = entries.find((entry) => entry.id === id);
+    setAnnouncement(
+      entryProps.t('sidebar.order.position', {
+        label: entry?.label ?? id,
+        position: String(next.indexOf(id) + 1),
+        total: String(visible.length),
+      }),
+    );
+    requestAnimationFrame(() => {
+      const handles = rows.current?.querySelectorAll<HTMLButtonElement>('[data-order-handle]');
+      for (const handle of handles ?? []) if (handle.dataset['orderHandle'] === id) handle.focus();
+    });
+  };
+  const finish = (save: boolean): void => {
+    if (save && draft !== undefined) prefs.setEntryOrder(entryProps.scope, order);
+    setDraft(undefined);
+    drag.current = undefined;
+    setAnnouncement('');
+  };
+  return (
+    <>
+      <div className="bh-channel-sidebar-head">
+        <ChannelSidebarSettings
+          entries={entries}
+          entryProps={entryProps}
+          editing={editing}
+          onEdit={() => setDraft(order)}
+        />
+      </div>
+      <div
+        className={`bh-channel-sidebar-entries${editing ? ' bh-sidebar-editing' : ''}`}
+        ref={rows}
+      >
+        {editing ? (
+          <div className="bh-sidebar-order-toolbar">
+            <div className="bh-sidebar-order-hint">{entryProps.t('sidebar.order.hint')}</div>
+            <div className="bh-sidebar-order-actions">
+              <button type="button" onClick={() => finish(true)}>
+                {entryProps.t('sidebar.order.done')}
+              </button>
+              <button type="button" onClick={() => finish(false)}>
+                {entryProps.t('sidebar.order.cancel')}
+              </button>
+              <button type="button" onClick={() => setDraft(registered.map((entry) => entry.id))}>
+                {entryProps.t('sidebar.order.reset')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+        <span className="bh-sidebar-order-announcement" role="status" aria-live="polite">
+          {announcement}
+        </span>
+        {visible.length === 0 ? (
+          <div className="bh-note">{entryProps.t('sidebar.empty')}</div>
+        ) : (
+          visible.map((entry, index) => (
+            <div
+              className="bh-sidebar-order-row"
+              data-entry-id={entry.id}
+              key={entry.id}
+              onDragOver={(event) => {
+                if (editing && drag.current !== undefined) event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (!editing || drag.current === undefined) return;
+                event.preventDefault();
+                move(drag.current, entry.id);
+                drag.current = undefined;
+              }}
+            >
+              {editing ? (
+                <button
+                  type="button"
+                  className="bh-sidebar-order-handle"
+                  data-order-handle={entry.id}
+                  draggable
+                  aria-label={entryProps.t('sidebar.order.move', { label: entry.label })}
+                  onDragStart={(event) => {
+                    drag.current = entry.id;
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', entry.id);
+                  }}
+                  onDragEnd={() => {
+                    drag.current = undefined;
+                  }}
+                  onKeyDown={(event) => {
+                    const target =
+                      event.key === 'ArrowUp'
+                        ? index - 1
+                        : event.key === 'ArrowDown'
+                          ? index + 1
+                          : event.key === 'Home'
+                            ? 0
+                            : event.key === 'End'
+                              ? visible.length - 1
+                              : undefined;
+                    if (target === undefined) return;
+                    event.preventDefault();
+                    const next = visible[target];
+                    if (next !== undefined) move(entry.id, next.id);
+                  }}
+                >
+                  <ChannelSidebarIcon name="grip-vertical" />
+                </button>
+              ) : null}
+              <ChannelSidebarEntrySection
+                entry={entry}
+                expanded={controller.isEntryExpanded(entry.id)}
+                onToggle={() => controller.toggleEntry(entry.id)}
+                entryProps={entryProps}
+                editing={editing}
+              />
+            </div>
+          ))
+        )}
+      </div>
+    </>
   );
 }
 
@@ -335,30 +489,15 @@ export function ChannelSidebar({
           onDoubleClick={() => controller.setWidth(DEFAULT_CHANNEL_SIDEBAR_WIDTH)}
         />
       )}
-      <div className="bh-channel-sidebar-head">
-        {entryProps === undefined ? null : (
-          <ChannelSidebarSettings
-            key={controller.scopeKey}
-            entries={visibleEntries}
-            entryProps={entryProps}
-          />
-        )}
-      </div>
-      <div className="bh-channel-sidebar-entries">
-        {entryProps === undefined ? null : visibleEntries.length === 0 ? (
-          <div className="bh-note">{t('sidebar.empty')}</div>
-        ) : (
-          visibleEntries.map((entry) => (
-            <ChannelSidebarEntrySection
-              key={`${entry.id}:${entryProps.channelId}`}
-              entry={entry}
-              expanded={controller.isEntryExpanded(entry.id)}
-              onToggle={() => controller.toggleEntry(entry.id)}
-              entryProps={entryProps}
-            />
-          ))
-        )}
-      </div>
+      {entryProps === undefined ? null : (
+        <ChannelSidebarContents
+          key={controller.scopeKey}
+          entries={visibleEntries}
+          registered={entries}
+          entryProps={entryProps}
+          controller={controller}
+        />
+      )}
     </div>
   );
   if (controller.mode === 'overlay') {

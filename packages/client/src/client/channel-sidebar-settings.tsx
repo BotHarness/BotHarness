@@ -88,7 +88,11 @@ export function MemoryDisplaySettings({ t, onClose }: ChannelSidebarSettingsProp
 export function ChannelSidebarSettings({
   entries,
   entryProps,
+  onEdit,
+  editing = false,
 }: {
+  onEdit?: () => void;
+  editing?: boolean;
   entries: readonly ChannelSidebarEntry[];
   entryProps: ChannelSidebarEntryProps;
 }): ReactElement {
@@ -113,6 +117,7 @@ export function ChannelSidebarSettings({
             ref={anchor}
             type="button"
             className="bh-sidebar-toggle bh-sidebar-settings"
+            disabled={editing}
             aria-label={label}
             aria-haspopup="menu"
             aria-expanded={open}
@@ -124,11 +129,21 @@ export function ChannelSidebarSettings({
       }
       onClose={close}
     >
+      {onEdit === undefined ? null : (
+        <MenuItemButton
+          onSelect={() => {
+            close();
+            onEdit();
+          }}
+        >
+          {entryProps.t('sidebar.order.edit')}
+        </MenuItemButton>
+      )}
       {settings.map((entry) => {
         const Settings = entry.settings!;
         return <Settings key={entry.id} {...entryProps} onClose={close} />;
       })}
-      {settings.length === 0 ? (
+      {settings.length === 0 && onEdit === undefined ? (
         <MenuItemButton disabled onSelect={close}>
           {entryProps.t('sidebar.settings.empty')}
         </MenuItemButton>
