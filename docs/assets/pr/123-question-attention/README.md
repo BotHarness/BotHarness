@@ -7,9 +7,9 @@ Isolated DSH 0.2.0-rc.1 with a real DeepSeek Flash / low Orchestrator, captured 
 - `reconnected-answer-cleared.png`: answer committed while the browser was offline, then recovery without reloading clears the badge; a genuine model reply reports Canary.
 - `native-cancel-cleared.png`: authenticated native `session/cancel` clears the pending question.
 - `restarted-history-no-attention.png`: process restart retains history but expires its old request; no attention is replayed.
-- `human-qa-pending-question.png`: a fresh native question left open for Human QA.
+- `human-qa-pending-question.png`: a fresh native question from a new QA Bot left open for Human QA.
 - `proof.json`: bounded public Activity snapshots/revisions and captured SSE frames, offline answer and cancellation results. No question contents, Tool arguments/results or credentials are in the Activity projection.
-- `restart-proof.json`: new Host generation, idle baseline and expired historical request.
+- `restart-proof.json`: new Host generation, idle baseline and expired historical request. This asserts attention cleanup, not resuming an interrupted model Turn.
 
 Reproduce with `scripts/dev-instance.mjs` using a fresh isolated home, then set `BH_E2E_ORIGIN`, `BH_E2E_HOME`, `BH_E2E_EVIDENCE` and run `node scripts/e2e-question-attention.mjs`. Restart only that verified QA Host, then run the script with `restarted`. Authentication comes from the machine-local launcher cookie jar and is never committed. The browser cookie is scoped to the local Host.
 

@@ -153,6 +153,30 @@ async function assertUI(scene, count) {
     assert.match(summary, /1 个问题待回答|1 questions awaiting an answer/);
   }
 }
+async function prepare() {
+  const bot = (
+    await rpc('create', {
+      displayName: `Question attention Human QA ${Date.now()}`,
+      persona:
+        'Follow the Human precisely. Use the native ask_user_question Tool when requested and await the Human answer. Report the actual returned answer through channel_send in your DM. Do not ask again or create Assignments.',
+    })
+  ).bot;
+  const channelId = (await rpc('channelDm', { slug: bot.slug })).channel.id;
+  const model = (await rpc('modelCatalog')).models.find(
+    (model) => model.model.includes('flash') && model.efforts.some((effort) => effort.id === 'low'),
+  );
+  assert.ok(model, 'qualified Flash low route');
+  const route = { provider: model.provider, model: model.model, reasoningEffort: 'low' };
+  const preset = (
+    await rpc('modelPresetCreate', {
+      name: bot.displayName,
+      orchestrator: route,
+      assignmentDefault: route,
+    })
+  ).preset;
+  await rpc('modelPresetApply', { slug: bot.slug, presetId: preset.id });
+  return { slug: bot.slug, channelId, displayName: bot.displayName };
+}
 try {
   if (mode === 'restarted') {
     const scene = JSON.parse(readFileSync(statePath, 'utf8'));
@@ -181,8 +205,10 @@ try {
         2,
       ),
     );
-    const humanRequest = await requestQuestion(scene);
-    await assertUI(scene, 1);
+    const humanScene = await prepare();
+    await open(humanScene.channelId);
+    const humanRequest = await requestQuestion(humanScene);
+    await assertUI(humanScene, 1);
     await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
     await delay(200);
     await shot('human-qa-pending-question');
@@ -190,32 +216,12 @@ try {
     await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', 'true'));
     await shot('pending-question-dark');
     await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
-    writeFileSync(statePath, JSON.stringify({ ...scene, humanRequest }, null, 2));
+    writeFileSync(statePath, JSON.stringify({ ...scene, humanScene, humanRequest }, null, 2));
     console.log('RESTART verified; Human QA pending question retained');
   } else {
-    const bot = (
-      await rpc('create', {
-        displayName: `Question attention Human QA ${Date.now()}`,
-        persona:
-          'Follow the Human precisely. Use the native ask_user_question Tool when requested and await the Human answer. Report the actual returned answer through channel_send in your DM. Do not ask again or create Assignments.',
-      })
-    ).bot;
-    const channelId = (await rpc('channelDm', { slug: bot.slug })).channel.id;
-    const model = (await rpc('modelCatalog')).models.find(
-      (model) =>
-        model.model.includes('flash') && model.efforts.some((effort) => effort.id === 'low'),
-    );
-    assert.ok(model, 'qualified Flash low route');
-    const route = { provider: model.provider, model: model.model, reasoningEffort: 'low' };
-    const preset = (
-      await rpc('modelPresetCreate', {
-        name: bot.displayName,
-        orchestrator: route,
-        assignmentDefault: route,
-      })
-    ).preset;
-    await rpc('modelPresetApply', { slug: bot.slug, presetId: preset.id });
-    const scene = { slug: bot.slug, channelId, displayName: bot.displayName };
+    const scene = await prepare();
+    const bot = { slug: scene.slug };
+    const channelId = scene.channelId;
     await open(channelId);
     const request = await requestQuestion(scene);
     await assertUI(scene, 1);
