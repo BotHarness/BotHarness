@@ -2,6 +2,7 @@ import {
   isSessionActivityName,
   type PersonaBotSessionActivity,
 } from '../../../core/src/state/tool-activity.js';
+import { parsePublicAttention } from './activity-attention.js';
 import { parsePublicToolActivity } from './activity-detail.js';
 import { PERSONA_BOT_ACTIVITY_STATES } from './avatar.js';
 import type { ClientStore, PersonaBotActivitySnapshot } from './store.js';
@@ -34,6 +35,9 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
       )
         return undefined;
       slugs.add(bot['slug']);
+      const attention =
+        bot['attention'] === undefined ? undefined : parsePublicAttention(bot['attention']);
+      if (bot['attention'] !== undefined && attention === undefined) return undefined;
       const activity =
         bot['activity'] === undefined ? undefined : parsePublicToolActivity(bot['activity']);
       if (bot['activity'] !== undefined && (activity === undefined || state !== 'working'))
@@ -93,6 +97,7 @@ export function parseActivitySnapshot(data: string): PersonaBotActivitySnapshot 
       bots.push({
         slug: bot['slug'],
         state,
+        ...(attention === undefined ? {} : { attention }),
         ...(activity === undefined ? {} : { activity }),
         ...(sessions === undefined ? {} : { sessions }),
       });

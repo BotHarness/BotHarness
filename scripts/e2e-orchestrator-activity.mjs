@@ -151,6 +151,20 @@ async function open() {
 }
 
 async function matchUi(row) {
+  if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true') {
+    await page.waitForFunction(
+      (id, count) => {
+        const sidebar = document.querySelector(`[data-channel-id="${id}"] .bh-persona-avatar`);
+        const composer = document.querySelector('.bh-composer-shell .bh-persona-avatar');
+        const approvalCount = (avatar) =>
+          Number(avatar?.querySelector('[data-approval-count]')?.dataset.approvalCount ?? 0);
+        return approvalCount(sidebar) === count && approvalCount(composer) === count;
+      },
+      {},
+      channelId,
+      row.attention?.approvalCount ?? 0,
+    );
+  }
   await page.waitForFunction(
     (id, state, effect) => {
       const sidebar = document.querySelector(`[data-channel-id="${id}"] .bh-persona-avatar`);
@@ -195,6 +209,8 @@ async function overview(row, approvals, name) {
   assert.equal(selected.state, row.state);
   assert.deepEqual(selected.activity, row.activity);
   assert.equal(selected.hasAction, approvals > 0);
+  if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true')
+    assert.deepEqual(selected.attention, row.attention);
   assert.equal(value.actionCount, approvals);
   const roots =
     row.sessions?.filter(
@@ -232,6 +248,18 @@ async function overview(row, approvals, name) {
       approvals,
     );
   }
+  if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true') {
+    await page.waitForFunction(
+      (slug, count) =>
+        Number(
+          document.querySelector(`[data-bot-id="${slug}"] [data-approval-count]`)?.dataset
+            .approvalCount ?? 0,
+        ) === count,
+      {},
+      bot.slug,
+      approvals,
+    );
+  }
   await screenshot(name, false);
   await page.locator(`[data-channel-id="${channelId}"]`).click();
   await page.waitForSelector('.bh-composer-shell');
@@ -242,7 +270,7 @@ try {
   if (!process.env.BH_E2E_RECONNECT_BOT)
     await rpc('channelSend', {
       channelId,
-      body: `For this concurrent Activity QA, first create exactly one Assignment with active Workspace Grant ${grant.id} and continuity key activity-proof. Its purpose is to run exactly node -e "setTimeout(() => {}, 2000)" once through native Shell, then report_to_orchestrator completed with summary Assignment timer finished. Do not modify files, create subagents, or run other Shell commands. After create_assignment returns, you must call browser_tabs action=list once yourself; do not skip that call. After browser_tabs succeeds, end your Turn while awaiting the Assignment report without polling or sending a Channel reply. When the Assignment report arrives, use channel_send to send exactly Concurrent activity confirmed.`,
+      body: `For this concurrent Activity QA, first create exactly one Assignment with active Workspace Grant ${grant.id} and continuity key activity-proof. Its purpose is to run exactly node -e "setTimeout(() => {}, 2000)" once through native Shell, then report_to_orchestrator completed with summary Assignment timer finished. Do not modify files, create subagents, or run other Shell commands. For your Orchestrator role, use only create_assignment, browser_tabs and channel_send in this QA. Do not use Goal tools (create_goal, get_goal, update_goal), planning tools, questions or polling tools. After create_assignment returns, you must call browser_tabs action=list once yourself; do not skip that call. After browser_tabs succeeds, end your Turn while awaiting the Assignment report without polling or sending a Channel reply. When the Assignment report arrives, use channel_send to send exactly Concurrent activity confirmed.`,
     });
   const pending = await until(
     messages,
@@ -287,6 +315,8 @@ try {
   assert.deepEqual(both.activity.sources, [{ role: 'orchestrator', count: 1 }]);
   assert.equal(both.activity.toolName, 'browser_tabs');
   assert.equal(both.activity.activeToolCount, 1);
+  if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true')
+    assert.deepEqual(both.attention, { approvalCount: 2 });
   await matchUi(both);
   await screenshot('orchestrator-selected.png');
   await overview(both, 2, 'overview-orchestrator.png');
@@ -328,6 +358,8 @@ try {
     );
     assert.ok(['bash', 'pwsh'].includes(handoff.activity.toolName));
     assert.equal(handoff.activity.effect, 'executing');
+    if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true')
+      assert.deepEqual(handoff.attention, { approvalCount: 1 });
     await matchUi(handoff);
     await screenshot('assignment-selected.png');
     await overview(handoff, 1, 'overview-assignment.png');
@@ -345,11 +377,13 @@ try {
       messages,
       (rows) =>
         rows.some(
-          (row) => row.author?.kind === 'bot' && row.body === 'Concurrent activity confirmed',
+          (row) =>
+            row.author?.kind === 'bot' && /^Concurrent activity confirmed\.?$/u.test(row.body),
         ),
       'real report and Channel reply',
     );
     const idle = await until(snapshot, (row) => row?.state === 'idle', 'settled idle');
+    if (process.env.BH_E2E_APPROVAL_ATTENTION === 'true') assert.equal(idle.attention, undefined);
     await matchUi(idle);
     await screenshot('settled.png', false);
     await page
@@ -365,6 +399,9 @@ try {
     );
     await screenshot('overview-settled.png', false);
     const proof = {
+      ...(process.env.BH_E2E_APPROVAL_ATTENTION === 'true'
+        ? { revisionedApprovalIndicatorsMatched: true, approvalCountDecreasedAndCleared: true }
+        : {}),
       realConcurrentSessions: true,
       selectedOrchestrator: true,
       assignmentRowPreserved: true,

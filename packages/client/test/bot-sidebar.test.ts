@@ -1296,3 +1296,20 @@ describe('bot sidebar rows', () => {
     expect(after).toContain('一级渠道');
   });
 });
+
+it('announces pending approvals in the Rail button while preserving working execution', () => {
+  store.setRoster([BOT], [DM_CHANNEL]);
+  store.applyActivity({
+    generation: 'approval-rail-host',
+    revision: 1,
+    bots: [{ slug: BOT.slug, state: 'working', attention: { approvalCount: 2 } }],
+  });
+  try {
+    const markup = renderSidebar(false);
+    expect(markup).toContain('aria-label="Atlas · 正在工作 · 2 个工具待审批"');
+    expect(markup).toContain('data-state="working"');
+    expect(markup).toContain('data-approval-count="2"');
+  } finally {
+    store.applyActivity({ generation: 'approval-rail-host', revision: 2, bots: [] });
+  }
+});

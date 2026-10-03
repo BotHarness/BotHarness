@@ -149,6 +149,7 @@ export interface ActivityOverview {
     hasAction: boolean;
     state: AggregatedState;
     activity?: PersonaBotActivitySnapshot['bots'][number]['activity'];
+    attention?: PersonaBotActivitySnapshot['bots'][number]['attention'];
     sessions: Array<{
       sessionId: string;
       role: SessionRootRole;
@@ -1251,6 +1252,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               }),
           paused: bot.paused === true,
           state: snapshot.state,
+          ...(snapshot.attention === undefined ? {} : { attention: snapshot.attention }),
           ...(activity === undefined ? {} : { activity }),
           hasAction: actionBots.has(bot.slug),
           sessions,
