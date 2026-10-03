@@ -1,15 +1,7 @@
-import type { FramePhase } from './viewer-state.js';
-
 export const VIEWER_EVENT_ENDPOINT = '/api/computer/diagnostics/viewer';
 
-export type ViewerLifecycleEvent =
-  | { readonly type: 'mount' }
-  | { readonly type: 'overlay'; readonly open: boolean }
-  | { readonly type: 'phase'; readonly from: FramePhase; readonly to: FramePhase }
-  | { readonly type: 'auto-reload'; readonly attempt: number }
-  | { readonly type: 'manual-retry' }
-  | { readonly type: 'loss-remount'; readonly streak: number };
-
+export type { ViewerLifecycleEvent } from '../../../client/src/client/remote-viewer/index.js';
+import type { ViewerLifecycleEvent } from '../../../client/src/client/remote-viewer/index.js';
 export function viewerEventText(event: ViewerLifecycleEvent): string {
   switch (event.type) {
     case 'mount':

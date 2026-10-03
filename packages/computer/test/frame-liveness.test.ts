@@ -186,6 +186,20 @@ describe('nextStreamTracker', () => {
     expect(second.tracker).toMatchObject({ misses: 0, busyStreak: 0, quiet: 0 });
   });
 
+  it('keeps a changing live picture live when it becomes briefly static', () => {
+    const first = tick(FRESH, { sized: true, busy: false, signature: 10 });
+    let tracker = tick(first.tracker, { sized: true, busy: false, signature: 11 }).tracker;
+    for (let index = 0; index < QUIET_TOLERANCE; index += 1) {
+      const next = tick(tracker, { sized: true, busy: false, signature: 11 });
+      expect(next.phase).toBe('live');
+      tracker = next.tracker;
+    }
+    const busy = tick(tracker, { sized: true, busy: true, signature: 11 });
+    expect(busy.phase).toBe('connecting');
+    expect(tick(busy.tracker, { sized: true, busy: false, signature: 11 }).phase).toBe(
+      'connecting',
+    );
+  });
   it('grants a quiet static desktop live after the tolerance, then gives up', () => {
     let tracker: StreamTracker = FRESH;
     let phase = 'connecting';

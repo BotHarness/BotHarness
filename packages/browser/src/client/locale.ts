@@ -1,6 +1,19 @@
 export const LOCALE_NS = 'botharness-browser';
 
 export const zh = {
+  'entry.live': '已连接',
+  'entry.noScreen': '暂无画面',
+  'entry.connecting': '连接中',
+  'entry.reconnecting': '正在重新连接',
+  'entry.reconnect': '重新连接',
+  'entry.openFullscreen': '打开大屏',
+  'entry.collapseFullscreen': '收起全屏',
+  'entry.interactive.disable': '停止交互',
+  'entry.interactive.enable': '开启交互',
+  'entry.watchOnly': '观看模式',
+  'entry.stop': '停止',
+  'entry.stopping': '停止中',
+
   'settings.target': '操作目标',
   'settings.local': '本机 Browser',
   'settings.container': 'Docker Browser',
@@ -32,6 +45,19 @@ export const zh = {
 export type BrowserKey = keyof typeof zh;
 
 export const en: Record<BrowserKey, string> = {
+  'entry.live': 'Connected',
+  'entry.noScreen': 'No screen',
+  'entry.connecting': 'Connecting',
+  'entry.reconnecting': 'Reconnecting',
+  'entry.reconnect': 'Reconnect',
+  'entry.openFullscreen': 'Open fullscreen',
+  'entry.collapseFullscreen': 'Leave fullscreen',
+  'entry.interactive.disable': 'Disable interaction',
+  'entry.interactive.enable': 'Enable interaction',
+  'entry.watchOnly': 'Watch only',
+  'entry.stop': 'Stop',
+  'entry.stopping': 'Stopping',
+
   'settings.target': 'Browser Target',
   'settings.local': 'Local Browser',
   'settings.container': 'Docker Browser',

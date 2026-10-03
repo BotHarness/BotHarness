@@ -1,12 +1,15 @@
+import { RemoteViewer } from '../../../client/src/client/remote-viewer/index.js';
+import type { ViewerTranslate } from '../../../client/src/client/remote-viewer/locale.js';
 import {
   useId,
+  useCallback,
   useRef,
   useState,
   useSyncExternalStore,
   type ComponentType,
   type ReactElement,
 } from 'react';
-import { Modal, Switch, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Switch, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
 import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
@@ -181,6 +184,7 @@ interface ObservationStore {
   getSnapshot(): BrowserObservation | undefined;
   setTab(targetId: string | undefined): void;
   refresh(): void;
+  confirmTakeover(active: boolean): void;
 }
 
 function observationUrl(botSlug: string | undefined, tabId: string | undefined): string {
@@ -193,6 +197,7 @@ function createObservationStore(botSlug: string | undefined): ObservationStore {
   let tab: string | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   let refreshing = false;
+  let revision = 0;
   let refreshAgain = false;
   const listeners = new Set<() => void>();
   const refresh = async (): Promise<void> => {
@@ -202,11 +207,12 @@ function createObservationStore(botSlug: string | undefined): ObservationStore {
     }
     refreshing = true;
     const requestedTab = tab;
+    const requestedRevision = revision;
     try {
       const next = await requestJson<BrowserObservation>(observationUrl(botSlug, requestedTab));
-      if (tab === requestedTab) value = next;
+      if (tab === requestedTab && revision === requestedRevision) value = next;
     } catch {
-      if (tab === requestedTab) value = undefined;
+      if (tab === requestedTab && revision === requestedRevision) value = undefined;
     } finally {
       refreshing = false;
     }
@@ -235,6 +241,11 @@ function createObservationStore(botSlug: string | undefined): ObservationStore {
     setTab(targetId) {
       tab = targetId;
       void refresh();
+    },
+    confirmTakeover(active) {
+      revision += 1;
+      if (value !== undefined) value = { ...value, takeover: active };
+      for (const listener of listeners) listener();
     },
     refresh: () => void refresh(),
   };
@@ -351,6 +362,21 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const [error, setError] = useState<string | undefined>(undefined);
   const [viewer, setViewer] = useState<string | undefined>();
   const [interaction, setInteraction] = useState(false);
+  const viewerScope = useRef('');
+  const previousViewer = useRef<{ identity: string; url: string | undefined }>({
+    identity: '',
+    url: undefined,
+  });
+  const mounted = useRef(true);
+  const viewerRequest = useRef(0);
+  const interactionResource = useCallback((node: HTMLDivElement | null): void => {
+    mounted.current = node !== null;
+    if (node === null) viewerRequest.current += 1;
+  }, []);
+  const disableInteraction = useCallback(() => {
+    viewerRequest.current += 1;
+    setInteraction(false);
+  }, []);
 
   const tabs = observation?.tabs ?? [];
   const focused = observation?.focused ?? null;
@@ -358,18 +384,71 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const orderedTabs =
     currentTab === undefined ? tabs : [currentTab, ...tabs.filter((tab) => !tab.current)];
   const paused = observation?.takeover === true;
+  const viewerUrl =
+    observation?.target === 'container' && observation.running
+      ? (observation.viewerUrl ?? undefined)
+      : undefined;
+  const identity = `${botSlug ?? ''}:${profileOverride ?? info.browserProfile ?? ''}:${observation?.target ?? ''}`;
+  const scope = `${identity}:${viewerUrl ?? ''}`;
+  const previous = previousViewer.current;
+  if (viewerScope.current !== scope) {
+    viewerScope.current = scope;
+    viewerRequest.current += 1;
+    previousViewer.current = { identity, url: viewerUrl };
+    if (interaction) setInteraction(false);
+    if ((previous.identity !== identity || previous.url !== undefined) && viewer !== undefined)
+      setViewer(undefined);
+  }
+  if (!paused && interaction) setInteraction(false);
+  const viewerTranslate: ViewerTranslate = (key) => t(key);
+  const toggleInteraction = (): void => {
+    if (interaction) {
+      disableInteraction();
+      return;
+    }
+    if (busy || botSlug === undefined || viewerUrl === undefined) return;
+    const request = ++viewerRequest.current;
+    const expectedScope = viewerScope.current;
+    setBusy(true);
+    setError(undefined);
+    void requestJson<{ takeover: boolean }>(TAKEOVER_ENDPOINT, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ slug: botSlug, active: true }),
+    })
+      .then((result) => {
+        if (
+          mounted.current &&
+          request === viewerRequest.current &&
+          viewerScope.current === expectedScope
+        ) {
+          store.confirmTakeover(result.takeover);
+          setInteraction(result.takeover);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (mounted.current && request === viewerRequest.current) setError(String(cause));
+      })
+      .finally(() => {
+        if (mounted.current) {
+          setBusy(false);
+          store.refresh();
+        }
+      });
+  };
 
   const invoke = (endpoint: string, body: Record<string, unknown> = {}): void => {
     if (busy || botSlug === undefined) return;
     setBusy(true);
     setProfileInvalid(false);
     setError(undefined);
-    void requestJson<{ ok: boolean; viewerUrl?: string | null }>(endpoint, {
+    void requestJson<{ ok: boolean; viewerUrl?: string | null; takeover?: boolean }>(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ slug: botSlug, ...body }),
     })
       .then((result) => {
+        if (typeof result.takeover === 'boolean') store.confirmTakeover(result.takeover);
         if (
           endpoint === OPEN_ENDPOINT &&
           result.viewerUrl !== undefined &&
@@ -409,6 +488,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   };
 
   const onPause = (): void => {
+    disableInteraction();
     invoke(TAKEOVER_ENDPOINT, { active: !paused });
   };
 
@@ -424,6 +504,8 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
       setError(undefined);
       return;
     }
+    disableInteraction();
+    setViewer(undefined);
     setBusy(true);
     setProfileInvalid(false);
     setError(undefined);
@@ -454,7 +536,11 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   };
 
   return (
-    <div className="bh-browser-body" style={{ display: 'grid', gap: 8, fontSize: 12.5 }}>
+    <div
+      ref={interactionResource}
+      className="bh-browser-body"
+      style={{ display: 'grid', gap: 8, fontSize: 12.5 }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ opacity: 0.8 }}>{t('entry.profile.label')}</span>
         <ProfileCombobox
@@ -467,24 +553,64 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           t={t}
         />
       </div>
-      <div
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
-      >
-        <span style={{ opacity: 0.8 }}>{t('entry.view.follow')}</span>
-        <Switch
-          checked={follow}
-          onChange={onFollow}
-          label={t('entry.view.follow')}
-          disabled={botSlug === undefined}
-        />
-      </div>
-      {observation?.frame === null || observation?.frame === undefined ? (
-        <div style={{ opacity: 0.6 }}>{t('entry.view.noFrame')}</div>
+      {viewerUrl === undefined ? (
+        <>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <span style={{ opacity: 0.8 }}>{t('entry.view.follow')}</span>
+            <Switch
+              checked={follow}
+              onChange={onFollow}
+              label={t('entry.view.follow')}
+              disabled={botSlug === undefined}
+            />
+          </div>
+          {observation?.frame === null || observation?.frame === undefined ? (
+            <div style={{ opacity: 0.6 }}>{t('entry.view.noFrame')}</div>
+          ) : (
+            <img
+              src={observation.frame}
+              alt={t('entry.label')}
+              style={{ width: '100%', borderRadius: 6, border: '1px solid currentColor' }}
+            />
+          )}
+        </>
       ) : (
-        <img
-          src={observation.frame}
-          alt={t('entry.label')}
-          style={{ width: '100%', borderRadius: 6, border: '1px solid currentColor' }}
+        <RemoteViewer
+          key={scope}
+          t={viewerTranslate}
+          title={t('entry.view.container')}
+          src={viewerUrl}
+          design={{ width: 1024, height: 768 }}
+          notice={
+            error === undefined ? undefined : (
+              <div role="alert" className="bh-browser-error">
+                {error}
+              </div>
+            )
+          }
+          busy={busy}
+          stopping={false}
+          onStop={() => invoke(STOP_ENDPOINT)}
+          interactive={interaction && paused}
+          onToggleInteractive={toggleInteraction}
+          onDisableInteraction={disableInteraction}
+          expanded={viewer === viewerUrl}
+          onExpandedChange={(next) => {
+            setViewer(next ? viewerUrl : undefined);
+            if (!next) disableInteraction();
+          }}
+          extraControls={
+            <button type="button" style={buttonStyle} disabled={busy} onClick={onPause}>
+              {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
+            </button>
+          }
         />
       )}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -501,7 +627,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         >
           {t(busy ? 'entry.view.opening' : 'entry.view.open')}
         </button>
-        {observation?.running === true ? (
+        {observation?.running === true && viewerUrl === undefined ? (
           <button
             type="button"
             style={buttonStyle}
@@ -512,72 +638,6 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           </button>
         ) : null}
       </div>
-      {viewer === undefined ||
-      observation?.target !== 'container' ||
-      observation.viewerUrl !== viewer ? null : (
-        <Modal
-          open
-          title={t('entry.view.container')}
-          closeLabel={t('entry.view.close')}
-          className="bh-browser-viewer"
-          onClose={() => {
-            setViewer(undefined);
-            setInteraction(false);
-          }}
-        >
-          <div className="bh-browser-viewer-controls">
-            <button type="button" style={buttonStyle} disabled={busy} onClick={onPause}>
-              {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
-            </button>
-            <span>{t('entry.view.interaction')}</span>
-            <Switch
-              checked={interaction && paused}
-              label={t('entry.view.interaction')}
-              onChange={(next) => {
-                if (!next) {
-                  setInteraction(false);
-                  return;
-                }
-                if (busy || botSlug === undefined) return;
-                setBusy(true);
-                setError(undefined);
-                void requestJson<{ takeover: boolean }>(TAKEOVER_ENDPOINT, {
-                  method: 'POST',
-                  headers: { 'content-type': 'application/json' },
-                  body: JSON.stringify({ slug: botSlug, active: true }),
-                })
-                  .then((result) => setInteraction(result.takeover))
-                  .catch((cause: unknown) => setError(String(cause)))
-                  .finally(() => {
-                    setBusy(false);
-                    store.refresh();
-                  });
-              }}
-              disabled={busy}
-            />
-            <button
-              type="button"
-              style={buttonStyle}
-              disabled={busy}
-              onClick={() => invoke(STOP_ENDPOINT)}
-            >
-              {t('entry.view.stop')}
-            </button>
-          </div>
-          <iframe
-            key={interaction && paused ? 'interactive' : 'readonly'}
-            src={viewer}
-            title={t('entry.view.container')}
-            tabIndex={interaction && paused ? 0 : -1}
-            style={{
-              width: '100%',
-              height: 'min(70vh, 768px)',
-              border: 0,
-              pointerEvents: interaction && paused ? 'auto' : 'none',
-            }}
-          />
-        </Modal>
-      )}
       {tabs.length === 0 ? (
         <div style={{ opacity: 0.6 }}>{t('entry.view.noTabs')}</div>
       ) : (
