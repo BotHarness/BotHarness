@@ -7,7 +7,41 @@ window.__ModuleLoader__.load({
 		let react = require("react");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 		let react_jsx_runtime = require("react/jsx-runtime");
-		//#region packages/computer/src/client/viewer-state.ts
+		//#region packages/client/src/client/mounted-resource.ts
+		function useMountedResource$1(start, dependencies) {
+			const cleanup = (0, react.useRef)(void 0);
+			return (0, react.useCallback)((node) => {
+				cleanup.current?.();
+				cleanup.current = void 0;
+				if (node !== null) cleanup.current = start(node) || void 0;
+			}, dependencies);
+		}
+		//#endregion
+		//#region packages/client/src/client/remote-viewer/tokens.ts
+		const BH = {
+			labelSecondary: "var(--dsw-alias-label-secondary)",
+			hoverFill: "var(--dsw-alias-interactive-bg-hover)",
+			errorPrimary: "var(--dsw-alias-state-error-primary)",
+			radiusMd: "var(--dsw-radius-md)",
+			labelPrimary: "var(--dsw-alias-label-primary, #0f1115)",
+			labelPrimaryForeground: "var(--dsw-alias-label-primary-foreground, #ffffff)",
+			borderL2: "var(--dsw-alias-border-l2, #0000001a)",
+			borderL3: "var(--dsw-alias-border-l3, #0000001f)",
+			borderL4: "var(--dsw-alias-border-l4, #00000029)",
+			bgBase: "var(--dsw-alias-bg-base, #ffffff)",
+			buttonPrimaryFill: "var(--dsw-alias-button-primary-fill, #0f1115)",
+			buttonElevatedFill: "var(--dsw-alias-button-elevated-fill, transparent)",
+			businessPrimary: "var(--dsw-alias-state-business-primary, #4176e6)",
+			hoverScrim: "color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)"
+		};
+		const VIDEO_SURFACE = {
+			background: "#000000",
+			spinnerTrack: "rgba(255, 255, 255, 0.18)",
+			spinnerArc: "#ffffff",
+			onVideo: "#ffffff"
+		};
+		//#endregion
+		//#region packages/client/src/client/remote-viewer/viewer-state.ts
 		function nextExpanded(action) {
 			return action === "open";
 		}
@@ -185,6 +219,575 @@ window.__ModuleLoader__.load({
 				}, signature),
 				phase: "connecting"
 			};
+		}
+		//#endregion
+		//#region packages/client/src/client/remote-viewer/index.tsx
+		const SPIN_STYLE = "@keyframes bc-spin { to { transform: rotate(360deg); } }";
+		function useStreamPhase(onSample) {
+			return useMountedResource$1((iframe) => {
+				let active = true;
+				let tracker = {
+					misses: 0,
+					busyStreak: 0,
+					quiet: 0
+				};
+				let timer;
+				const check = () => {
+					if (!active) return;
+					let doc = null;
+					try {
+						doc = iframe.contentDocument;
+					} catch {
+						doc = null;
+					}
+					const next = nextStreamTracker(tracker, sampleSurface(doc));
+					tracker = next.tracker;
+					onSample(next.phase);
+					timer = setTimeout(check, 1e3);
+				};
+				timer = setTimeout(check, 300);
+				return () => {
+					active = false;
+					if (timer !== void 0) clearTimeout(timer);
+				};
+			}, [onSample]);
+		}
+		function ScreenIndicator({ label = "连接中" }) {
+			const size = 26;
+			const stroke = 2;
+			const radius = 12;
+			const circumference = 2 * Math.PI * radius;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				style: {
+					position: "absolute",
+					inset: 0,
+					display: "grid",
+					placeItems: "center",
+					background: VIDEO_SURFACE.background,
+					color: VIDEO_SURFACE.onVideo
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: {
+						display: "flex",
+						flexDirection: "column",
+						alignItems: "center",
+						gap: 10
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+						width: size,
+						height: size,
+						style: { animation: "bc-spin 1.1s linear infinite" },
+						"aria-hidden": "true",
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: size / 2,
+							cy: size / 2,
+							r: radius,
+							fill: "none",
+							stroke: VIDEO_SURFACE.spinnerTrack,
+							strokeWidth: stroke
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: size / 2,
+							cy: size / 2,
+							r: radius,
+							fill: "none",
+							stroke: VIDEO_SURFACE.spinnerArc,
+							strokeWidth: stroke,
+							strokeLinecap: "round",
+							strokeDasharray: `${String(circumference * .28)} ${String(circumference * .72)}`
+						})]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12.5,
+							opacity: .7
+						},
+						children: label
+					})]
+				})
+			});
+		}
+		function ScreenEmpty({ t, onRetry }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				style: {
+					position: "absolute",
+					inset: 0,
+					display: "grid",
+					placeItems: "center",
+					background: VIDEO_SURFACE.background,
+					color: VIDEO_SURFACE.onVideo
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: {
+						display: "flex",
+						flexDirection: "column",
+						alignItems: "center",
+						gap: 12
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12.5,
+							opacity: .75
+						},
+						children: t("entry.noScreen")
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						variant: "toolbar",
+						size: "sm",
+						onClick: onRetry,
+						children: t("entry.reconnect")
+					})]
+				})
+			});
+		}
+		function StreamOverlay(props) {
+			const { phase, reconnecting, hovered, t, onRetry, onOpen } = props;
+			if (phase === "connecting") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, { label: t(statusKeyFor(phase, reconnecting)) });
+			if (phase === "empty") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenEmpty, {
+				t,
+				onRetry
+			});
+			if (!hovered) return null;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				style: {
+					position: "absolute",
+					inset: 0,
+					display: "grid",
+					placeItems: "center",
+					background: BH.hoverScrim,
+					borderRadius: 8
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(_deepseek_ai_dsh_client_ui_primitives.Pill, {
+					onClick: onOpen,
+					style: {
+						background: BH.businessPrimary,
+						color: BH.labelPrimaryForeground,
+						height: 28,
+						padding: "0 12px",
+						fontSize: 13,
+						gap: 6
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFullscreenOutlineRegular, { size: 14 }), t("entry.openFullscreen")]
+				})
+			});
+		}
+		function ScaledFrame({ src, title, design, interactive, fit = "width", iframeRef }) {
+			const DESIGN_WIDTH = design.width;
+			const DESIGN_HEIGHT = design.height;
+			const [box, setBox] = (0, react.useState)({
+				width: DESIGN_WIDTH,
+				height: DESIGN_HEIGHT
+			});
+			const resizeResource = useMountedResource$1((element) => {
+				const frame = element.querySelector("iframe");
+				if (frame !== null) {
+					frame.inert = !interactive;
+					if (!interactive) frame.blur();
+				}
+				const update = () => setBox({
+					width: element.clientWidth,
+					height: element.clientHeight
+				});
+				update();
+				const observer = new ResizeObserver(update);
+				observer.observe(element);
+				return () => observer.disconnect();
+			}, [interactive]);
+			const scale = fit === "contain" ? Math.min(box.width / DESIGN_WIDTH, box.height / DESIGN_HEIGHT) : box.width / DESIGN_WIDTH;
+			const offsetX = fit === "contain" ? Math.max(0, (box.width - DESIGN_WIDTH * scale) / 2) : 0;
+			const offsetY = fit === "contain" ? Math.max(0, (box.height - DESIGN_HEIGHT * scale) / 2) : 0;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				ref: resizeResource,
+				style: {
+					position: "relative",
+					width: "100%",
+					...fit === "width" ? {
+						aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
+						border: `1px solid ${BH.borderL3}`,
+						borderRadius: 8
+					} : { height: "100%" },
+					overflow: "hidden",
+					background: VIDEO_SURFACE.background
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
+					ref: iframeRef,
+					title,
+					src,
+					tabIndex: interactive ? 0 : -1,
+					style: {
+						position: "absolute",
+						top: 0,
+						left: 0,
+						width: DESIGN_WIDTH,
+						height: DESIGN_HEIGHT,
+						border: "none",
+						transform: `translate(${String(offsetX)}px, ${String(offsetY)}px) scale(${String(scale)})`,
+						transformOrigin: "top left",
+						pointerEvents: interactive ? "auto" : "none"
+					}
+				})
+			});
+		}
+		function CollapseIcon() {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				width: 15,
+				height: 15,
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 2,
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": "true",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("polyline", { points: "4 14 10 14 10 20" }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("polyline", { points: "20 10 14 10 14 4" }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("line", {
+						x1: "14",
+						y1: "10",
+						x2: "21",
+						y2: "3"
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("line", {
+						x1: "3",
+						y1: "21",
+						x2: "10",
+						y2: "14"
+					})
+				]
+			});
+		}
+		function StopButton({ t, busy, stopping, onStop }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+				variant: "ghost",
+				size: "sm",
+				disabled: busy || stopping,
+				onClick: onStop,
+				children: busy || stopping ? t("entry.stopping") : t("entry.stop")
+			});
+		}
+		function ViewerTitleBar(props) {
+			const { t, title, phase, reconnecting, busy, stopping, interactive, extraControls, onToggleInteractive, onStop, onCollapse } = props;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				style: {
+					display: "flex",
+					alignItems: "center",
+					gap: 8,
+					height: 44,
+					flex: "0 0 auto",
+					padding: "0 8px 0 14px",
+					borderBottom: `1px solid ${BH.borderL2}`,
+					color: BH.labelPrimary,
+					background: BH.bgBase
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.StateDot, { state: dotStateFor(phase) }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+						style: {
+							fontSize: 13,
+							fontWeight: 600
+						},
+						children: title
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12,
+							opacity: .65
+						},
+						children: t(statusKeyFor(phase, reconnecting))
+					}),
+					interactive ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12,
+							opacity: .65
+						},
+						children: t("entry.watchOnly")
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
+					extraControls,
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						variant: interactive ? "ghost" : "primary",
+						size: "sm",
+						"aria-pressed": interactive,
+						onClick: onToggleInteractive,
+						disabled: busy || stopping,
+						title: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable"),
+						children: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable")
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
+						t,
+						busy,
+						stopping,
+						onStop
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						variant: "ghost",
+						size: "sm",
+						onClick: onCollapse,
+						"aria-label": t("entry.collapseFullscreen"),
+						title: t("entry.collapseFullscreen"),
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CollapseIcon, {})
+					})
+				]
+			});
+		}
+		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange }) {
+			const entryRef = (0, react.useRef)(null);
+			const mounted = (0, react.useRef)(false);
+			const [hovered, setHovered] = (0, react.useState)(false);
+			const [ownExpanded, setOwnExpanded] = (0, react.useState)(false);
+			const expanded = controlledExpanded ?? ownExpanded;
+			const setExpanded = (next) => {
+				setOwnExpanded(next);
+				onExpandedChange?.(next);
+			};
+			const [inputEnabled, setInputEnabled] = (0, react.useState)(false);
+			const [reloadKey, setReloadKey] = (0, react.useState)(0);
+			const [reconnecting, setReconnecting] = (0, react.useState)(false);
+			const wasReady = (0, react.useRef)(false);
+			const autoReloads = (0, react.useRef)(0);
+			const lossStreak = (0, react.useRef)(0);
+			const phaseRef = (0, react.useRef)("connecting");
+			const [smooth, setSmooth] = (0, react.useState)({
+				phase: "connecting",
+				streak: 0
+			});
+			const resetFrame = (0, react.useCallback)(() => {
+				phaseRef.current = "connecting";
+				setSmooth({
+					phase: "connecting",
+					streak: 0
+				});
+				setReloadKey((key) => key + 1);
+			}, []);
+			const streamRef = useStreamPhase((0, react.useCallback)((nextPhase) => {
+				const fromPhase = phaseRef.current;
+				if (fromPhase !== nextPhase) {
+					phaseRef.current = nextPhase;
+					setSmooth((current) => smoothPhase(current.phase, nextPhase, current.streak));
+					onEvent?.({
+						type: "phase",
+						from: fromPhase,
+						to: nextPhase
+					});
+				}
+				if (nextPhase === "live") {
+					wasReady.current = true;
+					autoReloads.current = 0;
+					lossStreak.current = 0;
+					setReconnecting(false);
+					return;
+				}
+				if (wasReady.current) {
+					lossStreak.current += 1;
+					if (shouldRemountLoss(lossStreak.current)) {
+						wasReady.current = false;
+						lossStreak.current = 0;
+						onEvent?.({
+							type: "loss-remount",
+							streak: 3
+						});
+						setReconnecting(true);
+						resetFrame();
+						return;
+					}
+				}
+				if (fromPhase !== nextPhase && shouldAutoReload(nextPhase, wasReady.current, autoReloads.current)) {
+					autoReloads.current += 1;
+					onEvent?.({
+						type: "auto-reload",
+						attempt: autoReloads.current
+					});
+					resetFrame();
+				}
+			}, [resetFrame, onEvent]));
+			const phase = smooth.phase;
+			const reconnect = () => {
+				onEvent?.({ type: "manual-retry" });
+				setReconnecting(true);
+				autoReloads.current = 0;
+				lossStreak.current = 0;
+				wasReady.current = false;
+				resetFrame();
+			};
+			const openViewer = () => {
+				setExpanded(nextExpanded("open"));
+				onEvent?.({
+					type: "overlay",
+					open: true
+				});
+			};
+			const collapseViewer = () => {
+				setInputEnabled(false);
+				onDisableInteraction?.();
+				setExpanded(nextExpanded("collapse"));
+				onEvent?.({
+					type: "overlay",
+					open: false
+				});
+				requestAnimationFrame(() => entryRef.current?.focus());
+			};
+			const dialogResource = useMountedResource$1((dialog) => {
+				if (!mounted.current) {
+					mounted.current = true;
+					onEvent?.({ type: "mount" });
+				}
+				if (!expanded) return;
+				const onKey = (event) => {
+					if (event.key !== "Tab") return;
+					const focusable = [...dialog.querySelectorAll("button, [href], iframe, [tabindex]:not([tabindex=\"-1\"])")].filter((element) => element.tabIndex !== -1);
+					const first = focusable[0];
+					const last = focusable.at(-1);
+					if (first === void 0 || last === void 0) return;
+					const active = document.activeElement;
+					if (event.shiftKey && (active === first || active === dialog)) {
+						event.preventDefault();
+						last.focus();
+					} else if (!event.shiftKey && active === last) {
+						event.preventDefault();
+						first.focus();
+					}
+				};
+				document.addEventListener("keydown", onKey);
+				const previousOverflow = document.body.style.overflow;
+				document.body.style.overflow = "hidden";
+				dialog.focus();
+				return () => {
+					document.removeEventListener("keydown", onKey);
+					document.body.style.overflow = previousOverflow;
+				};
+			}, [
+				expanded,
+				onDisableInteraction,
+				onEvent
+			]);
+			const statusText = t(statusKeyFor(phase, reconnecting));
+			const openable = phase === "live" && !expanded;
+			const overlay = /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StreamOverlay, {
+				phase,
+				reconnecting,
+				hovered: expanded ? false : hovered,
+				t,
+				onRetry: reconnect,
+				onOpen: openViewer
+			});
+			const stopLabel = t(stopKey(busy, stopping));
+			const rowButton = (disabled) => ({
+				flex: 1,
+				display: "inline-flex",
+				alignItems: "center",
+				justifyContent: "center",
+				height: 28,
+				padding: "0 10px",
+				borderRadius: 14,
+				border: `1px solid ${BH.borderL3}`,
+				background: BH.buttonElevatedFill,
+				color: BH.labelPrimary,
+				fontSize: 12,
+				...disabled ? {
+					opacity: .4,
+					cursor: "not-allowed"
+				} : { cursor: "pointer" }
+			});
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: dialogResource,
+				role: expanded ? "dialog" : void 0,
+				"aria-modal": expanded ? true : void 0,
+				"aria-label": expanded ? title : void 0,
+				tabIndex: expanded ? -1 : void 0,
+				style: expanded ? {
+					position: "fixed",
+					inset: 0,
+					zIndex: 100,
+					display: "flex",
+					flexDirection: "column",
+					background: BH.bgBase,
+					color: BH.labelPrimary
+				} : {
+					display: "flex",
+					flexDirection: "column",
+					gap: 8
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: SPIN_STYLE }),
+					expanded ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ViewerTitleBar, {
+						t,
+						title,
+						phase,
+						reconnecting,
+						busy,
+						stopping,
+						extraControls,
+						interactive: interactive ?? inputEnabled,
+						onToggleInteractive: onToggleInteractive ?? (() => setInputEnabled((current) => !current)),
+						onStop,
+						onCollapse: collapseViewer
+					}, "viewer-titlebar") : null,
+					notice,
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						ref: entryRef,
+						role: openable ? "button" : void 0,
+						tabIndex: openable ? 0 : void 0,
+						"aria-label": openable ? t("entry.openFullscreen") : statusText,
+						onMouseEnter: () => setHovered(true),
+						onMouseLeave: () => setHovered(false),
+						onClick: () => {
+							if (openable) openViewer();
+						},
+						onKeyDown: (event) => {
+							if (!openable) return;
+							if (event.key !== "Enter" && event.key !== " ") return;
+							event.preventDefault();
+							openViewer();
+						},
+						style: expanded ? {
+							position: "relative",
+							flex: 1,
+							minHeight: 0
+						} : {
+							position: "relative",
+							cursor: openable ? "pointer" : "default"
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
+							src,
+							title,
+							design,
+							interactive: expanded && (interactive ?? inputEnabled),
+							fit: expanded ? "contain" : "width",
+							iframeRef: streamRef
+						}, reloadKey), overlay]
+					}, "viewer-frame"),
+					expanded ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react.Fragment, { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							style: {
+								fontSize: 13,
+								fontWeight: 500,
+								color: BH.labelPrimary,
+								opacity: .9,
+								textAlign: "center"
+							},
+							children: title
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: {
+								display: "flex",
+								gap: 8
+							},
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								disabled: busy || stopping,
+								onClick: onStop,
+								style: rowButton(busy || stopping),
+								children: stopLabel
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								onClick: reconnect,
+								title: t("entry.reconnect"),
+								style: rowButton(false),
+								children: t("entry.reconnect")
+							})]
+						}),
+						footer
+					] }, "viewer-chrome")
+				]
+			});
 		}
 		//#endregion
 		//#region packages/computer/src/client/viewer-events.ts
@@ -1266,6 +1869,21 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region packages/computer/src/client/index.tsx
+		const ACCESS_STYLE = `
+.bh-computer-access-control { position: relative; display: flex; align-items: center; }
+.bh-computer-access-power {
+  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: ${BH.radiusMd}; background: transparent;
+  color: ${BH.labelSecondary}; cursor: pointer;
+}
+.bh-computer-access-power:hover { background: ${BH.hoverFill}; }
+.bh-computer-access-power[aria-pressed='true'] { color: ${BH.businessPrimary}; background: ${BH.hoverFill}; }
+.bh-computer-access-power:focus-visible { outline: 2px solid ${BH.businessPrimary}; outline-offset: 2px; }
+.bh-computer-access-power:disabled { opacity: 0.5; cursor: default; }
+.bh-computer-access-power.bh-access-failed { color: ${BH.errorPrimary}; }
+.bh-computer-access-error { order: -1; padding: 0 4px; color: ${BH.errorPrimary}; font-size: 11px; line-height: 16px; white-space: nowrap; }
+
+`;
 		const name = "botharness-computer-client";
 		const inject = [
 			"slots",
@@ -1296,22 +1914,6 @@ window.__ModuleLoader__.load({
 			"entry.authorize.pull",
 			"entry.authorize.bind"
 		];
-		const BH = {
-			labelSecondary: "var(--dsw-alias-label-secondary)",
-			hoverFill: "var(--dsw-alias-interactive-bg-hover)",
-			errorPrimary: "var(--dsw-alias-state-error-primary)",
-			radiusMd: "var(--dsw-radius-md)",
-			labelPrimary: "var(--dsw-alias-label-primary, #0f1115)",
-			labelPrimaryForeground: "var(--dsw-alias-label-primary-foreground, #ffffff)",
-			borderL2: "var(--dsw-alias-border-l2, #0000001a)",
-			borderL3: "var(--dsw-alias-border-l3, #0000001f)",
-			borderL4: "var(--dsw-alias-border-l4, #00000029)",
-			bgBase: "var(--dsw-alias-bg-base, #ffffff)",
-			buttonPrimaryFill: "var(--dsw-alias-button-primary-fill, #0f1115)",
-			buttonElevatedFill: "var(--dsw-alias-button-elevated-fill, transparent)",
-			businessPrimary: "var(--dsw-alias-state-business-primary, #4176e6)",
-			hoverScrim: "color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)"
-		};
 		const noteStyle = {
 			opacity: .7,
 			fontSize: 12,
@@ -1339,12 +1941,6 @@ window.__ModuleLoader__.load({
 			whiteSpace: "pre-wrap",
 			wordBreak: "break-all"
 		};
-		const VIDEO_SURFACE = {
-			background: "#000000",
-			spinnerTrack: "rgba(255, 255, 255, 0.18)",
-			spinnerArc: "#ffffff",
-			onVideo: "#ffffff"
-		};
 		const DESIGN_WIDTH = 1280;
 		const DESIGN_HEIGHT = 800;
 		function designOf(resolution) {
@@ -1357,219 +1953,6 @@ window.__ModuleLoader__.load({
 				width: Number(match[1]),
 				height: Number(match[2])
 			};
-		}
-		const SPIN_STYLE = `
-.bh-computer-access-control { position: relative; display: flex; align-items: center; }
-.bh-computer-access-power {
-  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-  padding: 0; border: 0; border-radius: ${BH.radiusMd}; background: transparent;
-  color: ${BH.labelSecondary}; cursor: pointer;
-}
-.bh-computer-access-power:hover { background: ${BH.hoverFill}; }
-.bh-computer-access-power[aria-pressed='true'] { color: ${BH.businessPrimary}; background: ${BH.hoverFill}; }
-.bh-computer-access-power:focus-visible { outline: 2px solid ${BH.businessPrimary}; outline-offset: 2px; }
-.bh-computer-access-power:disabled { opacity: 0.5; cursor: default; }
-.bh-computer-access-power.bh-access-failed { color: ${BH.errorPrimary}; }
-.bh-computer-access-error { order: -1; padding: 0 4px; color: ${BH.errorPrimary}; font-size: 11px; line-height: 16px; white-space: nowrap; }
-
-@keyframes bc-spin { to { transform: rotate(360deg); } }
-`;
-		function useStreamPhase(onSample) {
-			return useMountedResource((iframe) => {
-				let active = true;
-				let tracker = {
-					misses: 0,
-					busyStreak: 0,
-					quiet: 0
-				};
-				let timer;
-				const check = () => {
-					if (!active) return;
-					let doc = null;
-					try {
-						doc = iframe.contentDocument;
-					} catch {
-						doc = null;
-					}
-					const next = nextStreamTracker(tracker, sampleSurface(doc));
-					tracker = next.tracker;
-					onSample(next.phase);
-					timer = setTimeout(check, 1e3);
-				};
-				timer = setTimeout(check, 300);
-				return () => {
-					active = false;
-					if (timer !== void 0) clearTimeout(timer);
-				};
-			}, [onSample]);
-		}
-		function ScreenIndicator({ label = "连接中" }) {
-			const size = 26;
-			const stroke = 2;
-			const radius = 12;
-			const circumference = 2 * Math.PI * radius;
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				style: {
-					position: "absolute",
-					inset: 0,
-					display: "grid",
-					placeItems: "center",
-					background: VIDEO_SURFACE.background,
-					color: VIDEO_SURFACE.onVideo
-				},
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					style: {
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						gap: 10
-					},
-					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
-						width: size,
-						height: size,
-						style: { animation: "bc-spin 1.1s linear infinite" },
-						"aria-hidden": "true",
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
-							cx: size / 2,
-							cy: size / 2,
-							r: radius,
-							fill: "none",
-							stroke: VIDEO_SURFACE.spinnerTrack,
-							strokeWidth: stroke
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
-							cx: size / 2,
-							cy: size / 2,
-							r: radius,
-							fill: "none",
-							stroke: VIDEO_SURFACE.spinnerArc,
-							strokeWidth: stroke,
-							strokeLinecap: "round",
-							strokeDasharray: `${String(circumference * .28)} ${String(circumference * .72)}`
-						})]
-					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-						style: {
-							fontSize: 12.5,
-							opacity: .7
-						},
-						children: label
-					})]
-				})
-			});
-		}
-		function ScreenEmpty({ t, onRetry }) {
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				style: {
-					position: "absolute",
-					inset: 0,
-					display: "grid",
-					placeItems: "center",
-					background: VIDEO_SURFACE.background,
-					color: VIDEO_SURFACE.onVideo
-				},
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					style: {
-						display: "flex",
-						flexDirection: "column",
-						alignItems: "center",
-						gap: 12
-					},
-					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-						style: {
-							fontSize: 12.5,
-							opacity: .75
-						},
-						children: t("entry.noScreen")
-					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-						variant: "toolbar",
-						size: "sm",
-						onClick: onRetry,
-						children: t("entry.reconnect")
-					})]
-				})
-			});
-		}
-		function StreamOverlay(props) {
-			const { phase, reconnecting, hovered, t, onRetry, onOpen } = props;
-			if (phase === "connecting") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, { label: t(statusKeyFor(phase, reconnecting)) });
-			if (phase === "empty") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenEmpty, {
-				t,
-				onRetry
-			});
-			if (!hovered) return null;
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				style: {
-					position: "absolute",
-					inset: 0,
-					display: "grid",
-					placeItems: "center",
-					background: BH.hoverScrim,
-					borderRadius: 8
-				},
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(_deepseek_ai_dsh_client_ui_primitives.Pill, {
-					onClick: onOpen,
-					style: {
-						background: BH.businessPrimary,
-						color: BH.labelPrimaryForeground,
-						height: 28,
-						padding: "0 12px",
-						fontSize: 13,
-						gap: 6
-					},
-					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFullscreenOutlineRegular, { size: 14 }), t("entry.openFullscreen")]
-				})
-			});
-		}
-		function ScaledFrame({ title, design, interactive, fit = "width", iframeRef }) {
-			const DESIGN_WIDTH = design.width;
-			const DESIGN_HEIGHT = design.height;
-			const [box, setBox] = (0, react.useState)({
-				width: DESIGN_WIDTH,
-				height: DESIGN_HEIGHT
-			});
-			const resizeResource = useMountedResource((element) => {
-				const update = () => setBox({
-					width: element.clientWidth,
-					height: element.clientHeight
-				});
-				update();
-				const observer = new ResizeObserver(update);
-				observer.observe(element);
-				return () => observer.disconnect();
-			}, []);
-			const scale = fit === "contain" ? Math.min(box.width / DESIGN_WIDTH, box.height / DESIGN_HEIGHT) : box.width / DESIGN_WIDTH;
-			const offsetX = fit === "contain" ? Math.max(0, (box.width - DESIGN_WIDTH * scale) / 2) : 0;
-			const offsetY = fit === "contain" ? Math.max(0, (box.height - DESIGN_HEIGHT * scale) / 2) : 0;
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				ref: resizeResource,
-				style: {
-					position: "relative",
-					width: "100%",
-					...fit === "width" ? {
-						aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
-						border: `1px solid ${BH.borderL3}`,
-						borderRadius: 8
-					} : { height: "100%" },
-					overflow: "hidden",
-					background: VIDEO_SURFACE.background
-				},
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
-					ref: iframeRef,
-					title,
-					src: VIEWER_SRC,
-					tabIndex: interactive ? 0 : -1,
-					style: {
-						position: "absolute",
-						top: 0,
-						left: 0,
-						width: DESIGN_WIDTH,
-						height: DESIGN_HEIGHT,
-						border: "none",
-						transform: `translate(${String(offsetX)}px, ${String(offsetY)}px) scale(${String(scale)})`,
-						transformOrigin: "top left",
-						pointerEvents: interactive ? "auto" : "none"
-					}
-				})
-			});
 		}
 		function RecentLogsList({ entries }) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
@@ -1619,359 +2002,24 @@ window.__ModuleLoader__.load({
 				}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RecentLogsList, { entries }) : null
 			] });
 		}
-		function CollapseIcon() {
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
-				width: 15,
-				height: 15,
-				viewBox: "0 0 24 24",
-				fill: "none",
-				stroke: "currentColor",
-				strokeWidth: 2,
-				strokeLinecap: "round",
-				strokeLinejoin: "round",
-				"aria-hidden": "true",
-				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("polyline", { points: "4 14 10 14 10 20" }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("polyline", { points: "20 10 14 10 14 4" }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("line", {
-						x1: "14",
-						y1: "10",
-						x2: "21",
-						y2: "3"
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("line", {
-						x1: "3",
-						y1: "21",
-						x2: "10",
-						y2: "14"
-					})
-				]
-			});
-		}
-		function StopButton({ t, busy, stopping, onStop }) {
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-				variant: "ghost",
-				size: "sm",
-				disabled: busy || stopping,
-				onClick: onStop,
-				children: busy || stopping ? t("entry.stopping") : t("entry.stop")
-			});
-		}
-		function ViewerTitleBar(props) {
-			const { t, title, phase, reconnecting, busy, stopping, interactive, onToggleInteractive, onStop, onCollapse } = props;
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-				style: {
-					display: "flex",
-					alignItems: "center",
-					gap: 8,
-					height: 44,
-					flex: "0 0 auto",
-					padding: "0 8px 0 14px",
-					borderBottom: `1px solid ${BH.borderL2}`,
-					color: BH.labelPrimary,
-					background: BH.bgBase
-				},
-				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.StateDot, { state: dotStateFor(phase) }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
-						style: {
-							fontSize: 13,
-							fontWeight: 600
-						},
-						children: title
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-						style: {
-							fontSize: 12,
-							opacity: .65
-						},
-						children: t(statusKeyFor(phase, reconnecting))
-					}),
-					interactive ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-						style: {
-							fontSize: 12,
-							opacity: .65
-						},
-						children: t("entry.watchOnly")
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-						variant: interactive ? "ghost" : "primary",
-						size: "sm",
-						"aria-pressed": interactive,
-						onClick: onToggleInteractive,
-						title: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable"),
-						children: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable")
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
-						t,
-						busy,
-						stopping,
-						onStop
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-						variant: "ghost",
-						size: "sm",
-						onClick: onCollapse,
-						"aria-label": t("entry.collapseFullscreen"),
-						title: t("entry.collapseFullscreen"),
-						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CollapseIcon, {})
-					})
-				]
-			});
-		}
 		function RunningCard({ t, botSlug, busy, stopping, resolution, onStop }) {
-			const entryRef = (0, react.useRef)(null);
-			const mounted = (0, react.useRef)(false);
-			const [hovered, setHovered] = (0, react.useState)(false);
-			const [expanded, setExpanded] = (0, react.useState)(false);
-			const [inputEnabled, setInputEnabled] = (0, react.useState)(false);
-			const [reloadKey, setReloadKey] = (0, react.useState)(0);
-			const [reconnecting, setReconnecting] = (0, react.useState)(false);
-			const wasReady = (0, react.useRef)(false);
-			const autoReloads = (0, react.useRef)(0);
-			const lossStreak = (0, react.useRef)(0);
-			const phaseRef = (0, react.useRef)("connecting");
-			const title = t("entry.screen.title", { name: botSlug ?? "PersonaBot" });
-			const design = designOf(resolution);
-			const [smooth, setSmooth] = (0, react.useState)({
-				phase: "connecting",
-				streak: 0
-			});
-			const resetFrame = (0, react.useCallback)(() => {
-				phaseRef.current = "connecting";
-				setSmooth({
-					phase: "connecting",
-					streak: 0
-				});
-				setReloadKey((key) => key + 1);
+			const onEvent = (0, react.useCallback)((event) => {
+				reportViewerEvent(void 0, viewerEventText(event));
 			}, []);
-			const streamRef = useStreamPhase((0, react.useCallback)((nextPhase) => {
-				const fromPhase = phaseRef.current;
-				if (fromPhase !== nextPhase) {
-					phaseRef.current = nextPhase;
-					setSmooth((current) => smoothPhase(current.phase, nextPhase, current.streak));
-					reportViewerEvent(void 0, viewerEventText({
-						type: "phase",
-						from: fromPhase,
-						to: nextPhase
-					}));
-				}
-				if (nextPhase === "live") {
-					wasReady.current = true;
-					autoReloads.current = 0;
-					lossStreak.current = 0;
-					setReconnecting(false);
-					return;
-				}
-				if (wasReady.current) {
-					lossStreak.current += 1;
-					if (shouldRemountLoss(lossStreak.current)) {
-						wasReady.current = false;
-						lossStreak.current = 0;
-						reportViewerEvent(void 0, viewerEventText({
-							type: "loss-remount",
-							streak: 3
-						}));
-						setReconnecting(true);
-						resetFrame();
-						return;
-					}
-				}
-				if (fromPhase !== nextPhase && shouldAutoReload(nextPhase, wasReady.current, autoReloads.current)) {
-					autoReloads.current += 1;
-					reportViewerEvent(void 0, viewerEventText({
-						type: "auto-reload",
-						attempt: autoReloads.current
-					}));
-					resetFrame();
-				}
-			}, [resetFrame]));
-			const phase = smooth.phase;
-			const reconnect = () => {
-				reportViewerEvent(void 0, viewerEventText({ type: "manual-retry" }));
-				setReconnecting(true);
-				autoReloads.current = 0;
-				lossStreak.current = 0;
-				wasReady.current = false;
-				resetFrame();
-			};
-			const openViewer = () => {
-				setExpanded(nextExpanded("open"));
-				reportViewerEvent(void 0, viewerEventText({
-					type: "overlay",
-					open: true
-				}));
-			};
-			const collapseViewer = () => {
-				setInputEnabled(false);
-				setExpanded(nextExpanded("collapse"));
-				reportViewerEvent(void 0, viewerEventText({
-					type: "overlay",
-					open: false
-				}));
-				requestAnimationFrame(() => entryRef.current?.focus());
-			};
-			const dialogResource = useMountedResource((dialog) => {
-				if (!mounted.current) {
-					mounted.current = true;
-					reportViewerEvent(void 0, viewerEventText({ type: "mount" }));
-				}
-				if (!expanded) return;
-				const onKey = (event) => {
-					if (event.key !== "Tab") return;
-					const focusable = [...dialog.querySelectorAll("button, [href], iframe, [tabindex]:not([tabindex=\"-1\"])")].filter((element) => element.tabIndex !== -1);
-					const first = focusable[0];
-					const last = focusable.at(-1);
-					if (first === void 0 || last === void 0) return;
-					const active = document.activeElement;
-					if (event.shiftKey && (active === first || active === dialog)) {
-						event.preventDefault();
-						last.focus();
-					} else if (!event.shiftKey && active === last) {
-						event.preventDefault();
-						first.focus();
-					}
-				};
-				document.addEventListener("keydown", onKey);
-				const previousOverflow = document.body.style.overflow;
-				document.body.style.overflow = "hidden";
-				dialog.focus();
-				return () => {
-					document.removeEventListener("keydown", onKey);
-					document.body.style.overflow = previousOverflow;
-				};
-			}, [expanded]);
-			const statusText = t(statusKeyFor(phase, reconnecting));
-			const openable = phase === "live" && !expanded;
-			const overlay = /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StreamOverlay, {
-				phase,
-				reconnecting,
-				hovered: expanded ? false : hovered,
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RemoteViewer, {
 				t,
-				onRetry: reconnect,
-				onOpen: openViewer
-			});
-			const stopLabel = t(stopKey(busy, stopping));
-			const rowButton = (disabled) => ({
-				flex: 1,
-				display: "inline-flex",
-				alignItems: "center",
-				justifyContent: "center",
-				height: 28,
-				padding: "0 10px",
-				borderRadius: 14,
-				border: `1px solid ${BH.borderL3}`,
-				background: BH.buttonElevatedFill,
-				color: BH.labelPrimary,
-				fontSize: 12,
-				...disabled ? {
-					opacity: .4,
-					cursor: "not-allowed"
-				} : { cursor: "pointer" }
-			});
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-				ref: dialogResource,
-				role: expanded ? "dialog" : void 0,
-				"aria-modal": expanded ? true : void 0,
-				"aria-label": expanded ? title : void 0,
-				tabIndex: expanded ? -1 : void 0,
-				style: expanded ? {
-					position: "fixed",
-					inset: 0,
-					zIndex: 100,
-					display: "flex",
-					flexDirection: "column",
-					background: BH.bgBase,
-					color: BH.labelPrimary
-				} : {
-					display: "flex",
-					flexDirection: "column",
-					gap: 8
-				},
-				children: [
-					expanded ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ViewerTitleBar, {
-						t,
-						title,
-						phase,
-						reconnecting,
-						busy,
-						stopping,
-						interactive: inputEnabled,
-						onToggleInteractive: () => setInputEnabled((current) => !current),
-						onStop,
-						onCollapse: collapseViewer
-					}, "viewer-titlebar") : null,
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						ref: entryRef,
-						role: openable ? "button" : void 0,
-						tabIndex: openable ? 0 : void 0,
-						"aria-label": openable ? t("entry.openFullscreen") : statusText,
-						onMouseEnter: () => setHovered(true),
-						onMouseLeave: () => setHovered(false),
-						onClick: () => {
-							if (openable) openViewer();
-						},
-						onKeyDown: (event) => {
-							if (!openable) return;
-							if (event.key !== "Enter" && event.key !== " ") return;
-							event.preventDefault();
-							openViewer();
-						},
-						style: expanded ? {
-							position: "relative",
-							flex: 1,
-							minHeight: 0
-						} : {
-							position: "relative",
-							cursor: openable ? "pointer" : "default"
-						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
-							title,
-							design,
-							interactive: expanded && inputEnabled,
-							fit: expanded ? "contain" : "width",
-							iframeRef: streamRef
-						}, reloadKey), overlay]
-					}, "viewer-frame"),
-					expanded ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react.Fragment, { children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							style: {
-								fontSize: 13,
-								fontWeight: 500,
-								color: BH.labelPrimary,
-								opacity: .9,
-								textAlign: "center"
-							},
-							children: title
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							style: {
-								display: "flex",
-								gap: 8
-							},
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								disabled: busy || stopping,
-								onClick: onStop,
-								style: rowButton(busy || stopping),
-								children: stopLabel
-							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								onClick: reconnect,
-								title: t("entry.reconnect"),
-								style: rowButton(false),
-								children: t("entry.reconnect")
-							})]
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(RecentLogs, { t })
-					] }, "viewer-chrome")
-				]
+				title: t("entry.screen.title", { name: botSlug ?? "PersonaBot" }),
+				src: VIEWER_SRC,
+				design: designOf(resolution),
+				busy,
+				stopping,
+				onStop,
+				footer: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RecentLogs, { t }),
+				onEvent
 			});
 		}
 		function ComputerEntryView(props) {
 			const { t, state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, storage, resolution, onStart, onConfirmStart, onStop, onApprove, onCancel } = props;
-			designOf(resolution);
 			if (!runtimeAvailable) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: noteStyle,
 				children: t(SETUP_GUIDANCE_KEY)
@@ -2387,7 +2435,7 @@ window.__ModuleLoader__.load({
 				if (typeof document === "undefined") return () => {};
 				const style = document.createElement("style");
 				style.setAttribute("data-botharness-computer", "client");
-				style.textContent = SPIN_STYLE;
+				style.textContent = ACCESS_STYLE;
 				document.head.appendChild(style);
 				return () => {
 					style.remove();

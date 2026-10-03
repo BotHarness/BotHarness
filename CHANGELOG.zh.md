@@ -189,6 +189,8 @@
 
 ### Changed
 
+- Container Browser 与 Docker Computer 复用同一套预览、全屏及明确开启交互组件；Browser 确认 Host 暂停后才开启输入，收起全屏仍保持暂停（[#736](https://github.com/BotHarness/BotHarness/issues/736)）。
+
 - Human Inbox 改用 DSH 原生筛选菜单和带内边距的紧凑列表：点击整行打开详情，用主色按钮处理请求，通过头像与右上角箭头准确跳转来源；浏览器拒绝保存设置时，活动中心仍保留本窗口当前标签（[#687](https://github.com/BotHarness/BotHarness/issues/687)）。
 
 - PersonaBot 提醒策略改为紧凑表格，便于对比九类来源规则；保留近期唤醒次数与行内编辑入口，审计记录收进详情弹窗（[#670](https://github.com/BotHarness/BotHarness/issues/670)）。

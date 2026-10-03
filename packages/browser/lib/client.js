@@ -6,11 +6,802 @@ window.__ModuleLoader__.load({
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 		let react = require("react");
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
-		let react_dom = require("react-dom");
 		let react_jsx_runtime = require("react/jsx-runtime");
+		let react_dom = require("react-dom");
+		//#region packages/client/src/client/mounted-resource.ts
+		function useMountedResource(start, dependencies) {
+			const cleanup = (0, react.useRef)(void 0);
+			return (0, react.useCallback)((node) => {
+				cleanup.current?.();
+				cleanup.current = void 0;
+				if (node !== null) cleanup.current = start(node) || void 0;
+			}, dependencies);
+		}
+		//#endregion
+		//#region packages/client/src/client/remote-viewer/tokens.ts
+		const BH = {
+			labelSecondary: "var(--dsw-alias-label-secondary)",
+			hoverFill: "var(--dsw-alias-interactive-bg-hover)",
+			errorPrimary: "var(--dsw-alias-state-error-primary)",
+			radiusMd: "var(--dsw-radius-md)",
+			labelPrimary: "var(--dsw-alias-label-primary, #0f1115)",
+			labelPrimaryForeground: "var(--dsw-alias-label-primary-foreground, #ffffff)",
+			borderL2: "var(--dsw-alias-border-l2, #0000001a)",
+			borderL3: "var(--dsw-alias-border-l3, #0000001f)",
+			borderL4: "var(--dsw-alias-border-l4, #00000029)",
+			bgBase: "var(--dsw-alias-bg-base, #ffffff)",
+			buttonPrimaryFill: "var(--dsw-alias-button-primary-fill, #0f1115)",
+			buttonElevatedFill: "var(--dsw-alias-button-elevated-fill, transparent)",
+			businessPrimary: "var(--dsw-alias-state-business-primary, #4176e6)",
+			hoverScrim: "color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)"
+		};
+		const VIDEO_SURFACE = {
+			background: "#000000",
+			spinnerTrack: "rgba(255, 255, 255, 0.18)",
+			spinnerArc: "#ffffff",
+			onVideo: "#ffffff"
+		};
+		//#endregion
+		//#region packages/client/src/client/remote-viewer/viewer-state.ts
+		function nextExpanded(action) {
+			return action === "open";
+		}
+		function smoothPhase(shown, raw, streak) {
+			if (raw === "live") return {
+				phase: "live",
+				streak: 0
+			};
+			if (shown !== "live") return {
+				phase: raw,
+				streak: 0
+			};
+			const next = streak + 1;
+			if (next >= 2) return {
+				phase: raw,
+				streak: next
+			};
+			return {
+				phase: shown,
+				streak: next
+			};
+		}
+		function dotStateFor(phase) {
+			if (phase === "live") return "done";
+			if (phase === "empty") return "error";
+			return "ongoing";
+		}
+		function statusKeyFor(phase, reconnecting) {
+			if (phase === "live") return "entry.live";
+			if (phase === "empty") return "entry.noScreen";
+			return reconnecting ? "entry.reconnecting" : "entry.connecting";
+		}
+		function stopKey(busy, stopping) {
+			return busy || stopping ? "entry.stopping" : "entry.stop";
+		}
+		const STATUS_ELEMENT_ID = "status-display";
+		const BUSY_TEXT = /connecting|reconnect|disconnect|failed|error/i;
+		function hashBytes(data) {
+			let hash = 2174524869;
+			for (let index = 0; index < data.length; index += 1) {
+				hash ^= data[index] ?? 0;
+				hash = Math.imul(hash, 16777619);
+			}
+			return hash >>> 0;
+		}
+		function upstreamBusy(doc) {
+			try {
+				const element = doc?.getElementById(STATUS_ELEMENT_ID);
+				if (element === null || element === void 0) return false;
+				if (element.classList.contains("hidden")) return false;
+				return BUSY_TEXT.test(element.textContent ?? "");
+			} catch {
+				return false;
+			}
+		}
+		function signatureOf(doc, surface) {
+			try {
+				const scratch = doc.createElement("canvas");
+				scratch.width = 16;
+				scratch.height = 16;
+				const context = scratch.getContext("2d", { willReadFrequently: true });
+				if (context === null) return void 0;
+				context.drawImage(surface, 0, 0, 16, 16);
+				return hashBytes(context.getImageData(0, 0, 16, 16).data);
+			} catch {
+				return;
+			}
+		}
+		function sampleSurface(doc) {
+			const busy = upstreamBusy(doc);
+			let sized = false;
+			let signature;
+			try {
+				const surface = doc?.getElementById("videoCanvas");
+				const videoWidth = surface?.videoWidth;
+				const canvasWidth = surface?.width;
+				sized = surface !== null && surface !== void 0 && (typeof videoWidth === "number" ? videoWidth : typeof canvasWidth === "number" ? canvasWidth : 0) > 0;
+				if (sized && surface !== null && surface !== void 0 && doc !== null && doc !== void 0) signature = signatureOf(doc, surface);
+			} catch {
+				signature = void 0;
+			}
+			return signature === void 0 ? {
+				sized,
+				busy
+			} : {
+				sized,
+				busy,
+				signature
+			};
+		}
+		function withSignature(base, signature) {
+			return signature === void 0 ? { ...base } : {
+				...base,
+				lastSignature: signature
+			};
+		}
+		function withPreviousSignature(base, prev) {
+			return prev.lastSignature === void 0 ? { ...base } : {
+				...base,
+				lastSignature: prev.lastSignature
+			};
+		}
+		function shouldRemountLoss(lossStreak) {
+			return lossStreak >= 3;
+		}
+		function shouldAutoReload(phase, everLive, attempts) {
+			return phase === "empty" && !everLive && attempts < 3;
+		}
+		function nextStreamTracker(prev, sample) {
+			const signature = sample.signature;
+			if (!sample.sized) {
+				const misses = prev.misses + 1;
+				return {
+					tracker: withSignature({
+						misses,
+						busyStreak: 0,
+						quiet: 0
+					}, signature),
+					phase: misses >= 6 ? "empty" : "connecting"
+				};
+			}
+			if (sample.busy) {
+				const busyStreak = prev.busyStreak + 1;
+				return {
+					tracker: withPreviousSignature({
+						misses: prev.misses,
+						busyStreak,
+						quiet: 0
+					}, prev),
+					phase: busyStreak >= 30 ? "empty" : "connecting"
+				};
+			}
+			if (signature !== void 0 && prev.lastSignature !== void 0 && signature !== prev.lastSignature) return {
+				tracker: withSignature({
+					misses: 0,
+					busyStreak: 0,
+					quiet: 0
+				}, signature),
+				phase: "live"
+			};
+			if (signature === void 0) return {
+				tracker: {
+					misses: 0,
+					busyStreak: 0,
+					quiet: 0
+				},
+				phase: "live"
+			};
+			const quiet = prev.quiet + 1;
+			if (quiet >= 120) return {
+				tracker: withSignature({
+					misses: 6,
+					busyStreak: 0,
+					quiet
+				}, signature),
+				phase: "empty"
+			};
+			if (quiet >= 4) return {
+				tracker: withSignature({
+					misses: 0,
+					busyStreak: 0,
+					quiet
+				}, signature),
+				phase: "live"
+			};
+			return {
+				tracker: withSignature({
+					misses: prev.misses,
+					busyStreak: 0,
+					quiet
+				}, signature),
+				phase: "connecting"
+			};
+		}
+		//#endregion
+		//#region packages/client/src/client/remote-viewer/index.tsx
+		const SPIN_STYLE = "@keyframes bc-spin { to { transform: rotate(360deg); } }";
+		function useStreamPhase(onSample) {
+			return useMountedResource((iframe) => {
+				let active = true;
+				let tracker = {
+					misses: 0,
+					busyStreak: 0,
+					quiet: 0
+				};
+				let timer;
+				const check = () => {
+					if (!active) return;
+					let doc = null;
+					try {
+						doc = iframe.contentDocument;
+					} catch {
+						doc = null;
+					}
+					const next = nextStreamTracker(tracker, sampleSurface(doc));
+					tracker = next.tracker;
+					onSample(next.phase);
+					timer = setTimeout(check, 1e3);
+				};
+				timer = setTimeout(check, 300);
+				return () => {
+					active = false;
+					if (timer !== void 0) clearTimeout(timer);
+				};
+			}, [onSample]);
+		}
+		function ScreenIndicator({ label = "连接中" }) {
+			const size = 26;
+			const stroke = 2;
+			const radius = 12;
+			const circumference = 2 * Math.PI * radius;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				style: {
+					position: "absolute",
+					inset: 0,
+					display: "grid",
+					placeItems: "center",
+					background: VIDEO_SURFACE.background,
+					color: VIDEO_SURFACE.onVideo
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: {
+						display: "flex",
+						flexDirection: "column",
+						alignItems: "center",
+						gap: 10
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+						width: size,
+						height: size,
+						style: { animation: "bc-spin 1.1s linear infinite" },
+						"aria-hidden": "true",
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: size / 2,
+							cy: size / 2,
+							r: radius,
+							fill: "none",
+							stroke: VIDEO_SURFACE.spinnerTrack,
+							strokeWidth: stroke
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: size / 2,
+							cy: size / 2,
+							r: radius,
+							fill: "none",
+							stroke: VIDEO_SURFACE.spinnerArc,
+							strokeWidth: stroke,
+							strokeLinecap: "round",
+							strokeDasharray: `${String(circumference * .28)} ${String(circumference * .72)}`
+						})]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12.5,
+							opacity: .7
+						},
+						children: label
+					})]
+				})
+			});
+		}
+		function ScreenEmpty({ t, onRetry }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				style: {
+					position: "absolute",
+					inset: 0,
+					display: "grid",
+					placeItems: "center",
+					background: VIDEO_SURFACE.background,
+					color: VIDEO_SURFACE.onVideo
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: {
+						display: "flex",
+						flexDirection: "column",
+						alignItems: "center",
+						gap: 12
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12.5,
+							opacity: .75
+						},
+						children: t("entry.noScreen")
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						variant: "toolbar",
+						size: "sm",
+						onClick: onRetry,
+						children: t("entry.reconnect")
+					})]
+				})
+			});
+		}
+		function StreamOverlay(props) {
+			const { phase, reconnecting, hovered, t, onRetry, onOpen } = props;
+			if (phase === "connecting") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, { label: t(statusKeyFor(phase, reconnecting)) });
+			if (phase === "empty") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenEmpty, {
+				t,
+				onRetry
+			});
+			if (!hovered) return null;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				style: {
+					position: "absolute",
+					inset: 0,
+					display: "grid",
+					placeItems: "center",
+					background: BH.hoverScrim,
+					borderRadius: 8
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(_deepseek_ai_dsh_client_ui_primitives.Pill, {
+					onClick: onOpen,
+					style: {
+						background: BH.businessPrimary,
+						color: BH.labelPrimaryForeground,
+						height: 28,
+						padding: "0 12px",
+						fontSize: 13,
+						gap: 6
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFullscreenOutlineRegular, { size: 14 }), t("entry.openFullscreen")]
+				})
+			});
+		}
+		function ScaledFrame({ src, title, design, interactive, fit = "width", iframeRef }) {
+			const DESIGN_WIDTH = design.width;
+			const DESIGN_HEIGHT = design.height;
+			const [box, setBox] = (0, react.useState)({
+				width: DESIGN_WIDTH,
+				height: DESIGN_HEIGHT
+			});
+			const resizeResource = useMountedResource((element) => {
+				const frame = element.querySelector("iframe");
+				if (frame !== null) {
+					frame.inert = !interactive;
+					if (!interactive) frame.blur();
+				}
+				const update = () => setBox({
+					width: element.clientWidth,
+					height: element.clientHeight
+				});
+				update();
+				const observer = new ResizeObserver(update);
+				observer.observe(element);
+				return () => observer.disconnect();
+			}, [interactive]);
+			const scale = fit === "contain" ? Math.min(box.width / DESIGN_WIDTH, box.height / DESIGN_HEIGHT) : box.width / DESIGN_WIDTH;
+			const offsetX = fit === "contain" ? Math.max(0, (box.width - DESIGN_WIDTH * scale) / 2) : 0;
+			const offsetY = fit === "contain" ? Math.max(0, (box.height - DESIGN_HEIGHT * scale) / 2) : 0;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				ref: resizeResource,
+				style: {
+					position: "relative",
+					width: "100%",
+					...fit === "width" ? {
+						aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
+						border: `1px solid ${BH.borderL3}`,
+						borderRadius: 8
+					} : { height: "100%" },
+					overflow: "hidden",
+					background: VIDEO_SURFACE.background
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
+					ref: iframeRef,
+					title,
+					src,
+					tabIndex: interactive ? 0 : -1,
+					style: {
+						position: "absolute",
+						top: 0,
+						left: 0,
+						width: DESIGN_WIDTH,
+						height: DESIGN_HEIGHT,
+						border: "none",
+						transform: `translate(${String(offsetX)}px, ${String(offsetY)}px) scale(${String(scale)})`,
+						transformOrigin: "top left",
+						pointerEvents: interactive ? "auto" : "none"
+					}
+				})
+			});
+		}
+		function CollapseIcon() {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				width: 15,
+				height: 15,
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 2,
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": "true",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("polyline", { points: "4 14 10 14 10 20" }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("polyline", { points: "20 10 14 10 14 4" }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("line", {
+						x1: "14",
+						y1: "10",
+						x2: "21",
+						y2: "3"
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("line", {
+						x1: "3",
+						y1: "21",
+						x2: "10",
+						y2: "14"
+					})
+				]
+			});
+		}
+		function StopButton({ t, busy, stopping, onStop }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+				variant: "ghost",
+				size: "sm",
+				disabled: busy || stopping,
+				onClick: onStop,
+				children: busy || stopping ? t("entry.stopping") : t("entry.stop")
+			});
+		}
+		function ViewerTitleBar(props) {
+			const { t, title, phase, reconnecting, busy, stopping, interactive, extraControls, onToggleInteractive, onStop, onCollapse } = props;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				style: {
+					display: "flex",
+					alignItems: "center",
+					gap: 8,
+					height: 44,
+					flex: "0 0 auto",
+					padding: "0 8px 0 14px",
+					borderBottom: `1px solid ${BH.borderL2}`,
+					color: BH.labelPrimary,
+					background: BH.bgBase
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.StateDot, { state: dotStateFor(phase) }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+						style: {
+							fontSize: 13,
+							fontWeight: 600
+						},
+						children: title
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12,
+							opacity: .65
+						},
+						children: t(statusKeyFor(phase, reconnecting))
+					}),
+					interactive ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12,
+							opacity: .65
+						},
+						children: t("entry.watchOnly")
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
+					extraControls,
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						variant: interactive ? "ghost" : "primary",
+						size: "sm",
+						"aria-pressed": interactive,
+						onClick: onToggleInteractive,
+						disabled: busy || stopping,
+						title: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable"),
+						children: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable")
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
+						t,
+						busy,
+						stopping,
+						onStop
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						variant: "ghost",
+						size: "sm",
+						onClick: onCollapse,
+						"aria-label": t("entry.collapseFullscreen"),
+						title: t("entry.collapseFullscreen"),
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CollapseIcon, {})
+					})
+				]
+			});
+		}
+		function RemoteViewer({ t, title, src, design, busy, stopping, onStop, footer, notice, extraControls, onEvent, interactive, onToggleInteractive, onDisableInteraction, expanded: controlledExpanded, onExpandedChange }) {
+			const entryRef = (0, react.useRef)(null);
+			const mounted = (0, react.useRef)(false);
+			const [hovered, setHovered] = (0, react.useState)(false);
+			const [ownExpanded, setOwnExpanded] = (0, react.useState)(false);
+			const expanded = controlledExpanded ?? ownExpanded;
+			const setExpanded = (next) => {
+				setOwnExpanded(next);
+				onExpandedChange?.(next);
+			};
+			const [inputEnabled, setInputEnabled] = (0, react.useState)(false);
+			const [reloadKey, setReloadKey] = (0, react.useState)(0);
+			const [reconnecting, setReconnecting] = (0, react.useState)(false);
+			const wasReady = (0, react.useRef)(false);
+			const autoReloads = (0, react.useRef)(0);
+			const lossStreak = (0, react.useRef)(0);
+			const phaseRef = (0, react.useRef)("connecting");
+			const [smooth, setSmooth] = (0, react.useState)({
+				phase: "connecting",
+				streak: 0
+			});
+			const resetFrame = (0, react.useCallback)(() => {
+				phaseRef.current = "connecting";
+				setSmooth({
+					phase: "connecting",
+					streak: 0
+				});
+				setReloadKey((key) => key + 1);
+			}, []);
+			const streamRef = useStreamPhase((0, react.useCallback)((nextPhase) => {
+				const fromPhase = phaseRef.current;
+				if (fromPhase !== nextPhase) {
+					phaseRef.current = nextPhase;
+					setSmooth((current) => smoothPhase(current.phase, nextPhase, current.streak));
+					onEvent?.({
+						type: "phase",
+						from: fromPhase,
+						to: nextPhase
+					});
+				}
+				if (nextPhase === "live") {
+					wasReady.current = true;
+					autoReloads.current = 0;
+					lossStreak.current = 0;
+					setReconnecting(false);
+					return;
+				}
+				if (wasReady.current) {
+					lossStreak.current += 1;
+					if (shouldRemountLoss(lossStreak.current)) {
+						wasReady.current = false;
+						lossStreak.current = 0;
+						onEvent?.({
+							type: "loss-remount",
+							streak: 3
+						});
+						setReconnecting(true);
+						resetFrame();
+						return;
+					}
+				}
+				if (fromPhase !== nextPhase && shouldAutoReload(nextPhase, wasReady.current, autoReloads.current)) {
+					autoReloads.current += 1;
+					onEvent?.({
+						type: "auto-reload",
+						attempt: autoReloads.current
+					});
+					resetFrame();
+				}
+			}, [resetFrame, onEvent]));
+			const phase = smooth.phase;
+			const reconnect = () => {
+				onEvent?.({ type: "manual-retry" });
+				setReconnecting(true);
+				autoReloads.current = 0;
+				lossStreak.current = 0;
+				wasReady.current = false;
+				resetFrame();
+			};
+			const openViewer = () => {
+				setExpanded(nextExpanded("open"));
+				onEvent?.({
+					type: "overlay",
+					open: true
+				});
+			};
+			const collapseViewer = () => {
+				setInputEnabled(false);
+				onDisableInteraction?.();
+				setExpanded(nextExpanded("collapse"));
+				onEvent?.({
+					type: "overlay",
+					open: false
+				});
+				requestAnimationFrame(() => entryRef.current?.focus());
+			};
+			const dialogResource = useMountedResource((dialog) => {
+				if (!mounted.current) {
+					mounted.current = true;
+					onEvent?.({ type: "mount" });
+				}
+				if (!expanded) return;
+				const onKey = (event) => {
+					if (event.key !== "Tab") return;
+					const focusable = [...dialog.querySelectorAll("button, [href], iframe, [tabindex]:not([tabindex=\"-1\"])")].filter((element) => element.tabIndex !== -1);
+					const first = focusable[0];
+					const last = focusable.at(-1);
+					if (first === void 0 || last === void 0) return;
+					const active = document.activeElement;
+					if (event.shiftKey && (active === first || active === dialog)) {
+						event.preventDefault();
+						last.focus();
+					} else if (!event.shiftKey && active === last) {
+						event.preventDefault();
+						first.focus();
+					}
+				};
+				document.addEventListener("keydown", onKey);
+				const previousOverflow = document.body.style.overflow;
+				document.body.style.overflow = "hidden";
+				dialog.focus();
+				return () => {
+					document.removeEventListener("keydown", onKey);
+					document.body.style.overflow = previousOverflow;
+				};
+			}, [
+				expanded,
+				onDisableInteraction,
+				onEvent
+			]);
+			const statusText = t(statusKeyFor(phase, reconnecting));
+			const openable = phase === "live" && !expanded;
+			const overlay = /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StreamOverlay, {
+				phase,
+				reconnecting,
+				hovered: expanded ? false : hovered,
+				t,
+				onRetry: reconnect,
+				onOpen: openViewer
+			});
+			const stopLabel = t(stopKey(busy, stopping));
+			const rowButton = (disabled) => ({
+				flex: 1,
+				display: "inline-flex",
+				alignItems: "center",
+				justifyContent: "center",
+				height: 28,
+				padding: "0 10px",
+				borderRadius: 14,
+				border: `1px solid ${BH.borderL3}`,
+				background: BH.buttonElevatedFill,
+				color: BH.labelPrimary,
+				fontSize: 12,
+				...disabled ? {
+					opacity: .4,
+					cursor: "not-allowed"
+				} : { cursor: "pointer" }
+			});
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: dialogResource,
+				role: expanded ? "dialog" : void 0,
+				"aria-modal": expanded ? true : void 0,
+				"aria-label": expanded ? title : void 0,
+				tabIndex: expanded ? -1 : void 0,
+				style: expanded ? {
+					position: "fixed",
+					inset: 0,
+					zIndex: 100,
+					display: "flex",
+					flexDirection: "column",
+					background: BH.bgBase,
+					color: BH.labelPrimary
+				} : {
+					display: "flex",
+					flexDirection: "column",
+					gap: 8
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("style", { children: SPIN_STYLE }),
+					expanded ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ViewerTitleBar, {
+						t,
+						title,
+						phase,
+						reconnecting,
+						busy,
+						stopping,
+						extraControls,
+						interactive: interactive ?? inputEnabled,
+						onToggleInteractive: onToggleInteractive ?? (() => setInputEnabled((current) => !current)),
+						onStop,
+						onCollapse: collapseViewer
+					}, "viewer-titlebar") : null,
+					notice,
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						ref: entryRef,
+						role: openable ? "button" : void 0,
+						tabIndex: openable ? 0 : void 0,
+						"aria-label": openable ? t("entry.openFullscreen") : statusText,
+						onMouseEnter: () => setHovered(true),
+						onMouseLeave: () => setHovered(false),
+						onClick: () => {
+							if (openable) openViewer();
+						},
+						onKeyDown: (event) => {
+							if (!openable) return;
+							if (event.key !== "Enter" && event.key !== " ") return;
+							event.preventDefault();
+							openViewer();
+						},
+						style: expanded ? {
+							position: "relative",
+							flex: 1,
+							minHeight: 0
+						} : {
+							position: "relative",
+							cursor: openable ? "pointer" : "default"
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
+							src,
+							title,
+							design,
+							interactive: expanded && (interactive ?? inputEnabled),
+							fit: expanded ? "contain" : "width",
+							iframeRef: streamRef
+						}, reloadKey), overlay]
+					}, "viewer-frame"),
+					expanded ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react.Fragment, { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							style: {
+								fontSize: 13,
+								fontWeight: 500,
+								color: BH.labelPrimary,
+								opacity: .9,
+								textAlign: "center"
+							},
+							children: title
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: {
+								display: "flex",
+								gap: 8
+							},
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								disabled: busy || stopping,
+								onClick: onStop,
+								style: rowButton(busy || stopping),
+								children: stopLabel
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								onClick: reconnect,
+								title: t("entry.reconnect"),
+								style: rowButton(false),
+								children: t("entry.reconnect")
+							})]
+						}),
+						footer
+					] }, "viewer-chrome")
+				]
+			});
+		}
+		//#endregion
 		//#region packages/browser/src/client/locale.ts
 		const LOCALE_NS = "botharness-browser";
 		const zh = {
+			"entry.live": "已连接",
+			"entry.noScreen": "暂无画面",
+			"entry.connecting": "连接中",
+			"entry.reconnecting": "正在重新连接",
+			"entry.reconnect": "重新连接",
+			"entry.openFullscreen": "打开大屏",
+			"entry.collapseFullscreen": "收起全屏",
+			"entry.interactive.disable": "停止交互",
+			"entry.interactive.enable": "开启交互",
+			"entry.watchOnly": "观看模式",
+			"entry.stop": "停止",
+			"entry.stopping": "停止中",
 			"settings.target": "操作目标",
 			"settings.local": "本机 Browser",
 			"settings.container": "Docker Browser",
@@ -39,6 +830,18 @@ window.__ModuleLoader__.load({
 			"entry.error": "浏览器操作失败"
 		};
 		const en = {
+			"entry.live": "Connected",
+			"entry.noScreen": "No screen",
+			"entry.connecting": "Connecting",
+			"entry.reconnecting": "Reconnecting",
+			"entry.reconnect": "Reconnect",
+			"entry.openFullscreen": "Open fullscreen",
+			"entry.collapseFullscreen": "Leave fullscreen",
+			"entry.interactive.disable": "Disable interaction",
+			"entry.interactive.enable": "Enable interaction",
+			"entry.watchOnly": "Watch only",
+			"entry.stop": "Stop",
+			"entry.stopping": "Stopping",
 			"settings.target": "Browser Target",
 			"settings.local": "Local Browser",
 			"settings.container": "Docker Browser",
@@ -293,7 +1096,7 @@ window.__ModuleLoader__.load({
 .bh-browser-access-error { order: -1; padding: 0 4px; color: var(--dsw-alias-state-error-primary); font-size: 11px; line-height: 16px; white-space: nowrap; }
 
 /* @bh-browser-aliases:start */
-.bh-browser-body, .bh-browser-profiles, .bh-browser-settings, .bh-browser-viewer {
+.bh-browser-body, .bh-browser-profiles, .bh-browser-settings {
   --bh-browser-error: var(--dsw-alias-state-error-primary);
   --bh-browser-secondary: var(--dsw-alias-label-secondary);
   --bh-browser-label: var(--dsw-alias-label-primary);
@@ -340,8 +1143,6 @@ window.__ModuleLoader__.load({
 .bh-browser-tab-title, .bh-browser-tab-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-browser-tab-url { color: var(--bh-browser-secondary); }
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
-.bh-browser-viewer { width: 1100px; max-width: calc(100vw - 48px); }
-.bh-browser-viewer-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 `;
 		//#endregion
 		//#region packages/browser/src/client/access-power-icon.tsx
@@ -440,6 +1241,7 @@ window.__ModuleLoader__.load({
 			let tab;
 			let timer;
 			let refreshing = false;
+			let revision = 0;
 			let refreshAgain = false;
 			const listeners = /* @__PURE__ */ new Set();
 			const refresh = async () => {
@@ -449,11 +1251,12 @@ window.__ModuleLoader__.load({
 				}
 				refreshing = true;
 				const requestedTab = tab;
+				const requestedRevision = revision;
 				try {
 					const next = await requestJson(observationUrl(botSlug, requestedTab));
-					if (tab === requestedTab) value = next;
+					if (tab === requestedTab && revision === requestedRevision) value = next;
 				} catch {
-					if (tab === requestedTab) value = void 0;
+					if (tab === requestedTab && revision === requestedRevision) value = void 0;
 				} finally {
 					refreshing = false;
 				}
@@ -482,6 +1285,14 @@ window.__ModuleLoader__.load({
 				setTab(targetId) {
 					tab = targetId;
 					refresh();
+				},
+				confirmTakeover(active) {
+					revision += 1;
+					if (value !== void 0) value = {
+						...value,
+						takeover: active
+					};
+					for (const listener of listeners) listener();
 				},
 				refresh: () => void refresh()
 			};
@@ -578,11 +1389,73 @@ window.__ModuleLoader__.load({
 			const [error, setError] = (0, react.useState)(void 0);
 			const [viewer, setViewer] = (0, react.useState)();
 			const [interaction, setInteraction] = (0, react.useState)(false);
+			const viewerScope = (0, react.useRef)("");
+			const previousViewer = (0, react.useRef)({
+				identity: "",
+				url: void 0
+			});
+			const mounted = (0, react.useRef)(true);
+			const viewerRequest = (0, react.useRef)(0);
+			const interactionResource = (0, react.useCallback)((node) => {
+				mounted.current = node !== null;
+				if (node === null) viewerRequest.current += 1;
+			}, []);
+			const disableInteraction = (0, react.useCallback)(() => {
+				viewerRequest.current += 1;
+				setInteraction(false);
+			}, []);
 			const tabs = observation?.tabs ?? [];
 			const focused = observation?.focused ?? null;
 			const currentTab = tabs.find((tab) => tab.current);
 			const orderedTabs = currentTab === void 0 ? tabs : [currentTab, ...tabs.filter((tab) => !tab.current)];
 			const paused = observation?.takeover === true;
+			const viewerUrl = observation?.target === "container" && observation.running ? observation.viewerUrl ?? void 0 : void 0;
+			const identity = `${botSlug ?? ""}:${profileOverride ?? info.browserProfile ?? ""}:${observation?.target ?? ""}`;
+			const scope = `${identity}:${viewerUrl ?? ""}`;
+			const previous = previousViewer.current;
+			if (viewerScope.current !== scope) {
+				viewerScope.current = scope;
+				viewerRequest.current += 1;
+				previousViewer.current = {
+					identity,
+					url: viewerUrl
+				};
+				if (interaction) setInteraction(false);
+				if ((previous.identity !== identity || previous.url !== void 0) && viewer !== void 0) setViewer(void 0);
+			}
+			if (!paused && interaction) setInteraction(false);
+			const viewerTranslate = (key) => t(key);
+			const toggleInteraction = () => {
+				if (interaction) {
+					disableInteraction();
+					return;
+				}
+				if (busy || botSlug === void 0 || viewerUrl === void 0) return;
+				const request = ++viewerRequest.current;
+				const expectedScope = viewerScope.current;
+				setBusy(true);
+				setError(void 0);
+				requestJson(TAKEOVER_ENDPOINT, {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						slug: botSlug,
+						active: true
+					})
+				}).then((result) => {
+					if (mounted.current && request === viewerRequest.current && viewerScope.current === expectedScope) {
+						store.confirmTakeover(result.takeover);
+						setInteraction(result.takeover);
+					}
+				}).catch((cause) => {
+					if (mounted.current && request === viewerRequest.current) setError(String(cause));
+				}).finally(() => {
+					if (mounted.current) {
+						setBusy(false);
+						store.refresh();
+					}
+				});
+			};
 			const invoke = (endpoint, body = {}) => {
 				if (busy || botSlug === void 0) return;
 				setBusy(true);
@@ -596,6 +1469,7 @@ window.__ModuleLoader__.load({
 						...body
 					})
 				}).then((result) => {
+					if (typeof result.takeover === "boolean") store.confirmTakeover(result.takeover);
 					if (endpoint === OPEN_ENDPOINT && result.viewerUrl !== void 0 && result.viewerUrl !== null) {
 						setViewer(result.viewerUrl);
 						setInteraction(false);
@@ -626,6 +1500,7 @@ window.__ModuleLoader__.load({
 				store.setTab(targetId);
 			};
 			const onPause = () => {
+				disableInteraction();
 				invoke(TAKEOVER_ENDPOINT, { active: !paused });
 			};
 			const currentProfile = profileOverride ?? info.browserProfile ?? "";
@@ -639,6 +1514,8 @@ window.__ModuleLoader__.load({
 					setError(void 0);
 					return;
 				}
+				disableInteraction();
+				setViewer(void 0);
 				setBusy(true);
 				setProfileInvalid(false);
 				setError(void 0);
@@ -665,6 +1542,7 @@ window.__ModuleLoader__.load({
 				});
 			};
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: interactionResource,
 				className: "bh-browser-body",
 				style: {
 					display: "grid",
@@ -691,7 +1569,7 @@ window.__ModuleLoader__.load({
 							t
 						})]
 					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: {
 							display: "flex",
 							alignItems: "center",
@@ -707,8 +1585,7 @@ window.__ModuleLoader__.load({
 							label: t("entry.view.follow"),
 							disabled: botSlug === void 0
 						})]
-					}),
-					observation?.frame === null || observation?.frame === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					}), observation?.frame === null || observation?.frame === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: { opacity: .6 },
 						children: t("entry.view.noFrame")
 					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("img", {
@@ -719,7 +1596,38 @@ window.__ModuleLoader__.load({
 							borderRadius: 6,
 							border: "1px solid currentColor"
 						}
-					}),
+					})] }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RemoteViewer, {
+						t: viewerTranslate,
+						title: t("entry.view.container"),
+						src: viewerUrl,
+						design: {
+							width: 1024,
+							height: 768
+						},
+						notice: error === void 0 ? void 0 : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							role: "alert",
+							className: "bh-browser-error",
+							children: error
+						}),
+						busy,
+						stopping: false,
+						onStop: () => invoke(STOP_ENDPOINT),
+						interactive: interaction && paused,
+						onToggleInteractive: toggleInteraction,
+						onDisableInteraction: disableInteraction,
+						expanded: viewer === viewerUrl,
+						onExpandedChange: (next) => {
+							setViewer(next ? viewerUrl : void 0);
+							if (!next) disableInteraction();
+						},
+						extraControls: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							style: buttonStyle,
+							disabled: busy,
+							onClick: onPause,
+							children: t(paused ? "entry.view.resume" : "entry.view.pause")
+						})
+					}, scope),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: {
 							display: "flex",
@@ -741,7 +1649,7 @@ window.__ModuleLoader__.load({
 								onClick: () => invoke(OPEN_ENDPOINT, follow || preview === void 0 ? {} : { tab: preview }),
 								children: t(busy ? "entry.view.opening" : "entry.view.open")
 							}),
-							observation?.running === true ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							observation?.running === true && viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								style: buttonStyle,
 								disabled: busy,
@@ -749,71 +1657,6 @@ window.__ModuleLoader__.load({
 								children: t("entry.view.stop")
 							}) : null
 						]
-					}),
-					viewer === void 0 || observation?.target !== "container" || observation.viewerUrl !== viewer ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(_deepseek_ai_dsh_client_ui_primitives.Modal, {
-						open: true,
-						title: t("entry.view.container"),
-						closeLabel: t("entry.view.close"),
-						className: "bh-browser-viewer",
-						onClose: () => {
-							setViewer(void 0);
-							setInteraction(false);
-						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							className: "bh-browser-viewer-controls",
-							children: [
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									type: "button",
-									style: buttonStyle,
-									disabled: busy,
-									onClick: onPause,
-									children: t(paused ? "entry.view.resume" : "entry.view.pause")
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.view.interaction") }),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
-									checked: interaction && paused,
-									label: t("entry.view.interaction"),
-									onChange: (next) => {
-										if (!next) {
-											setInteraction(false);
-											return;
-										}
-										if (busy || botSlug === void 0) return;
-										setBusy(true);
-										setError(void 0);
-										requestJson(TAKEOVER_ENDPOINT, {
-											method: "POST",
-											headers: { "content-type": "application/json" },
-											body: JSON.stringify({
-												slug: botSlug,
-												active: true
-											})
-										}).then((result) => setInteraction(result.takeover)).catch((cause) => setError(String(cause))).finally(() => {
-											setBusy(false);
-											store.refresh();
-										});
-									},
-									disabled: busy
-								}),
-								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-									type: "button",
-									style: buttonStyle,
-									disabled: busy,
-									onClick: () => invoke(STOP_ENDPOINT),
-									children: t("entry.view.stop")
-								})
-							]
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
-							src: viewer,
-							title: t("entry.view.container"),
-							tabIndex: interaction && paused ? 0 : -1,
-							style: {
-								width: "100%",
-								height: "min(70vh, 768px)",
-								border: 0,
-								pointerEvents: interaction && paused ? "auto" : "none"
-							}
-						}, interaction && paused ? "interactive" : "readonly")]
 					}),
 					tabs.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: { opacity: .6 },

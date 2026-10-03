@@ -5,7 +5,7 @@ import { parse } from '@babel/parser';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(
-  fileURLToPath(new URL('../src/client/index.tsx', import.meta.url)),
+  fileURLToPath(new URL('../../client/src/client/remote-viewer/tokens.ts', import.meta.url)),
   'utf8',
 );
 
@@ -15,15 +15,16 @@ const LITERAL_COLOUR = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/;
 function colourBlock(name: string): { start: number; end: number } {
   const declarations = syntax.program.body.filter(
     (node) =>
-      node.type === 'VariableDeclaration' &&
-      node.declarations.some(
+      node.type === 'ExportNamedDeclaration' &&
+      node.declaration?.type === 'VariableDeclaration' &&
+      node.declaration.declarations.some(
         (declaration) => declaration.id.type === 'Identifier' && declaration.id.name === name,
       ),
   );
-  if (declarations.length !== 1) throw new Error(`index.tsx must declare ${name} exactly once`);
+  if (declarations.length !== 1) throw new Error(`shared tokens must declare ${name} exactly once`);
   const declaration = declarations[0]!;
   if (declaration.start == null || declaration.end == null) {
-    throw new Error(`index.tsx has no source span for ${name}`);
+    throw new Error(`shared tokens has no source span for ${name}`);
   }
   return { start: declaration.start, end: declaration.end };
 }
@@ -34,7 +35,17 @@ function themedChrome(): string {
     .reduce((text, block) => text.slice(0, block.start) + text.slice(block.end), source);
 }
 
-describe('computer client entry colours', () => {
+describe('shared viewer colours', () => {
+  it('keeps both viewer consumers on the shared alias owner', () => {
+    for (const file of [
+      '../src/client/index.tsx',
+      '../../client/src/client/remote-viewer/index.tsx',
+    ]) {
+      const consumer = readFileSync(fileURLToPath(new URL(file, import.meta.url)), 'utf8');
+      expect(consumer).not.toContain('--dsw-');
+      expect(consumer).not.toMatch(LITERAL_COLOUR);
+    }
+  });
   it('declares each colour block exactly once', () => {
     expect(colourBlock('BH').end).toBeGreaterThan(colourBlock('BH').start);
     expect(colourBlock('VIDEO_SURFACE').end).toBeGreaterThan(colourBlock('VIDEO_SURFACE').start);

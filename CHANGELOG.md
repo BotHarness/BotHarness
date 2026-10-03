@@ -189,6 +189,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Unified Container Browser and Docker Computer preview, fullscreen and explicit interaction controls in one shared Viewer; Browser waits for Host Pause before enabling input and keeps Pause when the view collapses ([#736](https://github.com/BotHarness/BotHarness/issues/736)).
+
 - Human Inbox now uses native DSH filter menus and padded compact rows: open details by clicking a row, respond through primary actions, or jump to the exact source through its avatar and corner arrow; Activity Center keeps the current tab when browser storage rejects writes ([#687](https://github.com/BotHarness/BotHarness/issues/687)).
 
 - PersonaBot Attention policy now compares nine source rules in a compact table, with recent wakes, inline edit actions and secondary audit details ([#670](https://github.com/BotHarness/BotHarness/issues/670)).
