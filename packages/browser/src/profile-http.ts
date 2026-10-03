@@ -1,109 +1,30 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import { extensionOrigin } from './borrow.js';
 import { PROFILE_PREFIX, type ProfileControl } from './profile-control.js';
+import { registerExtensionHttp } from './extension-http.js';
 import type { BrowserViewerHost } from './viewer.js';
-
-async function readBody(request: IncomingMessage): Promise<Record<string, unknown>> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    size += bytes.length;
-    if (size > 128_000) throw new Error('Extension request is too large');
-    chunks.push(bytes);
-  }
-  const value: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  if (value === null || typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Invalid extension request');
-  return value as Record<string, unknown>;
-}
-
 export function registerProfileHttp(host: BrowserViewerHost, service: ProfileControl): () => void {
-  const controllers = new Set<AbortController>();
-  const release = host.register({
-    kind: 'prefix',
-    path: PROFILE_PREFIX.slice(0, -1),
-    async handler(request: IncomingMessage, response: ServerResponse) {
-      const origin = request.headers.origin ?? '';
-      const address = request.socket.remoteAddress ?? '';
-      if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address) || !extensionOrigin(origin)) {
-        response.writeHead(403);
-        response.end();
-        return;
+  return registerExtensionHttp(
+    host,
+    PROFILE_PREFIX,
+    async (action, token, origin, body, signal) => {
+      if (action === 'pair')
+        return service.redeem(typeof body.code === 'string' ? body.code : '', origin);
+      if (action === 'poll')
+        return service.poll(
+          token,
+          origin,
+          typeof body.count === 'number' ? body.count : 0,
+          typeof body.clientId === 'string' ? body.clientId : '',
+          signal,
+        );
+      if (action === 'result') {
+        await service.result(token, origin, body);
+        return null;
       }
-      const headers = {
-        'access-control-allow-origin': origin,
-        'access-control-allow-methods': 'POST, OPTIONS',
-        'access-control-allow-headers': 'content-type, authorization',
-        'cache-control': 'no-store',
-        vary: 'Origin',
-      };
-      if (request.method === 'OPTIONS') {
-        response.writeHead(204, headers);
-        response.end();
-        return;
+      if (action === 'forget') {
+        await service.forgetToken(token, origin);
+        return null;
       }
-      if (request.method !== 'POST') {
-        response.writeHead(405, headers);
-        response.end();
-        return;
-      }
-      const controller = new AbortController();
-      controllers.add(controller);
-      const close = (): void => {
-        controller.abort();
-      };
-      response.once('close', close);
-      try {
-        const body = await readBody(request);
-        const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname;
-        const token = (request.headers.authorization ?? '').replace(/^Bearer /u, '');
-        let value: unknown;
-        if (path === `${PROFILE_PREFIX}pair`)
-          value = await service.redeem(typeof body.code === 'string' ? body.code : '', origin);
-        else if (path === `${PROFILE_PREFIX}poll`)
-          value = await service.poll(
-            token,
-            origin,
-            typeof body.count === 'number' ? body.count : 0,
-            typeof body.clientId === 'string' ? body.clientId : '',
-            controller.signal,
-          );
-        else if (path === `${PROFILE_PREFIX}result`) {
-          await service.result(token, origin, body);
-          value = null;
-        } else if (path === `${PROFILE_PREFIX}forget`) {
-          await service.forgetToken(token, origin);
-          value = null;
-        } else {
-          response.writeHead(404, headers);
-          response.end();
-          return;
-        }
-        if (!controller.signal.aborted) {
-          response.writeHead(200, { ...headers, 'content-type': 'application/json' });
-          response.end(JSON.stringify({ ok: true, value }));
-        }
-      } catch {
-        if (!controller.signal.aborted) {
-          response.writeHead(409, { ...headers, 'content-type': 'application/json' });
-          response.end(
-            JSON.stringify({
-              ok: false,
-              error:
-                'Browser connection unavailable; open the paired extension or pair this Chrome Profile again',
-            }),
-          );
-        }
-      } finally {
-        controllers.delete(controller);
-        response.off('close', close);
-      }
+      return undefined;
     },
-  });
-  return () => {
-    release();
-    for (const controller of controllers) controller.abort();
-    controllers.clear();
-  };
+  );
 }

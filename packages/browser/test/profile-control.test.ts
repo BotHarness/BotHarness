@@ -121,3 +121,35 @@ it('reconnection changes operation authority even when the old heartbeat is fres
   expect((await h.service.view()).paired).toBe(true);
   h.service.dispose();
 });
+
+it('concurrent pairing replacement and revocation cannot restore a revoked credential on restart', async () => {
+  const h = await setup();
+  h.controller.abort();
+  await expect(h.firstPoll).rejects.toThrow();
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const code = (await h.service.pair()).code;
+    const paired = h.service.redeem(code, origin);
+    const forgotten = h.service.forget();
+    const { token } = await paired;
+    await forgotten;
+    const restarted = createProfileControl(h.options);
+    expect((await restarted.view()).paired).toBe(false);
+    await expect(
+      restarted.poll(token, origin, 0, randomUUID(), new AbortController().signal),
+    ).rejects.toThrow('unavailable');
+    restarted.dispose();
+  }
+  h.service.dispose();
+});
+it('an old extension cannot revoke a replacement Profile pairing', async () => {
+  const h = await setup();
+  h.controller.abort();
+  await expect(h.firstPoll).rejects.toThrow();
+  const code = (await h.service.pair()).code;
+  const replacement = h.service.redeem(code, origin);
+  const stale = h.service.forgetToken(h.token, origin);
+  await replacement;
+  await expect(stale).rejects.toThrow('unavailable');
+  expect((await h.service.view()).paired).toBe(true);
+  h.service.dispose();
+});

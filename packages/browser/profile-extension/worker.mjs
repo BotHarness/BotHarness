@@ -1,6 +1,7 @@
 import { profilePage } from './page.mjs';
 const KEY = 'profileBinding';
 let polling = false;
+let activePoll;
 let currentEpoch;
 let clientId = crypto.randomUUID();
 const selected = new Map();
@@ -20,7 +21,7 @@ function hostOrigin(value) {
     throw new Error('Use the local BotHarness address');
   return url.origin;
 }
-async function request(config, action, body = {}) {
+async function request(config, action, body = {}, signal) {
   const response = await fetch(`${hostOrigin(config.host)}/botharness-browser/profile/${action}`, {
     method: 'POST',
     credentials: 'omit',
@@ -30,7 +31,9 @@ async function request(config, action, body = {}) {
       ...(config.token ? { authorization: `Bearer ${config.token}` } : {}),
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(25_000),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(25_000)])
+      : AbortSignal.timeout(25_000),
   });
   const reply = await response.json();
   if (!response.ok || !reply.ok) throw new Error('Profile connection unavailable');
@@ -152,12 +155,19 @@ async function execute(command) {
 async function poll() {
   if (polling) return;
   polling = true;
+  clientId = crypto.randomUUID();
   try {
     for (;;) {
       const config = await read();
       if (!config) return;
       try {
-        const command = await request(config, 'poll', { count: (await tabs()).length, clientId });
+        activePoll = new AbortController();
+        const command = await request(
+          config,
+          'poll',
+          { count: (await tabs()).length, clientId },
+          activePoll.signal,
+        );
         if ((await read())?.token !== config.token) {
           invalidate();
           continue;
@@ -171,8 +181,18 @@ async function poll() {
         let error;
         try {
           value = await execute(command);
-        } catch {
-          error = 'Webpage command refused';
+        } catch (failure) {
+          const reasons = [
+            'Stale or unavailable ref',
+            'Element is covered',
+            'Document changed',
+            'Observe the selected tab first',
+            'Input focus unavailable',
+            'Page command failed',
+          ];
+          const reason =
+            reasons.find((value) => String(failure).includes(value)) ?? 'Chrome command failed';
+          error = reason;
         }
         await request(config, 'result', {
           id: command.id,
@@ -180,6 +200,7 @@ async function poll() {
           ...(error ? { error } : { value }),
         });
       } catch {
+        if (activePoll?.signal.aborted && (await read())?.token === config.token) continue;
         invalidate();
         await chrome.action.setBadgeText({ text: 'OFF' });
         return;
@@ -199,10 +220,13 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
       const config = await read();
       if (config) await request(config, 'forget').catch(() => undefined);
       await chrome.storage.local.remove(KEY);
+      activePoll?.abort();
       invalidate();
       return null;
     }
     if (message.action === 'reconnect') {
+      clientId = crypto.randomUUID();
+      activePoll?.abort();
       invalidate();
       void poll();
       return null;

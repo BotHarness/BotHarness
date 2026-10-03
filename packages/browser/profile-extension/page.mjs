@@ -90,13 +90,6 @@ export function profilePage(method, slug, ref) {
     )
       throw new Error('Not an editable text field');
     if (method === 'prepare-type') return { x, y, url: location.href };
-    if (
-      !element.matches(
-        'input:not([type="file"]):not([type="checkbox"]):not([type="radio"]),textarea',
-      ) ||
-      element.readOnly
-    )
-      throw new Error('Not an editable text field');
     element.focus();
     if (document.activeElement !== element) throw new Error('Input focus unavailable');
     const setter = Object.getOwnPropertyDescriptor(

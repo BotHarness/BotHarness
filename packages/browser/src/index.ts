@@ -205,6 +205,7 @@ export function apply(
           | undefined
       )?.get(slug)?.browserAccess === true,
     onChange: () => {
+      if (target() !== 'profile-control') return;
       for (const bot of (
         coreLookup()?.registry as { list(): { slug: string }[] } | undefined
       )?.list() ?? [])

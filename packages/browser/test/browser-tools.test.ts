@@ -138,6 +138,7 @@ function harness(options: {
   access: boolean;
   auto?: boolean;
   daily?: Parameters<typeof createBrowserToolProvider>[0]['daily'];
+  profile?: Parameters<typeof createBrowserToolProvider>[0]['profile'];
   borrowed?: Parameters<typeof createBrowserToolProvider>[0]['borrowed'];
 }): Harness {
   const { scope, state } = fakeScope();
@@ -169,6 +170,7 @@ function harness(options: {
     screenshotLimit: 2,
     isAutoAllowed: () => auto,
     ...(options.daily === undefined ? {} : { daily: options.daily }),
+    ...(options.profile === undefined ? {} : { profile: options.profile }),
     ...(options.borrowed === undefined ? {} : { borrowed: options.borrowed }),
     audit: (event) => audits.push(event),
     core: () => ({
@@ -1556,4 +1558,44 @@ describe('explicit daily Chrome control Provider', () => {
     expect(h.provider.needsAuthorization('session-a')).toBe(true);
     expect(h.audits.at(-1)?.outcome).toBe('error');
   });
+});
+
+it('Profile control exposes only its curated tools and rejects foreign Sessions, Pause and Access-off', async () => {
+  const command = vi.fn(async () => ({
+    url: 'https://example.com',
+    title: 'Example',
+    text: 'Visible',
+    elements: [],
+  }));
+  const h = harness({ access: true, profile: () => ({ command }) });
+  h.created();
+  expect(h.state.registered()).toEqual([
+    'browser_click',
+    'browser_observe',
+    'browser_open',
+    'browser_tabs',
+    'browser_type',
+  ]);
+  const observe = h.state.definitions.get('browser_observe')!;
+  await expect(observe.execute({}, execution('browser_observe'))).rejects.toThrow('not authorized');
+  h.provider.markAuthorized('session-a');
+  await expect(
+    observe.execute(
+      {},
+      { ...execution('browser_observe'), agent: { id: 'foreign' } as unknown as Agent },
+    ),
+  ).rejects.toThrow('owning');
+  await observe.execute({}, execution('browser_observe'));
+  h.provider.setTakeover('bot-a', true);
+  const type = h.state.definitions.get('browser_type')!;
+  await expect(type.execute({ ref: 'x', text: 'y' }, execution('browser_type'))).rejects.toThrow(
+    'Pause',
+  );
+  h.provider.setTakeover('bot-a', false);
+  await expect(type.execute({ ref: 'x', text: 'y' }, execution('browser_type'))).rejects.toThrow(
+    'fresh',
+  );
+  h.setAccess(false);
+  await expect(observe.execute({}, execution('browser_observe'))).rejects.toThrow('Access');
+  expect(command).toHaveBeenCalledOnce();
 });

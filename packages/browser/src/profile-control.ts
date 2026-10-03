@@ -58,6 +58,12 @@ export function createProfileControl(options: {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
         options.note('initiator=profile-control phase=pairing-unavailable reason=store-invalid');
     });
+  let bindingChanges: Promise<unknown> = ready;
+  const mutate = <T>(action: () => Promise<T>): Promise<T> => {
+    const next = bindingChanges.then(action, action);
+    bindingChanges = next.catch(() => undefined);
+    return next;
+  };
   const changed = (reason: string): void => {
     epoch = randomBytes(16).toString('hex');
     heartbeat = 0;
@@ -104,33 +110,40 @@ export function createProfileControl(options: {
       pairing = { code: randomBytes(16).toString('hex'), expires: Date.now() + 300_000 };
       return { code: pairing.code, expiresAt: pairing.expires };
     },
-    async redeem(code: string, origin: string): Promise<{ token: string }> {
-      await ready;
-      if (
-        !extensionOrigin(origin) ||
-        disposed ||
-        !options.enabled() ||
-        pairing?.code !== code ||
-        pairing.expires < Date.now()
-      )
-        throw new Error('Pairing code expired or already used');
-      pairing = undefined;
-      const token = randomBytes(32).toString('hex');
-      binding = { origin, hash: hash(token) };
-      await persist();
-      changed('Human-paired-profile');
-      return { token };
+    redeem(code: string, origin: string): Promise<{ token: string }> {
+      return mutate(async () => {
+        if (
+          !extensionOrigin(origin) ||
+          disposed ||
+          !options.enabled() ||
+          pairing?.code !== code ||
+          pairing.expires < Date.now()
+        )
+          throw new Error('Pairing code expired or already used');
+        pairing = undefined;
+        const token = randomBytes(32).toString('hex');
+        binding = { origin, hash: hash(token) };
+        changed('Human-paired-profile');
+        await persist();
+        return { token };
+      });
     },
-    async forget(): Promise<void> {
-      await ready;
-      binding = undefined;
-      pairing = undefined;
-      changed('Human-forgot-profile');
-      await persist();
+    forget(): Promise<void> {
+      return mutate(async () => {
+        binding = undefined;
+        pairing = undefined;
+        changed('Human-forgot-profile');
+        await persist();
+      });
     },
-    async forgetToken(token: string, origin: string): Promise<void> {
-      await authenticate(token, origin);
-      await service.forget();
+    forgetToken(token: string, origin: string): Promise<void> {
+      return mutate(async () => {
+        await authenticate(token, origin);
+        binding = undefined;
+        pairing = undefined;
+        changed('Human-forgot-profile');
+        await persist();
+      });
     },
     async poll(
       token: string,
@@ -180,11 +193,26 @@ export function createProfileControl(options: {
       )
         throw new Error('Profile command is no longer active');
       pending = undefined;
-      if (typeof input.error === 'string')
+      if (typeof input.error === 'string') {
+        const reasons = [
+          'Stale or unavailable ref',
+          'Element is covered',
+          'Document changed',
+          'Observe the selected tab first',
+          'Input focus unavailable',
+          'Page command failed',
+          'Chrome command failed',
+        ];
+        const reason = reasons.includes(input.error)
+          ? input.error.replaceAll(' ', '-')
+          : 'extension-refused';
+        options.note(
+          `initiator=profile-control phase=command-refused operation=${current.command.method} reason=${reason}`,
+        );
         current.reject(
           new Error('Chrome Profile operation refused; observe again or check the extension'),
         );
-      else current.resolve(input.value);
+      } else current.resolve(input.value);
     },
     async command(
       slug: string,
@@ -238,6 +266,7 @@ export function createProfileControl(options: {
       if (!active) paused.delete(slug);
     },
     returnBot(slug: string): void {
+      if (!options.enabled()) return;
       paused.delete(slug);
       changed('Bot-access-or-assignment-changed');
     },
