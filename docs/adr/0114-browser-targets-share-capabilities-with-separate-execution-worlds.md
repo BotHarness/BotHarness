@@ -1,4 +1,4 @@
-# ADR-0113: Browser targets share capabilities with separate execution worlds
+# ADR-0114: Browser targets share capabilities with separate execution worlds
 
 - Status: Accepted
 - Date: 2026-10-03
