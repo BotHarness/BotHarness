@@ -83,6 +83,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
             )
           : null,
       ),
+    MenuItemButton: ({ children, onSelect }: { children: ReactNode; onSelect: () => void }) =>
+      createElement('button', { role: 'menuitem', onClick: onSelect }, children),
     MarkdownText: stub,
     Modal: stub,
     StateDot: stub,
@@ -896,17 +898,11 @@ describe('Memory Git graph sidebar', () => {
       'main',
     );
     expect(evolution?.querySelector('.bh-memory-terminology')).toBeNull();
-    expect(
-      evolution
-        ?.querySelector('.bh-channel-sidebar-entry-header [aria-label="显示术语"]')
-        ?.getAttribute('aria-haspopup'),
-    ).toBe('menu');
+    expect(container.querySelector('.bh-sidebar-settings')?.getAttribute('aria-haspopup')).toBe(
+      'menu',
+    );
     await act(async () => {
-      evolution
-        ?.querySelector<HTMLButtonElement>(
-          '.bh-channel-sidebar-entry-header [aria-label="显示术语"]',
-        )
-        ?.click();
+      container.querySelector<HTMLButtonElement>('.bh-sidebar-settings')?.click();
     });
     expect(container.querySelector('[role="menu"]')?.textContent).toContain('Git');
     await act(async () => {
@@ -917,11 +913,7 @@ describe('Memory Git graph sidebar', () => {
     expect(channelSidebarPrefs.getSnapshot().memoryTerminology).toBe('git');
     expect(evolution?.querySelector('.bh-memory-change-badge')?.textContent).toBe('M');
     await act(async () => {
-      evolution
-        ?.querySelector<HTMLButtonElement>(
-          '.bh-channel-sidebar-entry-header [aria-label="显示术语"]',
-        )
-        ?.click();
+      container.querySelector<HTMLButtonElement>('.bh-sidebar-settings')?.click();
     });
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))

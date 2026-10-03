@@ -18,6 +18,11 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Memory sidebar reads retain successful scoped content through refresh and reopening, use skeletons only before the first result, and recover through failure-only Retry actions without header refresh controls ([#719](https://github.com/BotHarness/BotHarness/issues/719)).
+
+- Channel sidebar entries use Lucide function icons and a single top settings gear for Sessions and Memory evolution display choices, preserving their existing preference scopes ([#718](https://github.com/BotHarness/BotHarness/issues/718)).
+
+- Humans can select `@All Bots` in a Group composer with an explicit active-recipient count; individual Bot picker rows show only avatar, name and role labels; stale previews require a fresh send and the committed message follows existing per-Bot mention attention and wake policies ([#542](https://github.com/BotHarness/BotHarness/issues/542)).
+
 - Explicitly trusted Host Plugins can read bounded canonical Tool arguments/results from opaque Activity references; unauthorized, expired and revoked reads fail closed without exposing payloads to Channel activity ([#122](https://github.com/BotHarness/BotHarness/issues/122)).
 
 - Group Channel Profile manages one authorized Lark Bridge through an Attention-style table, independent intake Switch and edit/delete Modal; pause preserves accepted sources, deletion removes intake without deleting Bot identity or history ([#700](https://github.com/BotHarness/BotHarness/issues/700)).

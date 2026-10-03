@@ -1,3 +1,4 @@
+import { allBotPreview, assertAllBotPreview, type AllBotPreview } from './all-bot-mention.js';
 import { projectBridgeMessage } from '../messaging/channel-target.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import {
@@ -64,7 +65,6 @@ interface SqliteChannelStoreOptions extends ChannelStoreOptions {
   databaseOwnerReady?: boolean;
   sourcePolicy?: BotSourcePolicyStore;
 
-  isBotActive?: (botSlug: string) => boolean;
   autoAcceptGroupInvitations?: () => boolean;
 }
 
@@ -447,7 +447,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     return row.revision;
   };
 
-  const append = (id: string, message: ChannelMessage, once: boolean) => {
+  const append = (id: string, message: ChannelMessage, once: boolean, preview?: AllBotPreview) => {
     const channel = readRecord(id);
     if (channel === undefined) return once ? { status: 'missing' as const } : undefined;
     const previous = allMessages(id);
@@ -455,6 +455,13 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     if (existing !== undefined) {
       if (!once || !sameIntent(existing, message)) return { status: 'conflict' as const };
       return { status: 'existing' as const, message: project(previous, existing) };
+    }
+    if (preview !== undefined) {
+      if (message.author.kind !== 'human') throw new Error('All Bots requires a Human sender');
+      assertAllBotPreview(
+        allBotPreview(channel, isBotActive, options.botDisplayName ?? (() => undefined)),
+        preview,
+      );
     }
     if (message.replyTo !== undefined && !previous.some((item) => item.id === message.replyTo))
       throw new ChannelReplyTargetError();
@@ -558,6 +565,18 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     try {
       database.transaction(
         (db) => {
+          if (preview !== undefined) {
+            const currentChannel = readRecord(id);
+            if (currentChannel === undefined) throw new Error('Group Channel no longer available');
+            assertAllBotPreview(
+              allBotPreview(
+                currentChannel,
+                isBotActive,
+                options.botDisplayName ?? (() => undefined),
+              ),
+              preview,
+            );
+          }
           assertGrantRequestReply(channel, durable, previous);
           assertAssignmentHumanReply(db, channel, durable);
           if (
@@ -1895,8 +1914,13 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const result = append(id, message, false);
       return result?.status === 'appended' ? result.message : undefined;
     },
-    async appendMessageOnce(id, message) {
-      const result = append(id, message, true);
+    previewAllBotMention(id) {
+      const channel = readRecord(id);
+      if (channel === undefined) throw new Error('Group Channel not found');
+      return allBotPreview(channel, isBotActive, options.botDisplayName ?? (() => undefined));
+    },
+    async appendMessageOnce(id, message, preview) {
+      const result = append(id, message, true, preview);
       return result ?? { status: 'missing' };
     },
     readMessages(id, readOptions) {

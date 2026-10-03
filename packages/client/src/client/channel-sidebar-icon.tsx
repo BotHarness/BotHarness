@@ -1,0 +1,311 @@
+/**
+ * Vendored Channel sidebar glyphs from lucide-react@1.46.0 (ISC, ADR-0032).
+ *
+ * Source: the matching lucide `dist/esm/icons/*.mjs` glyph data. Vendored at the
+ * stock 2-unit stroke without adding a `lucide-react` runtime dependency.
+ *
+ * ISC License
+ *
+ * Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT).
+ * All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+ * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+import { createElement, type ReactElement } from 'react';
+
+const glyphs: Record<string, readonly [string, Record<string, string | number>][]> = {
+  files: [
+    [
+      'path',
+      {
+        d: 'M15 2h-4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M16.706 2.706A2.4 2.4 0 0 0 15 2v5a1 1 0 0 0 1 1h5a2.4 2.4 0 0 0-.706-1.706z',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1',
+      },
+    ],
+  ],
+  'git-branch': [
+    [
+      'path',
+      {
+        d: 'M15 6a9 9 0 0 0-9 9V3',
+      },
+    ],
+    [
+      'circle',
+      {
+        cx: '18',
+        cy: '6',
+        r: '3',
+      },
+    ],
+    [
+      'circle',
+      {
+        cx: '6',
+        cy: '18',
+        r: '3',
+      },
+    ],
+  ],
+  'messages-square': [
+    [
+      'path',
+      {
+        d: 'M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1',
+      },
+    ],
+  ],
+  inbox: [
+    [
+      'polyline',
+      {
+        points: '22 12 16 12 14 15 10 15 8 12 2 12',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z',
+      },
+    ],
+  ],
+  'folder-key': [
+    [
+      'path',
+      {
+        d: 'M13 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v1.36',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M19 12v6',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M19 14h2',
+      },
+    ],
+    [
+      'circle',
+      {
+        cx: '19',
+        cy: '20',
+        r: '2',
+      },
+    ],
+  ],
+  users: [
+    [
+      'path',
+      {
+        d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M16 3.128a4 4 0 0 1 0 7.744',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M22 21v-2a4 4 0 0 0-3-3.87',
+      },
+    ],
+    [
+      'circle',
+      {
+        cx: '9',
+        cy: '7',
+        r: '4',
+      },
+    ],
+  ],
+  'settings-2': [
+    [
+      'path',
+      {
+        d: 'M14 17H5',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M19 7h-9',
+      },
+    ],
+    [
+      'circle',
+      {
+        cx: '17',
+        cy: '17',
+        r: '3',
+      },
+    ],
+    [
+      'circle',
+      {
+        cx: '7',
+        cy: '7',
+        r: '3',
+      },
+    ],
+  ],
+  settings: [
+    [
+      'path',
+      {
+        d: 'M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915',
+      },
+    ],
+    [
+      'circle',
+      {
+        cx: '12',
+        cy: '12',
+        r: '3',
+      },
+    ],
+  ],
+  monitor: [
+    [
+      'rect',
+      {
+        width: '20',
+        height: '14',
+        x: '2',
+        y: '3',
+        rx: '2',
+      },
+    ],
+    [
+      'line',
+      {
+        x1: '8',
+        x2: '16',
+        y1: '21',
+        y2: '21',
+      },
+    ],
+    [
+      'line',
+      {
+        x1: '12',
+        x2: '12',
+        y1: '17',
+        y2: '21',
+      },
+    ],
+  ],
+  globe: [
+    [
+      'circle',
+      {
+        cx: '12',
+        cy: '12',
+        r: '10',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M2 12h20',
+      },
+    ],
+  ],
+  'panels-top-left': [
+    [
+      'rect',
+      {
+        width: '18',
+        height: '18',
+        x: '3',
+        y: '3',
+        rx: '2',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M3 9h18',
+      },
+    ],
+    [
+      'path',
+      {
+        d: 'M9 21V9',
+      },
+    ],
+  ],
+  check: [
+    [
+      'path',
+      {
+        d: 'M20 6 9 17l-5-5',
+      },
+    ],
+  ],
+};
+
+export function ChannelSidebarIcon({
+  name = 'panels-top-left',
+  size = 16,
+}: {
+  name?: string | undefined;
+  size?: number;
+}): ReactElement {
+  const nodes = Object.hasOwn(glyphs, name) ? glyphs[name]! : glyphs['panels-top-left']!;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {nodes.map(([tag, attributes], index) => createElement(tag, { ...attributes, key: index }))}
+    </svg>
+  );
+}
