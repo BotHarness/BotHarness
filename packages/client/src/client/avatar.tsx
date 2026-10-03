@@ -131,6 +131,22 @@ export function personaBotActivitySummary(
     .join(' · ');
 }
 
+export function personaBotPresentationSummary(
+  state: PersonaBotActivityState,
+  activity: PersonaBotToolActivity | undefined,
+  attention: PersonaBotAttention | undefined,
+  t: BotHarnessTranslate = zhTranslate,
+): string {
+  return [
+    personaBotActivitySummary(state, activity, t),
+    attention === undefined
+      ? undefined
+      : t('activity.approvalCount', { count: attention.approvalCount }),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function BlobatarMedia({ seed }: { seed: string }): ReactElement {
   const markup = useMemo(() => {
     try {
@@ -201,14 +217,7 @@ export function PersonaBotAvatar({
 }: PersonaBotAvatarProps): ReactElement {
   const resolvedEffect =
     effect ?? (state === 'working' ? activity?.effect : undefined) ?? defaultActivityEffect(state);
-  const summary = [
-    personaBotActivitySummary(state, activity, t),
-    attention === undefined
-      ? undefined
-      : t('activity.approvalCount', { count: attention.approvalCount }),
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const summary = personaBotPresentationSummary(state, activity, attention, t);
   const mediaKind = src === undefined || src.length === 0 ? 'blob' : 'image';
   const active = state === 'thinking' || state === 'working';
   const classes = ['bh-persona-avatar', className].filter(Boolean).join(' ');

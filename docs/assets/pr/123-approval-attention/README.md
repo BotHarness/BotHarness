@@ -25,3 +25,7 @@ A second real concurrent run retained two approvals in the automated instance. I
 Final production-shaped screenshots/proof were recaptured after integrating main `c3349cdc` (Inbox sharing and shared Browser/Computer viewer). Typecheck and 139 focused tests passed after the merge; only bilingual Release Ledger entries conflicted, and both changes were retained. The current native-color build passed all 14 actual runtime assertions again in an isolated Host.
 
 One preceding model run requested an extra `get_goal` approval, so the expected handoff timed out. Inspection showed correct Orchestrator execution and two actual approvals (Goal + timer). The QA task now explicitly limits root tools. Another run reached idle and emitted the real reply with a terminal period; the receipt assertion now accepts that optional period. Private failure evidence is retained. No production Tool registration, approval permission or Activity rule was changed to force verification; these captures are from a subsequent completed full run.
+
+## Shared presentation labels
+
+The final Client follow-up makes sidebar hover text, pinned hover text, Rail button accessible names and Rail previews reuse the same execution-plus-attention summary as the avatar and composer. A Rail rendering regression verifies the Bot name, working state and two pending approvals together; 65 focused Client assertions and typecheck, lint and build passed. The real retained Human QA Host still reports working with two approvals.

@@ -35,7 +35,7 @@ import {
 import type { BridgeActions } from './actions.js';
 import {
   PersonaBotAvatar,
-  personaBotActivitySummary,
+  personaBotPresentationSummary,
   type PersonaBotActivityState,
 } from './avatar.js';
 import { BotIcon, botBackdropUri } from './bot-icon.js';
@@ -396,7 +396,7 @@ function BotRow({
   const sourceClass = drag.source ? ' bh-drag-source' : '';
   return (
     <Tooltip
-      label={`${bot.displayName} · ${personaBotActivitySummary(activity, bot.activity, t)}`}
+      label={`${bot.displayName} · ${personaBotPresentationSummary(activity, bot.activity, bot.attention, t)}`}
       side="right"
       delayMs={350}
     >
@@ -627,7 +627,7 @@ function RailChannel({
           aria-label={
             bot === undefined
               ? title
-              : `${title} · ${personaBotActivitySummary(activity ?? 'idle', bot.activity, t)}`
+              : `${title} · ${personaBotPresentationSummary(activity ?? 'idle', bot.activity, bot.attention, t)}`
           }
           aria-current={selected ? 'page' : undefined}
           aria-keyshortcuts={shortcut}
@@ -700,7 +700,9 @@ function RailChannel({
           )}
           <span className="bh-rail-preview-summary">{summary}</span>
           {bot === undefined ? null : (
-            <span>{personaBotActivitySummary(activity ?? 'idle', bot.activity, t)}</span>
+            <span>
+              {personaBotPresentationSummary(activity ?? 'idle', bot.activity, bot.attention, t)}
+            </span>
           )}
           {shortcut === undefined ? null : (
             <span className="bh-rail-preview-meta">
@@ -1760,7 +1762,7 @@ export function BotSidebar({
                     label={
                       bot === undefined
                         ? channel.name
-                        : `${bot.displayName} · ${personaBotActivitySummary(personaBotActivity(state, bot), bot.activity, t)}`
+                        : `${bot.displayName} · ${personaBotPresentationSummary(personaBotActivity(state, bot), bot.activity, bot.attention, t)}`
                     }
                     side="right"
                     delayMs={350}

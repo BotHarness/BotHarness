@@ -21,7 +21,7 @@ import {
 import {
   PersonaBotAvatar,
   PersonaBotFacepile,
-  personaBotActivitySummary,
+  personaBotPresentationSummary,
   type PersonaBotFacepileItem,
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
@@ -641,7 +641,7 @@ function ConversationView({
           items: composerFacepile,
           summary:
             composerFacepile.length === 1
-              ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivitySummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, t)}${composerFacepile[0]?.attention === undefined ? '' : ` · ${t('activity.approvalCount', { count: composerFacepile[0].attention.approvalCount })}`}`
+              ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotPresentationSummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, composerFacepile[0]?.attention, t)}`
               : t('main.activity.bots', { count: composerFacepile.length }),
         };
   const channelId = channel?.id;
