@@ -44,14 +44,18 @@ async function setup() {
     | ((scope: Context, agent: { id: string }, info: { botSlug: string; rootRole: string }) => void)
     | undefined;
   const opened: { slug: string; profile: string; reuse: string | undefined }[] = [];
+  const stopAll = vi.fn(async () => undefined);
+  const stop = vi.fn(async (_slug: string) => undefined);
   mocks.runtimes.mockReturnValue({
     for: (slug: string) => ({
+      ensure: async () => undefined,
       open: async (url: string, reuse: string | undefined) => {
         const profile = profiles.get(slug) ?? '';
         opened.push({ slug, profile, reuse });
         return { tabId: `${slug}-${profile || 'default'}`, url, title: 'Work' };
       },
       click: async (tabId: string) => ({ tabId, url: 'https://example.com', title: 'Work' }),
+      openWindow: async () => ({ tabId: `${slug}-default`, url: 'about:blank', title: 'Work' }),
       listTabs: async () =>
         [...profiles].map(([owner, profile]) => ({
           targetId: `${owner}-${profile || 'default'}`,
@@ -62,7 +66,8 @@ async function setup() {
       captureScreenshot: async () => ({ mimeType: 'image/png', data: 'frame' }),
     }),
     touch: () => undefined,
-    stopAll: async () => undefined,
+    stopAll,
+    stop,
   });
   ctx.provide('connection', {
     fetch: {
@@ -120,10 +125,34 @@ async function setup() {
         .fetch(new Request(`http://localhost/api/browser/observation?slug=${slug}`))
     ).json();
   }
-  return { service, profiles, routes, opened, open, observation, scopes };
+  return { ctx, service, profiles, routes, opened, open, observation, scopes, stopAll, stop };
 }
 
 describe('published Browser Host service', () => {
+  it('lets Human Stop retry retained old-target disposal before replacement execution', async () => {
+    const h = await setup();
+    h.stopAll.mockRejectedValueOnce(new Error('Docker unavailable'));
+    h.ctx.emit('loader/volatile-update', [['target']]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const openRoute = h.routes.get('/api/browser/open')!;
+    const openRequest = () =>
+      new Request('http://localhost/api/browser/open', {
+        method: 'POST',
+        body: JSON.stringify({ slug: 'bot-a' }),
+      });
+    expect((await openRoute.fetch(openRequest())).status).toBe(500);
+    expect(h.opened).toHaveLength(0);
+    const response = await h.routes.get('/api/browser/stop')!.fetch(
+      new Request('http://localhost/api/browser/stop', {
+        method: 'POST',
+        body: JSON.stringify({ slug: 'bot-a' }),
+      }),
+    );
+    expect(await response.json()).toEqual({ ok: true });
+    expect(h.stopAll).toHaveBeenCalledTimes(2);
+    expect(h.stop).toHaveBeenCalledWith('bot-a');
+    expect(await (await openRoute.fetch(openRequest())).json()).toMatchObject({ ok: true });
+  });
   it('resets the switching Bot through the service used by core without resetting another Bot', async () => {
     const h = await setup();
     expect((await h.observation('bot-a')).profiles).toEqual(['work']);

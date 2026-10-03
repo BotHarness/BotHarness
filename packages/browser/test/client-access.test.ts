@@ -37,16 +37,18 @@ function mount(call: Call, language: 'zh' | 'en' = 'en') {
     effect: (cb) => {
       cb();
     },
-    inject: (_names, cb) =>
-      cb({
-        channelSidebar: {
-          register: (entry: { headerAction: typeof Header }) => {
-            Header = entry.headerAction;
-            return () => {};
-          },
-        },
-        connection: { rpc: { call } },
-      } as unknown as BrowserClientContext),
+    inject: (names, cb) =>
+      names.includes('configForms')
+        ? undefined
+        : cb({
+            channelSidebar: {
+              register: (entry: { headerAction: typeof Header }) => {
+                Header = entry.headerAction;
+                return () => {};
+              },
+            },
+            connection: { rpc: { call } },
+          } as unknown as BrowserClientContext),
   });
   const render = async (botSlug: string | undefined = 'ada') =>
     act(async () =>
@@ -193,16 +195,18 @@ describe('Browser Access Power control', () => {
       effect: (cb) => {
         cb();
       },
-      inject: (_names, cb) =>
-        cb({
-          channelSidebar: {
-            register: (entry: { headerAction: typeof Header }) => {
-              Header = entry.headerAction;
-              return () => {};
-            },
-          },
-          connection: { rpc: { call } },
-        } as unknown as BrowserClientContext),
+      inject: (names, cb) =>
+        names.includes('configForms')
+          ? undefined
+          : cb({
+              channelSidebar: {
+                register: (entry: { headerAction: typeof Header }) => {
+                  Header = entry.headerAction;
+                  return () => {};
+                },
+              },
+              connection: { rpc: { call } },
+            } as unknown as BrowserClientContext),
     });
     function Surface() {
       const [expanded, setExpanded] = useState(false);
