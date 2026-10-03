@@ -270,7 +270,7 @@ try {
   if (!process.env.BH_E2E_RECONNECT_BOT)
     await rpc('channelSend', {
       channelId,
-      body: `For this concurrent Activity QA, first create exactly one Assignment with active Workspace Grant ${grant.id} and continuity key activity-proof. Its purpose is to run exactly node -e "setTimeout(() => {}, 2000)" once through native Shell, then report_to_orchestrator completed with summary Assignment timer finished. Do not modify files, create subagents, or run other Shell commands. After create_assignment returns, you must call browser_tabs action=list once yourself; do not skip that call. After browser_tabs succeeds, end your Turn while awaiting the Assignment report without polling or sending a Channel reply. When the Assignment report arrives, use channel_send to send exactly Concurrent activity confirmed.`,
+      body: `For this concurrent Activity QA, first create exactly one Assignment with active Workspace Grant ${grant.id} and continuity key activity-proof. Its purpose is to run exactly node -e "setTimeout(() => {}, 2000)" once through native Shell, then report_to_orchestrator completed with summary Assignment timer finished. Do not modify files, create subagents, or run other Shell commands. For your Orchestrator role, use only create_assignment, browser_tabs and channel_send in this QA. Do not use Goal tools (create_goal, get_goal, update_goal), planning tools, questions or polling tools. After create_assignment returns, you must call browser_tabs action=list once yourself; do not skip that call. After browser_tabs succeeds, end your Turn while awaiting the Assignment report without polling or sending a Channel reply. When the Assignment report arrives, use channel_send to send exactly Concurrent activity confirmed.`,
     });
   const pending = await until(
     messages,
@@ -377,7 +377,8 @@ try {
       messages,
       (rows) =>
         rows.some(
-          (row) => row.author?.kind === 'bot' && row.body === 'Concurrent activity confirmed',
+          (row) =>
+            row.author?.kind === 'bot' && /^Concurrent activity confirmed\.?$/u.test(row.body),
         ),
       'real report and Channel reply',
     );
