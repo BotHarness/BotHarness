@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type {
   MessagingAttachment,
+  MessagingOwnEcho,
+  MessagingReceipt,
   MessagingInboundEvent,
   MessagingReplyRoute,
   MessagingHistoryQuery,
@@ -19,6 +21,8 @@ interface DshImTarget {
 export interface DshImOutboundService {
   contractVersion: 1;
   fileVersion?: 1;
+  receiptVersion?: 1;
+  echoVersion?: 1;
   readSourceFile?(
     botId: string,
     route: MessagingReplyRoute,
@@ -48,6 +52,7 @@ export interface DshImOutboundService {
       expectedFingerprint: string;
       signal: AbortSignal;
       sourceFiles?: boolean;
+      onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
     },
   ): Promise<() => void>;
@@ -75,8 +80,9 @@ export interface DshImOutboundService {
       expectedTargetDigest: string;
       signal: AbortSignal;
       format: 'plain';
+      receipt?: true;
     },
-  ): Promise<{ sent: true }>;
+  ): Promise<{ sent: true; receipt?: MessagingReceipt }>;
 }
 
 function targetDigest(target: DshImTarget): string {
@@ -260,6 +266,33 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
               info.capabilities.includes('reply-file-checked')
                 ? { sourceFiles: true }
                 : {}),
+              ...(host.echoVersion === 1 &&
+              info.capabilities.includes('own-text-echo') &&
+              input.onEcho
+                ? {
+                    onEcho: async (raw: unknown, context: { signal: AbortSignal }) => {
+                      const event: MessagingOwnEcho = z
+                        .object({
+                          version: z.literal(1),
+                          botId: z.string().min(1).max(512),
+                          fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+                          eventId: z.string().min(1).max(512),
+                          messageId: z.string().min(1).max(512),
+                          conversationId: z.string().min(1).max(512),
+                          text: z.string().min(1).max(16000),
+                          at: z.iso.datetime(),
+                        })
+                        .parse(raw);
+                      context.signal.throwIfAborted();
+                      if (
+                        event.botId !== input.accountRef ||
+                        event.fingerprint !== input.fingerprint
+                      )
+                        throw new MessagingError('untrusted-source');
+                      return input.onEcho!(event, context.signal);
+                    },
+                  }
+                : {}),
               onEvent: async (raw, context) => {
                 const parsed = inboundSchema.parse(raw);
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
@@ -418,6 +451,47 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
               if (result.sent !== true)
                 throw new MessagingProviderError('provider-result-unknown', 'unknown');
               return { accepted: true as const };
+            } catch (error) {
+              throw providerFailure(error);
+            }
+          },
+        }
+      : {}),
+    ...(host.receiptVersion === 1
+      ? {
+          async post(input: Parameters<NonNullable<MessagingProvider['post']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingProviderError('account-changed', 'not-started');
+            if (!info.capabilities.includes('proactive-receipt-checked'))
+              throw new MessagingProviderError('capability-unavailable', 'not-started');
+            try {
+              const result = await host.sendChecked(input.accountRef, input.targetRef, input.text, {
+                expectedFingerprint: input.fingerprint,
+                expectedTargetDigest: input.targetDigest,
+                signal: input.signal,
+                format: 'plain',
+                receipt: true,
+              });
+              const receipt = result.receipt;
+              if (
+                result.sent !== true ||
+                receipt?.version !== 1 ||
+                typeof receipt.messageId !== 'string' ||
+                !receipt.messageId ||
+                receipt.messageId.length > 512 ||
+                receipt.conversationId !== input.conversationId
+              )
+                throw new MessagingProviderError('provider-result-unknown', 'unknown');
+              return {
+                accepted: true as const,
+                receipt: {
+                  version: 1 as const,
+                  messageId: receipt.messageId,
+                  conversationId: receipt.conversationId,
+                },
+              };
             } catch (error) {
               throw providerFailure(error);
             }

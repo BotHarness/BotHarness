@@ -27,6 +27,7 @@ import {
   type MessagingProvider,
   type MessagingAccount,
   type MessagingTarget,
+  type MessagingReceipt,
 } from './provider.js';
 
 async function replyFileBytes(
@@ -101,12 +102,25 @@ export type OutboxState =
   | 'cancelled'
   | 'grant-revoked';
 
+export interface ReportOrigin {
+  providerId: string;
+  accountRef: string;
+  fingerprint: string;
+  platform: string;
+  accountName: string;
+  targetName: string;
+  conversationId: string;
+}
+
 export interface OutboxIntent {
   id: string;
   botSlug: string;
   grantId: string;
   grantRevision: number;
   sourceEventId?: string;
+  report?: ReportOrigin;
+  receipt?: MessagingReceipt;
+  echo?: { eventId: string; at: string };
   file?: ChannelAttachmentRef;
   text: string;
   state: OutboxState;
@@ -123,6 +137,7 @@ export interface MessagingSnapshot {
     availability: 'available' | 'unavailable' | 'rebind-required';
     reception: ReturnType<InboundMessaging['status']>;
     canReceive?: boolean;
+    canPost?: boolean;
     groupPolicy?: GroupReceptionPolicy;
     threadPolicies?: ThreadReceptionView[];
     ordinaryDelivery?: 'verified' | 'unverified';
@@ -165,7 +180,10 @@ export interface OutboundMessaging {
     text: string,
     sourceEventId?: string,
     file?: ChannelAttachmentRef,
+    report?: boolean,
   ): Promise<OutboxIntent>;
+  post(botSlug: string, grantId: string, requestId: string, text: string): Promise<OutboxIntent>;
+  inspectIntent(botSlug: string, intentId: string): OutboxIntent;
   history(botSlug: string): OutboxIntent[];
   close(): void;
 }
@@ -261,7 +279,12 @@ export function createOutboundMessaging(options: {
     if (!row) throw new MessagingError('intent-unavailable');
     return JSON.parse(row.body) as StoredIntent;
   };
-  const settle = (id: string, state: OutboxState, reason?: string): OutboxIntent => {
+  const settle = (
+    id: string,
+    state: OutboxState,
+    reason?: string,
+    receipt?: MessagingReceipt,
+  ): OutboxIntent => {
     return transaction(
       (db) => {
         const existing = readIntent(id);
@@ -271,6 +294,7 @@ export function createOutboundMessaging(options: {
           state,
           settledAt: now(),
           ...(reason === undefined ? {} : { reason }),
+          ...(receipt === undefined ? {} : { receipt }),
         };
         db.prepare('UPDATE messaging_outbox SET state = ?, body = ? WHERE id = ?').run(
           state,
@@ -668,6 +692,18 @@ export function createOutboundMessaging(options: {
           if (attempt.token === token) attempt.controller.abort();
       };
     },
+    async post(botSlug, grantId, requestId, text) {
+      const value = grant(botSlug, grantId);
+      if (provider(value.providerId).provider.post === undefined)
+        throw new MessagingError('capability-unavailable');
+      return service.send(botSlug, grantId, requestId, text, undefined, undefined, true);
+    },
+    inspectIntent(botSlug, intentId) {
+      const value = readIntent(intentId);
+      if (value.botSlug !== botSlug) throw new MessagingError('intent-unavailable');
+      const { requestId: _request, payloadHash: _hash, ...intent } = value;
+      return intent;
+    },
     history,
     async channelBridges(channelId) {
       const channel = database.read((db) => humanBridgeChannel(db, channelId));
@@ -765,9 +801,13 @@ export function createOutboundMessaging(options: {
           const value = JSON.parse(row.body) as MessagingGrant;
           let availability: 'available' | 'unavailable' | 'rebind-required' = 'unavailable';
           let canReceive = false;
+          let canPost = false;
           if (value.revokedAt === undefined) {
             try {
               const checked = await check(value);
+              canPost =
+                checked.provider.post !== undefined &&
+                checked.inspected.target.receiveScope !== undefined;
               canReceive =
                 checked.provider.consume !== undefined &&
                 checked.provider.reply !== undefined &&
@@ -784,6 +824,7 @@ export function createOutboundMessaging(options: {
             availability,
             reception: inbound.status(value.id),
             canReceive,
+            canPost,
             ...(current.revokedAt === undefined &&
             !current.suspendedReason &&
             options.isBotActive(botSlug)
@@ -930,9 +971,10 @@ export function createOutboundMessaging(options: {
       for (const attempt of inFlight.values())
         if (attempt.fileGrantId === grantId) attempt.controller.abort();
     },
-    async send(botSlug, grantId, requestId, text, sourceEventId, file) {
+    async send(botSlug, grantId, requestId, text, sourceEventId, file, report = false) {
       active(botSlug);
       if (
+        (report && (sourceEventId !== undefined || file !== undefined)) ||
         (file !== undefined && sourceEventId === undefined) ||
         !/^[A-Za-z0-9_-]{8,128}$/.test(requestId) ||
         !text.trim() ||
@@ -943,7 +985,9 @@ export function createOutboundMessaging(options: {
         .update(
           file === undefined
             ? sourceEventId === undefined
-              ? text
+              ? report
+                ? JSON.stringify(['report', text])
+                : text
               : JSON.stringify([text, sourceEventId])
             : JSON.stringify([text, sourceEventId, file]),
         )
@@ -968,7 +1012,10 @@ export function createOutboundMessaging(options: {
           inbound.read(botSlug, sourceEventId).grantId !== grantId)
       )
         throw new MessagingError('source-unavailable');
-      const acceptedIdentity = (await check(acceptedGrant)).identityRevision;
+      const acceptedEntry = await check(acceptedGrant);
+      const acceptedIdentity = acceptedEntry.identityRevision;
+      const conversationId = acceptedEntry.inspected.target.receiveScope?.conversationId;
+      if (report && !conversationId) throw new MessagingError('capability-unavailable');
       const id = transaction(
         (db) => {
           active(botSlug);
@@ -991,6 +1038,19 @@ export function createOutboundMessaging(options: {
             requestId,
             payloadHash,
             ...(sourceEventId === undefined ? {} : { sourceEventId }),
+            ...(report
+              ? {
+                  report: {
+                    providerId: currentGrant.providerId,
+                    accountRef: currentGrant.accountRef,
+                    fingerprint: currentGrant.fingerprint,
+                    platform: currentGrant.platform,
+                    accountName: currentGrant.accountName,
+                    targetName: currentGrant.targetName,
+                    conversationId: conversationId!,
+                  },
+                }
+              : {}),
             ...(file === undefined ? {} : { file }),
             text,
             state: 'pending',
@@ -1056,7 +1116,11 @@ export function createOutboundMessaging(options: {
           JSON.stringify({
             event: 'messaging-outbox',
             phase: 'starting',
-            initiator: sourceEventId === undefined ? 'human-profile' : 'bot-source-reply',
+            initiator: report
+              ? 'bot-external-post'
+              : sourceEventId === undefined
+                ? 'human-profile'
+                : 'bot-source-reply',
             intentId: id.id,
           }),
         );
@@ -1110,19 +1174,43 @@ export function createOutboundMessaging(options: {
                     text,
                     signal: controller.signal,
                   })
-              : entry.provider.send({
-                  accountRef: acceptedGrant.accountRef,
-                  targetRef: acceptedGrant.targetRef,
-                  fingerprint: acceptedGrant.fingerprint,
-                  targetDigest: acceptedGrant.targetDigest,
-                  text,
-                  signal: controller.signal,
-                }),
+              : report
+                ? entry.provider.post === undefined
+                  ? Promise.reject(
+                      new MessagingProviderError('capability-unavailable', 'not-started'),
+                    )
+                  : entry.provider.post({
+                      accountRef: acceptedGrant.accountRef,
+                      targetRef: acceptedGrant.targetRef,
+                      fingerprint: acceptedGrant.fingerprint,
+                      targetDigest: acceptedGrant.targetDigest,
+                      conversationId: conversationId!,
+                      text,
+                      signal: controller.signal,
+                    })
+                : entry.provider.send({
+                    accountRef: acceptedGrant.accountRef,
+                    targetRef: acceptedGrant.targetRef,
+                    fingerprint: acceptedGrant.fingerprint,
+                    targetDigest: acceptedGrant.targetDigest,
+                    text,
+                    signal: controller.signal,
+                  }),
           interrupted,
         ]);
         if (result.accepted !== true)
           throw new MessagingProviderError('provider-result-unknown', 'unknown');
-        return settle(id.id, 'provider-accepted');
+        const receipt = 'receipt' in result ? (result.receipt as MessagingReceipt) : undefined;
+        if (
+          report &&
+          (receipt?.version !== 1 ||
+            typeof receipt.messageId !== 'string' ||
+            !receipt.messageId ||
+            receipt.messageId.length > 512 ||
+            receipt.conversationId !== conversationId!)
+        )
+          throw new MessagingProviderError('provider-result-unknown', 'unknown');
+        return settle(id.id, 'provider-accepted', undefined, receipt);
       } catch (error) {
         const definite =
           !started ||

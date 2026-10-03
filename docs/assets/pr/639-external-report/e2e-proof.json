@@ -1,0 +1,72 @@
+{
+  "baseline": "c3349cdcb82f9f57ae29fcbd72e3e7e88247ab11",
+  "provider": {
+    "commit": "2dcd07845ce0411afdcff286242f1dd4bc502da9",
+    "sha256": "6838e5371a0af5cbdbf7f67f680391c47c65416689b6ec2f2799af4639e7582b"
+  },
+  "report": {
+    "intentId": "6d5ecec8-5354-4c7e-bfe9-d1696ebd764c",
+    "text": "[BH639 REPORT FINAL] 晨报验收：系统正常；今日事项：核对外部发送回执。",
+    "state": "provider-accepted",
+    "receipt": {
+      "version": 1,
+      "messageId": "om_x100b633ea34c7018eeb32ce4d7c5ab8",
+      "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753"
+    }
+  },
+  "humanReply": {
+    "messageId": "om_x100b633eb709a4a4eea5f3169fb305c",
+    "threadId": "omt_19a5261139c49947",
+    "rootId": "om_x100b633ea34c7018eeb32ce4d7c5ab8",
+    "parentId": "om_x100b633ea34c7018eeb32ce4d7c5ab8",
+    "sourceEventId": "im-c965edf68c511e79fcf0f1682fbb14d8c8e042284afc11fe22dfd2962895fb1b",
+    "relatedReportIntentId": "6d5ecec8-5354-4c7e-bfe9-d1696ebd764c"
+  },
+  "botReply": {
+    "messageId": "om_x100b633eb4b6bca4eec94060eb14fb7",
+    "threadId": "omt_19a5261139c49947",
+    "rootId": "om_x100b633ea34c7018eeb32ce4d7c5ab8",
+    "parentId": "om_x100b633eb709a4a4eea5f3169fb305c",
+    "text": "BH639-FOLLOWUP-OK：原报告已核对"
+  },
+  "tools": [
+    {
+      "seq": 1379,
+      "name": "bridge_targets"
+    },
+    {
+      "seq": 1385,
+      "name": "bridge_post"
+    },
+    {
+      "seq": 1391,
+      "name": "bridge_outbox"
+    },
+    {
+      "seq": 1406,
+      "name": "bridge_read"
+    },
+    {
+      "seq": 1408,
+      "name": "bridge_outbox"
+    },
+    {
+      "seq": 1414,
+      "name": "bridge_reply"
+    }
+  ],
+  "limits": [
+    "No own-echo event observed from real Lark; echo/replay tested with authenticated provider fixtures.",
+    "No new recurring scheduler; Human-triggered real Orchestrator report.",
+    "Platform acceptance is not Human read status.",
+    "Failed initial thread URL (404) retained locally; successful SDK message.list thread container used for proof.",
+    "Dark appearance not visually qualified."
+  ],
+  "canonicalPersistence": {
+    "reportIntents": 1,
+    "reportSources": 0,
+    "replySources": 1,
+    "replyPlacements": 0,
+    "replyAdmissions": 1
+  }
+}

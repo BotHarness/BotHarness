@@ -49,6 +49,7 @@ async function fixture(
   options: {
     onRun?: (run: OrchestratorAgentRun) => Promise<void>;
     steer?: (botSlug: string, text: string) => boolean;
+    receipts?: boolean;
     history?: NonNullable<DshImOutboundService['historyChecked']>;
   } = {},
 ) {
@@ -71,6 +72,7 @@ async function fixture(
   cores.push(core);
   expect(core.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   type Consumer = Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1];
+  let echoCallback: Consumer['onEcho'] | undefined;
   let callback: Consumer['onEvent'] | undefined;
   let consumerSignal: AbortSignal | undefined;
   let subscriptions = 0;
@@ -79,6 +81,7 @@ async function fixture(
   let ready = true;
   const publicService: DshImOutboundService = {
     contractVersion: 1,
+    ...(options.receipts ? { receiptVersion: 1 as const, echoVersion: 1 as const } : {}),
     listBots: async () => [{ botId: 'lark-app', channel: 'feishu' }],
     listTargets: async () => [
       { targetId: 'team', name: 'QA team', kind: 'group', route: { chatId: 'oc-team' } },
@@ -93,6 +96,7 @@ async function fixture(
         connected: true,
         capabilities: [
           'proactive-text-checked',
+          ...(options.receipts ? ['proactive-receipt-checked', 'own-text-echo'] : []),
           'exclusive-text-consumer',
           'reply-text-checked',
           ...(options.history ? ['history-text-checked', 'thread-history-text-checked'] : []),
@@ -100,10 +104,16 @@ async function fixture(
       };
     },
     ...(options.history ? { historyChecked: options.history } : {}),
-    sendChecked: vi.fn(async () => ({ sent: true as const })),
+    sendChecked: vi.fn(async () => ({
+      sent: true as const,
+      ...(options.receipts
+        ? { receipt: { version: 1 as const, messageId: 'om-report', conversationId: 'oc-team' } }
+        : {}),
+    })),
     consumeInbound: async (_id, input) => {
       ++subscriptions;
       callback = input.onEvent;
+      echoCallback = input.onEcho;
       consumerSignal = input.signal;
       return () => {
         --subscriptions;
@@ -156,6 +166,22 @@ async function fixture(
     async receive(raw: unknown = event()) {
       if (!callback || !consumerSignal) throw new Error('Not subscribed');
       return callback(raw, { signal: consumerSignal });
+    },
+    async echo(messageId = 'om-report', text = 'Morning report') {
+      if (!echoCallback || !consumerSignal) throw new Error('Not subscribed');
+      return echoCallback(
+        {
+          version: 1,
+          botId: 'lark-app',
+          fingerprint,
+          eventId: 'echo-1',
+          messageId,
+          conversationId: 'oc-team',
+          text,
+          at: '2026-10-03T00:00:00.000Z',
+        },
+        { signal: consumerSignal },
+      );
     },
     async idle() {
       await tick();
@@ -2579,4 +2605,126 @@ it('keeps a silent helper pending, does not admit later joiners on share retry, 
   expect(() =>
     fx.core.externalMessaging.inbound.share('ada', targeted, other.value.channel.id),
   ).toThrow('source-conflict');
+});
+
+it('keeps an external-only report in Outbox, associates a real reply and enriches only its authenticated own echo', async () => {
+  const fx = await fixture({ receipts: true });
+  await fx.enable();
+  const report = await fx.core.externalMessaging.post(
+    'ada',
+    fx.grant.id,
+    'morning_report_639',
+    'Morning report',
+  );
+  expect(report.state).toBe('provider-accepted');
+  expect(report.receipt).toEqual({ version: 1, messageId: 'om-report', conversationId: 'oc-team' });
+  expect(fx.query('SELECT * FROM source_events')).toHaveLength(0);
+  expect(fx.query('SELECT * FROM channel_placements')).toHaveLength(0);
+  expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(0);
+  await fx.echo('om-foreign');
+  await fx.echo('om-report', 'Changed content');
+  expect(fx.core.externalMessaging.history('ada')[0]?.echo).toBeUndefined();
+  await fx.echo();
+  await fx.echo();
+  expect(fx.core.externalMessaging.history('ada')[0]?.echo?.eventId).toBe('echo-1');
+  expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(0);
+  const reply = event({
+    reply: {
+      messageId: 'om-1',
+      conversationId: 'oc-team',
+      actorId: 'ou-human',
+      rootId: 'om-report',
+      parentId: 'om-report',
+      threadId: 'omt-report',
+    },
+  });
+  await fx.receive(reply);
+  await fx.receive(reply);
+  await fx.idle();
+  const item = fx.core.attention
+    .list({ botSlug: 'ada' })
+    .items.find((item) => item.sourceKind === 'bridge-message');
+  expect(item).toBeDefined();
+  const source = fx.core.externalMessaging.inbound.read('ada', item!.id);
+  expect(source.report?.intentId).toBe(report.id);
+  expect(source.report?.text).toBe('Morning report');
+  expect(source.event.actor.id).toBe('ou-human');
+  expect(fx.runs[0]?.inbox).toContain('Morning report');
+  expect(fx.query('SELECT * FROM channel_placements')).toHaveLength(0);
+  expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(1);
+  const repeated = await fx.core.externalMessaging.post(
+    'ada',
+    fx.grant.id,
+    'morning_report_639',
+    'Morning report',
+  );
+  expect(repeated.id).toBe(report.id);
+  expect(fx.publicService.sendChecked).toHaveBeenCalledTimes(1);
+  expect(() => fx.core.externalMessaging.inspectIntent('other', report.id)).toThrow(
+    'intent-unavailable',
+  );
+  await expect(
+    fx.core.externalMessaging.post('other', fx.grant.id, 'other_report_639', 'Bad'),
+  ).rejects.toThrow('grant-unavailable');
+  fx.core.externalMessaging.revoke('ada', fx.grant.id);
+  expect(fx.core.externalMessaging.inspectIntent('ada', report.id).text).toBe('Morning report');
+  await expect(
+    fx.core.externalMessaging.post('ada', fx.grant.id, 'revoked_report_639', 'Bad'),
+  ).rejects.toThrow('grant-revoked');
+  await fx.restart();
+  expect(fx.core.externalMessaging.inspectIntent('ada', report.id).receipt?.messageId).toBe(
+    'om-report',
+  );
+});
+
+it('does not associate a fabricated report parent or another conversation with an own report', async () => {
+  const fx = await fixture({ receipts: true });
+  await fx.enable();
+  await fx.core.externalMessaging.post(
+    'ada',
+    fx.grant.id,
+    'morning_report_parent',
+    'Morning report',
+  );
+  await fx.receive(event());
+  await fx.idle();
+  const item = fx.core.attention
+    .list({ botSlug: 'ada' })
+    .items.find((item) => item.sourceKind === 'bridge-message');
+  expect(fx.core.externalMessaging.inbound.read('ada', item!.id).report).toBeUndefined();
+  await fx.receive(
+    event({
+      messageId: 'foreign',
+      conversation: { kind: 'group', id: 'oc-other' },
+      reply: {
+        messageId: 'foreign',
+        conversationId: 'oc-other',
+        actorId: 'ou-human',
+        parentId: 'om-report',
+      },
+    }),
+  );
+  expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(1);
+});
+
+it('refuses receipt-less providers before dispatch and preserves one unknown post without retry', async () => {
+  const legacy = await fixture();
+  await expect(
+    legacy.core.externalMessaging.post('ada', legacy.grant.id, 'legacy_report_639', 'Report'),
+  ).rejects.toThrow('capability-unavailable');
+  expect(legacy.publicService.sendChecked).not.toHaveBeenCalled();
+  const fx = await fixture({ receipts: true });
+  fx.publicService.sendChecked = vi.fn(async () => ({ sent: true as const }));
+  const report = await fx.core.externalMessaging.post(
+    'ada',
+    fx.grant.id,
+    'unknown_report_639',
+    'Report',
+  );
+  expect(report.state).toBe('unknown-outcome');
+  expect(report.receipt).toBeUndefined();
+  expect(
+    (await fx.core.externalMessaging.post('ada', fx.grant.id, 'unknown_report_639', 'Report')).id,
+  ).toBe(report.id);
+  expect(fx.publicService.sendChecked).toHaveBeenCalledTimes(1);
 });

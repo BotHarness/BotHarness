@@ -404,7 +404,7 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 ### 5.2 · 可编辑 Avatar（已接受设计，待交付）
 
-[ADR-0116](../adr/0116-editable-avatar-appearance-is-independent-of-activity.md) 记录 Human 已确认的设计目标，未交付运行功能：人物插画与抽象小角色两个 Avatar Family 共用真实 Bot-state 语义与过渡规则，各自适配部件和姿态。保存的有版本 Avatar Appearance 配方归 PersonaBot owning module；执行与 Human attention 消费现有 owning projection；逐帧姿态和过渡时间归 Client renderer，不写 SessionEvent、不改保存造型，也不另建状态聚合。首版编辑目标包含细分发件与有界五官几何参数；抽象角色可短暂变成有界点阵／符号，配件暂时收起、稳定姿态恢复时完整回来；小头像的动作更短、更克制，大形象更丰富。保存配方与派生静态快照；缺少兼容部件／协议版本时保留配方、显示原外形快照，并明确暂不可编辑／播放角色动画，独立活动提示继续消费真实事实。候选渲染路线是现有 React Client 内的受控 SVG、稳定节点与有界姿态采样，不预先引入新动效依赖。首个切片先验证编辑、保存、重读、真实工作动作与独立 attention（依赖 #123 owner 已交付的共享合同），第二家族复用语义合同；完成／错误动作后续另定结果作用域。shared native Human attention 继续由 #123 owner 提供，explicit waiting-on-Assignment 不由头像推断。
+[ADR-0118](../adr/0118-editable-avatar-appearance-is-independent-of-activity.md) 记录 Human 已确认的设计目标，未交付运行功能：人物插画与抽象小角色两个 Avatar Family 共用真实 Bot-state 语义与过渡规则，各自适配部件和姿态。保存的有版本 Avatar Appearance 配方归 PersonaBot owning module；执行与 Human attention 消费现有 owning projection；逐帧姿态和过渡时间归 Client renderer，不写 SessionEvent、不改保存造型，也不另建状态聚合。首版编辑目标包含细分发件与有界五官几何参数；抽象角色可短暂变成有界点阵／符号，配件暂时收起、稳定姿态恢复时完整回来；小头像的动作更短、更克制，大形象更丰富。保存配方与派生静态快照；缺少兼容部件／协议版本时保留配方、显示原外形快照，并明确暂不可编辑／播放角色动画，独立活动提示继续消费真实事实。候选渲染路线是现有 React Client 内的受控 SVG、稳定节点与有界姿态采样，不预先引入新动效依赖。首个切片先验证编辑、保存、重读、真实工作动作与独立 attention（依赖 #123 owner 已交付的共享合同），第二家族复用语义合同；完成／错误动作后续另定结果作用域。shared native Human attention 继续由 #123 owner 提供，explicit waiting-on-Assignment 不由头像推断。
 
 ## 6 · 持久化、导出与恢复边界
 
@@ -561,3 +561,5 @@ Host 将选中的单一 token 展开为普通逐个 @Bot 的正文及稳定 ID�
 ### 明确分享自己的 Inbox 来源（#636）
 
 [ADR-0115](../adr/0115-explicit-inbox-sharing-adds-canonical-placement.md) 向当前 Orchestrator 暴露 `bridge_share`。Messaging 在执行时检查自己的 Inbox 来源、当前接收身份／Grant 与已加入的 Group，再原子提交一个 canonical placement 和各成员普通收件记录。接收 Bot 保留原 admission，其他成员沿用自己的 Channel Attention 与数量／时间 harvest。Channel 渲染直接读取 canonical 来源内容，保留发送人、平台和外部 ID。分享不改变后续收件，不镜像到 Human DM，不对外发送，也不授权成员借用接收身份。同目标重试返回已提交结果，不补收给后来成员；首个切片拒绝另一个目标、DM 和已经投递到 Channel 的来源。撤销授权会阻止新的副作用，但保留已共享历史。多 placement 仍由 #635 交付。
+
+[ADR-0117](../adr/0117-external-only-reports-use-owned-outbox-correspondence.md) 增加明确请求的纯外部报告。`bridge_targets` 返回自己已有的授权群 Grant，`bridge_post` 沿用 Outbox，不产生 Channel placement 或 admission。可选 Provider 回执保留原生消息／会话 ID；`bridge_outbox` 提供有界预览或一条 canonical 报告，撤销后仍可读。真实收件的 parent／root 只关联同 Bot、账号 fingerprint 和会话的原报告。Profile 与来源 Modal 读取 Outbox 投影。可选且认证的自身回传仅补充已有对应关系，不产生收件提醒；不假定真实 Lark 必定回传。未知结果不自动重试，沿用 @／跟进和 dispatch 前撤销检查。

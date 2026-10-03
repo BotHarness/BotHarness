@@ -6,7 +6,7 @@
 
 先读取仓库 `AGENTS.md`、`.agents/skills/to-spec/SKILL.md`（缺失时查可用个人 skills）、[CONTEXT](../../CONTEXT.md)／[中文 CONTEXT](../../CONTEXT.zh.md)、[living architecture](../architecture/botharness-architecture.md) §5.2；DSH 计划进入 `dsh-plugin-dev` Context → Decision Tree。
 
-规范结果是 [Accepted ADR-0116](../adr/0116-editable-avatar-appearance-is-independent-of-activity.md)，选择与事实依据见 [完整访谈](2026-10-03-svg-avatar-design-exploration.md)。ADR 原草稿用 0101，因当前 main 已占用而改为 0116；继续前检查新的编号竞争。
+规范结果是 [Accepted ADR-0118](../adr/0118-editable-avatar-appearance-is-independent-of-activity.md)，选择与事实依据见 [完整访谈](2026-10-03-svg-avatar-design-exploration.md)。ADR 原草稿用 0101，随后改为 0116；与已合入的 Daily Browser ADR 编号冲突，集成时重新编号为 0118。继续前检查新的编号竞争。
 
 [issue #743](https://github.com/BotHarness/BotHarness/issues/743) 只追踪设计文档，不是完整功能 spec。#120、#58 是已完成的活动／图片头像基础，不重开它们。继续时查 feature:avatar 的现存 spec/hub，避免重复发布。
 
@@ -50,7 +50,7 @@
 
 ```text
 /to-spec
-请基于本分支 docs/research/2026-10-03-svg-avatar-to-spec-handoff.md、Accepted ADR-0116 与完整访谈，合成 PersonaBot 可编辑 SVG Avatar spec。
+请基于本分支 docs/research/2026-10-03-svg-avatar-to-spec-handoff.md、Accepted ADR-0118 与完整访谈，合成 PersonaBot 可编辑 SVG Avatar spec。
 Q1–Q20 已由我确认，不重复产品采访；按 to-spec 先核对高层 test seam。
 读取 AGENTS.md、CONTEXT、dsh-plugin-dev Context/Decision Tree，刷新 main 与 #123/#740 owner 进展，不接管共享 attention，不推断 waiting-on-Assignment。
 保留两个首版家族、细分发件/五官参数编辑、短点阵/符号变形、版本配方与静态回退；查重后按技能模板发布 spec，暂不实现或合并。

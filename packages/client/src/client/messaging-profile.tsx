@@ -1,3 +1,5 @@
+import { Modal } from './modal.js';
+import type { OutboxIntent } from '../../../core/src/messaging/outbound.js';
 import { ExternalIdentityTable } from './external-identity-table.js';
 import { ThreadReceptionSettings } from './thread-reception-settings.js';
 import type {
@@ -33,6 +35,7 @@ export function MessagingProfile({
   >;
   t: BotHarnessTranslate;
 }): ReactElement {
+  const [report, setReport] = useState<OutboxIntent>();
   const [snapshot, setSnapshot] = useState<MessagingSnapshot>();
   const [accountKey, setAccountKey] = useState('');
   const [targets, setTargets] = useState<MessagingTarget[]>([]);
@@ -362,7 +365,19 @@ export function MessagingProfile({
                 {snapshot.intents.slice(0, 5).map((intent) => (
                   <div key={intent.id} className="bh-im-outcome">
                     <Tag tone="neutral">{stateLabel(intent.state)}</Tag>
-                    <span>{intent.text}</span>
+                    {intent.report ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        aria-label={t('im.inspectReport', { name: intent.report.targetName })}
+                        onClick={() => setReport(intent)}
+                      >
+                        {intent.text.slice(0, 100)}
+                        {intent.text.length > 100 ? '…' : ''}
+                      </Button>
+                    ) : (
+                      <span>{intent.text}</span>
+                    )}
                     {intent.state === 'unknown-outcome' ? <p>{t('im.noRetry')}</p> : null}
                   </div>
                 ))}
@@ -371,6 +386,62 @@ export function MessagingProfile({
           </div>
         </details>
       </section>
+      <Modal
+        open={report !== undefined}
+        onClose={() => setReport(undefined)}
+        title={t('im.reportTitle')}
+        closeLabel={t('common.close')}
+        className="bh-modal bh-external-source-modal"
+      >
+        {report ? (
+          <div className="bh-external-source-content">
+            <header className="bh-external-route">
+              <div className="bh-external-route-head">
+                <span className="bh-external-platform">
+                  {report.report?.platform === 'feishu' ? 'Lark / 飞书' : report.report?.platform}
+                </span>
+                <Tag tone="neutral">{stateLabel(report.state)}</Tag>
+              </div>
+              <strong>{report.report?.targetName}</strong>
+              <span>{t('im.sentAs', { name: report.report?.accountName ?? report.botSlug })}</span>
+              <p className="bh-external-context-hint">{t('im.externalOnly')}</p>
+            </header>
+            <article className="bh-external-message">
+              <span className="bh-external-avatar" aria-hidden="true">
+                ↗
+              </span>
+              <div className="bh-external-message-main">
+                <header className="bh-external-message-head">
+                  <strong>{report.report?.accountName}</strong>
+                  <time dateTime={report.createdAt}>
+                    {new Date(report.createdAt).toLocaleString()}
+                  </time>
+                </header>
+                <div className="bh-external-message-text">{report.text}</div>
+              </div>
+            </article>
+            {report.state === 'unknown-outcome' ? (
+              <p className="bh-external-notice">{t('im.noRetry')}</p>
+            ) : null}
+            {report.echo ? <p>{t('im.echoConfirmed')}</p> : null}
+            <details className="bh-external-details">
+              <summary>{t('im.originDetails')}</summary>
+              <div className="bh-external-detail-body">
+                <p>
+                  {t('im.outboxId')}: {report.id}
+                </p>
+                <p>
+                  {t('im.externalMessageId')}: {report.receipt?.messageId ?? t('im.notAvailable')}
+                </p>
+                <p>
+                  {t('im.conversationId')}: {report.report?.conversationId}
+                </p>
+                {report.reason ? <p>{report.reason}</p> : null}
+              </div>
+            </details>
+          </div>
+        ) : null}
+      </Modal>
     </>
   );
 }
