@@ -916,15 +916,46 @@ function outfit(recipe: IllustratedAvatarRecipe, body: Grid, cx: number, chin: n
   }
 }
 
-export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
+export const AVATAR_TURNS = [-14, -7, 7, 14] as const;
+
+export function illustratedAvatarSvg(
+  recipe: IllustratedAvatarRecipe,
+  options: { turns?: readonly number[] } = {},
+): string {
   if (!isIllustratedAvatarRecipe(recipe)) throw new Error('invalid Avatar recipe');
+  const base = renderFigure(recipe, YAW[recipe.pose]);
+  const turns = (options.turns ?? [])
+    .map((delta) => {
+      const figure = renderFigure(recipe, YAW[recipe.pose] + delta);
+      const layers = `${figure.body}${figure.head}`.replaceAll(
+        'class="bh-illustrated-',
+        'data-turn-part="',
+      );
+      return `<g data-avatar-turn="${delta}" opacity="0">${layers}</g>`;
+    })
+    .join('');
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="512" height="512" shape-rendering="crispEdges" aria-hidden="true">`,
+    base.tile,
+    base.body,
+    base.head,
+    turns,
+    `<g class="bh-illustrated-marks">${base.marks}</g>`,
+    '</svg>',
+  ].join('');
+}
+
+function renderFigure(
+  recipe: IllustratedAvatarRecipe,
+  yawDegrees: number,
+): { tile: string; body: string; head: string; marks: string } {
   const head = HEADS[recipe.head];
   const skin = recipe.skinColor;
   const hair = recipe.hairColor;
-  const yaw = (YAW[recipe.pose] * Math.PI) / 180;
+  const yaw = (yawDegrees * Math.PI) / 180;
   const sinY = Math.sin(yaw);
-  const turned = sinY !== 0;
-  const far = Math.sign(sinY);
+  const turned = Math.abs(yawDegrees) >= 18;
+  const far = turned ? Math.sign(sinY) : 0;
   const R = head.half;
   const left = Math.round(CX - head.half);
   const right = Math.round(CX - 1 + head.half);
@@ -1195,16 +1226,16 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     return `<g data-avatar-mark="${mark}" opacity="0">${rects(grid)}</g>`;
   }).join('');
 
-  return [
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="512" height="512" shape-rendering="crispEdges" aria-hidden="true">`,
-    rects(tile),
-    `<g class="bh-illustrated-body">${rects(clip(outline(body)))}</g>`,
-    `<g class="bh-illustrated-head">${rects(clip(outline(base)))}`,
-    `<g class="bh-illustrated-face">${rects(face)}`,
-    `<g class="bh-illustrated-gaze">${rects(eyes)}</g>`,
-    `<g class="bh-illustrated-blink" opacity="0">${rects(closed)}</g>`,
-    `${rects(glasses)}</g></g>`,
-    `<g class="bh-illustrated-marks">${marks}</g>`,
-    '</svg>',
-  ].join('');
+  return {
+    tile: rects(tile),
+    body: `<g class="bh-illustrated-body">${rects(clip(outline(body)))}</g>`,
+    head: [
+      `<g class="bh-illustrated-head">${rects(clip(outline(base)))}`,
+      `<g class="bh-illustrated-face">${rects(face)}`,
+      `<g class="bh-illustrated-gaze">${rects(eyes)}</g>`,
+      `<g class="bh-illustrated-blink" opacity="0">${rects(closed)}</g>`,
+      `${rects(glasses)}</g></g>`,
+    ].join(''),
+    marks,
+  };
 }

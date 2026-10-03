@@ -1,5 +1,6 @@
 import { useMemo, type ReactElement } from 'react';
 import {
+  AVATAR_TURNS,
   illustratedAvatarSvg,
   type IllustratedAvatarRecipe,
 } from '../../../core/src/bots/avatar-appearance.js';
@@ -74,6 +75,22 @@ const GAZE_STEPS: Record<PersonaBotActivityEffect, readonly Step[]> = {
   ],
 };
 
+const TURN_STEPS = 40;
+const TURN_STEP_MS = 220;
+
+function turnSchedule(phase: number): number[] {
+  const steps = [0, ...AVATAR_TURNS].sort((a, b) => a - b);
+  return Array.from({ length: TURN_STEPS }, (_, index) => {
+    const t = (index / TURN_STEPS) * Math.PI * 2;
+    const noise =
+      0.62 * Math.sin(t + phase) +
+      0.3 * Math.sin(3 * t + phase * 1.7 + 1.3) +
+      0.22 * Math.sin(5 * t + phase * 0.6 + 0.4);
+    const scaled = Math.max(-1, Math.min(1, noise / 0.85));
+    return steps[Math.round(((scaled + 1) / 2) * (steps.length - 1))]!;
+  });
+}
+
 const shift = ([x, y]: Step) => `translate(${x}px, ${y}px)`;
 const stepped = (steps: readonly Step[], blinkAt?: number): Keyframe[] =>
   steps.map((step, index) => ({
@@ -100,7 +117,11 @@ export function IllustratedAvatar({
   effect: PersonaBotActivityEffect;
   size: number;
 }): ReactElement {
-  const markup = useMemo(() => illustratedAvatarSvg(recipe), [recipe]);
+  const turning = state === 'thinking' && size > 64;
+  const markup = useMemo(
+    () => illustratedAvatarSvg(recipe, turning ? { turns: AVATAR_TURNS } : {}),
+    [recipe, turning],
+  );
   const mount = useMountedResource<HTMLSpanElement>(
     (node) => {
       const head = node.querySelector<SVGGElement>('.bh-illustrated-head');
@@ -157,6 +178,32 @@ export function IllustratedAvatar({
               const rest: Step[] = Array.from({ length: 12 }, () => [0, 0]);
               loop(gaze, stepped(rest, 11), 4800);
               loop(blink, blinkFrames(11, 12), 4800);
+              return;
+            }
+            const turns = [...node.querySelectorAll<SVGGElement>('[data-avatar-turn]')];
+            const body = node.querySelector<SVGGElement>('.bh-illustrated-body');
+            if (turns.length && body) {
+              const schedule = turnSchedule((markup.length % 97) / 15.4);
+              const frames = (delta: number): Keyframe[] =>
+                schedule.map((value, index) => ({
+                  offset: index / schedule.length,
+                  opacity: value === delta ? 1 : 0,
+                  easing: 'steps(1, end)',
+                }));
+              const duration = TURN_STEPS * TURN_STEP_MS;
+              loop(head, frames(0), duration);
+              loop(body, frames(0), duration);
+              for (const turn of turns)
+                loop(turn, frames(Number(turn.dataset['avatarTurn'])), duration);
+              if (mark)
+                loop(
+                  mark,
+                  [
+                    { offset: 0, opacity: 1, easing: 'steps(1, end)' },
+                    { offset: 0.75, opacity: 0, easing: 'steps(1, end)' },
+                  ],
+                  1600,
+                );
               return;
             }
             loop(head, stepped(HEAD_STEPS[effect]), compact ? 1200 : 1600);

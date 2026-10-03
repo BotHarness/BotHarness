@@ -175,6 +175,18 @@ rebuilt Host:
 
 With 4 visible instances, steady rAF p95 was 16.8ms.
 
+## Thinking head turn
+
+Human pointed out that bloub drives natural head turns with looping noise while
+thinking. A large thinking avatar now carries four extra pre-rendered yaw
+frames (±7° and ±14° around its saved angle) produced by the same sphere
+projection. A looping noise schedule (three summed sines, sampled every 220ms
+over 8.8s, phase varied per avatar) shows exactly one frame at a time using
+discrete WAAPI opacity steps. Small avatars, reduced motion, hidden or
+offscreen views and the Host snapshot do not include or play these frames. A
+real model turn was recorded showing the frames and the `?` mark
+(`docs/assets/pr/751-avatar/thinking.webm`).
+
 ## Name-seeded default appearance
 
 A PersonaBot with neither a saved appearance nor a custom image now shows a

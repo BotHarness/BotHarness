@@ -188,3 +188,54 @@ it('loops the gaze only on the large working avatar and keeps waiting avatars st
     node.remove();
   }
 });
+
+it('turns the large thinking avatar through noise-scheduled yaw frames and keeps small avatars on head steps', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const loops: { target: Element; frames: Keyframe[] }[] = [];
+  const animate = vi.fn(function (
+    this: Element,
+    frames: Keyframe[],
+    options: KeyframeAnimationOptions,
+  ) {
+    if (options.iterations === Infinity) loops.push({ target: this, frames });
+    return { cancel: vi.fn(), finished: Promise.resolve() };
+  });
+  const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
+  Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate });
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const props = {
+    personaBotId: 'ada',
+    name: 'Ada',
+    state: 'thinking' as const,
+    appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
+  };
+  try {
+    await act(async () => root.render(createElement(PersonaBotAvatar, { ...props, size: 160 })));
+    const turns = loops.filter((loop) => loop.target.hasAttribute('data-avatar-turn'));
+    expect(turns).toHaveLength(4);
+    const shown = (index: number) =>
+      [
+        ...loops.filter((loop) =>
+          ['bh-illustrated-head'].includes(loop.target.getAttribute('class') ?? ''),
+        ),
+        ...turns,
+      ].filter((loop) => loop.frames[index]?.opacity === 1).length;
+    for (let index = 0; index < 40; index++) expect(shown(index)).toBe(1);
+    expect(new Set(turns.flatMap((loop) => loop.frames.map((frame) => frame.opacity))).size).toBe(
+      2,
+    );
+    loops.length = 0;
+    await act(async () => root.render(createElement(PersonaBotAvatar, { ...props, size: 34 })));
+    expect(node.querySelector('[data-avatar-turn]')).toBeNull();
+    expect(loops.map((loop) => loop.target.getAttribute('class'))).toEqual(['bh-illustrated-head']);
+  } finally {
+    await act(() => root.unmount());
+    if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
+    else Reflect.deleteProperty(Element.prototype, 'animate');
+    Reflect.deleteProperty(document, 'hidden');
+    node.remove();
+  }
+});
