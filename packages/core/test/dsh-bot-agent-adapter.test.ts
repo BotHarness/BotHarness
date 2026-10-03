@@ -836,6 +836,7 @@ describe('DSH Bot Agent adapter', () => {
       'list_assignments',
       'inspect_assignment',
       'send_assignment_request',
+      'wait_for_assignment',
       'stop_assignment',
       'channel_list',
       'bridge_targets',

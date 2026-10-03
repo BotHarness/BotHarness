@@ -46,6 +46,7 @@ export type BotStateEvent =
   | { type: 'session-removed'; slug: string; sessionId: string; snapshot: BotStateSnapshot };
 
 export interface BotStateTracker {
+  beginAssignmentWait(slug: string, sessionId: string): () => void;
   replaceAssignmentAttention(
     rows: readonly {
       botSlug: string;
@@ -125,6 +126,7 @@ export function createBotStateTracker(): BotStateTracker {
   const listeners = new Set<(event: BotStateEvent) => void>();
   const tools = new Map<string, PersonaBotToolActivity>();
   const activityListeners = new Set<(event: PersonaBotActivityEvent) => void>();
+  const assignmentWaits = new Map<string, Set<object>>();
   const sessionDetails = new Map<string, Omit<PersonaBotSessionActivity, 'state' | 'activity'>>();
   const generation = randomUUID();
   let revision = 0;
@@ -148,9 +150,19 @@ export function createBotStateTracker(): BotStateTracker {
     const orchestrators = [...sessions].filter(
       ([id, state]) =>
         sessionDetails.get(id)?.role === 'orchestrator' &&
-        (state === 'thinking' || state === 'working'),
+        (state === 'thinking' ||
+          (state === 'working' &&
+            (assignmentWaits.get(id)?.size ?? 0) !== tools.get(id)?.activeToolCount)),
     );
-    return orchestrators.length === 0 ? sessions : new Map(orchestrators);
+    if (orchestrators.length > 0) return new Map(orchestrators);
+    if (![...sessions.keys()].some((id) => (assignmentWaits.get(id)?.size ?? 0) > 0))
+      return sessions;
+    const assignments = [...sessions].filter(
+      ([id, state]) =>
+        sessionDetails.get(id)?.role !== 'orchestrator' &&
+        (state === 'working' || state === 'thinking'),
+    );
+    return assignments.length > 0 ? new Map(assignments) : sessions;
   };
 
   const snapshotOf = (slug: string, sessions: Map<string, SessionState>): BotStateSnapshot => {
@@ -235,6 +247,28 @@ export function createBotStateTracker(): BotStateTracker {
   };
 
   const tracker: BotStateTracker = {
+    beginAssignmentWait(slug, sessionId) {
+      if (!bots.get(slug)?.has(sessionId) || sessionDetails.get(sessionId)?.role !== 'orchestrator')
+        return () => {};
+      const token = {};
+      const waits = assignmentWaits.get(sessionId) ?? new Set<object>();
+      assignmentWaits.set(sessionId, waits);
+      const update = (previous: AggregatedState) => {
+        revision += 1;
+        notify(slug, 'session-changed');
+        emitAggregateIfChanged(slug, snapshotOf(slug, sessionsOf(slug)), previous);
+      };
+      const previous = snapshotOf(slug, sessionsOf(slug)).state;
+      waits.add(token);
+      update(previous);
+      return () => {
+        const previous = snapshotOf(slug, bots.get(slug) ?? new Map()).state;
+        if (!waits.delete(token)) return;
+        if (waits.size === 0 && assignmentWaits.get(sessionId) === waits)
+          assignmentWaits.delete(sessionId);
+        if (bots.get(slug)?.has(sessionId)) update(previous);
+      };
+    },
     replaceAssignmentAttention(rows) {
       if (
         rows.some(
@@ -365,6 +399,7 @@ export function createBotStateTracker(): BotStateTracker {
       const previousAggregate = snapshotOf(slug, sessions).state;
       if (!sessions.delete(sessionId)) return;
       tools.delete(sessionId);
+      assignmentWaits.delete(sessionId);
       sessionDetails.delete(sessionId);
       revision += 1;
       const snapshot = snapshotOf(slug, sessions);

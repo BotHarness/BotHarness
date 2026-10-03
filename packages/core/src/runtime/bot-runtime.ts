@@ -1,3 +1,4 @@
+import { waitForAssignment, type AssignmentWaitOutcome } from './assignment-wait.js';
 import { externalMemberWake } from '../messaging/defaults.js';
 import type {
   ThreadReceptionInput,
@@ -146,6 +147,7 @@ export interface AssignmentRequestOutcome {
 }
 
 export interface OrchestratorAssignmentAccess {
+  wait?(sessionId: string, signal: AbortSignal, timeoutMs?: number): Promise<AssignmentWaitOutcome>;
   create(input: {
     purpose: string;
     key?: string;
@@ -428,6 +430,7 @@ export interface BotRuntime {
 }
 
 export interface BotRuntimeOptions {
+  beginAssignmentWait?: (botSlug: string, orchestratorSessionId: string) => () => void;
   externalMessaging?: OutboundMessaging;
   database: OperationalDatabaseOwner;
   sourcePolicy?: BotSourcePolicyStore;
@@ -777,9 +780,12 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #digestFailureCount = new Map<string, number>();
   readonly #inboxFactoryRetries = new Map<string, { attempts: number; timer?: NodeJS.Timeout }>();
   readonly #assignmentRuns = new Map<string, Promise<void>>();
+  readonly #waitLifetime = new AbortController();
+  readonly #waitOptions: Pick<BotRuntimeOptions, 'database' | 'beginAssignmentWait'>;
   #closed = false;
 
   constructor(options: BotRuntimeOptions) {
+    this.#waitOptions = options;
     this.#externalMessaging = options.externalMessaging;
     this.#database = attachOperationalModule(options.database, 'bot-runtime');
     this.#grants = options.grants;
@@ -2413,6 +2419,7 @@ class BotRuntimeImplementation implements BotRuntime {
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
+    this.#waitLifetime.abort(new Error('Bot Runtime closed'));
     for (const timer of this.#digestTimers.values()) clearTimeout(timer);
     this.#digestTimers.clear();
     for (const timer of this.#groupAdmissionRetries.values()) clearTimeout(timer);
@@ -2837,7 +2844,12 @@ class BotRuntimeImplementation implements BotRuntime {
               },
             }
           : {}),
-        assignments: this.#assignmentAccess(bot, sourceEventId, markSideEffect),
+        assignments: this.#assignmentAccess(
+          bot,
+          sourceEventId,
+          markSideEffect,
+          orchestrator.sessionId,
+        ),
       });
       if (observeMemory)
         this.#memory?.reconcileTurn({
@@ -2910,6 +2922,7 @@ class BotRuntimeImplementation implements BotRuntime {
     bot: PersonaBotRecord,
     sourceEventId: string,
     markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
+    orchestratorSessionId?: string,
   ): OrchestratorAssignmentAccess {
     const markSideEffect = markAttemptSideEffect;
     return {
@@ -2941,6 +2954,33 @@ class BotRuntimeImplementation implements BotRuntime {
         const outcome = this.#requestAssignment(bot, input);
         markSideEffect();
         return outcome;
+      },
+      wait: (sessionId, signal, timeoutMs = 30000) => {
+        if (orchestratorSessionId === undefined) throw new Error('Orchestrator run is unavailable');
+        return waitForAssignment({
+          read: () => {
+            const assignment = this.getAssignment(bot.slug, sessionId);
+            if (assignment === undefined) throw new Error('Unknown owned Assignment Session');
+            const report = this.#database.read((database) =>
+              database
+                .prepare(
+                  `SELECT source_event_id FROM source_events
+               WHERE bot_slug = ? AND assignment_session_id = ? AND source_kind = 'assignment-report'
+               ORDER BY rowid DESC LIMIT 1`,
+                )
+                .get(bot.slug, sessionId),
+            ) as { source_event_id: string } | undefined;
+            return { assignment, reportId: report?.source_event_id };
+          },
+          subscribe: (changed) =>
+            this.#waitOptions.database.subscribe((notification) => {
+              if (notification.topics.includes('assignments')) changed();
+            }),
+          begin: () =>
+            this.#waitOptions.beginAssignmentWait?.(bot.slug, orchestratorSessionId) ?? (() => {}),
+          signal: AbortSignal.any([signal, this.#waitLifetime.signal]),
+          timeoutMs,
+        });
       },
       stop: (sessionId) => this.#stopAssignment(bot, sessionId, markSideEffect),
     };

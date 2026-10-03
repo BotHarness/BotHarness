@@ -29,3 +29,21 @@ Daily Browser 让一个 PersonaBot 读取你在 Chrome 或 Edge 中明确分享�
 点击扩展或 BotHarness 侧栏中的“归还标签页”。原标签页保持打开。导航、刷新、关闭标签页、关闭 Browser Access、切换 Browser Target、Host／浏览器重启或断线也会结束借用。单次借用最长三十分钟；四十五秒未轮询的连接失效，每次操作及后台十秒清理间隔都会检查。再次借用需重新配对并明确分享。
 
 浏览器内部页面、扩展页面和浏览器自带查看器不能通过此入口分享。配对失败时检查本地地址、生成新配对码，并在普通 HTTP／HTTPS 页面打开扩展。
+
+## 控制一个已有的日常 Chrome 文档
+
+在 Bot 设置 → Browser 操作目标中选择 **日常 Chrome · 控制**。此选项与上面的只读扩展独立。
+
+1. 在日常使用的 Chrome Profile 安装微软官方 [Playwright 扩展 0.4.0](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm)。它申请 debugger、tabs、tabGroups 和所有站点权限。
+2. 为目标 PersonaBot 开启 Browser Access；Computer Access 可以保持关闭。
+3. 在 Browser entry 点 **连接现有页面**，再在 Chrome 官方连接页面选择一个已有 HTTP(S) 标签页。保留每次连接确认；BotHarness 不使用跳过确认的 token。
+4. 回到 BotHarness 核对页面标题与 URL。**已连接，尚未允许操作** 时 Bot 仍不能读取或操作；再明确点 **允许控制此页面**。
+5. 在 DM 中要求 Bot 读取或编辑此页面，并通过现有原生 Session 审批批准首次 Browser 操作。此目标仅提供读取、文本输入和基于最新观察 ref 的点击。
+6. 点 **暂停 Bot** 后可自行编辑页面，再点 **继续**。Bot 必须重新观察后才能操作。
+7. 点 **归还标签页** 结束授权；Human 标签保留。
+
+导航／刷新、关闭或移出所选标签、扩展断连、关闭 Access、切换 Target／Profile 和 Host 重启也会结束控制，需要重新连接并授权。向扩展标签组加入其他标签不会扩大 Bot 的文档授权。Human 继续在自己的 Chrome 窗口操作；此目标不提供 Container Viewer、截图、导航或其他受管 Browser 工具。
+
+连接器固定为 `playwright-core@1.64.0-alpha-1790635538000`、官方扩展 protocol 2。等待选择页面时，可在 Browser entry 取消连接。连接错误也显示在那里；缺少扩展时先在 Chrome 实际打开的 Profile 安装后重试。本机／Docker Browser 和只读日常浏览器保留现有功能。
+
+输入和点击会唤起已授权的标签页；观察不会切换标签页。
