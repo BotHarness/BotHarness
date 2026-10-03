@@ -1,3 +1,4 @@
+import { parsePublicToolActivity } from './activity-detail.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
@@ -3075,6 +3076,10 @@ export async function loadActivityOverview(call: BridgeCall): Promise<ActivityOv
       (bot['avatar'] !== undefined && typeof bot['avatar'] !== 'string')
     )
       throw new Error('Invalid Overview Bot');
+    const activity =
+      bot['activity'] === undefined ? undefined : parsePublicToolActivity(bot['activity']);
+    if (bot['activity'] !== undefined && (activity === undefined || bot['state'] !== 'working'))
+      throw new Error('Invalid Overview activity');
     const sessions = bot['sessions'].map((value: unknown) => {
       const session = asRecord(value);
       if (
@@ -3090,6 +3095,7 @@ export async function loadActivityOverview(call: BridgeCall): Promise<ActivityOv
     return {
       ...bot,
       hasAction: bot['hasAction'] === true,
+      ...(activity === undefined ? {} : { activity }),
       sessions,
     } as unknown as ActivityOverview['bots'][number];
   });

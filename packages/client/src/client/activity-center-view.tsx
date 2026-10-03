@@ -8,7 +8,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BridgeActions } from './actions.js';
 import { useClientState } from './bot-sidebar.js';
-import { PersonaBotAvatar, personaBotActivityLabel } from './avatar.js';
+import { PersonaBotAvatar, personaBotActivityLabel, personaBotActivitySummary } from './avatar.js';
 import { ChannelActivityView } from './channel-activity-view.js';
 import { HumanInboxView } from './human-inbox-view.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
@@ -193,6 +193,7 @@ export function ActivityCenterView({
                     src={bot.avatar}
                     size={28}
                     state={bot.state}
+                    activity={bot.activity}
                     t={t}
                   />
                   <span className="bh-overview-bot-name">{bot.displayName}</span>
@@ -201,7 +202,7 @@ export function ActivityCenterView({
                       ? t('activityCenter.paused')
                       : bot.state === 'idle' && bot.hasAction
                         ? t('activityCenter.actionPending')
-                        : personaBotActivityLabel(bot.state, t)}
+                        : personaBotActivitySummary(bot.state, bot.activity, t)}
                   </span>
                 </button>
                 {bot.hasAction ? (

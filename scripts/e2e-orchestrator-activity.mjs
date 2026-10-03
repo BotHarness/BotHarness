@@ -29,7 +29,13 @@ async function rpc(method, args = {}) {
       break;
     } catch (error) {
       if (
-        !['list', 'channelMessages', 'activitySnapshot', 'modelCatalog'].includes(method) ||
+        ![
+          'list',
+          'channelMessages',
+          'activitySnapshot',
+          'activityOverview',
+          'modelCatalog',
+        ].includes(method) ||
         attempt === 2
       )
         throw error;
@@ -130,7 +136,7 @@ async function openOnce() {
       ?.click(),
   );
   await page.waitForSelector(`[data-channel-id="${channelId}"]`);
-  await page.click(`[data-channel-id="${channelId}"]`);
+  await page.locator(`[data-channel-id="${channelId}"]`).click();
   await page.waitForSelector('.bh-composer-shell');
 }
 async function open() {
@@ -168,7 +174,7 @@ async function matchUi(row) {
 }
 async function screenshot(name, expand = true) {
   if (expand && (await page.$('.bh-composer-activity-status:not([open])')))
-    await page.click('.bh-composer-activity-status summary');
+    await page.locator('.bh-composer-activity-status summary').click();
   await page.evaluate(() => {
     for (const pre of document.querySelectorAll('.bh-tool-approval-input')) {
       const value = JSON.parse(pre.textContent);
@@ -182,6 +188,54 @@ async function screenshot(name, expand = true) {
     if (timeline) timeline.scrollTop = timeline.scrollHeight;
   });
   await page.screenshot({ path: resolve(evidence, name) });
+}
+async function overview(row, approvals, name) {
+  const value = await rpc('activityOverview');
+  const selected = value.bots.find((item) => item.slug === bot.slug);
+  assert.equal(selected.state, row.state);
+  assert.deepEqual(selected.activity, row.activity);
+  assert.equal(selected.hasAction, approvals > 0);
+  assert.equal(value.actionCount, approvals);
+  const roots =
+    row.sessions?.filter(
+      (session) => session.role !== 'subagent' && ['working', 'thinking'].includes(session.state),
+    ) ?? [];
+  assert.equal(selected.sessions.length, roots.length);
+  await page
+    .locator('button[aria-label^="Activity Center"],button[aria-label^="活动中心"]')
+    .click();
+  await page.waitForSelector(`[data-bot-id="${bot.slug}"]`);
+  await page.waitForFunction(
+    (slug, state, name) => {
+      const card = document.querySelector(`[data-bot-id="${slug}"]`);
+      return (
+        card?.querySelector('.bh-persona-avatar')?.dataset.state === state &&
+        (!name || card.querySelector('.bh-overview-bot-state')?.textContent.includes(name))
+      );
+    },
+    {},
+    bot.slug,
+    row.state,
+    row.activity?.toolName,
+  );
+  assert.equal(
+    await page.$$eval(`[data-bot-id="${bot.slug}"] [data-session-id]`, (rows) => rows.length),
+    roots.length,
+  );
+  if (approvals > 0) {
+    await page.waitForFunction(
+      (slug, count) =>
+        document.querySelectorAll(`[data-bot-id="${slug}"] [data-attention-id^="approval:"]`)
+          .length === count,
+      {},
+      bot.slug,
+      approvals,
+    );
+  }
+  await screenshot(name, false);
+  await page.locator(`[data-channel-id="${channelId}"]`).click();
+  await page.waitForSelector('.bh-composer-shell');
+  await matchUi(row);
 }
 try {
   await open();
@@ -235,12 +289,14 @@ try {
   assert.equal(both.activity.activeToolCount, 1);
   await matchUi(both);
   await screenshot('orchestrator-selected.png');
+  await overview(both, 2, 'overview-orchestrator.png');
   await open();
   await matchUi(both);
   assert.equal(await page.$eval('.bh-composer-activity-status', (details) => details.open), false);
   const refreshed = await snapshot();
   assert.deepEqual(refreshed, both);
   await screenshot('reconnected.png');
+  await overview(refreshed, 2, 'overview-reconnected.png');
   writeFileSync(
     resolve(evidence, 'qa-state.json'),
     JSON.stringify({ bot: bot.slug, displayName: bot.displayName, channelId }, null, 2),
@@ -274,6 +330,7 @@ try {
     assert.equal(handoff.activity.effect, 'executing');
     await matchUi(handoff);
     await screenshot('assignment-selected.png');
+    await overview(handoff, 1, 'overview-assignment.png');
     assert.equal(
       (
         await rpc('toolApprovalDecide', {
@@ -295,6 +352,18 @@ try {
     const idle = await until(snapshot, (row) => row?.state === 'idle', 'settled idle');
     await matchUi(idle);
     await screenshot('settled.png', false);
+    await page
+      .locator('button[aria-label^="Activity Center"],button[aria-label^="活动中心"]')
+      .click();
+    await page
+      .locator('button[aria-label="Show idle Bots"],button[aria-label="显示空闲 Bot"]')
+      .click();
+    await page.waitForSelector(`[data-bot-id="${bot.slug}"]`);
+    assert.equal(
+      (await rpc('activityOverview')).bots.find((row) => row.slug === bot.slug).state,
+      'idle',
+    );
+    await screenshot('overview-settled.png', false);
     const proof = {
       realConcurrentSessions: true,
       selectedOrchestrator: true,
@@ -305,6 +374,9 @@ try {
       handedOffToAssignment: true,
       realAssignmentReportAndReply: true,
       settledIdle: true,
+      overviewUsesSameHostStateAndSummary: true,
+      attentionIndependentFromExecution: true,
+      pendingLiveSessionCardsPreserved: true,
     };
     writeFileSync(resolve(evidence, 'proof.json'), `${JSON.stringify(proof, null, 2)}\n`);
     console.log(JSON.stringify(proof));

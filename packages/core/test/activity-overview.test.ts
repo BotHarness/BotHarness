@@ -134,7 +134,7 @@ it('shows only live executing roots and follows execution changes without revivi
   }
 });
 
-it('keeps a real pending question in actions while excluding its waiting Session from execution', async () => {
+it('keeps a real pending question in actions without replacing the canonical Session activity', async () => {
   const { ChannelUserQuestions } = await import('../src/channels/user-questions.js');
   const core = createCore({
     dshHome: createTempRoot('bh-overview-question-'),
@@ -167,11 +167,119 @@ it('keeps a real pending question in actions while excluding its waiting Session
     await vi.waitFor(() =>
       expect(methods.activityOverview({})).toMatchObject({
         ok: true,
-        value: { actionCount: 1, bots: [{ slug: 'ada', state: 'waiting', sessions: [] }] },
+        value: {
+          actionCount: 1,
+          bots: [
+            {
+              slug: 'ada',
+              state: 'working',
+              hasAction: true,
+              sessions: [{ sessionId: 'orch', state: 'working' }],
+            },
+          ],
+        },
       }),
     );
     broker.close();
     await vi.waitFor(() => expect(core.humanAttention.actionCount()).toBe(0));
+  } finally {
+    broker.close();
+    await core.runtime.close();
+    core.operationalDatabase.close();
+  }
+});
+
+it('keeps Overview execution identical to the Host snapshot while real native approvals remain independent actions', async () => {
+  const { ChannelToolApproval } = await import('../src/workspaces/tool-approval.js');
+  const core = createCore({
+    dshHome: createTempRoot('bh-overview-orthogonal-'),
+    agents,
+    activeToolApprovalMessageIds: () => broker.activeMessageIds(),
+  });
+  const broker = new ChannelToolApproval(core.channels, core.ownership);
+  try {
+    core.registry.create({ slug: 'ada', displayName: 'Ada' });
+    core.channels.getOrCreateDm('ada', 'Ada');
+    for (const [sessionId, role, toolName, toolKind, effect] of [
+      ['orch', 'orchestrator', 'browser_tabs', 'execute', 'executing'],
+      ['assignment', 'assignment', 'bash', 'execute', 'executing'],
+    ] as const) {
+      core.ownership.claim({
+        sessionId,
+        botSlug: 'ada',
+        rootRole: role,
+        at: '2026-10-01T09:00:00Z',
+      });
+      core.states.setSessionState(
+        'ada',
+        sessionId,
+        'working',
+        {
+          toolName,
+          toolKind,
+          effect,
+          startedAt: 10,
+          activeToolCount: 1,
+          sources: [{ role, count: 1 }],
+        },
+        role,
+      );
+    }
+    const native = { session: { id: 'assignment', header: { cwd: '/qa' } } } as Agent;
+    broker.track({
+      agent: native,
+      name: 'bash',
+      callId: 'call-1',
+      arguments: { command: 'private input' },
+      token: Symbol('call'),
+    } as import('@deepseek-ai/dsh-tools').ToolExecution);
+    const answer = broker.ask({ agent: native, toolName: 'bash', callId: 'call-1' });
+    const methods = createBridgeMethods({
+      ...core,
+      toolApproval: broker,
+      runningSessionIds: () => new Set(['orch', 'assignment']),
+    });
+    const { vi } = await import('vitest');
+    await vi.waitFor(() => expect(core.humanAttention.actionCount()).toBe(1));
+    const overview = methods.activityOverview({});
+    const shared = methods.activitySnapshot({});
+    expect(overview).toMatchObject({
+      ok: true,
+      value: {
+        actionCount: 1,
+        bots: [
+          {
+            slug: 'ada',
+            state: 'working',
+            hasAction: true,
+            activity: { toolName: 'browser_tabs', sources: [{ role: 'orchestrator', count: 1 }] },
+            sessions: [
+              { sessionId: 'orch', state: 'working' },
+              { sessionId: 'assignment', state: 'working' },
+            ],
+          },
+        ],
+      },
+    });
+    if (!overview.ok || !shared.ok) throw Error('Expected public Host queries');
+    expect(overview.value.bots[0]?.state).toBe(shared.value.bots[0]?.state);
+    expect(overview.value.bots[0]?.activity).toEqual(shared.value.bots[0]?.activity);
+    expect(JSON.stringify(overview)).not.toContain('private input');
+    core.states.setSessionState('ada', 'orch', 'done', undefined, 'orchestrator');
+    expect(methods.activityOverview({})).toMatchObject({
+      ok: true,
+      value: { bots: [{ state: 'working', hasAction: true, activity: { toolName: 'bash' } }] },
+    });
+    const message = core.channels
+      .readMessages('dm-ada')
+      .find((message) => message.toolApprovalRequest !== undefined)!;
+    expect(await broker.decide('ada', message.id, 'rejected')).toBe(true);
+    await answer;
+    core.states.clearSession('ada', 'assignment');
+    expect(methods.activityOverview({})).toMatchObject({
+      ok: true,
+      value: { actionCount: 0, bots: [{ state: 'idle', hasAction: false, sessions: [] }] },
+    });
   } finally {
     broker.close();
     await core.runtime.close();

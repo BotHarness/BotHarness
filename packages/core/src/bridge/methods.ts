@@ -12,11 +12,7 @@ import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overvie
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
 import { channelBridgeInput, type ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { MessagingIdentity } from '../messaging/identity.js';
-import {
-  aggregateSessionStates,
-  personaBotActivitySnapshot,
-  type PersonaBotActivitySnapshot,
-} from '../state/bot-state.js';
+import { personaBotActivitySnapshot, type PersonaBotActivitySnapshot } from '../state/bot-state.js';
 import { threadReceptionInput } from '../messaging/thread-policy.js';
 import { groupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
@@ -152,6 +148,7 @@ export interface ActivityOverview {
     paused: boolean;
     hasAction: boolean;
     state: AggregatedState;
+    activity?: PersonaBotActivitySnapshot['bots'][number]['activity'];
     sessions: Array<{
       sessionId: string;
       role: SessionRootRole;
@@ -1213,17 +1210,13 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (deps.humanAttention === undefined) return unavailable();
       const actionSummary = deps.humanAttention.actionSummary();
       const actionBots = new Set(actionSummary.botSlugs);
-      const waiting = new Set([
-        ...(deps.userQuestions?.activeSessionIds() ?? []),
-        ...(deps.toolApproval?.activeSessionIds() ?? []),
-      ]);
       const running = deps.runningSessionIds?.() ?? new Set<string>();
       const bots = deps.registry.list().map((bot) => {
         const snapshot = deps.states.snapshot(bot.slug);
+        const activity = deps.states.activity(bot.slug);
         const assignments = new Map(
           (deps.runtime?.listAssignments(bot.slug) ?? []).map((item) => [item.sessionId, item]),
         );
-        const sessionStates: Record<string, SessionState> = {};
         const sessions: ActivityOverview['bots'][number]['sessions'] = [];
         for (const root of deps.ownership
           .rootsFor(bot.slug)
@@ -1236,26 +1229,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           )) {
           if (root.parentSessionId !== undefined) continue;
           const assignment = assignments.get(root.sessionId);
-          let state = snapshot.sessions[root.sessionId] ?? 'done';
-          if (waiting.has(root.sessionId)) state = 'waiting';
-          else if (assignment?.activity === 'error') state = 'blocked';
-          else if (assignment?.activity === 'idle' && assignment.openAsk !== undefined) {
-            const ask = deps.humanAttention?.assignmentContext(
-              bot.slug,
-              root.sessionId,
-              assignment.openAsk.sourceEventId,
-            );
-            state =
-              ask?.canReply === true
-                ? ask.reports.find(
-                    (report) => report.sourceEventId === assignment.openAsk?.sourceEventId,
-                  )?.state === 'blocked'
-                  ? 'blocked'
-                  : 'waiting'
-                : 'done';
-          } else if ((state === 'thinking' || state === 'working') && !running.has(root.sessionId))
-            state = 'done';
-          sessionStates[root.sessionId] = state;
+          const state = snapshot.sessions[root.sessionId] ?? 'done';
+          if (!running.has(root.sessionId)) continue;
           if (state === 'thinking' || state === 'working')
             sessions.push({
               sessionId: root.sessionId,
@@ -1275,7 +1250,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                   : bot.avatar,
               }),
           paused: bot.paused === true,
-          state: aggregateSessionStates(sessionStates),
+          state: snapshot.state,
+          ...(activity === undefined ? {} : { activity }),
           hasAction: actionBots.has(bot.slug),
           sessions,
         };
