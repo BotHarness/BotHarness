@@ -52,6 +52,14 @@ it('shows Overview and routes a Session to native navigation while Bot opens DM'
                 hasAction: false,
                 paused: false,
                 state: 'working',
+                activity: {
+                  toolKind: 'execute',
+                  effect: 'executing',
+                  toolName: 'bash',
+                  startedAt: 1,
+                  activeToolCount: 1,
+                  sources: [{ role: 'orchestrator', count: 1 }],
+                },
                 sessions: [
                   {
                     sessionId: 'assignment-1',
@@ -125,6 +133,12 @@ it('shows Overview and routes a Session to native navigation while Bot opens DM'
     expect(container.textContent).toContain('Renamed release session');
     expect(container.textContent).not.toContain('Native release session');
     expect(container.querySelector('[data-bot-id=idle]')).toBeNull();
+    expect(container.querySelector('[data-bot-id=ada] .bh-overview-bot-state')?.textContent).toBe(
+      '正在执行 · bash · 主会话',
+    );
+    expect(
+      container.querySelector('[data-bot-id=ada] .bh-persona-avatar')?.getAttribute('data-effect'),
+    ).toBe('executing');
     const idleToggle = container.querySelector('[aria-label="显示空闲 Bot"]')!;
     await act(async () => idleToggle.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     expect(container.querySelector('[data-bot-id=idle]')).not.toBeNull();
