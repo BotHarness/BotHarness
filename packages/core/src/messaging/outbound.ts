@@ -24,7 +24,7 @@ import type { ChannelMessageCommit } from '../channels/store.js';
 import { attachmentIdentity, type ChannelAttachmentRef } from '../attachments/ref.js';
 import type { AttachmentStore } from '../attachments/store.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { createInboundMessaging, type InboundMessaging } from './inbound.js';
+import { createInboundMessaging, type InboundMessaging, type ExternalSource } from './inbound.js';
 import { createBotSourcePolicyStore, type BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { DatabaseSync } from 'node:sqlite';
 import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
@@ -35,6 +35,7 @@ import {
   type MessagingAccount,
   type MessagingTarget,
   type MessagingReceipt,
+  type MessagingReplyRoute,
 } from './provider.js';
 
 async function replyFileBytes(
@@ -122,6 +123,10 @@ export interface ReportOrigin {
   conversationId: string;
 }
 
+export interface ReplyOrigin extends ReportOrigin {
+  route: MessagingReplyRoute;
+}
+
 export interface OutboxIntent {
   id: string;
   botSlug: string;
@@ -129,6 +134,7 @@ export interface OutboxIntent {
   grantRevision: number;
   sourceEventId?: string;
   report?: ReportOrigin;
+  reply?: ReplyOrigin;
   receipt?: MessagingReceipt;
   echo?: { eventId: string; at: string };
   file?: ChannelAttachmentRef;
@@ -422,6 +428,64 @@ export function createOutboundMessaging(options: {
     ...(options.onShared ? { onShared: options.onShared } : {}),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
+  const sourceForReply = (botSlug: string, sourceEventId: string, value: MessagingGrant) => {
+    const source = inbound.readShared(botSlug, sourceEventId);
+    if (source.grantId === value.id) {
+      if (!inbound.available(botSlug, sourceEventId))
+        throw new MessagingError('source-unavailable');
+    } else {
+      const ingress = database.read((db) =>
+        db.prepare('SELECT body FROM messaging_grants WHERE id = ?').get(source.grantId),
+      ) as { body: string } | undefined;
+      if (!ingress) throw new MessagingError('source-unavailable');
+      const owner = JSON.parse(ingress.body) as MessagingGrant;
+      if (
+        owner.botSlug === botSlug ||
+        owner.providerId !== value.providerId ||
+        source.platform !== value.platform ||
+        source.event.conversation.kind !== 'group' ||
+        !source.localChannelId
+      )
+        throw new MessagingError('source-unavailable');
+    }
+    return source;
+  };
+  const qualifyReply = async (
+    botSlug: string,
+    sourceEventId: string,
+    value: MessagingGrant,
+    entry: Awaited<ReturnType<typeof check>>,
+    signal: AbortSignal,
+  ) => {
+    const source = sourceForReply(botSlug, sourceEventId, value);
+    if (source.grantId === value.id) return source.event.reply;
+    if (
+      entry.inspected.target.receiveScope?.conversationId !== source.event.conversation.id ||
+      !entry.provider.qualifyReply ||
+      !entry.provider.reply
+    )
+      throw new MessagingError('capability-unavailable');
+    const route = await entry.provider.qualifyReply({
+      accountRef: value.accountRef,
+      fingerprint: value.fingerprint,
+      route: source.event.reply,
+      signal,
+    });
+    signal.throwIfAborted();
+    current(value.providerId, entry.token);
+    sourceForReply(botSlug, sourceEventId, value);
+    if (
+      !route.actorId ||
+      route.actorId.length > 512 ||
+      route.messageId !== source.event.reply.messageId ||
+      route.conversationId !== source.event.reply.conversationId ||
+      route.threadId !== source.event.reply.threadId ||
+      route.rootId !== source.event.reply.rootId ||
+      route.parentId !== source.event.reply.parentId
+    )
+      throw new MessagingError('stale-route');
+    return route;
+  };
   const service: OutboundMessaging = {
     inbound,
     defaults() {
@@ -735,10 +799,42 @@ export function createOutboundMessaging(options: {
       );
     },
     async reply(botSlug, sourceEventId, text) {
-      if (!inbound.available(botSlug, sourceEventId))
-        throw new MessagingError('source-unavailable');
-      const source = inbound.read(botSlug, sourceEventId);
-      return service.send(botSlug, source.grantId, 'reply-' + sourceEventId, text, sourceEventId);
+      let source: ExternalSource;
+      try {
+        source = inbound.readShared(botSlug, sourceEventId);
+      } catch (error) {
+        if (error instanceof MessagingError && error.code === 'channel-unavailable')
+          throw new MessagingError('source-unavailable');
+        throw error;
+      }
+      const ingress = database.read((db) =>
+        db.prepare('SELECT bot_slug FROM messaging_grants WHERE id = ?').get(source.grantId),
+      ) as { bot_slug: string } | undefined;
+      if (ingress?.bot_slug === botSlug)
+        return service.send(botSlug, source.grantId, 'reply-' + sourceEventId, text, sourceEventId);
+      const rows = database.read((db) =>
+        db.prepare('SELECT body FROM messaging_grants WHERE bot_slug = ?').all(botSlug),
+      ) as { body: string }[];
+      const matches: MessagingGrant[] = [];
+      for (const row of rows) {
+        const value = JSON.parse(row.body) as MessagingGrant;
+        if (value.platform !== source.platform || value.revokedAt || value.suspendedReason)
+          continue;
+        sourceForReply(botSlug, sourceEventId, value);
+        const entry = await check(value);
+        if (entry.inspected.target.receiveScope?.conversationId === source.event.conversation.id)
+          matches.push(value);
+      }
+      if (matches.length !== 1)
+        throw new MessagingError(
+          matches.length ? 'reply-target-ambiguous' : 'own-reply-grant-unavailable',
+        );
+      const requestId =
+        'reply-' +
+        createHash('sha256')
+          .update(JSON.stringify([botSlug, sourceEventId]))
+          .digest('hex');
+      return service.send(botSlug, matches[0]!.id, requestId, text, sourceEventId);
     },
     register(value) {
       if (closed) throw new MessagingError('provider-unavailable');
@@ -1085,14 +1181,23 @@ export function createOutboundMessaging(options: {
         return value;
       }
       const acceptedGrant = grant(botSlug, grantId);
-      if (
-        sourceEventId !== undefined &&
-        (!inbound.available(botSlug, sourceEventId) ||
-          inbound.read(botSlug, sourceEventId).grantId !== grantId)
-      )
-        throw new MessagingError('source-unavailable');
+      const source =
+        sourceEventId === undefined
+          ? undefined
+          : sourceForReply(botSlug, sourceEventId, acceptedGrant);
+      if (file && source?.grantId !== grantId) throw new MessagingError('capability-unavailable');
       const acceptedEntry = await check(acceptedGrant);
       const acceptedIdentity = acceptedEntry.identityRevision;
+      const replyRoute =
+        sourceEventId !== undefined && file === undefined
+          ? await qualifyReply(
+              botSlug,
+              sourceEventId,
+              acceptedGrant,
+              acceptedEntry,
+              AbortSignal.timeout(options.timeoutMs ?? 15000),
+            )
+          : undefined;
       const conversationId = acceptedEntry.inspected.target.receiveScope?.conversationId;
       if (report && !conversationId) throw new MessagingError('capability-unavailable');
       const id = transaction(
@@ -1105,6 +1210,7 @@ export function createOutboundMessaging(options: {
             currentGrant.revision !== acceptedGrant.revision
           )
             throw new MessagingError('grant-revoked');
+          if (sourceEventId !== undefined) sourceForReply(botSlug, sourceEventId, currentGrant);
           const existing = db
             .prepare('SELECT id FROM messaging_outbox WHERE request_id = ?')
             .get(requestId) as { id: string } | undefined;
@@ -1127,6 +1233,20 @@ export function createOutboundMessaging(options: {
                     accountName: currentGrant.accountName,
                     targetName: currentGrant.targetName,
                     conversationId: conversationId!,
+                  },
+                }
+              : {}),
+            ...(replyRoute
+              ? {
+                  reply: {
+                    providerId: currentGrant.providerId,
+                    accountRef: currentGrant.accountRef,
+                    fingerprint: currentGrant.fingerprint,
+                    platform: currentGrant.platform,
+                    accountName: currentGrant.accountName,
+                    targetName: currentGrant.targetName,
+                    conversationId: replyRoute.conversationId,
+                    route: replyRoute,
                   },
                 }
               : {}),
@@ -1188,8 +1308,7 @@ export function createOutboundMessaging(options: {
           },
           ['outbox'],
         );
-        if (sourceEventId !== undefined && !inbound.available(botSlug, sourceEventId))
-          throw new MessagingProviderError('source-unavailable', 'not-started');
+        if (sourceEventId !== undefined) sourceForReply(botSlug, sourceEventId, acceptedGrant);
         started = true;
         options.warn?.(
           JSON.stringify({
@@ -1246,13 +1365,61 @@ export function createOutboundMessaging(options: {
                 ? Promise.reject(
                     new MessagingProviderError('capability-unavailable', 'not-started'),
                   )
-                : entry.provider.reply({
-                    accountRef: acceptedGrant.accountRef,
-                    fingerprint: acceptedGrant.fingerprint,
-                    route: inbound.read(botSlug, sourceEventId).event.reply,
-                    text,
-                    signal: controller.signal,
-                  })
+                : (async () => {
+                    let route: MessagingReplyRoute;
+                    try {
+                      route = await qualifyReply(
+                        botSlug,
+                        sourceEventId,
+                        acceptedGrant,
+                        entry,
+                        controller.signal,
+                      );
+                      await check(grant(botSlug, grantId));
+                      enabledBinding(acceptedGrant.bindingId, acceptedIdentity);
+                      const latest = grant(botSlug, grantId);
+                      if (latest.revokedAt || latest.revision !== acceptedGrant.revision)
+                        throw new MessagingError('grant-revoked');
+                      sourceForReply(botSlug, sourceEventId, latest);
+                      if (
+                        [
+                          'messageId',
+                          'conversationId',
+                          'actorId',
+                          'threadId',
+                          'rootId',
+                          'parentId',
+                        ].some((key) => Reflect.get(route, key) !== Reflect.get(replyRoute!, key))
+                      )
+                        throw new MessagingError('stale-route');
+                    } catch (error) {
+                      throw new MessagingProviderError(
+                        error instanceof MessagingError ? error.code : 'source-unavailable',
+                        'not-started',
+                      );
+                    }
+                    return entry.provider.reply!({
+                      accountRef: acceptedGrant.accountRef,
+                      fingerprint: acceptedGrant.fingerprint,
+                      route,
+                      text,
+                      signal: controller.signal,
+                      beforeSend: () => {
+                        try {
+                          active(botSlug);
+                          current(acceptedGrant.providerId, entry.token);
+                          enabledBinding(acceptedGrant.bindingId, acceptedIdentity);
+                          const latest = grant(botSlug, grantId);
+                          if (latest.revokedAt || latest.revision !== acceptedGrant.revision)
+                            return false;
+                          sourceForReply(botSlug, sourceEventId, latest);
+                          return !controller.signal.aborted;
+                        } catch {
+                          return false;
+                        }
+                      },
+                    });
+                  })()
               : report
                 ? entry.provider.post === undefined
                   ? Promise.reject(
@@ -1281,12 +1448,12 @@ export function createOutboundMessaging(options: {
           throw new MessagingProviderError('provider-result-unknown', 'unknown');
         const receipt = 'receipt' in result ? (result.receipt as MessagingReceipt) : undefined;
         if (
-          report &&
+          (report || (source !== undefined && source.grantId !== grantId)) &&
           (receipt?.version !== 1 ||
             typeof receipt.messageId !== 'string' ||
             !receipt.messageId ||
             receipt.messageId.length > 512 ||
-            receipt.conversationId !== conversationId!)
+            receipt.conversationId !== (replyRoute?.conversationId ?? conversationId!))
         )
           throw new MessagingProviderError('provider-result-unknown', 'unknown');
         return settle(id.id, 'provider-accepted', undefined, receipt);

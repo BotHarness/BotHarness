@@ -134,6 +134,7 @@ export interface InboundMessaging {
   ): ReturnType<typeof pendingReceptionPaths>;
   sourceSignal(botSlug: string, sourceEventId: string): AbortSignal;
   read(botSlug: string, sourceEventId: string): ExternalSource;
+  readShared(botSlug: string, sourceEventId: string): ExternalSource;
   share(botSlug: string, sourceEventId: string, channelId: string): InboxSourceShare;
   context(
     botSlug: string,
@@ -864,7 +865,40 @@ export function createInboundMessaging(options: {
       body: row.body,
     };
   };
+  const readShared = (botSlug: string, id: string): ExternalSource => {
+    const row = database.read((db) =>
+      db
+        .prepare(
+          "SELECT payload_json, body FROM source_events WHERE source_event_id = ? AND source_kind = 'bridge-message'",
+        )
+        .get(id),
+    ) as { payload_json: string; body: string } | undefined;
+    if (!row) throw new MessagingError('source-unavailable');
+    const retained = (JSON.parse(row.payload_json) as { external: ExternalSource }).external;
+    if (grant(retained.grantId).botSlug === botSlug) return read(botSlug, id);
+    const channelId = database.read((db) => {
+      const placements = db
+        .prepare(
+          'SELECT channel_id FROM channel_placements WHERE source_event_id = ? ORDER BY channel_id',
+        )
+        .all(id) as { channel_id: string }[];
+      for (const placement of placements) {
+        try {
+          const channel = bridgeChannel(db, placement.channel_id, botSlug);
+          if (channel.type === 'group') return channel.id;
+        } catch (error) {
+          if (!(error instanceof MessagingError)) throw error;
+        }
+      }
+      return undefined;
+    });
+    if (!channelId || retained.event.conversation.kind !== 'group')
+      throw new MessagingError('source-unavailable');
+    const { contextReads: _reads, receptionPaths: _paths, ...shared } = retained;
+    return { ...shared, body: row.body, localChannelId: channelId };
+  };
   const service: InboundMessaging = {
+    readShared,
     register(provider) {
       const token = {};
       providers.set(provider.id, {

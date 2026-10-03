@@ -50,6 +50,7 @@ async function fixture(
     onRun?: (run: OrchestratorAgentRun) => Promise<void>;
     steer?: (botSlug: string, text: string) => boolean;
     receipts?: boolean;
+    secondIdentity?: boolean;
     inheritedProvider?: boolean;
     history?: NonNullable<DshImOutboundService['historyChecked']>;
   } = {},
@@ -83,23 +84,43 @@ async function fixture(
   const publicService: DshImOutboundService = {
     contractVersion: 1,
     ...(options.receipts ? { receiptVersion: 1 as const, echoVersion: 1 as const } : {}),
-    listBots: async () => [{ botId: 'lark-app', channel: 'feishu' }],
+    ...(options.secondIdentity
+      ? {
+          replyContextVersion: 1 as const,
+          replyFenceVersion: 1 as const,
+          replyReceiptVersion: 1 as const,
+          qualifyReplyChecked: vi.fn(async (_id, route) => ({
+            ...route,
+            actorId: 'ou-human-scoped-to-bea',
+          })),
+        }
+      : {}),
+    listBots: async () => [
+      { botId: 'lark-app', channel: 'feishu' },
+      ...(options.secondIdentity ? [{ botId: 'lark-bea', channel: 'feishu' }] : []),
+    ],
     listTargets: async () => [
       { targetId: 'team', name: 'QA team', kind: 'group', route: { chatId: 'oc-team' } },
     ],
-    describeBot: async () => {
+    describeBot: async (botId) => {
       if (!ready) throw Object.assign(new Error('Starting account'), { code: 'unknown-bot' });
       return {
         version: 1,
         channel: 'feishu',
-        botId: 'lark-app',
-        account: { fingerprint, name: 'My Lark identity' },
+        botId,
+        account: {
+          fingerprint: botId === 'lark-bea' ? 'b'.repeat(64) : fingerprint,
+          name: botId === 'lark-bea' ? 'Bea Lark identity' : 'My Lark identity',
+        },
         connected: true,
         capabilities: [
           'proactive-text-checked',
           ...(options.receipts ? ['proactive-receipt-checked', 'own-text-echo'] : []),
           'exclusive-text-consumer',
           'reply-text-checked',
+          ...(options.secondIdentity
+            ? ['reply-context-checked', 'reply-receipt-checked', 'reply-fence-checked']
+            : []),
           ...(options.history ? ['history-text-checked', 'thread-history-text-checked'] : []),
         ],
       };
@@ -120,10 +141,27 @@ async function fixture(
         --subscriptions;
       };
     },
-    replyChecked: async (botId, route, text) => {
+    replyChecked: async (botId, route, text, replyOptions) => {
+      if (replyOptions.beforeSend && !replyOptions.beforeSend())
+        throw Object.assign(new Error('stale-route'), { code: 'stale-route' });
       replies.push({ botId, route, text });
-      expect(core.externalMessaging.history('ada')[0]?.state).toBe('in-flight');
-      return result ? result() : { sent: true };
+      expect(core.externalMessaging.history(botId === 'lark-bea' ? 'bea' : 'ada')[0]?.state).toBe(
+        'in-flight',
+      );
+      return result
+        ? result()
+        : {
+            sent: true,
+            ...(options.secondIdentity
+              ? {
+                  receipt: {
+                    version: 1 as const,
+                    messageId: botId + '-reply',
+                    conversationId: route.conversationId,
+                  },
+                }
+              : {}),
+          };
     },
   };
   const register = () => {
@@ -1016,9 +1054,9 @@ it('places one canonical external Source Event in a shared Channel, wakes only t
         expect(run.bot.slug).toBe('bea');
         expect(run.channels.query({ channelId, text: 'Please reply' }).messages).toHaveLength(1);
         expect(run.channels.read({ channelId })[0]?.message.id).toBe(sourceId);
-        expect(() => run.externalMessaging?.read(sourceId)).toThrow('source-unavailable');
+        expect(run.externalMessaging?.read(sourceId).event.actor.id).toBe('ou-human');
         await expect(run.externalMessaging?.reply(sourceId, 'Borrowed identity')).rejects.toThrow(
-          'source-unavailable',
+          'own-reply-grant-unavailable',
         );
       }
     },
@@ -2416,10 +2454,10 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
           author: { kind: 'bridged', source: 'Alex' },
           bridgeOrigin: { sourceEventId: sourceId, senderId: 'ou-human', messageId: 'om-1' },
         });
-        expect(() => run.externalMessaging!.read(sourceId)).toThrow('source-unavailable');
+        expect(run.externalMessaging!.read(sourceId).event.actor.name).toBe('Alex');
         await expect(async () =>
           run.externalMessaging!.reply(sourceId, 'Borrowed identity'),
-        ).rejects.toThrow('source unavailable');
+        ).rejects.toThrow('own-reply-grant-unavailable');
         await run.channels.send({ channelId, body: 'Helper local discussion' });
       }
     },
@@ -3217,4 +3255,200 @@ it('preserves inherited Provider methods when sharing an account consumer', asyn
   await f.idle();
   expect(f.runs).toHaveLength(1);
   expect(f.query('SELECT source_event_id FROM source_events')).toHaveLength(1);
+});
+
+async function secondResponder() {
+  const fx = await fixture({ secondIdentity: true, receipts: true });
+  const channelId = await sharedTarget(fx);
+  const target = (await fx.core.externalMessaging.targets('dsh-im/feishu', 'lark-bea'))[0]!;
+  const grant = await fx.core.externalMessaging.authorize({
+    botSlug: 'bea',
+    providerId: 'dsh-im/feishu',
+    accountRef: 'lark-bea',
+    targetRef: target.ref,
+    fingerprint: 'b'.repeat(64),
+    targetDigest: target.digest,
+  });
+  await fx.enable();
+  await fx.receive(event());
+  await fx.idle();
+  const sourceId = fx.core.channels.readMessages(channelId)[0]!.id;
+  return {
+    ...fx,
+    get core() {
+      return fx.core;
+    },
+    sourceId,
+    channelId,
+    responderGrant: grant,
+  };
+}
+
+it('replies to one shared source under two independent own identities, preserves the canonical route, and deduplicates each responder across restart', async () => {
+  const fx = await secondResponder();
+  expect(fx.query("SELECT * FROM inbox_admissions WHERE bot_slug = 'bea'")).toHaveLength(0);
+  const source = fx.core.externalMessaging.inbound.readShared('bea', fx.sourceId);
+  expect(source).toMatchObject({ grantId: fx.grant.id, event: { actor: { id: 'ou-human' } } });
+  expect(source.contextReads).toBeUndefined();
+  const own = await fx.core.externalMessaging.reply('ada', fx.sourceId, 'A reply');
+  const shared = await fx.core.externalMessaging.reply('bea', fx.sourceId, 'B reply');
+  expect(own.state).toBe('provider-accepted');
+  expect(shared).toMatchObject({
+    botSlug: 'bea',
+    grantId: fx.responderGrant.id,
+    sourceEventId: fx.sourceId,
+    state: 'provider-accepted',
+    reply: {
+      accountRef: 'lark-bea',
+      accountName: 'Bea Lark identity',
+      route: { ...event().reply, actorId: 'ou-human-scoped-to-bea' },
+    },
+    receipt: { messageId: 'lark-bea-reply', conversationId: 'oc-team' },
+  });
+  expect(fx.replies.map((reply) => reply.botId)).toEqual(['lark-app', 'lark-bea']);
+  expect(fx.replies[1]!.route).toEqual({ ...event().reply, actorId: 'ou-human-scoped-to-bea' });
+  expect(fx.core.externalMessaging.inbound.read('ada', fx.sourceId).event.reply).toEqual(
+    event().reply,
+  );
+  expect(await fx.core.externalMessaging.reply('bea', fx.sourceId, 'B reply')).toMatchObject({
+    id: shared.id,
+  });
+  await fx.restart();
+  expect(await fx.core.externalMessaging.reply('bea', fx.sourceId, 'B reply')).toMatchObject({
+    id: shared.id,
+  });
+  expect(fx.replies).toHaveLength(2);
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+    1,
+  );
+  expect(fx.query("SELECT * FROM inbox_admissions WHERE bot_slug = 'bea'")).toHaveLength(0);
+  await expect(
+    fx.core.externalMessaging.reply('bea', fx.sourceId, 'Different retry'),
+  ).rejects.toThrow('request-conflict');
+});
+
+it.each(['membership', 'authorization', 'identity'] as const)(
+  'rechecks responder %s after preflight and refuses before the external side effect',
+  async (change) => {
+    const fx = await secondResponder();
+    let checks = 0;
+    fx.publicService.qualifyReplyChecked = async (_account, route) => {
+      checks++;
+      if (checks === 2) {
+        if (change === 'membership') fx.core.channels.removeGroupMember(fx.channelId, 'bea');
+        if (change === 'authorization')
+          fx.core.externalMessaging.revoke('bea', fx.responderGrant.id);
+        if (change === 'identity') {
+          const identity = (await fx.core.externalMessaging.snapshot('bea')).identities![0]!;
+          await fx.core.externalMessaging.identity('bea', {
+            kind: 'update',
+            id: identity.id,
+            expectedRevision: identity.revision,
+            name: identity.name,
+            enabled: false,
+          });
+        }
+      }
+      return { ...route, actorId: 'ou-human-scoped-to-bea' };
+    };
+    const reply = await fx.core.externalMessaging.reply('bea', fx.sourceId, 'Refuse before send');
+    expect(reply.state).toBe('failed');
+    expect(fx.replies).toHaveLength(0);
+    expect(
+      await fx.core.externalMessaging.reply('ada', fx.sourceId, 'Independent A reply'),
+    ).toMatchObject({ state: 'provider-accepted' });
+  },
+);
+
+it.each(['reply-permission-denied', 'source-not-found', 'source-unavailable'] as const)(
+  'preserves checked responder refusal %s without recording an accepted intent or trying A identity',
+  async (code) => {
+    const fx = await secondResponder();
+    fx.publicService.qualifyReplyChecked = async () => {
+      throw Object.assign(new Error('upstream private detail'), { code });
+    };
+    await expect(fx.core.externalMessaging.reply('bea', fx.sourceId, 'Never send')).rejects.toThrow(
+      code,
+    );
+    expect(fx.replies).toHaveLength(0);
+    expect(fx.core.externalMessaging.history('bea')).toHaveLength(0);
+  },
+);
+
+it('refuses a changed qualified topic instead of falling back to the main group', async () => {
+  const fx = await secondResponder();
+  fx.publicService.qualifyReplyChecked = async (_account, route) => ({
+    ...route,
+    threadId: 'different-topic',
+  });
+  await expect(fx.core.externalMessaging.reply('bea', fx.sourceId, 'Never send')).rejects.toThrow(
+    'stale-route',
+  );
+  expect(fx.replies).toHaveLength(0);
+});
+
+it('keeps an ambiguous responder send as one unknown outcome and never retries it', async () => {
+  const fx = await secondResponder();
+  let sends = 0;
+  fx.publicService.replyChecked = async () => {
+    sends++;
+    throw new Error('transport interrupted after send');
+  };
+  const result = await fx.core.externalMessaging.reply('bea', fx.sourceId, 'Uncertain B reply');
+  expect(result.state).toBe('unknown-outcome');
+  expect(
+    await fx.core.externalMessaging.reply('bea', fx.sourceId, 'Uncertain B reply'),
+  ).toMatchObject({ id: result.id, state: 'unknown-outcome' });
+  expect(sends).toBe(1);
+});
+
+it('fences removal after remote source validation, immediately before the SDK send', async () => {
+  const fx = await secondResponder();
+  let effects = 0;
+  fx.publicService.replyChecked = async (_bot, _route, _text, options) => {
+    fx.core.channels.removeGroupMember(fx.channelId, 'bea');
+    if (options.beforeSend?.() !== true)
+      throw Object.assign(new Error('stale-route'), { code: 'stale-route' });
+    effects++;
+    return { sent: true };
+  };
+  expect(
+    await fx.core.externalMessaging.reply('bea', fx.sourceId, 'Withdrawn before effect'),
+  ).toMatchObject({ state: 'failed', reason: 'stale-route' });
+  expect(effects).toBe(0);
+});
+
+it('correlates a reply own echo with its owned Outbox receipt without another source or attention', async () => {
+  const fx = await secondResponder();
+  const intent = await fx.core.externalMessaging.reply('ada', fx.sourceId, 'A reply');
+  const before = fx.query('SELECT * FROM inbox_admissions');
+  await fx.echo('lark-app-reply', 'A reply');
+  await fx.echo('lark-app-reply', 'A reply');
+  expect(fx.core.externalMessaging.inspectIntent('ada', intent.id)).toMatchObject({
+    echo: { eventId: 'echo-1' },
+  });
+  expect(fx.query('SELECT * FROM inbox_admissions')).toEqual(before);
+  expect(fx.query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+    1,
+  );
+  expect(fx.core.externalMessaging.history('bea')).toHaveLength(0);
+});
+
+it('refuses an account missing the final reply-fence capability before qualification or send', async () => {
+  const fx = await secondResponder();
+  const describe = fx.publicService.describeBot;
+  fx.publicService.describeBot = async (id) => {
+    const account = await describe(id);
+    return {
+      ...account,
+      capabilities: account.capabilities.filter(
+        (capability) => capability !== 'reply-fence-checked',
+      ),
+    };
+  };
+  await expect(
+    fx.core.externalMessaging.reply('bea', fx.sourceId, 'Unavailable contract'),
+  ).rejects.toThrow('capability-unavailable');
+  expect(fx.publicService.qualifyReplyChecked).not.toHaveBeenCalled();
+  expect(fx.replies).toHaveLength(0);
 });

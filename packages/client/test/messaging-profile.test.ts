@@ -462,74 +462,96 @@ it('shows per-Thread state, refuses unverified follow and saves the exact Human 
   }
 });
 
-it('inspects the complete external report and native correspondence without sending it again', async () => {
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-  const messagingSend = vi.fn();
-  const text = 'Morning report '.repeat(20);
-  const actions = {
-    messagingIdentity: vi.fn(),
-    messagingGroupPolicy: vi.fn(),
-    messagingThreadPolicy: vi.fn(),
-    messagingReceive: vi.fn(),
-    messagingChannelTarget: vi.fn(),
-    messagingTargets: vi.fn(),
-    messagingAuthorize: vi.fn(),
-    messagingRevoke: vi.fn(),
-    messagingSend,
-    messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
-      accounts: [],
-      grants: [],
-      intents: [
-        {
-          id: 'report-intent',
-          botSlug: 'ada',
-          grantId: 'grant',
-          grantRevision: 1,
-          text,
-          state: 'provider-accepted',
-          createdAt: '2026-10-03T07:29:24Z',
-          report: {
-            providerId: 'dsh-im',
-            accountRef: 'own-app',
-            fingerprint: 'a'.repeat(64),
-            platform: 'feishu',
-            accountName: 'Own Bot identity',
-            targetName: 'QA group',
-            conversationId: 'external-group',
+it.each(['report', 'reply'] as const)(
+  'inspects the complete external %s and native correspondence without sending it again',
+  async (kind) => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const messagingSend = vi.fn();
+    const text = 'Morning report '.repeat(20);
+    const actions = {
+      messagingIdentity: vi.fn(),
+      messagingGroupPolicy: vi.fn(),
+      messagingThreadPolicy: vi.fn(),
+      messagingReceive: vi.fn(),
+      messagingChannelTarget: vi.fn(),
+      messagingTargets: vi.fn(),
+      messagingAuthorize: vi.fn(),
+      messagingRevoke: vi.fn(),
+      messagingSend,
+      messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
+        accounts: [],
+        grants: [],
+        intents: [
+          {
+            id: 'report-intent',
+            botSlug: 'ada',
+            grantId: 'grant',
+            grantRevision: 1,
+            text,
+            state: 'provider-accepted',
+            createdAt: '2026-10-03T07:29:24Z',
+            [kind]: {
+              providerId: 'dsh-im',
+              accountRef: 'own-app',
+              fingerprint: 'a'.repeat(64),
+              platform: 'feishu',
+              accountName: 'Own Bot identity',
+              targetName: 'QA group',
+              conversationId: 'external-group',
+              ...(kind === 'reply'
+                ? {
+                    route: {
+                      messageId: 'source-message',
+                      conversationId: 'external-group',
+                      actorId: 'responder-scoped-sender',
+                      threadId: 'source-topic',
+                    },
+                  }
+                : {}),
+            },
+            ...(kind === 'reply' ? { sourceEventId: 'canonical-shared-source' } : {}),
+            receipt: {
+              version: 1,
+              messageId: 'native-report-id',
+              conversationId: 'external-group',
+            },
           },
-          receipt: { version: 1, messageId: 'native-report-id', conversationId: 'external-group' },
-        },
-      ],
-    }),
-  };
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  try {
-    await act(async () =>
-      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
-    );
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
-    const inspect = container.querySelector<HTMLButtonElement>(
-      `button[aria-label="${zhTranslate('im.inspectReport', { name: 'QA group' })}"]`,
-    );
-    if (!inspect) throw new Error('report inspection unavailable');
-    expect(inspect.textContent).not.toBe(text);
-    await act(async () => inspect.click());
-    const dialog = container.querySelector('[role="dialog"]');
-    expect(dialog?.textContent).toContain(text);
-    expect(dialog?.textContent).toContain('Own Bot identity');
-    expect(dialog?.textContent).toContain(zhTranslate('im.externalOnly'));
-    expect(dialog?.querySelector('details')?.open).toBe(false);
-    expect(dialog?.textContent).toContain('native-report-id');
-    const close = [...container.querySelectorAll('button')].find(
-      (node) => node.textContent === 'Close',
-    );
-    await act(async () => close?.click());
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
-    expect(messagingSend).not.toHaveBeenCalled();
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-  }
-});
+        ],
+      }),
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
+      );
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      const inspect = container.querySelector<HTMLButtonElement>(
+        `button[aria-label="${zhTranslate(kind === 'reply' ? 'im.inspectReply' : 'im.inspectReport', { name: 'QA group' })}"]`,
+      );
+      if (!inspect) throw new Error('report inspection unavailable');
+      expect(inspect.textContent).not.toBe(text);
+      await act(async () => inspect.click());
+      const dialog = container.querySelector('[role="dialog"]');
+      expect(dialog?.textContent).toContain(text);
+      expect(dialog?.textContent).toContain('Own Bot identity');
+      expect(dialog?.textContent).toContain(zhTranslate('im.externalOnly'));
+      expect(dialog?.querySelector('details')?.open).toBe(false);
+      expect(dialog?.textContent).toContain('native-report-id');
+      if (kind === 'reply') {
+        expect(dialog?.textContent).toContain('canonical-shared-source');
+        expect(dialog?.textContent).toContain('source-topic');
+      }
+      const close = [...container.querySelectorAll('button')].find(
+        (node) => node.textContent === 'Close',
+      );
+      await act(async () => close?.click());
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(messagingSend).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  },
+);

@@ -21,6 +21,9 @@ interface DshImTarget {
 export interface DshImOutboundService {
   contractVersion: 1;
   fileVersion?: 1;
+  replyContextVersion?: 1;
+  replyReceiptVersion?: 1;
+  replyFenceVersion?: 1;
   receiptVersion?: 1;
   echoVersion?: 1;
   readSourceFile?(
@@ -56,6 +59,11 @@ export interface DshImOutboundService {
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
     },
   ): Promise<() => void>;
+  qualifyReplyChecked?(
+    botId: string,
+    route: MessagingReplyRoute,
+    options: { expectedFingerprint: string; signal: AbortSignal },
+  ): Promise<MessagingReplyRoute>;
   replyChecked?(
     botId: string,
     route: MessagingReplyRoute,
@@ -63,8 +71,10 @@ export interface DshImOutboundService {
     options: {
       expectedFingerprint: string;
       signal: AbortSignal;
+      receipt?: true;
+      beforeSend?: () => boolean;
     },
-  ): Promise<{ sent: true }>;
+  ): Promise<{ sent: true; receipt?: MessagingReceipt }>;
   historyChecked?(
     botId: string,
     route: MessagingReplyRoute,
@@ -248,6 +258,80 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
       if (target === undefined) throw new MessagingError('provider-unavailable');
       return { account: current, target };
     },
+    ...(host.replyContextVersion === 1 &&
+    host.replyReceiptVersion === 1 &&
+    host.replyFenceVersion === 1 &&
+    typeof host.qualifyReplyChecked === 'function'
+      ? {
+          async qualifyReply(input: Parameters<NonNullable<MessagingProvider['qualifyReply']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingError('rebind-required');
+            if (
+              !info.connected ||
+              !['reply-context-checked', 'reply-receipt-checked', 'reply-fence-checked'].every(
+                (capability) => info.capabilities.includes(capability),
+              )
+            )
+              throw new MessagingError('capability-unavailable');
+            let raw;
+            try {
+              raw = await host.qualifyReplyChecked!(input.accountRef, input.route, {
+                expectedFingerprint: input.fingerprint,
+                signal: input.signal,
+              });
+            } catch (error) {
+              const code =
+                error !== null && typeof error === 'object' && 'code' in error
+                  ? error.code
+                  : undefined;
+              throw new MessagingError(
+                typeof code === 'string' &&
+                  [
+                    'reply-permission-denied',
+                    'source-not-found',
+                    'source-unavailable',
+                    'stale-route',
+                    'account-changed',
+                    'capability-unavailable',
+                    'cancelled',
+                  ].includes(code)
+                  ? code
+                  : 'source-unavailable',
+              );
+            }
+            input.signal.throwIfAborted();
+            const route = z
+              .object({
+                messageId: identifier,
+                conversationId: identifier,
+                actorId: identifier,
+                threadId: identifier.optional(),
+                rootId: identifier.optional(),
+                parentId: identifier.optional(),
+              })
+              .strict()
+              .parse(raw);
+            if (
+              route.messageId !== input.route.messageId ||
+              route.conversationId !== input.route.conversationId ||
+              route.threadId !== input.route.threadId ||
+              route.rootId !== input.route.rootId ||
+              route.parentId !== input.route.parentId
+            )
+              throw new MessagingError('stale-route');
+            return {
+              messageId: route.messageId,
+              conversationId: route.conversationId,
+              actorId: route.actorId,
+              ...(route.threadId === undefined ? {} : { threadId: route.threadId }),
+              ...(route.rootId === undefined ? {} : { rootId: route.rootId }),
+              ...(route.parentId === undefined ? {} : { parentId: route.parentId }),
+            };
+          },
+        }
+      : {}),
     ...(typeof host.consumeInbound === 'function' && typeof host.replyChecked === 'function'
       ? {
           async consume(input: Parameters<NonNullable<MessagingProvider['consume']>>[0]) {
@@ -326,9 +410,26 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
               const result = await host.replyChecked!(input.accountRef, input.route, input.text, {
                 expectedFingerprint: input.fingerprint,
                 signal: input.signal,
+                ...(host.replyReceiptVersion === 1 ? { receipt: true as const } : {}),
+                ...(host.replyFenceVersion === 1 && input.beforeSend
+                  ? { beforeSend: input.beforeSend }
+                  : {}),
               });
               if (result.sent !== true)
                 throw new MessagingProviderError('provider-result-unknown', 'unknown');
+              if (host.replyReceiptVersion === 1) {
+                const receipt = z
+                  .object({
+                    version: z.literal(1),
+                    messageId: identifier,
+                    conversationId: identifier,
+                  })
+                  .strict()
+                  .safeParse(result.receipt);
+                if (!receipt.success || receipt.data.conversationId !== input.route.conversationId)
+                  throw new MessagingProviderError('provider-result-unknown', 'unknown');
+                return { accepted: true as const, receipt: receipt.data };
+              }
               return { accepted: true as const };
             } catch (error) {
               throw providerFailure(error);

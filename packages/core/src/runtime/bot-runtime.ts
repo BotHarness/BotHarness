@@ -2683,7 +2683,7 @@ class BotRuntimeImplementation implements BotRuntime {
                   );
                 },
                 read: (id: string) => {
-                  const source = this.#externalMessaging!.inbound.read(bot.slug, id);
+                  const source = this.#externalMessaging!.inbound.readShared(bot.slug, id);
                   this.#observeExternalRead(bot.slug, [id], readAdmissions);
                   return source;
                 },
@@ -2744,8 +2744,6 @@ class BotRuntimeImplementation implements BotRuntime {
                   );
                 },
                 reply: (id: string, text: string) => {
-                  if (!this.#externalMessaging!.inbound.available(bot.slug, id))
-                    throw new Error('bridge_reply: source unavailable');
                   markSideEffect();
                   return this.#externalMessaging!.reply(bot.slug, id, text);
                 },
