@@ -46,12 +46,12 @@ _避免使用_：status、mood、presence
 PersonaBot 在不同 Binding 中共享的视觉形象：根据 PersonaBot ID 确定性生成的 Blobatar media、Human 上传的 image media，或组合而成的 Avatar Appearance，统一置于表达 Bot state 的 Activity Frame 中。可动 media 表达共享活动事实而不改变保存外形；自定义图片保持静止，由外层 frame 呈现活动。各 renderer 消费同一状态。
 _避免使用_：profile picture、skin
 
-**Avatar Family（形象家族）**：
-一类 Avatar 外形，其中相互兼容的外形选项可由 Human 组合。各家族以自身视觉语言表达同一 Bot state；某个外形选项只有在明确兼容时才跨家族共享。
+**Avatar Family**：
+形象家族。一类 Avatar 外形，其中相互兼容的外形选项可由 Human 组合。各家族以自身视觉语言表达同一 Bot state；某个外形选项只有在明确兼容时才跨家族共享。
 _避免使用_：Persona、Bot type、mode、skin
 
-**Avatar Appearance（保存外形）**：
-PersonaBot 保存的视觉选择：Avatar Family、兼容部件、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Persona 和当前 Bot state。
+**Avatar Appearance**：
+保存外形。PersonaBot 保存的视觉选择：Avatar Family、兼容部件、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Persona 和当前 Bot state。
 _避免使用_：Persona、pose、mood、skin
 
 **Model Preset**：
