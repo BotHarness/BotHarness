@@ -310,16 +310,20 @@ try {
     console.log(JSON.stringify(proof));
   }
 } catch (error) {
-  await page.screenshot({ path: resolve(evidence, 'failure.png') });
-  console.log(
-    await page.evaluate(() => ({
-      headings: [...document.querySelectorAll('h1,h2,h3')].map((e) => e.textContent),
-      buttons: [...document.querySelectorAll('button')]
-        .map((e) => e.textContent?.trim())
-        .filter(Boolean)
-        .slice(0, 25),
-    })),
-  );
+  try {
+    await page.screenshot({ path: resolve(evidence, 'failure.png') });
+    console.log(
+      await page.evaluate(() => ({
+        headings: [...document.querySelectorAll('h1,h2,h3')].map((e) => e.textContent),
+        buttons: [...document.querySelectorAll('button')]
+          .map((e) => e.textContent?.trim())
+          .filter(Boolean)
+          .slice(0, 25),
+      })),
+    );
+  } catch {
+    console.error('Failure diagnostics unavailable; preserving the original error.');
+  }
   throw error;
 } finally {
   await browser.close();
