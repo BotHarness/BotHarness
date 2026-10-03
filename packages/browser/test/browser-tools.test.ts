@@ -134,7 +134,11 @@ afterEach(() => {
   for (const dir of screenshotDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-function harness(options: { access: boolean; auto?: boolean }): Harness {
+function harness(options: {
+  access: boolean;
+  auto?: boolean;
+  borrowed?: Parameters<typeof createBrowserToolProvider>[0]['borrowed'];
+}): Harness {
   const { scope, state } = fakeScope();
   const runtime = fakeRuntime();
   const audits: BrowserAuditEvent[] = [];
@@ -163,6 +167,7 @@ function harness(options: { access: boolean; auto?: boolean }): Harness {
     screenshotDir,
     screenshotLimit: 2,
     isAutoAllowed: () => auto,
+    ...(options.borrowed === undefined ? {} : { borrowed: options.borrowed }),
     audit: (event) => audits.push(event),
     core: () => ({
       registry: {
@@ -242,6 +247,37 @@ describe('curated catalog and audit redaction', () => {
 });
 
 describe('per-PersonaBot registration, authorization, and tabs', () => {
+  it('Daily Browser exposes only observation and retains Session authorization and audit', async () => {
+    const observe = vi.fn(async () => ({
+      url: 'https://example.com/page',
+      title: 'Signed in',
+      text: 'PRIVATE-PAGE-QA',
+      elements: [],
+    }));
+    const h = harness({ access: true, borrowed: () => ({ observe }) });
+    h.created();
+    expect(h.state.registered()).toEqual(['browser_observe']);
+    const tool = h.state.definitions.get('browser_observe')!;
+    await expect(tool.execute({}, execution('browser_observe'))).rejects.toThrow('not authorized');
+    expect(observe).not.toHaveBeenCalled();
+    h.provider.markAuthorized('session-a');
+    const result = await tool.execute({}, execution('browser_observe'));
+    expect(JSON.stringify(result)).toContain('PRIVATE-PAGE-QA');
+    expect(h.runtime.ensure).not.toHaveBeenCalled();
+    expect(h.runtime.open).not.toHaveBeenCalled();
+    expect(h.audits.at(-1)).toMatchObject({
+      tool: 'browser_observe',
+      botSlug: 'bot-a',
+      sessionId: 'session-a',
+      outcome: 'ok',
+    });
+    expect(JSON.stringify(h.audits)).not.toContain('PRIVATE-PAGE-QA');
+    h.provider.invalidateBot('bot-a');
+    expect(h.provider.needsAuthorization('session-a')).toBe(true);
+    h.setAccess(false);
+    await h.provider.reconcileBot('bot-a');
+    expect(h.state.registered()).toEqual([]);
+  });
   it('registers nothing while Browser Access is off', () => {
     const h = harness({ access: false });
     h.created();

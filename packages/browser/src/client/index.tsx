@@ -15,6 +15,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots';
 import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
 import { ProfileCombobox } from './profile-combobox.js';
 import { registerBrowserSettings } from './settings.js';
+import { BorrowedBrowser, type BorrowedTabView } from './borrowed-browser.js';
 import { styles } from './styles.js';
 
 const ENTRY_ID = 'botharness-browser';
@@ -83,7 +84,8 @@ interface BrowserTabView {
 }
 
 interface BrowserObservation {
-  readonly target?: 'local' | 'container';
+  readonly target?: 'local' | 'container' | 'extension';
+  readonly borrowed?: BorrowedTabView | null;
   readonly viewerUrl?: string | null;
   readonly running: boolean;
   readonly frame: string | null;
@@ -534,6 +536,18 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         store.refresh();
       });
   };
+
+  if (observation?.target === 'extension')
+    return (
+      <BorrowedBrowser
+        key={botSlug}
+        slug={botSlug}
+        tab={observation.borrowed}
+        enabled={info.browserAccess === true}
+        t={t}
+        refresh={store.refresh}
+      />
+    );
 
   return (
     <div

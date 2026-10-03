@@ -17,6 +17,8 @@
 
 ### Added
 
+- Human 可通过本地扩展将日常 Chrome 的一个标签页明确借给 PersonaBot 只读观察，以 `browser_observe` 复用登录状态，并从扩展或 Channel 侧栏归还；导航、断线与重启会撤销临时借用（[#741](https://github.com/BotHarness/BotHarness/issues/741)、[指南](docs/daily-browser.md)、[ADR-0115](docs/adr/0115-daily-browser-tabs-use-explicit-ephemeral-borrowing.md)）。
+
 - 活动中心总览沿用侧栏／消息框的 Host 执行状态与安全工具摘要；原生问题和审批保持独立 Human 待办，活跃且归属明确的 Session 卡片仍可见（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
 - 活跃 Orchestrator 决定共享 Bot 活动，并发 Assignment 的工具详情不再覆盖主状态；展开后仍显示双方 Session，Orchestrator 结束后恢复展示仍在执行的 Assignment（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。

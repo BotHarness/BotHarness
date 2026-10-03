@@ -813,6 +813,14 @@ window.__ModuleLoader__.load({
 			"settings.target": "操作目标",
 			"settings.local": "本机 Browser",
 			"settings.container": "Docker Browser",
+			"settings.extension": "日常浏览器",
+			"entry.borrow.none": "尚未借用标签页",
+			"entry.borrow.readOnly": "只读借用中",
+			"entry.borrow.pair": "连接浏览器扩展",
+			"entry.borrow.return": "归还标签页",
+			"entry.borrow.code": "配对码",
+			"entry.borrow.cancel": "取消配对",
+			"entry.borrow.instructions": "在扩展中输入此地址和配对码，再选择借出当前页面。配对码 5 分钟内有效，仅可使用一次。",
 			"entry.view.interaction": "允许 Human 操作",
 			"entry.view.close": "关闭",
 			"entry.view.container": "容器浏览器",
@@ -853,6 +861,14 @@ window.__ModuleLoader__.load({
 			"settings.target": "Browser Target",
 			"settings.local": "Local Browser",
 			"settings.container": "Docker Browser",
+			"settings.extension": "Daily Browser",
+			"entry.borrow.none": "No shared tab",
+			"entry.borrow.readOnly": "Shared read-only",
+			"entry.borrow.pair": "Connect browser extension",
+			"entry.borrow.return": "Return tab",
+			"entry.borrow.code": "Pairing code",
+			"entry.borrow.cancel": "Cancel pairing",
+			"entry.borrow.instructions": "Enter this address and code in the extension, then share the current page. The code expires in 5 minutes and can be used once.",
 			"entry.view.interaction": "Enable Human interaction",
 			"entry.view.close": "Close",
 			"entry.view.container": "Container Browser",
@@ -1038,14 +1054,18 @@ window.__ModuleLoader__.load({
 							align: "end",
 							open,
 							selectedId: target,
-							items: ["local", "container"].map((id) => ({
+							items: [
+								"local",
+								"container",
+								"extension"
+							].map((id) => ({
 								id,
 								label: t(`settings.${id}`)
 							})),
 							onClose: () => setOpen(false),
 							onSelect: (id) => {
 								setOpen(false);
-								if (id !== "local" && id !== "container") return;
+								if (id !== "local" && id !== "container" && id !== "extension") return;
 								setSaving(true);
 								setError(void 0);
 								scope.set("target", id).then(() => {
@@ -1088,9 +1108,100 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
+		//#region packages/browser/src/client/borrowed-browser.tsx
+		function BorrowedBrowser({ slug, tab, enabled, t, refresh }) {
+			const [pair, setPair] = (0, react.useState)();
+			const [busy, setBusy] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)();
+			const active = (0, react.useRef)(false);
+			const sequence = (0, react.useRef)(0);
+			const resource = (0, react.useCallback)((node) => {
+				active.current = node !== null;
+				if (node === null) sequence.current += 1;
+			}, []);
+			const invoke = (action) => {
+				if (slug === void 0 || busy) return;
+				const request = ++sequence.current;
+				setBusy(true);
+				setError(void 0);
+				setPair(void 0);
+				fetch(`/api/browser/borrow/${action}`, {
+					method: "POST",
+					cache: "no-store",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ slug })
+				}).then(async (response) => {
+					const body = await response.json();
+					if (!response.ok || !body.ok) throw new Error(body.error ?? t("entry.error"));
+					if (!active.current || sequence.current !== request) return;
+					if (action === "pair" && body.code !== void 0 && body.expiresAt !== void 0) setPair({
+						code: body.code,
+						expiresAt: body.expiresAt
+					});
+				}).catch((cause) => {
+					if (active.current && sequence.current === request) setError(cause instanceof Error ? cause.message : t("entry.error"));
+				}).finally(() => {
+					if (active.current && sequence.current === request) {
+						setBusy(false);
+						refresh();
+					}
+				});
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: resource,
+				className: "bh-browser-body bh-browser-borrow",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("settings.extension") }),
+					tab == null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.borrow.none") }) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.borrow.readOnly") }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+							className: "bh-browser-borrow-title",
+							children: tab.title || tab.url
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							className: "bh-browser-borrow-url",
+							children: tab.url
+						})
+					] }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						size: "sm",
+						disabled: !enabled || busy,
+						onClick: () => invoke(tab == null ? "pair" : "return"),
+						children: t(tab == null ? "entry.borrow.pair" : "entry.borrow.return")
+					}),
+					tab != null || pair === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.borrow.instructions") }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+							"aria-label": t("entry.borrow.code"),
+							value: pair.code,
+							readOnly: true
+						}),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: location.origin }),
+						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+							size: "sm",
+							onClick: () => {
+								sequence.current += 1;
+								setPair(void 0);
+								invoke("return");
+							},
+							children: t("entry.borrow.cancel")
+						})
+					] }),
+					error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						role: "alert",
+						className: "bh-browser-error",
+						children: error
+					})
+				]
+			});
+		}
+		//#endregion
 		//#region packages/browser/src/client/styles.ts
 		const styles = `
 .bh-browser-access-control { position: relative; display: flex; align-items: center; }
+.bh-browser-borrow { display: grid; gap: 8px; font-size: 12.5px; }
+.bh-browser-borrow-title, .bh-browser-borrow-url { overflow-wrap: anywhere; }
+.bh-browser-borrow-url { color: var(--bh-browser-secondary); }
 .bh-browser-access-power {
   display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
   padding: 0; border: 0; border-radius: var(--dsw-radius-md); background: transparent;
@@ -1549,6 +1660,13 @@ window.__ModuleLoader__.load({
 					store.refresh();
 				});
 			};
+			if (observation?.target === "extension") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(BorrowedBrowser, {
+				slug: botSlug,
+				tab: observation.borrowed,
+				enabled: info.browserAccess === true,
+				t,
+				refresh: store.refresh
+			}, botSlug);
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				ref: interactionResource,
 				className: "bh-browser-body",

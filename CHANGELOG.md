@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Humans can explicitly lend one daily Chrome tab read-only to a PersonaBot through a local extension, reuse its login state with `browser_observe`, and return it from the extension or Channel sidebar; navigation, lost connection and restart revoke the temporary lease ([#741](https://github.com/BotHarness/BotHarness/issues/741), [guide](docs/daily-browser.md), [ADR-0115](docs/adr/0115-daily-browser-tabs-use-explicit-ephemeral-borrowing.md)).
+
 - Activity Center Overview uses the Host-selected execution state and safe Tool summary shared with sidebar/composer; pending native questions and approvals remain separate Human actions while live owned Session cards stay visible ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Active Orchestrator work determines the shared Bot Activity without concurrent Assignment Tool details overriding it; expanded Session rows still show both, and finishing the Orchestrator returns presentation to remaining Assignment work ([#123](https://github.com/BotHarness/BotHarness/issues/123)).

@@ -9,6 +9,8 @@ packages/client/lib/
 apps/docs/public/slides/
 apps/docs/src/content/docs/docs/file-open.mdx
 apps/docs/src/content/docs-zh/docs/file-open.mdx
+apps/docs/src/content/docs/docs/daily-browser.mdx
+apps/docs/src/content/docs-zh/docs/daily-browser.mdx
 *.tsbuildinfo
 
 # env / secrets
