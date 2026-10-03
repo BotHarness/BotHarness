@@ -191,6 +191,10 @@ export interface OrchestratorAgentRun {
     threads(): Promise<Array<ThreadReceptionView & { grantId: string; group: string }>>;
     setThread(sourceEventId: string, input: ThreadReceptionInput): Promise<ThreadReceptionPolicy>;
     read(sourceEventId: string): ExternalSource;
+    share(
+      sourceEventId: string,
+      channelId: string,
+    ): ReturnType<OutboundMessaging['inbound']['share']>;
     context(
       sourceEventId: string,
       query: ExternalContextQuery,
@@ -2613,6 +2617,10 @@ class BotRuntimeImplementation implements BotRuntime {
                   const source = this.#externalMessaging!.inbound.read(bot.slug, id);
                   this.#observeExternalRead(bot.slug, [id], readAdmissions);
                   return source;
+                },
+                share: (id, destinationChannelId) => {
+                  markSideEffect();
+                  return this.#externalMessaging!.inbound.share(bot.slug, id, destinationChannelId);
                 },
                 context: async (id: string, query: ExternalContextQuery, signal?: AbortSignal) => {
                   const result = await this.#externalMessaging!.inbound.context(

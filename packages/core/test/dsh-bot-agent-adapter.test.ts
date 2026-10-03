@@ -839,6 +839,7 @@ describe('DSH Bot Agent adapter', () => {
       'stop_assignment',
       'channel_list',
       'bridge_read',
+      'bridge_share',
       'bridge_group_policy_list',
       'bridge_group_policy_set',
       'bridge_thread_policy_list',
@@ -1218,8 +1219,19 @@ it('routes external Tools through the active owning Orchestrator without a local
         );
         const read = tools.find((tool) => tool.name === 'bridge_read');
         const reply = tools.find((tool) => tool.name === 'bridge_reply');
-        if (!read || !reply) throw new Error('external tools unavailable');
+        const share = tools.find((tool) => tool.name === 'bridge_share');
+        if (!read || !reply || !share) throw new Error('external tools unavailable');
         expect(reply.parameters).toMatchObject({ required: ['source_event_id', 'text'] });
+        expect(share.parameters).toMatchObject({ required: ['source_event_id', 'channel_id'] });
+        const placed = await share.execute(
+          { source_event_id: 'source-1', channel_id: 'group-team' },
+          {} as ToolRunContext,
+        );
+        expect(JSON.parse(String(placed))).toMatchObject({
+          sourceEventId: 'source-1',
+          channelId: 'group-team',
+          alreadyShared: false,
+        });
         await expect(
           read.execute({ source_event_id: 'source-1' }, {} as ToolRunContext),
         ).rejects.toThrow('owned source sentinel');
@@ -1250,6 +1262,13 @@ it('routes external Tools through the active owning Orchestrator without a local
     inbox: 'External Inbox',
     message: 'External turn',
     externalMessaging: {
+      share: (sourceEventId, channelId) => ({
+        sourceEventId,
+        channelId,
+        messageId: sourceEventId,
+        revision: 1,
+        alreadyShared: false,
+      }),
       threads: async () => [],
       setThread: async () => {
         throw new Error('thread sentinel');
