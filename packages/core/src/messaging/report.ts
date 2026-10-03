@@ -20,9 +20,9 @@ function correspondence(
   for (const messageId of ids) {
     const row = db
       .prepare(`SELECT body FROM messaging_outbox
-      WHERE bot_slug = ? AND json_extract(body, '$.report.providerId') = ?
-      AND json_extract(body, '$.report.accountRef') = ? AND json_extract(body, '$.report.fingerprint') = ?
-      AND json_extract(body, '$.report.conversationId') = ? AND json_extract(body, '$.receipt.messageId') = ?
+      WHERE bot_slug = ? AND COALESCE(json_extract(body, '$.report.providerId'), json_extract(body, '$.reply.providerId')) = ?
+      AND COALESCE(json_extract(body, '$.report.accountRef'), json_extract(body, '$.reply.accountRef')) = ? AND COALESCE(json_extract(body, '$.report.fingerprint'), json_extract(body, '$.reply.fingerprint')) = ?
+      AND COALESCE(json_extract(body, '$.report.conversationId'), json_extract(body, '$.reply.conversationId')) = ? AND json_extract(body, '$.receipt.messageId') = ?
       ORDER BY created_at DESC LIMIT 1`)
       .get(
         value.botSlug,

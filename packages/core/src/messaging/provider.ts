@@ -100,13 +100,20 @@ export interface MessagingProvider {
     onEvent(event: MessagingInboundEvent, signal: AbortSignal): Promise<{ accepted: true }>;
     onEcho?(event: MessagingOwnEcho, signal: AbortSignal): Promise<{ accepted: true }>;
   }): Promise<() => void>;
+  qualifyReply?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute;
+    signal: AbortSignal;
+  }): Promise<MessagingReplyRoute>;
   reply?(input: {
     accountRef: string;
     fingerprint: string;
     route: MessagingReplyRoute;
     text: string;
     signal: AbortSignal;
-  }): Promise<{ accepted: true }>;
+    beforeSend?: () => boolean;
+  }): Promise<{ accepted: true; receipt?: MessagingReceipt }>;
   history?(input: {
     accountRef: string;
     fingerprint: string;

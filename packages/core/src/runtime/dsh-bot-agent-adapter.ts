@@ -1392,12 +1392,13 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'bridge_reply',
           description:
-            'Explicitly reply to one external source through your own live authorized identity and the Host-stored original group/topic. One durable reply intent per source; never automatically retry an unknown outcome. Does not write a local Channel message.',
+            'Explicitly reply to one external source through your own live authorized identity and the Host-stored original group/topic. One durable reply intent per responding Bot and source; never automatically retry an unknown outcome. Does not write a local Channel message.',
           parameters: {
             source_event_id: {
               type: 'string',
               required: true,
-              description: 'Canonical source_event_id supplied in your Bot Inbox.',
+              description:
+                'Canonical source_event_id read from your Bot Inbox or a shared Channel you currently belong to.',
             },
             text: {
               type: 'string',
