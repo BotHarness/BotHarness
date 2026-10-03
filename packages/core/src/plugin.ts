@@ -345,20 +345,18 @@ export function createCore(
   );
   const humanAttentionDecisions = createHumanAttentionDecisions(humanAttentionDatabase);
   if (operationalDatabase.mode === 'ready') {
-    const refreshAssignmentAttention = () =>
-      states.replaceAssignmentAttention(
-        humanAttention
-          .assignmentAttention()
-          .filter((row) => registry.get(row.botSlug) !== undefined),
+    const refreshDurableAttention = () =>
+      states.replaceDurableAttention(
+        humanAttention.durableAttention().filter((row) => registry.get(row.botSlug) !== undefined),
       );
-    refreshAssignmentAttention();
+    refreshDurableAttention();
     operationalDatabase.subscribe(({ topics }) => {
       if (
         topics.some((topic) =>
           ['assignments', 'source-event', 'channel', 'human-attention', 'usage'].includes(topic),
         )
       )
-        refreshAssignmentAttention();
+        refreshDurableAttention();
     });
   }
   live = createChannelLiveHub(channels, {
