@@ -48,7 +48,17 @@ let pinsChanged = false;
 const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 const page = await browser.newPage();
 await page.setViewport({ width: 1500, height: 1180 });
-await page.setExtraHTTPHeaders({ cookie });
+const cookieSeparator = cookie.indexOf('=');
+assert.ok(cookieSeparator > 0, 'launcher cookie jar must contain a named cookie');
+await browser.setCookie({
+  name: cookie.slice(0, cookieSeparator),
+  value: cookie.slice(cookieSeparator + 1),
+  domain: new URL(origin).hostname,
+  path: '/',
+  secure: new URL(origin).protocol === 'https:',
+  httpOnly: true,
+  sameSite: 'Lax',
+});
 async function openOnce() {
   await page.goto(origin, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('button[aria-label="Bot mode"],button[aria-label="Bot 模式"]');

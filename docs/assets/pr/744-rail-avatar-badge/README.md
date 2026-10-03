@@ -20,3 +20,7 @@ The shared Avatar uses negative top/right offsets. Only Rail badges now inset bo
 3. The script temporarily toggles only the target Channel pin preference through existing `rosterGet`/`pinsSet`, checks both themes and first-row positions, then restores the original pins in `finally`. It neither decides approvals nor modifies Host attention counts.
 
 Screenshots are direct cropped browser viewport captures. No image editing, authentication, raw Tool arguments or machine paths are published. The borrowed pattern is the existing native 36px Rail button with a 32px PersonaBot Avatar and its semantic count badge; the only deviation is a Rail-local inset to fit the measured native 35px clipping viewport.
+
+## CodeRabbit cookie-scope fix
+
+The E2E browser now uses a host-scoped HTTP-only cookie rather than a page-wide Cookie header. An intercepted foreign-avatar request (no external network) carried the cookie with the old header setup, but not with the fixed cookie setup; both contexts loaded the authenticated native DSH shell. `cookie-origin-proof.json` publishes only those booleans. The fixed authentication also passed all four real Rail cases and restored the original pins.
