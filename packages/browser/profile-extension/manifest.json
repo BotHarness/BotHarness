@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BotHarness Chrome Profile Control",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "minimum_chrome_version": "120",
   "description": "Explicitly pair this Chrome Profile for PersonaBot webpage control.",
   "permissions": ["tabs", "scripting", "storage", "alarms", "debugger"],

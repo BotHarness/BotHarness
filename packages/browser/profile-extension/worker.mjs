@@ -53,7 +53,8 @@ async function page(tabId, method, slug, ref = '', text = '') {
     func: profilePage,
     args: [method, slug, ref, text],
   });
-  if (!results[0] || results[0].error) throw new Error('Page command failed');
+  if (!results[0] || results[0].result === undefined) throw new Error('Page command failed');
+  if (results[0].result?.error) throw new Error(results[0].result.error);
   return results[0];
 }
 async function execute(command) {

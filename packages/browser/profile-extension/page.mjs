@@ -3,7 +3,7 @@ export function profilePage(method, slug, ref) {
   const state = (globalThis[key] ??= { bots: new Map(), acting: false });
   if (!state.listening) {
     state.listening = true;
-    for (const name of ['input', 'change', 'pointerdown', 'keydown'])
+    for (const name of ['input', 'pointerdown', 'keydown'])
       document.addEventListener(
         name,
         (event) => {
@@ -72,15 +72,15 @@ export function profilePage(method, slug, ref) {
     element.disabled ||
     element.getAttribute('aria-disabled') === 'true'
   )
-    throw new Error('Stale or unavailable ref; observe again');
+    return { error: 'Stale or unavailable ref; observe again' };
   if (!['type', 'click', 'prepare-type', 'prepare-click'].includes(method))
-    throw new Error('Unsupported page command');
+    return { error: 'Unsupported page command' };
   element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
   const rect = element.getBoundingClientRect();
   const x = rect.left + rect.width / 2;
   const y = rect.top + rect.height / 2;
   const hit = document.elementFromPoint(x, y);
-  if (!hit || (hit !== element && !element.contains(hit))) throw new Error('Element is covered');
+  if (!hit || (hit !== element && !element.contains(hit))) return { error: 'Element is covered' };
   if (method === 'type' || method === 'prepare-type') {
     if (
       !element.matches(
@@ -88,10 +88,10 @@ export function profilePage(method, slug, ref) {
       ) ||
       element.readOnly
     )
-      throw new Error('Not an editable text field');
+      return { error: 'Not an editable text field' };
     if (method === 'prepare-type') return { x, y, url: location.href };
     element.focus();
-    if (document.activeElement !== element) throw new Error('Input focus unavailable');
+    if (document.activeElement !== element) return { error: 'Input focus unavailable' };
     const setter = Object.getOwnPropertyDescriptor(
       element instanceof HTMLTextAreaElement
         ? HTMLTextAreaElement.prototype

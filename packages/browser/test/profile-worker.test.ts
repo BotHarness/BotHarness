@@ -107,3 +107,57 @@ it('explicit reconnect cancels the old poll and immediately uses a new connectio
     h.close();
   }
 });
+
+it.each([undefined, { error: 'Input focus unavailable' }])(
+  'never dispatches input when the injected page command returns %j',
+  async (failed) => {
+    const sendCommand = vi.fn();
+    const attach = vi.fn();
+    const executeScript = vi.fn(async ({ args }: { args: string[] }) => {
+      const method = args[0];
+      const result =
+        method === 'observe'
+          ? { elements: [{ ref: 'current' }] }
+          : method === 'prepare-type'
+            ? { x: 10, y: 10, url: 'https://example.com' }
+            : method === 'type'
+              ? failed
+              : null;
+      return [{ documentId: 'document-a', result }];
+    });
+    const execute = runInNewContext(`${worker}; execute`, {
+      chrome: {
+        storage: { local: { get: async () => ({}) } },
+        tabs: {
+          query: async () => [{ id: 1, url: 'https://example.com', windowId: 1 }],
+          update: async () => undefined,
+          onUpdated: { addListener() {} },
+          onRemoved: { addListener() {} },
+        },
+        windows: { update: async () => undefined },
+        scripting: { executeScript },
+        debugger: { attach, sendCommand, detach: async () => undefined },
+        runtime: { onMessage: { addListener() {} }, onStartup: { addListener() {} } },
+        alarms: { create: () => undefined, onAlarm: { addListener() {} } },
+      },
+      profilePage: () => undefined,
+      crypto: webcrypto,
+      URL,
+      Map,
+      Set,
+      AbortController,
+      AbortSignal,
+    }) as (command: {
+      slug: string;
+      method: string;
+      args: Record<string, unknown>;
+    }) => Promise<unknown>;
+    await execute({ slug: 'a', method: 'tabs', args: { action: 'select', targetId: '1' } });
+    await execute({ slug: 'a', method: 'observe', args: {} });
+    await expect(
+      execute({ slug: 'a', method: 'type', args: { ref: 'current', text: 'must-not-insert' } }),
+    ).rejects.toThrow(failed ? 'Input focus' : 'Page command');
+    expect(attach).toHaveBeenCalledOnce();
+    expect(sendCommand).not.toHaveBeenCalled();
+  },
+);
