@@ -1,0 +1,406 @@
+{
+  "nativeHostCount": 2,
+  "cases": [
+    {
+      "pinned": false,
+      "theme": "light",
+      "firstInGroup": true,
+      "motion": {
+        "state": "working",
+        "preset": "morph",
+        "dots": 9,
+        "padding": {
+          "left": 2,
+          "right": 2,
+          "top": 2,
+          "bottom": 2
+        },
+        "centerOffset": {
+          "x": 0,
+          "y": 0
+        },
+        "dotPitchShare": 0.8696,
+        "animated": true,
+        "reducedStill": true,
+        "insideAvatar": true,
+        "legacyDotPresent": false
+      },
+      "badge": {
+        "x": 29.5,
+        "y": 252,
+        "width": 14,
+        "height": 14
+      },
+      "clipped": false,
+      "ancestors": [
+        {
+          "className": "bh-persona-avatar",
+          "x": 11.5,
+          "y": 252,
+          "width": 32,
+          "height": 32,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-rail-channel bh-selected",
+          "x": 9.5,
+          "y": 250,
+          "width": 36,
+          "height": 36,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-root bh-region bh-region-rail",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "auto",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "hHd-Xa_regionArea",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "pI_x6G_sidebarCol",
+          "x": 0,
+          "y": 0,
+          "width": 56,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "pI_x6G_frame",
+          "x": 0,
+          "y": 0,
+          "width": 1500,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        }
+      ]
+    },
+    {
+      "pinned": false,
+      "theme": "dark",
+      "firstInGroup": true,
+      "motion": {
+        "state": "working",
+        "preset": "morph",
+        "dots": 9,
+        "padding": {
+          "left": 2,
+          "right": 2,
+          "top": 2,
+          "bottom": 2
+        },
+        "centerOffset": {
+          "x": 0,
+          "y": 0
+        },
+        "dotPitchShare": 0.8696,
+        "animated": true,
+        "reducedStill": true,
+        "insideAvatar": true,
+        "legacyDotPresent": false
+      },
+      "badge": {
+        "x": 29.5,
+        "y": 252,
+        "width": 14,
+        "height": 14
+      },
+      "clipped": false,
+      "ancestors": [
+        {
+          "className": "bh-persona-avatar",
+          "x": 11.5,
+          "y": 252,
+          "width": 32,
+          "height": 32,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-rail-channel bh-selected",
+          "x": 9.5,
+          "y": 250,
+          "width": 36,
+          "height": 36,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-root bh-region bh-region-rail",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "auto",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "hHd-Xa_regionArea",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "pI_x6G_sidebarCol",
+          "x": 0,
+          "y": 0,
+          "width": 56,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "pI_x6G_frame",
+          "x": 0,
+          "y": 0,
+          "width": 1500,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        }
+      ]
+    },
+    {
+      "pinned": true,
+      "theme": "light",
+      "firstInGroup": true,
+      "motion": {
+        "state": "working",
+        "preset": "morph",
+        "dots": 9,
+        "padding": {
+          "left": 2,
+          "right": 2,
+          "top": 2,
+          "bottom": 2
+        },
+        "centerOffset": {
+          "x": 0,
+          "y": 0
+        },
+        "dotPitchShare": 0.8696,
+        "animated": true,
+        "reducedStill": true,
+        "insideAvatar": true,
+        "legacyDotPresent": false
+      },
+      "badge": {
+        "x": 29.5,
+        "y": 252,
+        "width": 14,
+        "height": 14
+      },
+      "clipped": false,
+      "ancestors": [
+        {
+          "className": "bh-persona-avatar",
+          "x": 11.5,
+          "y": 252,
+          "width": 32,
+          "height": 32,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-rail-channel bh-selected",
+          "x": 9.5,
+          "y": 250,
+          "width": 36,
+          "height": 36,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-root bh-region bh-region-rail",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "auto",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "hHd-Xa_regionArea",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "pI_x6G_sidebarCol",
+          "x": 0,
+          "y": 0,
+          "width": 56,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "pI_x6G_frame",
+          "x": 0,
+          "y": 0,
+          "width": 1500,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        }
+      ]
+    },
+    {
+      "pinned": true,
+      "theme": "dark",
+      "firstInGroup": true,
+      "motion": {
+        "state": "working",
+        "preset": "morph",
+        "dots": 9,
+        "padding": {
+          "left": 2,
+          "right": 2,
+          "top": 2,
+          "bottom": 2
+        },
+        "centerOffset": {
+          "x": 0,
+          "y": 0
+        },
+        "dotPitchShare": 0.8696,
+        "animated": true,
+        "reducedStill": true,
+        "insideAvatar": true,
+        "legacyDotPresent": false
+      },
+      "badge": {
+        "x": 29.5,
+        "y": 252,
+        "width": 14,
+        "height": 14
+      },
+      "clipped": false,
+      "ancestors": [
+        {
+          "className": "bh-persona-avatar",
+          "x": 11.5,
+          "y": 252,
+          "width": 32,
+          "height": 32,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-rail-channel bh-selected",
+          "x": 9.5,
+          "y": 250,
+          "width": 36,
+          "height": 36,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-root bh-region bh-region-rail",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "auto",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "hHd-Xa_regionArea",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "pI_x6G_sidebarCol",
+          "x": 0,
+          "y": 0,
+          "width": 56,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "pI_x6G_frame",
+          "x": 0,
+          "y": 0,
+          "width": 1500,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        }
+      ]
+    }
+  ],
+  "pinsRestored": true
+}

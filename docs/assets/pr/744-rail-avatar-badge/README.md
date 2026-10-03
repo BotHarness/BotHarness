@@ -1,0 +1,38 @@
+# Numeric avatar badges in the collapsed app Rail — #744
+
+Measured in real isolated DSH 0.2.0-rc.1 / Node 24.21.0 using the two still-live native Tool approvals from the accepted #740 instance. The badge is an approval count, not an unread-message count. Host count semantics and execution activity are unchanged.
+
+## Observed before and after
+
+| State  | Badge bounds         | Native clipping region         | Outcome               |
+| ------ | -------------------- | ------------------------------ | --------------------- |
+| Before | x=33.5, y=248, 14×14 | x=10, y=250, 35px wide         | right and top clipped |
+| After  | x=29.5, y=252, 14×14 | same region and overflow rules | fully visible         |
+
+The shared Avatar uses negative top/right offsets. Only Rail badges now inset both to zero. Changing either alone still clips the other edge; changing both fits. Native sidebar/region overflow and scrolling remain untouched. Expanded/pinned Avatar styling outside Rail keeps the existing offset and semantic colors.
+
+`before.png` and `before-proof.json` were captured by the persisted E2E with the Rail override temporarily absent. It failed specifically with `Rail numeric badge crosses a clipping ancestor` and restored pin preferences. Restoring the fix made the same script pass all four light/dark × ordinary/pinned first-row cases. `proof.json` records the real Host count (2), ancestor bounds and successful pin restoration. The script additionally replaces only rendered badge text with `12` and `99+` to stress label width, checks visibility and restores the original text; these are presentation checks, not fabricated Host approvals. All published screenshots show the actual count 2.
+
+## Reproduce
+
+1. Boot an isolated profile with `scripts/dev-instance.mjs` using this worktree, the pinned DSH version and an isolated home. Arrange a real PersonaBot DM with a live native Tool approval; the existing `scripts/e2e-orchestrator-activity.mjs` approval-attention HOLD path can retain that state.
+2. Set `BH_E2E_ORIGIN`, `BH_E2E_HOME`, `BH_E2E_CHANNEL_ID` and `BH_E2E_EVIDENCE`, then run `node scripts/e2e-rail-avatar-badge.mjs` from the checkout. The launcher-owned private cookie jar authenticates the existing API Gateway.
+3. The script temporarily toggles only the target Channel pin preference through existing `rosterGet`/`pinsSet`, checks both themes and first-row positions, then restores the original pins in `finally`. It neither decides approvals nor modifies Host attention counts.
+
+Screenshots are direct cropped browser viewport captures. No image editing, authentication, raw Tool arguments or machine paths are published. The borrowed pattern is the existing native 36px Rail button with a 32px PersonaBot Avatar and its semantic count badge; the only deviation is a Rail-local inset to fit the measured native 35px clipping viewport.
+
+## CodeRabbit cookie-scope fix
+
+The E2E browser now uses a host-scoped HTTP-only cookie rather than a page-wide Cookie header. An intercepted foreign-avatar request (no external network) carried the cookie with the old header setup, but not with the fixed cookie setup; both contexts loaded the authenticated native DSH shell. `cookie-origin-proof.json` publishes only those booleans. The fixed authentication also passed all four real Rail cases and restored the original pins.
+
+## BotUI execution marker
+
+Human requested replacing the adjacent static blue execution dot with BotUI. The official `@botharness/botui-core` 0.3.0 engine is bundled into the Client; its public CSS geometry, state presets and keyframes render a 12px 3×3 matrix. Thinking uses spiral and working uses morph. No JavaScript frame loop, interval or state store is added. Idle hides this marker; existing waiting/blocked warning indicators retain their semantics. All consumers retain the Host-selected state and independent native approval count.
+
+The four current screenshots show a real working Bot, Host count 2 and the BotUI matrix. The proof records actual animation across 220ms samples, a stable reduced-motion sample, marker containment and absence of the old static blue marker. Shared motion preferences are restored after each presentation check. A focused mounted React test covers thinking→working→idle, retained approval count, stable geometry during ordinary rerenders and removal on unmount without requesting an animation frame. The Client bundle test confirms BotUI is bundled, not a new DSH external requirement.
+
+A previous CI run failed on duplicate ADR-0116 documents introduced by concurrent main changes. Main subsequently corrected the editable-avatar design ADR to 0118. This branch inherits that correction without changing its design content or Browser ADR-0116.
+
+### Human QA spacing refinement
+
+The Human found the first matrix too sparse, with too little background padding and apparent top-left bias. The inner 12px field now sits in a centered 16px rounded background, with exactly 2px padding on all four sides. `dotSize: 1`, `gapX/gapY: 0.15` make the dots fill 86.96% of their pitch; `grow: 0` keeps glyph size fixed while the official opacity envelope provides motion. The real browser checks both center offsets below 0.1px, all padding at least 1.9px, dot share at least 86%, unchanged clipping/count and full/reduced motion in all four cases. Current proof reports four equal 2px paddings and zero center offset on both axes. Screenshots were recaptured from the real isolated DSH.

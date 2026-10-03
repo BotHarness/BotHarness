@@ -1,3 +1,4 @@
+import { keyframesFor } from '@botharness/botui-core';
 import { DEEPSEEKBOT_TRANSPARENT_DATA_URI } from './bot-icon-assets.js';
 
 export const CSS =
@@ -704,6 +705,10 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   line-height: 14px;
   font-weight: 600;
 }
+.bh-rail-channel .bh-avatar-attention {
+  right: 0;
+  top: 0;
+}
 .bh-avatar-indicator {
   position: absolute;
   right: -2px;
@@ -720,30 +725,33 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
 .bh-persona-avatar[data-state='blocked'] .bh-avatar-indicator {
   background: var(--dsw-alias-state-error-primary);
 }
-.bh-avatar-thinking {
-  right: -5px;
-  bottom: -3px;
-  width: 18px;
-  height: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1.5px;
-  border-radius: 999px;
+.bh-avatar-botui {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  color: var(--bh-accent);
   background: var(--dsw-alias-bg-base);
+  pointer-events: none;
 }
-.bh-avatar-thinking i {
-  width: 2.5px;
-  height: 2.5px;
-  border-radius: 50%;
-  background: var(--dsw-alias-state-business-primary);
-  animation: bh-thinking-dot 1050ms var(--ds-ease-in-out) infinite;
+.bh-avatar-botui .botui-dot-matrix {
+  display: grid;
+  place-content: center;
+  contain: layout paint;
 }
-.bh-avatar-thinking i:nth-child(2) {
-  animation-delay: 140ms;
-}
-.bh-avatar-thinking i:nth-child(3) {
-  animation-delay: 280ms;
+.bh-avatar-botui .botui-dot-matrix > i {
+  display: block;
+  background: currentColor;
+  transform-origin: center;
+  -webkit-mask: var(--botui-mask) center / calc(var(--botui-fill, 1) * 100%) no-repeat;
+  mask: var(--botui-mask) center / calc(var(--botui-fill, 1) * 100%) no-repeat;
+  scale: var(--botui-s-min, 0.5);
+  animation: var(--botui-anim) var(--botui-cycle) linear infinite;
+  animation-delay: calc(var(--botui-o, 0) * var(--botui-seed) * var(--botui-cycle));
 }
 .bh-avatar-facepile {
   display: inline-flex;
@@ -817,22 +825,17 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
     transform: rotate(1.5deg);
   }
 }
-@keyframes bh-thinking-dot {
-  0%,
-  70%,
-  100% {
-    opacity: 0.38;
-    transform: translateY(0);
-  }
-  35% {
-    opacity: 1;
-    transform: translateY(-1.5px);
-  }
-}
+${keyframesFor('spiral')}
+${keyframesFor('morph')}
 html[data-botharness-motion='reduce'] .bh-avatar-media,
-html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
+html[data-botharness-motion='reduce'] .bh-avatar-botui i {
   animation: none !important;
 }
+html[data-botharness-motion='reduce'] .bh-avatar-botui i {
+  opacity: calc(0.16 + 0.84 * (1 - var(--botui-o, 0)));
+  scale: 1;
+}
+
 
 /* 原生 .flatList/.groupSection 行距：同一 scope 内相邻行 2px。 */
 .bh-list-area > * + * {

@@ -20,6 +20,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added Lark platform behavior defaults in Bot settings, with explicit Profile inheritance, preserved custom settings, stale-save protection, and revisioned future-message intake/harvest and identity pause behavior. ([#701](https://github.com/BotHarness/BotHarness/issues/701))
 
 - Bots can send an authorized report only to Lark, inspect its canonical Outbox content and checked external message ID in Profile, then associate a genuine mentioned reply with that report and answer in its original external topic without a local DM/Channel mirror ([#639](https://github.com/BotHarness/BotHarness/issues/639)).
+- Thinking and working PersonaBot avatars use a compact BotUI dot matrix instead of a static blue execution dot; idle avatars hide the marker and the shared reduced-motion preference keeps it still ([#744](https://github.com/BotHarness/BotHarness/issues/744)).
+
 - Humans can explicitly lend one daily Chrome tab read-only to a PersonaBot through a local extension, reuse its login state with `browser_observe`, and return it from the extension or Channel sidebar; navigation, lost connection and restart revoke the temporary lease ([#741](https://github.com/BotHarness/BotHarness/issues/741), [guide](docs/daily-browser.md), [ADR-0116](docs/adr/0116-daily-browser-tabs-use-explicit-ephemeral-borrowing.md)).
 - PersonaBot avatars and the composer show live native Tool approval counts independently of execution; the existing revisioned Host snapshot/live stream clears accepted, rejected and cancelled requests without replaying stale approvals ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
@@ -294,6 +296,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Numeric PersonaBot avatar badges remain fully visible in the collapsed app Rail, including the first and pinned Channel rows, without changing native sidebar scrolling ([#744](https://github.com/BotHarness/BotHarness/issues/744)).
 
 - macOS Local Computer now resumes fresh observations after driver idle expiry, while expired snapshot and element tokens remain invalid ([#713](https://github.com/BotHarness/BotHarness/issues/713)).
 

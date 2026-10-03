@@ -1,0 +1,86 @@
+{
+  "nativeHostCount": 2,
+  "cases": [
+    {
+      "pinned": false,
+      "theme": "light",
+      "firstInGroup": true,
+      "badge": {
+        "x": 33.5,
+        "y": 248,
+        "width": 14,
+        "height": 14
+      },
+      "clipped": true,
+      "ancestors": [
+        {
+          "className": "bh-persona-avatar",
+          "x": 11.5,
+          "y": 252,
+          "width": 32,
+          "height": 32,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-rail-channel bh-selected",
+          "x": 9.5,
+          "y": 250,
+          "width": 36,
+          "height": 36,
+          "overflowX": "visible",
+          "overflowY": "visible",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "bh-root bh-region bh-region-rail",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "auto",
+          "failsX": true,
+          "failsY": true
+        },
+        {
+          "className": "hHd-Xa_regionArea",
+          "x": 10,
+          "y": 250,
+          "width": 35,
+          "height": 870,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": true,
+          "failsY": true
+        },
+        {
+          "className": "pI_x6G_sidebarCol",
+          "x": 0,
+          "y": 0,
+          "width": 56,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        },
+        {
+          "className": "pI_x6G_frame",
+          "x": 0,
+          "y": 0,
+          "width": 1500,
+          "height": 1180,
+          "overflowX": "hidden",
+          "overflowY": "hidden",
+          "failsX": false,
+          "failsY": false
+        }
+      ]
+    }
+  ],
+  "pinsRestored": true
+}

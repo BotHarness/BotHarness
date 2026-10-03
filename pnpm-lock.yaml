@@ -381,6 +381,9 @@ importers:
       '@blobatar/react':
         specifier: ^2.7.0
         version: 2.7.0(blobatar@2.7.0(react@18.3.1))(react@18.3.1)
+      '@botharness/botui-core':
+        specifier: 0.3.0
+        version: 0.3.0
       blobatar:
         specifier: ^2.7.0
         version: 2.7.0(react@18.3.1)
@@ -1073,6 +1076,9 @@ packages:
     peerDependencies:
       blobatar: 2.x
       react: '>=18'
+
+  '@botharness/botui-core@0.3.0':
+    resolution: {integrity: sha512-ZfuyXyAtxIijqxPb7zWKu3/aO3GKT8kTzQpCBYD08t9vOp858r/xL8BsQvwjswTTH2bTZ8saXBnUgjYBRnY8xQ==}
 
   '@braintree/sanitize-url@7.1.2':
     resolution: {integrity: sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA==}
@@ -10497,6 +10503,8 @@ snapshots:
     dependencies:
       blobatar: 2.7.0(react@18.3.1)
       react: 18.3.1
+
+  '@botharness/botui-core@0.3.0': {}
 
   '@braintree/sanitize-url@7.1.2': {}
 
