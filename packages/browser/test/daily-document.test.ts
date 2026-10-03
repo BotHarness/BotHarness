@@ -112,7 +112,7 @@ it('Bot-induced navigation revokes its action result and the subsequent grant', 
   await expect(f.document.execute('click', { ref })).rejects.toThrow('returned or disconnected');
   expect(f.revoke).toHaveBeenCalledOnce();
 });
-it('Pause fences the result of an already issued click even if Human resumes immediately', async () => {
+it('Pause waits for an issued click to settle before acknowledging and fences its result', async () => {
   const f = fixture();
   await f.document.execute('grant', {});
   const ref = (await f.observe()).elements[0]!.ref;
@@ -124,8 +124,16 @@ it('Pause fences the result of an already issued click even if Human resumes imm
   });
   const pending = f.document.execute('click', { ref });
   await vi.waitFor(() => expect(f.click).toHaveBeenCalledOnce());
-  await f.document.execute('pause', { active: true });
-  await f.document.execute('pause', { active: false });
+  const rejected = expect(pending).rejects.toThrow('result was revoked');
+  let acknowledged = false;
+  const pause = f.document.execute('pause', { active: true }).then(() => {
+    acknowledged = true;
+  });
+  await Promise.resolve();
+  expect(acknowledged).toBe(false);
   release!();
-  await expect(pending).rejects.toThrow('result was revoked');
+  await pause;
+  await rejected;
+  expect(acknowledged).toBe(true);
+  await f.document.execute('pause', { active: false });
 });

@@ -10,6 +10,7 @@ export function createDailyDocument(
   let revision = 0;
   let observed = -1;
   let revoked = false;
+  const actions = new Set<Promise<unknown>>();
   const refs = new Map<string, ElementHandle<HTMLElement | SVGElement>>();
   function clearRefs(): void {
     for (const element of refs.values()) void element.dispose().catch(() => undefined);
@@ -61,6 +62,7 @@ export function createDailyDocument(
       paused = args.active === true;
       revision += 1;
       clearRefs();
+      if (paused) await Promise.allSettled([...actions]);
       return {};
     }
     const selected = authorized();
@@ -125,18 +127,26 @@ export function createDailyDocument(
     if (observed !== revision) throw new Error('Resume requires a fresh browser_observe');
     const ref = typeof args.ref === 'string' ? refs.get(args.ref) : undefined;
     if (ref === undefined) throw new Error('The element ref is stale; call browser_observe again');
-    await selected.bringToFront();
-    authorized();
-    if (expected !== revision || paused)
-      throw new Error('Daily Browser control changed before the action; observe again');
-    if (command === 'type') {
-      if (typeof args.text !== 'string') throw new Error('browser_type needs text');
-      await ref.fill(args.text, { timeout: 3000 });
-    } else await ref.click({ timeout: 3000 });
-    authorized();
-    if (expected !== revision || paused)
-      throw new Error('Daily Browser control changed during the action; its result was revoked');
-    return { url: selected.url(), title: await selected.title() };
+    const action = (async () => {
+      await selected.bringToFront();
+      authorized();
+      if (expected !== revision || paused)
+        throw new Error('Daily Browser control changed before the action; observe again');
+      if (command === 'type') {
+        if (typeof args.text !== 'string') throw new Error('browser_type needs text');
+        await ref.fill(args.text, { timeout: 3000 });
+      } else await ref.click({ timeout: 3000 });
+      authorized();
+      if (expected !== revision || paused)
+        throw new Error('Daily Browser control changed during the action; its result was revoked');
+      return { url: selected.url(), title: await selected.title() };
+    })();
+    actions.add(action);
+    try {
+      return await action;
+    } finally {
+      actions.delete(action);
+    }
   }
   return { execute, dispose: () => revoke('Host disconnected') };
 }
