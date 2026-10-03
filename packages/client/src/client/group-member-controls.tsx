@@ -361,9 +361,9 @@ export function MemberWakePolicyModal({
     try {
       if (
         await actions.setGroupWakePolicy(group.id, slug, {
-          mode,
-          count,
-          intervalSeconds: seconds,
+          mode: inherit ? (saved?.mode ?? 'digest') : mode,
+          count: inherit ? (saved?.count ?? 5) : count,
+          intervalSeconds: inherit ? (saved?.intervalSeconds ?? 30) : seconds,
           ...(inherit ? { inherit } : {}),
         })
       )
