@@ -447,6 +447,13 @@ export const zh = {
   'im.conversationId': '外部频道 ID',
   'im.sourceEventId': 'Source Event ID',
   'im.openOriginDetails': '查看 {source} 的来源详情',
+  'bridge.destination': '投递目标',
+  'bridge.dmTarget': 'DM 消息历史 · {name}',
+  'bridge.inboxOnly': '仅 Bot Inbox',
+  'bridge.inboxOnlyHint': '直接进入此 Bot 的 Inbox，不添加 DM 历史消息。',
+  'bridge.contextOnly': '仅作上下文',
+  'bridge.paths': '收件路径',
+  'bridge.pathEvidence': '连接器 {route} · 配置 v{revision} · {target}',
   'bridge.title': '频道连接器',
   'bridge.summary': '哪些外部信息进入这个频道；与 Bot 的发言身份分开管理。',
   'bridge.add': '添加频道连接器',
@@ -471,7 +478,7 @@ export const zh = {
   'bridge.enableDraft': '接收新消息',
   'bridge.authorizedSource': '已授权的 Lark 群',
   'bridge.noSources':
-    '暂无可添加来源。请先在成员 Bot 的 Profile 中绑定 Lark 身份并明确授权测试群；已接入其他本地频道的来源暂不可重复添加。',
+    '暂无可添加来源。请先在成员 Bot 的 Profile 中绑定 Lark 身份并明确授权测试群。同一来源可接入多个目标，各路径独立管理。',
   'bridge.addHint':
     '只使用已授权的群。添加后，新消息进入当前频道，之前的 Inbox 历史保留；不会新增外部账号或群授权。',
   'bridge.receiver': '接收身份：{name}。这不授予其他成员以该身份发言的权限。',
@@ -481,7 +488,7 @@ export const zh = {
   'bridge.unverified':
     '需要先确认该身份实际收到普通消息，才能选择全量收件。可在已授权的测试群发送一条无 @ 消息后刷新。',
   'bridge.deleteImpact':
-    '删除此来源的收件路径，并使依赖这个旧来源的未开始回复失效；不会转为自动进入 Bot Inbox。',
+    '删除此目标的收件路径。其他有效路径与历史消息保留；不会自动转入 Bot Inbox。',
   'bridge.retainHint':
     '保留成员 Bot 的外部身份、独立发送授权、已接收消息和记录的策略。以后接入需要明确添加。',
   'bridge.wakeHint': '频道连接器决定收什么；每个成员 Bot 的 Attention／唤醒策略决定何时处理。',
@@ -491,7 +498,8 @@ export const zh = {
   'bridge.state.receiving': '正在收件',
   'bridge.state.connecting': '正在连接',
   'bridge.state.unavailable': '连接不可用',
-  'bridge.managed': '此来源由目标群的频道资料管理；接收身份和群内 Bot 的唤醒设置分别管理。',
+  'bridge.managed':
+    '此来源的各投递路径在频道连接器表中分别管理；接收身份和每位 Bot 的唤醒设置各自独立。',
   'identity.title': '外部身份',
   'identity.summary': '这个 Bot 在外部平台以谁的身份行动；与信息来源分开管理。',
   'identity.bind': '绑定身份',
@@ -1652,6 +1660,13 @@ export const en = {
   'im.conversationId': 'External channel ID',
   'im.sourceEventId': 'Source Event ID',
   'im.openOriginDetails': 'View origin details for {source}',
+  'bridge.destination': 'Delivery target',
+  'bridge.dmTarget': 'DM history · {name}',
+  'bridge.inboxOnly': 'Bot Inbox only',
+  'bridge.inboxOnlyHint': 'Deliver directly to this Bot’s Inbox without adding a DM message.',
+  'bridge.contextOnly': 'Context only',
+  'bridge.paths': 'Reception paths',
+  'bridge.pathEvidence': 'Bridge {route} · configuration v{revision} · {target}',
   'bridge.title': 'Channel Bridges',
   'bridge.summary':
     'External information entering this Channel, separate from Bots’ speaking identities.',
@@ -1677,7 +1692,7 @@ export const en = {
   'bridge.enableDraft': 'Receive new messages',
   'bridge.authorizedSource': 'Authorized Lark group',
   'bridge.noSources':
-    'No source available. Bind a member Bot’s Lark identity and explicitly authorize a group in its Profile first. Sources already placed in another Channel cannot be added again in this slice.',
+    'No source available. Bind a member Bot’s Lark identity and explicitly authorize a group in its Profile first. The same source can be connected to multiple independently managed targets.',
   'bridge.addHint':
     'Uses an existing authorized group only. Future messages enter this Channel; earlier Inbox history stays. No new external account or group authorization is created.',
   'bridge.receiver':
@@ -1688,7 +1703,7 @@ export const en = {
   'bridge.unverified':
     'Verify that this identity receives ordinary messages before enabling all-text collection. Send a non-mentioned test message in the authorized group, then refresh.',
   'bridge.deleteImpact':
-    'Remove this intake route and invalidate unstarted replies relying on its old sources. This does not automatically route messages into Bot Inbox.',
+    'Remove this target’s intake route. Other valid routes and accepted history remain; this does not automatically route messages into Bot Inbox.',
   'bridge.retainHint':
     'Keep member Bot identities, independent send grants, accepted messages and recorded policies. Future intake requires explicitly adding a source again.',
   'bridge.wakeHint':
@@ -1702,7 +1717,7 @@ export const en = {
   'bridge.state.connecting': 'Connecting',
   'bridge.state.unavailable': 'Unavailable',
   'bridge.managed':
-    'Manage this source in its target Group Channel Profile. Receiving identity and member Bot wake settings are managed separately.',
+    'Manage each destination in its Channel Bridge table. Receiving identity and each member Bot’s wake settings remain independent.',
   'identity.title': 'External identities',
   'identity.summary':
     'Who this Bot acts as on external platforms; managed separately from sources.',

@@ -15,7 +15,8 @@ import {
 import type { GroupReceptionPolicy } from './group-policy.js';
 import { bridgeChannel, humanBridgeChannel } from './channel-target.js';
 import {
-  channelBridgeConfiguration,
+  channelBridgeRoutes,
+  type ChannelBridgeRoute,
   type ChannelBridgeSnapshot,
   type ChannelBridgeConfiguration,
 } from './channel-bridge.js';
@@ -97,6 +98,7 @@ export interface MessagingGrant {
   receiveTargetChannelId?: string;
   receptionInheritance?: 'inherit' | 'custom';
   channelBridge?: ChannelBridgeConfiguration;
+  bridgeRoutes?: ChannelBridgeRoute[];
   revokedAt?: string;
   suspendedReason?: 'rebind-required';
 }
@@ -787,25 +789,32 @@ export function createOutboundMessaging(options: {
       });
       return {
         channelId,
-        bridges: grants
-          .filter((g) => g.receiveTargetChannelId === channelId)
-          .map((g) => ({
-            ...source(g),
-            ...channelBridgeConfiguration(g),
-            collection:
-              g.channelBridge?.collectionInheritance === 'inherit'
-                ? service.defaults().collection
-                : channelBridgeConfiguration(g).collection,
-            defaultRevision: service.defaults().revision,
-            availability: g.availability,
-            reception: g.reception,
-          })),
+        canTargetInbox: current.type === 'dm',
+        bridges: grants.flatMap((g) =>
+          channelBridgeRoutes(g)
+            .filter(
+              (route) =>
+                route.channelId === channelId ||
+                (current.type === 'dm' && route.channelId === null),
+            )
+            .map((route) => ({
+              ...source(g),
+              ...route,
+              routeId: route.id,
+              delivery: route.channelId === null ? ('inbox' as const) : ('channel' as const),
+              collection:
+                route.collectionInheritance === 'inherit'
+                  ? service.defaults().collection
+                  : route.collection,
+              defaultRevision: service.defaults().revision,
+              availability: g.availability,
+              reception: route.enabled ? g.reception : ('off' as const),
+            })),
+        ),
         sources: grants
           .filter(
             (g) =>
               !g.revokedAt &&
-              !g.receiveTargetChannelId &&
-              !g.channelBridge &&
               g.platform === 'feishu' &&
               g.availability === 'available' &&
               g.canReceive,
@@ -913,7 +922,7 @@ export function createOutboundMessaging(options: {
         return rows.flatMap(({ channel_id }) => {
           try {
             const channel = bridgeChannel(db, channel_id, botSlug, true);
-            return [{ id: channel.id, name: channel.name }];
+            return channel.type === 'group' ? [{ id: channel.id, name: channel.name }] : [];
           } catch (error) {
             if (error instanceof MessagingError) return [];
             throw error;

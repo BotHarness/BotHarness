@@ -3,6 +3,15 @@ import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { BotHarnessTranslate } from './locale.js';
 
 type Mention = ExternalSource['event']['mentions'][number];
+const pathMode = {
+  all: 'members.wake.all',
+  immediate: 'sourcePolicy.compactImmediate',
+  digest: 'sourcePolicy.compactDigest',
+  mentions: 'im.wake.mentions',
+  silent: 'sourcePolicy.compactSilent',
+  context: 'bridge.contextOnly',
+  conditional: 'sourcePolicy.compactConditional',
+} as const;
 
 interface MessageView {
   sourceEventId: string;
@@ -137,6 +146,30 @@ export function ExternalSourceContent({
           </div>
         </details>
       </header>
+      {source.receptionPaths?.length ? (
+        <details className="bh-external-details">
+          <summary>
+            {t('bridge.paths')} · {source.receptionPaths.length}
+          </summary>
+          <dl className="bh-bridge-source-fields">
+            {source.receptionPaths.map((path) => (
+              <div key={path.routeId}>
+                <dt>{path.channelName ?? path.channelId ?? t('bridge.inboxOnly')}</dt>
+                <dd>
+                  {t('bridge.pathEvidence', {
+                    route: path.name ?? path.routeId,
+                    revision: String(path.routeRevision),
+                    target: t(pathMode[path.mode], {
+                      count: String(path.count),
+                      seconds: String(path.intervalMs / 1000),
+                    }),
+                  })}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      ) : null}
       {source.report ? (
         <section aria-label={t('im.relatedReport')} className="bh-external-context">
           <h3>{t('im.relatedReport')}</h3>
