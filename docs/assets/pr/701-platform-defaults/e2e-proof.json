@@ -1,0 +1,216 @@
+{
+  "codeRevision": "cd8d03a1065d754cf35682ac5a2ad57633255984",
+  "baseRevision": "b8f5caaa89ecc66fe241ef4b89bfc484950a9bce",
+  "providerRevision": "2dcd07845ce0411afdcff286242f1dd4bc502da9",
+  "providerRuntimeSha256": "6838e5371a0af5cbdbf7f67f680391c47c65416689b6ec2f2799af4639e7582b",
+  "globalDefaults": {
+    "platform": "feishu",
+    "collection": "all",
+    "wake": "digest",
+    "count": 100,
+    "intervalSeconds": 5,
+    "identityEnabled": true,
+    "revision": 5,
+    "changedAt": "2026-10-03T10:31:00.680Z"
+  },
+  "sources": [
+    {
+      "sourceEventId": "im-8c8a22da70953df289675190cdef6d3b311414f9344e69b1088d1860f586f992",
+      "test": "[BH701 COUNT 1]",
+      "platform": "feishu",
+      "globalRevision": 1,
+      "receptionRevision": 6,
+      "bridgeRevision": 2
+    },
+    {
+      "sourceEventId": "im-e15b3542fb83afee68cf4fdffa46243851e881c5dfcf962887f8d020edf8e287",
+      "test": "[BH701 COUNT 2]",
+      "platform": "feishu",
+      "globalRevision": 1,
+      "receptionRevision": 6,
+      "bridgeRevision": 2
+    },
+    {
+      "sourceEventId": "im-817157481e8e7acff5d39a987efcd14464baec36aa3c745be10dd82ed4eac9b0",
+      "test": "[BH701 REV2]",
+      "platform": "feishu",
+      "globalRevision": 2,
+      "receptionRevision": 6,
+      "bridgeRevision": 2
+    },
+    {
+      "sourceEventId": "im-8120b1486715eeb279ae21254900a3b2a89686173ab5245b2118b1e65852523e",
+      "test": "[BH701 TIME]",
+      "platform": "feishu",
+      "globalRevision": 3,
+      "receptionRevision": 6,
+      "bridgeRevision": 4
+    },
+    {
+      "sourceEventId": "im-145efceec7e6a878bbfc47fd6c46a51ff14234c467a0fe669dcff5e432e8df73",
+      "test": "[BH701 RESUMED INTAKE]",
+      "platform": "feishu",
+      "globalRevision": 5,
+      "receptionRevision": 6,
+      "bridgeRevision": 4
+    }
+  ],
+  "firstMessageBeforeSecond": [
+    {
+      "source_event_id": "im-8c8a22da70953df289675190cdef6d3b311414f9344e69b1088d1860f586f992",
+      "wake_mode": "digest",
+      "wake_count": 2,
+      "wake_interval_ms": 120000,
+      "external_default_revision": 1,
+      "attempt_state": "pending",
+      "observed_at": null,
+      "handled_at": null,
+      "member": "inherited-member"
+    },
+    {
+      "source_event_id": "im-8c8a22da70953df289675190cdef6d3b311414f9344e69b1088d1860f586f992",
+      "wake_mode": "digest",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "external_default_revision": 1,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:16:05.516Z",
+      "handled_at": "2026-10-03T10:16:09.687Z",
+      "member": "custom-member"
+    }
+  ],
+  "finalAdmissions": [
+    {
+      "source_event_id": "im-8c8a22da70953df289675190cdef6d3b311414f9344e69b1088d1860f586f992",
+      "wake_mode": "digest",
+      "wake_count": 2,
+      "wake_interval_ms": 120000,
+      "external_default_revision": 1,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:16:21.947Z",
+      "handled_at": "2026-10-03T10:16:30.869Z",
+      "member": "inherited-member"
+    },
+    {
+      "source_event_id": "im-8c8a22da70953df289675190cdef6d3b311414f9344e69b1088d1860f586f992",
+      "wake_mode": "digest",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "external_default_revision": 1,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:16:05.516Z",
+      "handled_at": "2026-10-03T10:16:09.687Z",
+      "member": "custom-member"
+    },
+    {
+      "source_event_id": "im-e15b3542fb83afee68cf4fdffa46243851e881c5dfcf962887f8d020edf8e287",
+      "wake_mode": "digest",
+      "wake_count": 2,
+      "wake_interval_ms": 120000,
+      "external_default_revision": 1,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:16:21.947Z",
+      "handled_at": "2026-10-03T10:16:30.869Z",
+      "member": "inherited-member"
+    },
+    {
+      "source_event_id": "im-e15b3542fb83afee68cf4fdffa46243851e881c5dfcf962887f8d020edf8e287",
+      "wake_mode": "digest",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "external_default_revision": 1,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:16:30.751Z",
+      "handled_at": "2026-10-03T10:16:32.757Z",
+      "member": "custom-member"
+    },
+    {
+      "source_event_id": "im-817157481e8e7acff5d39a987efcd14464baec36aa3c745be10dd82ed4eac9b0",
+      "wake_mode": "digest",
+      "wake_count": 1,
+      "wake_interval_ms": 120000,
+      "external_default_revision": 2,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:19:33.443Z",
+      "handled_at": "2026-10-03T10:19:41.132Z",
+      "member": "inherited-member"
+    },
+    {
+      "source_event_id": "im-817157481e8e7acff5d39a987efcd14464baec36aa3c745be10dd82ed4eac9b0",
+      "wake_mode": "digest",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "external_default_revision": 2,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:19:42.273Z",
+      "handled_at": "2026-10-03T10:19:44.159Z",
+      "member": "custom-member"
+    },
+    {
+      "source_event_id": "im-8120b1486715eeb279ae21254900a3b2a89686173ab5245b2118b1e65852523e",
+      "wake_mode": "digest",
+      "wake_count": 100,
+      "wake_interval_ms": 5000,
+      "external_default_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:22:09.728Z",
+      "handled_at": "2026-10-03T10:22:17.172Z",
+      "member": "inherited-member"
+    },
+    {
+      "source_event_id": "im-8120b1486715eeb279ae21254900a3b2a89686173ab5245b2118b1e65852523e",
+      "wake_mode": "digest",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "external_default_revision": 3,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:22:14.726Z",
+      "handled_at": "2026-10-03T10:22:16.378Z",
+      "member": "custom-member"
+    },
+    {
+      "source_event_id": "im-145efceec7e6a878bbfc47fd6c46a51ff14234c467a0fe669dcff5e432e8df73",
+      "wake_mode": "digest",
+      "wake_count": 100,
+      "wake_interval_ms": 5000,
+      "external_default_revision": 5,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:37:00.956Z",
+      "handled_at": "2026-10-03T10:37:07.960Z",
+      "member": "inherited-member"
+    },
+    {
+      "source_event_id": "im-145efceec7e6a878bbfc47fd6c46a51ff14234c467a0fe669dcff5e432e8df73",
+      "wake_mode": "digest",
+      "wake_count": 100,
+      "wake_interval_ms": 10000,
+      "external_default_revision": 5,
+      "attempt_state": "handled",
+      "observed_at": "2026-10-03T10:37:05.954Z",
+      "handled_at": "2026-10-03T10:37:08.083Z",
+      "member": "custom-member"
+    }
+  ],
+  "customMentionOnlyIgnored": true,
+  "identityPauseRefused": {
+    "refused": true,
+    "message": "{\"code\":\"identity-paused\",\"message\":\"identity-paused\",\"details\":{}}"
+  },
+  "identityResumeSend": {
+    "requestId": "bh701-resume-20261003",
+    "text": "[BH701 RESUME] 全局身份恢复后，通过自己的 Lark 身份发送成功。",
+    "state": "provider-accepted",
+    "createdAt": "2026-10-03T10:32:08.226Z",
+    "settledAt": "2026-10-03T10:32:11.076Z"
+  },
+  "nativeLarkClientObservedResumeMessage": true,
+  "regression": {
+    "passed": 2143,
+    "skipped": 3
+  },
+  "limits": [
+    "Synthetic authorized QA group only; no credentials, private profile database, unrelated chat content or native chat sidebar published.",
+    "Native client confirmed resume text; this legacy send does not claim a native message receipt or human read status.",
+    "Automated restart, stale-save, migration, async-dispatch and late-event boundaries supplement live UI/Lark qualification."
+  ]
+}
