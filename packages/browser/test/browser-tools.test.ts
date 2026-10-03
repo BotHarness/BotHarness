@@ -1492,6 +1492,22 @@ describe('explicit daily Chrome control Provider', () => {
     expect(h.runtime.click).not.toHaveBeenCalled();
     expect(h.audits.map((item) => item.outcome)).toEqual(['error', 'ok']);
   });
+  it('rejects a foreign Agent Session even when automatic Browser approval is enabled', async () => {
+    const read = vi.fn(observe);
+    const act = vi.fn(async () => ({ url: 'https://example.com/account' }));
+    const h = harness({ access: true, auto: true, daily: () => ({ observe: read, act }) });
+    h.created();
+    const foreign = {
+      ...execution('browser_observe'),
+      agent: { id: 'foreign-session' } as unknown as Agent,
+    };
+    await expect(h.state.definitions.get('browser_observe')!.execute({}, foreign)).rejects.toThrow(
+      'owning PersonaBot Session',
+    );
+    expect(read).not.toHaveBeenCalled();
+    expect(act).not.toHaveBeenCalled();
+    expect(h.runtime.ensure).not.toHaveBeenCalled();
+  });
   it('refuses Pause and requires a fresh observation after Resume', async () => {
     const act = vi.fn(async () => ({ url: 'https://example.com/account' }));
     const h = harness({ access: true, auto: true, daily: () => ({ observe, act }) });
