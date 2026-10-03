@@ -3318,6 +3318,26 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
+.bh-channel-sidebar-head .bh-sidebar-settings-menu {
+  position: absolute;
+  top: calc((var(--bh-channel-header-height) - 28px) / 2);
+  right: 44px;
+  z-index: 7;
+}
+.bh-sidebar-settings {
+  position: static;
+}
+.bh-sidebar-settings-label {
+  padding: 8px 10px 4px;
+  color: var(--bh-overview-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-channel-sidebar-entry-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--bh-overview-muted);
+}
 .bh-channel-sidebar-entries {
   flex: 1;
   min-height: 0;
@@ -4769,6 +4789,36 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 }
 .bh-memory-graph-more:hover {
   color: var(--dsw-alias-label-primary);
+}
+.bh-sidebar-order-row { display: flex; align-items: flex-start; min-width: 0; }
+.bh-sidebar-order-row > .bh-channel-sidebar-entry { flex: 1; min-width: 0; }
+.bh-sidebar-order-handle { flex: none; display: flex; align-items: center; justify-content: center; width: 24px; height: 34px; border: 0; border-radius: var(--dsw-radius-md); background: transparent; color: var(--dsw-alias-label-secondary); cursor: grab; }
+.bh-sidebar-order-handle:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.bh-sidebar-order-handle:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: -2px; }
+.bh-sidebar-editing .bh-channel-sidebar-entry-action-slot { display: none; }
+.bh-sidebar-order-toolbar { padding: 8px 12px 12px; }
+.bh-sidebar-order-hint { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.bh-sidebar-order-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.bh-sidebar-order-actions button { border: 0; border-radius: var(--dsw-radius-md); padding: 4px 8px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); font: inherit; font-size: 12px; cursor: pointer; }
+.bh-sidebar-order-actions button:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); }
+.bh-sidebar-order-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.bh-memory-load-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bh-memory-retry {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.bh-memory-retry:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 .bh-memory-header-actions { display: flex; align-items: center; gap: 2px; }
 .bh-memory-working-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }

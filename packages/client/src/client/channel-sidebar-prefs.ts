@@ -1,3 +1,4 @@
+import type { ChannelSidebarScope } from './channel-sidebar.js';
 import { defaultStorage, type ConfigStorage } from './roster-config.js';
 
 const STORAGE_KEY = 'botharness.channel-sidebar';
@@ -20,6 +21,7 @@ export interface ChannelSidebarPrefsSnapshot {
   expandedEntries: readonly string[];
   width: number;
   memoryTerminology: MemoryTerminology;
+  entryOrders: Readonly<Record<ChannelSidebarScope, readonly string[]>>;
 }
 
 export interface ChannelSidebarPrefs {
@@ -29,6 +31,7 @@ export interface ChannelSidebarPrefs {
   setSidebarCollapsed(scopeKey: string, collapsed: boolean): void;
   isEntryExpanded(scopeKey: string, entryId: string): boolean;
   setEntryExpanded(scopeKey: string, entryId: string, expanded: boolean): void;
+  setEntryOrder(scope: ChannelSidebarScope, ids: readonly string[]): void;
   setWidth(width: number): void;
   setMemoryTerminology(terminology: MemoryTerminology): void;
 }
@@ -38,6 +41,7 @@ const EMPTY: ChannelSidebarPrefsSnapshot = Object.freeze({
   expandedEntries: Object.freeze([]),
   width: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   memoryTerminology: 'memory',
+  entryOrders: Object.freeze({ personabot: Object.freeze([]), channel: Object.freeze([]) }),
 });
 
 function stringList(value: unknown): readonly string[] {
@@ -70,6 +74,17 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       const width = parsed['width'];
       const memoryTerminology = parsed['memoryTerminology'];
+      const orders = parsed['entryOrders'];
+      const entryOrders =
+        orders !== null && typeof orders === 'object' ? (orders as Record<string, unknown>) : {};
+      const order = (scope: ChannelSidebarScope) =>
+        Object.freeze(
+          [
+            ...new Set(
+              stringList(entryOrders[scope]).filter((id) => id.length > 0 && id.length <= 200),
+            ),
+          ].slice(0, 200),
+        );
       return {
         collapsedSidebars: Object.freeze(stringList(parsed['collapsedSidebars'])),
         expandedEntries: Object.freeze(stringList(parsed['expandedEntries'])),
@@ -78,6 +93,7 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
             ? clampChannelSidebarWidth(width)
             : DEFAULT_CHANNEL_SIDEBAR_WIDTH,
         memoryTerminology: memoryTerminology === 'git' ? 'git' : 'memory',
+        entryOrders: Object.freeze({ personabot: order('personabot'), channel: order('channel') }),
       };
     } catch {
       return EMPTY;
@@ -95,6 +111,7 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
             expandedEntries: next.expandedEntries,
             width: next.width,
             memoryTerminology: next.memoryTerminology,
+            entryOrders: next.entryOrders,
           }),
         );
       } catch {}
@@ -136,6 +153,20 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
       publish({
         ...snapshot,
         expandedEntries: toggleIn(snapshot.expandedEntries, key, expanded),
+      });
+    },
+    setEntryOrder(scope, ids) {
+      const next = Object.freeze(
+        [...new Set(ids)].filter((id) => id.length > 0 && id.length <= 200).slice(0, 200),
+      );
+      if (
+        next.length === snapshot.entryOrders[scope].length &&
+        next.every((id, index) => id === snapshot.entryOrders[scope][index])
+      )
+        return;
+      publish({
+        ...snapshot,
+        entryOrders: Object.freeze({ ...snapshot.entryOrders, [scope]: next }),
       });
     },
     setWidth(width) {

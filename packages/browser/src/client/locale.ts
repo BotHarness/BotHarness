@@ -3,7 +3,10 @@ export const LOCALE_NS = 'botharness-browser';
 export const zh = {
   'entry.label': '浏览器',
   'entry.access.title': 'Browser Access',
+  'entry.access.enable': '启用 Browser Access',
+  'entry.access.disable': '停用 Browser Access',
   'entry.access.failed': '切换 Browser Access 失败',
+  'entry.access.failureHint': '授权失败',
   'entry.profile.label': 'Profile',
   'entry.profile.default': 'default',
   'entry.profile.failed': '切换浏览器 profile 失败',
@@ -25,7 +28,10 @@ export type BrowserKey = keyof typeof zh;
 export const en: Record<BrowserKey, string> = {
   'entry.label': 'Browser',
   'entry.access.title': 'Browser Access',
+  'entry.access.enable': 'Enable Browser Access',
+  'entry.access.disable': 'Disable Browser Access',
   'entry.access.failed': 'Failed to switch Browser Access',
+  'entry.access.failureHint': 'Access failed',
   'entry.profile.label': 'Profile',
   'entry.profile.default': 'default',
   'entry.profile.failed': 'Failed to switch the browser profile',

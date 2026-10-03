@@ -25,7 +25,7 @@ import type { ChannelMessageCommit } from '../channels/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
-import type { BotSourcePolicyStore } from '../runtime/source-policy.js';
+import { defaultGroupWakePolicy, type BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { MessagingGrant } from './outbound.js';
 import {
   MessagingError,
