@@ -93,6 +93,7 @@ const BOT_TOOL_NAMES = new Set([
   'channel_list',
   'channel_read',
   'bridge_read',
+  'bridge_share',
   'bridge_reply',
   'bridge_context',
   'bridge_group_policy_list',

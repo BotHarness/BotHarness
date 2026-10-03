@@ -14,6 +14,7 @@ import {
 } from './group-policy.js';
 import type { BotSourcePolicyEditor } from '../runtime/source-policy.js';
 import { bridgeChannel, placeBridgeSource } from './channel-target.js';
+import { admitBridgeMembers } from './member-admission.js';
 import { assertMessagingIdentity } from './identity.js';
 import {
   channelBridgeConfiguration,
@@ -24,7 +25,7 @@ import type { ChannelMessageCommit } from '../channels/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
-import { defaultGroupWakePolicy, type BotSourcePolicyStore } from '../runtime/source-policy.js';
+import type { BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { MessagingGrant } from './outbound.js';
 import {
   MessagingError,
@@ -82,6 +83,14 @@ export interface ExternalSource {
   contextMessages?: ExternalContextResult['messages'];
 }
 
+export interface InboxSourceShare {
+  sourceEventId: string;
+  channelId: string;
+  messageId: string;
+  revision: number;
+  alreadyShared: boolean;
+}
+
 export interface InboundMessaging {
   register(provider: MessagingProvider): () => void;
   setEnabled(botSlug: string, grantId: string, enabled: boolean): Promise<void>;
@@ -106,6 +115,7 @@ export interface InboundMessaging {
   available(botSlug: string, sourceEventId: string): boolean;
   sourceSignal(botSlug: string, sourceEventId: string): AbortSignal;
   read(botSlug: string, sourceEventId: string): ExternalSource;
+  share(botSlug: string, sourceEventId: string, channelId: string): InboxSourceShare;
   context(
     botSlug: string,
     sourceEventId: string,
@@ -125,6 +135,7 @@ export function createInboundMessaging(options: {
   isBotActive(slug: string): boolean;
   onAdmitted(botSlug: string, sourceEventId: string): void;
   onPlaced?(commit: ChannelMessageCommit): void;
+  onShared?(botSlugs: string[]): void;
   warn?(message: string): void;
 }): InboundMessaging {
   const { database } = options;
@@ -436,42 +447,16 @@ export function createInboundMessaging(options: {
               placement = placeBridgeSource(db, { ...source, body: event.text }, value.botSlug);
               if (!event.mentionedAccount && source.localChannelId && placement) {
                 const channel = bridgeChannel(db, source.localChannelId, value.botSlug);
-                for (const botSlug of channel.members) {
-                  if (!options.isBotActive(botSlug)) continue;
-                  const rule = options.sourcePolicy.resolveIn(db, botSlug, 'group-ordinary');
-                  const policy = channel.wakePolicies?.[botSlug] ?? defaultGroupWakePolicy(rule);
-                  const followed =
-                    botSlug === value.botSlug && thread?.mode === 'follow'
-                      ? thread.wake
-                      : undefined;
-                  const mode = followed
-                    ? followed.wake === 'immediate'
-                      ? 'all'
-                      : followed.wake
-                    : policy.mode;
-                  db.prepare(`INSERT OR IGNORE INTO inbox_admissions
-                    (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
-                     wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision)
-                    VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?, ?, ?, ?)`).run(
-                    id,
-                    botSlug,
-                    rule.revision,
-                    rule.wake,
-                    policy.revision,
-                    mode,
-                    mode === 'all'
-                      ? 1
-                      : mode === 'digest'
-                        ? (followed?.count ?? policy.count)
-                        : null,
-                    mode === 'all'
-                      ? 0
-                      : mode === 'digest'
-                        ? (followed?.intervalSeconds ?? policy.intervalSeconds) * 1000
-                        : null,
-                    followed ? (thread?.revision ?? null) : null,
-                  );
-                }
+                admitBridgeMembers(
+                  db,
+                  id,
+                  channel,
+                  options.sourcePolicy,
+                  options.isBotActive,
+                  thread?.mode === 'follow' && thread.wake
+                    ? { botSlug: value.botSlug, wake: thread.wake, revision: thread.revision }
+                    : undefined,
+                );
               }
               if (!event.mentionedAccount && source.localChannelId) return id;
               const reason = event.mentionedAccount ? 'group-mention' : 'group-ordinary';
@@ -613,7 +598,7 @@ export function createInboundMessaging(options: {
       body: row.body,
     };
   };
-  return {
+  const service: InboundMessaging = {
     register(provider) {
       const token = {};
       providers.set(provider.id, { provider, token });
@@ -1102,6 +1087,75 @@ export function createInboundMessaging(options: {
       return leases.get(value.id)!.controller.signal;
     },
     read,
+    share(botSlug, sourceEventId, channelId) {
+      let placement: ChannelMessageCommit | undefined;
+      let admitted: string[] = [];
+      const result = transaction(
+        (db) => {
+          if (!options.isBotActive(botSlug)) throw new MessagingError('bot-unavailable');
+          const source = read(botSlug, sourceEventId);
+          if (!service.available(botSlug, sourceEventId))
+            throw new MessagingError('source-unavailable');
+          if (source.localChannelId) throw new MessagingError('source-conflict');
+          const channel = bridgeChannel(db, channelId, botSlug);
+          const prior = db
+            .prepare(
+              'SELECT channel_id, revision FROM channel_placements WHERE source_event_id = ?',
+            )
+            .get(sourceEventId) as { channel_id: string; revision: number } | undefined;
+          if (prior && prior.channel_id !== channelId) throw new MessagingError('source-conflict');
+          if (prior)
+            return {
+              sourceEventId,
+              channelId,
+              messageId: sourceEventId,
+              revision: prior.revision,
+              alreadyShared: true,
+            };
+          placement = placeBridgeSource(db, { ...source, localChannelId: channelId }, botSlug);
+          if (!placement) throw new MessagingError('source-conflict');
+          admitted = admitBridgeMembers(
+            db,
+            sourceEventId,
+            channel,
+            options.sourcePolicy,
+            options.isBotActive,
+          );
+          return {
+            sourceEventId,
+            channelId,
+            messageId: sourceEventId,
+            revision: placement.revision,
+            alreadyShared: false,
+          };
+        },
+        ['source-event', 'channel', 'bot-inbox'],
+      );
+      if (placement) {
+        try {
+          options.onPlaced?.(placement);
+        } catch {
+          options.warn?.('bridge-share-publication-failed');
+        }
+        try {
+          options.onShared?.(admitted);
+        } catch {
+          options.warn?.('bridge-share-wake-failed');
+        }
+      }
+      options.warn?.(
+        JSON.stringify({
+          event: 'messaging-inbox-share',
+          phase: 'committed',
+          initiator: botSlug,
+          sourceEventId,
+          channelId,
+          revision: result.revision,
+          alreadyShared: result.alreadyShared,
+        }),
+      );
+      return result;
+    },
     async context(botSlug, sourceEventId, sessionId, query, callerSignal) {
       if (!['group', 'nearby', 'thread'].includes(query.scope))
         throw new MessagingError('invalid-history-query');
@@ -1314,4 +1368,5 @@ export function createInboundMessaging(options: {
       providers.clear();
     },
   };
+  return service;
 }

@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Bots can explicitly share one own-Inbox external source into a joined team Channel, showing the clickable Bridge source above the original message with details in a Modal, and preserving provenance and independent member attention without forwarding future traffic or borrowing external identities ([#636](https://github.com/BotHarness/BotHarness/issues/636)).
+
 - Activity Center Overview uses the Host-selected execution state and safe Tool summary shared with sidebar/composer; pending native questions and approvals remain separate Human actions while live owned Session cards stay visible ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Active Orchestrator work determines the shared Bot Activity without concurrent Assignment Tool details overriding it; expanded Session rows still show both, and finishing the Orchestrator returns presentation to remaining Assignment work ([#123](https://github.com/BotHarness/BotHarness/issues/123)).

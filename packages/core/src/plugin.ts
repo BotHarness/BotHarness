@@ -283,6 +283,9 @@ export function createCore(
     sourcePolicy,
     onAdmitted: (slug, sourceEventId) => runtime?.admitExternalSource?.(slug, sourceEventId),
     onPlaced: (commit) => live?.publishCommitted(commit),
+    onShared: (slugs) => {
+      for (const slug of slugs) runtime?.resumePendingDigests?.(slug);
+    },
     recover: operationalDatabase.mode === 'ready',
     isBotActive: (slug) => {
       const bot = registry.get(slug);
