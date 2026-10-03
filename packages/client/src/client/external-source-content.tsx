@@ -137,6 +137,36 @@ export function ExternalSourceContent({
           </div>
         </details>
       </header>
+      {source.report ? (
+        <section aria-label={t('im.relatedReport')} className="bh-external-context">
+          <h3>{t('im.relatedReport')}</h3>
+          <article className="bh-external-message">
+            <span className="bh-external-avatar" aria-hidden="true">
+              ↗
+            </span>
+            <div className="bh-external-message-main">
+              <header className="bh-external-message-head">
+                <strong>{source.report.accountName}</strong>
+                <time dateTime={source.report.createdAt}>
+                  {new Date(source.report.createdAt).toLocaleString()}
+                </time>
+              </header>
+              <div className="bh-external-message-text">{source.report.text}</div>
+              <details className="bh-external-details">
+                <summary>{t('im.originDetails')}</summary>
+                <div className="bh-external-detail-body">
+                  <p>
+                    {t('im.outboxId')}: {source.report.intentId}
+                  </p>
+                  <p>
+                    {t('im.externalMessageId')}: {source.report.messageId}
+                  </p>
+                </div>
+              </details>
+            </div>
+          </article>
+        </section>
+      ) : null}
       <section aria-label={t('im.sourceTitle')} className="bh-external-original">
         <MessageCard
           message={{

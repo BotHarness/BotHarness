@@ -23,6 +23,7 @@ import {
 } from './channel-bridge.js';
 import type { ChannelMessageCommit } from '../channels/store.js';
 import { createHash, randomUUID } from 'node:crypto';
+import { relatedReport, recordReportEcho, type RelatedReport } from './report.js';
 import type { DatabaseSync } from 'node:sqlite';
 import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
 import type { BotSourcePolicyStore } from '../runtime/source-policy.js';
@@ -79,6 +80,7 @@ export interface ExternalSource {
   grantId: string;
   grantRevision: number;
   localChannelId?: string;
+  report?: RelatedReport;
   contextReads?: ExternalContextRead[];
   contextMessages?: ExternalContextResult['messages'];
 }
@@ -358,6 +360,18 @@ export function createInboundMessaging(options: {
         accountRef: value.accountRef,
         fingerprint: value.fingerprint,
         signal: lease.controller.signal,
+        onEcho: async (event, signal) => {
+          signal.throwIfAborted();
+          lease.controller.signal.throwIfAborted();
+          if (
+            !valid(value) ||
+            leases.get(value.id) !== lease ||
+            providers.get(value.providerId)?.token !== entry.token
+          )
+            throw new MessagingError('consumer-unavailable');
+          transaction((db) => recordReportEcho(db, value, event), ['outbox']);
+          return { accepted: true };
+        },
         onEvent: async (event, signal) => {
           signal.throwIfAborted();
           lease.controller.signal.throwIfAborted();
@@ -592,7 +606,11 @@ export function createInboundMessaging(options: {
         ...(item.event.reply.threadId ? { threadId: item.event.reply.threadId } : {}),
       });
     }
+    const report = database.read((db) =>
+      relatedReport(db, grant(retained.grantId), retained.event.reply),
+    );
     return {
+      ...(report ? { report } : {}),
       ...(contextMessages.length === 0 ? {} : { contextMessages }),
       ...(JSON.parse(row.payload_json) as { external: Omit<ExternalSource, 'body'> }).external,
       body: row.body,

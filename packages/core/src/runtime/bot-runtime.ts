@@ -14,7 +14,7 @@ import {
   type AttachmentSaveInput,
 } from '../attachments/file-operations.js';
 import { authorizedPathRoot } from '../workspaces/grant-native-tools.js';
-import type { OutboundMessaging } from '../messaging/outbound.js';
+import type { OutboxIntent, OutboundMessaging } from '../messaging/outbound.js';
 import type {
   ExternalSource,
   ExternalContextQuery,
@@ -179,6 +179,13 @@ export interface OrchestratorAgentRun {
   inbox: string;
   inboundChannelId: string | undefined;
   externalMessaging?: {
+    targets?(): Promise<
+      Array<{ grantId: string; platform: string; accountName: string; targetName: string }>
+    >;
+    post?(grantId: string, requestId: string, text: string): ReturnType<OutboundMessaging['post']>;
+    outbox?(
+      intentId?: string,
+    ): OutboxIntent | Array<Omit<OutboxIntent, 'text'> & { preview: string }>;
     policies(): Promise<
       Array<{
         grantId: string;
@@ -673,7 +680,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
     if (unit.external !== undefined) {
-      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
+      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
     }
     if (unit.sourceKind === 'memory-change') {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
@@ -2576,6 +2583,29 @@ class BotRuntimeImplementation implements BotRuntime {
           ? {}
           : {
               externalMessaging: {
+                targets: async () => {
+                  const snapshot = await this.#externalMessaging!.snapshot(bot.slug);
+                  return snapshot.grants
+                    .filter((g) => g.availability === 'available' && !g.revokedAt && g.canPost)
+                    .map((g) => ({
+                      grantId: g.id,
+                      platform: g.platform,
+                      accountName: g.accountName,
+                      targetName: g.targetName,
+                    }));
+                },
+                post: (grantId, requestId, text) => {
+                  markSideEffect();
+                  return this.#externalMessaging!.post(bot.slug, grantId, requestId, text);
+                },
+                outbox: (intentId) => {
+                  if (intentId) return this.#externalMessaging!.inspectIntent(bot.slug, intentId);
+                  return this.#externalMessaging!
+                    .history(bot.slug)
+                    .filter((intent) => intent.report)
+                    .slice(0, 10)
+                    .map(({ text, ...intent }) => ({ ...intent, preview: text.slice(0, 160) }));
+                },
                 policies: async () => {
                   const snapshot = await this.#externalMessaging!.snapshot(bot.slug);
                   return snapshot.grants

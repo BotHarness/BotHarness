@@ -838,6 +838,9 @@ describe('DSH Bot Agent adapter', () => {
       'send_assignment_request',
       'stop_assignment',
       'channel_list',
+      'bridge_targets',
+      'bridge_post',
+      'bridge_outbox',
       'bridge_read',
       'bridge_share',
       'bridge_group_policy_list',
@@ -1192,6 +1195,7 @@ describe('DSH Bot Agent adapter', () => {
 it('routes external Tools through the active owning Orchestrator without a local inbound Channel', async () => {
   const replies: string[][] = [];
   const reads: string[] = [];
+  let latePost: (() => Promise<unknown>) | undefined;
   const signal = new AbortController().signal;
   const contextRead = vi.fn<NonNullable<OrchestratorAgentRun['externalMessaging']>['context']>(
     async () => ({
@@ -1217,6 +1221,25 @@ it('routes external Tools through the active owning Orchestrator without a local
           { scope: 'thread', cursor: 'opaque', maxCharacters: 1000 },
           signal,
         );
+        const targets = tools.find((tool) => tool.name === 'bridge_targets');
+        const post = tools.find((tool) => tool.name === 'bridge_post');
+        const outbox = tools.find((tool) => tool.name === 'bridge_outbox');
+        if (!targets || !post || !outbox) throw new Error('outbox tools unavailable');
+        expect(JSON.parse(String(await targets.execute({}, {} as ToolRunContext)))).toEqual([]);
+        await expect(
+          post.execute(
+            { grant_id: 'grant', request_id: 'stable_report_id', text: 'Report' },
+            {} as ToolRunContext,
+          ),
+        ).rejects.toThrow('post ownership sentinel');
+        await expect(
+          outbox.execute({ intent_id: 'foreign' }, {} as ToolRunContext),
+        ).rejects.toThrow('outbox ownership sentinel');
+        latePost = () =>
+          post.execute(
+            { grant_id: 'grant', request_id: 'stable_report_id', text: 'Report' },
+            {} as ToolRunContext,
+          );
         const read = tools.find((tool) => tool.name === 'bridge_read');
         const reply = tools.find((tool) => tool.name === 'bridge_reply');
         const share = tools.find((tool) => tool.name === 'bridge_share');
@@ -1262,6 +1285,13 @@ it('routes external Tools through the active owning Orchestrator without a local
     inbox: 'External Inbox',
     message: 'External turn',
     externalMessaging: {
+      targets: async () => [],
+      post: async () => {
+        throw new Error('post ownership sentinel');
+      },
+      outbox: () => {
+        throw new Error('outbox ownership sentinel');
+      },
       share: (sourceEventId, channelId) => ({
         sourceEventId,
         channelId,
@@ -1328,6 +1358,7 @@ it('routes external Tools through the active owning Orchestrator without a local
       request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
     },
   });
+  await expect(latePost?.()).rejects.toThrow('bridge_post: unavailable');
   expect(reads).toEqual(['source-1']);
   expect(replies).toEqual([['source-1', 'Topic response']]);
   const tool = host.scopes.get('external-ada')?.tools.find((item) => item.name === 'bridge_reply');

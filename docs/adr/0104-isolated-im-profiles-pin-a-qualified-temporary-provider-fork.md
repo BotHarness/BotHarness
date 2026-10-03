@@ -15,6 +15,8 @@ The integrated #612/#657 development artifact is [`ee9d3c7a6fc9f15b13f8d895cd1cc
 
 The launcher requires explicit `--im-provider`, composes the existing Profile's optional Bundle, and uses the Profile package manager's Git dependency mechanism. It checks the complete SHA dependency, Bundle membership, package entrypoints and a fixed digest of `lib`, `plugin-src`, `src` and `cordis.patch.yml` before launching the Host. Unexpected runtime files or nested symbolic links fail closed. The digest identifies these runtime trees, not the entire package archive or its transitive dependencies. No local provider checkout or source build is required; this Git revision ships its compiled Bundle. Default Profiles do not install it.
 
+The #639 report tracer advances the development artifact to [`2dcd07845ce0411afdcff286242f1dd4bc502da9`](https://github.com/DoodleBears/dsh-im/commit/2dcd07845ce0411afdcff286242f1dd4bc502da9), retaining checked history and files while adding optional checked group send receipts and own-text echo negotiation. The 387 runtime files have SHA-256 `6838e5371a0af5cbdbf7f67f680391c47c65416689b6ec2f2799af4639e7582b`. Real Lark qualification verifies the report's native message/conversation IDs and genuine mentioned-thread reply through the existing Outbox and Inbox; own-echo delivery remains unverified. This artifact remains a temporary fork, not an upstream release or production deployment. See [ADR-0116](0116-external-only-reports-use-owned-outbox-correspondence.md).
+
 ## Why
 
 A one-off linked source patch proves behavior but cannot give another tester the same provider. Waiting for upstream publication blocks the next real tracer; treating the legacy npm version as compatible bypasses the verified account and route boundary. An explicit immutable development artifact keeps the evidence reproducible without claiming an upstream release.
@@ -22,7 +24,7 @@ A one-off linked source patch proves behavior but cannot give another tester the
 ## Ownership and exit
 
 - dsh-im owns platform connections, SDKs, credentials and settings. BotHarness owns Binding, Grant and Outbox in its canonical database.
-- The fork is temporary. Maintain only the public contract delta; do not create a parallel platform integration roadmap. [Upstream PR #293](https://github.com/xmanrui/dsh-im/pull/293) is pending, not accepted or released.
+- The fork is temporary. Maintain only the public contract delta; do not create a parallel platform integration roadmap. [Upstream PR #293](https://github.com/xmanrui/dsh-im/pull/293) has been merged; later receipt, consumer, history and file deltas still require their own upstream qualification. A merged PR alone is not proof of a released package.
 - Once an upstream release provides the required public contract, qualify its exact artifact on the project's pinned DSH version with the same account/target, lifecycle and real send proof, then replace the Git pin and retire the fork dependency. Inbound qualification is a separate gate for #12.
 - A new provider or DSH revision requires deliberate requalification and a reviewed digest change; package names, display names and version strings never substitute for that proof.
 - Removing the Bundle and dependency after stopping the owning isolated Host disables future provider operations. Binding and Outbox history remains; accepted platform messages cannot be undone by reverting this change. Historical in-flight outcomes retain ADR-0101's no-retry rules.

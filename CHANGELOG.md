@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Bots can send an authorized report only to Lark, inspect its canonical Outbox content and checked external message ID in Profile, then associate a genuine mentioned reply with that report and answer in its original external topic without a local DM/Channel mirror ([#639](https://github.com/BotHarness/BotHarness/issues/639)).
+
 - Bots can explicitly share one own-Inbox external source into a joined team Channel, showing the clickable Bridge source above the original message with details in a Modal, and preserving provenance and independent member attention without forwarding future traffic or borrowing external identities ([#636](https://github.com/BotHarness/BotHarness/issues/636)).
 
 - Activity Center Overview uses the Host-selected execution state and safe Tool summary shared with sidebar/composer; pending native questions and approvals remain separate Human actions while live owned Session cards stay visible ([#123](https://github.com/BotHarness/BotHarness/issues/123)).

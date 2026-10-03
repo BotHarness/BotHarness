@@ -64,6 +64,23 @@ export interface MessagingHistoryPage {
   coverage: 'provider-visible-human-text';
 }
 
+export interface MessagingReceipt {
+  version: 1;
+  messageId: string;
+  conversationId: string;
+}
+
+export interface MessagingOwnEcho {
+  version: 1;
+  botId: string;
+  fingerprint: string;
+  eventId: string;
+  messageId: string;
+  conversationId: string;
+  text: string;
+  at: string;
+}
+
 export interface MessagingProvider {
   id: string;
   accounts(): Promise<MessagingAccount[]>;
@@ -81,6 +98,7 @@ export interface MessagingProvider {
     fingerprint: string;
     signal: AbortSignal;
     onEvent(event: MessagingInboundEvent, signal: AbortSignal): Promise<{ accepted: true }>;
+    onEcho?(event: MessagingOwnEcho, signal: AbortSignal): Promise<{ accepted: true }>;
   }): Promise<() => void>;
   reply?(input: {
     accountRef: string;
@@ -110,6 +128,15 @@ export interface MessagingProvider {
     file: { id: string; name: string; bytes: Uint8Array };
     signal: AbortSignal;
   }): Promise<{ accepted: true }>;
+  post?(input: {
+    accountRef: string;
+    targetRef: string;
+    fingerprint: string;
+    targetDigest: string;
+    conversationId: string;
+    text: string;
+    signal: AbortSignal;
+  }): Promise<{ accepted: true; receipt: MessagingReceipt }>;
   send(input: {
     accountRef: string;
     targetRef: string;

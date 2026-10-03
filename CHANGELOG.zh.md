@@ -17,6 +17,8 @@
 
 ### Added
 
+- Bot 可只向已授权 Lark 发送报告，在 Profile 查看 canonical Outbox 正文和可信外部消息 ID，再关联真正的带 @ 回复并在原外部话题回答，不镜像到本地 DM／Channel（[#639](https://github.com/BotHarness/BotHarness/issues/639)）。
+
 - Bot 可明确将自己 Inbox 的一条外部来源分享到已加入的团队频道，在原始消息上方显示可点击的 Bridge 来源、用 Modal 展示详情，并保留来源和各成员独立提醒，不转发后续收件或借用外部身份（[#636](https://github.com/BotHarness/BotHarness/issues/636)）。
 
 - 活动中心总览沿用侧栏／消息框的 Host 执行状态与安全工具摘要；原生问题和审批保持独立 Human 待办，活跃且归属明确的 Session 卡片仍可见（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
