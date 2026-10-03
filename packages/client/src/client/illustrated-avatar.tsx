@@ -6,6 +6,89 @@ import {
 import { useMountedResource } from './mounted-resource.js';
 import type { PersonaBotActivityEffect, PersonaBotActivityState } from './avatar.js';
 
+type Step = readonly [number, number];
+
+const HEAD_STEPS: Record<PersonaBotActivityEffect, readonly Step[]> = {
+  'thinking-dots': [
+    [0, 0],
+    [0, -1],
+    [0, -1],
+    [0, 0],
+  ],
+  searching: [
+    [0, 0],
+    [-1, 0],
+    [0, 0],
+    [1, 0],
+  ],
+  coding: [
+    [0, 0],
+    [0, 1],
+    [0, 1],
+    [0, 0],
+  ],
+  executing: [
+    [0, 0],
+    [0, -1],
+    [0, 0],
+    [0, -1],
+  ],
+  'generic-working': [
+    [0, 0],
+    [0, -1],
+    [0, 0],
+    [0, 0],
+  ],
+};
+
+const GAZE_STEPS: Record<PersonaBotActivityEffect, readonly Step[]> = {
+  'thinking-dots': [
+    [0, 0],
+    [-1, -1],
+    [-1, -1],
+    [0, 0],
+  ],
+  searching: [
+    [0, 0],
+    [-1, 0],
+    [0, 0],
+    [1, 0],
+  ],
+  coding: [
+    [0, 0],
+    [0, 1],
+    [0, 1],
+    [0, 0],
+  ],
+  executing: [
+    [0, 0],
+    [1, 0],
+    [1, 0],
+    [0, 0],
+  ],
+  'generic-working': [
+    [0, 0],
+    [0, 0],
+    [1, 0],
+    [0, 0],
+  ],
+};
+
+const shift = ([x, y]: Step) => `translate(${x}px, ${y}px)`;
+const stepped = (steps: readonly Step[], blinkAt?: number): Keyframe[] =>
+  steps.map((step, index) => ({
+    offset: index / steps.length,
+    transform: shift(step),
+    opacity: index === blinkAt ? 0 : 1,
+    easing: 'steps(1, end)',
+  }));
+const blinkFrames = (blinkAt: number, count: number): Keyframe[] =>
+  Array.from({ length: count }, (_, index) => ({
+    offset: index / count,
+    opacity: index === blinkAt ? 1 : 0,
+    easing: 'steps(1, end)',
+  }));
+
 export function IllustratedAvatar({
   recipe,
   state,
@@ -22,7 +105,9 @@ export function IllustratedAvatar({
     (node) => {
       const head = node.querySelector<SVGGElement>('.bh-illustrated-head');
       const gaze = node.querySelector<SVGGElement>('.bh-illustrated-gaze');
-      if (!head || !gaze || typeof head.animate !== 'function') return;
+      const blink = node.querySelector<SVGGElement>('.bh-illustrated-blink');
+      const mark = node.querySelector<SVGGElement>(`[data-avatar-mark="${effect}"]`);
+      if (!head || !gaze || !blink || typeof head.animate !== 'function') return;
       const animations = new Set<Animation>();
       let visible = true;
       let disposed = false;
@@ -30,6 +115,8 @@ export function IllustratedAvatar({
         for (const animation of animations) animation.cancel();
         animations.clear();
       };
+      const loop = (target: Element, frames: Keyframe[], duration: number) =>
+        animations.add(target.animate(frames, { duration, iterations: Infinity }));
       const sync = () => {
         const start = getComputedStyle(head).transform;
         const gazeStart = getComputedStyle(gaze).transform;
@@ -44,53 +131,14 @@ export function IllustratedAvatar({
         )
           return;
         const compact = size <= 64;
-        const amplitude = compact ? 1 : 3;
-        const poses: Record<PersonaBotActivityEffect, string> = {
-          'thinking-dots': `translateY(${-amplitude / 3}%) rotate(${-amplitude}deg)`,
-          searching: `translateX(${amplitude / 2}%) rotate(${amplitude}deg)`,
-          coding: `translateY(${amplitude / 2}%) rotate(${-amplitude / 2}deg)`,
-          executing: `rotate(${amplitude}deg)`,
-          'generic-working': `translateY(${-amplitude / 2}%)`,
-        };
-        const reach = 2;
-        const blink = 0.12;
-        const looks: Record<PersonaBotActivityEffect, [number, number]> = {
-          'thinking-dots': [-0.8, -1],
-          searching: [1.2, 0],
-          coding: [0.3, 1],
-          executing: [0.8, 0.3],
-          'generic-working': [0, -0.5],
-        };
-        const glance: Record<PersonaBotActivityEffect, 1 | -1> = {
-          'thinking-dots': 1,
-          searching: -1,
-          coding: 1,
-          executing: 1,
-          'generic-working': 1,
-        };
-        const look = (x: number, y: number, open = 1) =>
-          `translate(${x * reach}px, ${y * reach}px) scaleY(${open})`;
-        const gazeFrames = (): Keyframe[] => {
-          const [x, y] = looks[effect];
-          const away = look(glance[effect] * x, y);
-          return [
-            { offset: 0, transform: look(0, 0) },
-            { offset: 0.3, transform: look(x, y) },
-            { offset: 0.55, transform: away },
-            { offset: 0.6, transform: look(0, 0) },
-            { offset: 0.63, transform: look(0, 0, blink) },
-            { offset: 0.66, transform: look(0, 0) },
-            { offset: 1, transform: look(0, 0) },
-          ];
-        };
         const enter = head.animate(
           [{ transform: start === 'none' ? 'none' : start }, { transform: 'none' }],
-          { duration: 180, easing: 'ease-out' },
+          { duration: 120, easing: 'steps(2, end)' },
         );
         animations.add(enter);
         const gazeEnter = gaze.animate(
           [{ transform: gazeStart || 'none' }, { transform: 'none' }],
-          { duration: 180, easing: 'ease-out' },
+          { duration: 120, easing: 'steps(2, end)' },
         );
         animations.add(gazeEnter);
         Promise.all([enter.finished, gazeEnter.finished])
@@ -106,33 +154,25 @@ export function IllustratedAvatar({
               return;
             if (state !== 'thinking' && state !== 'working') {
               if (compact || state !== 'idle') return;
-              animations.add(
-                gaze.animate(
-                  [
-                    { offset: 0, transform: look(0, 0) },
-                    { offset: 0.94, transform: look(0, 0) },
-                    { offset: 0.97, transform: look(0, 0, blink) },
-                    { offset: 1, transform: look(0, 0) },
-                  ],
-                  { duration: 4800, iterations: Infinity, easing: 'ease-in-out' },
-                ),
-              );
+              const rest: Step[] = Array.from({ length: 12 }, () => [0, 0]);
+              loop(gaze, stepped(rest, 11), 4800);
+              loop(blink, blinkFrames(11, 12), 4800);
               return;
             }
-            animations.add(
-              head.animate(
-                [{ transform: 'none' }, { transform: poses[effect] }, { transform: 'none' }],
-                { duration: compact ? 1300 : 1900, iterations: Infinity, easing: 'ease-in-out' },
-              ),
-            );
+            loop(head, stepped(HEAD_STEPS[effect]), compact ? 1200 : 1600);
             if (compact) return;
-            animations.add(
-              gaze.animate(gazeFrames(), {
-                duration: 2600,
-                iterations: Infinity,
-                easing: 'ease-in-out',
-              }),
-            );
+            const gazeSteps = [...GAZE_STEPS[effect], [0, 0] as Step];
+            loop(gaze, stepped(gazeSteps, gazeSteps.length - 1), 2000);
+            loop(blink, blinkFrames(gazeSteps.length - 1, gazeSteps.length), 2000);
+            if (mark)
+              loop(
+                mark,
+                [
+                  { offset: 0, opacity: 1, easing: 'steps(1, end)' },
+                  { offset: 0.75, opacity: 0, easing: 'steps(1, end)' },
+                ],
+                1600,
+              );
           })
           .catch(() => undefined);
       };

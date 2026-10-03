@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- PersonaBot Profile can preview, cancel and save an original illustrated avatar with face, hair, glasses and color choices; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
+- PersonaBot Profile can preview, cancel and save an original pixel-art avatar from a Notion-Faces-style catalog of face, hair, eyes, brows, nose, mouth, cheeks, glasses, accessory and color choices; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 
 - Pending native Bot questions now contribute to the shared attention badge alongside Tool approvals, with distinct hover counts and immediate clearing after answer or cancellation; execution motion remains independent ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 

@@ -75,25 +75,30 @@ describe('Profile Avatar Appearance editing', () => {
         ),
       );
       await click('[data-avatar-edit]');
-      const select = container.querySelector<HTMLSelectElement>('[name="hair"]')!;
-      await act(() => {
-        select.value = 'bob';
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-      });
+      await click('[data-avatar-option="hair:bob"]');
       expect(container.querySelector('[data-avatar-preview] svg')).not.toBeNull();
       expect(container.querySelector('[data-approval-count="2"]')).not.toBeNull();
+      expect(container.querySelectorAll('[data-avatar-option^="hair:"]')).toHaveLength(12);
+      expect(
+        container.querySelector('[data-avatar-option="hair:bob"]')?.getAttribute('aria-pressed'),
+      ).toBe('true');
       expect(save).not.toHaveBeenCalled();
       await click('[data-avatar-cancel]');
       expect(save).not.toHaveBeenCalled();
       await click('[data-avatar-edit]');
-      expect(container.querySelector<HTMLSelectElement>('[name="hair"]')?.value).toBe('sweep');
-      const head = container.querySelector<HTMLSelectElement>('[name="head"]')!;
-      await act(() => {
-        head.value = 'long';
-        head.dispatchEvent(new Event('change', { bubbles: true }));
-      });
+      expect(
+        container.querySelector('[data-avatar-option="hair:crop"]')?.getAttribute('aria-pressed'),
+      ).toBe('true');
+      await click('[data-avatar-category="accessory"]');
+      await click('[data-avatar-option="accessory:crown"]');
+      await click('[data-avatar-category="colors"]');
+      await click('[data-avatar-option="shirtColor:#3d9970"]');
       await click('[data-avatar-save]');
-      expect(save).toHaveBeenCalledWith('dm-ada', { ...DEFAULT_ILLUSTRATED_RECIPE, head: 'long' });
+      expect(save).toHaveBeenCalledWith('dm-ada', {
+        ...DEFAULT_ILLUSTRATED_RECIPE,
+        accessory: 'crown',
+        shirtColor: '#3d9970',
+      });
       expect(container.querySelector('[data-avatar-save]')).toBeNull();
     } finally {
       await act(() => root.unmount());

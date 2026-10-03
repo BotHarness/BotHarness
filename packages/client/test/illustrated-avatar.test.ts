@@ -104,8 +104,10 @@ it('keeps an idle small avatar still while the large avatar only blinks', async 
     await act(async () => root.render(createElement(PersonaBotAvatar, { ...props, size: 34 })));
     expect(loops).toHaveLength(0);
     await act(async () => root.render(createElement(PersonaBotAvatar, { ...props, size: 160 })));
-    expect(loops).toHaveLength(1);
-    expect(loops[0]!.getAttribute('class')).toBe('bh-illustrated-gaze');
+    expect(loops.map((loop) => loop.getAttribute('class'))).toEqual([
+      'bh-illustrated-gaze',
+      'bh-illustrated-blink',
+    ]);
   } finally {
     await act(() => root.unmount());
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
@@ -161,11 +163,18 @@ it('loops the gaze only on the large working avatar and keeps waiting avatars st
         }),
       ),
     );
-    expect(classes()).toEqual(['bh-illustrated-head', 'bh-illustrated-gaze']);
+    expect(classes()).toEqual([
+      'bh-illustrated-head',
+      'bh-illustrated-gaze',
+      'bh-illustrated-blink',
+      null,
+    ]);
+    expect(loops[3]!.target.getAttribute('data-avatar-mark')).toBe('searching');
     const gaze = loops[1]!.frames.map((frame) => String(frame.transform));
-    expect(gaze).toContain('translate(2.4px, 0px) scaleY(1)');
-    expect(gaze).toContain('translate(-2.4px, 0px) scaleY(1)');
-    expect(gaze).toContain('translate(0px, 0px) scaleY(0.12)');
+    expect(gaze).toContain('translate(-1px, 0px)');
+    expect(gaze).toContain('translate(1px, 0px)');
+    expect(loops[1]!.frames.every((frame) => frame.easing === 'steps(1, end)')).toBe(true);
+    expect(loops[2]!.frames.some((frame) => frame.opacity === 1)).toBe(true);
     loops.length = 0;
     await act(async () =>
       root.render(createElement(PersonaBotAvatar, { ...props, size: 160, state: 'waiting' })),

@@ -86,37 +86,60 @@ family, compatibility fallback and full mixed-family scale remain #752–#757.
 
 ## Artwork redesign (2026-10-04)
 
-Human rejected the first artwork as unattractive. Diagnosis of that version:
-uniform 2px outlines everywhere, which blurred into noise at 22/34px; heavy
-glasses and an L-shaped nose dominated the face; a floating bust with no
-backdrop lost its silhouette, and dark outlines and hair sank into the dark
-shell; the helmet-like hair masses barely differed between styles.
+Human rejected the first artwork as unattractive. A flat, outline-free portrait
+followed. Human judged it still too realistic. Ink-line (Notion-Faces-like) and
+pixel directions were then compared at 22/34/64/160px in both themes
+([sheet](../assets/pr/751-avatar/redesign-directions.png)), and Human chose
+**pixel art with a much richer part catalog** modelled on Notion Faces' many
+choices.
 
-Three original directions were compared at 22/34/64/160px in both themes
-([sheet](../assets/pr/751-avatar/redesign-directions.png)): flat colour on a
-tinted disc, bold ink on a disc, and an outline-only sketch. The flat-disc
-direction was chosen and polished: outline-free shapes with light volume
-(hair shadow and highlight, ear and neck shading, cheeks), larger eyes with
-catch-lights and an open smile, distinct sweep/crop/bob silhouettes, rounded
-glasses, and an opaque recipe-tinted disc so dark hair stays readable on dark
-shells. Shoulders follow the disc edge, so the markup still needs no `defs`,
-clip paths or ids. All 12 head/hair/accessory combinations and five palettes
-are on the [catalog sheet](../assets/pr/751-avatar/redesign-catalog.png).
+The illustrated family is now an original 32×32 pixel portrait with a 1px ink
+outline on a recipe-tinted rounded tile. The recipe selects nine parts plus
+three colours:
 
-Motion keeps the same lifecycle and node contract: each working effect now has
-its own gaze direction, and the large avatar blinks once per working loop and
-occasionally while idle (not while waiting or blocked). Small avatars stay
-still unless working, and then move only the head, because gaze offsets below
-one screen pixel would be invisible.
+- head (4)
+- hair (12)
+- eyes (8)
+- brows (6)
+- nose (4)
+- mouth (8)
+- cheeks (3)
+- glasses (5)
+- accessory (9)
+- skin, hair and shirt colour
 
-The recipe schema, asset version and rig version are unchanged: version 1 has
-not shipped, so this redesign replaces the unreleased asset rather than adding
-a second one. A record saved before this commit keeps its earlier snapshot
-and revision while the live SVG draws the new artwork, so any development
-Profile that saved an illustrated Avatar on this branch must save it again;
-the QA profile was re-saved so its snapshot and revision were
-derived from the new artwork. All runtime steps above were re-run against the
-rebuilt Host: draft/Cancel/Save/reload, real Assignment work with one pending
-native approval in both themes, reduced motion, offscreen and unmount cleanup,
-narrow layouts and a Host restart. With 4 visible instances, steady rAF p95
-was 16.7ms.
+All parts are trusted catalog data rendered as merged `<rect>` runs with
+`crispEdges`. There are no paths, `defs`, ids or external references.
+The [catalog sheet](../assets/pr/751-avatar/redesign-catalog.png) shows every
+option. The editor follows the Notion Faces pattern: a category bar, a grid of
+live preview tiles, colour swatches with a custom picker, and Shuffle. Preview,
+Cancel and Save stay local until Save.
+
+Motion moves in whole pixels using `steps()` easing. Working avatars shift the
+head one cell per effect. Large ones also move their gaze, swap in a closed-eye
+blink frame, and show a small state mark at the corner:
+
+- `?` while thinking
+- a magnifier while searching
+- a drop while coding
+- `!` while executing
+- `…` for generic work
+
+An idle large avatar blinks occasionally. Waiting and blocked avatars stay
+still, and small avatars move only the head. Reduced motion, hidden and
+offscreen views, and unmount still cancel every owned animation.
+
+The recipe keeps schema, asset and rig version 1, because version 1 has never
+shipped; the fields now describe the pixel catalog. A development Profile that
+saved an earlier illustrated recipe on this branch is rejected by the new
+validator. Remove its `appearance` and `avatar` fields and save again. The QA
+profile was reset this way, and every runtime step above was re-run against the
+rebuilt Host:
+
+- draft, Cancel, Save and reload
+- real Assignment work with one pending native approval, in both themes
+- reduced motion, plus offscreen and unmount cleanup
+- narrow layouts
+- a Host restart
+
+With 4 visible instances, steady rAF p95 was 16.8ms.

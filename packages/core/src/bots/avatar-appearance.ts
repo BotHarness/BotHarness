@@ -1,15 +1,38 @@
-export interface IllustratedAvatarRecipe {
+export const AVATAR_PARTS = {
+  head: ['round', 'oval', 'square', 'long'],
+  hair: [
+    'crop',
+    'sweep',
+    'spiky',
+    'buzz',
+    'curly',
+    'mohawk',
+    'bob',
+    'long',
+    'bun',
+    'pigtails',
+    'afro',
+    'none',
+  ],
+  eyes: ['round', 'dot', 'sparkle', 'lashes', 'sleepy', 'happy', 'wink', 'sharp'],
+  brows: ['soft', 'thick', 'raised', 'angry', 'worried', 'none'],
+  nose: ['button', 'dot', 'line', 'none'],
+  mouth: ['smile', 'grin', 'open', 'flat', 'smirk', 'cat', 'tongue', 'o'],
+  cheeks: ['blush', 'freckles', 'none'],
+  glasses: ['none', 'round', 'square', 'shades', 'monocle'],
+  accessory: ['none', 'beanie', 'cap', 'headphones', 'flower', 'bow', 'earring', 'crown', 'halo'],
+} as const;
+
+export type AvatarPart = keyof typeof AVATAR_PARTS;
+export const AVATAR_COLORS = ['skinColor', 'hairColor', 'shirtColor'] as const;
+export type AvatarColor = (typeof AVATAR_COLORS)[number];
+
+export type IllustratedAvatarRecipe = {
   schemaVersion: 1;
   family: 'illustrated';
   assetVersion: 1;
   rigVersion: 1;
-  head: 'soft' | 'long';
-  hair: 'sweep' | 'crop' | 'bob';
-  accessory: 'none' | 'glasses';
-  skinColor: string;
-  hairColor: string;
-  shirtColor: string;
-}
+} & { [P in AvatarPart]: (typeof AVATAR_PARTS)[P][number] } & Record<AvatarColor, string>;
 
 export interface AvatarAppearance {
   revision: string;
@@ -21,13 +44,21 @@ export const DEFAULT_ILLUSTRATED_RECIPE: IllustratedAvatarRecipe = {
   family: 'illustrated',
   assetVersion: 1,
   rigVersion: 1,
-  head: 'soft',
-  hair: 'sweep',
+  head: 'round',
+  hair: 'crop',
+  eyes: 'round',
+  brows: 'soft',
+  nose: 'button',
+  mouth: 'smile',
+  cheeks: 'blush',
+  glasses: 'none',
   accessory: 'none',
-  skinColor: '#ebbd9f',
-  hairColor: '#44332c',
-  shirtColor: '#6c8cbd',
+  skinColor: '#f2c9a8',
+  hairColor: '#4a3428',
+  shirtColor: '#5b8bd6',
 };
+
+const PART_KEYS = Object.keys(AVATAR_PARTS) as AvatarPart[];
 
 export function isIllustratedAvatarRecipe(value: unknown): value is IllustratedAvatarRecipe {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
@@ -38,15 +69,11 @@ export function isIllustratedAvatarRecipe(value: unknown): value is IllustratedA
     r['family'] === 'illustrated' &&
     r['assetVersion'] === 1 &&
     r['rigVersion'] === 1 &&
-    typeof r['head'] === 'string' &&
-    ['soft', 'long'].includes(r['head']) &&
-    typeof r['hair'] === 'string' &&
-    ['sweep', 'crop', 'bob'].includes(r['hair']) &&
-    typeof r['accessory'] === 'string' &&
-    ['none', 'glasses'].includes(r['accessory']) &&
-    ['skinColor', 'hairColor', 'shirtColor'].every(
-      (key) => typeof r[key] === 'string' && /^#[\da-f]{6}$/iu.test(r[key]),
-    )
+    PART_KEYS.every(
+      (key) =>
+        typeof r[key] === 'string' && (AVATAR_PARTS[key] as readonly string[]).includes(r[key]),
+    ) &&
+    AVATAR_COLORS.every((key) => typeof r[key] === 'string' && /^#[\da-f]{6}$/iu.test(r[key]))
   );
 }
 
@@ -62,103 +89,823 @@ export function isAvatarAppearance(value: unknown): value is AvatarAppearance {
 }
 
 export function canonicalAvatarRecipe(recipe: IllustratedAvatarRecipe): IllustratedAvatarRecipe {
-  return {
+  const canonical: Record<string, unknown> = {
     schemaVersion: 1,
     family: 'illustrated',
     assetVersion: 1,
     rigVersion: 1,
-    head: recipe.head,
-    hair: recipe.hair,
-    accessory: recipe.accessory,
-    skinColor: recipe.skinColor.toLowerCase(),
-    hairColor: recipe.hairColor.toLowerCase(),
-    shirtColor: recipe.shirtColor.toLowerCase(),
   };
+  for (const key of PART_KEYS) canonical[key] = recipe[key];
+  for (const key of AVATAR_COLORS) canonical[key] = recipe[key].toLowerCase();
+  return canonical as IllustratedAvatarRecipe;
 }
 
-const ART = {
-  ink: '#2a2430',
-  paper: '#faf6f0',
-  shade: '#000',
-  light: '#fff',
-  blush: '#f26b6b',
-  tongue: '#e96f6f',
+export const AVATAR_MARKS = [
+  'thinking-dots',
+  'searching',
+  'coding',
+  'executing',
+  'generic-working',
+] as const;
+
+const SIZE = 32;
+const INK = '#1d1b22';
+const WHITE = '#ffffff';
+const PAPER = '#eceae6';
+const BLUSH = '#f2899b';
+const TONGUE = '#e2566c';
+const GOLD = '#e8b23a';
+
+type Cell = string | undefined;
+type Grid = Cell[][];
+type Point = readonly [number, number];
+
+const blank = (): Grid => Array.from({ length: SIZE }, () => Array<Cell>(SIZE).fill(undefined));
+const ellipse = (cx: number, cy: number, rx: number, ry: number) => (x: number, y: number) =>
+  ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1;
+
+function shade(hex: string, k: number): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `#${[16, 8, 0]
+    .map((bit) =>
+      Math.min(255, Math.round(((n >> bit) & 255) * k))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+}
+
+function paint(grid: Grid, test: (x: number, y: number) => boolean, color: string): void {
+  for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) if (test(x, y)) grid[y]![x] = color;
+}
+
+function dots(grid: Grid, points: readonly Point[], color: string): void {
+  for (const [x, y] of points) if (x >= 0 && x < SIZE && y >= 0 && y < SIZE) grid[y]![x] = color;
+}
+
+function outline(grid: Grid): Grid {
+  const out = grid.map((row) => [...row]);
+  for (let y = 0; y < SIZE; y++)
+    for (let x = 0; x < SIZE; x++)
+      if (
+        !grid[y]![x] &&
+        [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ].some(([dx, dy]) => grid[y + dy!]?.[x + dx!])
+      )
+        out[y]![x] = INK;
+  return out;
+}
+
+function rects(grid: Grid): string {
+  let markup = '';
+  for (let y = 0; y < SIZE; y++) {
+    let x = 0;
+    while (x < SIZE) {
+      const color = grid[y]![x];
+      if (!color) {
+        x++;
+        continue;
+      }
+      let width = 1;
+      while (x + width < SIZE && grid[y]![x + width] === color) width++;
+      markup += `<rect x="${x}" y="${y}" width="${width}" height="1" fill="${color}"/>`;
+      x += width;
+    }
+  }
+  return markup;
+}
+
+const mirror = (points: readonly Point[]): Point[] => points.map(([x, y]) => [1 - x, y]);
+const at = (points: readonly Point[], ox: number, oy: number): Point[] =>
+  points.map(([x, y]) => [x + ox, y + oy]);
+
+const HEADS = {
+  round: { test: ellipse(16, 15, 7.6, 7.8), half: 7.6, top: 7, chin: 22, mouth: 19 },
+  oval: { test: ellipse(16, 15.5, 7, 8.5), half: 7, top: 7, chin: 23, mouth: 20 },
+  square: {
+    test: (x: number, y: number) =>
+      x >= 9 &&
+      x <= 22 &&
+      y >= 8 &&
+      y <= 22 &&
+      !((x === 9 || x === 22) && (y === 8 || y === 22)) &&
+      !((x <= 10 || x >= 21) && y === 22),
+    half: 7,
+    top: 8,
+    chin: 22,
+    mouth: 19,
+  },
+  long: { test: ellipse(16, 15.5, 6.6, 9), half: 6.6, top: 7, chin: 24, mouth: 20 },
 } as const;
-const FACES = {
-  soft: {
-    head: 'M64 27C84 27 96 41 96 61C96 83 82 98 64 98C46 98 32 83 32 61C32 41 44 27 64 27Z',
-    hairTransform: '',
-    eyes: { left: 50, right: 78, y: 63 },
-    ears: { left: 31, right: 97, y: 66 },
-    browY: 54,
-    noseY: 71,
-    mouthY: 82,
-    cheekY: 76,
+
+const EYE_Y = 15;
+const EYE_X = [11, 19] as const;
+
+const EYES: Record<IllustratedAvatarRecipe['eyes'], { ink: Point[]; light?: Point[] }> = {
+  round: {
+    ink: [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+      [0, 2],
+      [1, 2],
+    ],
+    light: [[0, 0]],
   },
-  long: {
-    head: 'M64 25C82 25 93 39 93 60C93 86 80 103 64 103C48 103 35 86 35 60C35 39 46 25 64 25Z',
-    hairTransform: ' transform="translate(64 0) scale(.92 1) translate(-64 -1.5)"',
-    eyes: { left: 51, right: 77, y: 63 },
-    ears: { left: 34, right: 94, y: 66 },
-    browY: 54,
-    noseY: 73,
-    mouthY: 86,
-    cheekY: 78,
+  dot: {
+    ink: [
+      [0, 1],
+      [1, 1],
+      [0, 2],
+      [1, 2],
+    ],
   },
-} as const;
-const HAIR = {
-  sweep: {
-    back: '',
-    front:
-      'M31 66C26 40 38 20 62 17C86 14 104 30 100 58C99 63 98 66 97 68C96 59 93 52 88 47C79 52 66 52 56 47C50 44 46 40 44 36C40 44 36 54 34 66Z',
-    shine: 'M66 21C76 21 85 25 91 32C88 32 84 28 78 26C74 25 70 24 66 24Z',
+  sparkle: {
+    ink: [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+      [0, 2],
+      [1, 2],
+      [-1, 1],
+      [-1, 2],
+    ],
+    light: [
+      [0, 0],
+      [1, 2],
+    ],
   },
-  crop: {
-    back: '',
-    front:
-      'M32 60C29 44 32 30 42 24C45 18 52 16 57 18C61 13 68 13 72 17C78 14 86 17 88 23C97 28 100 44 96 60L93 51C91 46 88 43 84 42Q80 46 75 42Q70 46 65 42Q60 46 55 42Q50 45 46 42C41 44 38 47 36 51Z',
-    shine: 'M64 18C70 18 76 20 80 23C76 23 71 22 66 22Z',
+  lashes: {
+    ink: [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+      [0, 2],
+      [1, 2],
+      [-1, -1],
+      [-1, 0],
+    ],
+    light: [[1, 0]],
   },
-  bob: {
-    back: 'M23 94C18 70 20 40 36 27C50 16 78 16 92 27C108 40 110 70 105 94C99 100 90 100 86 94L86 62L42 62L42 94C38 100 29 100 23 94Z',
-    front:
-      'M30 70C24 40 40 18 64 18C88 18 104 40 98 70L95 70C94 60 91 53 87 48C77 52 60 50 47 43C41 48 37 57 35 70Z',
-    shine: 'M68 22C78 23 86 28 91 36C88 36 84 31 79 28C75 26 71 25 68 25Z',
+  sleepy: {
+    ink: [
+      [-1, 1],
+      [0, 1],
+      [1, 1],
+      [2, 1],
+      [0, 2],
+      [1, 2],
+    ],
   },
-} as const;
-const NECK = 'M54 84L74 84L74 100Q64 106 54 100Z';
-const SHIRT = 'M17.5 108C26 101 41 97 53 96L75 96C87 97 102 101 110.5 108A64 64 0 0 1 17.5 108Z';
+  happy: {
+    ink: [
+      [-1, 2],
+      [0, 1],
+      [1, 1],
+      [2, 2],
+    ],
+  },
+  wink: {
+    ink: [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+      [0, 2],
+      [1, 2],
+    ],
+    light: [[0, 0]],
+  },
+  sharp: {
+    ink: [
+      [-1, 0],
+      [0, 1],
+      [1, 1],
+      [0, 2],
+      [1, 2],
+      [2, 1],
+    ],
+  },
+};
+
+const CLOSED: Point[] = [
+  [-1, 2],
+  [0, 2],
+  [1, 2],
+  [2, 2],
+];
+
+const BROWS: Record<IllustratedAvatarRecipe['brows'], Point[]> = {
+  soft: [
+    [0, 0],
+    [1, 0],
+  ],
+  thick: [
+    [-1, 0],
+    [0, 0],
+    [1, 0],
+    [2, 0],
+    [0, -1],
+    [1, -1],
+  ],
+  raised: [
+    [-1, 0],
+    [0, -1],
+    [1, -1],
+    [2, 0],
+  ],
+  angry: [
+    [-1, -1],
+    [0, -1],
+    [1, 0],
+    [2, 0],
+  ],
+  worried: [
+    [-1, 0],
+    [0, 0],
+    [1, -1],
+    [2, -1],
+  ],
+  none: [],
+};
+
+function hairMask(recipe: IllustratedAvatarRecipe): {
+  back: (x: number, y: number) => boolean;
+  front: (x: number, y: number) => boolean;
+} {
+  const head = HEADS[recipe.head];
+  const left = Math.round(16 - head.half);
+  const right = Math.round(15 + head.half);
+  const cap = ellipse(16, 14, head.half + 1.2, 8.6);
+  const crown = (y: number, x: number) => cap(x, y);
+  const none = () => false;
+  switch (recipe.hair) {
+    case 'none':
+      return { back: none, front: none };
+    case 'buzz':
+      return { back: none, front: (x, y) => crown(y, x) && y <= 9 };
+    case 'crop':
+      return {
+        back: none,
+        front: (x, y) =>
+          crown(y, x) &&
+          (y <= 9 || (y === 10 && x % 2 === 0) || (y <= 12 && (x <= left + 1 || x >= right - 1))),
+      };
+    case 'sweep':
+      return {
+        back: none,
+        front: (x, y) =>
+          crown(y, x) &&
+          (y <= 9 ||
+            (y <= 12 && x >= 10 + (y - 9) * 3 && x < 17 + (12 - y) * 2) ||
+            (y <= 13 && (x <= left + 1 || x >= right - 1))),
+      };
+    case 'spiky':
+      return {
+        back: none,
+        front: (x, y) => {
+          const peak = (x - left) % 3 === 1 ? 3 : (x - left) % 3 === 0 ? 4 : 5;
+          return (
+            x >= left - 1 &&
+            x <= right + 1 &&
+            y >= peak &&
+            (y <= 9 || (y <= 11 && (x <= left + 1 || x >= right - 1)))
+          );
+        },
+      };
+    case 'curly': {
+      const bumps: Point[] = [
+        [9, 9],
+        [11, 6],
+        [14, 5],
+        [18, 5],
+        [21, 6],
+        [23, 9],
+        [8, 12],
+        [24, 12],
+      ];
+      return {
+        back: none,
+        front: (x, y) =>
+          (crown(y, x) && y <= 9) ||
+          bumps.some(([bx, by]) => (x + 0.5 - bx - 0.5) ** 2 + (y + 0.5 - by - 0.5) ** 2 <= 4.4),
+      };
+    }
+    case 'mohawk':
+      return { back: none, front: (x, y) => x >= 14 && x <= 17 && y >= 2 && y <= 9 };
+    case 'bob':
+      return {
+        back: (x, y) => ellipse(16, 14, head.half + 2.4, 9)(x, y) && y <= 21,
+        front: (x, y) =>
+          crown(y, x) && (y <= 10 || (y === 11 && x >= 18) || x <= left + 1 || x >= right - 1),
+      };
+    case 'long':
+      return {
+        back: (x, y) =>
+          (ellipse(16, 14, head.half + 2.2, 9)(x, y) && y <= 16) ||
+          (y > 15 &&
+            y <= 27 &&
+            x >= left - 2 &&
+            x <= right + 2 &&
+            (x <= left + 1 || x >= right - 1)),
+        front: (x, y) =>
+          crown(y, x) &&
+          (y <= 9 || (y <= 12 && x < 15 - (y - 9)) || x <= left + 1 || x >= right - 1),
+      };
+    case 'bun':
+      return {
+        back: none,
+        front: (x, y) => (crown(y, x) && y <= 9) || ellipse(16, 4, 3.2, 2.8)(x, y),
+      };
+    case 'pigtails':
+      return {
+        back: (x, y) =>
+          ellipse(left - 2.5, 15, 2.8, 3.6)(x, y) || ellipse(right + 3.5, 15, 2.8, 3.6)(x, y),
+        front: (x, y) => crown(y, x) && (y <= 9 || (y <= 11 && (x <= left + 1 || x >= right - 1))),
+      };
+    case 'afro':
+      return {
+        back: ellipse(16, 12.5, head.half + 5, 10.5),
+        front: (x, y) => crown(y, x) && y <= 9,
+      };
+  }
+}
+
+function accessory(recipe: IllustratedAvatarRecipe, grid: Grid): void {
+  const head = HEADS[recipe.head];
+  const left = Math.round(16 - head.half);
+  const right = Math.round(15 + head.half);
+  const shirt = recipe.shirtColor;
+  switch (recipe.accessory) {
+    case 'none':
+      return;
+    case 'beanie':
+      paint(grid, (x, y) => ellipse(16, 10, head.half + 1.6, 7)(x, y) && y <= 8, shirt);
+      paint(grid, (x, y) => y === 9 && x >= left - 1 && x <= right + 1, shade(shirt, 0.78));
+      dots(
+        grid,
+        [
+          [15, 2],
+          [16, 2],
+          [15, 1],
+          [16, 1],
+        ],
+        WHITE,
+      );
+      return;
+    case 'cap':
+      paint(grid, (x, y) => ellipse(16, 10, head.half + 1.4, 6.4)(x, y) && y <= 8, shirt);
+      paint(grid, (x, y) => y === 9 && x >= left - 1 && x <= right + 4, shade(shirt, 0.7));
+      return;
+    case 'headphones':
+      paint(
+        grid,
+        (x, y) =>
+          ellipse(16, 13, head.half + 2.4, 9.4)(x, y) &&
+          !ellipse(16, 13, head.half + 1.4, 8.4)(x, y) &&
+          y <= 13,
+        '#55545c',
+      );
+      paint(
+        grid,
+        (x, y) =>
+          y >= 13 &&
+          y <= 17 &&
+          (x === left - 2 || x === left - 1 || x === right + 1 || x === right + 2),
+        '#e2565f',
+      );
+      return;
+    case 'flower':
+      dots(
+        grid,
+        [
+          [22, 5],
+          [24, 5],
+          [23, 4],
+          [23, 6],
+        ],
+        '#f48fb1',
+      );
+      dots(grid, [[23, 5]], GOLD);
+      return;
+    case 'bow':
+      dots(
+        grid,
+        [
+          [20, 5],
+          [20, 6],
+          [20, 7],
+          [21, 6],
+          [22, 6],
+          [23, 6],
+          [24, 5],
+          [24, 6],
+          [24, 7],
+          [21, 5],
+          [21, 7],
+          [23, 5],
+          [23, 7],
+        ],
+        '#e2565f',
+      );
+      return;
+    case 'earring':
+      dots(
+        grid,
+        [
+          [left - 1, 18],
+          [right + 1, 18],
+        ],
+        GOLD,
+      );
+      return;
+    case 'crown':
+      dots(
+        grid,
+        [11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((x) => [x, 6] as Point),
+        GOLD,
+      );
+      dots(
+        grid,
+        [
+          [11, 5],
+          [11, 4],
+          [14, 5],
+          [14, 4],
+          [17, 5],
+          [17, 4],
+          [20, 5],
+          [20, 4],
+          [15, 5],
+          [16, 5],
+        ],
+        GOLD,
+      );
+      return;
+    case 'halo':
+      paint(
+        grid,
+        (x, y) => ellipse(16, 2.5, 6, 1.6)(x, y) && !ellipse(16, 2.5, 4, 0.8)(x, y),
+        GOLD,
+      );
+      return;
+  }
+}
+
+const MARKS: Record<(typeof AVATAR_MARKS)[number], { color: string; points: Point[] }> = {
+  'thinking-dots': {
+    color: '#e8a93a',
+    points: [
+      [26, 3],
+      [27, 2],
+      [28, 2],
+      [29, 3],
+      [29, 4],
+      [28, 5],
+      [28, 6],
+      [28, 8],
+    ],
+  },
+  searching: {
+    color: '#5a9be0',
+    points: [
+      [26, 3],
+      [27, 2],
+      [28, 2],
+      [29, 3],
+      [29, 4],
+      [28, 5],
+      [27, 5],
+      [26, 4],
+      [29, 6],
+      [30, 7],
+    ],
+  },
+  coding: {
+    color: '#5a9be0',
+    points: [
+      [27, 3],
+      [27, 4],
+      [26, 5],
+      [28, 5],
+      [27, 6],
+    ],
+  },
+  executing: {
+    color: '#e8a93a',
+    points: [
+      [27, 1],
+      [27, 2],
+      [27, 3],
+      [27, 4],
+      [27, 6],
+      [26, 3],
+      [28, 3],
+    ],
+  },
+  'generic-working': {
+    color: '#8a8792',
+    points: [
+      [24, 4],
+      [26, 4],
+      [28, 4],
+    ],
+  },
+};
 
 export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   if (!isIllustratedAvatarRecipe(recipe)) throw new Error('invalid Avatar recipe');
-  const { skinColor, hairColor, shirtColor } = recipe;
-  const face = FACES[recipe.head];
-  const hair = HAIR[recipe.hair];
-  const { left: lx, right: rx, y: ey } = face.eyes;
-  const { left: lEar, right: rEar, y: earY } = face.ears;
-  const { browY, noseY, mouthY, cheekY } = face;
-  const glasses =
-    recipe.accessory === 'glasses'
-      ? `<g fill="${ART.light}" fill-opacity=".18" stroke="${ART.ink}" stroke-width="2.4"><rect x="${lx - 9.5}" y="${ey - 7.5}" width="19" height="15" rx="5.5"/><rect x="${rx - 9.5}" y="${ey - 7.5}" width="19" height="15" rx="5.5"/><path d="M${lx + 9.5} ${ey - 2}Q64 ${ey - 5} ${rx - 9.5} ${ey - 2}" fill="none"/></g>`
-      : '';
+  const head = HEADS[recipe.head];
+  const skin = recipe.skinColor;
+  const hair = recipe.hairColor;
+  const left = Math.round(16 - head.half);
+  const right = Math.round(15 + head.half);
+
+  const body = blank();
+  paint(body, (x, y) => y >= 25 && Math.abs(x + 0.5 - 16) <= 8 + (y - 25) * 1.6, recipe.shirtColor);
+  paint(body, (x, y) => y >= head.chin - 1 && y <= 25 && x >= 14 && x <= 17, shade(skin, 0.86));
+  dots(
+    body,
+    [
+      [15, 25],
+      [16, 25],
+      [15, 26],
+      [16, 26],
+    ],
+    shade(skin, 0.86),
+  );
+
+  const masks = hairMask(recipe);
+  const base = blank();
+  paint(base, masks.back, hair);
+  dots(
+    base,
+    [
+      [left - 1, 15],
+      [left - 1, 16],
+      [right + 1, 15],
+      [right + 1, 16],
+    ],
+    skin,
+  );
+  paint(base, head.test, skin);
+  paint(base, masks.front, hair);
+  for (let y = SIZE - 1; y > 0; y--)
+    for (let x = 0; x < SIZE; x++)
+      if (base[y]![x] === skin && base[y - 1]![x] === hair) base[y]![x] = shade(skin, 0.88);
+  for (let y = 0; y < SIZE - 1; y++)
+    for (let x = 0; x < SIZE; x++)
+      if (base[y]![x] === hair && base[y + 1]![x] !== hair) base[y]![x] = shade(hair, 0.72);
+  accessory(recipe, base);
+
+  const face = blank();
+  const my = head.mouth;
+  const [lx, rx] = EYE_X;
+  if (recipe.brows !== 'none') {
+    dots(face, at(BROWS[recipe.brows], lx, EYE_Y - 3), INK);
+    dots(face, at(mirror(BROWS[recipe.brows]), rx, EYE_Y - 3), INK);
+  }
+  if (recipe.nose === 'dot') dots(face, [[16, EYE_Y + 3]], shade(skin, 0.72));
+  if (recipe.nose === 'button')
+    dots(
+      face,
+      [
+        [15, EYE_Y + 3],
+        [16, EYE_Y + 3],
+      ],
+      shade(skin, 0.8),
+    );
+  if (recipe.nose === 'line')
+    dots(
+      face,
+      [
+        [16, EYE_Y + 2],
+        [16, EYE_Y + 3],
+        [15, EYE_Y + 3],
+      ],
+      shade(skin, 0.62),
+    );
+  const mouth: Record<IllustratedAvatarRecipe['mouth'], [Point[], Point[]?]> = {
+    smile: [
+      [
+        [14, my],
+        [15, my + 1],
+        [16, my + 1],
+        [17, my],
+      ],
+    ],
+    grin: [
+      [
+        [13, my - 1],
+        [18, my - 1],
+        [14, my + 1],
+        [15, my + 1],
+        [16, my + 1],
+        [17, my + 1],
+      ],
+      [
+        [14, my],
+        [15, my],
+        [16, my],
+        [17, my],
+      ],
+    ],
+    open: [
+      [
+        [14, my],
+        [15, my],
+        [16, my],
+        [17, my],
+        [14, my + 1],
+        [17, my + 1],
+        [15, my + 2],
+        [16, my + 2],
+      ],
+      [
+        [15, my + 1],
+        [16, my + 1],
+      ],
+    ],
+    flat: [
+      [
+        [14, my],
+        [15, my],
+        [16, my],
+        [17, my],
+      ],
+    ],
+    smirk: [
+      [
+        [14, my],
+        [15, my],
+        [16, my],
+        [17, my - 1],
+      ],
+    ],
+    cat: [
+      [
+        [13, my],
+        [14, my + 1],
+        [15, my],
+        [16, my],
+        [17, my + 1],
+        [18, my],
+      ],
+    ],
+    tongue: [
+      [
+        [14, my],
+        [15, my + 1],
+        [16, my + 1],
+        [17, my],
+      ],
+      [
+        [16, my + 2],
+        [17, my + 2],
+      ],
+    ],
+    o: [
+      [
+        [15, my],
+        [16, my],
+        [14, my + 1],
+        [17, my + 1],
+        [15, my + 2],
+        [16, my + 2],
+      ],
+    ],
+  };
+  const [lips, inner] = mouth[recipe.mouth];
+  dots(face, lips, INK);
+  if (inner) dots(face, inner, recipe.mouth === 'grin' ? WHITE : TONGUE);
+  if (recipe.cheeks === 'blush')
+    dots(
+      face,
+      [
+        [left + 1, my - 2],
+        [left + 2, my - 2],
+        [right - 2, my - 2],
+        [right - 1, my - 2],
+      ],
+      BLUSH,
+    );
+  if (recipe.cheeks === 'freckles')
+    dots(
+      face,
+      [
+        [left + 1, my - 2],
+        [left + 3, my - 1],
+        [right - 3, my - 1],
+        [right - 1, my - 2],
+      ],
+      shade(skin, 0.66),
+    );
+
+  const eyes = blank();
+  const style = EYES[recipe.eyes];
+  dots(eyes, at(style.ink, lx, EYE_Y - 1), INK);
+  dots(eyes, at(recipe.eyes === 'wink' ? mirror(CLOSED) : mirror(style.ink), rx, EYE_Y - 1), INK);
+  if (style.light) {
+    dots(eyes, at(style.light, lx, EYE_Y - 1), WHITE);
+    if (recipe.eyes !== 'wink') dots(eyes, at(mirror(style.light), rx, EYE_Y - 1), WHITE);
+  }
+  const closed = blank();
+  dots(closed, at(CLOSED, lx, EYE_Y - 1), INK);
+  dots(closed, at(mirror(CLOSED), rx, EYE_Y - 1), INK);
+
+  const glasses = blank();
+  const frame = (cx: number, round: boolean) => {
+    for (let x = cx - 1; x <= cx + 2; x++)
+      if (!round || (x !== cx - 1 && x !== cx + 2))
+        dots(
+          glasses,
+          [
+            [x, EYE_Y - 2],
+            [x, EYE_Y + 2],
+          ],
+          INK,
+        );
+    for (let y = EYE_Y - 1; y <= EYE_Y + 1; y++)
+      dots(
+        glasses,
+        [
+          [cx - (round ? 2 : 1), y],
+          [cx + (round ? 3 : 2), y],
+        ],
+        INK,
+      );
+  };
+  if (recipe.glasses === 'round' || recipe.glasses === 'square') {
+    const round = recipe.glasses === 'round';
+    frame(lx, round);
+    frame(rx, round);
+    dots(
+      glasses,
+      [
+        [15, EYE_Y - 1],
+        [16, EYE_Y - 1],
+      ],
+      INK,
+    );
+  }
+  if (recipe.glasses === 'shades') {
+    for (const cx of EYE_X)
+      paint(glasses, (x, y) => x >= cx - 1 && x <= cx + 2 && y >= EYE_Y - 1 && y <= EYE_Y + 1, INK);
+    dots(
+      glasses,
+      [
+        [lx, EYE_Y - 1],
+        [rx, EYE_Y - 1],
+      ],
+      '#6b6a74',
+    );
+    dots(
+      glasses,
+      [
+        [14, EYE_Y - 1],
+        [15, EYE_Y - 1],
+        [16, EYE_Y - 1],
+        [17, EYE_Y - 1],
+      ],
+      INK,
+    );
+  }
+  if (recipe.glasses === 'monocle') {
+    frame(rx, true);
+    dots(
+      glasses,
+      [
+        [rx + 3, EYE_Y + 2],
+        [rx + 3, EYE_Y + 3],
+        [rx + 3, EYE_Y + 4],
+      ],
+      GOLD,
+    );
+  }
+
+  const marks = AVATAR_MARKS.map((mark) => {
+    const grid = blank();
+    dots(grid, MARKS[mark].points, MARKS[mark].color);
+    return `<g data-avatar-mark="${mark}" opacity="0">${rects(grid)}</g>`;
+  }).join('');
+
   return [
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512" aria-hidden="true">',
-    `<circle cx="64" cy="64" r="64" fill="${ART.paper}"/><circle cx="64" cy="64" r="64" fill="${shirtColor}" fill-opacity=".2"/>`,
-    `<g class="bh-illustrated-body"><path d="${NECK}" fill="${skinColor}"/><path d="${NECK}" fill="${ART.shade}" fill-opacity=".12"/><path d="${SHIRT}" fill="${shirtColor}"/><path d="M52 96.2Q64 108 76 96.2L73 96.2Q64 103 55 96.2Z" fill="${ART.shade}" fill-opacity=".14"/></g>`,
-    '<g class="bh-illustrated-head">',
-    hair.back ? `<path d="${hair.back}" fill="${hairColor}"${face.hairTransform}/>` : '',
-    `<g fill="${skinColor}"><circle cx="${lEar}" cy="${earY}" r="6.5"/><circle cx="${rEar}" cy="${earY}" r="6.5"/></g>`,
-    `<g fill="${ART.shade}" fill-opacity=".1"><circle cx="${lEar}" cy="${earY}" r="2.6"/><circle cx="${rEar}" cy="${earY}" r="2.6"/></g>`,
-    `<path d="${face.head}" fill="${skinColor}"/>`,
-    `<g${face.hairTransform}><path d="${hair.front}" fill="${ART.shade}" fill-opacity=".09" transform="translate(0 3)"/><path d="${hair.front}" fill="${hairColor}"/><path d="${hair.shine}" fill="${ART.light}" fill-opacity=".22"/></g>`,
-    '<g class="bh-illustrated-face">',
-    `<g fill="${ART.blush}" fill-opacity=".26"><ellipse cx="${lx - 6}" cy="${cheekY}" rx="5.5" ry="3.5"/><ellipse cx="${rx + 6}" cy="${cheekY}" rx="5.5" ry="3.5"/></g>`,
-    `<path d="M${lx - 6.5} ${browY + 0.5}Q${lx} ${browY - 2.5} ${lx + 6} ${browY}M${rx - 6} ${browY}Q${rx} ${browY - 2.5} ${rx + 6.5} ${browY + 0.5}" fill="none" stroke="${ART.ink}" stroke-opacity=".85" stroke-width="2.8" stroke-linecap="round"/>`,
-    `<g class="bh-illustrated-gaze"><g fill="${ART.ink}"><ellipse cx="${lx}" cy="${ey}" rx="3.5" ry="4.1"/><ellipse cx="${rx}" cy="${ey}" rx="3.5" ry="4.1"/></g><g fill="${ART.light}"><circle cx="${lx + 1.3}" cy="${ey - 1.5}" r="1.2"/><circle cx="${rx + 1.3}" cy="${ey - 1.5}" r="1.2"/></g></g>`,
-    `<path d="M64.5 ${noseY - 4}Q61 ${noseY + 2} 63 ${noseY + 3.5}Q65 ${noseY + 4.5} 67 ${noseY + 3}" fill="none" stroke="${ART.shade}" stroke-opacity=".22" stroke-width="2.2" stroke-linecap="round"/>`,
-    `<path d="M57 ${mouthY}Q64 ${mouthY + 1.6} 71 ${mouthY}Q69.5 ${mouthY + 7.5} 64 ${mouthY + 7.5}Q58.5 ${mouthY + 7.5} 57 ${mouthY}Z" fill="${ART.ink}"/>`,
-    `<path d="M59.8 ${mouthY + 5.3}Q64 ${mouthY + 3.3} 68.2 ${mouthY + 5.3}Q66.4 ${mouthY + 7.5} 64 ${mouthY + 7.5}Q61.6 ${mouthY + 7.5} 59.8 ${mouthY + 5.3}Z" fill="${ART.tongue}"/>`,
-    glasses,
-    '</g></g></svg>',
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="512" height="512" shape-rendering="crispEdges" aria-hidden="true">`,
+    `<rect width="${SIZE}" height="${SIZE}" rx="7" fill="${PAPER}"/><rect width="${SIZE}" height="${SIZE}" rx="7" fill="${recipe.shirtColor}" fill-opacity=".16"/>`,
+    `<g class="bh-illustrated-body">${rects(outline(body))}</g>`,
+    `<g class="bh-illustrated-head">${rects(outline(base))}`,
+    `<g class="bh-illustrated-face">${rects(face)}`,
+    `<g class="bh-illustrated-gaze">${rects(eyes)}</g>`,
+    `<g class="bh-illustrated-blink" opacity="0">${rects(closed)}</g>`,
+    `${rects(glasses)}</g></g>`,
+    `<g class="bh-illustrated-marks">${marks}</g>`,
+    '</svg>',
   ].join('');
 }

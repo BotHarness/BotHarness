@@ -56,7 +56,7 @@ describe('createPersonaBotRegistry', () => {
       ).toThrow('write refused');
       expect(readFileSync(join(root, 'ada', 'bot.json'), 'utf8')).toBe(original);
       expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance?.recipe.hair).toBe(
-        'sweep',
+        'crop',
       );
     } finally {
       writer.mockRestore();
