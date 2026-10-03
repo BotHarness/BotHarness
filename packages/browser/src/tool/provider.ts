@@ -46,6 +46,7 @@ export interface BrowserToolProviderOptions {
   readonly screenshotDir?: string;
   readonly screenshotLimit?: number;
   readonly isAutoAllowed: () => boolean;
+  readonly beforeExecution?: () => Promise<void>;
   readonly audit: (event: BrowserAuditEvent) => void;
   readonly note?: (detail: string) => void;
   readonly onActivity?: (slug: string) => void;
@@ -57,6 +58,7 @@ export interface BrowserToolProvider {
   executionSignal(sessionId: string): AbortSignal | undefined;
   needsAuthorization(sessionId: string): boolean;
   markAuthorized(sessionId: string): void;
+  resetRuntime(): void;
   reconcileBot(slug: string): Promise<void>;
   reconcileAll(): Promise<void>;
   isTakeover(slug: string): boolean;
@@ -587,6 +589,8 @@ export function createBrowserToolProvider(
             screenshotGuards.set(execution, assertScreenshotCurrent);
             signal.throwIfAborted();
             await authorize(execution, sessionId);
+            await options.beforeExecution?.();
+            signal.throwIfAborted();
             onActivity(slug);
             assertExecutionAllowed(spec.raw, slug);
             const result = await serialize(slug, () => {
@@ -807,6 +811,17 @@ export function createBrowserToolProvider(
     resetBot(slug) {
       tabsByBot.delete(slug);
       takeovers.delete(slug);
+    },
+
+    resetRuntime() {
+      for (const sessionId of [...registrations.keys()])
+        unregisterSession(
+          sessionId,
+          new Error('Browser Target changed; authorize the new browser'),
+        );
+      tabsByBot.clear();
+      takeovers.clear();
+      grants.clear();
     },
 
     async closeIdleTabs(idleMs) {

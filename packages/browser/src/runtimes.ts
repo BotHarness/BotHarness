@@ -1,5 +1,9 @@
 import { dirname, join } from 'node:path';
 import { readdir } from 'node:fs/promises';
+import {
+  createContainerBrowserExecution,
+  type ContainerBrowserOptions,
+} from './runtime/container.js';
 
 import {
   createBotBrowserRuntime,
@@ -17,6 +21,8 @@ export interface BotBrowserRuntimes {
 }
 
 export interface BotBrowserRuntimesOptions {
+  readonly target?: () => 'local' | 'container';
+  readonly onViewer?: ContainerBrowserOptions['onViewer'];
   readonly browserDir: string;
   readonly installDir: string;
   readonly browserPath?: string;
@@ -62,12 +68,24 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
 
   const entryFor = (slug: string): { runtime: BotBrowserRuntime; lastActivity: number } => {
     const profile = profileOf(slug);
-    const existing = entries.get(profile);
+    const target = options.target?.() ?? 'local';
+    const key = `${target}:${profile}`;
+    const existing = entries.get(key);
     if (existing !== undefined) return existing;
     const created = {
       runtime: create({
         ...(options.browserPath === undefined ? {} : { browserPath: options.browserPath }),
         userDataDir: directoryFor(profile),
+        ...(target === 'container'
+          ? {
+              execution: createContainerBrowserExecution({
+                profileDirectory: directoryFor(profile),
+                onEvent: (detail) =>
+                  options.onEvent?.(`[${profile === '' ? 'default' : profile}] ${detail}`),
+                ...(options.onViewer === undefined ? {} : { onViewer: options.onViewer }),
+              }),
+            }
+          : {}),
         installDir: options.installDir,
         ...(options.headless === true ? { headless: true } : {}),
         onEvent: (detail) =>
@@ -75,7 +93,7 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
       }),
       lastActivity: Date.now(),
     };
-    entries.set(profile, created);
+    entries.set(key, created);
     return created;
   };
 
@@ -90,21 +108,35 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
       for (const entry of entries.values()) {
         if (!entry.runtime.isRunning()) continue;
         if (Date.now() - entry.lastActivity < idleMs) continue;
-        await entry.runtime.stop().catch(() => undefined);
+        await entry.runtime
+          .stop()
+          .catch((error: unknown) =>
+            options.onEvent?.(
+              `initiator=idle phase=stop-refused detail=${String(error).slice(0, 200)}`,
+            ),
+          );
       }
     },
     async stop(slug) {
       const profile = profileOf(slug);
-      const entry = entries.get(profile);
+      const key = `${options.target?.() ?? 'local'}:${profile}`;
+      const entry = entries.get(key);
       if (entry === undefined) return;
-      await entry.runtime.stop().catch(() => undefined);
-      entries.delete(profile);
+      await entry.runtime.stop();
+      entries.delete(key);
     },
     async stopAll() {
-      for (const entry of entries.values()) {
-        await entry.runtime.stop().catch(() => undefined);
+      const failures: unknown[] = [];
+      for (const [key, entry] of entries) {
+        try {
+          await entry.runtime.stop();
+          entries.delete(key);
+        } catch (error) {
+          failures.push(error);
+        }
       }
-      entries.clear();
+      if (failures.length > 0)
+        throw new AggregateError(failures, 'Browser runtime disposal failed');
     },
     profileOf,
   };

@@ -6,11 +6,12 @@ import {
   type ComponentType,
   type ReactElement,
 } from 'react';
-import { Switch, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Modal, Switch, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
 import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
 import { ProfileCombobox } from './profile-combobox.js';
+import { registerBrowserSettings } from './settings.js';
 import { styles } from './styles.js';
 
 const ENTRY_ID = 'botharness-browser';
@@ -79,6 +80,8 @@ interface BrowserTabView {
 }
 
 interface BrowserObservation {
+  readonly target?: 'local' | 'container';
+  readonly viewerUrl?: string | null;
   readonly running: boolean;
   readonly frame: string | null;
   readonly focused: string | null;
@@ -189,14 +192,29 @@ function createObservationStore(botSlug: string | undefined): ObservationStore {
   let value: BrowserObservation | undefined;
   let tab: string | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let refreshing = false;
+  let refreshAgain = false;
   const listeners = new Set<() => void>();
   const refresh = async (): Promise<void> => {
+    if (refreshing) {
+      refreshAgain = true;
+      return;
+    }
+    refreshing = true;
+    const requestedTab = tab;
     try {
-      value = await requestJson<BrowserObservation>(observationUrl(botSlug, tab));
+      const next = await requestJson<BrowserObservation>(observationUrl(botSlug, requestedTab));
+      if (tab === requestedTab) value = next;
     } catch {
-      value = undefined;
+      if (tab === requestedTab) value = undefined;
+    } finally {
+      refreshing = false;
     }
     for (const listener of listeners) listener();
+    if (refreshAgain && listeners.size > 0) {
+      refreshAgain = false;
+      void refresh();
+    }
   };
   return {
     subscribe(listener) {
@@ -331,6 +349,8 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const [profileInvalid, setProfileInvalid] = useState(false);
   const [profileOverride, setProfileOverride] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [viewer, setViewer] = useState<string | undefined>();
+  const [interaction, setInteraction] = useState(false);
 
   const tabs = observation?.tabs ?? [];
   const focused = observation?.focused ?? null;
@@ -344,11 +364,25 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     setBusy(true);
     setProfileInvalid(false);
     setError(undefined);
-    void requestJson<{ ok: boolean }>(endpoint, {
+    void requestJson<{ ok: boolean; viewerUrl?: string | null }>(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ slug: botSlug, ...body }),
     })
+      .then((result) => {
+        if (
+          endpoint === OPEN_ENDPOINT &&
+          result.viewerUrl !== undefined &&
+          result.viewerUrl !== null
+        ) {
+          setViewer(result.viewerUrl);
+          setInteraction(false);
+        }
+        if (endpoint === STOP_ENDPOINT) {
+          setViewer(undefined);
+          setInteraction(false);
+        }
+      })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => {
         setBusy(false);
@@ -478,6 +512,72 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           </button>
         ) : null}
       </div>
+      {viewer === undefined ||
+      observation?.target !== 'container' ||
+      observation.viewerUrl !== viewer ? null : (
+        <Modal
+          open
+          title={t('entry.view.container')}
+          closeLabel={t('entry.view.close')}
+          className="bh-browser-viewer"
+          onClose={() => {
+            setViewer(undefined);
+            setInteraction(false);
+          }}
+        >
+          <div className="bh-browser-viewer-controls">
+            <button type="button" style={buttonStyle} disabled={busy} onClick={onPause}>
+              {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
+            </button>
+            <span>{t('entry.view.interaction')}</span>
+            <Switch
+              checked={interaction && paused}
+              label={t('entry.view.interaction')}
+              onChange={(next) => {
+                if (!next) {
+                  setInteraction(false);
+                  return;
+                }
+                if (busy || botSlug === undefined) return;
+                setBusy(true);
+                setError(undefined);
+                void requestJson<{ takeover: boolean }>(TAKEOVER_ENDPOINT, {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ slug: botSlug, active: true }),
+                })
+                  .then((result) => setInteraction(result.takeover))
+                  .catch((cause: unknown) => setError(String(cause)))
+                  .finally(() => {
+                    setBusy(false);
+                    store.refresh();
+                  });
+              }}
+              disabled={busy}
+            />
+            <button
+              type="button"
+              style={buttonStyle}
+              disabled={busy}
+              onClick={() => invoke(STOP_ENDPOINT)}
+            >
+              {t('entry.view.stop')}
+            </button>
+          </div>
+          <iframe
+            key={interaction && paused ? 'interactive' : 'readonly'}
+            src={viewer}
+            title={t('entry.view.container')}
+            tabIndex={interaction && paused ? 0 : -1}
+            style={{
+              width: '100%',
+              height: 'min(70vh, 768px)',
+              border: 0,
+              pointerEvents: interaction && paused ? 'auto' : 'none',
+            }}
+          />
+        </Modal>
+      )}
       {tabs.length === 0 ? (
         <div style={{ opacity: 0.6 }}>{t('entry.view.noTabs')}</div>
       ) : (
@@ -521,6 +621,7 @@ function createBrowserHeader(t: BrowserTranslate): ComponentType<ChannelSidebarE
 
 export function apply(ctx: BrowserClientContext): void {
   const t = ctx.locale.bind(LOCALE_NS);
+  registerBrowserSettings(ctx, t);
   ctx.effect(() => {
     const sheet = document.createElement('style');
     sheet.textContent = styles;

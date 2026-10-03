@@ -678,7 +678,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
             ownsTool?(name: string): boolean;
             executionSignal?(sessionId: string): AbortSignal | undefined;
             needsAuthorization?(sessionId: string): boolean;
-            markAuthorized?(sessionId: string): void;
+            authorizationScope?(): string;
+            markAuthorized?(sessionId: string, scope?: string): boolean | void;
           }
         | undefined;
       if (browserTools?.ownsTool?.(execution.name) === true) {
@@ -686,6 +687,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         if (browserTools.executionSignal !== undefined && browserSignal === undefined)
           return { kind: 'deny', reason: 'Browser Access is off for this PersonaBot' };
         if (browserTools.needsAuthorization?.(agent.session.id) !== true) return next();
+        const browserAuthorizationScope = browserTools.authorizationScope?.();
         const browserApproval = ctx.get('approval') as ApprovalService | undefined;
         const untrackBrowser = toolApproval.track(execution);
         if (browserApproval === undefined || untrackBrowser === undefined) {
@@ -702,7 +704,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           if (outcome !== 'allowed-once') {
             return { kind: 'deny', reason: 'Human approval was ' + outcome };
           }
-          browserTools.markAuthorized?.(agent.session.id);
+          if (browserTools.markAuthorized?.(agent.session.id, browserAuthorizationScope) === false)
+            return {
+              kind: 'deny',
+              reason: 'Browser Target changed while awaiting Human approval; request a new action.',
+            };
           approvedCalls.add(execution.token);
           return await next();
         } catch {

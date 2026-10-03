@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded native configForms scope receiver preservation in the [local development guide](../dsh-dev/SKILL.md), verified against pinned DSH 0.2.0 RC1 settings and persisted Browser Target after Host restart ([#726](https://github.com/BotHarness/BotHarness/issues/726)).
+
 - Recorded directory picker capability differences and native selection fallback in the [local development guide](../dsh-dev/SKILL.md), verified against pinned DSH 0.2.0 RC1 with a real Inbox Grant flow ([#552](https://github.com/BotHarness/BotHarness/issues/552)).
 
 - Recorded the open-Turn requirement for native approval probes in the [local development guide](../dsh-dev/SKILL.md), verified against pinned DSH 0.2.0 RC1 source and real Browser approval/cancellation turns ([#460](https://github.com/BotHarness/BotHarness/issues/460)).

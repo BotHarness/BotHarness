@@ -19,6 +19,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Bots can explicitly share one own-Inbox external source into a joined team Channel, preserving original provenance and independent member attention without forwarding future traffic or borrowing external identities ([#636](https://github.com/BotHarness/BotHarness/issues/636)).
 
+- Active Orchestrator work determines the shared Bot Activity without concurrent Assignment Tool details overriding it; expanded Session rows still show both, and finishing the Orchestrator returns presentation to remaining Assignment work ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
+- Added a managed Container Browser target with separate profile data, the existing native Browser approval and an authenticated Human preview with explicit paused interaction; Local stays the default ([#726](https://github.com/BotHarness/BotHarness/issues/726), [ADR-0114](docs/adr/0114-browser-targets-share-capabilities-with-separate-execution-worlds.md)).
 - Channel sidebar settings adds personal order editing with drag and keyboard controls, draft Done/Cancel/default actions, permission-safe expansion restoration and separate browser-persistent DM/group orders ([#721](https://github.com/BotHarness/BotHarness/issues/721)).
 
 - Computer and Browser Access use compact Lucide Power controls with localized permission actions, Host-confirmed state, pending guards and failure feedback ([#720](https://github.com/BotHarness/BotHarness/issues/720)).

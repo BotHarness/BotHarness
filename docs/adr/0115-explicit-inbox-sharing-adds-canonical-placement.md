@@ -1,4 +1,4 @@
-# ADR-0114: Explicit Inbox sharing adds a canonical Channel placement
+# ADR-0115: Explicit Inbox sharing adds a canonical Channel placement
 
 - Status: Accepted
 - Date: 2026-10-03

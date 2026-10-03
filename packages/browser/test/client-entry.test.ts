@@ -43,7 +43,8 @@ describe('browser client module face', () => {
         callback();
         return () => undefined;
       },
-      inject: (_deps: readonly string[], callback: (child: unknown) => void) => {
+      inject: (deps: readonly string[], callback: (child: unknown) => void) => {
+        if (deps.includes('configForms')) return;
         callback({
           channelSidebar: {
             register: (entry: {
