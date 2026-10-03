@@ -1,6 +1,14 @@
 export const LOCALE_NS = 'botharness-browser';
 
 export const zh = {
+  'settings.daily-control': '日常 Chrome · 控制',
+  'entry.daily.install': '安装 Playwright 扩展',
+  'entry.daily.connect': '连接现有页面',
+  'entry.daily.select': '请在 Chrome 中选择一个现有标签页',
+  'entry.daily.confirm': '已连接，尚未允许操作',
+  'entry.daily.controlled': '已允许此页面的读取、输入和点击',
+  'entry.daily.allow': '允许控制此页面',
+
   'entry.live': '已连接',
   'entry.noScreen': '暂无画面',
   'entry.connecting': '连接中',
@@ -54,6 +62,14 @@ export const zh = {
 export type BrowserKey = keyof typeof zh;
 
 export const en: Record<BrowserKey, string> = {
+  'settings.daily-control': 'Daily Chrome · Control',
+  'entry.daily.install': 'Install Playwright extension',
+  'entry.daily.connect': 'Connect existing page',
+  'entry.daily.select': 'Select one existing Chrome tab',
+  'entry.daily.confirm': 'Connected · control not granted',
+  'entry.daily.controlled': 'This document allows observe, type and click',
+  'entry.daily.allow': 'Allow control of this document',
+
   'entry.live': 'Connected',
   'entry.noScreen': 'No screen',
   'entry.connecting': 'Connecting',

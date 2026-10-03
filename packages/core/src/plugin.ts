@@ -721,7 +721,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
             agent,
             toolName: execution.name,
             callId: execution.callId,
-            reason: "This PersonaBot wants to act in the profile's shared Bot Browser.",
+            reason: 'This PersonaBot wants to use the Browser authorized by the Human.',
             signal: AbortSignal.any([execution.signal, browserSignal ?? execution.signal]),
           });
           if (outcome !== 'allowed-once') {
