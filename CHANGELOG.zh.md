@@ -293,6 +293,8 @@
 
 ### Fixed
 
+- 折叠应用侧栏 Rail 中的 PersonaBot 数字头像徽标完整显示，首行与置顶频道不再被裁切，同时保持原生侧栏滚动行为（[#744](https://github.com/BotHarness/BotHarness/issues/744)）。
+
 - macOS Local Computer 在 driver 空闲过期后可继续取得新的观察，旧 snapshot 和 element token 仍保持失效（[#713](https://github.com/BotHarness/BotHarness/issues/713)）。
 
 - Computer Audit 将 driver 返回的工具失败正确记为错误，截图或窗口请求被拒绝时不再显示成功，且不记录观察内容（[#708](https://github.com/BotHarness/BotHarness/issues/708)）。

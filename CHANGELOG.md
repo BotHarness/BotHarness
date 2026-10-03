@@ -293,6 +293,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Numeric PersonaBot avatar badges remain fully visible in the collapsed app Rail, including the first and pinned Channel rows, without changing native sidebar scrolling ([#744](https://github.com/BotHarness/BotHarness/issues/744)).
+
 - macOS Local Computer now resumes fresh observations after driver idle expiry, while expired snapshot and element tokens remain invalid ([#713](https://github.com/BotHarness/BotHarness/issues/713)).
 
 - Computer Audit now records driver-returned tool failures as errors, so refused screenshot and window requests no longer appear successful; observation content stays out of Audit ([#708](https://github.com/BotHarness/BotHarness/issues/708)).

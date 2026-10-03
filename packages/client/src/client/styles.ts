@@ -704,6 +704,10 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   line-height: 14px;
   font-weight: 600;
 }
+.bh-rail-channel .bh-avatar-attention {
+  right: 0;
+  top: 0;
+}
 .bh-avatar-indicator {
   position: absolute;
   right: -2px;
