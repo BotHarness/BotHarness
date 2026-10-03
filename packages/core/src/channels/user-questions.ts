@@ -33,6 +33,7 @@ type Pending = {
   reject(reason: Error): void;
   abort(): void;
   deciding: boolean;
+  committed: boolean;
 };
 
 function validAnswer(questions: AskUserQuestionItem[], answer: AskUserQuestionAnswer): boolean {
@@ -68,6 +69,7 @@ export class ChannelUserQuestions {
   readonly #ownership: SessionOwnership;
   readonly #isLive: (agent: Agent) => boolean;
   readonly #warn: (message: string) => void;
+  readonly #changed: (slug: string, count: number) => void;
   readonly #pending = new Map<string, Pending>();
 
   constructor(
@@ -75,11 +77,13 @@ export class ChannelUserQuestions {
     ownership: SessionOwnership,
     isLive: (agent: Agent) => boolean = () => true,
     warn: (message: string) => void = () => undefined,
+    changed: (slug: string, count: number) => void = () => undefined,
   ) {
     this.#channels = channels;
     this.#ownership = ownership;
     this.#isLive = isLive;
     this.#warn = warn;
+    this.#changed = changed;
   }
 
   async ask(request: AskUserQuestionRequestEvent): Promise<AskUserQuestionAnswer | undefined> {
@@ -123,15 +127,24 @@ export class ChannelUserQuestions {
       reject,
       abort: () => this.#cancel(message.id),
       deciding: false,
+      committed: false,
     };
     this.#pending.set(message.id, pending);
     request.signal?.addEventListener('abort', pending.abort, { once: true });
     try {
       if ((await this.#channels.appendMessage(channelId, message)) === undefined) return undefined;
+      if (this.#pending.get(message.id) === pending) {
+        pending.committed = true;
+        if (this.status(pending.botSlug, message.id) === 'pending')
+          this.#publishAttention(pending.botSlug);
+      }
       return await answer;
     } finally {
       request.signal?.removeEventListener('abort', pending.abort);
-      if (this.#pending.get(message.id) === pending) this.#pending.delete(message.id);
+      if (this.#pending.get(message.id) === pending) {
+        this.#pending.delete(message.id);
+        if (pending.committed) this.#publishAttention(pending.botSlug);
+      }
     }
   }
 
@@ -199,11 +212,28 @@ export class ChannelUserQuestions {
         return false;
       if (this.#pending.get(messageId) !== pending || pending.signal?.aborted) return false;
       this.#pending.delete(messageId);
+      this.#publishAttention(pending.botSlug);
       pending.signal?.removeEventListener('abort', pending.abort);
       pending.resolve(answer);
       return true;
     } finally {
       pending.deciding = false;
+    }
+  }
+
+  cancelSession(sessionId: string): void {
+    for (const [id, pending] of this.#pending)
+      if (pending.agent.session.id === sessionId) this.#cancel(id);
+  }
+
+  #publishAttention(slug: string): void {
+    const count = [...this.#pending.values()].filter(
+      (pending) => pending.botSlug === slug && pending.committed,
+    ).length;
+    try {
+      this.#changed(slug, count);
+    } catch {
+      this.#warn('user-question-attention-publication-failed');
     }
   }
 
@@ -215,6 +245,7 @@ export class ChannelUserQuestions {
     const pending = this.#pending.get(messageId);
     if (pending === undefined) return;
     this.#pending.delete(messageId);
+    if (pending.committed) this.#publishAttention(pending.botSlug);
     pending.signal?.removeEventListener('abort', pending.abort);
     const resolution: ChannelMessage = {
       id: randomUUID(),
