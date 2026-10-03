@@ -19,6 +19,8 @@
 
 - PersonaBot Profile 可预览、取消和保存原创像素人物头像，按仿 Notion 脸谱的分类选择脸型、发型、眼睛、眉毛、鼻子、嘴巴、脸颊、眼镜、配饰以及肤色、发色、眼睛与衣服颜色；保存外形在侧栏与 Profile 大图保持一致，消费现有活动和独立审批 attention，并在重启后恢复（[#751](https://github.com/BotHarness/BotHarness/issues/751)）。
 
+- Assignment 等待 Human 回答或受阻的报告现在通过侧栏、消息框和总览共享独立 Activity 待办数；权威回复、隐藏待办或停止会清除提示，未解决的持久化报告在重启后保留 ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - Human 可将多个已授权 Lark 群接入共享 Channel、明确的 Bot DM 或仅 Inbox 目标；连接器分别启停，同一来源保留一份 canonical 内容，重叠收到的 Bot 只处理一次，各接收路径独立保留策略证据（[#635](https://github.com/BotHarness/BotHarness/issues/635)、[ADR-0120](docs/adr/0120-multiple-bridge-routes-retain-canonical-sources.md)）。
 
 - Bot 原生待回答问题与工具审批共同显示在共享待办数字中，悬浮说明分别展示数量，回答或取消后及时清除，执行动画保持独立 ([#123](https://github.com/BotHarness/BotHarness/issues/123))。
@@ -302,6 +304,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- Group Profile 的成员消息活跃使用外部平台与来源群名称，同一来源的发送人合并统计，不同来源分别显示（[#769](https://github.com/BotHarness/BotHarness/issues/769)）。
 
 - 折叠应用侧栏 Rail 中的 PersonaBot 数字头像徽标完整显示，首行与置顶频道不再被裁切，同时保持原生侧栏滚动行为（[#744](https://github.com/BotHarness/BotHarness/issues/744)）。
 

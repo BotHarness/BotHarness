@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - PersonaBot Profile can preview, cancel and save an original pixel-art avatar from a Notion-Faces-style catalog of face, hair, eyes, brows, nose, mouth, cheeks, glasses, accessory, skin/hair/eye/shirt color; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 
+- Assignment reports awaiting a Human answer or blocked decision now share independent Activity badge counts with sidebar, composer and Overview; canonical responses, dismissal and stop clear the counts, and unresolved durable reports survive restart ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - A Human can route multiple authorized Lark groups into shared Channels, explicit Bot DMs or Inbox-only targets, with independent connector switches, one canonical message and one processing unit per overlapping Bot; each receiving path retains its own policy evidence ([#635](https://github.com/BotHarness/BotHarness/issues/635), [ADR-0120](docs/adr/0120-multiple-bridge-routes-retain-canonical-sources.md)).
 
 - Pending native Bot questions now contribute to the shared attention badge alongside Tool approvals, with distinct hover counts and immediate clearing after answer or cancellation; execution motion remains independent ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
@@ -302,6 +304,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Group Profile member message activity identifies external traffic by its platform and source group name, combining senders within one source while keeping different sources separate ([#769](https://github.com/BotHarness/BotHarness/issues/769)).
 
 - Numeric PersonaBot avatar badges remain fully visible in the collapsed app Rail, including the first and pinned Channel rows, without changing native sidebar scrolling ([#744](https://github.com/BotHarness/BotHarness/issues/744)).
 

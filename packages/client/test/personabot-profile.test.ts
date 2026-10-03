@@ -55,7 +55,9 @@ import type { BridgeActions } from '../src/client/actions.js';
 import { BotMain } from '../src/client/bot-main.js';
 import { createChannelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
 import { createChannelSidebarRegistry } from '../src/client/channel-sidebar.js';
-import { zhTranslate } from '../src/client/locale.js';
+import { zhTranslate, en, type BotHarnessTranslate } from '../src/client/locale.js';
+import { createGroupProfileCards } from '../src/client/group-profile.js';
+import { loadGroupProfileActivity, type GroupProfileActivity } from '../src/client/bridge.js';
 import { createProfileCardBuiltins } from '../src/client/profile-cards-builtins.js';
 import { createProfileCardRegistry } from '../src/client/profile-cards.js';
 import { store } from '../src/client/store.js';
@@ -548,5 +550,134 @@ describe('Token chart', () => {
       outputPercent: 0,
     });
     expect(formatTokenCount(254_316)).toBe('254.3K');
+  });
+});
+
+const enTranslate: BotHarnessTranslate = (key, params) => {
+  const value: unknown = Reflect.get(en, key);
+  const text = typeof value === 'string' ? value : key;
+  return text.replace(/\{(\w+)\}/g, (_, name: string) => String(params?.[name] ?? `{${name}}`));
+};
+
+describe('Group member source labels', () => {
+  it.each([
+    [zhTranslate, '外部来源：Lark/飞书 Source A', false],
+    [zhTranslate, '外部来源：Lark/飞书 Source A', true],
+    [enTranslate, 'External source: Lark/Feishu Source A', false],
+    [enTranslate, 'External source: Lark/Feishu Source A', true],
+  ] as const)(
+    'renders friendly source names and distinct source rows (%s, compact %s)',
+    async (t, label, compact) => {
+      Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+      const activity: GroupProfileActivity = {
+        channelId: 'group-sources',
+        weeks: 26,
+        since: '2026-04-01',
+        today: '2026-10-04',
+        days: [],
+        authors: [
+          {
+            author: { kind: 'bridged', source: 'raw-sender' },
+            bridgeOrigin: {
+              platform: 'feishu',
+              conversationId: 'source-a',
+              conversationName: 'Source A',
+            },
+            total: 4,
+            days: [],
+          },
+          {
+            author: { kind: 'bridged', source: 'raw-sender' },
+            bridgeOrigin: {
+              platform: 'feishu',
+              conversationId: 'source-b',
+              conversationName: 'Source B',
+            },
+            total: 2,
+            days: [],
+          },
+          { author: { kind: 'bot', slug: 'ada' }, total: 1, days: [] },
+        ],
+      };
+      const loaded = await loadGroupProfileActivity(
+        async () => ({ ok: true, value: activity }),
+        'group-sources',
+      );
+      const container = document.createElement('div');
+      document.body.append(container);
+      const root = createRoot(container);
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const card = createGroupProfileCards(t).find((card) => card.id === 'group-members')!;
+        await act(async () =>
+          root.render(
+            card.render({
+              channel: {
+                id: 'group-sources',
+                type: 'group',
+                name: 'Sources',
+                members: ['ada'],
+                createdAt: '',
+                updatedAt: '',
+              },
+              activity: loaded,
+              t,
+              compact,
+              botNames: new Map([['ada', 'Ada']]),
+            }),
+          ),
+        );
+        expect(container.querySelectorAll('li')).toHaveLength(3);
+        expect(container.textContent).toContain(label);
+        expect(container.textContent).toContain('Source B');
+        expect(container.textContent).toContain('Ada');
+        expect(container.textContent).not.toContain('raw-sender');
+        expect(
+          [...container.querySelectorAll('.bh-profile-reason-count')].map(
+            (element) => element.textContent,
+          ),
+        ).toEqual(['4', '2', '1']);
+        expect(errors).not.toHaveBeenCalled();
+      } finally {
+        await act(async () => root.unmount());
+        container.remove();
+        errors.mockRestore();
+      }
+    },
+  );
+
+  it('accepts legacy activity and rejects malformed source metadata at the Client boundary', async () => {
+    const legacy = {
+      channelId: 'group-old',
+      weeks: 26,
+      since: '',
+      today: '',
+      days: [],
+      authors: [{ author: { kind: 'bridged', source: 'legacy' }, total: 1, days: [] }],
+    };
+    expect(
+      await loadGroupProfileActivity(async () => ({ ok: true, value: legacy }), 'group-old'),
+    ).toEqual(legacy);
+    await expect(
+      loadGroupProfileActivity(
+        async () => ({
+          ok: true,
+          value: {
+            ...legacy,
+            authors: [
+              {
+                ...legacy.authors[0],
+                bridgeOrigin: {
+                  platform: 'feishu',
+                  conversationId: null,
+                  conversationName: 'Source',
+                },
+              },
+            ],
+          },
+        }),
+        'group-old',
+      ),
+    ).rejects.toThrow('invalid Group Profile activity');
   });
 });

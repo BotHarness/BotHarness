@@ -2347,6 +2347,10 @@ export interface ProfileActivity {
 
 export interface GroupProfileAuthorActivity {
   author: ChannelAuthor;
+  bridgeOrigin?: Pick<
+    NonNullable<ChannelMessage['bridgeOrigin']>,
+    'platform' | 'conversationId' | 'conversationName'
+  >;
   total: number;
   days: ProfileActivityDay[];
 }
@@ -2673,7 +2677,12 @@ export async function loadGroupProfileActivity(
         entry !== undefined &&
         parseAuthor(entry['author']) !== undefined &&
         typeof entry['total'] === 'number' &&
-        isActivityDays(entry['days'])
+        isActivityDays(entry['days']) &&
+        (entry['bridgeOrigin'] === undefined ||
+          (asRecord(entry['bridgeOrigin']) !== undefined &&
+            ['platform', 'conversationId', 'conversationName'].every(
+              (key) => typeof asRecord(entry['bridgeOrigin'])![key] === 'string',
+            )))
       );
     })
   )

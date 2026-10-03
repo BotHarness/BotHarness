@@ -1,5 +1,6 @@
 import { useState, type ReactElement } from 'react';
 
+import { bridgeSourceLabel } from './bridge-source-label.js';
 import { Modal } from './modal.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ChannelMessage } from './store.js';
@@ -45,8 +46,7 @@ export function BridgeSourceAuthor({
   t: BotHarnessTranslate;
 }): ReactElement {
   const [open, setOpen] = useState(false);
-  const platform = origin.platform === 'feishu' ? t('im.platform.feishu') : origin.platform;
-  const source = `${platform} ${origin.conversationName}`;
+  const source = bridgeSourceLabel(origin, t);
   return (
     <>
       <button

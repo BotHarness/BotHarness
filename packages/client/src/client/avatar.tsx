@@ -156,6 +156,19 @@ export function personaBotPresentationSummary(
           count: attention.questionCount,
         })
       : undefined,
+    attention?.waitingHumanCount
+      ? t(
+          attention.waitingHumanCount === 1
+            ? 'activity.waitingHumanCountOne'
+            : 'activity.waitingHumanCount',
+          { count: attention.waitingHumanCount },
+        )
+      : undefined,
+    attention?.blockedCount
+      ? t(attention.blockedCount === 1 ? 'activity.blockedCountOne' : 'activity.blockedCount', {
+          count: attention.blockedCount,
+        })
+      : undefined,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -291,6 +304,8 @@ export function PersonaBotAvatar({
           className="bh-avatar-attention"
           data-approval-count={attention.approvalCount}
           data-question-count={attention.questionCount ?? 0}
+          data-waiting-human-count={attention.waitingHumanCount ?? 0}
+          data-blocked-count={attention.blockedCount ?? 0}
           aria-hidden="true"
         >
           {attentionCount(attention) > 99 ? '99+' : attentionCount(attention)}
