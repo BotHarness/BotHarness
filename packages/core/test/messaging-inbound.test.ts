@@ -3327,6 +3327,66 @@ it('replies to one shared source under two independent own identities, preserves
   ).rejects.toThrow('request-conflict');
 });
 
+it('acquires the responder connection without enabling reception, discards its inbound messages, and releases it when identity pauses', async () => {
+  const fx = await secondResponder();
+  type Consumer = Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1];
+  let responder: Consumer | undefined;
+  const consume = fx.publicService.consumeInbound!;
+  fx.publicService.consumeInbound = async (account, input) => {
+    if (account === 'lark-bea') responder = input;
+    return consume(account, input);
+  };
+  const qualify = fx.publicService.qualifyReplyChecked!;
+  fx.publicService.qualifyReplyChecked = async (account, route, options) => {
+    if (!responder || responder.signal?.aborted)
+      throw Object.assign(new Error('No owned consumer'), { code: 'capability-unavailable' });
+    return qualify(account, route, options);
+  };
+  const reply = await fx.core.externalMessaging.reply('bea', fx.sourceId, 'Own connection reply');
+  expect(reply.state).toBe('provider-accepted');
+  expect(responder).toBeDefined();
+  expect(fx.core.externalMessaging.inbound.status(fx.responderGrant.id)).toBe('off');
+  const sourceCount = fx.query('SELECT * FROM source_events').length;
+  await responder!.onEvent(
+    event({
+      botId: 'lark-bea',
+      fingerprint: 'b'.repeat(64),
+      messageId: 'om-not-collected',
+      reply: { ...event().reply, messageId: 'om-not-collected' },
+    }),
+    { signal: responder!.signal! },
+  );
+  expect(fx.query('SELECT * FROM source_events')).toHaveLength(sourceCount);
+  expect(fx.query("SELECT * FROM inbox_admissions WHERE bot_slug = 'bea'")).toHaveLength(0);
+  await responder!.onEcho?.(
+    {
+      version: 1,
+      botId: 'lark-bea',
+      fingerprint: 'b'.repeat(64),
+      eventId: 'echo-bea',
+      messageId: 'lark-bea-reply',
+      conversationId: 'oc-team',
+      text: 'Own connection reply',
+      at: '2026-10-04T00:00:00.000Z',
+    },
+    { signal: responder!.signal! },
+  );
+  expect(fx.core.externalMessaging.history('bea')[0]?.echo).toMatchObject({ eventId: 'echo-bea' });
+  const identity = (await fx.core.externalMessaging.snapshot('bea')).identities![0]!;
+  await fx.core.externalMessaging.identity('bea', {
+    kind: 'update',
+    id: identity.id,
+    expectedRevision: identity.revision,
+    name: identity.name,
+    enabled: false,
+  });
+  expect(responder!.signal?.aborted).toBe(true);
+  await expect(fx.core.externalMessaging.reply('bea', fx.sourceId, 'No fallback')).rejects.toThrow(
+    'identity-paused',
+  );
+  expect(fx.replies).toHaveLength(1);
+});
+
 it('does not let an unavailable grant for a different group block the responder own-source reply', async () => {
   const fx = await secondResponder();
   const targets = await fx.publicService.listTargets('lark-bea');

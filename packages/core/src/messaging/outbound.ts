@@ -465,6 +465,7 @@ export function createOutboundMessaging(options: {
       !entry.provider.reply
     )
       throw new MessagingError('capability-unavailable');
+    await inbound.ensureReplyConsumer(botSlug, value.id, signal);
     const route = await entry.provider.qualifyReply({
       accountRef: value.accountRef,
       fingerprint: value.fingerprint,

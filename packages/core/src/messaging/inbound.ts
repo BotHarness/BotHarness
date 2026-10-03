@@ -143,6 +143,7 @@ export interface InboundMessaging {
     query: ExternalContextQuery,
     signal?: AbortSignal,
   ): Promise<ExternalContextResult>;
+  ensureReplyConsumer(botSlug: string, grantId: string, signal: AbortSignal): Promise<void>;
   reconcileBinding(bindingId: string): Promise<void>;
   revoke(grantId: string): void;
   close(): void;
@@ -197,6 +198,7 @@ export function createInboundMessaging(options: {
     }
   >();
   const retries = new Map<string, { timer: ReturnType<typeof setTimeout>; token: object }>();
+  const replyStarts = new Map<string, Promise<void>>();
   let closed = false;
   const cursors = new Map<
     string,
@@ -317,7 +319,7 @@ export function createInboundMessaging(options: {
       throw error;
     }
   };
-  const valid = (value: MessagingGrant): boolean => {
+  const valid = (value: MessagingGrant, reception = true): boolean => {
     value = grant(value.id);
     const lease = leases.get(value.id);
     return (
@@ -327,7 +329,7 @@ export function createInboundMessaging(options: {
       options.isBotActive(value.botSlug) &&
       value.revokedAt === undefined &&
       value.suspendedReason === undefined &&
-      value.receiveScope !== undefined &&
+      (!reception || value.receiveScope !== undefined) &&
       lease !== undefined &&
       lease.dispose !== undefined &&
       !lease.controller.signal.aborted &&
@@ -359,7 +361,7 @@ export function createInboundMessaging(options: {
     ) as { bot_slug: string }[];
     options.onShared?.(pending.map((row) => row.bot_slug));
   };
-  const start = async (value: MessagingGrant, attempt = 0) => {
+  const start = async (value: MessagingGrant, attempt = 0, replyOnly = false) => {
     stop(value.id);
     const entry = providers.get(value.providerId);
     if (
@@ -367,7 +369,7 @@ export function createInboundMessaging(options: {
       options.bindingAvailable?.(value.bindingId) === false ||
       !entry?.provider.consume ||
       !entry.provider.reply ||
-      !value.receiveScope ||
+      (!value.receiveScope && !replyOnly) ||
       value.revokedAt ||
       value.suspendedReason ||
       !options.isBotActive(value.botSlug)
@@ -388,7 +390,9 @@ export function createInboundMessaging(options: {
       if (
         inspected.account.fingerprint !== value.fingerprint ||
         inspected.target.digest !== value.targetDigest ||
-        inspected.target.receiveScope?.conversationId !== value.receiveScope.conversationId
+        (value.receiveScope
+          ? inspected.target.receiveScope?.conversationId !== value.receiveScope.conversationId
+          : !inspected.target.receiveScope)
       )
         throw new MessagingError('rebind-required');
       transaction((db) => initializeGroupReceptionPolicy(db, value.id));
@@ -400,12 +404,22 @@ export function createInboundMessaging(options: {
           signal.throwIfAborted();
           lease.controller.signal.throwIfAborted();
           if (
-            !valid(value) ||
+            !valid(value, false) ||
             leases.get(value.id) !== lease ||
             providers.get(value.providerId)?.token !== entry.token
           )
             throw new MessagingError('consumer-unavailable');
-          transaction((db) => recordReportEcho(db, value, event), ['outbox']);
+          transaction(
+            (db) =>
+              recordReportEcho(
+                db,
+                inspected.target.receiveScope
+                  ? { ...value, receiveScope: inspected.target.receiveScope }
+                  : value,
+                event,
+              ),
+            ['outbox'],
+          );
           return { accepted: true };
         },
         onEvent: async (event, signal) => {
@@ -425,6 +439,7 @@ export function createInboundMessaging(options: {
             throw new MessagingError('consumer-unavailable');
           if (event.fingerprint !== value.fingerprint || event.botId !== value.accountRef)
             throw new MessagingError('untrusted-source');
+          if (!latest.receiveScope) return { accepted: true };
           if (
             event.conversation.kind !== 'group' ||
             event.conversation.id !== value.receiveScope!.conversationId
@@ -758,7 +773,7 @@ export function createInboundMessaging(options: {
       options.warn?.(
         JSON.stringify({
           event: 'messaging-inbound',
-          phase: 'receiving',
+          phase: value.receiveScope ? 'receiving' : 'reply-connection',
           grantId: value.id,
           durationMs: Date.now() - startedAt,
         }),
@@ -780,7 +795,7 @@ export function createInboundMessaging(options: {
           if (closed || providers.get(value.providerId) !== entry) return;
           try {
             const latest = grant(value.id);
-            if (latest.revision === value.revision) void start(latest, attempt + 1);
+            if (latest.revision === value.revision) void start(latest, attempt + 1, replyOnly);
           } catch {
             stop(value.id);
           }
@@ -1687,6 +1702,30 @@ export function createInboundMessaging(options: {
         }
         throw error;
       }
+    },
+    async ensureReplyConsumer(botSlug, id, signal) {
+      signal.throwIfAborted();
+      const value = grant(id);
+      if (value.botSlug !== botSlug) throw new MessagingError('grant-unavailable');
+      if (!valid(value, false)) {
+        const token = providers.get(value.providerId)?.token;
+        let pending = replyStarts.get(id);
+        if (!pending) {
+          pending = bounded(start(value, 0, true));
+          replyStarts.set(id, pending);
+        }
+        try {
+          await pending;
+        } catch (error) {
+          const lease = leases.get(id);
+          if (lease?.revision === value.revision && lease.token === token) stop(id);
+          throw error;
+        } finally {
+          if (replyStarts.get(id) === pending) replyStarts.delete(id);
+        }
+      }
+      signal.throwIfAborted();
+      if (!valid(value, false)) throw new MessagingError('consumer-unavailable');
     },
     async reconcileBinding(bindingId) {
       const rows = database.read((db) =>
