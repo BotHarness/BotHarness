@@ -443,6 +443,60 @@ describe('Bot main Sessions pane', () => {
     store.select(previous.selection);
     store.setConversation(previous.conversation);
   });
+  it('keeps external provenance in an author dialog control outside the unchanged bubble', () => {
+    const previous = store.getSnapshot();
+    const channel = {
+      id: 'group-source',
+      type: 'group' as const,
+      name: 'Team',
+      members: [],
+      createdAt: '2026-10-03T00:00:00Z',
+      updatedAt: '2026-10-03T00:00:00Z',
+    };
+    try {
+      store.setRoster([], [channel]);
+      store.select({ kind: 'channel', channelId: channel.id });
+      store.setConversation({
+        status: 'ready',
+        channel,
+        sending: false,
+        messages: [
+          {
+            id: 'source',
+            at: channel.createdAt,
+            author: { kind: 'bridged', source: 'sender-private-id' },
+            body: 'original external text',
+            format: 'text',
+            bridgeOrigin: {
+              sourceEventId: 'source-event-id',
+              platform: 'feishu',
+              conversationId: 'conversation-id',
+              conversationName: 'QA group',
+              messageId: 'external-message-id',
+              senderId: 'sender-private-id',
+            },
+          },
+        ],
+      });
+      const markup = renderToStaticMarkup(
+        createElement(BotMain, {
+          actions: {} as BridgeActions,
+          channelSidebar: sidebarRegistry(),
+        }),
+      );
+      expect(markup).toMatch(
+        /aria-haspopup="dialog"[^>]*>【Lark\/飞书 QA group】<\/button>.*class="bh-bubble"/,
+      );
+      expect(markup).toContain('original external text');
+      expect(markup).not.toContain('sender-private-id');
+      expect(markup).not.toContain('source-event-id');
+      expect(markup).not.toContain('bh-external-details');
+    } finally {
+      store.setRoster(previous.bots, previous.channels);
+      store.select(previous.selection);
+      store.setConversation(previous.conversation);
+    }
+  });
   it('renders adjacent Bot messages as one group with an action row for each bubble', () => {
     const bot = {
       slug: 'ada',

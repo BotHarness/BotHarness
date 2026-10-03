@@ -36,6 +36,7 @@ import { channelHumanName } from './actor-names.js';
 import { HumanChannelNameMenu } from './human-channel-name.js';
 import type { ChannelHumanMember } from './store.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
+import { BridgeSourceAuthor } from './bridge-source-author.js';
 import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
 import { MessageCopyAction } from './message-copy-action.js';
 import { isBotDmChannel, isHumanReadOnlyDmChannel } from './channel-kind.js';
@@ -276,7 +277,11 @@ function MessageGroupView({
         </button>
       )}
       <div className="bh-message-stack">
-        <div className="bh-bubble-author">{authorLabel(first, bots, t, humanName)}</div>
+        {first.bridgeOrigin ? (
+          <BridgeSourceAuthor origin={first.bridgeOrigin} t={t} />
+        ) : (
+          <div className="bh-bubble-author">{authorLabel(first, bots, t, humanName)}</div>
+        )}
         {group.messages.map((message, index) => {
           const position =
             group.messages.length === 1
@@ -321,34 +326,6 @@ function MessageGroupView({
                     onJump={onJumpReply}
                     t={t}
                   />
-                  {message.bridgeOrigin ? (
-                    <details className="bh-external-details">
-                      <summary>
-                        {message.bridgeOrigin.platform === 'feishu'
-                          ? 'Lark / 飞书'
-                          : message.bridgeOrigin.platform}{' '}
-                        · {message.bridgeOrigin.conversationName}
-                        {message.bridgeOrigin.threadId ? ` · ${t('im.threadLabel')}` : ''}
-                      </summary>
-                      <div className="bh-external-detail-body">
-                        <p>
-                          {t('im.origin')} · {message.bridgeOrigin.conversationId}
-                        </p>
-                        <p>
-                          {t('im.messageReference', {
-                            messageId: message.bridgeOrigin.messageId,
-                            sourceEventId: message.bridgeOrigin.sourceEventId,
-                          })}
-                        </p>
-                        <p>
-                          {t('im.senderLabel')} · {message.bridgeOrigin.senderId}
-                        </p>
-                        {message.bridgeOrigin.threadId ? (
-                          <p>{message.bridgeOrigin.threadId}</p>
-                        ) : null}
-                      </div>
-                    </details>
-                  ) : null}
                   <ChannelMessageBody
                     message={message}
                     channelId={channelId}

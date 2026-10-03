@@ -2465,6 +2465,51 @@ button.bh-profile-heat-cell:focus-visible {
   font-size: 11px;
   margin: 0 0 4px 2px;
 }
+.bh-root .bh-bridge-source-author {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: left;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.bh-bridge-source-author:hover {
+  color: var(--dsw-alias-label-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.bh-bridge-source-author:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 3px;
+  border-radius: var(--dsw-radius-sm);
+}
+.bh-bridge-source-modal {
+  width: min(560px, 100%);
+  max-height: 100%;
+}
+.bh-bridge-source-fields {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+.bh-bridge-source-fields > div {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(0, 3fr);
+  gap: 12px;
+}
+.bh-bridge-source-fields dt {
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-bridge-source-fields dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .bh-message-group-me .bh-bubble-author {
   margin: 0 2px 4px 0;
 }
