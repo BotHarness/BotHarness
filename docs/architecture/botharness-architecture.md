@@ -317,6 +317,8 @@ Workspace Grant 是 application-defined 的持久授权记录：Human 通过 DSH
 
 Channel sidebar 的编辑模式只折叠当前呈现而不改写展开偏好，拖动／方向键只改变草稿；完成保存同类 scope 的顺序，取消丢弃草稿，恢复默认也属于草稿。浏览器本地分别保存所有 PersonaBot DM 共用的顺序与所有 group Channel 共用的顺序；未显示／未注册的稳定 ID 保留位置，新 entry 按注册顺序附加。切换选择或关闭侧栏丢弃编辑状态，授权撤销仍经原有 expandable seam 清除禁止展开的状态；排序不写 Host 或 Memory（[#721](https://github.com/BotHarness/BotHarness/issues/721)）。
 
+Memory files 与 Memory evolution 的读取缓存仅属于 Client 的 Bridge action owner 和 Channel，最多保留 30 个 Channel；关闭／展开及后台刷新继续展示上次成功结果，首次成功之前使用 skeleton。成功空结果也是已加载状态；失败通过轻量提示与 Retry 恢复，重试中保留提示，成功后清除。切换 action owner／Channel 时重新挂载读取资源，旧请求不得更新新 scope；缓存不成为持久 Memory／Git 权威（[#719](https://github.com/BotHarness/BotHarness/issues/719)）。
+
 点击 Human–PersonaBot DM 头部头像打开 **PersonaBot Profile**（ADR-0085）：compact 的 **Profile popover** 只显示 Human pin 过的 **Profile Card**，其中「查看详细」把 Channel body 暂时换成 **Profile view**（替换聊天历史与 composer），退出即回到 Chat；Profile view 同时是 Display name 与 Avatar 的编辑入口。Profile Card 由新的 client 侧 Cordis registry 注册（有序、可增删、scope-aware），1.0 内置 token 用量、事件活跃、Memory commit 活跃与累计值卡片；pin 集合是 client-local 的全局呈现状态，未知或不可用的卡片不显示。Channel sidebar 完全不受影响；Group Channel 头部打开同一 Profile popover／Channel-body view，但只显示 Group scope 卡片：Host 从该 Channel 已提交消息分页聚合近 26 周的每日消息数与按 author 分组的活跃度，经 Typert／API Gateway 交给 Client；Human／Bot 作者分别呈现，群管理仍在独立 Channel sidebar。DM Channel 只使用 PersonaBot Profile（#424）。自定义 Avatar 是有界 data URL 存在 `bot.json`（512×512 WebP、解码 ≤128 KiB、magic-byte 校验、拒绝远端 URL），经带缓存校验的认证读取 route 提供，缺失或损坏时确定性回退 identity-seeded Blobatar（ADR-0086）。
 
 模型配置目标在 Profile 顶部提供紧凑的预设切换，详细的单 Bot 快照编辑置于活动图表下方的折叠区或弹窗；用量图表默认显示最近 7 天，可在现有 26 周查询范围内切换时间范围（#592）；独立的长期累计与筛选查询由 #507 提供。Profile 的实际模型用量与配置的可用模型分开呈现，后者不冒充已经发生的调用（#488、#39）。
@@ -531,3 +533,9 @@ application-defined `botharness/channelActivityToday` 查询由 Channel owner �
 ### Channel Bridge 管理（#700）
 
 [ADR-0112](../adr/0112-channel-bridge-intake-is-managed-at-the-existing-grant.md) 将有 revision 的收件偏好嵌入既有 Messaging Grant（Generation 50），由 Group Profile 的 Bridge 表／Lark Modal 管理。Human 命令校验当前 Human／收件 Bot 成员资格、Grant／配置版本以及原授权账号和目标。暂停保留独占 Provider lease，在 canonical 持久化之前丢弃后续收件；已收来源仍按当前权限读取和回复。删除移除收件范围／目标、递增 Grant revision 并关闭 lease，拒绝旧来源未开始的效果，同时保留历史、身份和独立发送范围；不会自动回退 Inbox。管理界面的添加／恢复持久记录 Provider 发送时间边界；早于边界的迟到消息仅确认、不投递，重启后仍有效。这依赖已验证 Provider 的发送时间与对齐时钟；迁移路线在管理界面激活前保留既有语义。恢复不请求回填或重复 listener。收件条件不替代每个 Bot 的 attention／harvest／wake，收件身份不授权其他成员借用发言身份。旧收件接口更新同一权威；多来源／DM 投递和成员自身身份回复仍由后续切片交付。
+
+## Human 群聊全部 Bot 提及（#542）
+
+群聊组合器的 `@所有 Bot` 是临时的 Human 输入意图，预览显示当前群内已加入且未暂停的接收 Bot 人数；DM 不提供该选项，粘贴文本不携带选择权威。现有 Channel Store 使用 Registry 与成员事实生成包含名单及显示名的预览 revision。提交前及实际提交边界校验同一预览，名单改变（即使人数相同）或人数为零时返回更新后的可信预览，经既有 Typert 错误 details 显示新人数、保留草稿，并等待 Human 再次发送。
+
+Host 将选中的单一 token 展开为普通逐个 @Bot 的正文及稳定 ID／范围，提交一个 Source Event 和 placement，再复用每个 Bot 的普通 group-mention Admission、attention 与 wake policy；普通消息 silent 不屏蔽明确提及。重试相同 messageId 在当前成员校验前复用已提交内容，重启保留普通消息及各接收者状态。该预览不写入消息或引入 broadcast Source Class；Bot 的 Tool 不暴露此快捷方式。见 [ADR-0099](../adr/0099-human-all-bot-mention-expands-to-direct-mentions.md)。

@@ -98,9 +98,9 @@ export function deleteSelectedChannelRef(
   return { value: next, refs: rebaseChannelRefs(value, next, refs), caret: start };
 }
 
-export type ReferenceRun =
+export type ReferenceRun<M extends SelectedMention = SelectedMention> =
   | { text: string; mention?: never; channelRef?: never; humanMention?: never }
-  | { text: string; mention: SelectedMention; channelRef?: never; humanMention?: never }
+  | { text: string; mention: M; channelRef?: never; humanMention?: never }
   | { text: string; mention?: never; channelRef: SelectedChannelRef; humanMention?: never }
   | {
       text: string;
@@ -109,12 +109,12 @@ export type ReferenceRun =
       humanMention: NonNullable<ChannelMessage['humanMentions']>[number];
     };
 
-export function referenceRuns(
+export function referenceRuns<M extends SelectedMention>(
   value: string,
-  mentions: readonly SelectedMention[],
+  mentions: readonly M[],
   refs: readonly SelectedChannelRef[],
   humanMentions: readonly NonNullable<ChannelMessage['humanMentions']>[number][] = [],
-): ReferenceRun[] {
+): ReferenceRun<M>[] {
   const tokens = [
     ...mentions.map((mention) => ({ start: mention.start, end: mention.end, mention })),
     ...refs.map((channelRef) => ({ start: channelRef.start, end: channelRef.end, channelRef })),
@@ -124,7 +124,7 @@ export function referenceRuns(
       humanMention,
     })),
   ].sort((a, b) => a.start - b.start);
-  const runs: ReferenceRun[] = [];
+  const runs: ReferenceRun<M>[] = [];
   let cursor = 0;
   for (const token of tokens) {
     if (token.start < cursor) continue;

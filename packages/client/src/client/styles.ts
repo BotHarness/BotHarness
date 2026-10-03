@@ -4802,6 +4802,24 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-sidebar-order-actions button { border: 0; border-radius: var(--dsw-radius-md); padding: 4px 8px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); font: inherit; font-size: 12px; cursor: pointer; }
 .bh-sidebar-order-actions button:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); }
 .bh-sidebar-order-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.bh-memory-load-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bh-memory-retry {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.bh-memory-retry:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
 .bh-memory-header-actions { display: flex; align-items: center; gap: 2px; }
 .bh-memory-working-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
 .bh-memory-change-group { min-width: 0; }

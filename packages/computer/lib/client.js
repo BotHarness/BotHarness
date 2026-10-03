@@ -226,8 +226,11 @@ window.__ModuleLoader__.load({
 			"entry.screen.title": "{name} 的屏幕",
 			"entry.shared": "这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。",
 			"entry.access.title": "Computer Access",
+			"entry.access.enable": "启用 Computer Access",
+			"entry.access.disable": "停用 Computer Access",
 			"entry.access.description": "开启后，该 Bot 的会话可以操作这台电脑",
 			"entry.access.failed": "切换 Computer Access 失败",
+			"entry.access.failureHint": "授权失败",
 			"entry.start": "启动",
 			"entry.starting": "启动中…",
 			"entry.stop": "停止",
@@ -319,8 +322,11 @@ window.__ModuleLoader__.load({
 			"entry.screen.title": "{name}'s screen",
 			"entry.shared": "This Computer is shared by every PersonaBot in the profile: each keeps its own window and they share logins and files.",
 			"entry.access.title": "Computer Access",
+			"entry.access.enable": "Enable Computer Access",
+			"entry.access.disable": "Disable Computer Access",
 			"entry.access.description": "This PersonaBot's sessions may act on the Computer",
 			"entry.access.failed": "Could not change Computer Access",
+			"entry.access.failureHint": "Access failed",
 			"entry.start": "Start",
 			"entry.starting": "Starting…",
 			"entry.stop": "Stop",
@@ -1243,6 +1249,22 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
+		//#region packages/computer/src/client/access-power-icon.tsx
+		function AccessPowerIcon() {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				width: "16",
+				height: "16",
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: "2",
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": "true",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M12 2v10" }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("path", { d: "M18.4 6.6a9 9 0 1 1-12.77.04" })]
+			});
+		}
+		//#endregion
 		//#region packages/computer/src/client/index.tsx
 		const name = "botharness-computer-client";
 		const inject = [
@@ -1275,6 +1297,10 @@ window.__ModuleLoader__.load({
 			"entry.authorize.bind"
 		];
 		const BH = {
+			labelSecondary: "var(--dsw-alias-label-secondary)",
+			hoverFill: "var(--dsw-alias-interactive-bg-hover)",
+			errorPrimary: "var(--dsw-alias-state-error-primary)",
+			radiusMd: "var(--dsw-radius-md)",
 			labelPrimary: "var(--dsw-alias-label-primary, #0f1115)",
 			labelPrimaryForeground: "var(--dsw-alias-label-primary-foreground, #ffffff)",
 			borderL2: "var(--dsw-alias-border-l2, #0000001a)",
@@ -1333,6 +1359,19 @@ window.__ModuleLoader__.load({
 			};
 		}
 		const SPIN_STYLE = `
+.bh-computer-access-control { position: relative; display: flex; align-items: center; }
+.bh-computer-access-power {
+  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  padding: 0; border: 0; border-radius: ${BH.radiusMd}; background: transparent;
+  color: ${BH.labelSecondary}; cursor: pointer;
+}
+.bh-computer-access-power:hover { background: ${BH.hoverFill}; }
+.bh-computer-access-power[aria-pressed='true'] { color: ${BH.businessPrimary}; background: ${BH.hoverFill}; }
+.bh-computer-access-power:focus-visible { outline: 2px solid ${BH.businessPrimary}; outline-offset: 2px; }
+.bh-computer-access-power:disabled { opacity: 0.5; cursor: default; }
+.bh-computer-access-power.bh-access-failed { color: ${BH.errorPrimary}; }
+.bh-computer-access-error { order: -1; padding: 0 4px; color: ${BH.errorPrimary}; font-size: 11px; line-height: 16px; white-space: nowrap; }
+
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
 		function useStreamPhase(onSample) {
@@ -2093,12 +2132,19 @@ window.__ModuleLoader__.load({
 					if (match === void 0) return;
 					info = {
 						displayName: typeof match.displayName === "string" && match.displayName.length > 0 ? match.displayName : void 0,
-						computerAccess: typeof match.computerAccess === "boolean" ? match.computerAccess : void 0
+						computerAccess: match.computerAccess === true
 					};
 					for (const listener of listeners) listener();
 				}).catch(() => void 0);
 			};
 			return {
+				setAccess(enabled) {
+					info = {
+						...info,
+						computerAccess: enabled
+					};
+					for (const listener of listeners) listener();
+				},
 				subscribe(listener) {
 					if (!started) {
 						started = true;
@@ -2122,11 +2168,12 @@ window.__ModuleLoader__.load({
 		}
 		function ComputerHeaderAction({ botSlug, t, setExpandable, setExpanded }) {
 			const [store] = (0, react.useState)(() => createBotInfoStore(botSlug));
-			const [override, setOverride] = (0, react.useState)(void 0);
 			const [busy, setBusy] = (0, react.useState)(false);
+			const inFlight = (0, react.useRef)(false);
+			const [error, setError] = (0, react.useState)(false);
 			const subscribe = (listener) => {
 				const sync = () => {
-					const access = override ?? store.getSnapshot().computerAccess === true;
+					const access = store.getSnapshot().computerAccess === true;
 					setExpandable?.(access);
 				};
 				const unsubscribe = store.subscribe(() => {
@@ -2137,37 +2184,55 @@ window.__ModuleLoader__.load({
 				return unsubscribe;
 			};
 			const info = (0, react.useSyncExternalStore)(subscribe, store.getSnapshot);
-			const accessOn = override ?? info.computerAccess === true;
+			const accessOn = info.computerAccess === true;
 			const onToggle = (next) => {
 				const rpc = connectionRpc;
-				if (rpc === void 0 || botSlug === void 0 || busy) return;
-				const previous = accessOn;
-				setOverride(next);
+				if (rpc === void 0 || botSlug === void 0 || inFlight.current) return;
+				inFlight.current = true;
 				setBusy(true);
-				setExpandable?.(next);
-				if (next) setExpanded?.(true);
+				setError(false);
 				rpc.call("/api", "botharness/computerAccessSet", { args: {
 					slug: botSlug,
 					enabled: next
 				} }).then((result) => {
 					if (!result.ok) {
-						setOverride(previous);
-						setExpandable?.(previous);
+						setError(true);
 						return;
 					}
 					const applied = result.value.bot?.computerAccess === true;
-					setOverride(applied);
+					store.setAccess(applied);
 					setExpandable?.(applied);
+					setExpanded?.(applied);
 				}).catch(() => {
-					setOverride(previous);
-					setExpandable?.(previous);
-				}).finally(() => setBusy(false));
+					setError(true);
+				}).finally(() => {
+					inFlight.current = false;
+					setBusy(false);
+				});
 			};
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
-				checked: accessOn,
-				disabled: busy || botSlug === void 0,
-				onChange: onToggle,
-				label: t("entry.access.title")
+			const label = t(accessOn ? "entry.access.disable" : "entry.access.enable");
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+				className: "bh-computer-access-control",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
+					label: error ? t("entry.access.failed") + ": " + label : label,
+					side: "bottom",
+					delayMs: 500,
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: `bh-computer-access-power${error ? " bh-access-failed" : ""}`,
+						"aria-label": label,
+						"aria-pressed": accessOn,
+						"aria-busy": busy,
+						disabled: busy || botSlug === void 0 || connectionRpc === void 0 || info.computerAccess === void 0,
+						onClick: () => onToggle(!accessOn),
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(AccessPowerIcon, {})
+					})
+				}), error ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					className: "bh-computer-access-error",
+					role: "alert",
+					title: t("entry.access.failed"),
+					children: t("entry.access.failureHint")
+				}) : null]
 			});
 		}
 		function createComputerHeader(t) {
@@ -2175,7 +2240,7 @@ window.__ModuleLoader__.load({
 				return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerHeaderAction, {
 					...props,
 					t
-				});
+				}, props.botSlug);
 			};
 		}
 		function ComputerEntry({ botSlug, t }) {
