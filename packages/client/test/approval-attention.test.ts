@@ -95,3 +95,23 @@ it('shows Assignment waiting and blocked counts without changing idle or working
     expect(markup).toMatch(/data-blocked-count="2"[^>]*>3<\/span>/);
   }
 });
+
+it('shows Workspace Grant attention in the shared summary without changing execution', () => {
+  for (const [count, label] of [
+    [1, '1 个工作区待授权'],
+    [2, '2 个工作区待授权'],
+  ] as const) {
+    const html = renderToStaticMarkup(
+      createElement(PersonaBotAvatar, {
+        personaBotId: 'ada',
+        name: 'Ada',
+        size: 32,
+        state: 'idle',
+        attention: { approvalCount: 0, workspaceGrantCount: count },
+      }),
+    );
+    expect(html).toContain('data-state="idle"');
+    expect(html).toContain(`data-workspace-grant-count="${count}"`);
+    expect(html).toContain(label);
+  }
+});
