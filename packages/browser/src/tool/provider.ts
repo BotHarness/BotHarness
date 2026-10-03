@@ -973,6 +973,7 @@ export function createBrowserToolProvider(
     },
 
     invalidateBot(slug) {
+      const paused = options.profile?.() !== undefined && takeovers.has(slug);
       for (const [sessionId, registration] of registrations) {
         if (registration.slug !== slug) continue;
         unregisterSession(
@@ -982,6 +983,7 @@ export function createBrowserToolProvider(
         grants.delete(sessionId);
       }
       this.resetBot(slug);
+      if (paused) takeovers.add(slug);
       void this.reconcileBot(slug);
     },
 

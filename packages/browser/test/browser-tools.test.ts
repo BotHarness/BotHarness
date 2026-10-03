@@ -1599,3 +1599,22 @@ it('Profile control exposes only its curated tools and rejects foreign Sessions,
   await expect(observe.execute({}, execution('browser_observe'))).rejects.toThrow('Access');
   expect(command).toHaveBeenCalledOnce();
 });
+
+it('Profile reconnect preserves Pause while revoking Session authority and observations', async () => {
+  const h = harness({ access: true, profile: () => ({ command: vi.fn() }) });
+  h.created();
+  h.provider.markAuthorized('session-a');
+  h.provider.setTakeover('bot-a', true);
+  h.provider.invalidateBot('bot-a');
+  expect(h.provider.isTakeover('bot-a')).toBe(true);
+  expect(h.provider.needsAuthorization('session-a')).toBe(true);
+  h.provider.markAuthorized('session-a');
+  const type = h.state.definitions.get('browser_type')!;
+  await expect(
+    type.execute({ ref: 'old', text: 'refused' }, execution('browser_type')),
+  ).rejects.toThrow('Pause');
+  h.provider.setTakeover('bot-a', false);
+  await expect(
+    type.execute({ ref: 'old', text: 'refused' }, execution('browser_type')),
+  ).rejects.toThrow('fresh');
+});
