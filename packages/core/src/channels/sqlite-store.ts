@@ -99,7 +99,7 @@ function parseMessage(value: string, body?: string): ChannelMessage | undefined 
       typeof parsed === 'object' && parsed !== null && 'external' in parsed
         ? (parsed as { external: ExternalSource }).external
         : undefined;
-    if (external?.localChannelId && body !== undefined) return projectBridgeMessage(external, body);
+    if (external && body !== undefined) return projectBridgeMessage(external, body);
     const candidate = body === undefined ? parsed : { ...(parsed as object), body };
     return isChannelMessage(candidate) ? candidate : undefined;
   } catch {

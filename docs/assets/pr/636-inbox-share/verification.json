@@ -1,0 +1,84 @@
+{
+  "baseline": "35c2d02928cc0db18dc31e052ab2ee0ee9fdcdbb",
+  "runtime": "7ce8730fe9c2cf7cb1c99c4d02fe21b6c1d8fca5",
+  "verifiedAt": "2026-10-03T04:20:49.597Z",
+  "provider": "qualified dsh-im/feishu",
+  "model": "deepseek-official / deepseek-v4-pro",
+  "channelId": "group-inbox-qa-636",
+  "source": {
+    "id": "im-d2e780c8bc9a0c7438faec5c0039a611bc45c72655fc1949ac4f9769c6c18317",
+    "externalMessageId": "om_x100b633c5ed948a0eeaa09ab0d8bd89",
+    "senderId": "ou_46c34fea8efea425267630ebd1d9d54b",
+    "platform": "feishu",
+    "originalRoute": "Inbox-only",
+    "canonicalPlacements": 1
+  },
+  "admissions": [
+    {
+      "bot_slug": "bot-705327d0a8c942dc92a668cad89bfd0b",
+      "reason": "group-ordinary",
+      "attempt_state": "handled",
+      "wake_mode": "digest",
+      "last_error": null
+    },
+    {
+      "bot_slug": "bot-fc52268ea2bb4d91bde3bea71ae2576b",
+      "reason": "group-ordinary",
+      "attempt_state": "handled",
+      "wake_mode": "all",
+      "last_error": null
+    }
+  ],
+  "realModelShareResults": [
+    {
+      "callSeq": 1343,
+      "resultSeq": 1344,
+      "arguments": {
+        "source_event_id": "im-d2e780c8bc9a0c7438faec5c0039a611bc45c72655fc1949ac4f9769c6c18317",
+        "channel_id": "group-inbox-qa-636"
+      },
+      "result": {
+        "sourceEventId": "im-d2e780c8bc9a0c7438faec5c0039a611bc45c72655fc1949ac4f9769c6c18317",
+        "channelId": "group-inbox-qa-636",
+        "messageId": "im-d2e780c8bc9a0c7438faec5c0039a611bc45c72655fc1949ac4f9769c6c18317",
+        "revision": 1,
+        "alreadyShared": false
+      }
+    },
+    {
+      "callSeq": 1349,
+      "resultSeq": 1350,
+      "arguments": {
+        "channel_id": "group-inbox-qa-636",
+        "source_event_id": "im-d2e780c8bc9a0c7438faec5c0039a611bc45c72655fc1949ac4f9769c6c18317"
+      },
+      "result": {
+        "sourceEventId": "im-d2e780c8bc9a0c7438faec5c0039a611bc45c72655fc1949ac4f9769c6c18317",
+        "channelId": "group-inbox-qa-636",
+        "messageId": "im-d2e780c8bc9a0c7438faec5c0039a611bc45c72655fc1949ac4f9769c6c18317",
+        "revision": 1,
+        "alreadyShared": true
+      }
+    }
+  ],
+  "laterPrivateSource": {
+    "id": "im-7febaba3e2ef289184914a64707195ad572872bfe6ceedd90d458bca12354d5d",
+    "canonicalPlacements": 0,
+    "state": "handled"
+  },
+  "externalOutboxSinceShare": 0,
+  "helperBindings": 0,
+  "grantFutureRoute": "Inbox-only",
+  "localDiscussion": "BH636-HELPER-OK",
+  "dmExternalPlacements": 0,
+  "automated": {
+    "focusedPassed": 75,
+    "fullPassed": 2072,
+    "fullSkipped": 3,
+    "lint": "passed",
+    "format": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "docsBuild": "passed"
+  }
+}

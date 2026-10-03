@@ -1,4 +1,4 @@
-# ADR-0115: Daily Browser tabs use explicit ephemeral borrowing
+# ADR-0116: Daily Browser tabs use explicit ephemeral borrowing
 
 - Status: Accepted
 - Date: 2026-10-03
