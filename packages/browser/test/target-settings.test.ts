@@ -38,7 +38,7 @@ describe('Browser Target native settings seam', () => {
       value = {
         status: 'ready',
         writable: true,
-        value: { target: 'local' as 'local' | 'container' },
+        value: { target: 'local' as 'local' | 'container' | 'extension' | 'daily-control' },
       };
       listeners = new Set<() => void>();
       getSnapshot() {
@@ -49,7 +49,13 @@ describe('Browser Target native settings seam', () => {
         return () => this.listeners.delete(listener);
       }
       async set(_field: string, target: unknown) {
-        if (target !== 'local' && target !== 'container') throw new Error('invalid target');
+        if (
+          target !== 'local' &&
+          target !== 'container' &&
+          target !== 'extension' &&
+          target !== 'daily-control'
+        )
+          throw new Error('invalid target');
         this.value = { ...this.value, value: { target } };
         for (const listener of this.listeners) listener();
       }
@@ -70,6 +76,15 @@ describe('Browser Target native settings seam', () => {
       expect(choice).toBeDefined();
       await act(async () => choice!.click());
       expect(scope.getSnapshot().value.target).toBe('container');
+      for (const target of ['extension', 'daily-control'] as const) {
+        await act(async () => host.querySelector('button')!.click());
+        const next = [...host.querySelectorAll('button')].find(
+          (button) => button.textContent === `settings.${target}`,
+        );
+        expect(next).toBeDefined();
+        await act(async () => next!.click());
+        expect(scope.getSnapshot().value.target).toBe(target);
+      }
       expect(host.querySelector('[role=alert]')).toBeNull();
     } finally {
       await act(async () => root.unmount());

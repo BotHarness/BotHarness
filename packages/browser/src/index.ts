@@ -5,6 +5,7 @@ import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 import { registerBrowserViewer, type BrowserViewerHost } from './viewer.js';
 import type { ContainerBrowserOptions } from './runtime/container.js';
+import { createDailyControl } from './daily.js';
 import { createBorrowService } from './borrow.js';
 import { registerBorrowHttp } from './borrow-http.js';
 
@@ -21,7 +22,7 @@ import {
 export const name = 'botharness-browser';
 
 export interface BrowserConfig {
-  target?: 'local' | 'container' | 'extension';
+  target?: 'local' | 'container' | 'extension' | 'daily-control';
   enabled: boolean;
   browserPath: string;
   headless: boolean;
@@ -43,6 +44,7 @@ export const Config = Schema.object({
     Schema.const('local'),
     Schema.const('container'),
     Schema.const('extension'),
+    Schema.const('daily-control'),
   ])
     .default('local')
     .volatile(),
@@ -83,7 +85,12 @@ export function pinnedBrowserDirectory(): string {
 export function apply(
   ctx: Context,
   config: Omit<BrowserConfig, 'target'> & {
-    target?: 'local' | 'container' | 'extension' | { get(): 'local' | 'container' | 'extension' };
+    target?:
+      | 'local'
+      | 'container'
+      | 'extension'
+      | 'daily-control'
+      | { get(): 'local' | 'container' | 'extension' | 'daily-control' };
   },
 ): void {
   if (!config.enabled) return;
@@ -106,10 +113,11 @@ export function apply(
 
   const coreLookup = (): { registry?: unknown; ownership?: unknown } | undefined =>
     ctx.get('botharness') as unknown as { registry?: unknown; ownership?: unknown } | undefined;
-  const target = (): 'local' | 'container' | 'extension' =>
+  const target = (): 'local' | 'container' | 'extension' | 'daily-control' =>
     (typeof config.target === 'object' ? config.target.get() : config.target) ?? 'local';
   let revision = 0;
-  const authorizationScope = (): string => `${target()}:${revision}:${borrow.revision}`;
+  const authorizationScope = (): string =>
+    `${target()}:${revision}:${borrow.revision}:${daily.revision}`;
   let switching: Promise<void> = Promise.resolve();
   let registerViewer: ContainerBrowserOptions['onViewer'];
   ctx.inject(['connection', 'webServer'], (viewerCtx) => {
@@ -167,17 +175,34 @@ export function apply(
     return registerBorrowHttp(host, borrow);
   });
 
+  const daily = createDailyControl({
+    enabled: () => target() === 'daily-control',
+    bot: (slug) => {
+      const registry = coreLookup()?.registry as
+        | { get(slug: string): { browserAccess?: boolean; displayName?: string } | undefined }
+        | undefined;
+      const bot = registry?.get(slug);
+      return bot === undefined
+        ? undefined
+        : { displayName: bot.displayName ?? slug, browserAccess: bot.browserAccess === true };
+    },
+    path: config.browserPath.trim(),
+    onChange: (slug) => provider.invalidateBot(slug),
+    note: (detail) => diagnostics.record('lifecycle', detail),
+  });
+
   const provider = createBrowserToolProvider({
     ctx,
     runtimes,
     screenshotDir: join(profileDirectory(), 'screenshots'),
     isAutoAllowed: () => config.autoAllowActions,
     beforeExecution: () => switching,
+    daily: () => (target() === 'daily-control' ? daily : undefined),
     borrowed: () => (target() === 'extension' ? borrow : undefined),
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),
     onActivity: (slug) => {
-      if (target() !== 'extension') runtimes.touch(slug);
+      if (target() === 'local' || target() === 'container') runtimes.touch(slug);
     },
     core: () => {
       const core = coreLookup();
@@ -197,12 +222,15 @@ export function apply(
               | undefined
           )?.get(slug)?.browserAccess === true
         )
-      )
+      ) {
         borrow.returnBot(slug);
+        daily.returnBot(slug);
+      }
       return provider.reconcileBot(slug);
     },
     resetBot: (slug: string) => {
       const started = Date.now();
+      daily.returnBot(slug);
       provider.resetBot(slug);
       diagnostics.record(
         'lifecycle',
@@ -223,6 +251,7 @@ export function apply(
     if (!paths.some((path) => path[0] === 'target')) return;
     revision += 1;
     borrow.clear();
+    daily.clear();
     provider.resetRuntime();
     switching = switching.catch(() => undefined).then(() => runtimes.stopAll());
     void switching
@@ -261,6 +290,7 @@ export function apply(
   ctx.effect(
     () => () => {
       borrow.dispose();
+      daily.clear();
       void provider.dispose();
     },
     'botharness-browser: tool provider',
@@ -279,6 +309,39 @@ export function apply(
     const connection = (connectionCtx as unknown as { connection: HostConnectionLike }).connection;
     const json = (value: unknown, status = 200): Response =>
       Response.json(value as Record<string, unknown>, { status });
+
+    for (const action of ['connect', 'grant', 'return'] as const) {
+      connectionCtx.effect(
+        () =>
+          connection.fetch.register({
+            path: `/api/browser/daily/${action}`,
+            methods: ['POST'],
+            requestBody: 'buffered',
+            async fetch(request) {
+              try {
+                const body = (await request.json()) as { slug?: unknown };
+                if (typeof body.slug !== 'string' || body.slug === '')
+                  throw new Error('PersonaBot is required');
+                await switching;
+                if (action === 'connect') daily.connect(body.slug);
+                else if (action === 'grant') await daily.grant(body.slug);
+                else daily.returnBot(body.slug);
+                return json({ ok: true });
+              } catch (error) {
+                return json(
+                  {
+                    ok: false,
+                    error:
+                      error instanceof Error ? error.message : 'Daily Browser operation failed',
+                  },
+                  409,
+                );
+              }
+            },
+          }),
+        `botharness-browser: daily ${action}`,
+      );
+    }
 
     for (const action of ['pair', 'return'] as const) {
       connectionCtx.effect(
@@ -315,8 +378,11 @@ export function apply(
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
-        if (target() === 'extension')
-          return json({ ok: false, error: 'Share a tab through the Daily Browser extension' }, 409);
+        if (target() === 'extension' || target() === 'daily-control')
+          return json(
+            { ok: false, error: 'Connect a Daily Browser document in the Browser entry' },
+            409,
+          );
         let body: { slug?: unknown; tab?: unknown } = {};
         try {
           body = (await request.json()) as typeof body;
@@ -360,6 +426,17 @@ export function apply(
         const url = new URL(request.url);
         const slug = url.searchParams.get('slug') ?? '';
         const requested = url.searchParams.get('tab') ?? '';
+        if (target() === 'daily-control')
+          return json({
+            ok: true,
+            target: 'daily-control',
+            running: false,
+            frame: null,
+            focused: null,
+            takeover: provider.isTakeover(slug),
+            tabs: [],
+            daily: daily.view(slug) ?? null,
+          });
         if (target() === 'extension')
           return json({
             ok: true,
@@ -443,6 +520,20 @@ export function apply(
         provider.touch(slug);
         await switching;
         const takeover = provider.setTakeover(slug, body.active);
+        if (target() === 'daily-control') {
+          try {
+            await daily.pause(slug, body.active);
+          } catch (error) {
+            daily.returnBot(slug);
+            return json(
+              {
+                ok: false,
+                error: error instanceof Error ? error.message : 'Daily Browser control changed',
+              },
+              409,
+            );
+          }
+        }
         return json({ ok: true, takeover });
       },
     };
@@ -464,6 +555,10 @@ export function apply(
         }
         const slug = typeof body.slug === 'string' ? body.slug : '';
         if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
+        if (target() === 'daily-control') {
+          daily.returnBot(slug);
+          return json({ ok: true });
+        }
         if (target() === 'extension') {
           borrow.returnBot(slug);
           return json({ ok: true });
