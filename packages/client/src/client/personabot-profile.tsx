@@ -15,6 +15,7 @@ import {
 import type { BridgeActions } from './actions.js';
 import type { BotSourcePolicyEdit, BotSourcePolicyView, ProfileActivity } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
+import { AvatarAppearanceEditor } from './avatar-appearance-editor.js';
 import { NameInput } from './name-input.js';
 import { Modal } from './modal.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -71,6 +72,7 @@ export function ProfilePopover({
           personaBotId={bot.slug}
           name={bot.displayName}
           src={bot.avatar}
+          appearance={bot.appearance}
           size={40}
           indicator={false}
         />
@@ -299,6 +301,7 @@ export function ProfileView({
             personaBotId={bot.slug}
             name={bot.displayName}
             src={bot.avatar}
+            appearance={bot.appearance}
             size={64}
             indicator={false}
           />
@@ -390,6 +393,13 @@ export function ProfileView({
           )}
         </div>
       </div>
+      <AvatarAppearanceEditor
+        key={`avatar-${bot.slug}`}
+        bot={bot}
+        channelId={channel.id}
+        onSave={actions.setBotAppearance}
+        t={t}
+      />
       {visibleCards.length === 0 ? null : (
         <section className="bh-profile-section" aria-label={t('profile.activitySection')}>
           <h2 className="bh-profile-section-title">{t('profile.activitySection')}</h2>

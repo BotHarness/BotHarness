@@ -191,6 +191,7 @@ export function ActivityCenterView({
                     personaBotId={bot.slug}
                     name={bot.displayName}
                     src={bot.avatar}
+                    appearance={bot.appearance}
                     size={28}
                     state={bot.state}
                     activity={bot.activity}
