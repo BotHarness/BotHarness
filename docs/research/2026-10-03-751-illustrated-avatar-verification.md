@@ -97,7 +97,7 @@ The illustrated family is now an original 32×32 pixel portrait with a 1px ink
 outline on a recipe-tinted rounded tile. The recipe selects nine parts plus
 four colours:
 
-- head (4)
+- head (8: round, oval, square, long, heart, pointed chin, chubby, diamond)
 - hair (19, including anime long twin tails, drill twin tails, high and side
   ponytails, hime cut, twin buns and messy with ahoge)
 - eyes (8)

@@ -1,5 +1,5 @@
 export const AVATAR_PARTS = {
-  head: ['round', 'oval', 'square', 'long'],
+  head: ['round', 'oval', 'square', 'long', 'heart', 'vchin', 'chubby', 'diamond'],
   hair: [
     'crop',
     'sweep',
@@ -250,11 +250,49 @@ const roundedRect =
     return (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r;
   };
 
+const taper =
+  (top: Mask, from: number, width: number, chin: number): Mask =>
+  (x, y) => {
+    const cy = y + 0.5;
+    if (cy <= from) return top(x, y);
+    if (cy > chin) return false;
+    return Math.abs(x + 0.5 - 16) <= width - (width - 1.4) * ((cy - from) / (chin - from));
+  };
+
 const HEADS = {
   round: { mask: ellipse(16, 14.6, 9.6, 9.2), half: 9.6, chin: 23, mouth: 20 },
-  oval: { mask: ellipse(16, 14.8, 9, 9.8), half: 9, chin: 24, mouth: 20 },
-  square: { mask: roundedRect(7, 6, 24, 23, 3.2), half: 9, chin: 23, mouth: 20 },
-  long: { mask: ellipse(16, 15.2, 8.4, 10.4), half: 8.4, chin: 25, mouth: 21 },
+  oval: { mask: ellipse(16, 14.8, 8.8, 10), half: 8.8, chin: 24, mouth: 20 },
+  square: { mask: roundedRect(7, 6, 24, 23, 2), half: 9, chin: 23, mouth: 20 },
+  long: { mask: ellipse(16, 15.4, 7.8, 10.6), half: 7.8, chin: 25, mouth: 21 },
+  heart: {
+    mask: taper(ellipse(16, 15, 10, 9.4), 15, 10, 24.6),
+    half: 10,
+    chin: 24,
+    mouth: 20,
+  },
+  vchin: {
+    mask: taper(
+      (x, y) => ellipse(16, 15, 9.2, 9.4)(x, y) || (y + 0.5 > 15 && Math.abs(x + 0.5 - 16) <= 9.2),
+      18.5,
+      9.2,
+      24.6,
+    ),
+    half: 9.2,
+    chin: 24,
+    mouth: 20,
+  },
+  chubby: { mask: ellipse(16, 15.8, 11.2, 8.2), half: 11, chin: 23, mouth: 20 },
+  diamond: {
+    mask: taper(
+      (x, y) => y + 0.5 >= 5.5 && Math.abs(x + 0.5 - 16) <= 4 + 6 * ((y + 0.5 - 5.5) / 9.5),
+      15,
+      10,
+      24.6,
+    ),
+    half: 9.4,
+    chin: 24,
+    mouth: 20,
+  },
 } as const;
 
 const EYE_TOP = 13;
