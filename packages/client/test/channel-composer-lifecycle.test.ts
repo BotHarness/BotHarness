@@ -65,6 +65,52 @@ afterEach(async () => {
 });
 
 describe('mounted Channel composer', () => {
+  it('selects All Bots with a visible recipient count without submitting or selecting a Bot ID', async () => {
+    const onChange = vi.fn();
+    const onSubmit = vi.fn();
+    await act(async () =>
+      root.render(
+        createElement(ChannelComposer, {
+          value: '',
+          placeholder: 'Message',
+          sending: false,
+          mentionCandidates: [ada],
+          allBotPreview: { revision: 'preview', recipients: [{ botSlug: 'ada', label: 'Ada' }] },
+          onChange,
+          onSubmit,
+        }),
+      ),
+    );
+    const editor = host.querySelector<HTMLElement>('[contenteditable]')!;
+    await act(async () => {
+      editor.textContent = '@';
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      document.getSelection()?.removeAllRanges();
+      document.getSelection()?.addRange(range);
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    });
+    const option = [...host.querySelectorAll<HTMLButtonElement>('[role=option]')].find((button) =>
+      button.textContent?.includes('所有 Bot'),
+    );
+    expect(option?.textContent).toContain('1');
+    await act(async () => option?.click());
+    expect(onChange).toHaveBeenLastCalledWith(
+      '@所有 Bot ',
+      [
+        {
+          kind: 'all-bots',
+          label: '所有 Bot',
+          start: 0,
+          end: 7,
+          preview: { revision: 'preview', recipients: [{ botSlug: 'ada', label: 'Ada' }] },
+        },
+      ],
+      [],
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
   it('focuses only on a reply or focus request and disconnects the prior input observer', async () => {
     const onSubmit = vi.fn();
     const onChange = vi.fn();

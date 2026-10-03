@@ -1,5 +1,7 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
+import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
+
 import type {
   ChannelBridgeInput,
   ChannelBridgeSnapshot,
@@ -57,6 +59,7 @@ export class BridgeCallError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = 'BridgeCallError';
@@ -389,7 +392,8 @@ async function unwrap(
   signal?: AbortSignal,
 ): Promise<unknown> {
   const result = await call(endpoint, payload, signal);
-  if (!result.ok) throw new BridgeCallError(result.error.code, result.error.message);
+  if (!result.ok)
+    throw new BridgeCallError(result.error.code, result.error.message, result.error.details);
   return result.value;
 }
 
@@ -1566,6 +1570,33 @@ export async function loadHumanAssignmentContext(
   };
 }
 
+export async function loadAllBotPreview(
+  call: BridgeCall,
+  channelId: string,
+): Promise<AllBotPreview> {
+  const value = parseAllBotPreview(await unwrap(call, 'channelAllBotPreview', { channelId }));
+  if (value === undefined) throw new Error('invalid channelAllBotPreview response');
+  return value;
+}
+export function parseAllBotPreview(raw: unknown): AllBotPreview | undefined {
+  const value = asRecord(raw);
+  if (
+    typeof value?.['revision'] !== 'string' ||
+    !Array.isArray(value['recipients']) ||
+    !value['recipients'].every((item: unknown) => {
+      const row = asRecord(item);
+      return typeof row?.['botSlug'] === 'string' && typeof row['label'] === 'string';
+    })
+  )
+    return undefined;
+  return {
+    revision: value['revision'],
+    recipients: value['recipients'].map((item) => {
+      const row = asRecord(item)!;
+      return { botSlug: row['botSlug'] as string, label: row['label'] as string };
+    }),
+  };
+}
 export async function sendChannelMessage(
   call: BridgeCall,
   channelId: string,
@@ -1579,6 +1610,7 @@ export async function sendChannelMessage(
   channelRefs?: ChannelMessage['channelRefs'],
   grantRequestResolution?: ChannelMessage['grantRequestResolution'],
   assignmentReply?: ChannelMessage['assignmentReply'],
+  allBotMention?: AllBotMention,
 ): Promise<ChannelMessage> {
   const value = await unwrap(
     call,
@@ -1594,6 +1626,7 @@ export async function sendChannelMessage(
       ...(channelRefs === undefined ? {} : { channelRefs }),
       ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
       ...(assignmentReply === undefined ? {} : { assignmentReply }),
+      ...(allBotMention === undefined ? {} : { allBotMention }),
     },
     signal,
   );

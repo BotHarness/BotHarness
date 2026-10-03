@@ -1,4 +1,12 @@
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
+import {
+  parseAllBotMention,
+  expandAllBotMention,
+  assertAllBotPreview,
+  AllBotPreviewChangedError,
+  type AllBotPreview,
+  type AllBotMention,
+} from '../channels/all-bot-mention.js';
 import type { OverviewMemory } from '../memory/overview.js';
 import type { UsageOverviewBuckets, UsageOverviewResult } from '../usage/overview.js';
 import { markAllHumanMessagesRead } from '../channels/mark-all-read.js';
@@ -246,6 +254,7 @@ export interface OwnedSessionBot {
 }
 
 export interface BridgeError {
+  details?: { preview: AllBotPreview };
   code: string;
   message: string;
 }
@@ -303,6 +312,7 @@ export interface BridgeMethods {
   channelMarkAllRead(payload: unknown): Promise<BridgeResult<{ channels: number }>>;
   channelMarkRead(payload: unknown): Promise<BridgeResult<{ position: ChannelReadPosition }>>;
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[]; revision: number }>;
+  channelAllBotPreview(payload: unknown): BridgeResult<AllBotPreview>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   botAttention(payload: unknown): BridgeResult<BotAttentionPage>;
   botSourcePolicies(payload: unknown): BridgeResult<{ policies: BotSourcePolicy[] }>;
@@ -1824,11 +1834,20 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(String(error));
       }
     },
+    channelAllBotPreview(payload) {
+      const channelId = asNonBlank(asObject(payload), 'channelId');
+      if (channelId === undefined) return invalidInput('channelId is required');
+      try {
+        return { ok: true, value: deps.channels.previewAllBotMention(channelId) };
+      } catch (error) {
+        return invalidInput((error as Error).message);
+      }
+    },
     async channelSend(payload) {
       const source = asObject(payload);
       const channelId = asNonBlank(source, 'channelId');
       if (channelId === undefined) return invalidInput('channelId is required');
-      const body = source['body'];
+      const rawBody = source['body'];
       const attachments = source['attachments'];
       if (
         attachments !== undefined &&
@@ -1838,10 +1857,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       )
         return invalidInput('invalid attachments');
       if (
-        typeof body !== 'string' ||
-        (body.trim().length === 0 && (!attachments || attachments.length === 0))
+        typeof rawBody !== 'string' ||
+        (rawBody.trim().length === 0 && (!attachments || attachments.length === 0))
       )
         return invalidInput('body is required');
+      let body: string = rawBody;
       const rawMentions = source['mentions'];
       if (rawMentions !== undefined && !Array.isArray(rawMentions))
         return invalidInput('mentions must be selected PersonaBot tokens');
@@ -1873,6 +1893,18 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         mentions.sort((a, b) => a.start - b.start);
         if (mentions.some((item, index) => index > 0 && item.start < mentions[index - 1]!.end))
           return invalidInput('overlapping mention tokens');
+      }
+      const rawAllBotMention = source['allBotMention'];
+      let allBotMention: AllBotMention | undefined;
+      if (rawAllBotMention !== undefined) {
+        try {
+          allBotMention = parseAllBotMention(rawAllBotMention, body);
+          const expanded = expandAllBotMention(body, mentions, allBotMention);
+          body = expanded.body;
+          mentions.splice(0, mentions.length, ...expanded.mentions);
+        } catch (error) {
+          return invalidInput((error as Error).message);
+        }
       }
       const rawRefs = source['channelRefs'];
       if (rawRefs !== undefined && !Array.isArray(rawRefs))
@@ -2014,6 +2046,22 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           ? { ok: true, value: { message: existing } }
           : invalidInput('messageId already belongs to different Channel content');
       }
+      if (allBotMention !== undefined) {
+        try {
+          assertAllBotPreview(deps.channels.previewAllBotMention(channelId), allBotMention.preview);
+        } catch (error) {
+          if (error instanceof AllBotPreviewChangedError)
+            return {
+              ok: false,
+              error: {
+                code: 'all-bot-preview-changed',
+                message: error.message,
+                details: { preview: error.preview },
+              },
+            };
+          return invalidInput((error as Error).message);
+        }
+      }
       const grantRequestTarget =
         replyTo === undefined ? undefined : deps.channels.message(channelId, replyTo);
       if (
@@ -2096,8 +2144,21 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       let appendResult;
       try {
-        appendResult = await deps.channels.appendMessageOnce(channelId, message);
+        appendResult = await deps.channels.appendMessageOnce(
+          channelId,
+          message,
+          allBotMention?.preview,
+        );
       } catch (error) {
+        if (error instanceof AllBotPreviewChangedError)
+          return {
+            ok: false,
+            error: {
+              code: 'all-bot-preview-changed',
+              message: error.message,
+              details: { preview: error.preview },
+            },
+          };
         if (
           error instanceof ChannelReplyTargetError ||
           error instanceof AssignmentReplyTargetError ||
