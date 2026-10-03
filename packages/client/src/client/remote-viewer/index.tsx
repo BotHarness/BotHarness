@@ -583,6 +583,7 @@ export function RemoteViewer({
   return (
     <div
       ref={dialogResource}
+      data-bh-remote-viewer-fullscreen={expanded ? '' : undefined}
       role={expanded ? 'dialog' : undefined}
       aria-modal={expanded ? true : undefined}
       aria-label={expanded ? title : undefined}

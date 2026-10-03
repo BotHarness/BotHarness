@@ -200,11 +200,12 @@ describe('Container Human viewer', () => {
     frameDocument.write('<html><body></body></html>');
     frameDocument.close();
     const canvas = frameDocument.createElement('canvas');
+    const pixels = new Uint8ClampedArray(1024);
     const context = vi
       .spyOn(Object.getPrototypeOf(canvas) as HTMLCanvasElement, 'getContext')
       .mockReturnValue({
         drawImage: vi.fn(),
-        getImageData: () => ({ data: new Uint8ClampedArray(1024) }),
+        getImageData: () => ({ data: pixels }),
       } as unknown as CanvasRenderingContext2D);
     canvas.id = 'videoCanvas';
     canvas.width = 640;
@@ -212,6 +213,10 @@ describe('Container Human viewer', () => {
     try {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(5000);
+      });
+      pixels[0] = 10;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
       });
       await click('[aria-label="Enable interaction"]');
       await act(async () => {

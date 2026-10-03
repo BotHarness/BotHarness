@@ -3638,6 +3638,9 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   display: flex;
   justify-content: flex-end;
 }
+.bh-channel-sidebar-overlay-layer:has([data-bh-remote-viewer-fullscreen]) {
+  z-index: 8;
+}
 .bh-channel-sidebar-backdrop {
   position: absolute;
   inset: 0;

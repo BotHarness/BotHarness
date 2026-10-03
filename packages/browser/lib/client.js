@@ -176,18 +176,22 @@ window.__ModuleLoader__.load({
 				};
 			}
 			if (signature !== void 0 && prev.lastSignature !== void 0 && signature !== prev.lastSignature) return {
-				tracker: withSignature({
-					misses: 0,
-					busyStreak: 0,
-					quiet: 0
-				}, signature),
+				tracker: {
+					...withSignature({
+						misses: 0,
+						busyStreak: 0,
+						quiet: 0
+					}, signature),
+					live: true
+				},
 				phase: "live"
 			};
 			if (signature === void 0) return {
 				tracker: {
 					misses: 0,
 					busyStreak: 0,
-					quiet: 0
+					quiet: 0,
+					live: true
 				},
 				phase: "live"
 			};
@@ -200,12 +204,15 @@ window.__ModuleLoader__.load({
 				}, signature),
 				phase: "empty"
 			};
-			if (quiet >= 4) return {
-				tracker: withSignature({
-					misses: 0,
-					busyStreak: 0,
-					quiet
-				}, signature),
+			if (prev.live === true || quiet >= 4) return {
+				tracker: {
+					...withSignature({
+						misses: 0,
+						busyStreak: 0,
+						quiet
+					}, signature),
+					live: true
+				},
 				phase: "live"
 			};
 			return {
@@ -685,6 +692,7 @@ window.__ModuleLoader__.load({
 			});
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				ref: dialogResource,
+				"data-bh-remote-viewer-fullscreen": expanded ? "" : void 0,
 				role: expanded ? "dialog" : void 0,
 				"aria-modal": expanded ? true : void 0,
 				"aria-label": expanded ? title : void 0,

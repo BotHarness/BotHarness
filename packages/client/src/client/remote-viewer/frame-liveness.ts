@@ -27,6 +27,7 @@ export interface StreamTracker {
   readonly busyStreak: number;
   readonly quiet: number;
   readonly lastSignature?: number;
+  readonly live?: true;
 }
 
 export function hashBytes(data: Uint8ClampedArray): number {
@@ -139,12 +140,12 @@ export function nextStreamTracker(
     signature !== undefined && prev.lastSignature !== undefined && signature !== prev.lastSignature;
   if (changed) {
     return {
-      tracker: withSignature({ misses: 0, busyStreak: 0, quiet: 0 }, signature),
+      tracker: { ...withSignature({ misses: 0, busyStreak: 0, quiet: 0 }, signature), live: true },
       phase: 'live',
     };
   }
   if (signature === undefined) {
-    return { tracker: { misses: 0, busyStreak: 0, quiet: 0 }, phase: 'live' };
+    return { tracker: { misses: 0, busyStreak: 0, quiet: 0, live: true }, phase: 'live' };
   }
   const quiet = prev.quiet + 1;
   if (quiet >= QUIET_ABANDON) {
@@ -153,9 +154,9 @@ export function nextStreamTracker(
       phase: 'empty',
     };
   }
-  if (quiet >= QUIET_TOLERANCE) {
+  if (prev.live === true || quiet >= QUIET_TOLERANCE) {
     return {
-      tracker: withSignature({ misses: 0, busyStreak: 0, quiet }, signature),
+      tracker: { ...withSignature({ misses: 0, busyStreak: 0, quiet }, signature), live: true },
       phase: 'live',
     };
   }
