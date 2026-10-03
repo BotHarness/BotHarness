@@ -6,6 +6,7 @@ import {
   DEFAULT_ILLUSTRATED_RECIPE,
   illustratedAvatarSvg,
   isIllustratedAvatarRecipe,
+  seededAvatarRecipe,
   type AvatarPart,
   type IllustratedAvatarRecipe,
 } from '../src/bots/avatar-appearance.js';
@@ -78,6 +79,17 @@ describe('illustrated Avatar artwork', () => {
             `${recipe.hair}/${recipe.accessory} ${x},${y}`,
           ).toBe(true);
     }
+  });
+
+  it('derives a stable, valid default recipe from the name alone', () => {
+    const ada = seededAvatarRecipe('Ada Lovelace');
+    expect(isIllustratedAvatarRecipe(ada)).toBe(true);
+    expect(seededAvatarRecipe('  ada lovelace ')).toEqual(ada);
+    expect(ada.pose).toBe('front');
+    const names = ['Ada', 'Grace', 'Linus', 'Margaret', 'Alan', 'Barbara', '小明', 'Rin'];
+    const recipes = names.map(seededAvatarRecipe);
+    expect(new Set(recipes.map((recipe) => JSON.stringify(recipe))).size).toBe(names.length);
+    for (const recipe of recipes) expect(() => illustratedAvatarSvg(recipe)).not.toThrow();
   });
 
   it('rejects unknown parts and keeps the recipe closed', () => {

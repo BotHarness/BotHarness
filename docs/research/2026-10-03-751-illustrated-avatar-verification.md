@@ -108,6 +108,8 @@ four colours:
 - cheeks (3)
 - glasses (5)
 - accessory (12, including cat ears, hair clip and little horns)
+- outfit (T-shirt, shirt and tie, hoodie, turtleneck, sailor collar, blazer,
+  overalls)
 - backdrop decoration (sparkles, hearts, stars, dots, none)
 - skin, hair, eye and shirt colour
 
@@ -129,10 +131,13 @@ pixels, with these refinements:
 - 5×6 eyes with glints
 - softer chins
 - pastel tile with optional corner decorations
-- turned angles that shift the face slightly, add a nose bump to the contour,
-  narrow the far eye and move it toward the nose line, and hide far-side ears,
-  cups and earrings (Human rejected a first version that covered the far cheek
-  with hair)
+- turned angles projected on a sphere, following the method in bloub: each
+  eye sits at R·sin(yaw ± eye angle) and is foreshortened by cos; the jaw, nose
+  and mouth follow the yaw; back hair and tails move toward the back of the
+  head, so the far tail is hidden by the face; the far ear, cups and earrings
+  are hidden while the near ear shows. Asymmetric hairstyles keep their side
+  instead of being mirrored. Human rejected two earlier attempts, one covering
+  the far cheek with hair and one keeping hair in the frontal position.
 
 All parts are trusted catalog data rendered as merged `<rect>` runs with
 `crispEdges`. There are no paths, `defs`, ids or external references.
@@ -169,3 +174,14 @@ rebuilt Host:
 - a Host restart
 
 With 4 visible instances, steady rAF p95 was 16.8ms.
+
+## Name-seeded default appearance
+
+A PersonaBot with neither a saved appearance nor a custom image now shows a
+pixel portrait derived deterministically from its display name. This replaces
+the Blobatar default. The create dialog previews it live as the name is typed.
+Until a Human saves an appearance, renaming the Bot changes the portrait; the
+editor starts from the seeded recipe. Saving persists that recipe in the
+Registry, after which renaming no longer affects the portrait. Seeded recipes
+always face front and avoid the palest skin and hair swatches. Real-browser QA
+confirmed the preview changes for "Ada", "Grace Hopper" and "小明".

@@ -2,9 +2,9 @@ import { useMemo, useState, type ReactElement } from 'react';
 import {
   AVATAR_COLORS,
   AVATAR_PARTS,
-  DEFAULT_ILLUSTRATED_RECIPE,
+  AVATAR_SWATCHES,
+  seededAvatarRecipe,
   illustratedAvatarSvg,
-  type AvatarColor,
   type AvatarPart,
   type IllustratedAvatarRecipe,
 } from '../../../core/src/bots/avatar-appearance.js';
@@ -25,55 +25,12 @@ const CATEGORIES: readonly Category[] = [
   'cheeks',
   'glasses',
   'accessory',
+  'outfit',
   'backdrop',
   'colors',
 ];
 
-const SWATCHES: Record<AvatarColor, readonly string[]> = {
-  skinColor: [
-    '#ffe3cf',
-    '#f2c9a8',
-    '#e0a87e',
-    '#c68863',
-    '#9a6142',
-    '#6e4129',
-    '#4a2c1c',
-    '#f4f1ec',
-  ],
-  hairColor: [
-    '#1d1b22',
-    '#5a3a2a',
-    '#8a5a36',
-    '#e2b04a',
-    '#c4452f',
-    '#d9475a',
-    '#f06292',
-    '#3fc1b8',
-    '#5a7be0',
-    '#9aa3ad',
-    '#f4f1ec',
-  ],
-  eyeColor: [
-    '#3f7fbf',
-    '#5a3a2a',
-    '#2f9e8f',
-    '#4c8a3c',
-    '#8a5ad0',
-    '#d0533f',
-    '#d9a13a',
-    '#2a2230',
-  ],
-  shirtColor: [
-    '#5b8bd6',
-    '#e07a5f',
-    '#3d9970',
-    '#7a5cc7',
-    '#f2c14e',
-    '#2f3a4a',
-    '#e2565f',
-    '#9ad0c2',
-  ],
-};
+const SWATCHES = AVATAR_SWATCHES;
 
 function shuffled(recipe: IllustratedAvatarRecipe): IllustratedAvatarRecipe {
   const pick = <T,>(values: readonly T[]) => values[Math.floor(Math.random() * values.length)]!;
@@ -133,7 +90,7 @@ export function AvatarAppearanceEditor({
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const start = () => {
-    setDraft({ ...(bot.appearance?.recipe ?? DEFAULT_ILLUSTRATED_RECIPE) });
+    setDraft({ ...(bot.appearance?.recipe ?? seededAvatarRecipe(bot.displayName || bot.slug)) });
     setFailed(false);
   };
   const save = async () => {

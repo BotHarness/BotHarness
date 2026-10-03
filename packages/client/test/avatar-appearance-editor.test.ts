@@ -3,7 +3,7 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 import { AvatarAppearanceEditor } from '../src/client/avatar-appearance-editor.js';
-import { DEFAULT_ILLUSTRATED_RECIPE } from '../../core/src/bots/avatar-appearance.js';
+import { seededAvatarRecipe } from '../../core/src/bots/avatar-appearance.js';
 import { zhTranslate } from '../src/client/locale.js';
 
 describe('Profile Avatar Appearance editing', () => {
@@ -87,7 +87,9 @@ describe('Profile Avatar Appearance editing', () => {
       expect(save).not.toHaveBeenCalled();
       await click('[data-avatar-edit]');
       expect(
-        container.querySelector('[data-avatar-option="hair:crop"]')?.getAttribute('aria-pressed'),
+        container
+          .querySelector(`[data-avatar-option="hair:${seededAvatarRecipe('Ada').hair}"]`)
+          ?.getAttribute('aria-pressed'),
       ).toBe('true');
       await click('[data-avatar-category="accessory"]');
       await click('[data-avatar-option="accessory:crown"]');
@@ -95,7 +97,7 @@ describe('Profile Avatar Appearance editing', () => {
       await click('[data-avatar-option="shirtColor:#3d9970"]');
       await click('[data-avatar-save]');
       expect(save).toHaveBeenCalledWith('dm-ada', {
-        ...DEFAULT_ILLUSTRATED_RECIPE,
+        ...seededAvatarRecipe('Ada'),
         accessory: 'crown',
         shirtColor: '#3d9970',
       });

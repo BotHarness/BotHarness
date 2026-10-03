@@ -28,6 +28,7 @@ export const AVATAR_PARTS = {
   mouth: ['smile', 'grin', 'open', 'flat', 'smirk', 'cat', 'tongue', 'o'],
   cheeks: ['blush', 'freckles', 'none'],
   glasses: ['none', 'round', 'square', 'shades', 'monocle'],
+  outfit: ['tee', 'shirttie', 'hoodie', 'turtleneck', 'sailor', 'blazer', 'overalls'],
   backdrop: ['sparkles', 'hearts', 'stars', 'dots', 'none'],
   accessory: [
     'none',
@@ -75,6 +76,7 @@ export const DEFAULT_ILLUSTRATED_RECIPE: IllustratedAvatarRecipe = {
   mouth: 'smile',
   cheeks: 'blush',
   glasses: 'none',
+  outfit: 'tee',
   backdrop: 'sparkles',
   accessory: 'none',
   skinColor: '#f2c9a8',
@@ -123,6 +125,107 @@ export function canonicalAvatarRecipe(recipe: IllustratedAvatarRecipe): Illustra
   for (const key of PART_KEYS) canonical[key] = recipe[key];
   for (const key of AVATAR_COLORS) canonical[key] = recipe[key].toLowerCase();
   return canonical as IllustratedAvatarRecipe;
+}
+
+export const AVATAR_SWATCHES: Record<AvatarColor, readonly string[]> = {
+  skinColor: [
+    '#ffe3cf',
+    '#f2c9a8',
+    '#e0a87e',
+    '#c68863',
+    '#9a6142',
+    '#6e4129',
+    '#4a2c1c',
+    '#f4f1ec',
+  ],
+  hairColor: [
+    '#1d1b22',
+    '#5a3a2a',
+    '#8a5a36',
+    '#e2b04a',
+    '#c4452f',
+    '#d9475a',
+    '#f06292',
+    '#3fc1b8',
+    '#5a7be0',
+    '#9aa3ad',
+    '#f4f1ec',
+  ],
+  eyeColor: [
+    '#3f7fbf',
+    '#5a3a2a',
+    '#2f9e8f',
+    '#4c8a3c',
+    '#8a5ad0',
+    '#d0533f',
+    '#d9a13a',
+    '#2a2230',
+  ],
+  shirtColor: [
+    '#5b8bd6',
+    '#e07a5f',
+    '#3d9970',
+    '#7a5cc7',
+    '#f2c14e',
+    '#2f3a4a',
+    '#e2565f',
+    '#9ad0c2',
+  ],
+};
+
+function seededRandom(seed: string): () => number {
+  let h = 2166136261;
+  for (const char of seed) {
+    h ^= char.codePointAt(0)!;
+    h = Math.imul(h, 16777619);
+  }
+  return () => {
+    h = Math.imul(h ^ (h >>> 15), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+}
+
+const SEEDED_CHOICES: { [P in AvatarPart]: readonly (typeof AVATAR_PARTS)[P][number][] } = {
+  head: ['round', 'oval', 'square', 'long', 'heart', 'vchin', 'chubby', 'diamond'],
+  pose: ['front'],
+  hair: AVATAR_PARTS.hair.filter((hair) => hair !== 'none'),
+  eyes: ['round', 'round', 'sparkle', 'lashes', 'dot', 'happy', 'sharp'],
+  brows: ['soft', 'soft', 'thick', 'raised'],
+  nose: ['button', 'dot', 'none'],
+  mouth: ['smile', 'smile', 'grin', 'open', 'cat'],
+  cheeks: ['blush', 'blush', 'freckles', 'none'],
+  glasses: ['none', 'none', 'none', 'none', 'round', 'square'],
+  accessory: [
+    'none',
+    'none',
+    'none',
+    'flower',
+    'bow',
+    'hairclip',
+    'catears',
+    'headphones',
+    'beanie',
+    'cap',
+  ],
+  outfit: AVATAR_PARTS.outfit,
+  backdrop: ['sparkles', 'hearts', 'stars', 'dots'],
+};
+
+export function seededAvatarRecipe(seed: string): IllustratedAvatarRecipe {
+  const random = seededRandom(`botharness-avatar:${seed.trim().toLowerCase()}`);
+  const pick = <T>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const recipe: Record<string, unknown> = {
+    schemaVersion: 1,
+    family: 'illustrated',
+    assetVersion: 1,
+    rigVersion: 1,
+  };
+  for (const part of Object.keys(AVATAR_PARTS) as AvatarPart[])
+    recipe[part] = pick(SEEDED_CHOICES[part]);
+  for (const color of AVATAR_COLORS) recipe[color] = pick(AVATAR_SWATCHES[color].slice(0, 7));
+  return recipe as IllustratedAvatarRecipe;
 }
 
 export const AVATAR_MARKS = [
@@ -519,9 +622,14 @@ function hairMasks(recipe: IllustratedAvatarRecipe, left: number, right: number)
   }
 }
 
-function accessory(recipe: IllustratedAvatarRecipe, grid: Grid, left: number, right: number): void {
+function accessory(
+  recipe: IllustratedAvatarRecipe,
+  grid: Grid,
+  left: number,
+  right: number,
+  far: number,
+): void {
   const head = HEADS[recipe.head];
-  const turned = recipe.pose !== 'front';
   const shirt = recipe.shirtColor;
   switch (recipe.accessory) {
     case 'none':
@@ -561,7 +669,8 @@ function accessory(recipe: IllustratedAvatarRecipe, grid: Grid, left: number, ri
         (x, y) =>
           y >= 20 &&
           y <= 28 &&
-          ((!turned && x >= left - 4 && x <= left - 1) || (x >= right + 1 && x <= right + 4)),
+          ((far !== -1 && x >= left - 4 && x <= left - 1) ||
+            (far !== 1 && x >= right + 1 && x <= right + 4)),
         '#e25d6a',
       );
       return;
@@ -578,14 +687,18 @@ function accessory(recipe: IllustratedAvatarRecipe, grid: Grid, left: number, ri
       dots(
         grid,
         [
-          ...(turned
+          ...(far === -1
             ? []
             : ([
                 [left - 2, 28],
                 [left - 2, 29],
               ] as Point[])),
-          [right + 2, 28],
-          [right + 2, 29],
+          ...(far === 1
+            ? []
+            : ([
+                [right + 2, 28],
+                [right + 2, 29],
+              ] as Point[])),
         ],
         GOLD,
       );
@@ -663,17 +776,166 @@ const MARKS: Record<(typeof AVATAR_MARKS)[number], { color: string; rows: string
   'generic-working': { color: '#8a8792', rows: ['XX.XX.XX', 'XX.XX.XX'] },
 };
 
+const YAW = { front: 0, left: -25, right: 25 } as const;
+const EYE_OFFSET = 7.5;
+
+function outfit(recipe: IllustratedAvatarRecipe, body: Grid, cx: number, chin: number): void {
+  const shirt = recipe.shirtColor;
+  const skin = recipe.skinColor;
+  const dark = shade(shirt, 0.72);
+  const light = mix(shirt, WHITE, 0.82);
+  const half = (y: number) => 11 + (y - 39) * 2.4;
+  const dxOf = (x: number) => x + 0.5 - cx;
+  const torso: Mask = (x, y) => y >= 39 && Math.abs(dxOf(x)) <= half(y);
+  const neck: Mask = (x, y) => y >= chin - 1 && y <= 41 && Math.abs(dxOf(x)) <= 3;
+  paint(body, neck, shade(skin, 0.86));
+  paint(body, torso, shirt);
+  const v = (depth: number, width: number) => (x: number, y: number) =>
+    y >= 39 && y <= 39 + depth && Math.abs(dxOf(x)) <= width - (y - 39) * (width / depth);
+  switch (recipe.outfit) {
+    case 'tee':
+      paint(
+        body,
+        (x, y) => torso(x, y) && y <= 40 && Math.abs(dxOf(x)) > half(y) - 3,
+        shade(shirt, 0.84),
+      );
+      paint(body, v(2, 3), shade(skin, 0.8));
+      return;
+    case 'shirttie':
+      paint(body, v(7, 5), light);
+      paint(
+        body,
+        (x, y) => y >= 39 && y <= 40 && Math.abs(dxOf(x)) <= 4 && Math.abs(dxOf(x)) >= 2,
+        WHITE,
+      );
+      sprite(body, ['TT', 'TT', '.T', 'TT', 'TT', 'TT'], Math.round(cx) - 1, 40, { T: '#4b6fae' });
+      paint(
+        body,
+        (x, y) =>
+          torso(x, y) &&
+          y >= 40 &&
+          Math.abs(dxOf(x)) <= 6 - (y - 39) * 0.2 &&
+          Math.abs(dxOf(x)) >= 5 - (y - 39) * 0.2,
+        dark,
+      );
+      return;
+    case 'hoodie':
+      paint(
+        body,
+        (x, y) => y >= 37 && y <= 40 && Math.abs(dxOf(x)) <= 9 && Math.abs(dxOf(x)) >= 4,
+        dark,
+      );
+      paint(body, v(3, 3), shade(skin, 0.8));
+      dots(
+        body,
+        [
+          [Math.round(cx) - 3, 42],
+          [Math.round(cx) - 3, 43],
+          [Math.round(cx) - 3, 44],
+          [Math.round(cx) + 2, 42],
+          [Math.round(cx) + 2, 43],
+          [Math.round(cx) + 2, 44],
+        ],
+        WHITE,
+      );
+      paint(body, (x, y) => y >= 45 && torso(x, y) && Math.abs(dxOf(x)) <= 7, shade(shirt, 0.88));
+      return;
+    case 'turtleneck':
+      paint(body, (x, y) => y >= chin && y <= 40 && Math.abs(dxOf(x)) <= 4, shirt);
+      paint(
+        body,
+        (x, y) => y >= chin && y <= 40 && Math.abs(dxOf(x)) <= 4 && (x + 40) % 2 === 0,
+        shade(shirt, 0.86),
+      );
+      paint(body, (x, y) => torso(x, y) && y >= 44 && (y - 44) % 3 === 0, shade(shirt, 0.9));
+      return;
+    case 'sailor':
+      paint(body, v(4, 3), shade(skin, 0.8));
+      paint(
+        body,
+        (x, y) =>
+          torso(x, y) &&
+          y <= 44 &&
+          Math.abs(dxOf(x)) >= 3 + (y - 39) * 0.2 &&
+          Math.abs(dxOf(x)) <= half(y) - 1,
+        '#2f3a5a',
+      );
+      paint(
+        body,
+        (x, y) =>
+          torso(x, y) && y === 43 && Math.abs(dxOf(x)) >= 4 && Math.abs(dxOf(x)) <= half(y) - 2,
+        WHITE,
+      );
+      sprite(body, ['R.R', '.R.', 'R.R'], Math.round(cx) - 2, 43, { R: '#e2565f' });
+      return;
+    case 'blazer':
+      paint(body, v(8, 5), light);
+      paint(
+        body,
+        (x, y) => y >= 39 && y <= 40 && Math.abs(dxOf(x)) <= 4 && Math.abs(dxOf(x)) >= 2,
+        WHITE,
+      );
+      paint(
+        body,
+        (x, y) =>
+          torso(x, y) &&
+          y >= 40 &&
+          y <= 47 &&
+          Math.abs(dxOf(x)) <= 7 - (y - 39) * 0.5 &&
+          Math.abs(dxOf(x)) >= 5 - (y - 39) * 0.5,
+        dark,
+      );
+      dots(
+        body,
+        [
+          [Math.round(cx), 45],
+          [Math.round(cx), 47],
+        ],
+        GOLD,
+      );
+      return;
+    case 'overalls':
+      paint(body, torso, light);
+      paint(body, v(2, 3), shade(skin, 0.8));
+      paint(body, (x, y) => y >= 44 && torso(x, y) && Math.abs(dxOf(x)) <= 7, shirt);
+      paint(
+        body,
+        (x, y) =>
+          torso(x, y) && y < 44 && (Math.abs(dxOf(x) - 5) <= 1 || Math.abs(dxOf(x) + 5) <= 1),
+        shirt,
+      );
+      dots(
+        body,
+        [
+          [Math.round(cx) - 5, 44],
+          [Math.round(cx) + 4, 44],
+        ],
+        GOLD,
+      );
+      return;
+  }
+}
+
 export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   if (!isIllustratedAvatarRecipe(recipe)) throw new Error('invalid Avatar recipe');
   const head = HEADS[recipe.head];
   const skin = recipe.skinColor;
   const hair = recipe.hairColor;
-  const turned = recipe.pose !== 'front';
-  const shift = turned ? -1 : 0;
-  const dx = turned ? -3 : 0;
-  const left = Math.round(CX - head.half) + shift;
-  const right = Math.round(CX - 1 + head.half) + shift;
-  const headMask: Mask = (x, y) => head.mask(x - shift, y);
+  const yaw = (YAW[recipe.pose] * Math.PI) / 180;
+  const sinY = Math.sin(yaw);
+  const turned = sinY !== 0;
+  const far = Math.sign(sinY);
+  const R = head.half;
+  const left = Math.round(CX - head.half);
+  const right = Math.round(CX - 1 + head.half);
+  const chinShift = R * sinY * 0.45;
+  const faceTop = 20;
+  const headMask: Mask = (x, y) => {
+    const t = Math.min(1, Math.max(0, (y + 0.5 - faceTop) / (head.chin - faceTop)));
+    return head.mask(x - chinShift * t, y);
+  };
+  const frontShift = Math.round(R * sinY * 0.35);
+  const backShift = Math.round(-R * sinY * 0.3);
 
   const tileColor = mix(PAPER, recipe.shirtColor, 0.2);
   const tile = blank();
@@ -695,58 +957,57 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   }
 
   const body = blank();
-  const torso = (x: number, y: number) =>
-    y >= 39 && Math.abs(x + 0.5 - CX - shift / 2) <= 11 + (y - 39) * 2.4;
-  paint(body, torso, recipe.shirtColor);
-  paint(
-    body,
-    (x, y) => torso(x, y) && y <= 41 && Math.abs(x + 0.5 - CX - shift / 2) > 8 + (y - 39) * 2.4,
-    shade(recipe.shirtColor, 0.84),
-  );
-  paint(
-    body,
-    (x, y) => y >= head.chin - 1 && y <= 41 && x >= 21 + shift / 2 && x <= 26 + shift / 2,
-    shade(skin, 0.86),
-  );
-  paint(
-    body,
-    (x, y) => y >= 39 && y <= 41 && Math.abs(x + 0.5 - CX - shift / 2) <= 3 - (y - 39),
-    shade(skin, 0.8),
-  );
+  outfit(recipe, body, CX + chinShift * 0.7, head.chin);
 
-  const masks = hairMasks(recipe, turned ? left - 2 : left, right);
+  const masks = hairMasks(recipe, left, right);
+  const cap = ellipse(CX, 20.4, head.half + 2.2, 15);
   const base = blank();
-  paint(base, masks.back, shade(hair, 0.86));
-  if (masks.bands) paint(base, masks.bands, shade(hair, 0.7));
-  const ears: Point[] = [];
-  for (let y = 23; y <= 26; y++) {
-    if (!turned) ears.push([left - 2, y], [left - 1, y]);
-    ears.push([right + 1, y], [right + 2, y]);
-  }
-  dots(base, ears, skin);
-  dots(
-    base,
-    [
-      [right + 1, 24],
-      [right + 1, 25],
-    ],
-    shade(skin, 0.84),
-  );
+  paint(base, (x, y) => masks.back(x - backShift, y), shade(hair, 0.86));
+  if (masks.bands) paint(base, (x, y) => masks.bands!(x - backShift, y), shade(hair, 0.7));
+  if (!turned)
+    for (let y = 23; y <= 26; y++)
+      dots(
+        base,
+        [
+          [left - 2, y],
+          [left - 1, y],
+          [right + 1, y],
+          [right + 2, y],
+        ],
+        skin,
+      );
   paint(base, headMask, skin);
   if (turned) {
     const noseRow = head.mouth - 3;
-    const edge = [...Array(SIZE).keys()].find((x) => base[noseRow]![x] === skin);
+    const row = [...Array(SIZE).keys()].filter((x) => base[noseRow]![x] === skin);
+    const edge = far < 0 ? row[0] : row.at(-1);
     if (edge !== undefined)
       dots(
         base,
         [
-          [edge - 1, noseRow],
-          [edge - 1, noseRow - 1],
+          [edge + far, noseRow],
+          [edge + far, noseRow - 1],
         ],
         skin,
       );
   }
-  paint(base, masks.front, hair);
+  const front: Mask = (x, y) =>
+    masks.front(x - frontShift, y) && (y > 17 || cap(x, y) || masks.front(x, y));
+  paint(base, front, hair);
+  if (turned)
+    paint(
+      base,
+      (x, y) => cap(x, y) && y <= 26 && -far * (x + 0.5 - CX) >= R * 0.62 && recipe.hair !== 'none',
+      hair,
+    );
+  if (!turned)
+    for (const [x, y] of [
+      [right + 1, 24],
+      [right + 1, 25],
+      [left - 1, 24],
+      [left - 1, 25],
+    ] as const)
+      if (base[y]![x] === skin) base[y]![x] = shade(skin, 0.84);
   const edgeShade = shade(hair, 0.72);
   for (let y = SIZE - 1; y > 0; y--)
     for (let x = 0; x < SIZE; x++)
@@ -757,7 +1018,7 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
       if (base[y]![x] === hair && base[y + 1]![x] !== hair) base[y]![x] = edgeShade;
   if (masks.strands)
     for (let x = left; x <= right; x++)
-      if (lock(x) === 0)
+      if (lock(x - frontShift) === 0)
         for (let y = 12; y <= 17; y++) if (base[y]![x] === hair) base[y]![x] = shade(hair, 0.82);
   const highlight = mix(hair, WHITE, 0.35);
   for (let x = left + 4; x <= left + 13; x++) {
@@ -766,21 +1027,39 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     if (base[y + 2]?.[x] === hair) base[y + 2]![x] = highlight;
     if (x % 2 === 0 && base[y + 3]?.[x] === hair) base[y + 3]![x] = highlight;
   }
-  if (masks.ties) dots(base, masks.ties, shade(recipe.shirtColor, 0.8));
-  accessory(recipe, base, left, right);
+  if (turned) {
+    const earX = Math.round(CX + R * Math.sin(yaw - far * (Math.PI / 2)));
+    sprite(base, ['SS', 'SE', 'SE', 'SS', '.S'], earX - 1, 22, { S: skin, E: shade(skin, 0.8) });
+  }
+  if (masks.ties)
+    dots(
+      base,
+      masks.ties.map(([x, y]) => [x + backShift, y] as Point),
+      shade(recipe.shirtColor, 0.8),
+    );
+  accessory(recipe, base, left, right, far);
 
   const face = blank();
   const my = head.mouth;
-  const lx = EYE_X[0] + dx;
-  const rx = EYE_X[1] + dx + (turned ? 1 : 0);
-  const cx = CX + dx;
-  const far = (rows: readonly string[]) => (turned ? rows.map((row) => row.slice(1)) : rows);
-  const farShift = turned ? 2 : 0;
+  const eyeAngle = Math.asin(EYE_OFFSET / R);
+  const eyeAt = (side: -1 | 1) => {
+    const angle = yaw + side * eyeAngle;
+    const width = Math.max(3, Math.min(5, Math.round((5 * Math.cos(angle)) / Math.cos(eyeAngle))));
+    const center = CX - 0.5 + R * Math.sin(angle) * (EYE_OFFSET / (R * Math.sin(eyeAngle)));
+    return { width, x: Math.round(center - (width - 1) / 2) };
+  };
+  const eyeL = eyeAt(-1);
+  const eyeR = eyeAt(1);
+  const trim = (rows: readonly string[], width: number) =>
+    rows.map((row) => row.slice(Math.max(0, row.length - width)));
+  const fit = (rows: readonly string[], width: number) =>
+    rows.map((row) => row.slice(Math.max(0, row.length - 5) + (5 - width)));
+  const cx = Math.round(CX + R * sinY * 0.85);
   const brow = { B: shade(hair, 0.6) };
   const brows = BROWS[recipe.brows];
   if (brows.length) {
-    sprite(face, far(brows), lx + farShift, EYE_TOP - 4, brow);
-    sprite(face, brows, rx, EYE_TOP - 4, brow, true);
+    sprite(face, fit(brows, eyeL.width), eyeL.x, EYE_TOP - 4, brow);
+    sprite(face, fit(brows, eyeR.width), eyeR.x, EYE_TOP - 4, brow, true);
   }
   if (recipe.nose === 'dot') dots(face, [[cx, my - 3]], shade(skin, 0.74));
   if (recipe.nose === 'button')
@@ -798,7 +1077,7 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
       [
         [cx, my - 5],
         [cx, my - 4],
-        [cx - 1, my - 3],
+        [cx + (far || -1), my - 3],
       ],
       shade(skin, 0.68),
     );
@@ -819,18 +1098,18 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
         mix(BLUSH, skin, 0.4),
       );
     };
-    blush(lx + farShift, turned ? 2 : 3);
-    blush(rx + 2, 3);
+    blush(eyeL.x, Math.min(3, eyeL.width));
+    blush(eyeR.x + eyeR.width - Math.min(3, eyeR.width), Math.min(3, eyeR.width));
   }
   if (recipe.cheeks === 'freckles')
     dots(
       face,
       [
-        [lx + 1 + farShift, cheekY],
-        [lx + 3, cheekY + 1],
-        [rx + 1, cheekY + 1],
-        [rx + 3, cheekY],
-        [rx + 4, cheekY + 1],
+        [eyeL.x + 1, cheekY],
+        [eyeL.x + 3, cheekY + 1],
+        [eyeR.x + 1, cheekY + 1],
+        [eyeR.x + 3, cheekY],
+        [eyeR.x + 4, cheekY + 1],
       ],
       shade(skin, 0.68),
     );
@@ -843,17 +1122,23 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
     L: mix(recipe.eyeColor, WHITE, 0.35),
   };
   const style = EYES[recipe.eyes];
+  const extra = style[0]!.length - 5;
   const eyes = blank();
-  sprite(eyes, far(style), lx + 5 - style[0]!.length + farShift, EYE_TOP, palette);
-  sprite(eyes, recipe.eyes === 'wink' ? CLOSED : style, rx, EYE_TOP, palette, true);
+  sprite(eyes, trim(style, eyeL.width + extra), eyeL.x - extra, EYE_TOP, palette);
+  sprite(
+    eyes,
+    recipe.eyes === 'wink' ? fit(CLOSED, eyeR.width) : trim(style, eyeR.width + extra),
+    eyeR.x,
+    EYE_TOP,
+    palette,
+    true,
+  );
   const closed = blank();
-  sprite(closed, far(CLOSED), lx + farShift, EYE_TOP, palette);
-  sprite(closed, CLOSED, rx, EYE_TOP, palette, true);
+  sprite(closed, fit(CLOSED, eyeL.width), eyeL.x, EYE_TOP, palette);
+  sprite(closed, fit(CLOSED, eyeR.width), eyeR.x, EYE_TOP, palette, true);
 
   const glasses = blank();
-  const farX = lx + farShift;
-  const farWidth = turned ? 4 : 5;
-  const frame = (fx: number, round: boolean, width = 5) =>
+  const frame = (fx: number, round: boolean, width: number) =>
     paint(
       glasses,
       (x, y) => {
@@ -866,50 +1151,44 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
       INK,
     );
   const bridge = () =>
-    paint(glasses, (x, y) => y === EYE_TOP + 1 && x > farX + farWidth && x < rx - 1, INK);
+    paint(glasses, (x, y) => y === EYE_TOP + 1 && x > eyeL.x + eyeL.width && x < eyeR.x - 1, INK);
   if (recipe.glasses === 'round' || recipe.glasses === 'square') {
-    frame(farX, recipe.glasses === 'round', farWidth);
-    frame(rx, recipe.glasses === 'round');
+    frame(eyeL.x, recipe.glasses === 'round', eyeL.width);
+    frame(eyeR.x, recipe.glasses === 'round', eyeR.width);
     bridge();
   }
   if (recipe.glasses === 'shades') {
-    for (const [fx, width] of [
-      [farX, farWidth],
-      [rx, 5],
-    ] as const)
+    for (const eye of [eyeL, eyeR])
       paint(
         glasses,
-        (x, y) => x >= fx - 1 && x <= fx + width && y >= EYE_TOP && y <= EYE_TOP + 4,
+        (x, y) => x >= eye.x - 1 && x <= eye.x + eye.width && y >= EYE_TOP && y <= EYE_TOP + 4,
         INK,
       );
     bridge();
-    dots(
-      glasses,
-      [
-        [farX, EYE_TOP + 1],
-        [farX + 1, EYE_TOP + 1],
-        [rx, EYE_TOP + 1],
-        [rx + 1, EYE_TOP + 1],
-      ],
-      '#7d7b88',
-    );
+    for (const eye of [eyeL, eyeR])
+      dots(
+        glasses,
+        [
+          [eye.x, EYE_TOP + 1],
+          [eye.x + 1, EYE_TOP + 1],
+        ],
+        '#7d7b88',
+      );
   }
   if (recipe.glasses === 'monocle') {
-    frame(rx, true);
+    frame(eyeR.x, true, eyeR.width);
     dots(
       glasses,
       [
-        [rx + 5, EYE_TOP + 7],
-        [rx + 5, EYE_TOP + 8],
-        [rx + 5, EYE_TOP + 9],
-        [rx + 5, EYE_TOP + 10],
+        [eyeR.x + eyeR.width, EYE_TOP + 7],
+        [eyeR.x + eyeR.width, EYE_TOP + 8],
+        [eyeR.x + eyeR.width, EYE_TOP + 9],
+        [eyeR.x + eyeR.width, EYE_TOP + 10],
       ],
       GOLD,
     );
   }
 
-  const facing = (grid: Grid): Grid =>
-    recipe.pose === 'right' ? grid.map((row) => [...row].reverse()) : grid;
   const marks = AVATAR_MARKS.map((mark) => {
     const grid = blank();
     sprite(grid, MARKS[mark].rows, 38, 4, { X: MARKS[mark].color });
@@ -919,12 +1198,12 @@ export function illustratedAvatarSvg(recipe: IllustratedAvatarRecipe): string {
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" width="512" height="512" shape-rendering="crispEdges" aria-hidden="true">`,
     rects(tile),
-    `<g class="bh-illustrated-body">${rects(facing(clip(outline(body))))}</g>`,
-    `<g class="bh-illustrated-head">${rects(facing(clip(outline(base))))}`,
-    `<g class="bh-illustrated-face">${rects(facing(face))}`,
-    `<g class="bh-illustrated-gaze">${rects(facing(eyes))}</g>`,
-    `<g class="bh-illustrated-blink" opacity="0">${rects(facing(closed))}</g>`,
-    `${rects(facing(glasses))}</g></g>`,
+    `<g class="bh-illustrated-body">${rects(clip(outline(body)))}</g>`,
+    `<g class="bh-illustrated-head">${rects(clip(outline(base)))}`,
+    `<g class="bh-illustrated-face">${rects(face)}`,
+    `<g class="bh-illustrated-gaze">${rects(eyes)}</g>`,
+    `<g class="bh-illustrated-blink" opacity="0">${rects(closed)}</g>`,
+    `${rects(glasses)}</g></g>`,
     `<g class="bh-illustrated-marks">${marks}</g>`,
     '</svg>',
   ].join('');

@@ -13,6 +13,7 @@ import { blobatar } from 'blobatar';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import {
   isAvatarAppearance,
+  seededAvatarRecipe,
   type AvatarAppearance,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { IllustratedAvatar } from './illustrated-avatar.js';
@@ -268,11 +269,12 @@ export function PersonaBotAvatar({
     effect ?? (state === 'working' ? activity?.effect : undefined) ?? defaultActivityEffect(state);
   const summary = personaBotPresentationSummary(state, activity, attention, t);
   const composed = isAvatarAppearance(appearance);
-  const mediaKind = composed
-    ? 'composed'
-    : src === undefined || src.length === 0
-      ? 'blob'
-      : 'image';
+  const seeded = !composed && (src === undefined || src.length === 0);
+  const seededRecipe = useMemo(
+    () => (seeded ? seededAvatarRecipe(name || personaBotId) : undefined),
+    [seeded, name, personaBotId],
+  );
+  const mediaKind = composed ? 'composed' : seeded ? 'seeded' : 'image';
   const active = state === 'thinking' || state === 'working';
   const classes = ['bh-persona-avatar', className].filter(Boolean).join(' ');
 
@@ -288,9 +290,9 @@ export function PersonaBotAvatar({
       role="img"
       aria-label={t('avatar.label', { name, activity: summary })}
     >
-      {composed ? (
+      {composed || seededRecipe ? (
         <IllustratedAvatar
-          recipe={appearance.recipe}
+          recipe={composed ? appearance.recipe : seededRecipe!}
           state={state}
           effect={resolvedEffect ?? 'generic-working'}
           size={size}
