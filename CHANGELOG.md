@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Bots can explicitly share one own-Inbox external source into a joined team Channel, preserving original provenance and independent member attention without forwarding future traffic or borrowing external identities ([#636](https://github.com/BotHarness/BotHarness/issues/636)).
+
 - Channel sidebar settings adds personal order editing with drag and keyboard controls, draft Done/Cancel/default actions, permission-safe expansion restoration and separate browser-persistent DM/group orders ([#721](https://github.com/BotHarness/BotHarness/issues/721)).
 
 - Computer and Browser Access use compact Lucide Power controls with localized permission actions, Host-confirmed state, pending guards and failure feedback ([#720](https://github.com/BotHarness/BotHarness/issues/720)).

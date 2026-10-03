@@ -2373,9 +2373,7 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
         const after = fx.query(
           `SELECT * FROM inbox_admissions WHERE source_event_id = '${sourceId}' AND bot_slug = 'ada'`,
         );
-        expect(after).toEqual([
-          { ...before[0], side_effect_started_at: expect.any(String) },
-        ]);
+        expect(after).toEqual([{ ...before[0], side_effect_started_at: expect.any(String) }]);
         expect(run.externalMessaging!.read(sourceId).localChannelId).toBeUndefined();
         expect(run.externalMessaging!.share(sourceId, channelId).alreadyShared).toBe(true);
         shared = true;
@@ -2388,9 +2386,9 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
           bridgeOrigin: { sourceEventId: sourceId, senderId: 'ou-human', messageId: 'om-1' },
         });
         expect(() => run.externalMessaging!.read(sourceId)).toThrow('source-unavailable');
-        await expect(async () => run.externalMessaging!.reply(sourceId, 'Borrowed identity')).rejects.toThrow(
-          'source unavailable',
-        );
+        await expect(async () =>
+          run.externalMessaging!.reply(sourceId, 'Borrowed identity'),
+        ).rejects.toThrow('source unavailable');
         await run.channels.send({ channelId, body: 'Helper local discussion' });
       }
     },
@@ -2411,7 +2409,11 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
     ),
   ).toEqual([{ last_error: null }]);
   expect(shared).toBe(true);
-  expect(fx.query(`SELECT last_error FROM inbox_admissions WHERE source_event_id = '${sourceId}' AND bot_slug = 'bea'`)).toEqual([{ last_error: null }]);
+  expect(
+    fx.query(
+      `SELECT last_error FROM inbox_admissions WHERE source_event_id = '${sourceId}' AND bot_slug = 'bea'`,
+    ),
+  ).toEqual([{ last_error: null }]);
   expect(
     fx.query(`SELECT source_event_id FROM source_events WHERE source_kind = 'bridge-message'`),
   ).toEqual([{ source_event_id: sourceId }]);
@@ -2429,8 +2431,12 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
   expect(
     fx.core.channels.readMessages(channelId).filter((message) => message.id === sourceId),
   ).toHaveLength(1);
-  expect(fx.core.channels.readMessages(channelId).map(message => message.body)).toContain('Helper local discussion');
-  expect(fx.core.channels.readMessages(channelId).some(message => message.sessionFailure)).toBe(false);
+  expect(fx.core.channels.readMessages(channelId).map((message) => message.body)).toContain(
+    'Helper local discussion',
+  );
+  expect(fx.core.channels.readMessages(channelId).some((message) => message.sessionFailure)).toBe(
+    false,
+  );
   expect(
     fx.runs.filter((run) => run.bot.slug === 'ada' && run.inbox.includes('Share this Inbox fact')),
   ).toHaveLength(1);

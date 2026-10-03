@@ -25,7 +25,7 @@ import type { ChannelMessageCommit } from '../channels/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { OperationalDatabaseError, type OperationalDatabaseModulePort } from '../database/owner.js';
-import { defaultGroupWakePolicy, type BotSourcePolicyStore } from '../runtime/source-policy.js';
+import type { BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type { MessagingGrant } from './outbound.js';
 import {
   MessagingError,
@@ -1143,6 +1143,17 @@ export function createInboundMessaging(options: {
           options.warn?.('bridge-share-wake-failed');
         }
       }
+      options.warn?.(
+        JSON.stringify({
+          event: 'messaging-inbox-share',
+          phase: 'committed',
+          initiator: botSlug,
+          sourceEventId,
+          channelId,
+          revision: result.revision,
+          alreadyShared: result.alreadyShared,
+        }),
+      );
       return result;
     },
     async context(botSlug, sourceEventId, sessionId, query, callerSignal) {
