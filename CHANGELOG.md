@@ -19,6 +19,11 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Group facepiles show at most three avatars, prioritizing active members with stable order and accurate overflow; Group header avatars now expose each member’s safe live status to hover and keyboard focus, and open up to three active-first avatar/name/state chips in the existing Group Profile popover ([#124](https://github.com/BotHarness/BotHarness/issues/124)).
 
+- PersonaBot Profile can switch the avatar between the pixel family and a new original line family (bold strokes on a coloured tile) with its own eyes and mouths (including kaomoji such as > <, T T, ω and ▽), brows, nose, cheeks, glasses, manga symbols (sweat, anger vein, gloom lines, sparkle and more), background/line colors and bounded spacing, height and tilt; line avatars save, snapshot, animate, show independent approval attention and recover through the same path; large avatars of both families show a manga `!?` mark while action is needed ([#753](https://github.com/BotHarness/BotHarness/issues/753)).
+
+- Browser observations now include bounded form values and control states; the optional Local agent-browser snapshot removes repeated scaffolding while retaining page/dialog content and exact action refs ([#787](https://github.com/BotHarness/BotHarness/issues/787)).
+
+- Added an optional Local agent-browser trial driver behind the existing Browser permissions and Human controls; the current driver remains the default ([#767](https://github.com/BotHarness/BotHarness/issues/767), [ADR-0124](docs/adr/0124-local-browser-drivers-share-host-authority.md)).
 - Group activity now names each active PersonaBot in the compact summary and expanded list, with keyboard-accessible avatars showing the same safe shared status ([#124](https://github.com/BotHarness/BotHarness/issues/124)).
 - PersonaBot Profile can preview, cancel and save an original pixel-art avatar from a Notion-Faces-style catalog of face, hair, eyes, brows, nose, mouth, cheeks, glasses, accessory, skin/hair/eye/shirt color, angle, outfit and backdrop; Bots without a saved or uploaded avatar get a name-seeded pixel default that the create dialog previews; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 
@@ -224,6 +229,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- Connector authorization settings are more compact, with filled primary/destructive actions and contextual help available by hover, click, or keyboard ([#780](https://github.com/BotHarness/BotHarness/issues/780)).
 
 - Unified Container Browser and Docker Computer preview, fullscreen and explicit interaction controls in one shared Viewer; Browser waits for Host Pause before enabling input and keeps Pause when the view collapses ([#736](https://github.com/BotHarness/BotHarness/issues/736)).
 

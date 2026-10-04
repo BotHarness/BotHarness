@@ -825,6 +825,9 @@ window.__ModuleLoader__.load({
 			"entry.watchOnly": "观看模式",
 			"entry.stop": "停止",
 			"entry.stopping": "停止中",
+			"settings.localDriver": "本机驱动",
+			"settings.driver.current": "默认",
+			"settings.driver.agent-browser": "agent-browser（试用）",
 			"settings.target": "操作目标",
 			"settings.local": "本机 Browser",
 			"settings.container": "Docker Browser",
@@ -888,6 +891,9 @@ window.__ModuleLoader__.load({
 			"entry.watchOnly": "Watch only",
 			"entry.stop": "Stop",
 			"entry.stopping": "Stopping",
+			"settings.localDriver": "Local driver",
+			"settings.driver.current": "Default",
+			"settings.driver.agent-browser": "agent-browser (trial)",
 			"settings.target": "Browser Target",
 			"settings.local": "Local Browser",
 			"settings.container": "Docker Browser",
@@ -1054,15 +1060,53 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region packages/browser/src/client/settings.tsx
+		function ConfigChoice({ scope, field, value, writable, title, items }) {
+			const [open, setOpen] = (0, react.useState)(false);
+			const [saving, setSaving] = (0, react.useState)(false);
+			const [error, setError] = (0, react.useState)();
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				className: "bh-settings-row",
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					className: "bh-settings-row-title",
+					children: title
+				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Menu, {
+					portal: true,
+					align: "end",
+					open,
+					selectedId: value,
+					items,
+					onClose: () => setOpen(false),
+					onSelect: (id) => {
+						setOpen(false);
+						if (!items.some((item) => item.id === id)) return;
+						setSaving(true);
+						setError(void 0);
+						scope.set(field, id).then(() => {
+							if (scope.getSnapshot().value?.[field] !== id) throw new Error("Browser setting was not saved");
+						}).catch((cause) => setError(String(cause))).finally(() => setSaving(false));
+					},
+					anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+						type: "button",
+						className: "bh-settings-selector",
+						"aria-haspopup": "menu",
+						"aria-expanded": open,
+						disabled: !writable || saving,
+						onClick: () => setOpen(!open),
+						children: [items.find((item) => item.id === value)?.label ?? value, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, {})]
+					})
+				})]
+			}), error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				role: "alert",
+				className: "bh-browser-error",
+				children: error
+			})] });
+		}
 		function BrowserTargetSettings({ scope, t }) {
 			const store = (0, react.useMemo)(() => ({
 				subscribe: (listener) => scope.subscribe(listener),
 				getSnapshot: () => scope.getSnapshot()
 			}), [scope]);
 			const snapshot = (0, react.useSyncExternalStore)(store.subscribe, store.getSnapshot);
-			const [open, setOpen] = (0, react.useState)(false);
-			const [saving, setSaving] = (0, react.useState)(false);
-			const [error, setError] = (0, react.useState)();
 			const target = snapshot.value?.target ?? "local";
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: "bh-settings-rows bh-browser-settings",
@@ -1074,51 +1118,33 @@ window.__ModuleLoader__.load({
 							children: "Browser"
 						})
 					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						className: "bh-settings-row",
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: "bh-settings-row-title",
-							children: t("settings.target")
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Menu, {
-							portal: true,
-							align: "end",
-							open,
-							selectedId: target,
-							items: [
-								"local",
-								"container",
-								"extension",
-								"daily-control",
-								"profile-control"
-							].map((id) => ({
-								id,
-								label: t(`settings.${id}`)
-							})),
-							onClose: () => setOpen(false),
-							onSelect: (id) => {
-								setOpen(false);
-								if (id !== "local" && id !== "container" && id !== "extension" && id !== "daily-control" && id !== "profile-control") return;
-								setSaving(true);
-								setError(void 0);
-								scope.set("target", id).then(() => {
-									if (scope.getSnapshot().value?.target !== id) throw new Error("Browser Target was not saved");
-								}).catch((cause) => setError(String(cause))).finally(() => setSaving(false));
-							},
-							anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
-								type: "button",
-								className: "bh-settings-selector",
-								"aria-haspopup": "menu",
-								"aria-expanded": open,
-								disabled: !snapshot.writable || saving,
-								onClick: () => setOpen(!open),
-								children: [t(`settings.${target}`), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, {})]
-							})
-						})]
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ConfigChoice, {
+						scope,
+						field: "target",
+						value: target,
+						writable: snapshot.writable,
+						title: t("settings.target"),
+						items: [
+							"local",
+							"container",
+							"extension",
+							"daily-control",
+							"profile-control"
+						].map((id) => ({
+							id,
+							label: t(`settings.${id}`)
+						}))
 					}),
-					error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						role: "alert",
-						className: "bh-browser-error",
-						children: error
+					target !== "local" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ConfigChoice, {
+						scope,
+						field: "localDriver",
+						value: snapshot.value?.localDriver ?? "current",
+						writable: snapshot.writable,
+						title: t("settings.localDriver"),
+						items: ["current", "agent-browser"].map((id) => ({
+							id,
+							label: t(`settings.driver.${id}`)
+						}))
 					})
 				]
 			});

@@ -1,44 +1,73 @@
 import { useMemo, useState, type ReactElement } from 'react';
 import {
   AVATAR_COLORS,
+  AVATAR_FAMILIES,
   AVATAR_PARTS,
   AVATAR_SWATCHES,
+  avatarSvg,
   seededAvatarRecipe,
-  illustratedAvatarSvg,
-  type AvatarPart,
-  type IllustratedAvatarRecipe,
+  type AvatarFamily,
+  type AvatarRecipe,
 } from '../../../core/src/bots/avatar-appearance.js';
+import {
+  LINE_COLORS,
+  LINE_PARTS,
+  LINE_RANGES,
+  LINE_SWATCHES,
+  seededLineRecipe,
+} from '../../../core/src/bots/avatar-line.js';
 import { PersonaBotAvatar, normalizePersonaBotActivity } from './avatar.js';
 import type { BotSummary } from './store.js';
 import type { BotHarnessTranslate } from './locale.js';
 
-type Category = AvatarPart | 'colors';
+type Key = Parameters<BotHarnessTranslate>[0];
 
-const CATEGORIES: readonly Category[] = [
-  'head',
-  'pose',
-  'hair',
-  'eyes',
-  'brows',
-  'nose',
-  'mouth',
-  'cheeks',
-  'glasses',
-  'accessory',
-  'outfit',
-  'backdrop',
-  'colors',
-];
+interface FamilySpec {
+  parts: Readonly<Record<string, readonly string[]>>;
+  colors: readonly string[];
+  swatches: Readonly<Record<string, readonly string[]>>;
+  ranges: Readonly<Record<string, readonly [number, number]>>;
+  categories: readonly string[];
+  option(part: string, value: string): Key;
+  seeded(name: string): AvatarRecipe;
+}
 
-const SWATCHES = AVATAR_SWATCHES;
+const FAMILIES: Record<AvatarFamily, FamilySpec> = {
+  illustrated: {
+    parts: AVATAR_PARTS,
+    colors: AVATAR_COLORS,
+    swatches: AVATAR_SWATCHES,
+    ranges: {},
+    categories: [
+      ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop'),
+      'backdrop',
+      'colors',
+    ],
+    option: (part, value) => `profile.avatar.option.${part}.${value}` as Key,
+    seeded: seededAvatarRecipe,
+  },
+  line: {
+    parts: LINE_PARTS,
+    colors: LINE_COLORS,
+    swatches: LINE_SWATCHES,
+    ranges: LINE_RANGES,
+    categories: [...Object.keys(LINE_PARTS), 'shape', 'colors'],
+    option: (part, value) => `profile.avatar.line.${part}.${value}` as Key,
+    seeded: seededLineRecipe,
+  },
+};
 
-function shuffled(recipe: IllustratedAvatarRecipe): IllustratedAvatarRecipe {
+type Fields = Record<string, string | number>;
+
+function shuffled(recipe: AvatarRecipe): AvatarRecipe {
+  const spec = FAMILIES[recipe.family];
   const pick = <T,>(values: readonly T[]) => values[Math.floor(Math.random() * values.length)]!;
-  const next: Record<string, unknown> = { ...recipe };
-  for (const part of Object.keys(AVATAR_PARTS) as AvatarPart[])
-    next[part] = pick(AVATAR_PARTS[part]);
-  for (const color of AVATAR_COLORS) next[color] = pick(SWATCHES[color]);
-  return next as IllustratedAvatarRecipe;
+  const next: Fields = { ...(recipe as unknown as Fields) };
+  for (const [part, values] of Object.entries(spec.parts)) next[part] = pick(values);
+  for (const color of spec.colors) next[color] = pick(spec.swatches[color]!);
+  for (const [key, [min, max]] of Object.entries(spec.ranges))
+    next[key] = min + Math.floor(Math.random() * (max - min + 1));
+  return next as unknown as AvatarRecipe;
 }
 
 function OptionTile({
@@ -48,17 +77,14 @@ function OptionTile({
   id,
   onSelect,
 }: {
-  recipe: IllustratedAvatarRecipe;
+  recipe: AvatarRecipe;
   selected: boolean;
   label: string;
   id: string;
   onSelect(): void;
 }): ReactElement {
   const key = JSON.stringify(recipe);
-  const markup = useMemo(
-    () => illustratedAvatarSvg(JSON.parse(key) as IllustratedAvatarRecipe),
-    [key],
-  );
+  const markup = useMemo(() => avatarSvg(JSON.parse(key) as AvatarRecipe), [key]);
   return (
     <button
       type="button"
@@ -82,16 +108,37 @@ export function AvatarAppearanceEditor({
 }: {
   bot: BotSummary;
   channelId: string;
-  onSave(channelId: string, recipe: IllustratedAvatarRecipe): Promise<boolean>;
+  onSave(channelId: string, recipe: AvatarRecipe): Promise<boolean>;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const [draft, setDraft] = useState<IllustratedAvatarRecipe>();
-  const [category, setCategory] = useState<Category>('hair');
+  const [drafts, setDrafts] = useState<Partial<Record<AvatarFamily, AvatarRecipe>>>();
+  const [family, setFamily] = useState<AvatarFamily>('illustrated');
+  const [category, setCategory] = useState('hair');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const draft = drafts?.[family];
+  const spec = FAMILIES[family];
+  const seed = bot.displayName || bot.slug;
   const start = () => {
-    setDraft({ ...(bot.appearance?.recipe ?? seededAvatarRecipe(bot.displayName || bot.slug)) });
+    const saved = bot.appearance?.recipe ?? seededAvatarRecipe(seed);
+    setDrafts({ [saved.family]: { ...saved } });
+    setFamily(saved.family);
+    setCategory(saved.family === 'line' ? 'eyes' : 'hair');
     setFailed(false);
+  };
+  const update = (next: AvatarRecipe) =>
+    setDrafts((current) => ({ ...current, [next.family]: next }));
+  const choose = (next: AvatarFamily) => {
+    setFamily(next);
+    setCategory(next === 'line' ? 'eyes' : 'hair');
+    setDrafts((current) => ({
+      ...current,
+      [next]:
+        current?.[next] ??
+        (bot.appearance?.recipe.family === next
+          ? bot.appearance.recipe
+          : FAMILIES[next].seeded(seed)),
+    }));
   };
   const save = async () => {
     if (!draft || busy) return;
@@ -99,10 +146,13 @@ export function AvatarAppearanceEditor({
     const saved = await onSave(channelId, draft);
     setBusy(false);
     setFailed(!saved);
-    if (saved) setDraft(undefined);
+    if (saved) setDrafts(undefined);
   };
   const state = normalizePersonaBotActivity(bot.aggregateState);
   const recipe = draft ?? bot.appearance?.recipe;
+  const fields = draft as unknown as Fields | undefined;
+  const set = (key: string, value: string | number) =>
+    update({ ...(draft as unknown as Fields), [key]: value } as unknown as AvatarRecipe);
   return (
     <section className="bh-avatar-editor" aria-label={t('profile.avatar.design')}>
       <div className="bh-avatar-editor-preview" data-avatar-preview>
@@ -123,11 +173,29 @@ export function AvatarAppearanceEditor({
       <div className="bh-avatar-editor-controls">
         <h3>{t('profile.avatar.design')}</h3>
         <p>{t('profile.avatar.designDescription')}</p>
-        {draft ? (
+        {draft && fields ? (
           <fieldset disabled={busy} className="bh-avatar-editor-fields">
+            <div
+              className="bh-avatar-families"
+              role="radiogroup"
+              aria-label={t('profile.avatar.family')}
+            >
+              {AVATAR_FAMILIES.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  data-avatar-family={value}
+                  aria-checked={family === value}
+                  onClick={() => choose(value)}
+                >
+                  {t(`profile.avatar.family.${value}`)}
+                </button>
+              ))}
+            </div>
             <div className="bh-avatar-categories">
               <div role="tablist" aria-label={t('profile.avatar.parts')}>
-                {CATEGORIES.map((key) => (
+                {spec.categories.map((key) => (
                   <button
                     key={key}
                     type="button"
@@ -143,17 +211,15 @@ export function AvatarAppearanceEditor({
                         event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
                       if (!step) return;
                       event.preventDefault();
-                      const next =
-                        CATEGORIES[
-                          (CATEGORIES.indexOf(key) + step + CATEGORIES.length) % CATEGORIES.length
-                        ]!;
+                      const list = spec.categories;
+                      const next = list[(list.indexOf(key) + step + list.length) % list.length]!;
                       setCategory(next);
                       event.currentTarget.parentElement
                         ?.querySelector<HTMLButtonElement>(`[data-avatar-category="${next}"]`)
                         ?.focus();
                     }}
                   >
-                    {t(`profile.avatar.${key}`)}
+                    {t(`profile.avatar.${key}` as Key)}
                   </button>
                 ))}
               </div>
@@ -161,7 +227,7 @@ export function AvatarAppearanceEditor({
                 type="button"
                 data-avatar-shuffle
                 className="bh-avatar-shuffle"
-                onClick={() => setDraft(shuffled(draft))}
+                onClick={() => update(shuffled(draft))}
               >
                 {t('profile.avatar.shuffle')}
               </button>
@@ -173,29 +239,52 @@ export function AvatarAppearanceEditor({
                 id="bh-avatar-panel"
                 aria-labelledby="bh-avatar-tab-colors"
               >
-                {AVATAR_COLORS.map((key) => (
+                {spec.colors.map((key) => (
                   <div key={key} className="bh-avatar-color-row">
-                    <span>{t(`profile.avatar.${key}`)}</span>
-                    {SWATCHES[key].map((value) => (
+                    <span>{t(`profile.avatar.${key}` as Key)}</span>
+                    {spec.swatches[key]!.map((value) => (
                       <button
                         key={value}
                         type="button"
                         className="bh-avatar-swatch"
                         data-avatar-option={`${key}:${value}`}
-                        aria-pressed={draft[key] === value}
-                        aria-label={`${t(`profile.avatar.${key}`)} ${value}`}
+                        aria-pressed={fields[key] === value}
+                        aria-label={`${t(`profile.avatar.${key}` as Key)} ${value}`}
                         style={{ background: value }}
-                        onClick={() => setDraft({ ...draft, [key]: value })}
+                        onClick={() => set(key, value)}
                       />
                     ))}
                     <input
                       name={key}
                       type="color"
-                      aria-label={t(`profile.avatar.${key}`)}
-                      value={draft[key]}
-                      onChange={(event) => setDraft({ ...draft, [key]: event.currentTarget.value })}
+                      aria-label={t(`profile.avatar.${key}` as Key)}
+                      value={String(fields[key])}
+                      onChange={(event) => set(key, event.currentTarget.value)}
                     />
                   </div>
+                ))}
+              </div>
+            ) : category === 'shape' ? (
+              <div
+                className="bh-avatar-ranges"
+                role="tabpanel"
+                id="bh-avatar-panel"
+                aria-labelledby="bh-avatar-tab-shape"
+              >
+                {Object.entries(spec.ranges).map(([key, [min, max]]) => (
+                  <label key={key}>
+                    <span>{t(`profile.avatar.${key}` as Key)}</span>
+                    <input
+                      type="range"
+                      name={key}
+                      min={min}
+                      max={max}
+                      step={1}
+                      value={Number(fields[key])}
+                      onChange={(event) => set(key, Number(event.currentTarget.value))}
+                    />
+                    <output>{fields[key]}</output>
+                  </label>
                 ))}
               </div>
             ) : (
@@ -205,16 +294,19 @@ export function AvatarAppearanceEditor({
                 id="bh-avatar-panel"
                 aria-labelledby={`bh-avatar-tab-${category}`}
               >
-                {AVATAR_PARTS[category].map((value) => (
+                {(spec.parts[category] ?? []).map((value) => (
                   <OptionTile
                     key={value}
                     id={`${category}:${value}`}
-                    recipe={{ ...draft, [category]: value }}
-                    selected={draft[category] === value}
-                    label={t(
-                      `profile.avatar.option.${category}.${value}` as Parameters<BotHarnessTranslate>[0],
-                    )}
-                    onSelect={() => setDraft({ ...draft, [category]: value })}
+                    recipe={
+                      {
+                        ...(draft as unknown as Fields),
+                        [category]: value,
+                      } as unknown as AvatarRecipe
+                    }
+                    selected={fields[category] === value}
+                    label={t(spec.option(category, value))}
+                    onSelect={() => set(category, value)}
                   />
                 ))}
               </div>
@@ -239,7 +331,7 @@ export function AvatarAppearanceEditor({
                 className="bh-profile-action"
                 disabled={busy}
                 onClick={() => {
-                  setDraft(undefined);
+                  setDrafts(undefined);
                   setFailed(false);
                 }}
               >

@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useId, useState, type ReactElement } from 'react';
 import { Button, Switch, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
 import type {
@@ -7,6 +7,7 @@ import type {
 } from '../../../core/src/messaging/identity.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
+import { MessagingHelp } from './messaging-help.js';
 
 export function ExternalIdentityTable({
   snapshot,
@@ -19,6 +20,7 @@ export function ExternalIdentityTable({
   mutate(input: MessagingIdentityInput): Promise<void>;
   refresh(): Promise<void>;
 }): ReactElement {
+  const defaultsId = useId();
   const [mode, setMode] = useState<'bind' | 'edit' | 'reconnect' | 'unbind'>();
   const [selected, setSelected] = useState<MessagingIdentityView>();
   const [accountKey, setAccountKey] = useState('');
@@ -90,15 +92,20 @@ export function ExternalIdentityTable({
   return (
     <section className="bh-profile-section bh-identity-section" aria-label={t('identity.title')}>
       <header className="bh-identity-header">
-        <div>
+        <div className="bh-im-heading">
           <strong>{t('identity.title')}</strong>
-          <p>{t('identity.summary')}</p>
+          <MessagingHelp title={t('identity.title')} text={t('identity.summary')} t={t} />
         </div>
         <div className="bh-identity-actions">
-          <Button disabled={busy} onClick={() => void operate(refresh)}>
+          <Button size="sm" variant="toolbar" disabled={busy} onClick={() => void operate(refresh)}>
             {t('im.refresh')}
           </Button>
-          <Button disabled={busy || !snapshot} onClick={() => open('bind')}>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={busy || !snapshot}
+            onClick={() => open('bind')}
+          >
             {t('identity.bind')}
           </Button>
         </div>
@@ -178,7 +185,7 @@ export function ExternalIdentityTable({
                     <Button
                       type="button"
                       size="sm"
-                      variant="ghost"
+                      variant="primary"
                       disabled={busy}
                       aria-label={t('identity.editFor', { name: row.name })}
                       onClick={() => open('edit', row)}
@@ -188,7 +195,7 @@ export function ExternalIdentityTable({
                     <Button
                       type="button"
                       size="sm"
-                      variant="ghost"
+                      variant="primary"
                       disabled={busy}
                       aria-label={t('identity.reconnectFor', { name: row.name })}
                       onClick={() => open('reconnect', row)}
@@ -198,8 +205,9 @@ export function ExternalIdentityTable({
                     <Button
                       type="button"
                       size="sm"
-                      variant="ghost"
+                      variant="primary"
                       disabled={busy}
+                      className="bh-im-danger"
                       aria-label={t('identity.unbindFor', { name: row.name })}
                       onClick={() => open('unbind', row)}
                     >
@@ -277,9 +285,17 @@ export function ExternalIdentityTable({
               </label>
             ) : null}
             {mode === 'edit' ? (
-              <label className="bh-im-field">
-                <span>{t('defaults.identity')}</span>
+              <div className="bh-im-field">
+                <span className="bh-im-heading">
+                  <label htmlFor={defaultsId}>{t('defaults.identity')}</label>
+                  <MessagingHelp
+                    title={t('defaults.identity')}
+                    text={t('defaults.restoreHint')}
+                    t={t}
+                  />
+                </span>
                 <select
+                  id={defaultsId}
                   aria-label={t('defaults.identityOrigin')}
                   value={inheritEnabled ? 'inherit' : 'custom'}
                   disabled={busy}
@@ -288,8 +304,7 @@ export function ExternalIdentityTable({
                   <option value="inherit">{t('defaults.inherited')}</option>
                   <option value="custom">{t('defaults.custom')}</option>
                 </select>
-                <span>{t('defaults.restoreHint')}</span>
-              </label>
+              </div>
             ) : null}
             {mode === 'reconnect' ? <p>{t('identity.reconnectHint')}</p> : null}
             {mode === 'unbind' ? (
@@ -306,6 +321,9 @@ export function ExternalIdentityTable({
           </>
         ) : null}
         <Button
+          size="sm"
+          variant="primary"
+          className={mode === 'unbind' ? 'bh-im-danger' : undefined}
           disabled={
             busy ||
             (mode === 'bind' && (!selectedAccount || !selectedAccount.connected)) ||
