@@ -200,14 +200,12 @@ describe('published Browser Host service', () => {
       .fetch(new Request('http://localhost/api/browser/observation?slug=bot-a'));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(finish).toBeDefined();
-    await h.routes
-      .get('/api/browser/stop')!
-      .fetch(
-        new Request('http://localhost/api/browser/stop', {
-          method: 'POST',
-          body: JSON.stringify({ slug: 'bot-a' }),
-        }),
-      );
+    await h.routes.get('/api/browser/stop')!.fetch(
+      new Request('http://localhost/api/browser/stop', {
+        method: 'POST',
+        body: JSON.stringify({ slug: 'bot-a' }),
+      }),
+    );
     finish!({ mimeType: 'image/png', data: 'old-frame' });
     const result = await preview;
     expect(result.status).toBe(409);
