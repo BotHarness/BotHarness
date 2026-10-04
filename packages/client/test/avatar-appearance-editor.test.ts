@@ -82,7 +82,10 @@ describe('Profile Avatar Appearance editing', () => {
       await click('[data-avatar-edit]');
       await click('[data-avatar-option="hair:bob"]');
       expect(container.querySelector('[data-avatar-preview] svg')).not.toBeNull();
-      expect(container.querySelector('[data-approval-count="2"]')).not.toBeNull();
+      expect(container.querySelector('[data-avatar-preview] [data-approval-count="2"]')).toBeNull();
+      expect(
+        container.querySelector('.bh-avatar-editor-title [data-approval-count="2"]'),
+      ).not.toBeNull();
       expect(container.querySelectorAll('[data-avatar-option^="hair:"]')).toHaveLength(
         AVATAR_PARTS.hair.length,
       );

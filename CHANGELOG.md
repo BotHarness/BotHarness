@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- Line-family PersonaBot avatars gain more kaomoji-style eyes (big sparkly, hearts, rings, tall ovals, ^ ^, half-lidded, droopy), brows (thick, maro dots, thin) and mouths (▽, teeth, little fang, dot, pout, nervous zigzag, big laugh), and the Profile editor offers twelve face-only Line presets ([#833](https://github.com/BotHarness/BotHarness/issues/833)).
+- Line-family PersonaBot avatars gain more kaomoji-style eyes (big sparkly, hearts, rings, tall ovals, ^ ^, half-lidded, droopy), brows (thick, maro dots, thin) and mouths (▽, teeth, little fang, dot, pout, nervous zigzag, big laugh), and the Profile editor offers twelve face-only Line presets; Avatars no longer draw the corner `!?` attention mark or manga symbols, and the Profile preview, header title and pinned PersonaBots show the activity indicator and attention count beside the name instead of on the avatar ([#833](https://github.com/BotHarness/BotHarness/issues/833)).
 
 - Channel sidebar edit mode can hide or restore individual items, saving visibility and order together with Done, discarding both with Cancel, and recovering all items through Restore defaults ([#809](https://github.com/BotHarness/BotHarness/issues/809)).
 

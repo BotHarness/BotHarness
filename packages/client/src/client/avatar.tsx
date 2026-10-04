@@ -360,7 +360,6 @@ export function PersonaBotAvatar({
       data-state={state}
       data-effect={resolvedEffect}
       data-media={mediaKind}
-      data-attention-mark={size > 64 && attentionCount(attention) > 0 ? 'true' : undefined}
       data-active={active ? 'true' : 'false'}
       title={`${name} · ${summary}`}
       role="img"

@@ -18,7 +18,7 @@ import {
   LINE_SWATCHES,
   seededLineRecipe,
 } from '../../../core/src/bots/avatar-line.js';
-import { PersonaBotAvatar, normalizePersonaBotActivity } from './avatar.js';
+import { PersonaBotAvatar, PersonaBotStatusBadges, normalizePersonaBotActivity } from './avatar.js';
 import type { BotSummary } from './store.js';
 import type { BotHarnessTranslate } from './locale.js';
 
@@ -56,7 +56,12 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
     swatches: LINE_SWATCHES,
     ranges: LINE_RANGES,
     presets: LINE_PRESETS,
-    categories: ['presets', ...Object.keys(LINE_PARTS), 'shape', 'colors'],
+    categories: [
+      'presets',
+      ...Object.keys(LINE_PARTS).filter((part) => part !== 'symbol'),
+      'shape',
+      'colors',
+    ],
     option: (part, value) => `profile.avatar.line.${part}.${value}` as Key,
     seeded: seededLineRecipe,
   },
@@ -172,11 +177,15 @@ export function AvatarAppearanceEditor({
           state={state}
           activity={bot.activity}
           attention={bot.attention}
+          indicator={false}
           t={t}
         />
       </div>
       <div className="bh-avatar-editor-controls">
-        <h3>{t('profile.avatar.design')}</h3>
+        <h3 className="bh-avatar-editor-title">
+          <span>{t('profile.avatar.design')}</span>
+          <PersonaBotStatusBadges state={state} attention={bot.attention} />
+        </h3>
         <p>{t('profile.avatar.designDescription')}</p>
         {draft && fields ? (
           <fieldset disabled={busy} className="bh-avatar-editor-fields">

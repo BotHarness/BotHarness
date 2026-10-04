@@ -24,7 +24,7 @@ const extremes: LineAvatarRecipe[] = (
 
 describe('line Avatar family', () => {
   it('renders every part and legal extreme as distinct, inert, id-free markup with the shared rig nodes', () => {
-    for (const part of parts) {
+    for (const part of parts.filter((name) => name !== 'symbol')) {
       const rendered = new Set(
         LINE_PARTS[part].map((value) => lineAvatarSvg({ ...DEFAULT_LINE_RECIPE, [part]: value })),
       );
@@ -42,7 +42,8 @@ describe('line Avatar family', () => {
         expect(svg).toContain(`class="bh-illustrated-${node}"`);
       expect(svg.match(/data-avatar-turn=/gu)).toHaveLength(2);
       expect(svg).not.toContain('data-avatar-mark=');
-      expect(svg).toContain('<g data-avatar-attention-mark="" opacity="0"');
+      expect(svg).not.toContain('data-avatar-attention-mark');
+      expect(svg).not.toContain('data-avatar-symbol');
     }
   });
 

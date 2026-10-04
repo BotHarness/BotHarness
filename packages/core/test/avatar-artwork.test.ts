@@ -42,7 +42,7 @@ describe('illustrated Avatar artwork', () => {
       expect(svg).not.toMatch(/\sid=|<defs|<script|<image|href=|url\(/u);
       expect(svg).toContain('viewBox="0 0 32 32"');
       expect(svg).toContain('shape-rendering="crispEdges"');
-      expect(svg).toContain('<g data-avatar-attention-mark="" opacity="0">');
+      expect(svg).not.toContain('data-avatar-attention-mark');
       for (const node of ['body', 'head', 'face', 'gaze', 'blink'])
         expect(svg).toContain(`class="bh-illustrated-${node}"`);
       expect(svg).not.toContain('data-avatar-mark=');
