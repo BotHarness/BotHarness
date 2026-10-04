@@ -3,6 +3,7 @@ import {
   AVATAR_COLORS,
   AVATAR_FAMILIES,
   AVATAR_PARTS,
+  AVATAR_PRESETS,
   AVATAR_SWATCHES,
   avatarSvg,
   seededAvatarRecipe,
@@ -28,6 +29,7 @@ interface FamilySpec {
   swatches: Readonly<Record<string, readonly string[]>>;
   ranges: Readonly<Record<string, readonly [number, number]>>;
   categories: readonly string[];
+  presets: readonly AvatarRecipe[];
   option(part: string, value: string): Key;
   seeded(name: string): AvatarRecipe;
 }
@@ -38,9 +40,10 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
     colors: AVATAR_COLORS,
     swatches: AVATAR_SWATCHES,
     ranges: {},
+    presets: AVATAR_PRESETS,
     categories: [
+      'presets',
       ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop'),
-      'backdrop',
       'colors',
     ],
     option: (part, value) => `profile.avatar.option.${part}.${value}` as Key,
@@ -51,6 +54,7 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
     colors: LINE_COLORS,
     swatches: LINE_SWATCHES,
     ranges: LINE_RANGES,
+    presets: [],
     categories: [...Object.keys(LINE_PARTS), 'shape', 'colors'],
     option: (part, value) => `profile.avatar.line.${part}.${value}` as Key,
     seeded: seededLineRecipe,
@@ -262,6 +266,24 @@ export function AvatarAppearanceEditor({
                       onChange={(event) => set(key, event.currentTarget.value)}
                     />
                   </div>
+                ))}
+              </div>
+            ) : category === 'presets' ? (
+              <div
+                className="bh-avatar-options"
+                role="tabpanel"
+                id="bh-avatar-panel"
+                aria-labelledby="bh-avatar-tab-presets"
+              >
+                {spec.presets.map((preset, index) => (
+                  <OptionTile
+                    key={index}
+                    id={`preset:${index}`}
+                    recipe={preset}
+                    selected={JSON.stringify(preset) === JSON.stringify(draft)}
+                    label={`${t('profile.avatar.presets')} ${index + 1}`}
+                    onSelect={() => update({ ...preset })}
+                  />
                 ))}
               </div>
             ) : category === 'shape' ? (

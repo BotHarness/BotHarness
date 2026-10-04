@@ -7,7 +7,7 @@ import {
   type ReactElement,
 } from 'react';
 
-import { IconChevronDownOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconChevronDownOutlineRegular, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type {
@@ -34,7 +34,7 @@ import type { BotHarnessTranslate } from './locale.js';
 import type { ClientState } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 import { ChannelSidebarIcon } from './channel-sidebar-icon.js';
-import { moveEntry, resolveEntryOrder } from './channel-sidebar-order.js';
+import { insertEntryBefore, moveEntry, resolveEntryOrder } from './channel-sidebar-order.js';
 import { ChannelSidebarSettings } from './channel-sidebar-settings.js';
 
 function matchesNarrow(): boolean {
@@ -127,10 +127,12 @@ export function ChannelSidebarEntrySection({
   onToggle,
   entryProps,
   editing = false,
+  hidden = false,
   preview,
 }: {
   preview?: boolean | undefined;
   editing?: boolean;
+  hidden?: boolean;
   entry: ChannelSidebarEntry;
   expanded: boolean;
   onToggle(): void;
@@ -142,14 +144,14 @@ export function ChannelSidebarEntrySection({
   const [refreshRevision, setRefreshRevision] = useState(0);
   const [expandable, setExpandable] = useState(true);
   const expandableRef = useRef(expandable);
-  const shown = (preview ?? expanded) && !editing && expandable;
+  const shown = (preview ?? expanded) && !editing && !hidden && expandable;
   const props = {
     ...entryProps,
     refreshRevision,
     requestRefresh: () => setRefreshRevision((value) => value + 1),
     expanded: shown,
     setExpanded: (next: boolean) => {
-      if (next === expanded || (editing && next)) return;
+      if (next === expanded || ((editing || hidden) && next)) return;
       if (next && !expandableRef.current) return;
       onToggle();
     },
@@ -168,16 +170,18 @@ export function ChannelSidebarEntrySection({
           aria-expanded={shown}
           aria-controls={bodyId}
           aria-disabled={expandable ? undefined : true}
-          disabled={!expandable || editing || preview !== undefined}
+          disabled={!expandable || editing || hidden || preview !== undefined}
           style={expandable ? undefined : { cursor: 'default', opacity: 0.6 }}
           onClick={expandable ? onToggle : undefined}
         >
-          <span
-            className={`bh-channel-sidebar-entry-chevron${shown ? '' : ' bh-chevron-collapsed'}`}
-            aria-hidden="true"
-          >
-            <IconChevronDownOutlineRegular size={14} />
-          </span>
+          {editing ? null : (
+            <span
+              className={`bh-channel-sidebar-entry-chevron${shown ? '' : ' bh-chevron-collapsed'}`}
+              aria-hidden="true"
+            >
+              <IconChevronDownOutlineRegular size={14} />
+            </span>
+          )}
           <span className="bh-channel-sidebar-entry-icon" aria-hidden="true">
             <ChannelSidebarIcon name={entry.icon} />
           </span>
@@ -217,43 +221,180 @@ export function ChannelSidebarContents({
   prefs?: ChannelSidebarPrefs;
 }): ReactElement {
   const snapshot = useSyncExternalStore(prefs.subscribe, prefs.getSnapshot, prefs.getSnapshot);
-  const [draft, setDraft] = useState<readonly string[] | undefined>();
+  const [draft, setDraft] = useState<
+    { order: readonly string[]; hidden: readonly string[] } | undefined
+  >();
   const [announcement, setAnnouncement] = useState('');
+  const drag = useRef<
+    | {
+        id: string;
+        order: readonly string[];
+        bounds: readonly { id: string; top: number; bottom: number }[];
+        scrollTop: number;
+        next?: readonly string[] | undefined;
+      }
+    | undefined
+  >(undefined);
+  const dragBlocked = useRef(false);
+  const pointer = useRef<
+    { id: string; x: number; y: number; pointerId: number; started: boolean } | undefined
+  >(undefined);
+  const pointerHandlers = useRef<{
+    move(event: PointerEvent): void;
+    up(event: PointerEvent): void;
+    cancel(event: PointerEvent): void;
+  }>({ move() {}, up() {}, cancel() {} });
+  const [dragging, setDragging] = useState<string | undefined>();
+  const [dragPreview, setDragPreview] = useState<readonly string[] | undefined>();
+  const rows = useRef<HTMLDivElement | null>(null);
   const [previewEntry, setPreviewEntry] = useState<string | undefined>();
   const preview = entries.some((entry) => entry.id === previewEntry) ? previewEntry : undefined;
-  const drag = useRef<string | undefined>(undefined);
-  const rows = useRef<HTMLDivElement>(null);
   const editing = draft !== undefined;
   const order = resolveEntryOrder(
     registered.map((entry) => entry.id),
-    draft ?? snapshot.entryOrders[entryProps.scope],
+    dragPreview ?? draft?.order ?? snapshot.entryOrders[entryProps.scope],
   );
   const visible = order.flatMap((id) => entries.filter((entry) => entry.id === id));
-  const move = (id: string, target: string): void => {
-    setDraft(moveEntry(order, id, target));
-    const next = moveEntry(
-      visible.map((entry) => entry.id),
-      id,
-      target,
-    );
+  const hidden = draft?.hidden ?? snapshot.hiddenEntries[entryProps.scope];
+  const announce = (id: string, nextOrder: readonly string[]): void => {
+    const next = nextOrder.filter((entryId) => entries.some((entry) => entry.id === entryId));
     const entry = entries.find((entry) => entry.id === id);
     setAnnouncement(
       entryProps.t('sidebar.order.position', {
         label: entry?.label ?? id,
         position: String(next.indexOf(id) + 1),
-        total: String(visible.length),
+        total: String(next.length),
       }),
     );
+  };
+  const beginDrag = (id: string): void => {
+    const bounds = [...rows.current!.querySelectorAll<HTMLElement>('[data-entry-id]')].map(
+      (row) => {
+        const rect = row.getBoundingClientRect();
+        return { id: row.dataset['entryId']!, top: rect.top, bottom: rect.bottom };
+      },
+    );
+    drag.current = {
+      id,
+      order,
+      bounds,
+      scrollTop: rows.current?.scrollTop ?? 0,
+    };
+    setDragging(id);
+  };
+  const previewAt = (clientX: number, clientY: number): void => {
+    const gesture = drag.current;
+    if (gesture === undefined) return;
+    const surface = rows.current!.getBoundingClientRect();
+    if (clientX < surface.left || clientX > surface.right) {
+      gesture.next = undefined;
+      setDragPreview(undefined);
+      return;
+    }
+    const y = clientY + ((rows.current?.scrollTop ?? 0) - gesture.scrollTop);
+    const first = gesture.bounds[0];
+    const last = gesture.bounds.at(-1);
+    if (first === undefined || last === undefined || y < first.top - 8 || y > last.bottom + 8) {
+      gesture.next = undefined;
+      setDragPreview(undefined);
+      return;
+    }
+    const remaining = gesture.bounds.filter((row) => row.id !== gesture.id);
+    const position = remaining.filter((row) => y >= (row.top + row.bottom) / 2).length;
+    const next = insertEntryBefore(gesture.order, gesture.id, remaining[position]?.id);
+    gesture.next = next;
+    setDragPreview((current) =>
+      current?.every((id, index) => id === next[index]) && current.length === next.length
+        ? current
+        : next,
+    );
+  };
+  const applyDrag = (): void => {
+    const gesture = drag.current;
+    if (gesture === undefined) return;
+    if (gesture.next !== undefined && entries.some((entry) => entry.id === gesture.id)) {
+      setDraft({ order: gesture.next, hidden });
+      announce(gesture.id, gesture.next);
+      const handle = rows.current?.querySelectorAll<HTMLButtonElement>('[data-order-handle]');
+      for (const button of handle ?? [])
+        if (button.dataset['orderHandle'] === gesture.id) button.focus();
+    }
+    cancelDrag();
+  };
+  const cancelDrag = (): void => {
+    const activePointer = pointer.current;
+    pointer.current = undefined;
+    if (activePointer !== undefined && rows.current?.hasPointerCapture?.(activePointer.pointerId))
+      rows.current.releasePointerCapture(activePointer.pointerId);
+    drag.current = undefined;
+    setDragging(undefined);
+    setDragPreview(undefined);
+  };
+  const cancelRef = useRef(cancelDrag);
+  cancelRef.current = cancelDrag;
+  const dragMount = useMountedResource<HTMLDivElement>((node) => {
+    rows.current = node;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || (drag.current === undefined && pointer.current === undefined))
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      cancelRef.current();
+    };
+    const movePointer = (event: PointerEvent) => pointerHandlers.current.move(event);
+    const upPointer = (event: PointerEvent) => pointerHandlers.current.up(event);
+    const cancelPointer = (event: PointerEvent) => pointerHandlers.current.cancel(event);
+    document.addEventListener('pointermove', movePointer, true);
+    document.addEventListener('pointerup', upPointer, true);
+    document.addEventListener('pointercancel', cancelPointer, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointermove', movePointer, true);
+      document.removeEventListener('pointerup', upPointer, true);
+      document.removeEventListener('pointercancel', cancelPointer, true);
+      pointer.current = undefined;
+      document.removeEventListener('keydown', onKeyDown, true);
+      rows.current = null;
+    };
+  }, []);
+  const move = (id: string, target: string): void => {
+    setDraft({ order: moveEntry(order, id, target), hidden });
+    announce(id, moveEntry(order, id, target));
     requestAnimationFrame(() => {
       const handles = rows.current?.querySelectorAll<HTMLButtonElement>('[data-order-handle]');
       for (const handle of handles ?? []) if (handle.dataset['orderHandle'] === id) handle.focus();
     });
   };
   const finish = (save: boolean): void => {
-    if (save && draft !== undefined) prefs.setEntryOrder(entryProps.scope, order);
+    if (save && draft !== undefined) prefs.setEntryLayout(entryProps.scope, order, draft.hidden);
     setDraft(undefined);
-    drag.current = undefined;
+    cancelDrag();
     setAnnouncement('');
+  };
+  pointerHandlers.current = {
+    move(event) {
+      const current = pointer.current;
+      if (current === undefined || current.pointerId !== event.pointerId) return;
+      if (!current.started && Math.hypot(event.clientX - current.x, event.clientY - current.y) < 5)
+        return;
+      if (!current.started) {
+        current.started = true;
+        beginDrag(current.id);
+      }
+      event.preventDefault();
+      previewAt(event.clientX, event.clientY);
+    },
+    up(event) {
+      const current = pointer.current;
+      if (current === undefined || current.pointerId !== event.pointerId) return;
+      if (current.started) {
+        previewAt(event.clientX, event.clientY);
+        applyDrag();
+      } else cancelDrag();
+    },
+    cancel: (event) => {
+      if (pointer.current?.pointerId === event.pointerId) cancelDrag();
+    },
   };
   return (
     <>
@@ -263,24 +404,57 @@ export function ChannelSidebarContents({
           entryProps={entryProps}
           editing={editing}
           onPreview={setPreviewEntry}
-          onEdit={() => setDraft(order)}
+          onEdit={() => setDraft({ order, hidden })}
         />
       </div>
       <div
         className={`bh-channel-sidebar-entries${editing ? ' bh-sidebar-editing' : ''}`}
-        ref={rows}
+        ref={dragMount}
+        onDragOver={(event) => {
+          const gesture = drag.current;
+          if (!editing || gesture === undefined) return;
+          event.preventDefault();
+          previewAt(event.clientX, event.clientY);
+        }}
+        onDragLeave={(event) => {
+          if (
+            event.relatedTarget instanceof Node &&
+            event.currentTarget.contains(event.relatedTarget)
+          )
+            return;
+          const bounds = event.currentTarget.getBoundingClientRect();
+          if (
+            event.clientX >= bounds.left &&
+            event.clientX <= bounds.right &&
+            event.clientY >= bounds.top &&
+            event.clientY <= bounds.bottom
+          )
+            return;
+          if (drag.current !== undefined) drag.current.next = undefined;
+          setDragPreview(undefined);
+        }}
+        onDrop={(event) => {
+          const gesture = drag.current;
+          if (!editing || gesture === undefined) return;
+          event.preventDefault();
+          applyDrag();
+        }}
       >
         {editing ? (
           <div className="bh-sidebar-order-toolbar">
             <div className="bh-sidebar-order-hint">{entryProps.t('sidebar.order.hint')}</div>
             <div className="bh-sidebar-order-actions">
-              <button type="button" onClick={() => finish(true)}>
+              <button type="button" disabled={dragging !== undefined} onClick={() => finish(true)}>
                 {entryProps.t('sidebar.order.done')}
               </button>
-              <button type="button" onClick={() => finish(false)}>
+              <button type="button" disabled={dragging !== undefined} onClick={() => finish(false)}>
                 {entryProps.t('sidebar.order.cancel')}
               </button>
-              <button type="button" onClick={() => setDraft(registered.map((entry) => entry.id))}>
+              <button
+                type="button"
+                disabled={dragging !== undefined}
+                onClick={() => setDraft({ order: registered.map((entry) => entry.id), hidden: [] })}
+              >
                 {entryProps.t('sidebar.order.reset')}
               </button>
             </div>
@@ -289,70 +463,147 @@ export function ChannelSidebarContents({
         <span className="bh-sidebar-order-announcement" role="status" aria-live="polite">
           {announcement}
         </span>
-        {visible.length === 0 ? (
-          <div className="bh-note">{entryProps.t('sidebar.empty')}</div>
-        ) : (
-          visible.map((entry, index) => (
-            <div
-              className="bh-sidebar-order-row"
-              data-entry-id={entry.id}
-              key={entry.id}
-              onDragOver={(event) => {
-                if (editing && drag.current !== undefined) event.preventDefault();
-              }}
-              onDrop={(event) => {
-                if (!editing || drag.current === undefined) return;
+        {visible.length === 0 ||
+        (!editing && visible.every((entry) => hidden.includes(entry.id))) ? (
+          <div className="bh-note">
+            {entryProps.t(visible.length === 0 ? 'sidebar.empty' : 'sidebar.visibility.empty')}
+          </div>
+        ) : null}
+        {visible.map((entry, index) => (
+          <div
+            className="bh-sidebar-order-row"
+            data-entry-id={entry.id}
+            key={entry.id}
+            hidden={!editing && hidden.includes(entry.id)}
+            data-entry-hidden={hidden.includes(entry.id) || undefined}
+            data-dragging={dragging === entry.id || undefined}
+            data-drop-indicator={(dragPreview !== undefined && dragging === entry.id) || undefined}
+            onPointerDown={(event) => {
+              if (
+                !editing ||
+                event.button !== 0 ||
+                event.isPrimary === false ||
+                (event.target instanceof Element &&
+                  event.target.closest('[data-order-handle], [data-sidebar-no-drag]') !== null)
+              )
+                return;
+              event.preventDefault();
+              pointer.current = {
+                id: entry.id,
+                x: event.clientX,
+                y: event.clientY,
+                pointerId: event.pointerId,
+                started: false,
+              };
+              rows.current?.setPointerCapture?.(event.pointerId);
+            }}
+            onPointerDownCapture={(event) => {
+              dragBlocked.current =
+                event.target instanceof Element &&
+                event.target.closest('[data-sidebar-no-drag]') !== null;
+            }}
+            onDragStart={(event) => {
+              if (
+                !editing ||
+                dragBlocked.current ||
+                (event.target instanceof Element &&
+                  event.target.closest('[data-sidebar-no-drag]') !== null)
+              ) {
                 event.preventDefault();
-                move(drag.current, entry.id);
-                drag.current = undefined;
-              }}
-            >
-              {editing ? (
+                return;
+              }
+              beginDrag(entry.id);
+              event.dataTransfer.effectAllowed = 'move';
+              event.dataTransfer.setData('text/plain', entry.id);
+            }}
+            onDragEnd={cancelDrag}
+          >
+            {editing ? (
+              <button
+                type="button"
+                className="bh-sidebar-order-handle"
+                data-order-handle={entry.id}
+                draggable
+                aria-label={entryProps.t('sidebar.order.move', { label: entry.label })}
+                onKeyDown={(event) => {
+                  if (drag.current !== undefined) {
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      cancelDrag();
+                    }
+                    return;
+                  }
+                  const target =
+                    event.key === 'ArrowUp'
+                      ? index - 1
+                      : event.key === 'ArrowDown'
+                        ? index + 1
+                        : event.key === 'Home'
+                          ? 0
+                          : event.key === 'End'
+                            ? visible.length - 1
+                            : undefined;
+                  if (target === undefined) return;
+                  event.preventDefault();
+                  const next = visible[target];
+                  if (next !== undefined) move(entry.id, next.id);
+                }}
+              >
+                <ChannelSidebarIcon name="grip-vertical" />
+              </button>
+            ) : null}
+            <ChannelSidebarEntrySection
+              entry={entry}
+              expanded={controller.isEntryExpanded(entry.id)}
+              onToggle={() => controller.toggleEntry(entry.id)}
+              entryProps={entryProps}
+              editing={editing}
+              hidden={!editing && hidden.includes(entry.id)}
+              preview={preview === undefined ? undefined : preview === entry.id}
+            />
+            {editing && hidden.includes(entry.id) ? (
+              <span className="bh-sidebar-hidden-badge">
+                {entryProps.t('sidebar.visibility.hidden')}
+              </span>
+            ) : null}
+            {editing ? (
+              <Tooltip
+                label={entryProps.t(
+                  hidden.includes(entry.id) ? 'sidebar.visibility.show' : 'sidebar.visibility.hide',
+                  { label: entry.label },
+                )}
+                side="bottom"
+                delayMs={500}
+              >
                 <button
                   type="button"
-                  className="bh-sidebar-order-handle"
-                  data-order-handle={entry.id}
-                  draggable
-                  aria-label={entryProps.t('sidebar.order.move', { label: entry.label })}
-                  onDragStart={(event) => {
-                    drag.current = entry.id;
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', entry.id);
-                  }}
-                  onDragEnd={() => {
-                    drag.current = undefined;
-                  }}
-                  onKeyDown={(event) => {
-                    const target =
-                      event.key === 'ArrowUp'
-                        ? index - 1
-                        : event.key === 'ArrowDown'
-                          ? index + 1
-                          : event.key === 'Home'
-                            ? 0
-                            : event.key === 'End'
-                              ? visible.length - 1
-                              : undefined;
-                    if (target === undefined) return;
-                    event.preventDefault();
-                    const next = visible[target];
-                    if (next !== undefined) move(entry.id, next.id);
-                  }}
+                  className="bh-sidebar-visibility-toggle"
+                  data-visibility-toggle={entry.id}
+                  data-sidebar-no-drag=""
+                  disabled={dragging !== undefined}
+                  aria-pressed={!hidden.includes(entry.id)}
+                  aria-label={entryProps.t(
+                    hidden.includes(entry.id)
+                      ? 'sidebar.visibility.show'
+                      : 'sidebar.visibility.hide',
+                    { label: entry.label },
+                  )}
+                  onClick={() =>
+                    setDraft({
+                      order,
+                      hidden: hidden.includes(entry.id)
+                        ? hidden.filter((id) => id !== entry.id)
+                        : [...hidden, entry.id],
+                    })
+                  }
                 >
-                  <ChannelSidebarIcon name="grip-vertical" />
+                  <ChannelSidebarIcon name={hidden.includes(entry.id) ? 'eye-off' : 'eye'} />
                 </button>
-              ) : null}
-              <ChannelSidebarEntrySection
-                entry={entry}
-                expanded={controller.isEntryExpanded(entry.id)}
-                onToggle={() => controller.toggleEntry(entry.id)}
-                entryProps={entryProps}
-                editing={editing}
-                preview={preview === undefined ? undefined : preview === entry.id}
-              />
-            </div>
-          ))
-        )}
+              </Tooltip>
+            ) : null}
+          </div>
+        ))}
       </div>
     </>
   );

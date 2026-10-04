@@ -4,8 +4,13 @@ import {
   avatarSvg,
   LINE_MORPH_SYMBOLS,
   lineMorphFace,
+  pixelFaceCells,
+  pixelSymbolCells,
   type AvatarRecipe,
+  type PixelCell,
+  type PixelSymbol,
 } from '../../../core/src/bots/avatar-appearance.js';
+import { morphPixels, pixelMarkup, type PixelMorphRun } from './pixel-morph.js';
 import type { Sampled } from 'morphicons';
 import {
   lineMorphD,
@@ -94,6 +99,15 @@ interface Flight {
   phase?: 'out' | 'back';
 }
 
+export const PIXEL_MORPH_MS = 800;
+export const PIXEL_SYMBOL_HOLD_MS = 500;
+
+interface PixelShown {
+  key?: PixelSymbol | 'face';
+  cells?: PixelCell[];
+  since: number;
+}
+
 const TURN_STEPS = 40;
 const TURN_STEP_MS = 220;
 
@@ -130,11 +144,13 @@ export function IllustratedAvatar({
   state,
   effect,
   size,
+  symbol,
 }: {
   recipe: AvatarRecipe;
   state: PersonaBotActivityState;
   effect: PersonaBotActivityEffect;
   size: number;
+  symbol?: PixelSymbol | undefined;
 }): ReactElement {
   const turning = state === 'thinking' && size > 64;
   const markup = useMemo(
@@ -145,6 +161,7 @@ export function IllustratedAvatar({
     state === 'working' ? effect : state === 'thinking' ? 'thinking-dots' : 'idle';
   const shown = useRef<string | undefined>(undefined);
   const flight = useRef<Flight>({ velocity: 0 });
+  const pixel = useRef<PixelShown>({ since: 0 });
   const mount = useMountedResource<HTMLSpanElement>(
     (node) => {
       const previous = shown.current;
@@ -154,14 +171,23 @@ export function IllustratedAvatar({
       const head = node.querySelector<SVGGElement>('.bh-illustrated-head');
       const gaze = node.querySelector<SVGGElement>('.bh-illustrated-gaze');
       const blink = node.querySelector<SVGGElement>('.bh-illustrated-blink');
-      const mark = node.querySelector<SVGGElement>(`[data-avatar-mark="${effect}"]`);
+      const pixelGroup = node.querySelector<SVGGElement>('[data-avatar-pixel-morph]');
       if (!head || !gaze || !blink || typeof head.animate !== 'function') return;
       const animations = new Set<Animation>();
       let visible = true;
       let disposed = false;
       let run: LineMorphRun | undefined;
+      let pixelRun: { run: PixelMorphRun; key: PixelSymbol | 'face' } | undefined;
+      let pixelTimer: ReturnType<typeof setTimeout> | undefined;
       let pause: { timer: ReturnType<typeof setTimeout>; done(value: boolean): void } | undefined;
       const halt = () => {
+        if (pixelTimer) clearTimeout(pixelTimer);
+        pixelTimer = undefined;
+        if (pixelRun) {
+          pixel.current = { key: pixelRun.key, cells: pixelRun.run.current(), since: 0 };
+          pixelRun.run.cancel();
+          pixelRun = undefined;
+        }
         if (run) {
           flight.current.shape = run.current();
           flight.current.velocity = run.velocity();
@@ -248,6 +274,49 @@ export function IllustratedAvatar({
           path.style.opacity = '';
           head.style.opacity = '';
         });
+      const showPixels = (still: boolean) => {
+        if (!pixelGroup || recipe.family !== 'illustrated') return;
+        const svg = pixelGroup.ownerSVGElement;
+        const target = symbol ?? 'face';
+        const cellsFor = (key: PixelSymbol | 'face') =>
+          key === 'face' ? pixelFaceCells(recipe) : pixelSymbolCells(key, recipe.hairColor);
+        const draw = (key: PixelSymbol | 'face', cells?: readonly PixelCell[]) => {
+          if (key === 'face' && !cells) {
+            pixelGroup.innerHTML = '';
+            svg?.removeAttribute('data-pixel-cover');
+            return;
+          }
+          pixelGroup.innerHTML = pixelMarkup(cells ?? cellsFor(key));
+          svg?.setAttribute('data-pixel-cover', '');
+        };
+        const previous = pixel.current;
+        if (still || previous.key === undefined) {
+          draw(target);
+          pixel.current = { key: target, since: performance.now() };
+          return;
+        }
+        if (previous.key === target && !previous.cells) {
+          draw(target);
+          return;
+        }
+        const from = previous.cells ?? cellsFor(previous.key);
+        draw(previous.key, from);
+        const start = () => {
+          pixelTimer = undefined;
+          const run = morphPixels(pixelGroup, from, cellsFor(target), PIXEL_MORPH_MS);
+          pixelRun = { run, key: target };
+          void run.finished.then((done) => {
+            if (!done) return;
+            pixelRun = undefined;
+            pixel.current = { key: target, since: performance.now() };
+            if (target === 'face') draw('face');
+          });
+        };
+        const held = performance.now() - previous.since;
+        if (!previous.cells && previous.key !== 'face' && held < PIXEL_SYMBOL_HOLD_MS)
+          pixelTimer = setTimeout(start, PIXEL_SYMBOL_HOLD_MS - held);
+        else start();
+      };
       const loop = (target: Element, frames: Keyframe[], duration: number) =>
         animations.add(target.animate(frames, { duration, iterations: Infinity }));
       const sync = () => {
@@ -266,8 +335,10 @@ export function IllustratedAvatar({
         ) {
           pendingTransition = false;
           flight.current = { velocity: 0 };
+          if (!disposed) showPixels(true);
           return;
         }
+        showPixels(false);
         const compact = size <= 64;
         const enter = head.animate([{ transform: start || 'none' }, { transform: 'none' }], {
           duration: 120,
@@ -319,15 +390,6 @@ export function IllustratedAvatar({
               loop(body, frames(0), duration);
               for (const turn of turns)
                 loop(turn, frames(Number(turn.dataset['avatarTurn'])), duration);
-              if (mark)
-                loop(
-                  mark,
-                  [
-                    { offset: 0, opacity: 1, easing: 'steps(1, end)' },
-                    { offset: 0.75, opacity: 0, easing: 'steps(1, end)' },
-                  ],
-                  1600,
-                );
               return;
             }
             loop(head, stepped(HEAD_STEPS[effect]), compact ? 1200 : 1600);
@@ -335,15 +397,6 @@ export function IllustratedAvatar({
             const gazeSteps = [...GAZE_STEPS[effect], [0, 0] as Step];
             loop(gaze, stepped(gazeSteps, gazeSteps.length - 1), 2000);
             loop(blink, blinkFrames(gazeSteps.length - 1, gazeSteps.length), 2000);
-            if (mark)
-              loop(
-                mark,
-                [
-                  { offset: 0, opacity: 1, easing: 'steps(1, end)' },
-                  { offset: 0.75, opacity: 0, easing: 'steps(1, end)' },
-                ],
-                1600,
-              );
           })
           .catch(() => undefined);
       };
@@ -378,7 +431,7 @@ export function IllustratedAvatar({
         document.removeEventListener('visibilitychange', sync);
       };
     },
-    [state, effect, size, markup, recipe, presentation],
+    [state, effect, size, markup, recipe, presentation, symbol],
   );
   return (
     <span
