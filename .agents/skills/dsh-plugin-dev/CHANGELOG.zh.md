@@ -9,6 +9,8 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 
 ### Documentation
 
+- 在[本地开发指南](../dsh-dev/SKILL.md)记录原生 Tool 批准与实际 Shell 执行需要分别取证；保留真实 Orchestrator 工作区拒绝，并在 DSH 0.2.0 RC1 验证已授权 Assignment 执行 ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
+
 - 在[调试手册](../dsh-dev/references/debugging-playbook.md)记录外部回复连接与收件范围的区别，以固定 Provider 契约和独立绑定的回复身份检查（[#637](https://github.com/BotHarness/BotHarness/issues/637)）。
 
 - 在[本地开发指南](../dsh-dev/SKILL.md)记录 WebServer prefix 的斜杠匹配与原始 HTTP peer 边界，已核对固定 DSH 0.2.0 RC1 源码并通过真实扩展配对／观察流程验证（[#741](https://github.com/BotHarness/BotHarness/issues/741)）。

@@ -106,6 +106,7 @@ export function SessionReturnAction({
               personaBotId={owner.botSlug}
               name={owner.displayName}
               src={owner.avatar}
+              appearance={owner.appearance}
               size={20}
               indicator={false}
               t={t}
@@ -140,6 +141,7 @@ export function SessionOwnerLeading({
           personaBotId={owner.botSlug}
           name={owner.displayName}
           src={owner.avatar}
+          appearance={owner.appearance}
           size={16}
           indicator={false}
           className="bh-native-session-owner"

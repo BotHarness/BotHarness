@@ -13,6 +13,7 @@ import {
 import { isAbsolute, join } from 'node:path';
 
 import { atomicWriteFile } from '../fs/atomic-write.js';
+import { deriveAvatarAppearance } from './avatar-snapshot.js';
 import {
   isPersonaBotAvatar,
   isPersonaBotRecord,
@@ -60,6 +61,7 @@ export interface PersonaBotRegistry {
   remove(slug: string, options?: RemovePersonaBotOptions): boolean;
   memoryDirFor(slug: string): string | undefined;
   update(slug: string, patch: PersonaBotPatch): UpdatePersonaBotResult;
+  setAppearance(slug: string, recipe: unknown): UpdatePersonaBotResult;
   setPaused(slug: string, paused: boolean): UpdatePersonaBotResult;
   setComputerAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
@@ -319,6 +321,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       if (!applyOptionalText(record, 'avatar', patch.avatar)) {
         return { ok: false, reason: 'invalid-input' };
       }
+      if (patch.avatar !== undefined) delete record.appearance;
       applyOptionalText(record, 'model', patch.model);
       applyOptionalText(record, 'preset', patch.preset);
       if (patch.workspaces !== undefined) {
@@ -333,6 +336,15 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       write(record);
       if (record.displayName !== previousName) options.onDisplayNameChanged?.();
       return { ok: true, record };
+    },
+    setAppearance(slug, recipe) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      const derived = deriveAvatarAppearance(recipe);
+      if (derived === undefined) return { ok: false, reason: 'invalid-input' };
+      const updated = { ...record, ...derived };
+      write(updated);
+      return { ok: true, record: updated };
     },
     setPaused(slug, paused) {
       const record = read(slug);

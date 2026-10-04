@@ -190,6 +190,7 @@ describe('bridge typert service', () => {
       'browserAccessSet',
       'browserProfileSet',
       'botAvatarSet',
+      'botAppearanceSet',
     ]);
   });
 

@@ -5,6 +5,7 @@ import type {
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activity.js';
 import type { PersonaBotActivityState } from './avatar.js';
+import type { AvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
 import type { RosterConfig } from './roster-config.js';
 import type { RosterSection, TopOrderEntry } from './roster.js';
 
@@ -18,6 +19,7 @@ export interface BotSummary {
   roles: string[];
   description?: string;
   avatar?: string;
+  appearance?: AvatarAppearance;
   paused?: boolean;
   aggregateState: string;
   activity?: PersonaBotToolActivity;

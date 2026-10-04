@@ -53,6 +53,7 @@ import {
   setGroupAvatar as setGroupAvatarViaBridge,
   setChannelHumanName,
   setBotAvatar as setBotAvatarViaBridge,
+  setBotAppearance as setBotAppearanceViaBridge,
   cancelGroupInvitation,
   decideGroupJoin,
   removeGroupMember,
@@ -446,6 +447,10 @@ export interface BridgeActions {
   setHumanNickname(channelId: string, nickname: string | null): Promise<boolean>;
   setGroupAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   setBotAvatar(channelId: string, avatar: string | null): Promise<boolean>;
+  setBotAppearance(
+    channelId: string,
+    recipe: import('../../../core/src/bots/avatar-appearance.js').IllustratedAvatarRecipe,
+  ): Promise<boolean>;
   inviteGroupBot(channelId: string, botSlug: string): Promise<boolean>;
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
   decideGroupJoin(channelId: string, requestId: string, accept: boolean): Promise<boolean>;
@@ -1919,6 +1924,15 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: channel rename failed', error);
+        return false;
+      }
+    },
+    async setBotAppearance(channelId, recipe) {
+      try {
+        const bot = await setBotAppearanceViaBridge(call, channelId, recipe);
+        clientStore.upsertBot(bot);
+        return true;
+      } catch {
         return false;
       }
     },

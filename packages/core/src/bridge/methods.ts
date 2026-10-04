@@ -50,6 +50,7 @@ import {
   type ChannelReference,
 } from '../channels/channel.js';
 import { BOT_AVATAR_PATH } from '../bots/avatar-http.js';
+import type { AvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef } from '../attachments/ref.js';
@@ -150,6 +151,7 @@ export interface ActivityOverview {
     slug: string;
     displayName: string;
     avatar?: string;
+    appearance?: AvatarAppearance;
     paused: boolean;
     hasAction: boolean;
     state: AggregatedState;
@@ -170,6 +172,7 @@ export interface PersonaBotSummary {
   roles: string[];
   description?: string;
   avatar?: string;
+  appearance?: AvatarAppearance;
   paused?: boolean;
   aggregateState: AggregatedState;
   workspaces: string[];
@@ -253,6 +256,7 @@ export interface OwnedSessionBot {
   botSlug: string;
   displayName: string;
   avatar?: string;
+  appearance?: AvatarAppearance;
   role: SessionRootRole;
 }
 
@@ -392,6 +396,7 @@ export interface BridgeMethods {
   browserAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   browserProfileSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
 }
 
 export interface BridgeMethodsDeps {
@@ -633,6 +638,7 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
     workspaces: [...record.workspaces],
     createdAt: record.createdAt,
     roles: record.roles ?? (record.tag === undefined ? [] : [record.tag]),
+    ...(record.appearance === undefined ? {} : { appearance: record.appearance }),
     ...(record.description === undefined ? {} : { description: record.description }),
     ...(record.avatar === undefined
       ? {}
@@ -1261,6 +1267,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return {
           slug: bot.slug,
           displayName: bot.displayName,
+          ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
           ...(bot.avatar === undefined
             ? {}
             : {
@@ -1454,6 +1461,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const result = deps.registry.setBrowserProfile(slug, normalized);
       if (!result.ok) return unknownBot(slug);
       deps.browserProfile?.changed(slug);
+      return { ok: true, value: detailOf(result.record) };
+    },
+    botAppearanceSet(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const result = deps.registry.setAppearance(scope.botSlug, asObject(payload)['recipe']);
+      if (!result.ok)
+        return result.reason === 'not-found'
+          ? unknownBot(scope.botSlug)
+          : invalidInput('invalid Avatar Appearance');
       return { ok: true, value: detailOf(result.record) };
     },
     botAvatarSet(payload) {
@@ -2818,6 +2835,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           owner: {
             botSlug: bot.slug,
             displayName: bot.displayName,
+            ...(bot.appearance === undefined ? {} : { appearance: bot.appearance }),
             ...(bot.avatar === undefined
               ? {}
               : {
