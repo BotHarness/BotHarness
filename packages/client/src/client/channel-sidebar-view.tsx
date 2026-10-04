@@ -7,7 +7,7 @@ import {
   type ReactElement,
 } from 'react';
 
-import { IconChevronDownOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconChevronDownOutlineRegular, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type {
@@ -127,8 +127,10 @@ export function ChannelSidebarEntrySection({
   onToggle,
   entryProps,
   editing = false,
+  hidden = false,
 }: {
   editing?: boolean;
+  hidden?: boolean;
   entry: ChannelSidebarEntry;
   expanded: boolean;
   onToggle(): void;
@@ -144,9 +146,9 @@ export function ChannelSidebarEntrySection({
     ...entryProps,
     refreshRevision,
     requestRefresh: () => setRefreshRevision((value) => value + 1),
-    expanded: expanded && !editing,
+    expanded: expanded && !editing && !hidden,
     setExpanded: (next: boolean) => {
-      if (next === expanded || (editing && next)) return;
+      if (next === expanded || ((editing || hidden) && next)) return;
       if (next && !expandableRef.current) return;
       onToggle();
     },
@@ -162,15 +164,15 @@ export function ChannelSidebarEntrySection({
         <button
           type="button"
           className="bh-channel-sidebar-entry-head"
-          aria-expanded={expanded && !editing}
+          aria-expanded={expanded && !editing && !hidden}
           aria-controls={bodyId}
           aria-disabled={expandable ? undefined : true}
-          disabled={!expandable || editing}
+          disabled={!expandable || editing || hidden}
           style={expandable ? undefined : { cursor: 'default', opacity: 0.6 }}
           onClick={expandable ? onToggle : undefined}
         >
           <span
-            className={`bh-channel-sidebar-entry-chevron${expanded && !editing ? '' : ' bh-chevron-collapsed'}`}
+            className={`bh-channel-sidebar-entry-chevron${expanded && !editing && !hidden ? '' : ' bh-chevron-collapsed'}`}
             aria-hidden="true"
           >
             <IconChevronDownOutlineRegular size={14} />
@@ -191,7 +193,7 @@ export function ChannelSidebarEntrySection({
           </span>
         )}
       </div>
-      {expanded && !editing ? (
+      {expanded && !editing && !hidden ? (
         <div id={bodyId} className="bh-channel-sidebar-entry-body">
           <entry.component {...props} />
         </div>
@@ -214,7 +216,9 @@ export function ChannelSidebarContents({
   prefs?: ChannelSidebarPrefs;
 }): ReactElement {
   const snapshot = useSyncExternalStore(prefs.subscribe, prefs.getSnapshot, prefs.getSnapshot);
-  const [draft, setDraft] = useState<readonly string[] | undefined>();
+  const [draft, setDraft] = useState<
+    { order: readonly string[]; hidden: readonly string[] } | undefined
+  >();
   const [announcement, setAnnouncement] = useState('');
   const drag = useRef<
     | {
@@ -232,9 +236,10 @@ export function ChannelSidebarContents({
   const editing = draft !== undefined;
   const order = resolveEntryOrder(
     registered.map((entry) => entry.id),
-    preview ?? draft ?? snapshot.entryOrders[entryProps.scope],
+    preview ?? draft?.order ?? snapshot.entryOrders[entryProps.scope],
   );
   const visible = order.flatMap((id) => entries.filter((entry) => entry.id === id));
+  const hidden = draft?.hidden ?? snapshot.hiddenEntries[entryProps.scope];
   const announce = (id: string, nextOrder: readonly string[]): void => {
     const next = nextOrder.filter((entryId) => entries.some((entry) => entry.id === entryId));
     const entry = entries.find((entry) => entry.id === id);
@@ -268,7 +273,7 @@ export function ChannelSidebarContents({
     };
   }, []);
   const move = (id: string, target: string): void => {
-    setDraft(moveEntry(order, id, target));
+    setDraft({ order: moveEntry(order, id, target), hidden });
     announce(id, moveEntry(order, id, target));
     requestAnimationFrame(() => {
       const handles = rows.current?.querySelectorAll<HTMLButtonElement>('[data-order-handle]');
@@ -276,7 +281,7 @@ export function ChannelSidebarContents({
     });
   };
   const finish = (save: boolean): void => {
-    if (save && draft !== undefined) prefs.setEntryOrder(entryProps.scope, order);
+    if (save && draft !== undefined) prefs.setEntryLayout(entryProps.scope, order, draft.hidden);
     setDraft(undefined);
     cancelDrag();
     setAnnouncement('');
@@ -288,7 +293,7 @@ export function ChannelSidebarContents({
           entries={entries}
           entryProps={entryProps}
           editing={editing}
-          onEdit={() => setDraft(order)}
+          onEdit={() => setDraft({ order, hidden })}
         />
       </div>
       <div
@@ -335,7 +340,7 @@ export function ChannelSidebarContents({
           if (!editing || gesture === undefined) return;
           event.preventDefault();
           if (gesture.next !== undefined && entries.some((entry) => entry.id === gesture.id)) {
-            setDraft(gesture.next);
+            setDraft({ order: gesture.next, hidden });
             announce(gesture.id, gesture.next);
             const handle = rows.current?.querySelectorAll<HTMLButtonElement>('[data-order-handle]');
             for (const button of handle ?? [])
@@ -357,7 +362,7 @@ export function ChannelSidebarContents({
               <button
                 type="button"
                 disabled={dragging !== undefined}
-                onClick={() => setDraft(registered.map((entry) => entry.id))}
+                onClick={() => setDraft({ order: registered.map((entry) => entry.id), hidden: [] })}
               >
                 {entryProps.t('sidebar.order.reset')}
               </button>
@@ -367,80 +372,124 @@ export function ChannelSidebarContents({
         <span className="bh-sidebar-order-announcement" role="status" aria-live="polite">
           {announcement}
         </span>
-        {visible.length === 0 ? (
-          <div className="bh-note">{entryProps.t('sidebar.empty')}</div>
-        ) : (
-          visible.map((entry, index) => (
-            <div
-              className="bh-sidebar-order-row"
-              data-entry-id={entry.id}
-              key={entry.id}
-              data-dragging={dragging === entry.id || undefined}
-              data-drop-indicator={(preview !== undefined && dragging === entry.id) || undefined}
-            >
-              {editing ? (
+        {visible.length === 0 ||
+        (!editing && visible.every((entry) => hidden.includes(entry.id))) ? (
+          <div className="bh-note">
+            {entryProps.t(visible.length === 0 ? 'sidebar.empty' : 'sidebar.visibility.empty')}
+          </div>
+        ) : null}
+        {visible.map((entry, index) => (
+          <div
+            className="bh-sidebar-order-row"
+            data-entry-id={entry.id}
+            key={entry.id}
+            hidden={!editing && hidden.includes(entry.id)}
+            data-entry-hidden={hidden.includes(entry.id) || undefined}
+            data-dragging={dragging === entry.id || undefined}
+            data-drop-indicator={(preview !== undefined && dragging === entry.id) || undefined}
+          >
+            {editing ? (
+              <button
+                type="button"
+                className="bh-sidebar-order-handle"
+                data-order-handle={entry.id}
+                draggable
+                aria-label={entryProps.t('sidebar.order.move', { label: entry.label })}
+                onDragStart={(event) => {
+                  const bounds = [
+                    ...rows.current!.querySelectorAll<HTMLElement>('[data-entry-id]'),
+                  ].map((row) => {
+                    const rect = row.getBoundingClientRect();
+                    return { id: row.dataset['entryId']!, top: rect.top, bottom: rect.bottom };
+                  });
+                  drag.current = {
+                    id: entry.id,
+                    order,
+                    bounds,
+                    scrollTop: rows.current?.scrollTop ?? 0,
+                  };
+                  setDragging(entry.id);
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', entry.id);
+                }}
+                onDragEnd={cancelDrag}
+                onKeyDown={(event) => {
+                  if (drag.current !== undefined) {
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      cancelDrag();
+                    }
+                    return;
+                  }
+                  const target =
+                    event.key === 'ArrowUp'
+                      ? index - 1
+                      : event.key === 'ArrowDown'
+                        ? index + 1
+                        : event.key === 'Home'
+                          ? 0
+                          : event.key === 'End'
+                            ? visible.length - 1
+                            : undefined;
+                  if (target === undefined) return;
+                  event.preventDefault();
+                  const next = visible[target];
+                  if (next !== undefined) move(entry.id, next.id);
+                }}
+              >
+                <ChannelSidebarIcon name="grip-vertical" />
+              </button>
+            ) : null}
+            <ChannelSidebarEntrySection
+              entry={entry}
+              expanded={controller.isEntryExpanded(entry.id)}
+              onToggle={() => controller.toggleEntry(entry.id)}
+              entryProps={entryProps}
+              editing={editing}
+              hidden={!editing && hidden.includes(entry.id)}
+            />
+            {editing && hidden.includes(entry.id) ? (
+              <span className="bh-sidebar-hidden-badge">
+                {entryProps.t('sidebar.visibility.hidden')}
+              </span>
+            ) : null}
+            {editing ? (
+              <Tooltip
+                label={entryProps.t(
+                  hidden.includes(entry.id) ? 'sidebar.visibility.show' : 'sidebar.visibility.hide',
+                  { label: entry.label },
+                )}
+                side="bottom"
+                delayMs={500}
+              >
                 <button
                   type="button"
-                  className="bh-sidebar-order-handle"
-                  data-order-handle={entry.id}
-                  draggable
-                  aria-label={entryProps.t('sidebar.order.move', { label: entry.label })}
-                  onDragStart={(event) => {
-                    const bounds = [
-                      ...rows.current!.querySelectorAll<HTMLElement>('[data-entry-id]'),
-                    ].map((row) => {
-                      const rect = row.getBoundingClientRect();
-                      return { id: row.dataset['entryId']!, top: rect.top, bottom: rect.bottom };
-                    });
-                    drag.current = {
-                      id: entry.id,
+                  className="bh-sidebar-visibility-toggle"
+                  data-visibility-toggle={entry.id}
+                  disabled={dragging !== undefined}
+                  aria-pressed={!hidden.includes(entry.id)}
+                  aria-label={entryProps.t(
+                    hidden.includes(entry.id)
+                      ? 'sidebar.visibility.show'
+                      : 'sidebar.visibility.hide',
+                    { label: entry.label },
+                  )}
+                  onClick={() =>
+                    setDraft({
                       order,
-                      bounds,
-                      scrollTop: rows.current?.scrollTop ?? 0,
-                    };
-                    setDragging(entry.id);
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', entry.id);
-                  }}
-                  onDragEnd={cancelDrag}
-                  onKeyDown={(event) => {
-                    if (drag.current !== undefined) {
-                      if (event.key === 'Escape') {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        cancelDrag();
-                      }
-                      return;
-                    }
-                    const target =
-                      event.key === 'ArrowUp'
-                        ? index - 1
-                        : event.key === 'ArrowDown'
-                          ? index + 1
-                          : event.key === 'Home'
-                            ? 0
-                            : event.key === 'End'
-                              ? visible.length - 1
-                              : undefined;
-                    if (target === undefined) return;
-                    event.preventDefault();
-                    const next = visible[target];
-                    if (next !== undefined) move(entry.id, next.id);
-                  }}
+                      hidden: hidden.includes(entry.id)
+                        ? hidden.filter((id) => id !== entry.id)
+                        : [...hidden, entry.id],
+                    })
+                  }
                 >
-                  <ChannelSidebarIcon name="grip-vertical" />
+                  <ChannelSidebarIcon name={hidden.includes(entry.id) ? 'eye-off' : 'eye'} />
                 </button>
-              ) : null}
-              <ChannelSidebarEntrySection
-                entry={entry}
-                expanded={controller.isEntryExpanded(entry.id)}
-                onToggle={() => controller.toggleEntry(entry.id)}
-                entryProps={entryProps}
-                editing={editing}
-              />
-            </div>
-          ))
-        )}
+              </Tooltip>
+            ) : null}
+          </div>
+        ))}
       </div>
     </>
   );

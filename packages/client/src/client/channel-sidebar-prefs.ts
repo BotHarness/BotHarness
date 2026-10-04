@@ -22,6 +22,7 @@ export interface ChannelSidebarPrefsSnapshot {
   width: number;
   memoryTerminology: MemoryTerminology;
   entryOrders: Readonly<Record<ChannelSidebarScope, readonly string[]>>;
+  hiddenEntries: Readonly<Record<ChannelSidebarScope, readonly string[]>>;
 }
 
 export interface ChannelSidebarPrefs {
@@ -32,6 +33,11 @@ export interface ChannelSidebarPrefs {
   isEntryExpanded(scopeKey: string, entryId: string): boolean;
   setEntryExpanded(scopeKey: string, entryId: string, expanded: boolean): void;
   setEntryOrder(scope: ChannelSidebarScope, ids: readonly string[]): void;
+  setEntryLayout(
+    scope: ChannelSidebarScope,
+    order: readonly string[],
+    hidden: readonly string[],
+  ): void;
   setWidth(width: number): void;
   setMemoryTerminology(terminology: MemoryTerminology): void;
 }
@@ -42,12 +48,22 @@ const EMPTY: ChannelSidebarPrefsSnapshot = Object.freeze({
   width: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   memoryTerminology: 'memory',
   entryOrders: Object.freeze({ personabot: Object.freeze([]), channel: Object.freeze([]) }),
+  hiddenEntries: Object.freeze({ personabot: Object.freeze([]), channel: Object.freeze([]) }),
 });
 
 function stringList(value: unknown): readonly string[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === 'string')
     : [];
+}
+
+function entryIds(value: unknown): readonly string[] {
+  return Object.freeze(
+    [...new Set(stringList(value).filter((id) => id.length > 0 && id.length <= 200))].slice(0, 200),
+  );
+}
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
 }
 
 export function channelSidebarScopeKey(
@@ -77,14 +93,10 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
       const orders = parsed['entryOrders'];
       const entryOrders =
         orders !== null && typeof orders === 'object' ? (orders as Record<string, unknown>) : {};
-      const order = (scope: ChannelSidebarScope) =>
-        Object.freeze(
-          [
-            ...new Set(
-              stringList(entryOrders[scope]).filter((id) => id.length > 0 && id.length <= 200),
-            ),
-          ].slice(0, 200),
-        );
+      const hidden = parsed['hiddenEntries'];
+      const hiddenEntries =
+        hidden !== null && typeof hidden === 'object' ? (hidden as Record<string, unknown>) : {};
+      const order = (scope: ChannelSidebarScope) => entryIds(entryOrders[scope]);
       return {
         collapsedSidebars: Object.freeze(stringList(parsed['collapsedSidebars'])),
         expandedEntries: Object.freeze(stringList(parsed['expandedEntries'])),
@@ -94,6 +106,10 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
             : DEFAULT_CHANNEL_SIDEBAR_WIDTH,
         memoryTerminology: memoryTerminology === 'git' ? 'git' : 'memory',
         entryOrders: Object.freeze({ personabot: order('personabot'), channel: order('channel') }),
+        hiddenEntries: Object.freeze({
+          personabot: entryIds(hiddenEntries['personabot']),
+          channel: entryIds(hiddenEntries['channel']),
+        }),
       };
     } catch {
       return EMPTY;
@@ -112,6 +128,7 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
             width: next.width,
             memoryTerminology: next.memoryTerminology,
             entryOrders: next.entryOrders,
+            hiddenEntries: next.hiddenEntries,
           }),
         );
       } catch {}
@@ -124,6 +141,25 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
     if (present) next.add(key);
     else next.delete(key);
     return Object.freeze([...next]);
+  };
+
+  const setEntryLayout = (
+    scope: ChannelSidebarScope,
+    order: readonly string[],
+    hidden: readonly string[],
+  ): void => {
+    const nextOrder = entryIds(order);
+    const nextHidden = entryIds(hidden);
+    if (
+      sameIds(nextOrder, snapshot.entryOrders[scope]) &&
+      sameIds(nextHidden, snapshot.hiddenEntries[scope])
+    )
+      return;
+    publish({
+      ...snapshot,
+      entryOrders: Object.freeze({ ...snapshot.entryOrders, [scope]: nextOrder }),
+      hiddenEntries: Object.freeze({ ...snapshot.hiddenEntries, [scope]: nextHidden }),
+    });
   };
 
   snapshot = read();
@@ -156,19 +192,9 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
       });
     },
     setEntryOrder(scope, ids) {
-      const next = Object.freeze(
-        [...new Set(ids)].filter((id) => id.length > 0 && id.length <= 200).slice(0, 200),
-      );
-      if (
-        next.length === snapshot.entryOrders[scope].length &&
-        next.every((id, index) => id === snapshot.entryOrders[scope][index])
-      )
-        return;
-      publish({
-        ...snapshot,
-        entryOrders: Object.freeze({ ...snapshot.entryOrders, [scope]: next }),
-      });
+      setEntryLayout(scope, ids, snapshot.hiddenEntries[scope]);
     },
+    setEntryLayout,
     setWidth(width) {
       const next = clampChannelSidebarWidth(width);
       if (next === snapshot.width) return;
