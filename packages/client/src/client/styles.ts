@@ -1585,6 +1585,10 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-channel-island > :first-child {
   flex: 0 0 auto;
 }
+.bh-group-channel-name { display: inline-flex; align-items: center; flex: 1; min-width: 0; padding: 0; border: 0; border-radius: 4px; color: inherit; background: transparent; font: inherit; cursor: pointer; }
+.bh-group-channel-name:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.bh-group-live-activity { container-type: inline-size; min-width: 0; }
+.bh-group-live-activity .bh-composer-activity-session { min-height: 32px; padding: 6px 8px; }
 .bh-channel-island-wrap {
   position: relative;
   display: inline-flex;

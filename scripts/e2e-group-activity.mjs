@@ -11,7 +11,11 @@ const mode = process.argv[2] ?? 'check';
 const baseline = mode.startsWith('before');
 assert.ok(origin && home && evidence, 'set BH_E2E_ORIGIN, HOME and EVIDENCE');
 mkdirSync(evidence, { recursive: true });
-const privateDir = resolve('.humanlayer/tasks/124-group-activity');
+const header = process.env.BH_E2E_GROUP_HEADER === '1';
+const privateDir = resolve(
+  '.humanlayer/tasks',
+  header ? '124-group-header-activity' : '124-group-activity',
+);
 mkdirSync(privateDir, { recursive: true });
 const statePath = resolve(privateDir, 'qa-state.json');
 const cookie = readFileSync(resolve(tmpdir(), `dsh-${basename(home)}.cookies`), 'utf8').split(
@@ -249,6 +253,28 @@ try {
     assert.ok(collapsed.includes('执行') || collapsed.includes('Executing'));
   }
   await shot('group-collapsed-light');
+  if (header && !baseline) {
+    const headerAvatar = await page.$('.bh-group-channel-header .bh-avatar-facepile-button');
+    assert.ok(headerAvatar);
+    await headerAvatar.focus();
+    await page.waitForSelector('[role="tooltip"]');
+    const tip = await page.$eval('[role="tooltip"]', (node) => node.textContent);
+    assert.ok(scene.bots.some((bot) => tip.includes(bot.name)));
+    await shot('group-header-focus-light');
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('.bh-group-live-activity');
+    const rows = await page.$$eval('.bh-group-live-activity .bh-composer-activity-bot', (nodes) =>
+      nodes.map((node) => node.textContent),
+    );
+    assert.equal(rows.length, scene.bots.length);
+    for (const bot of scene.bots) assert.ok(rows.some((row) => row.includes(bot.name)));
+    await shot('group-header-list-light');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('.bh-profile-popover'));
+    await page.click('.bh-group-channel-name');
+    await page.waitForSelector('.bh-profile-popover .bh-profile-expand');
+    await page.keyboard.press('Escape');
+  }
   await page.click('.bh-composer-activity-toggle');
   if (!baseline) {
     const rows = await page.$$eval('.bh-composer-activity-bot', (nodes) =>
@@ -374,6 +400,14 @@ try {
       ),
   );
   await shot('group-completed-dark');
+  if (header && !baseline) {
+    await page.setViewport({ width: 1500, height: 1000 });
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
+    await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
+    await page.click('.bh-group-channel-name');
+    await page.waitForSelector('.bh-group-live-activity');
+    await shot('group-header-list-idle-light');
+  }
   assert.deepEqual(clientErrors, []);
   const safe = (snapshot) => ({
     generation: snapshot.generation,
@@ -395,6 +429,7 @@ try {
         overflow,
         clientErrors,
         baseline,
+        headerVerified: header && !baseline,
       },
       null,
       2,

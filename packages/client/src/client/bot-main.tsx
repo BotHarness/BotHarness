@@ -1,3 +1,4 @@
+import { GroupChannelHeader } from './group-channel-header.js';
 import { BridgeCallError, parseAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
 import { useCallback, useRef, useState, type ReactElement } from 'react';
@@ -1082,31 +1083,18 @@ function ConversationView({
             )}
             {channel?.type === 'group' ? (
               <span className="bh-channel-island-wrap" ref={profileTriggerRef}>
-                <button
-                  type="button"
-                  className="bh-channel-island"
-                  aria-haspopup="dialog"
-                  aria-expanded={profilePopoverOpen}
-                  aria-label={t('groupProfile.openAvatar', { name: channel.name })}
-                  onClick={() => setProfilePopoverOpen((open) => !open)}
-                >
-                  {channel.avatar ? (
-                    <img
-                      className="bh-group-avatar-image bh-group-avatar-topbar"
-                      src={channel.avatar}
-                      alt=""
-                    />
-                  ) : channelFacepile.length > 0 ? (
-                    <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
-                  ) : (
-                    <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
-                      #
-                    </span>
-                  )}
-                  <span className="bh-title">{title}</span>
-                </button>
+                <GroupChannelHeader
+                  channel={channel}
+                  title={title}
+                  members={channelFacepile}
+                  expanded={profilePopoverOpen}
+                  t={t}
+                  onOpenActivity={() => setProfilePopoverOpen(true)}
+                  onToggleProfile={() => setProfilePopoverOpen((open) => !open)}
+                />
                 {profilePopoverOpen ? (
                   <GroupProfilePopover
+                    members={channelFacepile}
                     channel={channel}
                     activity={
                       groupProfileActivity?.channelId === channel.id

@@ -1,3 +1,5 @@
+import { GroupActivityRows } from './group-activity-rows.js';
+import type { PersonaBotFacepileItem } from './avatar.js';
 import { bridgeSourceLabel } from './bridge-source-label.js';
 import { GroupWakePolicyTable } from './group-wake-policy-table.js';
 import { ChannelBridgeTable } from './channel-bridge-table.js';
@@ -140,6 +142,7 @@ export interface GroupProfileProps {
 }
 
 export function GroupProfilePopover({
+  members = [],
   channel,
   activity,
   cards,
@@ -147,7 +150,10 @@ export function GroupProfilePopover({
   botNames,
   t,
   onExpand,
-}: GroupProfileProps & { onExpand(): void }): ReactElement {
+}: GroupProfileProps & {
+  members?: readonly PersonaBotFacepileItem[];
+  onExpand(): void;
+}): ReactElement {
   const pinnedCards = cards.listGroup().filter((card) => pinned.includes(card.id));
   return (
     <div className="bh-profile-popover" role="dialog" aria-label={t('groupProfile.label')}>
@@ -160,6 +166,14 @@ export function GroupProfilePopover({
           </span>
         </span>
       </div>
+      {members.length === 0 ? null : (
+        <section className="bh-group-live-activity">
+          <span className="bh-profile-card-label">{t('groupProfile.liveActivity')}</span>
+          <ul className="bh-composer-activity-details" aria-label={t('groupProfile.liveActivity')}>
+            <GroupActivityRows items={members} t={t} />
+          </ul>
+        </section>
+      )}
       {pinnedCards.length === 0 ? null : (
         <div className="bh-profile-popover-cards">
           {pinnedCards.map((card) => (
