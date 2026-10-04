@@ -472,6 +472,51 @@ describe('Assignment collaboration', () => {
     }
   });
 
+  it('retains active steering uncertainty after the original turn finishes', async () => {
+    const { runtime, agents, owner, admit, close } = await setup();
+    try {
+      await admit('Start', 'human-steer-uncertain');
+      const access = agents.access!;
+      const created = access.create({ grantId: TEST_GRANT_ID, purpose: 'Active steering' });
+      if (created.outcome !== 'created') throw new Error('Missing Assignment');
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'waiting-human', summary: 'Question', expectsReply: true });
+      const ask = runtime.getAssignment('ada', run.sessionId)!.openAsk!;
+      vi.spyOn(agents, 'requestAssignment').mockImplementationOnce(() => {
+        throw new AssignmentInboxAcceptanceUncertainError(new Error('native steer threw'));
+      });
+      expect(() =>
+        access.request({
+          sessionId: run.sessionId,
+          mode: 'next-step',
+          text: 'Answer',
+          answerTo: ask.sourceEventId,
+        }),
+      ).toThrow('acceptance is uncertain');
+      agents.finish(run.sessionId);
+      await runtime.whenIdle();
+      expect(runtime.getAssignment('ada', run.sessionId)).toMatchObject({
+        activity: 'error',
+        openAsk: ask,
+      });
+      expect(
+        createHumanAttentionQuery(
+          attachOperationalModule(owner, 'steer-uncertainty'),
+        ).assignmentContext('ada', run.sessionId, ask.sourceEventId)?.canReply,
+      ).toBe(false);
+      expect(() =>
+        access.request({
+          sessionId: run.sessionId,
+          mode: 'next-turn',
+          text: 'Replay',
+          answerTo: ask.sourceEventId,
+        }),
+      ).toThrow('failed');
+    } finally {
+      await close();
+    }
+  });
+
   it('settles an accepted answer even when its subsequent execution fails', async () => {
     const { runtime, agents, admit, close } = await setup();
     try {

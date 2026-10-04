@@ -2446,6 +2446,7 @@ class BotRuntimeImplementation implements BotRuntime {
     await Promise.allSettled([...this.#tails.values(), ...this.#assignmentRuns.values()]);
     this.#tails.clear();
     this.#assignmentRuns.clear();
+    this.#assignmentAcceptances.clear();
     await this.#agents.close();
   }
 
@@ -2897,6 +2898,7 @@ class BotRuntimeImplementation implements BotRuntime {
     role: 'orchestrator' | 'assignment';
     error: unknown;
     context?: string;
+    assignmentAnswerTo?: string;
   }): Promise<void> {
     const details = sessionFailureDetails(input.error);
     const failure = {
@@ -2904,6 +2906,9 @@ class BotRuntimeImplementation implements BotRuntime {
       sessionId: input.sessionId,
       ...details,
       ...(input.context === undefined ? {} : { context: input.context }),
+      ...(input.assignmentAnswerTo === undefined
+        ? {}
+        : { assignmentAnswerTo: input.assignmentAnswerTo }),
     };
     const original = this.#channels.get(input.channelId);
     const target =
@@ -4515,7 +4520,12 @@ class BotRuntimeImplementation implements BotRuntime {
           settleAcceptance();
           await delivery.done;
         },
-        () => (!accepted && !uncertain && waking ? 'idle' : 'error'),
+        () => ({
+          activity: !accepted && !uncertain && waking ? 'idle' : 'error',
+          ...(!accepted && !uncertain && row.open_ask_source_event_id !== null
+            ? { answerTo: row.open_ask_source_event_id }
+            : {}),
+        }),
       );
     } else {
       settleAcceptance();
@@ -4599,7 +4609,9 @@ class BotRuntimeImplementation implements BotRuntime {
   #trackAssignmentRun(
     sessionId: string,
     task: () => Promise<void>,
-    failureActivity: () => 'idle' | 'error' = () => 'error',
+    failure: () => { activity: 'idle' | 'error'; answerTo?: string } = () => ({
+      activity: 'error',
+    }),
   ): void {
     let tracked: Promise<void> | undefined;
     const run = (async () => {
@@ -4608,10 +4620,12 @@ class BotRuntimeImplementation implements BotRuntime {
       try {
         await task();
         if (this.#assignmentRuns.get(sessionId) !== tracked) return;
+        if (this.#assignmentRow(undefined, sessionId)?.activity === 'error') return;
         this.#setActivity(sessionId, 'idle');
       } catch (error) {
         if (this.#assignmentRuns.get(sessionId) !== tracked) return;
-        this.#setActivity(sessionId, failureActivity());
+        const refused = failure();
+        this.#setActivity(sessionId, refused.activity);
         const row = this.#assignmentRow(undefined, sessionId);
         if (row?.stop_state !== 'running') return;
         if (row !== undefined) {
@@ -4624,6 +4638,7 @@ class BotRuntimeImplementation implements BotRuntime {
               role: 'assignment',
               error,
               context: row.purpose,
+              ...(refused.answerTo === undefined ? {} : { assignmentAnswerTo: refused.answerTo }),
             });
           }
         }

@@ -73,12 +73,31 @@ function canReply(
   sourceEventId: string,
 ): boolean {
   if (currentReport(db, botSlug, sessionId) !== sourceEventId) return false;
+  if (
+    db
+      .prepare(
+        `SELECT 1 FROM assignments WHERE bot_slug = ? AND session_id = ? AND activity = 'error'`,
+      )
+      .get(botSlug, sessionId) !== undefined
+  )
+    return false;
   if (humanReply(db, botSlug, sessionId, sourceEventId) === undefined) return true;
   return (
     db
-      .prepare(`SELECT 1 FROM assignments
-    WHERE bot_slug = ? AND session_id = ? AND open_ask_source_event_id = ?
-      AND activity = 'idle' AND stop_state = 'running'`)
+      .prepare(`SELECT 1 FROM assignments a JOIN source_events failure
+    ON failure.channel_id = 'dm-' || a.bot_slug
+    WHERE a.bot_slug = ? AND a.session_id = ? AND a.open_ask_source_event_id = ?
+      AND a.activity = 'idle' AND a.stop_state = 'running'
+      AND failure.source_kind = 'bot-message'
+      AND json_extract(failure.payload_json, '$.sessionFailure.role') = 'assignment'
+      AND json_extract(failure.payload_json, '$.sessionFailure.sessionId') = a.session_id
+      AND json_extract(failure.payload_json, '$.sessionFailure.assignmentAnswerTo') = a.open_ask_source_event_id
+      AND failure.rowid > (SELECT max(reply.rowid) FROM source_events reply
+        WHERE reply.channel_id = 'dm-' || a.bot_slug AND reply.source_kind = 'human-message'
+          AND json_extract(reply.payload_json, '$.author.kind') = 'human'
+          AND json_extract(reply.payload_json, '$.assignmentReply.sessionId') = a.session_id
+          AND json_extract(reply.payload_json, '$.assignmentReply.sourceEventId') = a.open_ask_source_event_id)
+    LIMIT 1`)
       .get(botSlug, sessionId, sourceEventId) !== undefined
   );
 }

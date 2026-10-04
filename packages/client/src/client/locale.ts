@@ -290,6 +290,7 @@ export const zh = {
   'humanInbox.assignment.collapse': '收起附近报告',
   'humanInbox.assignment.session': '打开 Assignment Session',
   'humanInbox.assignment.dm': '与 Bot 私聊',
+  'humanInbox.assignment.retry': '上次回应尚未送达事项；可重新发送。',
   'humanInbox.assignment.sent': '已发送给 Bot',
   'humanInbox.assignment.forwarding': '由 Bot 转交此回应；事项状态以之后的报告为准。',
   'humanInbox.assignment.stale': '此报告已不再等待回应，请查看最新事项状态。',
@@ -1716,6 +1717,8 @@ export const en = {
   'humanInbox.assignment.collapse': 'Hide nearby reports',
   'humanInbox.assignment.session': 'Open Assignment Session',
   'humanInbox.assignment.dm': 'Message Bot',
+  'humanInbox.assignment.retry':
+    'The previous response was not delivered to this Assignment. You can send it again.',
   'humanInbox.assignment.sent': 'Sent to Bot',
   'humanInbox.assignment.forwarding':
     'The Bot relays this response; subsequent reports determine the Assignment status.',

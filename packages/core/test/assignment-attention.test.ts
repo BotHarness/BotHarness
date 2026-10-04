@@ -194,6 +194,9 @@ describe('shared Assignment Human attention', () => {
       expect(
         await f.methods.channelSend({ ...reply, messageId: 'human-' + crypto.randomUUID() }),
       ).toMatchObject({ ok: true });
+      expect(
+        await f.methods.channelSend({ ...reply, messageId: 'human-' + crypto.randomUUID() }),
+      ).toMatchObject({ ok: false });
       waiting.access.request({
         sessionId: waiting.run.sessionId,
         mode: 'next-turn',
