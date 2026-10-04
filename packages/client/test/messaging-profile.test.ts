@@ -292,110 +292,115 @@ it('changes group intake only after the Human toggles it and can stop it when th
   }
 });
 
-it('gates full collection on live ordinary delivery and saves collection independently from wake through Host actions', async () => {
-  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-  const grant: MessagingGrant = {
-    id: 'policy-grant',
-    bindingId: 'binding',
-    botSlug: 'ada',
-    providerId: 'test',
-    accountRef: 'account',
-    accountName: 'My identity',
-    fingerprint: 'a'.repeat(64),
-    platform: 'test',
-    targetRef: 'group',
-    targetName: 'Authorized group',
-    targetDigest: 'b'.repeat(64),
-    revision: 2,
-    createdAt: '2026-10-01T00:00:00Z',
-    receiveScope: { kind: 'group', conversationId: 'oc-group' },
-  };
-  let verified = false;
-  const policy = {
-    collection: 'mentions' as const,
-    wake: 'digest' as const,
-    count: 5,
-    intervalSeconds: 30,
-    revision: 0,
-    changedAt: '',
-    editor: { kind: 'built-in' as const },
-  };
-  const messagingGroupPolicy = vi.fn(async () => undefined);
-  const actions = {
-    messagingGroupPolicy,
-    messagingThreadPolicy: async () => undefined,
-    messagingReceive: async () => undefined,
-    messagingChannelTarget: async () => undefined,
-    messagingIdentity: vi.fn(),
-    messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
-      accounts: [],
-      intents: [],
-      grants: [
-        {
-          ...grant,
-          canReceive: true,
-          availability: 'available',
-          reception: 'receiving',
-          ordinaryDelivery: verified ? 'verified' : 'unverified',
-          groupPolicy: policy,
-        },
-      ],
-    }),
-    messagingTargets: async () => [],
-    messagingAuthorize: async () => grant,
-    messagingRevoke: async () => undefined,
-    messagingSend: async () => {
-      throw new Error('Must not send');
-    },
-  };
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  const button = (key: 'im.refresh' | 'im.policySave') =>
-    [...container.querySelectorAll('button')].find(
-      (item) => item.textContent === zhTranslate(key),
-    )!;
-  try {
-    await act(async () =>
-      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
-    );
-    await act(async () => button('im.refresh').click());
-    const collection = container.querySelector<HTMLSelectElement>(
-      `select[aria-label="${zhTranslate('im.collection')}"]`,
-    )!;
-    expect(collection.querySelector<HTMLOptionElement>('option[value="all"]')?.disabled).toBe(true);
-    expect(container.textContent).toContain(zhTranslate('im.ordinaryUnverified'));
-    verified = true;
-    await act(async () => button('im.refresh').click());
-    expect(collection.querySelector<HTMLOptionElement>('option[value="all"]')?.disabled).toBe(
-      false,
-    );
-    await act(async () => {
-      collection.value = 'all';
-      collection.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    const wake = container.querySelector<HTMLSelectElement>(
-      `select[aria-label="${zhTranslate('im.ordinaryWake')}"]`,
-    )!;
-    await act(async () => {
-      wake.value = 'immediate';
-      wake.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    expect(messagingGroupPolicy).not.toHaveBeenCalled();
-    await act(async () => button('im.policySave').click());
-    expect(messagingGroupPolicy).toHaveBeenCalledExactlyOnceWith('ada', grant.id, {
-      inheritance: 'custom',
-      expectedRevision: 0,
-      collection: 'all',
-      wake: 'immediate',
+it.each(['test', 'slack'])(
+  'gates %s full collection on live ordinary delivery and saves collection independently from wake through Host actions',
+  async (platform) => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const grant: MessagingGrant = {
+      id: 'policy-grant',
+      bindingId: 'binding',
+      botSlug: 'ada',
+      providerId: 'test',
+      accountRef: 'account',
+      accountName: 'My identity',
+      fingerprint: 'a'.repeat(64),
+      platform,
+      targetRef: 'group',
+      targetName: 'Authorized group',
+      targetDigest: 'b'.repeat(64),
+      revision: 2,
+      createdAt: '2026-10-01T00:00:00Z',
+      receiveScope: { kind: 'group', conversationId: 'oc-group' },
+    };
+    let verified = false;
+    const policy = {
+      collection: 'mentions' as const,
+      wake: 'digest' as const,
       count: 5,
       intervalSeconds: 30,
-    });
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-  }
-});
+      revision: 0,
+      changedAt: '',
+      editor: { kind: 'built-in' as const },
+    };
+    const messagingGroupPolicy = vi.fn(async () => undefined);
+    const actions = {
+      messagingGroupPolicy,
+      messagingThreadPolicy: async () => undefined,
+      messagingReceive: async () => undefined,
+      messagingChannelTarget: async () => undefined,
+      messagingIdentity: vi.fn(),
+      messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
+        accounts: [],
+        intents: [],
+        grants: [
+          {
+            ...grant,
+            canReceive: true,
+            availability: 'available',
+            reception: 'receiving',
+            ordinaryDelivery: verified ? 'verified' : 'unverified',
+            groupPolicy: policy,
+          },
+        ],
+      }),
+      messagingTargets: async () => [],
+      messagingAuthorize: async () => grant,
+      messagingRevoke: async () => undefined,
+      messagingSend: async () => {
+        throw new Error('Must not send');
+      },
+    };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const button = (key: 'im.refresh' | 'im.policySave') =>
+      [...container.querySelectorAll('button')].find(
+        (item) => item.textContent === zhTranslate(key),
+      )!;
+    try {
+      await act(async () =>
+        root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
+      );
+      await act(async () => button('im.refresh').click());
+      const collection = container.querySelector<HTMLSelectElement>(
+        `select[aria-label="${zhTranslate('im.collection')}"]`,
+      )!;
+      expect(collection.querySelector<HTMLOptionElement>('option[value="all"]')?.disabled).toBe(
+        true,
+      );
+      expect(container.textContent).toContain(zhTranslate('im.ordinaryUnverified'));
+      verified = true;
+      await act(async () => button('im.refresh').click());
+      expect(collection.querySelector<HTMLOptionElement>('option[value="all"]')?.disabled).toBe(
+        false,
+      );
+      await act(async () => {
+        collection.value = 'all';
+        collection.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      const wake = container.querySelector<HTMLSelectElement>(
+        `select[aria-label="${zhTranslate('im.ordinaryWake')}"]`,
+      )!;
+      await act(async () => {
+        wake.value = 'immediate';
+        wake.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      expect(messagingGroupPolicy).not.toHaveBeenCalled();
+      await act(async () => button('im.policySave').click());
+      expect(messagingGroupPolicy).toHaveBeenCalledExactlyOnceWith('ada', grant.id, {
+        inheritance: 'custom',
+        expectedRevision: 0,
+        collection: 'all',
+        wake: 'immediate',
+        count: 5,
+        intervalSeconds: 30,
+      });
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  },
+);
 
 it('shows per-Thread state, refuses unverified follow and saves the exact Human revision from the Modal', async () => {
   const { ThreadReceptionSettings } = await import('../src/client/thread-reception-settings.js');

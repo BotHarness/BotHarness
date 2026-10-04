@@ -72,6 +72,28 @@ is platform acceptance, while ambiguous completion remains an unknown outcome.
 No extra file store, Session, DM mirror, ordinary subscription or history-file search is
 introduced. The Client reuses its source Modal and file download row.
 
+## Follow-up: ordinary channel text (#837)
+
+The same exclusive Consumer can opt into fresh public-channel Human text with
+`ordinaryText: true` after `ordinary-text-consumer` is advertised. The Provider
+retains account/App pairing, membership and lease checks and acknowledges after
+canonical acceptance. Native `message.channels` subscription uses the App's existing
+`channels:history` scope; adding automatic delivery is explicitly authorized separately.
+Own mentions arriving through that subscription are ignored in favor of the existing
+`app_mention` path. Bot/self events, private/DM traffic, edits/deletions, unsupported
+subtypes and ordinary file shares are excluded.
+
+Messaging keeps the existing per-authorized-group collection authority. New bindings
+remain mention-only; a real current ordinary event must qualify delivery before Human
+can enable full collection. The excluded probe creates neither Source Event nor Admission.
+Collected text uses existing canonical Source Events, optional Channel placement, per-Bot
+Admission snapshots and count/time harvest or immediate turn queuing (ADR-0109/0113).
+Collection does not force a reply. Profile reuses the existing localized compact policy
+editor; Slack's built-in defaults remain independent of mutable Lark platform defaults.
+Lease/Host restart resets verification but preserves policy, without remote gap backfill.
+No schema, queue or Session authority is added. Autonomous native-thread follow, ordinary
+files, private/DM intake and an editable Slack global-defaults page remain later slices.
+
 ## Consequences
 
 One canonical source and Outbox continue to serve all supported Providers; no new database authority or schema migration is required for this text slice. Native Slack routing is adapted at the Provider boundary rather than imposed on Lark or on platforms without threads. Socket redelivery and uncertain sends remain explicit reliability boundaries. A passing automated regression is preparatory evidence; real Slack App installation, a fresh model round trip, screenshots and Human QA are still required before issue completion.

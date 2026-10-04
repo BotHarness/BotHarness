@@ -469,6 +469,16 @@ flowchart LR
 
 Before ACK, new intake atomically commits the Source, optional existing target Channel placement and receiving Bot’s own Admission, preserving the exact Messaging revision and thresholds. The Bot Runtime reuses bounded harvest and timers; ordinary traffic queues at the turn boundary without steering an active model/tool step. Mentions retain existing steer/turn rules and can co-harvest pending digest/mention-context from the same grant; silent items enter the turn only through explicit reads. Restart restores pending readiness from recorded thresholds, edits affect future arrivals, and redelivery does not reclassify retained Admissions. Reply participation remains independent. Ordinary attention for other Channel members belongs to #638 and topic following to #614.
 
+The #837 Slack ordinary-text extension explicitly opts the checked exclusive Consumer into
+fresh public-channel Human message events. Account/App, membership and lease checks remain
+active, and own mentions use app_mention alone to avoid overlap. Per-authorized-group
+collection remains mention-only by default and requires real current delivery to enable
+full collection. Existing canonical Source Events, Admission snapshots and count/time
+harvest or immediate turn queuing govern collected text; reply participation stays independent.
+Profile reuses the compact policy editor. Restart resets verification without changing policy
+or backfilling gaps. Native thread following, ordinary files and editable Slack global defaults
+remain separate qualifications; there is no new queue, store or Session authority.
+
 ### Human Inbox details and dismissal (#687 QA)
 
 Equal-width controls flush with the message window reveal older or newer context independently; the lower control can check arrivals after the previous end. Channel context reuses canonical timeline cursors and Assignment reports continue through the same bounded query at their edge. Each message exposes exact source navigation on hover/focus, with a touch fallback; an unplaced Assignment report opens its owning native DSH Session. Routine manual refresh and footer source controls are removed, while failures retain retry and drafts.
