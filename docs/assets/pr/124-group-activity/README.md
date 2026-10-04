@@ -12,7 +12,7 @@ The verifier sends structured mentions to Orbit and Nova, approves native Shell 
 
 ## Reproduce
 
-Boot an isolated instance from this branch with `scripts/dev-instance.mjs`. Set BH_E2E_ORIGIN, BH_E2E_HOME and BH_E2E_EVIDENCE, then run `node scripts/e2e-group-activity.mjs before` on the base revision and `node scripts/e2e-group-activity.mjs check` on this revision using the same isolated QA fixture. The first run creates four Bots and the Group through authenticated public commands. Each model run has native approval and provider cost.
+Boot an isolated instance from this branch with `scripts/dev-instance.mjs`. Set BH_E2E_ORIGIN, BH_E2E_HOME and BH_E2E_EVIDENCE, run the verifier from this PR checkout against a base-revision Host instance with `node scripts/e2e-group-activity.mjs before`, then run `node scripts/e2e-group-activity.mjs check` against the updated Host instance using the same isolated QA fixture. The new verifier is supplied by this PR; it does not exist in the base checkout. The first run creates four Bots and the Group through authenticated public commands. Each model run has native approval and provider cost.
 
 The final successful verifier uses native DM approval locations, visible facepile counts and fresh reply IDs; earlier verifier attempts were corrected when those assertions targeted the wrong surface.
 
