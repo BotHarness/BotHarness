@@ -400,7 +400,7 @@ export function createDockerComputerProvider(
     }
   };
 
-  const ensureDesktopDefaults = async (): Promise<void> => {
+  const ensureDesktopDefaults = async (storage: ComputerStorage): Promise<void> => {
     const result = await runner.run([
       'docker',
       'run',
@@ -408,10 +408,10 @@ export function createDockerComputerProvider(
       '--entrypoint',
       'sh',
       '-v',
-      `${config.volumeName}:/data`,
+      `${storage.target}:/data`,
       config.image,
       '-c',
-      `f=/data/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml; test -f "$f" && sed -i 's/name="icon-size" type="uint" value="16"/name="icon-size" type="uint" value="32"/; s/name="icon-size" type="uint" value="24"/name="icon-size" type="uint" value="32"/; s/name="size" type="uint" value="26"/name="size" type="uint" value="52"/; s/name="size" type="uint" value="40"/name="size" type="uint" value="52"/; s/name="size" type="uint" value="48"/name="size" type="uint" value="96"/; s/name="size" type="uint" value="64"/name="size" type="uint" value="96"/' "$f"; rm -f /data/.config/autostart/chromium.desktop /data/.config/chromium/Singleton*; exit 0`,
+      `parent=/data/.config/xfce4/xfconf; d="$parent/xfce-perchannel-xml"; if [ ! -d "$d" ]; then for p in /data/.config /data/.config/xfce4 "$parent"; do if [ ! -d "$p" ]; then mkdir "$p" && chown abc:abc "$p" || exit 1; fi; done; t=$(mktemp -d "$parent/.botharness-defaults.XXXXXX") || exit 1; cp -a /defaults/xfce/. "$t/" && chown -R abc:abc "$t" && mv "$t" "$d" || { rm -rf "$t"; exit 1; }; fi; f="$d/xfce4-panel.xml"; if [ ! -f "$f" ]; then cp /defaults/xfce/xfce4-panel.xml "$f" && chown abc:abc "$f" || exit 1; fi; sed -i 's/name="icon-size" type="uint" value="16"/name="icon-size" type="uint" value="32"/; s/name="icon-size" type="uint" value="24"/name="icon-size" type="uint" value="32"/; s/name="size" type="uint" value="26"/name="size" type="uint" value="52"/; s/name="size" type="uint" value="40"/name="size" type="uint" value="52"/; s/name="size" type="uint" value="48"/name="size" type="uint" value="96"/; s/name="size" type="uint" value="64"/name="size" type="uint" value="96"/' "$f" || exit 1; rm -f /data/.config/autostart/chromium.desktop /data/.config/chromium/Singleton*; exit 0`,
     ]);
     if (result.code !== 0) {
       onEvent?.('desktop defaults could not be prepared');
@@ -501,7 +501,7 @@ export function createDockerComputerProvider(
       phase = 'starting';
       detail = '正在启动已有容器…';
       throwIfCancelled();
-      await ensureDesktopDefaults();
+      await ensureDesktopDefaults(storage);
       const start = await runner.run(['docker', 'start', config.containerName]);
       if (start.code !== 0) {
         fail(start.stderr.trim() || 'docker start failed');
@@ -547,7 +547,7 @@ export function createDockerComputerProvider(
       }
     }
     throwIfCancelled();
-    await ensureDesktopDefaults();
+    await ensureDesktopDefaults(storage);
     const start = await runner.run([
       'docker',
       'run',

@@ -330,6 +330,8 @@
 
 ### Fixed
 
+- 修复 Container Computer 全新 home 存储首次启动时的面板尺寸，保留已有自定义偏好，并使用实际配置的存储（[#797](https://github.com/BotHarness/BotHarness/issues/797)）。
+
 - 修复 Browser Stop 与空闲关闭的授权撤销：先撤销受影响 Session 的权限，再清理资源，待审批的旧请求无法重启已停止的 profile；清理失败时保留可见的停止重试入口，后续空闲清理仍可重试（[#768](https://github.com/BotHarness/BotHarness/issues/768)）。
 
 - 更新完整 IM fork 的固定资格版本：释放收件 Consumer 或替换 Provider 后，拒绝返回正在读取的群／话题上下文；保留附件、回显与独立回复身份能力，无需等待上游合并（[#789](https://github.com/BotHarness/BotHarness/issues/789)）。

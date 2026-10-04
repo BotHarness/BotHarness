@@ -330,6 +330,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed Container Computer panel sizing on the first start of a fresh home store, preserving existing custom preferences and using the configured storage ([#797](https://github.com/BotHarness/BotHarness/issues/797)).
+
 - Fixed Browser Stop and idle shutdown to revoke affected Session authorization before cleanup, so a pending approval cannot restart the stopped profile; cleanup failures retain a visible Stop recovery path and later idle retries remain possible ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
 - Qualified the full IM fork for bounded context reads that discard pending results after consumer release or Provider replacement, preserving existing file, echo and independent-responder capabilities without waiting for an upstream merge ([#789](https://github.com/BotHarness/BotHarness/issues/789)).
