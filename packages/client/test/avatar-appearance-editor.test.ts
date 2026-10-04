@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 import { AvatarAppearanceEditor } from '../src/client/avatar-appearance-editor.js';
 import { seededAvatarRecipe } from '../../core/src/bots/avatar-appearance.js';
+import { seededLineRecipe } from '../../core/src/bots/avatar-line.js';
 import { zhTranslate } from '../src/client/locale.js';
 
 describe('Profile Avatar Appearance editing', () => {
@@ -102,6 +103,68 @@ describe('Profile Avatar Appearance editing', () => {
         shirtColor: '#3d9970',
       });
       expect(container.querySelector('[data-avatar-save]')).toBeNull();
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it('switches families without substituting parts and saves a bounded line recipe', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const save = vi.fn(async () => true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '',
+    };
+    const click = async (selector: string) =>
+      act(() => container.querySelector<HTMLButtonElement>(selector)!.click());
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: save,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-option="hair:bob"]');
+      await click('[data-avatar-family="line"]');
+      expect(
+        container.querySelector('[data-avatar-family="line"]')?.getAttribute('aria-checked'),
+      ).toBe('true');
+      expect(container.querySelector('[data-avatar-option^="hair:"]')).toBeNull();
+      expect(container.querySelectorAll('[data-avatar-option^="eyes:"]')).toHaveLength(16);
+      await click('[data-avatar-option="eyes:cross"]');
+      await click('[data-avatar-category="shape"]');
+      const spacing = container.querySelector<HTMLInputElement>('input[name="spacing"]')!;
+      await act(() => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+          spacing,
+          '3',
+        );
+        spacing.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      await click('[data-avatar-family="illustrated"]');
+      expect(
+        container.querySelector('[data-avatar-option="hair:bob"]')?.getAttribute('aria-pressed'),
+      ).toBe('true');
+      await click('[data-avatar-family="line"]');
+      await click('[data-avatar-save]');
+      expect(save).toHaveBeenCalledWith('dm-ada', {
+        ...seededLineRecipe('Ada'),
+        eyes: 'cross',
+        spacing: 3,
+      });
     } finally {
       await act(() => root.unmount());
       container.remove();

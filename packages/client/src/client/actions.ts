@@ -449,7 +449,7 @@ export interface BridgeActions {
   setBotAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   setBotAppearance(
     channelId: string,
-    recipe: import('../../../core/src/bots/avatar-appearance.js').IllustratedAvatarRecipe,
+    recipe: import('../../../core/src/bots/avatar-appearance.js').AvatarRecipe,
   ): Promise<boolean>;
   inviteGroupBot(channelId: string, botSlug: string): Promise<boolean>;
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
