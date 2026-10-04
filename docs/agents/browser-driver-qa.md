@@ -84,3 +84,52 @@ The settings switches between scored trials stopped the prior owned runtime and 
 The final frozen implementation passed lint, format, typecheck and build; the final default suite passed **2,238 tests**, with **7 skipped** (277 files passed / 4 skipped). The opt-in real Chrome suite separately passed all **4** cases. Development checks also caught an authoring mismatch where expected save requests had not been submitted, an initially ungated real-Chrome test, and a suite started during ongoing edits; all were retained as development failures, corrected, and rerun against frozen source. Review findings concerning editable-field checks, same-name native ref fallback, document coherence, content-safe errors, readiness and failed native startup cleanup were addressed before these trials.
 
 Evidence: [current model trial](../assets/pr/767-local-driver/current-model-window.png), [candidate model trial](../assets/pr/767-local-driver/agent-model-window.png), [Human Pause](../assets/pr/767-local-driver/human-pause.png), [task-owned window before Human edit](../assets/pr/767-local-driver/human-window-before-edit.png), [model after Resume](../assets/pr/767-local-driver/resumed-model-window.png). The settings before/after pair shows the existing entry point and the saved optional driver selection. Screenshots are real synthetic QA; fixture state, not a screenshot alone, establishes completion.
+
+## Complex PersonaBot workflow — 2026-10-04
+
+The Human requested a more complex comparison on the same PR. The [complex protocol](https://github.com/BotHarness/BotHarness/issues/767#issuecomment-5977265228) and [fresh-profile addendum](https://github.com/BotHarness/BotHarness/issues/767#issuecomment-5977282104) were published before any scored dispatch. This extension changes only the synthetic fixture, report and evidence; the implementation remains `9e60ceffa069f0ec7e4a2984251f2e43ea5eb4cd`.
+
+Run the additional fixture with:
+
+```sh
+BH_E2E_COMPLEX_PORT=32024 python3 scripts/e2e-browser-complex-fixture.py
+```
+
+Each trial uses a unique `/complex/<run>/desk` and `/complex/<run>/reference`. The fixture contains 57 products initially, then three Aurora variants with identically named Configure buttons. Search replaces result nodes after a debounce and delayed response. The Bot must select the Limited SKU, change quantity, select Tokyo in Japan rather than Texas, reveal dependent address fields, verify a deliberately rejected empty-street review, fill the fields, inspect the confirmation dialog, choose its Confirm order rather than the disabled background namesake, submit once, cross-check a reference tab, and return without losing the original receipt. Submission is a disposable synthetic order with no real purchase.
+
+Same PersonaBot, Workspace Grant, `deepseek-official/deepseek-flash` with High effort, fresh Assignment Sessions and fresh managed Browser profiles; current/candidate/candidate/current order. All four request headers independently confirm the model and effort. Browser Access remains on; automatic approval and Computer Access remain off. Each trial has a 50-call / 300-second limit excluding approval, stops on its first Browser failure or incorrect verification, and uses the same detailed workflow. Prescribed waits are 1000 / 1200 / 800 / 1200 ms, totaling 4.2 seconds per trial; they are included in elapsed time. No hidden retries, alternate routes, discarded trials or model screenshot input were used.
+
+A complete manual Browser smoke test passed before scored dispatch and is excluded from the comparison. The isolated in-app QA Client then stalled: reload/connection attempts timed out and another tab remained at Loading messages. Each scored request was instead approved once through the existing `toolApprovalDecide` RPC, the same native approval seam used by Allow once. Native approval events and waits remain in the measurements; approval requirements were not disabled or replaced. Screenshots come from the real Browser observation endpoint after the Assignment completed, not the stalled Client or a reconstructed fixture view.
+
+All four independent `/state` records showed exactly one ORDER-001 with SKU AUR-LIMITED, quantity 2, destination `tokyo-jp`, alternate address `1 QA Lane`, note `Leave with QA concierge`, and total 2700 synthetic units; exactly one Street address required refusal followed by one valid review; no server refusal; one desk read and one reference read; and the expected search/city queries. Native tool results corroborate the original receipt, selecting its exact owned target, closing only the reference, and observing the receipt again. Final Browser state has only the original desk tab. [Public-safe metrics and independent state](../assets/pr/767-local-driver/complex-results.json) retain every scored result.
+
+| Trial | Driver        | Browser calls / observations | Errors / retries | Total wall s | Approval wait s | Wall excluding approval s | Browser call→result sum s | Observation UTF-16 chars | Observation UTF-8 bytes | chars/4 estimate |
+| ----- | ------------- | ---------------------------- | ---------------- | ------------ | --------------- | ------------------------- | ------------------------- | ------------------------ | ----------------------- | ---------------- |
+| 1     | current       | 35 / 15                      | 0 / 0            | 200.903      | 135.086         | 65.817                    | 144.689                   | 25504                    | 25812                   | 6376             |
+| 2     | agent-browser | 35 / 15                      | 0 / 0            | 106.112      | 24.520          | 81.592                    | 34.995                    | 49305                    | 49602                   | 12326            |
+| 3     | agent-browser | 35 / 15                      | 0 / 0            | 141.742      | 49.030          | 92.712                    | 90.120                    | 49305                    | 49602                   | 12326            |
+| 4     | current       | 37 / 16                      | 0 / 0            | 97.230       | 30.613          | 66.617                    | 40.645                    | 27253                    | 27575                   | 6813             |
+
+The measurement definitions are the same as the simple comparison above. Browser call→result sums include approval and explicit wait; they are not isolated driver execution time. The last current-driver trial additionally pressed Tab inside the review dialog and observed again before clicking its correct modal ref. Those two successful calls are counted, not classified as failed-step retries. Its model self-report claimed 24 calls and roughly 13 seconds of waits; native events show 37 calls and exactly 4.2 seconds of explicit waits, which are the figures used here. A post-run checker initially assumed exactly 35 calls and rejected this trial; it was corrected to enforce the predeclared 50-call / 300-second bounds and exact independent results, without rerunning or altering the trial. The candidate's third trial self-report also understated its call count; native events remain authoritative.
+
+| Trial | Actual uncached input tokens | Actual cache-read tokens | Actual output tokens | Actual total tokens |
+| ----- | ---------------------------- | ------------------------ | -------------------- | ------------------- |
+| 1     | 18249                        | 715392                   | 4419                 | 738060              |
+| 2     | 24173                        | 833152                   | 3896                 | 861221              |
+| 3     | 24032                        | 829440                   | 3483                 | 856955              |
+| 4     | 18715                        | 769920                   | 3934                 | 792569              |
+
+No cache writes were recorded. Orchestrator creation overhead is separate from Assignment usage:
+
+| Trial | Dispatch wall s | Uncached input tokens | Cache-read tokens | Output tokens | Total tokens |
+| ----- | --------------- | --------------------- | ----------------- | ------------- | ------------ |
+| 1     | 6.716           | 1543                  | 113920            | 1031          | 116494       |
+| 2     | 6.815           | 1664                  | 135552            | 987           | 138203       |
+| 3     | 6.536           | 1625                  | 154624            | 985           | 157234       |
+| 4     | 6.883           | 1738                  | 173056            | 979           | 175773       |
+
+Both drivers completed 2/2 trials. Mean wall time excluding approval was **66.217 s current / 87.152 s candidate**. Mean observation text was **26,378.5 / 49,305 UTF-16 characters** (candidate about 87% more); mean actual total Assignment usage was **765,314.5 / 859,088 tokens**, including repeated cache reads. Candidate trial 3 also had greater Browser call→result time after excluding approval, so it is not correct to attribute the entire difference to model work. This sample shows no candidate speed or context-size advantage through the current full-snapshot-plus-DOM adapter; the default remains current. It does not measure standalone agent-browser compact snapshots or isolate CPU, cache and process-start effects.
+
+This is a detailed, fixed-step synthetic workflow with explicit settling waits. It verifies composed interactions, ambiguity handling, validation and tab-state preservation; it does not qualify autonomous planning on unknown sites, adaptive synchronization, rapid repeated queries with reordered responses, iframe/shadow DOM, production logins, downloads, or other platforms. Each search/city field is entered once, so the fixture's lack of stale-response suppression is outside this protocol. No product runtime fix or optimization was introduced between scored trials.
+
+Evidence: [current complex workflow](../assets/pr/767-local-driver/complex-current.jpg) and [candidate complex workflow](../assets/pr/767-local-driver/complex-agent-browser.jpg) are unmodified 2400 × 1472 runtime captures after the original tab was retained and the reference closed. The model had scrolled to the configuration/receipt section; this is the actual viewport, not an image crop. The new fixture passed Python compilation and the complete manual interaction before the model runs. Existing frozen-implementation checks above remain distinct from this report-only extension. Human QA and explicit merge approval remain pending.
