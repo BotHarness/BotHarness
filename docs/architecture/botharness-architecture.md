@@ -321,6 +321,8 @@ Workspace Grant 是 application-defined 的持久授权记录：Human 通过 DSH
 
 Channel sidebar 的编辑模式只折叠当前呈现而不改写展开偏好，拖动／方向键只改变草稿；完成保存同类 scope 的顺序，取消丢弃草稿，恢复默认也属于草稿。浏览器本地分别保存所有 PersonaBot DM 共用的顺序与所有 group Channel 共用的顺序；未显示／未注册的稳定 ID 保留位置，新 entry 按注册顺序附加。切换选择或关闭侧栏丢弃编辑状态，授权撤销仍经原有 expandable seam 清除禁止展开的状态；排序不写 Host 或 Memory（[#721](https://github.com/BotHarness/BotHarness/issues/721)）。
 
+项目显示偏好与排序共用浏览器本地 scope 和编辑事务：完成以一次偏好更新保存二者，取消一起丢弃，恢复默认布局按注册顺序显示全部可用 entry。隐藏项目仍列在编辑模式中，可通过显示按钮恢复；全部隐藏时设置入口仍可访问。正常模式不挂载隐藏项目的内容，但保留 header 的权限监听，让授权撤销继续清除禁止展开的状态；未注册 ID 保留显示偏好，新注册 entry 默认显示。隐藏不改变 Host 权限、执行或 Memory（[#809](https://github.com/BotHarness/BotHarness/issues/809)）。
+
 显示设置二级菜单临时只展开对应 sidebar entry 供预览；连续选择保持菜单打开并立即更新原有显示偏好，关闭菜单恢复先前的展开呈现而不写入展开偏好，权限 gate 仍然生效；切换选择丢弃预览（[#807](https://github.com/BotHarness/BotHarness/issues/807)）。
 
 Memory files 与 Memory evolution 的读取缓存仅属于 Client 的 Bridge action owner 和 Channel，最多保留 30 个 Channel；关闭／展开及后台刷新继续展示上次成功结果，首次成功之前使用 skeleton。成功空结果也是已加载状态；失败通过轻量提示与 Retry 恢复，重试中保留提示，成功后清除。切换 action owner／Channel 时重新挂载读取资源，旧请求不得更新新 scope；缓存不成为持久 Memory／Git 权威（[#719](https://github.com/BotHarness/BotHarness/issues/719)）。

@@ -423,7 +423,7 @@ describe('Channel sidebar personal order editor', () => {
     edit();
     key('inbox', 'End');
     expect(order()).toEqual(['memory', 'sessions', 'inbox']);
-    click('恢复默认顺序');
+    click('恢复默认布局');
     expect(order()).toEqual(['memory', 'sessions', 'inbox']);
     click('取消');
     expect(order()).toEqual(['inbox', 'memory', 'sessions']);
@@ -434,7 +434,7 @@ describe('Channel sidebar personal order editor', () => {
     prefs.setEntryOrder('personabot', ['inbox', 'memory', 'sessions']);
     render();
     edit();
-    click('恢复默认顺序');
+    click('恢复默认布局');
     expect(prefs.getSnapshot().entryOrders.personabot[0]).toBe('inbox');
     click('完成');
     expect(prefs.getSnapshot().entryOrders.personabot).toEqual(['memory', 'sessions', 'inbox']);
