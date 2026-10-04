@@ -664,7 +664,7 @@ function accessory(
           (x, y) =>
             ellipse(CX, 19.5, reach, 16.6)(x, y) &&
             !ellipse(CX, 19.5, reach - 1.4, 15.2)(x, y) &&
-            y <= 20,
+            y <= (far !== 0 && Math.sign(x + 0.5 - CX) === far ? 11 : 20),
           '#5d5b66',
         );
       }
@@ -934,10 +934,11 @@ export function illustratedAvatarSvg(
   options: { turns?: readonly number[] } = {},
 ): string {
   if (!isIllustratedAvatarRecipe(recipe)) throw new Error('invalid Avatar recipe');
-  const base = renderFigure(recipe, YAW[recipe.pose]);
+  const turned = Math.abs(YAW[recipe.pose]) >= 18;
+  const base = renderFigure(recipe, YAW[recipe.pose], turned);
   const turns = (options.turns ?? [])
     .map((delta) => {
-      const figure = renderFigure(recipe, YAW[recipe.pose] + delta);
+      const figure = renderFigure(recipe, YAW[recipe.pose] + delta, turned);
       const layers = `${figure.body}${figure.head}`.replaceAll(
         'class="bh-illustrated-',
         'data-turn-part="',
@@ -959,13 +960,13 @@ export function illustratedAvatarSvg(
 function renderFigure(
   recipe: IllustratedAvatarRecipe,
   yawDegrees: number,
+  turned: boolean,
 ): { tile: string; body: string; head: string; marks: string } {
   const head = HEADS[recipe.head];
   const skin = recipe.skinColor;
   const hair = recipe.hairColor;
   const yaw = (yawDegrees * Math.PI) / 180;
   const sinY = Math.sin(yaw);
-  const turned = Math.abs(yawDegrees) >= 18;
   const far = turned ? Math.sign(sinY) : 0;
   const R = head.half;
   const left = Math.round(CX - head.half);
@@ -1035,7 +1036,8 @@ function renderFigure(
       );
   }
   const front: Mask = (x, y) =>
-    masks.front(x - frontShift, y) || (y <= 9 && cap(x, y) && masks.front(x, y));
+    (masks.front(x - frontShift, y) && (y <= 9 || cap(x, y) || headMask(x, y))) ||
+    (y <= 9 && cap(x, y) && masks.front(x, y));
   paint(base, front, hair);
   if (turned)
     paint(
