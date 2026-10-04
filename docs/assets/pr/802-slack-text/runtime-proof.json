@@ -158,6 +158,59 @@
       "grantRevision": 2,
       "defaultRevision": 0,
       "receptionRevision": 0
+    },
+    {
+      "sourceEventId": "im-e5785cd9aaca4899ee1b5d6e8e5776c413f93188480aad4e6c1c668809e5c16a",
+      "reason": "group-mention",
+      "state": "handled",
+      "handledAt": "2026-10-04T17:21:44.563Z",
+      "id": "im-e5785cd9aaca4899ee1b5d6e8e5776c413f93188480aad4e6c1c668809e5c16a",
+      "at": "2026-10-04T17:21:36.522Z",
+      "platform": "slack",
+      "accountName": "BotHarness Slack QA",
+      "conversationName": "botharness-im-qa-802",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "Ev0C6P4Y3N1F",
+        "messageId": "1791134496.522529",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [
+          {
+            "id": "U0C6EQK4B8B",
+            "key": "<@U0C6EQK4B8B>",
+            "name": "BotHarness Slack QA"
+          }
+        ],
+        "mentionedAccount": true,
+        "at": "2026-10-04T17:21:36.522Z",
+        "reply": {
+          "messageId": "1791134496.522529",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      },
+      "grantId": "0103cd39-9765-44b4-8a16-9c2f2fbfdab0",
+      "grantRevision": 2,
+      "defaultRevision": 0,
+      "receptionRevision": 0
     }
   ],
   "replies": [
@@ -211,15 +264,46 @@
         "messageId": "1791133892.119169",
         "conversationId": "C0C6FPES0G5"
       }
+    },
+    {
+      "sourceEventId": "im-e5785cd9aaca4899ee1b5d6e8e5776c413f93188480aad4e6c1c668809e5c16a",
+      "state": "provider-accepted",
+      "text": "BH802-MERGED-OK",
+      "nativeRoute": {
+        "messageId": "1791134496.522529",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791132786.447879",
+        "rootId": "1791132786.447879"
+      },
+      "receipt": {
+        "version": 1,
+        "messageId": "1791134503.474649",
+        "conversationId": "C0C6FPES0G5"
+      }
     }
   ],
   "checks": {
-    "acceptedMentions": 3,
+    "acceptedMentions": 4,
     "ordinaryChannelAndTopicAdmissions": 0,
     "localDmMirrors": 0
   },
   "limits": [
     "No real Slack provider-redelivery was forced; replay dedup is covered by automated tests.",
     "No ordinary-message, private/DM, history browsing, proactive post or attachment capability is exposed in this slice."
-  ]
+  ],
+  "appCodeRevision": "a08044da",
+  "verification": {
+    "completeSuiteBeforeOutputIntegration": {
+      "passed": 2329,
+      "skipped": 9
+    },
+    "finalMergedOutputAndSlackRegression": {
+      "passed": 81
+    },
+    "providerCompleteSuite": {
+      "passed": 3518,
+      "failed": 0
+    }
+  }
 }
