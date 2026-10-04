@@ -1,3 +1,4 @@
+import type { PixelSymbol } from './avatar-pixel-symbols.js';
 import { seededRandom } from './avatar-random.js';
 
 export const LINE_PARTS = {
@@ -282,21 +283,49 @@ const shape = (markup: string): LineMorphNode[] =>
     ),
   ]);
 
-export const LINE_MORPH_SYMBOLS: Readonly<Record<string, readonly LineMorphNode[]>> = {
-  'thinking-dots': shape(
+export const LINE_TOOL_SYMBOLS: Readonly<Record<PixelSymbol, readonly LineMorphNode[]>> = {
+  thinking: shape(
+    '<path d="M15.5 29Q10 29 10 24Q10 19.5 14.6 19Q15.6 12.6 22 12.6Q27.6 12.6 29.6 16.6Q33.2 15.2 36.2 18.2Q39.2 21.6 37.2 25.6Q35.6 29 32 29Z"/><circle cx="19" cy="22.6" r="1.2"/><circle cx="24" cy="22.6" r="1.2"/><circle cx="29" cy="22.6" r="1.2"/><circle cx="13" cy="34" r="1.6"/><circle cx="9.6" cy="38" r="1"/>',
+  ),
+  ask: shape(
     '<path d="M17.5 17Q17.5 10.5 24 10.5Q30.5 10.5 30.5 17Q30.5 21.5 24 23.5L24 27.5"/><circle cx="24" cy="34" r="1.3"/>',
   ),
-  searching: shape('<circle cx="22" cy="22" r="7.5"/><path d="M27.5 27.5L34 34"/>'),
-  coding: shape(
-    '<path d="M18.5 16L12.5 24L18.5 32"/><path d="M29.5 16L35.5 24L29.5 32"/><path d="M26.5 13L21.5 35"/>',
+  read: shape(
+    '<path d="M10 15Q17 13 24 16Q31 13 38 15L38 33Q31 31 24 34Q17 31 10 33Z"/><path d="M24 16L24 34"/>',
   ),
-  executing: shape(
-    '<path d="M24 10L24 27"/><circle cx="24" cy="34" r="1.3"/><path d="M14.5 12L17.5 15.5"/><path d="M33.5 12L30.5 15.5"/>',
+  write: shape(
+    '<path d="M15 10L28 10L34 16L34 38L15 38Z"/><path d="M24.5 21L24.5 31"/><path d="M19.5 26L29.5 26"/>',
   ),
-  'generic-working': shape(
+  edit: shape('<path d="M14 34L16 28L31 13L35 17L20 32Z"/><path d="M28 16L32 20"/>'),
+  bash: shape(
+    '<path d="M12 12L36 12Q38 12 38 14L38 34Q38 36 36 36L12 36Q10 36 10 34L10 14Q10 12 12 12Z"/><path d="M15.5 19.5L20.5 24L15.5 28.5"/><path d="M23.5 29L31.5 29"/>',
+  ),
+  search: shape('<circle cx="22" cy="22" r="7.5"/><path d="M27.5 27.5L34 34"/>'),
+  web: shape(
+    '<circle cx="24" cy="24" r="12"/><ellipse cx="24" cy="24" rx="5" ry="12"/><path d="M12 24L36 24"/>',
+  ),
+  fetch: shape(
+    '<path d="M24 10L24 28"/><path d="M17 21L24 28L31 21"/><path d="M12 30L12 36L36 36L36 30"/>',
+  ),
+  todo: shape(
+    '<path d="M13 10L35 10L35 38L13 38Z"/><path d="M17 18L19 20L23 16"/><path d="M26 18L31 18"/><path d="M17 28L19 30L23 26"/><path d="M26 28L31 28"/>',
+  ),
+  subagent: shape(
+    '<circle cx="18" cy="17" r="4"/><circle cx="30" cy="17" r="4"/><path d="M10 34Q10 25 18 25Q26 25 26 34"/><path d="M22 34Q22 25 30 25Q38 25 38 34"/>',
+  ),
+  workflow: shape(
+    '<rect x="10" y="12" width="7" height="7"/><rect x="31" y="12" width="7" height="7"/><rect x="31" y="29" width="7" height="7"/><path d="M17 15.5L31 15.5"/><path d="M24 15.5L24 32.5L31 32.5"/>',
+  ),
+  goal: shape('<path d="M14 10L14 38"/><path d="M14 11L34 11L29 17L34 23L14 23"/>'),
+  present: shape(
+    '<path d="M10 12L38 12L38 30L10 30Z"/><path d="M17 26L17 22"/><path d="M23 26L23 18"/><path d="M29 26L29 20"/><path d="M18 38L21 30"/><path d="M30 38L27 30"/>',
+  ),
+  approval: shape(
+    '<path d="M24 9L36 13L36 22Q36 32 24 38Q12 32 12 22L12 13Z"/><path d="M24 17L24 26"/><circle cx="24" cy="31" r="1.2"/>',
+  ),
+  other: shape(
     '<path d="M28 33L28 11Q32.5 12.5 34 17.5"/><ellipse cx="24.5" cy="33" rx="3.6" ry="2.6"/>',
   ),
-  idle: shape('<path d="M14 21Q24 33 34 21"/><path d="M18 14L18 16"/><path d="M30 14L30 16"/>'),
 };
 
 export function lineMorphFace(recipe: LineAvatarRecipe): {

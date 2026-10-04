@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Line-family PersonaBot avatars now morph into a stroke symbol bound to the current DSH tool (the same 16 as the pixel family: read, write, edit, bash, grep, web search/fetch, ask_user_question, todo, subagent, workflow, goal, present, approval and more), hold it at least 0.5s while the activity lasts, morph directly between tools and return to the face when the turn ends ([#838](https://github.com/BotHarness/BotHarness/issues/838)).
+
 - Line-family PersonaBot avatars gain more kaomoji-style eyes (big sparkly, hearts, rings, tall ovals, ^ ^, half-lidded, droopy), brows (thick, maro dots, thin) and mouths (▽, teeth, little fang, dot, pout, nervous zigzag, big laugh), and the Profile editor offers twelve face-only Line presets; Avatars no longer draw the corner `!?` attention mark or manga symbols, and the Profile preview, header title and pinned PersonaBots show the activity indicator and attention count beside the name instead of on the avatar ([#833](https://github.com/BotHarness/BotHarness/issues/833)).
 
 - Human can change the Profile-wide Assignment concurrency limit (1–32, default 3) in Bot mode Settings; saves govern subsequent admission immediately and survive restart, while lowering the limit preserves running work ([#825](https://github.com/BotHarness/BotHarness/issues/825)).
