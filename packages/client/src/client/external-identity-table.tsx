@@ -1,3 +1,4 @@
+import { externalPlatformLabel } from './bridge-source-label.js';
 import { useId, useState, type ReactElement } from 'react';
 import { Button, Switch, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
@@ -31,7 +32,7 @@ export function ExternalIdentityTable({
   const identities = snapshot?.identities ?? [];
   const accounts = snapshot?.accounts ?? [];
   const selectedAccount = accounts.find((a) => a.providerId + ':' + a.ref === accountKey);
-  const platform = (value: string) => (value === 'feishu' ? 'Lark / 飞书' : value);
+  const platform = (value: string) => externalPlatformLabel(value, t);
   const open = (next: typeof mode, row?: MessagingIdentityView) => {
     setError('');
     setMode(next);
