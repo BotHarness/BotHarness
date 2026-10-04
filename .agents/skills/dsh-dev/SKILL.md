@@ -100,6 +100,8 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 
 | 40 | A native Tool approval does not prove Shell execution | A real approved Orchestrator `bash` call can still return `Path is outside this Session's authorized workspace`; a subsequent escalation request is refused | Treat native approval and execution as separate evidence. Inspect the actual persisted Tool result and Session cwd/authorized Workspace, including macOS path aliases. Do not relax guards or infer a successful command from the working Projection alone. In #751's pinned DSH 0.2.0 RC1 QA, the granted Assignment path executed while another owned Session retained a native approval; the Orchestrator refusal's underlying workspace mismatch remains unconfirmed. |
 
+| 41 | Retrying a timed-out isolated launch leaves two Hosts for one home | API health responds, but Bot commands fail with `lease-unavailable` | A prior launch can leave its detached Host alive after a token wait fails. Before retrying, inspect that exact task home/port and its `botharness.writer.json` PID; stop only the task-owned Hosts, then cold-launch once. An authenticated API health probe alone does not prove the operational database writer lease is ready. Observed in #811 QA. |
+
 ## Reference
 
 Pinned DSH 0.2.0 RC1 selects one directory picker interaction at boot. A loopback Windows Host commonly serves native; uiWorkspace.listDirectory() then throws DirectoryBrowseError with rpcError.code = directory-picker/unavailable. A consumer may fall back to uiWorkspace.pickDirectory() only for this capability refusal; unreadable directories and other failures remain errors, and cancellation returns no selection. Authorization still follows an explicit Human choice.

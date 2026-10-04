@@ -201,6 +201,246 @@ async function setup(
 }
 
 describe('Assignment collaboration', () => {
+  it('checks capacity before waking an idle Session after a cold restart', async () => {
+    const { runtime, agents, owner, home, grants, channels, dmChannelId, admit, close } =
+      await setup({ assignmentConcurrencyLimit: 1 });
+    await admit('Prepare cold wake', 'human-cold-prepare');
+    const original = agents.access!.create({
+      grantId: TEST_GRANT_ID,
+      purpose: 'Choose a route',
+      key: 'cold',
+    });
+    if (original.outcome !== 'created') throw new Error('Cold Assignment missing');
+    await agents.started[0]!.run.report({
+      state: 'waiting-human',
+      summary: 'Choose A',
+      expectsReply: true,
+    });
+    agents.finish(original.assignment.sessionId);
+    await runtime.whenIdle();
+    const before = runtime.getAssignment('ada', original.assignment.sessionId)!;
+    await close();
+    const coldAgents = new ManualAgents();
+    const reopened = createBotRuntime({
+      database: owner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels,
+      agents: coldAgents,
+      grants,
+      now: FIXED_NOW,
+      assignmentConcurrencyLimit: 1,
+    });
+    try {
+      const admission = reopened.admitDmMessage({
+        channelId: dmChannelId,
+        messageId: 'human-cold-resume',
+        body: 'Resume',
+      });
+      if (!admission.admitted) throw new Error('Cold admission missing');
+      await admission.settled;
+      const access = coldAgents.access!;
+      expect(access.create({ grantId: TEST_GRANT_ID, purpose: 'Active work' }).outcome).toBe(
+        'created',
+      );
+      expect(
+        access.request({
+          sessionId: before.sessionId,
+          mode: 'next-turn',
+          text: 'Choose A',
+          answerTo: before.openAsk!.sourceEventId,
+        }),
+      ).toMatchObject({ outcome: 'capacity', activeCount: 1, limit: 1 });
+      expect(reopened.getAssignment('ada', before.sessionId)).toEqual(before);
+      expect(coldAgents.resumed).toHaveLength(0);
+    } finally {
+      coldAgents.finishAll();
+      await reopened.whenIdle();
+      await reopened.close();
+    }
+  });
+
+  it('releases a wake reservation when the adapter rejects synchronously', async () => {
+    const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: 1 });
+    try {
+      await admit('Start wake rejection test', 'human-wake-rejection');
+      const access = agents.access!;
+      const idle = access.create({ grantId: TEST_GRANT_ID, purpose: 'Idle work' });
+      if (idle.outcome !== 'created') throw new Error('Idle Assignment missing');
+      agents.finish(idle.assignment.sessionId);
+      await runtime.whenIdle();
+      vi.spyOn(agents, 'requestAssignment').mockImplementationOnce(() => {
+        throw new Error('DSH delivery unavailable');
+      });
+      expect(() =>
+        access.request({
+          sessionId: idle.assignment.sessionId,
+          mode: 'next-turn',
+          text: 'Continue',
+        }),
+      ).toThrow('DSH delivery unavailable');
+      expect(runtime.getAssignment('ada', idle.assignment.sessionId)?.activity).toBe('idle');
+      expect(access.create({ grantId: TEST_GRANT_ID, purpose: 'Next work' }).outcome).toBe(
+        'created',
+      );
+      expect(agents.resumed).toHaveLength(0);
+    } finally {
+      await close();
+    }
+  });
+
+  it('shares capacity across Bots when an idle Assignment resumes', async () => {
+    const { runtime, agents, grants, channels, home, admit, close } = await setup({
+      assignmentConcurrencyLimit: 1,
+    });
+    try {
+      await admit('Start Ada', 'human-ada-capacity');
+      const ada = agents.access!;
+      const idle = ada.create({ grantId: TEST_GRANT_ID, purpose: 'Ada work' });
+      if (idle.outcome !== 'created') throw new Error('Ada Assignment missing');
+      agents.finish(idle.assignment.sessionId);
+      await runtime.whenIdle();
+      createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }).create({
+        slug: 'bob',
+        displayName: 'Bob',
+      });
+      const bobGrant = await grants.create('bob', 'test-workspace');
+      const dm = channels.getOrCreateDm('bob', 'Bob')!;
+      const incoming = runtime.admitDmMessage({
+        channelId: dm.id,
+        messageId: 'human-bob-capacity',
+        body: 'Start Bob',
+      });
+      if (!incoming.admitted) throw new Error('Bob admission missing');
+      await incoming.settled;
+      expect(agents.access!.create({ grantId: bobGrant.id, purpose: 'Bob work' }).outcome).toBe(
+        'created',
+      );
+      expect(
+        ada.request({
+          sessionId: idle.assignment.sessionId,
+          mode: 'next-turn',
+          text: 'Continue Ada',
+        }),
+      ).toMatchObject({ outcome: 'capacity', activeCount: 1, limit: 1 });
+      expect(agents.resumed).toHaveLength(0);
+    } finally {
+      await close();
+    }
+  });
+
+  it('reserves the final wake slot before entering the adapter and allows updates to running work', async () => {
+    const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: 1 });
+    try {
+      await admit('Start reservation test', 'human-reservation');
+      const access = agents.access!;
+      const idle = access.create({ grantId: TEST_GRANT_ID, purpose: 'Idle work' });
+      if (idle.outcome !== 'created') throw new Error('Idle Assignment missing');
+      agents.finish(idle.assignment.sessionId);
+      await runtime.whenIdle();
+      let competitor: string | undefined;
+      vi.spyOn(agents, 'requestAssignment').mockImplementationOnce(() => {
+        competitor = access.create({ grantId: TEST_GRANT_ID, purpose: 'Competing work' }).outcome;
+        return { delivery: 'steer' };
+      });
+      expect(
+        access.request({
+          sessionId: idle.assignment.sessionId,
+          mode: 'next-turn',
+          text: 'Continue',
+        }).delivery,
+      ).toBe('steer');
+      expect(competitor).toBe('capacity');
+      vi.spyOn(agents, 'requestAssignment').mockImplementationOnce(() => ({ delivery: 'steer' }));
+      expect(
+        access.request({
+          sessionId: idle.assignment.sessionId,
+          mode: 'next-step',
+          text: 'More context',
+        }).delivery,
+      ).toBe('steer');
+      expect(runtime.listAssignments('ada')).toHaveLength(1);
+    } finally {
+      await close();
+    }
+  });
+
+  it.each([
+    [1, 'addressed'],
+    [3, 'addressed'],
+    [1, 'keyed'],
+    [3, 'keyed'],
+  ] as const)(
+    'refuses an idle %s-slot %s wake without changing its ask or snapshot',
+    async (limit, path) => {
+      const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: limit });
+      try {
+        await admit('Start capacity test', 'human-capacity');
+        const access = agents.access!;
+        const idle = access.create({
+          grantId: TEST_GRANT_ID,
+          purpose: 'Choose route',
+          key: 'capacity-idle',
+        });
+        if (idle.outcome !== 'created') throw new Error('Idle Assignment missing');
+        await agents.started[0]!.run.report({
+          state: 'waiting-human',
+          summary: 'Choose A or B',
+          expectsReply: true,
+        });
+        agents.finish(idle.assignment.sessionId);
+        await runtime.whenIdle();
+        const before = runtime.getAssignment('ada', idle.assignment.sessionId)!;
+        const activeIds: string[] = [];
+        for (let index = 0; index < limit; index++) {
+          const other = access.create({ grantId: TEST_GRANT_ID, purpose: `Other work ${index}` });
+          if (other.outcome !== 'created') throw new Error('Capacity fixture missing');
+          activeIds.push(other.assignment.sessionId);
+        }
+        const refused =
+          path === 'keyed'
+            ? access.create({
+                grantId: TEST_GRANT_ID,
+                purpose: 'Continue route',
+                key: 'capacity-idle',
+              })
+            : access.request({
+                sessionId: before.sessionId,
+                mode: 'next-turn',
+                text: 'Choose A',
+                answerTo: before.openAsk!.sourceEventId,
+              });
+        expect(refused).toMatchObject({
+          outcome: 'capacity',
+          code: 'assignment-capacity',
+          activeCount: limit,
+          limit,
+          retryable: true,
+        });
+        expect(runtime.getAssignment('ada', before.sessionId)).toEqual(before);
+        expect(agents.resumed).toEqual([]);
+        expect(runtime.listAssignments('ada')).toHaveLength(limit + 1);
+        agents.finish(activeIds[0]!);
+        await vi.waitFor(() =>
+          expect(runtime.getAssignment('ada', activeIds[0]!)?.activity).toBe('idle'),
+        );
+        const resumed = access.request({
+          sessionId: before.sessionId,
+          mode: 'next-turn',
+          text: 'Choose A',
+          answerTo: before.openAsk!.sourceEventId,
+        });
+        expect(resumed.delivery).toBe('followup');
+        expect(agents.resumed).toEqual([{ sessionId: before.sessionId, text: 'Choose A' }]);
+        expect(runtime.getAssignment('ada', before.sessionId)?.openAsk).toBeUndefined();
+        expect(runtime.getAssignment('ada', before.sessionId)?.permission).toEqual(
+          before.permission,
+        );
+      } finally {
+        await close();
+      }
+    },
+  );
+
   it('applies an edited Assignment report wake only to later Admissions', async () => {
     const { agents, owner, admit, close } = await setup();
     try {
