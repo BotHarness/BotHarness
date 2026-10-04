@@ -8,9 +8,17 @@ Human chose an original Line-Face-style family as the second Avatar Family: bold
 
 ## What the family contains
 
-- Parts: eyes (8), brows (6), nose (6), mouth (8), cheeks (3), glasses (3).
+- Parts: eyes (16), brows (6), nose (6), mouth (13), cheeks (3), glasses (3), manga symbol (9).
 - Colours: background and line colour, each with swatches and a custom picker.
 - Bounded geometry, all integers: spacing (−3…3), height (−3…3) and tilt (−10…10°). These are this family's shape parameters. It does not use human hair, skin or outfit anatomy.
+
+Human then asked to enrich the family with Japanese manga symbols (漫符) and kaomoji. The additions are original line drawings of conventional marks:
+
+- kaomoji eyes: `> <`, `T T` with tears, `≧ ≦`, `ಠ ಠ`, `@ @`, `☆`, `´ \``, `◕`
+- kaomoji mouths: `ω`, `▽`, `皿`, `3`, `□`
+- a manga-symbol part: sweat drop, anger vein (💢), gloom lines (縦線), sparkle (キラキラ), heart, Zzz, music note, steam
+
+The meanings follow the common 漫符 vocabulary, for example sweat for fluster, anger vein for irritation and vertical gloom lines for shock. See [Wikipedia: 漫符](https://ja.wikipedia.org/wiki/%E6%BC%AB%E7%AC%A6) and the [kaomoji guide](https://kaomojis.jp/en/guide). [`manga-kaomoji.png`](../assets/pr/753-line-avatar/manga-kaomoji.png) shows each one.
 
 The catalog sheet is [`line-catalog.png`](../assets/pr/753-line-avatar/line-catalog.png).
 

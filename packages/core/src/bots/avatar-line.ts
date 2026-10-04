@@ -1,12 +1,44 @@
 import { seededRandom } from './avatar-random.js';
 
 export const LINE_PARTS = {
-  eyes: ['dots', 'smile', 'arcs', 'lines', 'wide', 'sleepy', 'wink', 'cross'],
+  eyes: [
+    'dots',
+    'smile',
+    'arcs',
+    'lines',
+    'wide',
+    'sleepy',
+    'wink',
+    'cross',
+    'tight',
+    'tears',
+    'excited',
+    'stare',
+    'swirl',
+    'star',
+    'gentle',
+    'cute',
+  ],
   brows: ['flat', 'arched', 'raised', 'angry', 'worried', 'none'],
   nose: ['line', 'hook', 'curve', 'long', 'dot', 'none'],
-  mouth: ['flat', 'smile', 'grin', 'open', 'smirk', 'wave', 'frown', 'tongue'],
+  mouth: [
+    'flat',
+    'smile',
+    'grin',
+    'open',
+    'smirk',
+    'wave',
+    'frown',
+    'tongue',
+    'omega',
+    'laugh',
+    'angry',
+    'kiss',
+    'shocked',
+  ],
   cheeks: ['none', 'lines', 'dots'],
   glasses: ['none', 'round', 'square'],
+  symbol: ['none', 'sweat', 'anger', 'gloom', 'sparkle', 'heart', 'zzz', 'note', 'steam'],
 } as const;
 export const LINE_RANGES = {
   spacing: [-3, 3],
@@ -51,6 +83,7 @@ export const DEFAULT_LINE_RECIPE: LineAvatarRecipe = {
   mouth: 'smile',
   cheeks: 'none',
   glasses: 'none',
+  symbol: 'none',
   spacing: 0,
   height: 0,
   tilt: 0,
@@ -102,6 +135,7 @@ export function seededLineRecipe(seed: string): LineAvatarRecipe {
   const recipe: Record<string, unknown> = { ...DEFAULT_LINE_RECIPE };
   for (const part of LINE_PART_KEYS) recipe[part] = pick(LINE_PARTS[part]);
   recipe['glasses'] = pick(['none', 'none', 'none', 'round', 'square']);
+  recipe['symbol'] = pick(['none', 'none', 'none', 'none', ...LINE_PARTS.symbol.slice(1)]);
   for (const key of LINE_RANGE_KEYS) {
     const [min, max] = LINE_RANGES[key];
     recipe[key] = Math.round(min / 2 + (random() * (max - min)) / 2);
@@ -140,8 +174,11 @@ function eye(
   y: number,
   k: number,
   ink: string,
+  side: -1 | 1,
 ): string {
   const w = 3 * k;
+  const dir = -side;
+  const X = (dx: number) => fmt(x + dx);
   switch (style) {
     case 'dots':
       return `<ellipse cx="${fmt(x)}" cy="${y}" rx="${fmt(1.9 * k)}" ry="1.9" fill="${ink}" stroke="none"/>`;
@@ -159,6 +196,28 @@ function eye(
       return `<ellipse cx="${fmt(x)}" cy="${y}" rx="${fmt(1.9 * k)}" ry="1.9" fill="${ink}" stroke="none"/>`;
     case 'cross':
       return `<path d="M${fmt(x - 2 * k)} ${y - 2}L${fmt(x + 2 * k)} ${y + 2}M${fmt(x + 2 * k)} ${y - 2}L${fmt(x - 2 * k)} ${y + 2}"/>`;
+    case 'tight':
+      return `<path d="M${X(-dir * w * 0.8)} ${y - 2.3}L${X(dir * w * 0.8)} ${y}L${X(-dir * w * 0.8)} ${y + 2.3}"/>`;
+    case 'tears':
+      return `<path d="M${X(-w)} ${y - 0.5}L${X(w)} ${y - 0.5}M${X(-w * 0.35)} ${y}L${X(-w * 0.35)} ${y + 3}M${X(w * 0.35)} ${y}L${X(w * 0.35)} ${y + 3}"/><path d="M${X(-w * 0.35)} ${y + 4.5}L${X(-w * 0.35)} ${y + 7.5}M${X(w * 0.35)} ${y + 4.5}L${X(w * 0.35)} ${y + 6.5}" stroke="#6fa8dc" stroke-width="1.8"/>`;
+    case 'excited':
+      return `<path d="M${X(-dir * w * 0.8)} ${y - 2.5}L${X(dir * w * 0.8)} ${y - 0.5}L${X(-dir * w * 0.8)} ${y + 1.5}M${X(-w)} ${y + 3.5}L${X(w)} ${y + 3.5}"/>`;
+    case 'stare':
+      return `<path d="M${X(-w)} ${y + 1.8}Q${X(0)} ${y - 3.2} ${X(w)} ${y + 1.8}"/><circle cx="${X(0)}" cy="${y + 0.6}" r="1.1" fill="${ink}" stroke="none"/>`;
+    case 'swirl':
+      return `<circle cx="${X(0)}" cy="${y}" r="${fmt(2.8 * k)}" stroke-width="1.8"/><path d="M${X(1.2 * k)} ${y}A${fmt(1.2 * k)} 1.2 0 1 1 ${X(0)} ${y - 1.2}" stroke-width="1.6"/>`;
+    case 'star': {
+      const points = Array.from({ length: 10 }, (_, i) => {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const r = i % 2 === 0 ? 3.3 : 1.4;
+        return `${X(r * Math.cos(a) * k)} ${fmt(y + r * Math.sin(a))}`;
+      });
+      return `<path d="M${points.join('L')}Z" fill="${ink}" stroke-width="1"/>`;
+    }
+    case 'gentle':
+      return `<path d="M${X(-dir * w * 0.6)} ${y + 1.2}L${X(dir * w * 0.7)} ${y - 1.4}"/>`;
+    case 'cute':
+      return `<ellipse cx="${X(0)}" cy="${y}" rx="${fmt(2.7 * k)}" ry="2.9" fill="${ink}" stroke="none"/><circle cx="${X(0.9 * k)}" cy="${y - 1}" r=".9" fill="#ffffff" stroke="none"/>`;
   }
 }
 
@@ -242,8 +301,35 @@ function mouth(
       return `<path d="M${p(-1, 1.5)}Q${p(0, -2)} ${p(1, 1.5)}"/>`;
     case 'tongue':
       return `<path d="M${p(-1, -0.5)}Q${p(0, 3)} ${p(1, -0.5)}M${p(0.05, 1.8)}Q${p(0.15, 4.5)} ${p(0.6, 1.2)}"/>`;
+    case 'omega':
+      return `<path d="M${p(-1, -0.6)}Q${p(-0.55, 3)} ${p(0, 0.2)}Q${p(0.55, 3)} ${p(1, -0.6)}"/>`;
+    case 'laugh':
+      return `<path d="M${p(-0.9, -0.6)}L${p(0.9, -0.6)}L${p(0, 4.2)}Z" fill="${ink}"/>`;
+    case 'angry':
+      return `<rect x="${fmt(x - w * 0.9)}" y="${y - 1.6}" width="${fmt(w * 1.8)}" height="4.2" rx=".8" stroke-width="2"/><path d="M${p(-0.3, -1.6)}L${p(-0.3, 2.6)}M${p(0.3, -1.6)}L${p(0.3, 2.6)}M${p(-0.9, 0.5)}L${p(0.9, 0.5)}" stroke-width="1.4"/>`;
+    case 'kiss':
+      return `<path d="M${p(-0.15, -2)}Q${p(0.45, -1.9)} ${p(0.2, 0)}Q${p(0.45, 1.9)} ${p(-0.15, 2)}"/>`;
+    case 'shocked':
+      return `<rect x="${fmt(x - 2.4 * k)}" y="${y - 1.6}" width="${fmt(4.8 * k)}" height="4.6" rx="1"/>`;
   }
 }
+
+const SYMBOLS: Record<Exclude<LineAvatarRecipe['symbol'], 'none'>, string> = {
+  sweat:
+    '<path d="M9 9.5Q12 14 12 15.6A3 3 0 0 1 6 15.6Q6 14 9 9.5Z" fill="#cfe6f8" stroke="#5a9be0" stroke-width="1.6"/>',
+  anger:
+    '<g stroke="#e2565f" stroke-width="1.8"><path d="M6.5 6Q9 8 7.5 9.5M11.5 6Q9 8 10.5 9.5M6.5 13Q9 11 7.5 9.5M11.5 13Q9 11 10.5 9.5"/></g>',
+  gloom:
+    '<g stroke="#6b6a90" stroke-width="1.2" stroke-opacity=".75"><path d="M15 3L15 9M18.5 3L18.5 11M22 3L22 12M25.5 3L25.5 12M29 3L29 11M32.5 3L32.5 9"/></g>',
+  sparkle:
+    '<path d="M9 3.5Q9.6 8 13.5 8.5Q9.6 9 9 13.5Q8.4 9 4.5 8.5Q8.4 8 9 3.5Z" fill="#f4c95d" stroke="#e0a72e" stroke-width="1"/>',
+  heart:
+    '<path d="M9 13.5Q4.5 10.3 4.5 7.6A2.4 2.4 0 0 1 9 6.6A2.4 2.4 0 0 1 13.5 7.6Q13.5 10.3 9 13.5Z" fill="#f39bb0" stroke="#e2566c" stroke-width="1.2"/>',
+  zzz: '<g stroke="#8a8792" stroke-width="1.6"><path d="M5 5L9 5L5 9L9 9M10.5 9.5L13 9.5L10.5 12L13 12"/></g>',
+  note: '<g stroke="#7a5cc7" stroke-width="1.6"><path d="M10.5 4L10.5 11.5M10.5 4Q12.5 5 13.5 7"/><ellipse cx="9" cy="11.8" rx="1.8" ry="1.3" fill="#7a5cc7"/></g>',
+  steam:
+    '<g stroke="#a7a4b8" stroke-width="1.6"><path d="M7 11Q5 9 7 7Q9 5 7 3M11.5 11Q9.5 9 11.5 7Q13.5 5 11.5 3"/></g>',
+};
 
 function cheeks(
   style: LineAvatarRecipe['cheeks'],
@@ -280,10 +366,10 @@ function features(
   const center = CX + R * Math.sin(yaw) * 0.9;
   const browGap = recipe.glasses === 'none' ? 6.5 : 8;
   const eyes =
-    eye(recipe.eyes, left.x, y, left.k, ink) +
+    eye(recipe.eyes, left.x, y, left.k, ink, -1) +
     (recipe.eyes === 'wink'
       ? closedEye(right.x, y, right.k)
-      : eye(recipe.eyes, right.x, y, right.k, ink));
+      : eye(recipe.eyes, right.x, y, right.k, ink, 1));
   const closed = closedEye(left.x, y, left.k) + closedEye(right.x, y, right.k);
   const glasses =
     recipe.glasses === 'none'
@@ -302,7 +388,8 @@ function features(
     nose(recipe.nose, center, y + 3, Math.sign(yaw), ink) +
     mouth(recipe.mouth, CX + R * Math.sin(yaw) * 0.8, y + 16, Math.max(0.6, Math.cos(yaw)), ink) +
     cheeks(recipe.cheeks, [left.x - 1.5, right.x + 1.5], y + 10, ink) +
-    glasses;
+    glasses +
+    (recipe.symbol === 'none' ? '' : SYMBOLS[recipe.symbol]);
   return { eyes, closed, rest };
 }
 

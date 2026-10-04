@@ -143,7 +143,7 @@ describe('Profile Avatar Appearance editing', () => {
         container.querySelector('[data-avatar-family="line"]')?.getAttribute('aria-checked'),
       ).toBe('true');
       expect(container.querySelector('[data-avatar-option^="hair:"]')).toBeNull();
-      expect(container.querySelectorAll('[data-avatar-option^="eyes:"]')).toHaveLength(8);
+      expect(container.querySelectorAll('[data-avatar-option^="eyes:"]')).toHaveLength(16);
       await click('[data-avatar-option="eyes:cross"]');
       await click('[data-avatar-category="shape"]');
       const spacing = container.querySelector<HTMLInputElement>('input[name="spacing"]')!;
