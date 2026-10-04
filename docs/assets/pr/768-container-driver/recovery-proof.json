@@ -1,0 +1,22 @@
+{
+  "before": {
+    "revision": "509b161964eb06883ccec72444c349e99c12df35",
+    "observationStatus": 400,
+    "ownedContainerRetained": true
+  },
+  "fault": "Task-local CLI returns 75 only for owned QA container stop; no production fault hook",
+  "after": {
+    "revision": "f7284f3739cf61d9b12ed23fc0357760eb236a4c",
+    "observationStatus": 200,
+    "cleanupRequired": true,
+    "frame": null,
+    "ownedContainerRetained": true
+  },
+  "recovered": {
+    "observationStatus": 200,
+    "cleanupRequired": false,
+    "running": false,
+    "ownedContainerReleased": true,
+    "recovery": "Removed task-only stop refusal, clicked visible Stop"
+  }
+}

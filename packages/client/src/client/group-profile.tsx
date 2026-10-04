@@ -1,3 +1,10 @@
+import {
+  PersonaBotAvatar,
+  personaBotActivityLabel,
+  personaBotActivityPreview,
+  personaBotPresentationSummary,
+  type PersonaBotFacepileItem,
+} from './avatar.js';
 import { bridgeSourceLabel } from './bridge-source-label.js';
 import { GroupWakePolicyTable } from './group-wake-policy-table.js';
 import { ChannelBridgeTable } from './channel-bridge-table.js';
@@ -5,6 +12,8 @@ import type { BridgeActions } from './actions.js';
 import type { ReactElement } from 'react';
 
 import {
+  Pill,
+  Tooltip,
   IconChevronLeftOutlineRegular,
   IconChevronRightOutlineRegular,
   IconPinFillRegular,
@@ -140,6 +149,7 @@ export interface GroupProfileProps {
 }
 
 export function GroupProfilePopover({
+  members = [],
   channel,
   activity,
   cards,
@@ -147,7 +157,12 @@ export function GroupProfilePopover({
   botNames,
   t,
   onExpand,
-}: GroupProfileProps & { onExpand(): void }): ReactElement {
+}: GroupProfileProps & {
+  members?: readonly PersonaBotFacepileItem[];
+  onExpand(): void;
+}): ReactElement {
+  const preview = personaBotActivityPreview(members);
+  const remaining = members.length - preview.length;
   const pinnedCards = cards.listGroup().filter((card) => pinned.includes(card.id));
   return (
     <div className="bh-profile-popover" role="dialog" aria-label={t('groupProfile.label')}>
@@ -160,6 +175,49 @@ export function GroupProfilePopover({
           </span>
         </span>
       </div>
+      {members.length === 0 ? null : (
+        <section className="bh-group-live-activity">
+          <span className="bh-profile-card-label">{t('groupProfile.liveActivity')}</span>
+          <div className="bh-group-live-activity-chips">
+            {preview.map((item) => (
+              <Tooltip
+                key={item.personaBotId}
+                label={
+                  item.name +
+                  ' · ' +
+                  personaBotPresentationSummary(
+                    item.state ?? 'idle',
+                    item.activity,
+                    item.attention,
+                    t,
+                  )
+                }
+                side="bottom"
+                portal
+              >
+                <span
+                  className="bh-group-activity-chip"
+                  tabIndex={0}
+                  data-bot-id={item.personaBotId}
+                >
+                  <Pill className="bh-group-activity-pill">
+                    <PersonaBotAvatar {...item} size={18} indicator={false} t={t} />
+                    <span className="bh-group-activity-chip-name">{item.name}</span>
+                    <span className="bh-group-activity-chip-state">
+                      {personaBotActivityLabel(item.state ?? 'idle', t)}
+                    </span>
+                  </Pill>
+                </span>
+              </Tooltip>
+            ))}
+            {remaining > 0 ? (
+              <Pill className="bh-group-activity-overflow">
+                <span aria-label={t('main.activity.more', { count: remaining })}>+{remaining}</span>
+              </Pill>
+            ) : null}
+          </div>
+        </section>
+      )}
       {pinnedCards.length === 0 ? null : (
         <div className="bh-profile-popover-cards">
           {pinnedCards.map((card) => (

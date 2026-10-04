@@ -93,6 +93,7 @@ interface BrowserObservation {
   readonly profile?: ProfileView;
   readonly borrowed?: BorrowedTabView | null;
   readonly viewerUrl?: string | null;
+  readonly cleanupRequired?: boolean;
   readonly running: boolean;
   readonly frame: string | null;
   readonly focused: string | null;
@@ -391,6 +392,8 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const currentTab = tabs.find((tab) => tab.current);
   const orderedTabs =
     currentTab === undefined ? tabs : [currentTab, ...tabs.filter((tab) => !tab.current)];
+  const cleanupRequired = observation?.cleanupRequired === true;
+  const visibleError = cleanupRequired ? t('entry.view.cleanupFailed') : error;
   const paused = observation?.takeover === true;
   const viewerUrl =
     observation?.target === 'container' && observation.running
@@ -543,7 +546,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
       });
   };
 
-  if (observation?.target === 'profile-control')
+  if (!cleanupRequired && observation?.target === 'profile-control')
     return (
       <ProfileBrowserControl
         key={botSlug}
@@ -556,7 +559,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
       />
     );
 
-  if (observation?.target === 'daily-control')
+  if (!cleanupRequired && observation?.target === 'daily-control')
     return (
       <DailyBrowserControl
         key={botSlug}
@@ -569,7 +572,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
       />
     );
 
-  if (observation?.target === 'extension')
+  if (!cleanupRequired && observation?.target === 'extension')
     return (
       <BorrowedBrowser
         key={botSlug}
@@ -592,7 +595,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         <ProfileCombobox
           value={currentProfile}
           profiles={[...info.profiles, ...(observation?.profiles ?? [])]}
-          disabled={busy || botSlug === undefined}
+          disabled={busy || cleanupRequired || botSlug === undefined}
           invalid={profileInvalid}
           errorId={errorId}
           onSelect={saveProfile}
@@ -660,20 +663,25 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         />
       )}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" style={buttonStyle} disabled={busy} onClick={onPause}>
+        <button
+          type="button"
+          style={buttonStyle}
+          disabled={busy || cleanupRequired}
+          onClick={onPause}
+        >
           {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
         </button>
         <button
           type="button"
           style={buttonStyle}
-          disabled={busy}
+          disabled={busy || cleanupRequired}
           onClick={() =>
             invoke(OPEN_ENDPOINT, follow || preview === undefined ? {} : { tab: preview })
           }
         >
           {t(busy ? 'entry.view.opening' : 'entry.view.open')}
         </button>
-        {observation?.running === true && viewerUrl === undefined ? (
+        {(observation?.running === true || cleanupRequired) && viewerUrl === undefined ? (
           <button
             type="button"
             style={buttonStyle}
@@ -704,9 +712,9 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           ))}
         </div>
       )}
-      {error !== undefined ? (
+      {visibleError !== undefined ? (
         <div id={errorId} role="alert" className="bh-browser-error">
-          {error}
+          {visibleError}
         </div>
       ) : null}
     </div>

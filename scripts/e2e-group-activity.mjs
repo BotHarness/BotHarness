@@ -11,7 +11,11 @@ const mode = process.argv[2] ?? 'check';
 const baseline = mode.startsWith('before');
 assert.ok(origin && home && evidence, 'set BH_E2E_ORIGIN, HOME and EVIDENCE');
 mkdirSync(evidence, { recursive: true });
-const privateDir = resolve('.humanlayer/tasks/124-group-activity');
+const header = process.env.BH_E2E_GROUP_HEADER === '1';
+const privateDir = resolve(
+  '.humanlayer/tasks',
+  header ? '124-group-header-activity' : '124-group-activity',
+);
 mkdirSync(privateDir, { recursive: true });
 const statePath = resolve(privateDir, 'qa-state.json');
 const cookie = readFileSync(resolve(tmpdir(), `dsh-${basename(home)}.cookies`), 'utf8').split(
@@ -150,7 +154,7 @@ async function prepare() {
   const group = (
     await rpc('channelCreate', {
       name: `Group activity Human QA ${stamp}`,
-      members: bots.map((bot) => bot.slug),
+      members: (header ? [...bots.slice(2), ...bots.slice(0, 2)] : bots).map((bot) => bot.slug),
     })
   ).channel;
   for (const bot of bots)
@@ -164,8 +168,16 @@ async function prepare() {
   return { channelId: group.id, name: group.name, bots };
 }
 try {
-  const scene = mode === 'before' ? await prepare() : JSON.parse(readFileSync(statePath, 'utf8'));
+  const scene =
+    mode === 'before' || mode === 'prepare'
+      ? await prepare()
+      : JSON.parse(readFileSync(statePath, 'utf8'));
   writeFileSync(statePath, JSON.stringify(scene, null, 2));
+  if (mode === 'prepare') {
+    console.log(JSON.stringify({ prepared: true, group: scene.name }));
+    await browser.close();
+    process.exit(0);
+  }
   await open(scene.channelId);
   await shot('idle');
   const targets = scene.bots.slice(0, 2);
@@ -249,6 +261,63 @@ try {
     assert.ok(collapsed.includes('执行') || collapsed.includes('Executing'));
   }
   await shot('group-collapsed-light');
+  if (header && !baseline) {
+    const visibleHeader = await page.$$eval(
+      '.bh-group-channel-header .bh-avatar-facepile-button',
+      (nodes) => nodes.map((node) => node.getAttribute('aria-label')),
+    );
+    assert.equal(visibleHeader.length, 3);
+    for (const bot of targets) assert.ok(visibleHeader.some((label) => label.startsWith(bot.name)));
+    assert.equal(
+      await page.$eval(
+        '.bh-group-channel-header .bh-avatar-facepile-overflow',
+        (node) => node.textContent,
+      ),
+      '+1',
+    );
+    const headerAvatar = await page.$('.bh-group-channel-header .bh-avatar-facepile-button');
+    assert.ok(headerAvatar);
+    await headerAvatar.focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.down('Shift');
+    await page.keyboard.press('Tab');
+    await page.keyboard.up('Shift');
+    await page.waitForSelector('[role="tooltip"]');
+    const tip = await page.$eval('[role="tooltip"]', (node) => node.textContent);
+    assert.ok(scene.bots.some((bot) => tip.includes(bot.name)));
+    await shot('group-header-focus-light');
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('.bh-group-live-activity');
+    const rows = await page.$$eval('.bh-group-live-activity .bh-group-activity-chip', (nodes) =>
+      nodes.map((node) => node.textContent),
+    );
+    assert.equal(rows.length, 3);
+    for (const bot of targets) assert.ok(rows.some((row) => row.includes(bot.name)));
+    assert.equal(await page.$eval('.bh-group-activity-overflow', (node) => node.textContent), '+1');
+    assert.equal(
+      await page.$eval('.bh-group-live-activity-chips', (node) => getComputedStyle(node).display),
+      'flex',
+    );
+    await shot('group-header-list-light');
+    const chip = await page.$('.bh-group-activity-chip');
+    assert.ok(chip);
+    await chip.focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.down('Shift');
+    await page.keyboard.press('Tab');
+    await page.keyboard.up('Shift');
+    await page.waitForSelector('[role="tooltip"]');
+    const chipTip = await page.$eval('[role="tooltip"]', (node) => node.textContent);
+    assert.ok(targets.some((bot) => chipTip.includes(bot.name)));
+    assert.ok(chipTip.includes('bash'));
+    assert.ok(!chipTip.includes('setTimeout'));
+    await shot('group-chip-tooltip-light');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('.bh-profile-popover'));
+    await page.click('.bh-group-channel-name');
+    await page.waitForSelector('.bh-profile-popover .bh-profile-expand');
+    await page.keyboard.press('Escape');
+  }
   await page.click('.bh-composer-activity-toggle');
   if (!baseline) {
     const rows = await page.$$eval('.bh-composer-activity-bot', (nodes) =>
@@ -263,7 +332,7 @@ try {
   }
   await shot('group-expanded-light');
   if (!baseline) {
-    const avatar = await page.$('.bh-avatar-facepile-button');
+    const avatar = await page.$('.bh-composer-activity-facepile .bh-avatar-facepile-button');
     assert.ok(avatar);
     await avatar.hover();
     await page.waitForSelector('[role="tooltip"]');
@@ -374,6 +443,26 @@ try {
       ),
   );
   await shot('group-completed-dark');
+  if (header && !baseline) {
+    await page.setViewport({ width: 1500, height: 1000 });
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
+    await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
+    await page.click('.bh-group-channel-name');
+    await page.waitForSelector('.bh-group-live-activity');
+    assert.equal(
+      await page.$$eval('.bh-group-live-activity .bh-group-activity-chip', (nodes) => nodes.length),
+      3,
+    );
+    await shot('group-header-list-idle-light');
+    await page.setViewport({ width: 420, height: 860 });
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
+    await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', ''));
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await shot('group-header-list-narrow-dark');
+  }
   assert.deepEqual(clientErrors, []);
   const safe = (snapshot) => ({
     generation: snapshot.generation,
@@ -395,6 +484,7 @@ try {
         overflow,
         clientErrors,
         baseline,
+        headerVerified: header && !baseline,
       },
       null,
       2,

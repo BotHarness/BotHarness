@@ -1,0 +1,46 @@
+{
+  "runtimeRevision": "f1dbbccfc38771a50274b9eec9926b0fdc9baa6c",
+  "sessionId": "botharness-71ce6d5c-c732-4eb0-af8e-5d23997cb3ea",
+  "driver": "agent-browser",
+  "freshNativeApproval": true,
+  "browserCalls": 19,
+  "errors": 0,
+  "retries": 0,
+  "observations": 8,
+  "fixtureState": {
+    "orders": [],
+    "events": [
+      {
+        "type": "product-selected",
+        "sku": "AUR-LIMITED"
+      },
+      {
+        "type": "city-selected",
+        "cityId": "tokyo-jp"
+      },
+      {
+        "type": "alternate-address",
+        "enabled": true
+      },
+      {
+        "type": "review-refused",
+        "missing": ["Street address required"]
+      }
+    ],
+    "pageReads": ["desk"],
+    "searchQueries": ["", "Aurora"],
+    "cityQueries": ["Tokyo"]
+  },
+  "finalObserved": {
+    "sku": "AUR-LIMITED",
+    "quantity": 2,
+    "city": "Tokyo, Japan",
+    "shipping": 300,
+    "total": 2700,
+    "street": "",
+    "note": "",
+    "requiredStreetValidation": true,
+    "modal": false,
+    "orders": 0
+  }
+}

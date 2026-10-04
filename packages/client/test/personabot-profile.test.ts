@@ -369,7 +369,7 @@ describe('PersonaBot Profile surface', () => {
           }),
         );
       });
-      const island = container.querySelector('.bh-channel-island');
+      const island = container.querySelector('.bh-group-channel-name');
       expect(island?.tagName).toBe('BUTTON');
       expect(island?.getAttribute('aria-label')).toBe('打开 设计组 的群聊 Profile');
       expect(island?.getAttribute('aria-haspopup')).toBe('dialog');

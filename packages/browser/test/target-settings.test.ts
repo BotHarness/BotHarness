@@ -100,6 +100,59 @@ describe('Browser Target native settings seam', () => {
     }
     expect(scope.listeners.size).toBe(0);
   });
+  it('saves the Container choice without changing the independent Local choice', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    let snapshot = {
+      status: 'ready',
+      writable: true,
+      value: {
+        target: 'container' as const,
+        localDriver: 'agent-browser' as const,
+        containerDriver: 'current' as 'current' | 'agent-browser',
+      },
+    };
+    const listeners = new Set<() => void>();
+    const set = vi.fn(async (field: string, value: unknown) => {
+      if (field !== 'containerDriver' || value !== 'agent-browser')
+        throw new Error('Unexpected config mutation');
+      snapshot = { ...snapshot, value: { ...snapshot.value, containerDriver: value } };
+      for (const listener of listeners) listener();
+    });
+    const scope = {
+      getSnapshot: () => snapshot,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      set,
+    };
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    try {
+      await act(async () =>
+        root.render(createElement(BrowserTargetSettings, { scope, t: (key) => key })),
+      );
+      expect(host.textContent).toContain('settings.containerDriver');
+      expect(host.textContent).not.toContain('settings.localDriver');
+      const driver = [...host.querySelectorAll('button')].find(
+        (button) => button.textContent === 'settings.driver.current',
+      )!;
+      await act(async () => driver.click());
+      const candidate = [...host.querySelectorAll('button')].find(
+        (button) => button.textContent === 'settings.driver.agent-browser',
+      )!;
+      await act(async () => candidate.click());
+      expect(set).toHaveBeenCalledExactlyOnceWith('containerDriver', 'agent-browser');
+      expect(snapshot.value.localDriver).toBe('agent-browser');
+      expect(snapshot.value.containerDriver).toBe('agent-browser');
+      expect(host.querySelector('[role=alert]')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
+    expect(listeners.size).toBe(0);
+  });
   it('binds the shared Bot settings item to the canonical Browser configForms scope', () => {
     const scope = {
       getSnapshot: () => ({ status: 'ready', writable: true, value: { target: 'local' } }),

@@ -243,7 +243,8 @@ describe('Bot main Sessions pane', () => {
       createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
     );
 
-    expect(markup).toContain('class="bh-channel-island"');
+    expect(markup).toContain('class="bh-channel-island bh-group-channel-header"');
+    expect(markup).toContain('class="bh-group-channel-name"');
     expect(markup).toContain('aria-label="打开 设计组 的群聊 Profile"');
     expect(markup).toContain('aria-haspopup="dialog"');
     expect(markup).toContain('<span class="bh-title">设计组</span>');

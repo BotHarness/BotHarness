@@ -143,6 +143,16 @@ describe('browser profiles', () => {
     }
   });
 
+  it('propagates idle cleanup failure after invalidation and retains the entry for Human retry', async () => {
+    const { runtimes, factories } = setup({ a: 'work' });
+    runtimes.for('a');
+    const runtime = factories.get('/tmp/botharness/browser-profiles/work')!;
+    runtime.stop.mockRejectedValueOnce(new Error('Docker unavailable'));
+    await expect(runtimes.closeIdle(0)).rejects.toThrow('Docker unavailable');
+    expect(runtimes.for('a')).toBe(runtime);
+    await runtimes.stop('a');
+    expect(runtime.stop).toHaveBeenCalledTimes(2);
+  });
   it('stops only idle profiles, and stops or clears on request', async () => {
     const { runtimes, factories } = setup({ a: 'work', c: '' });
     runtimes.for('a');

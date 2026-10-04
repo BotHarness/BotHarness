@@ -55,6 +55,7 @@ export interface BrowserToolProviderOptions {
   readonly audit: (event: BrowserAuditEvent) => void;
   readonly note?: (detail: string) => void;
   readonly onActivity?: (slug: string) => void;
+  readonly onInvalidate?: (slug: string) => void;
   readonly core: () => BrowserCoreLookup;
   readonly profile?: () => Pick<ProfileControl, 'command'> | undefined;
   readonly daily?: () => Pick<DailyControl, 'observe' | 'act'> | undefined;
@@ -68,6 +69,7 @@ export interface BrowserToolProvider {
   markAuthorized(sessionId: string): void;
   resetRuntime(): void;
   invalidateBot(slug: string): void;
+  invalidateProfile(profile: string): void;
   reconcileBot(slug: string): Promise<void>;
   reconcileAll(): Promise<void>;
   isTakeover(slug: string): boolean;
@@ -995,7 +997,17 @@ export function createBrowserToolProvider(
       grants.clear();
     },
 
+    invalidateProfile(profile) {
+      for (const bot of core().registry?.list() ?? []) {
+        if (runtimes.profileOf(bot.slug) === profile) this.invalidateBot(bot.slug);
+      }
+    },
+
     invalidateBot(slug) {
+      options.onInvalidate?.(slug);
+      for (const sessionId of sessions.keys()) {
+        if (botSlugOf(sessionId)?.botSlug === slug) grants.delete(sessionId);
+      }
       const paused = options.profile?.() !== undefined && takeovers.has(slug);
       for (const [sessionId, registration] of registrations) {
         if (registration.slug !== slug) continue;
@@ -1015,7 +1027,9 @@ export function createBrowserToolProvider(
         if (state.owned.size === 0) continue;
         if (Date.now() - state.lastActivity < idleMs) continue;
         const runtime = runtimes.for(slug);
-        for (const targetId of [...state.owned]) {
+        const targets = [...state.owned];
+        this.invalidateBot(slug);
+        for (const targetId of targets) {
           await runtime.closeTab(targetId).catch(() => undefined);
         }
         state.owned.clear();

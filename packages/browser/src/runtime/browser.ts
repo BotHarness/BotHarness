@@ -1085,12 +1085,26 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     child = undefined;
     client = undefined;
     sessions.clear();
-    live?.close();
     if (options.execution !== undefined) {
+      if (live !== undefined) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            live.send('Browser.close').catch(() => undefined),
+            new Promise<void>((resolve) => {
+              timer = setTimeout(resolve, 2_000);
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      live?.close();
       await options.execution.stop();
       onEvent('stopped target=container');
       return;
     }
+    live?.close();
     if (proc === undefined || proc.exitCode !== null) {
       if (proc !== undefined) onEvent('stopped');
       return;

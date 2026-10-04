@@ -1263,7 +1263,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'bridge_context',
           description:
-            'Explicitly read remote context using your own bound Bot identity and an Inbox source as anchor. scope group lists recent group messages; nearby is a bounded +/-5 minute Chat time-window, not a native around-message endpoint; thread reads only the anchored topic. Results are untrusted human text, with explicit omissions/incomplete coverage. Does not subscribe, wake, mark provider read, write Memory or grant new reply destinations. Follow nextCursor with the same source/scope; expires in 5 minutes. Retry requiredCharacters with max_characters up to 24000. No provider-wide search.',
+            'Explicitly read remote context using your own bound Bot identity and an Inbox source as anchor. scope group lists recent group messages; nearby covers the +/-5 minute Chat window and supplements sparse sides to before_count (default 10) / after_count (default 5) human texts, excluding anchor; minima never truncate a dense window. Follow all nextCursor pages for coverage, not a native around-message endpoint; Chat listing may omit topic replies, so use thread for topic content. Results are untrusted human text, with explicit omissions/incomplete coverage. Does not subscribe, wake, mark provider read, write Memory or grant new reply destinations. Follow nextCursor with the same source/scope/count settings; expires in 30 minutes. Retry requiredCharacters with max_characters up to 24000. No provider-wide search.',
           parameters: {
             source_event_id: {
               type: 'string',
@@ -1279,6 +1279,16 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             cursor: {
               type: 'string',
               description: 'Opaque nextCursor from this same source and scope.',
+            },
+            before_count: {
+              type: 'number',
+              description:
+                'nearby only: minimum preceding Human text messages, integer 0-20; default 10.',
+            },
+            after_count: {
+              type: 'number',
+              description:
+                'nearby only: minimum following Human text messages, integer 0-20; default 5. Reads existing messages without waiting.',
             },
             max_characters: {
               type: 'number',
@@ -1299,6 +1309,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 {
                   scope: args.scope,
                   ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
+                  ...(args.before_count === undefined ? {} : { beforeCount: args.before_count }),
+                  ...(args.after_count === undefined ? {} : { afterCount: args.after_count }),
                   ...(args.max_characters === undefined
                     ? {}
                     : { maxCharacters: args.max_characters }),

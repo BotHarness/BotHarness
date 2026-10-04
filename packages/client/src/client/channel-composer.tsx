@@ -1,3 +1,4 @@
+import { GroupActivityRows } from './group-activity-rows.js';
 import type { AllBotPreview } from '../../../core/src/channels/all-bot-mention.js';
 import {
   useCallback,
@@ -376,94 +377,70 @@ function PersonaBotActivityStatus({
         <IconChevronDownOutlineRegular className="bh-composer-activity-chevron" size={14} />
       </summary>
       <ul className="bh-composer-activity-details" aria-label={activity.summary}>
-        {activity.presentation === 'group'
-          ? activity.items.map((item) => {
-              const latest = personaBotPresentationSummary(
-                item.state ?? 'idle',
-                item.activity,
-                item.attention,
-                t,
-              );
-              return (
-                <li
-                  className="bh-composer-activity-session bh-composer-activity-bot"
-                  key={item.personaBotId}
-                  data-bot-id={item.personaBotId}
-                >
-                  <PersonaBotAvatar {...item} size={20} t={t} />
-                  <span className="bh-composer-activity-source-label" title={item.name}>
-                    {item.name}
-                  </span>
-                  <span
-                    className="bh-composer-activity-session-latest"
-                    role="status"
-                    title={latest}
-                  >
-                    {latest}
-                  </span>
-                </li>
-              );
-            })
-          : activity.items.flatMap((item) =>
-              item.sessions !== undefined
-                ? item.sessions.map((session) => {
-                    const roleLabel = t(`activity.source.${session.role}`);
-                    const label =
-                      session.role === 'orchestrator'
-                        ? roleLabel
-                        : (session.name ?? t('activity.session.untitled'));
-                    const latest = sessionLatestSummary(session, t);
-                    return (
-                      <li className="bh-composer-activity-session" key={session.id}>
-                        {activity.items.length > 1 && (
-                          <PersonaBotAvatar
-                            personaBotId={item.personaBotId}
-                            name={item.name}
-                            src={item.src}
-                            state={session.state}
-                            size={20}
-                            t={t}
-                          />
-                        )}
-                        <SessionRoleIcon role={session.role} label={roleLabel} />
-                        <span className="bh-composer-activity-source-label" title={label}>
-                          {label}
-                        </span>
-                        <span
-                          className="bh-composer-activity-session-latest"
-                          role="status"
-                          title={latest}
-                        >
-                          {latest}
-                        </span>
-                        <time dateTime={new Date(session.at).toISOString()}>
-                          {new Date(session.at).toLocaleTimeString(undefined, {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                          })}
-                        </time>
-                      </li>
-                    );
-                  })
-                : [
-                    <li className="bh-composer-activity-session" key={item.personaBotId}>
+        {activity.presentation === 'group' ? (
+          <GroupActivityRows items={activity.items} t={t} />
+        ) : (
+          activity.items.flatMap((item) =>
+            item.sessions !== undefined
+              ? item.sessions.map((session) => {
+                  const roleLabel = t(`activity.source.${session.role}`);
+                  const label =
+                    session.role === 'orchestrator'
+                      ? roleLabel
+                      : (session.name ?? t('activity.session.untitled'));
+                  const latest = sessionLatestSummary(session, t);
+                  return (
+                    <li className="bh-composer-activity-session" key={session.id}>
                       {activity.items.length > 1 && (
                         <PersonaBotAvatar
                           personaBotId={item.personaBotId}
                           name={item.name}
                           src={item.src}
-                          state={item.state}
+                          state={session.state}
                           size={20}
                           t={t}
                         />
                       )}
-                      <span className="bh-composer-activity-session-latest">
-                        {personaBotActivitySummary(item.state ?? 'idle', item.activity, t)}
+                      <SessionRoleIcon role={session.role} label={roleLabel} />
+                      <span className="bh-composer-activity-source-label" title={label}>
+                        {label}
                       </span>
-                    </li>,
-                  ],
-            )}
+                      <span
+                        className="bh-composer-activity-session-latest"
+                        role="status"
+                        title={latest}
+                      >
+                        {latest}
+                      </span>
+                      <time dateTime={new Date(session.at).toISOString()}>
+                        {new Date(session.at).toLocaleTimeString(undefined, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })}
+                      </time>
+                    </li>
+                  );
+                })
+              : [
+                  <li className="bh-composer-activity-session" key={item.personaBotId}>
+                    {activity.items.length > 1 && (
+                      <PersonaBotAvatar
+                        personaBotId={item.personaBotId}
+                        name={item.name}
+                        src={item.src}
+                        state={item.state}
+                        size={20}
+                        t={t}
+                      />
+                    )}
+                    <span className="bh-composer-activity-session-latest">
+                      {personaBotActivitySummary(item.state ?? 'idle', item.activity, t)}
+                    </span>
+                  </li>,
+                ],
+          )
+        )}
       </ul>
     </details>
   );

@@ -18,12 +18,14 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Line-family PersonaBot avatars briefly morph their face strokes into a symbol for the new activity (?, magnifier, </>, !, ♪, smiling face) and back, using morphicons spring stroke morphing; transitions retarget mid-way from the displayed shape and replace the corner activity marks, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
+- Added an opt-in Container `agent-browser` driver using the existing Browser Viewer, takeover, uploads and persistent profile; Local and Container retain independent default drivers ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
 - PersonaBot Profile can switch the avatar between the pixel family and a new original line family (bold strokes on a coloured tile) with its own eyes and mouths (including kaomoji such as > <, T T, ω and ▽), brows, nose, cheeks, glasses, manga symbols (sweat, anger vein, gloom lines, sparkle and more), background/line colors and bounded spacing, height and tilt; line avatars save, snapshot, animate, show independent approval attention and recover through the same path; large avatars of both families show a manga `!?` mark while action is needed ([#753](https://github.com/BotHarness/BotHarness/issues/753)).
 
 - Browser observations now include bounded form values and control states; the optional Local agent-browser snapshot removes repeated scaffolding while retaining page/dialog content and exact action refs ([#787](https://github.com/BotHarness/BotHarness/issues/787)).
 
 - Added an optional Local agent-browser trial driver behind the existing Browser permissions and Human controls; the current driver remains the default ([#767](https://github.com/BotHarness/BotHarness/issues/767), [ADR-0124](docs/adr/0124-local-browser-drivers-share-host-authority.md)).
+- Group facepiles show at most three avatars, prioritizing active members with stable order and accurate overflow; Group header avatars now expose each member’s safe live status to hover and keyboard focus, and open up to three active-first avatar/name/state chips in the existing Group Profile popover ([#124](https://github.com/BotHarness/BotHarness/issues/124)).
 - Group activity now names each active PersonaBot in the compact summary and expanded list, with keyboard-accessible avatars showing the same safe shared status ([#124](https://github.com/BotHarness/BotHarness/issues/124)).
 - PersonaBot Profile can preview, cancel and save an original pixel-art avatar from a Notion-Faces-style catalog of face, hair, eyes, brows, nose, mouth, cheeks, glasses, accessory, skin/hair/eye/shirt color, angle, outfit and backdrop; Bots without a saved or uploaded avatar get a name-seeded pixel default that the create dialog previews; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 
@@ -230,6 +232,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Nearby external context now covers the five-minute window and supplements sparse sides to configurable preceding/following message minima, with 30-minute bounded continuations ([#793](https://github.com/BotHarness/BotHarness/issues/793)).
+
 - Connector authorization settings are more compact, with filled primary/destructive actions and contextual help available by hover, click, or keyboard ([#780](https://github.com/BotHarness/BotHarness/issues/780)).
 
 - Unified Container Browser and Docker Computer preview, fullscreen and explicit interaction controls in one shared Viewer; Browser waits for Host Pause before enabling input and keeps Pause when the view collapses ([#736](https://github.com/BotHarness/BotHarness/issues/736)).
@@ -325,6 +329,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Fixed Browser Stop and idle shutdown to revoke affected Session authorization before cleanup, so a pending approval cannot restart the stopped profile; cleanup failures retain a visible Stop recovery path and later idle retries remain possible ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
+
+- Qualified the full IM fork for bounded context reads that discard pending results after consumer release or Provider replacement, preserving existing file, echo and independent-responder capabilities without waiting for an upstream merge ([#789](https://github.com/BotHarness/BotHarness/issues/789)).
 
 - Concurrent PersonaBot Tool activity now orders opaque detail references before bounding them, so the same active set produces the same lookup references regardless of arrival order ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
@@ -447,6 +455,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
 
 ### Documentation
+
+- Documented current Computer deployment/image choices, durable workspace and export recovery limits with real Docker verification ([#205](https://github.com/BotHarness/BotHarness/issues/205), [report](docs/research/2026-10-04-computer-image-spike-qualification.md)).
 
 - Defined Avatar Family and Avatar Appearance, with separate ownership for editable appearance, shared activity facts and transient renderer poses; runtime behavior is unchanged ([Context](CONTEXT.md), [ADR-0116](docs/adr/0116-editable-avatar-appearance-is-independent-of-activity.md), [#743](https://github.com/BotHarness/BotHarness/issues/743)).
 - Added a compressed multi-bot concept illustration to both README introductions, keeping it clearly labelled alongside real product screenshots ([#643](https://github.com/BotHarness/BotHarness/issues/643)).

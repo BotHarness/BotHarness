@@ -26,6 +26,7 @@ export const name = 'botharness-browser';
 export interface BrowserConfig {
   target?: 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control';
   localDriver?: 'current' | 'agent-browser';
+  containerDriver?: 'current' | 'agent-browser';
   enabled: boolean;
   browserPath: string;
   headless: boolean;
@@ -36,6 +37,7 @@ export interface BrowserConfig {
 export const DEFAULT_CONFIG: BrowserConfig = {
   target: 'local',
   localDriver: 'current',
+  containerDriver: 'current',
   enabled: true,
   browserPath: '',
   headless: false,
@@ -54,6 +56,9 @@ export const Config = Schema.object({
     .default('local')
     .volatile(),
   localDriver: Schema.union([Schema.const('current'), Schema.const('agent-browser')])
+    .default('current')
+    .volatile(),
+  containerDriver: Schema.union([Schema.const('current'), Schema.const('agent-browser')])
     .default('current')
     .volatile(),
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 Browser'),
@@ -92,8 +97,9 @@ export function pinnedBrowserDirectory(): string {
 
 export function apply(
   ctx: Context,
-  config: Omit<BrowserConfig, 'target' | 'localDriver'> & {
+  config: Omit<BrowserConfig, 'target' | 'localDriver' | 'containerDriver'> & {
     localDriver?: 'current' | 'agent-browser' | { get(): 'current' | 'agent-browser' };
+    containerDriver?: 'current' | 'agent-browser' | { get(): 'current' | 'agent-browser' };
     target?:
       | 'local'
       | 'container'
@@ -128,9 +134,24 @@ export function apply(
   const localDriver = (): 'current' | 'agent-browser' =>
     (typeof config.localDriver === 'object' ? config.localDriver.get() : config.localDriver) ??
     'current';
+  const containerDriver = (): 'current' | 'agent-browser' =>
+    (typeof config.containerDriver === 'object'
+      ? config.containerDriver.get()
+      : config.containerDriver) ?? 'current';
+  const driver = (): 'current' | 'agent-browser' =>
+    target() === 'container' ? containerDriver() : localDriver();
   let revision = 0;
-  const authorizationScope = (): string =>
-    `${target()}:${localDriver()}:${revision}:${borrow.revision}:${daily.revision}:${profile.revision}`;
+  const registrationScopes = new WeakMap<AbortSignal, number>();
+  let registrationRevision = 0;
+  const botRevisions = new Map<string, number>();
+  const previewScope = (slug: string): string =>
+    `${authorizationScope()}:${botRevisions.get(slug) ?? 0}`;
+  const authorizationScope = (sessionId?: string): string => {
+    const signal = sessionId === undefined ? undefined : provider.executionSignal(sessionId);
+    if (signal !== undefined && !registrationScopes.has(signal))
+      registrationScopes.set(signal, ++registrationRevision);
+    return `${target()}:${driver()}:${revision}:${borrow.revision}:${daily.revision}:${profile.revision}:${signal === undefined ? '' : registrationScopes.get(signal)}`;
+  };
   let switching: Promise<void> = Promise.resolve();
   let registerViewer: ContainerBrowserOptions['onViewer'];
   ctx.inject(['connection', 'webServer'], (viewerCtx) => {
@@ -152,7 +173,8 @@ export function apply(
   const runtimes = createBotBrowserRuntimes({
     browserDir: profileDirectory(),
     target: () => (target() === 'container' ? 'container' : 'local'),
-    driver: localDriver,
+    driver,
+    onIdleStop: (profile) => provider.invalidateProfile(profile),
     onViewer: (prefix, upstream) => {
       if (registerViewer === undefined)
         throw new Error('The Container Browser viewer requires the DSH Web Host');
@@ -235,12 +257,16 @@ export function apply(
     runtimes,
     screenshotDir: join(profileDirectory(), 'screenshots'),
     isAutoAllowed: () => config.autoAllowActions,
-    beforeExecution: () => switching,
+    beforeExecution: () =>
+      switching.catch(() => {
+        throw new Error('Browser cleanup failed; use Stop in the Browser panel to retry');
+      }),
     profile: () => (target() === 'profile-control' ? profile : undefined),
     daily: () => (target() === 'daily-control' ? daily : undefined),
     borrowed: () => (target() === 'extension' ? borrow : undefined),
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),
+    onInvalidate: (slug) => botRevisions.set(slug, (botRevisions.get(slug) ?? 0) + 1),
     onActivity: (slug) => {
       if (target() === 'local' || target() === 'container') runtimes.touch(slug);
     },
@@ -273,7 +299,7 @@ export function apply(
       const started = Date.now();
       daily.returnBot(slug);
       profile.returnBot(slug);
-      provider.resetBot(slug);
+      provider.invalidateBot(slug);
       diagnostics.record(
         'lifecycle',
         `initiator=profile-assignment phase=reset-tabs slug=${slug} durationMs=${Date.now() - started}`,
@@ -284,13 +310,20 @@ export function apply(
     needsAuthorization: (sessionId: string) => provider.needsAuthorization(sessionId),
     authorizationScope,
     markAuthorized: (sessionId: string, expectedScope?: string) => {
-      if (expectedScope !== undefined && expectedScope !== authorizationScope()) return false;
+      if (expectedScope !== undefined && expectedScope !== authorizationScope(sessionId))
+        return false;
       provider.markAuthorized(sessionId);
       return true;
     },
   });
   ctx.on('loader/volatile-update', (paths) => {
-    if (!paths.some((path) => path[0] === 'target' || path[0] === 'localDriver')) return;
+    if (
+      !paths.some(
+        (path) =>
+          path[0] === 'target' || path[0] === 'localDriver' || path[0] === 'containerDriver',
+      )
+    )
+      return;
     revision += 1;
     borrow.clear();
     daily.clear();
@@ -343,8 +376,23 @@ export function apply(
   const idleMs = Math.max(1, config.idleStopMinutes) * 60_000;
   ctx.effect(() => {
     const timer = setInterval(() => {
-      void runtimes.closeIdle(idleMs);
-      void provider.closeIdleTabs(idleMs);
+      switching = switching
+        .catch(async () => {
+          revision += 1;
+          provider.resetRuntime();
+          await runtimes.stopAll();
+          await provider.reconcileAll();
+        })
+        .then(async () => {
+          await provider.closeIdleTabs(idleMs);
+          await runtimes.closeIdle(idleMs);
+        });
+      void switching.catch((error: unknown) =>
+        diagnostics.record(
+          'lifecycle',
+          `initiator=idle phase=refused detail=${String(error).slice(0, 200)}`,
+        ),
+      );
     }, 30_000);
     return () => clearInterval(timer);
   }, 'botharness-browser: idle stop');
@@ -466,11 +514,11 @@ export function apply(
         provider.touch(slug);
         try {
           await switching;
-          const scope = authorizationScope();
+          const scope = previewScope(slug);
           const requested = typeof body.tab === 'string' && body.tab !== '' ? body.tab : undefined;
           const tab = await provider.openForHuman(slug, requested);
-          if (scope !== authorizationScope())
-            throw new Error('Browser Target changed while opening');
+          if (scope !== previewScope(slug))
+            throw new Error('Browser authority changed while opening');
           return json({
             ok: true,
             tabId: tab.tabId,
@@ -491,10 +539,23 @@ export function apply(
       methods: ['GET'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
-        await switching;
-        const scope = authorizationScope();
         const url = new URL(request.url);
         const slug = url.searchParams.get('slug') ?? '';
+        try {
+          await switching;
+        } catch {
+          return json({
+            ok: true,
+            target: target(),
+            cleanupRequired: true,
+            running: false,
+            frame: null,
+            focused: null,
+            takeover: false,
+            tabs: [],
+          });
+        }
+        const scope = previewScope(slug);
         const requested = url.searchParams.get('tab') ?? '';
         if (target() === 'profile-control')
           return json({
@@ -560,8 +621,8 @@ export function apply(
           return [];
         });
         const tabs = await provider.listTabs(slug);
-        if (scope !== authorizationScope())
-          return json({ ok: false, error: 'Browser Target changed during observation' }, 409);
+        if (scope !== previewScope(slug))
+          return json({ ok: false, error: 'Browser authority changed during observation' }, 409);
         return json({
           ok: true,
           running: runtime.isRunning(),
@@ -647,22 +708,12 @@ export function apply(
         }
         const slug = typeof body.slug === 'string' ? body.slug : '';
         if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
-        if (target() === 'profile-control') {
-          await profile.forget();
-          return json({ ok: true });
-        }
-        if (target() === 'daily-control') {
-          daily.returnBot(slug);
-          return json({ ok: true });
-        }
-        if (target() === 'extension') {
-          borrow.returnBot(slug);
-          return json({ ok: true });
-        }
         diagnostics.record('lifecycle', `stop requested (panel) slug=${slug}`);
         try {
           const pendingSwitch = switching;
           await pendingSwitch.catch(async () => {
+            revision += 1;
+            provider.resetRuntime();
             await runtimes.stopAll();
             if (switching === pendingSwitch) {
               switching = Promise.resolve();
@@ -670,7 +721,21 @@ export function apply(
             }
           });
           await switching;
-          await runtimes.stop(slug);
+          if (target() === 'profile-control') {
+            await profile.forget();
+            return json({ ok: true });
+          }
+          if (target() === 'daily-control') {
+            daily.returnBot(slug);
+            return json({ ok: true });
+          }
+          if (target() === 'extension') {
+            borrow.returnBot(slug);
+            return json({ ok: true });
+          }
+          provider.invalidateProfile(runtimes.profileOf(slug));
+          switching = runtimes.stop(slug);
+          await switching;
           provider.resetBot(slug);
           return json({ ok: true });
         } catch (error) {
