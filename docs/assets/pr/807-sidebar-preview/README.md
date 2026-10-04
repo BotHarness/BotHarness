@@ -9,6 +9,7 @@ The isolated PersonaBot **Sidebar Preview QA** has one canonical Memory file, `n
 | `before*/settings-*.png`                            | Original flat settings; Memory files and Sessions expanded.                                 |
 | `after*/memory-git-*.png`                           | Hover terminology, select Git; only Memory evolution expanded and both menus retained.      |
 | `after*/memory-terms-*.png`                         | Select Memory again without dismissing either menu.                                         |
+| `after*/sessions-range-*.png`                       | Hover Sessions range and select All, with Sessions exclusively expanded.                    |
 | `after*/sessions-workspace-*.png`                   | Move to Sessions layout, select workspace grouping; only Sessions expanded (empty fixture). |
 | `after*/sessions-flat-*.png`                        | Select Flat without closing the menus.                                                      |
 | `after*/restored-*.png`                             | Escape dismisses settings and restores Memory files plus Sessions.                          |
