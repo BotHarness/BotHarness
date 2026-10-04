@@ -20,6 +20,14 @@ Human then asked to enrich the family with Japanese manga symbols (漫符) and k
 
 The meanings follow the common 漫符 vocabulary, for example sweat for fluster, anger vein for irritation and vertical gloom lines for shock. See [Wikipedia: 漫符](https://ja.wikipedia.org/wiki/%E6%BC%AB%E7%AC%A6) and the [kaomoji guide](https://kaomojis.jp/en/guide). [`manga-kaomoji.png`](../assets/pr/753-line-avatar/manga-kaomoji.png) shows each one.
 
+Manga symbols also present live state:
+
+- **Needs you.** When the PersonaBot has action-required attention (a pending approval, question or other actionable item, using the existing count), a large avatar shows a red `!?` mark at its top-left in both families. The mark is driven by CSS from the owning attention fact, so it appears immediately, also under reduced motion, and hides a user-chosen manga symbol while shown. Small avatars keep the numeric badge only.
+- **Activity marks.** The line family's per-effect marks follow manga conventions: `?` while thinking, a magnifier while searching, a sweat drop while coding, `!` with impact lines while executing, and `♪` for generic work.
+- **Not added.** An "error sweat" state was requested as an example. No truthful shared error or result fact exists for the Avatar (ADR-0118, #123), so no error expression is invented.
+
+[`manga-states.png`](../assets/pr/753-line-avatar/manga-states.png) shows the attention mark and the activity marks.
+
 The catalog sheet is [`line-catalog.png`](../assets/pr/753-line-avatar/line-catalog.png).
 
 ## Shared contract

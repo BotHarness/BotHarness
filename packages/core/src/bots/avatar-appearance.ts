@@ -944,6 +944,18 @@ function outfit(recipe: IllustratedAvatarRecipe, body: Grid, cx: number, chin: n
 
 export const AVATAR_TURNS = [-14, -7, 7, 14] as const;
 
+function pixelAttentionMark(): string {
+  const grid = blank();
+  sprite(
+    grid,
+    ['XX.XXXX.', 'XX.X..XX', 'XX....XX', 'XX...XX.', 'XX..XX..', '........', 'XX..XX..'],
+    4,
+    4,
+    { X: '#e2565f' },
+  );
+  return `<g data-avatar-attention-mark="" opacity="0">${rects(grid)}</g>`;
+}
+
 export function illustratedAvatarSvg(
   recipe: IllustratedAvatarRecipe,
   options: { turns?: readonly number[] } = {},
@@ -967,7 +979,7 @@ export function illustratedAvatarSvg(
     base.body,
     base.head,
     turns,
-    `<g class="bh-illustrated-marks">${base.marks}</g>`,
+    `<g class="bh-illustrated-marks">${base.marks}${pixelAttentionMark()}</g>`,
     '</svg>',
   ].join('');
 }

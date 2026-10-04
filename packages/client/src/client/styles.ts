@@ -1691,6 +1691,8 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-avatar-color-row input { width: 32px; height: 26px; padding: 0 2px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-bg-base); }
 .bh-avatar-editor-fields :focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
 .bh-avatar-media-composed svg { image-rendering: pixelated; }
+.bh-persona-avatar[data-attention-mark='true'] [data-avatar-attention-mark] { opacity: 1; }
+.bh-persona-avatar[data-attention-mark='true'] [data-avatar-symbol] { opacity: 0; }
 .bh-personabot-name-row { display: flex; align-items: center; gap: 10px; }
 .bh-personabot-name-row > :last-child { flex: 1; min-width: 0; }
 @media (max-width: 640px) { .bh-avatar-editor { grid-template-columns: minmax(0, 1fr); } .bh-avatar-options { grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); } }

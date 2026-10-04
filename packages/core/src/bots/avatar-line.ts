@@ -159,10 +159,14 @@ const MARKS: Record<keyof typeof MARK_COLORS, string> = {
     '<path d="M40 5.5Q40 3 42.5 3Q45 3 45 5.5Q45 7.5 42.5 8.5L42.5 10"/><circle cx="42.5" cy="13" r=".6"/>',
   searching: '<circle cx="41.5" cy="6.5" r="3"/><path d="M43.7 8.7L46 11"/>',
   coding: '<path d="M42.5 3Q45.5 7.5 45.5 9.5A3 3 0 0 1 39.5 9.5Q39.5 7.5 42.5 3Z"/>',
-  executing: '<path d="M42.5 3L42.5 9"/><circle cx="42.5" cy="12.5" r=".6"/>',
+  executing:
+    '<path d="M42.5 3L42.5 9"/><circle cx="42.5" cy="12.5" r=".6"/><path d="M38.5 4.5L39.8 6M46.5 4.5L45.2 6M38 9.5L39.5 9.5M47 9.5L45.5 9.5" stroke-width="1.2"/>',
   'generic-working':
-    '<circle cx="39" cy="8" r=".6"/><circle cx="42.5" cy="8" r=".6"/><circle cx="46" cy="8" r=".6"/>',
+    '<path d="M43.5 3.5L43.5 10.5M43.5 3.5Q45.5 4.5 46.5 6.5"/><ellipse cx="42" cy="10.8" rx="1.8" ry="1.3" fill="#8a8792"/>',
 };
+
+const ATTENTION_MARK =
+  '<g data-avatar-attention-mark="" opacity="0" fill="none" stroke="#e2565f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.5L5.5 9.5"/><circle cx="5.5" cy="12.5" r=".7" fill="#e2565f"/><path d="M8.5 5.2Q8.5 3.2 10.6 3.2Q12.7 3.2 12.7 5.2Q12.7 6.9 10.6 7.8L10.6 9.6"/><circle cx="10.6" cy="12.5" r=".7" fill="#e2565f"/></g>';
 
 function fmt(n: number): string {
   return String(Math.round(n * 100) / 100);
@@ -389,7 +393,7 @@ function features(
     mouth(recipe.mouth, CX + R * Math.sin(yaw) * 0.8, y + 16, Math.max(0.6, Math.cos(yaw)), ink) +
     cheeks(recipe.cheeks, [left.x - 1.5, right.x + 1.5], y + 10, ink) +
     glasses +
-    (recipe.symbol === 'none' ? '' : SYMBOLS[recipe.symbol]);
+    (recipe.symbol === 'none' ? '' : `<g data-avatar-symbol="">${SYMBOLS[recipe.symbol]}</g>`);
   return { eyes, closed, rest };
 }
 
@@ -426,7 +430,7 @@ export function lineAvatarSvg(
     '<g class="bh-illustrated-body"></g>',
     head(base),
     turns,
-    `<g class="bh-illustrated-marks">${marks}</g>`,
+    `<g class="bh-illustrated-marks">${marks}${ATTENTION_MARK}</g>`,
     '</svg>',
   ].join('');
 }

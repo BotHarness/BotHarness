@@ -39,6 +39,7 @@ describe('line Avatar family', () => {
         expect(svg).toContain(`class="bh-illustrated-${node}"`);
       expect(svg.match(/data-avatar-turn=/gu)).toHaveLength(2);
       expect(svg.match(/data-avatar-mark=/gu)).toHaveLength(5);
+      expect(svg).toContain('<g data-avatar-attention-mark="" opacity="0"');
     }
   });
 
