@@ -1,0 +1,11 @@
+{
+  "sessionId": "botharness-9494f2f9-95bf-4ff6-aaff-fc22205eb29a",
+  "pendingApprovalFound": true,
+  "stopSucceeded": true,
+  "lateApprovalAccepted": false,
+  "lateApprovalResult": null,
+  "browserCalls": 1,
+  "browserRunningAfterLateApproval": false,
+  "fixtureNeverRead": true,
+  "nativeResult": ["Error: Human approval was cancelled"]
+}

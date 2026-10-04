@@ -11,6 +11,7 @@ interface TargetScope {
       | {
           target?: 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control';
           localDriver?: 'current' | 'agent-browser';
+          containerDriver?: 'current' | 'agent-browser';
         }
       | undefined;
   };
@@ -27,7 +28,7 @@ function ConfigChoice({
   items,
 }: {
   scope: TargetScope;
-  field: 'target' | 'localDriver';
+  field: 'target' | 'localDriver' | 'containerDriver';
   value: string;
   writable: boolean;
   title: string;
@@ -116,13 +117,17 @@ export function BrowserTargetSettings({
           ['local', 'container', 'extension', 'daily-control', 'profile-control'] as const
         ).map((id) => ({ id, label: t(`settings.${id}`) }))}
       />
-      {target !== 'local' ? null : (
+      {target !== 'local' && target !== 'container' ? null : (
         <ConfigChoice
           scope={scope}
-          field="localDriver"
-          value={snapshot.value?.localDriver ?? 'current'}
+          field={target === 'container' ? 'containerDriver' : 'localDriver'}
+          value={
+            (target === 'container'
+              ? snapshot.value?.containerDriver
+              : snapshot.value?.localDriver) ?? 'current'
+          }
           writable={snapshot.writable}
-          title={t('settings.localDriver')}
+          title={t(target === 'container' ? 'settings.containerDriver' : 'settings.localDriver')}
           items={(['current', 'agent-browser'] as const).map((id) => ({
             id,
             label: t(`settings.driver.${id}`),

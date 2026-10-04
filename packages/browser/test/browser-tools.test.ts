@@ -1218,6 +1218,27 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(JSON.stringify(h.audits)).not.toContain('/Users/someone');
   });
 
+  it('idle closes revoke the old registration and Session grant before any new browser operation', async () => {
+    const h = harness({ access: true });
+    h.created();
+    h.provider.markAuthorized('session-a');
+    const old = h.provider.executionSignal('session-a')!;
+    const tool = h.state.definitions.get('browser_open')!;
+    await tool.execute({ url: 'https://example.com' }, execution('browser_open'));
+    await h.provider.closeIdleTabs(0);
+    expect(old.aborted).toBe(true);
+    expect(h.provider.executionSignal('session-a')).not.toBe(old);
+    expect(h.provider.needsAuthorization('session-a')).toBe(true);
+    await expect(
+      tool.execute({ url: 'https://example.com' }, execution('browser_open')),
+    ).rejects.toThrow();
+    await expect(
+      h.state.definitions
+        .get('browser_open')!
+        .execute({ url: 'https://example.com' }, execution('browser_open')),
+    ).rejects.toThrow(/approval|authorized/);
+    expect(h.runtime.open).toHaveBeenCalledOnce();
+  });
   it('rejects foreign tabs and closes idle tabs without stopping the browser', async () => {
     const h = harness({ access: true, auto: true });
     h.created();

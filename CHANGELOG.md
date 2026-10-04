@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added an opt-in Container `agent-browser` driver using the existing Browser Viewer, takeover, uploads and persistent profile; Local and Container retain independent default drivers ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
+
 - PersonaBot Profile can switch the avatar between the pixel family and a new original line family (bold strokes on a coloured tile) with its own eyes and mouths (including kaomoji such as > <, T T, ω and ▽), brows, nose, cheeks, glasses, manga symbols (sweat, anger vein, gloom lines, sparkle and more), background/line colors and bounded spacing, height and tilt; line avatars save, snapshot, animate, show independent approval attention and recover through the same path; large avatars of both families show a manga `!?` mark while action is needed ([#753](https://github.com/BotHarness/BotHarness/issues/753)).
 
 - Browser observations now include bounded form values and control states; the optional Local agent-browser snapshot removes repeated scaffolding while retaining page/dialog content and exact action refs ([#787](https://github.com/BotHarness/BotHarness/issues/787)).
@@ -323,6 +325,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Fixed Browser Stop and idle shutdown to revoke affected Session authorization before cleanup, so a pending approval cannot restart the stopped profile; cleanup failures retain a visible Stop recovery path and later idle retries remain possible ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
 - Concurrent PersonaBot Tool activity now orders opaque detail references before bounding them, so the same active set produces the same lookup references regardless of arrival order ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
