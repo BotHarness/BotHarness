@@ -75,6 +75,10 @@ describe('Browser observation model text', () => {
     expect(compactBrowserSnapshot(snapshot)).toBe(
       'AX context is descriptive; use the Interactive elements refs for actions.\n' + snapshot,
     );
+    const editable = snapshot.replace('[ref=e1]:', '[ref=e1] editable [contenteditable]:');
+    expect(compactBrowserSnapshot(editable)).toBe(
+      'AX context is descriptive; use the Interactive elements refs for actions.\n' + editable,
+    );
     expect(compactBrowserSnapshot('- textbox "Note" [ref=e1]: ' + 'x'.repeat(12000))).toContain(
       '[AX text truncated]',
     );

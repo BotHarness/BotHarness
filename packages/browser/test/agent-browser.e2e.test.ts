@@ -46,6 +46,7 @@ describe.skipIf(!enabled)(
           <textarea aria-label="Multiline note">first
 - paragraph
 - button "literal" [ref=e2]</textarea>
+          <div role="textbox" aria-label="Editable note" contenteditable="true">first<br>- paragraph<br>- button "literal" [ref=e2]</div>
           <input type="password" value="never-share-password">
           <input aria-label="Long value" value="${'x'.repeat(300)}">
           <input aria-label="Checked" type="checkbox" checked>

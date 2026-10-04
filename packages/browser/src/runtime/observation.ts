@@ -22,7 +22,7 @@ export function compactBrowserSnapshot(snapshot: string): string {
   const lines = snapshot.split('\n');
   const hasRawValue = lines.some((line) => {
     const node = nodePattern.exec(line.replace(/^ *- /u, ''));
-    return node?.[3]?.startsWith(': ') === true;
+    return node?.[3]?.includes(': ') === true;
   });
   if (hasRawValue)
     return `AX context is descriptive; use the Interactive elements refs for actions.\n${boundSnapshot(snapshot)}`;
