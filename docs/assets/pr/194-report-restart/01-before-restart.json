@@ -1,0 +1,40 @@
+{
+  "bot": "Report restart QA 1791139370512",
+  "assignmentSessionId": "botharness-6d074567-ed78-412e-aa6a-3d5a1b8cc8fc",
+  "orchestratorSessionId": "botharness-91bd2712-9f1c-421d-af62-759903b5368b",
+  "sourceIds": ["00bf63f3-ff36-4832-9e5a-12c697266bc7", "4443fb55-0d06-4a3e-bb4f-08c4b27d601b"],
+  "orchestratorTurns": 1,
+  "replayDeliveries": 0,
+  "reports": [
+    {
+      "id": "00bf63f3-ff36-4832-9e5a-12c697266bc7",
+      "state": "pending",
+      "summary": "RESTART_PROGRESS_TWO",
+      "assignmentReportState": "progress",
+      "sourceAvailable": true,
+      "createdAt": "2026-10-04T18:42:59.864Z"
+    },
+    {
+      "id": "4443fb55-0d06-4a3e-bb4f-08c4b27d601b",
+      "state": "pending",
+      "summary": "RESTART_PROGRESS_ONE",
+      "assignmentReportState": "progress",
+      "sourceAvailable": true,
+      "createdAt": "2026-10-04T18:42:57.699Z"
+    }
+  ],
+  "successfulReports": [
+    {
+      "summary": "RESTART_PROGRESS_ONE",
+      "callAt": 1791139377690,
+      "resultAt": 1791139377704,
+      "successful": true
+    },
+    {
+      "summary": "RESTART_PROGRESS_TWO",
+      "callAt": 1791139379842,
+      "resultAt": 1791139379869,
+      "successful": true
+    }
+  ]
+}
