@@ -62,7 +62,7 @@ Your organization determines availability and approval requirements. Even with a
 3. Enter the App ID and App Secret privately, then click **Bind and connect**.
 4. Confirm the account is connected. If you just changed subscriptions or permissions, publish them in the console before checking again.
 
-![Lark manual connection form in IM Bot settings, with empty credentials](/guides/lark/01-provider.png)
+![Lark manual connection form in IM Bot settings, with empty credentials](/guides/lark/01-provider.jpg)
 
 _Figure 1: Select international Lark for a Lark application. Enter secrets only in local settings, never in chat, Git or public screenshots. Feishu QR onboarding and Lark CLI Human login are separate flows; this guide uses application credentials._
 
@@ -83,11 +83,11 @@ In **Bot mode**, open the intended Bot DM, click its name at the top, then **Vie
 3. Click **Bind and authorize this target**. Check the group, account and local intake destination.
 4. For the first test, retain **This Bot's Inbox only** and **mentions only**. This needs no additional local group and does not add messages to the Bot DM history.
 
-![PersonaBot identity binding dialog before an IM account is configured](/guides/lark/02-identity.png)
+![PersonaBot identity binding dialog before an IM account is configured](/guides/lark/02-identity.jpg)
 
 _Figure 2: The identity belongs to the PersonaBot. If the selector is empty, check the application connection, Provider version and saved target. Human QR login is not Bot identity binding._
 
-![PersonaBot Profile before external identity and group authorization are configured](/guides/lark/03-authorize.png)
+![PersonaBot Profile before external identity and group authorization are configured](/guides/lark/03-authorize.jpg)
 
 _Figure 3: Bind the identity, then authorize a specific group under Channel connectors and authorization. The demonstration has no account yet, so authorization controls are unavailable._
 
@@ -104,7 +104,7 @@ Under **Channel connectors → Add channel connector**:
 3. Enter a recognizable **connector name**, such as “Lark team group.”
 4. Retain **Inherit global defaults**, or explicitly choose **mentions of the receiving identity only**, enable intake and save.
 
-![Channel connector dialog with source, destination, name and intake condition](/guides/lark/04-connector.png)
+![Channel connector dialog with source, destination, name and intake condition](/guides/lark/04-connector.jpg)
 
 _Figure 4: Source, destination and intake condition are separate choices. Saving is unavailable in the demonstration until a real group is authorized._
 

@@ -62,7 +62,7 @@ Lark 打开 [Lark 开发者后台](https://open.larksuite.com/app)；飞书打�
 3. 私下填入 App ID 和 App Secret，点击 **绑定并连接**。
 4. 确认账号显示已连接；如果刚补了事件订阅或应用权限，回后台发布后再确认连接。
 
-![IM机器人设置中的 Lark 手动接入表单，凭据为空](/guides/lark/01-provider.png)
+![IM机器人设置中的 Lark 手动接入表单，凭据为空](/guides/lark/01-provider.jpg)
 
 _图 1：Lark 应用选择国际版。密钥只输入本机设置，不粘贴到聊天、Git 或公开截图。界面的飞书扫码接入与 Lark CLI 的 Human 登录是不同流程；本页使用应用凭据接入。_
 
@@ -83,11 +83,11 @@ _图 1：Lark 应用选择国际版。密钥只输入本机设置，不粘贴到
 3. 点击 **绑定并授权此目标**。核对群名称、账号和本地收件位置。
 4. 初次验证保留 **仅此 Bot 的 Inbox**、**只收 @**。不用额外创建本地群，也不会占用 Bot DM 的消息历史。
 
-![PersonaBot Profile 的绑定身份弹窗，IM账号尚未配置](/guides/lark/02-identity.png)
+![PersonaBot Profile 的绑定身份弹窗，IM账号尚未配置](/guides/lark/02-identity.jpg)
 
 _图 2：外部身份属于 PersonaBot。列表为空时，先检查上一步的应用连接、Provider 版本和保存目标。Human 扫码登录不等于绑定 Bot 身份。_
 
-![PersonaBot Profile 中外部身份与频道连接器授权的准备状态](/guides/lark/03-authorize.png)
+![PersonaBot Profile 中外部身份与频道连接器授权的准备状态](/guides/lark/03-authorize.jpg)
 
 _图 3：先绑定身份，再在「频道连接器与授权」中授权具体群。示例尚未连接账号，所以授权控件尚不可用。_
 
@@ -104,7 +104,7 @@ _图 3：先绑定身份，再在「频道连接器与授权」中授权具体�
 3. 填入容易辨认的**连接器名称**，例如「Lark 团队工作群」。
 4. 保留**继承全局默认**，或明确选择**仅收 @接收身份**；开启接收并保存。
 
-![添加频道连接器弹窗，展示来源、投递目标、名称和接收条件](/guides/lark/04-connector.png)
+![添加频道连接器弹窗，展示来源、投递目标、名称和接收条件](/guides/lark/04-connector.jpg)
 
 _图 4：来源、投递位置和接收条件分别选择。演示账号尚未授权群，所以保存按钮不可用；真实配置完成后才可保存。_
 
