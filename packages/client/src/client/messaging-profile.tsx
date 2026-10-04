@@ -1,5 +1,6 @@
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 import { Modal } from './modal.js';
+import { MessagingHelp } from './messaging-help.js';
 import type { OutboxIntent } from '../../../core/src/messaging/outbound.js';
 import { ExternalIdentityTable } from './external-identity-table.js';
 import { ThreadReceptionSettings } from './thread-reception-settings.js';
@@ -7,7 +8,7 @@ import type {
   GroupReceptionInput,
   GroupReceptionPolicy,
 } from '../../../core/src/messaging/group-policy.js';
-import { useRef, useState, type ReactElement } from 'react';
+import { useId, useRef, useState, type ReactElement } from 'react';
 import { Button, IconChevronRightOutlineRegular, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { MessagingSnapshot, OutboxState } from '../../../core/src/messaging/outbound.js';
 import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
@@ -38,6 +39,7 @@ export function MessagingProfile({
 }): ReactElement {
   const [report, setReport] = useState<OutboxIntent>();
   const origin = report?.reply ?? report?.report;
+  const targetFieldId = useId();
   const [snapshot, setSnapshot] = useState<MessagingSnapshot>();
   const [accountKey, setAccountKey] = useState('');
   const [targets, setTargets] = useState<MessagingTarget[]>([]);
@@ -156,12 +158,17 @@ export function MessagingProfile({
           await refresh();
         }}
       />
-      <section className="bh-profile-section bh-profile-policy-section" aria-label={t('im.title')}>
+      <section
+        className="bh-profile-section bh-profile-policy-section bh-im-settings"
+        aria-label={t('im.title')}
+      >
         <details className="bh-profile-policy-details">
           <summary className="bh-profile-policy-summary">
             <span className="bh-profile-policy-summary-text">
-              <strong>{t('im.title')}</strong>
-              <span>{t('im.summary')}</span>
+              <span className="bh-im-heading">
+                <strong>{t('im.title')}</strong>
+                <MessagingHelp title={t('im.title')} text={t('im.summary')} t={t} />
+              </span>
             </span>
             <IconChevronRightOutlineRegular />
           </summary>
@@ -172,15 +179,11 @@ export function MessagingProfile({
                   {t('im.error')}
                 </p>
               ) : null}
-              <Button disabled={busy} onClick={() => void operate(async () => undefined)}>
-                {t('im.refresh')}
-              </Button>
-              {snapshot === undefined ? (
-                <p>{t('im.loading')}</p>
-              ) : grant ? (
-                <>
-                  <p>
-                    {grant.accountName} · {grant.targetName}{' '}
+              <div className="bh-im-grant-header">
+                {grant ? (
+                  <div className="bh-im-grant-name">
+                    <strong>{grant.targetName}</strong>
+                    <span>{grant.accountName}</span>
                     <Tag tone="neutral">
                       {grant.availability === 'available'
                         ? t('im.bound')
@@ -188,24 +191,57 @@ export function MessagingProfile({
                           ? t('im.rebind')
                           : t('im.unavailable')}
                     </Tag>
-                  </p>
+                  </div>
+                ) : null}
+                <div className="bh-im-actions">
                   <Button
+                    size="sm"
+                    variant="toolbar"
                     disabled={busy}
-                    onClick={() =>
-                      void operate(async () => {
-                        await actions.messagingRevoke(slug, grant.id);
-                      })
-                    }
+                    onClick={() => void operate(async () => undefined)}
                   >
-                    {t('im.revoke')}
+                    {t('im.refresh')}
                   </Button>
+                  {grant ? (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="bh-im-danger"
+                      disabled={busy}
+                      onClick={() =>
+                        void operate(async () => {
+                          await actions.messagingRevoke(slug, grant.id);
+                        })
+                      }
+                    >
+                      {t('im.revoke')}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              {snapshot === undefined ? (
+                <p>{t('im.loading')}</p>
+              ) : grant ? (
+                <>
                   {grant.channelBridge || grant.bridgeRoutes ? (
                     <p>{t('bridge.managed')}</p>
                   ) : grant.canReceive === true || grant.receiveScope !== undefined ? (
                     <>
-                      <label className="bh-im-field">
-                        <span>{t('im.localTarget')}</span>
+                      <div className="bh-im-field">
+                        <span className="bh-im-heading">
+                          <label htmlFor={targetFieldId + '-local'}>{t('im.localTarget')}</label>
+                          <MessagingHelp
+                            title={t('im.localTarget')}
+                            text={
+                              grant.receiveTargetChannelId
+                                ? t('im.channelTargetHint')
+                                : t('im.receiveHint')
+                            }
+                            t={t}
+                          />
+                        </span>
                         <select
+                          id={targetFieldId + '-local'}
                           aria-label={t('im.localTarget')}
                           value={grant.receiveTargetChannelId ?? ''}
                           disabled={busy}
@@ -231,13 +267,10 @@ export function MessagingProfile({
                             </option>
                           ))}
                         </select>
-                      </label>
-                      <p>
-                        {grant.receiveTargetChannelId
-                          ? t('im.channelTargetHint')
-                          : t('im.receiveHint')}
+                      </div>
+                      <p className="bh-im-status" role="status">
+                        {t(`im.reception.${grant.reception ?? 'off'}`)}
                       </p>
-                      <p>{t(`im.reception.${grant.reception ?? 'off'}`)}</p>
                       {grant.receiveScope && grant.groupPolicy ? (
                         <GroupReceptionSettings
                           key={`${grant.id}:${grant.groupPolicy.revision}:${grant.groupPolicy.defaultRevision ?? 0}`}
@@ -266,6 +299,9 @@ export function MessagingProfile({
                         />
                       ) : null}
                       <Button
+                        size="sm"
+                        variant="primary"
+                        className={grant.receiveScope === undefined ? undefined : 'bh-im-danger'}
                         disabled={
                           busy ||
                           (grant.receiveScope === undefined && grant.availability !== 'available')
@@ -299,6 +335,9 @@ export function MessagingProfile({
                     />
                   </label>
                   <Button
+                    size="sm"
+                    variant="primary"
+                    className="bh-im-submit"
                     disabled={busy || !text.trim() || grant.availability !== 'available'}
                     onClick={() => void send()}
                   >
@@ -340,9 +379,13 @@ export function MessagingProfile({
                         ))}
                     </select>
                   </label>
-                  <label className="bh-im-field">
-                    <span>{t('im.target')}</span>
+                  <div className="bh-im-field">
+                    <span className="bh-im-heading">
+                      <label htmlFor={targetFieldId + '-external'}>{t('im.target')}</label>
+                      <MessagingHelp title={t('im.target')} text={t('im.grant')} t={t} />
+                    </span>
                     <select
+                      id={targetFieldId + '-external'}
                       aria-label={t('im.target')}
                       value={targetRef}
                       disabled={busy || !account}
@@ -355,9 +398,11 @@ export function MessagingProfile({
                         </option>
                       ))}
                     </select>
-                  </label>
-                  <p>{t('im.grant')}</p>
+                  </div>
                   <Button
+                    size="sm"
+                    variant="primary"
+                    className="bh-im-submit"
                     disabled={busy || !account || !targetRef}
                     onClick={() => void authorize()}
                   >
@@ -480,6 +525,7 @@ function GroupReceptionSettings({
   t: BotHarnessTranslate;
   save(input: GroupReceptionInput): Promise<void>;
 }): ReactElement {
+  const policyFieldId = useId();
   const [collection, setCollection] = useState(policy.collection);
   const [inheritance, setInheritance] = useState(policy.inheritance ?? 'custom');
   const [wake, setWake] = useState(policy.wake);
@@ -502,10 +548,18 @@ function GroupReceptionSettings({
     numericSeconds !== policy.intervalSeconds;
   return (
     <section className="bh-im-group-policy" aria-label={t('im.groupPolicy')}>
-      <strong>{t('im.groupPolicy')}</strong>
-      <label className="bh-im-field">
-        <span>{t('defaults.origin')}</span>
+      <div className="bh-im-heading bh-im-wide">
+        <strong>{t('im.groupPolicy')}</strong>
+        <MessagingHelp title={t('im.groupPolicy')} text={t('im.wakeHint')} t={t} />
+      </div>
+      <div className="bh-im-field">
+        <span className="bh-im-heading">
+          <label htmlFor={policyFieldId + '-origin'}>{t('defaults.origin')}</label>
+          <MessagingHelp title={t('defaults.origin')} text={t('defaults.restoreHint')} t={t} />
+          {policy.defaultRevision !== undefined ? <small>v{policy.defaultRevision}</small> : null}
+        </span>
         <select
+          id={policyFieldId + '-origin'}
           aria-label={t('defaults.origin')}
           value={inheritance}
           disabled={busy}
@@ -514,14 +568,18 @@ function GroupReceptionSettings({
           <option value="inherit">{t('defaults.inherited')}</option>
           <option value="custom">{t('defaults.custom')}</option>
         </select>
-      </label>
-      <p>
-        {t('defaults.restoreHint')}
-        {policy.defaultRevision !== undefined ? ` · v${policy.defaultRevision}` : ''}
-      </p>
-      <label className="bh-im-field">
-        <span>{t('im.collection')}</span>
+      </div>
+      <div className="bh-im-field">
+        <span className="bh-im-heading">
+          <label htmlFor={policyFieldId + '-collection'}>{t('im.collection')}</label>
+          <MessagingHelp
+            title={t('im.collection')}
+            text={t(verified ? 'im.ordinaryVerified' : 'im.ordinaryUnverified')}
+            t={t}
+          />
+        </span>
         <select
+          id={policyFieldId + '-collection'}
           aria-label={t('im.collection')}
           value={collection}
           disabled={busy || inheritance === 'inherit'}
@@ -534,11 +592,15 @@ function GroupReceptionSettings({
             {t('im.collection.all')}
           </option>
         </select>
-      </label>
-      <p>{t(verified ? 'im.ordinaryVerified' : 'im.ordinaryUnverified')}</p>
-      <label className="bh-im-field">
-        <span>{t('im.ordinaryWake')}</span>
+      </div>
+      {!verified ? <p className="bh-im-notice bh-im-wide">{t('im.ordinaryUnverified')}</p> : null}
+      <div className="bh-im-field bh-im-wide">
+        <span className="bh-im-heading">
+          <label htmlFor={policyFieldId + '-wake'}>{t('im.ordinaryWake')}</label>
+          <MessagingHelp title={t('im.ordinaryWake')} text={t('im.wakeHint')} t={t} />
+        </span>
         <select
+          id={policyFieldId + '-wake'}
           aria-label={t('im.ordinaryWake')}
           value={wake}
           disabled={busy || inheritance === 'inherit' || collection !== 'all'}
@@ -550,9 +612,9 @@ function GroupReceptionSettings({
             </option>
           ))}
         </select>
-      </label>
+      </div>
       {wake === 'digest' ? (
-        <div className="bh-im-digest-fields">
+        <div className="bh-im-digest-fields bh-im-wide">
           <label className="bh-im-field">
             <span>{t('im.digestCount')}</span>
             <input
@@ -579,42 +641,45 @@ function GroupReceptionSettings({
           </label>
         </div>
       ) : null}
-      <p>{t('im.wakeHint')}</p>
-      <p>
-        {t('im.policyRevision', {
-          revision: String(policy.revision),
-          editor: t(
-            policy.editor.kind === 'bot'
-              ? 'im.policyBot'
-              : policy.editor.kind === 'human'
-                ? 'im.policyHuman'
-                : 'im.policyDefault',
-          ),
-        })}
-      </p>
-      <Button
-        disabled={
-          busy ||
-          !valid ||
-          !changed ||
-          (inheritance !== 'inherit' && collection === 'all' && !verified)
-        }
-        onClick={() =>
-          void save({
-            collection,
-            wake,
-            count: numericCount,
-            intervalSeconds: numericSeconds,
-            inheritance,
-            expectedRevision: policy.revision,
-            ...(policy.defaultRevision !== undefined
-              ? { expectedDefaultRevision: policy.defaultRevision }
-              : {}),
-          })
-        }
-      >
-        {t('im.policySave')}
-      </Button>
+      <div className="bh-im-policy-footer bh-im-wide">
+        <small className="bh-im-policy-revision">
+          {t('im.policyRevision', {
+            revision: String(policy.revision),
+            editor: t(
+              policy.editor.kind === 'bot'
+                ? 'im.policyBot'
+                : policy.editor.kind === 'human'
+                  ? 'im.policyHuman'
+                  : 'im.policyDefault',
+            ),
+          })}
+        </small>
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={
+            busy ||
+            !valid ||
+            !changed ||
+            (inheritance !== 'inherit' && collection === 'all' && !verified)
+          }
+          onClick={() =>
+            void save({
+              collection,
+              wake,
+              count: numericCount,
+              intervalSeconds: numericSeconds,
+              inheritance,
+              expectedRevision: policy.revision,
+              ...(policy.defaultRevision !== undefined
+                ? { expectedDefaultRevision: policy.defaultRevision }
+                : {}),
+            })
+          }
+        >
+          {t('im.policySave')}
+        </Button>
+      </div>
     </section>
   );
 }

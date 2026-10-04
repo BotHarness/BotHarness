@@ -9,6 +9,9 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: (props: ButtonHTMLAttributes<HTMLButtonElement>) => createElement('button', props),
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
   IconChevronRightOutlineRegular: () => null,
+  IconInfoOutlineRegular: () => null,
+  Tooltip: ({ children, label }: PropsWithChildren<{ label: string }>) =>
+    createElement('span', { title: label }, children),
   Switch: () => null,
   Modal: ({ open, children, onClose }: PropsWithChildren<{ open: boolean; onClose(): void }>) =>
     open
@@ -258,7 +261,11 @@ it('changes group intake only after the Human toggles it and can stop it when th
       selector.dispatchEvent(new Event('change', { bubbles: true }));
     });
     expect(messagingChannelTarget.mock.calls).toEqual([['ada', grant.id, 'shared-work']]);
-    expect(container.textContent).toContain(zhTranslate('im.channelTargetHint'));
+    expect(
+      container.querySelector(
+        `button[aria-label="${zhTranslate('im.infoFor', { title: zhTranslate('im.localTarget') })}"]`,
+      )?.parentElement?.title,
+    ).toBe(zhTranslate('im.channelTargetHint'));
     expect(messagingReceive).not.toHaveBeenCalled();
     expect(messagingSend).not.toHaveBeenCalled();
     await act(async () => {
