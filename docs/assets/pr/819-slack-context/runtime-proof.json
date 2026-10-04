@@ -1,0 +1,1810 @@
+{
+  "issue": 819,
+  "runtimeCommit": "93b89531",
+  "mainIntegrated": "f5bc7213",
+  "providerCommit": "b020d3bab941aeb9acc303b719e691554ef10ec4",
+  "coverage": "provider-visible-human-text",
+  "sourceEventId": "im-3ac411e4f15359a75249c09619c98015ab8b90c5205285ea541cdd915f89b9e7",
+  "nativeSource": {
+    "version": 1,
+    "channel": "slack",
+    "botId": "slack_04c9e4cf1da45acd5089cf9b",
+    "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+    "eventId": "Ev0C7FNV5GUQ",
+    "messageId": "1791138696.527059",
+    "actor": {
+      "kind": "user",
+      "id": "U064CFNDJGK",
+      "name": "DoodleBear"
+    },
+    "conversation": {
+      "kind": "group",
+      "id": "C0C6FPES0G5"
+    },
+    "mentions": [
+      {
+        "id": "U0C6EQK4B8B",
+        "key": "<@U0C6EQK4B8B>",
+        "name": "BotHarness Slack QA"
+      }
+    ],
+    "mentionedAccount": true,
+    "at": "2026-10-04T18:31:36.527Z",
+    "reply": {
+      "messageId": "1791138696.527059",
+      "conversationId": "C0C6FPES0G5",
+      "actorId": "U064CFNDJGK",
+      "threadId": "1791132786.447879",
+      "rootId": "1791132786.447879"
+    },
+    "replay": {
+      "kind": "provider-redelivery",
+      "resumeCursor": false,
+      "gapPossible": true
+    }
+  },
+  "reads": [
+    {
+      "at": "2026-10-04T18:31:40.490Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "thread",
+      "outcome": "read",
+      "sourceEventIds": [
+        "im-b754a8b93fa8e15e3f4782dfb6ff837328d1aae8788426e9c89510b31b589a36",
+        "im-a4ab214e411b8d7df97719878ad960908721e9ab7d4a8d060381cff9dbc7590d",
+        "im-47a71bbb8950544e450d1907ff3fbb16cbe1436bf1826673c93d4434d6ae092e",
+        "im-e5785cd9aaca4899ee1b5d6e8e5776c413f93188480aad4e6c1c668809e5c16a",
+        "im-fa1c2ea6b674ab99895b20d16543608383b6cbb249bc1c04549f83254e2691af",
+        "im-e97eb2e7ce8151e3fc0281d24470f58e74b6552badd1a110649e45aaad3900c2",
+        "im-f3ca644ecb06496ebb61f0c6f5d7d3b9733b92dfdd7cc5d4e58b0d86594b5f0d",
+        "im-d32530578cf7c258bc95f3f6ddbf738d7e14d1966945670da405075d2f171a67",
+        "im-3e06c1403eb79772b5e8f51e486da5bcd97d4aa4411449034895f8f78b68bb41",
+        "im-65eb5eb474bc8562f3facb12000b848a22bf418efb1c5f78bba593ea33044282",
+        "im-967f632de499e44ebccd65dc57939cb2706824e7451dd05a854034f9c68a838f",
+        "im-d2056b065eb38c9e1da6cc68be320094646484a652788788b43a0e7e5470e056",
+        "im-37dea29becdc10b77d6e8d3cb09dfab14f2154c3799e121749951a819ae77a04",
+        "im-1f8f94156b2c4306194940e13252a6392b2a4cd5def3ca027819894b8bb9bae1",
+        "im-0a9effdb08838b9deabfb35b109a29d4d782944a084485bfc469aa013f25278b",
+        "im-5ac3dab4c508f625d75c0fbb0739bb8d0cd33332b9d0f0d86f6886aa635557a3",
+        "im-3ac411e4f15359a75249c09619c98015ab8b90c5205285ea541cdd915f89b9e7"
+      ],
+      "omitted": 3,
+      "incomplete": true
+    },
+    {
+      "at": "2026-10-04T18:31:46.708Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "thread",
+      "outcome": "read",
+      "sourceEventIds": [
+        "im-9fd2171ff574e80822e4e007eda2797b7d16906ff8fde51068889bbc7c72d40d"
+      ],
+      "omitted": 2,
+      "incomplete": true
+    },
+    {
+      "at": "2026-10-04T18:31:50.243Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "group",
+      "outcome": "read",
+      "sourceEventIds": [
+        "im-6c1b79f51dfbd6a0a49ecadb1260161a1a7ae22c89a854693bee8beb9ab911b1",
+        "im-119f7880c4f0880496203978ea36ca6b4f21cb630d2f89fb578276802146b9d7",
+        "im-abff87cd5ee2ae1b7d264d40b17c403987bb3b90de6f503a087818317769246b",
+        "im-05581bc0ce73e05bd18d0d53613c7ed3fda8c4d6ab5a84f319105eda1c931a1e",
+        "im-1938ba2c71ae888645644ff421cf864da76a176a9a4531500f3eff1d3e4fc3ec",
+        "im-1fc5a3831490c88a312434894a0bb207ff23305e5a36a5c0c43bd0d141971b4f",
+        "im-bfd11a0c3d0b65b7eff717bbf6095bd7779eee40328ba9f3258b26378a3756e8",
+        "im-a54b4a6186bee0f9dac49737f7a48a3bb25b70c232fe9c3722b6484c537e1d64",
+        "im-5a4b96bf1c02840098edf88e9c6af9241158964877eb56ac8702f2a15aaccbef",
+        "im-7b5fc7885338989a433a591d14d29419ac70ca31e3326d33425103ff5e3f3c54",
+        "im-a9e2405a5695ce8d4dc8a08522775cc5dcdc68404071fa6a91a485a3c98f8eff",
+        "im-1737616108290b3ca72887b9d7f09200dff8611c6cb0677fee7aa179406fc193",
+        "im-30c3502271111e151d98bd0f5c022db5abf3db210b54c7d9592fbd167fbfa022",
+        "im-e07f5e21275d85b1832a6df89242f058de6f714afdc916402e97f520879dc88b",
+        "im-cf811d5124b6d4be4e78a97c4ad981db7043028af3b8d18ec9315bf1327733f4",
+        "im-6313880a90784475d6f37bfdacc2580e066646354f5d60357b8d7ad459066d73",
+        "im-df26b98ada91993f0291b684bf213d142b21802c5a96c320be8073dab87cb30a",
+        "im-b2b0468d12854ad18c332d6baffba01c20ed2107b1ea510b58f59a503e8b5738",
+        "im-8d3956fba60bc2f00a4a43a3ad42fdfa17e6a6ca942d7ae003ecb536fd54308b",
+        "im-e09256da73cde58b6d232599fe89c52101e04b148e8f438c5fc844534a28ce8a"
+      ],
+      "omitted": 0,
+      "incomplete": true
+    },
+    {
+      "at": "2026-10-04T18:31:53.858Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "nearby",
+      "outcome": "read",
+      "sourceEventIds": [],
+      "omitted": 0,
+      "incomplete": true
+    },
+    {
+      "at": "2026-10-04T18:31:59.698Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "group",
+      "outcome": "read",
+      "sourceEventIds": [
+        "im-812441d327abd23d7dae53746b49681073b07a4df670f9f09a87909f609ad505",
+        "im-50929e6639e358e1ac506c9e9e55b0daa30e23929b35d106f017481f07e8e91f",
+        "im-b754a8b93fa8e15e3f4782dfb6ff837328d1aae8788426e9c89510b31b589a36"
+      ],
+      "omitted": 2,
+      "incomplete": true
+    },
+    {
+      "at": "2026-10-04T18:32:03.158Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "nearby",
+      "outcome": "read",
+      "sourceEventIds": [
+        "im-6c1b79f51dfbd6a0a49ecadb1260161a1a7ae22c89a854693bee8beb9ab911b1",
+        "im-119f7880c4f0880496203978ea36ca6b4f21cb630d2f89fb578276802146b9d7",
+        "im-abff87cd5ee2ae1b7d264d40b17c403987bb3b90de6f503a087818317769246b",
+        "im-05581bc0ce73e05bd18d0d53613c7ed3fda8c4d6ab5a84f319105eda1c931a1e",
+        "im-1938ba2c71ae888645644ff421cf864da76a176a9a4531500f3eff1d3e4fc3ec",
+        "im-1fc5a3831490c88a312434894a0bb207ff23305e5a36a5c0c43bd0d141971b4f",
+        "im-bfd11a0c3d0b65b7eff717bbf6095bd7779eee40328ba9f3258b26378a3756e8",
+        "im-a54b4a6186bee0f9dac49737f7a48a3bb25b70c232fe9c3722b6484c537e1d64",
+        "im-5a4b96bf1c02840098edf88e9c6af9241158964877eb56ac8702f2a15aaccbef",
+        "im-7b5fc7885338989a433a591d14d29419ac70ca31e3326d33425103ff5e3f3c54"
+      ],
+      "omitted": 10,
+      "incomplete": true
+    }
+  ],
+  "messages": [
+    {
+      "sourceEventId": "im-05581bc0ce73e05bd18d0d53613c7ed3fda8c4d6ab5a84f319105eda1c931a1e",
+      "text": "[BH819 WINDOW 17] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137308.777499",
+        "messageId": "1791137308.777499",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:28.777Z",
+        "reply": {
+          "messageId": "1791137308.777499",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137308.777499",
+          "rootId": "1791137308.777499"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-0a9effdb08838b9deabfb35b109a29d4d782944a084485bfc469aa013f25278b",
+      "text": "[BH819 THREAD 10] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137281.771039",
+        "messageId": "1791137281.771039",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:01.771Z",
+        "reply": {
+          "messageId": "1791137281.771039",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-119f7880c4f0880496203978ea36ca6b4f21cb630d2f89fb578276802146b9d7",
+      "text": "[BH819 WINDOW 19] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137309.503679",
+        "messageId": "1791137309.503679",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:29.503Z",
+        "reply": {
+          "messageId": "1791137309.503679",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137309.503679",
+          "rootId": "1791137309.503679"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-1737616108290b3ca72887b9d7f09200dff8611c6cb0677fee7aa179406fc193",
+      "text": "[BH819 WINDOW 09] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137305.837409",
+        "messageId": "1791137305.837409",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:25.837Z",
+        "reply": {
+          "messageId": "1791137305.837409",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137305.837409",
+          "rootId": "1791137305.837409"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-1938ba2c71ae888645644ff421cf864da76a176a9a4531500f3eff1d3e4fc3ec",
+      "text": "[BH819 WINDOW 16] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137308.403569",
+        "messageId": "1791137308.403569",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:28.403Z",
+        "reply": {
+          "messageId": "1791137308.403569",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137308.403569",
+          "rootId": "1791137308.403569"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-1f8f94156b2c4306194940e13252a6392b2a4cd5def3ca027819894b8bb9bae1",
+      "text": "[BH819 THREAD 09] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137281.345769",
+        "messageId": "1791137281.345769",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:01.345Z",
+        "reply": {
+          "messageId": "1791137281.345769",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-1fc5a3831490c88a312434894a0bb207ff23305e5a36a5c0c43bd0d141971b4f",
+      "text": "[BH819 WINDOW 15] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137307.990049",
+        "messageId": "1791137307.990049",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:27.990Z",
+        "reply": {
+          "messageId": "1791137307.990049",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137307.990049",
+          "rootId": "1791137307.990049"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-30c3502271111e151d98bd0f5c022db5abf3db210b54c7d9592fbd167fbfa022",
+      "text": "[BH819 WINDOW 08] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137305.482329",
+        "messageId": "1791137305.482329",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:25.482Z",
+        "reply": {
+          "messageId": "1791137305.482329",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137305.482329",
+          "rootId": "1791137305.482329"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-37dea29becdc10b77d6e8d3cb09dfab14f2154c3799e121749951a819ae77a04",
+      "text": "[BH819 THREAD 08] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137280.850299",
+        "messageId": "1791137280.850299",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:00.850Z",
+        "reply": {
+          "messageId": "1791137280.850299",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-3ac411e4f15359a75249c09619c98015ab8b90c5205285ea541cdd915f89b9e7",
+      "text": "<@U0C6EQK4B8B> [BH819 FINAL] 重新验证当前来源：用 bridge_context 读取 thread、group、nearby，每种跟随 nextCursor 到结束，最多各8页。从读取结果找到话题和群口令。用 bridge_reply 在此话题只回复 BH819-FINAL-OK 加两个口令和各类型页数。不发本地DM，不创建Assignment。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "Ev0C7FNV5GUQ",
+        "messageId": "1791138696.527059",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [
+          {
+            "id": "U0C6EQK4B8B",
+            "key": "<@U0C6EQK4B8B>",
+            "name": "BotHarness Slack QA"
+          }
+        ],
+        "mentionedAccount": true,
+        "at": "2026-10-04T18:31:36.527Z",
+        "reply": {
+          "messageId": "1791138696.527059",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-3e06c1403eb79772b5e8f51e486da5bcd97d4aa4411449034895f8f78b68bb41",
+      "text": "[BH819 THREAD 04] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137279.052509",
+        "messageId": "1791137279.052509",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:07:59.052Z",
+        "reply": {
+          "messageId": "1791137279.052509",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-47a71bbb8950544e450d1907ff3fbb16cbe1436bf1826673c93d4434d6ae092e",
+      "text": "<@U0C6EQK4B8B> [BH802 FINAL] Reply BH802-FINAL-OK via bridge_reply.",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "Ev0C6P45ECM7",
+        "messageId": "1791133885.748049",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [
+          {
+            "id": "U0C6EQK4B8B",
+            "key": "<@U0C6EQK4B8B>",
+            "name": "BotHarness Slack QA"
+          }
+        ],
+        "mentionedAccount": true,
+        "at": "2026-10-04T17:11:25.748Z",
+        "reply": {
+          "messageId": "1791133885.748049",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-50929e6639e358e1ac506c9e9e55b0daa30e23929b35d106f017481f07e8e91f",
+      "text": "[BH802 MAIN NOAT] Ordinary channel text: no Bot admission or reply expected.",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791133006.946389",
+        "messageId": "1791133006.946389",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T16:56:46.946Z",
+        "reply": {
+          "messageId": "1791133006.946389",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791133006.946389",
+          "rootId": "1791133006.946389"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-5a4b96bf1c02840098edf88e9c6af9241158964877eb56ac8702f2a15aaccbef",
+      "text": "[BH819 WINDOW 12] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137306.904859",
+        "messageId": "1791137306.904859",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:26.904Z",
+        "reply": {
+          "messageId": "1791137306.904859",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137306.904859",
+          "rootId": "1791137306.904859"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-5ac3dab4c508f625d75c0fbb0739bb8d0cd33332b9d0f0d86f6886aa635557a3",
+      "text": "<@U0C6EQK4B8B> [BH819 CONTEXT] 用 bridge_context 读当前来源的 thread、group、nearby。 每种跟随 nextCursor 直到结束，最多各 8 页。找到话题和群口令后，用 bridge_reply 在此话题只回复 BH819-CONTEXT-OK 加两个口令和各类型页数。不发本地 DM，不创建 Assignment。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "Ev0C6M5XUYGJ",
+        "messageId": "1791137422.198559",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [
+          {
+            "id": "U0C6EQK4B8B",
+            "key": "<@U0C6EQK4B8B>",
+            "name": "BotHarness Slack QA"
+          }
+        ],
+        "mentionedAccount": true,
+        "at": "2026-10-04T18:10:22.198Z",
+        "reply": {
+          "messageId": "1791137422.198559",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-6313880a90784475d6f37bfdacc2580e066646354f5d60357b8d7ad459066d73",
+      "text": "[BH819 WINDOW 05] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137304.343789",
+        "messageId": "1791137304.343789",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:24.343Z",
+        "reply": {
+          "messageId": "1791137304.343789",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137304.343789",
+          "rootId": "1791137304.343789"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-65eb5eb474bc8562f3facb12000b848a22bf418efb1c5f78bba593ea33044282",
+      "text": "[BH819 THREAD 05] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137279.490349",
+        "messageId": "1791137279.490349",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:07:59.490Z",
+        "reply": {
+          "messageId": "1791137279.490349",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-6c1b79f51dfbd6a0a49ecadb1260161a1a7ae22c89a854693bee8beb9ab911b1",
+      "text": "[BH819 WINDOW 20] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137309.867409",
+        "messageId": "1791137309.867409",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:29.867Z",
+        "reply": {
+          "messageId": "1791137309.867409",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137309.867409",
+          "rootId": "1791137309.867409"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-7b5fc7885338989a433a591d14d29419ac70ca31e3326d33425103ff5e3f3c54",
+      "text": "[BH819 WINDOW 11] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137306.553079",
+        "messageId": "1791137306.553079",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:26.553Z",
+        "reply": {
+          "messageId": "1791137306.553079",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137306.553079",
+          "rootId": "1791137306.553079"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-812441d327abd23d7dae53746b49681073b07a4df670f9f09a87909f609ad505",
+      "text": "[BH819 MAIN SECRET] 群上下文代码：MAPLE-819。不需要 Bot 回复。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137301.997539",
+        "messageId": "1791137301.997539",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:21.997Z",
+        "reply": {
+          "messageId": "1791137301.997539",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137301.997539",
+          "rootId": "1791137301.997539"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-8d3956fba60bc2f00a4a43a3ad42fdfa17e6a6ca942d7ae003ecb536fd54308b",
+      "text": "[BH819 WINDOW 02] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137302.749879",
+        "messageId": "1791137302.749879",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:22.749Z",
+        "reply": {
+          "messageId": "1791137302.749879",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137302.749879",
+          "rootId": "1791137302.749879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-967f632de499e44ebccd65dc57939cb2706824e7451dd05a854034f9c68a838f",
+      "text": "[BH819 THREAD 06] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137279.896679",
+        "messageId": "1791137279.896679",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:07:59.896Z",
+        "reply": {
+          "messageId": "1791137279.896679",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-9fd2171ff574e80822e4e007eda2797b7d16906ff8fde51068889bbc7c72d40d",
+      "text": "<@U0C6EQK4B8B> [BH802 TOPIC 01] 使用 bridge_reply 在此话题只回复 BH802-TOPIC-OK，不发本地 DM，不创建 Assignment。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "Ev0C6K5VS26S",
+        "messageId": "1791132922.718839",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [
+          {
+            "id": "U0C6EQK4B8B",
+            "key": "<@U0C6EQK4B8B>",
+            "name": "BotHarness Slack QA"
+          }
+        ],
+        "mentionedAccount": true,
+        "at": "2026-10-04T16:55:22.718Z",
+        "reply": {
+          "messageId": "1791132922.718839",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-a4ab214e411b8d7df97719878ad960908721e9ab7d4a8d060381cff9dbc7590d",
+      "text": "[BH802 TOPIC NOAT] Ordinary topic text: no Bot admission or reply expected.",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791133006.375729",
+        "messageId": "1791133006.375729",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T16:56:46.375Z",
+        "reply": {
+          "messageId": "1791133006.375729",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-a54b4a6186bee0f9dac49737f7a48a3bb25b70c232fe9c3722b6484c537e1d64",
+      "text": "[BH819 WINDOW 13] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137307.254379",
+        "messageId": "1791137307.254379",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:27.254Z",
+        "reply": {
+          "messageId": "1791137307.254379",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137307.254379",
+          "rootId": "1791137307.254379"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-a9e2405a5695ce8d4dc8a08522775cc5dcdc68404071fa6a91a485a3c98f8eff",
+      "text": "[BH819 WINDOW 10] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137306.201899",
+        "messageId": "1791137306.201899",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:26.201Z",
+        "reply": {
+          "messageId": "1791137306.201899",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137306.201899",
+          "rootId": "1791137306.201899"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-abff87cd5ee2ae1b7d264d40b17c403987bb3b90de6f503a087818317769246b",
+      "text": "[BH819 WINDOW 18] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137309.148329",
+        "messageId": "1791137309.148329",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:29.148Z",
+        "reply": {
+          "messageId": "1791137309.148329",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137309.148329",
+          "rootId": "1791137309.148329"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-b2b0468d12854ad18c332d6baffba01c20ed2107b1ea510b58f59a503e8b5738",
+      "text": "[BH819 WINDOW 03] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137303.351709",
+        "messageId": "1791137303.351709",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:23.351Z",
+        "reply": {
+          "messageId": "1791137303.351709",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137303.351709",
+          "rootId": "1791137303.351709"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-b754a8b93fa8e15e3f4782dfb6ff837328d1aae8788426e9c89510b31b589a36",
+      "text": "<@U0C6EQK4B8B> [BH802 ROOT 01] 请使用 bridge_reply 对当前 source event 在原话题只回复 BH802-ROOT-OK。 不要在本地 DM 回复，不创建 Assignment，不修改 Memory。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "Ev0C6LVC17M0",
+        "messageId": "1791132786.447879",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [
+          {
+            "id": "U0C6EQK4B8B",
+            "key": "<@U0C6EQK4B8B>",
+            "name": "BotHarness Slack QA"
+          }
+        ],
+        "mentionedAccount": true,
+        "at": "2026-10-04T16:53:06.447Z",
+        "reply": {
+          "messageId": "1791132786.447879",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-bfd11a0c3d0b65b7eff717bbf6095bd7779eee40328ba9f3258b26378a3756e8",
+      "text": "[BH819 WINDOW 14] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137307.610419",
+        "messageId": "1791137307.610419",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:27.610Z",
+        "reply": {
+          "messageId": "1791137307.610419",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137307.610419",
+          "rootId": "1791137307.610419"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-cf811d5124b6d4be4e78a97c4ad981db7043028af3b8d18ec9315bf1327733f4",
+      "text": "[BH819 WINDOW 06] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137304.715499",
+        "messageId": "1791137304.715499",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:24.715Z",
+        "reply": {
+          "messageId": "1791137304.715499",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137304.715499",
+          "rootId": "1791137304.715499"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-d2056b065eb38c9e1da6cc68be320094646484a652788788b43a0e7e5470e056",
+      "text": "[BH819 THREAD 07] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137280.322929",
+        "messageId": "1791137280.322929",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:00.322Z",
+        "reply": {
+          "messageId": "1791137280.322929",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-d32530578cf7c258bc95f3f6ddbf738d7e14d1966945670da405075d2f171a67",
+      "text": "[BH819 THREAD 03] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137278.615339",
+        "messageId": "1791137278.615339",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:07:58.615Z",
+        "reply": {
+          "messageId": "1791137278.615339",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-df26b98ada91993f0291b684bf213d142b21802c5a96c320be8073dab87cb30a",
+      "text": "[BH819 WINDOW 04] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137303.740399",
+        "messageId": "1791137303.740399",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:23.740Z",
+        "reply": {
+          "messageId": "1791137303.740399",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137303.740399",
+          "rootId": "1791137303.740399"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-e07f5e21275d85b1832a6df89242f058de6f714afdc916402e97f520879dc88b",
+      "text": "[BH819 WINDOW 07] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137305.109679",
+        "messageId": "1791137305.109679",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:25.109Z",
+        "reply": {
+          "messageId": "1791137305.109679",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137305.109679",
+          "rootId": "1791137305.109679"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-e09256da73cde58b6d232599fe89c52101e04b148e8f438c5fc844534a28ce8a",
+      "text": "[BH819 WINDOW 01] 普通群消息，五分钟密集分页测试。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137302.367399",
+        "messageId": "1791137302.367399",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:08:22.367Z",
+        "reply": {
+          "messageId": "1791137302.367399",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791137302.367399",
+          "rootId": "1791137302.367399"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-e5785cd9aaca4899ee1b5d6e8e5776c413f93188480aad4e6c1c668809e5c16a",
+      "text": "<@U0C6EQK4B8B> [BH802 MERGED] Reply BH802-MERGED-OK via bridge_reply.",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "Ev0C6P4Y3N1F",
+        "messageId": "1791134496.522529",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [
+          {
+            "id": "U0C6EQK4B8B",
+            "key": "<@U0C6EQK4B8B>",
+            "name": "BotHarness Slack QA"
+          }
+        ],
+        "mentionedAccount": true,
+        "at": "2026-10-04T17:21:36.522Z",
+        "reply": {
+          "messageId": "1791134496.522529",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-e97eb2e7ce8151e3fc0281d24470f58e74b6552badd1a110649e45aaad3900c2",
+      "text": "[BH819 THREAD 01] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137277.710549",
+        "messageId": "1791137277.710549",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:07:57.710Z",
+        "reply": {
+          "messageId": "1791137277.710549",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-f3ca644ecb06496ebb61f0c6f5d7d3b9733b92dfdd7cc5d4e58b0d86594b5f0d",
+      "text": "[BH819 THREAD 02] 普通话题分页测试，不 @ Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137278.204369",
+        "messageId": "1791137278.204369",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:07:58.204Z",
+        "reply": {
+          "messageId": "1791137278.204369",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    },
+    {
+      "sourceEventId": "im-fa1c2ea6b674ab99895b20d16543608383b6cbb249bc1c04549f83254e2691af",
+      "text": "[BH819 SECRET] 验收口令：ORCHID-819。普通话题消息，不唤醒 Bot。",
+      "event": {
+        "version": 1,
+        "channel": "slack",
+        "botId": "slack_04c9e4cf1da45acd5089cf9b",
+        "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+        "eventId": "history:C0C6FPES0G5:1791137227.918459",
+        "messageId": "1791137227.918459",
+        "actor": {
+          "kind": "user",
+          "id": "U064CFNDJGK",
+          "name": "DoodleBear"
+        },
+        "conversation": {
+          "kind": "group",
+          "id": "C0C6FPES0G5"
+        },
+        "mentions": [],
+        "mentionedAccount": false,
+        "at": "2026-10-04T18:07:07.918Z",
+        "reply": {
+          "messageId": "1791137227.918459",
+          "conversationId": "C0C6FPES0G5",
+          "actorId": "U064CFNDJGK",
+          "threadId": "1791132786.447879",
+          "rootId": "1791132786.447879"
+        },
+        "replay": {
+          "kind": "provider-redelivery",
+          "resumeCursor": false,
+          "gapPossible": true
+        }
+      }
+    }
+  ],
+  "ordinarySourceCount": 32,
+  "ordinaryInboxAdmissions": 0,
+  "ordinaryChannelPlacements": 0,
+  "nativeThreadUniqueMessages": 18,
+  "outbox": {
+    "state": "provider-accepted",
+    "sourceEventId": "im-3ac411e4f15359a75249c09619c98015ab8b90c5205285ea541cdd915f89b9e7",
+    "reply": {
+      "providerId": "dsh-im/slack",
+      "accountRef": "slack_04c9e4cf1da45acd5089cf9b",
+      "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+      "platform": "slack",
+      "accountName": "BotHarness Slack QA",
+      "targetName": "botharness-im-qa-802",
+      "conversationId": "C0C6FPES0G5",
+      "route": {
+        "messageId": "1791138696.527059",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791132786.447879",
+        "rootId": "1791132786.447879"
+      }
+    },
+    "text": "BH819-FINAL-OK\n话题口令：ORCHID-819\n群口令：MAPLE-819\n页数：thread=2，group=2，nearby=2\n备注：thread 第 2 页、group 第 2 页、nearby 第 2 页均为末页（无 nextCursor），但 reported incomplete=true（thread omitted 3+2，group 0+2，nearby 0+10），存在省略覆盖。",
+    "receipt": {
+      "version": 1,
+      "messageId": "1791138734.760259",
+      "conversationId": "C0C6FPES0G5"
+    }
+  },
+  "firstDenseNearbyRead": [
+    {
+      "at": "2026-10-04T18:10:25.758Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "thread",
+      "outcome": "refused",
+      "sourceEventIds": [],
+      "omitted": 0,
+      "incomplete": true,
+      "reason": "history-unavailable"
+    },
+    {
+      "at": "2026-10-04T18:10:28.987Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "group",
+      "outcome": "read",
+      "sourceEventIds": [
+        "im-6c1b79f51dfbd6a0a49ecadb1260161a1a7ae22c89a854693bee8beb9ab911b1",
+        "im-119f7880c4f0880496203978ea36ca6b4f21cb630d2f89fb578276802146b9d7",
+        "im-abff87cd5ee2ae1b7d264d40b17c403987bb3b90de6f503a087818317769246b",
+        "im-05581bc0ce73e05bd18d0d53613c7ed3fda8c4d6ab5a84f319105eda1c931a1e",
+        "im-1938ba2c71ae888645644ff421cf864da76a176a9a4531500f3eff1d3e4fc3ec",
+        "im-1fc5a3831490c88a312434894a0bb207ff23305e5a36a5c0c43bd0d141971b4f",
+        "im-bfd11a0c3d0b65b7eff717bbf6095bd7779eee40328ba9f3258b26378a3756e8",
+        "im-a54b4a6186bee0f9dac49737f7a48a3bb25b70c232fe9c3722b6484c537e1d64",
+        "im-5a4b96bf1c02840098edf88e9c6af9241158964877eb56ac8702f2a15aaccbef",
+        "im-7b5fc7885338989a433a591d14d29419ac70ca31e3326d33425103ff5e3f3c54",
+        "im-a9e2405a5695ce8d4dc8a08522775cc5dcdc68404071fa6a91a485a3c98f8eff",
+        "im-1737616108290b3ca72887b9d7f09200dff8611c6cb0677fee7aa179406fc193",
+        "im-30c3502271111e151d98bd0f5c022db5abf3db210b54c7d9592fbd167fbfa022",
+        "im-e07f5e21275d85b1832a6df89242f058de6f714afdc916402e97f520879dc88b",
+        "im-cf811d5124b6d4be4e78a97c4ad981db7043028af3b8d18ec9315bf1327733f4",
+        "im-6313880a90784475d6f37bfdacc2580e066646354f5d60357b8d7ad459066d73",
+        "im-df26b98ada91993f0291b684bf213d142b21802c5a96c320be8073dab87cb30a",
+        "im-b2b0468d12854ad18c332d6baffba01c20ed2107b1ea510b58f59a503e8b5738",
+        "im-8d3956fba60bc2f00a4a43a3ad42fdfa17e6a6ca942d7ae003ecb536fd54308b",
+        "im-e09256da73cde58b6d232599fe89c52101e04b148e8f438c5fc844534a28ce8a"
+      ],
+      "omitted": 0,
+      "incomplete": true
+    },
+    {
+      "at": "2026-10-04T18:10:32.483Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "nearby",
+      "outcome": "read",
+      "sourceEventIds": [
+        "im-6c1b79f51dfbd6a0a49ecadb1260161a1a7ae22c89a854693bee8beb9ab911b1",
+        "im-119f7880c4f0880496203978ea36ca6b4f21cb630d2f89fb578276802146b9d7",
+        "im-abff87cd5ee2ae1b7d264d40b17c403987bb3b90de6f503a087818317769246b",
+        "im-05581bc0ce73e05bd18d0d53613c7ed3fda8c4d6ab5a84f319105eda1c931a1e",
+        "im-1938ba2c71ae888645644ff421cf864da76a176a9a4531500f3eff1d3e4fc3ec",
+        "im-1fc5a3831490c88a312434894a0bb207ff23305e5a36a5c0c43bd0d141971b4f",
+        "im-bfd11a0c3d0b65b7eff717bbf6095bd7779eee40328ba9f3258b26378a3756e8",
+        "im-a54b4a6186bee0f9dac49737f7a48a3bb25b70c232fe9c3722b6484c537e1d64",
+        "im-5a4b96bf1c02840098edf88e9c6af9241158964877eb56ac8702f2a15aaccbef",
+        "im-7b5fc7885338989a433a591d14d29419ac70ca31e3326d33425103ff5e3f3c54",
+        "im-a9e2405a5695ce8d4dc8a08522775cc5dcdc68404071fa6a91a485a3c98f8eff",
+        "im-1737616108290b3ca72887b9d7f09200dff8611c6cb0677fee7aa179406fc193",
+        "im-30c3502271111e151d98bd0f5c022db5abf3db210b54c7d9592fbd167fbfa022",
+        "im-e07f5e21275d85b1832a6df89242f058de6f714afdc916402e97f520879dc88b",
+        "im-cf811d5124b6d4be4e78a97c4ad981db7043028af3b8d18ec9315bf1327733f4",
+        "im-6313880a90784475d6f37bfdacc2580e066646354f5d60357b8d7ad459066d73",
+        "im-df26b98ada91993f0291b684bf213d142b21802c5a96c320be8073dab87cb30a",
+        "im-b2b0468d12854ad18c332d6baffba01c20ed2107b1ea510b58f59a503e8b5738",
+        "im-8d3956fba60bc2f00a4a43a3ad42fdfa17e6a6ca942d7ae003ecb536fd54308b",
+        "im-e09256da73cde58b6d232599fe89c52101e04b148e8f438c5fc844534a28ce8a"
+      ],
+      "omitted": 0,
+      "incomplete": true
+    },
+    {
+      "at": "2026-10-04T18:10:38.771Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "thread",
+      "outcome": "refused",
+      "sourceEventIds": [],
+      "omitted": 0,
+      "incomplete": true,
+      "reason": "history-unavailable"
+    },
+    {
+      "at": "2026-10-04T18:10:41.967Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "group",
+      "outcome": "read",
+      "sourceEventIds": [
+        "im-812441d327abd23d7dae53746b49681073b07a4df670f9f09a87909f609ad505",
+        "im-50929e6639e358e1ac506c9e9e55b0daa30e23929b35d106f017481f07e8e91f",
+        "im-b754a8b93fa8e15e3f4782dfb6ff837328d1aae8788426e9c89510b31b589a36"
+      ],
+      "omitted": 2,
+      "incomplete": true
+    },
+    {
+      "at": "2026-10-04T18:10:45.916Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "nearby",
+      "outcome": "read",
+      "sourceEventIds": [
+        "im-812441d327abd23d7dae53746b49681073b07a4df670f9f09a87909f609ad505"
+      ],
+      "omitted": 0,
+      "incomplete": false
+    },
+    {
+      "at": "2026-10-04T18:11:13.668Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "thread",
+      "outcome": "refused",
+      "sourceEventIds": [],
+      "omitted": 0,
+      "incomplete": true,
+      "reason": "history-unavailable"
+    },
+    {
+      "at": "2026-10-04T18:11:23.858Z",
+      "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "scope": "thread",
+      "outcome": "refused",
+      "sourceEventIds": [],
+      "omitted": 0,
+      "incomplete": true,
+      "reason": "history-unavailable"
+    }
+  ],
+  "validation": {
+    "appTests": {
+      "pass": 2353,
+      "skip": 9
+    },
+    "providerTests": {
+      "pass": 3536,
+      "fail": 0,
+      "skip": 0
+    },
+    "providerFocused": 21
+  },
+  "notes": [
+    "The first model attempt exposed pinned-root pagination and refused thread context; its audit is retained.",
+    "Final clean attempt read thread/group/nearby in two pages each. Nearby returned ten closest older channel messages; it does not claim full child-thread coverage.",
+    "Bot/subtype/unsupported or budget-excluded rows remain omitted; absence of nextCursor means exhausted pagination, not complete platform coverage.",
+    "Initial provider full suite hit an unrelated Matrix teardown ENOTEMPTY; unmodified focused and full reruns passed."
+  ]
+}
