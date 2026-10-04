@@ -24,21 +24,12 @@
       },
       {
         "type": "review-refused",
-        "missing": [
-          "Street address required"
-        ]
+        "missing": ["Street address required"]
       }
     ],
-    "pageReads": [
-      "desk"
-    ],
-    "searchQueries": [
-      "",
-      "Aurora"
-    ],
-    "cityQueries": [
-      "Tokyo"
-    ]
+    "pageReads": ["desk"],
+    "searchQueries": ["", "Aurora"],
+    "cityQueries": ["Tokyo"]
   },
   "finalObserved": {
     "sku": "AUR-LIMITED",
