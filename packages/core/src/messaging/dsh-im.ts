@@ -453,7 +453,7 @@ export function createDshImProvider(
           },
         }
       : {}),
-    ...(platform === 'feishu' && typeof host.historyChecked === 'function'
+    ...(typeof host.historyChecked === 'function'
       ? {
           async history(input: Parameters<NonNullable<MessagingProvider['history']>>[0]) {
             input.signal.throwIfAborted();
@@ -517,6 +517,7 @@ export function createDshImProvider(
               throw new MessagingError('untrusted-source');
             for (const event of parsed.events) {
               if (
+                event.channel !== platform ||
                 event.botId !== input.accountRef ||
                 event.fingerprint !== input.fingerprint ||
                 event.conversation.kind !== 'group' ||

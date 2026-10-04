@@ -19,6 +19,11 @@
 
 - 新增产品产物构建与隔离安装路径，在一次产品安装中组合 Core、Client 和独立版本的已验证 IM Provider；初始不连接账号，Provider 随产品更新，公开 npm 发布仍是独立的发布操作（[#823](https://github.com/BotHarness/BotHarness/issues/823)、[打包指南](docs/product-im-installation.md)）。
 
+- Channel sidebar 编辑模式可隐藏或恢复指定项目，完成时一起保存显示与排序偏好，取消时一起丢弃，并可通过恢复默认布局重新显示全部项目（[#809](https://github.com/BotHarness/BotHarness/issues/809)）。
+
+- PersonaBot 可从已授权 Slack 来源主动读取有界频道、附近及原生话题 Human 文本，完整翻页读取密集五分钟窗口，并在来源详情查看上下文；历史读取不触发 Inbox 收件（[#819](https://github.com/BotHarness/BotHarness/issues/819)）。
+
+- 像素家族 PersonaBot 头像改为 32×32 Q 版像素画（更大的头和眼睛、头发和衣服分层明暗、背景取头发同色系的浅色），新增发型、服装、头饰和 12 个可选预设；思考和工作时整个像素头像会在 0.8 秒内变形成与当前 DSH 工具对应的像素符号（读文件、新建、修改、执行命令、搜代码、搜网页、抓取、提问、待办、分身、工作流、目标、展示、待审批等），颜色取自头发，至少停留 0.5 秒，回合结束后变回脸；侧栏联系人行的活动指示和待处理数量移到名字同一行最右侧，不再压在头像上（[#800](https://github.com/BotHarness/BotHarness/issues/800)）。
 - 新增使用 PersonaBot 独立绑定身份的 Slack 文字 @ 收件与原生话题回复路径，沿用 canonical Inbox、Profile 身份／频道连接器表和来源详情；上下文、附件及普通消息策略继续独立资格验证（[#802](https://github.com/BotHarness/BotHarness/issues/802)，[ADR-0126](docs/adr/0126-slack-text-intake-uses-exclusive-checked-provider.md)）。
 - Host Plugin 可订阅 PersonaBot 已提交的公开输出及可信 Session／Channel 引用；消费者失败不回滚消息或阻断其他监听者，重启不重放通知（[#125](https://github.com/BotHarness/BotHarness/issues/125)）。
 
@@ -339,6 +344,8 @@
 
 ### Fixed
 
+- Channel sidebar 编辑时不显示展开箭头，整行可拖动；拖动时即时预览草稿顺序并显示清晰插入线，标签区域可接收落点，取消拖拽恢复拖动前的草稿（[#808](https://github.com/BotHarness/BotHarness/issues/808)）。
+
 - 修复 Container Computer 全新 home 存储首次启动时的面板尺寸，保留已有自定义偏好，并使用实际配置的存储（[#797](https://github.com/BotHarness/BotHarness/issues/797)）。
 
 - 修复 Browser Stop 与空闲关闭的授权撤销：先撤销受影响 Session 的权限，再清理资源，待审批的旧请求无法重启已停止的 profile；清理失败时保留可见的停止重试入口，后续空闲清理仍可重试（[#768](https://github.com/BotHarness/BotHarness/issues/768)）。
@@ -466,6 +473,8 @@
 - 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
 
 ### Documentation
+
+- 新增已核验的 [Assignment Report 批次指南](docs/dev/guides/assignment-report-harvest.md)，包含原生 harvest 证明、来源历史保留、Host 冷启动验收及 Human 来源导航核验（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
 
 - 新增已核验的 [Assignment 停止与恢复指南](docs/dev/guides/assignment-stop-recovery.md)，说明待处理审批、持久 stopped 状态及 Host 重启后的新工作流程（[#81](https://github.com/BotHarness/BotHarness/issues/81)）。
 

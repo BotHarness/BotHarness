@@ -22,6 +22,30 @@ Before each reply, the same Bot verifies current channel membership and reads th
 
 Client Profile identity and connector tables and source details reuse existing components and localized platform labels. Built-in preferences are resolved per platform; Slack does not inherit the Human's mutable Lark defaults. The global settings editor remains qualified for Lark in this slice. Ordinary-message intake, editable Slack platform defaults, bounded context, files and proactive receipt capabilities are withheld until separately qualified tracer bullets.
 
+## Follow-up: bounded context (#819)
+
+The first text tracer is extended with explicitly requested, source-anchored channel,
+nearby and native-thread reads through the same checked Provider. Each page requalifies
+its own account, active exclusive Consumer lease, joined public channel and exact native
+source author/thread. The adapter separately handles newest-first channel history and
+chronological replies within native thread pages. Time-bounded Slack cursors can traverse older reply chunks while repeating a root outside the requested reply count; the adapter reserves root capacity, returns it once and rejects overlapping/reversed chunk progress. Channel/nearby coverage follows Slack channel history;
+it does not claim to include every child reply from every thread.
+
+Nearby reads paginate all supported Human text in the inclusive five-minute window and
+supplement sparse sides to configurable 0–20 counts (default 10 before / 5 after).
+Continuations are signed by the current runtime and bound to account/source/query, with
+at most 20 native candidate timestamps and no cached transcript bodies or credentials.
+After-window selection may require empty continuation pages while newest-first history
+is scanned towards the boundary; selected closest candidates are re-read before return.
+Stopping the runtime invalidates these cursors. Each result page is bounded to 20 native
+items, respects cancellation, and reports provider-visible text coverage and omissions.
+
+Core retains only returned history as canonical Source Events and source-read evidence,
+without Inbox Admission, Channel placement or wake. A character-budget re-read compares
+page content rather than renewed opaque cursor bytes; changed messages remain stale.
+No new durable table or shared transcript store is introduced. Files, ordinary-message
+subscription, private/DM reads and editable platform preferences remain separate slices.
+
 ## Consequences
 
 One canonical source and Outbox continue to serve all supported Providers; no new database authority or schema migration is required for this text slice. Native Slack routing is adapted at the Provider boundary rather than imposed on Lark or on platforms without threads. Socket redelivery and uncertain sends remain explicit reliability boundaries. A passing automated regression is preparatory evidence; real Slack App installation, a fresh model round trip, screenshots and Human QA are still required before issue completion.
@@ -30,5 +54,6 @@ One canonical source and Outbox continue to serve all supported Providers; no ne
 
 - [Socket Mode](https://docs.slack.dev/apis/events-api/using-socket-mode/)
 - [Bot identity](https://docs.slack.dev/reference/methods/bots.info/)
+- [Channel history](https://docs.slack.dev/reference/methods/conversations.history/)
 - [Thread reads](https://docs.slack.dev/reference/methods/conversations.replies/)
 - [Native message replies](https://docs.slack.dev/reference/methods/chat.postMessage/)

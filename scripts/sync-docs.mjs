@@ -219,6 +219,20 @@ export const PAGES = [
     },
   },
   {
+    slug: 'dev/guides/assignment-report-harvest',
+    order: 4,
+    en: {
+      source: 'docs/dev/guides/assignment-report-harvest.md',
+      title: 'Assignment Report batches',
+      description: 'Verified progress batching, native harvest and independent source history.',
+    },
+    zh: {
+      source: 'docs/dev/guides/assignment-report-harvest.zh.md',
+      title: 'Assignment Report 批次',
+      description: '已核验的 progress 合并、原生 harvest 与独立来源历史。',
+    },
+  },
+  {
     slug: 'dev/guides/assignment-stop-recovery',
     order: 3,
     en: {

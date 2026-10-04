@@ -19,6 +19,11 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Added a product-artifact build and isolated installation path composing Core, Client and an independently versioned qualified IM Provider, with disconnected initial accounts and product-managed Provider updates; public npm publication remains a separate release action ([#823](https://github.com/BotHarness/BotHarness/issues/823), [packaging guide](docs/product-im-installation.md)).
 
+- Channel sidebar edit mode can hide or restore individual items, saving visibility and order together with Done, discarding both with Cancel, and recovering all items through Restore defaults ([#809](https://github.com/BotHarness/BotHarness/issues/809)).
+
+- PersonaBots can explicitly read bounded Slack channel, nearby and native-thread Human text from an authorized source, paginate dense five-minute windows and inspect context in source details without historical Inbox admission ([#819](https://github.com/BotHarness/BotHarness/issues/819)).
+
+- Pixel-family PersonaBot avatars are redrawn as 32×32 chibi pixel art (bigger heads and eyes, layered hair and clothes shading, a solid tile in the hair colour family) with new hairstyles, outfits and headwear and twelve selectable presets, and while thinking or working the whole pixel Avatar morphs (0.8s) into a pixel symbol in its hair colour bound to the current DSH tool (read, write, edit, bash, grep, web search/fetch, ask_user_question, todo, subagent, workflow, goal, present, approval and more), holding at least 0.5s and returning to the face when the turn ends; sidebar contact rows show the activity indicator and attention count beside the name instead of on the avatar ([#800](https://github.com/BotHarness/BotHarness/issues/800)).
 - Added a checked Slack text-mention path from an independently bound PersonaBot identity into its canonical Inbox and original native thread reply, reusing Profile identity/connector tables and source details; context, attachments and ordinary-message policies remain separate qualification slices ([#802](https://github.com/BotHarness/BotHarness/issues/802), [ADR-0126](docs/adr/0126-slack-text-intake-uses-exclusive-checked-provider.md)).
 - Host Plugins can subscribe to PersonaBot committed public output with trusted Session/Channel references; failed consumers cannot roll back messages or block other listeners, and restart does not replay notifications ([#125](https://github.com/BotHarness/BotHarness/issues/125)).
 
@@ -339,6 +344,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Channel sidebar edit mode omits expansion chevrons and supports dragging the whole row; dragging now previews the actual draft order with a clear insertion line, accepts row labels as drop surfaces and restores the pre-drag draft on cancellation ([#808](https://github.com/BotHarness/BotHarness/issues/808)).
+
 - Fixed Container Computer panel sizing on the first start of a fresh home store, preserving existing custom preferences and using the configured storage ([#797](https://github.com/BotHarness/BotHarness/issues/797)).
 
 - Fixed Browser Stop and idle shutdown to revoke affected Session authorization before cleanup, so a pending approval cannot restart the stopped profile; cleanup failures retain a visible Stop recovery path and later idle retries remain possible ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
@@ -466,6 +473,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
 
 ### Documentation
+
+- Added a verified [Assignment Report batch guide](docs/dev/guides/assignment-report-harvest.md), with native harvest evidence, retained source history, cold Host restart acceptance and Human source-navigation checks ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 
 - Added a verified [Assignment stop and recovery guide](docs/dev/guides/assignment-stop-recovery.md), including pending approvals, persistent stopped state and new work after Host restart ([#81](https://github.com/BotHarness/BotHarness/issues/81)).
 

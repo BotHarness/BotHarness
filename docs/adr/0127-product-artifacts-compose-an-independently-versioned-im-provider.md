@@ -23,7 +23,7 @@ application-defined facts owned by BotHarness. Package composition grants no
 access and creates no connected account.
 
 The first input is the compiled maintained fork at
-[`a0227c44d8aa217361a890f79990a5c47edd6b55`](https://github.com/DoodleBears/dsh-im/commit/a0227c44d8aa217361a890f79990a5c47edd6b55),
+[`b020d3bab941aeb9acc303b719e691554ef10ec4`](https://github.com/DoodleBears/dsh-im/commit/b020d3bab941aeb9acc303b719e691554ef10ec4),
 on DSH `0.2.0-rc.1`. The builder checks the fixed runtime, package manifest and
 build lock digests before staging. It changes the package/Client registration
 identity and replaces standalone update controls with product-managed updates;

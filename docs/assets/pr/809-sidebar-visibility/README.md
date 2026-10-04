@@ -1,0 +1,11 @@
+# Channel sidebar visibility evidence
+
+Real installed DSH 0.2.0-rc.1 Web Profile, 1440 × 900, canonically created Sidebar Visibility QA / Sidebar Visibility Sibling PersonaBots and Sidebar Visibility QA Group. Before is the drag-preview slice (#813); After adds this visibility slice. Chinese and English use the same actions and canonical data, in light and dark themes. No RPC result was mocked.
+
+Open the QA DM → gear → Edit sidebar. Each available entry has a Lucide Eye / EyeOff button. Hide Memory files and Computer, move Sessions first and drag the hidden Memory files row below Memory evolution: the hidden rows stay recoverable in the draft. Cancel restores both choices; repeat with Done to see only the chosen visible entries. Other PersonaBot DMs and reload retain the saved preference; groups use a separate layout. Restore defaults is a draft operation, and even an all-hidden sidebar keeps its gear available.
+
+Mounted regressions cover atomic layout publication, cancel/interruption, defaults, browser persistence, separate scopes, malformed/bounded/legacy preferences, plugin registration identities, and the existing expandable permission callback while hidden. Real runtime additionally revoked Computer Access through the Host while its row was hidden, reloaded through the existing header permission-loading path, then re-showed the disabled/collapsed row. Computer's existing header store loads permission at mount and on its own action response; this evidence does not claim an external permission SSE subscription was added.
+
+The screenshots show before/after editor controls, hidden draft rows, saved presentation, shared sibling DM, separate group, all-hidden recovery and English. Width, terminology, Host authorization and resource lifecycle are not mutated by visibility choices.
+
+Accepted edit-mode follow-up is integrated from #813: no expansion chevrons, whole-row pointer gestures, native handles and keyboard moves. Hidden rows also accept whole-row gestures; Eye/EyeOff controls are excluded from drag initiation and remain independently clickable. Real mouse and mounted regressions cover that interaction with the latest settings submenu preview.
