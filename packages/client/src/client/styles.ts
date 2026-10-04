@@ -3521,6 +3521,16 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
 .bh-sidebar-settings {
   position: static;
 }
+.bh-sidebar-settings-list > [role="presentation"] { overflow: visible; }
+.bh-sidebar-settings-group { position: relative; }
+.bh-sidebar-settings-trigger { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 30px; padding: 4px 8px; border: 0; border-radius: var(--dsw-radius-md); background: transparent; color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 20px; text-align: left; cursor: pointer; }
+.bh-sidebar-settings-trigger > span { flex: 1; white-space: nowrap; }
+.bh-sidebar-settings-trigger:hover, .bh-sidebar-settings-trigger:focus-visible { background: var(--dsw-alias-interactive-bg-hover); outline: none; }
+.bh-sidebar-settings-options { position: absolute; top: 0; right: calc(100% + 10px); z-index: 1101; min-width: 163px; padding: 4px; box-sizing: border-box; --dsw-elevation-stroke-color: var(--dsw-alias-border-l1); box-shadow: var(--dsw-elevation-prominent); }
+.bh-sidebar-settings-options::before { content: ''; position: absolute; top: 0; bottom: 0; right: -10px; width: 10px; }
+@media (max-width: 480px) {
+  .bh-sidebar-settings-options { top: 100%; right: 0; }
+}
 .bh-sidebar-settings-label {
   padding: 8px 10px 4px;
   color: var(--bh-overview-muted);
