@@ -1,0 +1,59 @@
+{
+  "runtimeRevision": "d993f57448a48738cc365b9d601f459f67be35af",
+  "platform": "macOS arm64 Host / Docker linux arm64",
+  "image": {
+    "digest": "lscr.io/linuxserver/webtop@sha256:c4ceafc1c48ed9a61771345c74568d3bff6438802f0d89e9ebd9846e8404f696",
+    "id": "sha256:896878e282e35a09d87e28c114fc13a9f73edc1dd13f863d57c537dc29df86a1",
+    "size": 3293386912,
+    "architecture": "arm64",
+    "os": "linux",
+    "sourceRevision": "9fb3ff5479a0afcd840711c3a8de4d05f3170bf5",
+    "version": "621de5cf-ls1"
+  },
+  "browsersBefore": 10,
+  "archiveBrowserProfile": {
+    "exitType": "Crashed"
+  },
+  "exportMs": 4326,
+  "importMs": 4076,
+  "archiveBytes": 134062080,
+  "workspaceFiles": [
+    {
+      "path": "workspace/205-qa/marker.txt",
+      "originalSha256": "3eadd0562e8d3718bafd6e509f1704a6ba393948a1ff24a20ba046def6c90aaf",
+      "archivedSha256": "3eadd0562e8d3718bafd6e509f1704a6ba393948a1ff24a20ba046def6c90aaf",
+      "restoredSha256": "3eadd0562e8d3718bafd6e509f1704a6ba393948a1ff24a20ba046def6c90aaf"
+    },
+    {
+      "path": "workspace/205-qa/index.html",
+      "originalSha256": "3f25ddf166e69492410e45ddbee61f16b7e05503222ec0770d0ea28fbbd175cc",
+      "archivedSha256": "3f25ddf166e69492410e45ddbee61f16b7e05503222ec0770d0ea28fbbd175cc",
+      "restoredSha256": "3f25ddf166e69492410e45ddbee61f16b7e05503222ec0770d0ea28fbbd175cc"
+    }
+  ],
+  "postExportFixtureChanged": true,
+  "restartAfterExport": true,
+  "runningAfterImport": true,
+  "seeds": {
+    "workspace": true,
+    "shortcut": true,
+    "sessionRestore": true
+  },
+  "refusals": [
+    {
+      "path": "export",
+      "code": "authorize-required"
+    },
+    {
+      "path": "import",
+      "code": "authorize-required"
+    },
+    {
+      "path": "import",
+      "code": "invalid-archive"
+    }
+  ],
+  "modelDriven": false,
+  "warmExistingContainerStartMs": 2689,
+  "viewer": "Real authenticated shared Computer Viewer, watch-only; Chromium explicitly relaunched after import"
+}

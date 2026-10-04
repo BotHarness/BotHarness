@@ -23,3 +23,9 @@ This page preserves Computer implementation constraints formerly carried by sour
 - `packages/computer/src/client/index.tsx` keeps its sidebar registry types structurally local so the Computer bundle remains self-contained. `BH` is the only table of DSH `--dsw-*` token aliases and audited light-theme fallbacks. `VIDEO_SURFACE` holds the fixed black/white stream letterbox and spinner colours in either theme. `packages/computer/test/client-tokens.test.ts` parses declarations to enforce that themed chrome uses `BH` and has no inline colours or legacy `--dsh-*` vars.
 
 The relevant checks are under `packages/computer/test/`. Runtime verification should start an isolated DSH profile, open the Computer sidebar entry, exercise start, viewer Open/collapse, settings, and stop, and check for one iframe, a live stream, and no browser errors. A usable local Docker daemon and Computer image are prerequisites for the full desktop path.
+
+## Image and snapshot qualification
+
+The [Computer image Spike report](../research/2026-10-04-computer-image-spike-qualification.md) reconciles upstream-image initialization with the delivered Local/Container targets. Container continues to use upstream webtop; boot-time home seeds remain best effort. A configured immutable digest is a deployment choice, not an automatic update system. Registry compressed layer bytes and local image size measure different things.
+
+Durable files belong under `/config/workspace`; browser state remains under `/config/.config/chromium`. Export attempts bounded browser quiesce before stopping and archiving the volume, with the accepted crash-recovery fallback. A completed archive or restored workspace does not guarantee every browser/application transaction flushed cleanly. The report records a real archive with Chromium `exit_type: Crashed` and independently verified restored fixture hashes.
