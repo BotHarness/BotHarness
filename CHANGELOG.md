@@ -19,7 +19,6 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - PersonaBot Profile can switch the avatar between the pixel family and a new original line family (bold strokes on a coloured tile) with its own eyes and mouths (including kaomoji such as > <, T T, ω and ▽), brows, nose, cheeks, glasses, manga symbols (sweat, anger vein, gloom lines, sparkle and more), background/line colors and bounded spacing, height and tilt; line avatars save, snapshot, animate, show independent approval attention and recover through the same path; large avatars of both families show a manga `!?` mark while action is needed ([#753](https://github.com/BotHarness/BotHarness/issues/753)).
 
-
 - Browser observations now include bounded form values and control states; the optional Local agent-browser snapshot removes repeated scaffolding while retaining page/dialog content and exact action refs ([#787](https://github.com/BotHarness/BotHarness/issues/787)).
 
 - Added an optional Local agent-browser trial driver behind the existing Browser permissions and Human controls; the current driver remains the default ([#767](https://github.com/BotHarness/BotHarness/issues/767), [ADR-0124](docs/adr/0124-local-browser-drivers-share-host-authority.md)).
