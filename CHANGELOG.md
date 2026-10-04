@@ -462,7 +462,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
-- Added a screenshot-based Lark / Feishu setup guide covering application connection, PersonaBot identity, group authorization, Channel connectors and observable first-message verification ([#814](https://github.com/BotHarness/BotHarness/issues/814), [guide](docs/lark-connection.md)).
+- Added a Lark / Feishu setup guide with compressed WebP screenshots and an annotated walkthrough covering application connection, PersonaBot identity, group authorization, Channel connectors and observable first-message verification ([#814](https://github.com/BotHarness/BotHarness/issues/814), [guide](docs/lark-connection.md)).
 
 - Documented current Computer deployment/image choices, durable workspace and export recovery limits with real Docker verification ([#205](https://github.com/BotHarness/BotHarness/issues/205), [report](docs/research/2026-10-04-computer-image-spike-qualification.md)).
 
