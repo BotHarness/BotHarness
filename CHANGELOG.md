@@ -314,6 +314,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Concurrent PersonaBot Tool activity now orders opaque detail references before bounding them, so the same active set produces the same lookup references regardless of arrival order ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - Group Profile member message activity identifies external traffic by its platform and source group name, combining senders within one source while keeping different sources separate ([#769](https://github.com/BotHarness/BotHarness/issues/769)).
 
 - Numeric PersonaBot avatar badges remain fully visible in the collapsed app Rail, including the first and pinned Channel rows, without changing native sidebar scrolling ([#744](https://github.com/BotHarness/BotHarness/issues/744)).
