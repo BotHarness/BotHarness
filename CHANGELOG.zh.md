@@ -17,6 +17,8 @@
 
 ### Added
 
+- 线条家族 PersonaBot 头像在活动切换时会短暂散成固定数量的点，聚成新状态的符号（?、放大镜、汗滴、!、♪、微笑），然后恢复原本的五官；过渡可中途重定向，小头像更短，开启减少动态效果时跳过（[#754](https://github.com/BotHarness/BotHarness/issues/754)）。
+
 - PersonaBot Profile 可在像素家族与新的原创线条家族（彩色圆角底上的粗线条五官）之间切换；线条家族有独立的眼睛和嘴（含 > <、T T、ω、▽ 等颜文字）、眉毛、鼻子、脸颊、眼镜、漫符（汗滴、怒筋、阴沉竖线、闪光等）、底色与线条颜色，以及有界的间距、高低和倾斜，并通过同一链路保存、生成快照、播放动作、显示独立审批提示并在重启后恢复；需要你处理时，两个家族的大头像都会出现「！？」漫符（[#753](https://github.com/BotHarness/BotHarness/issues/753)）。
 
 - Browser 观察新增有界字段值与控件状态；可选 Local agent-browser 快照压缩重复结构，保留页面／弹窗内容和精确操作引用（[#787](https://github.com/BotHarness/BotHarness/issues/787)）。

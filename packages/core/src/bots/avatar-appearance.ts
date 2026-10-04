@@ -4,6 +4,7 @@ import {
   lineAvatarSvg,
   type LineAvatarRecipe,
 } from './avatar-line.js';
+export { LINE_TRANSITION_TARGETS } from './avatar-line.js';
 import { seededRandom } from './avatar-random.js';
 
 export const AVATAR_PARTS = {

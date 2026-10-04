@@ -5,6 +5,8 @@ import {
   DEFAULT_LINE_RECIPE,
   LINE_PARTS,
   LINE_RANGES,
+  LINE_TRANSITION_DOTS,
+  LINE_TRANSITION_TARGETS,
   isLineAvatarRecipe,
   lineAvatarSvg,
   seededLineRecipe,
@@ -68,5 +70,24 @@ describe('line Avatar family', () => {
       const bytes = Buffer.from(derived!.avatar.split(',')[1]!, 'base64');
       expect(bytes.byteLength).toBeLessThanOrEqual(MAX_PERSONA_BOT_AVATAR_BYTES);
     }
+  });
+
+  it('carries a bounded dot layer whose targets cover every presentation', () => {
+    for (const recipe of [DEFAULT_LINE_RECIPE, ...extremes]) {
+      const layer = lineAvatarSvg(recipe).match(
+        /<g data-avatar-transition="" opacity="0"[^>]*>(.*?)<\/g>/u,
+      );
+      expect(layer).not.toBeNull();
+      expect(layer![1]!.match(/<circle/gu)).toHaveLength(LINE_TRANSITION_DOTS);
+    }
+    for (const key of [
+      'idle',
+      'thinking-dots',
+      'searching',
+      'coding',
+      'executing',
+      'generic-working',
+    ])
+      expect(LINE_TRANSITION_TARGETS[key], key).toHaveLength(LINE_TRANSITION_DOTS);
   });
 });

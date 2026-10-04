@@ -165,6 +165,93 @@ const MARKS: Record<keyof typeof MARK_COLORS, string> = {
     '<path d="M43.5 3.5L43.5 10.5M43.5 3.5Q45.5 4.5 46.5 6.5"/><ellipse cx="42" cy="10.8" rx="1.8" ry="1.3" fill="#8a8792"/>',
 };
 
+export const LINE_TRANSITION_DOTS = 12;
+
+type Point = readonly [number, number];
+const arc = (cx: number, cy: number, r: number, from: number, to: number, n: number): Point[] =>
+  Array.from({ length: n }, (_, i) => {
+    const a = ((from + ((to - from) * i) / (n - 1)) * Math.PI) / 180;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as Point;
+  });
+
+export const LINE_TRANSITION_TARGETS: Record<string, readonly Point[]> = {
+  'thinking-dots': [...arc(24, 16, 6, 180, 405, 8), [24.5, 24.5], [24, 27.5], [24, 33], [24, 33]],
+  searching: [...arc(22, 21, 7, 0, 320, 9), [28, 27], [30.5, 29.5], [33, 32]],
+  coding: [
+    [24, 10],
+    [27, 15],
+    [30, 20],
+    [31, 25],
+    [29.5, 30],
+    [26, 33],
+    [22, 33],
+    [18.5, 30],
+    [17, 25],
+    [18, 20],
+    [21, 15],
+    [21.5, 26],
+  ],
+  executing: [
+    [24, 9],
+    [24, 12],
+    [24, 15],
+    [24, 18],
+    [24, 21],
+    [24, 24],
+    [24, 27],
+    [24, 34],
+    [22.5, 34],
+    [25.5, 34],
+    [16.5, 12],
+    [31.5, 12],
+  ],
+  'generic-working': [
+    [28, 10],
+    [28, 14],
+    [28, 18],
+    [28, 22],
+    [28, 26],
+    [31, 12],
+    [33.5, 15],
+    [26, 30],
+    [23.5, 31],
+    [22, 29],
+    [24.5, 27.5],
+    [27, 28.5],
+  ],
+  idle: Array.from({ length: 12 }, (_, i) => {
+    const t = i / 11;
+    return [13 + t * 22, 24 + 7 * Math.sin(Math.PI * t)] as Point;
+  }),
+};
+
+function transitionStarts(recipe: LineAvatarRecipe): Point[] {
+  const y = EYE_Y + recipe.height;
+  const half = 8.5 + recipe.spacing;
+  const lx = CX - half;
+  const rx = CX + half;
+  const points: Point[] = [
+    [lx - 2, y],
+    [lx, y],
+    [lx + 2, y],
+    [rx - 2, y],
+    [rx, y],
+    [rx + 2, y],
+    [lx, y - 6.5],
+    [rx, y - 6.5],
+    [CX, y + 6],
+    [CX - 3, y + 16],
+    [CX, y + 17],
+    [CX + 3, y + 16],
+  ];
+  const pivotY = y + 6;
+  const a = (recipe.tilt * Math.PI) / 180;
+  return points.map(([px, py]) => [
+    CX + (px - CX) * Math.cos(a) - (py - pivotY) * Math.sin(a),
+    pivotY + (px - CX) * Math.sin(a) + (py - pivotY) * Math.cos(a),
+  ]);
+}
+
 const ATTENTION_MARK =
   '<g data-avatar-attention-mark="" opacity="0" fill="none" stroke="#e2565f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.5L5.5 9.5"/><circle cx="5.5" cy="12.5" r=".7" fill="#e2565f"/><path d="M8.5 5.2Q8.5 3.2 10.6 3.2Q12.7 3.2 12.7 5.2Q12.7 6.9 10.6 7.8L10.6 9.6"/><circle cx="10.6" cy="12.5" r=".7" fill="#e2565f"/></g>';
 
@@ -430,6 +517,9 @@ export function lineAvatarSvg(
     '<g class="bh-illustrated-body"></g>',
     head(base),
     turns,
+    `<g data-avatar-transition="" opacity="0" fill="${ink}">${transitionStarts(recipe)
+      .map(([x, y]) => `<circle cx="${fmt(x)}" cy="${fmt(y)}" r="1.7"/>`)
+      .join('')}</g>`,
     `<g class="bh-illustrated-marks">${marks}${ATTENTION_MARK}</g>`,
     '</svg>',
   ].join('');

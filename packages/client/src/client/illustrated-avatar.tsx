@@ -1,7 +1,8 @@
-import { useMemo, type ReactElement } from 'react';
+import { useMemo, useRef, type ReactElement } from 'react';
 import {
   AVATAR_TURNS,
   avatarSvg,
+  LINE_TRANSITION_TARGETS,
   type AvatarRecipe,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -122,8 +123,16 @@ export function IllustratedAvatar({
     () => avatarSvg(recipe, turning ? { turns: AVATAR_TURNS } : {}),
     [recipe, turning],
   );
+  const presentation =
+    state === 'working' ? effect : state === 'thinking' ? 'thinking-dots' : 'idle';
+  const shown = useRef<string | undefined>(undefined);
   const mount = useMountedResource<HTMLSpanElement>(
     (node) => {
+      const previous = shown.current;
+      shown.current = presentation;
+      let pendingTransition = previous !== undefined && previous !== presentation;
+      const dotLayer = node.querySelector<SVGGElement>('[data-avatar-transition]');
+      const dots = dotLayer ? [...dotLayer.querySelectorAll<SVGCircleElement>('circle')] : [];
       const head = node.querySelector<SVGGElement>('.bh-illustrated-head');
       const gaze = node.querySelector<SVGGElement>('.bh-illustrated-gaze');
       const blink = node.querySelector<SVGGElement>('.bh-illustrated-blink');
@@ -141,16 +150,24 @@ export function IllustratedAvatar({
       const sync = () => {
         const start = getComputedStyle(head).transform;
         const gazeStart = getComputedStyle(gaze).transform;
+        const dotStarts = dots.map((dot) => getComputedStyle(dot).transform);
+        const layerStart = dotLayer ? getComputedStyle(dotLayer).opacity : '0';
+        const headStart = getComputedStyle(head).opacity;
         stop();
         head.style.transform = 'none';
         gaze.style.transform = 'none';
+        head.style.opacity = '';
+        if (dotLayer) dotLayer.style.opacity = '';
+        for (const dot of dots) dot.style.transform = '';
         if (
           disposed ||
           !visible ||
           document.hidden ||
           document.documentElement.dataset['botharnessMotion'] === 'reduce'
-        )
+        ) {
+          pendingTransition = false;
           return;
+        }
         const compact = size <= 64;
         const enter = head.animate([{ transform: start || 'none' }, { transform: 'none' }], {
           duration: 120,
@@ -162,10 +179,53 @@ export function IllustratedAvatar({
           { duration: 120, easing: 'steps(2, end)' },
         );
         animations.add(gazeEnter);
-        Promise.all([enter.finished, gazeEnter.finished])
+        const transition: Animation[] = [];
+        if (pendingTransition && dotLayer && dots.length) {
+          pendingTransition = false;
+          const targets = LINE_TRANSITION_TARGETS[presentation] ?? LINE_TRANSITION_TARGETS['idle']!;
+          const duration = compact ? 450 : 900;
+          const reach = compact ? 0.55 : 1;
+          transition.push(
+            dotLayer.animate(
+              [
+                { offset: 0, opacity: Number(layerStart) || 0 },
+                { offset: 0.12, opacity: 1 },
+                { offset: 0.88, opacity: 1 },
+                { offset: 1, opacity: 0 },
+              ],
+              { duration, easing: 'ease-in-out' },
+            ),
+            head.animate(
+              [
+                { offset: 0, opacity: Number(headStart) },
+                { offset: 0.12, opacity: 0 },
+                { offset: 0.88, opacity: 0 },
+                { offset: 1, opacity: 1 },
+              ],
+              { duration, easing: 'ease-in-out' },
+            ),
+            ...dots.map((dot, index) => {
+              const [tx, ty] = targets[index % targets.length]!;
+              const to = `translate(${((tx - Number(dot.getAttribute('cx'))) * reach).toFixed(2)}px, ${((ty - Number(dot.getAttribute('cy'))) * reach).toFixed(2)}px)`;
+              const from = dotStarts[index];
+              return dot.animate(
+                [
+                  { offset: 0, transform: from && from !== 'none' ? from : 'translate(0px, 0px)' },
+                  { offset: 0.45, transform: to },
+                  { offset: 0.62, transform: to },
+                  { offset: 1, transform: 'translate(0px, 0px)' },
+                ],
+                { duration, easing: 'ease-in-out' },
+              );
+            }),
+          );
+          for (const animation of transition) animations.add(animation);
+        }
+        Promise.all([enter.finished, gazeEnter.finished, ...transition.map((a) => a.finished)])
           .then(() => {
             animations.delete(enter);
             animations.delete(gazeEnter);
+            for (const animation of transition) animations.delete(animation);
             if (
               disposed ||
               !visible ||
@@ -227,7 +287,9 @@ export function IllustratedAvatar({
         typeof IntersectionObserver === 'undefined'
           ? undefined
           : new IntersectionObserver((entries) => {
-              visible = entries.some((entry) => entry.isIntersecting);
+              const next = entries.some((entry) => entry.isIntersecting);
+              if (next === visible) return;
+              visible = next;
               sync();
             });
       observer?.observe(node);
@@ -242,9 +304,17 @@ export function IllustratedAvatar({
         disposed = true;
         const pose = getComputedStyle(head).transform;
         const gazePose = getComputedStyle(gaze).transform;
+        const headOpacity = getComputedStyle(head).opacity;
+        const layerOpacity = dotLayer ? getComputedStyle(dotLayer).opacity : '';
+        const dotPoses = dots.map((dot) => getComputedStyle(dot).transform);
         stop();
         head.style.transform = pose;
         gaze.style.transform = gazePose;
+        head.style.opacity = headOpacity;
+        if (dotLayer) dotLayer.style.opacity = layerOpacity;
+        dots.forEach((dot, index) => {
+          dot.style.transform = dotPoses[index] ?? '';
+        });
         observer?.disconnect();
         motion.disconnect();
         document.removeEventListener('visibilitychange', sync);

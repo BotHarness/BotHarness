@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { PersonaBotAvatar } from '../src/client/avatar.js';
 import { DEFAULT_ILLUSTRATED_RECIPE } from '../../core/src/bots/avatar-appearance.js';
+import { DEFAULT_LINE_RECIPE } from '../../core/src/bots/avatar-line.js';
 
 it('keeps same-Bot SVG instances independent and releases mounted animation resources', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -232,6 +233,67 @@ it('turns the large thinking avatar through noise-scheduled yaw frames and keeps
     expect(node.querySelector('[data-avatar-turn]')).toBeNull();
     expect(loops.map((loop) => loop.target.getAttribute('class'))).toEqual(['bh-illustrated-head']);
   } finally {
+    await act(() => root.unmount());
+    if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
+    else Reflect.deleteProperty(Element.prototype, 'animate');
+    Reflect.deleteProperty(document, 'hidden');
+    node.remove();
+  }
+});
+
+it('morphs line features through bounded dots on real presentation changes only', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const calls: { target: Element; options: KeyframeAnimationOptions; frames: Keyframe[] }[] = [];
+  const animate = vi.fn(function (
+    this: Element,
+    frames: Keyframe[],
+    options: KeyframeAnimationOptions,
+  ) {
+    calls.push({ target: this, options, frames });
+    return { cancel: vi.fn(), finished: new Promise<void>(() => undefined) };
+  });
+  const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
+  Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate });
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const base = {
+    personaBotId: 'ada',
+    name: 'Ada',
+    appearance: { recipe: DEFAULT_LINE_RECIPE, revision: 'a'.repeat(64) },
+  };
+  const render = (size: number, effect: 'coding' | 'executing' | 'searching') =>
+    act(async () =>
+      root.render(createElement(PersonaBotAvatar, { ...base, size, state: 'working', effect })),
+    );
+  const dots = () =>
+    calls.filter(
+      (call) => call.target.closest('[data-avatar-transition]') && call.target.tagName === 'circle',
+    );
+  try {
+    await render(160, 'coding');
+    expect(dots()).toHaveLength(0);
+    await render(160, 'executing');
+    expect(dots()).toHaveLength(12);
+    expect(dots().every((call) => call.options.duration === 900)).toBe(true);
+    calls.length = 0;
+    await render(160, 'searching');
+    expect(dots()).toHaveLength(12);
+    calls.length = 0;
+    await render(34, 'coding');
+    expect(dots()).toHaveLength(12);
+    expect(dots().every((call) => call.options.duration === 450)).toBe(true);
+    expect(node.querySelectorAll('[data-avatar-transition] circle')).toHaveLength(12);
+    calls.length = 0;
+    document.documentElement.dataset['botharnessMotion'] = 'reduce';
+    await render(34, 'executing');
+    expect(dots()).toHaveLength(0);
+    delete document.documentElement.dataset['botharnessMotion'];
+    await act(async () => undefined);
+    expect(dots()).toHaveLength(0);
+  } finally {
+    delete document.documentElement.dataset['botharnessMotion'];
     await act(() => root.unmount());
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
     else Reflect.deleteProperty(Element.prototype, 'animate');
