@@ -49,8 +49,13 @@ export function sampleLineFace(face: {
   ]);
 }
 
-export function sampleLineSymbol(nodes: readonly LineMorphNode[], scale: number): Sampled[] {
-  return transform(nodes, (x, y) => [24 + (x - 24) * scale, 24 + (y - 24) * scale]);
+export function sampleLineSymbol(
+  nodes: readonly LineMorphNode[],
+  scale: number,
+  cx = 24,
+  cy = 24,
+): Sampled[] {
+  return transform(nodes, (x, y) => [cx + (x - 24) * scale, cy + (y - 24) * scale]);
 }
 
 export function lineMorphD(shape: readonly Sampled[]): string {

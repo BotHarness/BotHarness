@@ -1,5 +1,6 @@
 import { useMemo, useRef, type ReactElement } from 'react';
 import {
+  AVATAR_STATE_ICON_BOX,
   AVATAR_TURNS,
   avatarSvg,
   LINE_MORPH_SYMBOLS,
@@ -145,6 +146,7 @@ export function IllustratedAvatar({
     state === 'working' ? effect : state === 'thinking' ? 'thinking-dots' : 'idle';
   const shown = useRef<string | undefined>(undefined);
   const flight = useRef<Flight>({ velocity: 0 });
+  const icon = useRef<{ shape?: Sampled[]; key?: string; velocity: number }>({ velocity: 0 });
   const mount = useMountedResource<HTMLSpanElement>(
     (node) => {
       const previous = shown.current;
@@ -154,14 +156,25 @@ export function IllustratedAvatar({
       const head = node.querySelector<SVGGElement>('.bh-illustrated-head');
       const gaze = node.querySelector<SVGGElement>('.bh-illustrated-gaze');
       const blink = node.querySelector<SVGGElement>('.bh-illustrated-blink');
-      const mark = node.querySelector<SVGGElement>(`[data-avatar-mark="${effect}"]`);
+      const stateGroup = node.querySelector<SVGGElement>('[data-avatar-state]');
+      const stateIcon = node.querySelector<SVGPathElement>('path[data-avatar-state-icon]');
       if (!head || !gaze || !blink || typeof head.animate !== 'function') return;
       const animations = new Set<Animation>();
       let visible = true;
       let disposed = false;
       let run: LineMorphRun | undefined;
+      let iconRun: { run: LineMorphRun; key: string } | undefined;
       let pause: { timer: ReturnType<typeof setTimeout>; done(value: boolean): void } | undefined;
       const halt = () => {
+        if (iconRun) {
+          icon.current = {
+            shape: iconRun.run.current(),
+            key: iconRun.key,
+            velocity: iconRun.run.velocity(),
+          };
+          iconRun.run.cancel();
+          iconRun = undefined;
+        }
         if (run) {
           flight.current.shape = run.current();
           flight.current.velocity = run.velocity();
@@ -248,6 +261,42 @@ export function IllustratedAvatar({
           path.style.opacity = '';
           head.style.opacity = '';
         });
+      const showState = (still: boolean) => {
+        if (!stateGroup || !stateIcon) return;
+        if (presentation === 'idle' || size <= 30) {
+          icon.current = { velocity: 0 };
+          if (!still && stateGroup.style.opacity === '1') fade(stateGroup, 0, 160);
+          else stateGroup.style.opacity = '';
+          return;
+        }
+        const { cx, cy, scale } = AVATAR_STATE_ICON_BOX;
+        const target = sampleLineSymbol(
+          LINE_MORPH_SYMBOLS[presentation] ?? LINE_MORPH_SYMBOLS['idle']!,
+          scale,
+          cx,
+          cy,
+        );
+        const from = icon.current.shape;
+        if (still || !from) {
+          stateIcon.setAttribute('d', lineMorphD(target));
+          if (!still && !from) fade(stateGroup, 1, 160);
+          else stateGroup.style.opacity = '1';
+          icon.current = { shape: target, key: presentation, velocity: 0 };
+          return;
+        }
+        stateGroup.style.opacity = '1';
+        if (icon.current.key === presentation) {
+          stateIcon.setAttribute('d', lineMorphD(from));
+          if (lineMorphD(from) === lineMorphD(target)) return;
+        }
+        const current = morphLinePath(stateIcon, from, target, spring(), icon.current.velocity);
+        iconRun = { run: current, key: presentation };
+        void current.finished.then((done) => {
+          if (!done) return;
+          iconRun = undefined;
+          icon.current = { shape: target, key: presentation, velocity: 0 };
+        });
+      };
       const loop = (target: Element, frames: Keyframe[], duration: number) =>
         animations.add(target.animate(frames, { duration, iterations: Infinity }));
       const sync = () => {
@@ -266,8 +315,10 @@ export function IllustratedAvatar({
         ) {
           pendingTransition = false;
           flight.current = { velocity: 0 };
+          if (!disposed) showState(true);
           return;
         }
+        showState(false);
         const compact = size <= 64;
         const enter = head.animate([{ transform: start || 'none' }, { transform: 'none' }], {
           duration: 120,
@@ -319,15 +370,6 @@ export function IllustratedAvatar({
               loop(body, frames(0), duration);
               for (const turn of turns)
                 loop(turn, frames(Number(turn.dataset['avatarTurn'])), duration);
-              if (mark)
-                loop(
-                  mark,
-                  [
-                    { offset: 0, opacity: 1, easing: 'steps(1, end)' },
-                    { offset: 0.75, opacity: 0, easing: 'steps(1, end)' },
-                  ],
-                  1600,
-                );
               return;
             }
             loop(head, stepped(HEAD_STEPS[effect]), compact ? 1200 : 1600);
@@ -335,15 +377,6 @@ export function IllustratedAvatar({
             const gazeSteps = [...GAZE_STEPS[effect], [0, 0] as Step];
             loop(gaze, stepped(gazeSteps, gazeSteps.length - 1), 2000);
             loop(blink, blinkFrames(gazeSteps.length - 1, gazeSteps.length), 2000);
-            if (mark)
-              loop(
-                mark,
-                [
-                  { offset: 0, opacity: 1, easing: 'steps(1, end)' },
-                  { offset: 0.75, opacity: 0, easing: 'steps(1, end)' },
-                ],
-                1600,
-              );
           })
           .catch(() => undefined);
       };

@@ -153,6 +153,11 @@ it('loops the gaze only on the large working avatar and keeps waiting avatars st
       ),
     );
     expect(classes()).toEqual(['bh-illustrated-head']);
+    const state = () => node.querySelector<SVGGElement>('[data-avatar-state]')!;
+    const icon = () => node.querySelector('path[data-avatar-state-icon]')!.getAttribute('d')!;
+    expect(state().style.opacity).toBe('1');
+    expect(icon().length).toBeGreaterThan(100);
+    const searching = icon();
     loops.length = 0;
     await act(async () =>
       root.render(
@@ -168,9 +173,8 @@ it('loops the gaze only on the large working avatar and keeps waiting avatars st
       'bh-illustrated-head',
       'bh-illustrated-gaze',
       'bh-illustrated-blink',
-      null,
     ]);
-    expect(loops[3]!.target.getAttribute('data-avatar-mark')).toBe('searching');
+    expect(icon()).toBe(searching);
     const gaze = loops[1]!.frames.map((frame) => String(frame.transform));
     expect(gaze).toContain('translate(-1px, 0px)');
     expect(gaze).toContain('translate(1px, 0px)');
@@ -181,6 +185,7 @@ it('loops the gaze only on the large working avatar and keeps waiting avatars st
       root.render(createElement(PersonaBotAvatar, { ...props, size: 160, state: 'waiting' })),
     );
     expect(loops).toHaveLength(0);
+    expect(state().style.opacity).toBe('0');
   } finally {
     await act(() => root.unmount());
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
@@ -319,6 +324,77 @@ it('morphs line strokes into the activity symbol and back on real presentation c
     delete document.documentElement.dataset['botharnessMotion'];
     await act(async () => undefined);
     expect(frames.size).toBe(0);
+  } finally {
+    delete document.documentElement.dataset['botharnessMotion'];
+    await act(() => root.unmount());
+    vi.unstubAllGlobals();
+    if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
+    else Reflect.deleteProperty(Element.prototype, 'animate');
+    Reflect.deleteProperty(document, 'hidden');
+    node.remove();
+  }
+});
+
+it('morphs the pixel state icon between activities and keeps it still under reduced motion', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const animate = vi.fn(() => ({ cancel: vi.fn(), finished: Promise.resolve() }));
+  const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
+  Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate });
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextFrame = 0;
+  let now = 0;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+  const flush = async (count: number) => {
+    for (let i = 0; i < count && frames.size; i++) {
+      now += 16;
+      const due = [...frames.values()];
+      frames.clear();
+      for (const callback of due) callback(now);
+      await act(async () => undefined);
+    }
+  };
+  const render = (effect: 'coding' | 'executing' | 'searching') =>
+    act(async () =>
+      root.render(
+        createElement(PersonaBotAvatar, {
+          personaBotId: 'ada',
+          name: 'Ada',
+          appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
+          size: 160,
+          state: 'working',
+          effect,
+        }),
+      ),
+    );
+  const icon = () => node.querySelector('path[data-avatar-state-icon]')!.getAttribute('d');
+  try {
+    await render('coding');
+    expect(frames.size).toBe(0);
+    const coding = icon();
+    await render('executing');
+    expect(frames.size).toBe(1);
+    await flush(4);
+    const mid = icon();
+    expect(mid).not.toBe(coding);
+    await render('searching');
+    expect(frames.size).toBe(1);
+    expect(icon()).toBe(mid);
+    await flush(240);
+    expect(frames.size).toBe(0);
+    const searching = icon();
+    document.documentElement.dataset['botharnessMotion'] = 'reduce';
+    await render('coding');
+    expect(frames.size).toBe(0);
+    expect(icon()).toBe(coding);
+    expect(icon()).not.toBe(searching);
   } finally {
     delete document.documentElement.dataset['botharnessMotion'];
     await act(() => root.unmount());

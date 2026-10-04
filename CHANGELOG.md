@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Pixel-family PersonaBot avatars are redrawn as 32×32 chibi pixel art (bigger heads and eyes, layered hair and clothes shading, solid tile colours) with new hairstyles, outfits and headwear and twelve selectable presets, and thinking/working states now show a morphing state icon bubble (?, magnifier, </>, !, ♪) instead of small pixel marks ([#800](https://github.com/BotHarness/BotHarness/issues/800)).
+
 - Line-family PersonaBot avatars briefly morph their face strokes into a symbol for the new activity (?, magnifier, </>, !, ♪, smiling face) and back, using morphicons spring stroke morphing; transitions retarget mid-way from the displayed shape and replace the corner activity marks, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
 - Added an opt-in Container `agent-browser` driver using the existing Browser Viewer, takeover, uploads and persistent profile; Local and Container retain independent default drivers ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
