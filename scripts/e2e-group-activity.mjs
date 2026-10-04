@@ -154,7 +154,7 @@ async function prepare() {
   const group = (
     await rpc('channelCreate', {
       name: `Group activity Human QA ${stamp}`,
-      members: bots.map((bot) => bot.slug),
+      members: (header ? [...bots.slice(2), ...bots.slice(0, 2)] : bots).map((bot) => bot.slug),
     })
   ).channel;
   for (const bot of bots)
@@ -168,8 +168,16 @@ async function prepare() {
   return { channelId: group.id, name: group.name, bots };
 }
 try {
-  const scene = mode === 'before' ? await prepare() : JSON.parse(readFileSync(statePath, 'utf8'));
+  const scene =
+    mode === 'before' || mode === 'prepare'
+      ? await prepare()
+      : JSON.parse(readFileSync(statePath, 'utf8'));
   writeFileSync(statePath, JSON.stringify(scene, null, 2));
+  if (mode === 'prepare') {
+    console.log(JSON.stringify({ prepared: true, group: scene.name }));
+    await browser.close();
+    process.exit(0);
+  }
   await open(scene.channelId);
   await shot('idle');
   const targets = scene.bots.slice(0, 2);
@@ -254,6 +262,19 @@ try {
   }
   await shot('group-collapsed-light');
   if (header && !baseline) {
+    const visibleHeader = await page.$$eval(
+      '.bh-group-channel-header .bh-avatar-facepile-button',
+      (nodes) => nodes.map((node) => node.getAttribute('aria-label')),
+    );
+    assert.equal(visibleHeader.length, 3);
+    for (const bot of targets) assert.ok(visibleHeader.some((label) => label.startsWith(bot.name)));
+    assert.equal(
+      await page.$eval(
+        '.bh-group-channel-header .bh-avatar-facepile-overflow',
+        (node) => node.textContent,
+      ),
+      '+1',
+    );
     const headerAvatar = await page.$('.bh-group-channel-header .bh-avatar-facepile-button');
     assert.ok(headerAvatar);
     await headerAvatar.focus();

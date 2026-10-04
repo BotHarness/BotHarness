@@ -12,7 +12,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 import { GroupChannelHeader } from '../src/client/group-channel-header.js';
 import { GroupProfilePopover } from '../src/client/group-profile.js';
 import { EMPTY_PROFILE_CARDS } from '../src/client/profile-cards.js';
-import type { PersonaBotFacepileItem } from '../src/client/avatar.js';
+import { PersonaBotFacepile, type PersonaBotFacepileItem } from '../src/client/avatar.js';
 import type { ChannelSummary } from '../src/client/store.js';
 import { zhTranslate } from '../src/client/locale.js';
 
@@ -87,4 +87,31 @@ it('shows every member from the same aggregate in the existing Group Profile pop
   expect(html).toContain('正在思考');
   expect(html).toContain('空闲');
   expect(html).toContain('bh-profile-expand');
+});
+
+it('keeps active late members visible before idle ones and caps even a larger requested max', () => {
+  const items: PersonaBotFacepileItem[] = [
+    { personaBotId: 'idle-first', name: 'Idle first', state: 'idle' },
+    { personaBotId: 'idle-second', name: 'Idle second', state: 'idle' },
+    { personaBotId: 'thinking-third', name: 'Thinking third', state: 'thinking' },
+    { personaBotId: 'working-fourth', name: 'Working fourth', state: 'working' },
+    { personaBotId: 'working-fifth', name: 'Working fifth', state: 'working' },
+  ];
+  const render = () =>
+    renderToStaticMarkup(createElement(PersonaBotFacepile, { items, size: 24, max: 8 }));
+  const markup = render();
+  expect(markup.match(/class="bh-persona-avatar/g)).toHaveLength(3);
+  expect(markup).toContain('+2');
+  expect(markup).not.toContain('Idle first');
+  expect(markup).not.toContain('Idle second');
+  expect(markup.indexOf('Thinking third')).toBeLessThan(markup.indexOf('Working fourth'));
+  expect(markup.indexOf('Working fourth')).toBeLessThan(markup.indexOf('Working fifth'));
+  expect(render()).toBe(markup);
+  expect(items.map((item) => item.personaBotId)).toEqual([
+    'idle-first',
+    'idle-second',
+    'thinking-third',
+    'working-fourth',
+    'working-fifth',
+  ]);
 });

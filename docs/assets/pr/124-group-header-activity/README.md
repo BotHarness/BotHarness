@@ -13,6 +13,12 @@ light viewport and data. A separate working keyboard-focus screenshot
 shows the new native Tooltip and a working Profile list shows both live
 Bots alongside idle members. No credentials or private Host paths appear.
 
+The Group member order deliberately places two idle Bots before Orbit and Nova;
+the actual verifier requires three visible header avatars, both active Bots
+visible despite their late membership positions, and an accurate +1 count.
+A focused regression also covers five members, stable active ordering, no input
+mutation, and a caller requesting more than the hard limit of three.
+
 ## Reproduce
 
 1. Boot this worktree with scripts/dev-instance.mjs into a fresh isolated

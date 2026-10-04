@@ -1,7 +1,7 @@
 {
   "scene": {
-    "channelId": "group-group-activity-human-qa-1791096771799",
-    "name": "Group activity Human QA 1791096771799",
+    "channelId": "group-group-header-activity-human-qa-1791098878884",
+    "name": "Group header activity Human QA 1791098878884",
     "bots": [
       {
         "slug": "bot-a6589e67224f4fbbbda87b536a580473",
@@ -35,8 +35,8 @@
     }
   ],
   "working": {
-    "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-    "revision": 36,
+    "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+    "revision": 20,
     "bots": [
       {
         "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
@@ -50,11 +50,11 @@
         "slug": "bot-a6589e67224f4fbbbda87b536a580473",
         "state": "working",
         "activity": {
-          "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
+          "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
           "effect": "executing",
           "toolKind": "execute",
           "toolName": "bash",
-          "startedAt": 1791097782382,
+          "startedAt": 1791099128602,
           "activeToolCount": 1,
           "sources": [
             {
@@ -65,18 +65,18 @@
         },
         "sessions": [
           {
-            "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
+            "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
             "role": "orchestrator",
             "name": "Verify Group activity with shell wait",
-            "at": 1791097782382,
-            "revision": 33,
+            "at": 1791099128605,
+            "revision": 17,
             "state": "working",
             "activity": {
-              "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
+              "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
               "effect": "executing",
               "toolKind": "execute",
               "toolName": "bash",
-              "startedAt": 1791097782382,
+              "startedAt": 1791099128602,
               "activeToolCount": 1,
               "sources": [
                 {
@@ -92,11 +92,11 @@
         "slug": "bot-addaf65de5454a0a97213cfcded8116e",
         "state": "working",
         "activity": {
-          "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
+          "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
           "effect": "executing",
           "toolKind": "execute",
           "toolName": "bash",
-          "startedAt": 1791097781898,
+          "startedAt": 1791099127497,
           "activeToolCount": 1,
           "sources": [
             {
@@ -107,18 +107,18 @@
         },
         "sessions": [
           {
-            "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
+            "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
             "role": "orchestrator",
             "name": "Group activity verification shell command",
-            "at": 1791097781899,
-            "revision": 31,
+            "at": 1791099127498,
+            "revision": 15,
             "state": "working",
             "activity": {
-              "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
+              "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
               "effect": "executing",
               "toolKind": "execute",
               "toolName": "bash",
-              "startedAt": 1791097781898,
+              "startedAt": 1791099127497,
               "activeToolCount": 1,
               "sources": [
                 {
@@ -133,8 +133,8 @@
     ]
   },
   "settled": {
-    "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-    "revision": 44,
+    "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+    "revision": 28,
     "bots": [
       {
         "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
@@ -155,8 +155,8 @@
     ]
   },
   "reconnected": {
-    "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-    "revision": 38,
+    "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+    "revision": 22,
     "bots": [
       {
         "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
@@ -171,11 +171,11 @@
         "state": "thinking",
         "sessions": [
           {
-            "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
+            "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
             "role": "orchestrator",
             "name": "Verify Group activity with shell wait",
-            "at": 1791097828902,
-            "revision": 37,
+            "at": 1791099175485,
+            "revision": 21,
             "state": "thinking"
           }
         ]
@@ -185,11 +185,11 @@
         "state": "thinking",
         "sessions": [
           {
-            "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
+            "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
             "role": "orchestrator",
             "name": "Group activity verification shell command",
-            "at": 1791097828913,
-            "revision": 38,
+            "at": 1791099175513,
+            "revision": 22,
             "state": "thinking"
           }
         ]
@@ -203,8 +203,8 @@
   },
   "frames": [
     {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 24,
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 8,
       "bots": [
         {
           "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
@@ -218,11 +218,11 @@
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
           "state": "working",
           "activity": {
-            "detailRefs": ["tool-detail-0dcffae1-2991-4e19-a2fc-75258a646944"],
+            "detailRefs": ["tool-detail-6b2c4cda-1d57-4db7-b3d2-0089f87b6b90"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
-            "startedAt": 1791097732881,
+            "startedAt": 1791099079204,
             "activeToolCount": 1,
             "sources": [
               {
@@ -233,18 +233,18 @@
           },
           "sessions": [
             {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
               "role": "orchestrator",
               "name": "Verify Group activity with shell wait",
-              "at": 1791097732881,
-              "revision": 19,
+              "at": 1791099079207,
+              "revision": 3,
               "state": "working",
               "activity": {
-                "detailRefs": ["tool-detail-0dcffae1-2991-4e19-a2fc-75258a646944"],
+                "detailRefs": ["tool-detail-6b2c4cda-1d57-4db7-b3d2-0089f87b6b90"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
-                "startedAt": 1791097732881,
+                "startedAt": 1791099079204,
                 "activeToolCount": 1,
                 "sources": [
                   {
@@ -260,11 +260,11 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": ["tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"],
+            "detailRefs": ["tool-detail-833f4886-b0aa-40a2-b3ce-0bd66d591d0e"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
-            "startedAt": 1791097733150,
+            "startedAt": 1791099079493,
             "activeToolCount": 1,
             "sources": [
               {
@@ -275,18 +275,18 @@
           },
           "sessions": [
             {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
               "role": "orchestrator",
               "name": "Group activity verification shell command",
-              "at": 1791097733151,
-              "revision": 21,
+              "at": 1791099079494,
+              "revision": 5,
               "state": "working",
               "activity": {
-                "detailRefs": ["tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"],
+                "detailRefs": ["tool-detail-833f4886-b0aa-40a2-b3ce-0bd66d591d0e"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
-                "startedAt": 1791097733150,
+                "startedAt": 1791099079493,
                 "activeToolCount": 1,
                 "sources": [
                   {
@@ -301,8 +301,8 @@
       ]
     },
     {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 25,
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 9,
       "bots": [
         {
           "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
@@ -317,11 +317,11 @@
           "state": "thinking",
           "sessions": [
             {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
               "role": "orchestrator",
               "name": "Verify Group activity with shell wait",
-              "at": 1791097779593,
-              "revision": 25,
+              "at": 1791099125505,
+              "revision": 9,
               "state": "thinking"
             }
           ]
@@ -330,11 +330,11 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": ["tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"],
+            "detailRefs": ["tool-detail-833f4886-b0aa-40a2-b3ce-0bd66d591d0e"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
-            "startedAt": 1791097733150,
+            "startedAt": 1791099079493,
             "activeToolCount": 1,
             "sources": [
               {
@@ -345,18 +345,18 @@
           },
           "sessions": [
             {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
               "role": "orchestrator",
               "name": "Group activity verification shell command",
-              "at": 1791097733151,
-              "revision": 21,
+              "at": 1791099079494,
+              "revision": 5,
               "state": "working",
               "activity": {
-                "detailRefs": ["tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"],
+                "detailRefs": ["tool-detail-833f4886-b0aa-40a2-b3ce-0bd66d591d0e"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
-                "startedAt": 1791097733150,
+                "startedAt": 1791099079493,
                 "activeToolCount": 1,
                 "sources": [
                   {
@@ -371,7 +371,1114 @@
       ]
     },
     {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 10,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099125505,
+              "revision": 9,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099125535,
+              "revision": 10,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 11,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-723245c6-4669-4eb8-992f-47967227cfb1"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "channel_send",
+            "startedAt": 1791099127188,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099127207,
+              "revision": 11,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-723245c6-4669-4eb8-992f-47967227cfb1"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "channel_send",
+                "startedAt": 1791099127188,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099125535,
+              "revision": 10,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 12,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099127299,
+              "revision": 12,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099125535,
+              "revision": 10,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 13,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099127299,
+              "revision": 12,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-1138827f-0237-4449-988d-4ec84da6e831"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "channel_send",
+            "startedAt": 1791099127427,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099127428,
+              "revision": 13,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-1138827f-0237-4449-988d-4ec84da6e831"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "channel_send",
+                "startedAt": 1791099127427,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 14,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099127299,
+              "revision": 12,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099127489,
+              "revision": 14,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 15,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099127299,
+              "revision": 12,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099127497,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099127498,
+              "revision": 15,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099127497,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 16,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099127299,
+              "revision": 12,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099127497,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099127498,
+              "revision": 15,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099127497,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 17,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099128602,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099128605,
+              "revision": 17,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099128602,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099127497,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099127498,
+              "revision": 15,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099127497,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 18,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099128602,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099128605,
+              "revision": 17,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099128602,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099127497,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099127498,
+              "revision": 15,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099127497,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 19,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099128602,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099128605,
+              "revision": 17,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099128602,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099127497,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099127498,
+              "revision": 15,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099127497,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 20,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099128602,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099128605,
+              "revision": 17,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-e35eada5-5e5f-481d-9fa6-fec56cee24b2"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099128602,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099127497,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099127498,
+              "revision": 15,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099127497,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 21,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099175485,
+              "revision": 21,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791099127497,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099127498,
+              "revision": 15,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-6f6122fc-0c10-46d5-9929-1e3a216d3c4e"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791099127497,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 22,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099175485,
+              "revision": 21,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099175513,
+              "revision": 22,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 23,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099175485,
+              "revision": 21,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-3eeefeb7-7878-4b79-a76d-60d3d35f0f09"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "channel_send",
+            "startedAt": 1791099176821,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099176822,
+              "revision": 23,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-3eeefeb7-7878-4b79-a76d-60d3d35f0f09"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "channel_send",
+                "startedAt": 1791099176821,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 24,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099175485,
+              "revision": 21,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099176883,
+              "revision": 24,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
+      "revision": 25,
+      "bots": [
+        {
+          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-645572f5-0b25-4264-9e65-4a7579cc2a52"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "channel_send",
+            "startedAt": 1791099177224,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
+              "role": "orchestrator",
+              "name": "Verify Group activity with shell wait",
+              "at": 1791099177225,
+              "revision": 25,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-645572f5-0b25-4264-9e65-4a7579cc2a52"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "channel_send",
+                "startedAt": 1791099177224,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
+              "role": "orchestrator",
+              "name": "Group activity verification shell command",
+              "at": 1791099176883,
+              "revision": 24,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
       "revision": 26,
       "bots": [
         {
@@ -387,11 +1494,11 @@
           "state": "thinking",
           "sessions": [
             {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
               "role": "orchestrator",
               "name": "Verify Group activity with shell wait",
-              "at": 1791097779593,
-              "revision": 25,
+              "at": 1791099177261,
+              "revision": 26,
               "state": "thinking"
             }
           ]
@@ -401,11 +1508,11 @@
           "state": "thinking",
           "sessions": [
             {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
+              "id": "activity-6310147c-ff56-4dd6-a52b-a5f1addc849e",
               "role": "orchestrator",
               "name": "Group activity verification shell command",
-              "at": 1791097779646,
-              "revision": 26,
+              "at": 1791099176883,
+              "revision": 24,
               "state": "thinking"
             }
           ]
@@ -413,7 +1520,7 @@
       ]
     },
     {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
       "revision": 27,
       "bots": [
         {
@@ -426,1190 +1533,27 @@
         },
         {
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-9e0b2063-b50b-468b-817c-c2bae192ad11"],
-            "effect": "generic-working",
-            "toolKind": "other",
-            "toolName": "channel_send",
-            "startedAt": 1791097780886,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
+          "state": "thinking",
           "sessions": [
             {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
+              "id": "activity-79e6df89-f82b-4eac-9843-c1979c46d165",
               "role": "orchestrator",
               "name": "Verify Group activity with shell wait",
-              "at": 1791097780887,
-              "revision": 27,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-9e0b2063-b50b-468b-817c-c2bae192ad11"],
-                "effect": "generic-working",
-                "toolKind": "other",
-                "toolName": "channel_send",
-                "startedAt": 1791097780886,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
+              "at": 1791099177261,
+              "revision": 26,
+              "state": "thinking"
             }
           ]
         },
         {
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097779646,
-              "revision": 26,
-              "state": "thinking"
-            }
-          ]
+          "state": "idle"
         }
       ]
     },
     {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
+      "generation": "a30e8934-88ab-4e0a-b1b3-c94d546a92e6",
       "revision": 28,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097780910,
-              "revision": 28,
-              "state": "thinking"
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097779646,
-              "revision": 26,
-              "state": "thinking"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 29,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097780910,
-              "revision": 28,
-              "state": "thinking"
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-f768e148-2571-4b1e-a0c2-a157dedcd928"],
-            "effect": "generic-working",
-            "toolKind": "other",
-            "toolName": "channel_send",
-            "startedAt": 1791097781866,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097781867,
-              "revision": 29,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-f768e148-2571-4b1e-a0c2-a157dedcd928"],
-                "effect": "generic-working",
-                "toolKind": "other",
-                "toolName": "channel_send",
-                "startedAt": 1791097781866,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 30,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097780910,
-              "revision": 28,
-              "state": "thinking"
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097781895,
-              "revision": 30,
-              "state": "thinking"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 31,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097780910,
-              "revision": 28,
-              "state": "thinking"
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097781898,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097781899,
-              "revision": 31,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097781898,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 32,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097780910,
-              "revision": 28,
-              "state": "thinking"
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097781898,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097781899,
-              "revision": 31,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097781898,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ],
-          "attention": {
-            "approvalCount": 1
-          }
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 33,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097782382,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097782382,
-              "revision": 33,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097782382,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097781898,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097781899,
-              "revision": 31,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097781898,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ],
-          "attention": {
-            "approvalCount": 1
-          }
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 34,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097782382,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097782382,
-              "revision": 33,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097782382,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ],
-          "attention": {
-            "approvalCount": 1
-          }
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097781898,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097781899,
-              "revision": 31,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097781898,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ],
-          "attention": {
-            "approvalCount": 1
-          }
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 35,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097782382,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097782382,
-              "revision": 33,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097782382,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097781898,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097781899,
-              "revision": 31,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097781898,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ],
-          "attention": {
-            "approvalCount": 1
-          }
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 36,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097782382,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097782382,
-              "revision": 33,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097782382,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097781898,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097781899,
-              "revision": 31,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097781898,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 37,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097828902,
-              "revision": 37,
-              "state": "thinking"
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-            "effect": "executing",
-            "toolKind": "execute",
-            "toolName": "bash",
-            "startedAt": 1791097781898,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097781899,
-              "revision": 31,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
-                "effect": "executing",
-                "toolKind": "execute",
-                "toolName": "bash",
-                "startedAt": 1791097781898,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 38,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097828902,
-              "revision": 37,
-              "state": "thinking"
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097828913,
-              "revision": 38,
-              "state": "thinking"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 39,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"],
-            "effect": "generic-working",
-            "toolKind": "other",
-            "toolName": "channel_send",
-            "startedAt": 1791097830322,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097830323,
-              "revision": 39,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"],
-                "effect": "generic-working",
-                "toolKind": "other",
-                "toolName": "channel_send",
-                "startedAt": 1791097830322,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097828913,
-              "revision": 38,
-              "state": "thinking"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 40,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"],
-            "effect": "generic-working",
-            "toolKind": "other",
-            "toolName": "channel_send",
-            "startedAt": 1791097830322,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097830323,
-              "revision": 39,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"],
-                "effect": "generic-working",
-                "toolKind": "other",
-                "toolName": "channel_send",
-                "startedAt": 1791097830322,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"],
-            "effect": "generic-working",
-            "toolKind": "other",
-            "toolName": "channel_send",
-            "startedAt": 1791097830336,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097830337,
-              "revision": 40,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"],
-                "effect": "generic-working",
-                "toolKind": "other",
-                "toolName": "channel_send",
-                "startedAt": 1791097830336,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 41,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097830355,
-              "revision": 41,
-              "state": "thinking"
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "working",
-          "activity": {
-            "detailRefs": ["tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"],
-            "effect": "generic-working",
-            "toolKind": "other",
-            "toolName": "channel_send",
-            "startedAt": 1791097830336,
-            "activeToolCount": 1,
-            "sources": [
-              {
-                "role": "orchestrator",
-                "count": 1
-              }
-            ]
-          },
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097830337,
-              "revision": 40,
-              "state": "working",
-              "activity": {
-                "detailRefs": ["tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"],
-                "effect": "generic-working",
-                "toolKind": "other",
-                "toolName": "channel_send",
-                "startedAt": 1791097830336,
-                "activeToolCount": 1,
-                "sources": [
-                  {
-                    "role": "orchestrator",
-                    "count": 1
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 42,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-97df2349-a2bb-464e-97b1-a5c999b6fb4a",
-              "role": "orchestrator",
-              "name": "Verify Group activity with shell wait",
-              "at": 1791097830355,
-              "revision": 41,
-              "state": "thinking"
-            }
-          ]
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097830376,
-              "revision": 42,
-              "state": "thinking"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 43,
-      "bots": [
-        {
-          "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-8fc40b7820e945b88d9dfa675a73ee4b",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-a6589e67224f4fbbbda87b536a580473",
-          "state": "idle"
-        },
-        {
-          "slug": "bot-addaf65de5454a0a97213cfcded8116e",
-          "state": "thinking",
-          "sessions": [
-            {
-              "id": "activity-fb3aad88-07d9-4c63-86c0-5f60fd8eda3d",
-              "role": "orchestrator",
-              "name": "Group activity verification shell command",
-              "at": 1791097830376,
-              "revision": 42,
-              "state": "thinking"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "generation": "15721155-9f5e-47d5-96ea-dad9f809be53",
-      "revision": 44,
       "bots": [
         {
           "slug": "bot-2e92bb9ca0264aba93ad3f5be3409320",

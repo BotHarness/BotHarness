@@ -358,7 +358,12 @@ export function PersonaBotFacepile({
   t?: BotHarnessTranslate | undefined;
 }): ReactElement | null {
   if (items.length === 0) return null;
-  const visible = items.slice(0, max);
+  const active = (item: PersonaBotFacepileItem) =>
+    item.state === 'thinking' || item.state === 'working';
+  const visible = [...items.filter(active), ...items.filter((item) => !active(item))].slice(
+    0,
+    Math.min(max, 3),
+  );
   const overflow = items.length - visible.length;
   return (
     <span className={['bh-avatar-facepile', className].filter(Boolean).join(' ')}>
