@@ -795,6 +795,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #inboxFactoryRetries = new Map<string, { attempts: number; timer?: NodeJS.Timeout }>();
   readonly #assignmentRuns = new Map<string, Promise<void>>();
   readonly #assignmentAcceptances = new Set<string>();
+  readonly #assignmentNotices = new Set<Promise<void>>();
   readonly #waitLifetime = new AbortController();
   readonly #waitOptions: Pick<BotRuntimeOptions, 'database' | 'beginAssignmentWait'>;
   #closed = false;
@@ -2423,6 +2424,7 @@ class BotRuntimeImplementation implements BotRuntime {
       const pending = [
         ...this.#tails.values(),
         ...this.#assignmentRuns.values(),
+        ...this.#assignmentNotices,
         ...this.#steerSettlements,
       ];
       if (pending.length === 0) return;
@@ -2443,10 +2445,15 @@ class BotRuntimeImplementation implements BotRuntime {
     for (const retry of this.#inboxFactoryRetries.values())
       if (retry.timer !== undefined) clearTimeout(retry.timer);
     this.#inboxFactoryRetries.clear();
-    await Promise.allSettled([...this.#tails.values(), ...this.#assignmentRuns.values()]);
+    await Promise.allSettled([
+      ...this.#tails.values(),
+      ...this.#assignmentRuns.values(),
+      ...this.#assignmentNotices,
+    ]);
     this.#tails.clear();
     this.#assignmentRuns.clear();
     this.#assignmentAcceptances.clear();
+    this.#assignmentNotices.clear();
     await this.#agents.close();
   }
 
@@ -4476,6 +4483,7 @@ class BotRuntimeImplementation implements BotRuntime {
       if (error instanceof AssignmentInboxAcceptanceUncertainError)
         this.#setActivity(input.sessionId, 'error');
       else if (waking) this.#setActivity(input.sessionId, 'idle');
+      this.#publishAssignmentRefusal(row, error);
       throw error;
     }
     const settleAcceptance = () => {
@@ -4604,6 +4612,28 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     if (stopped) this.#scheduleHarvest(bot.slug);
     return this.#requireAssignmentSummary(bot.slug, sessionId);
+  }
+
+  #publishAssignmentRefusal(row: AssignmentRow, error: unknown): void {
+    const channel = this.#dmChannel(row.bot_slug);
+    if (channel === undefined) return;
+    const notice = this.#publishSessionFailure({
+      channelId: channel.id,
+      botSlug: row.bot_slug,
+      sessionId: row.session_id,
+      role: 'assignment',
+      error,
+      context: row.purpose,
+      ...(error instanceof AssignmentInboxAcceptanceUncertainError ||
+      row.open_ask_source_event_id === null
+        ? {}
+        : { assignmentAnswerTo: row.open_ask_source_event_id }),
+    });
+    this.#assignmentNotices.add(notice);
+    void notice.then(
+      () => this.#assignmentNotices.delete(notice),
+      () => this.#assignmentNotices.delete(notice),
+    );
   }
 
   #trackAssignmentRun(
