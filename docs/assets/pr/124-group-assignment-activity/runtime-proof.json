@@ -1,0 +1,205 @@
+{
+  "group": "Group Assignment Human QA 1791113405142",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "phases": [
+    {
+      "label": "concurrent",
+      "generation": "f774f380-e18a-4697-a8a2-671f40513ca2",
+      "revision": 81,
+      "owner": {
+        "slug": "bot-577ce02b39bf442a983bdb8ab8e3ca21",
+        "state": "working",
+        "attention": {
+          "approvalCount": 0,
+          "informationalCount": 1
+        },
+        "activity": {
+          "detailRefs": [
+            "tool-detail-2ecaa996-b802-452e-ac4d-dcd6eca105ed"
+          ],
+          "effect": "executing",
+          "toolKind": "execute",
+          "toolName": "bash",
+          "startedAt": 1791114224434,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "orchestrator",
+              "count": 1
+            }
+          ]
+        },
+        "sessions": [
+          {
+            "id": "activity-a9a5a053-5f57-4fc9-92b4-00da2d78218a",
+            "role": "orchestrator",
+            "name": "Group assignment QA workflow",
+            "at": 1791114224435,
+            "revision": 78,
+            "state": "working",
+            "activity": {
+              "detailRefs": [
+                "tool-detail-2ecaa996-b802-452e-ac4d-dcd6eca105ed"
+              ],
+              "effect": "executing",
+              "toolKind": "execute",
+              "toolName": "bash",
+              "startedAt": 1791114224434,
+              "activeToolCount": 1,
+              "sources": [
+                {
+                  "role": "orchestrator",
+                  "count": 1
+                }
+              ]
+            }
+          },
+          {
+            "id": "activity-f1b40851-5755-4e82-a220-02c7c1f5a95a",
+            "role": "assignment",
+            "name": "Group Assignment activity QA",
+            "at": 1791114224246,
+            "revision": 76,
+            "state": "working",
+            "activity": {
+              "detailRefs": [
+                "tool-detail-db143959-d717-4fa7-a5b9-5b5f41ba1bab"
+              ],
+              "effect": "executing",
+              "toolKind": "execute",
+              "toolName": "pwsh",
+              "startedAt": 1791114224243,
+              "activeToolCount": 1,
+              "sources": [
+                {
+                  "role": "assignment",
+                  "count": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "quiet": {
+        "slug": "bot-09dcdde58eb943b28869eb29cb504d31",
+        "state": "idle"
+      }
+    },
+    {
+      "label": "assignment-handoff",
+      "generation": "f774f380-e18a-4697-a8a2-671f40513ca2",
+      "revision": 83,
+      "owner": {
+        "slug": "bot-577ce02b39bf442a983bdb8ab8e3ca21",
+        "state": "working",
+        "attention": {
+          "approvalCount": 0,
+          "informationalCount": 1
+        },
+        "activity": {
+          "detailRefs": [
+            "tool-detail-db143959-d717-4fa7-a5b9-5b5f41ba1bab"
+          ],
+          "effect": "executing",
+          "toolKind": "execute",
+          "toolName": "pwsh",
+          "startedAt": 1791114224243,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "assignment",
+              "count": 1
+            }
+          ]
+        },
+        "sessions": [
+          {
+            "id": "activity-f1b40851-5755-4e82-a220-02c7c1f5a95a",
+            "role": "assignment",
+            "name": "Group Assignment activity QA",
+            "at": 1791114224246,
+            "revision": 76,
+            "state": "working",
+            "activity": {
+              "detailRefs": [
+                "tool-detail-db143959-d717-4fa7-a5b9-5b5f41ba1bab"
+              ],
+              "effect": "executing",
+              "toolKind": "execute",
+              "toolName": "pwsh",
+              "startedAt": 1791114224243,
+              "activeToolCount": 1,
+              "sources": [
+                {
+                  "role": "assignment",
+                  "count": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "quiet": {
+        "slug": "bot-09dcdde58eb943b28869eb29cb504d31",
+        "state": "idle"
+      }
+    },
+    {
+      "label": "completed",
+      "generation": "f774f380-e18a-4697-a8a2-671f40513ca2",
+      "revision": 93,
+      "owner": {
+        "slug": "bot-577ce02b39bf442a983bdb8ab8e3ca21",
+        "state": "idle",
+        "attention": {
+          "approvalCount": 0,
+          "informationalCount": 1
+        }
+      },
+      "quiet": {
+        "slug": "bot-09dcdde58eb943b28869eb29cb504d31",
+        "state": "idle"
+      }
+    }
+  ],
+  "nativeTimers": [
+    {
+      "role": "orchestrator",
+      "tool": "bash",
+      "callAt": 1791114224434,
+      "resultAt": 1791114284004,
+      "completed": true,
+      "isError": false
+    },
+    {
+      "role": "assignment",
+      "tool": "pwsh",
+      "callAt": 1791114224243,
+      "resultAt": 1791114358815,
+      "completed": true,
+      "isError": false
+    }
+  ],
+  "reconnect": {
+    "generation": "f774f380-e18a-4697-a8a2-671f40513ca2",
+    "revision": 82,
+    "freshFrame": true
+  },
+  "completion": [
+    {
+      "id": "bot-8b58c157b2ab022992a7a0e434a359471addc5cba8c2abf93f8e4a30f839bbbc",
+      "at": "2026-10-04T11:46:06.000Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-577ce02b39bf442a983bdb8ab8e3ca21"
+      },
+      "body": "GROUP_ASSIGNMENT_DONE_1791114219877"
+    }
+  ],
+  "clientErrors": [],
+  "verdict": "PASS"
+}

@@ -31,6 +31,10 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 import { ChannelComposer } from '../src/client/channel-composer.js';
 import { groupComposerActivity } from '../src/client/group-composer-activity.js';
 import { zhTranslate } from '../src/client/locale.js';
+import {
+  createBotStateTracker,
+  personaBotActivitySnapshot,
+} from '../../core/src/state/bot-state.js';
 
 const working: PersonaBotFacepileItem = {
   personaBotId: 'nova',
@@ -153,4 +157,67 @@ it('keeps every Bot in the list while the facepile is bounded to three with accu
   expect(markup.match(/class="bh-avatar-facepile-button"/gu)).toHaveLength(3);
   expect(markup).toContain('>+1</span>');
   expect(activity?.summary).toContain('另有 2 个');
+});
+
+it('follows Host Orchestrator priority and Assignment handoff without changing another member', () => {
+  const states = createBotStateTracker();
+  const assignmentTool = {
+    effect: 'searching' as const,
+    toolKind: 'search' as const,
+    toolName: 'grep',
+    publicDetail: 'Find project references',
+    startedAt: 10,
+    activeToolCount: 1,
+    sources: [{ role: 'assignment' as const, count: 1 }],
+    arguments: 'PRIVATE_ARGUMENTS',
+    results: 'PRIVATE_RESULTS',
+    reasoning: 'PRIVATE_REASONING',
+  };
+  states.setSessionState('owner', 'private-assignment', 'working', assignmentTool, 'assignment');
+  states.setSessionState('owner', 'private-orchestrator', 'thinking', undefined, 'orchestrator');
+  const renderCurrent = () => {
+    const snapshot = personaBotActivitySnapshot(['owner', 'quiet'], states);
+    const members: PersonaBotFacepileItem[] = snapshot.bots.map((bot) => ({
+      personaBotId: bot.slug,
+      name: bot.slug === 'owner' ? 'Owner' : 'Quiet',
+      state: bot.state,
+      activity: bot.activity,
+      attention: bot.attention,
+      sessions: bot.sessions,
+    }));
+    const activity = groupComposerActivity(members, zhTranslate);
+    return {
+      snapshot,
+      activity,
+      markup: renderToStaticMarkup(
+        createElement(ChannelComposer, {
+          value: '',
+          placeholder: 'Group',
+          sending: false,
+          activity,
+          onChange: () => undefined,
+          onSubmit: () => undefined,
+        }),
+      ),
+    };
+  };
+  const thinking = renderCurrent();
+  expect(thinking.activity?.summary).toContain('Owner 正在思考');
+  expect(thinking.markup).not.toContain('Find project references');
+  expect(thinking.markup).not.toContain('grep');
+  expect(thinking.snapshot.bots[1]?.state).toBe('idle');
+  states.setSessionState('owner', 'private-orchestrator', 'done', undefined, 'orchestrator');
+  const handoff = renderCurrent();
+  expect(handoff.snapshot.revision).toBeGreaterThan(thinking.snapshot.revision);
+  expect(handoff.activity?.items).toHaveLength(1);
+  expect(handoff.markup).toContain('data-bot-id="owner"');
+  expect(handoff.markup).toContain('Find project references');
+  expect(handoff.markup).toContain('grep');
+  expect(handoff.markup).not.toMatch(/PRIVATE_|private-assignment|private-orchestrator/);
+  expect(handoff.snapshot.bots[1]?.state).toBe('idle');
+  states.setSessionState('owner', 'private-assignment', 'done', undefined, 'assignment');
+  const idle = renderCurrent();
+  expect(idle.activity).toBeUndefined();
+  expect(idle.markup).not.toContain('bh-composer-activity-status');
+  expect(idle.snapshot.bots.every((bot) => bot.state === 'idle')).toBe(true);
 });
