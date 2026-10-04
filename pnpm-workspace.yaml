@@ -13,6 +13,7 @@ allowBuilds:
   koffi: true
   node-pty: true
   protobufjs: false
+  agent-browser: false
 
 packageExtensions:
   '@deepseek-ai/dsh-client-ui-primitives@0.2.0-rc.1':

@@ -71,6 +71,11 @@ export interface BrowserExecution {
 }
 
 export interface BotBrowserRuntime {
+  runWithSignal?<T>(
+    signal: AbortSignal,
+    action: () => Promise<T>,
+    assertCurrent?: () => void,
+  ): Promise<T>;
   ensure(): Promise<void>;
   isRunning(): boolean;
   open(url: string, reuseTabId?: string): Promise<BrowserTab>;
@@ -350,6 +355,39 @@ export const SNAPSHOT_SCRIPT = `(() => {
   return { url: location.href, title: document.title, elements: elements, text: text };
 })()`;
 
+export async function waitForBrowserReady(
+  readState: () => Promise<unknown>,
+  assertCurrent: () => void = () => undefined,
+): Promise<void> {
+  const deadline = Date.now() + READY_TIMEOUT_MS;
+  let complete = false;
+  for (;;) {
+    assertCurrent();
+    let value: unknown;
+    try {
+      value = await readState();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        !/execution context was destroyed|cannot find context|Browser document context changed/iu.test(
+          message,
+        )
+      )
+        throw error;
+    }
+    assertCurrent();
+    if (String(value) === 'complete') {
+      if (complete) return;
+      complete = true;
+    } else complete = false;
+    if (Date.now() >= deadline)
+      throw new Error(
+        `Bot Browser page did not settle within ${READY_TIMEOUT_MS}ms after the action; it may have already run. Call browser_observe to inspect the current page before retrying`,
+      );
+    await delay(READY_POLL_MS);
+  }
+}
+
 const READY_TIMEOUT_MS = 15_000;
 const READY_POLL_MS = 200;
 
@@ -510,31 +548,8 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return (remote as { value?: unknown }).value;
   };
 
-  const waitForReady = async (sessionId: string): Promise<void> => {
-    const deadline = Date.now() + READY_TIMEOUT_MS;
-    let complete = false;
-    for (;;) {
-      let value: unknown;
-      try {
-        value = await evaluate(sessionId, 'document.readyState');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!/execution context was destroyed|cannot find context/iu.test(message)) throw error;
-      }
-      if (String(value) === 'complete') {
-        if (complete) return;
-        complete = true;
-      } else {
-        complete = false;
-      }
-      if (Date.now() >= deadline) {
-        throw new Error(
-          `Bot Browser page did not settle within ${READY_TIMEOUT_MS}ms after the action; it may have already run. Call browser_observe to inspect the current page before retrying`,
-        );
-      }
-      await delay(READY_POLL_MS);
-    }
-  };
+  const waitForReady = (sessionId: string): Promise<void> =>
+    waitForBrowserReady(() => evaluate(sessionId, 'document.readyState'));
 
   const asObject = (value: unknown): Record<string, unknown> | undefined =>
     typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined;

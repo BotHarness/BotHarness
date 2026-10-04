@@ -707,13 +707,13 @@ export function createBrowserToolProvider(
                 : spec.inputSchema,
           call: async (args, execution) => {
             const signal = AbortSignal.any([execution.signal, controller.signal]);
-            const controlState =
+            let controlState =
               spec.raw === 'screenshot' ||
               options.daily?.() !== undefined ||
               options.profile?.() !== undefined
                 ? botTabs(slug)
                 : undefined;
-            const controlRevision = controlState?.controlRevision;
+            let controlRevision = controlState?.controlRevision;
             const assertControlCurrent = (): void => {
               if (controlState === undefined) return;
               assertExecutionAllowed(spec.raw, slug);
@@ -724,17 +724,16 @@ export function createBrowserToolProvider(
                 throw new Error(
                   options.daily?.() !== undefined
                     ? 'Daily Browser control changed during the call; observe again after Human Resume'
-                    : 'Browser control changed during screenshot; retry with a new browser_screenshot after Human Resume',
+                    : spec.raw === 'screenshot'
+                      ? 'Browser control changed during screenshot; retry with a new browser_screenshot after Human Resume'
+                      : 'Browser control changed during the call; observe again after Human Resume',
                 );
               }
             };
             controlGuards.set(execution, assertControlCurrent);
             signal.throwIfAborted();
-            if (
-              (options.daily?.() !== undefined || options.profile?.() !== undefined) &&
-              (String(execution.agent?.id) !== sessionId || botSlugOf(sessionId)?.botSlug !== slug)
-            )
-              throw new Error('Daily Browser tools require the owning PersonaBot Session');
+            if (String(execution.agent?.id) !== sessionId || botSlugOf(sessionId)?.botSlug !== slug)
+              throw new Error('Browser tools require the owning PersonaBot Session');
             await authorize(execution, sessionId);
             await options.beforeExecution?.();
             signal.throwIfAborted();
@@ -744,7 +743,30 @@ export function createBrowserToolProvider(
               signal.throwIfAborted();
               assertExecutionAllowed(spec.raw, slug);
               assertControlCurrent();
-              return runTool(spec.raw, args, slug, signal, assertControlCurrent);
+              const execute = () => {
+                signal.throwIfAborted();
+                assertExecutionAllowed(spec.raw, slug);
+                assertControlCurrent();
+                return runTool(spec.raw, args, slug, signal, assertControlCurrent);
+              };
+              if (
+                options.daily?.() !== undefined ||
+                options.profile?.() !== undefined ||
+                options.borrowed?.() !== undefined
+              )
+                return execute();
+              const runtime = runtimes.for(slug);
+              if (runtime.runWithSignal !== undefined && controlState === undefined) {
+                controlState = botTabs(slug);
+                controlRevision = controlState.controlRevision;
+              }
+              return runtime.runWithSignal === undefined
+                ? execute()
+                : runtime.runWithSignal(signal, execute, () => {
+                    signal.throwIfAborted();
+                    assertExecutionAllowed(spec.raw, slug);
+                    assertControlCurrent();
+                  });
             });
             signal.throwIfAborted();
             assertControlCurrent();
