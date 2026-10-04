@@ -1,0 +1,32 @@
+{
+  "generation": "f838e85a-158d-4d4a-b9e3-46d3112e71c3",
+  "events": [
+    {
+      "event": {
+        "version": 1,
+        "botId": "bot-9c71d6bd8352437187409e793e18e83a",
+        "sessionId": "botharness-3fb462da-8787-40d9-ba0e-d01e6277a237",
+        "channelId": "dm-bot-9c71d6bd8352437187409e793e18e83a",
+        "messageId": "7cac238f-5c85-44e6-8fcd-780ac69473d0",
+        "channelRevision": 8,
+        "at": "2026-10-04T16:34:25.777Z",
+        "content": {
+          "body": "restart output verified",
+          "format": "markdown"
+        },
+        "correlation": {
+          "sourceEventId": "01cc06f2-867b-42bc-8d8f-af8c6ab47518"
+        }
+      },
+      "alreadyCommitted": true,
+      "ownedSession": true,
+      "frozen": true
+    }
+  ],
+  "filtered": [],
+  "syncFailures": 1,
+  "asyncFailures": 1,
+  "consumerDisposed": false,
+  "durableMessagesPreserved": true,
+  "noReplay": true
+}

@@ -56,10 +56,16 @@ export interface ChannelStoreOptions {
   botDisplayName?: (botSlug: string) => string | undefined;
 }
 
+export interface ChannelMessageOrigin {
+  sessionId: string;
+  sourceEventId?: string;
+}
+
 export interface ChannelMessageCommit {
   channelId: string;
   message: ChannelMessage;
   revision: number;
+  origin?: ChannelMessageOrigin;
 }
 export type ChannelAppendOnceResult =
   | { status: 'appended'; message: ChannelMessage }
@@ -341,10 +347,15 @@ export interface ChannelStore {
     id: string,
     message: ChannelMessage,
     preview?: AllBotPreview,
+    origin?: ChannelMessageOrigin,
   ): Promise<ChannelAppendOnceResult>;
   readPosition(id: string): ChannelReadPosition | undefined;
   markRead(id: string, messageId: string): Promise<ChannelReadPosition | undefined>;
-  appendMessage(id: string, message: ChannelMessage): Promise<ChannelMessage | undefined>;
+  appendMessage(
+    id: string,
+    message: ChannelMessage,
+    origin?: ChannelMessageOrigin,
+  ): Promise<ChannelMessage | undefined>;
   readMessages(id: string, options?: ChannelReadOptions): ChannelMessage[];
   queryMessages(id: string, options?: ChannelMessageQueryOptions): ChannelMessageQueryPage;
   readTimeline(id: string, request?: ChannelTimelineRequest): ChannelTimelinePage | undefined;
@@ -759,7 +770,7 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       write(renamed);
       return renamed;
     },
-    appendMessage(id, message) {
+    appendMessage(id, message, origin) {
       return enqueue(id, () => {
         const record = read(id);
         if (record === undefined) return undefined;
@@ -782,7 +793,12 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         revisions.set(id, revision);
         write({ ...record, updatedAt: now().toISOString() });
         try {
-          options.onCommitted?.({ channelId: id, message: projected, revision });
+          options.onCommitted?.({
+            channelId: id,
+            message: projected,
+            revision,
+            ...(origin === undefined ? {} : { origin }),
+          });
         } catch (error) {
           options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
         }
@@ -798,7 +814,7 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         options.botDisplayName ?? (() => undefined),
       );
     },
-    appendMessageOnce(id, message, preview) {
+    appendMessageOnce(id, message, preview, origin) {
       return enqueue(id, () => {
         const record = read(id);
         if (record === undefined) return { status: 'missing' };
@@ -840,7 +856,12 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         revisions.set(id, revision);
         write({ ...record, updatedAt: now().toISOString() });
         try {
-          options.onCommitted?.({ channelId: id, message: projected, revision });
+          options.onCommitted?.({
+            channelId: id,
+            message: projected,
+            revision,
+            ...(origin === undefined ? {} : { origin }),
+          });
         } catch (error) {
           options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
         }
