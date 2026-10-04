@@ -4,4 +4,6 @@ Guides 说明已经核验的实现与集成流程。产品含义必须回指 Des
 
 - [客户端桥](/zh/dev/guides/client-bridge)：已经实现的 Host → Web Client RPC 契约、信封、方法面和本地开发环路。
 
+- [PersonaBot 输出提交事件](/zh/dev/guides/personabot-output)：Host 公开输出通知、关联引用、失败隔离与 Consumer 生命周期。
+
 只有当流程真实存在并且可以核验时，才增加新的 Guide。Research 快照不会默认升级成 Guide。
