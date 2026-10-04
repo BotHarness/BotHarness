@@ -17,6 +17,7 @@
 
 ### Added
 
+- 线条家族 PersonaBot 头像在活动切换时的五官笔画会短暂变形成新状态的符号（?、放大镜、</>、!、♪、笑脸）再变回原样，采用 morphicons 的弹簧笔画变形；过渡可从当前形状中途重定向，并取代右上角的活动角标，小头像更短，开启减少动态效果时跳过（[#754](https://github.com/BotHarness/BotHarness/issues/754)）。
 - 新增可显式选择的 Container `agent-browser` 驱动，复用现有 Browser Viewer、接管、上传和持久 profile；Local 与 Container 分别保留原有默认驱动（[#768](https://github.com/BotHarness/BotHarness/issues/768)）。
 
 - PersonaBot Profile 可在像素家族与新的原创线条家族（彩色圆角底上的粗线条五官）之间切换；线条家族有独立的眼睛和嘴（含 > <、T T、ω、▽ 等颜文字）、眉毛、鼻子、脸颊、眼镜、漫符（汗滴、怒筋、阴沉竖线、闪光等）、底色与线条颜色，以及有界的间距、高低和倾斜，并通过同一链路保存、生成快照、播放动作、显示独立审批提示并在重启后恢复；需要你处理时，两个家族的大头像都会出现「！？」漫符（[#753](https://github.com/BotHarness/BotHarness/issues/753)）。

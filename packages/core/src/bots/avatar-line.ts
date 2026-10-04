@@ -147,23 +147,46 @@ export function seededLineRecipe(seed: string): LineAvatarRecipe {
 const CX = 24;
 const EYE_Y = 20;
 const STROKE = 3;
-const MARK_COLORS = {
-  'thinking-dots': '#e8a93a',
-  searching: '#5a9be0',
-  coding: '#5a9be0',
-  executing: '#e8a93a',
-  'generic-working': '#8a8792',
-} as const;
-const MARKS: Record<keyof typeof MARK_COLORS, string> = {
-  'thinking-dots':
-    '<path d="M40 5.5Q40 3 42.5 3Q45 3 45 5.5Q45 7.5 42.5 8.5L42.5 10"/><circle cx="42.5" cy="13" r=".6"/>',
-  searching: '<circle cx="41.5" cy="6.5" r="3"/><path d="M43.7 8.7L46 11"/>',
-  coding: '<path d="M42.5 3Q45.5 7.5 45.5 9.5A3 3 0 0 1 39.5 9.5Q39.5 7.5 42.5 3Z"/>',
-  executing:
-    '<path d="M42.5 3L42.5 9"/><circle cx="42.5" cy="12.5" r=".6"/><path d="M38.5 4.5L39.8 6M46.5 4.5L45.2 6M38 9.5L39.5 9.5M47 9.5L45.5 9.5" stroke-width="1.2"/>',
-  'generic-working':
-    '<path d="M43.5 3.5L43.5 10.5M43.5 3.5Q45.5 4.5 46.5 6.5"/><ellipse cx="42" cy="10.8" rx="1.8" ry="1.3" fill="#8a8792"/>',
+export type LineMorphNode = readonly [string, Readonly<Record<string, string>>];
+
+const shape = (markup: string): LineMorphNode[] =>
+  [...markup.matchAll(/<(path|ellipse|circle|rect)\s([^>]*?)\/>/gu)].map(([, tag, attrs]) => [
+    tag!,
+    Object.fromEntries(
+      [...attrs!.matchAll(/([\w-]+)="([^"]*)"/gu)]
+        .filter(([, key]) => /^(d|cx|cy|r|rx|ry|x|y|width|height)$/u.test(key!))
+        .map(([, key, value]) => [key!, value!]),
+    ),
+  ]);
+
+export const LINE_MORPH_SYMBOLS: Readonly<Record<string, readonly LineMorphNode[]>> = {
+  'thinking-dots': shape(
+    '<path d="M17.5 17Q17.5 10.5 24 10.5Q30.5 10.5 30.5 17Q30.5 21.5 24 23.5L24 27.5"/><circle cx="24" cy="34" r="1.3"/>',
+  ),
+  searching: shape('<circle cx="22" cy="22" r="7.5"/><path d="M27.5 27.5L34 34"/>'),
+  coding: shape(
+    '<path d="M18.5 16L12.5 24L18.5 32"/><path d="M29.5 16L35.5 24L29.5 32"/><path d="M26.5 13L21.5 35"/>',
+  ),
+  executing: shape(
+    '<path d="M24 10L24 27"/><circle cx="24" cy="34" r="1.3"/><path d="M14.5 12L17.5 15.5"/><path d="M33.5 12L30.5 15.5"/>',
+  ),
+  'generic-working': shape(
+    '<path d="M28 33L28 11Q32.5 12.5 34 17.5"/><ellipse cx="24.5" cy="33" rx="3.6" ry="2.6"/>',
+  ),
+  idle: shape('<path d="M14 21Q24 33 34 21"/><path d="M18 14L18 16"/><path d="M30 14L30 16"/>'),
 };
+
+export function lineMorphFace(recipe: LineAvatarRecipe): {
+  nodes: LineMorphNode[];
+  pivot: readonly [number, number];
+  tilt: number;
+} {
+  return {
+    nodes: shape(features(recipe, 0).morph),
+    pivot: [CX, EYE_Y + recipe.height + 6],
+    tilt: recipe.tilt,
+  };
+}
 
 const ATTENTION_MARK =
   '<g data-avatar-attention-mark="" opacity="0" fill="none" stroke="#e2565f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.5L5.5 9.5"/><circle cx="5.5" cy="12.5" r=".7" fill="#e2565f"/><path d="M8.5 5.2Q8.5 3.2 10.6 3.2Q12.7 3.2 12.7 5.2Q12.7 6.9 10.6 7.8L10.6 9.6"/><circle cx="10.6" cy="12.5" r=".7" fill="#e2565f"/></g>';
@@ -354,7 +377,7 @@ function cheeks(
 function features(
   recipe: LineAvatarRecipe,
   yawDegrees: number,
-): { eyes: string; closed: string; rest: string } {
+): { eyes: string; closed: string; rest: string; morph: string } {
   const ink = recipe.inkColor;
   const yaw = (yawDegrees * Math.PI) / 180;
   const R = 19;
@@ -386,15 +409,28 @@ function features(
           )
           .join('') +
         `<path d="M${fmt(left.x + 4.6 * left.k)} ${y - 0.5}Q${fmt((left.x + right.x) / 2)} ${y - 2} ${fmt(right.x - 4.6 * right.k)} ${y - 0.5}" stroke-width="1.8"/>`;
-  const rest =
+  const expression =
     brow(recipe.brows, left.x, y - browGap, left.k, 1) +
     brow(recipe.brows, right.x, y - browGap, right.k, -1) +
     nose(recipe.nose, center, y + 3, Math.sign(yaw), ink) +
-    mouth(recipe.mouth, CX + R * Math.sin(yaw) * 0.8, y + 16, Math.max(0.6, Math.cos(yaw)), ink) +
+    mouth(recipe.mouth, CX + R * Math.sin(yaw) * 0.8, y + 16, Math.max(0.6, Math.cos(yaw)), ink);
+  const rest =
+    expression +
     cheeks(recipe.cheeks, [left.x - 1.5, right.x + 1.5], y + 10, ink) +
     glasses +
     (recipe.symbol === 'none' ? '' : `<g data-avatar-symbol="">${SYMBOLS[recipe.symbol]}</g>`);
-  return { eyes, closed, rest };
+  return {
+    eyes,
+    closed,
+    rest,
+    morph:
+      eyes +
+      expression +
+      glasses +
+      (recipe.cheeks === 'lines'
+        ? cheeks('lines', [left.x - 1.5, right.x + 1.5], y + 10, ink)
+        : ''),
+  };
 }
 
 export function lineAvatarSvg(
@@ -418,19 +454,14 @@ export function lineAvatarSvg(
         `<g data-avatar-turn="${delta}" opacity="0">${head(face(delta), 'data-turn-part="')}</g>`,
     )
     .join('');
-  const marks = (Object.keys(MARKS) as (keyof typeof MARKS)[])
-    .map(
-      (mark) =>
-        `<g data-avatar-mark="${mark}" opacity="0" fill="none" stroke="${MARK_COLORS[mark]}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MARKS[mark]}</g>`,
-    )
-    .join('');
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="512" height="512" aria-hidden="true">',
     `<rect width="48" height="48" rx="11" fill="${recipe.backgroundColor}"/>`,
     '<g class="bh-illustrated-body"></g>',
     head(base),
     turns,
-    `<g class="bh-illustrated-marks">${marks}${ATTENTION_MARK}</g>`,
+    `<path data-avatar-transition="" d="M24 24" opacity="0" ${stroke}/>`,
+    `<g class="bh-illustrated-marks">${ATTENTION_MARK}</g>`,
     '</svg>',
   ].join('');
 }

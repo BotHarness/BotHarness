@@ -393,6 +393,9 @@ importers:
       blobatar:
         specifier: ^2.7.0
         version: 2.7.0(react@18.3.1)
+      morphicons:
+        specifier: 1.7.1
+        version: 1.7.1(react@18.3.1)
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.4
@@ -8190,6 +8193,26 @@ packages:
   modern-tar@0.8.5:
     resolution: {integrity: sha512-snEhs+6G5Tjd4I7tLCDOaoln2RgE0bD19RzEKgvgK2hZ5VKy3MpLhLTZ2fWpXSTg4K2cyPwp+VHATFJhxfnOeA==}
     engines: {node: '>=18.0.0'}
+
+  morphicons@1.7.1:
+    resolution: {integrity: sha512-q5ylxy5/d7vBg0OAzanlooXf05PekovMYDuuQVpr6vAQZxl99lrJbaIi+jJ32PXQf9WEEaDO2pbNBsx1ZhEnFQ==}
+    peerDependencies:
+      react: '>=18'
+      react-native: '>=0.71'
+      react-native-svg: '>=14'
+      svelte: '>=5'
+      vue: '>=3.3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-native:
+        optional: true
+      react-native-svg:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
@@ -18179,6 +18202,10 @@ snapshots:
   mitt@3.0.1: {}
 
   modern-tar@0.8.5: {}
+
+  morphicons@1.7.1(react@18.3.1):
+    optionalDependencies:
+      react: 18.3.1
 
   mri@1.2.0: {}
 

@@ -17,6 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Line-family PersonaBot avatars briefly morph their face strokes into a symbol for the new activity (?, magnifier, </>, !, ♪, smiling face) and back, using morphicons spring stroke morphing; transitions retarget mid-way from the displayed shape and replace the corner activity marks, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
 - Added an opt-in Container `agent-browser` driver using the existing Browser Viewer, takeover, uploads and persistent profile; Local and Container retain independent default drivers ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
 - PersonaBot Profile can switch the avatar between the pixel family and a new original line family (bold strokes on a coloured tile) with its own eyes and mouths (including kaomoji such as > <, T T, ω and ▽), brows, nose, cheeks, glasses, manga symbols (sweat, anger vein, gloom lines, sparkle and more), background/line colors and bounded spacing, height and tilt; line avatars save, snapshot, animate, show independent approval attention and recover through the same path; large avatars of both families show a manga `!?` mark while action is needed ([#753](https://github.com/BotHarness/BotHarness/issues/753)).
