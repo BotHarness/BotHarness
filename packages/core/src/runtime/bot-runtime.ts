@@ -252,7 +252,8 @@ export interface AssignmentAgentRun {
   resume?: boolean;
   permission: AssignmentPermissionSnapshot;
   modelRoute?: ModelRoute;
-  report(input: AssignmentReportInput): Promise<AssignmentReport>;
+  report(input: AssignmentReportInput, execution?: { turn: number }): Promise<AssignmentReport>;
+  completedTurn?(execution: { turn: number; endSeq: number }): void;
 }
 
 export type AssignmentRequestDelivery =
@@ -511,6 +512,7 @@ interface InboxReportRow {
   open_ask_summary?: string | null;
   continuity_key: string | null;
   activity: AssignmentActivity | null;
+  paired_report_id?: string | null;
 }
 
 interface DigestRow {
@@ -564,6 +566,7 @@ interface InboxUnit {
   continuityKey: string | null;
   activity: AssignmentActivity | null;
   repeats: number;
+  lifecycleNotices?: Array<{ sourceEventId: string; reportSourceEventId: string; summary: string }>;
 }
 
 type SourceEventAttemptState = 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
@@ -654,6 +657,19 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
   for (const row of rows) {
     const key = row.assignment_session_id ?? row.source_event_id;
     const existing = units.get(key);
+    if (
+      row.source_kind === 'assignment-lifecycle' &&
+      row.paired_report_id != null &&
+      existing !== undefined
+    ) {
+      (existing.lifecycleNotices ??= []).push({
+        sourceEventId: row.source_event_id,
+        reportSourceEventId: row.paired_report_id,
+        summary: row.body,
+      });
+      existing.repeats += 1;
+      continue;
+    }
     if (existing === undefined) {
       units.set(key, {
         sourceEventId: row.source_event_id,
@@ -667,6 +683,17 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
         continuityKey: row.continuity_key,
         activity: row.activity,
         repeats: 1,
+        ...(row.paired_report_id == null
+          ? {}
+          : {
+              lifecycleNotices: [
+                {
+                  sourceEventId: row.source_event_id,
+                  reportSourceEventId: row.paired_report_id,
+                  summary: row.body,
+                },
+              ],
+            }),
       });
       continue;
     }
@@ -691,18 +718,29 @@ function renderInbox(units: InboxUnit[]): string {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
     }
     const target = unit.assignmentSessionId ?? 'unknown Assignment';
+    const lifecycle = (unit.lifecycleNotices ?? [])
+      .map(
+        (notice) =>
+          ` Host lifecycle notice [Source Event ${notice.sourceEventId}; same native Turn as Report ${notice.reportSourceEventId}]: ${notice.summary}`,
+      )
+      .join('');
     const facts = [
       `key ${unit.continuityKey}`,
       `activity ${unit.activity ?? 'unknown'}`,
       `repeats ${unit.repeats}`,
     ].join(', ');
     if (unit.openAskId != null) {
-      return `- ${target} (${facts}) WAITING for your answer (answer_to: ${unit.openAskId}): ${unit.openAskSummary ?? unit.summary}`;
+      return `- ${target} (${facts}) WAITING for your answer (answer_to: ${unit.openAskId}): ${unit.openAskSummary ?? unit.summary}${lifecycle}`;
     }
+    if (
+      unit.sourceKind === 'assignment-lifecycle' &&
+      unit.lifecycleNotices?.some((notice) => notice.sourceEventId === unit.sourceEventId)
+    )
+      return `- ${target} (${facts})${lifecycle}`;
     if (unit.sourceKind === 'assignment-lifecycle') {
       return `- ${target} (${facts}) Host lifecycle notice: ${unit.summary}`;
     }
-    return `- ${target} (${facts}) reported: ${unit.summary}`;
+    return `- ${target} (${facts}) reported [Source Event ${unit.sourceEventId}]: ${unit.summary}${lifecycle}`;
   });
   return [
     '[Bot Inbox] External mentions, actionable Memory changes, Assignment reports, and Host lifecycle notices since your last turn.',
@@ -1480,6 +1518,8 @@ class BotRuntimeImplementation implements BotRuntime {
            WHERE a.reason IN ('assignment-report', 'assignment-lifecycle')
              AND a.attempt_state IN ('pending', 'retryable')
              AND e.observed_at IS NULL
+             AND NOT (e.source_kind = 'assignment-lifecycle' AND
+                  json_extract(e.payload_json, '$.assignmentLifecycle.reportSourceEventId') IS NOT NULL)
              AND (a.source_policy_wake_mode = 'immediate' OR
                   ((a.source_policy_wake_mode = 'conditional' OR
                     a.source_policy_wake_mode IS NULL) AND
@@ -1687,7 +1727,9 @@ class BotRuntimeImplementation implements BotRuntime {
            JOIN source_events e ON e.source_event_id = a.source_event_id
           WHERE a.bot_slug = ? AND a.reason IN ('assignment-report', 'assignment-lifecycle')
             AND a.attempt_state = 'pending' AND e.observed_at IS NULL
-            AND (a.source_policy_wake_mode = 'immediate' OR
+            AND NOT (e.source_kind = 'assignment-lifecycle' AND
+                  json_extract(e.payload_json, '$.assignmentLifecycle.reportSourceEventId') IS NOT NULL)
+             AND (a.source_policy_wake_mode = 'immediate' OR
                  ((a.source_policy_wake_mode = 'conditional' OR
                    a.source_policy_wake_mode IS NULL) AND
                   (a.reason = 'assignment-lifecycle' OR e.expects_reply = 1 OR
@@ -4372,7 +4414,10 @@ class BotRuntimeImplementation implements BotRuntime {
         purpose,
         permission,
         ...(modelRoute === undefined ? {} : { modelRoute }),
-        report: async (report) => this.#recordReport(bot.slug, sessionId, report),
+        report: async (report, execution) =>
+          this.#recordReport(bot.slug, sessionId, report, execution),
+        completedTurn: (execution) =>
+          this.#recordCompletedAssignment(bot.slug, sessionId, execution),
       }),
     );
     return { outcome: 'created', assignment: this.#requireAssignmentSummary(bot.slug, sessionId) };
@@ -4446,7 +4491,10 @@ class BotRuntimeImplementation implements BotRuntime {
       resume: true,
       permission,
       ...(modelRoute === undefined ? {} : { modelRoute }),
-      report: async (report) => this.#recordReport(bot.slug, input.sessionId, report),
+      report: async (report, execution) =>
+        this.#recordReport(bot.slug, input.sessionId, report, execution),
+      completedTurn: (execution) =>
+        this.#recordCompletedAssignment(bot.slug, input.sessionId, execution),
     };
     const delivery = this.#agents.requestAssignment(run);
     if (input.model !== undefined) {
@@ -4616,11 +4664,87 @@ class BotRuntimeImplementation implements BotRuntime {
     return assignment;
   }
 
+  #recordCompletedAssignment(
+    botSlug: string,
+    sessionId: string,
+    execution: { turn: number; endSeq: number },
+  ): void {
+    if (
+      !Number.isSafeInteger(execution.turn) ||
+      execution.turn < 1 ||
+      !Number.isSafeInteger(execution.endSeq) ||
+      execution.endSeq < 0
+    )
+      throw new Error('Invalid native Assignment completion');
+    const at = this.#now().toISOString();
+    this.#database.transaction(
+      (database) => {
+        const report = database
+          .prepare(`
+        SELECT e.source_event_id FROM source_events e
+          JOIN assignments a ON a.session_id = e.assignment_session_id AND a.bot_slug = e.bot_slug
+         WHERE e.bot_slug = ? AND e.assignment_session_id = ? AND a.stop_state = 'running'
+           AND e.source_kind = 'assignment-report'
+           AND json_extract(e.payload_json, '$.assignmentReport.state') = 'completed'
+           AND json_extract(e.payload_json, '$.assignmentReport.turn') = ?
+         ORDER BY e.rowid DESC LIMIT 1
+      `)
+          .get(botSlug, sessionId, execution.turn) as { source_event_id: string } | undefined;
+        if (report === undefined) return;
+        const existing = database
+          .prepare(`
+        SELECT 1 FROM source_events WHERE bot_slug = ? AND assignment_session_id = ?
+          AND source_kind = 'assignment-lifecycle'
+          AND json_extract(payload_json, '$.assignmentLifecycle.turn') = ?
+          AND json_extract(payload_json, '$.assignmentLifecycle.cause') = 'native-turn-completed'
+      `)
+          .get(botSlug, sessionId, execution.turn);
+        if (existing !== undefined) return;
+        const id = this.#createEventId();
+        const rule = this.#sourcePolicy.resolveIn(database, botSlug, 'assignment-lifecycle');
+        database
+          .prepare(`
+        INSERT INTO source_events (source_event_id, source_kind, bot_slug, assignment_session_id,
+          body, created_at, handled_at, attempt_state, expects_reply, payload_json)
+        VALUES (?, 'assignment-lifecycle', ?, ?, ?, ?, ?, 'handled', 0, ?)
+      `)
+          .run(
+            id,
+            botSlug,
+            sessionId,
+            'DSH confirmed successful completion of Assignment Turn ' + execution.turn + '.',
+            at,
+            at,
+            JSON.stringify({
+              author: { kind: 'system' },
+              assignmentLifecycle: {
+                state: 'completed',
+                cause: 'native-turn-completed',
+                turn: execution.turn,
+                endSeq: execution.endSeq,
+                reportSourceEventId: report.source_event_id,
+              },
+            }),
+          );
+        database
+          .prepare(`
+        INSERT INTO inbox_admissions (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode)
+        VALUES (?, ?, 'assignment-lifecycle', ?, ?)
+      `)
+          .run(id, botSlug, rule.revision, rule.wake);
+      },
+      ['source-event', 'bot-inbox'],
+    );
+  }
+
   async #recordReport(
     botSlug: string,
     sessionId: string,
     input: AssignmentReportInput,
+    execution?: { turn: number },
   ): Promise<AssignmentReport> {
+    if (execution !== undefined && (!Number.isSafeInteger(execution.turn) || execution.turn < 1))
+      throw new Error('Invalid native Assignment Turn');
     const content = requireNonBlank(input.summary, 'Assignment report summary');
     const assignment = this.getAssignment(botSlug, sessionId);
     if (
@@ -4710,7 +4834,13 @@ class BotRuntimeImplementation implements BotRuntime {
             at,
             at,
             expectsReply ? 1 : 0,
-            JSON.stringify({ assignmentReport: { state: input.state } }),
+            JSON.stringify({
+              author: { kind: 'bot', slug: botSlug },
+              assignmentReport: {
+                state: input.state,
+                ...(execution === undefined ? {} : { turn: execution.turn }),
+              },
+            }),
           );
         database
           .prepare(`
@@ -4883,6 +5013,7 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(
             `SELECT e.source_event_id, e.source_kind, e.assignment_session_id,
                     e.body, e.created_at, e.expects_reply, a.continuity_key,
+                    json_extract(e.payload_json, '$.assignmentLifecycle.reportSourceEventId') AS paired_report_id,
                     CASE WHEN a.stop_state = 'running' THEN a.open_ask_source_event_id END AS open_ask_id,
                     (SELECT body FROM source_events WHERE source_event_id = a.open_ask_source_event_id) AS open_ask_summary,
                     CASE WHEN a.stop_state = 'stopped' THEN 'stopped'

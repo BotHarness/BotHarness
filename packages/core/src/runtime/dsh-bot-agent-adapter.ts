@@ -189,7 +189,10 @@ function isReportState(value: string): value is AssignmentReportState {
   );
 }
 
-function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): void {
+function requireCompletedTurn(
+  handle: AgentHandle,
+  fromSeq: SessionLogOffset,
+): { turn: number; endSeq: number } {
   const turnEnd = handle.agent.session
     .snapshotEvents(fromSeq)
     .find((event) => event.type === 'turn/end');
@@ -197,7 +200,7 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
     throw new Error('Agent became idle without a durable turn/end');
   }
   const reason = turnEnd.data.reason;
-  if (reason.kind === 'completed') return;
+  if (reason.kind === 'completed') return { turn: turnEnd.data.turn, endSeq: turnEnd.seq };
   if (reason.kind === 'error') {
     const routeNeedsRepair =
       [
@@ -386,7 +389,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
       await handle.agent.whenIdle();
       if (this.#stopping.has(run.sessionId)) return;
-      requireCompletedTurn(handle, fromSeq);
+      const completion = requireCompletedTurn(handle, fromSeq);
+      run.completedTurn?.(completion);
       if (run.resume === true) return;
       if (!entry.reported) {
         throw new Error('Assignment finished without report_to_orchestrator');
@@ -2572,13 +2576,21 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               if (active?.role !== 'assignment') {
                 throw new Error('report_to_orchestrator: Assignment run is unavailable');
               }
-              await active.run.report({
-                state: args.state,
-                summary: args.summary,
-                ...(args.expects_reply === undefined
-                  ? {}
-                  : { expectsReply: args.expects_reply === true }),
-              });
+              const start = agent.session
+                .snapshotEvents()
+                .findLast((event) => event.type === 'turn/start');
+              if (start === undefined)
+                throw new Error('Assignment Report has no native Turn identity');
+              await active.run.report(
+                {
+                  state: args.state,
+                  summary: args.summary,
+                  ...(args.expects_reply === undefined
+                    ? {}
+                    : { expectsReply: args.expects_reply === true }),
+                },
+                { turn: start.data.turn },
+              );
               active.reported = true;
               return 'Report delivered to the Orchestrator.';
             },

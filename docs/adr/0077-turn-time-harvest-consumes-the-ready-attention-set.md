@@ -33,3 +33,11 @@ One turn per event makes a busy Bot's queue grow without bound, and each queued 
 - Steer delivery is unchanged; a steered item belongs to the running turn and never appears in the next harvest.
 - The unified turn-message render (the memory-delivery track, #350–#353) is this harvest's message assembly; notices ride harvest turns without waking one alone. Selection, omitted counts, and explicit-read settlement must remain visible through the canonical Bot Inbox projection (#152), with no second message store.
 - A failed harvest shows all its items as needs-repair, and the Human or Bot explicitly re-runs them.
+
+## Completed Report and native completion pairing
+
+An Assignment's semantic completed Report and the Host's confirmed native completion are separate Source Events, authored by the Bot and Host respectively. The adapter supplies the native Turn number from Session Events, never model arguments; after a successful native `turn/end`, the Host links one idempotent completion notice to a completed Report from that exact owned Session and Turn, retaining the native end sequence and Report Source Event ID. Session identity alone, text similarity and timestamps are insufficient causal identity. A progress-only successful Turn does not create this paired notice.
+
+The Report owns the causal wake. Its paired completion notice joins that harvest when available or rides the next real Turn; it never independently wakes or replays a Turn, including after Host restart. A late notice remains pending when the Report has already been handled. Only actual model exposure and successful Turn settlement handle the notice, preserving each source's own observation/handling facts. The harvest preserves both Report meaning and Host confirmation with their separate references rather than replacing the Report with a weaker lifecycle summary. The authenticated Bot Inbox query exposes the Turn and exact related Report reference through its existing seam.
+
+This avoids a second paid model request for the same completion without erasing independently navigable provenance or treating an unseen notice as consumed. It establishes successful completion pairing only; failure, interruption and strong-cause escalation remain separate #194 acceptance slices.

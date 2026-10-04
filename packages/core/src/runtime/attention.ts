@@ -27,6 +27,8 @@ export interface BotAttentionItem {
   assignmentSessionId?: string;
   assignmentPurpose?: string;
   assignmentReportState?: 'progress' | 'completed' | 'blocked' | 'waiting-human' | 'failed';
+  assignmentTurn?: number;
+  relatedReportSourceEventId?: string;
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';
   authorBotSlug?: string;
@@ -71,6 +73,8 @@ interface AttentionRow {
   available_assignment_session_id: string | null;
   assignment_purpose: string | null;
   assignment_report_state: string | null;
+  assignment_turn: number | null;
+  related_report_source_event_id: string | null;
   body: string;
   payload_json: string | null;
   created_at: string;
@@ -119,6 +123,8 @@ export function createBotAttentionQuery(
                  assignment.session_id AS available_assignment_session_id,
                  assignment.purpose AS assignment_purpose,
                  json_extract(e.payload_json, '$.assignmentReport.state') AS assignment_report_state,
+                 COALESCE(json_extract(e.payload_json, '$.assignmentReport.turn'), json_extract(e.payload_json, '$.assignmentLifecycle.turn')) AS assignment_turn,
+                 json_extract(e.payload_json, '$.assignmentLifecycle.reportSourceEventId') AS related_report_source_event_id,
                  e.body, e.payload_json, e.created_at, json_extract(e.payload_json, '$.author.kind') AS author_kind,
                  json_extract(e.payload_json, '$.author.slug') AS author_slug,
                  CASE
@@ -206,6 +212,10 @@ export function createBotAttentionQuery(
           row.assignment_report_state === 'failed'
             ? { assignmentReportState: row.assignment_report_state }
             : {}),
+          ...(row.assignment_turn === null ? {} : { assignmentTurn: row.assignment_turn }),
+          ...(row.related_report_source_event_id === null
+            ? {}
+            : { relatedReportSourceEventId: row.related_report_source_event_id }),
           sourceAvailable:
             (channel !== undefined && row.placed_message_id !== null) ||
             row.available_assignment_session_id !== null ||
