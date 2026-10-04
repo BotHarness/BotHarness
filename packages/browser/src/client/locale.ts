@@ -32,6 +32,7 @@ export const zh = {
   'entry.stopping': '停止中',
 
   'settings.localDriver': '本机驱动',
+  'settings.containerDriver': '容器驱动',
   'settings.driver.current': '默认',
   'settings.driver.agent-browser': 'agent-browser（试用）',
   'settings.target': '操作目标',
@@ -65,6 +66,7 @@ export const zh = {
   'entry.view.resume': '继续',
   'entry.view.open': '打开 Bot 浏览器',
   'entry.view.stop': '停止',
+  'entry.view.cleanupFailed': '浏览器清理失败。点击“停止”重试。',
   'entry.view.opening': '正在打开…',
   'entry.view.noFrame': '暂无画面',
   'entry.view.noTabs': '暂无标签页',
@@ -105,6 +107,7 @@ export const en: Record<BrowserKey, string> = {
   'entry.stopping': 'Stopping',
 
   'settings.localDriver': 'Local driver',
+  'settings.containerDriver': 'Container driver',
   'settings.driver.current': 'Default',
   'settings.driver.agent-browser': 'agent-browser (trial)',
   'settings.target': 'Browser Target',
@@ -138,6 +141,7 @@ export const en: Record<BrowserKey, string> = {
   'entry.view.resume': 'Resume',
   'entry.view.open': 'Open Bot Browser',
   'entry.view.stop': 'Stop',
+  'entry.view.cleanupFailed': 'Browser cleanup failed. Click Stop to retry.',
   'entry.view.opening': 'Opening…',
   'entry.view.noFrame': 'No frame yet',
   'entry.view.noTabs': 'No tabs yet',
