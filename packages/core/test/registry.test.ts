@@ -55,9 +55,9 @@ describe('createPersonaBotRegistry', () => {
         registry.setAppearance('ada', { ...DEFAULT_ILLUSTRATED_RECIPE, hair: 'bob' }),
       ).toThrow('write refused');
       expect(readFileSync(join(root, 'ada', 'bot.json'), 'utf8')).toBe(original);
-      expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance?.recipe.hair).toBe(
-        'crop',
-      );
+      expect(
+        createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance?.recipe,
+      ).toMatchObject({ family: 'illustrated', hair: 'crop' });
     } finally {
       writer.mockRestore();
     }

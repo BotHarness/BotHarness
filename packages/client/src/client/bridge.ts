@@ -2,7 +2,7 @@ import { parsePublicAttention } from './activity-attention.js';
 import {
   isAvatarAppearance,
   type AvatarAppearance,
-  type IllustratedAvatarRecipe,
+  type AvatarRecipe,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { parsePublicToolActivity } from './activity-detail.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
@@ -1332,7 +1332,7 @@ export async function setBotAvatar(
 export async function setBotAppearance(
   call: BridgeCall,
   channelId: string,
-  recipe: IllustratedAvatarRecipe,
+  recipe: AvatarRecipe,
 ): Promise<BotSummary> {
   const value = asRecord(await unwrap(call, 'botAppearanceSet', { channelId, recipe }));
   const bot = parseBotSummary(value?.['bot']);
