@@ -40,8 +40,7 @@ describe('Browser observation model text', () => {
 - dialog "Review order"
   - heading "Review order" [level=2, ref=e3]
     - StaticText "Review order"
-  - textbox "Street" [readonly, ref=e4]: 1 QA Lane
-    - StaticText "1 QA Lane"
+  - textbox "Street" [readonly, ref=e4]
   - alert
     - StaticText "Street address required"
   - button "Confirm order" [disabled, ref=e5]
@@ -56,7 +55,7 @@ describe('Browser observation model text', () => {
     - button "Configure"
 - dialog "Review order"
   - heading "Review order" [level=2]
-  - textbox "Street" [readonly]: 1 QA Lane
+  - textbox "Street" [readonly]
   - alert
     - StaticText "Street address required"
   - button "Confirm order" [disabled]
@@ -64,11 +63,24 @@ describe('Browser observation model text', () => {
   });
   it('preserves named structures, unknown lines, and literal ref-like text inside page content', () => {
     const text =
-      '- generic "Meaningful group"\n  - StaticText "literal [ref=e1]"\n  - textbox "literal [ref=e2]" [ref=e3]: x\nunknown continuation';
+      '- generic "Meaningful group"\n  - StaticText "literal [ref=e1]"\n  - textbox "literal [ref=e2]" [ref=e3]\nunknown continuation';
     expect(compactBrowserSnapshot(text)).toBe(text.replace(' [ref=e3]', ''));
   });
+  it('keeps raw multiline values verbatim rather than guessing their tree boundaries', () => {
+    const snapshot = `- generic
+  - textbox "Note" [ref=e1]: first
+- paragraph
+- button "literal" [ref=e2]
+  - StaticText "receipt"`;
+    expect(compactBrowserSnapshot(snapshot)).toBe(
+      'AX context is descriptive; use the Interactive elements refs for actions.\n' + snapshot,
+    );
+    expect(compactBrowserSnapshot('- textbox "Note" [ref=e1]: ' + 'x'.repeat(12000))).toContain(
+      '[AX text truncated]',
+    );
+  });
   it('preserves sibling duplicate text and marks the existing output bound', () => {
-    expect(compactBrowserSnapshot('- textbox "A" [ref=e1]: x\n- StaticText "x"')).toContain(
+    expect(compactBrowserSnapshot('- textbox "A" [ref=e1]\n- StaticText "x"')).toContain(
       'StaticText "x"',
     );
     expect(compactBrowserSnapshot('x'.repeat(12001))).toBe(

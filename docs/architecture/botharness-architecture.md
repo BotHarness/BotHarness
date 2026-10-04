@@ -335,7 +335,7 @@ Browser 同样是 profile 级共享资源（ADR-0089）：可选 `@botharness/br
 
 Local Browser 的 `localDriver` 可显式选择默认 `current` 或试用 `agent-browser`（[ADR-0124](../adr/0124-local-browser-drivers-share-host-authority.md)）：两者共用 Browser Provider、专属持久 browser profile、Chrome 启停与 Human 窗口。候选仅在私有 IPC 内以锁定版本的原生进程连接这个受管 CDP 端点，按 profile 串行选择精确 target，ref 绑定当前 DOM 身份，绝不通过同名元素或相邻标签恢复。Browser Access、拥有者 Session、原生审批、Pause、Audit 和模型附件仍由原 Provider 管理；切换驱动撤销旧授权并等待旧实例清理，取消会停止候选与其 Chrome。Container 和日常浏览器模式保留各自驱动；真实 PersonaBot 比较及 Container 候选资格分别由 #767、#768 验证。
 
-Managed Browser observation supplies bounded non-sensitive form values and applicable control states beside the existing exact refs. The optional Local candidate conservatively compacts full AX scaffolding while retaining semantic page/dialog content; neither formatting path changes Browser authorization or ref identity ([#787](https://github.com/BotHarness/BotHarness/issues/787)).
+Managed Browser 观察在原有精确引用旁提供有界的非敏感字段值及适用控件状态。可选 Local 候选驱动保守压缩完整 AX 骨架并保留页面／弹窗语义；包含原始控件值时保持 AX 原文，避免误删多行值。两种表示均不改变 Browser 授权和引用身份 ([#787](https://github.com/BotHarness/BotHarness/issues/787)).
 
 Browser Target 通过原生 Profile 设置选择 Local、Container 或 Daily Browser（ADR-0114／0116），默认仍为 Local。Container 使用固定 digest 的官方 Chrome 镜像、资源上限、命名 profile 独立且带所有权标签的 volume 与内部 CDP，独立于 Computer。Browser 和 Computer 的独立 Client Bundle 编译复用 `packages/client/src/client/remote-viewer/` 的纯展示组件，无 Computer runtime 依赖：容器画面在侧栏默认只读，Human Open 展开同一连接的全屏 Viewer，复用接管、状态、缩放和收起交互。Browser 确认 Host Pause 后才允许输入；关闭操作或收起全屏保持 Pause，恢复 Bot 需要明确 Resume。共享 Viewer 全屏期间，侧栏 overlay 提升层级，避免侧栏开关遮挡全屏收起控件。切换 target、profile、viewer 地址或关闭 Access 均撤销当前 UI 输入权限。Target 切换撤销 Session 授权、待审批作用域、ref 与标签归属，等待 runtime 成功停止后才允许新动作；显式上传经有界文件复制，空闲停止保留数据，不挂载 Host 目录。日常浏览器的只读借用切片见下一段。
 

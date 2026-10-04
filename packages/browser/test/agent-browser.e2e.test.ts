@@ -43,6 +43,9 @@ describe.skipIf(!enabled)(
           <p id="result">idle</p>
           <input aria-label="Disabled" value="do not clear" disabled>
           <input aria-label="Read only" value="do not clear" readonly>
+          <textarea aria-label="Multiline note">first
+- paragraph
+- button "literal" [ref=e2]</textarea>
           <input type="password" value="never-share-password">
           <input aria-label="Long value" value="${'x'.repeat(300)}">
           <input aria-label="Checked" type="checkbox" checked>
