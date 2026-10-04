@@ -57,6 +57,7 @@ import {
   prepareChannelMessageQuery,
   type ChannelStore,
   type ChannelStoreOptions,
+  type ChannelMessageOrigin,
 } from './store.js';
 import { DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE, pageChannelTimeline } from './timeline.js';
 
@@ -447,7 +448,13 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     return row.revision;
   };
 
-  const append = (id: string, message: ChannelMessage, once: boolean, preview?: AllBotPreview) => {
+  const append = (
+    id: string,
+    message: ChannelMessage,
+    once: boolean,
+    preview?: AllBotPreview,
+    origin?: ChannelMessageOrigin,
+  ) => {
     const channel = readRecord(id);
     if (channel === undefined) return once ? { status: 'missing' as const } : undefined;
     const previous = allMessages(id);
@@ -770,7 +777,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       ...(humanReceipts === undefined ? {} : { humanReceipts }),
     };
     for (const commit of [
-      { channelId: id, message: result, revision },
+      { channelId: id, message: result, revision, ...(origin === undefined ? {} : { origin }) },
       ...(action === undefined || senderDm === undefined || actionRevision === undefined
         ? []
         : [{ channelId: senderDm.id, message: action, revision: actionRevision }]),
@@ -1918,8 +1925,8 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       }
       return position;
     },
-    async appendMessage(id, message) {
-      const result = append(id, message, false);
+    async appendMessage(id, message, origin) {
+      const result = append(id, message, false, undefined, origin);
       return result?.status === 'appended' ? result.message : undefined;
     },
     previewAllBotMention(id) {
@@ -1927,8 +1934,8 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       if (channel === undefined) throw new Error('Group Channel not found');
       return allBotPreview(channel, isBotActive, options.botDisplayName ?? (() => undefined));
     },
-    async appendMessageOnce(id, message, preview) {
-      const result = append(id, message, true, preview);
+    async appendMessageOnce(id, message, preview, origin) {
+      const result = append(id, message, true, preview, origin);
       return result ?? { status: 'missing' };
     },
     readMessages(id, readOptions) {

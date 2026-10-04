@@ -17,6 +17,8 @@
 
 ### Added
 
+- Host Plugin 可订阅 PersonaBot 已提交的公开输出及可信 Session／Channel 引用；消费者失败不回滚消息或阻断其他监听者，重启不重放通知（[#125](https://github.com/BotHarness/BotHarness/issues/125)）。
+
 - 线条家族 PersonaBot 头像在活动切换时的五官笔画会短暂变形成新状态的符号（?、放大镜、</>、!、♪、笑脸）再变回原样，采用 morphicons 的弹簧笔画变形；过渡可从当前形状中途重定向，并取代右上角的活动角标，小头像更短，开启减少动态效果时跳过（[#754](https://github.com/BotHarness/BotHarness/issues/754)）。
 - 新增可显式选择的 Container `agent-browser` 驱动，复用现有 Browser Viewer、接管、上传和持久 profile；Local 与 Container 分别保留原有默认驱动（[#768](https://github.com/BotHarness/BotHarness/issues/768)）。
 

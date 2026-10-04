@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Host Plugins can subscribe to PersonaBot committed public output with trusted Session/Channel references; failed consumers cannot roll back messages or block other listeners, and restart does not replay notifications ([#125](https://github.com/BotHarness/BotHarness/issues/125)).
+
 - Line-family PersonaBot avatars briefly morph their face strokes into a symbol for the new activity (?, magnifier, </>, !, ♪, smiling face) and back, using morphicons spring stroke morphing; transitions retarget mid-way from the displayed shape and replace the corner activity marks, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
 - Added an opt-in Container `agent-browser` driver using the existing Browser Viewer, takeover, uploads and persistent profile; Local and Container retain independent default drivers ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
