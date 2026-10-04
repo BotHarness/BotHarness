@@ -329,6 +329,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Fixed Browser Stop and idle shutdown to revoke affected Session authorization before cleanup, so a pending approval cannot restart the stopped profile; cleanup failures retain a visible Stop recovery path and later idle retries remain possible ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
+- Qualified the full IM fork for bounded context reads that discard pending results after consumer release or Provider replacement, preserving existing file, echo and independent-responder capabilities without waiting for an upstream merge ([#789](https://github.com/BotHarness/BotHarness/issues/789)).
+
 - Concurrent PersonaBot Tool activity now orders opaque detail references before bounding them, so the same active set produces the same lookup references regardless of arrival order ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Group Profile member message activity identifies external traffic by its platform and source group name, combining senders within one source while keeping different sources separate ([#769](https://github.com/BotHarness/BotHarness/issues/769)).

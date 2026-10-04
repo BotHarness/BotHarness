@@ -329,6 +329,8 @@
 
 - 修复 Browser Stop 与空闲关闭的授权撤销：先撤销受影响 Session 的权限，再清理资源，待审批的旧请求无法重启已停止的 profile；清理失败时保留可见的停止重试入口，后续空闲清理仍可重试（[#768](https://github.com/BotHarness/BotHarness/issues/768)）。
 
+- 更新完整 IM fork 的固定资格版本：释放收件 Consumer 或替换 Provider 后，拒绝返回正在读取的群／话题上下文；保留附件、回显与独立回复身份能力，无需等待上游合并（[#789](https://github.com/BotHarness/BotHarness/issues/789)）。
+
 - PersonaBot 并发工具 Activity 现在先排序不透明详情引用再限制数量，使同一活跃集合不受事件到达顺序影响（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
 - Group Profile 的成员消息活跃使用外部平台与来源群名称，同一来源的发送人合并统计，不同来源分别显示（[#769](https://github.com/BotHarness/BotHarness/issues/769)）。
