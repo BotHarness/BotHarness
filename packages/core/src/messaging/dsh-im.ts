@@ -142,6 +142,17 @@ const inboundSchema = z
             messageId: identifier,
             resourceKey: identifier,
             name: identifier,
+            sizeBytes: z
+              .number()
+              .int()
+              .positive()
+              .max(25 * 1024 * 1024)
+              .optional(),
+            mediaType: z
+              .string()
+              .regex(/^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/)
+              .max(127)
+              .optional(),
           })
           .strict(),
       )
@@ -399,7 +410,15 @@ export function createDshImProvider(
                 const { attachments, ...base } = parsed;
                 const event: MessagingInboundEvent = {
                   ...base,
-                  ...(attachments === undefined ? {} : { attachments }),
+                  ...(attachments === undefined
+                    ? {}
+                    : {
+                        attachments: attachments.map(({ sizeBytes, mediaType, ...file }) => ({
+                          ...file,
+                          ...(sizeBytes === undefined ? {} : { sizeBytes }),
+                          ...(mediaType === undefined ? {} : { mediaType }),
+                        })),
+                      }),
                   reply: {
                     ...required,
                     ...(threadId === undefined ? {} : { threadId }),
@@ -414,7 +433,11 @@ export function createDshImProvider(
                   event.reply.messageId !== event.messageId ||
                   event.reply.conversationId !== event.conversation.id ||
                   event.reply.actorId !== event.actor.id ||
-                  event.attachments?.some((item) => item.messageId !== event.reply.parentId)
+                  event.attachments?.some(
+                    (item) =>
+                      item.messageId !==
+                      (platform === 'slack' ? event.messageId : event.reply.parentId),
+                  )
                 )
                   throw new MessagingError('untrusted-source');
                 return input.onEvent(event, context.signal);
@@ -533,8 +556,7 @@ export function createDshImProvider(
           },
         }
       : {}),
-    ...(platform === 'feishu' &&
-    host.fileVersion === 1 &&
+    ...(host.fileVersion === 1 &&
     typeof host.readSourceFile === 'function' &&
     typeof host.replyFileChecked === 'function'
       ? {
