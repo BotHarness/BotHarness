@@ -172,6 +172,7 @@ export interface BotHarnessCore {
   contributeBotAgentSetup(contribute: BotAgentSetup): () => void;
 
   configureGroupInvitations(autoAccept: () => boolean): () => void;
+  configureAssignmentConcurrencyLimit(read: () => number): () => void;
 
   hostTools: Set<string>;
 
@@ -301,6 +302,7 @@ export function createCore(
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   const initialGroupInvitationPolicy = options.autoAcceptGroupInvitations ?? (() => true);
+  const assignmentLimits: { read: () => number }[] = [];
   const groupInvitationPolicies: { policy: () => boolean }[] = [];
   const channels = createSqliteChannelStore({
     autoAcceptGroupInvitations: () =>
@@ -430,6 +432,7 @@ export function createCore(
   };
 
   runtime = createBotRuntime({
+    assignmentConcurrencyLimit: () => assignmentLimits.at(-1)?.read() ?? 3,
     beginAssignmentWait: (slug, sessionId) => states.beginAssignmentWait(slug, sessionId),
     database: operationalDatabase,
     externalMessaging,
@@ -460,6 +463,14 @@ export function createCore(
     externalMessaging,
     registry,
     modelPresets,
+    configureAssignmentConcurrencyLimit: (read) => {
+      const registration = { read };
+      assignmentLimits.push(registration);
+      return () => {
+        const index = assignmentLimits.indexOf(registration);
+        if (index !== -1) assignmentLimits.splice(index, 1);
+      };
+    },
     configureGroupInvitations: (autoAccept) => {
       const registration = { policy: autoAccept };
       groupInvitationPolicies.push(registration);

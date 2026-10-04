@@ -151,6 +151,14 @@ export const zh = {
   'humanName.saved': '已保存',
   'humanName.error': '未能保存名字，请重试。',
   'humanName.loading': '正在加载名字…',
+  'assignmentLimit.title': 'Assignment 并发上限',
+  'assignmentLimit.description':
+    '所有 Bot 共用，限制同时执行的任务数量（1–32），不限制历史会话。降低上限不会中止正在执行的任务。',
+  'assignmentLimit.save': '保存',
+  'assignmentLimit.saving': '保存中…',
+  'assignmentLimit.saved': '已保存，对后续任务生效。',
+  'assignmentLimit.invalid': '请输入 1–32 之间的整数。',
+  'assignmentLimit.failed': '保存失败，原上限仍然有效。请重试。',
   'groupAutoAccept.row.title': '自动接受入群邀请',
   'groupAutoAccept.row.description':
     '直接加入受邀群聊，不唤醒 Bot。关闭后由受邀 Bot 决定是否加入。',
@@ -1584,6 +1592,14 @@ export const en = {
   'humanName.saved': 'Saved',
   'humanName.error': 'Could not save your name. Try again.',
   'humanName.loading': 'Loading your name…',
+  'assignmentLimit.title': 'Assignment concurrency limit',
+  'assignmentLimit.description':
+    'Shared by all Bots. Limits concurrently executing tasks (1–32), not Session history. Lowering it does not stop running work.',
+  'assignmentLimit.save': 'Save',
+  'assignmentLimit.saving': 'Saving…',
+  'assignmentLimit.saved': 'Saved. Applies to subsequent work.',
+  'assignmentLimit.invalid': 'Enter an integer from 1 to 32.',
+  'assignmentLimit.failed': 'Save failed. The previous limit still applies. Please retry.',
   'groupAutoAccept.row.title': 'Auto-accept Group invitations',
   'groupAutoAccept.row.description':
     'Join invited Groups without waking the Bot. When off, the invited Bot decides whether to join.',

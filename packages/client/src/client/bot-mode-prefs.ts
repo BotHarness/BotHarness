@@ -2,6 +2,9 @@ import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client
 
 import {
   BOT_MODE_ICON_FIELD,
+  BOT_MODE_ASSIGNMENT_LIMIT_FIELD,
+  DEFAULT_ASSIGNMENT_CONCURRENCY_LIMIT,
+  isAssignmentConcurrencyLimit,
   BOT_MODE_DEVELOPER_FIELD,
   BOT_MODE_GROUP_AUTO_ACCEPT_FIELD,
   DEFAULT_BOT_MODE_GROUP_AUTO_ACCEPT,
@@ -51,6 +54,7 @@ export interface BotModeScope {
 }
 
 export interface BotModePrefsSnapshot {
+  assignmentConcurrencyLimit: number;
   autoAcceptGroupInvites: boolean;
   developerMode: boolean;
   motionPreference: BotModeMotionPreference;
@@ -72,6 +76,7 @@ export function sectionSortMode(
 }
 
 export interface BotModePrefsFace {
+  setAssignmentConcurrencyLimit: (limit: number) => Promise<boolean>;
   hooks: {
     botModePrefs: SnapshotStore<BotModePrefsSnapshot>;
   };
@@ -85,6 +90,7 @@ export interface BotModePrefsFace {
 
 export function botModePrefsFace(prefs: BotModePrefs): BotModePrefsFace {
   return {
+    setAssignmentConcurrencyLimit: (limit) => prefs.setAssignmentConcurrencyLimit(limit),
     hooks: { botModePrefs: prefs.source },
     setAutoAcceptGroupInvites: (enabled) => prefs.setAutoAcceptGroupInvites(enabled),
     setMotionPreference: (preference) => {
@@ -149,6 +155,7 @@ export class BotModePrefs {
   constructor(storage?: ConfigStorage | undefined) {
     this.storage = storage;
     this.source = createSnapshotStore<BotModePrefsSnapshot>({
+      assignmentConcurrencyLimit: DEFAULT_ASSIGNMENT_CONCURRENCY_LIMIT,
       autoAcceptGroupInvites: DEFAULT_BOT_MODE_GROUP_AUTO_ACCEPT,
       motionPreference: DEFAULT_BOT_MODE_MOTION,
       botIcon: DEFAULT_BOT_MODE_ICON,
@@ -220,6 +227,17 @@ export class BotModePrefs {
       draft.botIcon = icon;
     });
     if (this.host !== undefined) this.persist(this.host.set(BOT_MODE_ICON_FIELD, icon));
+  }
+
+  async setAssignmentConcurrencyLimit(limit: number): Promise<boolean> {
+    if (!isAssignmentConcurrencyLimit(limit)) return false;
+    const host = this.host;
+    const scope = host?.getSnapshot();
+    if (host === undefined || scope?.status !== 'ready' || scope.mode !== 'host' || !scope.writable)
+      return false;
+    const accepted = await host.set(BOT_MODE_ASSIGNMENT_LIMIT_FIELD, limit);
+    this.sync();
+    return accepted !== false;
   }
 
   setAutoAcceptGroupInvites(enabled: boolean): void {
@@ -326,6 +344,11 @@ export class BotModePrefs {
         draft.sortMode = section.sortMode;
         draft.sortModes = { ...section.sortModes };
         draft.botIcon = isBotModeIcon(section.botIcon) ? section.botIcon : DEFAULT_BOT_MODE_ICON;
+        draft.assignmentConcurrencyLimit = isAssignmentConcurrencyLimit(
+          section.assignmentConcurrencyLimit,
+        )
+          ? section.assignmentConcurrencyLimit
+          : DEFAULT_ASSIGNMENT_CONCURRENCY_LIMIT;
         draft.developerMode = section.developerMode === true;
         draft.autoAcceptGroupInvites = section.autoAcceptGroupInvites !== false;
       }
