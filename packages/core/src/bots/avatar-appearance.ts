@@ -979,7 +979,7 @@ function renderFigure(
   };
   const earX = Math.round(CX + R * Math.sin(yaw - far * (Math.PI / 2)));
   const frontShift = Math.round(R * sinY * 0.35);
-  const backShift = Math.round(-R * sinY * 0.3);
+  const backShift = Math.round(-R * sinY * 0.4);
 
   const tileColor = mix(PAPER, recipe.shirtColor, 0.2);
   const tile = blank();
@@ -1036,8 +1036,12 @@ function renderFigure(
       );
   }
   const front: Mask = (x, y) => {
-    const rowShift = Math.round(frontShift * Math.min(1, Math.max(0, (y - 6) / 10)));
-    return masks.front(x - rowShift, y) && (y <= 9 || cap(x, y) || headMask(x, y));
+    const depth = Math.min(1, Math.max(0, (y - 3) / 13));
+    const rowShift = Math.round(R * sinY * (0.35 * depth - 0.3 * (1 - depth)));
+    return (
+      (masks.front(x - rowShift, y) && (y <= 9 || cap(x, y) || headMask(x, y))) ||
+      (y <= 9 && headMask(x, y) && masks.front(x, y))
+    );
   };
   paint(base, front, hair);
   if (turned)
