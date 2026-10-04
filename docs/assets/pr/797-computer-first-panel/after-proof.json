@@ -1,5 +1,5 @@
 {
-  "revision": "0718ebe62583d0ae5eb359bec4e34c9ad966b4f6",
+  "revision": "5a13622b125c9b838621fef471bba5a62489c21d",
   "freshNamedVolume": true,
   "startsBeforeCapture": 1,
   "iconSize": ["32"],
@@ -17,5 +17,14 @@
   "desktopUser": "911",
   "panelOwner": "911",
   "writableByDesktopUser": true,
-  "visualCaptureComplete": false
+  "visualCaptureComplete": true,
+  "fixture": "botharness-computer-797-capture-qa",
+  "capture": "after.png",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "locale": "English",
+  "theme": "light",
+  "viewer": "fullscreen watch-only"
 }
