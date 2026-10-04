@@ -1,8 +1,8 @@
 import { useMemo, type ReactElement } from 'react';
 import {
   AVATAR_TURNS,
-  illustratedAvatarSvg,
-  type IllustratedAvatarRecipe,
+  avatarSvg,
+  type AvatarRecipe,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { PersonaBotActivityEffect, PersonaBotActivityState } from './avatar.js';
@@ -112,14 +112,14 @@ export function IllustratedAvatar({
   effect,
   size,
 }: {
-  recipe: IllustratedAvatarRecipe;
+  recipe: AvatarRecipe;
   state: PersonaBotActivityState;
   effect: PersonaBotActivityEffect;
   size: number;
 }): ReactElement {
   const turning = state === 'thinking' && size > 64;
   const markup = useMemo(
-    () => illustratedAvatarSvg(recipe, turning ? { turns: AVATAR_TURNS } : {}),
+    () => avatarSvg(recipe, turning ? { turns: AVATAR_TURNS } : {}),
     [recipe, turning],
   );
   const mount = useMountedResource<HTMLSpanElement>(

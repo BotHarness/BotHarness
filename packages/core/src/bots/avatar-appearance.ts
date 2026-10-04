@@ -1,3 +1,11 @@
+import {
+  canonicalLineRecipe,
+  isLineAvatarRecipe,
+  lineAvatarSvg,
+  type LineAvatarRecipe,
+} from './avatar-line.js';
+import { seededRandom } from './avatar-random.js';
+
 export const AVATAR_PARTS = {
   head: ['round', 'oval', 'square', 'long', 'heart', 'vchin', 'chubby', 'diamond'],
   pose: ['front', 'left', 'right'],
@@ -57,9 +65,30 @@ export type IllustratedAvatarRecipe = {
   rigVersion: 1;
 } & { [P in AvatarPart]: (typeof AVATAR_PARTS)[P][number] } & Record<AvatarColor, string>;
 
+export type AvatarRecipe = IllustratedAvatarRecipe | LineAvatarRecipe;
+export type AvatarFamily = AvatarRecipe['family'];
+export const AVATAR_FAMILIES = ['illustrated', 'line'] as const satisfies readonly AvatarFamily[];
+
 export interface AvatarAppearance {
   revision: string;
-  recipe: IllustratedAvatarRecipe;
+  recipe: AvatarRecipe;
+}
+
+export function isAvatarRecipe(value: unknown): value is AvatarRecipe {
+  return isIllustratedAvatarRecipe(value) || isLineAvatarRecipe(value);
+}
+
+export function canonicalRecipe(recipe: AvatarRecipe): AvatarRecipe {
+  return recipe.family === 'line' ? canonicalLineRecipe(recipe) : canonicalAvatarRecipe(recipe);
+}
+
+export function avatarSvg(
+  recipe: AvatarRecipe,
+  options: { turns?: readonly number[] } = {},
+): string {
+  return recipe.family === 'line'
+    ? lineAvatarSvg(recipe, options)
+    : illustratedAvatarSvg(recipe, options);
 }
 
 export const DEFAULT_ILLUSTRATED_RECIPE: IllustratedAvatarRecipe = {
@@ -111,7 +140,7 @@ export function isAvatarAppearance(value: unknown): value is AvatarAppearance {
     Object.keys(appearance).length === 2 &&
     typeof appearance['revision'] === 'string' &&
     /^[a-f\d]{64}$/u.test(appearance['revision']) &&
-    isIllustratedAvatarRecipe(appearance['recipe'])
+    isAvatarRecipe(appearance['recipe'])
   );
 }
 
@@ -172,20 +201,6 @@ export const AVATAR_SWATCHES: Record<AvatarColor, readonly string[]> = {
     '#9ad0c2',
   ],
 };
-
-function seededRandom(seed: string): () => number {
-  let h = 2166136261;
-  for (const char of seed) {
-    h ^= char.codePointAt(0)!;
-    h = Math.imul(h, 16777619);
-  }
-  return () => {
-    h = Math.imul(h ^ (h >>> 15), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
-  };
-}
 
 const SEEDED_CHOICES: { [P in AvatarPart]: readonly (typeof AVATAR_PARTS)[P][number][] } = {
   head: ['round', 'oval', 'square', 'long', 'heart', 'vchin', 'chubby', 'diamond'],
