@@ -16,20 +16,28 @@ export const messagingDefaultsInput = z
   })
   .strict();
 export type MessagingDefaultsInput = z.infer<typeof messagingDefaultsInput>;
-export type MessagingDefaults = Omit<MessagingDefaultsInput, 'expectedRevision'> & {
+export type MessagingDefaults<Platform extends string = 'feishu'> = Omit<
+  MessagingDefaultsInput,
+  'expectedRevision' | 'platform'
+> & {
+  platform: Platform;
   revision: number;
   changedAt: string;
 };
-export function messagingDefaults(db: DatabaseSync, platform = 'feishu'): MessagingDefaults {
+export function messagingDefaults<Platform extends string = 'feishu'>(
+  db: DatabaseSync,
+  platform?: Platform,
+): MessagingDefaults<Platform> {
+  const key = platform ?? 'feishu';
   const row = db
     .prepare(
       'SELECT body FROM messaging_default_revisions WHERE platform = ? ORDER BY revision DESC LIMIT 1',
     )
-    .get(platform) as { body: string } | undefined;
+    .get(key) as { body: string } | undefined;
   return row
-    ? (JSON.parse(row.body) as MessagingDefaults)
+    ? (JSON.parse(row.body) as MessagingDefaults<Platform>)
     : {
-        platform: 'feishu',
+        platform: key as Platform,
         collection: 'mentions',
         wake: 'digest',
         count: 5,
@@ -78,7 +86,7 @@ export function externalMemberWake(
   channel: ChannelRecord,
   botSlug: string,
   rule: BotSourcePolicy | undefined,
-  defaults: MessagingDefaults,
+  defaults: MessagingDefaults<string>,
 ) {
   const custom = channel.wakePolicies?.[botSlug];
   const policy =

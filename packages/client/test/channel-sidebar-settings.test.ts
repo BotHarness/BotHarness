@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChannelSidebarEntryProps } from '../src/client/channel-sidebar.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  IconChevronRightOutlineRegular: () => null,
   Menu: ({ open, anchor, children }: { open: boolean; anchor: ReactNode; children: ReactNode }) =>
     createElement(
       'div',
@@ -13,6 +14,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
       open ? createElement('div', { role: 'menu' }, children) : null,
     ),
   Tooltip: ({ children }: { children: ReactNode }) => children,
+  MenuSurface: ({ children, ...props }: { children: ReactNode }) =>
+    createElement('div', props, children),
   MenuItemButton: ({
     onSelect,
     children,
@@ -110,14 +113,15 @@ describe('registered Channel sidebar display settings', () => {
     }));
     const container = mount();
     click(container, 'sidebar.settings');
+    click(container, 'entry.sessions · sessions.view');
     click(container, 'sessions.all');
-    expect(container.querySelector('[role=menu]')).toBeNull();
+    expect(container.querySelector('[role=menu]')).not.toBeNull();
     expect(readSessionViewPreference('settings-qa')).toEqual({
       scope: 'all',
       layout: 'flat',
       collapsedWorkspaces: ['ws-one'],
     });
-    click(container, 'sidebar.settings');
+    click(container, 'entry.sessions · sessions.layout');
     click(container, 'sessions.layout.workspace');
     expect(readSessionViewPreference('settings-qa')).toEqual({
       scope: 'all',
@@ -132,6 +136,8 @@ describe('registered Channel sidebar display settings', () => {
     const second = mount('memory-qa-two');
     click(first, 'sidebar.settings');
     click(second, 'sidebar.settings');
+    click(first, 'entry.memoryEvolution · memory.terminology');
+    click(second, 'entry.memoryEvolution · memory.terminology');
     click(first, 'memory.terms.git');
     expect(channelSidebarPrefs.getSnapshot().memoryTerminology).toBe('git');
     expect(createChannelSidebarPrefs(localStorage).getSnapshot().memoryTerminology).toBe('git');

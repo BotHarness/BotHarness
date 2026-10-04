@@ -1,3 +1,4 @@
+import { externalPlatformLabel } from './bridge-source-label.js';
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import { useRef, useState, type ReactElement } from 'react';
@@ -215,7 +216,9 @@ export function ChannelBridgeTable({
                     {row.delivery === 'inbox' ? (
                       <span className="bh-bridge-secondary">{t('bridge.inboxOnly')}</span>
                     ) : null}
-                    <span className="bh-bridge-secondary">Lark / 飞书</span>
+                    <span className="bh-bridge-secondary">
+                      {externalPlatformLabel(row.platform, t)}
+                    </span>
                   </th>
                   <td>{row.conversationName}</td>
                   <td>
@@ -343,7 +346,9 @@ export function ChannelBridgeTable({
         ) : null}
         {source ? (
           <>
-            <p>Lark / 飞书 · {source.conversationName}</p>
+            <p>
+              {externalPlatformLabel(source.platform, t)} · {source.conversationName}
+            </p>
             <p>{t('bridge.receiver', { name: source.accountName })}</p>
           </>
         ) : null}

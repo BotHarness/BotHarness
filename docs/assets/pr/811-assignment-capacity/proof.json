@@ -156,5 +156,107 @@
     "modelUnchanged": true,
     "completed": true,
     "askCleared": true
+  },
+  "integratedMainVerification": {
+    "main": "eb3f83b087a2ee3ad9a197635427de0f2ac9c716",
+    "coldRestart": true,
+    "actualToolResults": [
+      {
+        "callSeq": 425,
+        "tool": "send_assignment_request",
+        "args": {
+          "answer_to": "f2ad31d6-f658-40a8-a0ae-d2921c361387",
+          "session_id": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+          "text": "确认继续，请 report completed 集成事项 A 原 Session 恢复完成"
+        },
+        "result": {
+          "outcome": "capacity",
+          "code": "assignment-capacity",
+          "activeCount": 3,
+          "limit": 3,
+          "retryable": true,
+          "message": "Assignment Concurrency Limit 3 reached; retryable: true. Nothing was awakened. Wait for active work to settle before retrying.",
+          "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+          "activity": "idle"
+        }
+      },
+      {
+        "callSeq": 455,
+        "tool": "send_assignment_request",
+        "args": {
+          "answer_to": "f2ad31d6-f658-40a8-a0ae-d2921c361387",
+          "session_id": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+          "text": "确认继续，请 report completed 集成事项 A 原 Session 恢复完成"
+        },
+        "result": {
+          "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+          "activity": "working",
+          "delivery": "followup",
+          "modelRoute": {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        }
+      }
+    ],
+    "atRefusal": [
+      {
+        "key": "capacity-d",
+        "sessionId": "botharness-eb53d324-2488-4fbb-9660-68bc3d14cbd1",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-a",
+        "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "activity": "idle",
+        "openAsk": "f2ad31d6-f658-40a8-a0ae-d2921c361387",
+        "report": "waiting-human"
+      },
+      {
+        "key": "capacity-c",
+        "sessionId": "botharness-674b1320-535a-40eb-8de4-8e01b93b09c7",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-b",
+        "sessionId": "botharness-eb41826d-96ee-43e1-8726-13677641f302",
+        "activity": "working",
+        "report": "completed"
+      }
+    ],
+    "afterReleaseAndRetry": [
+      {
+        "key": "capacity-a",
+        "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "activity": "idle",
+        "report": "completed"
+      },
+      {
+        "key": "capacity-b",
+        "sessionId": "botharness-eb41826d-96ee-43e1-8726-13677641f302",
+        "activity": "idle",
+        "report": "completed"
+      },
+      {
+        "key": "capacity-d",
+        "sessionId": "botharness-eb53d324-2488-4fbb-9660-68bc3d14cbd1",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-c",
+        "sessionId": "botharness-674b1320-535a-40eb-8de4-8e01b93b09c7",
+        "activity": "working"
+      }
+    ],
+    "invariants": {
+      "refusalPreservedEntireAssignment": true,
+      "threeWorkingAtRefusal": true,
+      "sameSession": true,
+      "permissionUnchanged": true,
+      "modelUnchanged": true,
+      "completed": true,
+      "askCleared": true
+    }
   }
 }

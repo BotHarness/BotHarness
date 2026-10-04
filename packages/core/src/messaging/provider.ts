@@ -22,7 +22,7 @@ export interface MessagingAttachment {
 
 export interface MessagingInboundEvent {
   version: 1;
-  channel: 'feishu';
+  channel: 'feishu' | 'slack';
   botId: string;
   fingerprint: string;
   eventId: string;

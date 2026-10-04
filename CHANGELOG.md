@@ -17,6 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added a checked Slack text-mention path from an independently bound PersonaBot identity into its canonical Inbox and original native thread reply, reusing Profile identity/connector tables and source details; context, attachments and ordinary-message policies remain separate qualification slices ([#802](https://github.com/BotHarness/BotHarness/issues/802), [ADR-0126](docs/adr/0126-slack-text-intake-uses-exclusive-checked-provider.md)).
 - Host Plugins can subscribe to PersonaBot committed public output with trusted Session/Channel references; failed consumers cannot roll back messages or block other listeners, and restart does not replay notifications ([#125](https://github.com/BotHarness/BotHarness/issues/125)).
 
 - Line-family PersonaBot avatars briefly morph their face strokes into a symbol for the new activity (?, magnifier, </>, !, ♪, smiling face) and back, using morphicons spring stroke morphing; transitions retarget mid-way from the displayed shape and replace the corner activity marks, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
@@ -233,6 +234,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- Channel sidebar display settings open hover submenus that keep repeated selections visible and temporarily isolate the relevant entry for preview; dismissing restores prior disclosure while saving the chosen display preferences ([#807](https://github.com/BotHarness/BotHarness/issues/807)).
 
 - Channel message groups keep consecutive bubbles compact, show one hover/focus timestamp beside the author, and reveal per-message copy/reply beside delivery receipts without a reserved action row ([#803](https://github.com/BotHarness/BotHarness/issues/803)).
 

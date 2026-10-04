@@ -24,7 +24,7 @@ export function admitBridgeMembers(
   for (const botSlug of channel.members) {
     if (!isBotActive(botSlug)) continue;
     const rule = sourcePolicy.resolveIn(db, botSlug, 'group-ordinary');
-    const defaults = messagingDefaults(db);
+    const defaults = messagingDefaults(db, path?.grant.platform);
     const { policy } = externalMemberWake(channel, botSlug, rule, defaults);
     const thread = followed?.botSlug === botSlug ? followed : undefined;
     const mode = thread

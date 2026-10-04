@@ -20,6 +20,8 @@ Real DSH 0.2.0 RC1, DeepSeek-V41-Flash, isolated Profiles, native Workspace Gran
 
 [proof.json](proof.json) includes allowlisted Host Assignment Directory snapshots and the actual DSH SessionPersistence `tool/result` values for refusal and successful retry. Model-authored Channel prose is supplementary; the proof checks the owning Host facts and native Tool results independently. No credentials or private raw logs are included.
 
+The same capacity refusal and original-Session retry were repeated after integrating main `eb3f83b0` and cold-restarting the Host. `integratedMainVerification` in the proof independently checks the complete Assignment is unchanged by refusal, three working turns, the original Session, unchanged permissions/model and completion without a remaining ask. [Integrated completion](after-integrated-resumed.png) shows the final real Session result. One fixture D attempt used an incorrect relative working directory and failed before execution; its history was retained, and the three-slot check was run after its replacement used the actual granted directory.
+
 ## Regression coverage
 
 Focused coverage exercises one/three-slot limits, addressed and keyed idle wake, cross-Bot capacity, cold restart, synchronous reservation before adapter entry, unchanged waiting state on refusal, running updates, release/retry and synchronous adapter refusal releasing its reservation. Adapter coverage checks the structured facts reaching the model.

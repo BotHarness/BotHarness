@@ -112,7 +112,7 @@ const identifier = z.string().min(1).max(512);
 const inboundSchema = z
   .object({
     version: z.literal(1),
-    channel: z.literal('feishu'),
+    channel: z.enum(['feishu', 'slack']),
     botId: identifier,
     fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     eventId: identifier,
@@ -195,7 +195,10 @@ function providerFailure(error: unknown): MessagingProviderError {
   );
 }
 
-export function createDshImProvider(value: unknown): MessagingProvider | undefined {
+export function createDshImProvider(
+  value: unknown,
+  platform: 'feishu' | 'slack' = 'feishu',
+): MessagingProvider | undefined {
   if (value === null || typeof value !== 'object') return undefined;
   const service = value as Partial<DshImOutboundService>;
   if (
@@ -221,7 +224,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
     if (
       info.version !== 1 ||
       info.botId !== ref ||
-      info.channel !== 'feishu' ||
+      info.channel !== platform ||
       !/^[a-f0-9]{64}$/.test(info.account?.fingerprint ?? '') ||
       !info.capabilities.includes('proactive-text-checked')
     )
@@ -239,14 +242,26 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
       ref: target.targetId,
       name: target.name ?? target.targetId,
       digest: targetDigest(target),
-      ...(target.kind === 'group' && typeof target.route.chatId === 'string'
-        ? { receiveScope: { kind: 'group' as const, conversationId: target.route.chatId } }
+      ...((platform === 'feishu' &&
+        target.kind === 'group' &&
+        typeof target.route.chatId === 'string') ||
+      (platform === 'slack' &&
+        target.kind === 'conversation' &&
+        typeof target.route.channelId === 'string')
+        ? {
+            receiveScope: {
+              kind: 'group' as const,
+              conversationId: String(
+                platform === 'slack' ? target.route.channelId : target.route.chatId,
+              ),
+            },
+          }
         : {}),
     }));
   return {
-    id: 'dsh-im/feishu',
+    id: `dsh-im/${platform}`,
     async accounts() {
-      const bots = (await host.listBots()).filter((bot) => bot.channel === 'feishu');
+      const bots = (await host.listBots()).filter((bot) => bot.channel === platform);
       const result = await Promise.allSettled(bots.map((bot) => account(bot.botId)));
       return result.flatMap((item) => (item.status === 'fulfilled' ? [item.value] : []));
     },
@@ -379,6 +394,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
                 : {}),
               onEvent: async (raw, context) => {
                 const parsed = inboundSchema.parse(raw);
+                if (parsed.channel !== platform) throw new MessagingError('untrusted-source');
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
                 const { attachments, ...base } = parsed;
                 const event: MessagingInboundEvent = {
@@ -437,7 +453,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
           },
         }
       : {}),
-    ...(typeof host.historyChecked === 'function'
+    ...(platform === 'feishu' && typeof host.historyChecked === 'function'
       ? {
           async history(input: Parameters<NonNullable<MessagingProvider['history']>>[0]) {
             input.signal.throwIfAborted();
@@ -516,7 +532,8 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
           },
         }
       : {}),
-    ...(host.fileVersion === 1 &&
+    ...(platform === 'feishu' &&
+    host.fileVersion === 1 &&
     typeof host.readSourceFile === 'function' &&
     typeof host.replyFileChecked === 'function'
       ? {
@@ -558,7 +575,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
           },
         }
       : {}),
-    ...(host.receiptVersion === 1
+    ...(platform === 'feishu' && host.receiptVersion === 1
       ? {
           async post(input: Parameters<NonNullable<MessagingProvider['post']>>[0]) {
             input.signal.throwIfAborted();

@@ -1,3 +1,4 @@
+import { externalPlatformLabel } from './bridge-source-label.js';
 import type { ReactElement, ReactNode } from 'react';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -116,12 +117,7 @@ export function ExternalSourceContent({
   t: BotHarnessTranslate;
   children?: ReactNode;
 }): ReactElement {
-  const platform =
-    source.platform === 'feishu'
-      ? 'Lark / 飞书'
-      : source.platform === 'lark'
-        ? 'Lark'
-        : source.platform;
+  const platform = externalPlatformLabel(source.platform, t);
   const hasThread = Boolean(source.event.reply.threadId ?? source.event.reply.rootId);
   const messages = [...(source.contextMessages ?? [])].sort((a, b) => a.at.localeCompare(b.at));
   return (

@@ -3047,7 +3047,7 @@ export async function readMessagingSource(
     !Number.isInteger(source?.['grantRevision']) ||
     Number(source?.['grantRevision']) < 1 ||
     event?.['version'] !== 1 ||
-    event['channel'] !== 'feishu' ||
+    !['feishu', 'slack'].includes(String(event['channel'])) ||
     !strings(event, ['botId', 'fingerprint', 'eventId', 'messageId', 'at']) ||
     typeof event['mentionedAccount'] !== 'boolean' ||
     actor?.['kind'] !== 'user' ||
