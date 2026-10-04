@@ -631,13 +631,33 @@ function accessory(recipe: Recipe, g: Grid, s: number, face: Mask): void {
   }
 }
 
-const BACKDROPS: Record<Recipe['backdrop'], string> = {
-  sparkles: '#fbe7a6',
-  hearts: '#f9cfd9',
-  stars: '#cfe0f7',
-  dots: '#cdeee0',
-  none: '#ece8e1',
-};
+/**
+ * The tile is a pale colour in the hair's hue family, so hair, tile and morph symbols read as one
+ * palette. Nearly colourless hair (black, grey, white) keeps a neutral warm paper. The legacy
+ * `backdrop` recipe value is kept for compatibility but no longer changes the tile.
+ */
+export function pixelTileColor(hair: string): string {
+  const [r, g, b] = channels(hair).map((v) => v / 255) as [number, number, number];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  const chroma = max - min;
+  const saturation = chroma === 0 ? 0 : chroma / (1 - Math.abs(2 * lightness - 1));
+  if (saturation < 0.18 || lightness > 0.86 || lightness < 0.16) return '#ece8e1';
+  const hue =
+    max === r
+      ? ((g - b) / chroma + 6) % 6
+      : max === g
+        ? (b - r) / chroma + 2
+        : (r - g) / chroma + 4;
+  const s = Math.min(0.55, Math.max(0.35, saturation * 0.6));
+  const l = 0.88;
+  const f = (n: number) => {
+    const k = (n + hue * 2) % 12;
+    return l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+  };
+  return hex([f(0), f(8), f(4)].map((v) => v * 255));
+}
 
 export function pixelFigure(
   recipe: Recipe,
@@ -852,7 +872,7 @@ export function pixelFigure(
     }
   return {
     cells,
-    tile: `<rect width="32" height="32" rx="6" fill="${BACKDROPS[recipe.backdrop]}"/>`,
+    tile: `<rect width="32" height="32" rx="6" fill="${pixelTileColor(recipe.hairColor)}"/>`,
     body: `<g class="bh-illustrated-body">${rects(bodyCells)}</g>`,
     head: [
       `<g class="bh-illustrated-head">${rects(headCells)}`,

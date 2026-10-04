@@ -44,7 +44,6 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
     categories: [
       'presets',
       ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop'),
-      'backdrop',
       'colors',
     ],
     option: (part, value) => `profile.avatar.option.${part}.${value}` as Key,

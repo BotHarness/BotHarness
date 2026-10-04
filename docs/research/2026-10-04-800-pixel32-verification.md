@@ -13,7 +13,7 @@ Human review found the 48×48 pixel family too detailed and its activity states 
 - **Outline.** A near-black, hue-tinted silhouette outline.
 - **Catalog additions.** Hair `wavy`, `braids`, `wolf`, `ahoge`; outfits `dress`, `kimono`, `cardigan`, `maid`, `jacket`; accessories `beret`, `ribbon`, `headband`, `bunnyears`, `horseears`, `flowercrown`, `witch`, `pins`. Existing values are unchanged, so saved recipes stay valid.
 - **Presets.** Twelve curated recipes (`AVATAR_PRESETS`) appear as a Presets tab in the Profile editor; choosing one replaces the draft, which still needs Save.
-- **Solid tile.** The existing `backdrop` values map to solid colours.
+- **Tile in the hair colour family.** The tile is a pale tint of the hair hue (`pixelTileColor`); nearly colourless, very dark or very light hair falls back to warm paper. The legacy `backdrop` value stays valid in saved recipes but no longer changes the tile, and the editor no longer offers it.
 - **Whole-Avatar pixel morph.** While thinking or working, every pixel of the Avatar flies (0.8s, snapped to the 32 grid, top rows first in 4×4 clumps) into a 24×24 pixel symbol drawn in the Avatar's hair colour with an ink outline. The symbol is bound to the current DSH tool (`pixelSymbolFor`: tool name first, then tool kind; approvals pending win). Tool changes morph symbol to symbol directly; a symbol stays at least 0.5s, then follows the state; the face returns when the turn ends. Mid-flight changes continue from the displayed pixels. Reduced motion, hidden and offscreen jump to the end state. The earlier corner icon bubble is removed.
 
 ## Contract checks

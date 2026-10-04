@@ -29,7 +29,7 @@ const crowded: IllustratedAvatarRecipe[] = AVATAR_PARTS.head.flatMap((head) =>
 
 describe('illustrated Avatar artwork', () => {
   it('renders every catalog option as distinct, inert, id-free pixel markup with stable rig nodes', () => {
-    for (const part of parts) {
+    for (const part of parts.filter((name) => name !== 'backdrop')) {
       const rendered = new Set(
         AVATAR_PARTS[part].map((value) =>
           illustratedAvatarSvg({ ...DEFAULT_ILLUSTRATED_RECIPE, [part]: value }),
@@ -96,6 +96,26 @@ describe('illustrated Avatar artwork', () => {
     const recipes = names.map(seededAvatarRecipe);
     expect(new Set(recipes.map((recipe) => JSON.stringify(recipe))).size).toBe(names.length);
     for (const recipe of recipes) expect(() => illustratedAvatarSvg(recipe)).not.toThrow();
+  });
+
+  it('tints the tile from the hair colour and keeps colourless hair on paper', () => {
+    const tile = (hairColor: string) =>
+      illustratedAvatarSvg({ ...DEFAULT_ILLUSTRATED_RECIPE, hairColor }).match(
+        /<rect width="32" height="32" rx="6" fill="(#[\da-f]{6})"/u,
+      )![1];
+    expect(tile('#1d1b22')).toBe('#ece8e1');
+    expect(tile('#f4f1ec')).toBe('#ece8e1');
+    const teal = tile('#3fc1b8');
+    expect(teal).not.toBe('#ece8e1');
+    expect(teal).not.toBe(tile('#e2b04a'));
+    for (const backdrop of AVATAR_PARTS.backdrop)
+      expect(tile('#3fc1b8')).toBe(
+        illustratedAvatarSvg({
+          ...DEFAULT_ILLUSTRATED_RECIPE,
+          hairColor: '#3fc1b8',
+          backdrop,
+        }).match(/<rect width="32" height="32" rx="6" fill="(#[\da-f]{6})"/u)![1],
+      );
   });
 
   it('ships distinct, valid presets', () => {
