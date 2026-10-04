@@ -301,12 +301,39 @@ try {
   await page.setViewport({ width: 1500, height: 1000 });
   await page.setOfflineMode(true);
   await delay(1200);
+  const frameCountBeforeReconnect = frames.length;
   await page.setOfflineMode(false);
+  const reconnected = await waitFor(async () => {
+    const snapshot = await rpc('activitySnapshot');
+    return frames
+      .slice(frameCountBeforeReconnect)
+      .some(
+        (frame) => frame.generation === snapshot.generation && frame.revision === snapshot.revision,
+      )
+      ? snapshot
+      : false;
+  }, 'new live snapshot after reconnect matches Host revision');
+  const expectedMembers = targets.map((target) => {
+    const bot = reconnected.bots.find((bot) => bot.slug === target.slug);
+    assert.ok(bot);
+    return { name: target.name, state: bot.state, effect: bot.activity?.effect };
+  });
   await page.waitForFunction(
-    () =>
-      document.querySelectorAll(
-        '.bh-composer-activity-facepile .bh-persona-avatar[data-state="working"]',
-      ).length >= 2,
+    (expected) => {
+      const nodes = [
+        ...document.querySelectorAll('.bh-composer-activity-facepile .bh-persona-avatar'),
+      ];
+      return expected.every((member) =>
+        nodes.some(
+          (node) =>
+            node.title.startsWith(member.name) &&
+            node.dataset.state === member.state &&
+            node.dataset.effect === member.effect,
+        ),
+      );
+    },
+    {},
+    expectedMembers,
   );
   await shot('group-reconnected-dark');
   const settled = await waitFor(async () => {
@@ -347,6 +374,8 @@ try {
         summaries,
         working: safe(working),
         settled: safe(settled),
+        reconnected: safe(reconnected),
+        reconnect: { frameCountBeforeReconnect, newSnapshotReceived: true, viewMatchesHost: true },
         frames: frames.map(safe),
         overflow,
         clientErrors,
