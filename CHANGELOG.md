@@ -324,7 +324,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
-- Fixed Browser Stop and idle shutdown to revoke affected Session authorization before cleanup, so a pending approval cannot restart the stopped profile ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
+- Fixed Browser Stop and idle shutdown to revoke affected Session authorization before cleanup, so a pending approval cannot restart the stopped profile; cleanup failures retain a visible Stop recovery path and later idle retries remain possible ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
 - Concurrent PersonaBot Tool activity now orders opaque detail references before bounding them, so the same active set produces the same lookup references regardless of arrival order ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 

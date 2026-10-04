@@ -11,7 +11,7 @@ vi.mock('../src/runtimes.js', () => ({
   listStoredProfileNames: mocks.storedProfiles,
 }));
 
-import { apply, DEFAULT_CONFIG } from '../src/index.js';
+import { apply, DEFAULT_CONFIG, type BrowserConfig } from '../src/index.js';
 
 interface BrowserHostService {
   resetBot?(slug: string): void;
@@ -34,7 +34,11 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-async function setup(extraBot = false, autoAllowActions = true) {
+async function setup(
+  extraBot = false,
+  autoAllowActions = true,
+  target: BrowserConfig['target'] = 'local',
+) {
   vi.stubEnv('DSH_HOME', '');
   const ctx = new Context();
   contexts.push(ctx);
@@ -52,6 +56,7 @@ async function setup(extraBot = false, autoAllowActions = true) {
   const captureScreenshot = vi.fn(async () => ({ mimeType: 'image/png', data: 'frame' }));
   const stopAll = vi.fn(async () => undefined);
   const stop = vi.fn(async (_slug: string) => undefined);
+  const closeIdle = vi.fn(async () => undefined);
   mocks.runtimes.mockReturnValue({
     for: (slug: string) => ({
       ensure: async () => undefined,
@@ -75,6 +80,7 @@ async function setup(extraBot = false, autoAllowActions = true) {
     touch: () => undefined,
     stopAll,
     stop,
+    closeIdle,
   });
   ctx.provide('connection', {
     fetch: {
@@ -97,7 +103,7 @@ async function setup(extraBot = false, autoAllowActions = true) {
       return () => undefined;
     },
   } as never);
-  apply(ctx, { ...DEFAULT_CONFIG, autoAllowActions });
+  apply(ctx, { ...DEFAULT_CONFIG, target, autoAllowActions });
   await new Promise((resolve) => setTimeout(resolve, 0));
   for (const slug of profiles.keys()) {
     const definitions = new Map<string, ToolDefinition>();
@@ -143,11 +149,93 @@ async function setup(extraBot = false, autoAllowActions = true) {
     scopes,
     stopAll,
     stop,
+    closeIdle,
     captureScreenshot,
   };
 }
 
 describe('published Browser Host service', () => {
+  it('fences another profile preview while retrying a failed global cleanup', async () => {
+    const h = await setup(true);
+    await h.open('bot-c');
+    let finish: ((value: { mimeType: string; data: string }) => void) | undefined;
+    h.captureScreenshot.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const preview = h.routes
+      .get('/api/browser/observation')!
+      .fetch(new Request('http://localhost/api/browser/observation?slug=bot-c'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    h.stop.mockRejectedValueOnce(new Error('Docker unavailable'));
+    const request = () =>
+      new Request('http://localhost/api/browser/stop', {
+        method: 'POST',
+        body: JSON.stringify({ slug: 'bot-a' }),
+      });
+    expect((await h.routes.get('/api/browser/stop')!.fetch(request())).status).toBe(500);
+    expect((await h.routes.get('/api/browser/stop')!.fetch(request())).status).toBe(200);
+    finish!({ mimeType: 'image/png', data: 'old-frame' });
+    expect((await preview).status).toBe(409);
+  });
+
+  it.each(['daily-control', 'profile-control', 'extension'] as const)(
+    'retries failed owned cleanup before returning the %s target',
+    async (target) => {
+      const h = await setup(false, true, target);
+      h.stopAll.mockRejectedValueOnce(new Error('Docker unavailable'));
+      h.ctx.emit('loader/volatile-update', [['target']]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(await h.observation('bot-a')).toMatchObject({ cleanupRequired: true, target });
+      const response = await h.routes.get('/api/browser/stop')!.fetch(
+        new Request('http://localhost/api/browser/stop', {
+          method: 'POST',
+          body: JSON.stringify({ slug: 'bot-a' }),
+        }),
+      );
+      expect(await response.json()).toEqual({ ok: true });
+      expect(h.stopAll).toHaveBeenCalledTimes(2);
+      expect(h.stop).not.toHaveBeenCalled();
+      expect(await h.observation('bot-a')).not.toHaveProperty('cleanupRequired');
+    },
+  );
+
+  it('keeps cleanup recovery visible and retries later idle ticks without admitting tools early', async () => {
+    const timer = vi.spyOn(globalThis, 'setInterval');
+    const h = await setup();
+    const oldTool = h.scopes.get('bot-a')!.get('browser_open')!;
+    const tick = timer.mock.calls.find((call) => call[1] === 30_000)?.[0];
+    timer.mockRestore();
+    if (typeof tick !== 'function') throw new Error('Missing Browser idle timer');
+    h.closeIdle.mockRejectedValueOnce(new Error('Docker unavailable'));
+    tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(await h.observation('bot-a')).toMatchObject({ cleanupRequired: true, frame: null });
+    await expect(h.open('bot-a')).rejects.toThrow('use Stop');
+    expect(h.opened).toHaveLength(0);
+    h.stopAll.mockRejectedValueOnce(new Error('Docker still unavailable'));
+    tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(h.closeIdle).toHaveBeenCalledTimes(1);
+    expect(await h.observation('bot-a')).toMatchObject({ cleanupRequired: true });
+    await expect(
+      oldTool.execute({ url: 'https://example.com' }, {
+        agent: { id: 'bot-a' },
+        signal: new AbortController().signal,
+      } as ToolRunContext),
+    ).rejects.toThrow();
+    expect(h.opened).toHaveLength(0);
+    tick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(h.closeIdle).toHaveBeenCalledTimes(2);
+    expect(h.stopAll).toHaveBeenCalledTimes(2);
+    expect(await h.observation('bot-a')).not.toHaveProperty('cleanupRequired');
+    await h.open('bot-a');
+    expect(h.opened).toHaveLength(1);
+  });
+
   it('fences old approvals and calls for all shared-profile Bots while preserving a separate profile', async () => {
     const h = await setup(true, false);
     const oldScope = h.service.authorizationScope('bot-a');
@@ -229,6 +317,7 @@ describe('published Browser Host service', () => {
         });
       expect((await openRoute.fetch(openRequest())).status).toBe(500);
       expect(h.opened).toHaveLength(0);
+      expect(await h.observation('bot-a')).toMatchObject({ cleanupRequired: true, frame: null });
       const response = await h.routes.get('/api/browser/stop')!.fetch(
         new Request('http://localhost/api/browser/stop', {
           method: 'POST',

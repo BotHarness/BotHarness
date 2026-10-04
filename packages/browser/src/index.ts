@@ -257,7 +257,10 @@ export function apply(
     runtimes,
     screenshotDir: join(profileDirectory(), 'screenshots'),
     isAutoAllowed: () => config.autoAllowActions,
-    beforeExecution: () => switching,
+    beforeExecution: () =>
+      switching.catch(() => {
+        throw new Error('Browser cleanup failed; use Stop in the Browser panel to retry');
+      }),
     profile: () => (target() === 'profile-control' ? profile : undefined),
     daily: () => (target() === 'daily-control' ? daily : undefined),
     borrowed: () => (target() === 'extension' ? borrow : undefined),
@@ -373,10 +376,17 @@ export function apply(
   const idleMs = Math.max(1, config.idleStopMinutes) * 60_000;
   ctx.effect(() => {
     const timer = setInterval(() => {
-      switching = switching.then(async () => {
-        await provider.closeIdleTabs(idleMs);
-        await runtimes.closeIdle(idleMs);
-      });
+      switching = switching
+        .catch(async () => {
+          revision += 1;
+          provider.resetRuntime();
+          await runtimes.stopAll();
+          await provider.reconcileAll();
+        })
+        .then(async () => {
+          await provider.closeIdleTabs(idleMs);
+          await runtimes.closeIdle(idleMs);
+        });
       void switching.catch((error: unknown) =>
         diagnostics.record(
           'lifecycle',
@@ -529,9 +539,22 @@ export function apply(
       methods: ['GET'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
-        await switching;
         const url = new URL(request.url);
         const slug = url.searchParams.get('slug') ?? '';
+        try {
+          await switching;
+        } catch {
+          return json({
+            ok: true,
+            target: target(),
+            cleanupRequired: true,
+            running: false,
+            frame: null,
+            focused: null,
+            takeover: false,
+            tabs: [],
+          });
+        }
         const scope = previewScope(slug);
         const requested = url.searchParams.get('tab') ?? '';
         if (target() === 'profile-control')
@@ -685,22 +708,12 @@ export function apply(
         }
         const slug = typeof body.slug === 'string' ? body.slug : '';
         if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
-        if (target() === 'profile-control') {
-          await profile.forget();
-          return json({ ok: true });
-        }
-        if (target() === 'daily-control') {
-          daily.returnBot(slug);
-          return json({ ok: true });
-        }
-        if (target() === 'extension') {
-          borrow.returnBot(slug);
-          return json({ ok: true });
-        }
         diagnostics.record('lifecycle', `stop requested (panel) slug=${slug}`);
         try {
           const pendingSwitch = switching;
           await pendingSwitch.catch(async () => {
+            revision += 1;
+            provider.resetRuntime();
             await runtimes.stopAll();
             if (switching === pendingSwitch) {
               switching = Promise.resolve();
@@ -708,6 +721,18 @@ export function apply(
             }
           });
           await switching;
+          if (target() === 'profile-control') {
+            await profile.forget();
+            return json({ ok: true });
+          }
+          if (target() === 'daily-control') {
+            daily.returnBot(slug);
+            return json({ ok: true });
+          }
+          if (target() === 'extension') {
+            borrow.returnBot(slug);
+            return json({ ok: true });
+          }
           provider.invalidateProfile(runtimes.profileOf(slug));
           switching = runtimes.stop(slug);
           await switching;

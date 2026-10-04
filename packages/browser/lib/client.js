@@ -859,6 +859,7 @@ window.__ModuleLoader__.load({
 			"entry.view.resume": "继续",
 			"entry.view.open": "打开 Bot 浏览器",
 			"entry.view.stop": "停止",
+			"entry.view.cleanupFailed": "浏览器清理失败。点击“停止”重试。",
 			"entry.view.opening": "正在打开…",
 			"entry.view.noFrame": "暂无画面",
 			"entry.view.noTabs": "暂无标签页",
@@ -926,6 +927,7 @@ window.__ModuleLoader__.load({
 			"entry.view.resume": "Resume",
 			"entry.view.open": "Open Bot Browser",
 			"entry.view.stop": "Stop",
+			"entry.view.cleanupFailed": "Browser cleanup failed. Click Stop to retry.",
 			"entry.view.opening": "Opening…",
 			"entry.view.noFrame": "No frame yet",
 			"entry.view.noTabs": "No tabs yet",
@@ -1770,6 +1772,8 @@ window.__ModuleLoader__.load({
 			const focused = observation?.focused ?? null;
 			const currentTab = tabs.find((tab) => tab.current);
 			const orderedTabs = currentTab === void 0 ? tabs : [currentTab, ...tabs.filter((tab) => !tab.current)];
+			const cleanupRequired = observation?.cleanupRequired === true;
+			const visibleError = cleanupRequired ? t("entry.view.cleanupFailed") : error;
 			const paused = observation?.takeover === true;
 			const viewerUrl = observation?.target === "container" && observation.running ? observation.viewerUrl ?? void 0 : void 0;
 			const identity = `${botSlug ?? ""}:${profileOverride ?? info.browserProfile ?? ""}:${observation?.target ?? ""}`;
@@ -1903,7 +1907,7 @@ window.__ModuleLoader__.load({
 					store.refresh();
 				});
 			};
-			if (observation?.target === "profile-control") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProfileBrowserControl, {
+			if (!cleanupRequired && observation?.target === "profile-control") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProfileBrowserControl, {
 				slug: botSlug,
 				view: observation.profile,
 				enabled: info.browserAccess === true,
@@ -1911,7 +1915,7 @@ window.__ModuleLoader__.load({
 				t,
 				refresh: store.refresh
 			}, botSlug);
-			if (observation?.target === "daily-control") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(DailyBrowserControl, {
+			if (!cleanupRequired && observation?.target === "daily-control") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(DailyBrowserControl, {
 				slug: botSlug,
 				view: observation.daily ?? null,
 				enabled: info.browserAccess === true,
@@ -1919,7 +1923,7 @@ window.__ModuleLoader__.load({
 				t,
 				refresh: store.refresh
 			}, botSlug);
-			if (observation?.target === "extension") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(BorrowedBrowser, {
+			if (!cleanupRequired && observation?.target === "extension") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(BorrowedBrowser, {
 				slug: botSlug,
 				tab: observation.borrowed,
 				enabled: info.browserAccess === true,
@@ -1947,7 +1951,7 @@ window.__ModuleLoader__.load({
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProfileCombobox, {
 							value: currentProfile,
 							profiles: [...info.profiles, ...observation?.profiles ?? []],
-							disabled: busy || botSlug === void 0,
+							disabled: busy || cleanupRequired || botSlug === void 0,
 							invalid: profileInvalid,
 							errorId,
 							onSelect: saveProfile,
@@ -2023,18 +2027,18 @@ window.__ModuleLoader__.load({
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								style: buttonStyle,
-								disabled: busy,
+								disabled: busy || cleanupRequired,
 								onClick: onPause,
 								children: t(paused ? "entry.view.resume" : "entry.view.pause")
 							}),
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								style: buttonStyle,
-								disabled: busy,
+								disabled: busy || cleanupRequired,
 								onClick: () => invoke(OPEN_ENDPOINT, follow || preview === void 0 ? {} : { tab: preview }),
 								children: t(busy ? "entry.view.opening" : "entry.view.open")
 							}),
-							observation?.running === true && viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							(observation?.running === true || cleanupRequired) && viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								style: buttonStyle,
 								disabled: busy,
@@ -2067,11 +2071,11 @@ window.__ModuleLoader__.load({
 							})]
 						}, tab.targetId))
 					}),
-					error !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					visibleError !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						id: errorId,
 						role: "alert",
 						className: "bh-browser-error",
-						children: error
+						children: visibleError
 					}) : null
 				]
 			});

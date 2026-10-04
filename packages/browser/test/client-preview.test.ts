@@ -131,6 +131,57 @@ afterEach(async () => {
 });
 
 describe('Browser current work versus Human preview', () => {
+  it.each(['local', 'container', 'daily-control', 'profile-control', 'extension'])(
+    '%s keeps Stop usable until cleanup recovery succeeds',
+    async (failedTarget) => {
+      let failed = true;
+      let failStop = true;
+      vi.mocked(fetch).mockImplementation(async (url, init) => {
+        if (url === '/api/browser/stop') {
+          expect(JSON.parse(String(init?.body))).toEqual({ slug: 'qa' });
+          if (failStop) {
+            failStop = false;
+            return {
+              ok: false,
+              json: async () => ({ error: 'Docker still unavailable' }),
+            } as Response;
+          }
+          failed = false;
+          return { ok: true, json: async () => ({ ok: true }) } as Response;
+        }
+        return {
+          ok: true,
+          json: async () =>
+            failed
+              ? {
+                  target: failedTarget,
+                  cleanupRequired: true,
+                  running: false,
+                  frame: null,
+                  tabs: [],
+                }
+              : observation(String(url)),
+        } as Response;
+      });
+      await poll();
+      expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+        'Browser cleanup failed. Click Stop to retry.',
+      );
+      const buttons = [...host.querySelectorAll('button')];
+      expect(buttons.find((b) => b.textContent === 'Stop')?.disabled).toBe(false);
+      expect(buttons.find((b) => b.textContent === 'Open Bot Browser')?.disabled).toBe(true);
+      expect(buttons.find((b) => b.textContent === 'Pause Bot')?.disabled).toBe(true);
+      await act(async () => buttons.find((b) => b.textContent === 'Stop')!.click());
+      expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+        'Browser cleanup failed. Click Stop to retry.',
+      );
+      await act(async () => buttons.find((b) => b.textContent === 'Stop')!.click());
+      expect(host.querySelector('[role="alert"]')).toBeNull();
+      expect(host.querySelector('img')?.getAttribute('src')).toBe('frame:work');
+      expect(host.textContent).toContain('Work');
+    },
+  );
+
   it('pins the current Bot tab first and shows title and URL without hovering', () => {
     const rows = host.querySelectorAll('button[title]');
     expect(rows[0]?.textContent).toContain('Work');
