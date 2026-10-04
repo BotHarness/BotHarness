@@ -50,9 +50,7 @@
         "slug": "bot-a6589e67224f4fbbbda87b536a580473",
         "state": "working",
         "activity": {
-          "detailRefs": [
-            "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-          ],
+          "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
           "effect": "executing",
           "toolKind": "execute",
           "toolName": "bash",
@@ -74,9 +72,7 @@
             "revision": 33,
             "state": "working",
             "activity": {
-              "detailRefs": [
-                "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-              ],
+              "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
               "effect": "executing",
               "toolKind": "execute",
               "toolName": "bash",
@@ -96,9 +92,7 @@
         "slug": "bot-addaf65de5454a0a97213cfcded8116e",
         "state": "working",
         "activity": {
-          "detailRefs": [
-            "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-          ],
+          "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
           "effect": "executing",
           "toolKind": "execute",
           "toolName": "bash",
@@ -120,9 +114,7 @@
             "revision": 31,
             "state": "working",
             "activity": {
-              "detailRefs": [
-                "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-              ],
+              "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
               "effect": "executing",
               "toolKind": "execute",
               "toolName": "bash",
@@ -226,9 +218,7 @@
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-0dcffae1-2991-4e19-a2fc-75258a646944"
-            ],
+            "detailRefs": ["tool-detail-0dcffae1-2991-4e19-a2fc-75258a646944"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -250,9 +240,7 @@
               "revision": 19,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-0dcffae1-2991-4e19-a2fc-75258a646944"
-                ],
+                "detailRefs": ["tool-detail-0dcffae1-2991-4e19-a2fc-75258a646944"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -272,9 +260,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"
-            ],
+            "detailRefs": ["tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -296,9 +282,7 @@
               "revision": 21,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"
-                ],
+                "detailRefs": ["tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -346,9 +330,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"
-            ],
+            "detailRefs": ["tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -370,9 +352,7 @@
               "revision": 21,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"
-                ],
+                "detailRefs": ["tool-detail-e2d2abf5-768e-463f-818f-fe4138e37a03"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -448,9 +428,7 @@
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-9e0b2063-b50b-468b-817c-c2bae192ad11"
-            ],
+            "detailRefs": ["tool-detail-9e0b2063-b50b-468b-817c-c2bae192ad11"],
             "effect": "generic-working",
             "toolKind": "other",
             "toolName": "channel_send",
@@ -472,9 +450,7 @@
               "revision": 27,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-9e0b2063-b50b-468b-817c-c2bae192ad11"
-                ],
+                "detailRefs": ["tool-detail-9e0b2063-b50b-468b-817c-c2bae192ad11"],
                 "effect": "generic-working",
                 "toolKind": "other",
                 "toolName": "channel_send",
@@ -578,9 +554,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-f768e148-2571-4b1e-a0c2-a157dedcd928"
-            ],
+            "detailRefs": ["tool-detail-f768e148-2571-4b1e-a0c2-a157dedcd928"],
             "effect": "generic-working",
             "toolKind": "other",
             "toolName": "channel_send",
@@ -602,9 +576,7 @@
               "revision": 29,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-f768e148-2571-4b1e-a0c2-a157dedcd928"
-                ],
+                "detailRefs": ["tool-detail-f768e148-2571-4b1e-a0c2-a157dedcd928"],
                 "effect": "generic-working",
                 "toolKind": "other",
                 "toolName": "channel_send",
@@ -694,9 +666,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-            ],
+            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -718,9 +688,7 @@
               "revision": 31,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-                ],
+                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -768,9 +736,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-            ],
+            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -792,9 +758,7 @@
               "revision": 31,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-                ],
+                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -831,9 +795,7 @@
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-            ],
+            "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -855,9 +817,7 @@
               "revision": 33,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-                ],
+                "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -877,9 +837,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-            ],
+            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -901,9 +859,7 @@
               "revision": 31,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-                ],
+                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -940,9 +896,7 @@
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-            ],
+            "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -964,9 +918,7 @@
               "revision": 33,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-                ],
+                "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -989,9 +941,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-            ],
+            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -1013,9 +963,7 @@
               "revision": 31,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-                ],
+                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -1052,9 +1000,7 @@
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-            ],
+            "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -1076,9 +1022,7 @@
               "revision": 33,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-                ],
+                "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -1098,9 +1042,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-            ],
+            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -1122,9 +1064,7 @@
               "revision": 31,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-                ],
+                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -1161,9 +1101,7 @@
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-            ],
+            "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -1185,9 +1123,7 @@
               "revision": 33,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"
-                ],
+                "detailRefs": ["tool-detail-a97b2c8e-d555-4655-8742-336b5e5c53a0"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -1207,9 +1143,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-            ],
+            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -1231,9 +1165,7 @@
               "revision": 31,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-                ],
+                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -1281,9 +1213,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-            ],
+            "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
             "effect": "executing",
             "toolKind": "execute",
             "toolName": "bash",
@@ -1305,9 +1235,7 @@
               "revision": 31,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"
-                ],
+                "detailRefs": ["tool-detail-cbd3969a-9e88-4dd6-a112-f5a1b667f3fb"],
                 "effect": "executing",
                 "toolKind": "execute",
                 "toolName": "bash",
@@ -1383,9 +1311,7 @@
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"
-            ],
+            "detailRefs": ["tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"],
             "effect": "generic-working",
             "toolKind": "other",
             "toolName": "channel_send",
@@ -1407,9 +1333,7 @@
               "revision": 39,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"
-                ],
+                "detailRefs": ["tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"],
                 "effect": "generic-working",
                 "toolKind": "other",
                 "toolName": "channel_send",
@@ -1457,9 +1381,7 @@
           "slug": "bot-a6589e67224f4fbbbda87b536a580473",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"
-            ],
+            "detailRefs": ["tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"],
             "effect": "generic-working",
             "toolKind": "other",
             "toolName": "channel_send",
@@ -1481,9 +1403,7 @@
               "revision": 39,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"
-                ],
+                "detailRefs": ["tool-detail-201c2c52-0321-48ca-89d5-3227cca32006"],
                 "effect": "generic-working",
                 "toolKind": "other",
                 "toolName": "channel_send",
@@ -1503,9 +1423,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"
-            ],
+            "detailRefs": ["tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"],
             "effect": "generic-working",
             "toolKind": "other",
             "toolName": "channel_send",
@@ -1527,9 +1445,7 @@
               "revision": 40,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"
-                ],
+                "detailRefs": ["tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"],
                 "effect": "generic-working",
                 "toolKind": "other",
                 "toolName": "channel_send",
@@ -1577,9 +1493,7 @@
           "slug": "bot-addaf65de5454a0a97213cfcded8116e",
           "state": "working",
           "activity": {
-            "detailRefs": [
-              "tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"
-            ],
+            "detailRefs": ["tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"],
             "effect": "generic-working",
             "toolKind": "other",
             "toolName": "channel_send",
@@ -1601,9 +1515,7 @@
               "revision": 40,
               "state": "working",
               "activity": {
-                "detailRefs": [
-                  "tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"
-                ],
+                "detailRefs": ["tool-detail-911466b6-868a-476a-b201-b8960a03a7a3"],
                 "effect": "generic-working",
                 "toolKind": "other",
                 "toolName": "channel_send",
