@@ -316,7 +316,16 @@ try {
   const expectedMembers = targets.map((target) => {
     const bot = reconnected.bots.find((bot) => bot.slug === target.slug);
     assert.ok(bot);
-    return { name: target.name, state: bot.state, effect: bot.activity?.effect };
+    return {
+      name: target.name,
+      state: bot.state,
+      effect:
+        bot.state === 'working'
+          ? (bot.activity?.effect ?? 'generic-working')
+          : bot.state === 'thinking'
+            ? 'thinking-dots'
+            : undefined,
+    };
   });
   await page.waitForFunction(
     (expected) => {
@@ -324,12 +333,18 @@ try {
         ...document.querySelectorAll('.bh-composer-activity-facepile .bh-persona-avatar'),
       ];
       return expected.every((member) =>
-        nodes.some(
-          (node) =>
-            node.title.startsWith(member.name) &&
-            node.dataset.state === member.state &&
-            node.dataset.effect === member.effect,
-        ),
+        member.state === 'idle'
+          ? !nodes.some(
+              (node) =>
+                node.title.startsWith(member.name) &&
+                ['working', 'thinking'].includes(node.dataset.state),
+            )
+          : nodes.some(
+              (node) =>
+                node.title.startsWith(member.name) &&
+                node.dataset.state === member.state &&
+                node.dataset.effect === member.effect,
+            ),
       );
     },
     {},

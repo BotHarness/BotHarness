@@ -1,6 +1,6 @@
 # Group activity: first #124 slice
 
-Base: 116645be4c8f8885d2db812a98ffd4c757aad763. DSH 0.2.0-rc.1, real DeepSeek Flash/low Orchestrator Sessions. Both phases use the same four-member Group, Chinese locale, desktop 1500 × 1000/light and mobile 420 × 860/dark. Message history and timestamps differ because each phase uses fresh real model Turns.
+Base: 397a42fc3dcd499ad23ac68ce0ea63f933312d22. DSH 0.2.0-rc.1, real DeepSeek Flash/low Orchestrator Sessions. Both phases use the same four-member Group, Chinese locale, desktop 1500 × 1000/light and mobile 420 × 860/dark. Message history and timestamps differ because each phase uses fresh real model Turns.
 
 ## Evidence
 
@@ -8,7 +8,7 @@ Before: the collapsed summary only counts Bots, and expanded Session rows both s
 
 The other two members stay idle. The top header retains its existing three avatars plus +1 overflow. Each avatar consumes its own Host state.
 
-The verifier sends structured mentions to Orbit and Nova, approves native Shell requests in their own DM Channels, and observes concurrent bounded 45-second timers. It checks both fresh, uniquely marked Group replies and both Bots returning to idle. It also forces the browser offline for 1.2 seconds, reconnects, and checks the live view against the current Host snapshot. `proof.json` records safe Activity snapshot generation/revisions, per-Bot states, summary labels, no horizontal overflow and no client exceptions. No cookie or provider credential is published.
+The verifier sends structured mentions to Orbit and Nova, approves native Shell requests in their own DM Channels, and observes concurrent bounded 45-second timers. It checks both fresh, uniquely marked Group replies and both Bots returning to idle. It also forces the browser offline for 1.2 seconds, reconnects, waits for a newly received SSE snapshot with the current Host generation/revision, and checks the live view against those per-Bot states/effects. `proof.json` records safe Activity snapshot generation/revisions, per-Bot states, summary labels, no horizontal overflow and no client exceptions. No cookie or provider credential is published.
 
 ## Reproduce
 
