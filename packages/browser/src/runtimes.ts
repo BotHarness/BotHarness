@@ -24,6 +24,7 @@ export interface BotBrowserRuntimes {
 export interface BotBrowserRuntimesOptions {
   readonly target?: () => 'local' | 'container';
   readonly driver?: () => 'current' | 'agent-browser';
+  readonly onIdleStop?: (profile: string) => void;
   readonly onViewer?: ContainerBrowserOptions['onViewer'];
   readonly browserDir: string;
   readonly installDir: string;
@@ -59,7 +60,10 @@ export async function listStoredProfileNames(browserDir: string): Promise<readon
 
 export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): BotBrowserRuntimes {
   const create = options.create ?? createBotBrowserRuntime;
-  const entries = new Map<string, { runtime: BotBrowserRuntime; lastActivity: number }>();
+  const entries = new Map<
+    string,
+    { runtime: BotBrowserRuntime; lastActivity: number; profile: string }
+  >();
 
   const profileOf = (slug: string): string => sanitizeProfileName(options.profileOf(slug));
 
@@ -75,11 +79,14 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
     return { profile, target, driver, key: `${target}:${driver}:${profile}` };
   };
 
-  const entryFor = (slug: string): { runtime: BotBrowserRuntime; lastActivity: number } => {
+  const entryFor = (
+    slug: string,
+  ): { runtime: BotBrowserRuntime; lastActivity: number; profile: string } => {
     const { profile, target, driver, key } = identityFor(slug);
     const existing = entries.get(key);
     if (existing !== undefined) return existing;
     const created = {
+      profile,
       runtime: (driver === 'agent-browser' ? createAgentBrowserRuntime : create)({
         ...(options.browserPath === undefined ? {} : { browserPath: options.browserPath }),
         userDataDir: directoryFor(profile),
@@ -115,13 +122,13 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
       for (const entry of entries.values()) {
         if (!entry.runtime.isRunning()) continue;
         if (Date.now() - entry.lastActivity < idleMs) continue;
-        await entry.runtime
-          .stop()
-          .catch((error: unknown) =>
-            options.onEvent?.(
-              `initiator=idle phase=stop-refused detail=${String(error).slice(0, 200)}`,
-            ),
+        options.onIdleStop?.(entry.profile);
+        await entry.runtime.stop().catch((error: unknown) => {
+          options.onEvent?.(
+            `initiator=idle phase=stop-refused detail=${String(error).slice(0, 200)}`,
           );
+          throw error;
+        });
       }
     },
     async stop(slug) {

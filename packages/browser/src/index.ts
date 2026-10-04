@@ -141,8 +141,17 @@ export function apply(
   const driver = (): 'current' | 'agent-browser' =>
     target() === 'container' ? containerDriver() : localDriver();
   let revision = 0;
-  const authorizationScope = (): string =>
-    `${target()}:${driver()}:${revision}:${borrow.revision}:${daily.revision}:${profile.revision}`;
+  const registrationScopes = new WeakMap<AbortSignal, number>();
+  let registrationRevision = 0;
+  const botRevisions = new Map<string, number>();
+  const previewScope = (slug: string): string =>
+    `${authorizationScope()}:${botRevisions.get(slug) ?? 0}`;
+  const authorizationScope = (sessionId?: string): string => {
+    const signal = sessionId === undefined ? undefined : provider.executionSignal(sessionId);
+    if (signal !== undefined && !registrationScopes.has(signal))
+      registrationScopes.set(signal, ++registrationRevision);
+    return `${target()}:${driver()}:${revision}:${borrow.revision}:${daily.revision}:${profile.revision}:${signal === undefined ? '' : registrationScopes.get(signal)}`;
+  };
   let switching: Promise<void> = Promise.resolve();
   let registerViewer: ContainerBrowserOptions['onViewer'];
   ctx.inject(['connection', 'webServer'], (viewerCtx) => {
@@ -165,6 +174,7 @@ export function apply(
     browserDir: profileDirectory(),
     target: () => (target() === 'container' ? 'container' : 'local'),
     driver,
+    onIdleStop: (profile) => provider.invalidateProfile(profile),
     onViewer: (prefix, upstream) => {
       if (registerViewer === undefined)
         throw new Error('The Container Browser viewer requires the DSH Web Host');
@@ -253,6 +263,7 @@ export function apply(
     borrowed: () => (target() === 'extension' ? borrow : undefined),
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),
+    onInvalidate: (slug) => botRevisions.set(slug, (botRevisions.get(slug) ?? 0) + 1),
     onActivity: (slug) => {
       if (target() === 'local' || target() === 'container') runtimes.touch(slug);
     },
@@ -285,7 +296,7 @@ export function apply(
       const started = Date.now();
       daily.returnBot(slug);
       profile.returnBot(slug);
-      provider.resetBot(slug);
+      provider.invalidateBot(slug);
       diagnostics.record(
         'lifecycle',
         `initiator=profile-assignment phase=reset-tabs slug=${slug} durationMs=${Date.now() - started}`,
@@ -296,7 +307,8 @@ export function apply(
     needsAuthorization: (sessionId: string) => provider.needsAuthorization(sessionId),
     authorizationScope,
     markAuthorized: (sessionId: string, expectedScope?: string) => {
-      if (expectedScope !== undefined && expectedScope !== authorizationScope()) return false;
+      if (expectedScope !== undefined && expectedScope !== authorizationScope(sessionId))
+        return false;
       provider.markAuthorized(sessionId);
       return true;
     },
@@ -361,8 +373,16 @@ export function apply(
   const idleMs = Math.max(1, config.idleStopMinutes) * 60_000;
   ctx.effect(() => {
     const timer = setInterval(() => {
-      void runtimes.closeIdle(idleMs);
-      void provider.closeIdleTabs(idleMs);
+      switching = switching.then(async () => {
+        await provider.closeIdleTabs(idleMs);
+        await runtimes.closeIdle(idleMs);
+      });
+      void switching.catch((error: unknown) =>
+        diagnostics.record(
+          'lifecycle',
+          `initiator=idle phase=refused detail=${String(error).slice(0, 200)}`,
+        ),
+      );
     }, 30_000);
     return () => clearInterval(timer);
   }, 'botharness-browser: idle stop');
@@ -484,11 +504,11 @@ export function apply(
         provider.touch(slug);
         try {
           await switching;
-          const scope = authorizationScope();
+          const scope = previewScope(slug);
           const requested = typeof body.tab === 'string' && body.tab !== '' ? body.tab : undefined;
           const tab = await provider.openForHuman(slug, requested);
-          if (scope !== authorizationScope())
-            throw new Error('Browser Target changed while opening');
+          if (scope !== previewScope(slug))
+            throw new Error('Browser authority changed while opening');
           return json({
             ok: true,
             tabId: tab.tabId,
@@ -510,9 +530,9 @@ export function apply(
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
         await switching;
-        const scope = authorizationScope();
         const url = new URL(request.url);
         const slug = url.searchParams.get('slug') ?? '';
+        const scope = previewScope(slug);
         const requested = url.searchParams.get('tab') ?? '';
         if (target() === 'profile-control')
           return json({
@@ -578,8 +598,8 @@ export function apply(
           return [];
         });
         const tabs = await provider.listTabs(slug);
-        if (scope !== authorizationScope())
-          return json({ ok: false, error: 'Browser Target changed during observation' }, 409);
+        if (scope !== previewScope(slug))
+          return json({ ok: false, error: 'Browser authority changed during observation' }, 409);
         return json({
           ok: true,
           running: runtime.isRunning(),
@@ -688,7 +708,9 @@ export function apply(
             }
           });
           await switching;
-          await runtimes.stop(slug);
+          provider.invalidateProfile(runtimes.profileOf(slug));
+          switching = runtimes.stop(slug);
+          await switching;
           provider.resetBot(slug);
           return json({ ok: true });
         } catch (error) {
