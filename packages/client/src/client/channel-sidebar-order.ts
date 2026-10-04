@@ -13,3 +13,15 @@ export function moveEntry(order: readonly string[], id: string, target: string):
   next.splice(to, 0, id);
   return next;
 }
+
+export function insertEntryBefore(
+  order: readonly string[],
+  id: string,
+  before: string | undefined,
+): readonly string[] {
+  if (!order.includes(id) || before === id || (before !== undefined && !order.includes(before)))
+    return order;
+  const next = order.filter((entry) => entry !== id);
+  const index = before === undefined ? next.length : next.indexOf(before);
+  return [...next.slice(0, index), id, ...next.slice(index)];
+}
