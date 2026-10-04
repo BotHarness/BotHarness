@@ -120,6 +120,27 @@ function visibility(id: string) {
   act(() => button!.click());
 }
 describe('Channel sidebar personal item visibility', () => {
+  it('keeps a hidden entry hidden during settings preview and restores its allowed expansion when shown', () => {
+    entries[0] = {
+      ...entries[0]!,
+      settings: (props) =>
+        createElement('button', { onClick: () => props.onPreview?.() }, 'preview memory'),
+    };
+    registered = entries;
+    prefs.setEntryLayout('personabot', ['memory', 'sessions', 'inbox'], ['memory']);
+    prefs.setEntryExpanded('personabot:ada', 'memory', true);
+    render();
+    act(() => host.querySelector<HTMLButtonElement>('.bh-sidebar-settings')!.click());
+    click('preview memory');
+    expect(host.querySelector<HTMLElement>('[data-entry-id="memory"]')!.hidden).toBe(true);
+    expect(host.textContent).not.toContain('body-memory');
+    act(() => host.querySelector<HTMLButtonElement>('.bh-sidebar-settings')!.click());
+    edit();
+    visibility('memory');
+    click('完成');
+    expect(host.textContent).toContain('body-memory');
+    expect(prefs.isEntryExpanded('personabot:ada', 'memory')).toBe(true);
+  });
   it('keeps visibility controls independent and preserves hidden choices through a whole-row pointer reorder', () => {
     render();
     edit();
