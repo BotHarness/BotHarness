@@ -45,7 +45,7 @@ node scripts/e2e-assignment-report-harvest.mjs complete
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | 重启前                         | 两个独立且未观察的进度来源；Assignment 空闲；Orchestrator 一个已结束回合                                                    |
 | 新 Host 进程、同一隔离 Profile | Assignment 与 Orchestrator Session ID、报告来源 ID／内容／创建时间保持一致；两条仍待处理且可导航，没有重放回合或 Inbox 投递 |
-| 下一条 Human 私聊              | 一个新回合收割两个原来源一次，显示最新摘要和 repeats 2；两个来源同批处理                                                    |
+| 下一条 Human 私聊              | 一个新回合收割两个原始来源一次，显示最新摘要和 repeats 2；两个来源同批处理                                                  |
 | Human 打开来源                 | 经过认证的原生 Session 导航，不改变观察状态或新增回合                                                                       |
 
 这个结论仅涵盖已结束 Assignment 的普通待处理进度；不代表活动／已观察回合的崩溃恢复、失败／升级或终态 Report 与 Lifecycle Notice 的因果配对已验收。[真实重启截图和证明](https://github.com/BotHarness/BotHarness/blob/main/docs/assets/pr/194-report-restart/README.md)。
