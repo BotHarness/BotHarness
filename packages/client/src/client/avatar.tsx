@@ -267,6 +267,58 @@ function ActivityIndicator({ state }: { state: PersonaBotActivityState }): React
   return <span className="bh-avatar-indicator" aria-hidden="true" />;
 }
 
+function AttentionBadge({
+  attention,
+}: {
+  attention: PersonaBotAvatarProps['attention'];
+}): ReactElement | null {
+  if (attention !== undefined && attentionCount(attention) > 0)
+    return (
+      <span
+        className="bh-avatar-attention"
+        data-approval-count={attention.approvalCount}
+        data-question-count={attention.questionCount ?? 0}
+        data-waiting-human-count={attention.waitingHumanCount ?? 0}
+        data-workspace-grant-count={attention.workspaceGrantCount ?? 0}
+        data-blocked-count={attention.blockedCount ?? 0}
+        aria-hidden="true"
+      >
+        {attentionCount(attention) > 99 ? '99+' : attentionCount(attention)}
+      </span>
+    );
+  if (attention?.informationalCount)
+    return (
+      <span
+        className="bh-avatar-information"
+        data-informational-count={attention.informationalCount}
+        aria-hidden="true"
+      >
+        i
+      </span>
+    );
+  return null;
+}
+
+/** The activity indicator and attention badge laid out inline, for rows that show them beside the name. */
+export function PersonaBotStatusBadges({
+  state = 'idle',
+  attention,
+}: Pick<PersonaBotAvatarProps, 'state' | 'attention'>): ReactElement | null {
+  const indicator = <ActivityIndicator state={state} />;
+  const badge = <AttentionBadge attention={attention} />;
+  if (
+    state === 'idle' &&
+    (attention === undefined || (attentionCount(attention) === 0 && !attention.informationalCount))
+  )
+    return null;
+  return (
+    <span className="bh-row-status" data-state={state}>
+      {indicator}
+      {badge}
+    </span>
+  );
+}
+
 export function PersonaBotAvatar({
   personaBotId,
   name,
@@ -318,27 +370,7 @@ export function PersonaBotAvatar({
         <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
       )}
       {indicator ? <ActivityIndicator state={state} /> : null}
-      {indicator && attention !== undefined && attentionCount(attention) > 0 ? (
-        <span
-          className="bh-avatar-attention"
-          data-approval-count={attention.approvalCount}
-          data-question-count={attention.questionCount ?? 0}
-          data-waiting-human-count={attention.waitingHumanCount ?? 0}
-          data-workspace-grant-count={attention.workspaceGrantCount ?? 0}
-          data-blocked-count={attention.blockedCount ?? 0}
-          aria-hidden="true"
-        >
-          {attentionCount(attention) > 99 ? '99+' : attentionCount(attention)}
-        </span>
-      ) : indicator && attention?.informationalCount ? (
-        <span
-          className="bh-avatar-information"
-          data-informational-count={attention.informationalCount}
-          aria-hidden="true"
-        >
-          i
-        </span>
-      ) : null}
+      {indicator ? <AttentionBadge attention={attention} /> : null}
     </span>
   );
 }
