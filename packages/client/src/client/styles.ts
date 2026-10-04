@@ -2555,7 +2555,7 @@ button.bh-profile-heat-cell:focus-visible {
   height: 28px;
   display: flex;
   align-items: flex-end;
-  margin-bottom: 24px;
+  margin-bottom: 0;
   border: 0;
   border-radius: 50%;
   padding: 0;
@@ -2571,15 +2571,24 @@ button.bh-profile-heat-cell:focus-visible {
   flex-direction: column;
   align-items: flex-start;
   min-width: 0;
-  max-width: min(560px, 78%);
+  max-width: min(560px, calc(100% - 84px));
 }
 .bh-message-group-me .bh-message-stack {
   align-items: flex-end;
 }
+.bh-message-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
 .bh-bubble-author {
   color: var(--dsw-alias-label-secondary);
   font-size: 11px;
-  margin: 0 0 4px 2px;
+  margin: 0 0 0 2px;
 }
 .bh-root .bh-bridge-source-author {
   appearance: none;
@@ -2627,15 +2636,19 @@ button.bh-profile-heat-cell:focus-visible {
   overflow-wrap: anywhere;
 }
 .bh-message-group-me .bh-bubble-author {
-  margin: 0 2px 4px 0;
+  margin: 0 2px 0 0;
 }
 .bh-bubble-wrap {
   position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
   width: fit-content;
   max-width: 100%;
 }
 .bh-bubble-surface {
   position: relative;
+  min-width: 0;
   width: fit-content;
   max-width: 100%;
 }
@@ -2808,35 +2821,54 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   max-width: 100%;
   overflow-x: auto;
 }
-.bh-bubble-meta {
+.bh-message-group-me .bh-bubble-wrap {
+  flex-direction: row-reverse;
+}
+.bh-bubble-side {
+  position: relative;
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: fit-content;
-  min-height: 22px;
-  margin: 2px 2px 0;
+}
+.bh-bubble-side .bh-delivery-trigger {
+  position: static;
+}
+.bh-bubble-meta {
+  position: absolute;
+  left: 100%;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
   color: var(--dsw-alias-label-tertiary);
   opacity: 0;
   pointer-events: none;
 }
 .bh-message-group-me .bh-bubble-meta {
-  margin-left: auto;
+  left: auto;
+  right: 100%;
 }
 .bh-bubble-wrap:hover .bh-bubble-meta,
-.bh-bubble-wrap:focus-within .bh-bubble-meta,
-.bh-bubble-meta-persistent {
+.bh-bubble-wrap:focus-within .bh-bubble-meta {
   opacity: 1;
   pointer-events: auto;
 }
 .bh-bubble-time {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
+  color: var(--dsw-alias-label-tertiary);
   font-size: 10.5px;
-  line-height: 1;
+  line-height: 1.5;
   white-space: nowrap;
-  /* The font's visible glyphs sit above the center of its line box beside the icons. */
-  transform: translateY(1px);
+  opacity: 0;
+}
+.bh-message-group:hover .bh-bubble-time,
+.bh-message-group:focus-within .bh-bubble-time {
+  opacity: 1;
+}
+.bh-bubble-status {
+  display: block;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
 }
 .bh-bubble-actions {
   display: flex;
@@ -2863,7 +2895,8 @@ button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
   outline-offset: -2px;
 }
 @media (hover: none) {
-  .bh-bubble-meta {
+  .bh-bubble-meta,
+  .bh-bubble-time {
     opacity: 1;
     pointer-events: auto;
   }
