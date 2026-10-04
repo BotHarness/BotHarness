@@ -1,0 +1,43 @@
+# Group header activity — #124
+
+Base: f397073df95c72d21d913452ff09469b446ed9e3 (merged #782).
+Runtime: real isolated DSH 0.2.0-rc.1, four Group members, two real
+DeepSeek Flash / low Orchestrator Sessions and two idle members.
+
+## Matched visual evidence
+
+The before/after idle Profile pairs use the same isolated data after all
+model requests completed, the same Chinese locale, and matched viewports:
+1500 × 1000 light and 420 × 860 dark. The header idle pair uses the same
+light viewport and data. A separate working keyboard-focus screenshot
+shows the new native Tooltip and a working Profile list shows both live
+Bots alongside idle members. No credentials or private Host paths appear.
+
+## Reproduce
+
+1. Boot this worktree with scripts/dev-instance.mjs into a fresh isolated
+   home. Set BH_E2E_ORIGIN, BH_E2E_HOME and BH_E2E_EVIDENCE locally.
+2. Run node scripts/e2e-group-header-activity.mjs prepare to create four
+   members via the authenticated public Host commands.
+3. Run node scripts/e2e-group-header-activity.mjs check. It sends two real
+   model requests and approves only the exact bounded 45-second native
+   Shell timers requested for this fixture.
+4. Tab to a visible Group header avatar: native Tooltip shows its safe
+   Host aggregate. Enter opens the existing Group Profile popover; all
+   four members appear. Escape dismisses it. The Group name still opens
+   Profile and retains its View details action.
+5. The verifier checks both completion messages and idle recovery. It
+   disconnects the browser, restores connectivity, and requires a new SSE
+   snapshot whose generation/revision and Bot presentation match Host.
+
+Native DSH Tooltip intentionally ignores pointer-modality focus; the
+verifier therefore uses actual Tab and Shift+Tab keyboard events.
+
+runtime-proof.json records the actual working, reconnect and settled
+snapshots, zero client exceptions, no narrow-screen horizontal overflow,
+and successful header verification. Private launch URLs and cookies stay
+in ignored task-local files.
+
+This slice reuses Host aggregates, accepted GroupActivityRows, and the
+existing authenticated Gateway/Profile seam. It does not complete #124;
+remaining Assignment/motion/member variants await subsequent slices.

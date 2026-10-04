@@ -257,6 +257,10 @@ try {
     const headerAvatar = await page.$('.bh-group-channel-header .bh-avatar-facepile-button');
     assert.ok(headerAvatar);
     await headerAvatar.focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.down('Shift');
+    await page.keyboard.press('Tab');
+    await page.keyboard.up('Shift');
     await page.waitForSelector('[role="tooltip"]');
     const tip = await page.$eval('[role="tooltip"]', (node) => node.textContent);
     assert.ok(scene.bots.some((bot) => tip.includes(bot.name)));
@@ -289,7 +293,7 @@ try {
   }
   await shot('group-expanded-light');
   if (!baseline) {
-    const avatar = await page.$('.bh-avatar-facepile-button');
+    const avatar = await page.$('.bh-composer-activity-facepile .bh-avatar-facepile-button');
     assert.ok(avatar);
     await avatar.hover();
     await page.waitForSelector('[role="tooltip"]');
@@ -407,6 +411,14 @@ try {
     await page.click('.bh-group-channel-name');
     await page.waitForSelector('.bh-group-live-activity');
     await shot('group-header-list-idle-light');
+    await page.setViewport({ width: 420, height: 860 });
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
+    await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', ''));
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await shot('group-header-list-narrow-dark');
   }
   assert.deepEqual(clientErrors, []);
   const safe = (snapshot) => ({
