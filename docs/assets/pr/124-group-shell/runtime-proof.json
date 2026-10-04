@@ -1,0 +1,402 @@
+{
+  "base": "e8102f47e2a02b46d2c610764f8d2fbdbcaedf18",
+  "dsh": "0.2.0-rc.1",
+  "group": {
+    "id": "group-group-shell-qa-1791124269787",
+    "name": "Group shell QA 1791124269787"
+  },
+  "bots": [
+    {
+      "slug": "bot-e2db0ddbc5cb4930a92231655c013c1a",
+      "name": "Atlas QA 1791124269787"
+    },
+    {
+      "slug": "bot-5a8367f461064edebc91b740547c3533",
+      "name": "Boreal QA 1791124269787"
+    },
+    {
+      "slug": "bot-0d8e35729c6743fc8a2b7306f49ad43d",
+      "name": "Quiet QA 1791124269787"
+    }
+  ],
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "messages": [
+    {
+      "id": "bot-a314bb8d0f099602ed7e83eddcf8ff31c9b27cf361aecff8137a1782b9c13571",
+      "at": "2026-10-04T14:31:17.554Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-e2db0ddbc5cb4930a92231655c013c1a"
+      },
+      "body": "Atlas first — 1791124269787"
+    },
+    {
+      "id": "bot-c02f7fa6e9dda6f8226dff99f5f7f97898803a00c0f961b7c2631eb56893cba9",
+      "at": "2026-10-04T14:31:19.130Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-e2db0ddbc5cb4930a92231655c013c1a"
+      },
+      "body": "Atlas second — 1791124269787"
+    },
+    {
+      "id": "bot-1932c946f0c08e9e6403fc9bca8ea0672a12c0596b27c451fd846e496b5c069a",
+      "at": "2026-10-04T14:31:23.565Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-5a8367f461064edebc91b740547c3533"
+      },
+      "body": "Boreal first — 1791124269787"
+    },
+    {
+      "id": "bot-a5682bdf5822218c97ab1d79f248df21c620972965fe9cba4fa0ab5904e96bfa",
+      "at": "2026-10-04T14:31:24.880Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-5a8367f461064edebc91b740547c3533"
+      },
+      "body": "Boreal second — 1791124269787"
+    },
+    {
+      "id": "92162a94-d487-469f-b815-e27eada7124a",
+      "at": "2026-10-04T14:31:25.607Z",
+      "author": {
+        "kind": "human"
+      },
+      "body": "Human separator — 1791124269787"
+    },
+    {
+      "id": "bot-7b1d1541739742791f18dea21bef57c99849b62386a42ad26724d06f5bddd5a0",
+      "at": "2026-10-04T14:31:28.097Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-5a8367f461064edebc91b740547c3533"
+      },
+      "body": "Boreal after Human first — 1791124269787"
+    },
+    {
+      "id": "bot-cffd222b6e7a015d1b7e3733ba84523ada07283d6232213df109dfa9b0c2812f",
+      "at": "2026-10-04T14:31:29.229Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-5a8367f461064edebc91b740547c3533"
+      },
+      "body": "Boreal after Human second — 1791124269787"
+    },
+    {
+      "id": "member-left-e3b670e8-c1cb-4fed-a73e-8e901b71b1b5",
+      "at": "2026-10-04T14:31:29.319Z",
+      "author": {
+        "kind": "system"
+      },
+      "body": "Quiet QA 1791124269787 was removed from the Channel.",
+      "memberDeparture": {
+        "memberKind": "bot",
+        "memberId": "bot-0d8e35729c6743fc8a2b7306f49ad43d",
+        "displayName": "Quiet QA 1791124269787",
+        "departureType": "removed"
+      }
+    },
+    {
+      "id": "bot-52daa6f42b2aad92694ed4e427b30af547ac53fbaafad5861aa4803960937b7d",
+      "at": "2026-10-04T14:31:32.240Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-5a8367f461064edebc91b740547c3533"
+      },
+      "body": "Boreal after system first — 1791124269787"
+    },
+    {
+      "id": "bot-a0069ca319739f7403714a9900240832b054c5cb9afe10bc4d8eaae279cde498",
+      "at": "2026-10-04T14:31:33.607Z",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-5a8367f461064edebc91b740547c3533"
+      },
+      "body": "Boreal after system second — 1791124269787"
+    }
+  ],
+  "native": [
+    {
+      "botSlug": "bot-e2db0ddbc5cb4930a92231655c013c1a",
+      "sessionId": "botharness-e0671ba2-aff9-4941-9907-87ccb311e512",
+      "messageId": "bot-a314bb8d0f099602ed7e83eddcf8ff31c9b27cf361aecff8137a1782b9c13571",
+      "body": "Atlas first — 1791124269787",
+      "callAt": 1791124277543,
+      "resultAt": 1791124277562,
+      "isError": false
+    },
+    {
+      "botSlug": "bot-e2db0ddbc5cb4930a92231655c013c1a",
+      "sessionId": "botharness-e0671ba2-aff9-4941-9907-87ccb311e512",
+      "messageId": "bot-c02f7fa6e9dda6f8226dff99f5f7f97898803a00c0f961b7c2631eb56893cba9",
+      "body": "Atlas second — 1791124269787",
+      "callAt": 1791124279117,
+      "resultAt": 1791124279136,
+      "isError": false
+    },
+    {
+      "botSlug": "bot-5a8367f461064edebc91b740547c3533",
+      "sessionId": "botharness-d8085c9f-716a-4e12-9784-747e8e265db3",
+      "messageId": "bot-1932c946f0c08e9e6403fc9bca8ea0672a12c0596b27c451fd846e496b5c069a",
+      "body": "Boreal first — 1791124269787",
+      "callAt": 1791124283550,
+      "resultAt": 1791124283573,
+      "isError": false
+    },
+    {
+      "botSlug": "bot-5a8367f461064edebc91b740547c3533",
+      "sessionId": "botharness-d8085c9f-716a-4e12-9784-747e8e265db3",
+      "messageId": "bot-a5682bdf5822218c97ab1d79f248df21c620972965fe9cba4fa0ab5904e96bfa",
+      "body": "Boreal second — 1791124269787",
+      "callAt": 1791124284870,
+      "resultAt": 1791124284886,
+      "isError": false
+    },
+    {
+      "botSlug": "bot-5a8367f461064edebc91b740547c3533",
+      "sessionId": "botharness-d8085c9f-716a-4e12-9784-747e8e265db3",
+      "messageId": "bot-7b1d1541739742791f18dea21bef57c99849b62386a42ad26724d06f5bddd5a0",
+      "body": "Boreal after Human first — 1791124269787",
+      "callAt": 1791124288085,
+      "resultAt": 1791124288104,
+      "isError": false
+    },
+    {
+      "botSlug": "bot-5a8367f461064edebc91b740547c3533",
+      "sessionId": "botharness-d8085c9f-716a-4e12-9784-747e8e265db3",
+      "messageId": "bot-cffd222b6e7a015d1b7e3733ba84523ada07283d6232213df109dfa9b0c2812f",
+      "body": "Boreal after Human second — 1791124269787",
+      "callAt": 1791124289215,
+      "resultAt": 1791124289236,
+      "isError": false
+    },
+    {
+      "botSlug": "bot-5a8367f461064edebc91b740547c3533",
+      "sessionId": "botharness-d8085c9f-716a-4e12-9784-747e8e265db3",
+      "messageId": "bot-52daa6f42b2aad92694ed4e427b30af547ac53fbaafad5861aa4803960937b7d",
+      "body": "Boreal after system first — 1791124269787",
+      "callAt": 1791124292221,
+      "resultAt": 1791124292247,
+      "isError": false
+    },
+    {
+      "botSlug": "bot-5a8367f461064edebc91b740547c3533",
+      "sessionId": "botharness-d8085c9f-716a-4e12-9784-747e8e265db3",
+      "messageId": "bot-a0069ca319739f7403714a9900240832b054c5cb9afe10bc4d8eaae279cde498",
+      "body": "Boreal after system second — 1791124269787",
+      "callAt": 1791124293592,
+      "resultAt": 1791124293613,
+      "isError": false
+    }
+  ],
+  "rendered": [
+    {
+      "id": "bot-a314bb8d0f099602ed7e83eddcf8ff31c9b27cf361aecff8137a1782b9c13571",
+      "groupIds": [
+        "bot-a314bb8d0f099602ed7e83eddcf8ff31c9b27cf361aecff8137a1782b9c13571",
+        "bot-c02f7fa6e9dda6f8226dff99f5f7f97898803a00c0f961b7c2631eb56893cba9"
+      ],
+      "size": "2",
+      "headers": 1,
+      "avatars": 1,
+      "human": false,
+      "system": false,
+      "avatarLeft": 298,
+      "stackLeft": 334,
+      "visible": true
+    },
+    {
+      "id": "bot-c02f7fa6e9dda6f8226dff99f5f7f97898803a00c0f961b7c2631eb56893cba9",
+      "groupIds": [
+        "bot-a314bb8d0f099602ed7e83eddcf8ff31c9b27cf361aecff8137a1782b9c13571",
+        "bot-c02f7fa6e9dda6f8226dff99f5f7f97898803a00c0f961b7c2631eb56893cba9"
+      ],
+      "size": "2",
+      "headers": 1,
+      "avatars": 1,
+      "human": false,
+      "system": false,
+      "avatarLeft": 298,
+      "stackLeft": 334,
+      "visible": true
+    },
+    {
+      "id": "bot-1932c946f0c08e9e6403fc9bca8ea0672a12c0596b27c451fd846e496b5c069a",
+      "groupIds": [
+        "bot-1932c946f0c08e9e6403fc9bca8ea0672a12c0596b27c451fd846e496b5c069a",
+        "bot-a5682bdf5822218c97ab1d79f248df21c620972965fe9cba4fa0ab5904e96bfa"
+      ],
+      "size": "2",
+      "headers": 1,
+      "avatars": 1,
+      "human": false,
+      "system": false,
+      "avatarLeft": 298,
+      "stackLeft": 334,
+      "visible": true
+    },
+    {
+      "id": "bot-a5682bdf5822218c97ab1d79f248df21c620972965fe9cba4fa0ab5904e96bfa",
+      "groupIds": [
+        "bot-1932c946f0c08e9e6403fc9bca8ea0672a12c0596b27c451fd846e496b5c069a",
+        "bot-a5682bdf5822218c97ab1d79f248df21c620972965fe9cba4fa0ab5904e96bfa"
+      ],
+      "size": "2",
+      "headers": 1,
+      "avatars": 1,
+      "human": false,
+      "system": false,
+      "avatarLeft": 298,
+      "stackLeft": 334,
+      "visible": true
+    },
+    {
+      "id": "92162a94-d487-469f-b815-e27eada7124a",
+      "groupIds": ["92162a94-d487-469f-b815-e27eada7124a"],
+      "size": "1",
+      "headers": 1,
+      "avatars": 0,
+      "human": true,
+      "system": false,
+      "stackLeft": 925.203125,
+      "visible": true
+    },
+    {
+      "id": "bot-7b1d1541739742791f18dea21bef57c99849b62386a42ad26724d06f5bddd5a0",
+      "groupIds": [
+        "bot-7b1d1541739742791f18dea21bef57c99849b62386a42ad26724d06f5bddd5a0",
+        "bot-cffd222b6e7a015d1b7e3733ba84523ada07283d6232213df109dfa9b0c2812f"
+      ],
+      "size": "2",
+      "headers": 1,
+      "avatars": 1,
+      "human": false,
+      "system": false,
+      "avatarLeft": 298,
+      "stackLeft": 334,
+      "visible": true
+    },
+    {
+      "id": "bot-cffd222b6e7a015d1b7e3733ba84523ada07283d6232213df109dfa9b0c2812f",
+      "groupIds": [
+        "bot-7b1d1541739742791f18dea21bef57c99849b62386a42ad26724d06f5bddd5a0",
+        "bot-cffd222b6e7a015d1b7e3733ba84523ada07283d6232213df109dfa9b0c2812f"
+      ],
+      "size": "2",
+      "headers": 1,
+      "avatars": 1,
+      "human": false,
+      "system": false,
+      "avatarLeft": 298,
+      "stackLeft": 334,
+      "visible": true
+    },
+    {
+      "id": "member-left-e3b670e8-c1cb-4fed-a73e-8e901b71b1b5",
+      "groupIds": [],
+      "human": false,
+      "system": true,
+      "visible": true
+    },
+    {
+      "id": "bot-52daa6f42b2aad92694ed4e427b30af547ac53fbaafad5861aa4803960937b7d",
+      "groupIds": [
+        "bot-52daa6f42b2aad92694ed4e427b30af547ac53fbaafad5861aa4803960937b7d",
+        "bot-a0069ca319739f7403714a9900240832b054c5cb9afe10bc4d8eaae279cde498"
+      ],
+      "size": "2",
+      "headers": 1,
+      "avatars": 1,
+      "human": false,
+      "system": false,
+      "avatarLeft": 298,
+      "stackLeft": 334,
+      "visible": true
+    },
+    {
+      "id": "bot-a0069ca319739f7403714a9900240832b054c5cb9afe10bc4d8eaae279cde498",
+      "groupIds": [
+        "bot-52daa6f42b2aad92694ed4e427b30af547ac53fbaafad5861aa4803960937b7d",
+        "bot-a0069ca319739f7403714a9900240832b054c5cb9afe10bc4d8eaae279cde498"
+      ],
+      "size": "2",
+      "headers": 1,
+      "avatars": 1,
+      "human": false,
+      "system": false,
+      "avatarLeft": 298,
+      "stackLeft": 334,
+      "visible": true
+    }
+  ],
+  "pinned": {
+    "custom": {
+      "exists": true,
+      "images": 1,
+      "hash": false,
+      "loaded": true,
+      "sourceMatches": true,
+      "radius": "15px",
+      "overflow": "hidden"
+    },
+    "fallback": {
+      "exists": true,
+      "images": 0,
+      "hash": true,
+      "loaded": false,
+      "sourceMatches": false,
+      "radius": "50%",
+      "overflow": "visible"
+    }
+  },
+  "pinnedReload": {
+    "custom": {
+      "exists": true,
+      "images": 1,
+      "hash": false,
+      "loaded": true,
+      "sourceMatches": true,
+      "radius": "15px",
+      "overflow": "hidden"
+    },
+    "fallback": {
+      "exists": true,
+      "images": 0,
+      "hash": true,
+      "loaded": false,
+      "sourceMatches": false,
+      "radius": "50%",
+      "overflow": "visible"
+    }
+  },
+  "rail": {
+    "custom": {
+      "exists": true,
+      "images": 1,
+      "hash": false,
+      "loaded": true,
+      "sourceMatches": true,
+      "radius": "9px",
+      "overflow": "hidden"
+    },
+    "fallback": {
+      "exists": true,
+      "images": 0,
+      "hash": true,
+      "loaded": false,
+      "sourceMatches": false,
+      "radius": "50%",
+      "overflow": "visible"
+    }
+  },
+  "narrow": {
+    "width": 420,
+    "scrollWidth": 420
+  },
+  "errors": []
+}
