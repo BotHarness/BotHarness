@@ -241,23 +241,35 @@ it('turns the large thinking avatar through noise-scheduled yaw frames and keeps
   }
 });
 
-it('morphs line features through bounded dots on real presentation changes only', async () => {
+it('morphs line strokes into the activity symbol and back on real presentation changes only', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const node = document.createElement('div');
   document.body.append(node);
   const root = createRoot(node);
-  const calls: { target: Element; options: KeyframeAnimationOptions; frames: Keyframe[] }[] = [];
-  const animate = vi.fn(function (
-    this: Element,
-    frames: Keyframe[],
-    options: KeyframeAnimationOptions,
-  ) {
-    calls.push({ target: this, options, frames });
-    return { cancel: vi.fn(), finished: new Promise<void>(() => undefined) };
-  });
+  const animate = vi.fn(() => ({
+    cancel: vi.fn(),
+    finished: Promise.resolve(),
+  }));
   const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
   Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate });
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextFrame = 0;
+  let now = 0;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+  const flush = async (count: number) => {
+    for (let i = 0; i < count && frames.size; i++) {
+      now += 16;
+      const due = [...frames.values()];
+      frames.clear();
+      for (const callback of due) callback(now);
+      await act(async () => undefined);
+    }
+  };
   const base = {
     personaBotId: 'ada',
     name: 'Ada',
@@ -267,34 +279,47 @@ it('morphs line features through bounded dots on real presentation changes only'
     act(async () =>
       root.render(createElement(PersonaBotAvatar, { ...base, size, state: 'working', effect })),
     );
-  const dots = () =>
-    calls.filter(
-      (call) => call.target.closest('[data-avatar-transition]') && call.target.tagName === 'circle',
-    );
+  const path = () => node.querySelector<SVGPathElement>('path[data-avatar-transition]')!;
+  const head = () => node.querySelector<SVGGElement>('.bh-illustrated-head')!;
   try {
     await render(160, 'coding');
-    expect(dots()).toHaveLength(0);
+    expect(frames.size).toBe(0);
+    expect(path().getAttribute('d')).toBe('M24 24');
     await render(160, 'executing');
-    expect(dots()).toHaveLength(12);
-    expect(dots().every((call) => call.options.duration === 900)).toBe(true);
-    calls.length = 0;
+    expect(frames.size).toBe(1);
+    expect(head().style.opacity).toBe('0');
+    expect(path().style.opacity).toBe('1');
+    const start = path().getAttribute('d');
+    await flush(6);
+    const mid = path().getAttribute('d');
+    expect(mid).not.toBe(start);
     await render(160, 'searching');
-    expect(dots()).toHaveLength(12);
-    calls.length = 0;
+    expect(node.querySelectorAll('[data-avatar-transition]')).toHaveLength(1);
+    expect(frames.size).toBe(1);
+    expect(path().getAttribute('d')).toBe(mid);
+    await flush(240);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 420)));
+    await flush(240);
+    expect(frames.size).toBe(0);
+    expect(path().style.opacity).toBe('0');
+    expect(head().style.opacity).toBe('1');
     await render(34, 'coding');
-    expect(dots()).toHaveLength(12);
-    expect(dots().every((call) => call.options.duration === 450)).toBe(true);
-    expect(node.querySelectorAll('[data-avatar-transition] circle')).toHaveLength(12);
-    calls.length = 0;
+    expect(frames.size).toBe(1);
+    await flush(240);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 180)));
+    await flush(240);
+    expect(frames.size).toBe(0);
     document.documentElement.dataset['botharnessMotion'] = 'reduce';
     await render(34, 'executing');
-    expect(dots()).toHaveLength(0);
+    expect(frames.size).toBe(0);
+    expect(head().style.opacity).toBe('');
     delete document.documentElement.dataset['botharnessMotion'];
     await act(async () => undefined);
-    expect(dots()).toHaveLength(0);
+    expect(frames.size).toBe(0);
   } finally {
     delete document.documentElement.dataset['botharnessMotion'];
     await act(() => root.unmount());
+    vi.unstubAllGlobals();
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
     else Reflect.deleteProperty(Element.prototype, 'animate');
     Reflect.deleteProperty(document, 'hidden');

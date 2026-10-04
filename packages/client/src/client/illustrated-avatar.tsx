@@ -2,9 +2,18 @@ import { useMemo, useRef, type ReactElement } from 'react';
 import {
   AVATAR_TURNS,
   avatarSvg,
-  LINE_TRANSITION_TARGETS,
+  LINE_MORPH_SYMBOLS,
+  lineMorphFace,
   type AvatarRecipe,
 } from '../../../core/src/bots/avatar-appearance.js';
+import type { Sampled } from 'morphicons';
+import {
+  lineMorphD,
+  morphLinePath,
+  sampleLineFace,
+  sampleLineSymbol,
+  type LineMorphRun,
+} from './line-morph.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { PersonaBotActivityEffect, PersonaBotActivityState } from './avatar.js';
 
@@ -76,6 +85,15 @@ const GAZE_STEPS: Record<PersonaBotActivityEffect, readonly Step[]> = {
   ],
 };
 
+const LARGE_SPRING = { k: 420, c: 30 };
+const SMALL_SPRING = { k: 760, c: 54 };
+
+interface Flight {
+  shape?: Sampled[];
+  velocity: number;
+  phase?: 'out' | 'back';
+}
+
 const TURN_STEPS = 40;
 const TURN_STEP_MS = 220;
 
@@ -126,13 +144,13 @@ export function IllustratedAvatar({
   const presentation =
     state === 'working' ? effect : state === 'thinking' ? 'thinking-dots' : 'idle';
   const shown = useRef<string | undefined>(undefined);
+  const flight = useRef<Flight>({ velocity: 0 });
   const mount = useMountedResource<HTMLSpanElement>(
     (node) => {
       const previous = shown.current;
       shown.current = presentation;
       let pendingTransition = previous !== undefined && previous !== presentation;
-      const dotLayer = node.querySelector<SVGGElement>('[data-avatar-transition]');
-      const dots = dotLayer ? [...dotLayer.querySelectorAll<SVGCircleElement>('circle')] : [];
+      const morphPath = node.querySelector<SVGPathElement>('path[data-avatar-transition]');
       const head = node.querySelector<SVGGElement>('.bh-illustrated-head');
       const gaze = node.querySelector<SVGGElement>('.bh-illustrated-gaze');
       const blink = node.querySelector<SVGGElement>('.bh-illustrated-blink');
@@ -141,24 +159,99 @@ export function IllustratedAvatar({
       const animations = new Set<Animation>();
       let visible = true;
       let disposed = false;
+      let run: LineMorphRun | undefined;
+      let pause: { timer: ReturnType<typeof setTimeout>; done(value: boolean): void } | undefined;
+      const halt = () => {
+        if (run) {
+          flight.current.shape = run.current();
+          flight.current.velocity = run.velocity();
+          run.cancel();
+          run = undefined;
+        }
+        if (pause) {
+          clearTimeout(pause.timer);
+          pause.done(false);
+          pause = undefined;
+        }
+      };
       const stop = () => {
+        halt();
         for (const animation of animations) animation.cancel();
         animations.clear();
       };
+      const fade = (target: SVGElement, to: number) => {
+        const from = Number(getComputedStyle(target).opacity || '1');
+        target.style.opacity = String(to);
+        if (from !== to)
+          target.animate([{ opacity: from }, { opacity: to }], {
+            duration: 90,
+            easing: 'ease-out',
+          });
+      };
+      const leg = async (
+        path: SVGPathElement,
+        from: Sampled[],
+        to: Sampled[],
+        phase: 'out' | 'back',
+      ) => {
+        flight.current.phase = phase;
+        const current = morphLinePath(path, from, to, spring(), flight.current.velocity);
+        run = current;
+        const done = await current.finished;
+        if (!done) return false;
+        run = undefined;
+        flight.current.shape = current.current();
+        flight.current.velocity = 0;
+        return true;
+      };
+      const spring = () => (size <= 64 ? SMALL_SPRING : LARGE_SPRING);
+      const wait = (ms: number) =>
+        new Promise<boolean>((resolve) => {
+          pause = {
+            timer: setTimeout(() => {
+              pause = undefined;
+              resolve(true);
+            }, ms),
+            done: resolve,
+          };
+        });
+      const morph = async (path: SVGPathElement, phase: 'out' | 'back') => {
+        if (recipe.family !== 'line') return;
+        const compact = size <= 64;
+        const face = sampleLineFace(lineMorphFace(recipe));
+        const symbol = sampleLineSymbol(
+          LINE_MORPH_SYMBOLS[presentation] ?? LINE_MORPH_SYMBOLS['idle']!,
+          compact ? 0.8 : 1,
+        );
+        const start = flight.current.shape ?? face;
+        path.setAttribute('d', lineMorphD(start));
+        fade(head, 0);
+        fade(path, 1);
+        if (phase === 'out') {
+          if (!(await leg(path, start, symbol, 'out'))) return;
+          if (!(await wait(compact ? 140 : 380))) return;
+        }
+        if (!(await leg(path, flight.current.shape ?? symbol, face, 'back'))) return;
+        flight.current = { velocity: 0 };
+        fade(path, 0);
+        fade(head, 1);
+      };
+      const settle = (path: SVGPathElement, phase: 'out' | 'back') =>
+        morph(path, phase).catch(() => {
+          flight.current = { velocity: 0 };
+          path.style.opacity = '';
+          head.style.opacity = '';
+        });
       const loop = (target: Element, frames: Keyframe[], duration: number) =>
         animations.add(target.animate(frames, { duration, iterations: Infinity }));
       const sync = () => {
         const start = getComputedStyle(head).transform;
         const gazeStart = getComputedStyle(gaze).transform;
-        const dotStarts = dots.map((dot) => getComputedStyle(dot).transform);
-        const layerStart = dotLayer ? getComputedStyle(dotLayer).opacity : '0';
-        const headStart = getComputedStyle(head).opacity;
         stop();
         head.style.transform = 'none';
         gaze.style.transform = 'none';
         head.style.opacity = '';
-        if (dotLayer) dotLayer.style.opacity = '';
-        for (const dot of dots) dot.style.transform = '';
+        if (morphPath) morphPath.style.opacity = '';
         if (
           disposed ||
           !visible ||
@@ -166,6 +259,7 @@ export function IllustratedAvatar({
           document.documentElement.dataset['botharnessMotion'] === 'reduce'
         ) {
           pendingTransition = false;
+          flight.current = { velocity: 0 };
           return;
         }
         const compact = size <= 64;
@@ -179,54 +273,18 @@ export function IllustratedAvatar({
           { duration: 120, easing: 'steps(2, end)' },
         );
         animations.add(gazeEnter);
-        const transition: Animation[] = [];
-        if (pendingTransition && dotLayer && dots.length) {
+        let morphing: Promise<void> = Promise.resolve();
+        if (morphPath && (pendingTransition || flight.current.phase)) {
+          const phase = pendingTransition ? 'out' : flight.current.phase!;
           pendingTransition = false;
-          const targets = LINE_TRANSITION_TARGETS[presentation] ?? LINE_TRANSITION_TARGETS['idle']!;
-          const duration = compact ? 450 : 900;
-          const reach = compact ? 0.55 : 1;
-          transition.push(
-            dotLayer.animate(
-              [
-                { offset: 0, opacity: Number(layerStart) || 0 },
-                { offset: 0.12, opacity: 1 },
-                { offset: 0.88, opacity: 1 },
-                { offset: 1, opacity: 0 },
-              ],
-              { duration, easing: 'ease-in-out' },
-            ),
-            head.animate(
-              [
-                { offset: 0, opacity: Number(headStart) },
-                { offset: 0.12, opacity: 0 },
-                { offset: 0.88, opacity: 0 },
-                { offset: 1, opacity: 1 },
-              ],
-              { duration, easing: 'ease-in-out' },
-            ),
-            ...dots.map((dot, index) => {
-              const [tx, ty] = targets[index % targets.length]!;
-              const to = `translate(${((tx - Number(dot.getAttribute('cx'))) * reach).toFixed(2)}px, ${((ty - Number(dot.getAttribute('cy'))) * reach).toFixed(2)}px)`;
-              const from = dotStarts[index];
-              return dot.animate(
-                [
-                  { offset: 0, transform: from && from !== 'none' ? from : 'translate(0px, 0px)' },
-                  { offset: 0.45, transform: to },
-                  { offset: 0.62, transform: to },
-                  { offset: 1, transform: 'translate(0px, 0px)' },
-                ],
-                { duration, easing: 'ease-in-out' },
-              );
-            }),
-          );
-          for (const animation of transition) animations.add(animation);
+          morphing = settle(morphPath, phase);
         }
-        Promise.all([enter.finished, gazeEnter.finished, ...transition.map((a) => a.finished)])
+        Promise.all([enter.finished, gazeEnter.finished, morphing])
           .then(() => {
             animations.delete(enter);
             animations.delete(gazeEnter);
-            for (const animation of transition) animations.delete(animation);
             if (
+              flight.current.phase ||
               disposed ||
               !visible ||
               document.hidden ||
@@ -305,22 +363,16 @@ export function IllustratedAvatar({
         const pose = getComputedStyle(head).transform;
         const gazePose = getComputedStyle(gaze).transform;
         const headOpacity = getComputedStyle(head).opacity;
-        const layerOpacity = dotLayer ? getComputedStyle(dotLayer).opacity : '';
-        const dotPoses = dots.map((dot) => getComputedStyle(dot).transform);
         stop();
         head.style.transform = pose;
         gaze.style.transform = gazePose;
         head.style.opacity = headOpacity;
-        if (dotLayer) dotLayer.style.opacity = layerOpacity;
-        dots.forEach((dot, index) => {
-          dot.style.transform = dotPoses[index] ?? '';
-        });
         observer?.disconnect();
         motion.disconnect();
         document.removeEventListener('visibilitychange', sync);
       };
     },
-    [state, effect, size, markup],
+    [state, effect, size, markup, recipe, presentation],
   );
   return (
     <span

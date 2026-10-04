@@ -165,91 +165,45 @@ const MARKS: Record<keyof typeof MARK_COLORS, string> = {
     '<path d="M43.5 3.5L43.5 10.5M43.5 3.5Q45.5 4.5 46.5 6.5"/><ellipse cx="42" cy="10.8" rx="1.8" ry="1.3" fill="#8a8792"/>',
 };
 
-export const LINE_TRANSITION_DOTS = 12;
+export type LineMorphNode = readonly [string, Readonly<Record<string, string>>];
 
-type Point = readonly [number, number];
-const arc = (cx: number, cy: number, r: number, from: number, to: number, n: number): Point[] =>
-  Array.from({ length: n }, (_, i) => {
-    const a = ((from + ((to - from) * i) / (n - 1)) * Math.PI) / 180;
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as Point;
-  });
+const shape = (markup: string): LineMorphNode[] =>
+  [...markup.matchAll(/<(path|ellipse|circle|rect)\s([^>]*?)\/>/gu)].map(([, tag, attrs]) => [
+    tag!,
+    Object.fromEntries(
+      [...attrs!.matchAll(/([\w-]+)="([^"]*)"/gu)]
+        .filter(([, key]) => /^(d|cx|cy|r|rx|ry|x|y|width|height)$/u.test(key!))
+        .map(([, key, value]) => [key!, value!]),
+    ),
+  ]);
 
-export const LINE_TRANSITION_TARGETS: Record<string, readonly Point[]> = {
-  'thinking-dots': [...arc(24, 16, 6, 180, 405, 8), [24.5, 24.5], [24, 27.5], [24, 33], [24, 33]],
-  searching: [...arc(22, 21, 7, 0, 320, 9), [28, 27], [30.5, 29.5], [33, 32]],
-  coding: [
-    [24, 10],
-    [27, 15],
-    [30, 20],
-    [31, 25],
-    [29.5, 30],
-    [26, 33],
-    [22, 33],
-    [18.5, 30],
-    [17, 25],
-    [18, 20],
-    [21, 15],
-    [21.5, 26],
-  ],
-  executing: [
-    [24, 9],
-    [24, 12],
-    [24, 15],
-    [24, 18],
-    [24, 21],
-    [24, 24],
-    [24, 27],
-    [24, 34],
-    [22.5, 34],
-    [25.5, 34],
-    [16.5, 12],
-    [31.5, 12],
-  ],
-  'generic-working': [
-    [28, 10],
-    [28, 14],
-    [28, 18],
-    [28, 22],
-    [28, 26],
-    [31, 12],
-    [33.5, 15],
-    [26, 30],
-    [23.5, 31],
-    [22, 29],
-    [24.5, 27.5],
-    [27, 28.5],
-  ],
-  idle: Array.from({ length: 12 }, (_, i) => {
-    const t = i / 11;
-    return [13 + t * 22, 24 + 7 * Math.sin(Math.PI * t)] as Point;
-  }),
+export const LINE_MORPH_SYMBOLS: Readonly<Record<string, readonly LineMorphNode[]>> = {
+  'thinking-dots': shape(
+    '<path d="M17.5 17Q17.5 10.5 24 10.5Q30.5 10.5 30.5 17Q30.5 21.5 24 23.5L24 27.5"/><circle cx="24" cy="34" r="1.3"/>',
+  ),
+  searching: shape('<circle cx="22" cy="22" r="7.5"/><path d="M27.5 27.5L34 34"/>'),
+  coding: shape(
+    '<path d="M18.5 16L12.5 24L18.5 32"/><path d="M29.5 16L35.5 24L29.5 32"/><path d="M26.5 13L21.5 35"/>',
+  ),
+  executing: shape(
+    '<path d="M24 10L24 27"/><circle cx="24" cy="34" r="1.3"/><path d="M14.5 12L17.5 15.5"/><path d="M33.5 12L30.5 15.5"/>',
+  ),
+  'generic-working': shape(
+    '<path d="M28 33L28 11Q32.5 12.5 34 17.5"/><ellipse cx="24.5" cy="33" rx="3.6" ry="2.6"/>',
+  ),
+  idle: shape('<path d="M14 21Q24 33 34 21"/><path d="M18 14L18 16"/><path d="M30 14L30 16"/>'),
 };
 
-function transitionStarts(recipe: LineAvatarRecipe): Point[] {
-  const y = EYE_Y + recipe.height;
-  const half = 8.5 + recipe.spacing;
-  const lx = CX - half;
-  const rx = CX + half;
-  const points: Point[] = [
-    [lx - 2, y],
-    [lx, y],
-    [lx + 2, y],
-    [rx - 2, y],
-    [rx, y],
-    [rx + 2, y],
-    [lx, y - 6.5],
-    [rx, y - 6.5],
-    [CX, y + 6],
-    [CX - 3, y + 16],
-    [CX, y + 17],
-    [CX + 3, y + 16],
-  ];
-  const pivotY = y + 6;
-  const a = (recipe.tilt * Math.PI) / 180;
-  return points.map(([px, py]) => [
-    CX + (px - CX) * Math.cos(a) - (py - pivotY) * Math.sin(a),
-    pivotY + (px - CX) * Math.sin(a) + (py - pivotY) * Math.cos(a),
-  ]);
+export function lineMorphFace(recipe: LineAvatarRecipe): {
+  nodes: LineMorphNode[];
+  pivot: readonly [number, number];
+  tilt: number;
+} {
+  return {
+    nodes: shape(features(recipe, 0).morph),
+    pivot: [CX, EYE_Y + recipe.height + 6],
+    tilt: recipe.tilt,
+  };
 }
 
 const ATTENTION_MARK =
@@ -441,7 +395,7 @@ function cheeks(
 function features(
   recipe: LineAvatarRecipe,
   yawDegrees: number,
-): { eyes: string; closed: string; rest: string } {
+): { eyes: string; closed: string; rest: string; morph: string } {
   const ink = recipe.inkColor;
   const yaw = (yawDegrees * Math.PI) / 180;
   const R = 19;
@@ -473,15 +427,17 @@ function features(
           )
           .join('') +
         `<path d="M${fmt(left.x + 4.6 * left.k)} ${y - 0.5}Q${fmt((left.x + right.x) / 2)} ${y - 2} ${fmt(right.x - 4.6 * right.k)} ${y - 0.5}" stroke-width="1.8"/>`;
-  const rest =
+  const expression =
     brow(recipe.brows, left.x, y - browGap, left.k, 1) +
     brow(recipe.brows, right.x, y - browGap, right.k, -1) +
     nose(recipe.nose, center, y + 3, Math.sign(yaw), ink) +
-    mouth(recipe.mouth, CX + R * Math.sin(yaw) * 0.8, y + 16, Math.max(0.6, Math.cos(yaw)), ink) +
+    mouth(recipe.mouth, CX + R * Math.sin(yaw) * 0.8, y + 16, Math.max(0.6, Math.cos(yaw)), ink);
+  const rest =
+    expression +
     cheeks(recipe.cheeks, [left.x - 1.5, right.x + 1.5], y + 10, ink) +
     glasses +
     (recipe.symbol === 'none' ? '' : `<g data-avatar-symbol="">${SYMBOLS[recipe.symbol]}</g>`);
-  return { eyes, closed, rest };
+  return { eyes, closed, rest, morph: eyes + expression };
 }
 
 export function lineAvatarSvg(
@@ -517,9 +473,7 @@ export function lineAvatarSvg(
     '<g class="bh-illustrated-body"></g>',
     head(base),
     turns,
-    `<g data-avatar-transition="" opacity="0" fill="${ink}">${transitionStarts(recipe)
-      .map(([x, y]) => `<circle cx="${fmt(x)}" cy="${fmt(y)}" r="1.7"/>`)
-      .join('')}</g>`,
+    `<path data-avatar-transition="" d="M24 24" opacity="0" ${stroke}/>`,
     `<g class="bh-illustrated-marks">${marks}${ATTENTION_MARK}</g>`,
     '</svg>',
   ].join('');

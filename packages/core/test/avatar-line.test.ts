@@ -5,10 +5,10 @@ import {
   DEFAULT_LINE_RECIPE,
   LINE_PARTS,
   LINE_RANGES,
-  LINE_TRANSITION_DOTS,
-  LINE_TRANSITION_TARGETS,
+  LINE_MORPH_SYMBOLS,
   isLineAvatarRecipe,
   lineAvatarSvg,
+  lineMorphFace,
   seededLineRecipe,
   type LinePart,
   type LineAvatarRecipe,
@@ -72,14 +72,26 @@ describe('line Avatar family', () => {
     }
   });
 
-  it('carries a bounded dot layer whose targets cover every presentation', () => {
+  it('carries one stroke morph path and bounded face and symbol strokes for every presentation', () => {
+    const geometry = /^(d|cx|cy|r|rx|ry|x|y|width|height)$/u;
     for (const recipe of [DEFAULT_LINE_RECIPE, ...extremes]) {
-      const layer = lineAvatarSvg(recipe).match(
-        /<g data-avatar-transition="" opacity="0"[^>]*>(.*?)<\/g>/u,
-      );
-      expect(layer).not.toBeNull();
-      expect(layer![1]!.match(/<circle/gu)).toHaveLength(LINE_TRANSITION_DOTS);
+      const svg = lineAvatarSvg(recipe);
+      expect(svg.match(/data-avatar-transition=""/gu)).toHaveLength(1);
+      expect(svg).toContain(`<path data-avatar-transition="" d="M24 24" opacity="0"`);
     }
+    for (const part of ['eyes', 'brows', 'nose', 'mouth'] as const)
+      for (const value of LINE_PARTS[part]) {
+        const face = lineMorphFace({ ...DEFAULT_LINE_RECIPE, [part]: value });
+        expect(face.nodes.length, `${part}:${value}`).toBeGreaterThanOrEqual(2);
+        expect(face.nodes.length, `${part}:${value}`).toBeLessThanOrEqual(12);
+        for (const [tag, attrs] of face.nodes) {
+          expect(['path', 'ellipse', 'circle', 'rect']).toContain(tag);
+          for (const key of Object.keys(attrs)) expect(key).toMatch(geometry);
+        }
+      }
+    const tilted = lineMorphFace({ ...DEFAULT_LINE_RECIPE, tilt: -10, height: 3 });
+    expect(tilted.tilt).toBe(-10);
+    expect(tilted.pivot).toEqual([24, 29]);
     for (const key of [
       'idle',
       'thinking-dots',
@@ -87,7 +99,11 @@ describe('line Avatar family', () => {
       'coding',
       'executing',
       'generic-working',
-    ])
-      expect(LINE_TRANSITION_TARGETS[key], key).toHaveLength(LINE_TRANSITION_DOTS);
+    ]) {
+      const symbol = LINE_MORPH_SYMBOLS[key];
+      expect(symbol, key).toBeDefined();
+      expect(symbol!.length, key).toBeGreaterThanOrEqual(2);
+      expect(symbol!.length, key).toBeLessThanOrEqual(4);
+    }
   });
 });

@@ -17,7 +17,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- Line-family PersonaBot avatars briefly dissolve into a bounded set of dots that form a symbol for the new activity (?, magnifier, sweat drop, !, ♪, smile) and then return to the configured face; transitions retarget mid-way, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
+- Line-family PersonaBot avatars briefly morph their face strokes into a symbol for the new activity (?, magnifier, </>, !, ♪, smiling face) and back, using morphicons spring stroke morphing; transitions retarget mid-way from the displayed shape, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
 
 - PersonaBot Profile can switch the avatar between the pixel family and a new original line family (bold strokes on a coloured tile) with its own eyes and mouths (including kaomoji such as > <, T T, ω and ▽), brows, nose, cheeks, glasses, manga symbols (sweat, anger vein, gloom lines, sparkle and more), background/line colors and bounded spacing, height and tilt; line avatars save, snapshot, animate, show independent approval attention and recover through the same path; large avatars of both families show a manga `!?` mark while action is needed ([#753](https://github.com/BotHarness/BotHarness/issues/753)).
 

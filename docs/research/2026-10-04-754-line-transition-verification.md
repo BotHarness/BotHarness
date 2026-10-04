@@ -1,34 +1,45 @@
-# #754 Line Avatar dot/symbol transitions — verification
+# #754 Line Avatar stroke/symbol transitions — verification
 
 Date: 2026-10-04 (Asia/Tokyo). Issue: [#754](https://github.com/BotHarness/BotHarness/issues/754). Builds on the line family from #753 / PR #784.
 
 ## Behaviour
 
-When the shared activity presentation of a line-family Avatar really changes, the features briefly dissolve into a fixed set of 12 dots. The dots gather into a symbol for the new presentation and then return to the configured face. Presentation changes include idle ↔ thinking, and switching between working tool effects. The symbols are:
+When the shared activity presentation of a line-family Avatar really changes, the strokes of the eyes, brows, nose and mouth morph directly into a symbol for the new presentation, hold briefly, and morph back into the configured face. Presentation changes include idle ↔ thinking, and switching between working tool effects. The symbols are:
 
 | Presentation | Symbol                |
 | ------------ | --------------------- |
 | thinking     | `?`                   |
 | searching    | magnifier             |
-| coding       | sweat drop            |
+| coding       | `</>`                 |
 | executing    | `!` with impact lines |
 | other work   | `♪`                   |
-| back to idle | smile arc             |
+| back to idle | smiling face          |
 
-The stable character pose then resumes, along with its normal motion: steps, blink, marks and the thinking head turn. Particles never replace the character for a whole work phase.
+The stable character pose then resumes, along with its normal motion: steps, blink, marks and the thinking head turn. The symbol never replaces the character for a whole work phase.
+
+## Technique
+
+The first version moved 12 dots between authored points and read as a particle effect. After review it was replaced by the approach of [morphicons](https://github.com/guillermolg00/morphicons) (MIT, zero dependencies, added as a client dependency):
+
+- Each stroke is resampled to the same number of points by arc length, with corners kept as exact samples.
+- Source and target strokes are paired by centroid and length. When the counts differ, strokes split or merge, so nothing appears or vanishes.
+- Each pair gets its best rotation and scale (2D Procrustes). The morph interpolates angle and log-scale rather than raw coordinates, so shapes stay whole and turn naturally in flight.
+- A damped spring drives progress. A retarget re-plans from the shape on screen and keeps the spring velocity.
+
+The face strokes come from the same markup the Avatar renders (`lineMorphFace`), with the recipe tilt applied around the face pivot. The morph is drawn by one `data-avatar-transition` path; the real face fades out while it runs and fades back at the end, so filled parts (dot eyes, laugh mouth) return exactly.
 
 ## Contract checks
 
-- **Bounded.** The SVG carries one `data-avatar-transition` layer with exactly 12 circles, and every presentation has exactly 12 target points. A transition animates those nodes only. Nothing is created per event.
-- **Retargeting.** A change that arrives mid-transition starts from the currently displayed dot transforms and opacities, which cleanup freezes on the existing nodes. It never queues obsolete transitions.
-- **Real changes only.** A transition plays only when the presentation key differs from the last one this Avatar showed. Visibility re-syncs no longer restart running animations, because the IntersectionObserver ignores unchanged visibility.
-- **Size.** Small avatars (≤64px) use a 450ms transition and move the dots 55% of the way. Large avatars use 900ms with the full symbol.
-- **Reduced motion, hidden and offscreen.** Reduced motion, a hidden tab or offscreen state skips the transition and drops any pending one, so it is not replayed when motion is re-enabled. Unmount cancels and releases every owned animation.
-- **Saved data unaffected.** Glasses, the manga symbol and other parts hide with the face and return with their saved values. The recipe, snapshot and revision are untouched because the animation is Client-only. The approval count and the `!?` attention mark come from their owning facts, so they update immediately and independently.
-- **Scope.** The pixel family has no dot layer and keeps its existing motion.
+- **Bounded.** The SVG carries exactly one transition path. Face strokes are limited to eyes, brows, nose and mouth (at most 12 subpaths for any legal recipe), and every symbol has 2–4 strokes. Nothing is created per event.
+- **Retargeting.** A change mid-transition continues from the displayed shape and its velocity; it never queues obsolete transitions.
+- **Real changes only.** A transition plays only when the presentation key differs from the last one this Avatar showed. Visibility re-syncs do not restart it.
+- **Size.** Small avatars (≤64px) use a stiffer, critically damped spring, a shorter hold and a symbol scaled to 80%. Large avatars use a snappy spring with slight overshoot.
+- **Reduced motion, hidden and offscreen.** These skip the transition, drop any pending one and cancel frame sampling. Unmount cancels and releases every owned frame, timer and animation.
+- **Saved data unaffected.** Glasses, cheeks and the manga symbol hide with the face and return with their saved values. The recipe, snapshot and revision are untouched because the animation is Client-only. The approval count and the `!?` attention mark come from their owning facts, so they update immediately and independently.
+- **Scope.** The pixel family has no transition path and keeps its existing motion.
 
 ## Evidence
 
-- Unit tests cover the bounded dot layer for default and extreme geometry, and full target coverage. They also cover transitions on real presentation changes only, size-dependent duration, reduced-motion suppression and no replay after motion is re-enabled.
-- In a real isolated DSH run, a real model turn moved the Profile avatar idle → thinking (`?` formed) → idle (smile arc formed), with the face restored after each (`docs/assets/pr/754-line-transition/real-transition.gif`, `thinking.webm`). A real Assignment tool execution with a pending approval was also recorded in light and dark themes and under reduced motion.
-- A browser sequence covers every symbol and a mid-transition retarget, for large and small avatars (`transition-sequence.gif`). It uses the same keyframe logic on the same production SVG.
+- Unit tests cover the single transition path, bounded face strokes for every eye, brow, nose and mouth option, symbol coverage, tilt pivots, transitions on real presentation changes only, continuation from the displayed shape on retarget, return to the face, small-size runs, and reduced-motion suppression.
+- `docs/assets/pr/754-line-transition/morph-sequence.gif` renders every symbol and a mid-transition retarget with the production SVG and the same morph functions.
+- In a real isolated DSH run, a real model turn moved the Profile avatar idle → thinking (`?` formed from the face strokes) → idle (smiling face) and back to the configured face, in both the large preview and the small roster avatar (`real-morph.gif`, `real-morph.webm`, `real-morph-frames.png`). The probe saw exactly one transition path and 43 distinct in-flight shapes.
