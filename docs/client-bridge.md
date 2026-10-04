@@ -135,7 +135,7 @@ corepack pnpm dev:client
 node scripts/dev-instance.mjs --home /tmp/bh-im-qa --port 31968 --im-provider --json
 ```
 
-仅对已停止的隔离 Profile 执行；重启同一 Profile 时仍传入 `--im-provider`，以重复校验。启动器使用 Git 完整提交 `ee9d3c7a6fc9f15b13f8d895cd1ccb5183b7cd37` 与 DSH `0.2.0-rc.1`，校验 Bundle、入口及运行时代码 digest 后才启动 Host；不依赖另一份 provider 本地源码。安装摘要明确标注 `upstreamReleased: false`。默认启动不安装它，原 npm `4.32.0` 仍不满足账号校验和条件发送契约。此入口不会发布包，也不是生产启用许可（[ADR-0104](adr/0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md)）。
+仅对已停止的隔离 Profile 执行；重启同一 Profile 时仍传入 `--im-provider`，以重复校验。启动器使用 Git 完整提交 `e0ba3deca5cb1f3d1ac7029df1fc0bbba8a4c0ec` 与 DSH `0.2.0-rc.1`，校验 Bundle、入口及运行时代码 digest 后才启动 Host；不依赖另一份 provider 本地源码。安装摘要明确标注 `upstreamReleased: false`。此完整 fork 保留附件、回显与独立回复身份契约；群／话题上下文读取绑定当前独占 Consumer 生命周期，释放或替换后拒绝返回正在读取的结果；上游 PR 是否合并不阻挡此固定提交使用（[#789](https://github.com/BotHarness/BotHarness/issues/789)）。默认启动不安装它，原 npm `4.32.0` 仍不满足账号校验和条件发送契约。此入口不会发布包，也不是生产启用许可（[ADR-0104](adr/0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md)）。
 
 在 dsh-im 原设置中配置测试应用，并保存、测试仅含测试者与 Bot 的目标群；凭据交由 DSH credentials service，不复制到 BotHarness。打开 PersonaBot Profile → IM connection，选择已认证账号与已测试目标，显式授权后发送一条唯一测试文本。预期 Recent sends 显示 Platform accepted，并在目标群核对同一文本；这不代表送达或已读。停止本次启动摘要中的确切 PID，再以相同参数启动：绑定与发送历史应保留，不自动重发。
 

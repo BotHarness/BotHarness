@@ -319,6 +319,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Qualified the full IM fork for bounded context reads that discard pending results after consumer release or Provider replacement, preserving existing file, echo and independent-responder capabilities without waiting for an upstream merge ([#789](https://github.com/BotHarness/BotHarness/issues/789)).
+
 - Concurrent PersonaBot Tool activity now orders opaque detail references before bounding them, so the same active set produces the same lookup references regardless of arrival order ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Group Profile member message activity identifies external traffic by its platform and source group name, combining senders within one source while keeping different sources separate ([#769](https://github.com/BotHarness/BotHarness/issues/769)).
