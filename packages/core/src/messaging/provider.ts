@@ -52,6 +52,8 @@ export interface MessagingHistoryQuery {
   scope: MessagingHistoryScope;
   limit: number;
   cursor?: string;
+  beforeCount?: number;
+  afterCount?: number;
 }
 export interface MessagingHistoryPage {
   version: 1;

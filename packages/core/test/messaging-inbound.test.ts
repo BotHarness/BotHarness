@@ -3545,3 +3545,71 @@ it('refuses an account missing the final reply-fence capability before qualifica
   expect(fx.publicService.qualifyReplyChecked).not.toHaveBeenCalled();
   expect(fx.replies).toHaveLength(0);
 });
+
+it('binds nearby minima to continuation and permits delayed reads for thirty minutes', async () => {
+  const history = vi.fn<NonNullable<DshImOutboundService['historyChecked']>>(
+    async (_account, _route, query) => ({
+      version: 1,
+      scope: query.scope,
+      events: [contextEvent(query.cursor ? 'om-second' : 'om-first', 'context')],
+      omitted: 0,
+      hasMore: query.cursor === undefined,
+      ...(query.cursor === undefined ? { nextCursor: 'provider-next' } : {}),
+      coverage: 'provider-visible-human-text',
+    }),
+  );
+  const fx = await fixture({ history });
+  await fx.enable();
+  await fx.receive();
+  await fx.idle();
+  const anchor = fx.core.attention.list({ botSlug: 'ada' }).items[0]!.id;
+  const first = await fx.core.externalMessaging.inbound.context('ada', anchor, 'nearby-read', {
+    scope: 'nearby',
+    beforeCount: 10,
+    afterCount: 5,
+  });
+  expect(history.mock.calls.at(-1)?.[2]).toMatchObject({
+    scope: 'nearby',
+    limit: 20,
+    beforeCount: 10,
+    afterCount: 5,
+  });
+  await expect(
+    fx.core.externalMessaging.inbound.context('ada', anchor, 'nearby-read', {
+      scope: 'nearby',
+      beforeCount: 9,
+      afterCount: 5,
+      cursor: first.nextCursor!,
+    }),
+  ).rejects.toThrow('history-cursor-unavailable');
+  const now = Date.now();
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(now + 10 * 60 * 1000);
+  try {
+    const second = await fx.core.externalMessaging.inbound.context('ada', anchor, 'nearby-read', {
+      scope: 'nearby',
+      cursor: first.nextCursor!,
+    });
+    expect(second.messages[0]?.messageId).toBe('om-second');
+    const another = await fx.core.externalMessaging.inbound.context('ada', anchor, 'nearby-read', {
+      scope: 'nearby',
+    });
+    clock.mockReturnValue(now + 41 * 60 * 1000);
+    await expect(
+      fx.core.externalMessaging.inbound.context('ada', anchor, 'nearby-read', {
+        scope: 'nearby',
+        cursor: another.nextCursor!,
+      }),
+    ).rejects.toThrow('history-cursor-unavailable');
+  } finally {
+    clock.mockRestore();
+  }
+  for (const query of [
+    { scope: 'nearby' as const, beforeCount: -1 },
+    { scope: 'nearby' as const, afterCount: 21 },
+    { scope: 'thread' as const, beforeCount: 10 },
+  ]) {
+    await expect(
+      fx.core.externalMessaging.inbound.context('ada', anchor, 'invalid-counts', query),
+    ).rejects.toThrow('invalid-history-query');
+  }
+});

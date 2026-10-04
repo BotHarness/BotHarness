@@ -76,6 +76,8 @@ export interface ExternalContextQuery {
   scope: MessagingHistoryScope;
   cursor?: string;
   maxCharacters?: number;
+  beforeCount?: number;
+  afterCount?: number;
 }
 export interface ExternalSource {
   id: string;
@@ -211,6 +213,7 @@ export function createInboundMessaging(options: {
       offset: number;
       digest: string;
       expiresAt: number;
+      counts: string;
     }
   >();
   const sourceId = (value: MessagingGrant, event: MessagingInboundEvent) =>
@@ -1511,6 +1514,17 @@ export function createInboundMessaging(options: {
       const maxCharacters = query.maxCharacters ?? 12000;
       if (!Number.isInteger(maxCharacters) || maxCharacters < 1000 || maxCharacters > 24000)
         throw new MessagingError('invalid-history-budget');
+      const beforeCount = query.beforeCount ?? 10;
+      const afterCount = query.afterCount ?? 5;
+      if (
+        (query.scope !== 'nearby' &&
+          (query.beforeCount !== undefined || query.afterCount !== undefined)) ||
+        ![beforeCount, afterCount].every(
+          (count) => Number.isInteger(count) && count >= 0 && count <= 20,
+        )
+      )
+        throw new MessagingError('invalid-history-query');
+      const counts = query.scope === 'nearby' ? `${beforeCount}:${afterCount}` : '';
       const source = read(botSlug, sourceEventId);
       const value = grant(source.grantId);
       const entry = providers.get(value.providerId);
@@ -1583,7 +1597,8 @@ export function createInboundMessaging(options: {
             cursor.botSlug !== botSlug ||
             cursor.sourceEventId !== sourceEventId ||
             cursor.revision !== value.revision ||
-            cursor.scope !== query.scope)
+            cursor.scope !== query.scope ||
+            cursor.counts !== counts)
         )
           throw new MessagingError('history-cursor-unavailable');
         const inspected = await cancellable(
@@ -1604,6 +1619,7 @@ export function createInboundMessaging(options: {
           query: {
             scope: query.scope,
             limit: 20,
+            ...(query.scope === 'nearby' ? { beforeCount, afterCount } : {}),
             ...(cursor?.providerCursor === undefined ? {} : { cursor: cursor.providerCursor }),
           },
           signal,
@@ -1661,7 +1677,8 @@ export function createInboundMessaging(options: {
             ...(offset < page.events.length
               ? { providerCursor: cursor?.providerCursor, offset, digest }
               : { providerCursor: page.nextCursor, offset: 0, digest: '' }),
-            expiresAt: Date.now() + 300000,
+            counts,
+            expiresAt: Date.now() + 1800000,
           });
           result.nextCursor = key;
         }
