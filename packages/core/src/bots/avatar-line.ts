@@ -39,7 +39,10 @@ export const LINE_PARTS = {
   cheeks: ['none', 'lines', 'dots'],
   glasses: ['none', 'round', 'square'],
   symbol: ['none', 'sweat', 'anger', 'gloom', 'sparkle', 'heart', 'zzz', 'note', 'steam'],
+  hair: ['none', 'short', 'bob', 'long', 'bun', 'twintails', 'ponytail'],
+  outfit: ['none', 'uniform', 'hoodie', 'jacket', 'cardigan'],
 } as const;
+const LINE_FIGURE_PARTS = ['hair', 'outfit'] as const;
 export const LINE_RANGES = {
   spacing: [-3, 3],
   height: [-3, 3],
@@ -55,7 +58,9 @@ export type LineAvatarRecipe = {
   family: 'line';
   assetVersion: 1;
   rigVersion: 1;
-} & { [P in LinePart]: (typeof LINE_PARTS)[P][number] } & Record<LineRange, number> &
+} & { [P in Exclude<LinePart, 'hair' | 'outfit'>]: (typeof LINE_PARTS)[P][number] } & {
+  [P in 'hair' | 'outfit']?: (typeof LINE_PARTS)[P][number];
+} & Record<LineRange, number> &
   Record<LineColor, string>;
 
 export const LINE_SWATCHES: Record<LineColor, readonly string[]> = {
@@ -84,6 +89,8 @@ export const DEFAULT_LINE_RECIPE: LineAvatarRecipe = {
   cheeks: 'none',
   glasses: 'none',
   symbol: 'none',
+  hair: 'none',
+  outfit: 'none',
   spacing: 0,
   height: 0,
   tilt: 0,
@@ -97,7 +104,9 @@ const LINE_RANGE_KEYS = Object.keys(LINE_RANGES) as LineRange[];
 export function isLineAvatarRecipe(value: unknown): value is LineAvatarRecipe {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const r = value as Record<string, unknown>;
-  if (Object.keys(r).length !== Object.keys(DEFAULT_LINE_RECIPE).length) return false;
+  const absent = LINE_FIGURE_PARTS.filter((key) => !Object.hasOwn(r, key)).length;
+  if (absent !== 0 && absent !== LINE_FIGURE_PARTS.length) return false;
+  if (Object.keys(r).length !== Object.keys(DEFAULT_LINE_RECIPE).length - absent) return false;
   return (
     r['schemaVersion'] === 1 &&
     r['family'] === 'line' &&
@@ -105,7 +114,8 @@ export function isLineAvatarRecipe(value: unknown): value is LineAvatarRecipe {
     r['rigVersion'] === 1 &&
     LINE_PART_KEYS.every(
       (key) =>
-        typeof r[key] === 'string' && (LINE_PARTS[key] as readonly string[]).includes(r[key]),
+        (absent > 0 && (LINE_FIGURE_PARTS as readonly string[]).includes(key)) ||
+        (typeof r[key] === 'string' && (LINE_PARTS[key] as readonly string[]).includes(r[key])),
     ) &&
     LINE_RANGE_KEYS.every((key) => {
       const v = r[key];
@@ -123,7 +133,7 @@ export function canonicalLineRecipe(recipe: LineAvatarRecipe): LineAvatarRecipe 
     assetVersion: 1,
     rigVersion: 1,
   };
-  for (const key of LINE_PART_KEYS) canonical[key] = recipe[key];
+  for (const key of LINE_PART_KEYS) canonical[key] = recipe[key] ?? 'none';
   for (const key of LINE_RANGE_KEYS) canonical[key] = recipe[key];
   for (const key of LINE_COLORS) canonical[key] = recipe[key].toLowerCase();
   return canonical as LineAvatarRecipe;
@@ -433,6 +443,94 @@ function features(
   };
 }
 
+const FIGURE_FACE = 'translate(24 26) scale(0.6) translate(-24 -26)';
+const FIGURE_STROKE = 1.8;
+
+const LINE_HAIR: Record<
+  Exclude<NonNullable<LineAvatarRecipe['hair']>, 'none'>,
+  { back?: string; extra?: string; lines?: string }
+> = {
+  short: {},
+  bob: {
+    back: 'M9 22Q8 34 11 37L37 37Q40 34 39 22Z',
+    lines: 'M10.5 23Q10 31 12.5 35M37.5 23Q38 31 35.5 35',
+  },
+  long: {
+    back: 'M9 22Q6 38 10 47L38 47Q42 38 39 22Z',
+    lines: 'M10.5 25Q9 37 12 46M37.5 25Q39 37 36 46M14 31L13 45M34 31L35 45',
+  },
+  bun: {
+    back: 'M9 22Q8 31 11 34L37 34Q40 31 39 22Z',
+    extra: 'M29.5 7.5A5.5 5 0 1 1 39.5 11.5Q36 7.5 29.5 7.5Z',
+  },
+  twintails: {
+    back: 'M9 22Q8 30 11 33L37 33Q40 30 39 22Z',
+    extra:
+      'M8.5 15Q1 26 4 40Q6 46 9.5 44Q7 34 10.5 22ZM39.5 15Q47 26 44 40Q42 46 38.5 44Q41 34 37.5 22Z',
+  },
+  ponytail: {
+    back: 'M9 22Q8 30 11 33L37 33Q40 30 39 22Z',
+    extra: 'M37 12Q47 16 44.5 31Q43.5 38 40 39Q42 30 38.5 20Z',
+  },
+};
+
+const BANGS =
+  'M8.6 27Q7 6 24 5.5Q41 6 39.4 27L37 24Q35.5 19 34 17Q32.5 20 31 22.5Q29.5 18 27.5 15.5Q26 18.5 24 21.5Q22 18.5 20.5 15.5Q18.5 18 17 22.5Q15.5 20 14 17Q12.5 19 11 24Z';
+const STRANDS =
+  'M20.5 15.5Q19.6 12 19.8 9M27.5 15.5Q28.4 12 28.2 9M14 17Q13.4 14.5 13.8 12.5M34 17Q34.6 14.5 34.2 12.5';
+
+function lineFigure(recipe: LineAvatarRecipe): { back: string; front: string } | undefined {
+  const hair = recipe.hair ?? 'none';
+  const outfit = recipe.outfit ?? 'none';
+  if (hair === 'none' && outfit === 'none') return undefined;
+  const ink = recipe.inkColor;
+  const tint = mixLine(ink, '#ffffff', 0.78);
+  const paper = '#ffffff';
+  const solid = (fill: string) =>
+    `fill="${fill}" stroke="${ink}" stroke-width="${FIGURE_STROKE}" stroke-linecap="round" stroke-linejoin="round"`;
+  const line = `fill="none" stroke="${ink}" stroke-width="${FIGURE_STROKE}" stroke-linecap="round" stroke-linejoin="round"`;
+  const style = hair === 'none' ? undefined : LINE_HAIR[hair];
+  const torso = 'M11 49Q11 37.5 18 35.5L30 35.5Q37 37.5 37 49Z';
+  const clothes: Record<Exclude<NonNullable<LineAvatarRecipe['outfit']>, 'none'>, string> = {
+    uniform: `<path d="${torso}" ${solid(tint)}/><path d="M19.5 35.5L24 41L28.5 35.5" ${line}/><path d="M24 41L22.6 45.5M24 41L25.4 45.5" fill="none" stroke="#e2565f" stroke-width="${FIGURE_STROKE}" stroke-linecap="round"/>`,
+    hoodie: `<path d="${torso}" ${solid(tint)}/><path d="M18 35.5Q24 41 30 35.5M21.5 38.5L21 43.5M26.5 38.5L27 43.5" ${line}/>`,
+    jacket: `<path d="${torso}" ${solid(tint)}/><path d="M20 35.5L24 49L28 35.5Z" ${solid(paper)}/>`,
+    cardigan: `<path d="${torso}" ${solid(tint)}/><path d="M21 35.5L24 40L27 35.5M24 40L24 49" ${line}/><circle cx="25.8" cy="43" r=".8" fill="${ink}"/><circle cx="25.8" cy="46.5" r=".8" fill="${ink}"/>`,
+  };
+  const body = outfit === 'none' ? '' : clothes[outfit];
+  const hands =
+    outfit === 'none'
+      ? ''
+      : `<circle cx="17" cy="44.5" r="3" ${solid(paper)}/><circle cx="31" cy="44.5" r="3" ${solid(paper)}/>`;
+  const back = [
+    style?.extra ? `<path d="${style.extra}" ${solid(paper)}/>` : '',
+    style?.back ? `<path d="${style.back}" ${solid(paper)}/>` : '',
+    body,
+    hands,
+    `<ellipse cx="24" cy="22.5" rx="15" ry="12.5" ${solid(paper)}/>`,
+  ].join('');
+  const front =
+    style === undefined
+      ? ''
+      : `<g class="bh-line-hair"><path d="${BANGS}" ${solid(paper)}/><path d="${STRANDS}" ${line}/>${style.lines ? `<path d="${style.lines}" ${line}/>` : ''}</g>`;
+  return { back, front };
+}
+
+function mixLine(base: string, tint: string, k: number): string {
+  const channels = (color: string) => {
+    const n = Number.parseInt(color.slice(1), 16);
+    return [16, 8, 0].map((bit) => (n >> bit) & 255);
+  };
+  const t = channels(tint);
+  return `#${channels(base)
+    .map((v, i) =>
+      Math.round(v * (1 - k) + t[i]! * k)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+}
+
 export function lineAvatarSvg(
   recipe: LineAvatarRecipe,
   options: { turns?: readonly number[] } = {},
@@ -454,13 +552,18 @@ export function lineAvatarSvg(
         `<g data-avatar-turn="${delta}" opacity="0">${head(face(delta), 'data-turn-part="')}</g>`,
     )
     .join('');
+  const figure = lineFigure(recipe);
+  const wrap = (markup: string) =>
+    figure ? `<g transform="${FIGURE_FACE}">${markup}</g>` : markup;
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="512" height="512" aria-hidden="true">',
     `<rect width="48" height="48" rx="11" fill="${recipe.backgroundColor}"/>`,
+    figure ? `<g class="bh-line-figure">${figure.back}</g>` : '',
     '<g class="bh-illustrated-body"></g>',
-    head(base),
-    turns,
-    `<path data-avatar-transition="" d="M24 24" opacity="0" ${stroke}/>`,
+    wrap(head(base)),
+    wrap(turns),
+    figure?.front ?? '',
+    wrap(`<path data-avatar-transition="" d="M24 24" opacity="0" ${stroke}/>`),
     `<g class="bh-illustrated-marks">${ATTENTION_MARK}</g>`,
     '</svg>',
   ].join('');

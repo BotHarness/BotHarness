@@ -52,11 +52,28 @@ describe('line Avatar family', () => {
       { ...DEFAULT_LINE_RECIPE, tilt: -11 },
       { ...DEFAULT_LINE_RECIPE, height: 0.5 },
       { ...DEFAULT_LINE_RECIPE, eyes: 'laser' },
-      { ...DEFAULT_LINE_RECIPE, hair: 'bob' },
+      { ...DEFAULT_LINE_RECIPE, hair: 'mohawk' },
+      { ...DEFAULT_LINE_RECIPE, outfit: 'armor' },
+      (({ hair: _hair, ...rest }) => rest)(DEFAULT_LINE_RECIPE),
       { ...DEFAULT_LINE_RECIPE, inkColor: 'url(x)' },
       { ...DEFAULT_LINE_RECIPE, family: 'illustrated' },
     ])
       expect(isAvatarRecipe(invalid)).toBe(false);
+  });
+
+  it('keeps face-only recipes saved before hair and outfit valid and unchanged', () => {
+    const { hair: _hair, outfit: _outfit, ...legacy } = DEFAULT_LINE_RECIPE;
+    expect(isAvatarRecipe(legacy)).toBe(true);
+    expect(lineAvatarSvg(legacy as typeof DEFAULT_LINE_RECIPE)).toBe(
+      lineAvatarSvg(DEFAULT_LINE_RECIPE),
+    );
+    const figure = lineAvatarSvg({ ...DEFAULT_LINE_RECIPE, hair: 'long', outfit: 'uniform' });
+    expect(figure).toContain('class="bh-line-hair"');
+    expect(figure).toContain('<g class="bh-illustrated-body"></g>');
+    expect(figure).toContain('class="bh-line-figure"');
+    expect(figure).toMatch(
+      /<g transform="translate\(24 26\) scale\(0\.6\)[^"]*"><path data-avatar-transition/u,
+    );
   });
 
   it('seeds stable recipes per name and derives bounded snapshots for every extreme', () => {
