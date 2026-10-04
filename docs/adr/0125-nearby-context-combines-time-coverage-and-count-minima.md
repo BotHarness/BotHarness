@@ -17,6 +17,8 @@ The anchor remains independently available through canonical `bridge_read`; it i
 
 The Lark Provider uses bounded Chat listing: ascending pages of the time window, descending nearest older supplement, then ascending nearest newer supplement. Its checked continuation retains phase, counts and native page token. Millisecond boundary filtering handles the SDK's second-resolution time filters without overlapping returned messages. Missing, unsupported or withdrawn messages cannot satisfy minima. Exhausted visible history can return fewer messages. A dense window remains incomplete until the caller follows all continuation pages; output budgets and per-read cancellation/deadlines still apply.
 
+For a fresh anchor whose upper window boundary is still in the future, the newer supplement ends with an empty terminal page. It does not send a future-start request: Lark defaults an omitted end time to now and refuses that inverted range. The time-window query still returns already available messages within its explicit bounds.
+
 Messaging owns opaque process-local continuation tokens bound to Bot, source, grant revision, scope and count parameters. Each successful page issues a new token valid for 30 minutes. Successful use consumes the prior token; restart invalidates it. Every call rechecks current authority and Provider/Consumer lifetime. Increased token lifetime grants no longer-lived access.
 
 Returned observations reconcile into canonical Source Events and existing read audit; no historical Inbox Admission, automatic reply, Memory write, read receipt, transcript store or native provider-wide search is added. Group and Thread reads retain their existing semantics. The UI displays the latest returned page, not a promise of a complete transcript.
