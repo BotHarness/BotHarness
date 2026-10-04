@@ -22,6 +22,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added explicit Chrome Profile pairing for cross-tab discovery, navigation and ref-based webpage control, preserving Browser Access, Session approval and Pause ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0123](docs/adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
 
 - Shared Channel members can explicitly answer an external Lark source using their own independently authorized identity, with inspectable sender/source details and one durable reply per member/source ([#637](https://github.com/BotHarness/BotHarness/issues/637)).
+- Completed Assignment reports now show a neutral information indicator across PersonaBot Activity views, separate from action-required badge counts; Inbox dismissal or ignore clears it without changing execution ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
+
 - Pending Workspace Grant requests now contribute to PersonaBot attention across the sidebar, composer and Overview; authorized replies or Inbox dismissal clear the indicator without changing execution ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Orchestrators can explicitly wait for an owned Assignment report or completion; shared Activity presents Assignment work during that bounded wait and restores Orchestrator selection on report, cancellation or timeout ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
@@ -313,6 +315,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Concurrent PersonaBot Tool activity now orders opaque detail references before bounding them, so the same active set produces the same lookup references regardless of arrival order ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 
 - Group Profile member message activity identifies external traffic by its platform and source group name, combining senders within one source while keeping different sources separate ([#769](https://github.com/BotHarness/BotHarness/issues/769)).
 

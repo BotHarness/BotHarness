@@ -173,6 +173,14 @@ export function personaBotPresentationSummary(
           { count: attention.workspaceGrantCount },
         )
       : undefined,
+    attention?.informationalCount
+      ? t(
+          attention.informationalCount === 1
+            ? 'activity.informationalCountOne'
+            : 'activity.informationalCount',
+          { count: attention.informationalCount },
+        )
+      : undefined,
     attention?.blockedCount
       ? t(attention.blockedCount === 1 ? 'activity.blockedCountOne' : 'activity.blockedCount', {
           count: attention.blockedCount,
@@ -309,7 +317,7 @@ export function PersonaBotAvatar({
         <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
       )}
       {indicator ? <ActivityIndicator state={state} /> : null}
-      {indicator && attention !== undefined ? (
+      {indicator && attention !== undefined && attentionCount(attention) > 0 ? (
         <span
           className="bh-avatar-attention"
           data-approval-count={attention.approvalCount}
@@ -320,6 +328,14 @@ export function PersonaBotAvatar({
           aria-hidden="true"
         >
           {attentionCount(attention) > 99 ? '99+' : attentionCount(attention)}
+        </span>
+      ) : indicator && attention?.informationalCount ? (
+        <span
+          className="bh-avatar-information"
+          data-informational-count={attention.informationalCount}
+          aria-hidden="true"
+        >
+          i
         </span>
       ) : null}
     </span>

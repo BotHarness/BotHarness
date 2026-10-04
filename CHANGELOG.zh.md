@@ -22,6 +22,8 @@
 - 新增显式 Chrome Profile 配对，支持跨标签页发现、导航与基于引用的网页控制，保留 Browser Access、Session 审批和暂停 ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0123](docs/adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
 
 - 共享 Channel 成员可用自己独立授权的身份明确回复外部 Lark 来源，查看发送身份与来源详情，并按成员／来源保留唯一持久回复记录（[#637](https://github.com/BotHarness/BotHarness/issues/637)）。
+- Assignment 完成报告现在通过 PersonaBot Activity 各视图显示中性信息提示，与待处理数字独立；收件箱隐藏或忽略会清除提示，不改变执行状态（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
+
 - 待处理的工作区授权请求现在计入 PersonaBot 的侧栏、消息框和总览提醒；授权回复或收件箱忽略会清除提示，不改变执行状态（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
 - Orchestrator 可明确等待所属 Assignment 的报告或完成；共享 Activity 在有界等待期间呈现 Assignment 工作，并在报告、取消或超时后恢复 Orchestrator 选择（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
@@ -313,6 +315,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- PersonaBot 并发工具 Activity 现在先排序不透明详情引用再限制数量，使同一活跃集合不受事件到达顺序影响（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
 - Group Profile 的成员消息活跃使用外部平台与来源群名称，同一来源的发送人合并统计，不同来源分别显示（[#769](https://github.com/BotHarness/BotHarness/issues/769)）。
 

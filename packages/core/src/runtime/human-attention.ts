@@ -67,6 +67,7 @@ export interface HumanAttentionQuery {
     waitingHumanCount: number;
     blockedCount: number;
     workspaceGrantCount: number;
+    informationalCount: number;
   }>;
   actionCount(): number;
   actionSummary(): { count: number; botSlugs: string[] };
@@ -726,9 +727,10 @@ SELECT 'handled:' || request.source_event_id AS id,
           SELECT bot_slug AS botSlug,
                  sum(kind = 'assignment-waiting-human') AS waitingHumanCount,
                  sum(kind = 'assignment-blocked') AS blockedCount,
-                 sum(kind = 'workspace-grant-request') AS workspaceGrantCount
+                 sum(kind = 'workspace-grant-request') AS workspaceGrantCount,
+                 sum(kind = 'assignment-report') AS informationalCount
             FROM attention
-           WHERE kind IN ('assignment-waiting-human', 'assignment-blocked', 'workspace-grant-request')
+           WHERE kind IN ('assignment-waiting-human', 'assignment-blocked', 'workspace-grant-request', 'assignment-report')
              AND NOT EXISTS (SELECT 1 FROM human_inbox_dismissals d
                WHERE d.human_id = '${LOCAL_HUMAN_ID}' AND d.item_id = attention.id
                  AND d.source_key = coalesce(attention.source_event_id, ''))
@@ -738,6 +740,7 @@ SELECT 'handled:' || request.source_event_id AS id,
             waitingHumanCount: number;
             blockedCount: number;
             workspaceGrantCount: number;
+            informationalCount: number;
           }>,
       );
     },

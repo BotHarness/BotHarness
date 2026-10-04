@@ -1,0 +1,144 @@
+{
+  "baseline": {
+    "generation": "dd1a860e-62ae-4d76-babb-a26759cc507b",
+    "revision": 1,
+    "slug": "bot-bec4e0809b9b4e65b429df0ca61d71a5",
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "informationalCount": 1
+    }
+  },
+  "overview": {
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "informationalCount": 1
+    }
+  },
+  "cleared": [
+    {
+      "generation": "dd1a860e-62ae-4d76-babb-a26759cc507b",
+      "revision": 10,
+      "bots": [
+        {
+          "slug": "bot-bec4e0809b9b4e65b429df0ca61d71a5",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-4aa79bac-efc3-448c-af12-77add00221e2",
+              "role": "orchestrator",
+              "name": "Run assignment and report completion",
+              "at": 1791053090835,
+              "revision": 9,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-0173149b-31d4-4c1f-ba2b-4cf44ce15ddf"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791053090834,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-6166524e-419b-44a7-a8fe-60454ed1423c",
+              "role": "assignment",
+              "name": "Verify info and report done once",
+              "at": 1791053090705,
+              "revision": 8,
+              "state": "thinking"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "generation": "dd1a860e-62ae-4d76-babb-a26759cc507b",
+      "revision": 11,
+      "bots": [
+        {
+          "slug": "bot-bec4e0809b9b4e65b429df0ca61d71a5",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-cf4af325-67fe-4089-9762-bd85467ef9e6"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "report_to_orchestrator",
+            "startedAt": 1791053091190,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "assignment",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-4aa79bac-efc3-448c-af12-77add00221e2",
+              "role": "orchestrator",
+              "name": "Run assignment and report completion",
+              "at": 1791053090835,
+              "revision": 9,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-0173149b-31d4-4c1f-ba2b-4cf44ce15ddf"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "wait_for_assignment",
+                "startedAt": 1791053090834,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "activity-6166524e-419b-44a7-a8fe-60454ed1423c",
+              "role": "assignment",
+              "name": "Verify info and report done once",
+              "at": 1791053091191,
+              "revision": 11,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-cf4af325-67fe-4089-9762-bd85467ef9e6"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "report_to_orchestrator",
+                "startedAt": 1791053091190,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "assignment",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "beforeRestart": {
+    "generation": "dd1a860e-62ae-4d76-babb-a26759cc507b",
+    "revision": 21,
+    "slug": "bot-bec4e0809b9b4e65b429df0ca61d71a5",
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "informationalCount": 1
+    }
+  },
+  "clientErrors": []
+}

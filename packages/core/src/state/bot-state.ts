@@ -20,6 +20,7 @@ export interface PersonaBotAttention {
   waitingHumanCount?: number;
   blockedCount?: number;
   workspaceGrantCount?: number;
+  informationalCount?: number;
 }
 
 export interface BotStateSnapshot {
@@ -54,6 +55,7 @@ export interface BotStateTracker {
       waitingHumanCount: number;
       blockedCount: number;
       workspaceGrantCount: number;
+      informationalCount: number;
     }[],
   ): void;
   setQuestionCount(slug: string, count: number): void;
@@ -108,7 +110,12 @@ export function createBotStateTracker(): BotStateTracker {
   const questionCounts = new Map<string, number>();
   const durableAttention = new Map<
     string,
-    { waitingHumanCount: number; blockedCount: number; workspaceGrantCount: number }
+    {
+      waitingHumanCount: number;
+      blockedCount: number;
+      workspaceGrantCount: number;
+      informationalCount: number;
+    }
   >();
   const attentionOf = (slug: string): PersonaBotAttention | undefined => {
     const count = approvalCounts.get(slug);
@@ -121,6 +128,9 @@ export function createBotStateTracker(): BotStateTracker {
           ...(questionCount === undefined ? {} : { questionCount }),
           ...(durable?.waitingHumanCount ? { waitingHumanCount: durable.waitingHumanCount } : {}),
           ...(durable?.blockedCount ? { blockedCount: durable.blockedCount } : {}),
+          ...(durable?.informationalCount
+            ? { informationalCount: durable.informationalCount }
+            : {}),
           ...(durable?.workspaceGrantCount
             ? { workspaceGrantCount: durable.workspaceGrantCount }
             : {}),
@@ -281,17 +291,34 @@ export function createBotStateTracker(): BotStateTracker {
             !Number.isSafeInteger(row.blockedCount) ||
             row.blockedCount < 0 ||
             !Number.isSafeInteger(row.workspaceGrantCount) ||
-            row.workspaceGrantCount < 0,
+            row.workspaceGrantCount < 0 ||
+            !Number.isSafeInteger(row.informationalCount) ||
+            row.informationalCount < 0,
         )
       )
         return;
       const next = new Map(
         rows
-          .filter((row) => row.waitingHumanCount + row.blockedCount + row.workspaceGrantCount > 0)
-          .map(({ botSlug, waitingHumanCount, blockedCount, workspaceGrantCount }) => [
-            botSlug,
-            { waitingHumanCount, blockedCount, workspaceGrantCount },
-          ]),
+          .filter(
+            (row) =>
+              row.waitingHumanCount +
+                row.blockedCount +
+                row.workspaceGrantCount +
+                row.informationalCount >
+              0,
+          )
+          .map(
+            ({
+              botSlug,
+              waitingHumanCount,
+              blockedCount,
+              workspaceGrantCount,
+              informationalCount,
+            }) => [
+              botSlug,
+              { waitingHumanCount, blockedCount, workspaceGrantCount, informationalCount },
+            ],
+          ),
       );
       const changed = [...new Set([...durableAttention.keys(), ...next.keys()])].filter(
         (slug) =>
@@ -299,7 +326,9 @@ export function createBotStateTracker(): BotStateTracker {
             (next.get(slug)?.waitingHumanCount ?? 0) ||
           (durableAttention.get(slug)?.blockedCount ?? 0) !== (next.get(slug)?.blockedCount ?? 0) ||
           (durableAttention.get(slug)?.workspaceGrantCount ?? 0) !==
-            (next.get(slug)?.workspaceGrantCount ?? 0),
+            (next.get(slug)?.workspaceGrantCount ?? 0) ||
+          (durableAttention.get(slug)?.informationalCount ?? 0) !==
+            (next.get(slug)?.informationalCount ?? 0),
       );
       durableAttention.clear();
       for (const [slug, counts] of next) durableAttention.set(slug, counts);

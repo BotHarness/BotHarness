@@ -688,7 +688,8 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
 .bh-persona-avatar[data-media='blob'][data-effect='executing'] .bh-avatar-media {
   animation: bh-avatar-execute 900ms var(--ds-ease-in-out) infinite;
 }
-.bh-avatar-attention {
+.bh-avatar-attention,
+.bh-avatar-information {
   position: absolute;
   right: -4px;
   top: -4px;
@@ -705,7 +706,13 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   line-height: 14px;
   font-weight: 600;
 }
-.bh-rail-channel .bh-avatar-attention {
+.bh-avatar-information {
+  color: var(--bh-overview-label);
+  background: var(--bh-inbox-surface);
+  border: 1px solid var(--bh-overview-border);
+}
+.bh-rail-channel .bh-avatar-attention,
+.bh-rail-channel .bh-avatar-information {
   right: 0;
   top: 0;
 }
