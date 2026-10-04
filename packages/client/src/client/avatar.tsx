@@ -157,6 +157,14 @@ export function personaBotPresentationSummary(
           { count: attention.waitingHumanCount },
         )
       : undefined,
+    attention?.workspaceGrantCount
+      ? t(
+          attention.workspaceGrantCount === 1
+            ? 'activity.workspaceGrantCountOne'
+            : 'activity.workspaceGrantCount',
+          { count: attention.workspaceGrantCount },
+        )
+      : undefined,
     attention?.blockedCount
       ? t(attention.blockedCount === 1 ? 'activity.blockedCountOne' : 'activity.blockedCount', {
           count: attention.blockedCount,
@@ -283,6 +291,7 @@ export function PersonaBotAvatar({
           data-approval-count={attention.approvalCount}
           data-question-count={attention.questionCount ?? 0}
           data-waiting-human-count={attention.waitingHumanCount ?? 0}
+          data-workspace-grant-count={attention.workspaceGrantCount ?? 0}
           data-blocked-count={attention.blockedCount ?? 0}
           aria-hidden="true"
         >

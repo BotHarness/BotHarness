@@ -1,0 +1,21 @@
+{
+  "previousGeneration": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+  "baseline": {
+    "generation": "7963cce1-d771-4291-b3d0-ab604b68dc14",
+    "revision": 1,
+    "slug": "bot-65dcc2c9641f458aadbecbbce1e189d9",
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "workspaceGrantCount": 1
+    }
+  },
+  "postRestartConfirmed": {
+    "generation": "7963cce1-d771-4291-b3d0-ab604b68dc14",
+    "revision": 15,
+    "slug": "bot-65dcc2c9641f458aadbecbbce1e189d9",
+    "state": "idle"
+  },
+  "durablePendingRetained": true,
+  "actualAuthorizationReply": true
+}

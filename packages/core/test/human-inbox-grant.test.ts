@@ -1,3 +1,5 @@
+import { personaBotActivitySnapshot } from '../src/state/bot-state.js';
+import { attachOperationalModule } from '../src/database/owner.js';
 import { realpathSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createBridgeMethods } from '../src/bridge/methods.js';
@@ -51,6 +53,19 @@ describe('Human Inbox Grant source authority', () => {
       });
       expect(core.humanAttention.list({ category: 'action' }).items).toHaveLength(2);
       expect(core.grants.list('ada')).toEqual([]);
+      expect(core.states.snapshot('ada')).toMatchObject({
+        state: 'idle',
+        attention: { approvalCount: 0, workspaceGrantCount: 1 },
+      });
+      expect(core.states.snapshot('bea').attention?.workspaceGrantCount).toBe(1);
+      const version = core.states.version();
+      attachOperationalModule(core.operationalDatabase, 'grant-attention-test').transaction(
+        () => undefined,
+        ['source-event'],
+      );
+      expect(core.states.version()).toEqual(version);
+      const published: unknown[] = [];
+      core.states.onActivity((event) => published.push(event));
       expect(core.humanAttention.list({ category: 'handled' }).items).toEqual([]);
       const grant = await core.grants.create('ada', workspace.id);
       const payload = {
@@ -70,6 +85,19 @@ describe('Human Inbox Grant source authority', () => {
         }),
       ]);
       expect(results.map((result) => result.ok).sort()).toEqual([false, true]);
+      expect(core.states.snapshot('ada').attention).toBeUndefined();
+      expect(core.states.snapshot('bea').attention?.workspaceGrantCount).toBe(1);
+      expect(published).toHaveLength(1);
+      expect(published[0]).toMatchObject({
+        slug: 'ada',
+        state: 'idle',
+        cause: 'attention-changed',
+        revision: core.states.version().revision,
+      });
+      expect(personaBotActivitySnapshot(['ada', 'bea'], core.states).bots).toMatchObject([
+        { slug: 'ada', state: 'idle' },
+        { slug: 'bea', attention: { approvalCount: 0, workspaceGrantCount: 1 } },
+      ]);
       expect(
         core.channels.readMessages(dm.id).filter((message) => message.grantRequestResolution),
       ).toHaveLength(1);
@@ -109,6 +137,23 @@ describe('Human Inbox Grant source authority', () => {
       expect(resumed.humanAttention.list({ category: 'action' }).items).toMatchObject([
         { botSlug: 'bea' },
       ]);
+      expect(resumed.states.snapshot('ada').attention).toBeUndefined();
+      expect(resumed.states.snapshot('bea')).toMatchObject({
+        state: 'idle',
+        attention: { approvalCount: 0, workspaceGrantCount: 1 },
+      });
+      const item = resumed.humanAttention.list({ category: 'action' }).items[0]!;
+      expect(resumed.humanAttentionDecisions.dismiss(item)).toBe(true);
+      expect(resumed.states.snapshot('bea').attention).toBeUndefined();
+      expect(resumed.grants.list('bea')).toEqual([]);
+      await resumed.channels.appendMessage('dm-bea', {
+        id: 'new-request',
+        at: new Date().toISOString(),
+        author: { kind: 'bot', slug: 'bea' },
+        body: 'New request',
+        grantRequest: true,
+      });
+      expect(resumed.states.snapshot('bea').attention?.workspaceGrantCount).toBe(1);
       expect(resumed.channels.message('dm-ada', 'request')).toMatchObject({
         grantRequestResolved: true,
       });
