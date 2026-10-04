@@ -343,6 +343,8 @@
 
 ### Fixed
 
+- Assignment 答复在原生 Inbox 接收后才清除原问题；可证的投递准备失败保留重试入口，结果不明仍显示待修复，旧答复不会清除新问题（[#812](https://github.com/BotHarness/BotHarness/issues/812)）。
+
 - 空闲 Assignment 的继续执行和按 key 复用现在遵守与新建工作相同的 Profile 并发上限，容量满时保留尚未答复的问题 ([#811](https://github.com/BotHarness/BotHarness/issues/811))。
 - Channel sidebar 编辑时不显示展开箭头，整行可拖动；拖动时即时预览草稿顺序并显示清晰插入线，标签区域可接收落点，取消拖拽恢复拖动前的草稿（[#808](https://github.com/BotHarness/BotHarness/issues/808)）。
 

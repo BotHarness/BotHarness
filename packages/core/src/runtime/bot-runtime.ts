@@ -1,3 +1,4 @@
+import { AssignmentInboxAcceptanceUncertainError } from './assignment-delivery.js';
 import { waitForAssignment, type AssignmentWaitOutcome } from './assignment-wait.js';
 import { externalMemberWake } from '../messaging/defaults.js';
 import type {
@@ -152,7 +153,11 @@ export type AssignmentCreateOutcome =
   | AssignmentCapacityRefusal;
 
 export type AssignmentRequestOutcome =
-  | { assignment: AssignmentSummary; delivery: 'steer' | 'followup' }
+  | {
+      assignment: AssignmentSummary;
+      delivery: 'steer' | 'followup';
+      acceptance?: 'accepted' | 'pending';
+    }
   | (AssignmentCapacityRefusal & { assignment: AssignmentSummary; delivery: 'capacity' });
 
 export interface OrchestratorAssignmentAccess {
@@ -266,7 +271,7 @@ export interface AssignmentAgentRun {
 
 export type AssignmentRequestDelivery =
   | { delivery: 'steer' }
-  | { delivery: 'followup'; done: Promise<void> };
+  | { delivery: 'followup'; accepted: Promise<void>; done: Promise<void> };
 
 export interface ChannelMessageView {
   actorNames?: { humans: Record<string, string>; bots: Record<string, string> };
@@ -789,6 +794,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #digestFailureCount = new Map<string, number>();
   readonly #inboxFactoryRetries = new Map<string, { attempts: number; timer?: NodeJS.Timeout }>();
   readonly #assignmentRuns = new Map<string, Promise<void>>();
+  readonly #assignmentAcceptances = new Set<string>();
   readonly #waitLifetime = new AbortController();
   readonly #waitOptions: Pick<BotRuntimeOptions, 'database' | 'beginAssignmentWait'>;
   #closed = false;
@@ -4412,13 +4418,17 @@ class BotRuntimeImplementation implements BotRuntime {
     ) {
       throw new Error('Assignment Workspace Grant no longer matches its permission snapshot');
     }
+    if (this.#assignmentAcceptances.has(input.sessionId)) {
+      throw new Error(
+        `Assignment Session ${input.sessionId} is awaiting Inbox acceptance; inspect it before retrying`,
+      );
+    }
     const text = requireNonBlank(input.text, 'Assignment Request text');
     if (row.activity === 'error') {
       throw new Error(
         `Assignment Session ${input.sessionId} failed; start a new Assignment instead`,
       );
     }
-    const at = this.#now().toISOString();
     if (input.answerTo !== undefined && input.answerTo !== row.open_ask_source_event_id) {
       throw new Error(
         `Assignment Session ${input.sessionId} has no open ask ${input.answerTo}; inspect it before answering`,
@@ -4445,20 +4455,6 @@ class BotRuntimeImplementation implements BotRuntime {
       }
       this.#setActivity(input.sessionId, 'working');
     }
-    if (row.open_ask_source_event_id !== null) {
-      this.#database.transaction(
-        (database) => {
-          database
-            .prepare(
-              `UPDATE assignments
-                  SET open_ask_source_event_id = NULL, open_ask_at = NULL, updated_at = ?
-                WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`,
-            )
-            .run(at, input.sessionId, bot.slug);
-        },
-        ['assignments'],
-      );
-    }
     const run: AssignmentAgentRun = {
       sessionId: input.sessionId,
       bot,
@@ -4472,31 +4468,63 @@ class BotRuntimeImplementation implements BotRuntime {
     try {
       delivery = this.#agents.requestAssignment(run);
     } catch (error) {
-      if (waking) this.#setActivity(input.sessionId, 'idle');
+      if (error instanceof AssignmentInboxAcceptanceUncertainError)
+        this.#setActivity(input.sessionId, 'error');
+      else if (waking) this.#setActivity(input.sessionId, 'idle');
       throw error;
     }
-    if (input.model !== undefined) {
+    const settleAcceptance = () => {
+      const at = this.#now().toISOString();
       this.#database.transaction(
         (database) => {
-          database
-            .prepare(
-              `UPDATE assignments
-                  SET model_route_json = ?, updated_at = ?
-                WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`,
-            )
-            .run(JSON.stringify(modelRoute), at, input.sessionId, bot.slug);
+          if (row.open_ask_source_event_id !== null) {
+            database
+              .prepare(`UPDATE assignments
+              SET open_ask_source_event_id = NULL, open_ask_at = NULL, updated_at = ?
+              WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'
+                AND open_ask_source_event_id = ?`)
+              .run(at, input.sessionId, bot.slug, row.open_ask_source_event_id);
+          }
+          if (input.model !== undefined) {
+            database
+              .prepare(`UPDATE assignments SET model_route_json = ?, updated_at = ?
+              WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`)
+              .run(JSON.stringify(modelRoute), at, input.sessionId, bot.slug);
+          }
         },
         ['assignments'],
       );
-    }
+    };
     if (delivery.delivery === 'followup') {
-      this.#trackAssignmentRun(input.sessionId, () => delivery.done);
+      this.#assignmentAcceptances.add(input.sessionId);
+      let accepted = false;
+      let uncertain = false;
+      void delivery.done.catch(() => undefined);
+      this.#trackAssignmentRun(
+        input.sessionId,
+        async () => {
+          try {
+            await delivery.accepted;
+          } catch (error) {
+            uncertain = error instanceof AssignmentInboxAcceptanceUncertainError;
+            this.#assignmentAcceptances.delete(input.sessionId);
+            throw error;
+          }
+          this.#assignmentAcceptances.delete(input.sessionId);
+          accepted = true;
+          settleAcceptance();
+          await delivery.done;
+        },
+        () => (!accepted && !uncertain && waking ? 'idle' : 'error'),
+      );
     } else {
+      settleAcceptance();
       this.#setActivity(input.sessionId, 'working');
     }
     return {
       assignment: this.#requireAssignmentSummary(bot.slug, input.sessionId),
       delivery: delivery.delivery,
+      acceptance: delivery.delivery === 'steer' ? 'accepted' : 'pending',
     };
   }
 
@@ -4568,15 +4596,22 @@ class BotRuntimeImplementation implements BotRuntime {
     return this.#requireAssignmentSummary(bot.slug, sessionId);
   }
 
-  #trackAssignmentRun(sessionId: string, task: () => Promise<void>): void {
+  #trackAssignmentRun(
+    sessionId: string,
+    task: () => Promise<void>,
+    failureActivity: () => 'idle' | 'error' = () => 'error',
+  ): void {
+    let tracked: Promise<void> | undefined;
     const run = (async () => {
       if (this.#assignmentRow(undefined, sessionId) === undefined) return;
       this.#setActivity(sessionId, 'working');
       try {
         await task();
+        if (this.#assignmentRuns.get(sessionId) !== tracked) return;
         this.#setActivity(sessionId, 'idle');
       } catch (error) {
-        this.#setActivity(sessionId, 'error');
+        if (this.#assignmentRuns.get(sessionId) !== tracked) return;
+        this.#setActivity(sessionId, failureActivity());
         const row = this.#assignmentRow(undefined, sessionId);
         if (row?.stop_state !== 'running') return;
         if (row !== undefined) {
@@ -4594,7 +4629,7 @@ class BotRuntimeImplementation implements BotRuntime {
         }
       }
     })();
-    const tracked = run.then(
+    tracked = run.then(
       () => {
         if (this.#assignmentRuns.get(sessionId) === tracked) this.#assignmentRuns.delete(sessionId);
       },

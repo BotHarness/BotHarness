@@ -384,6 +384,8 @@ flowchart LR
 
 Assignment Session 是 DSH independent root，以 DSH `sessionId` 为 canonical identity；Continuity Key 只是 PersonaBot-local alias。Orchestrator 通过六个工具 `list_assignments`、`inspect_assignment`、`create_assignment`、`send_assignment_request`、`wait_for_assignment`、`stop_assignment` 管理它们。Assignment Agent 只能用 `report_to_orchestrator` 向 Orchestrator 回报；其 Agent Scope 没有 Channel send capability，普通 final 也不会写入 Channel。v1 没有 Assignment-to-Assignment 直连、广播或等待队列。
 
+带地址的答复只在原生 Inbox 接收后清除所捕获的原问题；pending followup 不等于投递成功。可证的准备失败保留问题、权限／模型快照和空闲重试路径；原生投递结果不明或重启保持修复可见、不重放。仅收到 Human DM 不隐藏未解除待办或生成已处理历史；可证失败后可在原来源明确重试。旧答复不能清除新问题（#812）。
+
 Assignment Runtime 的并发上限覆盖整个 Host 的所有 PersonaBot（默认 3），同时约束新建、按 Session 恢复空闲事项和按 Continuity Key 复用。恢复前先同步占用原有 Assignment Directory 的 working 名额，再交给 DSH；运行中的事项接收更新不增加名额。满额时返回 `assignment-capacity`、当前数量、上限和可重试标记，不启动执行、不清除待答问题、不改变模型或权限快照。事项停止确认前仍占名额；释放名额后，Orchestrator 可重试同一 Session，不引入等待队列（#811）。
 
 Human 在 Bot 模式设置中将此 Profile 级上限调整为 1–32。DSH 原生 Settings schema 的 Volatile field 由 Profile Config Editor 持久化；UI Plugin 的 Host Fiber 将 live reader 绑定到 application-defined Assignment Runtime，并在 dispose 时释放绑定。Client 只展示 Host 确认的保存值；Runtime 在每次新建或恢复空闲事项的准入时读取当前值。保存后立即影响后续准入，重启后保留；降低上限不中止已有执行，直到使用量低于新上限才允许启动新工作（#825）。

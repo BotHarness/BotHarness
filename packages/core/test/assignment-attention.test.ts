@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { attachOperationalModule } from '../src/database/owner.js';
 import { createCore } from '../src/plugin.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
@@ -26,6 +26,7 @@ function agents() {
       runs.push(run);
       return {
         delivery: 'followup',
+        accepted: Promise.resolve(),
         done: new Promise<void>((resolve) => finishes.set(run.sessionId, resolve)),
       };
     },
@@ -91,7 +92,7 @@ async function fixture(home = createTempRoot('botharness-assignment-attention-')
 }
 
 describe('shared Assignment Human attention', () => {
-  it('uses canonical actions, clears on Human response, and retains independent execution and native counts', async () => {
+  it('uses canonical actions, clears after answer acceptance, and retains independent execution and native counts', async () => {
     const f = await fixture();
     try {
       f.core.states.setSessionState('ada', 'orchestrator', 'thinking', undefined, 'orchestrator');
@@ -123,6 +124,14 @@ describe('shared Assignment Human attention', () => {
           },
         }),
       ).toMatchObject({ ok: true });
+      expect(f.core.states.snapshot('ada').attention?.waitingHumanCount).toBe(1);
+      waiting.access.request({
+        sessionId: waiting.run.sessionId,
+        mode: 'next-turn',
+        text: 'Canary',
+        answerTo: item.sourceEventId,
+      });
+      await Promise.resolve();
       expect(f.core.states.snapshot('ada').attention).toEqual({
         approvalCount: 1,
         questionCount: 1,
@@ -138,6 +147,69 @@ describe('shared Assignment Human attention', () => {
       await f.close();
     }
   }, 60000);
+
+  it('keeps source navigation and enables an explicit Human retry after proven preacceptance failure', async () => {
+    const f = await fixture();
+    try {
+      const waiting = await f.start('waiting-human');
+      f.live.finish(waiting.run.sessionId);
+      await f.core.runtime.whenIdle();
+      const ask = f.core.runtime.getAssignment('ada', waiting.run.sessionId)!.openAsk!;
+      const reply = {
+        channelId: f.dm.id,
+        body: 'Choose A',
+        assignmentReply: { sessionId: waiting.run.sessionId, sourceEventId: ask.sourceEventId },
+      };
+      const firstAnswerId = 'human-' + crypto.randomUUID();
+      const sent = await f.methods.channelSend({ ...reply, messageId: firstAnswerId });
+      if (!sent.ok) throw new Error(sent.error.message);
+      expect(sent.ok).toBe(true);
+      const refusal = Promise.reject(new Error('cold resume unavailable'));
+      vi.spyOn(f.live.adapter, 'requestAssignment').mockReturnValueOnce({
+        delivery: 'followup',
+        accepted: refusal,
+        done: refusal,
+      });
+      waiting.access.request({
+        sessionId: waiting.run.sessionId,
+        mode: 'next-turn',
+        text: 'Choose A',
+        answerTo: ask.sourceEventId,
+      });
+      await f.core.runtime.whenIdle();
+      expect(f.core.humanAttention.list({ category: 'action' }).items).toContainEqual(
+        expect.objectContaining({ sourceEventId: ask.sourceEventId }),
+      );
+      expect(f.core.humanAttention.list({ category: 'handled' }).items).toEqual([]);
+      expect(
+        await f.methods.humanAssignmentContext({
+          slug: 'ada',
+          sessionId: waiting.run.sessionId,
+          sourceEventId: ask.sourceEventId,
+        }),
+      ).toMatchObject({
+        ok: true,
+        value: { context: { canReply: true, reply: { id: firstAnswerId } } },
+      });
+      expect(
+        await f.methods.channelSend({ ...reply, messageId: 'human-' + crypto.randomUUID() }),
+      ).toMatchObject({ ok: true });
+      waiting.access.request({
+        sessionId: waiting.run.sessionId,
+        mode: 'next-turn',
+        text: 'Choose A',
+        answerTo: ask.sourceEventId,
+      });
+      await Promise.resolve();
+      expect(f.core.humanAttention.list({ category: 'action' }).items).toEqual([]);
+      expect(f.core.humanAttention.list({ category: 'handled' }).items).toHaveLength(1);
+      expect(
+        await f.methods.channelSend({ ...reply, messageId: 'human-' + crypto.randomUUID() }),
+      ).toMatchObject({ ok: false });
+    } finally {
+      await f.close();
+    }
+  });
 
   it('deduplicates notifications, rebuilds unresolved durable attention, and clears dismissed or stopped work', async () => {
     const before = await fixture();

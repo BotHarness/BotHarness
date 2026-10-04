@@ -66,6 +66,23 @@ function humanReply(
   return row;
 }
 
+function canReply(
+  db: DatabaseSync,
+  botSlug: string,
+  sessionId: string,
+  sourceEventId: string,
+): boolean {
+  if (currentReport(db, botSlug, sessionId) !== sourceEventId) return false;
+  if (humanReply(db, botSlug, sessionId, sourceEventId) === undefined) return true;
+  return (
+    db
+      .prepare(`SELECT 1 FROM assignments
+    WHERE bot_slug = ? AND session_id = ? AND open_ask_source_event_id = ?
+      AND activity = 'idle' AND stop_state = 'running'`)
+      .get(botSlug, sessionId, sourceEventId) !== undefined
+  );
+}
+
 export function assertAssignmentHumanReply(
   db: DatabaseSync,
   channel: ChannelRecord,
@@ -77,8 +94,7 @@ export function assertAssignmentHumanReply(
     channel.type !== 'dm' ||
     channel.botSlug === undefined ||
     message.author.kind !== 'human' ||
-    currentReport(db, channel.botSlug, target.sessionId) !== target.sourceEventId ||
-    humanReply(db, channel.botSlug, target.sessionId, target.sourceEventId) !== undefined
+    !canReply(db, channel.botSlug, target.sessionId, target.sourceEventId)
   )
     throw new AssignmentReplyTargetError();
 }
@@ -135,7 +151,7 @@ export function readHumanAssignmentContext(
         summary: row.body,
         state: row.state,
       })),
-      canReply: currentReport(db, botSlug, sessionId) === sourceEventId && reply === undefined,
+      canReply: canReply(db, botSlug, sessionId, sourceEventId),
       ...(reply === undefined ? {} : { reply }),
     };
   });
