@@ -46,8 +46,8 @@ describe('illustrated Avatar artwork', () => {
       for (const node of ['body', 'head', 'face', 'gaze', 'blink'])
         expect(svg).toContain(`class="bh-illustrated-${node}"`);
       expect(svg).not.toContain('data-avatar-mark=');
-      expect(svg.match(/<path/gu)).toHaveLength(1);
-      expect(svg).toContain('<path data-avatar-state-icon=""');
+      expect(svg).not.toContain('<path');
+      expect(svg).toContain('<g data-avatar-pixel-morph=""></g>');
       expect(svg.match(/<rect/gu)!.length).toBeLessThan(1400);
     }
   });
@@ -74,9 +74,10 @@ describe('illustrated Avatar artwork', () => {
       return (x + 0.5 - clamp(x + 0.5)) ** 2 + (y + 0.5 - clamp(y + 0.5)) ** 2 <= 36;
     };
     for (const recipe of [...variants, ...crowded]) {
-      const svg = illustratedAvatarSvg(recipe)
-        .replace(/<g data-avatar-state[\s\S]*?<\/g>/gu, '')
-        .replace(/<g data-avatar-attention-mark[\s\S]*?<\/g>/gu, '');
+      const svg = illustratedAvatarSvg(recipe).replace(
+        /<g data-avatar-attention-mark[\s\S]*?<\/g>/gu,
+        '',
+      );
       for (const [, x, y, w] of svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)"/gu))
         for (let i = 0; i < Number(w); i++)
           expect(

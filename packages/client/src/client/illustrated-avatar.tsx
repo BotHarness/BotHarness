@@ -1,12 +1,16 @@
 import { useMemo, useRef, type ReactElement } from 'react';
 import {
-  AVATAR_STATE_ICON_BOX,
   AVATAR_TURNS,
   avatarSvg,
   LINE_MORPH_SYMBOLS,
   lineMorphFace,
+  pixelFaceCells,
+  pixelSymbolCells,
   type AvatarRecipe,
+  type PixelCell,
+  type PixelSymbol,
 } from '../../../core/src/bots/avatar-appearance.js';
+import { morphPixels, pixelMarkup, type PixelMorphRun } from './pixel-morph.js';
 import type { Sampled } from 'morphicons';
 import {
   lineMorphD,
@@ -95,6 +99,16 @@ interface Flight {
   phase?: 'out' | 'back';
 }
 
+/** Pixel-family whole-Avatar morph: the transition length and the shortest time a symbol stays. */
+export const PIXEL_MORPH_MS = 800;
+export const PIXEL_SYMBOL_HOLD_MS = 500;
+
+interface PixelShown {
+  key?: PixelSymbol | 'face';
+  cells?: PixelCell[];
+  since: number;
+}
+
 const TURN_STEPS = 40;
 const TURN_STEP_MS = 220;
 
@@ -131,11 +145,14 @@ export function IllustratedAvatar({
   state,
   effect,
   size,
+  symbol,
 }: {
   recipe: AvatarRecipe;
   state: PersonaBotActivityState;
   effect: PersonaBotActivityEffect;
   size: number;
+  /** Pixel family: the symbol the whole Avatar morphs into; undefined shows the face. */
+  symbol?: PixelSymbol | undefined;
 }): ReactElement {
   const turning = state === 'thinking' && size > 64;
   const markup = useMemo(
@@ -146,7 +163,7 @@ export function IllustratedAvatar({
     state === 'working' ? effect : state === 'thinking' ? 'thinking-dots' : 'idle';
   const shown = useRef<string | undefined>(undefined);
   const flight = useRef<Flight>({ velocity: 0 });
-  const icon = useRef<{ shape?: Sampled[]; key?: string; velocity: number }>({ velocity: 0 });
+  const pixel = useRef<PixelShown>({ since: 0 });
   const mount = useMountedResource<HTMLSpanElement>(
     (node) => {
       const previous = shown.current;
@@ -156,24 +173,22 @@ export function IllustratedAvatar({
       const head = node.querySelector<SVGGElement>('.bh-illustrated-head');
       const gaze = node.querySelector<SVGGElement>('.bh-illustrated-gaze');
       const blink = node.querySelector<SVGGElement>('.bh-illustrated-blink');
-      const stateGroup = node.querySelector<SVGGElement>('[data-avatar-state]');
-      const stateIcon = node.querySelector<SVGPathElement>('path[data-avatar-state-icon]');
+      const pixelGroup = node.querySelector<SVGGElement>('[data-avatar-pixel-morph]');
       if (!head || !gaze || !blink || typeof head.animate !== 'function') return;
       const animations = new Set<Animation>();
       let visible = true;
       let disposed = false;
       let run: LineMorphRun | undefined;
-      let iconRun: { run: LineMorphRun; key: string } | undefined;
+      let pixelRun: { run: PixelMorphRun; key: PixelSymbol | 'face' } | undefined;
+      let pixelTimer: ReturnType<typeof setTimeout> | undefined;
       let pause: { timer: ReturnType<typeof setTimeout>; done(value: boolean): void } | undefined;
       const halt = () => {
-        if (iconRun) {
-          icon.current = {
-            shape: iconRun.run.current(),
-            key: iconRun.key,
-            velocity: iconRun.run.velocity(),
-          };
-          iconRun.run.cancel();
-          iconRun = undefined;
+        if (pixelTimer) clearTimeout(pixelTimer);
+        pixelTimer = undefined;
+        if (pixelRun) {
+          pixel.current = { key: pixelRun.key, cells: pixelRun.run.current(), since: 0 };
+          pixelRun.run.cancel();
+          pixelRun = undefined;
         }
         if (run) {
           flight.current.shape = run.current();
@@ -261,41 +276,48 @@ export function IllustratedAvatar({
           path.style.opacity = '';
           head.style.opacity = '';
         });
-      const showState = (still: boolean) => {
-        if (!stateGroup || !stateIcon) return;
-        if (presentation === 'idle' || size <= 30) {
-          icon.current = { velocity: 0 };
-          if (!still && stateGroup.style.opacity === '1') fade(stateGroup, 0, 160);
-          else stateGroup.style.opacity = '';
+      const showPixels = (still: boolean) => {
+        if (!pixelGroup || recipe.family !== 'illustrated') return;
+        const svg = pixelGroup.ownerSVGElement;
+        const target = symbol ?? 'face';
+        const cellsFor = (key: PixelSymbol | 'face') =>
+          key === 'face' ? pixelFaceCells(recipe) : pixelSymbolCells(key, recipe.hairColor);
+        const draw = (key: PixelSymbol | 'face', cells?: readonly PixelCell[]) => {
+          if (key === 'face' && !cells) {
+            pixelGroup.innerHTML = '';
+            svg?.removeAttribute('data-pixel-cover');
+            return;
+          }
+          pixelGroup.innerHTML = pixelMarkup(cells ?? cellsFor(key));
+          svg?.setAttribute('data-pixel-cover', '');
+        };
+        const previous = pixel.current;
+        if (still || previous.key === undefined) {
+          draw(target);
+          pixel.current = { key: target, since: performance.now() };
           return;
         }
-        const { cx, cy, scale } = AVATAR_STATE_ICON_BOX;
-        const target = sampleLineSymbol(
-          LINE_MORPH_SYMBOLS[presentation] ?? LINE_MORPH_SYMBOLS['idle']!,
-          scale,
-          cx,
-          cy,
-        );
-        const from = icon.current.shape;
-        if (still || !from) {
-          stateIcon.setAttribute('d', lineMorphD(target));
-          if (!still && !from) fade(stateGroup, 1, 160);
-          else stateGroup.style.opacity = '1';
-          icon.current = { shape: target, key: presentation, velocity: 0 };
+        if (previous.key === target && !previous.cells) {
+          draw(target);
           return;
         }
-        stateGroup.style.opacity = '1';
-        if (icon.current.key === presentation) {
-          stateIcon.setAttribute('d', lineMorphD(from));
-          if (lineMorphD(from) === lineMorphD(target)) return;
-        }
-        const current = morphLinePath(stateIcon, from, target, spring(), icon.current.velocity);
-        iconRun = { run: current, key: presentation };
-        void current.finished.then((done) => {
-          if (!done) return;
-          iconRun = undefined;
-          icon.current = { shape: target, key: presentation, velocity: 0 };
-        });
+        const from = previous.cells ?? cellsFor(previous.key);
+        draw(previous.key, from);
+        const start = () => {
+          pixelTimer = undefined;
+          const run = morphPixels(pixelGroup, from, cellsFor(target), PIXEL_MORPH_MS);
+          pixelRun = { run, key: target };
+          void run.finished.then((done) => {
+            if (!done) return;
+            pixelRun = undefined;
+            pixel.current = { key: target, since: performance.now() };
+            if (target === 'face') draw('face');
+          });
+        };
+        const held = performance.now() - previous.since;
+        if (!previous.cells && previous.key !== 'face' && held < PIXEL_SYMBOL_HOLD_MS)
+          pixelTimer = setTimeout(start, PIXEL_SYMBOL_HOLD_MS - held);
+        else start();
       };
       const loop = (target: Element, frames: Keyframe[], duration: number) =>
         animations.add(target.animate(frames, { duration, iterations: Infinity }));
@@ -315,10 +337,10 @@ export function IllustratedAvatar({
         ) {
           pendingTransition = false;
           flight.current = { velocity: 0 };
-          if (!disposed) showState(true);
+          if (!disposed) showPixels(true);
           return;
         }
-        showState(false);
+        showPixels(false);
         const compact = size <= 64;
         const enter = head.animate([{ transform: start || 'none' }, { transform: 'none' }], {
           duration: 120,
@@ -411,7 +433,7 @@ export function IllustratedAvatar({
         document.removeEventListener('visibilitychange', sync);
       };
     },
-    [state, effect, size, markup, recipe, presentation],
+    [state, effect, size, markup, recipe, presentation, symbol],
   );
   return (
     <span

@@ -6,6 +6,14 @@ import {
 } from './avatar-line.js';
 export { LINE_MORPH_SYMBOLS, lineMorphFace, type LineMorphNode } from './avatar-line.js';
 import { pixelFigure, pixelGrid, pixelRects, pixelSprite } from './avatar-pixel.js';
+import type { PixelCell } from './avatar-pixel-symbols.js';
+export {
+  PIXEL_SYMBOLS,
+  pixelSymbolCells,
+  pixelSymbolFor,
+  type PixelCell,
+  type PixelSymbol,
+} from './avatar-pixel-symbols.js';
 import { seededRandom } from './avatar-random.js';
 
 export const AVATAR_PARTS = {
@@ -408,10 +416,10 @@ function pixelAttentionMark(): string {
   return `<g data-avatar-attention-mark="" opacity="0">${pixelRects(grid)}</g>`;
 }
 
-const STATE_ICON =
-  '<g data-avatar-state="" opacity="0"><rect x="20.5" y="1.5" width="10" height="10" rx="3" fill="#ffffff" stroke="#2a2230" stroke-width="1"/><path data-avatar-state-icon="" d="M25.5 6.5" fill="none" stroke="#2a2230" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" shape-rendering="geometricPrecision"/></g>';
-
-export const AVATAR_STATE_ICON_BOX = { cx: 25.5, cy: 6.5, scale: 0.3 } as const;
+/** The pixel Avatar's visible cells (body, head, face, eyes, glasses) for whole-Avatar morphs. */
+export function pixelFaceCells(recipe: IllustratedAvatarRecipe): PixelCell[] {
+  return pixelFigure(recipe, YAW[recipe.pose]).cells;
+}
 
 export function illustratedAvatarSvg(
   recipe: IllustratedAvatarRecipe,
@@ -435,7 +443,8 @@ export function illustratedAvatarSvg(
     base.body,
     base.head,
     turns,
-    `<g class="bh-illustrated-marks">${STATE_ICON}${pixelAttentionMark()}</g>`,
+    '<g data-avatar-pixel-morph=""></g>',
+    `<g class="bh-illustrated-marks">${pixelAttentionMark()}</g>`,
     '</svg>',
   ].join('');
 }

@@ -14,7 +14,7 @@ Human review found the 48×48 pixel family too detailed and its activity states 
 - **Catalog additions.** Hair `wavy`, `braids`, `wolf`, `ahoge`; outfits `dress`, `kimono`, `cardigan`, `maid`, `jacket`; accessories `beret`, `ribbon`, `headband`, `bunnyears`, `horseears`, `flowercrown`, `witch`, `pins`. Existing values are unchanged, so saved recipes stay valid.
 - **Presets.** Twelve curated recipes (`AVATAR_PRESETS`) appear as a Presets tab in the Profile editor; choosing one replaces the draft, which still needs Save.
 - **Solid tile.** The existing `backdrop` values map to solid colours.
-- **State icon.** While thinking or working, a bubble in the top-right corner shows `?`, magnifier, `</>`, `!` or ♪, drawn from the line family's symbol strokes and morphed with morphicons when the activity changes. The old pixel corner marks are removed.
+- **Whole-Avatar pixel morph.** While thinking or working, every pixel of the Avatar flies (0.8s, snapped to the 32 grid, top rows first in 4×4 clumps) into a 24×24 pixel symbol drawn in the Avatar's hair colour with an ink outline. The symbol is bound to the current DSH tool (`pixelSymbolFor`: tool name first, then tool kind; approvals pending win). Tool changes morph symbol to symbol directly; a symbol stays at least 0.5s, then follows the state; the face returns when the turn ends. Mid-flight changes continue from the displayed pixels. Reduced motion, hidden and offscreen jump to the end state. The earlier corner icon bubble is removed.
 
 ## Contract checks
 
@@ -28,6 +28,6 @@ Human review found the 48×48 pixel family too detailed and its activity states 
 
 - `docs/assets/pr/800-pixel32/before-after-48-vs-32.png`: the same recipes at 48×48 (top) and the new 32×32 rig (bottom), large and small.
 - `presets.png` and `catalog.png`: the twelve presets, and every hairstyle, outfit and accessory.
-- `state-icons.png` and `state-icon-morph.gif`: every state icon, and the morph between them on production SVG with the same functions the Client uses.
+- `pixel-morph/symbols.png`, `pixel-morph/tool-sequence.gif`: the 16 symbols in three hair colours and a simulated turn; `pixel-morph/real-morph.gif`: a real DSH model turn (thinking → approval → thinking → face).
 - Real DSH: a real Assignment tool execution with a pending approval shows the `!` state bubble, in light and dark themes, in the Profile preview and the sidebar (`working-light.png`, `working-dark.png`, `sidebar-light.png`, `sidebar-dark.png`, `real-activity.webm`).
 - Unit tests cover the 32 grid, tile clipping, glasses bridge, single state-icon path, state icon visibility by size and state, morph retargeting from the displayed shape, and the still icon under reduced motion.

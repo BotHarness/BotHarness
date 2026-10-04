@@ -15,6 +15,7 @@ import {
   isAvatarAppearance,
   seededAvatarRecipe,
   type AvatarAppearance,
+  pixelSymbolFor,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { IllustratedAvatar } from './illustrated-avatar.js';
 
@@ -319,6 +320,13 @@ export function PersonaBotStatusBadges({
   );
 }
 
+const EFFECT_ACTIVITY: Record<string, Pick<PersonaBotToolActivity, 'toolKind'>> = {
+  searching: { toolKind: 'search' },
+  coding: { toolKind: 'edit' },
+  executing: { toolKind: 'execute' },
+  'generic-working': { toolKind: 'other' },
+};
+
 export function PersonaBotAvatar({
   personaBotId,
   name,
@@ -365,6 +373,11 @@ export function PersonaBotAvatar({
           state={state}
           effect={resolvedEffect ?? 'generic-working'}
           size={size}
+          symbol={pixelSymbolFor(
+            state,
+            activity ?? EFFECT_ACTIVITY[resolvedEffect ?? 'generic-working'],
+            attention?.approvalCount ?? 0,
+          )}
         />
       ) : (
         <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />

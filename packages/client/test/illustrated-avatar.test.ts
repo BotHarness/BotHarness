@@ -3,7 +3,18 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { PersonaBotAvatar } from '../src/client/avatar.js';
-import { DEFAULT_ILLUSTRATED_RECIPE } from '../../core/src/bots/avatar-appearance.js';
+import {
+  DEFAULT_ILLUSTRATED_RECIPE,
+  pixelSymbolCells,
+} from '../../core/src/bots/avatar-appearance.js';
+import { PIXEL_MORPH_MS, PIXEL_SYMBOL_HOLD_MS } from '../src/client/illustrated-avatar.js';
+import { pixelMarkup as rawPixelMarkup } from '../src/client/pixel-morph.js';
+
+const pixelMarkup = (...args: Parameters<typeof rawPixelMarkup>) => {
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.innerHTML = rawPixelMarkup(...args);
+  return group.innerHTML;
+};
 import { DEFAULT_LINE_RECIPE } from '../../core/src/bots/avatar-line.js';
 
 it('keeps same-Bot SVG instances independent and releases mounted animation resources', async () => {
@@ -153,10 +164,12 @@ it('loops the gaze only on the large working avatar and keeps waiting avatars st
       ),
     );
     expect(classes()).toEqual(['bh-illustrated-head']);
-    const state = () => node.querySelector<SVGGElement>('[data-avatar-state]')!;
-    const icon = () => node.querySelector('path[data-avatar-state-icon]')!.getAttribute('d')!;
-    expect(state().style.opacity).toBe('1');
-    expect(icon().length).toBeGreaterThan(100);
+    const covered = () => node.querySelector('svg')!.hasAttribute('data-pixel-cover');
+    const icon = () => node.querySelector('[data-avatar-pixel-morph]')!.innerHTML;
+    expect(covered()).toBe(true);
+    expect(icon()).toBe(
+      pixelMarkup(pixelSymbolCells('search', DEFAULT_ILLUSTRATED_RECIPE.hairColor)),
+    );
     const searching = icon();
     loops.length = 0;
     await act(async () =>
@@ -185,7 +198,6 @@ it('loops the gaze only on the large working avatar and keeps waiting avatars st
       root.render(createElement(PersonaBotAvatar, { ...props, size: 160, state: 'waiting' })),
     );
     expect(loops).toHaveLength(0);
-    expect(state().style.opacity).toBe('0');
   } finally {
     await act(() => root.unmount());
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
@@ -335,7 +347,7 @@ it('morphs line strokes into the activity symbol and back on real presentation c
   }
 });
 
-it('morphs the pixel state icon between activities and keeps it still under reduced motion', async () => {
+it('morphs the whole pixel Avatar between tool symbols, holds each briefly and snaps under reduced motion', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const node = document.createElement('div');
   document.body.append(node);
@@ -361,7 +373,7 @@ it('morphs the pixel state icon between activities and keeps it still under redu
       await act(async () => undefined);
     }
   };
-  const render = (effect: 'coding' | 'executing' | 'searching') =>
+  const render = (state: 'working' | 'idle', toolName?: string) =>
     act(async () =>
       root.render(
         createElement(PersonaBotAvatar, {
@@ -369,32 +381,51 @@ it('morphs the pixel state icon between activities and keeps it still under redu
           name: 'Ada',
           appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
           size: 160,
-          state: 'working',
-          effect,
+          state,
+          ...(toolName
+            ? {
+                activity: {
+                  effect: 'generic-working' as const,
+                  toolKind: 'other' as const,
+                  toolName,
+                  startedAt: 0,
+                  activeToolCount: 1,
+                },
+              }
+            : {}),
         }),
       ),
     );
-  const icon = () => node.querySelector('path[data-avatar-state-icon]')!.getAttribute('d');
+  const hair = DEFAULT_ILLUSTRATED_RECIPE.hairColor;
+  const drawn = () => node.querySelector('[data-avatar-pixel-morph]')!.innerHTML;
+  const covered = () => node.querySelector('svg')!.hasAttribute('data-pixel-cover');
   try {
-    await render('coding');
+    await render('working', 'edit');
     expect(frames.size).toBe(0);
-    const coding = icon();
-    await render('executing');
-    expect(frames.size).toBe(1);
-    await flush(4);
-    const mid = icon();
-    expect(mid).not.toBe(coding);
-    await render('searching');
-    expect(frames.size).toBe(1);
-    expect(icon()).toBe(mid);
-    await flush(240);
+    expect(covered()).toBe(true);
+    expect(drawn()).toBe(pixelMarkup(pixelSymbolCells('edit', hair)));
+    await render('working', 'bash');
     expect(frames.size).toBe(0);
-    const searching = icon();
+    await act(() => new Promise((resolve) => setTimeout(resolve, PIXEL_SYMBOL_HOLD_MS + 40)));
+    expect(frames.size).toBe(1);
+    await flush(6);
+    const mid = drawn();
+    expect(mid).not.toBe(pixelMarkup(pixelSymbolCells('edit', hair)));
+    expect(mid).not.toBe(pixelMarkup(pixelSymbolCells('bash', hair)));
+    await render('working', 'grep');
+    expect(frames.size).toBe(1);
+    expect(drawn()).toBe(mid);
+    await flush(Math.ceil(PIXEL_MORPH_MS / 16) + 2);
+    expect(frames.size).toBe(0);
+    expect(drawn()).toBe(pixelMarkup(pixelSymbolCells('search', hair)));
     document.documentElement.dataset['botharnessMotion'] = 'reduce';
-    await render('coding');
+    await render('working', 'ask_user_question');
     expect(frames.size).toBe(0);
-    expect(icon()).toBe(coding);
-    expect(icon()).not.toBe(searching);
+    expect(drawn()).toBe(pixelMarkup(pixelSymbolCells('ask', hair)));
+    await render('idle');
+    expect(frames.size).toBe(0);
+    expect(covered()).toBe(false);
+    expect(drawn()).toBe('');
   } finally {
     delete document.documentElement.dataset['botharnessMotion'];
     await act(() => root.unmount());

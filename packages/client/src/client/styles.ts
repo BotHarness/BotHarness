@@ -745,6 +745,11 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   background: var(--dsw-alias-bg-base);
   pointer-events: none;
 }
+.bh-persona-avatar svg[data-pixel-cover] .bh-illustrated-head,
+.bh-persona-avatar svg[data-pixel-cover] .bh-illustrated-body,
+.bh-persona-avatar svg[data-pixel-cover] [data-avatar-turn] {
+  visibility: hidden;
+}
 .bh-row-status {
   display: inline-flex;
   align-items: center;

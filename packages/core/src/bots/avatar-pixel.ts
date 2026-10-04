@@ -1,4 +1,5 @@
 import type { IllustratedAvatarRecipe } from './avatar-appearance.js';
+import type { PixelCell } from './avatar-pixel-symbols.js';
 
 type Cell = string | undefined;
 type Grid = Cell[][];
@@ -641,7 +642,7 @@ const BACKDROPS: Record<Recipe['backdrop'], string> = {
 export function pixelFigure(
   recipe: Recipe,
   yawDeg: number,
-): { tile: string; body: string; head: string } {
+): { tile: string; body: string; head: string; cells: PixelCell[] } {
   const yaw = (yawDeg * Math.PI) / 180;
   const sinY = Math.sin(yaw);
   const s = Math.round(sinY * 2.4);
@@ -843,7 +844,14 @@ export function pixelFigure(
       if (y >= 22 && !head[y]![x] && !back[y]![x]) bodyCells[y]![x] = c;
       else headCells[y]![x] = c;
     }
+  const cells: PixelCell[] = [];
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      const c = glasses[y]![x] ?? eyes[y]![x] ?? features[y]![x] ?? full[y]![x];
+      if (c) cells.push({ x, y, c });
+    }
   return {
+    cells,
     tile: `<rect width="32" height="32" rx="6" fill="${BACKDROPS[recipe.backdrop]}"/>`,
     body: `<g class="bh-illustrated-body">${rects(bodyCells)}</g>`,
     head: [
