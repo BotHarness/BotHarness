@@ -43,6 +43,13 @@ describe.skipIf(!enabled)(
           <p id="result">idle</p>
           <input aria-label="Disabled" value="do not clear" disabled>
           <input aria-label="Read only" value="do not clear" readonly>
+          <input type="password" value="never-share-password">
+          <input aria-label="Long value" value="${'x'.repeat(300)}">
+          <input aria-label="Checked" type="checkbox" checked>
+          <button aria-label="Expanded" aria-expanded="false">Expand</button>
+          <div role="checkbox" aria-label="Mixed" aria-checked="mixed">Mixed</div>
+          <div role="option" aria-label="Selected" aria-selected="true">Selected</div>
+          <input type="hidden" value="never-share-hidden">
           <button onclick="this.disabled=true">Noneditable</button><a href="/other">Next page</a></body>`);
         });
         await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -60,6 +67,41 @@ describe.skipIf(!enabled)(
         });
         try {
           const a = await runtime.open(url);
+          const initialFields = await runtime.observe(a.tabId);
+          expect(initialFields.elements.find((el) => el.name === 'Note')).toMatchObject({
+            value: 'initial',
+          });
+          expect(initialFields.elements.find((el) => el.name === 'Disabled')).toMatchObject({
+            value: 'do not clear',
+            disabled: true,
+          });
+          expect(initialFields.elements.find((el) => el.name === 'Read only')).toMatchObject({
+            value: 'do not clear',
+            readOnly: true,
+          });
+          expect(initialFields.elements.find((el) => el.name === 'Long value')).toMatchObject({
+            value: 'x'.repeat(256),
+            valueTruncated: true,
+          });
+          expect(initialFields.elements.find((el) => el.name === 'Checked')).toMatchObject({
+            checked: true,
+          });
+          expect(initialFields.elements.find((el) => el.name === 'Expanded')).toMatchObject({
+            expanded: false,
+          });
+          expect(initialFields.elements.find((el) => el.name === 'Mixed')).toMatchObject({
+            checked: 'mixed',
+          });
+          expect(initialFields.elements.find((el) => el.name === 'Selected')).toMatchObject({
+            selected: true,
+          });
+          expect(
+            initialFields.elements.find((el) => el.name === 'Attachment')?.value,
+          ).toBeUndefined();
+          expect(JSON.stringify(initialFields)).not.toMatch(
+            /never-share-password|never-share-hidden/,
+          );
+
           const b = await runtime.createTab(`${url}/other`);
           for (const name of ['Disabled', 'Read only', 'Noneditable']) {
             const initial = await runtime.observe(a.tabId);
@@ -87,6 +129,7 @@ describe.skipIf(!enabled)(
           await runtime.observe(b.tabId);
           await runtime.type(a.tabId, input.ref, 'owned-A');
           const typed = await runtime.observe(a.tabId);
+          expect(typed.elements.find((el) => el.name === 'Note')?.value).toBe('owned-A');
           const save = typed.elements.find((item) => item.name === 'Save')!;
           await expect(runtime.click(b.tabId, save.ref)).rejects.toThrow(/stale/);
           await runtime.click(a.tabId, save.ref);

@@ -10,6 +10,7 @@ import { basename } from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 
 import { BROWSER_GUIDANCE, BROWSER_TOOLS, browserToolName } from './catalog.js';
+import { formatBrowserElement } from '../runtime/observation.js';
 import { saveScreenshot } from '../screenshots.js';
 import type { BotBrowserRuntimes } from '../runtimes.js';
 import type { BrowserTab } from '../runtime/browser.js';
@@ -291,9 +292,7 @@ export function createBrowserToolProvider(
                 'Human-authorized Chrome Profile',
                 '',
                 'Interactive elements:',
-                ...observation.elements.map(
-                  (element) => `${element.ref} ${element.role} ${element.name}`,
-                ),
+                ...observation.elements.map((element) => formatBrowserElement(element)),
                 '',
                 'Page text:',
                 observation.text,
@@ -322,9 +321,7 @@ export function createBrowserToolProvider(
                 'Human Daily Browser — explicitly controlled document',
                 '',
                 'Interactive elements:',
-                ...observation.elements.map(
-                  (element) => `${element.ref} ${element.role} ${element.name}`,
-                ),
+                ...observation.elements.map((element) => formatBrowserElement(element)),
                 '',
                 'Page text:',
                 observation.text,
@@ -354,7 +351,7 @@ export function createBrowserToolProvider(
               'Shared by Human — read-only',
               '',
               'Controls (read-only):',
-              ...observation.elements.map((element) => `${element.role} ${element.name}`),
+              ...observation.elements.map((element) => formatBrowserElement(element, false)),
               '',
               'Page text:',
               observation.text,
@@ -415,9 +412,7 @@ export function createBrowserToolProvider(
       ) {
         state.observedControlRevision = revision;
       }
-      const elementLines = observation.elements.map(
-        (element) => `${element.ref} ${element.role} ${element.name}`,
-      );
+      const elementLines = observation.elements.map((element) => formatBrowserElement(element));
       const parts = [`URL: ${observation.url}`, `Title: ${observation.title}`];
       if (elementLines.length > 0) {
         parts.push('', 'Interactive elements:', ...elementLines);

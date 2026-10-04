@@ -9,6 +9,13 @@ export interface BrowserElement {
   readonly ref: string;
   readonly role: string;
   readonly name: string;
+  readonly value?: string;
+  readonly valueTruncated?: true;
+  readonly checked?: boolean | 'mixed';
+  readonly disabled?: true;
+  readonly readOnly?: true;
+  readonly expanded?: boolean;
+  readonly selected?: boolean;
 }
 
 export interface BrowserObservation {
@@ -318,14 +325,33 @@ export const SNAPSHOT_SCRIPT = `(() => {
   const elements = [];
   const cap = 250;
   const nameOf = (el) => {
-    const raw = el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.getAttribute('name') || (el.innerText || el.textContent || el.value || '');
+    const safeValue = el instanceof HTMLInputElement && ['password', 'file', 'hidden'].includes(el.type) ? '' : el.value;
+    const raw = el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.getAttribute('name') || (el.innerText || el.textContent || safeValue || '');
     return String(raw).trim().replace(/\\s+/g, ' ').slice(0, 80);
   };
   const add = (el, role, fallbackName) => {
     if (elements.length >= cap) return false;
     const ref = 'e' + observationId + '_' + (elements.length + 1);
     el.setAttribute('data-botharness-ref', ref);
-    elements.push({ ref: ref, role: role, name: nameOf(el) || fallbackName || '' });
+    const state = {};
+    const input = el instanceof HTMLInputElement;
+    const textValue = (input && !['password', 'file', 'hidden', 'checkbox', 'radio', 'button', 'submit', 'reset', 'image'].includes(el.type)) || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || el.isContentEditable;
+    if (textValue) {
+      const value = String(el.isContentEditable ? el.innerText : el.value);
+      state.value = value.slice(0, 256);
+      if (value.length > 256) state.valueTruncated = true;
+    }
+    const checked = el.getAttribute('aria-checked');
+    if (checked === 'mixed') state.checked = 'mixed';
+    else if (checked === 'true' || checked === 'false') state.checked = checked === 'true';
+    else if (input && ['checkbox', 'radio'].includes(el.type)) state.checked = el.indeterminate ? 'mixed' : el.checked;
+    if (el.matches(':disabled') || el.getAttribute('aria-disabled') === 'true') state.disabled = true;
+    if (el.readOnly || el.getAttribute('aria-readonly') === 'true') state.readOnly = true;
+    const expanded = el.getAttribute('aria-expanded');
+    if (expanded === 'true' || expanded === 'false') state.expanded = expanded === 'true';
+    const selected = el.getAttribute('aria-selected');
+    if (selected === 'true' || selected === 'false') state.selected = selected === 'true';
+    elements.push({ ref: ref, role: role, name: nameOf(el) || fallbackName || '', ...state });
     return true;
   };
   const wanted = 'a[href],button,input,textarea,select,summary,[role],[contenteditable="true"],[tabindex]';

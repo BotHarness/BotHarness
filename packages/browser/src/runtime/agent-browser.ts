@@ -9,6 +9,7 @@ import {
   type BrowserTab,
   type BrowserObservation,
 } from './browser.js';
+import { compactBrowserSnapshot } from './observation.js';
 import { createAgentBrowserProcess } from './agent-process.js';
 
 const ATTRIBUTE = 'data-botharness-ref';
@@ -191,7 +192,7 @@ export function createAgentBrowserRuntime(options: BotBrowserRuntimeOptions): Bo
     assertCurrent();
     references.set(tabId, new Set(exact.elements.map((element) => element.ref)));
     lastUrl = exact.url;
-    const text = result['snapshot'].replace(/\bref=e\d+\b/gu, 'read-only').slice(0, 12000);
+    const text = compactBrowserSnapshot(result['snapshot']);
     return { ...exact, text };
   };
   return {
