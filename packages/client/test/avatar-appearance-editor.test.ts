@@ -8,7 +8,7 @@ import {
   AVATAR_PRESETS,
   seededAvatarRecipe,
 } from '../../core/src/bots/avatar-appearance.js';
-import { seededLineRecipe } from '../../core/src/bots/avatar-line.js';
+import { LINE_PARTS, LINE_PRESETS, seededLineRecipe } from '../../core/src/bots/avatar-line.js';
 import { zhTranslate } from '../src/client/locale.js';
 
 describe('Profile Avatar Appearance editing', () => {
@@ -82,7 +82,10 @@ describe('Profile Avatar Appearance editing', () => {
       await click('[data-avatar-edit]');
       await click('[data-avatar-option="hair:bob"]');
       expect(container.querySelector('[data-avatar-preview] svg')).not.toBeNull();
-      expect(container.querySelector('[data-approval-count="2"]')).not.toBeNull();
+      expect(container.querySelector('[data-avatar-preview] [data-approval-count="2"]')).toBeNull();
+      expect(
+        container.querySelector('.bh-avatar-editor-title [data-approval-count="2"]'),
+      ).not.toBeNull();
       expect(container.querySelectorAll('[data-avatar-option^="hair:"]')).toHaveLength(
         AVATAR_PARTS.hair.length,
       );
@@ -160,7 +163,9 @@ describe('Profile Avatar Appearance editing', () => {
         container.querySelector('[data-avatar-family="line"]')?.getAttribute('aria-checked'),
       ).toBe('true');
       expect(container.querySelector('[data-avatar-option^="hair:"]')).toBeNull();
-      expect(container.querySelectorAll('[data-avatar-option^="eyes:"]')).toHaveLength(16);
+      expect(container.querySelectorAll('[data-avatar-option^="eyes:"]')).toHaveLength(
+        LINE_PARTS.eyes.length,
+      );
       await click('[data-avatar-option="eyes:cross"]');
       await click('[data-avatar-category="shape"]');
       const spacing = container.querySelector<HTMLInputElement>('input[name="spacing"]')!;

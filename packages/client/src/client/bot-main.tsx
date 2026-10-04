@@ -22,6 +22,7 @@ import {
 import {
   PersonaBotAvatar,
   PersonaBotFacepile,
+  PersonaBotStatusBadges,
   personaBotPresentationSummary,
   type PersonaBotFacepileItem,
 } from './avatar.js';
@@ -1132,6 +1133,7 @@ function ConversationView({
                     appearance={bot.appearance}
                     state={botActivity}
                     size={22}
+                    indicator={false}
                   />
                 ) : channelFacepile.length > 0 ? (
                   <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
@@ -1141,6 +1143,9 @@ function ConversationView({
                   </span>
                 )}
                 <span className="bh-title">{title}</span>
+                {bot === undefined ? null : (
+                  <PersonaBotStatusBadges state={botActivity} attention={bot.attention} />
+                )}
                 {bot === undefined || bot.roles.length === 0 ? null : (
                   <span className="bh-role-badges">
                     {bot.roles.map((role) => (
@@ -1169,8 +1174,13 @@ function ConversationView({
                     appearance={profileBot.appearance}
                     state={profileBotActivity}
                     size={22}
+                    indicator={false}
                   />
                   <span className="bh-title">{title}</span>
+                  <PersonaBotStatusBadges
+                    state={profileBotActivity}
+                    attention={profileBot.attention}
+                  />
                   {profileBot.roles.length === 0 ? null : (
                     <span className="bh-role-badges">
                       {profileBot.roles.map((role) => (
