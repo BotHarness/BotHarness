@@ -52,6 +52,7 @@ import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { ProfilePopover, ProfileView } from './personabot-profile.js';
 import { GroupProfilePopover, GroupProfileView } from './group-profile.js';
 import { personaBotActivity } from './persona-activity.js';
+import { groupComposerActivity } from './group-composer-activity.js';
 import {
   EMPTY_PROFILE_CARDS,
   loadPinnedProfileCards,
@@ -639,15 +640,17 @@ function ConversationView({
             },
           ];
   const composerActivity: ChannelComposerActivity | undefined =
-    composerFacepile.length === 0
-      ? undefined
-      : {
-          items: composerFacepile,
-          summary:
-            composerFacepile.length === 1
-              ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotPresentationSummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, composerFacepile[0]?.attention, t)}`
-              : t('main.activity.bots', { count: composerFacepile.length }),
-        };
+    channel?.type === 'group'
+      ? groupComposerActivity(channelFacepile, t)
+      : composerFacepile.length === 0
+        ? undefined
+        : {
+            items: composerFacepile,
+            summary:
+              composerFacepile.length === 1
+                ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotPresentationSummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, composerFacepile[0]?.attention, t)}`
+                : t('main.activity.bots', { count: composerFacepile.length }),
+          };
   const channelId = channel?.id;
   const activeMemoryView =
     selectedMemoryView?.channelId === channelId ? selectedMemoryView : undefined;
