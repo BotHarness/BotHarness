@@ -1,0 +1,105 @@
+{
+  "capturedAt": "2026-10-04T18:58:04.347Z",
+  "implementation": "6511c1c9",
+  "platform": "DSH 0.2.0-rc.1",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "off"
+  },
+  "settings": {
+    "unauthenticatedStatus": 401,
+    "failedTransportValue": 1,
+    "invalidHostMutations": [
+      {
+        "value": 0,
+        "code": "settings/rejected"
+      },
+      {
+        "value": 33,
+        "code": "settings/rejected"
+      },
+      {
+        "value": 1.5,
+        "code": "settings/rejected"
+      }
+    ],
+    "retainedValue": 1
+  },
+  "nativeToolResults": [
+    {
+      "orchestratorSessionId": "botharness-815cbb2c-2cdd-4fa0-923c-d3e739373a84",
+      "toolCallId": "call_00_iMuOoy6KWMyMFRBNk3K62697",
+      "result": {
+        "outcome": "capacity",
+        "code": "assignment-capacity",
+        "activeCount": 1,
+        "limit": 1,
+        "retryable": true,
+        "message": "Assignment Concurrency Limit 1 reached; retryable: true. Nothing was awakened. Wait for active work to settle before retrying.",
+        "sessionId": "botharness-f9387531-7a34-4075-a7a6-ef45432c1ba1",
+        "activity": "idle"
+      }
+    },
+    {
+      "orchestratorSessionId": "botharness-815cbb2c-2cdd-4fa0-923c-d3e739373a84",
+      "toolCallId": "call_00_0kNOuLNjPVLgONU7tV527486",
+      "result": {
+        "sessionId": "botharness-f9387531-7a34-4075-a7a6-ef45432c1ba1",
+        "activity": "working",
+        "delivery": "followup",
+        "modelRoute": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      }
+    },
+    {
+      "orchestratorSessionId": "botharness-815cbb2c-2cdd-4fa0-923c-d3e739373a84",
+      "toolCallId": "call_00_E1DSMuALMEtFhES50YYS5757",
+      "result": {
+        "outcome": "capacity",
+        "code": "assignment-capacity",
+        "activeCount": 2,
+        "limit": 1,
+        "retryable": true,
+        "message": "Assignment Concurrency Limit 1 reached; retryable: true. Nothing was created. Wait for active work to settle before retrying."
+      }
+    },
+    {
+      "orchestratorSessionId": "botharness-815cbb2c-2cdd-4fa0-923c-d3e739373a84",
+      "toolCallId": "call_00_cwgIy6b9jcNuGI1E70rg9837",
+      "result": {
+        "outcome": "capacity",
+        "code": "assignment-capacity",
+        "activeCount": 1,
+        "limit": 1,
+        "retryable": true,
+        "message": "Assignment Concurrency Limit 1 reached; retryable: true. Nothing was created. Wait for active work to settle before retrying."
+      }
+    }
+  ],
+  "lowering": {
+    "savedLimit": 1,
+    "activeCount": 2,
+    "workingSessions": [
+      "botharness-b52fa610-ab3d-44bc-bccd-f313ccad6f35",
+      "botharness-f9387531-7a34-4075-a7a6-ef45432c1ba1"
+    ]
+  },
+  "originalAssignment": {
+    "sessionId": "botharness-f9387531-7a34-4075-a7a6-ef45432c1ba1",
+    "permissionMode": "workspace-write",
+    "approval": "ask",
+    "permissionSnapshotPreserved": true,
+    "modelRoutePreserved": true,
+    "finalReportState": "completed",
+    "openAskClearedAfterSuccessfulDelivery": true,
+    "refusalPreservedCompleteSnapshot": true
+  },
+  "qaCleanup": {
+    "activeCount": 0,
+    "coldRestartSlotStopped": true
+  }
+}

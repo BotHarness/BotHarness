@@ -384,6 +384,8 @@ Assignment Session 是 DSH independent root，以 DSH `sessionId` 为 canonical 
 
 Assignment Runtime 的并发上限覆盖整个 Host 的所有 PersonaBot（默认 3），同时约束新建、按 Session 恢复空闲事项和按 Continuity Key 复用。恢复前先同步占用原有 Assignment Directory 的 working 名额，再交给 DSH；运行中的事项接收更新不增加名额。满额时返回 `assignment-capacity`、当前数量、上限和可重试标记，不启动执行、不清除待答问题、不改变模型或权限快照。事项停止确认前仍占名额；释放名额后，Orchestrator 可重试同一 Session，不引入等待队列（#811）。
 
+Human 在 Bot 模式设置中将此 Profile 级上限调整为 1–32。DSH 原生 Settings schema 的 Volatile field 由 Profile Config Editor 持久化；UI Plugin 的 Host Fiber 将 live reader 绑定到 application-defined Assignment Runtime，并在 dispose 时释放绑定。Client 只展示 Host 确认的保存值；Runtime 在每次新建或恢复空闲事项的准入时读取当前值。保存后立即影响后续准入，重启后保留；降低上限不中止已有执行，直到使用量低于新上限才允许启动新工作（#825）。
+
 待处理 Workspace Grant 请求通过同一持久 Human-action 查询进入独立 Activity attention。只有经过校验的 Grant 关联 Human 回复、Inbox 忽略或来源 DM 移除才清除计数；普通授权文字不会清除。重启从已提交 action 重建计数，不伪造执行状态。
 
 报告超过 2 KiB 时，Assignment Runtime 在提交 Inbox Admission 前把完整文本交给 DSH Spill Service 保存，并只将前缀预览、字节数、不透明 locator 与 provider 的检索提示写入 Assignment Directory、Source Event 和 Bot Inbox；单份报告上限为 1 MiB。Orchestrator 的 `inspect_assignment` 可通过 DSH Session Query 读取该事项最近四条原生日志事件（最多 12,000 个字符），也可指定 `report_offset` 从已接收报告的原生 `tool/call` 事件每次读取至多 2,000 个字符，并通过 `nextOffset` 继续；两种读取均先核实事项归属，返回查询条数、实际读取量与估算 token 成本。Spill Service 仅负责保存且 locator 对消费者不透明；Orchestrator 即使不能直接读取本地 Spill 路径，也能通过 Session Query 找回该报告，不额外建立一份全文报告数据库。
