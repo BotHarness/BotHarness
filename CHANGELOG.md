@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Group activity now names each active PersonaBot in the compact summary and expanded list, with keyboard-accessible avatars showing the same safe shared status ([#124](https://github.com/BotHarness/BotHarness/issues/124)).
+
 - Added explicit Chrome Profile pairing for cross-tab discovery, navigation and ref-based webpage control, preserving Browser Access, Session approval and Pause ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0123](docs/adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
 
 - Shared Channel members can explicitly answer an external Lark source using their own independently authorized identity, with inspectable sender/source details and one durable reply per member/source ([#637](https://github.com/BotHarness/BotHarness/issues/637)).

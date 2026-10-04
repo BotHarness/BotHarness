@@ -766,6 +766,8 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   flex: 0 0 auto;
   padding-right: 3px;
 }
+.bh-avatar-facepile-button { display: inline-flex; flex: none; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.bh-avatar-facepile-button:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
 .bh-avatar-facepile > * + * {
   margin-left: -7px;
 }

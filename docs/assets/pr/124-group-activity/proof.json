@@ -1,0 +1,1195 @@
+{
+  "scene": {
+    "channelId": "group-group-activity-human-qa-1791093138469",
+    "name": "Group activity Human QA 1791093138469",
+    "bots": [
+      {
+        "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+        "name": "Orbit QA 1791093138469"
+      },
+      {
+        "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+        "name": "Nova QA 1791093138469"
+      },
+      {
+        "slug": "bot-504619341e694fadad639d1e17cbc40a",
+        "name": "Quiet QA 1791093138469"
+      },
+      {
+        "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+        "name": "Long quiet member for overflow QA 1791093138469"
+      }
+    ]
+  },
+  "collapsed": "Orbit QA 1791093138469 正在执行 / Nova QA 1791093138469 正在执行",
+  "summaries": [
+    {
+      "state": "working",
+      "effect": "executing",
+      "title": "Orbit QA 1791093138469 · 正在执行 · bash · 主会话"
+    },
+    {
+      "state": "working",
+      "effect": "executing",
+      "title": "Nova QA 1791093138469 · 正在执行 · bash · 主会话"
+    }
+  ],
+  "working": {
+    "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+    "revision": 40,
+    "bots": [
+      {
+        "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+        "state": "working",
+        "activity": {
+          "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+          "effect": "executing",
+          "toolKind": "execute",
+          "toolName": "bash",
+          "startedAt": 1791094285116,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "orchestrator",
+              "count": 1
+            }
+          ]
+        },
+        "sessions": [
+          {
+            "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+            "role": "orchestrator",
+            "name": "Verify my Group activity",
+            "at": 1791094285116,
+            "revision": 35,
+            "state": "working",
+            "activity": {
+              "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+              "effect": "executing",
+              "toolKind": "execute",
+              "toolName": "bash",
+              "startedAt": 1791094285116,
+              "activeToolCount": 1,
+              "sources": [
+                {
+                  "role": "orchestrator",
+                  "count": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "slug": "bot-504619341e694fadad639d1e17cbc40a",
+        "state": "idle"
+      },
+      {
+        "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+        "state": "working",
+        "activity": {
+          "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+          "effect": "executing",
+          "toolKind": "execute",
+          "toolName": "bash",
+          "startedAt": 1791094290342,
+          "activeToolCount": 1,
+          "sources": [
+            {
+              "role": "orchestrator",
+              "count": 1
+            }
+          ]
+        },
+        "sessions": [
+          {
+            "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+            "role": "orchestrator",
+            "name": "Verify Group activity shell command",
+            "at": 1791094290342,
+            "revision": 37,
+            "state": "working",
+            "activity": {
+              "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+              "effect": "executing",
+              "toolKind": "execute",
+              "toolName": "bash",
+              "startedAt": 1791094290342,
+              "activeToolCount": 1,
+              "sources": [
+                {
+                  "role": "orchestrator",
+                  "count": 1
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+        "state": "idle"
+      }
+    ]
+  },
+  "settled": {
+    "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+    "revision": 48,
+    "bots": [
+      {
+        "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+        "state": "idle"
+      },
+      {
+        "slug": "bot-504619341e694fadad639d1e17cbc40a",
+        "state": "idle"
+      },
+      {
+        "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+        "state": "idle"
+      },
+      {
+        "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+        "state": "idle"
+      }
+    ]
+  },
+  "frames": [
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 32,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 33,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094283296,
+              "revision": 33,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 34,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094283296,
+              "revision": 33,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094283305,
+              "revision": 34,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 35,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094285116,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094285116,
+              "revision": 35,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094285116,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094283305,
+              "revision": 34,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 36,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094285116,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094285116,
+              "revision": 35,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094285116,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094283305,
+              "revision": 34,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 37,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094285116,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094285116,
+              "revision": 35,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094285116,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094290342,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094290342,
+              "revision": 37,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094290342,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 38,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094285116,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094285116,
+              "revision": 35,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094285116,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094290342,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094290342,
+              "revision": 37,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094290342,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 39,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094285116,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094285116,
+              "revision": 35,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094285116,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094290342,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094290342,
+              "revision": 37,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094290342,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ],
+          "attention": {
+            "approvalCount": 1
+          }
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 40,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094285116,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094285116,
+              "revision": 35,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-aa7f1136-b4c8-44b7-86da-ebff10efea6f"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094285116,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094290342,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094290342,
+              "revision": 37,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094290342,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 41,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094336492,
+              "revision": 41,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+            "effect": "executing",
+            "toolKind": "execute",
+            "toolName": "bash",
+            "startedAt": 1791094290342,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094290342,
+              "revision": 37,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-35f1c857-ae42-4e81-8269-b0fc18f55e88"],
+                "effect": "executing",
+                "toolKind": "execute",
+                "toolName": "bash",
+                "startedAt": 1791094290342,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 42,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094336492,
+              "revision": 41,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094336502,
+              "revision": 42,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 43,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094336492,
+              "revision": 41,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-8594ea91-d517-41b8-bf68-c20e989d4dd2"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "channel_send",
+            "startedAt": 1791094337769,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094337770,
+              "revision": 43,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-8594ea91-d517-41b8-bf68-c20e989d4dd2"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "channel_send",
+                "startedAt": 1791094337769,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 44,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094336492,
+              "revision": 41,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094337807,
+              "revision": 44,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 45,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "working",
+          "activity": {
+            "detailRefs": ["tool-detail-4a6ec783-441b-41d0-9a0e-674306556928"],
+            "effect": "generic-working",
+            "toolKind": "other",
+            "toolName": "channel_send",
+            "startedAt": 1791094338121,
+            "activeToolCount": 1,
+            "sources": [
+              {
+                "role": "orchestrator",
+                "count": 1
+              }
+            ]
+          },
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094338122,
+              "revision": 45,
+              "state": "working",
+              "activity": {
+                "detailRefs": ["tool-detail-4a6ec783-441b-41d0-9a0e-674306556928"],
+                "effect": "generic-working",
+                "toolKind": "other",
+                "toolName": "channel_send",
+                "startedAt": 1791094338121,
+                "activeToolCount": 1,
+                "sources": [
+                  {
+                    "role": "orchestrator",
+                    "count": 1
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094337807,
+              "revision": 44,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 46,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094338141,
+              "revision": 46,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-ba1fb507-dce4-403d-9697-48309226463e",
+              "role": "orchestrator",
+              "name": "Verify Group activity shell command",
+              "at": 1791094337807,
+              "revision": 44,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 47,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "thinking",
+          "sessions": [
+            {
+              "id": "activity-be52cee6-7115-4931-bfd3-95c01543164a",
+              "role": "orchestrator",
+              "name": "Verify my Group activity",
+              "at": 1791094338141,
+              "revision": 46,
+              "state": "thinking"
+            }
+          ]
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "cd9bf405-0cc8-4cc8-9ba6-eb4b935b82bd",
+      "revision": 48,
+      "bots": [
+        {
+          "slug": "bot-3d0a9886c63b4560a240feceb5fe29ce",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-504619341e694fadad639d1e17cbc40a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-d05f53c2c7a5483caaa555cef1c2052a",
+          "state": "idle"
+        },
+        {
+          "slug": "bot-fd09b8b090074383a8242b5d2a1c432d",
+          "state": "idle"
+        }
+      ]
+    }
+  ],
+  "overflow": false,
+  "clientErrors": [],
+  "baseline": false
+}
