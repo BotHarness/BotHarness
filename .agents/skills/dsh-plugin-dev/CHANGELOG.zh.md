@@ -10,6 +10,7 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 ### Documentation
 
 - 在[调试手册](../dsh-dev/references/debugging-playbook.md)记录 DSH 优先从 CLI 安装位置解析 Bundle，以及 pnpm 12 产物覆盖配置的位置，已通过独立安装的官方 DSH 0.2.0 RC1 和真实打包 Client 组件列表验证（[#823](https://github.com/BotHarness/BotHarness/issues/823)）。
+- 在[本地开发指南](../dsh-dev/SKILL.md)记录隔离启动超时后遗留重复 Host 导致 operational writer 租约拒绝的情况；通过 DSH 0.2.0 RC1 的 Assignment 容量 QA 验证（[#811](https://github.com/BotHarness/BotHarness/issues/811)）。
 
 - 在[本地开发指南](../dsh-dev/SKILL.md)记录原生 Tool 批准与实际 Shell 执行需要分别取证；保留真实 Orchestrator 工作区拒绝，并在 DSH 0.2.0 RC1 验证已授权 Assignment 执行 ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 

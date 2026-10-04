@@ -70,3 +70,40 @@ describe('Host Group invitation policy binding', () => {
     expect(effects[0]).toBe(dispose);
   });
 });
+
+describe('Host Assignment limit binding', () => {
+  it('binds the live volatile value and releases it with its Fiber', () => {
+    const config = Config({ assignmentConcurrencyLimit: 2 });
+    let read: (() => number) | undefined;
+    const dispose = vi.fn();
+    const ctx = {
+      inject: (deps: string[], callback: (ctx: unknown) => unknown) => {
+        if (deps.includes('botharness'))
+          callback({
+            botharness: {
+              configureGroupInvitations: () => () => undefined,
+              configureAssignmentConcurrencyLimit: (value: () => number) => {
+                read = value;
+                return dispose;
+              },
+            },
+            effect: (factory: () => unknown) => factory(),
+          });
+      },
+    };
+    apply(ctx as never, config);
+    expect(read?.()).toBe(2);
+    config.assignmentConcurrencyLimit = Config({
+      assignmentConcurrencyLimit: 5,
+    }).assignmentConcurrencyLimit;
+    expect(read?.()).toBe(5);
+  });
+  it.each([0, 33, 1.5, NaN, Infinity, '3'])('rejects invalid Host config %s', (value) => {
+    expect(() => Config({ assignmentConcurrencyLimit: value as never })).toThrow();
+  });
+  it('defaults old Profiles to three and accepts both range boundaries', () => {
+    expect(Config({}).assignmentConcurrencyLimit.get()).toBe(3);
+    expect(Config({ assignmentConcurrencyLimit: 1 }).assignmentConcurrencyLimit.get()).toBe(1);
+    expect(Config({ assignmentConcurrencyLimit: 32 }).assignmentConcurrencyLimit.get()).toBe(32);
+  });
+});

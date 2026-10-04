@@ -750,6 +750,15 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
 .bh-persona-avatar svg[data-pixel-cover] [data-avatar-turn] {
   visibility: hidden;
 }
+.bh-avatar-editor-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bh-channel-island .bh-row-status,
+.bh-pinned .bh-row-status {
+  margin-left: 4px;
+}
 .bh-row-status {
   display: inline-flex;
   align-items: center;
@@ -1734,8 +1743,6 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-avatar-color-row input { width: 32px; height: 26px; padding: 0 2px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-bg-base); }
 .bh-avatar-editor-fields :focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
 .bh-avatar-media-composed svg { image-rendering: pixelated; }
-.bh-persona-avatar[data-attention-mark='true'] [data-avatar-attention-mark] { opacity: 1; }
-.bh-persona-avatar[data-attention-mark='true'] [data-avatar-symbol] { opacity: 0; }
 .bh-personabot-name-row { display: flex; align-items: center; gap: 10px; }
 .bh-personabot-name-row > :last-child { flex: 1; min-width: 0; }
 @media (max-width: 640px) { .bh-avatar-editor { grid-template-columns: minmax(0, 1fr); } .bh-avatar-options { grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); } }
@@ -4630,6 +4637,14 @@ button.bh-bot-nav > svg {
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
+.bh-assignment-limit-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.bh-assignment-limit-controls > :first-child { width: 76px; }
+.bh-assignment-limit-error { color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
 .bh-settings-selector {
   display: inline-flex;
   align-items: center;

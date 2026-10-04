@@ -4,6 +4,7 @@ import Schema from '@deepseek-ai/schemastery';
 
 import {
   BOT_MODE_ICONS,
+  DEFAULT_ASSIGNMENT_CONCURRENCY_LIMIT,
   BOT_MODE_MOTION_PREFERENCES,
   BOT_MODE_SORT_MODES,
   DEFAULT_BOT_MODE_ICON,
@@ -20,6 +21,7 @@ import {
 export const name = 'botharness-client';
 
 export interface Config {
+  assignmentConcurrencyLimit: Volatile<number>;
   autoAcceptGroupInvites: Volatile<boolean>;
   developerMode: Volatile<boolean>;
   botIcon: Volatile<BotModeIcon>;
@@ -29,6 +31,12 @@ export interface Config {
 }
 
 export const Config: Schema<Partial<BotModeSettings>, Config> = Schema.object({
+  assignmentConcurrencyLimit: Schema.number()
+    .min(1)
+    .max(32)
+    .step(1)
+    .default(DEFAULT_ASSIGNMENT_CONCURRENCY_LIMIT)
+    .volatile(),
   autoAcceptGroupInvites: Schema.boolean().default(DEFAULT_BOT_MODE_GROUP_AUTO_ACCEPT).volatile(),
   developerMode: Schema.boolean().default(DEFAULT_BOT_MODE_DEVELOPER).volatile(),
   botIcon: Schema.union([...BOT_MODE_ICONS])
@@ -49,13 +57,23 @@ export function apply(ctx: Context, config?: Config): void {
   ctx.inject(['botharness'], (child) => {
     const core = (
       child as unknown as {
-        botharness?: { configureGroupInvitations(autoAccept: () => boolean): () => void };
+        botharness?: {
+          configureGroupInvitations(autoAccept: () => boolean): () => void;
+          configureAssignmentConcurrencyLimit?(read: () => number): () => void;
+        };
       }
     ).botharness;
-    if (core !== undefined)
+    if (core === undefined) return;
+    child.effect(() =>
+      core.configureGroupInvitations(
+        () => config?.autoAcceptGroupInvites.get() ?? DEFAULT_BOT_MODE_GROUP_AUTO_ACCEPT,
+      ),
+    );
+    const configureLimit = core.configureAssignmentConcurrencyLimit;
+    if (configureLimit !== undefined)
       child.effect(() =>
-        core.configureGroupInvitations(
-          () => config?.autoAcceptGroupInvites.get() ?? DEFAULT_BOT_MODE_GROUP_AUTO_ACCEPT,
+        configureLimit(
+          () => config?.assignmentConcurrencyLimit.get() ?? DEFAULT_ASSIGNMENT_CONCURRENCY_LIMIT,
         ),
       );
   });

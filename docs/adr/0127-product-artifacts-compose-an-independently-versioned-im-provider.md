@@ -23,7 +23,7 @@ application-defined facts owned by BotHarness. Package composition grants no
 access and creates no connected account.
 
 The first input is the compiled maintained fork at
-[`b020d3bab941aeb9acc303b719e691554ef10ec4`](https://github.com/DoodleBears/dsh-im/commit/b020d3bab941aeb9acc303b719e691554ef10ec4),
+[`b442da91b267412e84a4d18224adc30777024862`](https://github.com/DoodleBears/dsh-im/commit/b442da91b267412e84a4d18224adc30777024862),
 on DSH `0.2.0-rc.1`. The builder checks the fixed runtime, package manifest and
 build lock digests before staging. It changes the package/Client registration
 identity and replaces standalone update controls with product-managed updates;
@@ -33,7 +33,7 @@ and rebuilt runtime digest. The product artifact inventory records each tarball'
 SHA-512 integrity. Neither an unchanged upstream version string nor a successful
 package install substitutes for a real qualified Host and model round trip.
 
-Provider `4.32.0-botharness.1` is independently versioned; a change to its shipped
+Provider `4.32.0-botharness.2` is independently versioned; a change to its shipped
 code requires another Provider version and deliberate requalification. The
 Provider cannot update itself to the incompatible upstream npm package. Reusable
 contract improvements should still be proposed upstream; a merged upstream PR is

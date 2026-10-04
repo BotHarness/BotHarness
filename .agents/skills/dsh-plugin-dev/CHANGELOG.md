@@ -11,6 +11,7 @@ Preparing the next DSH Skill release independently from downstream product relea
 ### Documentation
 
 - Recorded DSH's installation-first Bundle resolution and pnpm 12 artifact override location in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), verified with an independent official DSH 0.2.0 RC1 installation and actual packaged Client inventory ([#823](https://github.com/BotHarness/BotHarness/issues/823)).
+- Recorded a duplicate detached Host after a timed-out isolated launch and the resulting operational writer lease refusal in the [local development guide](../dsh-dev/SKILL.md), verified with DSH 0.2.0 RC1 during Assignment capacity QA ([#811](https://github.com/BotHarness/BotHarness/issues/811)).
 
 - Recorded that native Tool approval and actual Shell execution require separate evidence in the [local development guide](../dsh-dev/SKILL.md), preserving a real Orchestrator workspace refusal while verifying a granted Assignment execution on DSH 0.2.0 RC1 ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 

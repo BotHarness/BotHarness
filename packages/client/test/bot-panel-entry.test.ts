@@ -42,6 +42,7 @@ const useBotModePrefs = ((selector: (value: BotModePrefsSnapshot) => unknown) =>
     motionPreference: 'system',
     botIcon: 'mascot' as const,
     autoAcceptGroupInvites: true,
+    assignmentConcurrencyLimit: 3,
     developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',

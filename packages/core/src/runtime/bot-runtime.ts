@@ -136,15 +136,24 @@ export interface AssignmentEventTail {
   estimatedTokens: number;
 }
 
+export interface AssignmentCapacityRefusal {
+  outcome: 'capacity';
+  code: 'assignment-capacity';
+  activeCount: number;
+  limit: number;
+  retryable: true;
+  message: string;
+}
+
 export type AssignmentCreateOutcome =
   | { outcome: 'created'; assignment: AssignmentSummary }
   | { outcome: 'reused'; assignment: AssignmentSummary }
-  | { outcome: 'key-busy' | 'capacity'; message: string };
+  | { outcome: 'key-busy'; message: string }
+  | AssignmentCapacityRefusal;
 
-export interface AssignmentRequestOutcome {
-  assignment: AssignmentSummary;
-  delivery: 'steer' | 'followup';
-}
+export type AssignmentRequestOutcome =
+  | { assignment: AssignmentSummary; delivery: 'steer' | 'followup' }
+  | (AssignmentCapacityRefusal & { assignment: AssignmentSummary; delivery: 'capacity' });
 
 export interface OrchestratorAssignmentAccess {
   wait?(sessionId: string, signal: AbortSignal, timeoutMs?: number): Promise<AssignmentWaitOutcome>;
@@ -465,7 +474,7 @@ export interface BotRuntimeOptions {
 
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
 
-  assignmentConcurrencyLimit?: number;
+  assignmentConcurrencyLimit?: number | (() => number);
 
   warn?: (message: string) => void;
   now?: () => Date;
@@ -685,7 +694,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
     if (unit.external !== undefined) {
-      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
+      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, attachments: unit.external.event.attachments?.map(({ id, name, sizeBytes, mediaType }) => ({ id, name, sizeBytes, mediaType })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
     }
     if (unit.sourceKind === 'memory-change') {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
@@ -764,7 +773,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #createSessionId: () => string;
   readonly #createEventId: () => string;
   readonly #createMessageId: () => string;
-  readonly #assignmentConcurrencyLimit: number;
+  readonly #assignmentConcurrencyLimit: () => number;
   readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
@@ -809,10 +818,9 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#createSessionId = options.createSessionId ?? (() => `botharness-${randomUUID()}`);
     this.#createEventId = options.createEventId ?? (() => randomUUID());
     this.#createMessageId = options.createMessageId ?? (() => randomUUID());
-    this.#assignmentConcurrencyLimit = Math.min(
-      Math.max(options.assignmentConcurrencyLimit ?? 3, 1),
-      32,
-    );
+    const configuredLimit = options.assignmentConcurrencyLimit ?? 3;
+    this.#assignmentConcurrencyLimit =
+      typeof configuredLimit === 'function' ? configuredLimit : () => configuredLimit;
     this.#warn = options.warn;
 
     if (options.database.mode === 'ready') {
@@ -2950,7 +2958,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       request: (input) => {
         const outcome = this.#requestAssignment(bot, input);
-        markSideEffect();
+        if (outcome.delivery !== 'capacity') markSideEffect();
         return outcome;
       },
       wait: (sessionId, signal, timeoutMs = 30000) => {
@@ -4303,11 +4311,15 @@ class BotRuntimeImplementation implements BotRuntime {
           throw new Error(
             'An existing keyed Assignment keeps its model; use a new key for a new model choice',
           );
-        this.#requestAssignment(bot, {
+        const request = this.#requestAssignment(bot, {
           sessionId: holder.session_id,
           mode: 'next-turn',
           text: purpose,
         });
+        if (request.delivery === 'capacity') {
+          const { assignment: _assignment, delivery: _delivery, ...refusal } = request;
+          return refusal;
+        }
         return {
           outcome: 'reused',
           assignment: this.#requireAssignmentSummary(bot.slug, holder.session_id),
@@ -4320,12 +4332,8 @@ class BotRuntimeImplementation implements BotRuntime {
         };
       }
     }
-    if (this.#activeAssignmentCount() >= this.#assignmentConcurrencyLimit) {
-      return {
-        outcome: 'capacity',
-        message: `Assignment Concurrency Limit ${this.#assignmentConcurrencyLimit} reached; retryable: true. Nothing was created.`,
-      };
-    }
+    const refusal = this.#assignmentCapacityRefusal('created');
+    if (refusal !== undefined) return refusal;
     const sessionId = this.#createSessionId();
     const createdAt = this.#now().toISOString();
     this.#database.transaction(
@@ -4425,6 +4433,18 @@ class BotRuntimeImplementation implements BotRuntime {
         throw new Error('Apply a Model Preset before choosing an Assignment model');
       modelRoute = selectAssignmentRoute(plan, input.model);
     }
+    const waking = row.activity === 'idle';
+    if (waking) {
+      const refusal = this.#assignmentCapacityRefusal('awakened');
+      if (refusal !== undefined) {
+        return {
+          ...refusal,
+          assignment: this.#requireAssignmentSummary(bot.slug, input.sessionId),
+          delivery: 'capacity',
+        };
+      }
+      this.#setActivity(input.sessionId, 'working');
+    }
     if (row.open_ask_source_event_id !== null) {
       this.#database.transaction(
         (database) => {
@@ -4448,7 +4468,13 @@ class BotRuntimeImplementation implements BotRuntime {
       ...(modelRoute === undefined ? {} : { modelRoute }),
       report: async (report) => this.#recordReport(bot.slug, input.sessionId, report),
     };
-    const delivery = this.#agents.requestAssignment(run);
+    let delivery: AssignmentRequestDelivery;
+    try {
+      delivery = this.#agents.requestAssignment(run);
+    } catch (error) {
+      if (waking) this.#setActivity(input.sessionId, 'idle');
+      throw error;
+    }
     if (input.model !== undefined) {
       this.#database.transaction(
         (database) => {
@@ -4608,6 +4634,24 @@ class BotRuntimeImplementation implements BotRuntime {
         .get() as { count: number };
       return row.count;
     });
+  }
+
+  #assignmentCapacityRefusal(
+    action: 'created' | 'awakened',
+  ): AssignmentCapacityRefusal | undefined {
+    const activeCount = this.#activeAssignmentCount();
+    const limit = this.#assignmentConcurrencyLimit();
+    if (!Number.isInteger(limit) || limit < 1 || limit > 32)
+      throw new Error('Invalid Assignment Concurrency Limit; expected an integer from 1 to 32');
+    if (activeCount < limit) return undefined;
+    return {
+      outcome: 'capacity',
+      code: 'assignment-capacity',
+      activeCount,
+      limit,
+      retryable: true,
+      message: `Assignment Concurrency Limit ${limit} reached; retryable: true. Nothing was ${action}. Wait for active work to settle before retrying.`,
+    };
   }
 
   #requireAssignmentSummary(botSlug: string, sessionId: string): AssignmentSummary {

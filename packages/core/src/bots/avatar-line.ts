@@ -18,8 +18,15 @@ export const LINE_PARTS = {
     'star',
     'gentle',
     'cute',
+    'big',
+    'heart',
+    'hollow',
+    'ovals',
+    'caret',
+    'glare',
+    'droopy',
   ],
-  brows: ['flat', 'arched', 'raised', 'angry', 'worried', 'none'],
+  brows: ['flat', 'arched', 'raised', 'angry', 'worried', 'thick', 'maro', 'thin', 'none'],
   nose: ['line', 'hook', 'curve', 'long', 'dot', 'none'],
   mouth: [
     'flat',
@@ -35,6 +42,13 @@ export const LINE_PARTS = {
     'angry',
     'kiss',
     'shocked',
+    'triangle',
+    'teeth',
+    'fang',
+    'dot',
+    'pout',
+    'nervous',
+    'bigopen',
   ],
   cheeks: ['none', 'lines', 'dots'],
   glasses: ['none', 'round', 'square'],
@@ -91,6 +105,115 @@ export const DEFAULT_LINE_RECIPE: LineAvatarRecipe = {
   inkColor: '#1d2433',
 };
 
+const linePreset = (parts: Partial<LineAvatarRecipe>): LineAvatarRecipe => ({
+  ...DEFAULT_LINE_RECIPE,
+  ...parts,
+});
+
+export const LINE_PRESETS: readonly LineAvatarRecipe[] = [
+  linePreset({
+    eyes: 'big',
+    brows: 'thin',
+    nose: 'none',
+    mouth: 'bigopen',
+    cheeks: 'dots',
+    backgroundColor: '#f3d9d2',
+    inkColor: '#4a2a4a',
+  }),
+  linePreset({
+    eyes: 'dots',
+    brows: 'flat',
+    nose: 'line',
+    mouth: 'smile',
+    backgroundColor: '#cfe3f3',
+    inkColor: '#1f3a5f',
+  }),
+  linePreset({
+    eyes: 'caret',
+    brows: 'none',
+    nose: 'none',
+    mouth: 'omega',
+    cheeks: 'lines',
+    backgroundColor: '#f6e3b4',
+    inkColor: '#3b2a20',
+  }),
+  linePreset({
+    eyes: 'glare',
+    brows: 'angry',
+    nose: 'hook',
+    mouth: 'fang',
+    backgroundColor: '#f7c9b0',
+    inkColor: '#2a2230',
+  }),
+  linePreset({
+    eyes: 'heart',
+    brows: 'arched',
+    nose: 'dot',
+    mouth: 'triangle',
+    cheeks: 'dots',
+    backgroundColor: '#e2d8f3',
+    inkColor: '#4a2a4a',
+  }),
+  linePreset({
+    eyes: 'hollow',
+    brows: 'raised',
+    nose: 'none',
+    mouth: 'pout',
+    backgroundColor: '#c9ece4',
+    inkColor: '#2f4a3a',
+  }),
+  linePreset({
+    eyes: 'droopy',
+    brows: 'worried',
+    nose: 'curve',
+    mouth: 'nervous',
+    backgroundColor: '#d6ead2',
+    inkColor: '#1d2433',
+  }),
+  linePreset({
+    eyes: 'ovals',
+    brows: 'maro',
+    nose: 'none',
+    mouth: 'dot',
+    cheeks: 'dots',
+    backgroundColor: '#f2f0ea',
+    inkColor: '#2a2230',
+  }),
+  linePreset({
+    eyes: 'tight',
+    brows: 'thick',
+    nose: 'line',
+    mouth: 'teeth',
+    backgroundColor: '#f3d9d2',
+    inkColor: '#1d2433',
+  }),
+  linePreset({
+    eyes: 'sleepy',
+    brows: 'flat',
+    nose: 'none',
+    mouth: 'wave',
+    backgroundColor: '#cfe3f3',
+    inkColor: '#1f3a5f',
+  }),
+  linePreset({
+    eyes: 'star',
+    brows: 'thin',
+    nose: 'none',
+    mouth: 'grin',
+    backgroundColor: '#f6e3b4',
+    inkColor: '#4a2a4a',
+  }),
+  linePreset({
+    eyes: 'dots',
+    brows: 'none',
+    nose: 'long',
+    mouth: 'smirk',
+    glasses: 'round',
+    backgroundColor: '#e2d8f3',
+    inkColor: '#2f4a3a',
+  }),
+];
+
 const LINE_PART_KEYS = Object.keys(LINE_PARTS) as LinePart[];
 const LINE_RANGE_KEYS = Object.keys(LINE_RANGES) as LineRange[];
 
@@ -135,7 +258,7 @@ export function seededLineRecipe(seed: string): LineAvatarRecipe {
   const recipe: Record<string, unknown> = { ...DEFAULT_LINE_RECIPE };
   for (const part of LINE_PART_KEYS) recipe[part] = pick(LINE_PARTS[part]);
   recipe['glasses'] = pick(['none', 'none', 'none', 'round', 'square']);
-  recipe['symbol'] = pick(['none', 'none', 'none', 'none', ...LINE_PARTS.symbol.slice(1)]);
+  recipe['symbol'] = 'none';
   for (const key of LINE_RANGE_KEYS) {
     const [min, max] = LINE_RANGES[key];
     recipe[key] = Math.round(min / 2 + (random() * (max - min)) / 2);
@@ -187,9 +310,6 @@ export function lineMorphFace(recipe: LineAvatarRecipe): {
     tilt: recipe.tilt,
   };
 }
-
-const ATTENTION_MARK =
-  '<g data-avatar-attention-mark="" opacity="0" fill="none" stroke="#e2565f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.5L5.5 9.5"/><circle cx="5.5" cy="12.5" r=".7" fill="#e2565f"/><path d="M8.5 5.2Q8.5 3.2 10.6 3.2Q12.7 3.2 12.7 5.2Q12.7 6.9 10.6 7.8L10.6 9.6"/><circle cx="10.6" cy="12.5" r=".7" fill="#e2565f"/></g>';
 
 function fmt(n: number): string {
   return String(Math.round(n * 100) / 100);
@@ -245,6 +365,20 @@ function eye(
       return `<path d="M${X(-dir * w * 0.6)} ${y + 1.2}L${X(dir * w * 0.7)} ${y - 1.4}"/>`;
     case 'cute':
       return `<ellipse cx="${X(0)}" cy="${y}" rx="${fmt(2.7 * k)}" ry="2.9" fill="${ink}" stroke="none"/><circle cx="${X(0.9 * k)}" cy="${y - 1}" r=".9" fill="#ffffff" stroke="none"/>`;
+    case 'big':
+      return `<ellipse cx="${X(0)}" cy="${y + 0.5}" rx="${fmt(3.4 * k)}" ry="3.9" fill="${ink}" stroke="none"/><circle cx="${X(1.2 * k)}" cy="${y - 1}" r="1.2" fill="#ffffff" stroke="none"/><circle cx="${X(-1.2 * k)}" cy="${y + 2}" r=".6" fill="#ffffff" stroke="none"/>`;
+    case 'heart':
+      return `<path d="M${X(0)} ${fmt(y + 2.8)}Q${X(-3.4 * k)} ${fmt(y + 0.2)} ${X(-3.1 * k)} ${fmt(y - 1.4)}A${fmt(1.6 * k)} 1.6 0 0 1 ${X(0)} ${fmt(y - 1.6)}A${fmt(1.6 * k)} 1.6 0 0 1 ${X(3.1 * k)} ${fmt(y - 1.4)}Q${X(3.4 * k)} ${fmt(y + 0.2)} ${X(0)} ${fmt(y + 2.8)}Z" fill="${ink}" stroke-width="1"/>`;
+    case 'hollow':
+      return `<ellipse cx="${X(0)}" cy="${y}" rx="${fmt(2.4 * k)}" ry="2.4" stroke-width="2.2"/>`;
+    case 'ovals':
+      return `<ellipse cx="${X(0)}" cy="${y}" rx="${fmt(1.5 * k)}" ry="3.2" fill="${ink}" stroke="none"/>`;
+    case 'caret':
+      return `<path d="M${X(-w)} ${y + 1.6}L${X(0)} ${y - 1.8}L${X(w)} ${y + 1.6}"/>`;
+    case 'glare':
+      return `<path d="M${X(-w)} ${y - 1}L${X(w)} ${y - 1}"/><path d="M${X(-1.8 * k)} ${y - 0.4}A${fmt(1.8 * k)} 1.9 0 0 0 ${X(1.8 * k)} ${y - 0.4}Z" fill="${ink}" stroke="none"/>`;
+    case 'droopy':
+      return `<path d="M${X(-dir * w)} ${y - 1.2}Q${X(0)} ${y - 1.6} ${X(dir * w)} ${y + 1.4}"/><circle cx="${X(-dir * 0.4 * k)}" cy="${y + 1.4}" r="1.2" fill="${ink}" stroke="none"/>`;
   }
 }
 
@@ -275,6 +409,12 @@ function brow(
       return `<path d="M${at(1, -1.2)}L${at(-1, 1.2)}"/>`;
     case 'worried':
       return `<path d="M${at(1, 1.2)}L${at(-1, -1.2)}"/>`;
+    case 'thick':
+      return `<path d="M${at(1, 0.3)}Q${at(0, -1.2)} ${at(-1, 0.3)}" stroke-width="4.2"/>`;
+    case 'maro':
+      return `<path d="M${fmt(x - 0.8 * k)} ${fmt(y - 0.5)}L${fmt(x + 0.8 * k)} ${fmt(y - 0.5)}" stroke-width="3.6"/>`;
+    case 'thin':
+      return `<path d="M${at(1.1, 0.4)}Q${at(0, -2.6)} ${at(-1.1, 0.4)}" stroke-width="1.5"/>`;
   }
 }
 
@@ -338,25 +478,22 @@ function mouth(
       return `<path d="M${p(-0.15, -2)}Q${p(0.45, -1.9)} ${p(0.2, 0)}Q${p(0.45, 1.9)} ${p(-0.15, 2)}"/>`;
     case 'shocked':
       return `<rect x="${fmt(x - 2.4 * k)}" y="${y - 1.6}" width="${fmt(4.8 * k)}" height="4.6" rx="1"/>`;
+    case 'triangle':
+      return `<path d="M${p(-0.75, -0.8)}L${p(0.75, -0.8)}L${p(0, 3)}Z"/>`;
+    case 'teeth':
+      return `<path d="M${p(-1, -0.8)}L${p(1, -0.8)}Q${p(1, 3.6)} ${p(0, 3.6)}Q${p(-1, 3.6)} ${p(-1, -0.8)}Z"/><path d="M${p(-0.95, 0.9)}L${p(0.95, 0.9)}" stroke-width="1.4"/>`;
+    case 'fang':
+      return `<path d="M${p(-1, -0.5)}Q${p(0, 3)} ${p(1, -0.5)}"/><path d="M${p(0.32, 1.2)}L${p(0.45, 2.9)}L${p(0.62, 0.9)}" fill="#ffffff" stroke-width="1.2"/>`;
+    case 'dot':
+      return `<circle cx="${fmt(x)}" cy="${y + 0.6}" r="1.4" fill="${ink}" stroke="none"/>`;
+    case 'pout':
+      return `<path d="M${p(-0.2, -2.2)}Q${p(0.55, -1.8)} ${p(0.05, 0)}Q${p(0.55, 1.8)} ${p(-0.2, 2.2)}"/>`;
+    case 'nervous':
+      return `<path d="M${p(-1, 0.6)}L${p(-0.6, -0.8)}L${p(-0.2, 0.6)}L${p(0.2, -0.8)}L${p(0.6, 0.6)}L${p(1, -0.8)}"/>`;
+    case 'bigopen':
+      return `<path d="M${p(-1, -1)}L${p(1, -1)}Q${p(1, 5)} ${p(0, 5)}Q${p(-1, 5)} ${p(-1, -1)}Z" fill="${ink}"/><path d="M${p(-0.5, 3.6)}Q${p(0, 1.6)} ${p(0.5, 3.6)}" stroke="#ef6f84" stroke-width="2"/>`;
   }
 }
-
-const SYMBOLS: Record<Exclude<LineAvatarRecipe['symbol'], 'none'>, string> = {
-  sweat:
-    '<path d="M9 9.5Q12 14 12 15.6A3 3 0 0 1 6 15.6Q6 14 9 9.5Z" fill="#cfe6f8" stroke="#5a9be0" stroke-width="1.6"/>',
-  anger:
-    '<g stroke="#e2565f" stroke-width="1.8"><path d="M6.5 6Q9 8 7.5 9.5M11.5 6Q9 8 10.5 9.5M6.5 13Q9 11 7.5 9.5M11.5 13Q9 11 10.5 9.5"/></g>',
-  gloom:
-    '<g stroke="#6b6a90" stroke-width="1.2" stroke-opacity=".75"><path d="M15 3L15 9M18.5 3L18.5 11M22 3L22 12M25.5 3L25.5 12M29 3L29 11M32.5 3L32.5 9"/></g>',
-  sparkle:
-    '<path d="M9 3.5Q9.6 8 13.5 8.5Q9.6 9 9 13.5Q8.4 9 4.5 8.5Q8.4 8 9 3.5Z" fill="#f4c95d" stroke="#e0a72e" stroke-width="1"/>',
-  heart:
-    '<path d="M9 13.5Q4.5 10.3 4.5 7.6A2.4 2.4 0 0 1 9 6.6A2.4 2.4 0 0 1 13.5 7.6Q13.5 10.3 9 13.5Z" fill="#f39bb0" stroke="#e2566c" stroke-width="1.2"/>',
-  zzz: '<g stroke="#8a8792" stroke-width="1.6"><path d="M5 5L9 5L5 9L9 9M10.5 9.5L13 9.5L10.5 12L13 12"/></g>',
-  note: '<g stroke="#7a5cc7" stroke-width="1.6"><path d="M10.5 4L10.5 11.5M10.5 4Q12.5 5 13.5 7"/><ellipse cx="9" cy="11.8" rx="1.8" ry="1.3" fill="#7a5cc7"/></g>',
-  steam:
-    '<g stroke="#a7a4b8" stroke-width="1.6"><path d="M7 11Q5 9 7 7Q9 5 7 3M11.5 11Q9.5 9 11.5 7Q13.5 5 11.5 3"/></g>',
-};
 
 function cheeks(
   style: LineAvatarRecipe['cheeks'],
@@ -415,10 +552,7 @@ function features(
     nose(recipe.nose, center, y + 3, Math.sign(yaw), ink) +
     mouth(recipe.mouth, CX + R * Math.sin(yaw) * 0.8, y + 16, Math.max(0.6, Math.cos(yaw)), ink);
   const rest =
-    expression +
-    cheeks(recipe.cheeks, [left.x - 1.5, right.x + 1.5], y + 10, ink) +
-    glasses +
-    (recipe.symbol === 'none' ? '' : `<g data-avatar-symbol="">${SYMBOLS[recipe.symbol]}</g>`);
+    expression + cheeks(recipe.cheeks, [left.x - 1.5, right.x + 1.5], y + 10, ink) + glasses;
   return {
     eyes,
     closed,
@@ -461,7 +595,7 @@ export function lineAvatarSvg(
     head(base),
     turns,
     `<path data-avatar-transition="" d="M24 24" opacity="0" ${stroke}/>`,
-    `<g class="bh-illustrated-marks">${ATTENTION_MARK}</g>`,
+
     '</svg>',
   ].join('');
 }

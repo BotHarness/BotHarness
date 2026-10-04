@@ -108,7 +108,7 @@ describe('packaged product selection', () => {
       allowBuilds: { reviewed: true, other: false },
       overrides: { unrelated: '1.0.0' },
     });
-    expect(parse(result).overrides['@botharness/im-provider@4.32.0-botharness.1']).toMatch(
+    expect(parse(result).overrides['@botharness/im-provider@4.32.0-botharness.2']).toMatch(
       /^file:.*\.tgz$/,
     );
     expect(() => packagedWorkspaceSettings('packages: [', root)).toThrow(
@@ -180,7 +180,7 @@ describe('release composition', () => {
     expect(release.dependencies).toEqual({
       '@botharness/core': '0.0.0-test.823',
       '@botharness/ui': '0.0.0-test.823',
-      '@botharness/im-provider': '4.32.0-botharness.1',
+      '@botharness/im-provider': '4.32.0-botharness.2',
     });
     expect(release.dsh.bundle.patch).toBe('./cordis.im.patch.yml');
     expect(source.private).toBe(true);
@@ -196,11 +196,11 @@ describe('release composition', () => {
 
 describe('product-managed Provider updates', () => {
   it('reports the running artifact without starting any independent check or installation job', () => {
-    expect(productManagedUpdate('update.status', {}, undefined, '4.32.0-botharness.1')).toEqual({
+    expect(productManagedUpdate('update.status', {}, undefined, '4.32.0-botharness.2')).toEqual({
       ok: true,
       value: {
-        runningVersion: '4.32.0-botharness.1',
-        installedVersion: '4.32.0-botharness.1',
+        runningVersion: '4.32.0-botharness.2',
+        installedVersion: '4.32.0-botharness.2',
         latestVersion: null,
         canInstall: false,
         sourceInstall: false,
@@ -224,7 +224,7 @@ describe('product-managed Provider updates', () => {
     'refuses %s so upstream update paths cannot replace the qualified artifact',
     (endpoint, payload) => {
       expect(
-        productManagedUpdate(endpoint, payload, undefined, '4.32.0-botharness.1'),
+        productManagedUpdate(endpoint, payload, undefined, '4.32.0-botharness.2'),
       ).toMatchObject({ ok: false, error: { code: 'product-managed' } });
     },
   );
@@ -232,7 +232,7 @@ describe('product-managed Provider updates', () => {
     const controller = new AbortController();
     controller.abort();
     expect(
-      productManagedUpdate('update.status', {}, controller.signal, '4.32.0-botharness.1'),
+      productManagedUpdate('update.status', {}, controller.signal, '4.32.0-botharness.2'),
     ).toMatchObject({ ok: false, error: { code: 'cancelled' } });
   });
 });
