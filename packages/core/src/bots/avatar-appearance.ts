@@ -477,7 +477,7 @@ function hairMasks(recipe: IllustratedAvatarRecipe, left: number, right: number)
         back: none,
         front: (x, y) => {
           const peak = [2, 4, 6, 4][(x - left + 40) % 4]!;
-          return x >= left - 2 && x <= right + 2 && y >= peak && (y <= 14 || (y <= 19 && side(x)));
+          return cap(x, Math.max(y, 11)) && y >= peak && (y <= 14 || (y <= 19 && side(x)));
         },
       };
     case 'curly': {
@@ -1035,9 +1035,10 @@ function renderFigure(
         skin,
       );
   }
-  const front: Mask = (x, y) =>
-    (masks.front(x - frontShift, y) && (y <= 9 || cap(x, y) || headMask(x, y))) ||
-    (y <= 9 && cap(x, y) && masks.front(x, y));
+  const front: Mask = (x, y) => {
+    const rowShift = Math.round(frontShift * Math.min(1, Math.max(0, (y - 6) / 10)));
+    return masks.front(x - rowShift, y) && (y <= 9 || cap(x, y) || headMask(x, y));
+  };
   paint(base, front, hair);
   if (turned)
     paint(
