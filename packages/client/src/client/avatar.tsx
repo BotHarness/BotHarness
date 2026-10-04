@@ -344,12 +344,14 @@ export function PersonaBotAvatar({
 
 export function PersonaBotFacepile({
   items,
+  renderAvatar,
   size,
   max = 3,
   className,
   t = zhTranslate,
 }: {
   items: readonly PersonaBotFacepileItem[];
+  renderAvatar?: ((item: PersonaBotFacepileItem, avatar: ReactElement) => ReactElement) | undefined;
   size: number;
   max?: number | undefined;
   className?: string | undefined;
@@ -360,9 +362,10 @@ export function PersonaBotFacepile({
   const overflow = items.length - visible.length;
   return (
     <span className={['bh-avatar-facepile', className].filter(Boolean).join(' ')}>
-      {visible.map((item) => (
-        <PersonaBotAvatar key={item.personaBotId} {...item} size={size} t={t} />
-      ))}
+      {visible.map((item) => {
+        const avatar = <PersonaBotAvatar key={item.personaBotId} {...item} size={size} t={t} />;
+        return renderAvatar === undefined ? avatar : renderAvatar(item, avatar);
+      })}
       {overflow > 0 ? (
         <span className="bh-avatar-facepile-overflow" style={{ width: size, height: size }}>
           +{overflow}

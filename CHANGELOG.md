@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - PersonaBot Profile can switch the avatar between the pixel family and a new original line family (bold strokes on a coloured tile) with its own eyes and mouths (including kaomoji such as > <, T T, ω and ▽), brows, nose, cheeks, glasses, manga symbols (sweat, anger vein, gloom lines, sparkle and more), background/line colors and bounded spacing, height and tilt; line avatars save, snapshot, animate, show independent approval attention and recover through the same path ([#753](https://github.com/BotHarness/BotHarness/issues/753)).
 
+
+- Group activity now names each active PersonaBot in the compact summary and expanded list, with keyboard-accessible avatars showing the same safe shared status ([#124](https://github.com/BotHarness/BotHarness/issues/124)).
 - PersonaBot Profile can preview, cancel and save an original pixel-art avatar from a Notion-Faces-style catalog of face, hair, eyes, brows, nose, mouth, cheeks, glasses, accessory, skin/hair/eye/shirt color, angle, outfit and backdrop; Bots without a saved or uploaded avatar get a name-seeded pixel default that the create dialog previews; the saved identity appears in sidebar and enlarged Profile, follows existing activity and independent approval attention, and survives restart ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 
 - Added explicit Chrome Profile pairing for cross-tab discovery, navigation and ref-based webpage control, preserving Browser Access, Session approval and Pause ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0123](docs/adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
@@ -223,6 +225,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- Connector authorization settings are more compact, with filled primary/destructive actions and contextual help available by hover, click, or keyboard ([#780](https://github.com/BotHarness/BotHarness/issues/780)).
 
 - Unified Container Browser and Docker Computer preview, fullscreen and explicit interaction controls in one shared Viewer; Browser waits for Host Pause before enabling input and keeps Pause when the view collapses ([#736](https://github.com/BotHarness/BotHarness/issues/736)).
 

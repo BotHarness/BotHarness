@@ -19,6 +19,8 @@
 
 - PersonaBot Profile 可在像素家族与新的原创线条家族（彩色圆角底上的粗线条五官）之间切换；线条家族有独立的眼睛和嘴（含 > <、T T、ω、▽ 等颜文字）、眉毛、鼻子、脸颊、眼镜、漫符（汗滴、怒筋、阴沉竖线、闪光等）、底色与线条颜色，以及有界的间距、高低和倾斜，并通过同一链路保存、生成快照、播放动作、显示独立审批提示并在重启后恢复（[#753](https://github.com/BotHarness/BotHarness/issues/753)）。
 
+
+- 群聊活动的紧凑摘要和展开列表现在显示每个活跃 PersonaBot 的名称，头像支持键盘操作，并显示同一份安全共享状态（[#124](https://github.com/BotHarness/BotHarness/issues/124)）。
 - PersonaBot Profile 可预览、取消和保存原创像素人物头像，按仿 Notion 脸谱的分类选择脸型、发型、眼睛、眉毛、鼻子、嘴巴、脸颊、眼镜、配饰以及肤色、发色、眼睛与衣服颜色、朝向、服装和背景装饰；未保存或上传头像的 Bot 按名字生成默认像素形象，创建时即可预览；保存外形在侧栏与 Profile 大图保持一致，消费现有活动和独立审批 attention，并在重启后恢复（[#751](https://github.com/BotHarness/BotHarness/issues/751)）。
 
 - 新增显式 Chrome Profile 配对，支持跨标签页发现、导航与基于引用的网页控制，保留 Browser Access、Session 审批和暂停 ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0123](docs/adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
@@ -223,6 +225,8 @@
 - 新增 Computer 导出与迁移指南，覆盖跨机器单文件迁移、必须随迁移保留的文件所遵循的持久 `~/workspace` 约定，以及体积/耗时预期（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
 
 ### Changed
+
+- 频道连接器授权设置更紧凑，以带背景的主要／危险按钮区分操作，说明可通过悬停、点击或键盘查看（[#780](https://github.com/BotHarness/BotHarness/issues/780)）。
 
 - Container Browser 与 Docker Computer 复用同一套预览、全屏及明确开启交互组件；Browser 确认 Host 暂停后才开启输入，收起全屏仍保持暂停（[#736](https://github.com/BotHarness/BotHarness/issues/736)）。
 

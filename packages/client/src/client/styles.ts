@@ -766,6 +766,8 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   flex: 0 0 auto;
   padding-right: 3px;
 }
+.bh-avatar-facepile-button { display: inline-flex; flex: none; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.bh-avatar-facepile-button:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
 .bh-avatar-facepile > * + * {
   margin-left: -7px;
 }
@@ -1941,6 +1943,44 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   .bh-source-policy-table th:nth-child(3) { width: 16%; }
   .bh-source-policy-table th:nth-child(4) { width: 22%; }
 }
+
+.bh-root, .bh-im-danger, .bh-im-help {
+  /* @bh-im-actions-aliases:start — native Button has no destructive variant;
+     preserve its compact geometry with the shell's error/foreground tokens. */
+  --bh-im-danger-fill: var(--dsw-alias-state-error-primary);
+  --bh-im-danger-hover: color-mix(in srgb, var(--dsw-alias-state-error-primary) 85%, var(--dsw-alias-label-primary));
+  --bh-im-danger-label: var(--dsw-alias-label-primary-foreground);
+  --bh-im-help-focus: var(--dsw-alias-state-business-primary);
+  /* @bh-im-actions-aliases:end */
+}
+.bh-im-settings .bh-profile-card { gap: 10px; padding: 12px; }
+.bh-im-grant-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.bh-im-grant-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.bh-im-grant-name > strong { width: 100%; font-size: 13px; overflow-wrap: anywhere; }
+.bh-im-grant-name > span { font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.bh-im-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bh-im-heading { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.bh-im-heading small { color: var(--dsw-alias-label-secondary); font-weight: normal; }
+.bh-im-help { width: 22px; height: 22px; flex: none; color: var(--dsw-alias-label-secondary); }
+.bh-im-help:focus-visible { outline: 2px solid var(--bh-im-help-focus); outline-offset: 2px; }
+.bh-im-settings .bh-profile-policy-summary-text .bh-im-heading { flex-direction: row; color: var(--dsw-alias-label-primary); }
+.bh-im-settings .bh-im-field { gap: 4px; }
+.bh-im-settings .bh-im-field :is(select,input) { padding: 6px 8px; min-height: 32px; }
+.bh-im-settings .bh-im-group-policy { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 12px; padding-block: 10px; }
+.bh-im-wide { grid-column: 1 / -1; }
+.bh-im-settings .bh-im-digest-fields { gap: 12px; }
+.bh-im-policy-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.bh-im-policy-revision { color: var(--dsw-alias-label-secondary); font-size: 11px; }
+.bh-im-settings .bh-im-status { margin: 0; font-size: 12px; }
+.bh-im-notice { font-size: 12px; }
+.bh-im-settings .bh-im-submit { align-self: flex-end; }
+.bh-im-danger.bh-im-danger { background: var(--bh-im-danger-fill); color: var(--bh-im-danger-label); border-color: transparent; }
+.bh-im-danger.bh-im-danger:not(:disabled):hover { background: var(--bh-im-danger-hover); }
+.bh-im-thread-preview { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+@media (max-width: 720px) {
+  .bh-im-settings .bh-im-group-policy { grid-template-columns: minmax(0,1fr); }
+}
+
  .bh-im-field {
   display: flex;
   flex-direction: column;
