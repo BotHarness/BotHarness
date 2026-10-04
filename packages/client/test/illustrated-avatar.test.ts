@@ -286,8 +286,10 @@ it('morphs line strokes into the activity symbol and back on real presentation c
     expect(frames.size).toBe(0);
     expect(path().getAttribute('d')).toBe('M24 24');
     await render(160, 'executing');
-    expect(frames.size).toBe(1);
     expect(head().style.opacity).toBe('0');
+    expect(frames.size).toBe(0);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 150)));
+    expect(frames.size).toBe(1);
     expect(path().style.opacity).toBe('1');
     const start = path().getAttribute('d');
     await flush(6);
@@ -304,6 +306,7 @@ it('morphs line strokes into the activity symbol and back on real presentation c
     expect(path().style.opacity).toBe('0');
     expect(head().style.opacity).toBe('1');
     await render(34, 'coding');
+    await act(() => new Promise((resolve) => setTimeout(resolve, 100)));
     expect(frames.size).toBe(1);
     await flush(240);
     await act(() => new Promise((resolve) => setTimeout(resolve, 180)));

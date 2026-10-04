@@ -147,24 +147,6 @@ export function seededLineRecipe(seed: string): LineAvatarRecipe {
 const CX = 24;
 const EYE_Y = 20;
 const STROKE = 3;
-const MARK_COLORS = {
-  'thinking-dots': '#e8a93a',
-  searching: '#5a9be0',
-  coding: '#5a9be0',
-  executing: '#e8a93a',
-  'generic-working': '#8a8792',
-} as const;
-const MARKS: Record<keyof typeof MARK_COLORS, string> = {
-  'thinking-dots':
-    '<path d="M40 5.5Q40 3 42.5 3Q45 3 45 5.5Q45 7.5 42.5 8.5L42.5 10"/><circle cx="42.5" cy="13" r=".6"/>',
-  searching: '<circle cx="41.5" cy="6.5" r="3"/><path d="M43.7 8.7L46 11"/>',
-  coding: '<path d="M42.5 3Q45.5 7.5 45.5 9.5A3 3 0 0 1 39.5 9.5Q39.5 7.5 42.5 3Z"/>',
-  executing:
-    '<path d="M42.5 3L42.5 9"/><circle cx="42.5" cy="12.5" r=".6"/><path d="M38.5 4.5L39.8 6M46.5 4.5L45.2 6M38 9.5L39.5 9.5M47 9.5L45.5 9.5" stroke-width="1.2"/>',
-  'generic-working':
-    '<path d="M43.5 3.5L43.5 10.5M43.5 3.5Q45.5 4.5 46.5 6.5"/><ellipse cx="42" cy="10.8" rx="1.8" ry="1.3" fill="#8a8792"/>',
-};
-
 export type LineMorphNode = readonly [string, Readonly<Record<string, string>>];
 
 const shape = (markup: string): LineMorphNode[] =>
@@ -437,7 +419,18 @@ function features(
     cheeks(recipe.cheeks, [left.x - 1.5, right.x + 1.5], y + 10, ink) +
     glasses +
     (recipe.symbol === 'none' ? '' : `<g data-avatar-symbol="">${SYMBOLS[recipe.symbol]}</g>`);
-  return { eyes, closed, rest, morph: eyes + expression };
+  return {
+    eyes,
+    closed,
+    rest,
+    morph:
+      eyes +
+      expression +
+      glasses +
+      (recipe.cheeks === 'lines'
+        ? cheeks('lines', [left.x - 1.5, right.x + 1.5], y + 10, ink)
+        : ''),
+  };
 }
 
 export function lineAvatarSvg(
@@ -461,12 +454,6 @@ export function lineAvatarSvg(
         `<g data-avatar-turn="${delta}" opacity="0">${head(face(delta), 'data-turn-part="')}</g>`,
     )
     .join('');
-  const marks = (Object.keys(MARKS) as (keyof typeof MARKS)[])
-    .map(
-      (mark) =>
-        `<g data-avatar-mark="${mark}" opacity="0" fill="none" stroke="${MARK_COLORS[mark]}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${MARKS[mark]}</g>`,
-    )
-    .join('');
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="512" height="512" aria-hidden="true">',
     `<rect width="48" height="48" rx="11" fill="${recipe.backgroundColor}"/>`,
@@ -474,7 +461,7 @@ export function lineAvatarSvg(
     head(base),
     turns,
     `<path data-avatar-transition="" d="M24 24" opacity="0" ${stroke}/>`,
-    `<g class="bh-illustrated-marks">${marks}${ATTENTION_MARK}</g>`,
+    `<g class="bh-illustrated-marks">${ATTENTION_MARK}</g>`,
     '</svg>',
   ].join('');
 }

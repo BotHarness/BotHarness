@@ -40,7 +40,7 @@ describe('line Avatar family', () => {
       for (const node of ['body', 'head', 'face', 'gaze', 'blink'])
         expect(svg).toContain(`class="bh-illustrated-${node}"`);
       expect(svg.match(/data-avatar-turn=/gu)).toHaveLength(2);
-      expect(svg.match(/data-avatar-mark=/gu)).toHaveLength(5);
+      expect(svg).not.toContain('data-avatar-mark=');
       expect(svg).toContain('<g data-avatar-attention-mark="" opacity="0"');
     }
   });
@@ -79,11 +79,11 @@ describe('line Avatar family', () => {
       expect(svg.match(/data-avatar-transition=""/gu)).toHaveLength(1);
       expect(svg).toContain(`<path data-avatar-transition="" d="M24 24" opacity="0"`);
     }
-    for (const part of ['eyes', 'brows', 'nose', 'mouth'] as const)
+    for (const part of ['eyes', 'brows', 'nose', 'mouth', 'glasses', 'cheeks'] as const)
       for (const value of LINE_PARTS[part]) {
         const face = lineMorphFace({ ...DEFAULT_LINE_RECIPE, [part]: value });
         expect(face.nodes.length, `${part}:${value}`).toBeGreaterThanOrEqual(2);
-        expect(face.nodes.length, `${part}:${value}`).toBeLessThanOrEqual(12);
+        expect(face.nodes.length, `${part}:${value}`).toBeLessThanOrEqual(16);
         for (const [tag, attrs] of face.nodes) {
           expect(['path', 'ellipse', 'circle', 'rect']).toContain(tag);
           for (const key of Object.keys(attrs)) expect(key).toMatch(geometry);

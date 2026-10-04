@@ -66,6 +66,7 @@ export function morphLinePath(
   to: readonly Sampled[],
   spring: LineMorphSpring,
   velocity: number,
+  onNear?: () => void,
 ): LineMorphRun {
   const plan = buildPlan(from, to);
   const out = allocOutputs(plan);
@@ -80,7 +81,12 @@ export function morphLinePath(
   const finished = new Promise<boolean>((resolve) => {
     settle = resolve;
   });
+  let near = !onNear;
   const render = () => {
+    if (!near && motion.x >= 0.9) {
+      near = true;
+      onNear?.();
+    }
     interpPolar(plan, motion.x, out);
     path.setAttribute('d', serialize(out, closed));
   };

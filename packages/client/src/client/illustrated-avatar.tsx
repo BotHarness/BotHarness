@@ -179,13 +179,13 @@ export function IllustratedAvatar({
         for (const animation of animations) animation.cancel();
         animations.clear();
       };
-      const fade = (target: SVGElement, to: number) => {
+      const fade = (target: SVGElement, to: number, duration: number) => {
         const from = Number(getComputedStyle(target).opacity || '1');
         target.style.opacity = String(to);
         if (from !== to)
           target.animate([{ opacity: from }, { opacity: to }], {
-            duration: 90,
-            easing: 'ease-out',
+            duration,
+            easing: 'ease-in-out',
           });
       };
       const leg = async (
@@ -193,9 +193,10 @@ export function IllustratedAvatar({
         from: Sampled[],
         to: Sampled[],
         phase: 'out' | 'back',
+        onNear?: () => void,
       ) => {
         flight.current.phase = phase;
-        const current = morphLinePath(path, from, to, spring(), flight.current.velocity);
+        const current = morphLinePath(path, from, to, spring(), flight.current.velocity, onNear);
         run = current;
         const done = await current.finished;
         if (!done) return false;
@@ -225,16 +226,21 @@ export function IllustratedAvatar({
         );
         const start = flight.current.shape ?? face;
         path.setAttribute('d', lineMorphD(start));
-        fade(head, 0);
-        fade(path, 1);
+        const fresh = !flight.current.shape;
+        const blend = compact ? 120 : 200;
+        fade(head, 0, blend);
+        fade(path, 1, blend);
+        if (fresh && !(await wait(blend * 0.6))) return;
         if (phase === 'out') {
           if (!(await leg(path, start, symbol, 'out'))) return;
           if (!(await wait(compact ? 140 : 380))) return;
         }
-        if (!(await leg(path, flight.current.shape ?? symbol, face, 'back'))) return;
+        const reveal = () => {
+          fade(path, 0, blend * 1.4);
+          fade(head, 1, blend * 1.4);
+        };
+        if (!(await leg(path, flight.current.shape ?? symbol, face, 'back', reveal))) return;
         flight.current = { velocity: 0 };
-        fade(path, 0);
-        fade(head, 1);
       };
       const settle = (path: SVGPathElement, phase: 'out' | 'back') =>
         morph(path, phase).catch(() => {
