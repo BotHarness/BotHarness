@@ -10,8 +10,6 @@
   "localSha256": "1d7a991975a26b07e4c9e4fabc3a3a0bcc7de56d0451ca9fc3314598e1ada6a2",
   "equal": true,
   "nativeMessageMatches": true,
-  "zipEntries": [
-    "result.txt"
-  ],
+  "zipEntries": ["result.txt"],
   "resultContent": "BH831-SLACK-FILE-OUTPUT\ncount=6\n"
 }
