@@ -29,8 +29,7 @@ mutation, and a caller requesting more than the hard limit of three.
    model requests and approves only the exact bounded 45-second native
    Shell timers requested for this fixture.
 4. Tab to a visible Group header avatar: native Tooltip shows its safe
-   Host aggregate. Enter opens the existing Group Profile popover; all
-   four members appear. Escape dismisses it. The Group name still opens
+   Host aggregate. Enter opens the existing Group Profile popover; up to three active-first chips and the remaining +N count appear. Escape dismisses it. The Group name still opens
    Profile and retains its View details action.
 5. The verifier checks both completion messages and idle recovery. It
    disconnects the browser, restores connectivity, and requires a new SSE
