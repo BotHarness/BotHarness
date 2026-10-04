@@ -19,6 +19,7 @@
 
 - Assignment 完成报告与 Host 确认的原生执行完成保留为独立、可跳转的 Inbox 来源，以可信 Session／Turn 身份关联且不重复唤醒；迟到通知重启后仍待处理，直到真实 Turn 纳入并处理（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)）。
 
+- Human 可在 Bot 模式设置中调整 Profile 级 Assignment 并发上限（1–32，默认 3）；保存后立即影响后续准入并在重启后保留，降低上限不中止正在执行的任务 ([#825](https://github.com/BotHarness/BotHarness/issues/825)).
 - Channel sidebar 编辑模式可隐藏或恢复指定项目，完成时一起保存显示与排序偏好，取消时一起丢弃，并可通过恢复默认布局重新显示全部项目（[#809](https://github.com/BotHarness/BotHarness/issues/809)）。
 
 - PersonaBot 可从已授权 Slack 来源主动读取有界频道、附近及原生话题 Human 文本，完整翻页读取密集五分钟窗口，并在来源详情查看上下文；历史读取不触发 Inbox 收件（[#819](https://github.com/BotHarness/BotHarness/issues/819)）。
@@ -344,6 +345,7 @@
 
 ### Fixed
 
+- 空闲 Assignment 的继续执行和按 key 复用现在遵守与新建工作相同的 Profile 并发上限，容量满时保留尚未答复的问题 ([#811](https://github.com/BotHarness/BotHarness/issues/811))。
 - Channel sidebar 编辑时不显示展开箭头，整行可拖动；拖动时即时预览草稿顺序并显示清晰插入线，标签区域可接收落点，取消拖拽恢复拖动前的草稿（[#808](https://github.com/BotHarness/BotHarness/issues/808)）。
 
 - 修复 Container Computer 全新 home 存储首次启动时的面板尺寸，保留已有自定义偏好，并使用实际配置的存储（[#797](https://github.com/BotHarness/BotHarness/issues/797)）。

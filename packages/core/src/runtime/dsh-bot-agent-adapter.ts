@@ -667,6 +667,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                   : { modelRoute: outcome.assignment.modelRoute }),
               });
             }
+            if (outcome.outcome === 'capacity') return JSON.stringify(outcome);
             return JSON.stringify({
               outcome: outcome.outcome,
               retryable: true,
@@ -880,6 +881,18 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                     },
                   }),
             });
+            if (outcome.delivery === 'capacity') {
+              return JSON.stringify({
+                outcome: outcome.outcome,
+                code: outcome.code,
+                activeCount: outcome.activeCount,
+                limit: outcome.limit,
+                retryable: outcome.retryable,
+                message: outcome.message,
+                sessionId: outcome.assignment.sessionId,
+                activity: outcome.assignment.activity,
+              });
+            }
             return JSON.stringify({
               sessionId: outcome.assignment.sessionId,
               activity: outcome.assignment.activity,

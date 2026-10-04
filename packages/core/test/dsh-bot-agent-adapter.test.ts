@@ -47,6 +47,93 @@ const groupTools = {
 };
 
 describe('DSH Bot Agent adapter', () => {
+  it('returns retryable capacity facts to the model for creation and addressed requests', async () => {
+    const calls: Array<Promise<unknown>> = [];
+    const refusal = {
+      outcome: 'capacity' as const,
+      code: 'assignment-capacity' as const,
+      activeCount: 3,
+      limit: 3,
+      retryable: true as const,
+      message: 'Nothing was awakened. Wait for active work to settle before retrying.',
+    };
+    const host = new FakeAgentHost(
+      { kind: 'completed' },
+      {
+        onAgentCreated: () => {
+          const tools = host.scopes.get('orchestrator-ada')?.tools ?? [];
+          for (const [name, args] of [
+            ['create_assignment', { purpose: 'Continue A', grant_id: 'grant-1', key: 'a' }],
+            ['send_assignment_request', { session_id: 'assignment-1', text: 'Continue A' }],
+          ] as const) {
+            const tool = tools.find((tool) => tool.name === name);
+            if (tool === undefined) throw new Error(`Missing Tool ${name}`);
+            calls.push(tool.execute(args, {} as ToolRunContext));
+          }
+        },
+      },
+    );
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    try {
+      await adapter.runOrchestrator({
+        sessionId: 'orchestrator-ada',
+        resume: false,
+        bot: BOT,
+        inboundChannelId: 'dm-test',
+        inbox: '',
+        message: 'Continue A',
+        channels: {
+          ...groupTools,
+          contacts: () => ({ outputLimit: 12_000, contacts: [] }),
+          sendToBot: async () => {
+            throw new Error('unexpected Bot DM');
+          },
+          ignore: () => ({
+            sourceEventId: 'source-1',
+            ignoredAt: BOT.createdAt,
+            alreadyIgnored: false,
+          }),
+          read: () => [],
+          requestGrant: async () => {
+            throw new Error('unexpected Grant request');
+          },
+          send: async (input) => ({
+            id: 'bot-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: BOT.slug },
+            body: input.body,
+          }),
+        },
+        assignments: {
+          create: () => refusal,
+          request: () => ({
+            ...refusal,
+            assignment: { ...ASSIGNMENT, activity: 'idle' },
+            delivery: 'capacity',
+          }),
+          grants: () => [],
+          list: () => [],
+          inspect: () => undefined,
+          stop: async () => {
+            throw new Error('unexpected stop');
+          },
+        },
+      });
+      const outputs = (await Promise.all(calls)).map((output) => JSON.parse(String(output)));
+      expect(outputs).toEqual([
+        refusal,
+        { ...refusal, sessionId: 'assignment-1', activity: 'idle' },
+      ]);
+    } finally {
+      await adapter.close();
+    }
+  });
+
   it('dispatches Group attention Tools only during the owning Orchestrator run', async () => {
     const calls: Array<Promise<unknown>> = [];
     const writes: unknown[] = [];

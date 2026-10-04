@@ -19,6 +19,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Completed Assignment Reports and Host-confirmed native completion retain separate navigable Inbox sources linked by trusted Session/Turn identity, without a duplicate wake; late notices remain pending across restart until a real Turn handles them ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)).
 
+- Human can change the Profile-wide Assignment concurrency limit (1–32, default 3) in Bot mode Settings; saves govern subsequent admission immediately and survive restart, while lowering the limit preserves running work ([#825](https://github.com/BotHarness/BotHarness/issues/825)).
 - Channel sidebar edit mode can hide or restore individual items, saving visibility and order together with Done, discarding both with Cancel, and recovering all items through Restore defaults ([#809](https://github.com/BotHarness/BotHarness/issues/809)).
 
 - PersonaBots can explicitly read bounded Slack channel, nearby and native-thread Human text from an authorized source, paginate dense five-minute windows and inspect context in source details without historical Inbox admission ([#819](https://github.com/BotHarness/BotHarness/issues/819)).
@@ -344,6 +345,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Idle Assignment continuation and keyed reuse now respect the same profile-wide concurrency limit as new work, preserving unanswered questions when capacity is full ([#811](https://github.com/BotHarness/BotHarness/issues/811)).
 - Channel sidebar edit mode omits expansion chevrons and supports dragging the whole row; dragging now previews the actual draft order with a clear insertion line, accepts row labels as drop surfaces and restores the pre-drag draft on cancellation ([#808](https://github.com/BotHarness/BotHarness/issues/808)).
 
 - Fixed Container Computer panel sizing on the first start of a fresh home store, preserving existing custom preferences and using the configured storage ([#797](https://github.com/BotHarness/BotHarness/issues/797)).

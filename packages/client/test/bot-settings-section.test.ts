@@ -11,6 +11,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   return {
     IconChevronDownOutlineRegular: stub,
+    Input: stub,
+    Button: stub,
     Switch: (props: Record<string, unknown>) => {
       captured.switches.push(props);
       return null;
@@ -33,6 +35,7 @@ function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
     motionPreference: 'system',
     botIcon: 'mascot' as const,
     autoAcceptGroupInvites: true,
+    assignmentConcurrencyLimit: 3,
     developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',
