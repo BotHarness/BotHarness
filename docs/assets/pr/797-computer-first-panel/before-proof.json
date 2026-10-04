@@ -1,0 +1,17 @@
+{
+  "revision": "abf6d9db6d28b05b10136fd4513f1ad075ffcfed",
+  "freshNamedVolume": true,
+  "startsBeforeCapture": 1,
+  "iconSize": ["16"],
+  "panelSize": ["26"],
+  "imageId": "sha256:896878e282e35a09d87e28c114fc13a9f73edc1dd13f863d57c537dc29df86a1",
+  "configFiles": [
+    "displays.xml",
+    "thunar.xml",
+    "xfce4-desktop.xml",
+    "xfce4-keyboard-shortcuts.xml",
+    "xfce4-panel.xml",
+    "xfwm4.xml",
+    "xsettings.xml"
+  ]
+}

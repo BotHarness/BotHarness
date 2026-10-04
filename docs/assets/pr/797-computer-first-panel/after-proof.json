@@ -1,0 +1,21 @@
+{
+  "revision": "0718ebe62583d0ae5eb359bec4e34c9ad966b4f6",
+  "freshNamedVolume": true,
+  "startsBeforeCapture": 1,
+  "iconSize": ["32"],
+  "panelSize": ["52"],
+  "imageId": "sha256:896878e282e35a09d87e28c114fc13a9f73edc1dd13f863d57c537dc29df86a1",
+  "configFiles": [
+    "displays.xml",
+    "thunar.xml",
+    "xfce4-desktop.xml",
+    "xfce4-keyboard-shortcuts.xml",
+    "xfce4-panel.xml",
+    "xfwm4.xml",
+    "xsettings.xml"
+  ],
+  "desktopUser": "911",
+  "panelOwner": "911",
+  "writableByDesktopUser": true,
+  "visualCaptureComplete": false
+}
