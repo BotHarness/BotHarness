@@ -125,6 +125,8 @@ Assignment Reports carry meaningful progress, blocked/waiting state, results, an
 
 The profile-wide **Assignment Concurrency Limit** defaults to `3` and counts only independent Assignment Sessions actively executing. Excess create or idle-wake attempts fail immediately with structured machine fields plus an LLM-readable explanation. Assignment creates no queue, intent, or dormant DSH Session for a rejected attempt.
 
+Human edits this limit through Bot mode Settings. The native DSH Settings schema declares an integer volatile field (1–32, default 3), persisted by the Profile Config Editor. The Host half of the UI Plugin binds its live Volatile reader to the application-defined Assignment Runtime for the lifetime of its Fiber. Each create or idle-wake admission reads the current value; the Client never supplies a limit to an Assignment Tool. Lowering the value does not cancel existing execution, and no new work is admitted until active use falls below it.
+
 ## Optional Memory capability
 
 The minimal Chat, Orchestrator, and Assignment execution path depends only on the system-defined base runtime prompt; neither Persona nor Memory is a Session role or startup prerequisite. The application-defined Memory Service is an independent `Consumer → Service Definition → Provider` capability seam. Its Git-backed Provider may be absent in v1. When absent, no Memory Tools or context are registered and the Client omits the Memory destination, while DM and Assignment behavior remains complete.

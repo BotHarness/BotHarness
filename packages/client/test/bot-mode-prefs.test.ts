@@ -31,6 +31,7 @@ function fakeHost(initial: Partial<BotModeScopeSnapshot> = {}) {
     value: {
       botIcon: 'mascot' as const,
       autoAcceptGroupInvites: true,
+      assignmentConcurrencyLimit: 3,
       developerMode: false,
       motionPreference: 'system',
       sortMode: 'updated',
@@ -89,6 +90,7 @@ describe('BOT-mode policy store', () => {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
       autoAcceptGroupInvites: true,
+      assignmentConcurrencyLimit: 3,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -103,6 +105,7 @@ describe('BOT-mode policy store', () => {
       value: {
         botIcon: 'mascot' as const,
         autoAcceptGroupInvites: true,
+        assignmentConcurrencyLimit: 3,
         developerMode: false,
         motionPreference: 'reduce',
         sortMode: 'manual',
@@ -117,6 +120,7 @@ describe('BOT-mode policy store', () => {
       motionPreference: 'reduce',
       botIcon: 'mascot' as const,
       autoAcceptGroupInvites: true,
+      assignmentConcurrencyLimit: 3,
       developerMode: false,
       effectiveMotion: 'reduce',
       sortMode: 'manual',
@@ -129,6 +133,7 @@ describe('BOT-mode policy store', () => {
       value: {
         botIcon: 'mascot' as const,
         autoAcceptGroupInvites: true,
+        assignmentConcurrencyLimit: 3,
         developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
@@ -163,6 +168,7 @@ describe('BOT-mode policy store', () => {
       motionPreference: 'reduce',
       botIcon: 'mascot' as const,
       autoAcceptGroupInvites: true,
+      assignmentConcurrencyLimit: 3,
       developerMode: false,
       effectiveMotion: 'reduce',
     });
@@ -187,6 +193,7 @@ describe('BOT-mode policy store', () => {
       value: {
         botIcon: 'mascot',
         autoAcceptGroupInvites: true,
+        assignmentConcurrencyLimit: 3,
         developerMode: true,
         motionPreference: 'system',
         sortMode: 'updated',
@@ -223,6 +230,7 @@ describe('BOT-mode policy store', () => {
       motionPreference: 'system' as const,
       botIcon: 'mascot' as const,
       autoAcceptGroupInvites: true,
+      assignmentConcurrencyLimit: 3,
       developerMode: false,
       effectiveMotion: 'full' as const,
       sortMode: 'updated' as const,
@@ -292,6 +300,7 @@ describe('BOT-mode policy store', () => {
       value: {
         botIcon: 'mascot' as const,
         autoAcceptGroupInvites: true,
+        assignmentConcurrencyLimit: 3,
         developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
@@ -377,6 +386,7 @@ describe('legacy roster.json sort migration', () => {
       value: {
         botIcon: 'mascot' as const,
         autoAcceptGroupInvites: true,
+        assignmentConcurrencyLimit: 3,
         developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
@@ -438,6 +448,7 @@ describe('roster migration sort-mode remap', () => {
         motionPreference: 'system',
         botIcon: 'mascot' as const,
         autoAcceptGroupInvites: true,
+        assignmentConcurrencyLimit: 3,
         developerMode: false,
         sortMode: 'updated',
         sortModes: { 'section-1': 'manual' },
@@ -512,6 +523,7 @@ describe('roster migration sort-mode remap', () => {
         motionPreference: 'system',
         botIcon: 'mascot' as const,
         autoAcceptGroupInvites: true,
+        assignmentConcurrencyLimit: 3,
         developerMode: false,
         sortMode: 'updated',
         sortModes: { 'section-1': 'manual' },
@@ -527,5 +539,56 @@ describe('roster migration sort-mode remap', () => {
     );
     expect(prefs.source.getSnapshot().sortModes).toEqual({ 'section-1': 'manual' });
     warn.mockRestore();
+  });
+});
+
+describe('Assignment limit persistence', () => {
+  it('only publishes Host-confirmed values, including another client update', async () => {
+    const prefs = new BotModePrefs();
+    const scope = fakeHost();
+    prefs.attach(scope.host);
+    let settle: ((value: boolean) => void) | undefined;
+    scope.host.set = () =>
+      new Promise<boolean>((resolve) => {
+        settle = resolve;
+      });
+    const pending = prefs.setAssignmentConcurrencyLimit(5);
+    expect(prefs.source.getSnapshot().assignmentConcurrencyLimit).toBe(3);
+    scope.push({ value: { ...scope.host.getSnapshot().value!, assignmentConcurrencyLimit: 5 } });
+    settle!(true);
+    expect(await pending).toBe(true);
+    expect(prefs.source.getSnapshot().assignmentConcurrencyLimit).toBe(5);
+    scope.host.set = async () => false;
+    expect(await prefs.setAssignmentConcurrencyLimit(2)).toBe(false);
+    expect(prefs.source.getSnapshot().assignmentConcurrencyLimit).toBe(5);
+    scope.push({ value: { ...scope.host.getSnapshot().value!, assignmentConcurrencyLimit: 1 } });
+    expect(prefs.source.getSnapshot().assignmentConcurrencyLimit).toBe(1);
+  });
+  it('refuses invalid, unavailable, memory-only and non-writable saves', async () => {
+    const prefs = new BotModePrefs();
+    expect(await prefs.setAssignmentConcurrencyLimit(2)).toBe(false);
+    const scope = fakeHost();
+    prefs.attach(scope.host);
+    for (const value of [0, 33, 1.5, NaN])
+      expect(await prefs.setAssignmentConcurrencyLimit(value)).toBe(false);
+    for (const patch of [
+      { writable: false },
+      { writable: true, mode: 'memory' as const },
+      { mode: 'host' as const, status: 'loading' as const },
+    ]) {
+      scope.push(patch);
+      expect(await prefs.setAssignmentConcurrencyLimit(2)).toBe(false);
+    }
+    expect(scope.set).not.toHaveBeenCalled();
+  });
+  it('propagates failed Host writes without committing the new value', async () => {
+    const prefs = new BotModePrefs();
+    const scope = fakeHost();
+    prefs.attach(scope.host);
+    scope.host.set = async () => {
+      throw new Error('Host unavailable');
+    };
+    await expect(prefs.setAssignmentConcurrencyLimit(2)).rejects.toThrow('Host unavailable');
+    expect(prefs.source.getSnapshot().assignmentConcurrencyLimit).toBe(3);
   });
 });
