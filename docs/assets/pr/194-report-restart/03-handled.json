@@ -1,0 +1,42 @@
+{
+  "bot": "Report restart QA 1791139370512",
+  "assignmentSessionId": "botharness-6d074567-ed78-412e-aa6a-3d5a1b8cc8fc",
+  "orchestratorSessionId": "botharness-91bd2712-9f1c-421d-af62-759903b5368b",
+  "orchestratorTurns": 2,
+  "harvestDeliveries": 1,
+  "sourceIds": ["00bf63f3-ff36-4832-9e5a-12c697266bc7", "4443fb55-0d06-4a3e-bb4f-08c4b27d601b"],
+  "observedAt": "2026-10-04T18:46:59.991Z",
+  "handledAt": "2026-10-04T18:47:04.721Z",
+  "reports": [
+    {
+      "id": "00bf63f3-ff36-4832-9e5a-12c697266bc7",
+      "state": "handled",
+      "summary": "RESTART_PROGRESS_TWO",
+      "sourceAvailable": true,
+      "observedAt": "2026-10-04T18:46:59.991Z",
+      "handledAt": "2026-10-04T18:47:04.721Z"
+    },
+    {
+      "id": "4443fb55-0d06-4a3e-bb4f-08c4b27d601b",
+      "state": "handled",
+      "summary": "RESTART_PROGRESS_ONE",
+      "sourceAvailable": true,
+      "observedAt": "2026-10-04T18:46:59.991Z",
+      "handledAt": "2026-10-04T18:47:04.721Z"
+    }
+  ],
+  "successfulReports": [
+    {
+      "summary": "RESTART_PROGRESS_ONE",
+      "callAt": 1791139377690,
+      "resultAt": 1791139377704,
+      "successful": true
+    },
+    {
+      "summary": "RESTART_PROGRESS_TWO",
+      "callAt": 1791139379842,
+      "resultAt": 1791139379869,
+      "successful": true
+    }
+  ]
+}

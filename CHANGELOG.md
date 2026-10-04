@@ -474,7 +474,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
-- Added a verified [Assignment Report batch guide](docs/dev/guides/assignment-report-harvest.md), with native harvest evidence, retained source history and Human source-navigation checks ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
+- Added a verified [Assignment Report batch guide](docs/dev/guides/assignment-report-harvest.md), with native harvest evidence, retained source history, cold Host restart acceptance and Human source-navigation checks ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 
 - Added a verified [Assignment stop and recovery guide](docs/dev/guides/assignment-stop-recovery.md), including pending approvals, persistent stopped state and new work after Host restart ([#81](https://github.com/BotHarness/BotHarness/issues/81)).
 

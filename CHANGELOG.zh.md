@@ -474,7 +474,7 @@
 
 ### Documentation
 
-- 新增已核验的 [Assignment Report 批次指南](docs/dev/guides/assignment-report-harvest.md)，包含原生 harvest 证明、来源历史保留及 Human 来源导航核验（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
+- 新增已核验的 [Assignment Report 批次指南](docs/dev/guides/assignment-report-harvest.md)，包含原生 harvest 证明、来源历史保留、Host 冷启动验收及 Human 来源导航核验（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
 
 - 新增已核验的 [Assignment 停止与恢复指南](docs/dev/guides/assignment-stop-recovery.md)，说明待处理审批、持久 stopped 状态及 Host 重启后的新工作流程（[#81](https://github.com/BotHarness/BotHarness/issues/81)）。
 

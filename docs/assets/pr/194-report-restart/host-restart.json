@@ -1,0 +1,9 @@
+{
+  "dsh": "0.2.0-rc.1",
+  "sameIsolatedProfile": true,
+  "freshHostProcess": true,
+  "authenticatedApi": 200,
+  "healthy": true,
+  "beforeHead": "e7cb10ffe0c53f41df7c05618828364b5e3ccf9c",
+  "productionChanged": false
+}
