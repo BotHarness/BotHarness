@@ -359,6 +359,7 @@ describe('plugin entry', () => {
       'browserAccessSet',
       'browserProfileSet',
       'botAvatarSet',
+      'botAppearanceSet',
     ]);
   });
 

@@ -1656,6 +1656,36 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-profile-expand:hover {
   background: var(--bh-hover);
 }
+.bh-avatar-media-composed svg { overflow: visible; }
+.bh-illustrated-head { transform-box: fill-box; transform-origin: 50% 65%; }
+.bh-illustrated-gaze { transform-box: fill-box; transform-origin: center; }
+.bh-avatar-editor { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 24px; padding: 20px 0; border-top: 1px solid var(--dsw-alias-border-l2); }
+.bh-avatar-editor-preview { display: flex; align-items: center; justify-content: center; }
+.bh-avatar-editor-controls h3 { margin: 0; font-size: 15px; }
+.bh-avatar-editor-controls p { margin: 8px 0 12px; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.bh-avatar-editor-fields { border: 0; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.bh-avatar-categories { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px; }
+.bh-avatar-categories [role='tablist'] { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; min-width: 0; }
+.bh-avatar-categories button { min-height: 28px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 13px; cursor: pointer; }
+.bh-avatar-categories button:hover { background: var(--bh-hover); }
+.bh-avatar-categories button[aria-selected='true'] { background: var(--dsw-alias-button-elevated-fill); border-color: var(--dsw-alias-border-l2); color: var(--dsw-alias-label-primary); }
+.bh-avatar-categories .bh-avatar-shuffle { margin-left: auto; border-color: var(--dsw-alias-border-l2); color: var(--dsw-alias-label-primary); }
+.bh-avatar-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px; }
+.bh-avatar-option { aspect-ratio: 1; padding: 3px; border: 2px solid transparent; border-radius: 12px; background: transparent; cursor: pointer; }
+.bh-avatar-option span, .bh-avatar-option svg { display: block; width: 100%; height: 100%; }
+.bh-avatar-option:hover { border-color: var(--dsw-alias-border-l2); }
+.bh-avatar-option[aria-pressed='true'] { border-color: var(--dsw-alias-label-primary); }
+.bh-avatar-colors { display: flex; flex-direction: column; gap: 10px; }
+.bh-avatar-color-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
+.bh-avatar-color-row > span { width: 72px; color: var(--dsw-alias-label-secondary); }
+.bh-avatar-swatch { width: 24px; height: 24px; padding: 0; border: 1px solid var(--dsw-alias-border-l2); border-radius: 50%; cursor: pointer; }
+.bh-avatar-swatch[aria-pressed='true'] { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
+.bh-avatar-color-row input { width: 32px; height: 26px; padding: 0 2px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-bg-base); }
+.bh-avatar-editor-fields :focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
+.bh-avatar-media-composed svg { image-rendering: pixelated; }
+.bh-personabot-name-row { display: flex; align-items: center; gap: 10px; }
+.bh-personabot-name-row > :last-child { flex: 1; min-width: 0; }
+@media (max-width: 640px) { .bh-avatar-editor { grid-template-columns: minmax(0, 1fr); } .bh-avatar-options { grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); } }
 .bh-profile-view {
   position: relative;
   z-index: 1;

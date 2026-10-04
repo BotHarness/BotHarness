@@ -52,7 +52,8 @@ describe('PersonaBotAvatar', () => {
 
     expect(markup).toContain('data-state="thinking"');
     expect(markup).toContain('data-effect="thinking-dots"');
-    expect(markup).toContain('data-media="blob"');
+    expect(markup).toContain('data-media="seeded"');
+    expect(markup).toContain('class="bh-illustrated-head"');
     expect(markup).toContain('data-botui-state="thinking"');
     expect(markup).not.toContain('bh-avatar-indicator');
   });

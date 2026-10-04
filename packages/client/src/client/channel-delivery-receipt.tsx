@@ -211,6 +211,7 @@ export function ChannelDeliveryReceipt({
                               personaBotId={recipient.botSlug}
                               name={name}
                               src={bot?.avatar}
+                              appearance={bot?.appearance}
                               size={22}
                               indicator={false}
                               t={t}

@@ -354,6 +354,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
   }
 
+  botAppearanceSet(channelId: string, recipe: unknown): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.botAppearanceSet({ channelId, recipe }));
+  }
+
   channels(): { channels: ChannelListItem[] } {
     return unwrap(this.methods.channels({}));
   }
@@ -947,6 +951,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'browserAccessSet',
   'browserProfileSet',
   'botAvatarSet',
+  'botAppearanceSet',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

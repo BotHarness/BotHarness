@@ -36,7 +36,8 @@ vi.mock('../src/client/modal.js', () => ({
   }) => (open === false ? null : createElement('section', null, children, footer)),
 }));
 
-vi.mock('../src/client/avatar.js', () => ({
+vi.mock('../src/client/avatar.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/client/avatar.js')>()),
   PersonaBotAvatar: () => createElement('span', null),
 }));
 

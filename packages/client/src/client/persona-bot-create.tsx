@@ -12,6 +12,7 @@ import { BridgeCallError, errorMessage } from './bridge.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
+import { PersonaBotAvatar } from './avatar.js';
 
 export function normalizeRoleBadges(values: readonly string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
@@ -191,14 +192,25 @@ export function CreatePersonaBotModal({
           </Field>
         ) : null}
         <Field id={displayNameId} label={t('bot.create.name.label')}>
-          <NameInput
-            id={displayNameId}
-            autoFocus
-            value={displayName}
-            disabled={creating}
-            placeholder={t('bot.create.name.placeholder')}
-            onChange={(event) => setDisplayName(event.currentTarget.value)}
-          />
+          <div className="bh-personabot-name-row">
+            <span data-create-avatar-preview>
+              <PersonaBotAvatar
+                personaBotId=""
+                name={displayName.trim() || t('bot.create.name.placeholder')}
+                size={44}
+                indicator={false}
+                t={t}
+              />
+            </span>
+            <NameInput
+              id={displayNameId}
+              autoFocus
+              value={displayName}
+              disabled={creating}
+              placeholder={t('bot.create.name.placeholder')}
+              onChange={(event) => setDisplayName(event.currentTarget.value)}
+            />
+          </div>
         </Field>
         <Field id={roleId} label={t('bot.create.roles.label')} hint={t('bot.create.roles.hint')}>
           <div className="bh-role-editor">

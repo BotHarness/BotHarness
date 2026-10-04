@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded that native Tool approval and actual Shell execution require separate evidence in the [local development guide](../dsh-dev/SKILL.md), preserving a real Orchestrator workspace refusal while verifying a granted Assignment execution on DSH 0.2.0 RC1 ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
+
 - Recorded checked external reply connection ownership separately from reception in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), using the pinned Provider contract and an independently bound responder ([#637](https://github.com/BotHarness/BotHarness/issues/637)).
 
 - Recorded WebServer prefix slash matching and the raw HTTP peer boundary in the [local development guide](../dsh-dev/SKILL.md), verified against pinned DSH 0.2.0 RC1 source and a real extension pairing/observation flow ([#741](https://github.com/BotHarness/BotHarness/issues/741)).
