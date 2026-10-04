@@ -10,6 +10,7 @@ import { basename } from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 
 import { BROWSER_GUIDANCE, BROWSER_TOOLS, browserToolName } from './catalog.js';
+import { formatBrowserElement } from '../runtime/observation.js';
 import { saveScreenshot } from '../screenshots.js';
 import type { BotBrowserRuntimes } from '../runtimes.js';
 import type { BrowserTab } from '../runtime/browser.js';
@@ -291,9 +292,7 @@ export function createBrowserToolProvider(
                 'Human-authorized Chrome Profile',
                 '',
                 'Interactive elements:',
-                ...observation.elements.map(
-                  (element) => `${element.ref} ${element.role} ${element.name}`,
-                ),
+                ...observation.elements.map((element) => formatBrowserElement(element)),
                 '',
                 'Page text:',
                 observation.text,
@@ -322,9 +321,7 @@ export function createBrowserToolProvider(
                 'Human Daily Browser — explicitly controlled document',
                 '',
                 'Interactive elements:',
-                ...observation.elements.map(
-                  (element) => `${element.ref} ${element.role} ${element.name}`,
-                ),
+                ...observation.elements.map((element) => formatBrowserElement(element)),
                 '',
                 'Page text:',
                 observation.text,
@@ -354,7 +351,7 @@ export function createBrowserToolProvider(
               'Shared by Human — read-only',
               '',
               'Controls (read-only):',
-              ...observation.elements.map((element) => `${element.role} ${element.name}`),
+              ...observation.elements.map((element) => formatBrowserElement(element, false)),
               '',
               'Page text:',
               observation.text,
@@ -415,9 +412,7 @@ export function createBrowserToolProvider(
       ) {
         state.observedControlRevision = revision;
       }
-      const elementLines = observation.elements.map(
-        (element) => `${element.ref} ${element.role} ${element.name}`,
-      );
+      const elementLines = observation.elements.map((element) => formatBrowserElement(element));
       const parts = [`URL: ${observation.url}`, `Title: ${observation.title}`];
       if (elementLines.length > 0) {
         parts.push('', 'Interactive elements:', ...elementLines);
@@ -707,13 +702,13 @@ export function createBrowserToolProvider(
                 : spec.inputSchema,
           call: async (args, execution) => {
             const signal = AbortSignal.any([execution.signal, controller.signal]);
-            const controlState =
+            let controlState =
               spec.raw === 'screenshot' ||
               options.daily?.() !== undefined ||
               options.profile?.() !== undefined
                 ? botTabs(slug)
                 : undefined;
-            const controlRevision = controlState?.controlRevision;
+            let controlRevision = controlState?.controlRevision;
             const assertControlCurrent = (): void => {
               if (controlState === undefined) return;
               assertExecutionAllowed(spec.raw, slug);
@@ -724,17 +719,16 @@ export function createBrowserToolProvider(
                 throw new Error(
                   options.daily?.() !== undefined
                     ? 'Daily Browser control changed during the call; observe again after Human Resume'
-                    : 'Browser control changed during screenshot; retry with a new browser_screenshot after Human Resume',
+                    : spec.raw === 'screenshot'
+                      ? 'Browser control changed during screenshot; retry with a new browser_screenshot after Human Resume'
+                      : 'Browser control changed during the call; observe again after Human Resume',
                 );
               }
             };
             controlGuards.set(execution, assertControlCurrent);
             signal.throwIfAborted();
-            if (
-              (options.daily?.() !== undefined || options.profile?.() !== undefined) &&
-              (String(execution.agent?.id) !== sessionId || botSlugOf(sessionId)?.botSlug !== slug)
-            )
-              throw new Error('Daily Browser tools require the owning PersonaBot Session');
+            if (String(execution.agent?.id) !== sessionId || botSlugOf(sessionId)?.botSlug !== slug)
+              throw new Error('Browser tools require the owning PersonaBot Session');
             await authorize(execution, sessionId);
             await options.beforeExecution?.();
             signal.throwIfAborted();
@@ -744,7 +738,30 @@ export function createBrowserToolProvider(
               signal.throwIfAborted();
               assertExecutionAllowed(spec.raw, slug);
               assertControlCurrent();
-              return runTool(spec.raw, args, slug, signal, assertControlCurrent);
+              const execute = () => {
+                signal.throwIfAborted();
+                assertExecutionAllowed(spec.raw, slug);
+                assertControlCurrent();
+                return runTool(spec.raw, args, slug, signal, assertControlCurrent);
+              };
+              if (
+                options.daily?.() !== undefined ||
+                options.profile?.() !== undefined ||
+                options.borrowed?.() !== undefined
+              )
+                return execute();
+              const runtime = runtimes.for(slug);
+              if (runtime.runWithSignal !== undefined && controlState === undefined) {
+                controlState = botTabs(slug);
+                controlRevision = controlState.controlRevision;
+              }
+              return runtime.runWithSignal === undefined
+                ? execute()
+                : runtime.runWithSignal(signal, execute, () => {
+                    signal.throwIfAborted();
+                    assertExecutionAllowed(spec.raw, slug);
+                    assertControlCurrent();
+                  });
             });
             signal.throwIfAborted();
             assertControlCurrent();

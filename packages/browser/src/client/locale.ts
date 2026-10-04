@@ -31,6 +31,9 @@ export const zh = {
   'entry.stop': '停止',
   'entry.stopping': '停止中',
 
+  'settings.localDriver': '本机驱动',
+  'settings.driver.current': '默认',
+  'settings.driver.agent-browser': 'agent-browser（试用）',
   'settings.target': '操作目标',
   'settings.local': '本机 Browser',
   'settings.container': 'Docker Browser',
@@ -101,6 +104,9 @@ export const en: Record<BrowserKey, string> = {
   'entry.stop': 'Stop',
   'entry.stopping': 'Stopping',
 
+  'settings.localDriver': 'Local driver',
+  'settings.driver.current': 'Default',
+  'settings.driver.agent-browser': 'agent-browser (trial)',
   'settings.target': 'Browser Target',
   'settings.local': 'Local Browser',
   'settings.container': 'Docker Browser',

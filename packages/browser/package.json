@@ -22,6 +22,7 @@
   "dependencies": {
     "@deepseek-ai/dsh-mcp-client": "0.2.0-rc.1",
     "@puppeteer/browsers": "3.2.2",
+    "agent-browser": "0.38.2",
     "playwright-core": "1.64.0-alpha-1790635538000"
   },
   "devDependencies": {
