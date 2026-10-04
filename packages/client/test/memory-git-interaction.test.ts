@@ -27,6 +27,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconCheckOutlineRegular: stub,
     IconBranchOutlineRegular: stub,
     IconChevronLeftOutlineRegular: stub,
+    IconChevronRightOutlineRegular: stub,
     IconChevronDownOutline14: stub,
     IconChevronDownOutlineRegular: stub,
     IconCloseFill14: stub,
@@ -83,6 +84,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
             )
           : null,
       ),
+    MenuSurface: ({ children }: { children: ReactNode }) =>
+      createElement('div', { role: 'menu' }, children),
     MenuItemButton: ({ children, onSelect }: { children: ReactNode; onSelect: () => void }) =>
       createElement('button', { role: 'menuitem', onClick: onSelect }, children),
     MarkdownText: stub,
@@ -904,6 +907,12 @@ describe('Memory Git graph sidebar', () => {
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.bh-sidebar-settings')?.click();
     });
+    expect(container.querySelector('[role="menu"]')?.textContent).not.toContain('Git');
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('.bh-sidebar-settings-trigger')
+        ?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    });
     expect(container.querySelector('[role="menu"]')?.textContent).toContain('Git');
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
@@ -912,15 +921,17 @@ describe('Memory Git graph sidebar', () => {
     });
     expect(channelSidebarPrefs.getSnapshot().memoryTerminology).toBe('git');
     expect(evolution?.querySelector('.bh-memory-change-badge')?.textContent).toBe('M');
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('.bh-sidebar-settings')?.click();
-    });
+    expect(container.querySelectorAll('[role="menu"]')).toHaveLength(2);
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
         .find((item) => item.textContent === '记忆')
         ?.click();
     });
     expect(channelSidebarPrefs.getSnapshot().memoryTerminology).toBe('memory');
+    expect(container.querySelectorAll('[role="menu"]')).toHaveLength(2);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.bh-sidebar-settings')?.click();
+    });
 
     const chat = container.querySelector<HTMLElement>('.bh-chat-body');
     const composer = container.querySelector<HTMLTextAreaElement>('textarea');

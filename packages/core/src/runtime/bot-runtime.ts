@@ -3947,7 +3947,10 @@ class BotRuntimeImplementation implements BotRuntime {
           body,
           grantRequest: true,
         };
-        const appended = await this.#channels.appendMessage(channel.id, message);
+        const appended = await this.#channels.appendMessage(channel.id, message, {
+          sessionId,
+          sourceEventId,
+        });
         if (appended === undefined) throw new Error(`Channel disappeared: ${channel.id}`);
         return appended;
       },
@@ -4007,7 +4010,10 @@ class BotRuntimeImplementation implements BotRuntime {
           ...(input.attachments === undefined ? {} : { attachments: input.attachments }),
           ...(input.replyTo === undefined ? {} : { replyTo: input.replyTo }),
         };
-        const appended = await this.#channels.appendMessage(channel.id, message);
+        const appended = await this.#channels.appendMessage(channel.id, message, {
+          sessionId,
+          sourceEventId,
+        });
         if (appended === undefined) throw new Error(`Channel disappeared: ${channel.id}`);
         return appended;
       },
@@ -4098,7 +4104,10 @@ class BotRuntimeImplementation implements BotRuntime {
       ...(input.attachments === undefined ? {} : { attachments: input.attachments }),
     };
     input.beforeSend();
-    const result = await this.#channels.appendMessageOnce(channel.id, message);
+    const result = await this.#channels.appendMessageOnce(channel.id, message, undefined, {
+      sessionId: input.sessionId,
+      sourceEventId: input.sourceEventId,
+    });
     if (result.status === 'missing') throw new Error(`Group Channel disappeared: ${channel.id}`);
     if (result.status === 'conflict') throw new Error('Group delivery key has different content');
     input.afterSend?.();
@@ -4204,7 +4213,10 @@ class BotRuntimeImplementation implements BotRuntime {
       ...(input.attachments === undefined ? {} : { attachments: input.attachments }),
     };
     input.beforeSend();
-    const result = await this.#channels.appendMessageOnce(channel.id, message);
+    const result = await this.#channels.appendMessageOnce(channel.id, message, undefined, {
+      sessionId: input.sessionId,
+      sourceEventId: input.sourceEventId,
+    });
     if (result.status === 'missing') throw new Error(`Bot DM disappeared: ${channel.id}`);
     if (result.status === 'conflict') throw new Error('Bot DM delivery key has different content');
     input.afterSend?.();

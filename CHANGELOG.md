@@ -17,6 +17,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added a checked Slack text-mention path from an independently bound PersonaBot identity into its canonical Inbox and original native thread reply, reusing Profile identity/connector tables and source details; context, attachments and ordinary-message policies remain separate qualification slices ([#802](https://github.com/BotHarness/BotHarness/issues/802), [ADR-0126](docs/adr/0126-slack-text-intake-uses-exclusive-checked-provider.md)).
+- Host Plugins can subscribe to PersonaBot committed public output with trusted Session/Channel references; failed consumers cannot roll back messages or block other listeners, and restart does not replay notifications ([#125](https://github.com/BotHarness/BotHarness/issues/125)).
+
 - Line-family PersonaBot avatars briefly morph their face strokes into a symbol for the new activity (?, magnifier, </>, !, ♪, smiling face) and back, using morphicons spring stroke morphing; transitions retarget mid-way from the displayed shape and replace the corner activity marks, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
 - Added an opt-in Container `agent-browser` driver using the existing Browser Viewer, takeover, uploads and persistent profile; Local and Container retain independent default drivers ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
@@ -232,6 +235,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Channel sidebar display settings open hover submenus that keep repeated selections visible and temporarily isolate the relevant entry for preview; dismissing restores prior disclosure while saving the chosen display preferences ([#807](https://github.com/BotHarness/BotHarness/issues/807)).
+
 - Channel message groups keep consecutive bubbles compact, show one hover/focus timestamp beside the author, and reveal per-message copy/reply beside delivery receipts without a reserved action row ([#803](https://github.com/BotHarness/BotHarness/issues/803)).
 
 - Nearby external context now covers the five-minute window and supplements sparse sides to configurable preceding/following message minima, with 30-minute bounded continuations ([#793](https://github.com/BotHarness/BotHarness/issues/793)).
@@ -332,7 +337,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
-- Channel sidebar dragging now previews the actual draft order with a clear insertion line, accepts row labels as drop surfaces and restores the pre-drag draft on cancellation ([#808](https://github.com/BotHarness/BotHarness/issues/808)).
+- Channel sidebar edit mode omits expansion chevrons and supports dragging the whole row; dragging now previews the actual draft order with a clear insertion line, accepts row labels as drop surfaces and restores the pre-drag draft on cancellation ([#808](https://github.com/BotHarness/BotHarness/issues/808)).
 
 - Fixed Container Computer panel sizing on the first start of a fresh home store, preserving existing custom preferences and using the configured storage ([#797](https://github.com/BotHarness/BotHarness/issues/797)).
 
