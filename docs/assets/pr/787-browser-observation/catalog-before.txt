@@ -1,0 +1,314 @@
+URL: http://127.0.0.1:32024/complex/complex-2/desk
+Title: Complex Browser QA — order desk
+
+Interactive elements:
+e1up7lvi1uo852i0dc15ai0dzxys9_1 input Search catalog
+e1up7lvi1uo852i0dc15ai0dzxys9_2 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_3 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_4 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_5 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_6 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_7 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_8 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_9 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_10 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_11 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_12 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_13 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_14 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_15 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_16 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_17 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_18 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_19 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_20 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_21 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_22 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_23 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_24 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_25 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_26 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_27 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_28 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_29 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_30 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_31 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_32 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_33 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_34 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_35 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_36 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_37 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_38 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_39 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_40 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_41 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_42 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_43 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_44 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_45 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_46 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_47 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_48 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_49 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_50 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_51 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_52 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_53 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_54 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_55 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_56 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_57 button Configure
+e1up7lvi1uo852i0dc15ai0dzxys9_58 button Configure
+
+Page text:
+- banner
+  - heading "Order desk · synthetic QA" [level=1, read-only]
+  - paragraph
+    - StaticText "Signed in as QA Reader · Test account only · No real purchase"
+- main
+  - generic
+    - heading "Catalog" [level=2, read-only]
+    - LabelText
+      - StaticText "Search catalog"
+      - textbox "Search catalog" [read-only]
+    - paragraph
+      - StaticText "57 products found"
+    - generic
+      - article
+        - paragraph
+          - StaticText "Aurora Notebook Standard · SKU AUR-STD · 1000 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Aurora Notebook Limited · SKU AUR-LIMITED · 1200 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Aurora Desk Edition · SKU AUR-DESK · 900 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 1 · SKU CAT-1 · 501 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 2 · SKU CAT-2 · 502 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 3 · SKU CAT-3 · 503 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 4 · SKU CAT-4 · 504 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 5 · SKU CAT-5 · 505 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 6 · SKU CAT-6 · 506 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 7 · SKU CAT-7 · 507 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 8 · SKU CAT-8 · 508 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 9 · SKU CAT-9 · 509 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 10 · SKU CAT-10 · 510 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 11 · SKU CAT-11 · 511 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 12 · SKU CAT-12 · 512 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 13 · SKU CAT-13 · 513 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 14 · SKU CAT-14 · 514 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 15 · SKU CAT-15 · 515 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 16 · SKU CAT-16 · 516 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 17 · SKU CAT-17 · 517 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 18 · SKU CAT-18 · 518 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 19 · SKU CAT-19 · 519 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 20 · SKU CAT-20 · 520 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 21 · SKU CAT-21 · 521 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 22 · SKU CAT-22 · 522 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 23 · SKU CAT-23 · 523 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 24 · SKU CAT-24 · 524 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 25 · SKU CAT-25 · 525 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 26 · SKU CAT-26 · 526 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 27 · SKU CAT-27 · 527 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 28 · SKU CAT-28 · 528 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 29 · SKU CAT-29 · 529 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 30 · SKU CAT-30 · 530 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 31 · SKU CAT-31 · 531 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 32 · SKU CAT-32 · 532 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 33 · SKU CAT-33 · 533 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 34 · SKU CAT-34 · 534 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 35 · SKU CAT-35 · 535 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 36 · SKU CAT-36 · 536 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 37 · SKU CAT-37 · 537 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 38 · SKU CAT-38 · 538 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 39 · SKU CAT-39 · 539 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 40 · SKU CAT-40 · 540 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 41 · SKU CAT-41 · 541 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 42 · SKU CAT-42 · 542 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 43 · SKU CAT-43 · 543 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 44 · SKU CAT-44 · 544 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 45 · SKU CAT-45 · 545 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 46 · SKU CAT-46 · 546 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 47 · SKU CAT-47 · 547 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 48 · SKU CAT-48 · 548 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 49 · SKU CAT-49 · 549 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 50 · SKU CAT-50 · 550 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 51 · SKU CAT-51 · 551 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 52 · SKU CAT-52 · 552 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 53 · SKU CAT-53 · 553 synthetic units"
+        - button "Configure" [read-only]
+      - article
+        - paragraph
+          - StaticText "Catalog item 54 · SKU CAT-54 · 554 synthetic units"
+        - button "Configure" [read-only]
+  - generic
+    - heading "Configure order" [level=2, read-only]
+    - paragraph
+      - StaticText "Choose a catalog product"
+    - heading "Saved order" [level=3, read-only]
+    - paragraph
+      - StaticText "No order submitted"
+    - paragraph
+      - StaticText "Reference information is available in this run's /reference page."
