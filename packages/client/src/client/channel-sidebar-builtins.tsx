@@ -365,7 +365,23 @@ function BotInboxItemRow({
             <ExternalSourceContent source={external} t={t}>
               {external.event.attachments?.map((file) => (
                 <div className="bh-external-source-file" key={file.id}>
-                  <span>{file.name}</span>
+                  <span>
+                    {file.name}
+                    {file.sizeBytes !== undefined || file.mediaType ? (
+                      <small>
+                        {' '}
+                        ·{' '}
+                        {[
+                          file.mediaType,
+                          file.sizeBytes === undefined
+                            ? undefined
+                            : `${new Intl.NumberFormat().format(file.sizeBytes)} B`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </small>
+                    ) : null}
+                  </span>
                   <Button
                     disabled={fileBusy !== undefined}
                     onClick={() => void download(file.id, file.name)}

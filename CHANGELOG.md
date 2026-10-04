@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBots can read an explicitly mentioned Slack source file and return a processed file in the original native thread, using canonical attachment tools, current own-identity authorization and a pre-completion fence; source details retain safe file type/size metadata ([#831](https://github.com/BotHarness/BotHarness/issues/831)).
+
 - PersonaBots can explicitly read bounded Slack channel, nearby and native-thread Human text from an authorized source, paginate dense five-minute windows and inspect context in source details without historical Inbox admission ([#819](https://github.com/BotHarness/BotHarness/issues/819)).
 
 - Pixel-family PersonaBot avatars are redrawn as 32×32 chibi pixel art (bigger heads and eyes, layered hair and clothes shading, a solid tile in the hair colour family) with new hairstyles, outfits and headwear and twelve selectable presets, and while thinking or working the whole pixel Avatar morphs (0.8s) into a pixel symbol in its hair colour bound to the current DSH tool (read, write, edit, bash, grep, web search/fetch, ask_user_question, todo, subagent, workflow, goal, present, approval and more), holding at least 0.5s and returning to the face when the turn ends; sidebar contact rows show the activity indicator and attention count beside the name instead of on the avatar ([#800](https://github.com/BotHarness/BotHarness/issues/800)).

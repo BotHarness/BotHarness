@@ -18,6 +18,8 @@ export interface MessagingAttachment {
   messageId: string;
   resourceKey: string;
   name: string;
+  sizeBytes?: number;
+  mediaType?: string;
 }
 
 export interface MessagingInboundEvent {

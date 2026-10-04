@@ -17,6 +17,8 @@
 
 ### Added
 
+- PersonaBot 可通过 canonical 附件工具读取明确 @ 的 Slack 原消息文件，并用自己的绑定身份沿原生话题回传处理结果；发送完成前复查当前授权，来源详情保留安全文件类型和大小信息（[#831](https://github.com/BotHarness/BotHarness/issues/831)）。
+
 - PersonaBot 可从已授权 Slack 来源主动读取有界频道、附近及原生话题 Human 文本，完整翻页读取密集五分钟窗口，并在来源详情查看上下文；历史读取不触发 Inbox 收件（[#819](https://github.com/BotHarness/BotHarness/issues/819)）。
 
 - 像素家族 PersonaBot 头像改为 32×32 Q 版像素画（更大的头和眼睛、头发和衣服分层明暗、背景取头发同色系的浅色），新增发型、服装、头饰和 12 个可选预设；思考和工作时整个像素头像会在 0.8 秒内变形成与当前 DSH 工具对应的像素符号（读文件、新建、修改、执行命令、搜代码、搜网页、抓取、提问、待办、分身、工作流、目标、展示、待审批等），颜色取自头发，至少停留 0.5 秒，回合结束后变回脸；侧栏联系人行的活动指示和待处理数量移到名字同一行最右侧，不再压在头像上（[#800](https://github.com/BotHarness/BotHarness/issues/800)）。
