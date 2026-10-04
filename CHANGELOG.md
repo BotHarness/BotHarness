@@ -18,6 +18,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - PersonaBots can read an explicitly mentioned Slack source file and return a processed file in the original native thread, using canonical attachment tools, current own-identity authorization and a pre-completion fence; source details retain safe file type/size metadata ([#831](https://github.com/BotHarness/BotHarness/issues/831)).
+- Line-family PersonaBot avatars gain more kaomoji-style eyes (big sparkly, hearts, rings, tall ovals, ^ ^, half-lidded, droopy), brows (thick, maro dots, thin) and mouths (▽, teeth, little fang, dot, pout, nervous zigzag, big laugh), and the Profile editor offers twelve face-only Line presets; Avatars no longer draw the corner `!?` attention mark or manga symbols, and the Profile preview, header title and pinned PersonaBots show the activity indicator and attention count beside the name instead of on the avatar ([#833](https://github.com/BotHarness/BotHarness/issues/833)).
 
 - Human can change the Profile-wide Assignment concurrency limit (1–32, default 3) in Bot mode Settings; saves govern subsequent admission immediately and survive restart, while lowering the limit preserves running work ([#825](https://github.com/BotHarness/BotHarness/issues/825)).
 - Channel sidebar edit mode can hide or restore individual items, saving visibility and order together with Done, discarding both with Cancel, and recovering all items through Restore defaults ([#809](https://github.com/BotHarness/BotHarness/issues/809)).
