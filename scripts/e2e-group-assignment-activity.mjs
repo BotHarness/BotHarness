@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { assertGroupAssignmentCompletion } from './e2e-group-assignment-proof.mjs';
 import { createRequire } from 'node:module';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
@@ -499,7 +500,7 @@ try {
         message.body.includes(marker),
     )
     .map(({ id, at, author, body }) => ({ id, at, author, body }));
-  assert.ok(proof.completion.length > 0);
+  assertGroupAssignmentCompletion(proof);
   proof.clientErrors = errors;
   proof.verdict = 'PASS';
   writeFileSync(resolve(evidence, 'runtime-proof.json'), JSON.stringify(proof, null, 2));

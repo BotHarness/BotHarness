@@ -18,9 +18,7 @@
           "informationalCount": 1
         },
         "activity": {
-          "detailRefs": [
-            "tool-detail-2ecaa996-b802-452e-ac4d-dcd6eca105ed"
-          ],
+          "detailRefs": ["tool-detail-2ecaa996-b802-452e-ac4d-dcd6eca105ed"],
           "effect": "executing",
           "toolKind": "execute",
           "toolName": "bash",
@@ -42,9 +40,7 @@
             "revision": 78,
             "state": "working",
             "activity": {
-              "detailRefs": [
-                "tool-detail-2ecaa996-b802-452e-ac4d-dcd6eca105ed"
-              ],
+              "detailRefs": ["tool-detail-2ecaa996-b802-452e-ac4d-dcd6eca105ed"],
               "effect": "executing",
               "toolKind": "execute",
               "toolName": "bash",
@@ -66,9 +62,7 @@
             "revision": 76,
             "state": "working",
             "activity": {
-              "detailRefs": [
-                "tool-detail-db143959-d717-4fa7-a5b9-5b5f41ba1bab"
-              ],
+              "detailRefs": ["tool-detail-db143959-d717-4fa7-a5b9-5b5f41ba1bab"],
               "effect": "executing",
               "toolKind": "execute",
               "toolName": "pwsh",
@@ -101,9 +95,7 @@
           "informationalCount": 1
         },
         "activity": {
-          "detailRefs": [
-            "tool-detail-db143959-d717-4fa7-a5b9-5b5f41ba1bab"
-          ],
+          "detailRefs": ["tool-detail-db143959-d717-4fa7-a5b9-5b5f41ba1bab"],
           "effect": "executing",
           "toolKind": "execute",
           "toolName": "pwsh",
@@ -125,9 +117,7 @@
             "revision": 76,
             "state": "working",
             "activity": {
-              "detailRefs": [
-                "tool-detail-db143959-d717-4fa7-a5b9-5b5f41ba1bab"
-              ],
+              "detailRefs": ["tool-detail-db143959-d717-4fa7-a5b9-5b5f41ba1bab"],
               "effect": "executing",
               "toolKind": "execute",
               "toolName": "pwsh",
