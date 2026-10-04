@@ -17,6 +17,8 @@
 
 ### Added
 
+- Line 家族 PersonaBot 头像新增更多颜文字风格的眼睛（闪亮大眼、爱心眼、圆圈眼、竖椭圆眼、^ ^、半睁眼、下垂眼）、眉毛（粗眉、麻吕眉、细眉）和嘴（▽、露齿、小虎牙、小点嘴、嘟嘴、紧张锯齿、大笑张嘴），资料页编辑器提供 12 个只有五官的 Line 预设（[#833](https://github.com/BotHarness/BotHarness/issues/833)）。
+
 - Channel sidebar 编辑模式可隐藏或恢复指定项目，完成时一起保存显示与排序偏好，取消时一起丢弃，并可通过恢复默认布局重新显示全部项目（[#809](https://github.com/BotHarness/BotHarness/issues/809)）。
 
 - PersonaBot 可从已授权 Slack 来源主动读取有界频道、附近及原生话题 Human 文本，完整翻页读取密集五分钟窗口，并在来源详情查看上下文；历史读取不触发 Inbox 收件（[#819](https://github.com/BotHarness/BotHarness/issues/819)）。

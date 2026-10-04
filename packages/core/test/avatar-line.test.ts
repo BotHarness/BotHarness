@@ -4,6 +4,7 @@ import { avatarSvg, isAvatarAppearance, isAvatarRecipe } from '../src/bots/avata
 import {
   DEFAULT_LINE_RECIPE,
   LINE_PARTS,
+  LINE_PRESETS,
   LINE_RANGES,
   LINE_MORPH_SYMBOLS,
   isLineAvatarRecipe,
@@ -43,6 +44,14 @@ describe('line Avatar family', () => {
       expect(svg).not.toContain('data-avatar-mark=');
       expect(svg).toContain('<g data-avatar-attention-mark="" opacity="0"');
     }
+  });
+
+  it('ships distinct, valid face-only presets', () => {
+    expect(LINE_PRESETS.length).toBeGreaterThanOrEqual(12);
+    expect(new Set(LINE_PRESETS.map((recipe) => lineAvatarSvg(recipe))).size).toBe(
+      LINE_PRESETS.length,
+    );
+    for (const recipe of LINE_PRESETS) expect(isLineAvatarRecipe(recipe)).toBe(true);
   });
 
   it('accepts only bounded integer geometry and closed parts', () => {

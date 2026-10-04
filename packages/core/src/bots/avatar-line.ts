@@ -18,8 +18,15 @@ export const LINE_PARTS = {
     'star',
     'gentle',
     'cute',
+    'big',
+    'heart',
+    'hollow',
+    'ovals',
+    'caret',
+    'glare',
+    'droopy',
   ],
-  brows: ['flat', 'arched', 'raised', 'angry', 'worried', 'none'],
+  brows: ['flat', 'arched', 'raised', 'angry', 'worried', 'thick', 'maro', 'thin', 'none'],
   nose: ['line', 'hook', 'curve', 'long', 'dot', 'none'],
   mouth: [
     'flat',
@@ -35,6 +42,13 @@ export const LINE_PARTS = {
     'angry',
     'kiss',
     'shocked',
+    'triangle',
+    'teeth',
+    'fang',
+    'dot',
+    'pout',
+    'nervous',
+    'bigopen',
   ],
   cheeks: ['none', 'lines', 'dots'],
   glasses: ['none', 'round', 'square'],
@@ -90,6 +104,122 @@ export const DEFAULT_LINE_RECIPE: LineAvatarRecipe = {
   backgroundColor: '#f3d9d2',
   inkColor: '#1d2433',
 };
+
+const linePreset = (parts: Partial<LineAvatarRecipe>): LineAvatarRecipe => ({
+  ...DEFAULT_LINE_RECIPE,
+  ...parts,
+});
+
+export const LINE_PRESETS: readonly LineAvatarRecipe[] = [
+  linePreset({
+    eyes: 'big',
+    brows: 'thin',
+    nose: 'none',
+    mouth: 'bigopen',
+    cheeks: 'dots',
+    symbol: 'sparkle',
+    backgroundColor: '#f3d9d2',
+    inkColor: '#4a2a4a',
+  }),
+  linePreset({
+    eyes: 'dots',
+    brows: 'flat',
+    nose: 'line',
+    mouth: 'smile',
+    backgroundColor: '#cfe3f3',
+    inkColor: '#1f3a5f',
+  }),
+  linePreset({
+    eyes: 'caret',
+    brows: 'none',
+    nose: 'none',
+    mouth: 'omega',
+    cheeks: 'lines',
+    backgroundColor: '#f6e3b4',
+    inkColor: '#3b2a20',
+  }),
+  linePreset({
+    eyes: 'glare',
+    brows: 'angry',
+    nose: 'hook',
+    mouth: 'fang',
+    symbol: 'anger',
+    backgroundColor: '#f7c9b0',
+    inkColor: '#2a2230',
+  }),
+  linePreset({
+    eyes: 'heart',
+    brows: 'arched',
+    nose: 'dot',
+    mouth: 'triangle',
+    cheeks: 'dots',
+    symbol: 'heart',
+    backgroundColor: '#e2d8f3',
+    inkColor: '#4a2a4a',
+  }),
+  linePreset({
+    eyes: 'hollow',
+    brows: 'raised',
+    nose: 'none',
+    mouth: 'pout',
+    backgroundColor: '#c9ece4',
+    inkColor: '#2f4a3a',
+  }),
+  linePreset({
+    eyes: 'droopy',
+    brows: 'worried',
+    nose: 'curve',
+    mouth: 'nervous',
+    symbol: 'sweat',
+    backgroundColor: '#d6ead2',
+    inkColor: '#1d2433',
+  }),
+  linePreset({
+    eyes: 'ovals',
+    brows: 'maro',
+    nose: 'none',
+    mouth: 'dot',
+    cheeks: 'dots',
+    backgroundColor: '#f2f0ea',
+    inkColor: '#2a2230',
+  }),
+  linePreset({
+    eyes: 'tight',
+    brows: 'thick',
+    nose: 'line',
+    mouth: 'teeth',
+    symbol: 'steam',
+    backgroundColor: '#f3d9d2',
+    inkColor: '#1d2433',
+  }),
+  linePreset({
+    eyes: 'sleepy',
+    brows: 'flat',
+    nose: 'none',
+    mouth: 'wave',
+    symbol: 'zzz',
+    backgroundColor: '#cfe3f3',
+    inkColor: '#1f3a5f',
+  }),
+  linePreset({
+    eyes: 'star',
+    brows: 'thin',
+    nose: 'none',
+    mouth: 'grin',
+    symbol: 'note',
+    backgroundColor: '#f6e3b4',
+    inkColor: '#4a2a4a',
+  }),
+  linePreset({
+    eyes: 'dots',
+    brows: 'none',
+    nose: 'long',
+    mouth: 'smirk',
+    glasses: 'round',
+    backgroundColor: '#e2d8f3',
+    inkColor: '#2f4a3a',
+  }),
+];
 
 const LINE_PART_KEYS = Object.keys(LINE_PARTS) as LinePart[];
 const LINE_RANGE_KEYS = Object.keys(LINE_RANGES) as LineRange[];
@@ -245,6 +375,20 @@ function eye(
       return `<path d="M${X(-dir * w * 0.6)} ${y + 1.2}L${X(dir * w * 0.7)} ${y - 1.4}"/>`;
     case 'cute':
       return `<ellipse cx="${X(0)}" cy="${y}" rx="${fmt(2.7 * k)}" ry="2.9" fill="${ink}" stroke="none"/><circle cx="${X(0.9 * k)}" cy="${y - 1}" r=".9" fill="#ffffff" stroke="none"/>`;
+    case 'big':
+      return `<ellipse cx="${X(0)}" cy="${y + 0.5}" rx="${fmt(3.4 * k)}" ry="3.9" fill="${ink}" stroke="none"/><circle cx="${X(1.2 * k)}" cy="${y - 1}" r="1.2" fill="#ffffff" stroke="none"/><circle cx="${X(-1.2 * k)}" cy="${y + 2}" r=".6" fill="#ffffff" stroke="none"/>`;
+    case 'heart':
+      return `<path d="M${X(0)} ${fmt(y + 2.8)}Q${X(-3.4 * k)} ${fmt(y + 0.2)} ${X(-3.1 * k)} ${fmt(y - 1.4)}A${fmt(1.6 * k)} 1.6 0 0 1 ${X(0)} ${fmt(y - 1.6)}A${fmt(1.6 * k)} 1.6 0 0 1 ${X(3.1 * k)} ${fmt(y - 1.4)}Q${X(3.4 * k)} ${fmt(y + 0.2)} ${X(0)} ${fmt(y + 2.8)}Z" fill="${ink}" stroke-width="1"/>`;
+    case 'hollow':
+      return `<ellipse cx="${X(0)}" cy="${y}" rx="${fmt(2.4 * k)}" ry="2.4" stroke-width="2.2"/>`;
+    case 'ovals':
+      return `<ellipse cx="${X(0)}" cy="${y}" rx="${fmt(1.5 * k)}" ry="3.2" fill="${ink}" stroke="none"/>`;
+    case 'caret':
+      return `<path d="M${X(-w)} ${y + 1.6}L${X(0)} ${y - 1.8}L${X(w)} ${y + 1.6}"/>`;
+    case 'glare':
+      return `<path d="M${X(-w)} ${y - 1}L${X(w)} ${y - 1}"/><path d="M${X(-1.8 * k)} ${y - 0.4}A${fmt(1.8 * k)} 1.9 0 0 0 ${X(1.8 * k)} ${y - 0.4}Z" fill="${ink}" stroke="none"/>`;
+    case 'droopy':
+      return `<path d="M${X(-dir * w)} ${y - 1.2}Q${X(0)} ${y - 1.6} ${X(dir * w)} ${y + 1.4}"/><circle cx="${X(-dir * 0.4 * k)}" cy="${y + 1.4}" r="1.2" fill="${ink}" stroke="none"/>`;
   }
 }
 
@@ -275,6 +419,12 @@ function brow(
       return `<path d="M${at(1, -1.2)}L${at(-1, 1.2)}"/>`;
     case 'worried':
       return `<path d="M${at(1, 1.2)}L${at(-1, -1.2)}"/>`;
+    case 'thick':
+      return `<path d="M${at(1, 0.3)}Q${at(0, -1.2)} ${at(-1, 0.3)}" stroke-width="4.2"/>`;
+    case 'maro':
+      return `<path d="M${fmt(x - 0.8 * k)} ${fmt(y - 0.5)}L${fmt(x + 0.8 * k)} ${fmt(y - 0.5)}" stroke-width="3.6"/>`;
+    case 'thin':
+      return `<path d="M${at(1.1, 0.4)}Q${at(0, -2.6)} ${at(-1.1, 0.4)}" stroke-width="1.5"/>`;
   }
 }
 
@@ -338,6 +488,20 @@ function mouth(
       return `<path d="M${p(-0.15, -2)}Q${p(0.45, -1.9)} ${p(0.2, 0)}Q${p(0.45, 1.9)} ${p(-0.15, 2)}"/>`;
     case 'shocked':
       return `<rect x="${fmt(x - 2.4 * k)}" y="${y - 1.6}" width="${fmt(4.8 * k)}" height="4.6" rx="1"/>`;
+    case 'triangle':
+      return `<path d="M${p(-0.75, -0.8)}L${p(0.75, -0.8)}L${p(0, 3)}Z"/>`;
+    case 'teeth':
+      return `<path d="M${p(-1, -0.8)}L${p(1, -0.8)}Q${p(1, 3.6)} ${p(0, 3.6)}Q${p(-1, 3.6)} ${p(-1, -0.8)}Z"/><path d="M${p(-0.95, 0.9)}L${p(0.95, 0.9)}" stroke-width="1.4"/>`;
+    case 'fang':
+      return `<path d="M${p(-1, -0.5)}Q${p(0, 3)} ${p(1, -0.5)}"/><path d="M${p(0.32, 1.2)}L${p(0.45, 2.9)}L${p(0.62, 0.9)}" fill="#ffffff" stroke-width="1.2"/>`;
+    case 'dot':
+      return `<circle cx="${fmt(x)}" cy="${y + 0.6}" r="1.4" fill="${ink}" stroke="none"/>`;
+    case 'pout':
+      return `<path d="M${p(-0.2, -2.2)}Q${p(0.55, -1.8)} ${p(0.05, 0)}Q${p(0.55, 1.8)} ${p(-0.2, 2.2)}"/>`;
+    case 'nervous':
+      return `<path d="M${p(-1, 0.6)}L${p(-0.6, -0.8)}L${p(-0.2, 0.6)}L${p(0.2, -0.8)}L${p(0.6, 0.6)}L${p(1, -0.8)}"/>`;
+    case 'bigopen':
+      return `<path d="M${p(-1, -1)}L${p(1, -1)}Q${p(1, 5)} ${p(0, 5)}Q${p(-1, 5)} ${p(-1, -1)}Z" fill="${ink}"/><path d="M${p(-0.5, 3.6)}Q${p(0, 1.6)} ${p(0.5, 3.6)}" stroke="#ef6f84" stroke-width="2"/>`;
   }
 }
 

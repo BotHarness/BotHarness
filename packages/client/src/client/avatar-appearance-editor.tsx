@@ -13,6 +13,7 @@ import {
 import {
   LINE_COLORS,
   LINE_PARTS,
+  LINE_PRESETS,
   LINE_RANGES,
   LINE_SWATCHES,
   seededLineRecipe,
@@ -54,8 +55,8 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
     colors: LINE_COLORS,
     swatches: LINE_SWATCHES,
     ranges: LINE_RANGES,
-    presets: [],
-    categories: [...Object.keys(LINE_PARTS), 'shape', 'colors'],
+    presets: LINE_PRESETS,
+    categories: ['presets', ...Object.keys(LINE_PARTS), 'shape', 'colors'],
     option: (part, value) => `profile.avatar.line.${part}.${value}` as Key,
     seeded: seededLineRecipe,
   },
