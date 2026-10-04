@@ -234,6 +234,8 @@
 
 ### Changed
 
+- Channel 连续消息气泡保持紧凑，作者旁只显示一次悬浮／聚焦时间，复制与回复在每条消息的送达圈旁显示，不再预留操作行 ([#803](https://github.com/BotHarness/BotHarness/issues/803))。
+
 - 外部附近上下文覆盖前后五分钟窗口，并为稀疏侧补齐可配置的前后消息保底条数；有界续页游标延长至 30 分钟（[#793](https://github.com/BotHarness/BotHarness/issues/793)）。
 
 - 频道连接器授权设置更紧凑，以带背景的主要／危险按钮区分操作，说明可通过悬停、点击或键盘查看（[#780](https://github.com/BotHarness/BotHarness/issues/780)）。
@@ -331,6 +333,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- 修复 Container Computer 全新 home 存储首次启动时的面板尺寸，保留已有自定义偏好，并使用实际配置的存储（[#797](https://github.com/BotHarness/BotHarness/issues/797)）。
 
 - 修复 Browser Stop 与空闲关闭的授权撤销：先撤销受影响 Session 的权限，再清理资源，待审批的旧请求无法重启已停止的 profile；清理失败时保留可见的停止重试入口，后续空闲清理仍可重试（[#768](https://github.com/BotHarness/BotHarness/issues/768)）。
 

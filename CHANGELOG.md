@@ -234,6 +234,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Channel message groups keep consecutive bubbles compact, show one hover/focus timestamp beside the author, and reveal per-message copy/reply beside delivery receipts without a reserved action row ([#803](https://github.com/BotHarness/BotHarness/issues/803)).
+
 - Nearby external context now covers the five-minute window and supplements sparse sides to configurable preceding/following message minima, with 30-minute bounded continuations ([#793](https://github.com/BotHarness/BotHarness/issues/793)).
 
 - Connector authorization settings are more compact, with filled primary/destructive actions and contextual help available by hover, click, or keyboard ([#780](https://github.com/BotHarness/BotHarness/issues/780)).
@@ -331,6 +333,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Fixed Container Computer panel sizing on the first start of a fresh home store, preserving existing custom preferences and using the configured storage ([#797](https://github.com/BotHarness/BotHarness/issues/797)).
 
 - Fixed Browser Stop and idle shutdown to revoke affected Session authorization before cleanup, so a pending approval cannot restart the stopped profile; cleanup failures retain a visible Stop recovery path and later idle retries remain possible ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 

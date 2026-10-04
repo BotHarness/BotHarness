@@ -1,0 +1,367 @@
+{
+  "phase": "before",
+  "base": "db3ea89869d94392bcca8178c84290e853b21746",
+  "group": {
+    "id": "group-group-shell-qa-1791126544799",
+    "name": "Group shell QA 1791126544799"
+  },
+  "messages": [
+    {
+      "id": "bot-7b8d988ab3a68a8bb5df26ffd9fab387e38de69ab5bb6d08dad366b4323bd653",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-b17aea21c1814faaa3542b380d453dfd"
+      },
+      "body": "Atlas first — 1791126544799",
+      "at": "2026-10-04T15:09:17.332Z"
+    },
+    {
+      "id": "bot-0c755f71814d3a12ca52c896f4a3ff434e1c6557a1a0c1020a93f21b7be8b452",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-b17aea21c1814faaa3542b380d453dfd"
+      },
+      "body": "Atlas second — 1791126544799",
+      "at": "2026-10-04T15:09:18.680Z"
+    },
+    {
+      "id": "bot-bf029359318462b0aec2dd4b6541bf05b2c27500282b213601921bb539fb579c",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-53a66d1b9abf47959f35dfa9f9a3fd46"
+      },
+      "body": "Boreal first — 1791126544799",
+      "at": "2026-10-04T15:09:22.401Z"
+    },
+    {
+      "id": "bot-090c6424c7b5dd9b0b9181b773fabbf4ca9697449010f0fbd56870785c902877",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-53a66d1b9abf47959f35dfa9f9a3fd46"
+      },
+      "body": "Boreal second — 1791126544799",
+      "at": "2026-10-04T15:09:23.549Z"
+    },
+    {
+      "id": "a9192891-d78a-4bf1-bc7c-7b0700f85d44",
+      "author": {
+        "kind": "human"
+      },
+      "body": "Human separator — 1791126544799",
+      "at": "2026-10-04T15:09:24.563Z"
+    },
+    {
+      "id": "bot-5c5b97253250489585bd4828da714a65f3216266b11b57ce2616acf33aa62802",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-53a66d1b9abf47959f35dfa9f9a3fd46"
+      },
+      "body": "Boreal after Human first — 1791126544799",
+      "at": "2026-10-04T15:09:26.410Z"
+    },
+    {
+      "id": "bot-0e87a7521625d17e14dd19f55d4a15120f0e32fa13c50bd2f7bc1c9b92663fa0",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-53a66d1b9abf47959f35dfa9f9a3fd46"
+      },
+      "body": "Boreal after Human second — 1791126544799",
+      "at": "2026-10-04T15:09:27.892Z"
+    },
+    {
+      "id": "member-left-75104411-60da-44d8-8cd7-114b5ef77608",
+      "author": {
+        "kind": "system"
+      },
+      "body": "Quiet QA 1791126544799 was removed from the Channel.",
+      "at": "2026-10-04T15:09:28.368Z"
+    },
+    {
+      "id": "bot-77be0787a2321f83bc8ebb60ce20819e964228a3c1d4247c34e02c89360e1fd8",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-53a66d1b9abf47959f35dfa9f9a3fd46"
+      },
+      "body": "Boreal after system first — 1791126544799",
+      "at": "2026-10-04T15:09:31.204Z"
+    },
+    {
+      "id": "bot-cbf08ec17e4aea4105933a011d74afb5094e48e2e2e78c9d6cbd6061da867978",
+      "author": {
+        "kind": "bot",
+        "slug": "bot-53a66d1b9abf47959f35dfa9f9a3fd46"
+      },
+      "body": "Boreal after system second — 1791126544799",
+      "at": "2026-10-04T15:09:32.378Z"
+    }
+  ],
+  "cases": [
+    {
+      "theme": "light",
+      "width": 1500,
+      "hidden": {
+        "id": "bot-7b8d988ab3a68a8bb5df26ffd9fab387e38de69ab5bb6d08dad366b4323bd653",
+        "human": false,
+        "bubble": {
+          "left": 334,
+          "right": 537.171875,
+          "top": 143,
+          "bottom": 185,
+          "width": 203.171875,
+          "height": 42
+        },
+        "wrap": {
+          "left": 334,
+          "right": 537.171875,
+          "top": 143,
+          "bottom": 209,
+          "width": 203.171875,
+          "height": 66
+        },
+        "receipt": {
+          "left": 542.171875,
+          "right": 564.171875,
+          "top": 161,
+          "bottom": 183,
+          "width": 22,
+          "height": 22
+        },
+        "meta": {
+          "left": 336,
+          "right": 414.921875,
+          "top": 187,
+          "bottom": 209,
+          "width": 78.921875,
+          "height": 22
+        },
+        "actions": [
+          {
+            "left": 368.921875,
+            "right": 390.921875,
+            "top": 187,
+            "bottom": 209,
+            "width": 22,
+            "height": 22
+          },
+          {
+            "left": 392.921875,
+            "right": 414.921875,
+            "top": 187,
+            "bottom": 209,
+            "width": 22,
+            "height": 22
+          }
+        ],
+        "metaOpacity": "0",
+        "timeOpacity": "1",
+        "times": 2,
+        "timeAfterAuthor": false,
+        "nextBubble": {
+          "left": 334,
+          "right": 557.953125,
+          "top": 211,
+          "bottom": 253,
+          "width": 223.953125,
+          "height": 42
+        },
+        "viewport": 1500,
+        "scrollWidth": 1500
+      },
+      "visible": {
+        "id": "bot-0c755f71814d3a12ca52c896f4a3ff434e1c6557a1a0c1020a93f21b7be8b452",
+        "human": false,
+        "bubble": {
+          "left": 334,
+          "right": 557.953125,
+          "top": 211,
+          "bottom": 253,
+          "width": 223.953125,
+          "height": 42
+        },
+        "wrap": {
+          "left": 334,
+          "right": 557.953125,
+          "top": 211,
+          "bottom": 277,
+          "width": 223.953125,
+          "height": 66
+        },
+        "receipt": {
+          "left": 562.953125,
+          "right": 584.953125,
+          "top": 229,
+          "bottom": 251,
+          "width": 22,
+          "height": 22
+        },
+        "meta": {
+          "left": 336,
+          "right": 414.921875,
+          "top": 255,
+          "bottom": 277,
+          "width": 78.921875,
+          "height": 22
+        },
+        "actions": [
+          {
+            "left": 368.921875,
+            "right": 390.921875,
+            "top": 255,
+            "bottom": 277,
+            "width": 22,
+            "height": 22
+          },
+          {
+            "left": 392.921875,
+            "right": 414.921875,
+            "top": 255,
+            "bottom": 277,
+            "width": 22,
+            "height": 22
+          }
+        ],
+        "metaOpacity": "1",
+        "timeOpacity": "1",
+        "times": 2,
+        "timeAfterAuthor": false,
+        "nextBubble": null,
+        "viewport": 1500,
+        "scrollWidth": 1500
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 420,
+      "hidden": {
+        "id": "bot-7b8d988ab3a68a8bb5df26ffd9fab387e38de69ab5bb6d08dad366b4323bd653",
+        "human": false,
+        "bubble": {
+          "left": 110,
+          "right": 313.171875,
+          "top": 143,
+          "bottom": 185,
+          "width": 203.171875,
+          "height": 42
+        },
+        "wrap": {
+          "left": 110,
+          "right": 313.171875,
+          "top": 143,
+          "bottom": 209,
+          "width": 203.171875,
+          "height": 66
+        },
+        "receipt": {
+          "left": 318.171875,
+          "right": 340.171875,
+          "top": 161,
+          "bottom": 183,
+          "width": 22,
+          "height": 22
+        },
+        "meta": {
+          "left": 112,
+          "right": 190.921875,
+          "top": 187,
+          "bottom": 209,
+          "width": 78.921875,
+          "height": 22
+        },
+        "actions": [
+          {
+            "left": 144.921875,
+            "right": 166.921875,
+            "top": 187,
+            "bottom": 209,
+            "width": 22,
+            "height": 22
+          },
+          {
+            "left": 168.921875,
+            "right": 190.921875,
+            "top": 187,
+            "bottom": 209,
+            "width": 22,
+            "height": 22
+          }
+        ],
+        "metaOpacity": "0",
+        "timeOpacity": "1",
+        "times": 2,
+        "timeAfterAuthor": false,
+        "nextBubble": {
+          "left": 110,
+          "right": 333.953125,
+          "top": 211,
+          "bottom": 253,
+          "width": 223.953125,
+          "height": 42
+        },
+        "viewport": 420,
+        "scrollWidth": 420
+      },
+      "visible": {
+        "id": "bot-0c755f71814d3a12ca52c896f4a3ff434e1c6557a1a0c1020a93f21b7be8b452",
+        "human": false,
+        "bubble": {
+          "left": 110,
+          "right": 333.953125,
+          "top": 211,
+          "bottom": 253,
+          "width": 223.953125,
+          "height": 42
+        },
+        "wrap": {
+          "left": 110,
+          "right": 333.953125,
+          "top": 211,
+          "bottom": 277,
+          "width": 223.953125,
+          "height": 66
+        },
+        "receipt": {
+          "left": 338.953125,
+          "right": 360.953125,
+          "top": 229,
+          "bottom": 251,
+          "width": 22,
+          "height": 22
+        },
+        "meta": {
+          "left": 112,
+          "right": 190.921875,
+          "top": 255,
+          "bottom": 277,
+          "width": 78.921875,
+          "height": 22
+        },
+        "actions": [
+          {
+            "left": 144.921875,
+            "right": 166.921875,
+            "top": 255,
+            "bottom": 277,
+            "width": 22,
+            "height": 22
+          },
+          {
+            "left": 168.921875,
+            "right": 190.921875,
+            "top": 255,
+            "bottom": 277,
+            "width": 22,
+            "height": 22
+          }
+        ],
+        "metaOpacity": "1",
+        "timeOpacity": "1",
+        "times": 2,
+        "timeAfterAuthor": false,
+        "nextBubble": null,
+        "viewport": 420,
+        "scrollWidth": 420
+      }
+    }
+  ],
+  "errors": []
+}

@@ -280,11 +280,16 @@ function MessageGroupView({
         </button>
       )}
       <div className="bh-message-stack">
-        {first.bridgeOrigin ? (
-          <BridgeSourceAuthor origin={first.bridgeOrigin} t={t} />
-        ) : (
-          <div className="bh-bubble-author">{authorLabel(first, bots, t, humanName)}</div>
-        )}
+        <div className="bh-message-identity">
+          {first.bridgeOrigin ? (
+            <BridgeSourceAuthor origin={first.bridgeOrigin} t={t} />
+          ) : (
+            <div className="bh-bubble-author">{authorLabel(first, bots, t, humanName)}</div>
+          )}
+          <time className="bh-bubble-time" dateTime={first.at}>
+            {clockTime(first.at)}
+          </time>
+        </div>
         {group.messages.map((message, index) => {
           const position =
             group.messages.length === 1
@@ -341,43 +346,39 @@ function MessageGroupView({
                     toolApprovalDecision={toolApprovalDecisions.get(message.id)}
                     userQuestionResolution={userQuestionResolutions.get(message.id)}
                   />
+                  {message.pending === true || message.streaming === true ? (
+                    <span className="bh-bubble-status" role="status">
+                      {t(message.streaming === true ? 'message.generating' : 'message.sending')}
+                    </span>
+                  ) : null}
                 </div>
+              </div>
+              <div className="bh-bubble-side">
                 <ChannelDeliveryReceipt
                   message={message}
                   bots={bots}
                   humanMembers={humanMembers}
                   t={t}
                 />
-              </div>
-              <div
-                className={`bh-bubble-meta${message.pending === true || message.streaming === true || message.failed !== undefined ? ' bh-bubble-meta-persistent' : ''}`}
-              >
-                <span className="bh-bubble-time">
-                  {message.streaming === true
-                    ? t('message.generating')
-                    : message.failed !== undefined
-                      ? t('message.failed')
-                      : message.pending === true
-                        ? t('message.sending')
-                        : clockTime(message.at)}
-                </span>
-                <div className="bh-bubble-actions">
-                  {onReply !== undefined &&
-                  message.pending !== true &&
-                  message.streaming !== true &&
-                  message.failed === undefined ? (
-                    <Tooltip label={t('message.reply')} side="top" portal delayMs={400}>
-                      <button
-                        type="button"
-                        className="bh-bubble-action"
-                        aria-label={t('message.reply')}
-                        onClick={() => onReply(message)}
-                      >
-                        <ReplyIcon />
-                      </button>
-                    </Tooltip>
-                  ) : null}
-                  <MessageCopyAction body={message.body} t={t} />
+                <div className="bh-bubble-meta">
+                  <div className="bh-bubble-actions">
+                    {onReply !== undefined &&
+                    message.pending !== true &&
+                    message.streaming !== true &&
+                    message.failed === undefined ? (
+                      <Tooltip label={t('message.reply')} side="top" portal delayMs={400}>
+                        <button
+                          type="button"
+                          className="bh-bubble-action"
+                          aria-label={t('message.reply')}
+                          onClick={() => onReply(message)}
+                        >
+                          <ReplyIcon />
+                        </button>
+                      </Tooltip>
+                    ) : null}
+                    <MessageCopyAction body={message.body} t={t} />
+                  </div>
                 </div>
               </div>
             </div>
