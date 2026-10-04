@@ -976,7 +976,7 @@ export function createInboundMessaging(options: {
           providers.get(value.providerId) !== entry ||
           !inspected.account.connected ||
           inspected.account.ref !== value.accountRef ||
-          inspected.account.platform !== 'feishu' ||
+          inspected.account.platform !== value.platform ||
           inspected.account.fingerprint !== value.fingerprint ||
           inspected.target.ref !== value.targetRef ||
           inspected.target.digest !== value.targetDigest ||

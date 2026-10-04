@@ -224,3 +224,7 @@ export { withPublicToolDetail } from './state/tool-activity.js';
 export type { PublicToolActivityDeclaration } from './state/tool-activity.js';
 
 export type { ToolDetail, ToolDetailRead, ToolDetailRefusal } from './state/tool-details.js';
+
+export { PERSONABOT_OUTPUT_COMMITTED, personaBotOutputCommitted } from './channels/output.js';
+export type { PersonaBotOutputCommitted } from './channels/output.js';
+export type { ChannelMessageOrigin } from './channels/store.js';

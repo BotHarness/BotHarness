@@ -132,6 +132,126 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('Channel sidebar personal order editor', () => {
+  it.each(['Escape', 'pointercancel', 'outside'])(
+    'rolls back a whole-row pointer gesture on %s without losing earlier draft moves',
+    (method) => {
+      render();
+      edit();
+      key('memory', 'ArrowDown');
+      const send = (type: string, x: number, y: number, target: EventTarget) => {
+        const event = new MouseEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+          clientX: x,
+          clientY: y,
+        });
+        Object.defineProperty(event, 'pointerId', { value: 1 });
+        act(() => target.dispatchEvent(event));
+      };
+      send('pointerdown', 150, 40, host.querySelector('[data-entry-id="memory"]')!);
+      send('pointermove', 150, 100, document);
+      expect(order()).toEqual(['sessions', 'inbox', 'memory']);
+      if (method === 'Escape')
+        act(() =>
+          document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+          ),
+        );
+      else if (method === 'pointercancel') send('pointercancel', 150, 100, document);
+      else send('pointerup', 400, 100, document);
+      send('pointerup', 150, 100, document);
+      expect(order()).toEqual(['sessions', 'memory', 'inbox']);
+      click('完成');
+      expect(prefs.getSnapshot().entryOrders.personabot).toEqual(['sessions', 'memory', 'inbox']);
+    },
+  );
+  it('does not reorder on a click-sized movement or after its pointer owner unmounts', () => {
+    render();
+    edit();
+    const send = (type: string, y: number, target: EventTarget) => {
+      const event = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 150,
+        clientY: y,
+      });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      act(() => target.dispatchEvent(event));
+    };
+    send('pointerdown', 10, host.querySelector('[data-entry-id="memory"]')!);
+    send('pointermove', 12, document);
+    send('pointerup', 12, document);
+    expect(order()).toEqual(['memory', 'sessions', 'inbox']);
+    expect(host.querySelector('[data-drop-indicator]')).toBeNull();
+    send('pointerdown', 10, host.querySelector('[data-entry-id="memory"]')!);
+    send('pointermove', 100, document);
+    act(() => root.render(null));
+    send('pointerup', 100, document);
+    expect(prefs.getSnapshot().entryOrders.personabot).toEqual([]);
+  });
+
+  it('retains hover preview when native dragleave bubbles from a moving child with no related target', () => {
+    render();
+    edit();
+    const surface = host.querySelector<HTMLElement>('.bh-channel-sidebar-entries')!;
+    vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 320, 150));
+    startDrag('memory');
+    hover(100);
+    expect(order()).toEqual(['sessions', 'inbox', 'memory']);
+    act(() =>
+      host.querySelector('[data-entry-id="memory"]')!.dispatchEvent(
+        new MouseEvent('dragleave', {
+          bubbles: true,
+          clientX: 150,
+          clientY: 100,
+          relatedTarget: null,
+        }),
+      ),
+    );
+    expect(order()).toEqual(['sessions', 'inbox', 'memory']);
+    expect(host.querySelector('[data-drop-indicator]')).not.toBeNull();
+    act(() =>
+      surface.dispatchEvent(
+        new MouseEvent('dragleave', {
+          bubbles: true,
+          clientX: 400,
+          clientY: 100,
+          relatedTarget: null,
+        }),
+      ),
+    );
+    expect(order()).toEqual(['memory', 'sessions', 'inbox']);
+    expect(host.querySelector('[data-drop-indicator]')).toBeNull();
+  });
+  it('starts dragging from the whole row and omits expansion chevrons while editing', () => {
+    render();
+    expect(host.querySelectorAll('.bh-channel-sidebar-entry-chevron')).toHaveLength(3);
+    expect(host.querySelector<HTMLElement>('[data-entry-id="memory"]')!.draggable).toBe(false);
+    edit();
+    expect(host.querySelectorAll('.bh-channel-sidebar-entry-chevron')).toHaveLength(0);
+    const row = host.querySelector<HTMLElement>('[data-entry-id="memory"]')!;
+    const pointer = (type: string, y: number, target: EventTarget) => {
+      const event = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 150,
+        clientY: y,
+      });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      act(() => target.dispatchEvent(event));
+    };
+    pointer('pointerdown', 10, row);
+    pointer('pointermove', 100, document);
+    expect(order()).toEqual(['sessions', 'inbox', 'memory']);
+    expect(host.querySelector('[data-drop-indicator]')).not.toBeNull();
+    pointer('pointerup', 100, document);
+    click('完成');
+    expect(prefs.getSnapshot().entryOrders.personabot).toEqual(['sessions', 'inbox', 'memory']);
+    expect(host.querySelectorAll('.bh-channel-sidebar-entry-chevron')).toHaveLength(3);
+  });
   it('cancels an active drag when Escape is delivered outside its handle and releases the global listener on unmount', () => {
     render();
     edit();

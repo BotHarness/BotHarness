@@ -53,7 +53,7 @@ function parseRevision(value: string | null): number | undefined {
 }
 
 function frame(commit: ChannelMessageCommit): string {
-  return `id: ${commit.revision}\nevent: ${CHANNEL_COMMIT_EVENT}\ndata: ${JSON.stringify(commit)}\n\n`;
+  return `id: ${commit.revision}\nevent: ${CHANNEL_COMMIT_EVENT}\ndata: ${JSON.stringify({ channelId: commit.channelId, message: commit.message, revision: commit.revision })}\n\n`;
 }
 
 function draftFrame(event: PublishedDraftEvent): string {

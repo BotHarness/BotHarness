@@ -120,6 +120,42 @@ function visibility(id: string) {
   act(() => button!.click());
 }
 describe('Channel sidebar personal item visibility', () => {
+  it('keeps visibility controls independent and preserves hidden choices through a whole-row pointer reorder', () => {
+    render();
+    edit();
+    const button = host.querySelector<HTMLButtonElement>('[data-visibility-toggle="memory"]')!;
+    const send = (type: string, y: number, target: EventTarget) => {
+      const event = new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 150,
+        clientY: y,
+      });
+      Object.defineProperty(event, 'pointerId', { value: 1 });
+      act(() => target.dispatchEvent(event));
+    };
+    send('pointerdown', 10, button);
+    send('pointermove', 100, document);
+    send('pointerup', 100, document);
+    expect(order()).toEqual(['memory', 'sessions', 'inbox']);
+    expect(host.querySelector('[data-drop-indicator]')).toBeNull();
+    const native = new Event('dragstart', { bubbles: true, cancelable: true });
+    Object.defineProperty(native, 'dataTransfer', {
+      value: { effectAllowed: '', setData: vi.fn() },
+    });
+    act(() => button.dispatchEvent(native));
+    expect(native.defaultPrevented).toBe(true);
+    visibility('memory');
+    send('pointerdown', 10, host.querySelector('[data-entry-id="memory"]')!);
+    send('pointermove', 100, document);
+    send('pointerup', 100, document);
+    expect(order()).toEqual(['sessions', 'inbox', 'memory']);
+    click('完成');
+    expect(order()).toEqual(['sessions', 'inbox']);
+    expect(prefs.getSnapshot().hiddenEntries.personabot).toEqual(['memory']);
+    expect(prefs.getSnapshot().entryOrders.personabot).toEqual(['sessions', 'inbox', 'memory']);
+  });
   it('bounds malformed stored visibility and preserves it when existing callers reorder entries', () => {
     storage.set(
       'botharness.channel-sidebar',

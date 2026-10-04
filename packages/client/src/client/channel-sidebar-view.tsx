@@ -128,7 +128,9 @@ export function ChannelSidebarEntrySection({
   entryProps,
   editing = false,
   hidden = false,
+  preview,
 }: {
+  preview?: boolean | undefined;
   editing?: boolean;
   hidden?: boolean;
   entry: ChannelSidebarEntry;
@@ -142,11 +144,12 @@ export function ChannelSidebarEntrySection({
   const [refreshRevision, setRefreshRevision] = useState(0);
   const [expandable, setExpandable] = useState(true);
   const expandableRef = useRef(expandable);
+  const shown = (preview ?? expanded) && !editing && !hidden && expandable;
   const props = {
     ...entryProps,
     refreshRevision,
     requestRefresh: () => setRefreshRevision((value) => value + 1),
-    expanded: expanded && !editing && !hidden,
+    expanded: shown,
     setExpanded: (next: boolean) => {
       if (next === expanded || ((editing || hidden) && next)) return;
       if (next && !expandableRef.current) return;
@@ -164,19 +167,21 @@ export function ChannelSidebarEntrySection({
         <button
           type="button"
           className="bh-channel-sidebar-entry-head"
-          aria-expanded={expanded && !editing && !hidden}
+          aria-expanded={shown}
           aria-controls={bodyId}
           aria-disabled={expandable ? undefined : true}
-          disabled={!expandable || editing || hidden}
+          disabled={!expandable || editing || hidden || preview !== undefined}
           style={expandable ? undefined : { cursor: 'default', opacity: 0.6 }}
           onClick={expandable ? onToggle : undefined}
         >
-          <span
-            className={`bh-channel-sidebar-entry-chevron${expanded && !editing && !hidden ? '' : ' bh-chevron-collapsed'}`}
-            aria-hidden="true"
-          >
-            <IconChevronDownOutlineRegular size={14} />
-          </span>
+          {editing ? null : (
+            <span
+              className={`bh-channel-sidebar-entry-chevron${shown ? '' : ' bh-chevron-collapsed'}`}
+              aria-hidden="true"
+            >
+              <IconChevronDownOutlineRegular size={14} />
+            </span>
+          )}
           <span className="bh-channel-sidebar-entry-icon" aria-hidden="true">
             <ChannelSidebarIcon name={entry.icon} />
           </span>
@@ -193,7 +198,7 @@ export function ChannelSidebarEntrySection({
           </span>
         )}
       </div>
-      {expanded && !editing && !hidden ? (
+      {shown ? (
         <div id={bodyId} className="bh-channel-sidebar-entry-body">
           <entry.component {...props} />
         </div>
@@ -230,13 +235,24 @@ export function ChannelSidebarContents({
       }
     | undefined
   >(undefined);
+  const dragBlocked = useRef(false);
+  const pointer = useRef<
+    { id: string; x: number; y: number; pointerId: number; started: boolean } | undefined
+  >(undefined);
+  const pointerHandlers = useRef<{
+    move(event: PointerEvent): void;
+    up(event: PointerEvent): void;
+    cancel(event: PointerEvent): void;
+  }>({ move() {}, up() {}, cancel() {} });
   const [dragging, setDragging] = useState<string | undefined>();
-  const [preview, setPreview] = useState<readonly string[] | undefined>();
+  const [dragPreview, setDragPreview] = useState<readonly string[] | undefined>();
   const rows = useRef<HTMLDivElement | null>(null);
+  const [previewEntry, setPreviewEntry] = useState<string | undefined>();
+  const preview = entries.some((entry) => entry.id === previewEntry) ? previewEntry : undefined;
   const editing = draft !== undefined;
   const order = resolveEntryOrder(
     registered.map((entry) => entry.id),
-    preview ?? draft?.order ?? snapshot.entryOrders[entryProps.scope],
+    dragPreview ?? draft?.order ?? snapshot.entryOrders[entryProps.scope],
   );
   const visible = order.flatMap((id) => entries.filter((entry) => entry.id === id));
   const hidden = draft?.hidden ?? snapshot.hiddenEntries[entryProps.scope];
@@ -251,23 +267,92 @@ export function ChannelSidebarContents({
       }),
     );
   };
+  const beginDrag = (id: string): void => {
+    const bounds = [...rows.current!.querySelectorAll<HTMLElement>('[data-entry-id]')].map(
+      (row) => {
+        const rect = row.getBoundingClientRect();
+        return { id: row.dataset['entryId']!, top: rect.top, bottom: rect.bottom };
+      },
+    );
+    drag.current = {
+      id,
+      order,
+      bounds,
+      scrollTop: rows.current?.scrollTop ?? 0,
+    };
+    setDragging(id);
+  };
+  const previewAt = (clientX: number, clientY: number): void => {
+    const gesture = drag.current;
+    if (gesture === undefined) return;
+    const surface = rows.current!.getBoundingClientRect();
+    if (clientX < surface.left || clientX > surface.right) {
+      gesture.next = undefined;
+      setDragPreview(undefined);
+      return;
+    }
+    const y = clientY + ((rows.current?.scrollTop ?? 0) - gesture.scrollTop);
+    const first = gesture.bounds[0];
+    const last = gesture.bounds.at(-1);
+    if (first === undefined || last === undefined || y < first.top - 8 || y > last.bottom + 8) {
+      gesture.next = undefined;
+      setDragPreview(undefined);
+      return;
+    }
+    const remaining = gesture.bounds.filter((row) => row.id !== gesture.id);
+    const position = remaining.filter((row) => y >= (row.top + row.bottom) / 2).length;
+    const next = insertEntryBefore(gesture.order, gesture.id, remaining[position]?.id);
+    gesture.next = next;
+    setDragPreview((current) =>
+      current?.every((id, index) => id === next[index]) && current.length === next.length
+        ? current
+        : next,
+    );
+  };
+  const applyDrag = (): void => {
+    const gesture = drag.current;
+    if (gesture === undefined) return;
+    if (gesture.next !== undefined && entries.some((entry) => entry.id === gesture.id)) {
+      setDraft({ order: gesture.next, hidden });
+      announce(gesture.id, gesture.next);
+      const handle = rows.current?.querySelectorAll<HTMLButtonElement>('[data-order-handle]');
+      for (const button of handle ?? [])
+        if (button.dataset['orderHandle'] === gesture.id) button.focus();
+    }
+    cancelDrag();
+  };
   const cancelDrag = (): void => {
+    const activePointer = pointer.current;
+    pointer.current = undefined;
+    if (activePointer !== undefined && rows.current?.hasPointerCapture?.(activePointer.pointerId))
+      rows.current.releasePointerCapture(activePointer.pointerId);
     drag.current = undefined;
     setDragging(undefined);
-    setPreview(undefined);
+    setDragPreview(undefined);
   };
   const cancelRef = useRef(cancelDrag);
   cancelRef.current = cancelDrag;
   const dragMount = useMountedResource<HTMLDivElement>((node) => {
     rows.current = node;
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape' || drag.current === undefined) return;
+      if (event.key !== 'Escape' || (drag.current === undefined && pointer.current === undefined))
+        return;
       event.preventDefault();
       event.stopPropagation();
       cancelRef.current();
     };
+    const movePointer = (event: PointerEvent) => pointerHandlers.current.move(event);
+    const upPointer = (event: PointerEvent) => pointerHandlers.current.up(event);
+    const cancelPointer = (event: PointerEvent) => pointerHandlers.current.cancel(event);
+    document.addEventListener('pointermove', movePointer, true);
+    document.addEventListener('pointerup', upPointer, true);
+    document.addEventListener('pointercancel', cancelPointer, true);
     document.addEventListener('keydown', onKeyDown, true);
     return () => {
+      document.removeEventListener('pointermove', movePointer, true);
+      document.removeEventListener('pointerup', upPointer, true);
+      document.removeEventListener('pointercancel', cancelPointer, true);
+      pointer.current = undefined;
       document.removeEventListener('keydown', onKeyDown, true);
       rows.current = null;
     };
@@ -286,6 +371,31 @@ export function ChannelSidebarContents({
     cancelDrag();
     setAnnouncement('');
   };
+  pointerHandlers.current = {
+    move(event) {
+      const current = pointer.current;
+      if (current === undefined || current.pointerId !== event.pointerId) return;
+      if (!current.started && Math.hypot(event.clientX - current.x, event.clientY - current.y) < 5)
+        return;
+      if (!current.started) {
+        current.started = true;
+        beginDrag(current.id);
+      }
+      event.preventDefault();
+      previewAt(event.clientX, event.clientY);
+    },
+    up(event) {
+      const current = pointer.current;
+      if (current === undefined || current.pointerId !== event.pointerId) return;
+      if (current.started) {
+        previewAt(event.clientX, event.clientY);
+        applyDrag();
+      } else cancelDrag();
+    },
+    cancel: (event) => {
+      if (pointer.current?.pointerId === event.pointerId) cancelDrag();
+    },
+  };
   return (
     <>
       <div className="bh-channel-sidebar-head">
@@ -293,6 +403,7 @@ export function ChannelSidebarContents({
           entries={entries}
           entryProps={entryProps}
           editing={editing}
+          onPreview={setPreviewEntry}
           onEdit={() => setDraft({ order, hidden })}
         />
       </div>
@@ -303,28 +414,7 @@ export function ChannelSidebarContents({
           const gesture = drag.current;
           if (!editing || gesture === undefined) return;
           event.preventDefault();
-          const y = event.clientY + ((rows.current?.scrollTop ?? 0) - gesture.scrollTop);
-          const first = gesture.bounds[0];
-          const last = gesture.bounds.at(-1);
-          if (
-            first === undefined ||
-            last === undefined ||
-            y < first.top - 8 ||
-            y > last.bottom + 8
-          ) {
-            gesture.next = undefined;
-            setPreview(undefined);
-            return;
-          }
-          const remaining = gesture.bounds.filter((row) => row.id !== gesture.id);
-          const position = remaining.filter((row) => y >= (row.top + row.bottom) / 2).length;
-          const next = insertEntryBefore(gesture.order, gesture.id, remaining[position]?.id);
-          gesture.next = next;
-          setPreview((current) =>
-            current?.every((id, index) => id === next[index]) && current.length === next.length
-              ? current
-              : next,
-          );
+          previewAt(event.clientX, event.clientY);
         }}
         onDragLeave={(event) => {
           if (
@@ -332,21 +422,22 @@ export function ChannelSidebarContents({
             event.currentTarget.contains(event.relatedTarget)
           )
             return;
+          const bounds = event.currentTarget.getBoundingClientRect();
+          if (
+            event.clientX >= bounds.left &&
+            event.clientX <= bounds.right &&
+            event.clientY >= bounds.top &&
+            event.clientY <= bounds.bottom
+          )
+            return;
           if (drag.current !== undefined) drag.current.next = undefined;
-          setPreview(undefined);
+          setDragPreview(undefined);
         }}
         onDrop={(event) => {
           const gesture = drag.current;
           if (!editing || gesture === undefined) return;
           event.preventDefault();
-          if (gesture.next !== undefined && entries.some((entry) => entry.id === gesture.id)) {
-            setDraft({ order: gesture.next, hidden });
-            announce(gesture.id, gesture.next);
-            const handle = rows.current?.querySelectorAll<HTMLButtonElement>('[data-order-handle]');
-            for (const button of handle ?? [])
-              if (button.dataset['orderHandle'] === gesture.id) button.focus();
-          }
-          cancelDrag();
+          applyDrag();
         }}
       >
         {editing ? (
@@ -386,7 +477,46 @@ export function ChannelSidebarContents({
             hidden={!editing && hidden.includes(entry.id)}
             data-entry-hidden={hidden.includes(entry.id) || undefined}
             data-dragging={dragging === entry.id || undefined}
-            data-drop-indicator={(preview !== undefined && dragging === entry.id) || undefined}
+            data-drop-indicator={(dragPreview !== undefined && dragging === entry.id) || undefined}
+            onPointerDown={(event) => {
+              if (
+                !editing ||
+                event.button !== 0 ||
+                event.isPrimary === false ||
+                (event.target instanceof Element &&
+                  event.target.closest('[data-order-handle], [data-sidebar-no-drag]') !== null)
+              )
+                return;
+              event.preventDefault();
+              pointer.current = {
+                id: entry.id,
+                x: event.clientX,
+                y: event.clientY,
+                pointerId: event.pointerId,
+                started: false,
+              };
+              rows.current?.setPointerCapture?.(event.pointerId);
+            }}
+            onPointerDownCapture={(event) => {
+              dragBlocked.current =
+                event.target instanceof Element &&
+                event.target.closest('[data-sidebar-no-drag]') !== null;
+            }}
+            onDragStart={(event) => {
+              if (
+                !editing ||
+                dragBlocked.current ||
+                (event.target instanceof Element &&
+                  event.target.closest('[data-sidebar-no-drag]') !== null)
+              ) {
+                event.preventDefault();
+                return;
+              }
+              beginDrag(entry.id);
+              event.dataTransfer.effectAllowed = 'move';
+              event.dataTransfer.setData('text/plain', entry.id);
+            }}
+            onDragEnd={cancelDrag}
           >
             {editing ? (
               <button
@@ -395,24 +525,6 @@ export function ChannelSidebarContents({
                 data-order-handle={entry.id}
                 draggable
                 aria-label={entryProps.t('sidebar.order.move', { label: entry.label })}
-                onDragStart={(event) => {
-                  const bounds = [
-                    ...rows.current!.querySelectorAll<HTMLElement>('[data-entry-id]'),
-                  ].map((row) => {
-                    const rect = row.getBoundingClientRect();
-                    return { id: row.dataset['entryId']!, top: rect.top, bottom: rect.bottom };
-                  });
-                  drag.current = {
-                    id: entry.id,
-                    order,
-                    bounds,
-                    scrollTop: rows.current?.scrollTop ?? 0,
-                  };
-                  setDragging(entry.id);
-                  event.dataTransfer.effectAllowed = 'move';
-                  event.dataTransfer.setData('text/plain', entry.id);
-                }}
-                onDragEnd={cancelDrag}
                 onKeyDown={(event) => {
                   if (drag.current !== undefined) {
                     if (event.key === 'Escape') {
@@ -448,6 +560,7 @@ export function ChannelSidebarContents({
               entryProps={entryProps}
               editing={editing}
               hidden={!editing && hidden.includes(entry.id)}
+              preview={preview === undefined ? undefined : preview === entry.id}
             />
             {editing && hidden.includes(entry.id) ? (
               <span className="bh-sidebar-hidden-badge">
@@ -467,6 +580,7 @@ export function ChannelSidebarContents({
                   type="button"
                   className="bh-sidebar-visibility-toggle"
                   data-visibility-toggle={entry.id}
+                  data-sidebar-no-drag=""
                   disabled={dragging !== undefined}
                   aria-pressed={!hidden.includes(entry.id)}
                   aria-label={entryProps.t(
@@ -546,7 +660,7 @@ export function ChannelSidebar({
   closeRef.current = controller;
   const overlayMount = useMountedResource<HTMLDivElement>(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') closeRef.current.close();
+      if (event.key === 'Escape' && !event.defaultPrevented) closeRef.current.close();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
