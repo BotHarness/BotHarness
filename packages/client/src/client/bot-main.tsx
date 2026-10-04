@@ -52,6 +52,7 @@ import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { ProfilePopover, ProfileView } from './personabot-profile.js';
 import { GroupProfilePopover, GroupProfileView } from './group-profile.js';
 import { personaBotActivity } from './persona-activity.js';
+import { groupComposerActivity } from './group-composer-activity.js';
 import {
   EMPTY_PROFILE_CARDS,
   loadPinnedProfileCards,
@@ -255,6 +256,7 @@ function MessageGroupView({
         personaBotId={author.slug}
         name={authorBot?.displayName ?? author.slug}
         src={authorBot?.avatar}
+        appearance={authorBot?.appearance}
         size={28}
         indicator={false}
       />
@@ -473,6 +475,7 @@ function EmptyConversation({
           personaBotId={bot.slug}
           name={bot.displayName}
           src={bot.avatar}
+          appearance={bot.appearance}
           size={56}
           indicator={false}
         />
@@ -610,6 +613,7 @@ function ConversationView({
     personaBotId: member.slug,
     name: member.displayName,
     src: member.avatar,
+    appearance: member.appearance,
     state: personaBotActivity(state, member),
     activity: member.activity,
     attention: member.attention,
@@ -628,6 +632,7 @@ function ConversationView({
               personaBotId: bot.slug,
               name: bot.displayName,
               src: bot.avatar,
+              appearance: bot.appearance,
               state: botActivity,
               activity: bot.activity,
               attention: bot.attention,
@@ -635,15 +640,17 @@ function ConversationView({
             },
           ];
   const composerActivity: ChannelComposerActivity | undefined =
-    composerFacepile.length === 0
-      ? undefined
-      : {
-          items: composerFacepile,
-          summary:
-            composerFacepile.length === 1
-              ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotPresentationSummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, composerFacepile[0]?.attention, t)}`
-              : t('main.activity.bots', { count: composerFacepile.length }),
-        };
+    channel?.type === 'group'
+      ? groupComposerActivity(channelFacepile, t)
+      : composerFacepile.length === 0
+        ? undefined
+        : {
+            items: composerFacepile,
+            summary:
+              composerFacepile.length === 1
+                ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotPresentationSummary(composerFacepile[0]?.state ?? 'idle', composerFacepile[0]?.activity, composerFacepile[0]?.attention, t)}`
+                : t('main.activity.bots', { count: composerFacepile.length }),
+          };
   const channelId = channel?.id;
   const activeMemoryView =
     selectedMemoryView?.channelId === channelId ? selectedMemoryView : undefined;
@@ -1133,6 +1140,7 @@ function ConversationView({
                     personaBotId={bot.slug}
                     name={bot.displayName}
                     src={bot.avatar}
+                    appearance={bot.appearance}
                     state={botActivity}
                     size={22}
                   />
@@ -1169,6 +1177,7 @@ function ConversationView({
                     personaBotId={profileBot.slug}
                     name={profileBot.displayName}
                     src={profileBot.avatar}
+                    appearance={profileBot.appearance}
                     state={profileBotActivity}
                     size={22}
                   />

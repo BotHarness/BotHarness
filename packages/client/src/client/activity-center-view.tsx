@@ -89,7 +89,14 @@ export function ActivityCenterView({
   const value = state.overview.value;
   const bots =
     value?.bots
-      .filter((bot) => showIdle || bot.state !== 'idle' || bot.hasAction || bot.sessions.length > 0)
+      .filter(
+        (bot) =>
+          showIdle ||
+          bot.state !== 'idle' ||
+          bot.hasAction ||
+          (bot.attention?.informationalCount ?? 0) > 0 ||
+          bot.sessions.length > 0,
+      )
       .sort((a, b) => Number(b.hasAction) - Number(a.hasAction)) ?? [];
   return (
     <div className="bh-root bh-main bh-activity-center" ref={mount}>
@@ -191,6 +198,7 @@ export function ActivityCenterView({
                     personaBotId={bot.slug}
                     name={bot.displayName}
                     src={bot.avatar}
+                    appearance={bot.appearance}
                     size={28}
                     state={bot.state}
                     activity={bot.activity}

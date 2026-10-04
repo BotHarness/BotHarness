@@ -1,0 +1,29 @@
+{
+  "restarted": {
+    "generation": "800a3b64-2730-4d60-82bb-2d802febea9f",
+    "revision": 1,
+    "slug": "bot-bec4e0809b9b4e65b429df0ca61d71a5",
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "informationalCount": 1
+    }
+  },
+  "cleared": {
+    "generation": "800a3b64-2730-4d60-82bb-2d802febea9f",
+    "revision": 23,
+    "slug": "bot-bec4e0809b9b4e65b429df0ca61d71a5",
+    "state": "idle"
+  },
+  "human": {
+    "generation": "800a3b64-2730-4d60-82bb-2d802febea9f",
+    "revision": 23,
+    "slug": "bot-f0e5930384c642d4aac7028f7eab6bf2",
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "informationalCount": 1
+    }
+  },
+  "clientErrors": []
+}

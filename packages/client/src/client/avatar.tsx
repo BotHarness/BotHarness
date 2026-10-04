@@ -11,6 +11,12 @@ import type { PersonaBotToolActivity } from '../../../core/src/state/tool-activi
 import { blobatar } from 'blobatar';
 
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
+import {
+  isAvatarAppearance,
+  seededAvatarRecipe,
+  type AvatarAppearance,
+} from '../../../core/src/bots/avatar-appearance.js';
+import { IllustratedAvatar } from './illustrated-avatar.js';
 
 export const PERSONA_BOT_ACTIVITY_STATES = [
   'idle',
@@ -34,6 +40,7 @@ export interface PersonaBotAvatarProps {
   name: string;
   size: number;
   src?: string | undefined;
+  appearance?: AvatarAppearance | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
@@ -48,6 +55,7 @@ export interface PersonaBotFacepileItem {
   personaBotId: string;
   name: string;
   src?: string | undefined;
+  appearance?: AvatarAppearance | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
@@ -157,6 +165,22 @@ export function personaBotPresentationSummary(
           { count: attention.waitingHumanCount },
         )
       : undefined,
+    attention?.workspaceGrantCount
+      ? t(
+          attention.workspaceGrantCount === 1
+            ? 'activity.workspaceGrantCountOne'
+            : 'activity.workspaceGrantCount',
+          { count: attention.workspaceGrantCount },
+        )
+      : undefined,
+    attention?.informationalCount
+      ? t(
+          attention.informationalCount === 1
+            ? 'activity.informationalCountOne'
+            : 'activity.informationalCount',
+          { count: attention.informationalCount },
+        )
+      : undefined,
     attention?.blockedCount
       ? t(attention.blockedCount === 1 ? 'activity.blockedCountOne' : 'activity.blockedCount', {
           count: attention.blockedCount,
@@ -248,6 +272,7 @@ export function PersonaBotAvatar({
   name,
   size,
   src,
+  appearance,
   state = 'idle',
   effect,
   activity,
@@ -259,7 +284,13 @@ export function PersonaBotAvatar({
   const resolvedEffect =
     effect ?? (state === 'working' ? activity?.effect : undefined) ?? defaultActivityEffect(state);
   const summary = personaBotPresentationSummary(state, activity, attention, t);
-  const mediaKind = src === undefined || src.length === 0 ? 'blob' : 'image';
+  const composed = isAvatarAppearance(appearance);
+  const seeded = !composed && (src === undefined || src.length === 0);
+  const seededRecipe = useMemo(
+    () => (seeded ? seededAvatarRecipe(name || personaBotId) : undefined),
+    [seeded, name, personaBotId],
+  );
+  const mediaKind = composed ? 'composed' : seeded ? 'seeded' : 'image';
   const active = state === 'thinking' || state === 'working';
   const classes = ['bh-persona-avatar', className].filter(Boolean).join(' ');
 
@@ -275,18 +306,36 @@ export function PersonaBotAvatar({
       role="img"
       aria-label={t('avatar.label', { name, activity: summary })}
     >
-      <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
+      {composed || seededRecipe ? (
+        <IllustratedAvatar
+          recipe={composed ? appearance.recipe : seededRecipe!}
+          state={state}
+          effect={resolvedEffect ?? 'generic-working'}
+          size={size}
+        />
+      ) : (
+        <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
+      )}
       {indicator ? <ActivityIndicator state={state} /> : null}
-      {indicator && attention !== undefined ? (
+      {indicator && attention !== undefined && attentionCount(attention) > 0 ? (
         <span
           className="bh-avatar-attention"
           data-approval-count={attention.approvalCount}
           data-question-count={attention.questionCount ?? 0}
           data-waiting-human-count={attention.waitingHumanCount ?? 0}
+          data-workspace-grant-count={attention.workspaceGrantCount ?? 0}
           data-blocked-count={attention.blockedCount ?? 0}
           aria-hidden="true"
         >
           {attentionCount(attention) > 99 ? '99+' : attentionCount(attention)}
+        </span>
+      ) : indicator && attention?.informationalCount ? (
+        <span
+          className="bh-avatar-information"
+          data-informational-count={attention.informationalCount}
+          aria-hidden="true"
+        >
+          i
         </span>
       ) : null}
     </span>
@@ -295,12 +344,14 @@ export function PersonaBotAvatar({
 
 export function PersonaBotFacepile({
   items,
+  renderAvatar,
   size,
   max = 3,
   className,
   t = zhTranslate,
 }: {
   items: readonly PersonaBotFacepileItem[];
+  renderAvatar?: ((item: PersonaBotFacepileItem, avatar: ReactElement) => ReactElement) | undefined;
   size: number;
   max?: number | undefined;
   className?: string | undefined;
@@ -311,9 +362,10 @@ export function PersonaBotFacepile({
   const overflow = items.length - visible.length;
   return (
     <span className={['bh-avatar-facepile', className].filter(Boolean).join(' ')}>
-      {visible.map((item) => (
-        <PersonaBotAvatar key={item.personaBotId} {...item} size={size} t={t} />
-      ))}
+      {visible.map((item) => {
+        const avatar = <PersonaBotAvatar key={item.personaBotId} {...item} size={size} t={t} />;
+        return renderAvatar === undefined ? avatar : renderAvatar(item, avatar);
+      })}
       {overflow > 0 ? (
         <span className="bh-avatar-facepile-overflow" style={{ width: size, height: size }}>
           +{overflow}

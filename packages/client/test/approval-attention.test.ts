@@ -95,3 +95,80 @@ it('shows Assignment waiting and blocked counts without changing idle or working
     expect(markup).toMatch(/data-blocked-count="2"[^>]*>3<\/span>/);
   }
 });
+
+it('shows Workspace Grant attention in the shared summary without changing execution', () => {
+  for (const [count, label] of [
+    [1, '1 个工作区待授权'],
+    [2, '2 个工作区待授权'],
+  ] as const) {
+    const html = renderToStaticMarkup(
+      createElement(PersonaBotAvatar, {
+        personaBotId: 'ada',
+        name: 'Ada',
+        size: 32,
+        state: 'idle',
+        attention: { approvalCount: 0, workspaceGrantCount: count },
+      }),
+    );
+    expect(html).toContain('data-state="idle"');
+    expect(html).toContain(`data-workspace-grant-count="${count}"`);
+    expect(html).toContain(label);
+  }
+});
+
+it('shows informational updates in a neutral marker and excludes them from red action counts', () => {
+  for (const state of ['idle', 'working'] as const) {
+    const html = renderToStaticMarkup(
+      createElement(PersonaBotAvatar, {
+        personaBotId: 'ada',
+        name: 'Ada',
+        size: 32,
+        state,
+        attention: { approvalCount: 0, informationalCount: 2 },
+      }),
+    );
+    expect(html).toContain(`data-state="${state}"`);
+    expect(html).toContain('class="bh-avatar-information"');
+    expect(html).toContain('2 条任务信息更新');
+    expect(html).not.toContain('class="bh-avatar-attention"');
+    const combined = renderToStaticMarkup(
+      createElement(PersonaBotAvatar, {
+        personaBotId: 'ada',
+        name: 'Ada',
+        size: 32,
+        state,
+        attention: { approvalCount: 1, informationalCount: 2 },
+      }),
+    );
+    expect(combined).toMatch(/data-blocked-count="0"[^>]*>1<\/span>/);
+    expect(combined).toContain('2 条任务信息更新');
+    expect(combined).not.toContain('class="bh-avatar-information"');
+  }
+});
+
+it('localizes singular and plural information summaries without replacing idle', () => {
+  const t: BotHarnessTranslate = (key, params) => {
+    const value: unknown = Reflect.get(en, key);
+    if (typeof value !== 'string') throw new Error('Missing translation');
+    let label = value;
+    for (const [name, replacement] of Object.entries(params ?? {}))
+      label = label.replace(`{${name}}`, String(replacement));
+    return label;
+  };
+  for (const [count, label] of [
+    [1, '1 Assignment update'],
+    [2, '2 Assignment updates'],
+  ] as const) {
+    const html = renderToStaticMarkup(
+      createElement(PersonaBotAvatar, {
+        personaBotId: 'ada',
+        name: 'Ada',
+        size: 32,
+        state: 'idle',
+        attention: { approvalCount: 0, informationalCount: count },
+        t,
+      }),
+    );
+    expect(html).toContain(`aria-label="Ada: Idle · ${label}"`);
+  }
+});

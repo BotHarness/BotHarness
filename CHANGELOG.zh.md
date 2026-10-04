@@ -18,10 +18,15 @@
 ### Added
 
 - 增加可选的本机 agent-browser 试用驱动，沿用 Browser 权限与 Human 控制，默认驱动保持不变 ([#767](https://github.com/BotHarness/BotHarness/issues/767), [ADR-0124](docs/adr/0124-local-browser-drivers-share-host-authority.md)).
+- 群聊活动的紧凑摘要和展开列表现在显示每个活跃 PersonaBot 的名称，头像支持键盘操作，并显示同一份安全共享状态（[#124](https://github.com/BotHarness/BotHarness/issues/124)）。
+- PersonaBot Profile 可预览、取消和保存原创像素人物头像，按仿 Notion 脸谱的分类选择脸型、发型、眼睛、眉毛、鼻子、嘴巴、脸颊、眼镜、配饰以及肤色、发色、眼睛与衣服颜色、朝向、服装和背景装饰；未保存或上传头像的 Bot 按名字生成默认像素形象，创建时即可预览；保存外形在侧栏与 Profile 大图保持一致，消费现有活动和独立审批 attention，并在重启后恢复（[#751](https://github.com/BotHarness/BotHarness/issues/751)）。
 
 - 新增显式 Chrome Profile 配对，支持跨标签页发现、导航与基于引用的网页控制，保留 Browser Access、Session 审批和暂停 ([#774](https://github.com/BotHarness/BotHarness/issues/774), [guide](docs/daily-browser.md), [ADR-0123](docs/adr/0123-daily-chrome-profile-control-is-an-explicit-persistent-pairing.md)).
 
 - 共享 Channel 成员可用自己独立授权的身份明确回复外部 Lark 来源，查看发送身份与来源详情，并按成员／来源保留唯一持久回复记录（[#637](https://github.com/BotHarness/BotHarness/issues/637)）。
+- Assignment 完成报告现在通过 PersonaBot Activity 各视图显示中性信息提示，与待处理数字独立；收件箱隐藏或忽略会清除提示，不改变执行状态（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
+
+- 待处理的工作区授权请求现在计入 PersonaBot 的侧栏、消息框和总览提醒；授权回复或收件箱忽略会清除提示，不改变执行状态（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
 - Orchestrator 可明确等待所属 Assignment 的报告或完成；共享 Activity 在有界等待期间呈现 Assignment 工作，并在报告、取消或超时后恢复 Orchestrator 选择（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
@@ -312,6 +317,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- PersonaBot 并发工具 Activity 现在先排序不透明详情引用再限制数量，使同一活跃集合不受事件到达顺序影响（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
 - Group Profile 的成员消息活跃使用外部平台与来源群名称，同一来源的发送人合并统计，不同来源分别显示（[#769](https://github.com/BotHarness/BotHarness/issues/769)）。
 

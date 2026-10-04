@@ -298,7 +298,12 @@ it('accepts only safe question counts in the same baseline and revisioned live e
 });
 
 it('parses safe Assignment counts and rejects unsafe or overflowing attention', () => {
-  const attention = { approvalCount: 0, waitingHumanCount: 1, blockedCount: 2 };
+  const attention = {
+    approvalCount: 0,
+    waitingHumanCount: 1,
+    blockedCount: 2,
+    workspaceGrantCount: 1,
+  };
   const baseline = (value: unknown) =>
     JSON.stringify({
       generation: 'host',
@@ -306,10 +311,31 @@ it('parses safe Assignment counts and rejects unsafe or overflowing attention', 
       bots: [{ slug: 'ada', state: 'idle', attention: value }],
     });
   expect(parseActivitySnapshot(baseline(attention))?.bots[0]?.attention).toEqual(attention);
-  for (const key of ['waitingHumanCount', 'blockedCount'])
+  for (const key of ['waitingHumanCount', 'blockedCount', 'workspaceGrantCount'])
     for (const count of [-1, 0, 1.5, '1', Number.MAX_SAFE_INTEGER + 1])
       expect(parseActivitySnapshot(baseline({ ...attention, [key]: count }))).toBeUndefined();
   expect(
     parseActivitySnapshot(baseline({ ...attention, approvalCount: Number.MAX_SAFE_INTEGER })),
   ).toBeUndefined();
+});
+
+it('accepts informational-only snapshots without counting them as actions and rejects unsafe counts', () => {
+  const baseline = (count: unknown) =>
+    JSON.stringify({
+      generation: 'host',
+      revision: 12,
+      bots: [
+        {
+          slug: 'ada',
+          state: 'idle',
+          attention: { approvalCount: 0, informationalCount: count, summary: 'private report' },
+        },
+      ],
+    });
+  expect(parseActivitySnapshot(baseline(2))?.bots[0]?.attention).toEqual({
+    approvalCount: 0,
+    informationalCount: 2,
+  });
+  for (const count of [-1, 0, 1.5, '1', Number.MAX_SAFE_INTEGER + 1])
+    expect(parseActivitySnapshot(baseline(count))).toBeUndefined();
 });

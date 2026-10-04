@@ -19,6 +19,8 @@ export interface PersonaBotAttention {
   questionCount?: number;
   waitingHumanCount?: number;
   blockedCount?: number;
+  workspaceGrantCount?: number;
+  informationalCount?: number;
 }
 
 export interface BotStateSnapshot {
@@ -47,11 +49,13 @@ export type BotStateEvent =
 
 export interface BotStateTracker {
   beginAssignmentWait(slug: string, sessionId: string): () => void;
-  replaceAssignmentAttention(
+  replaceDurableAttention(
     rows: readonly {
       botSlug: string;
       waitingHumanCount: number;
       blockedCount: number;
+      workspaceGrantCount: number;
+      informationalCount: number;
     }[],
   ): void;
   setQuestionCount(slug: string, count: number): void;
@@ -104,23 +108,32 @@ export function createBotStateTracker(): BotStateTracker {
   const bots = new Map<string, Map<string, SessionState>>();
   const approvalCounts = new Map<string, number>();
   const questionCounts = new Map<string, number>();
-  const assignmentAttention = new Map<
+  const durableAttention = new Map<
     string,
-    { waitingHumanCount: number; blockedCount: number }
+    {
+      waitingHumanCount: number;
+      blockedCount: number;
+      workspaceGrantCount: number;
+      informationalCount: number;
+    }
   >();
   const attentionOf = (slug: string): PersonaBotAttention | undefined => {
     const count = approvalCounts.get(slug);
     const questionCount = questionCounts.get(slug);
-    const assignment = assignmentAttention.get(slug);
-    return count === undefined && questionCount === undefined && assignment === undefined
+    const durable = durableAttention.get(slug);
+    return count === undefined && questionCount === undefined && durable === undefined
       ? undefined
       : {
           approvalCount: count ?? 0,
           ...(questionCount === undefined ? {} : { questionCount }),
-          ...(assignment?.waitingHumanCount
-            ? { waitingHumanCount: assignment.waitingHumanCount }
+          ...(durable?.waitingHumanCount ? { waitingHumanCount: durable.waitingHumanCount } : {}),
+          ...(durable?.blockedCount ? { blockedCount: durable.blockedCount } : {}),
+          ...(durable?.informationalCount
+            ? { informationalCount: durable.informationalCount }
             : {}),
-          ...(assignment?.blockedCount ? { blockedCount: assignment.blockedCount } : {}),
+          ...(durable?.workspaceGrantCount
+            ? { workspaceGrantCount: durable.workspaceGrantCount }
+            : {}),
         };
   };
   const listeners = new Set<(event: BotStateEvent) => void>();
@@ -269,34 +282,56 @@ export function createBotStateTracker(): BotStateTracker {
         if (bots.get(slug)?.has(sessionId)) update(previous);
       };
     },
-    replaceAssignmentAttention(rows) {
+    replaceDurableAttention(rows) {
       if (
         rows.some(
           (row) =>
             !Number.isSafeInteger(row.waitingHumanCount) ||
             row.waitingHumanCount < 0 ||
             !Number.isSafeInteger(row.blockedCount) ||
-            row.blockedCount < 0,
+            row.blockedCount < 0 ||
+            !Number.isSafeInteger(row.workspaceGrantCount) ||
+            row.workspaceGrantCount < 0 ||
+            !Number.isSafeInteger(row.informationalCount) ||
+            row.informationalCount < 0,
         )
       )
         return;
       const next = new Map(
         rows
-          .filter((row) => row.waitingHumanCount + row.blockedCount > 0)
-          .map(({ botSlug, waitingHumanCount, blockedCount }) => [
-            botSlug,
-            { waitingHumanCount, blockedCount },
-          ]),
+          .filter(
+            (row) =>
+              row.waitingHumanCount +
+                row.blockedCount +
+                row.workspaceGrantCount +
+                row.informationalCount >
+              0,
+          )
+          .map(
+            ({
+              botSlug,
+              waitingHumanCount,
+              blockedCount,
+              workspaceGrantCount,
+              informationalCount,
+            }) => [
+              botSlug,
+              { waitingHumanCount, blockedCount, workspaceGrantCount, informationalCount },
+            ],
+          ),
       );
-      const changed = [...new Set([...assignmentAttention.keys(), ...next.keys()])].filter(
+      const changed = [...new Set([...durableAttention.keys(), ...next.keys()])].filter(
         (slug) =>
-          (assignmentAttention.get(slug)?.waitingHumanCount ?? 0) !==
+          (durableAttention.get(slug)?.waitingHumanCount ?? 0) !==
             (next.get(slug)?.waitingHumanCount ?? 0) ||
-          (assignmentAttention.get(slug)?.blockedCount ?? 0) !==
-            (next.get(slug)?.blockedCount ?? 0),
+          (durableAttention.get(slug)?.blockedCount ?? 0) !== (next.get(slug)?.blockedCount ?? 0) ||
+          (durableAttention.get(slug)?.workspaceGrantCount ?? 0) !==
+            (next.get(slug)?.workspaceGrantCount ?? 0) ||
+          (durableAttention.get(slug)?.informationalCount ?? 0) !==
+            (next.get(slug)?.informationalCount ?? 0),
       );
-      assignmentAttention.clear();
-      for (const [slug, counts] of next) assignmentAttention.set(slug, counts);
+      durableAttention.clear();
+      for (const [slug, counts] of next) durableAttention.set(slug, counts);
       if (changed.length === 0) return;
       revision += 1;
       for (const slug of changed) notify(slug, 'attention-changed');

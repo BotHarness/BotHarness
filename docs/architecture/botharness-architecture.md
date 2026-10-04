@@ -81,6 +81,8 @@ flowchart LR
 
 浏览器只通过 RPC 访问 Host read models 和 commands。Provider adapter 只负责验证、规范化和执行能力；它不拥有 Inbox，也不能直接唤醒 Agent。DSH 继续拥有 Agent 执行、SessionPersistence、Subagent 与凭据；BotHarness 不复制这些 runtime 权威。
 
+Assignment 完成报告通过既有 Human Inbox 最新报告、忽略和来源级隐藏事实派生 `informationalCount`，进入同一有 revision 的 Activity snapshot。仅有信息时显示中性的 `i`；红色待处理数字不包含信息更新，同时存在时悬浮／聚焦摘要分别说明数量。打开报告本身不代表确认；忽略或隐藏才清除提示，重启可从权威事实恢复，执行状态不变。
+
 ## 2 · Deep modules 与所有权
 
 ```mermaid
@@ -376,6 +378,8 @@ flowchart LR
 
 Assignment Session 是 DSH independent root，以 DSH `sessionId` 为 canonical identity；Continuity Key 只是 PersonaBot-local alias。Orchestrator 通过六个工具 `list_assignments`、`inspect_assignment`、`create_assignment`、`send_assignment_request`、`wait_for_assignment`、`stop_assignment` 管理它们。Assignment Agent 只能用 `report_to_orchestrator` 向 Orchestrator 回报；其 Agent Scope 没有 Channel send capability，普通 final 也不会写入 Channel。v1 没有 Assignment-to-Assignment 直连、广播或等待队列。
 
+待处理 Workspace Grant 请求通过同一持久 Human-action 查询进入独立 Activity attention。只有经过校验的 Grant 关联 Human 回复、Inbox 忽略或来源 DM 移除才清除计数；普通授权文字不会清除。重启从已提交 action 重建计数，不伪造执行状态。
+
 报告超过 2 KiB 时，Assignment Runtime 在提交 Inbox Admission 前把完整文本交给 DSH Spill Service 保存，并只将前缀预览、字节数、不透明 locator 与 provider 的检索提示写入 Assignment Directory、Source Event 和 Bot Inbox；单份报告上限为 1 MiB。Orchestrator 的 `inspect_assignment` 可通过 DSH Session Query 读取该事项最近四条原生日志事件（最多 12,000 个字符），也可指定 `report_offset` 从已接收报告的原生 `tool/call` 事件每次读取至多 2,000 个字符，并通过 `nextOffset` 继续；两种读取均先核实事项归属，返回查询条数、实际读取量与估算 token 成本。Spill Service 仅负责保存且 locator 对消费者不透明；Orchestrator 即使不能直接读取本地 Spill 路径，也能通过 Session Query 找回该报告，不额外建立一份全文报告数据库。
 
 Agent 可自行选择发送内联报告，或先写入其工作区文件并报告路径；超长内联报告由 Host 自动处理，不触发额外提问。
@@ -410,7 +414,9 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 ### 5.2 · 可编辑 Avatar（已接受设计，待交付）
 
-[ADR-0118](../adr/0118-editable-avatar-appearance-is-independent-of-activity.md) 记录 Human 已确认的设计目标，未交付运行功能：人物插画与抽象小角色两个 Avatar Family 共用真实 Bot-state 语义与过渡规则，各自适配部件和姿态。保存的有版本 Avatar Appearance 配方归 PersonaBot owning module；执行与 Human attention 消费现有 owning projection；逐帧姿态和过渡时间归 Client renderer，不写 SessionEvent、不改保存造型，也不另建状态聚合。首版编辑目标包含细分发件与有界五官几何参数；抽象角色可短暂变成有界点阵／符号，配件暂时收起、稳定姿态恢复时完整回来；小头像的动作更短、更克制，大形象更丰富。保存配方与派生静态快照；缺少兼容部件／协议版本时保留配方、显示原外形快照，并明确暂不可编辑／播放角色动画，独立活动提示继续消费真实事实。候选渲染路线是现有 React Client 内的受控 SVG、稳定节点与有界姿态采样，不预先引入新动效依赖。首个切片先验证编辑、保存、重读、真实工作动作与独立 attention（依赖 #123 owner 已交付的共享合同），第二家族复用语义合同；完成／错误动作后续另定结果作用域。shared native Human attention 继续由 #123 owner 提供，explicit waiting-on-Assignment 不由头像推断。
+[ADR-0118](../adr/0118-editable-avatar-appearance-is-independent-of-activity.md) 记录 Human 已确认的设计目标：人物插画与抽象小角色两个 Avatar Family 共用真实 Bot-state 语义与过渡规则，各自适配部件和姿态。保存的有版本 Avatar Appearance 配方归 PersonaBot owning module；执行与 Human attention 消费现有 owning projection；逐帧姿态和过渡时间归 Client renderer，不写 SessionEvent、不改保存造型，也不另建状态聚合。首版编辑目标包含细分发件与有界五官几何参数；抽象角色可短暂变成有界点阵／符号，配件暂时收起、稳定姿态恢复时完整回来；小头像的动作更短、更克制，大形象更丰富。保存配方与派生静态快照；缺少兼容部件／协议版本时保留配方、显示原外形快照，并明确暂不可编辑／播放角色动画，独立活动提示继续消费真实事实。候选渲染路线是现有 React Client 内的受控 SVG、稳定节点与有界姿态采样，不预先引入新动效依赖。首个切片先验证编辑、保存、重读、真实工作动作与独立 attention（依赖 #123 owner 已交付的共享合同），第二家族复用语义合同；完成／错误动作后续另定结果作用域。shared native Human attention 继续由 #123 owner 提供，explicit waiting-on-Assignment 不由头像推断。
+
+[#751](https://github.com/BotHarness/BotHarness/issues/751) 的首条人物路径使用 Registry 的 `setAppearance`：受控、严格版本化的部件与十六进制颜色配方和 Host 由同一 SVG 派生的 512×512 PNG 在一次原子写入内保存，SHA-256 revision 绑定配方与快照。DTO 只携带配方／revision 与既有快照 URL；图片覆盖或移除会清除 composed 配方。Client 的 Profile 草稿在 Save 前不写入，侧栏和大图消费同一保存配方；稳定 SVG 节点上的 Web Animations 只持有有界局部姿态，真实 activity 切换会重新定向，减少动画、隐藏、离屏和卸载取消资源。Host 光栅化依赖仅在保存时执行，不进入 Client Bundle；第二家族、细分发件／五官和缺版本兼容回退仍由后续切片验收。
 
 ## 6 · 持久化、导出与恢复边界
 

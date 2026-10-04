@@ -1,0 +1,443 @@
+{
+  "scene": {
+    "slug": "bot-f0d7e348f461433199171541e092e183",
+    "displayName": "Workspace attention QA 1791049301158"
+  },
+  "pending": {
+    "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+    "revision": 28,
+    "slug": "bot-f0d7e348f461433199171541e092e183",
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "workspaceGrantCount": 1
+    }
+  },
+  "refreshed": {
+    "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+    "revision": 28,
+    "slug": "bot-f0d7e348f461433199171541e092e183",
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "workspaceGrantCount": 1
+    }
+  },
+  "overview": {
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "workspaceGrantCount": 1
+    }
+  },
+  "resolved": {
+    "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+    "revision": 37,
+    "slug": "bot-f0d7e348f461433199171541e092e183",
+    "state": "idle"
+  },
+  "plainTextKeptPending": true,
+  "dismissalCleared": true,
+  "offlineReplyRecovered": true,
+  "beforeRestart": {
+    "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+    "revision": 52,
+    "slug": "bot-65dcc2c9641f458aadbecbbce1e189d9",
+    "state": "idle",
+    "attention": {
+      "approvalCount": 0,
+      "workspaceGrantCount": 1
+    }
+  },
+  "frames": [
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 21,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 22,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "thinking"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 23,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "thinking"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 24,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "thinking"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 25,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "working"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 26,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "working",
+          "attention": {
+            "approvalCount": 0,
+            "workspaceGrantCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 27,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "thinking",
+          "attention": {
+            "approvalCount": 0,
+            "workspaceGrantCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 28,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle",
+          "attention": {
+            "approvalCount": 0,
+            "workspaceGrantCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 28,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle",
+          "attention": {
+            "approvalCount": 0,
+            "workspaceGrantCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 28,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle",
+          "attention": {
+            "approvalCount": 0,
+            "workspaceGrantCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 29,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "thinking",
+          "attention": {
+            "approvalCount": 0,
+            "workspaceGrantCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 30,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle",
+          "attention": {
+            "approvalCount": 0,
+            "workspaceGrantCount": 1
+          }
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 31,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 32,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "thinking"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 33,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "working"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 34,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "thinking"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 35,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "working"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 36,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "thinking"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 37,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 38,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 39,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 40,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 41,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 42,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 43,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 44,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 44,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 45,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 46,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 47,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 48,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 49,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 50,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 51,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 52,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    },
+    {
+      "generation": "0c9b9853-589a-4e90-82d0-e8ca114b9d48",
+      "revision": 52,
+      "bots": [
+        {
+          "slug": "bot-f0d7e348f461433199171541e092e183",
+          "state": "idle"
+        }
+      ]
+    }
+  ],
+  "clientErrors": []
+}
