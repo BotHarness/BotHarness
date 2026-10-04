@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import { assertGroupAssignmentCompletion } from './e2e-group-assignment-proof.mjs';
+import {
+  assertGroupAssignmentCompletion,
+  assertSingleAssignment,
+  nativeTimerCall,
+} from './e2e-group-assignment-proof.mjs';
 import { createRequire } from 'node:module';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
@@ -157,6 +161,7 @@ const approvals = await waitFor(async () => {
   return pending.length === 2 ? pending : false;
 }, 'both owned Session timer approvals');
 const owned = (await rpc('sessions', { slug: scene.owner.slug })).sessions;
+assertSingleAssignment(owned);
 const approvedRoles = approvals.map((approval) => {
   const session = owned.find(
     (session) => session.sessionId === approval.toolApprovalRequest.sessionId,
@@ -465,14 +470,7 @@ try {
   for (const row of approvedRoles) {
     const native = await nativeSnapshot(row.sessionId);
     writeFileSync(resolve(privateDir, 'native-' + row.role + '.json'), JSON.stringify(native));
-    const calls = native.records.filter(
-      (record) =>
-        record.event.type === 'tool/call' &&
-        record.event.time >= Date.parse(sent.message.at) &&
-        JSON.parse(record.event.data.arguments).command === timers[row.role],
-    );
-    assert.equal(calls.length, 1);
-    const call = calls[0].event;
+    const call = nativeTimerCall(native.records, Date.parse(sent.message.at), timers[row.role]);
     const result = native.records.find(
       (record) =>
         record.event.type === 'tool/result' &&

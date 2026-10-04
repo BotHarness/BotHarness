@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { assertGroupAssignmentCompletion } from '../e2e-group-assignment-proof.mjs';
+import {
+  assertGroupAssignmentCompletion,
+  assertSingleAssignment,
+  nativeTimerCall,
+} from '../e2e-group-assignment-proof.mjs';
 
 const recordedProof = JSON.parse(
   readFileSync(
@@ -39,6 +43,35 @@ describe('Group Assignment completion proof', () => {
     unknownReply.completion[0].at = 'unknown';
     expect(() => assertGroupAssignmentCompletion(unknownReply)).toThrow(
       'known Group completion time',
+    );
+  });
+});
+
+describe('Group Assignment execution bounds', () => {
+  it('rejects a second Assignment even without its own timer approval', () => {
+    const sessions = [{ role: 'orchestrator' }, { role: 'assignment' }];
+    expect(() => assertSingleAssignment(sessions)).not.toThrow();
+    expect(() => assertSingleAssignment([...sessions, { role: 'assignment' }])).toThrow(
+      'exactly one owned Assignment',
+    );
+  });
+
+  it('rejects another command rather than filtering it out by timer text', () => {
+    const call = (time, command) => ({
+      event: { type: 'tool/call', time, data: { arguments: JSON.stringify({ command }) } },
+    });
+    const timer = 'node -e "setTimeout(() => {}, 45000)"';
+    const records = [
+      call(10, timer),
+      call(9, 'prior request'),
+      { event: { type: 'tool/call', time: 11, data: { arguments: '{}' } } },
+    ];
+    expect(nativeTimerCall(records, 10, timer)).toEqual(records[0].event);
+    expect(() => nativeTimerCall([...records, call(12, 'different command')], 10, timer)).toThrow(
+      'exactly one native command call',
+    );
+    expect(() => nativeTimerCall([call(10, 'different command')], 10, timer)).toThrow(
+      'expected native timer',
     );
   });
 });
