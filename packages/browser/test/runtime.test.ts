@@ -1449,3 +1449,68 @@ describe('Container upload execution paths', () => {
     }
   });
 });
+
+describe('Container profile shutdown', () => {
+  it('requests graceful Chrome close before releasing transport and owned execution even after a close error', async () => {
+    const order: string[] = [];
+    let active = false;
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/qa/container',
+      execution: {
+        start: async () => {
+          active = true;
+          return { endpoint: 'ws://127.0.0.1:1/owned', binary: 'pinned-image' };
+        },
+        isRunning: () => active,
+        stop: async () => {
+          order.push('container-stop');
+          active = false;
+        },
+      },
+      connect: async () => ({
+        send: async (method) => {
+          order.push(method);
+          throw new Error('already disconnected');
+        },
+        close: () => {
+          order.push('transport-close');
+        },
+        subscribe: () => () => undefined,
+      }),
+    });
+    await runtime.ensure();
+    await runtime.stop();
+    expect(order).toEqual(['Browser.close', 'transport-close', 'container-stop']);
+    expect(runtime.isRunning()).toBe(false);
+  });
+  it('still releases owned execution after a debugger that never acknowledges close', async () => {
+    vi.useFakeTimers();
+    const stopExecution = vi.fn(async () => undefined);
+    const close = vi.fn();
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/qa/container',
+      execution: {
+        start: async () => ({ endpoint: 'ws://127.0.0.1:1/owned', binary: 'pinned-image' }),
+        isRunning: () => true,
+        stop: stopExecution,
+      },
+      connect: async () => ({
+        send: () => new Promise(() => undefined),
+        close,
+        subscribe: () => () => undefined,
+      }),
+    });
+    try {
+      await runtime.ensure();
+      const stopped = runtime.stop();
+      await vi.advanceTimersByTimeAsync(1_999);
+      expect(stopExecution).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      await stopped;
+      expect(close).toHaveBeenCalledOnce();
+      expect(stopExecution).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

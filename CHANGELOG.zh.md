@@ -17,6 +17,8 @@
 
 ### Added
 
+- 新增可显式选择的 Container `agent-browser` 驱动，复用现有 Browser Viewer、接管、上传和持久 profile；Local 与 Container 分别保留原有默认驱动（[#768](https://github.com/BotHarness/BotHarness/issues/768)）。
+
 - Browser 观察新增有界字段值与控件状态；可选 Local agent-browser 快照压缩重复结构，保留页面／弹窗内容和精确操作引用（[#787](https://github.com/BotHarness/BotHarness/issues/787)）。
 
 - 增加可选的本机 agent-browser 试用驱动，沿用 Browser 权限与 Human 控制，默认驱动保持不变 ([#767](https://github.com/BotHarness/BotHarness/issues/767), [ADR-0124](docs/adr/0124-local-browser-drivers-share-host-authority.md)).

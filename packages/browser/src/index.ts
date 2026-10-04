@@ -26,6 +26,7 @@ export const name = 'botharness-browser';
 export interface BrowserConfig {
   target?: 'local' | 'container' | 'extension' | 'daily-control' | 'profile-control';
   localDriver?: 'current' | 'agent-browser';
+  containerDriver?: 'current' | 'agent-browser';
   enabled: boolean;
   browserPath: string;
   headless: boolean;
@@ -36,6 +37,7 @@ export interface BrowserConfig {
 export const DEFAULT_CONFIG: BrowserConfig = {
   target: 'local',
   localDriver: 'current',
+  containerDriver: 'current',
   enabled: true,
   browserPath: '',
   headless: false,
@@ -54,6 +56,9 @@ export const Config = Schema.object({
     .default('local')
     .volatile(),
   localDriver: Schema.union([Schema.const('current'), Schema.const('agent-browser')])
+    .default('current')
+    .volatile(),
+  containerDriver: Schema.union([Schema.const('current'), Schema.const('agent-browser')])
     .default('current')
     .volatile(),
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 Browser'),
@@ -92,8 +97,9 @@ export function pinnedBrowserDirectory(): string {
 
 export function apply(
   ctx: Context,
-  config: Omit<BrowserConfig, 'target' | 'localDriver'> & {
+  config: Omit<BrowserConfig, 'target' | 'localDriver' | 'containerDriver'> & {
     localDriver?: 'current' | 'agent-browser' | { get(): 'current' | 'agent-browser' };
+    containerDriver?: 'current' | 'agent-browser' | { get(): 'current' | 'agent-browser' };
     target?:
       | 'local'
       | 'container'
@@ -128,9 +134,15 @@ export function apply(
   const localDriver = (): 'current' | 'agent-browser' =>
     (typeof config.localDriver === 'object' ? config.localDriver.get() : config.localDriver) ??
     'current';
+  const containerDriver = (): 'current' | 'agent-browser' =>
+    (typeof config.containerDriver === 'object'
+      ? config.containerDriver.get()
+      : config.containerDriver) ?? 'current';
+  const driver = (): 'current' | 'agent-browser' =>
+    target() === 'container' ? containerDriver() : localDriver();
   let revision = 0;
   const authorizationScope = (): string =>
-    `${target()}:${localDriver()}:${revision}:${borrow.revision}:${daily.revision}:${profile.revision}`;
+    `${target()}:${driver()}:${revision}:${borrow.revision}:${daily.revision}:${profile.revision}`;
   let switching: Promise<void> = Promise.resolve();
   let registerViewer: ContainerBrowserOptions['onViewer'];
   ctx.inject(['connection', 'webServer'], (viewerCtx) => {
@@ -152,7 +164,7 @@ export function apply(
   const runtimes = createBotBrowserRuntimes({
     browserDir: profileDirectory(),
     target: () => (target() === 'container' ? 'container' : 'local'),
-    driver: localDriver,
+    driver,
     onViewer: (prefix, upstream) => {
       if (registerViewer === undefined)
         throw new Error('The Container Browser viewer requires the DSH Web Host');
@@ -290,7 +302,13 @@ export function apply(
     },
   });
   ctx.on('loader/volatile-update', (paths) => {
-    if (!paths.some((path) => path[0] === 'target' || path[0] === 'localDriver')) return;
+    if (
+      !paths.some(
+        (path) =>
+          path[0] === 'target' || path[0] === 'localDriver' || path[0] === 'containerDriver',
+      )
+    )
+      return;
     revision += 1;
     borrow.clear();
     daily.clear();

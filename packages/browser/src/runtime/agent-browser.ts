@@ -15,8 +15,6 @@ import { createAgentBrowserProcess } from './agent-process.js';
 const ATTRIBUTE = 'data-botharness-ref';
 
 export function createAgentBrowserRuntime(options: BotBrowserRuntimeOptions): BotBrowserRuntime {
-  if (options.execution !== undefined)
-    throw new Error('agent-browser is qualified for Local Browser only');
   const note = options.onEvent ?? (() => undefined);
   const process = createAgentBrowserProcess(note);
   let endpoint: string | undefined;
@@ -97,7 +95,7 @@ export function createAgentBrowserRuntime(options: BotBrowserRuntimeOptions): Bo
     assertCurrent();
     await base.ensure();
     assertCurrent();
-    if (endpoint === undefined) throw new Error('The Local Browser endpoint is unavailable');
+    if (endpoint === undefined) throw new Error('The managed Browser endpoint is unavailable');
     if (!process.isRunning()) {
       references.clear();
       active = undefined;
@@ -256,6 +254,7 @@ export function createAgentBrowserRuntime(options: BotBrowserRuntimeOptions): Bo
       }),
     currentUrl: () => lastUrl,
     binaryPath: () => base.binaryPath(),
+    viewerUrl: () => base.viewerUrl?.(),
     stop,
   };
 }

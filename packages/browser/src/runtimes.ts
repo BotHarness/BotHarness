@@ -71,7 +71,7 @@ export function createBotBrowserRuntimes(options: BotBrowserRuntimesOptions): Bo
   const identityFor = (slug: string) => {
     const profile = profileOf(slug);
     const target = options.target?.() ?? 'local';
-    const driver = target === 'local' ? (options.driver?.() ?? 'current') : 'current';
+    const driver = options.driver?.() ?? 'current';
     return { profile, target, driver, key: `${target}:${driver}:${profile}` };
   };
 

@@ -129,7 +129,7 @@ async function setup() {
 }
 
 describe('published Browser Host service', () => {
-  it.each(['target', 'localDriver'])(
+  it.each(['target', 'localDriver', 'containerDriver'])(
     'lets Human Stop retry retained %s disposal before replacement execution',
     async (field) => {
       const h = await setup();

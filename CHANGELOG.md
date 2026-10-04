@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added an opt-in Container `agent-browser` driver using the existing Browser Viewer, takeover, uploads and persistent profile; Local and Container retain independent default drivers ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
+
 - Browser observations now include bounded form values and control states; the optional Local agent-browser snapshot removes repeated scaffolding while retaining page/dialog content and exact action refs ([#787](https://github.com/BotHarness/BotHarness/issues/787)).
 
 - Added an optional Local agent-browser trial driver behind the existing Browser permissions and Human controls; the current driver remains the default ([#767](https://github.com/BotHarness/BotHarness/issues/767), [ADR-0124](docs/adr/0124-local-browser-drivers-share-host-authority.md)).
