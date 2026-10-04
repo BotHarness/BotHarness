@@ -1,0 +1,24 @@
+{
+  "bot": "Stop recovery QA 1791133779780",
+  "oldSessionId": "botharness-bf694db7-0a67-4a53-af83-426ad7c3eab4",
+  "newSessionId": "botharness-2f898b81-c829-4ebb-8efb-8155bbcd4181",
+  "stoppedStatePreserved": true,
+  "permissionSnapshotPreserved": true,
+  "approvalRemainsExpired": true,
+  "historyPreserved": true,
+  "sameGrantReused": true,
+  "sameContinuityKeyCreatedNewSession": true,
+  "newReport": "RESTART_REUSE_DONE",
+  "reportDelivery": {
+    "tool": "report_to_orchestrator",
+    "callAt": 1791134350735,
+    "resultAt": 1791134350760,
+    "successful": true,
+    "completion": [
+      {
+        "id": "0cc807aa-0ab6-4ac6-adc3-3fe033108bd3",
+        "at": "2026-10-04T17:19:11.775Z"
+      }
+    ]
+  }
+}

@@ -1314,3 +1314,25 @@ it('announces pending approvals in the Rail button while preserving working exec
     store.applyActivity({ generation: 'approval-rail-host', revision: 2, bots: [] });
   }
 });
+
+it('shows the contact row status beside the name instead of on the avatar', () => {
+  store.setRoster([BOT], [DM_CHANNEL]);
+  store.applyActivity({
+    generation: 'row-status-host',
+    revision: 1,
+    bots: [{ slug: BOT.slug, state: 'working', attention: { approvalCount: 3 } }],
+  });
+  try {
+    const markup = renderSidebar();
+    const row = markup.slice(markup.indexOf('class="bh-contact'));
+    const avatar = row.slice(0, row.indexOf('class="bh-body"'));
+    const top = row.slice(row.indexOf('class="bh-top"'), row.indexOf('class="bh-msg"'));
+    expect(avatar).not.toContain('bh-avatar-attention');
+    expect(avatar).not.toContain('bh-avatar-botui');
+    expect(top).toContain('class="bh-row-status" data-state="working"');
+    expect(top).toContain('data-approval-count="3"');
+    expect(top).toContain('bh-avatar-botui');
+  } finally {
+    store.applyActivity({ generation: 'row-status-host', revision: 2, bots: [] });
+  }
+});

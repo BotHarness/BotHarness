@@ -1,0 +1,10 @@
+{
+  "orchestratorSessionId": "botharness-e130b2fa-7363-48d6-a35d-8751ab0ac85a",
+  "stoppedAssignmentSessionId": "botharness-bf694db7-0a67-4a53-af83-426ad7c3eab4",
+  "tool": "stop_assignment",
+  "callAt": 1791134153103,
+  "resultAt": 1791134153157,
+  "successful": true,
+  "pendingToolNeverSucceeded": true,
+  "assignmentTool": "pwsh"
+}

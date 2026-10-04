@@ -1,0 +1,11 @@
+{
+  "bot": "Stop recovery QA 1791133779780",
+  "sessionId": "botharness-bf694db7-0a67-4a53-af83-426ad7c3eab4",
+  "activity": "stopped",
+  "permissionMode": "workspace-write",
+  "samePermissionSnapshot": true,
+  "continuityKeyReleased": true,
+  "lateReportAbsent": true,
+  "pendingApprovalExpired": true,
+  "botState": "idle"
+}
