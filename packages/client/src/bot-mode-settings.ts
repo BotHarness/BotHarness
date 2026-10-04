@@ -1,3 +1,9 @@
+export const BOT_MODE_ASSIGNMENT_LIMIT_FIELD = 'assignmentConcurrencyLimit';
+export const DEFAULT_ASSIGNMENT_CONCURRENCY_LIMIT = 3;
+export function isAssignmentConcurrencyLimit(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 32;
+}
+
 export const BOT_MODE_NAMESPACE = 'botharness-client';
 
 export const BOT_MODE_SORT_FIELD = 'sortMode';
@@ -49,6 +55,7 @@ export function isBotModeIcon(value: unknown): value is BotModeIcon {
 }
 
 export interface BotModeSettings {
+  assignmentConcurrencyLimit?: number;
   autoAcceptGroupInvites?: boolean;
   developerMode: boolean;
   motionPreference: BotModeMotionPreference;

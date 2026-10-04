@@ -110,7 +110,7 @@ function sourceEvents(owner: ReturnType<typeof mountOperationalDatabase>): Array
 
 async function setup(
   options: {
-    assignmentConcurrencyLimit?: number;
+    assignmentConcurrencyLimit?: number | (() => number);
     saveReportSpill?: (input: {
       sessionId: string;
       content: string;
@@ -201,6 +201,61 @@ async function setup(
 }
 
 describe('Assignment collaboration', () => {
+  it('applies a live limit to create and wake without cancelling existing work', async () => {
+    let limit = 3;
+    const { runtime, agents, admit, close } = await setup({
+      assignmentConcurrencyLimit: () => limit,
+    });
+    try {
+      await admit('Start', 'human-live-limit');
+      const access = agents.access!;
+      const a = access.create({ grantId: TEST_GRANT_ID, purpose: 'idle A', key: 'live-A' });
+      if (a.outcome !== 'created') throw new Error('A missing');
+      await agents.started[0]!.run.report({
+        state: 'waiting-human',
+        summary: 'Need decision',
+        expectsReply: true,
+      });
+      agents.finish(a.assignment.sessionId);
+      await runtime.whenIdle();
+      for (const purpose of ['B', 'C'])
+        expect(access.create({ grantId: TEST_GRANT_ID, purpose }).outcome).toBe('created');
+      const before = runtime.getAssignment('ada', a.assignment.sessionId);
+      limit = 1;
+      expect(access.create({ grantId: TEST_GRANT_ID, purpose: 'denied' })).toMatchObject({
+        outcome: 'capacity',
+        activeCount: 2,
+        limit: 1,
+      });
+      expect(
+        access.request({
+          sessionId: a.assignment.sessionId,
+          mode: 'next-turn',
+          text: 'answer',
+          answerTo: before!.openAsk!.sourceEventId,
+        }),
+      ).toMatchObject({ outcome: 'capacity', activeCount: 2, limit: 1 });
+      expect(runtime.getAssignment('ada', a.assignment.sessionId)).toEqual(before);
+      expect(runtime.listAssignments('ada').filter((a) => a.activity === 'working')).toHaveLength(
+        2,
+      );
+      limit = 3;
+      expect(
+        access.create({ grantId: TEST_GRANT_ID, purpose: 'reuse A', key: 'live-A' }),
+      ).toMatchObject({ outcome: 'reused', assignment: { sessionId: a.assignment.sessionId } });
+      expect(access.create({ grantId: TEST_GRANT_ID, purpose: 'denied again' })).toMatchObject({
+        outcome: 'capacity',
+        activeCount: 3,
+        limit: 3,
+      });
+      expect(runtime.getAssignment('ada', a.assignment.sessionId)?.permission).toEqual(
+        before?.permission,
+      );
+    } finally {
+      await close();
+    }
+  });
+
   it('checks capacity before waking an idle Session after a cold restart', async () => {
     const { runtime, agents, owner, home, grants, channels, dmChannelId, admit, close } =
       await setup({ assignmentConcurrencyLimit: 1 });

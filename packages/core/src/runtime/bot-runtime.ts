@@ -474,7 +474,7 @@ export interface BotRuntimeOptions {
 
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
 
-  assignmentConcurrencyLimit?: number;
+  assignmentConcurrencyLimit?: number | (() => number);
 
   warn?: (message: string) => void;
   now?: () => Date;
@@ -773,7 +773,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #createSessionId: () => string;
   readonly #createEventId: () => string;
   readonly #createMessageId: () => string;
-  readonly #assignmentConcurrencyLimit: number;
+  readonly #assignmentConcurrencyLimit: () => number;
   readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
@@ -818,10 +818,9 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#createSessionId = options.createSessionId ?? (() => `botharness-${randomUUID()}`);
     this.#createEventId = options.createEventId ?? (() => randomUUID());
     this.#createMessageId = options.createMessageId ?? (() => randomUUID());
-    this.#assignmentConcurrencyLimit = Math.min(
-      Math.max(options.assignmentConcurrencyLimit ?? 3, 1),
-      32,
-    );
+    const configuredLimit = options.assignmentConcurrencyLimit ?? 3;
+    this.#assignmentConcurrencyLimit =
+      typeof configuredLimit === 'function' ? configuredLimit : () => configuredLimit;
     this.#warn = options.warn;
 
     if (options.database.mode === 'ready') {
@@ -4641,7 +4640,9 @@ class BotRuntimeImplementation implements BotRuntime {
     action: 'created' | 'awakened',
   ): AssignmentCapacityRefusal | undefined {
     const activeCount = this.#activeAssignmentCount();
-    const limit = this.#assignmentConcurrencyLimit;
+    const limit = this.#assignmentConcurrencyLimit();
+    if (!Number.isInteger(limit) || limit < 1 || limit > 32)
+      throw new Error('Invalid Assignment Concurrency Limit; expected an integer from 1 to 32');
     if (activeCount < limit) return undefined;
     return {
       outcome: 'capacity',
