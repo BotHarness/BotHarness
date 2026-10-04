@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useId, useState, type ReactElement } from 'react';
 import { Button, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {
   ThreadReceptionInput,
@@ -6,6 +6,7 @@ import type {
 } from '../../../core/src/messaging/thread-policy.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
+import { MessagingHelp } from './messaging-help.js';
 
 export function ThreadReceptionSettings({
   policies,
@@ -19,6 +20,7 @@ export function ThreadReceptionSettings({
   save(sourceEventId: string, input: ThreadReceptionInput): Promise<boolean>;
 }): ReactElement {
   const [failed, setFailed] = useState(false);
+  const participationId = useId();
   const [selected, setSelected] = useState<ThreadReceptionView>();
   const [mode, setMode] = useState<ThreadReceptionInput['mode']>('inherit');
   const [wake, setWake] = useState<'inherit' | NonNullable<ThreadReceptionInput['wake']>['wake']>(
@@ -36,8 +38,10 @@ export function ThreadReceptionSettings({
   };
   return (
     <section className="bh-im-threads" aria-label={t('im.threads')}>
-      <strong>{t('im.threads')}</strong>
-      <p>{t('im.threadHint')}</p>
+      <div className="bh-im-heading">
+        <strong>{t('im.threads')}</strong>
+        <MessagingHelp title={t('im.threads')} text={t('im.threadHint')} t={t} />
+      </div>
       <table className="bh-source-policy-table" aria-label={t('im.threads')}>
         <thead>
           <tr>
@@ -51,7 +55,7 @@ export function ThreadReceptionSettings({
           {policies.map((row) => (
             <tr key={row.threadId}>
               <td>
-                <span>{row.preview ?? row.threadId}</span>
+                <span className="bh-im-thread-preview">{row.preview ?? row.threadId}</span>
                 <details>
                   <summary>{t('im.threadDetails')}</summary>
                   <code>{row.threadId}</code>
@@ -70,7 +74,7 @@ export function ThreadReceptionSettings({
                 )}
               </td>
               <td>
-                <Button disabled={busy} onClick={() => open(row)}>
+                <Button size="sm" variant="primary" disabled={busy} onClick={() => open(row)}>
                   {t('im.threadManage')}
                 </Button>
               </td>
@@ -90,9 +94,17 @@ export function ThreadReceptionSettings({
           <>
             <p>{selected.preview ?? selected.threadId}</p>
             {failed ? <p role="alert">{t('im.error')}</p> : null}
-            <label className="bh-im-field">
-              <span>{t('im.threadParticipation')}</span>
+            <div className="bh-im-field">
+              <span className="bh-im-heading">
+                <label htmlFor={participationId}>{t('im.threadParticipation')}</label>
+                <MessagingHelp
+                  title={t('im.threadParticipation')}
+                  text={t('im.threadHumanOverride')}
+                  t={t}
+                />
+              </span>
               <select
+                id={participationId}
                 value={mode}
                 disabled={busy}
                 onChange={(e) => setMode(e.target.value as ThreadReceptionInput['mode'])}
@@ -103,8 +115,7 @@ export function ThreadReceptionSettings({
                   </option>
                 ))}
               </select>
-            </label>
-            <p>{t('im.threadHumanOverride')}</p>
+            </div>
             <label className="bh-im-field">
               <span>{t('im.ordinaryWake')}</span>
               <select
@@ -149,6 +160,8 @@ export function ThreadReceptionSettings({
             ) : null}
             {selected.ordinaryDelivery !== 'verified' ? <p>{t('im.threadUnverified')}</p> : null}
             <Button
+              size="sm"
+              variant="primary"
               disabled={
                 busy ||
                 (mode === 'follow' && selected.ordinaryDelivery !== 'verified') ||

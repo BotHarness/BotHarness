@@ -4,6 +4,8 @@ import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import type { MessagingSnapshot } from '../../core/src/messaging/outbound.js';
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  IconInfoOutlineRegular: () => null,
+  Tooltip: ({ children }: PropsWithChildren) => children,
   Button: (props: ButtonHTMLAttributes<HTMLButtonElement>) => createElement('button', props),
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
   Switch: ({
