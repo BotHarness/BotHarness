@@ -1,0 +1,19 @@
+URL: http://127.0.0.1:32024/complex/complex-1/desk
+Title: Complex Browser QA — order desk
+
+Interactive elements:
+e0tahsn61ayldow12okjuk0n8m5k0_1 input Search catalog
+e0tahsn61ayldow12okjuk0n8m5k0_2 button Configure
+e0tahsn61ayldow12okjuk0n8m5k0_3 button Configure
+e0tahsn61ayldow12okjuk0n8m5k0_4 button Configure
+e0tahsn61ayldow12okjuk0n8m5k0_5 input Quantity
+e0tahsn61ayldow12okjuk0n8m5k0_6 combobox Destination city
+e0tahsn61ayldow12okjuk0n8m5k0_7 input Ship to alternate address
+e0tahsn61ayldow12okjuk0n8m5k0_8 input Street address
+e0tahsn61ayldow12okjuk0n8m5k0_9 textarea Delivery note
+e0tahsn61ayldow12okjuk0n8m5k0_10 button Review order
+e0tahsn61ayldow12okjuk0n8m5k0_11 button Confirm order
+e0tahsn61ayldow12okjuk0n8m5k0_12 alert Street address required
+
+Page text:
+Order desk · synthetic QA Signed in as QA Reader · Test account only · No real purchase Catalog Search catalog 3 products found Aurora Notebook Standard · SKU AUR-STD · 1000 synthetic units Configure Aurora Notebook Limited · SKU AUR-LIMITED · 1200 synthetic units Configure Aurora Desk Edition · SKU AUR-DESK · 900 synthetic units Configure Configure order Selected: Aurora Notebook Limited · SKU AUR-LIMITED Quantity Quantity: 2 Destination city Destination: Tokyo, Japan · shipping 300 synthetic units Ship to alternate address Street address Delivery note Total: 2700 synthetic units Review orderConfirm order Street address required Saved order No order submitted Reference information is available in this run's /reference page.

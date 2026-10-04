@@ -1,0 +1,349 @@
+{
+  "implementationRevision": "4e1fe91e22ffa1a1aeb4b49a9afb1d0c3e6991a7",
+  "finalRegressionRevision": "0c228fb2",
+  "protocol": "https://github.com/BotHarness/BotHarness/issues/787#issuecomment-5977754407",
+  "protocolAddendum": "https://github.com/BotHarness/BotHarness/issues/787#issuecomment-5977826890",
+  "trials": [
+    {
+      "trial": 1,
+      "driver": "current",
+      "sessionId": "botharness-27594b42-536f-4be4-ac9e-d8659739125f",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "contextWindow": 1000000,
+        "systemPromptUpdate": "in-history"
+      },
+      "startedAt": "2026-10-04T07:47:50.363Z",
+      "endedAt": "2026-10-04T07:49:33.406Z",
+      "reason": {
+        "kind": "completed"
+      },
+      "browserCalls": 35,
+      "browserErrors": 0,
+      "browserToolElapsedMs": 51179,
+      "approvalWaitMs": 41703,
+      "wallMs": 103043,
+      "excludingApprovalMs": 61340,
+      "observationCount": 15,
+      "observationUTF16Chars": 26962,
+      "observationUTF8Bytes": 27270,
+      "estimatedObservationTokensCharsDiv4": 6741,
+      "recordedUsage": {
+        "inputTokens": 17993,
+        "outputTokens": 3810,
+        "cacheReadTokens": 711168,
+        "cacheWriteTokens": 0,
+        "totalTokens": 732971
+      },
+      "explicitWaitMs": 4200,
+      "reasoningEffort": "high",
+      "explicitRetries": 0,
+      "independentState": {
+        "orders": [
+          {
+            "sku": "AUR-LIMITED",
+            "quantity": 2,
+            "cityId": "tokyo-jp",
+            "alternate": true,
+            "street": "1 QA Lane",
+            "note": "Leave with QA concierge",
+            "total": 2700,
+            "id": "ORDER-001"
+          }
+        ],
+        "events": [
+          {
+            "type": "product-selected",
+            "sku": "AUR-LIMITED"
+          },
+          {
+            "type": "city-selected",
+            "cityId": "tokyo-jp"
+          },
+          {
+            "type": "alternate-address",
+            "enabled": true
+          },
+          {
+            "type": "review-refused",
+            "missing": ["Street address required"]
+          },
+          {
+            "type": "review-opened",
+            "sku": "AUR-LIMITED",
+            "quantity": 2,
+            "cityId": "tokyo-jp",
+            "alternate": true,
+            "street": "1 QA Lane",
+            "note": "Leave with QA concierge",
+            "total": 2700
+          }
+        ],
+        "pageReads": ["desk", "reference"],
+        "searchQueries": ["", "Aurora"],
+        "cityQueries": ["Tokyo"]
+      },
+      "deviation": null
+    },
+    {
+      "trial": 2,
+      "driver": "agent-browser",
+      "sessionId": "botharness-45c6250d-4c7c-4a18-b08e-5c8e245034eb",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "contextWindow": 1000000,
+        "systemPromptUpdate": "in-history"
+      },
+      "startedAt": "2026-10-04T07:50:14.546Z",
+      "endedAt": "2026-10-04T07:51:23.728Z",
+      "reason": {
+        "kind": "completed"
+      },
+      "browserCalls": 36,
+      "browserErrors": 0,
+      "browserToolElapsedMs": 11257,
+      "approvalWaitMs": 1373,
+      "wallMs": 69182,
+      "excludingApprovalMs": 67809,
+      "observationCount": 15,
+      "observationUTF16Chars": 48159,
+      "observationUTF8Bytes": 48456,
+      "estimatedObservationTokensCharsDiv4": 12040,
+      "recordedUsage": {
+        "inputTokens": 24760,
+        "outputTokens": 3825,
+        "cacheReadTokens": 855936,
+        "cacheWriteTokens": 0,
+        "totalTokens": 884521
+      },
+      "explicitWaitMs": 4200,
+      "reasoningEffort": "high",
+      "explicitRetries": 0,
+      "independentState": {
+        "orders": [
+          {
+            "sku": "AUR-LIMITED",
+            "quantity": 2,
+            "cityId": "tokyo-jp",
+            "alternate": true,
+            "street": "1 QA Lane",
+            "note": "Leave with QA concierge",
+            "total": 2700,
+            "id": "ORDER-001"
+          }
+        ],
+        "events": [
+          {
+            "type": "product-selected",
+            "sku": "AUR-LIMITED"
+          },
+          {
+            "type": "city-selected",
+            "cityId": "tokyo-jp"
+          },
+          {
+            "type": "alternate-address",
+            "enabled": true
+          },
+          {
+            "type": "review-refused",
+            "missing": ["Street address required"]
+          },
+          {
+            "type": "review-opened",
+            "sku": "AUR-LIMITED",
+            "quantity": 2,
+            "cityId": "tokyo-jp",
+            "alternate": true,
+            "street": "1 QA Lane",
+            "note": "Leave with QA concierge",
+            "total": 2700
+          }
+        ],
+        "pageReads": ["desk", "reference"],
+        "searchQueries": ["", "Aurora"],
+        "cityQueries": ["Tokyo"]
+      },
+      "deviation": "one extra owned-tab list"
+    },
+    {
+      "trial": 3,
+      "driver": "agent-browser",
+      "sessionId": "botharness-529faee7-6955-4468-ad82-4e55df4486ed",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "contextWindow": 1000000,
+        "systemPromptUpdate": "in-history"
+      },
+      "startedAt": "2026-10-04T07:52:03.973Z",
+      "endedAt": "2026-10-04T07:53:14.871Z",
+      "reason": {
+        "kind": "completed"
+      },
+      "browserCalls": 35,
+      "browserErrors": 0,
+      "browserToolElapsedMs": 15746,
+      "approvalWaitMs": 1475,
+      "wallMs": 70898,
+      "excludingApprovalMs": 69423,
+      "observationCount": 15,
+      "observationUTF16Chars": 48159,
+      "observationUTF8Bytes": 48456,
+      "estimatedObservationTokensCharsDiv4": 12040,
+      "recordedUsage": {
+        "inputTokens": 24388,
+        "outputTokens": 3877,
+        "cacheReadTokens": 834688,
+        "cacheWriteTokens": 0,
+        "totalTokens": 862953
+      },
+      "explicitWaitMs": 4200,
+      "reasoningEffort": "high",
+      "explicitRetries": 0,
+      "independentState": {
+        "orders": [
+          {
+            "sku": "AUR-LIMITED",
+            "quantity": 2,
+            "cityId": "tokyo-jp",
+            "alternate": true,
+            "street": "1 QA Lane",
+            "note": "Leave with QA concierge",
+            "total": 2700,
+            "id": "ORDER-001"
+          }
+        ],
+        "events": [
+          {
+            "type": "product-selected",
+            "sku": "AUR-LIMITED"
+          },
+          {
+            "type": "city-selected",
+            "cityId": "tokyo-jp"
+          },
+          {
+            "type": "alternate-address",
+            "enabled": true
+          },
+          {
+            "type": "review-refused",
+            "missing": ["Street address required"]
+          },
+          {
+            "type": "review-opened",
+            "sku": "AUR-LIMITED",
+            "quantity": 2,
+            "cityId": "tokyo-jp",
+            "alternate": true,
+            "street": "1 QA Lane",
+            "note": "Leave with QA concierge",
+            "total": 2700
+          }
+        ],
+        "pageReads": ["desk", "reference"],
+        "searchQueries": ["", "Aurora"],
+        "cityQueries": ["Tokyo"]
+      },
+      "deviation": null
+    },
+    {
+      "trial": 4,
+      "driver": "current",
+      "sessionId": "botharness-685e0c5b-7786-49df-88d6-001535607468",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "contextWindow": 1000000,
+        "systemPromptUpdate": "in-history"
+      },
+      "startedAt": "2026-10-04T07:54:02.521Z",
+      "endedAt": "2026-10-04T07:55:10.280Z",
+      "reason": {
+        "kind": "completed"
+      },
+      "browserCalls": 38,
+      "browserErrors": 0,
+      "browserToolElapsedMs": 10547,
+      "approvalWaitMs": 1111,
+      "wallMs": 67759,
+      "excludingApprovalMs": 66648,
+      "observationCount": 16,
+      "observationUTF16Chars": 28289,
+      "observationUTF8Bytes": 28609,
+      "estimatedObservationTokensCharsDiv4": 7072,
+      "recordedUsage": {
+        "inputTokens": 18751,
+        "outputTokens": 4096,
+        "cacheReadTokens": 787840,
+        "cacheWriteTokens": 0,
+        "totalTokens": 810687
+      },
+      "explicitWaitMs": 5000,
+      "reasoningEffort": "high",
+      "explicitRetries": 0,
+      "independentState": {
+        "orders": [
+          {
+            "sku": "AUR-LIMITED",
+            "quantity": 2,
+            "cityId": "tokyo-jp",
+            "alternate": true,
+            "street": "1 QA Lane",
+            "note": "Leave with QA concierge",
+            "total": 2700,
+            "id": "ORDER-001"
+          }
+        ],
+        "events": [
+          {
+            "type": "product-selected",
+            "sku": "AUR-LIMITED"
+          },
+          {
+            "type": "city-selected",
+            "cityId": "tokyo-jp"
+          },
+          {
+            "type": "alternate-address",
+            "enabled": true
+          },
+          {
+            "type": "review-refused",
+            "missing": ["Street address required"]
+          },
+          {
+            "type": "review-opened",
+            "sku": "AUR-LIMITED",
+            "quantity": 2,
+            "cityId": "tokyo-jp",
+            "alternate": true,
+            "street": "1 QA Lane",
+            "note": "Leave with QA concierge",
+            "total": 2700
+          }
+        ],
+        "pageReads": ["desk", "reference"],
+        "searchQueries": ["", "Aurora"],
+        "cityQueries": ["Tokyo"]
+      },
+      "deviation": "extra city focus, 800ms wait and observation; explicit waits 5000ms instead of 4200ms"
+    }
+  ],
+  "preReviewExtra": {
+    "implementationRevision": "99ddf4d871d887af7b17c4a34d09cbf09895109f",
+    "sessionId": "botharness-ce7efb65-5837-4795-a604-c6462ad9eafe",
+    "browserCalls": 35,
+    "browserErrors": 0,
+    "independentState": "passed",
+    "excludedFromScoredMeans": true
+  },
+  "finalFormatterRecordedAXReplay": {
+    "observations": 30,
+    "outputUnchanged": true,
+    "note": "Value-bearing outputs contain the verbatim native AX snapshot; other outputs are already compacted. This establishes fixture-output consistency, not a new model run at the final revision."
+  }
+}
