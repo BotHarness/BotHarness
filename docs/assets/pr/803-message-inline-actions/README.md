@@ -6,7 +6,7 @@ Composition reuses the shipped message group, delivery receipt, copy/reply primi
 
 ## Actual runtime evidence
 
-Fresh isolated DSH 0.2.0-rc.1, real Flash/low Orchestrators and eight actual Bot messages. The same ten-message Group timeline is used before and after. The before screenshot is the actual light/wide base build (`db3ea898`); after light/wide and dark/narrow rest/hover screenshots show the same scene. Additional narrow screenshots show Human mirror and touch access. The before capture also completed native send verification before its later unrelated rail-navigation wait failed; it is not presented as a passing rail audit.
+Fresh isolated DSH 0.2.0-rc.1, real Flash/low Orchestrators and eight actual Bot messages. The same ten-message Group timeline is used before and after. The before screenshots are the actual base build (`db3ea898`) in light/wide (1500 × 1000) and dark/narrow (420 × 860), each at rest and hover. The native preview modal is dismissed before all captures. After screenshots use the same committed messages, viewport, theme and interaction states. Additional narrow screenshots show Human mirror and touch access. Both before and after verifier runs pass.
 
 The browser checks actual rectangles, group timestamp count, hover/focus opacity, no reserved row, receipt/action horizontal alignment and narrow bounds. It physically clicks copy and reads the actual clipboard (including Chromium's separate sanitized-write permission), clicks reply and verifies the chosen body, and opens/dismisses the actual delivery dialog. No clipboard, message, receipt, API or Client state is mocked. Bounded after-proof.json contains QA messages and measurements; authentication and failure diagnostics remain private.
 
