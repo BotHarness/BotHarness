@@ -76,9 +76,7 @@
       "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
       "scope": "thread",
       "outcome": "read",
-      "sourceEventIds": [
-        "im-9fd2171ff574e80822e4e007eda2797b7d16906ff8fde51068889bbc7c72d40d"
-      ],
+      "sourceEventIds": ["im-9fd2171ff574e80822e4e007eda2797b7d16906ff8fde51068889bbc7c72d40d"],
       "omitted": 2,
       "incomplete": true
     },
@@ -1762,9 +1760,7 @@
       "sessionId": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
       "scope": "nearby",
       "outcome": "read",
-      "sourceEventIds": [
-        "im-812441d327abd23d7dae53746b49681073b07a4df670f9f09a87909f609ad505"
-      ],
+      "sourceEventIds": ["im-812441d327abd23d7dae53746b49681073b07a4df670f9f09a87909f609ad505"],
       "omitted": 0,
       "incomplete": false
     },
