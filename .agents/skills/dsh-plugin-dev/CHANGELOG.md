@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded a duplicate detached Host after a timed-out isolated launch and the resulting operational writer lease refusal in the [local development guide](../dsh-dev/SKILL.md), verified with DSH 0.2.0 RC1 during Assignment capacity QA ([#811](https://github.com/BotHarness/BotHarness/issues/811)).
+
 - Recorded that native Tool approval and actual Shell execution require separate evidence in the [local development guide](../dsh-dev/SKILL.md), preserving a real Orchestrator workspace refusal while verifying a granted Assignment execution on DSH 0.2.0 RC1 ([#751](https://github.com/BotHarness/BotHarness/issues/751)).
 
 - Recorded checked external reply connection ownership separately from reception in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), using the pinned Provider contract and an independently bound responder ([#637](https://github.com/BotHarness/BotHarness/issues/637)).

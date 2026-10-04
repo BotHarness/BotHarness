@@ -1,0 +1,262 @@
+{
+  "environment": {
+    "dsh": "0.2.0-rc.1",
+    "model": "DeepSeek-V41-Flash (off)",
+    "viewport": {
+      "width": 1500,
+      "height": 1000
+    },
+    "theme": "light",
+    "locale": "zh-CN",
+    "base": "1bf56698"
+  },
+  "sources": [
+    "Real Human DM → Orchestrator → Assignment Tools",
+    "DSH SessionPersistence tool/result events",
+    "Host Assignment Directory RPC"
+  ],
+  "baseline": {
+    "activeCount": 4,
+    "assignments": [
+      {
+        "key": "capacity-a",
+        "sessionId": "botharness-69af6014-4d0a-4a13-9660-8cf0505e5209",
+        "activity": "working",
+        "latestReport": {
+          "state": "waiting-human",
+          "summary": "事项 A 等待 Human 确认 QA 答案"
+        }
+      },
+      {
+        "key": "capacity-d",
+        "sessionId": "botharness-b299b9e2-7f2d-4c2d-a50d-a07c781a1ca8",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-c",
+        "sessionId": "botharness-fe28b7d4-ba7e-4a2f-ad8d-e60f2c7d3d7c",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-b",
+        "sessionId": "botharness-56ce955a-4b78-49af-81d5-77a1414612bf",
+        "activity": "working"
+      }
+    ]
+  },
+  "afterRefusal": {
+    "activeCount": 3,
+    "assignments": [
+      {
+        "key": "capacity-d",
+        "sessionId": "botharness-2bdabd5e-2a8b-49c1-ad83-5fa35e20faee",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-c",
+        "sessionId": "botharness-283c75e8-5e7e-43e5-995b-b428be79ea89",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-b",
+        "sessionId": "botharness-eb41826d-96ee-43e1-8726-13677641f302",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-a",
+        "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "activity": "idle",
+        "openAsk": {
+          "sourceEventId": "acc8d0b4-b8bb-4d94-bbcf-f921aff8798e",
+          "summary": "事项 A 等待 Human 确认 QA 答案"
+        },
+        "latestReport": {
+          "state": "waiting-human",
+          "summary": "事项 A 等待 Human 确认 QA 答案"
+        }
+      }
+    ]
+  },
+  "afterSlotReleased": {
+    "activeCount": 2,
+    "assignments": [
+      {
+        "key": "capacity-a",
+        "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "activity": "idle",
+        "latestReport": {
+          "state": "completed",
+          "summary": "事项 A 在原 Session 恢复完成"
+        }
+      },
+      {
+        "key": "capacity-b",
+        "sessionId": "botharness-eb41826d-96ee-43e1-8726-13677641f302",
+        "activity": "idle",
+        "latestReport": {
+          "state": "completed",
+          "summary": "QA wait command completed"
+        }
+      },
+      {
+        "key": "capacity-d",
+        "sessionId": "botharness-2bdabd5e-2a8b-49c1-ad83-5fa35e20faee",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-c",
+        "sessionId": "botharness-283c75e8-5e7e-43e5-995b-b428be79ea89",
+        "activity": "working"
+      }
+    ]
+  },
+  "actualToolResults": [
+    {
+      "callSeq": 103,
+      "tool": "send_assignment_request",
+      "args": {
+        "session_id": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "text": "确认继续",
+        "answer_to": "acc8d0b4-b8bb-4d94-bbcf-f921aff8798e"
+      },
+      "result": {
+        "outcome": "capacity",
+        "code": "assignment-capacity",
+        "activeCount": 3,
+        "limit": 3,
+        "retryable": true,
+        "message": "Assignment Concurrency Limit 3 reached; retryable: true. Nothing was awakened. Wait for active work to settle before retrying.",
+        "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "activity": "idle"
+      }
+    },
+    {
+      "callSeq": 151,
+      "tool": "send_assignment_request",
+      "args": {
+        "answer_to": "acc8d0b4-b8bb-4d94-bbcf-f921aff8798e",
+        "session_id": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "text": "确认继续，请 report completed 事项 A 在原 Session 恢复完成"
+      },
+      "result": {
+        "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "activity": "working",
+        "delivery": "followup",
+        "modelRoute": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      }
+    }
+  ],
+  "invariants": {
+    "sameSession": true,
+    "permissionUnchanged": true,
+    "modelUnchanged": true,
+    "completed": true,
+    "askCleared": true
+  },
+  "integratedMainVerification": {
+    "main": "eb3f83b087a2ee3ad9a197635427de0f2ac9c716",
+    "coldRestart": true,
+    "actualToolResults": [
+      {
+        "callSeq": 425,
+        "tool": "send_assignment_request",
+        "args": {
+          "answer_to": "f2ad31d6-f658-40a8-a0ae-d2921c361387",
+          "session_id": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+          "text": "确认继续，请 report completed 集成事项 A 原 Session 恢复完成"
+        },
+        "result": {
+          "outcome": "capacity",
+          "code": "assignment-capacity",
+          "activeCount": 3,
+          "limit": 3,
+          "retryable": true,
+          "message": "Assignment Concurrency Limit 3 reached; retryable: true. Nothing was awakened. Wait for active work to settle before retrying.",
+          "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+          "activity": "idle"
+        }
+      },
+      {
+        "callSeq": 455,
+        "tool": "send_assignment_request",
+        "args": {
+          "answer_to": "f2ad31d6-f658-40a8-a0ae-d2921c361387",
+          "session_id": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+          "text": "确认继续，请 report completed 集成事项 A 原 Session 恢复完成"
+        },
+        "result": {
+          "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+          "activity": "working",
+          "delivery": "followup",
+          "modelRoute": {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        }
+      }
+    ],
+    "atRefusal": [
+      {
+        "key": "capacity-d",
+        "sessionId": "botharness-eb53d324-2488-4fbb-9660-68bc3d14cbd1",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-a",
+        "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "activity": "idle",
+        "openAsk": "f2ad31d6-f658-40a8-a0ae-d2921c361387",
+        "report": "waiting-human"
+      },
+      {
+        "key": "capacity-c",
+        "sessionId": "botharness-674b1320-535a-40eb-8de4-8e01b93b09c7",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-b",
+        "sessionId": "botharness-eb41826d-96ee-43e1-8726-13677641f302",
+        "activity": "working",
+        "report": "completed"
+      }
+    ],
+    "afterReleaseAndRetry": [
+      {
+        "key": "capacity-a",
+        "sessionId": "botharness-9aab6c00-8562-4a20-b047-2032977b744f",
+        "activity": "idle",
+        "report": "completed"
+      },
+      {
+        "key": "capacity-b",
+        "sessionId": "botharness-eb41826d-96ee-43e1-8726-13677641f302",
+        "activity": "idle",
+        "report": "completed"
+      },
+      {
+        "key": "capacity-d",
+        "sessionId": "botharness-eb53d324-2488-4fbb-9660-68bc3d14cbd1",
+        "activity": "working"
+      },
+      {
+        "key": "capacity-c",
+        "sessionId": "botharness-674b1320-535a-40eb-8de4-8e01b93b09c7",
+        "activity": "working"
+      }
+    ],
+    "invariants": {
+      "refusalPreservedEntireAssignment": true,
+      "threeWorkingAtRefusal": true,
+      "sameSession": true,
+      "permissionUnchanged": true,
+      "modelUnchanged": true,
+      "completed": true,
+      "askCleared": true
+    }
+  }
+}

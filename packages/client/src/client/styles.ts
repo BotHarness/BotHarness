@@ -4630,6 +4630,14 @@ button.bh-bot-nav > svg {
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
+.bh-assignment-limit-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.bh-assignment-limit-controls > :first-child { width: 76px; }
+.bh-assignment-limit-error { color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
 .bh-settings-selector {
   display: inline-flex;
   align-items: center;
