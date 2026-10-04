@@ -745,6 +745,39 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   background: var(--dsw-alias-bg-base);
   pointer-events: none;
 }
+.bh-persona-avatar svg[data-pixel-cover] .bh-illustrated-head,
+.bh-persona-avatar svg[data-pixel-cover] .bh-illustrated-body,
+.bh-persona-avatar svg[data-pixel-cover] [data-avatar-turn] {
+  visibility: hidden;
+}
+.bh-row-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.bh-row-status .bh-avatar-attention,
+.bh-row-status .bh-avatar-information,
+.bh-row-status .bh-avatar-indicator,
+.bh-row-status .bh-avatar-botui {
+  position: static;
+}
+.bh-row-status .bh-avatar-attention,
+.bh-row-status .bh-avatar-information {
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+}
+.bh-row-status .bh-avatar-botui {
+  background: transparent;
+}
+.bh-row-status[data-state='waiting'] .bh-avatar-indicator {
+  background: var(--dsw-alias-state-warn-primary);
+}
+.bh-row-status[data-state='blocked'] .bh-avatar-indicator {
+  background: var(--dsw-alias-state-error-primary);
+}
 .bh-avatar-botui .botui-dot-matrix {
   display: grid;
   place-content: center;

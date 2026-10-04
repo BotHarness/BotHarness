@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  AVATAR_MARKS,
   AVATAR_PARTS,
+  AVATAR_PRESETS,
   DEFAULT_ILLUSTRATED_RECIPE,
   illustratedAvatarSvg,
   isIllustratedAvatarRecipe,
@@ -29,7 +29,7 @@ const crowded: IllustratedAvatarRecipe[] = AVATAR_PARTS.head.flatMap((head) =>
 
 describe('illustrated Avatar artwork', () => {
   it('renders every catalog option as distinct, inert, id-free pixel markup with stable rig nodes', () => {
-    for (const part of parts) {
+    for (const part of parts.filter((name) => name !== 'backdrop')) {
       const rendered = new Set(
         AVATAR_PARTS[part].map((value) =>
           illustratedAvatarSvg({ ...DEFAULT_ILLUSTRATED_RECIPE, [part]: value }),
@@ -39,25 +39,27 @@ describe('illustrated Avatar artwork', () => {
     }
     for (const recipe of [...variants, ...crowded]) {
       const svg = illustratedAvatarSvg(recipe);
-      expect(svg).not.toMatch(/\sid=|<defs|<script|<image|href=|url\(|<path/u);
+      expect(svg).not.toMatch(/\sid=|<defs|<script|<image|href=|url\(/u);
+      expect(svg).toContain('viewBox="0 0 32 32"');
       expect(svg).toContain('shape-rendering="crispEdges"');
       expect(svg).toContain('<g data-avatar-attention-mark="" opacity="0">');
       for (const node of ['body', 'head', 'face', 'gaze', 'blink'])
         expect(svg).toContain(`class="bh-illustrated-${node}"`);
-      for (const mark of AVATAR_MARKS)
-        expect(svg).toContain(`data-avatar-mark="${mark}" opacity="0"`);
-      expect(svg.match(/<rect/gu)!.length).toBeLessThan(2600);
+      expect(svg).not.toContain('data-avatar-mark=');
+      expect(svg).not.toContain('<path');
+      expect(svg).toContain('<g data-avatar-pixel-morph=""></g>');
+      expect(svg.match(/<rect/gu)!.length).toBeLessThan(1400);
     }
   });
 
   it('joins both lenses of framed glasses with a continuous bridge', () => {
     for (const [glasses, from, to] of [
-      ['round', 19, 28],
-      ['square', 19, 28],
+      ['round', 14, 17],
+      ['square', 14, 17],
     ] as const) {
       const svg = illustratedAvatarSvg({ ...DEFAULT_ILLUSTRATED_RECIPE, glasses });
       const row = [
-        ...svg.matchAll(/<rect x="(\d+)" y="22" width="(\d+)" height="1" fill="#2a2230"\/>/gu),
+        ...svg.matchAll(/<rect x="(\d+)" y="16" width="(\d+)" height="1" fill="#2a2230"\/>/gu),
       ];
       const covered = new Set(
         row.flatMap(([, x, w]) => Array.from({ length: Number(w) }, (_, i) => Number(x) + i)),
@@ -68,11 +70,14 @@ describe('illustrated Avatar artwork', () => {
 
   it('keeps every static pixel inside the rounded tile', () => {
     const inside = (x: number, y: number) => {
-      const clamp = (v: number) => Math.min(Math.max(v, 9), 39);
-      return (x + 0.5 - clamp(x + 0.5)) ** 2 + (y + 0.5 - clamp(y + 0.5)) ** 2 <= 81;
+      const clamp = (v: number) => Math.min(Math.max(v, 6), 26);
+      return (x + 0.5 - clamp(x + 0.5)) ** 2 + (y + 0.5 - clamp(y + 0.5)) ** 2 <= 36;
     };
     for (const recipe of [...variants, ...crowded]) {
-      const svg = illustratedAvatarSvg(recipe).replace(/<g data-avatar-mark[\s\S]*?<\/g>/gu, '');
+      const svg = illustratedAvatarSvg(recipe).replace(
+        /<g data-avatar-attention-mark[\s\S]*?<\/g>/gu,
+        '',
+      );
       for (const [, x, y, w] of svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)"/gu))
         for (let i = 0; i < Number(w); i++)
           expect(
@@ -91,6 +96,34 @@ describe('illustrated Avatar artwork', () => {
     const recipes = names.map(seededAvatarRecipe);
     expect(new Set(recipes.map((recipe) => JSON.stringify(recipe))).size).toBe(names.length);
     for (const recipe of recipes) expect(() => illustratedAvatarSvg(recipe)).not.toThrow();
+  });
+
+  it('tints the tile from the hair colour and keeps colourless hair on paper', () => {
+    const tile = (hairColor: string) =>
+      illustratedAvatarSvg({ ...DEFAULT_ILLUSTRATED_RECIPE, hairColor }).match(
+        /<rect width="32" height="32" rx="6" fill="(#[\da-f]{6})"/u,
+      )![1];
+    expect(tile('#1d1b22')).toBe('#ece8e1');
+    expect(tile('#f4f1ec')).toBe('#ece8e1');
+    const teal = tile('#3fc1b8');
+    expect(teal).not.toBe('#ece8e1');
+    expect(teal).not.toBe(tile('#e2b04a'));
+    for (const backdrop of AVATAR_PARTS.backdrop)
+      expect(tile('#3fc1b8')).toBe(
+        illustratedAvatarSvg({
+          ...DEFAULT_ILLUSTRATED_RECIPE,
+          hairColor: '#3fc1b8',
+          backdrop,
+        }).match(/<rect width="32" height="32" rx="6" fill="(#[\da-f]{6})"/u)![1],
+      );
+  });
+
+  it('ships distinct, valid presets', () => {
+    expect(AVATAR_PRESETS.length).toBeGreaterThanOrEqual(12);
+    expect(new Set(AVATAR_PRESETS.map((recipe) => JSON.stringify(recipe))).size).toBe(
+      AVATAR_PRESETS.length,
+    );
+    for (const recipe of AVATAR_PRESETS) expect(isIllustratedAvatarRecipe(recipe)).toBe(true);
   });
 
   it('rejects unknown parts and keeps the recipe closed', () => {
