@@ -1,16 +1,11 @@
 import type { PersonaBotToolActivity } from '../state/tool-activity.js';
 
-/** A cell of a 32×32 pixel Avatar frame. */
 export interface PixelCell {
   x: number;
   y: number;
   c: string;
 }
 
-/**
- * Pixel symbols shown in place of a pixel-family face while the PersonaBot works. Each is a 24×24
- * mask (A = body, H = inner detail) centred on the 32 grid and drawn in the Avatar's hair colour.
- */
 const SYMBOLS = {
   thinking: [
     '........................',
@@ -470,7 +465,6 @@ const BY_TOOL_KIND: Record<string, PixelSymbol> = {
   execute: 'bash',
 };
 
-/** The symbol for a presentation, or undefined when the face should show. */
 export function pixelSymbolFor(
   state: string,
   activity: Pick<PersonaBotToolActivity, 'toolName' | 'toolKind'> | undefined,
@@ -502,7 +496,6 @@ const mix = (base: string, tint: string, k: number) => {
     .join('')}`;
 };
 
-/** The symbol's cells on the 32 grid, in the given colour with a highlight, a shaded edge and an ink outline. */
 export function pixelSymbolCells(symbol: PixelSymbol, color: string): PixelCell[] {
   const rows = SYMBOLS[symbol];
   const body = new Map<string, 'A' | 'H'>();

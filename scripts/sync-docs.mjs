@@ -219,6 +219,36 @@ export const PAGES = [
     },
   },
   {
+    slug: 'dev/guides/assignment-stop-recovery',
+    order: 3,
+    en: {
+      source: 'docs/dev/guides/assignment-stop-recovery.md',
+      title: 'Assignment stop and recovery',
+      description: 'Verified stop workflow and Host restart acceptance',
+      lang: 'en',
+    },
+    zh: {
+      source: 'docs/dev/guides/assignment-stop-recovery.zh.md',
+      title: 'Assignment 停止与恢复',
+      description: '已核验的停止操作与 Host 重启验收',
+    },
+  },
+  {
+    slug: 'dev/guides/personabot-output',
+    order: 2,
+    en: {
+      source: 'docs/dev/guides/personabot-output.md',
+      title: 'PersonaBot Output Committed',
+      description: 'Host public output notifications and Consumer lifecycle',
+      lang: 'en',
+    },
+    zh: {
+      source: 'docs/dev/guides/personabot-output.zh.md',
+      title: 'PersonaBot 输出提交事件',
+      description: 'Host 公开输出通知与 Consumer 生命周期',
+    },
+  },
+  {
     slug: 'dev/guides/client-bridge',
     order: 1,
     zh: {
@@ -230,6 +260,15 @@ export const PAGES = [
 ];
 
 const LINK_REWRITES = [
+  [/\]\((?:\.\.\/){1,2}adr\/([0-9]{4}-[a-z0-9-]+)\.md\)/g, '](/dev/adr/$1)'],
+  [
+    /\]\((?:\.\.\/){1,2}architecture\/botharness-architecture\.md\)/g,
+    '](/dev/design/architecture)',
+  ],
+  [
+    /\]\((?:\.\.\/){1,2}(?:dev\/guides\/)?personabot-output(?:\.zh)?\.md\)/g,
+    '](/dev/guides/personabot-output)',
+  ],
   [/\]\((?:\.\.\/|\.?\/?docs\/)?file-open(?:\.zh)?\.md\)/g, '](/docs/file-open)'],
   [/\]\(adr\/([0-9]{4}-[a-z0-9-]+)\.md\)/g, '](/dev/adr/$1)'],
   [

@@ -127,7 +127,9 @@ export function ChannelSidebarEntrySection({
   onToggle,
   entryProps,
   editing = false,
+  preview,
 }: {
+  preview?: boolean | undefined;
   editing?: boolean;
   entry: ChannelSidebarEntry;
   expanded: boolean;
@@ -140,11 +142,12 @@ export function ChannelSidebarEntrySection({
   const [refreshRevision, setRefreshRevision] = useState(0);
   const [expandable, setExpandable] = useState(true);
   const expandableRef = useRef(expandable);
+  const shown = (preview ?? expanded) && !editing && expandable;
   const props = {
     ...entryProps,
     refreshRevision,
     requestRefresh: () => setRefreshRevision((value) => value + 1),
-    expanded: expanded && !editing,
+    expanded: shown,
     setExpanded: (next: boolean) => {
       if (next === expanded || (editing && next)) return;
       if (next && !expandableRef.current) return;
@@ -162,15 +165,15 @@ export function ChannelSidebarEntrySection({
         <button
           type="button"
           className="bh-channel-sidebar-entry-head"
-          aria-expanded={expanded && !editing}
+          aria-expanded={shown}
           aria-controls={bodyId}
           aria-disabled={expandable ? undefined : true}
-          disabled={!expandable || editing}
+          disabled={!expandable || editing || preview !== undefined}
           style={expandable ? undefined : { cursor: 'default', opacity: 0.6 }}
           onClick={expandable ? onToggle : undefined}
         >
           <span
-            className={`bh-channel-sidebar-entry-chevron${expanded && !editing ? '' : ' bh-chevron-collapsed'}`}
+            className={`bh-channel-sidebar-entry-chevron${shown ? '' : ' bh-chevron-collapsed'}`}
             aria-hidden="true"
           >
             <IconChevronDownOutlineRegular size={14} />
@@ -191,7 +194,7 @@ export function ChannelSidebarEntrySection({
           </span>
         )}
       </div>
-      {expanded && !editing ? (
+      {shown ? (
         <div id={bodyId} className="bh-channel-sidebar-entry-body">
           <entry.component {...props} />
         </div>
@@ -216,6 +219,8 @@ export function ChannelSidebarContents({
   const snapshot = useSyncExternalStore(prefs.subscribe, prefs.getSnapshot, prefs.getSnapshot);
   const [draft, setDraft] = useState<readonly string[] | undefined>();
   const [announcement, setAnnouncement] = useState('');
+  const [previewEntry, setPreviewEntry] = useState<string | undefined>();
+  const preview = entries.some((entry) => entry.id === previewEntry) ? previewEntry : undefined;
   const drag = useRef<string | undefined>(undefined);
   const rows = useRef<HTMLDivElement>(null);
   const editing = draft !== undefined;
@@ -257,6 +262,7 @@ export function ChannelSidebarContents({
           entries={entries}
           entryProps={entryProps}
           editing={editing}
+          onPreview={setPreviewEntry}
           onEdit={() => setDraft(order)}
         />
       </div>
@@ -342,6 +348,7 @@ export function ChannelSidebarContents({
                 onToggle={() => controller.toggleEntry(entry.id)}
                 entryProps={entryProps}
                 editing={editing}
+                preview={preview === undefined ? undefined : preview === entry.id}
               />
             </div>
           ))
@@ -402,7 +409,7 @@ export function ChannelSidebar({
   closeRef.current = controller;
   const overlayMount = useMountedResource<HTMLDivElement>(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') closeRef.current.close();
+      if (event.key === 'Escape' && !event.defaultPrevented) closeRef.current.close();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {

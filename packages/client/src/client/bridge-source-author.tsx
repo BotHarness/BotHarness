@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from 'react';
 
-import { bridgeSourceLabel } from './bridge-source-label.js';
+import { bridgeSourceLabel, externalPlatformLabel } from './bridge-source-label.js';
 import { Modal } from './modal.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ChannelMessage } from './store.js';
@@ -15,10 +15,7 @@ export function BridgeSourceDetails({
   t: BotHarnessTranslate;
 }): ReactElement {
   const rows = [
-    [
-      t('im.platformLabel'),
-      origin.platform === 'feishu' ? t('im.platform.feishu') : origin.platform,
-    ],
+    [t('im.platformLabel'), externalPlatformLabel(origin.platform, t)],
     [t('im.conversationLabel'), origin.conversationName],
     [t('im.conversationId'), origin.conversationId],
     [t('im.senderLabel'), origin.senderId],

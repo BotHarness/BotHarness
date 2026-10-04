@@ -300,7 +300,6 @@ function AttentionBadge({
   return null;
 }
 
-/** The activity indicator and attention badge laid out inline, for rows that show them beside the name. */
 export function PersonaBotStatusBadges({
   state = 'idle',
   attention,

@@ -416,7 +416,6 @@ function pixelAttentionMark(): string {
   return `<g data-avatar-attention-mark="" opacity="0">${pixelRects(grid)}</g>`;
 }
 
-/** The pixel Avatar's visible cells (body, head, face, eyes, glasses) for whole-Avatar morphs. */
 export function pixelFaceCells(recipe: IllustratedAvatarRecipe): PixelCell[] {
   return pixelFigure(recipe, YAW[recipe.pose]).cells;
 }

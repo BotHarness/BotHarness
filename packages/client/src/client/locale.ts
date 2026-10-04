@@ -519,7 +519,7 @@ export const zh = {
   'identity.unbindFor': '解绑身份：{name}',
   'identity.displayName': '本地显示名称',
   'identity.providerHint':
-    'Lark / 飞书使用 dsh-im 已配置并认证的应用 Bot 身份。凭据由 dsh-im 管理；Human 扫码登录不等于 Bot 绑定。',
+    '选择 dsh-im 中已配置并认证的应用 Bot 身份。凭据由 dsh-im 管理；Human 登录不等于 Bot 绑定。',
   'identity.bindHint': '仅绑定身份，不授权新的群或会话，也不开启收件。',
   'identity.reconnectHint':
     '重新验证同一账号与已有授权范围后启用。账号已变更时，需要明确解绑并重新绑定。',
@@ -587,6 +587,7 @@ export const zh = {
   'im.receiveEnable': '开启群收件',
   'im.receiveDisable': '关闭群收件',
   'im.reception.off': '群收件已关闭',
+  'im.mentionTextOnly': '当前仅接收 @ 此 Bot 的文字消息，并支持在原话题回复。',
   'im.reception.connecting': '正在连接群收件',
   'im.reception.receiving': '群消息接收已连接',
   'im.reception.unavailable': '群收件不可用；请检查连接后重新开启',
@@ -1947,7 +1948,7 @@ export const en = {
   'identity.unbindFor': 'Unbind identity: {name}',
   'identity.displayName': 'Local display name',
   'identity.providerHint':
-    'Lark / Feishu uses the authenticated app Bot configured in dsh-im. Credentials stay with dsh-im; Human QR sign-in is not a Bot binding.',
+    'Select an authenticated app Bot configured in dsh-im. Credentials stay with dsh-im; Human sign-in is not a Bot binding.',
   'identity.bindHint': 'Bind only; no new conversation authorization or listener is created.',
   'identity.reconnectHint':
     'Revalidate this same account and existing authorized scopes before enabling. A changed account requires explicit unbind and rebind.',
@@ -2019,6 +2020,8 @@ export const en = {
   'im.receiveEnable': 'Enable group reception',
   'im.receiveDisable': 'Disable group reception',
   'im.reception.off': 'Group reception is off',
+  'im.mentionTextOnly':
+    'Currently receives text mentioning this Bot and supports replies in the original thread.',
   'im.reception.connecting': 'Connecting group reception',
   'im.reception.receiving': 'Group reception connected',
   'im.reception.unavailable': 'Group reception unavailable; check the connection and enable again',

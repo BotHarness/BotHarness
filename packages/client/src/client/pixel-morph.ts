@@ -15,12 +15,6 @@ export interface PixelMorphRun {
 
 const STAGGER = 0.67;
 
-/**
- * Pairs source and target pixels by angle around each set's centroid, so the swarm sweeps around
- * instead of crossing at random. The larger set decides the pair count: surplus sources merge into
- * shared targets and missing targets are fed from the nearest source in the sweep. Pixels leave in
- * 4×4 clumps, top rows first, each clump on its own small arc.
- */
 export function planPixels(from: readonly PixelCell[], to: readonly PixelCell[]): Pair[] {
   const sweep = (set: readonly PixelCell[]) => {
     const cx = set.reduce((sum, p) => sum + p.x, 0) / set.length;
@@ -51,7 +45,6 @@ export function planPixels(from: readonly PixelCell[], to: readonly PixelCell[])
 const ease = (t: number) =>
   t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 
-/** The frame at progress t (0–1): every pixel snapped to the 32 grid, later pairs winning a cell. */
 export function pixelFrame(pairs: readonly Pair[], t: number): PixelCell[] {
   const grid = new Map<number, PixelCell>();
   for (const pair of pairs) {
@@ -88,7 +81,6 @@ export function pixelMarkup(cells: readonly PixelCell[]): string {
   return markup;
 }
 
-/** Morphs the cells drawn in `group` from one pixel image to another over `duration` ms. */
 export function morphPixels(
   group: SVGGElement,
   from: readonly PixelCell[],

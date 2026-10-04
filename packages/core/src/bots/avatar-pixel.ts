@@ -631,11 +631,6 @@ function accessory(recipe: Recipe, g: Grid, s: number, face: Mask): void {
   }
 }
 
-/**
- * The tile is a pale colour in the hair's hue family, so hair, tile and morph symbols read as one
- * palette. Nearly colourless hair (black, grey, white) keeps a neutral warm paper. The legacy
- * `backdrop` recipe value is kept for compatibility but no longer changes the tile.
- */
 export function pixelTileColor(hair: string): string {
   const [r, g, b] = channels(hair).map((v) => v / 255) as [number, number, number];
   const max = Math.max(r, g, b);

@@ -99,7 +99,6 @@ interface Flight {
   phase?: 'out' | 'back';
 }
 
-/** Pixel-family whole-Avatar morph: the transition length and the shortest time a symbol stays. */
 export const PIXEL_MORPH_MS = 800;
 export const PIXEL_SYMBOL_HOLD_MS = 500;
 
@@ -151,7 +150,6 @@ export function IllustratedAvatar({
   state: PersonaBotActivityState;
   effect: PersonaBotActivityEffect;
   size: number;
-  /** Pixel family: the symbol the whole Avatar morphs into; undefined shows the face. */
   symbol?: PixelSymbol | undefined;
 }): ReactElement {
   const turning = state === 'thinking' && size > 64;

@@ -1,0 +1,96 @@
+{
+  "generation": "3cc34270-f138-48cf-be8d-1359317290a9",
+  "events": [
+    {
+      "event": {
+        "version": 1,
+        "botId": "bot-9c71d6bd8352437187409e793e18e83a",
+        "sessionId": "botharness-3fb462da-8787-40d9-ba0e-d01e6277a237",
+        "channelId": "dm-bot-9c71d6bd8352437187409e793e18e83a",
+        "messageId": "dd6dab04-ee59-473e-b2f7-643c99eac3f4",
+        "channelRevision": 2,
+        "at": "2026-10-04T16:28:53.704Z",
+        "content": {
+          "body": "DM output verified",
+          "format": "markdown"
+        },
+        "correlation": {
+          "sourceEventId": "36a364bd-ff6b-4068-934f-901a84f1cbe1"
+        }
+      },
+      "alreadyCommitted": true,
+      "ownedSession": true,
+      "frozen": true
+    },
+    {
+      "event": {
+        "version": 1,
+        "botId": "bot-9c71d6bd8352437187409e793e18e83a",
+        "sessionId": "botharness-3fb462da-8787-40d9-ba0e-d01e6277a237",
+        "channelId": "group-output-event-qa-1791131327371",
+        "messageId": "bot-719ff1e3ee3b6027c985326236543843959b0ecdd8b55d45e6817caca9ac7aed",
+        "channelRevision": 1,
+        "at": "2026-10-04T16:28:53.725Z",
+        "content": {
+          "body": "Group output verified",
+          "format": "markdown"
+        },
+        "correlation": {
+          "sourceEventId": "36a364bd-ff6b-4068-934f-901a84f1cbe1",
+          "rootSourceEventId": "36a364bd-ff6b-4068-934f-901a84f1cbe1",
+          "parentSourceEventId": "36a364bd-ff6b-4068-934f-901a84f1cbe1"
+        }
+      },
+      "alreadyCommitted": true,
+      "ownedSession": true,
+      "frozen": true
+    },
+    {
+      "event": {
+        "version": 1,
+        "botId": "bot-9c71d6bd8352437187409e793e18e83a",
+        "sessionId": "botharness-3fb462da-8787-40d9-ba0e-d01e6277a237",
+        "channelId": "dm-bot-9c71d6bd8352437187409e793e18e83a",
+        "messageId": "6062de05-a385-4863-b7a3-6db548fe73ae",
+        "channelRevision": 4,
+        "at": "2026-10-04T16:28:56.592Z",
+        "content": {
+          "body": "dispose neutral listener",
+          "format": "markdown"
+        },
+        "correlation": {
+          "sourceEventId": "36a364bd-ff6b-4068-934f-901a84f1cbe1"
+        }
+      },
+      "alreadyCommitted": true,
+      "ownedSession": true,
+      "frozen": true
+    },
+    {
+      "event": {
+        "version": 1,
+        "botId": "bot-9c71d6bd8352437187409e793e18e83a",
+        "sessionId": "botharness-3fb462da-8787-40d9-ba0e-d01e6277a237",
+        "channelId": "dm-bot-9c71d6bd8352437187409e793e18e83a",
+        "messageId": "d2cccc88-954f-4312-83e5-ab9a72454f1b",
+        "channelRevision": 6,
+        "at": "2026-10-04T16:28:59.309Z",
+        "content": {
+          "body": "cleanup proof",
+          "format": "markdown"
+        },
+        "correlation": {
+          "sourceEventId": "36a364bd-ff6b-4068-934f-901a84f1cbe1"
+        }
+      },
+      "alreadyCommitted": true,
+      "ownedSession": true,
+      "frozen": true
+    }
+  ],
+  "filtered": ["dd6dab04-ee59-473e-b2f7-643c99eac3f4", "6062de05-a385-4863-b7a3-6db548fe73ae"],
+  "syncFailures": 4,
+  "asyncFailures": 4,
+  "consumerDisposed": true,
+  "nativeChannelSend": true
+}

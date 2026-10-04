@@ -2264,6 +2264,36 @@ const EXTERNAL_SOURCE = {
   },
 };
 
+it('preserves native Slack source identities for the external message modal', async () => {
+  const source = {
+    ...EXTERNAL_SOURCE,
+    platform: 'slack',
+    event: {
+      ...EXTERNAL_SOURCE.event,
+      channel: 'slack',
+      messageId: '1791132922.718839',
+      conversation: { kind: 'group', id: 'C0C6FPES0G5' },
+      reply: {
+        messageId: '1791132922.718839',
+        conversationId: 'C0C6FPES0G5',
+        actorId: 'U064CFNDJGK',
+        threadId: '1791132786.447879',
+        rootId: '1791132786.447879',
+      },
+    },
+  };
+  const read = (value: unknown) =>
+    readMessagingSource(
+      bridgeCall({ messagingSource: () => ({ source: value }) }),
+      'ada',
+      'im-source',
+    );
+  await expect(read(source)).resolves.toEqual(source);
+  await expect(
+    read({ ...source, event: { ...source.event, channel: 'unqualified' } }),
+  ).rejects.toMatchObject({ code: 'invalid-response' });
+});
+
 it('rejects incomplete external source responses before the source modal can render them', async () => {
   const read = (source: unknown) =>
     readMessagingSource(bridgeCall({ messagingSource: () => ({ source }) }), 'ada', 'im-source');

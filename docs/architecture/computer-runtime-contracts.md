@@ -10,6 +10,12 @@ This page preserves Computer implementation constraints formerly carried by sour
 - `packages/computer/src/viewer.ts` scrubs upstream framing headers for the same-origin iframe and forwards authenticated WebSocket upgrades. Current Selkies uses `/api/websockets`; older `/websockets` and `/websocket` routes remain accepted. A failed upgrade closes the client socket.
 - `packages/computer/src/tool/provider.ts` attaches the curated tools synchronously during Bot-owned agent setup, before the first prompt. A fallback catalog keeps those names present while the driver connects or the Computer is stopped; a warm catalog upgrades registrations in place. A stopped Computer returns a readable error. Authorization belongs to the session, access is checked on each call, and audit records omit typed text and screenshots. Failed diagnostics or audit sinks must not block an action.
 
+## First-start desktop preferences
+
+Before starting a stopped or new Container Computer, the Provider prepares XFCE preferences in the resolved home store (named volume or configured Linux bind). When the channel directory is absent, it stages the complete upstream `/defaults/xfce` directory, assigns new paths to the image's desktop user `abc`, then renames it into place. A missing panel in an existing directory is filled separately; other existing files and their ownership remain intact. The existing exact default-size substitutions still apply, without resetting nonstandard custom sizes.
+
+Preparation is best effort: a nonzero helper exit records `desktop defaults could not be prepared` and does not prevent startup. Failed initial staging leaves the channel directory absent so upstream first-run initialization remains available. An already running desktop is not modified by this preparation.
+
 ## Viewer lifetime and interaction
 
 - `packages/computer/src/client/index.tsx` keeps one keyed iframe for the whole Running lifetime. Opening fullscreen and collapsing it change that iframe's geometry; they do not create another viewer or WebSocket. Fullscreen starts in watch-only mode. Pointer and keyboard input need explicit opt-in for each fullscreen session. Only the toolbar collapse control exits fullscreen; Escape remains available to the remote desktop. A reconnect or document remount resets the liveness tracker. The hover Open control appears only after the stream is live.

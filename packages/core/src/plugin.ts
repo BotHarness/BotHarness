@@ -31,6 +31,11 @@ import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from '
 import type { ChannelDraftEvent } from './channels/draft.js';
 import { DeveloperModeSkillGate } from './logs/skill.js';
 import type { ChannelStore } from './channels/store.js';
+import {
+  personaBotOutputCommitted,
+  emitPersonaBotOutputCommitted,
+  type PersonaBotOutputCommitted,
+} from './channels/output.js';
 import { createSqliteChannelStore } from './channels/sqlite-store.js';
 import {
   attachOperationalModule,
@@ -231,6 +236,7 @@ export function createCore(
     ) => Promise<AssignmentReportPage>;
     workspaces?: () => DshWorkspaceLookup | undefined;
     autoAcceptGroupInvitations?: () => boolean;
+    onOutputCommitted?: (event: PersonaBotOutputCommitted) => void;
     activeQuestionMessageIds?: () => readonly string[];
     activeToolApprovalMessageIds?: () => readonly string[];
   } = {},
@@ -310,6 +316,14 @@ export function createCore(
     botDisplayName: (botSlug) => registry.get(botSlug)?.displayName,
     rootDir: join(dshHome, 'botharness', 'channels'),
     onCommitted: (commit) => {
+      if (options.onOutputCommitted !== undefined) {
+        try {
+          const event = personaBotOutputCommitted(commit, ownership);
+          if (event !== undefined) options.onOutputCommitted(event);
+        } catch {
+          options.warn?.('personabot-output-publication-failed');
+        }
+      }
       let publicationFailed = false;
       try {
         live?.publishCommitted(commit);
@@ -533,6 +547,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   let toolApproval: ChannelToolApproval | undefined;
   const core = createCore({
     dshHome,
+    onOutputCommitted: (event) =>
+      emitPersonaBotOutputCommitted(ctx, event, (message) => ctx.logger.warn(message)),
     activeQuestionMessageIds: () => userQuestions?.activeMessageIds() ?? [],
     activeToolApprovalMessageIds: () => toolApproval?.activeMessageIds() ?? [],
     warn: (message) => ctx.logger.warn(message),
@@ -584,8 +600,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.provide('botharness', core);
   ctx.effect(() => () => core.externalMessaging.close(), 'botharness: external messaging');
   ctx.inject(['dshIm'], (child) => {
-    const provider = createDshImProvider(child.get('dshIm'));
-    if (provider !== undefined) child.effect(() => core.externalMessaging.register(provider));
+    for (const platform of ['feishu', 'slack'] as const) {
+      const provider = createDshImProvider(child.get('dshIm'), platform);
+      if (provider !== undefined) child.effect(() => core.externalMessaging.register(provider));
+    }
   });
 
   const permissionDenial = (session: import('@deepseek-ai/dsh-session').Session) =>
