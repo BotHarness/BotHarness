@@ -18,8 +18,8 @@
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | 可信创建         | 真实 Orchestrator `create_assignment`、所属 Workspace Grant、`workspace-write` snapshot 与 Continuity Key                    |
 | 待处理审批       | 真实原生 Shell 调用等待 Human 授权；Windows 上为 `pwsh`，适用 Host 上为 `bash`                                               |
-| 停止             | 原生 `stop_assignment` 结果成功；待审批 Shell 没有成功结果；审批变为 expired                                                 |
-| Directory 与活动 | stopped Session 保留权限事实、释放 key、没有迟到报告，Bot 回到 idle                                                          |
+| 停止             | BotHarness `stop_assignment`（结果来自原生 Session 记录） 结果成功；待审批 Shell 没有成功结果；审批变为 expired              |
+| Directory 与活动 | stopped Session 保留权限事实、释放 key、未观察到停止后的 Report，Bot 回到 idle                                               |
 | 重启             | 原 stopped 状态、权限 snapshot 与历史保留；新 Assignment 使用同一 Grant/key，真实提交 Report，并由 Orchestrator 回原 Channel |
 
 [真实截图与公开证明](https://github.com/BotHarness/BotHarness/blob/main/docs/assets/pr/81-assignment-stop-recovery/README.md)记录了本次执行。此次验收只覆盖 [#81](https://github.com/BotHarness/BotHarness/issues/81) 的窄切片，不关闭整个 foundation，也不声称已验证全部崩溃／权限／并发场景。
