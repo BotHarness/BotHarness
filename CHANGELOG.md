@@ -231,6 +231,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Nearby external context now covers the five-minute window and supplements sparse sides to configurable preceding/following message minima, with 30-minute bounded continuations ([#793](https://github.com/BotHarness/BotHarness/issues/793)).
+
 - Connector authorization settings are more compact, with filled primary/destructive actions and contextual help available by hover, click, or keyboard ([#780](https://github.com/BotHarness/BotHarness/issues/780)).
 
 - Unified Container Browser and Docker Computer preview, fullscreen and explicit interaction controls in one shared Viewer; Browser waits for Host Pause before enabling input and keeps Pause when the view collapses ([#736](https://github.com/BotHarness/BotHarness/issues/736)).
@@ -328,6 +330,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Fixed
 
 - Fixed Browser Stop and idle shutdown to revoke affected Session authorization before cleanup, so a pending approval cannot restart the stopped profile; cleanup failures retain a visible Stop recovery path and later idle retries remain possible ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
+
+- Qualified the full IM fork for bounded context reads that discard pending results after consumer release or Provider replacement, preserving existing file, echo and independent-responder capabilities without waiting for an upstream merge ([#789](https://github.com/BotHarness/BotHarness/issues/789)).
 
 - Concurrent PersonaBot Tool activity now orders opaque detail references before bounding them, so the same active set produces the same lookup references regardless of arrival order ([#123](https://github.com/BotHarness/BotHarness/issues/123)).
 

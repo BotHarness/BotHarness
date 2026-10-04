@@ -231,6 +231,8 @@
 
 ### Changed
 
+- 外部附近上下文覆盖前后五分钟窗口，并为稀疏侧补齐可配置的前后消息保底条数；有界续页游标延长至 30 分钟（[#793](https://github.com/BotHarness/BotHarness/issues/793)）。
+
 - 频道连接器授权设置更紧凑，以带背景的主要／危险按钮区分操作，说明可通过悬停、点击或键盘查看（[#780](https://github.com/BotHarness/BotHarness/issues/780)）。
 
 - Container Browser 与 Docker Computer 复用同一套预览、全屏及明确开启交互组件；Browser 确认 Host 暂停后才开启输入，收起全屏仍保持暂停（[#736](https://github.com/BotHarness/BotHarness/issues/736)）。
@@ -328,6 +330,8 @@
 ### Fixed
 
 - 修复 Browser Stop 与空闲关闭的授权撤销：先撤销受影响 Session 的权限，再清理资源，待审批的旧请求无法重启已停止的 profile；清理失败时保留可见的停止重试入口，后续空闲清理仍可重试（[#768](https://github.com/BotHarness/BotHarness/issues/768)）。
+
+- 更新完整 IM fork 的固定资格版本：释放收件 Consumer 或替换 Provider 后，拒绝返回正在读取的群／话题上下文；保留附件、回显与独立回复身份能力，无需等待上游合并（[#789](https://github.com/BotHarness/BotHarness/issues/789)）。
 
 - PersonaBot 并发工具 Activity 现在先排序不透明详情引用再限制数量，使同一活跃集合不受事件到达顺序影响（[#123](https://github.com/BotHarness/BotHarness/issues/123)）。
 
