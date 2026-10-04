@@ -5,6 +5,7 @@ Guides explain verified implementation and integration workflows. They must poin
 - [Client bridge](/dev/guides/client-bridge): the implemented Host-to-Web Client RPC contract, its envelope, methods, and local development loop.
 - [Reading operational logs](/dev/guides/reading-operational-logs): how an agent reads `logs.db` directly (location, read-only open, WAL handling, query shapes, caps) — there is intentionally no log-reading tool.
 
+- [Assignment Report batches](assignment-report-harvest.md) — progress batching, native harvest and independent source history.
 - [Assignment stop and recovery](/dev/guides/assignment-stop-recovery): verified Human stop workflow, restart semantics and isolated DSH acceptance.
 - [PersonaBot Output Committed](/dev/guides/personabot-output): Host-only public output notifications, correlation, failure isolation and Consumer lifecycle.
 

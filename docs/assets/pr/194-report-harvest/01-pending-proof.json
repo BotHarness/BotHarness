@@ -1,0 +1,22 @@
+{
+  "bot": "Report harvest QA 1791137156872",
+  "assignmentSessionId": "botharness-70cac3bf-2425-4733-b13e-6841831215b0",
+  "orchestratorTurns": 1,
+  "progress": [
+    {
+      "id": "be2a6e21-0933-4e8e-82f3-454468a189a5",
+      "state": "pending",
+      "assignmentReportState": "progress",
+      "sourceAvailable": true,
+      "summary": "REPORT_PROGRESS_TWO"
+    },
+    {
+      "id": "a0c73909-7fe6-4a35-87ed-bba6e155e538",
+      "state": "pending",
+      "assignmentReportState": "progress",
+      "sourceAvailable": true,
+      "summary": "REPORT_PROGRESS_ONE"
+    }
+  ],
+  "timerPending": true
+}

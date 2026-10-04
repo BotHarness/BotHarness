@@ -1,0 +1,72 @@
+{
+  "bot": "Report harvest QA 1791137156872",
+  "assignmentSessionId": "botharness-70cac3bf-2425-4733-b13e-6841831215b0",
+  "orchestratorSessionId": "botharness-64668af6-90cd-49ec-848e-445464d12e1f",
+  "orchestratorTurns": 2,
+  "harvestTurns": 1,
+  "modelVisibleInboxDeliveries": 1,
+  "coalescedSourceCount": 3,
+  "observedAt": "2026-10-04T18:13:26.844Z",
+  "handledAt": "2026-10-04T18:13:31.396Z",
+  "reports": [
+    {
+      "id": "44a64335-bf7a-4e58-81f2-b1716b6ac76e",
+      "state": "handled",
+      "assignmentReportState": "completed",
+      "sourceAvailable": true,
+      "summary": "REPORT_BATCH_DONE",
+      "observedAt": "2026-10-04T18:13:26.844Z",
+      "handledAt": "2026-10-04T18:13:31.396Z"
+    },
+    {
+      "id": "be2a6e21-0933-4e8e-82f3-454468a189a5",
+      "state": "handled",
+      "assignmentReportState": "progress",
+      "sourceAvailable": true,
+      "summary": "REPORT_PROGRESS_TWO",
+      "observedAt": "2026-10-04T18:13:26.844Z",
+      "handledAt": "2026-10-04T18:13:31.396Z"
+    },
+    {
+      "id": "a0c73909-7fe6-4a35-87ed-bba6e155e538",
+      "state": "handled",
+      "assignmentReportState": "progress",
+      "sourceAvailable": true,
+      "summary": "REPORT_PROGRESS_ONE",
+      "observedAt": "2026-10-04T18:13:26.844Z",
+      "handledAt": "2026-10-04T18:13:31.396Z"
+    }
+  ],
+  "successfulReports": [
+    {
+      "state": "progress",
+      "summary": "REPORT_PROGRESS_ONE",
+      "callAt": 1791137164590,
+      "resultAt": 1791137164605
+    },
+    {
+      "state": "progress",
+      "summary": "REPORT_PROGRESS_TWO",
+      "callAt": 1791137166309,
+      "resultAt": 1791137166338
+    },
+    {
+      "state": "completed",
+      "summary": "REPORT_BATCH_DONE",
+      "callAt": 1791137606826,
+      "resultAt": 1791137607648
+    }
+  ],
+  "reportDelivery": {
+    "tool": "report_to_orchestrator",
+    "callAt": 1791137606826,
+    "resultAt": 1791137607648,
+    "successful": true,
+    "completion": [
+      {
+        "id": "fdf47d67-5a4a-499e-b684-b0d487cb078a",
+        "at": "2026-10-04T18:13:28.917Z"
+      }
+    ]
+  }
+}
