@@ -35,6 +35,7 @@ import {
 import type { BridgeActions } from './actions.js';
 import {
   PersonaBotAvatar,
+  PersonaBotStatusBadges,
   personaBotPresentationSummary,
   type PersonaBotActivityState,
 } from './avatar.js';
@@ -454,6 +455,7 @@ function BotRow({
           activity={bot?.activity}
           attention={bot?.attention}
           size={34}
+          indicator={false}
         />
         <span className="bh-body">
           <span className="bh-top">
@@ -461,6 +463,7 @@ function BotRow({
             {needsYou(botState) ? (
               <span className="bh-unread" title={t('roster.needsYou')} />
             ) : null}
+            <PersonaBotStatusBadges state={activity} attention={bot?.attention} />
           </span>
           <span className="bh-msg">{preview}</span>
         </span>
