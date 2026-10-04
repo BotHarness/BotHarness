@@ -29,6 +29,7 @@ export interface ChannelSidebarEntryProps {
 
 export interface ChannelSidebarSettingsProps extends ChannelSidebarEntryProps {
   onClose(): void;
+  onPreview?: (() => void) | undefined;
 }
 
 export interface ChannelSidebarEntry {
