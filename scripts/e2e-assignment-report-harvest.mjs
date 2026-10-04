@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import { assertAssignmentHarvest } from './e2e-assignment-harvest-proof.mjs';
 import { assertAssignmentReportReply } from './e2e-assignment-report-proof.mjs';
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
-import { createRequire } from 'node:module';
+import { assignmentProbe, waitFor, captureAssignmentInbox } from './e2e-assignment-probe.mjs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 const origin = process.env.BH_E2E_ORIGIN;
 const home = process.env.BH_E2E_HOME;
 const evidence = process.env.BH_E2E_EVIDENCE;
@@ -18,34 +17,8 @@ assert.ok(
 const privateDir = resolve('.humanlayer/tasks/194-report-harvest');
 mkdirSync(privateDir, { recursive: true });
 mkdirSync(evidence, { recursive: true });
-const statePath = resolve(privateDir, 'qa-state.json');
-const cookie = readFileSync(resolve(tmpdir(), 'dsh-' + basename(home) + '.cookies'), 'utf8').split(
-  ';',
-)[0];
-async function rpc(method, args = {}, namespace = 'botharness') {
-  const response = await fetch(origin + '/api/' + namespace + '/' + method, {
-    method: 'POST',
-    headers: { cookie, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      type: 'client-request',
-      rpcId: crypto.randomUUID(),
-      method: namespace + '/' + method,
-      payload: { args },
-    }),
-    signal: AbortSignal.timeout(20000),
-  });
-  const result = (await response.json()).result;
-  assert.equal(result?.ok, true, method + ': ' + JSON.stringify(result?.error));
-  return result.value;
-}
-async function waitFor(test, label) {
-  for (let n = 0; n < 180; n++) {
-    const result = await test();
-    if (result) return result;
-    await new Promise((done) => setTimeout(done, 1000));
-  }
-  throw Error('Timed out: ' + label);
-}
+const statePath = process.env.BH_E2E_STATE ?? resolve(privateDir, 'qa-state.json');
+const { rpc, nativeSnapshot, cookie } = assignmentProbe({ origin, home });
 let scene;
 const assignmentRows = async () => (await rpc('assignments', { slug: scene.bot.slug })).assignments;
 const messages = async () => (await rpc('channelMessages', { channelId: scene.dm })).messages;
@@ -61,59 +34,6 @@ const pending = async (sessionId) => {
 const writeState = () => writeFileSync(statePath, JSON.stringify(scene, null, 2));
 const writeProof = (name, proof) =>
   writeFileSync(resolve(evidence, name), JSON.stringify(proof, null, 2) + '\n');
-const modules = resolve('node_modules/.pnpm');
-const installed = (name) =>
-  createRequire(
-    resolve(
-      modules,
-      readdirSync(modules).find((d) => d.startsWith(name + '@')),
-      'node_modules/',
-    ),
-  )(name);
-const WebSocket = installed('ws');
-async function nativeSnapshot(sessionId) {
-  const socket = new WebSocket(origin.replace(/^http/, 'ws') + '/api/remote.mux', {
-    headers: { cookie },
-  });
-  try {
-    await new Promise((done, reject) => {
-      socket.once('open', done);
-      socket.once('error', reject);
-    });
-    return await new Promise((done, reject) => {
-      const timeout = setTimeout(() => reject(Error('native snapshot timeout')), 20000);
-      socket.once('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-      socket.on('message', (raw) => {
-        const f = JSON.parse(String(raw));
-        if (f.type === 'error') {
-          clearTimeout(timeout);
-          reject(Error(JSON.stringify(f.error)));
-        }
-        if (f.type === 'item' && f.value.type === 'snapshot') {
-          clearTimeout(timeout);
-          if (f.value.hasMore !== false) reject(Error('Incomplete native Session snapshot'));
-          else done(f.value);
-        }
-      });
-      socket.send(
-        JSON.stringify({
-          type: 'open',
-          streamId: crypto.randomUUID(),
-          endpoint: 'session/follow',
-          payload: {
-            args: { request: { address: { kind: 'session', sessionId }, maxMessages: 100 } },
-          },
-        }),
-      );
-    });
-  } finally {
-    socket.terminate();
-  }
-}
-
 const reports = async () =>
   (await rpc('botAttention', { slug: scene.bot.slug, limit: 100 })).items.filter(
     (item) =>
@@ -291,150 +211,16 @@ if (phase === 'complete' || phase === 'verify') {
     reportDelivery,
   });
 }
-if (phase === 'prepare' || phase === 'capture' || phase === 'complete' || phase === 'verify') {
-  const puppeteer = installed('puppeteer');
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-  try {
-    const split = cookie.indexOf('=');
-    await browser.setCookie({
-      name: cookie.slice(0, split),
-      value: cookie.slice(split + 1),
-      domain: new URL(origin).hostname,
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-    });
-    const page = await browser.newPage();
-    const errors = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.setViewport({ width: 1500, height: 1000 });
-    const navigation = [];
-    const cdp = await page.createCDPSession();
-    await cdp.send('Network.enable');
-    cdp.on('Network.webSocketFrameSent', ({ response }) => {
-      try {
-        const frame = JSON.parse(response.payloadData);
-        if (frame.type === 'open' && frame.endpoint === 'session/follow')
-          navigation.push(frame.payload?.args?.request?.address?.sessionId);
-      } catch {}
-    });
-    await page.goto(origin, { waitUntil: 'domcontentloaded' });
-    await page
-      .waitForFunction(
-        () =>
-          [...document.querySelectorAll('button')].some((b) =>
-            ['Continue', '继续'].includes(b.textContent?.trim() ?? ''),
-          ),
-        { timeout: 10000 },
-      )
-      .catch(() => undefined);
-    await page.evaluate(() =>
-      [...document.querySelectorAll('button')]
-        .find((b) => ['Continue', '继续'].includes(b.textContent?.trim() ?? ''))
-        ?.click(),
-    );
-    for (let n = 0; n < 3 && !(await page.$('.bh-main')); n++) {
-      await page.waitForSelector('button[aria-label="Bot mode"],button[aria-label="Bot 模式"]');
-      await page.click('button[aria-label="Bot mode"],button[aria-label="Bot 模式"]');
-      await page
-        .waitForFunction(
-          () =>
-            [...document.querySelectorAll('button')].some((b) =>
-              ['Configure later', '稍后配置'].includes(b.textContent?.trim() ?? ''),
-            ) || document.querySelector('.bh-main'),
-          { timeout: 5000 },
-        )
-        .catch(() => undefined);
-      await page.evaluate(() =>
-        [...document.querySelectorAll('button')]
-          .find((b) => ['Configure later', '稍后配置'].includes(b.textContent?.trim() ?? ''))
-          ?.click(),
-      );
-      await page.waitForSelector('.bh-main', { timeout: 10000 }).catch(() => undefined);
-    }
-    await page.waitForSelector('[data-channel-id="' + scene.dm + '"]');
-    await page.click('[data-channel-id="' + scene.dm + '"]');
-    await page.waitForSelector('.bh-channel-island[aria-haspopup="dialog"]');
-    await page.click('.bh-channel-island[aria-haspopup="dialog"]');
-    await page.waitForFunction(() =>
-      [...document.querySelectorAll('button')].some((b) =>
-        ['View details', '查看详情', '查看详细'].includes(b.textContent?.trim() ?? ''),
-      ),
-    );
-    await page.evaluate(() =>
-      [...document.querySelectorAll('button')]
-        .find((b) => ['View details', '查看详情', '查看详细'].includes(b.textContent?.trim() ?? ''))
-        ?.click(),
-    );
-    await page.waitForSelector('.bh-profile-view');
-    await page.evaluate(() => {
-      for (const e of document.querySelectorAll('.bh-channel-sidebar-entry-head'))
-        if (
-          /Bot Inbox|Bot 收件箱/.test(e.textContent ?? '') &&
-          e.getAttribute('aria-expanded') !== 'true'
-        )
-          e.click();
-    });
-    await page.waitForSelector('.bh-inbox-group');
-    await page.evaluate(() => {
-      for (const e of document.querySelectorAll(
-        '.bh-inbox-group > summary,.bh-inbox-history > summary',
-      ))
-        if (!e.parentElement.open) e.click();
-    });
-    await page.waitForSelector('.bh-inbox-item');
-    await page.evaluate(() => {
-      for (const group of document.querySelectorAll('.bh-inbox-group')) {
-        const keep = group
-          .querySelector('.bh-inbox-group-head')
-          ?.textContent.includes('Report harvest acceptance');
-        if (group.open !== keep) group.querySelector('summary').click();
-      }
-    });
-    await page.waitForFunction(
-      () =>
-        !document.querySelector('.bh-profile-view')?.textContent.includes('正在刷新用量') &&
-        !document.querySelector('.bh-profile-view')?.textContent.includes('Refreshing usage'),
-      { timeout: 15000 },
-    );
-    for (const theme of ['light', 'dark']) {
-      await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }]);
-      await page.screenshot({
-        path: resolve(evidence, scene.lastPhase + '-inbox-' + theme + '.png'),
-      });
-    }
-    const beforeItems = await reports();
-    await page.evaluate(() =>
-      [...document.querySelectorAll('button.bh-inbox-item')]
-        .find(
-          (e) => e.querySelector('.bh-inbox-item-summary')?.textContent === 'REPORT_PROGRESS_ONE',
-        )
-        ?.click(),
-    );
-    await waitFor(
-      () => navigation.includes(scene.sessionId),
-      'native Source navigation to owned Assignment',
-    );
-    assert.deepEqual(
-      (await reports()).map(({ id, state, observedAt }) => ({ id, state, observedAt })),
-      beforeItems.map(({ id, state, observedAt }) => ({ id, state, observedAt })),
-      'Human viewing must not observe Reports',
-    );
-    assert.equal(
-      (await nativeEvents()).filter((e) => e.type === 'turn/start').length,
-      scene.lastPhase === 'pending' ? 1 : 2,
-      'source viewing must not wake Orchestrator',
-    );
-    writeProof('source-navigation-' + scene.lastPhase + '.json', {
-      assignmentSessionId: scene.sessionId,
-      nativeEndpoint: 'session/follow',
-      sourceNavigation: true,
-      humanViewingDidNotObserve: true,
-      humanViewingDidNotWake: true,
-    });
-    assert.deepEqual(errors, []);
-  } finally {
-    await browser.close();
-  }
-}
+await captureAssignmentInbox({
+  origin,
+  cookie,
+  evidence,
+  scene,
+  reports,
+  nativeEvents,
+  writeProof,
+  expectedTurns: scene.lastPhase === 'pending' ? 1 : 2,
+  purpose: 'Report harvest acceptance',
+  sourceSummary: 'REPORT_PROGRESS_ONE',
+});
 console.log(JSON.stringify({ phase, bot: scene.bot.name, passed: true }));
