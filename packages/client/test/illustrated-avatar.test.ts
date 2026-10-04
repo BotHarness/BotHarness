@@ -3,7 +3,18 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { PersonaBotAvatar } from '../src/client/avatar.js';
-import { DEFAULT_ILLUSTRATED_RECIPE } from '../../core/src/bots/avatar-appearance.js';
+import {
+  DEFAULT_ILLUSTRATED_RECIPE,
+  pixelSymbolCells,
+} from '../../core/src/bots/avatar-appearance.js';
+import { PIXEL_MORPH_MS, PIXEL_SYMBOL_HOLD_MS } from '../src/client/illustrated-avatar.js';
+import { pixelMarkup as rawPixelMarkup } from '../src/client/pixel-morph.js';
+
+const pixelMarkup = (...args: Parameters<typeof rawPixelMarkup>) => {
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.innerHTML = rawPixelMarkup(...args);
+  return group.innerHTML;
+};
 import { DEFAULT_LINE_RECIPE } from '../../core/src/bots/avatar-line.js';
 
 it('keeps same-Bot SVG instances independent and releases mounted animation resources', async () => {
@@ -153,6 +164,13 @@ it('loops the gaze only on the large working avatar and keeps waiting avatars st
       ),
     );
     expect(classes()).toEqual(['bh-illustrated-head']);
+    const covered = () => node.querySelector('svg')!.hasAttribute('data-pixel-cover');
+    const icon = () => node.querySelector('[data-avatar-pixel-morph]')!.innerHTML;
+    expect(covered()).toBe(true);
+    expect(icon()).toBe(
+      pixelMarkup(pixelSymbolCells('search', DEFAULT_ILLUSTRATED_RECIPE.hairColor)),
+    );
+    const searching = icon();
     loops.length = 0;
     await act(async () =>
       root.render(
@@ -168,9 +186,8 @@ it('loops the gaze only on the large working avatar and keeps waiting avatars st
       'bh-illustrated-head',
       'bh-illustrated-gaze',
       'bh-illustrated-blink',
-      null,
     ]);
-    expect(loops[3]!.target.getAttribute('data-avatar-mark')).toBe('searching');
+    expect(icon()).toBe(searching);
     const gaze = loops[1]!.frames.map((frame) => String(frame.transform));
     expect(gaze).toContain('translate(-1px, 0px)');
     expect(gaze).toContain('translate(1px, 0px)');
@@ -319,6 +336,96 @@ it('morphs line strokes into the activity symbol and back on real presentation c
     delete document.documentElement.dataset['botharnessMotion'];
     await act(async () => undefined);
     expect(frames.size).toBe(0);
+  } finally {
+    delete document.documentElement.dataset['botharnessMotion'];
+    await act(() => root.unmount());
+    vi.unstubAllGlobals();
+    if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
+    else Reflect.deleteProperty(Element.prototype, 'animate');
+    Reflect.deleteProperty(document, 'hidden');
+    node.remove();
+  }
+});
+
+it('morphs the whole pixel Avatar between tool symbols, holds each briefly and snaps under reduced motion', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const animate = vi.fn(() => ({ cancel: vi.fn(), finished: Promise.resolve() }));
+  const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
+  Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate });
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextFrame = 0;
+  let now = 0;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+  const flush = async (count: number) => {
+    for (let i = 0; i < count && frames.size; i++) {
+      now += 16;
+      const due = [...frames.values()];
+      frames.clear();
+      for (const callback of due) callback(now);
+      await act(async () => undefined);
+    }
+  };
+  const render = (state: 'working' | 'idle', toolName?: string) =>
+    act(async () =>
+      root.render(
+        createElement(PersonaBotAvatar, {
+          personaBotId: 'ada',
+          name: 'Ada',
+          appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
+          size: 160,
+          state,
+          ...(toolName
+            ? {
+                activity: {
+                  effect: 'generic-working' as const,
+                  toolKind: 'other' as const,
+                  toolName,
+                  startedAt: 0,
+                  activeToolCount: 1,
+                },
+              }
+            : {}),
+        }),
+      ),
+    );
+  const hair = DEFAULT_ILLUSTRATED_RECIPE.hairColor;
+  const drawn = () => node.querySelector('[data-avatar-pixel-morph]')!.innerHTML;
+  const covered = () => node.querySelector('svg')!.hasAttribute('data-pixel-cover');
+  try {
+    await render('working', 'edit');
+    expect(frames.size).toBe(0);
+    expect(covered()).toBe(true);
+    expect(drawn()).toBe(pixelMarkup(pixelSymbolCells('edit', hair)));
+    await render('working', 'bash');
+    expect(frames.size).toBe(0);
+    await act(() => new Promise((resolve) => setTimeout(resolve, PIXEL_SYMBOL_HOLD_MS + 40)));
+    expect(frames.size).toBe(1);
+    await flush(6);
+    const mid = drawn();
+    expect(mid).not.toBe(pixelMarkup(pixelSymbolCells('edit', hair)));
+    expect(mid).not.toBe(pixelMarkup(pixelSymbolCells('bash', hair)));
+    await render('working', 'grep');
+    expect(frames.size).toBe(1);
+    expect(drawn()).toBe(mid);
+    await flush(Math.ceil(PIXEL_MORPH_MS / 16) + 2);
+    expect(frames.size).toBe(0);
+    expect(drawn()).toBe(pixelMarkup(pixelSymbolCells('search', hair)));
+    document.documentElement.dataset['botharnessMotion'] = 'reduce';
+    await render('working', 'ask_user_question');
+    expect(frames.size).toBe(0);
+    expect(drawn()).toBe(pixelMarkup(pixelSymbolCells('ask', hair)));
+    await render('idle');
+    expect(frames.size).toBe(0);
+    expect(covered()).toBe(false);
+    expect(drawn()).toBe('');
   } finally {
     delete document.documentElement.dataset['botharnessMotion'];
     await act(() => root.unmount());

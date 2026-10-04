@@ -219,6 +219,21 @@ export const PAGES = [
     },
   },
   {
+    slug: 'dev/guides/assignment-stop-recovery',
+    order: 3,
+    en: {
+      source: 'docs/dev/guides/assignment-stop-recovery.md',
+      title: 'Assignment stop and recovery',
+      description: 'Verified stop workflow and Host restart acceptance',
+      lang: 'en',
+    },
+    zh: {
+      source: 'docs/dev/guides/assignment-stop-recovery.zh.md',
+      title: 'Assignment 停止与恢复',
+      description: '已核验的停止操作与 Host 重启验收',
+    },
+  },
+  {
     slug: 'dev/guides/personabot-output',
     order: 2,
     en: {

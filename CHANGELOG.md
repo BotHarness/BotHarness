@@ -19,6 +19,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - PersonaBots can explicitly read bounded Slack channel, nearby and native-thread Human text from an authorized source, paginate dense five-minute windows and inspect context in source details without historical Inbox admission ([#819](https://github.com/BotHarness/BotHarness/issues/819)).
 
+- Pixel-family PersonaBot avatars are redrawn as 32×32 chibi pixel art (bigger heads and eyes, layered hair and clothes shading, a solid tile in the hair colour family) with new hairstyles, outfits and headwear and twelve selectable presets, and while thinking or working the whole pixel Avatar morphs (0.8s) into a pixel symbol in its hair colour bound to the current DSH tool (read, write, edit, bash, grep, web search/fetch, ask_user_question, todo, subagent, workflow, goal, present, approval and more), holding at least 0.5s and returning to the face when the turn ends; sidebar contact rows show the activity indicator and attention count beside the name instead of on the avatar ([#800](https://github.com/BotHarness/BotHarness/issues/800)).
 - Added a checked Slack text-mention path from an independently bound PersonaBot identity into its canonical Inbox and original native thread reply, reusing Profile identity/connector tables and source details; context, attachments and ordinary-message policies remain separate qualification slices ([#802](https://github.com/BotHarness/BotHarness/issues/802), [ADR-0126](docs/adr/0126-slack-text-intake-uses-exclusive-checked-provider.md)).
 - Host Plugins can subscribe to PersonaBot committed public output with trusted Session/Channel references; failed consumers cannot roll back messages or block other listeners, and restart does not replay notifications ([#125](https://github.com/BotHarness/BotHarness/issues/125)).
 
@@ -466,6 +467,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
 
 ### Documentation
+
+- Added a verified [Assignment stop and recovery guide](docs/dev/guides/assignment-stop-recovery.md), including pending approvals, persistent stopped state and new work after Host restart ([#81](https://github.com/BotHarness/BotHarness/issues/81)).
 
 - Documented current Computer deployment/image choices, durable workspace and export recovery limits with real Docker verification ([#205](https://github.com/BotHarness/BotHarness/issues/205), [report](docs/research/2026-10-04-computer-image-spike-qualification.md)).
 
