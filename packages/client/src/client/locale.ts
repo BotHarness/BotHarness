@@ -587,6 +587,7 @@ export const zh = {
   'im.receiveEnable': '开启群收件',
   'im.receiveDisable': '关闭群收件',
   'im.reception.off': '群收件已关闭',
+  'im.mentionTextOnly': '当前仅接收 @ 此 Bot 的文字消息，并支持在原话题回复。',
   'im.reception.connecting': '正在连接群收件',
   'im.reception.receiving': '群消息接收已连接',
   'im.reception.unavailable': '群收件不可用；请检查连接后重新开启',
@@ -2001,6 +2002,8 @@ export const en = {
   'im.receiveEnable': 'Enable group reception',
   'im.receiveDisable': 'Disable group reception',
   'im.reception.off': 'Group reception is off',
+  'im.mentionTextOnly':
+    'Currently receives text mentioning this Bot and supports replies in the original thread.',
   'im.reception.connecting': 'Connecting group reception',
   'im.reception.receiving': 'Group reception connected',
   'im.reception.unavailable': 'Group reception unavailable; check the connection and enable again',

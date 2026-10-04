@@ -272,7 +272,7 @@ export function MessagingProfile({
                       <p className="bh-im-status" role="status">
                         {t(`im.reception.${grant.reception ?? 'off'}`)}
                       </p>
-                      {grant.receiveScope && grant.groupPolicy ? (
+                      {grant.receiveScope && grant.groupPolicy && grant.platform !== 'slack' ? (
                         <GroupReceptionSettings
                           key={`${grant.id}:${grant.groupPolicy.revision}:${grant.groupPolicy.defaultRevision ?? 0}`}
                           policy={grant.groupPolicy}
@@ -283,6 +283,9 @@ export function MessagingProfile({
                             operate(() => actions.messagingGroupPolicy(slug, grant.id, input))
                           }
                         />
+                      ) : null}
+                      {grant.receiveScope && grant.platform === 'slack' ? (
+                        <p className="bh-im-notice">{t('im.mentionTextOnly')}</p>
                       ) : null}
                       {grant.threadPolicies?.length ? (
                         <ThreadReceptionSettings
