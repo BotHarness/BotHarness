@@ -1,0 +1,614 @@
+{
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "cases": [
+    {
+      "members": 1,
+      "preference": "full",
+      "systemReduced": false,
+      "effective": "full",
+      "theme": "light",
+      "width": 1500,
+      "generation": "8a5a4143-1e53-48c1-b15e-a38f1e0cfb37",
+      "revision": 16,
+      "header": {
+        "names": ["Orbit QA 1791121797469 · 正在执行 · bash · 主会话"],
+        "overflow": null,
+        "avatars": [
+          {
+            "title": "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+            "state": "working",
+            "active": "true",
+            "infinite": 10
+          }
+        ],
+        "movingContainer": 0
+      },
+      "profile": {
+        "ids": ["bot-a77b4e1ff02340f5920ca64a9be91b5f"],
+        "overflow": null,
+        "avatars": [
+          {
+            "id": "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+            "state": "working",
+            "infinite": 1
+          }
+        ]
+      },
+      "geometry": {
+        "documentOverflow": false,
+        "pop": {
+          "left": 569.984375,
+          "right": 889.984375
+        },
+        "header": {
+          "left": 560.25,
+          "right": 899.734375
+        },
+        "viewport": 1500
+      }
+    },
+    {
+      "members": 3,
+      "preference": "full",
+      "systemReduced": false,
+      "effective": "full",
+      "theme": "light",
+      "width": 1500,
+      "generation": "8a5a4143-1e53-48c1-b15e-a38f1e0cfb37",
+      "revision": 16,
+      "header": {
+        "names": [
+          "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+          "Quiet QA 1791121797469 · 空闲",
+          "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲"
+        ],
+        "overflow": null,
+        "avatars": [
+          {
+            "title": "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+            "state": "working",
+            "active": "true",
+            "infinite": 10
+          },
+          {
+            "title": "Quiet QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          },
+          {
+            "title": "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          }
+        ],
+        "movingContainer": 0
+      },
+      "profile": {
+        "ids": [
+          "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+          "bot-dbf428147d654fe3a23db584bf9c66e7",
+          "bot-4ab2421846a249679924d5fe569257cf"
+        ],
+        "overflow": null,
+        "avatars": [
+          {
+            "id": "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+            "state": "working",
+            "infinite": 1
+          },
+          {
+            "id": "bot-dbf428147d654fe3a23db584bf9c66e7",
+            "state": "idle",
+            "infinite": 0
+          },
+          {
+            "id": "bot-4ab2421846a249679924d5fe569257cf",
+            "state": "idle",
+            "infinite": 0
+          }
+        ]
+      },
+      "geometry": {
+        "documentOverflow": false,
+        "pop": {
+          "left": 570,
+          "right": 890
+        },
+        "header": {
+          "left": 544.265625,
+          "right": 915.734375
+        },
+        "viewport": 1500
+      }
+    },
+    {
+      "members": 5,
+      "preference": "full",
+      "systemReduced": false,
+      "effective": "full",
+      "theme": "light",
+      "width": 1500,
+      "generation": "8a5a4143-1e53-48c1-b15e-a38f1e0cfb37",
+      "revision": 16,
+      "header": {
+        "names": [
+          "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+          "Quiet QA 1791121797469 · 空闲",
+          "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "title": "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+            "state": "working",
+            "active": "true",
+            "infinite": 10
+          },
+          {
+            "title": "Quiet QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          },
+          {
+            "title": "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          }
+        ],
+        "movingContainer": 0
+      },
+      "profile": {
+        "ids": [
+          "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+          "bot-dbf428147d654fe3a23db584bf9c66e7",
+          "bot-4ab2421846a249679924d5fe569257cf"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "id": "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+            "state": "working",
+            "infinite": 1
+          },
+          {
+            "id": "bot-dbf428147d654fe3a23db584bf9c66e7",
+            "state": "idle",
+            "infinite": 0
+          },
+          {
+            "id": "bot-4ab2421846a249679924d5fe569257cf",
+            "state": "idle",
+            "infinite": 0
+          }
+        ]
+      },
+      "geometry": {
+        "documentOverflow": false,
+        "pop": {
+          "left": 570,
+          "right": 890
+        },
+        "header": {
+          "left": 536.765625,
+          "right": 923.234375
+        },
+        "viewport": 1500
+      }
+    },
+    {
+      "members": 5,
+      "preference": "full",
+      "systemReduced": true,
+      "effective": "full",
+      "theme": "dark",
+      "width": 420,
+      "generation": "8a5a4143-1e53-48c1-b15e-a38f1e0cfb37",
+      "revision": 16,
+      "header": {
+        "names": [
+          "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+          "Quiet QA 1791121797469 · 空闲",
+          "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "title": "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+            "state": "working",
+            "active": "true",
+            "infinite": 10
+          },
+          {
+            "title": "Quiet QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          },
+          {
+            "title": "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          }
+        ],
+        "movingContainer": 0
+      },
+      "profile": {
+        "ids": [
+          "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+          "bot-dbf428147d654fe3a23db584bf9c66e7",
+          "bot-4ab2421846a249679924d5fe569257cf"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "id": "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+            "state": "working",
+            "infinite": 1
+          },
+          {
+            "id": "bot-dbf428147d654fe3a23db584bf9c66e7",
+            "state": "idle",
+            "infinite": 0
+          },
+          {
+            "id": "bot-4ab2421846a249679924d5fe569257cf",
+            "state": "idle",
+            "infinite": 0
+          }
+        ]
+      },
+      "geometry": {
+        "documentOverflow": false,
+        "pop": {
+          "left": 78,
+          "right": 398
+        },
+        "header": {
+          "left": 108,
+          "right": 368
+        },
+        "viewport": 420
+      }
+    },
+    {
+      "members": 5,
+      "preference": "reduce",
+      "systemReduced": false,
+      "effective": "reduce",
+      "theme": "light",
+      "width": 1500,
+      "generation": "8a5a4143-1e53-48c1-b15e-a38f1e0cfb37",
+      "revision": 16,
+      "header": {
+        "names": [
+          "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+          "Quiet QA 1791121797469 · 空闲",
+          "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "title": "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+            "state": "working",
+            "active": "true",
+            "infinite": 0
+          },
+          {
+            "title": "Quiet QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          },
+          {
+            "title": "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          }
+        ],
+        "movingContainer": 0
+      },
+      "profile": {
+        "ids": [
+          "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+          "bot-dbf428147d654fe3a23db584bf9c66e7",
+          "bot-4ab2421846a249679924d5fe569257cf"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "id": "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+            "state": "working",
+            "infinite": 0
+          },
+          {
+            "id": "bot-dbf428147d654fe3a23db584bf9c66e7",
+            "state": "idle",
+            "infinite": 0
+          },
+          {
+            "id": "bot-4ab2421846a249679924d5fe569257cf",
+            "state": "idle",
+            "infinite": 0
+          }
+        ]
+      },
+      "geometry": {
+        "documentOverflow": false,
+        "pop": {
+          "left": 570,
+          "right": 890
+        },
+        "header": {
+          "left": 536.765625,
+          "right": 923.234375
+        },
+        "viewport": 1500
+      }
+    },
+    {
+      "members": 5,
+      "preference": "reduce",
+      "systemReduced": true,
+      "effective": "reduce",
+      "theme": "dark",
+      "width": 420,
+      "generation": "8a5a4143-1e53-48c1-b15e-a38f1e0cfb37",
+      "revision": 16,
+      "header": {
+        "names": [
+          "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+          "Quiet QA 1791121797469 · 空闲",
+          "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "title": "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+            "state": "working",
+            "active": "true",
+            "infinite": 0
+          },
+          {
+            "title": "Quiet QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          },
+          {
+            "title": "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          }
+        ],
+        "movingContainer": 0
+      },
+      "profile": {
+        "ids": [
+          "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+          "bot-dbf428147d654fe3a23db584bf9c66e7",
+          "bot-4ab2421846a249679924d5fe569257cf"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "id": "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+            "state": "working",
+            "infinite": 0
+          },
+          {
+            "id": "bot-dbf428147d654fe3a23db584bf9c66e7",
+            "state": "idle",
+            "infinite": 0
+          },
+          {
+            "id": "bot-4ab2421846a249679924d5fe569257cf",
+            "state": "idle",
+            "infinite": 0
+          }
+        ]
+      },
+      "geometry": {
+        "documentOverflow": false,
+        "pop": {
+          "left": 78,
+          "right": 398
+        },
+        "header": {
+          "left": 108,
+          "right": 368
+        },
+        "viewport": 420
+      }
+    },
+    {
+      "members": 5,
+      "preference": "system",
+      "systemReduced": true,
+      "effective": "reduce",
+      "theme": "light",
+      "width": 1500,
+      "generation": "8a5a4143-1e53-48c1-b15e-a38f1e0cfb37",
+      "revision": 16,
+      "header": {
+        "names": [
+          "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+          "Quiet QA 1791121797469 · 空闲",
+          "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "title": "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+            "state": "working",
+            "active": "true",
+            "infinite": 0
+          },
+          {
+            "title": "Quiet QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          },
+          {
+            "title": "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          }
+        ],
+        "movingContainer": 0
+      },
+      "profile": {
+        "ids": [
+          "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+          "bot-dbf428147d654fe3a23db584bf9c66e7",
+          "bot-4ab2421846a249679924d5fe569257cf"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "id": "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+            "state": "working",
+            "infinite": 0
+          },
+          {
+            "id": "bot-dbf428147d654fe3a23db584bf9c66e7",
+            "state": "idle",
+            "infinite": 0
+          },
+          {
+            "id": "bot-4ab2421846a249679924d5fe569257cf",
+            "state": "idle",
+            "infinite": 0
+          }
+        ]
+      },
+      "geometry": {
+        "documentOverflow": false,
+        "pop": {
+          "left": 570,
+          "right": 890
+        },
+        "header": {
+          "left": 536.765625,
+          "right": 923.234375
+        },
+        "viewport": 1500
+      }
+    },
+    {
+      "members": 5,
+      "preference": "system",
+      "systemReduced": false,
+      "effective": "full",
+      "theme": "dark",
+      "width": 420,
+      "generation": "8a5a4143-1e53-48c1-b15e-a38f1e0cfb37",
+      "revision": 16,
+      "header": {
+        "names": [
+          "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+          "Quiet QA 1791121797469 · 空闲",
+          "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "title": "Orbit QA 1791121797469 · 正在执行 · bash · 主会话",
+            "state": "working",
+            "active": "true",
+            "infinite": 10
+          },
+          {
+            "title": "Quiet QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          },
+          {
+            "title": "Long quiet member whose complete name must remain accessible without overflowing the Group preview QA 1791121797469 · 空闲",
+            "state": "idle",
+            "active": "false",
+            "infinite": 0
+          }
+        ],
+        "movingContainer": 0
+      },
+      "profile": {
+        "ids": [
+          "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+          "bot-dbf428147d654fe3a23db584bf9c66e7",
+          "bot-4ab2421846a249679924d5fe569257cf"
+        ],
+        "overflow": "+2",
+        "avatars": [
+          {
+            "id": "bot-a77b4e1ff02340f5920ca64a9be91b5f",
+            "state": "working",
+            "infinite": 1
+          },
+          {
+            "id": "bot-dbf428147d654fe3a23db584bf9c66e7",
+            "state": "idle",
+            "infinite": 0
+          },
+          {
+            "id": "bot-4ab2421846a249679924d5fe569257cf",
+            "state": "idle",
+            "infinite": 0
+          }
+        ]
+      },
+      "geometry": {
+        "documentOverflow": false,
+        "pop": {
+          "left": 78,
+          "right": 398
+        },
+        "header": {
+          "left": 108,
+          "right": 368
+        },
+        "viewport": 420
+      }
+    }
+  ],
+  "nativeTimer": {
+    "tool": "bash",
+    "callAt": 1791121807033,
+    "resultAt": 1791122000798,
+    "isError": false
+  },
+  "persistence": [
+    {
+      "preference": "reduce",
+      "systemReduced": false,
+      "effectiveAfterReload": "reduce"
+    },
+    {
+      "preference": "full",
+      "systemReduced": true,
+      "effectiveAfterReload": "full"
+    }
+  ],
+  "systemTracksRuntimeChange": true,
+  "completion": {
+    "at": "2026-10-04T13:53:21.902Z",
+    "body": "GROUP_MOTION_DONE_1791121802567",
+    "generation": "8a5a4143-1e53-48c1-b15e-a38f1e0cfb37",
+    "revision": 20
+  },
+  "clientErrors": [],
+  "verdict": "PASS"
+}
