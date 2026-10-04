@@ -519,7 +519,7 @@ export const zh = {
   'identity.unbindFor': '解绑身份：{name}',
   'identity.displayName': '本地显示名称',
   'identity.providerHint':
-    'Lark / 飞书使用 dsh-im 已配置并认证的应用 Bot 身份。凭据由 dsh-im 管理；Human 扫码登录不等于 Bot 绑定。',
+    '选择 dsh-im 中已配置并认证的应用 Bot 身份。凭据由 dsh-im 管理；Human 登录不等于 Bot 绑定。',
   'identity.bindHint': '仅绑定身份，不授权新的群或会话，也不开启收件。',
   'identity.reconnectHint':
     '重新验证同一账号与已有授权范围后启用。账号已变更时，需要明确解绑并重新绑定。',
@@ -1929,7 +1929,7 @@ export const en = {
   'identity.unbindFor': 'Unbind identity: {name}',
   'identity.displayName': 'Local display name',
   'identity.providerHint':
-    'Lark / Feishu uses the authenticated app Bot configured in dsh-im. Credentials stay with dsh-im; Human QR sign-in is not a Bot binding.',
+    'Select an authenticated app Bot configured in dsh-im. Credentials stay with dsh-im; Human sign-in is not a Bot binding.',
   'identity.bindHint': 'Bind only; no new conversation authorization or listener is created.',
   'identity.reconnectHint':
     'Revalidate this same account and existing authorized scopes before enabling. A changed account requires explicit unbind and rebind.',

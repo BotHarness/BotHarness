@@ -584,8 +584,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.provide('botharness', core);
   ctx.effect(() => () => core.externalMessaging.close(), 'botharness: external messaging');
   ctx.inject(['dshIm'], (child) => {
-    const provider = createDshImProvider(child.get('dshIm'));
-    if (provider !== undefined) child.effect(() => core.externalMessaging.register(provider));
+    for (const platform of ['feishu', 'slack'] as const) {
+      const provider = createDshImProvider(child.get('dshIm'), platform);
+      if (provider !== undefined) child.effect(() => core.externalMessaging.register(provider));
+    }
   });
 
   const permissionDenial = (session: import('@deepseek-ai/dsh-session').Session) =>

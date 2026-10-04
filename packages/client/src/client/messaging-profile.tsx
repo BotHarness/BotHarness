@@ -1,3 +1,4 @@
+import { externalPlatformLabel } from './bridge-source-label.js';
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 import { Modal } from './modal.js';
 import { MessagingHelp } from './messaging-help.js';
@@ -454,7 +455,7 @@ export function MessagingProfile({
             <header className="bh-external-route">
               <div className="bh-external-route-head">
                 <span className="bh-external-platform">
-                  {origin?.platform === 'feishu' ? 'Lark / 飞书' : origin?.platform}
+                  {origin ? externalPlatformLabel(origin.platform, t) : ''}
                 </span>
                 <Tag tone="neutral">{stateLabel(report.state)}</Tag>
               </div>
