@@ -1,5 +1,13 @@
 import { developmentProfileManifest } from './dev-profile.mjs';
 import {
+  packagedProfileManifest,
+  packagedWorkspaceSettings,
+  verifiedProductArtifacts,
+  verifyPackagedProfile,
+  verifyProductComposition,
+  parseProductComposition,
+} from './packaged-profile.mjs';
+import {
   qualifiedImProvider,
   withQualifiedImProvider,
   verifyQualifiedImProvider,
@@ -48,6 +56,7 @@ function parseArgs(argv) {
     worktree: repoRoot,
     build: false,
     imProvider: false,
+    productArtifacts: null,
     json: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -76,6 +85,10 @@ function parseArgs(argv) {
       case '--im-provider':
         options.imProvider = true;
         break;
+      case '--product-artifacts':
+        options.productArtifacts = resolve(next ?? '');
+        index += 1;
+        break;
       case '--json':
         options.json = true;
         break;
@@ -86,6 +99,10 @@ function parseArgs(argv) {
   if (!Number.isInteger(options.port) || options.port <= 0) {
     throw new Error('--port must be a positive integer');
   }
+  if (options.productArtifacts && options.imProvider)
+    throw new Error(
+      '--product-artifacts already includes its qualified IM Provider; omit --im-provider',
+    );
   return options;
 }
 
@@ -104,7 +121,8 @@ function ensureProfile(options) {
   const profileDir = join(options.home, 'profiles', options.profile);
   const manifestPath = join(profileDir, 'package.json');
   const env = { ...process.env, DSH_HOME: options.home };
-  const [command, cli] = dshCommand(options.worktree);
+  const runtime = options.runtime ?? options.worktree;
+  const [command, cli] = dshCommand(runtime);
   const profileCliManifest = join(
     options.home,
     'profiles',
@@ -115,7 +133,7 @@ function ensureProfile(options) {
   );
   if (existsSync(profileCliManifest)) {
     const profileVersion = JSON.parse(readFileSync(profileCliManifest, 'utf8')).version;
-    const localVersion = installedDshVersion(options.worktree);
+    const localVersion = installedDshVersion(runtime);
     if (profileVersion !== localVersion) {
       throw new Error(
         `Profile was created with DSH ${profileVersion}, but this worktree uses ${localVersion}; choose a fresh --home`,
@@ -130,13 +148,30 @@ function ensureProfile(options) {
     );
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  const base = developmentProfileManifest(manifest, options.worktree);
+  if (options.productArtifacts && installedDshVersion(runtime) !== '0.2.0-rc.1')
+    throw new Error('Qualified product artifacts require DSH 0.2.0-rc.1');
+  const base = options.productArtifacts
+    ? packagedProfileManifest(manifest, options.productArtifacts)
+    : developmentProfileManifest(manifest, options.worktree);
   if (options.imProvider && installedDshVersion(options.worktree) !== qualifiedImProvider.dsh)
     throw new Error(`Qualified IM provider requires DSH ${qualifiedImProvider.dsh}`);
   const composed = options.imProvider ? withQualifiedImProvider(base) : base;
+  if (options.productArtifacts) {
+    const workspace = join(profileDir, 'pnpm-workspace.yaml');
+    const existing = existsSync(workspace) ? readFileSync(workspace, 'utf8') : '';
+    writeFileSync(workspace, packagedWorkspaceSettings(existing, options.productArtifacts));
+  }
   writeFileSync(manifestPath, `${JSON.stringify(composed, null, 2)}\n`);
   const [pnpmExecutable, pnpmArgs] = pnpmCommand(['install']);
   run(pnpmExecutable, pnpmArgs, { cwd: profileDir });
+  if (options.productArtifacts) verifyPackagedProfile(profileDir, options.productArtifacts);
+  if (options.productArtifacts) {
+    const dump = run(command, [cli, '--profile', options.profile, '--dump-config'], {
+      env,
+      cwd: runtime,
+    });
+    verifyProductComposition(parseProductComposition(dump));
+  }
   if (options.imProvider) verifyQualifiedImProvider(profileDir);
   return profileDir;
 }
@@ -151,13 +186,14 @@ function launch(options) {
     `dsh-${basename(options.home).replace(/[^a-zA-Z0-9-]/gu, '-')}-${options.port}.log`,
   );
   const env = { ...process.env, DSH_HOME: options.home, ...devSecretEnvironment() };
-  const [command, cli] = dshCommand(options.worktree);
+  const runtime = options.runtime ?? options.worktree;
+  const [command, cli] = dshCommand(runtime);
 
   const logFd = openSync(logPath, 'w');
   const child = spawn(
     command,
     [cli, '--profile', options.profile, '--port', String(options.port), '--no-open'],
-    { env, cwd: options.worktree, detached: true, stdio: ['ignore', logFd, logFd] },
+    { env, cwd: runtime, detached: true, stdio: ['ignore', logFd, logFd] },
   );
   child.unref();
   return { child, logPath };
@@ -213,6 +249,23 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const secret = resolveDevSecret();
   mkdirSync(options.home, { recursive: true });
+  if (options.productArtifacts) {
+    verifiedProductArtifacts(options.productArtifacts);
+    options.runtime = join(options.home, 'packaged-cli');
+    mkdirSync(options.runtime, { recursive: true });
+    const runtimeWorkspace = join(options.runtime, 'pnpm-workspace.yaml');
+    if (!existsSync(runtimeWorkspace))
+      writeFileSync(
+        runtimeWorkspace,
+        "packages: [.]\nallowBuilds:\n  '@deepseek-ai/dsh-subprocess-local': true\n  '@google/genai': false\n  koffi: true\n  node-pty: true\n  protobufjs: false\n",
+      );
+    writeFileSync(
+      join(options.runtime, 'package.json'),
+      `${JSON.stringify({ name: 'botharness-packaged-cli-qa', private: true, devDependencies: { '@deepseek-ai/dsh': qualifiedImProvider.dsh } }, null, 2)}\n`,
+    );
+    const [command, args] = pnpmCommand(['install']);
+    run(command, args, { cwd: options.runtime });
+  }
   ensureProfile(options);
   const profileCredential = profileDeepSeekCredential(options.home) !== undefined;
   if (secret === undefined && !profileCredential) console.error(devSecretInstructions());
@@ -239,6 +292,15 @@ async function main() {
     health,
     ...(options.imProvider
       ? { imProvider: { source: qualifiedImProvider.source, upstreamReleased: false } }
+      : {}),
+    ...(options.productArtifacts
+      ? {
+          productArtifacts: {
+            version: verifiedProductArtifacts(options.productArtifacts).productVersion,
+            dsh: installedDshVersion(options.runtime ?? options.worktree),
+            upstreamReleased: false,
+          },
+        }
       : {}),
     stop: `kill ${child.pid}`,
   };

@@ -1,5 +1,17 @@
 # DSH debugging playbook
 
+## Packaged-artifact qualification
+
+Pinned DSH `0.2.0-rc.1` resolves Bundle packages from the running CLI installation
+before trying the Profile. A CLI inside the monorepo can therefore load linked
+development packages despite a successful tarball install and API probe. Use an
+independently installed official CLI, then verify the actual Client version and
+component inventory as well as installed artifact integrity. Changing only cwd
+does not change the CLI installation anchor. In pnpm 12, local artifact overrides
+belong in `pnpm-workspace.yaml`, not `package.json.pnpm.overrides`; preserve existing
+settings and reviewed build decisions. The product qualification helper exercises
+this path in [#823](https://github.com/BotHarness/BotHarness/issues/823).
+
 Symptoms → checks → conclusions, in the cheapest-first order. All commands assume WSL with the fnm node on PATH; `DSH_HOME=$HOME/.dsh-m35`; repo root.
 
 ## 1. Boot verification (always after restarting the dev server)

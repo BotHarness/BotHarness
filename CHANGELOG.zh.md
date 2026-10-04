@@ -17,6 +17,8 @@
 
 ### Added
 
+- 新增产品产物构建与隔离安装路径，在一次产品安装中组合 Core、Client 和独立版本的已验证 IM Provider；初始不连接账号，Provider 随产品更新，公开 npm 发布仍是独立的发布操作（[#823](https://github.com/BotHarness/BotHarness/issues/823)、[打包指南](docs/product-im-installation.md)）。
+
 - 新增使用 PersonaBot 独立绑定身份的 Slack 文字 @ 收件与原生话题回复路径，沿用 canonical Inbox、Profile 身份／频道连接器表和来源详情；上下文、附件及普通消息策略继续独立资格验证（[#802](https://github.com/BotHarness/BotHarness/issues/802)，[ADR-0126](docs/adr/0126-slack-text-intake-uses-exclusive-checked-provider.md)）。
 - Host Plugin 可订阅 PersonaBot 已提交的公开输出及可信 Session／Channel 引用；消费者失败不回滚消息或阻断其他监听者，重启不重放通知（[#125](https://github.com/BotHarness/BotHarness/issues/125)）。
 
