@@ -130,6 +130,7 @@ async function fixture(
     sendChecked: async () => ({ sent: true }),
     replyChecked: async () => ({ sent: true }),
     consumeInbound: async (_id, input) => {
+      expect(input.sourceFiles).toBe(true);
       receive = input;
       return () => {};
     },
@@ -379,3 +380,25 @@ it.each(['provider-accepted', 'unknown-outcome'])(
     expect(send).toHaveBeenCalledTimes(1);
   },
 );
+
+it('Slack source metadata survives canonical intake and refuses unrelated message attachments', async () => {
+  const fx = await fixture(undefined, 'slack');
+  const source = {
+    ...fx.platformEvent,
+    attachments: [
+      { ...attachment, messageId: event.messageId, sizeBytes: 14, mediaType: 'application/zip' },
+    ],
+  };
+  const id = await fx.source(source);
+  const detail = fx.core.externalMessaging.inbound.read('ada', id);
+  expect(detail.event.attachments).toEqual(source.attachments);
+  await expect(
+    fx.source({
+      ...source,
+      eventId: 'unrelated',
+      messageId: 'other',
+      reply: { ...source.reply, messageId: 'other' },
+    }),
+  ).rejects.toThrow('untrusted-source');
+  expect(fx.download).not.toHaveBeenCalled();
+});
