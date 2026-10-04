@@ -8,5 +8,17 @@
   "historyPreserved": true,
   "sameGrantReused": true,
   "sameContinuityKeyCreatedNewSession": true,
-  "newReport": "RESTART_REUSE_DONE"
+  "newReport": "RESTART_REUSE_DONE",
+  "reportDelivery": {
+    "tool": "report_to_orchestrator",
+    "callAt": 1791134350735,
+    "resultAt": 1791134350760,
+    "successful": true,
+    "completion": [
+      {
+        "id": "0cc807aa-0ab6-4ac6-adc3-3fe033108bd3",
+        "at": "2026-10-04T17:19:11.775Z"
+      }
+    ]
+  }
 }

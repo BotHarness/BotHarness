@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { assertAssignmentReportReply } from './e2e-assignment-report-proof.mjs';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -350,6 +351,18 @@ if (phase === 'stop' || phase === 'restart') {
     pendingToolNeverSucceeded: true,
     assignmentTool: shell.event.data.name,
   });
+}
+
+if (phase === 'restart') {
+  const native = await nativeSnapshot(scene.secondSessionId);
+  const reportDelivery = assertAssignmentReportReply(
+    native.records,
+    await messages(),
+    'RESTART_REUSE_DONE',
+  );
+  const path = resolve(evidence, '03-restart-proof.json');
+  const proof = JSON.parse(readFileSync(path, 'utf8'));
+  writeProof('03-restart-proof.json', { ...proof, reportDelivery });
 }
 
 const puppeteer = installed('puppeteer');

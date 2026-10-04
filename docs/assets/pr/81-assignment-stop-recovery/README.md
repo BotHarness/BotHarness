@@ -6,7 +6,7 @@ Verified on a real isolated DSH 0.2.0-rc.1 Host with DeepSeek Flash / low. The e
 
 1. [Pending proof](01-pending-proof.json): an Orchestrator creates one owned `workspace-write` Assignment with the selected Grant and Continuity Key; the real native `pwsh` timer awaits Human approval.
 2. [Stopped proof](02-stopped-proof.json) and [native stop proof](native-stop-proof.json): actual `stop_assignment` succeeds; the pending Shell has no successful result, approval expires, the key is released, permission facts remain and Bot returns to idle.
-3. [Restart proof](03-restart-proof.json): restart the same isolated Host; old stopped state, permission snapshot, expired approval and Channel history survive. The same Grant/key creates a new Session, whose real Report reaches the Orchestrator and becomes `RESTART_REUSE_DONE` in the DM.
+3. [Restart proof](03-restart-proof.json): restart the same isolated Host; old stopped state, permission snapshot, expired approval and Channel history survive. The same Grant/key creates a new Session, whose successful `report_to_orchestrator` result precedes every `RESTART_REUSE_DONE` reply in the DM; the proof records those native-result and reply times.
 
 | Phase                        | Light                                    | Dark                                    |
 | ---------------------------- | ---------------------------------------- | --------------------------------------- |

@@ -14,13 +14,13 @@ Stopping does not delete the Session, its history, Grant or permission facts. If
 
 ## Verified boundaries
 
-| Boundary               | Evidence                                                                                                                                           |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Trusted creation       | Actual Orchestrator `create_assignment`, owned Workspace Grant, `workspace-write` snapshot and Continuity Key                                      |
-| Pending approval       | Actual native Shell call (`pwsh` on Windows; `bash` on applicable hosts) waiting for Human authorization                                           |
-| Stop                   | BotHarness `stop_assignment` has a successful result in native Session records; pending Shell has no successful result; approval becomes expired   |
-| Directory and activity | Stopped Session retains permission facts, releases its key, has no post-stop Report observed, and Bot returns to idle                              |
-| Restart                | Old stopped state, permission snapshot and history survive; new Assignment uses the same Grant/key and produces an actual report and Channel reply |
+| Boundary               | Evidence                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Trusted creation       | Actual Orchestrator `create_assignment`, owned Workspace Grant, `workspace-write` snapshot and Continuity Key                                                      |
+| Pending approval       | Actual native Shell call (`pwsh` on Windows; `bash` on applicable hosts) waiting for Human authorization                                                           |
+| Stop                   | BotHarness `stop_assignment` has a successful result in native Session records; pending Shell has no successful result; approval becomes expired                   |
+| Directory and activity | Stopped Session retains permission facts, releases its key, has no post-stop Report observed, and Bot returns to idle                                              |
+| Restart                | Old stopped state, permission snapshot and history survive; new Assignment uses the same Grant/key; successful Report result precedes every matching Channel reply |
 
 [Actual screenshots and public proof records](https://github.com/BotHarness/BotHarness/blob/main/docs/assets/pr/81-assignment-stop-recovery/README.md) describe the run. This acceptance verifies a narrow part of [#81](https://github.com/BotHarness/BotHarness/issues/81); it does not close the entire foundation or prove every crash/permission/concurrency scenario.
 
