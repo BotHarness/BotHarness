@@ -17,7 +17,7 @@
 
 ### Added
 
-- 群聊头像堆叠最多显示三位成员，优先活动成员，保持同类稳定顺序与准确剩余人数；群聊顶部的成员头像现在支持悬浮与键盘焦点查看各自安全实时状态，并可在既有群 Profile 弹层中打开紧凑的共享活动列表（[#124](https://github.com/BotHarness/BotHarness/issues/124)）。
+- 群聊头像堆叠最多显示三位成员，优先活动成员，保持同类稳定顺序与准确剩余人数；群聊顶部的成员头像现在支持悬浮与键盘焦点查看各自安全实时状态，并可在既有群 Profile 弹层中以 flex 布局展示最多三位活动优先的头像、名称与状态 chips（[#124](https://github.com/BotHarness/BotHarness/issues/124)）。
 
 - 群聊活动的紧凑摘要和展开列表现在显示每个活跃 PersonaBot 的名称，头像支持键盘操作，并显示同一份安全共享状态（[#124](https://github.com/BotHarness/BotHarness/issues/124)）。
 - PersonaBot Profile 可预览、取消和保存原创像素人物头像，按仿 Notion 脸谱的分类选择脸型、发型、眼睛、眉毛、鼻子、嘴巴、脸颊、眼镜、配饰以及肤色、发色、眼睛与衣服颜色、朝向、服装和背景装饰；未保存或上传头像的 Bot 按名字生成默认像素形象，创建时即可预览；保存外形在侧栏与 Profile 大图保持一致，消费现有活动和独立审批 attention，并在重启后恢复（[#751](https://github.com/BotHarness/BotHarness/issues/751)）。

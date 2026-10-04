@@ -288,12 +288,30 @@ try {
     await shot('group-header-focus-light');
     await page.keyboard.press('Enter');
     await page.waitForSelector('.bh-group-live-activity');
-    const rows = await page.$$eval('.bh-group-live-activity .bh-composer-activity-bot', (nodes) =>
+    const rows = await page.$$eval('.bh-group-live-activity .bh-group-activity-chip', (nodes) =>
       nodes.map((node) => node.textContent),
     );
-    assert.equal(rows.length, scene.bots.length);
-    for (const bot of scene.bots) assert.ok(rows.some((row) => row.includes(bot.name)));
+    assert.equal(rows.length, 3);
+    for (const bot of targets) assert.ok(rows.some((row) => row.includes(bot.name)));
+    assert.equal(await page.$eval('.bh-group-activity-overflow', (node) => node.textContent), '+1');
+    assert.equal(
+      await page.$eval('.bh-group-live-activity-chips', (node) => getComputedStyle(node).display),
+      'flex',
+    );
     await shot('group-header-list-light');
+    const chip = await page.$('.bh-group-activity-chip');
+    assert.ok(chip);
+    await chip.focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.down('Shift');
+    await page.keyboard.press('Tab');
+    await page.keyboard.up('Shift');
+    await page.waitForSelector('[role="tooltip"]');
+    const chipTip = await page.$eval('[role="tooltip"]', (node) => node.textContent);
+    assert.ok(targets.some((bot) => chipTip.includes(bot.name)));
+    assert.ok(chipTip.includes('bash'));
+    assert.ok(!chipTip.includes('setTimeout'));
+    await shot('group-chip-tooltip-light');
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.querySelector('.bh-profile-popover'));
     await page.click('.bh-group-channel-name');
@@ -431,6 +449,10 @@ try {
     await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
     await page.click('.bh-group-channel-name');
     await page.waitForSelector('.bh-group-live-activity');
+    assert.equal(
+      await page.$$eval('.bh-group-live-activity .bh-group-activity-chip', (nodes) => nodes.length),
+      3,
+    );
     await shot('group-header-list-idle-light');
     await page.setViewport({ width: 420, height: 860 });
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);

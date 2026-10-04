@@ -1588,7 +1588,13 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-group-channel-name { display: inline-flex; align-items: center; flex: 1; min-width: 0; padding: 0; border: 0; border-radius: 4px; color: inherit; background: transparent; font: inherit; cursor: pointer; }
 .bh-group-channel-name:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
 .bh-group-live-activity { container-type: inline-size; min-width: 0; }
-.bh-group-live-activity .bh-composer-activity-session { min-height: 32px; padding: 6px 8px; }
+.bh-group-live-activity-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.bh-group-activity-chip { display: inline-flex; min-width: 0; max-width: 100%; border-radius: 999px; }
+.bh-group-activity-chip:focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+.bh-group-activity-pill { min-width: 0; max-width: 100%; }
+.bh-group-activity-chip-name { min-width: 0; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-label-primary); }
+.bh-group-activity-chip-state { white-space: nowrap; }
+.bh-group-activity-overflow { flex-shrink: 0; }
 .bh-channel-island-wrap {
   position: relative;
   display: inline-flex;

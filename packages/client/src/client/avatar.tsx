@@ -342,6 +342,18 @@ export function PersonaBotAvatar({
   );
 }
 
+export function personaBotActivityPreview(
+  items: readonly PersonaBotFacepileItem[],
+  max = 3,
+): readonly PersonaBotFacepileItem[] {
+  const active = (item: PersonaBotFacepileItem) =>
+    item.state === 'thinking' || item.state === 'working';
+  return [...items.filter(active), ...items.filter((item) => !active(item))].slice(
+    0,
+    Math.min(max, 3),
+  );
+}
+
 export function PersonaBotFacepile({
   items,
   renderAvatar,
@@ -358,12 +370,7 @@ export function PersonaBotFacepile({
   t?: BotHarnessTranslate | undefined;
 }): ReactElement | null {
   if (items.length === 0) return null;
-  const active = (item: PersonaBotFacepileItem) =>
-    item.state === 'thinking' || item.state === 'working';
-  const visible = [...items.filter(active), ...items.filter((item) => !active(item))].slice(
-    0,
-    Math.min(max, 3),
-  );
+  const visible = personaBotActivityPreview(items, max);
   const overflow = items.length - visible.length;
   return (
     <span className={['bh-avatar-facepile', className].filter(Boolean).join(' ')}>

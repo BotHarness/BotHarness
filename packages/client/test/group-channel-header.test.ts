@@ -2,6 +2,8 @@ import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it, vi } from 'vitest';
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  Pill: ({ children, className }: { children: ReactNode; className?: string }) =>
+    createElement('span', { className }, children),
   Modal: ({ children }: { children: ReactNode }) => children,
   Tooltip: ({ children }: { children: ReactNode }) => children,
   IconChevronLeftOutlineRegular: () => null,
@@ -67,7 +69,7 @@ it('keeps the custom Group identity alongside live member avatars and an empty G
   expect(empty).toContain('bh-channel-mark bh-channel-mark-sm');
   expect(empty).not.toContain('bh-avatar-facepile-button');
 });
-it('shows every member from the same aggregate in the existing Group Profile popover without raw Session details', () => {
+it('shows at most three active-first member chips and overflow in the existing Group Profile popover', () => {
   const html = renderToStaticMarkup(
     createElement(GroupProfilePopover, {
       channel,
@@ -81,9 +83,13 @@ it('shows every member from the same aggregate in the existing Group Profile pop
     }),
   );
   expect(html).toContain('实时活动');
-  expect(html.match(/data-bot-id=/gu)).toHaveLength(4);
+  expect(html.match(/data-bot-id=/gu)).toHaveLength(3);
+  expect(html).toContain('bh-group-live-activity-chips');
+  expect(html).toContain('>+1</span>');
+  expect(html).not.toContain('data-bot-id="dee"');
+  expect(html).not.toContain('bh-composer-activity-session');
   expect(html).toContain('Ada &lt;safe&gt;');
-  expect(html).toContain('正在搜索');
+  expect(html).toContain('正在工作');
   expect(html).toContain('正在思考');
   expect(html).toContain('空闲');
   expect(html).toContain('bh-profile-expand');
@@ -114,4 +120,25 @@ it('keeps active late members visible before idle ones and caps even a larger re
     'working-fourth',
     'working-fifth',
   ]);
+});
+
+it('uses the same bounded active-first preview for chips when working members follow idle ones', () => {
+  const ordered = [members[2]!, members[3]!, members[0]!, members[1]!];
+  const html = renderToStaticMarkup(
+    createElement(GroupProfilePopover, {
+      channel,
+      members: ordered,
+      activity: undefined,
+      cards: EMPTY_PROFILE_CARDS,
+      pinned: [],
+      botNames: new Map(),
+      t: zhTranslate,
+      onExpand: noop,
+    }),
+  );
+  expect(html.match(/data-bot-id=/gu)).toHaveLength(3);
+  expect(html.indexOf('data-bot-id="ada"')).toBeLessThan(html.indexOf('data-bot-id="cy"'));
+  expect(html.indexOf('data-bot-id="bea"')).toBeLessThan(html.indexOf('data-bot-id="cy"'));
+  expect(html).not.toContain('data-bot-id="dee"');
+  expect(html).toContain('>+1</span>');
 });

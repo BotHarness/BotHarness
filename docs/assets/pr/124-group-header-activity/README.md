@@ -6,12 +6,12 @@ DeepSeek Flash / low Orchestrator Sessions and two idle members.
 
 ## Matched visual evidence
 
-The before/after idle Profile pairs use the same isolated data after all
-model requests completed, the same Chinese locale, and matched viewports:
+The Human QA card/chips pairs compare accepted head 21edd96d with the
+chips revision, using the same isolated data after all model requests completed, the same Chinese locale, and matched viewports:
 1500 × 1000 light and 420 × 860 dark. The header idle pair uses the same
 light viewport and data. A separate working keyboard-focus screenshot
-shows the new native Tooltip and a working Profile list shows both live
-Bots alongside idle members. No credentials or private Host paths appear.
+shows the new native Tooltip and working Profile chips show both live
+Bots alongside an idle member and +1. No credentials or private Host paths appear.
 
 The Group member order deliberately places two idle Bots before Orbit and Nova;
 the actual verifier requires three visible header avatars, both active Bots
@@ -47,3 +47,18 @@ in ignored task-local files.
 This slice reuses Host aggregates, accepted GroupActivityRows, and the
 existing authenticated Gateway/Profile seam. It does not complete #124;
 remaining Assignment/motion/member variants await subsequent slices.
+
+## Human QA compactness correction
+
+The existing native DSH Pill and Tooltip compose a wrapping flex preview,
+not full-width activity cards. A shared personaBotActivityPreview bounds
+both facepile and popover to three, prioritizing thinking/working and
+preserving equal-priority membership order. Each chip shows avatar, an
+ellipsized name and short Host state; native hover/keyboard Tooltip exposes
+the existing safe aggregate. The chip Tooltip check rejects raw timer
+arguments. The composer expanded rows retain their accepted presentation.
+
+The card/chips screenshots match 1500 × 1000 light and 420 × 860 dark
+viewports, Chinese locale, the same Group, member order and settled state.
+Baseline source was the accepted/reviewed 21edd96d, then the saved chips
+source and bundle were restored before publishing.
