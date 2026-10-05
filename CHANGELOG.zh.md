@@ -536,6 +536,8 @@
 
 - 记录已接受的 PersonaBot／Channel 删除契约：默认不勾选的记忆清除选项与直接打开文件夹、保留历史的 Channel 删除，以及 Profile 恢复所需的真实 Purge Ledger 前置实现；运行控件仍由后续实现交付（[#138](https://github.com/BotHarness/BotHarness/issues/138)，[ADR-0130](docs/adr/0130-deletion-preserves-history-and-makes-memory-erasure-explicit.md)）。
 
+- 新增 Channel sidebar 双语章节，以七个图文子页面说明记忆文件与历史、所属会话、Bot 收件箱、工作区授权、本地群管理和显示设置（[#893](https://github.com/BotHarness/BotHarness/issues/893), [教程](docs/channel-sidebar/index.md)）。
+
 - 更新 Discord 接入说明，记录已合并 QA 版本、有界发送中断／恢复证据、代理操作界面的 E2E 验收截图及仍待完成的原生资格验收（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[验证记录](docs/dev/verification/discord-855-mention-reply.md)）。
 
 - 新增公共 npm 插件图文安装、API 与各 Bot 模型配置、非 IM 设置参数教程，并把快速开始调整为用户安装路径；已使用 DSH 0.2.0 RC1 和 deepseekbot 0.1.0-alpha.1 实际验证（[#887](https://github.com/BotHarness/BotHarness/issues/887), [教程](docs/installation.md)）。
