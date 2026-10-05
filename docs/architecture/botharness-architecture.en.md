@@ -480,8 +480,7 @@ collection remains mention-only by default and requires real current delivery to
 full collection. Existing canonical Source Events, Admission snapshots and count/time
 harvest or immediate turn queuing govern collected text; reply participation stays independent.
 Profile reuses the compact policy editor. Restart resets verification without changing policy
-or backfilling gaps. Native thread following, ordinary files and editable Slack global defaults
-remain separate qualifications; there is no new queue, store or Session authority.
+or backfilling gaps. Native thread following and ordinary files remain separate qualifications; #843 extends global defaults after this qualification, with no new queue, store or Session authority.
 
 ### Human Inbox details and dismissal (#687 QA)
 
@@ -530,3 +529,7 @@ The Host expands the selected token into ordinary per-Bot mention text and stabl
 ### Own-identity replies to shared external sources (#637)
 
 [ADR-0122](../adr/0122-shared-source-replies-use-responder-owned-authorization.md) keeps source content and receiving identity canonical while allowing a current Group member to inspect its shared placement without creating an Inbox Admission. An explicit reply requires that member's own enabled external identity and one verified Grant for the original external group. The optional dsh-im checked reply-context contract resolves the exact source under the responder's application, retaining conversation/thread/root/parent while translating only the app-scoped sender identifier. The existing Outbox records a per-responder/source intent, owned identity, qualified route, receipt and honest outcome; Profile projects these details. Membership, Binding/Grant revisions and Provider Registration are fenced again after remote validation and immediately before SDK dispatch. Missing authority, mismatched routes and unknown outcomes never borrow the receiver, fall back to the group mainline or retry blindly. Text replies add no source copy, automatic ownership lock, wake or schema migration; shared remote context/files remain separately qualified. Before qualification, the existing Consumer fanout acquires a reply-only account lease when reception is disabled; it acknowledges and discards inbound messages while retaining exact own-echo correspondence. Profile still shows reception off, and identity/provider lifecycle cancels the process-local lease.
+
+### Qualified external-platform defaults
+
+[#843](https://github.com/BotHarness/BotHarness/issues/843) extends [ADR-0119](../adr/0119-external-platform-defaults-retain-explicit-inheritance.md) to qualified Slack group text. Bot settings selects Lark or Slack with independent drafts and immutable preference revisions. The authenticated read RPC accepts an optional qualified platform; legacy calls still read Lark. Generation 53 preserves all prior default rows and scoped overrides while allowing Slack revisions. New Slack identities inherit; existing identities retain their explicit choices until Human restores inheritance. Only future inherited intake/harvest and enabled behavior changes; authorization, delivery verification, per-Admission snapshots and resume fencing keep their existing owners. No account, Grant, Source, queue or reply authority is added.

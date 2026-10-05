@@ -18,6 +18,8 @@
 ### Added
 
 - Assignment 完成报告与 Host 确认的原生执行完成保留为独立、可跳转的 Inbox 来源，以可信 Session／Turn 身份关联且不重复唤醒；迟到通知重启后仍待处理，直到真实 Turn 纳入并处理（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)）。
+- 在 Bot 设置中新增独立的 Slack 收件、汇总与绑定身份默认值，Profile 可继承，既有显式覆盖继续保留（[#843](https://github.com/BotHarness/BotHarness/issues/843)）。
+
 - Human 可在 Profile 明确接收已授权 Slack 频道的普通文字，并选择现有数量／时间汇总或安全排队的逐条唤醒；新连接仍只收 @，重叠提及订阅不重复收件（[#837](https://github.com/BotHarness/BotHarness/issues/837)）。
 - 新增产品产物构建与隔离安装路径，在一次产品安装中组合 Core、Client 和独立版本的已验证 IM Provider；初始不连接账号，Provider 随产品更新，公开 npm 发布仍是独立的发布操作（[#823](https://github.com/BotHarness/BotHarness/issues/823)、[打包指南](docs/product-im-installation.md)）。
 - Line 家族 PersonaBot 头像改为变形成与当前 DSH 工具对应的线条符号（与像素风同一套 16 个：读文件、新建、修改、执行命令、搜代码、搜网页、抓取、提问、待办、分身、工作流、目标、展示、待审批等），活动持续时保持符号（至少 0.5 秒），工具之间直接变形，回合结束后变回脸（[#838](https://github.com/BotHarness/BotHarness/issues/838)）。
