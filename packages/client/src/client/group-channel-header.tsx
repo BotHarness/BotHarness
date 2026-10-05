@@ -36,6 +36,7 @@ export function GroupChannelHeader({
       ) : null}
       <PersonaBotFacepile
         items={members}
+        indicator={false}
         size={22}
         t={t}
         renderAvatar={(item, avatar) => {

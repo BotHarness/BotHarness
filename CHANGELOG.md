@@ -283,6 +283,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 
 ### Changed
 
+- Channel header Profile entries and composer activity avatars now omit duplicate attention badges and activity dot matrices; sidebar indicators and activity disclosure remain available ([#928](https://github.com/BotHarness/BotHarness/issues/928)).
+
 - DeepSeekBot is published as a stable version on the npm `latest` tag, with `next` moved along; install it with `dsh plugin --profile web add deepseekbot` or by entering `deepseekbot` in the desktop Add plugin dialog ([#895](https://github.com/BotHarness/BotHarness/pull/895), [release guide](docs/npm-prerelease.md)).
 
 - Channel sections, pins, hidden entries and root order now persist in the Profile database after a validated one-time import; restart no longer depends on the retained legacy roster domain, while native sorting and per-Client collapse keep their existing owners ([#885](https://github.com/BotHarness/BotHarness/issues/885)).
