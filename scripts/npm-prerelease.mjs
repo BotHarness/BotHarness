@@ -217,7 +217,7 @@ async function main() {
           })
             .trim()
             .split('\n')
-            .filter((line) => line && !line.startsWith('?? .release-provider/')).length,
+            .filter(Boolean).length,
           providerSource: productImProvider.upstream.source,
           dsh: productImProvider.upstream.dsh,
           publicationOrder,
