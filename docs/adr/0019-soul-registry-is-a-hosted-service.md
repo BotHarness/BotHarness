@@ -1,3 +1,5 @@
+> Partly superseded by [ADR-0131](0131-bot-marketplace-starts-as-a-github-indexed-catalog.md): metadata lives in Cloudflare D1 rather than PlanetScale, and the first Marketplace is a GitHub-indexed catalog opened from the harness.
+
 # The Soul registry is a hosted service
 
 SoulSnapshots need ownership, upload validation, quotas, and object storage, so sharing a PersonaBot at scale is a hosted service rather than a static directory of links: the registry runs on Cloudflare Workers with Hyperdrive → PlanetScale (MySQL, Drizzle ORM) for metadata and R2 for snapshot objects, accounts come from BetterAuth (email OTP via Cloudflare Email + Google), and the marketplace UI lives on `botharness.ai`. Phase 1 shares single bots only (bot sets are deferred), publishing is public by default with automated upload gates and takedown-on-report instead of pre-review, and the in-harness one-click share waits until the website flow has proven the pipeline.

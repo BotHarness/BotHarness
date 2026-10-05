@@ -418,6 +418,10 @@ The diagram includes current attachment destinations and their identity records;
 
 v1 has only two backup actions: Export Profile produces one self-contained `.botharness-backup`, and Import Profile selects one file. There is no automatic backup, scheduler, catalog, retention, or incremental chain. Restore always validates in isolated staging. A restored PersonaBot stays cold, provider authorities stay suspended, and Workspace/model/plugin dependencies must be resolved on the target before a Human explicitly activates it.
 
+### Bot Marketplace (proposed design, not implemented)
+
+[ADR-0131](../adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md) and #18 start the Bot Marketplace as a GitHub-indexed catalog: adding the `botharness-bot` topic to a public repository is the author's consent to be listed, and pasting the URL into the Marketplace crawls it at once. A dedicated Cloudflare Worker with its own D1 runs a daily topic discovery sliced by creation date and an hourly GraphQL batch refresh, indexing READMEs with FTS5; browsing uses keyset cursors and search returns at most 200 results. The harness Marketplace modal shows README details; Install reuses #298 Git-URL creation, with a confirmation showing the latest commit and a third-party risk notice. URL paste and one-click reporting share ALTCHA and rate limits. Phase 1 has no accounts and no download counts; Better Auth, uploaded Bots, favorites and import counts are Phase 2 under #18's full-repository publication contract.
+
 ## 7 · Critical boundaries
 
 - Normal runtime uses explicit Session ownership only. `cwd` may be a migration or repair hint but never decides PersonaBot identity.
