@@ -139,6 +139,7 @@ export interface MessagingProvider {
     route: MessagingReplyRoute;
     file: { id: string; name: string; bytes: Uint8Array };
     signal: AbortSignal;
+    beforeSend?: () => boolean;
   }): Promise<{ accepted: true }>;
   post?(input: {
     accountRef: string;

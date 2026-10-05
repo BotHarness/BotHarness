@@ -42,6 +42,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 
 ### Added
 
+- Added paired-owner WeChat file intake and original-DM file replies through the existing attachment and Bot Inbox workflow, with bounded private downloads and an authorization check after upload ([#903](https://github.com/BotHarness/BotHarness/issues/903), [connection guide](docs/wechat-connection.md)).
+
 - Added a personal WeChat paired-owner text path into the existing Bot Inbox and own-identity reply, with explicit DM authorization and private source continuations; source and locally installed product exchanges are verified and Human QA approved ([#878](https://github.com/BotHarness/BotHarness/issues/878), [ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md), [connection guide](docs/wechat-connection.md)).
 
 - PersonaBot creation offers colleague, roleplay and blank starting points with editable PERSONA.md text; switching preserves drafts, while permissions and runtime capabilities stay the same ([#325](https://github.com/BotHarness/BotHarness/issues/325)).

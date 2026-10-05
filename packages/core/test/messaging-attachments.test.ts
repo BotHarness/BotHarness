@@ -49,7 +49,7 @@ const event: MessagingInboundEvent = {
 };
 async function fixture(
   onRun?: (run: OrchestratorAgentRun) => Promise<void>,
-  platform: 'feishu' | 'slack' = 'feishu',
+  platform: 'feishu' | 'slack' | 'weixin' = 'feishu',
 ) {
   const { parentId: _parentId, ...slackReply } = event.reply;
   const platformEvent: MessagingInboundEvent =
@@ -60,7 +60,17 @@ async function fixture(
           attachments: [{ ...attachment, messageId: event.messageId }],
           reply: slackReply,
         }
-      : event;
+      : platform === 'weixin'
+        ? {
+            ...event,
+            channel: platform,
+            attachments: [{ ...attachment, messageId: event.messageId }],
+            conversation: { kind: 'dm', id: 'team' },
+            mentions: [],
+            mentionedAccount: false,
+            reply: { messageId: event.messageId, conversationId: 'team', actorId: 'human' },
+          }
+        : event;
   const home = realpathSync(createTempRoot('bh-bridge-files-'));
   const project = join(home, 'project');
   mkdirSync(project);
@@ -109,8 +119,13 @@ async function fixture(
     listTargets: async () => [
       {
         targetId: 'team',
-        kind: platform === 'slack' ? 'conversation' : 'group',
-        route: platform === 'slack' ? { channelId: 'team' } : { chatId: 'team' },
+        kind: platform === 'weixin' ? 'user' : platform === 'slack' ? 'conversation' : 'group',
+        route:
+          platform === 'weixin'
+            ? { toUserId: 'team' }
+            : platform === 'slack'
+              ? { channelId: 'team' }
+              : { chatId: 'team' },
       },
     ],
     describeBot: async () => ({
@@ -125,6 +140,7 @@ async function fixture(
         'reply-text-checked',
         'source-file-checked',
         'reply-file-checked',
+        ...(platform === 'weixin' ? ['reply-file-fence-checked'] : []),
       ],
     }),
     sendChecked: async () => ({ sent: true }),
@@ -183,7 +199,7 @@ async function fixture(
   };
 }
 
-it.each(['feishu', 'slack'] as const)(
+it.each(['feishu', 'slack', 'weixin'] as const)(
   '%s trusted source reaches writable native files and a selected same-topic file reply without creating a Channel',
   async (platform) => {
     let grantId = '';
@@ -401,4 +417,43 @@ it('Slack source metadata survives canonical intake and refuses unrelated messag
     }),
   ).rejects.toThrow('untrusted-source');
   expect(fx.download).not.toHaveBeenCalled();
+});
+
+it('WeChat carries a current-authorization fence through upload and refuses a revoked final send', async () => {
+  const fx = await fixture(undefined, 'weixin');
+  const id = await fx.source();
+  const file = await fx.core.attachments.upload({
+    name: 'result.zip',
+    data: (async function* () {
+      yield Buffer.from('processed bytes');
+    })(),
+  });
+  let finalSends = 0;
+  fx.service.replyFileChecked = async (_bot, _route, _file, options) => {
+    expect(options.beforeSend?.()).toBe(true);
+    fx.core.externalMessaging.revoke('ada', fx.grant.id);
+    expect(options.beforeSend?.()).toBe(false);
+    if (options.beforeSend?.()) finalSends++;
+    throw Object.assign(new Error('revoked'), { code: 'stale-route' });
+  };
+  const result = await fx.core.externalMessaging.replyFile('ada', id, file);
+  expect(result.state).not.toBe('provider-accepted');
+  expect(finalSends).toBe(0);
+  await expect(fx.core.externalMessaging.replyFile('ada', id, file)).rejects.toThrow(
+    'source-unavailable',
+  );
+});
+
+it('WeChat preserves large-file metadata for inspection without treating it as an acquired artifact', async () => {
+  const fx = await fixture(undefined, 'weixin');
+  const incoming = {
+    ...fx.platformEvent,
+    attachments: [{ ...attachment, messageId: event.messageId, sizeBytes: 30 * 1024 * 1024 }],
+  };
+  const id = await fx.source(incoming);
+  expect(fx.core.externalMessaging.inbound.read('ada', id).event.attachments).toEqual(
+    incoming.attachments,
+  );
+  expect(fx.download).not.toHaveBeenCalled();
+  expect(fx.core.channels.list()).toEqual([]);
 });
