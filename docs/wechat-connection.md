@@ -40,13 +40,13 @@ The first reply verifies source mode; the second verifies the locally installed 
 
 ## 5. Process a file and return a result
 
-The #903 source-preview candidate uses product `0.0.0-test.903` with managed Provider `4.32.0-botharness.5`; it is not a public npm release. Fresh native file intake, model download and extraction have been verified; independent byte comparison confirms the working ZIP matches the Human-sent original. Result-file processing and receipt in WeChat remain pending. The text screenshots above do not prove file support.
+The #903 source-preview candidate uses product `0.0.0-test.903` with managed Provider `4.32.0-botharness.5`; it is not a public npm release. The installed local candidate passed a fresh WeChat file → Inbox → model processing → original-DM file result exchange. The Human downloaded the returned ZIP from WeChat; independent verification confirms its 224 bytes exactly match the model-produced file and its result.txt contains the expected original payload plus the processing marker. The 207-byte input remains unchanged. This verifies that exchange, not native read receipts or every lifecycle failure. The text screenshots above do not prove file support.
 
 Send one file up to 25 MiB in the paired WeChat Bot DM. Open its **Bot Inbox** source details to inspect the original filename and optional declared size. Intake saves metadata; it does not automatically download bytes. A missing native MIME type remains generic rather than guessing from the extension.
 
 ![Real WeChat ZIP source in Bot Inbox, with filename, native generic MIME and declared size](/guides/wechat/file-source.jpg)
 
-This capture proves the received file-source UI only; it does not prove result-file delivery.
+This capture shows the received file-source UI. Result receipt was verified separately using the file downloaded from WeChat.
 
 Authorize a dedicated writable Workspace for that PersonaBot before processing. Ask the Bot to save an independent working copy with `bridge_attachment_save`, process it with native tools and approved commands, import the finished file with `channel_attachment_import`, and return it using `bridge_reply_file`. Approve native Tool requests only for the intended work. The original file remains unchanged. File results and text replies share one source reply intent; avoid a preliminary acknowledgement when you want a file result.
 
