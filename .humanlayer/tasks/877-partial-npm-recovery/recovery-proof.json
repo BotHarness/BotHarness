@@ -1,0 +1,9 @@
+{
+  "sourceSha": "9c044732d32f008a636bbbbe869359b1c7929c58",
+  "currentMain": "11e4b208707dae2db1ede6ad0bf927ab767a89fa",
+  "preparationRun": 37310663091,
+  "planSha256": "b5d01b14b684d76aad18537bf96b58d1f6f0604d75f91f938fc6645e989e0b1d",
+  "existing": ["@botharness/im-provider", "@botharness/core", "@botharness/ui"],
+  "credentialUsed": false,
+  "publishedByThisCheck": false
+}
