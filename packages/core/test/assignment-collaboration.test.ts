@@ -291,6 +291,98 @@ describe('Assignment collaboration', () => {
     }
   });
 
+  it('preserves a failed Report without pairing it to successful native completion or replaying after restart', async () => {
+    const { runtime, agents, owner, home, admit, close, channels, dmChannelId } = await setup();
+    let reopened: ReturnType<typeof mountOperationalDatabase> | undefined;
+    let recovered: BotRuntime | undefined;
+    const coldAgents = new ManualAgents();
+    try {
+      await admit('Check the unavailable result', 'failed-semantic-start');
+      agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Unavailable result' });
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'failed', summary: 'Required input is unavailable' }, { turn: 1 });
+      await vi.waitFor(() => expect(agents.inboxTurns).toHaveLength(1));
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(owner, 'failed-semantic-before'),
+        channels,
+      );
+      const before = attention
+        .list({ botSlug: 'ada' })
+        .items.filter((item) => item.assignmentSessionId === run.sessionId);
+      expect(before).toHaveLength(1);
+      expect(before[0]).toMatchObject({
+        sourceKind: 'assignment-report',
+        assignmentReportState: 'failed',
+        assignmentSessionId: run.sessionId,
+        assignmentTurn: 1,
+        authorKind: 'bot',
+        state: 'handled',
+        summary: 'Required input is unavailable',
+      });
+      expect(agents.inboxTurns[0]).toContain(before[0]!.id);
+      expect(agents.inboxTurns[0]).toContain('Required input is unavailable');
+      run.completedTurn!({ turn: 1, endSeq: 30 });
+      run.completedTurn!({ turn: 1, endSeq: 30 });
+      agents.finish(run.sessionId);
+      await runtime.whenIdle();
+      expect(runtime.getAssignment('ada', run.sessionId)).toMatchObject({
+        activity: 'idle',
+        latestReport: { state: 'failed', summary: 'Required input is unavailable' },
+      });
+      expect(
+        attention
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.assignmentSessionId === run.sessionId),
+      ).toEqual(before);
+      expect(agents.inboxTurns).toHaveLength(1);
+      await close();
+      owner.close();
+      reopened = trackTestOwner(
+        mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+      );
+      recovered = createBotRuntime({
+        database: reopened,
+        registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+        channels,
+        agents: coldAgents,
+        grants: createTestWorkspaceGrants(reopened, home),
+        now: FIXED_NOW,
+      });
+      await recovered.whenIdle();
+      const after = createBotAttentionQuery(
+        attachOperationalModule(reopened, 'failed-semantic-after'),
+        channels,
+      );
+      expect(
+        after
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.assignmentSessionId === run.sessionId),
+      ).toEqual(before);
+      expect(coldAgents.allInboxTurns).toHaveLength(0);
+      expect(coldAgents.started).toHaveLength(0);
+      const admission = recovered.admitDmMessage({
+        channelId: dmChannelId,
+        messageId: 'failed-semantic-review',
+        body: 'Review existing facts without new work',
+      });
+      if (!admission.admitted) throw new Error('Human message refused');
+      await admission.settled;
+      expect(
+        after
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.assignmentSessionId === run.sessionId),
+      ).toEqual(before);
+      expect(coldAgents.inboxTurns).toHaveLength(0);
+      expect(coldAgents.started).toHaveLength(0);
+    } finally {
+      coldAgents.finishAll();
+      await recovered?.close();
+      reopened?.close();
+      await close();
+      owner.close();
+    }
+  });
+
   it('does not infer completion pairing from a different Turn or progress-only run', async () => {
     const { runtime, agents, owner, admit, close } = await setup();
     try {
