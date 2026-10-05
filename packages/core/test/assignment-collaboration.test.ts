@@ -1736,6 +1736,74 @@ describe('Assignment collaboration', () => {
     }
   });
 
+  it('retains the escalated blocker and exact Human reply target after weaker reports', async () => {
+    const { runtime, agents, owner, channels, admit, close } = await setup();
+    try {
+      await admit('Start research', 'human-1');
+      const created = agents.access!.create({
+        grantId: TEST_GRANT_ID,
+        purpose: 'Choose release route',
+      });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      const sessionId = created.assignment.sessionId;
+      const run = agents.started[0]!.run;
+      const query = createHumanAttentionQuery(attachOperationalModule(owner, 'escalation-test'));
+      await run.report({ state: 'waiting-human', summary: 'Choose route', expectsReply: true });
+      const initialSource = query.list({ category: 'action' }).items[0]?.sourceEventId;
+      await run.report({
+        state: 'blocked',
+        summary: 'Release blocked; choose route',
+        expectsReply: true,
+      });
+      const blockedSource = runtime.getAssignment('ada', sessionId)?.openAsk?.sourceEventId;
+      if (blockedSource === undefined) throw new Error('Open blocker missing');
+      expect(blockedSource).not.toBe(initialSource);
+      await run.report({
+        state: 'waiting-human',
+        summary: 'Weaker waiting update',
+        expectsReply: true,
+      });
+      await run.report({ state: 'progress', summary: 'Informational progress' });
+      expect(runtime.getAssignment('ada', sessionId)?.latestReport?.state).toBe('progress');
+      expect(runtime.getAssignment('ada', sessionId)?.openAsk?.sourceEventId).toBe(blockedSource);
+      agents.finish(sessionId);
+      await runtime.whenIdle();
+      expect(query.list({ category: 'action' }).items).toMatchObject([
+        {
+          kind: 'assignment-blocked',
+          sourceEventId: blockedSource,
+          summary: 'Release blocked; choose route',
+        },
+      ]);
+      const sources = createBotAttentionQuery(
+        attachOperationalModule(owner, 'escalation-sources'),
+        channels,
+      );
+      const originalReports = sources
+        .list({ botSlug: 'ada' })
+        .items.filter((i) => i.sourceKind === 'assignment-report');
+      expect(originalReports).toHaveLength(4);
+      expect(new Set(originalReports.map((i) => i.id)).size).toBe(4);
+      expect(originalReports.every((i) => i.sourceAvailable && i.authorKind === 'bot')).toBe(true);
+      expect(
+        agents.access!.request({
+          sessionId,
+          mode: 'next-turn',
+          text: 'Choose Canary',
+          answerTo: blockedSource,
+        }).delivery,
+      ).toBe('followup');
+      await Promise.resolve();
+      expect(runtime.getAssignment('ada', sessionId)?.openAsk).toBeUndefined();
+      expect(query.list({ category: 'action' }).items).toEqual([]);
+      expect(
+        sources.list({ botSlug: 'ada' }).items.filter((i) => i.sourceKind === 'assignment-report'),
+      ).toEqual(originalReports);
+    } finally {
+      await close();
+    }
+  });
+
   it('coalesces a blocked Assignment ask, opens its source, and clears it on reply', async () => {
     const { runtime, agents, owner, home, admit, close } = await setup();
     let sessionId = '';

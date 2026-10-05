@@ -1,0 +1,68 @@
+{
+  "bot": "Escalation QA 1791181739171",
+  "assignmentSessionId": "botharness-76d63286-ab74-4a5c-84c3-c82251e8f881",
+  "replySourceEventId": "bd1ef4b3-5532-4f77-83d0-4a1fccdad3a6",
+  "replyBody": "Use Canary for this Assignment.",
+  "assignmentTurns": 2,
+  "openAskCleared": true,
+  "humanActionCount": 0,
+  "originalSourcesRetained": true,
+  "sources": [
+    {
+      "id": "8741c05f-0c61-4e1b-a7f7-3d5e277438b2",
+      "summary": "ESCALATION_RESOLVED: Canary",
+      "assignmentReportState": "completed",
+      "assignmentTurn": 2,
+      "sourceAvailable": true,
+      "authorKind": "bot",
+      "state": "handled",
+      "observedAt": "2026-10-05T06:33:31.517Z",
+      "handledAt": "2026-10-05T06:33:36.015Z"
+    },
+    {
+      "id": "9da819b8-98d7-4c06-b8ed-f6fadeaf1418",
+      "summary": "WEAKER_PROGRESS: Documentation checked.",
+      "assignmentReportState": "progress",
+      "assignmentTurn": 1,
+      "sourceAvailable": true,
+      "authorKind": "bot",
+      "state": "handled",
+      "observedAt": "2026-10-05T06:29:11.135Z",
+      "handledAt": "2026-10-05T06:29:14.737Z"
+    },
+    {
+      "id": "6c9a39c0-ceca-472f-b2dd-ff692f6a6f11",
+      "summary": "WEAKER_WAITING: Still awaiting a route.",
+      "assignmentReportState": "waiting-human",
+      "assignmentTurn": 1,
+      "sourceAvailable": true,
+      "authorKind": "bot",
+      "state": "handled",
+      "observedAt": "2026-10-05T06:29:11.135Z",
+      "handledAt": "2026-10-05T06:29:14.737Z"
+    },
+    {
+      "id": "bd1ef4b3-5532-4f77-83d0-4a1fccdad3a6",
+      "summary": "ESCALATION_BLOCKED: Release is blocked. Choose Canary or Stable.",
+      "assignmentReportState": "blocked",
+      "assignmentTurn": 1,
+      "sourceAvailable": true,
+      "authorKind": "bot",
+      "state": "handled",
+      "observedAt": "2026-10-05T06:29:11.135Z",
+      "handledAt": "2026-10-05T06:29:14.737Z"
+    },
+    {
+      "id": "328f3a7e-d70d-41af-9253-7fded111bfef",
+      "summary": "ESCALATION_WAITING: Choose Canary or Stable?",
+      "assignmentReportState": "waiting-human",
+      "assignmentTurn": 1,
+      "sourceAvailable": true,
+      "authorKind": "bot",
+      "state": "handled",
+      "observedAt": "2026-10-05T06:29:08.365Z",
+      "handledAt": "2026-10-05T06:29:11.134Z"
+    }
+  ],
+  "completedSummary": "ESCALATION_RESOLVED: Canary"
+}
