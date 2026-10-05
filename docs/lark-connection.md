@@ -145,7 +145,7 @@ Next, configure a **delivery target** for this account:
 2. Choose the test group from **Choose from conversations you have chatted in**, checking its name and Chat ID; alternatively, enter its native platform group ID (`oc_…`) manually. A group name or message ID is not a Chat ID.
 3. Set a call alias such as `lark-test-group`, click **Test**, confirm the test message in Lark, then **Save target**.
 
-If the test group is not listed yet, mention the application bot in that group with “connection test,” then refresh the conversation list. This lets dsh-im discover the destination before PersonaBot binding; avoid business requests at this stage. A reply from dsh-im's own Session does not prove BotHarness intake.
+A fresh application may have no conversation suggestions. In the #824 test, a preliminary @mention did not immediately populate this list and used the Provider’s standalone Session before PersonaBot binding. Enter a verified native group Chat ID manually, then Test and Save; ask your group administrator for the ID if needed. A standalone reply or discovery message is not canonical BotHarness receipt.
 
 ![Actual saved group delivery target](/guides/lark/16-delivery-target.webp)
 
@@ -234,3 +234,39 @@ _In the Bot DM sidebar, expand Bot Inbox → group; if the message is already ha
 | No message in local DM                               | Check for Inbox-only routing; it is a valid separate destination, not a lost message                                                                                               |
 
 When requesting help, include the platform, reproduction steps, a public-safe error code and checks already performed. Do not include App Secrets, access tokens or unrelated group messages.
+
+## Fresh application walkthrough: #824
+
+These compressed captures show the actual new application. Version 1.0.0 was released and added only to the designated QA group; account connection, target Test/Save, PersonaBot Binding and exact-group authorization were operated through the UI. The qualified single-install product was `0.0.0-test.824.6` (Provider `4.32.0-botharness.2`), with no separate receiver. Earlier #823 images/video remain reference material and do not substitute for this fresh application test.
+
+![New application connected](/guides/lark/19-new-app-connected.webp)
+
+_Online status confirms transport, before canonical Inbox receipt._
+
+![New application event subscription saved](/guides/lark/20-new-app-events.webp)
+
+_Connect locally before saving persistent connection and im.message.receive_v1 if validation fails._
+
+![New application version released](/guides/lark/21-new-app-released.webp)
+
+_Release, approval and availability are separate from local connection._
+
+![New application target tested and saved](/guides/lark/22-new-app-target.webp)
+
+_Confirm the test message in the designated group, then save the target._
+
+![Account, target, identity and authorization confirmed](/guides/lark/23-new-app-guide.webp)
+
+_The first four steps derive from real configuration; tour clicks cannot mark them complete._
+
+![Native topic mention and own-identity reply](/guides/lark/24-new-app-topic-reply.webp)
+
+_The unmentioned root was not admitted; both designated mentions reached this Bot Inbox and LARK-SETUP-OK appeared under the new identity in the same topic. Unrelated conversations were cropped; external read circles are not canonical receipt evidence._
+
+![Source-bound receipt and reply in the actual guide](/guides/lark/25-new-app-receipt.webp)
+
+_The exact [BH-LARK-SETUP] source ends in 279efc24; its Inbox admission was handled and its correlated reply was provider-accepted. No own echo was observed, so the guide asks the Human to inspect the original topic._
+
+![Temporary connection and local credentials removed](/guides/lark/26-new-app-cleaned.webp)
+
+_Close/reopen and same-Profile restart retained configuration/history; select the persisted account after reload. Disable, grant revocation, unbind and account removal returned relevant steps to pending. Native Remove integration then stopped reception and deleted local configuration/credentials. The external application remains; external credential reset is an administrator action._
