@@ -1,0 +1,143 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createAttachmentStore } from '../src/attachments/store.js';
+import { createBridgeMethods } from '../src/bridge/methods.js';
+import { createChannelStore } from '../src/channels/store.js';
+import { createMarketplaceClient, type MarketplaceClient } from '../src/marketplace/client.js';
+import { createBotStateTracker } from '../src/state/bot-state.js';
+import { createTestOwnership } from './helpers.js';
+import { createTestRegistry } from './registry-fixture.js';
+import { createTestRosterStore } from './roster-fixture.js';
+import { createMarket, fakeRepository } from '../../market/test/market-harness.js';
+
+const roots: string[] = [];
+
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+function methodsWith(marketplace?: MarketplaceClient, warn?: (message: string) => void) {
+  const root = mkdtempSync(join(tmpdir(), 'botharness-marketplace-'));
+  roots.push(root);
+  const registry = createTestRegistry({ rootDir: root });
+  const attachments = createAttachmentStore({ rootDir: join(root, 'attachments') });
+  return createBridgeMethods({
+    registry,
+    states: createBotStateTracker(),
+    channels: createChannelStore({ rootDir: join(root, 'channels'), attachments }),
+    ownership: createTestOwnership(),
+    roster: createTestRosterStore(),
+    ...(warn === undefined ? {} : { warn }),
+    ...(marketplace === undefined ? {} : { marketplace }),
+  });
+}
+
+function marketClient(market: ReturnType<typeof createMarket>): MarketplaceClient {
+  return createMarketplaceClient({
+    baseUrl: 'https://market.test/',
+    fetchImpl: (input, init) =>
+      market.request(
+        new URL(
+          typeof input === 'string' ? input : input instanceof URL ? input : input.url,
+        ).href.replace('https://market.test', ''),
+        init,
+      ),
+  });
+}
+
+describe('Bot Marketplace bridge', () => {
+  it('submits a pasted repository and lists it through the Marketplace Worker', async () => {
+    const market = createMarket();
+    market.publish(fakeRepository());
+    const methods = methodsWith(marketClient(market));
+
+    const submitted = await methods.marketplaceSubmit({
+      url: ' https://github.com/alice/helper-bot ',
+    });
+    const listed = await methods.marketplaceList({});
+
+    expect(submitted).toMatchObject({ ok: true, value: { bot: { fullName: 'alice/helper-bot' } } });
+    expect(listed).toMatchObject({
+      ok: true,
+      value: {
+        bots: [
+          {
+            fullName: 'alice/helper-bot',
+            cloneUrl: 'https://github.com/alice/helper-bot.git',
+            headCommit: { sha: 'abcdef1234567890abcdef1234567890abcdef12' },
+          },
+        ],
+      },
+    });
+  });
+
+  it('forwards the Worker cursor for the next page', async () => {
+    const market = createMarket();
+    for (const name of ['one', 'two']) {
+      const repository = fakeRepository({ name });
+      market.publish(repository);
+      await market.request('/v1/submissions', {
+        method: 'POST',
+        body: JSON.stringify({ url: repository.htmlUrl }),
+      });
+    }
+    const first = (await (await market.request('/v1/bots?limit=1')).json()) as {
+      nextCursor: string;
+    };
+
+    const page = await methodsWith(marketClient(market)).marketplaceList({
+      cursor: first.nextCursor,
+    });
+
+    expect(page).toMatchObject({ ok: true, value: { bots: [{ fullName: 'alice/one' }] } });
+  });
+
+  it('returns the Worker refusal code and logs a structured line', async () => {
+    const market = createMarket();
+    market.publish(fakeRepository({ topics: [] }));
+    const warn = vi.fn();
+    const methods = methodsWith(marketClient(market), warn);
+
+    const result = await methods.marketplaceSubmit({ url: 'https://github.com/alice/helper-bot' });
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'repository-missing-topic' } });
+    expect(JSON.parse(warn.mock.calls[0]?.[0] as string)).toEqual({
+      module: 'marketplace',
+      initiator: 'client',
+      phase: 'request-refused',
+      reason: 'repository-missing-topic',
+    });
+  });
+
+  it('maps an unreachable Worker to marketplace-unavailable', async () => {
+    const methods = methodsWith(
+      createMarketplaceClient({
+        baseUrl: 'https://market.test',
+        fetchImpl: () => Promise.reject(new TypeError('fetch failed')),
+      }),
+    );
+
+    expect(await methods.marketplaceList({})).toMatchObject({
+      ok: false,
+      error: { code: 'marketplace-unavailable' },
+    });
+  });
+
+  it('refuses invalid input and a Host without a Marketplace client', async () => {
+    expect(await methodsWith(undefined).marketplaceList({})).toMatchObject({
+      ok: false,
+      error: { code: 'marketplace-unavailable' },
+    });
+    const methods = methodsWith(marketClient(createMarket()));
+    expect(await methods.marketplaceSubmit({ url: ' ' })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+    expect(await methods.marketplaceList({ cursor: 3 })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+  });
+});

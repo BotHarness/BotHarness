@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "botharness-market",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-17",
+  "d1_databases": [
+    {
+      "binding": "MARKET_DB",
+      "database_name": "botharness-market",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+}

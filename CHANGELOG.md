@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Preserve definite IM reply refusals and move the DeepSeekBot user guides to the product site.
+Add the first Bot Marketplace, preserve definite IM reply refusals, and move DeepSeekBot user guides to the product site.
+
+### Added
+
+- Added a Bot Marketplace to the sidebar **+** menu: paste a public GitHub repository carrying the `botharness-bot` topic to list it, browse listed Bots, and install one as a new PersonaBot after a confirmation that shows the latest commit and a third-party risk notice ([#916](https://github.com/BotHarness/BotHarness/issues/916), [ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)).
 
 ### Fixed
 
@@ -286,6 +290,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- Channel header Profile entries and composer activity avatars now omit duplicate attention badges and activity dot matrices; sidebar indicators and activity disclosure remain available ([#928](https://github.com/BotHarness/BotHarness/issues/928)).
 
 - DeepSeekBot is published as a stable version on the npm `latest` tag, with `next` moved along; install it with `dsh plugin --profile web add deepseekbot` or by entering `deepseekbot` in the desktop Add plugin dialog ([#895](https://github.com/BotHarness/BotHarness/pull/895), [release guide](docs/npm-prerelease.md)).
 

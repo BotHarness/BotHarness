@@ -22,6 +22,7 @@ import {
 import { createBridgeMethods } from './bridge/methods.js';
 import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
+import { createMarketplaceClient } from './marketplace/client.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
@@ -144,9 +145,11 @@ export interface BotHarnessConfig {
 
   agentPreset?: string;
   activityDetailConsumers?: string[];
+  marketplaceUrl?: string;
 }
 
 export const DEFAULT_AGENT_PRESET = 'standard';
+export const DEFAULT_MARKETPLACE_URL = 'https://market.botharness.ai';
 
 export const DEFAULT_CONFIG: BotHarnessConfig = {
   enabled: true,
@@ -161,6 +164,9 @@ export const Config = Schema.object({
   agentPreset: Schema.string()
     .default(DEFAULT_AGENT_PRESET)
     .description('PersonaBot 会话加入的 DSH agent preset（提供 file/Shell/grep 等普通工具）'),
+  marketplaceUrl: Schema.string()
+    .default(DEFAULT_MARKETPLACE_URL)
+    .description('Bot Marketplace 服务地址'),
 });
 
 export interface BotHarnessCore {
@@ -910,6 +916,9 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       userQuestions,
       toolRules: core.toolRules,
       assignmentAccess: core.assignmentAccess,
+      marketplace: createMarketplaceClient({
+        baseUrl: config.marketplaceUrl ?? DEFAULT_MARKETPLACE_URL,
+      }),
       developerMode: {
         set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
       },

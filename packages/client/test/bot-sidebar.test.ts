@@ -24,6 +24,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconEditOutlineRegular: icon('IconEditOutlineRegular'),
     IconEllipsisOutlineRegular: icon('IconEllipsisOutlineRegular'),
     IconFolderOpenOutlineRegular: icon('IconFolderOpenOutlineRegular'),
+    IconGlobeOutlineRegular: icon('IconGlobeOutlineRegular'),
     IconNewChatOutlineRegular: icon('IconNewChatOutlineRegular'),
     IconPlusOutlineRegular: icon('IconPlusOutlineRegular'),
     IconSearchOutlineRegular: icon('IconSearchOutlineRegular'),
@@ -110,6 +111,10 @@ function stubActions(): BridgeActions {
     }),
     overviewUsage: vi.fn(async () => {
       throw new Error('unexpected Overview usage');
+    }),
+    marketplaceList: vi.fn(async () => ({ bots: [] })),
+    marketplaceSubmit: vi.fn(async () => {
+      throw new Error('unexpected Marketplace submission');
     }),
     groupWakePolicies: vi.fn(async () => []),
     channelBridges: vi.fn(async (channelId) => ({ channelId, bridges: [], sources: [] })),
@@ -798,6 +803,7 @@ describe('bot sidebar rows', () => {
       '创建 PersonaBot',
       '创建频道',
       '创建频道分组',
+      'Bot 市场',
     ]);
     expect(menu.items[0]?.['disabled']).toBeUndefined();
     expect(markup).toContain('还没有 PersonaBot');

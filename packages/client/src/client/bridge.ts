@@ -23,6 +23,12 @@ import type {
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
 import type { OverviewMemory } from '../../../core/src/memory/overview.js';
+import {
+  parseMarketplacePage,
+  parseMarketplaceSubmission,
+  type MarketplaceEntry,
+  type MarketplacePage,
+} from '../../../core/src/marketplace/client.js';
 import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
 import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
@@ -1213,6 +1219,26 @@ export async function createPersonaBot(
   const bot = parseBotSummary(asRecord(value)?.['bot']);
   if (bot === undefined) throw new Error('invalid create response');
   return bot;
+}
+
+export async function loadMarketplacePage(
+  call: BridgeCall,
+  cursor?: string,
+): Promise<MarketplacePage> {
+  const page = parseMarketplacePage(
+    await unwrap(call, 'marketplaceList', cursor === undefined ? {} : { cursor }),
+  );
+  if (page === undefined) throw new Error('invalid marketplaceList response');
+  return page;
+}
+
+export async function submitMarketplaceRepository(
+  call: BridgeCall,
+  url: string,
+): Promise<MarketplaceEntry> {
+  const result = parseMarketplaceSubmission(await unwrap(call, 'marketplaceSubmit', { url }));
+  if (result === undefined) throw new Error('invalid marketplaceSubmit response');
+  return result.bot;
 }
 
 export async function loadChannels(

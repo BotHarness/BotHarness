@@ -5,7 +5,11 @@
 
 ## [Unreleased]
 
-保留 IM 回复的明确拒绝，并将 DeepSeekBot 使用教程迁到官网。
+增加首片 Bot 市场、保留确定的 IM 回复拒绝，并将 DeepSeekBot 用户指南迁移到产品站。
+
+### Added
+
+- 侧栏 **+** 菜单新增 Bot 市场：贴入带 `botharness-bot` 话题的公开 GitHub 仓库即可收录，可浏览已收录的 Bot，并在显示最新提交与第三方风险提示的确认后安装为新的 PersonaBot（[#916](https://github.com/BotHarness/BotHarness/issues/916)，[ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)）。
 
 ### Fixed
 
@@ -286,6 +290,8 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 - 新增 Computer 导出与迁移指南，覆盖跨机器单文件迁移、必须随迁移保留的文件所遵循的持久 `~/workspace` 约定，以及体积/耗时预期（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
 
 ### Changed
+
+- Channel 顶部 Profile 入口与底部活动区头像不再重复显示提醒徽标和活动点阵；左侧 sidebar 标记与活动详情仍保留（[#928](https://github.com/BotHarness/BotHarness/issues/928)）。
 
 - DeepSeekBot 以正式版本发布在 npm `latest` 标签，`next` 同步指向它；可用 `dsh plugin --profile web add deepseekbot` 安装，或在桌面端「添加插件」里输入 `deepseekbot`（[#895](https://github.com/BotHarness/BotHarness/pull/895)、[发布指南](docs/npm-prerelease.md)）。
 
