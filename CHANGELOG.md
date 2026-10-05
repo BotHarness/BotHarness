@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Nothing yet since 1.0.0.
+Preserve definite IM reply refusals without weakening unknown-outcome protection.
+
+### Fixed
+
+- Preserve definite checked IM source-not-found and reply-permission refusals as failed replies instead of unknown outcomes; genuinely unknown sends and previously recorded outcomes remain unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855)).
 
 ## [1.0.0] - 2026-10-05
 

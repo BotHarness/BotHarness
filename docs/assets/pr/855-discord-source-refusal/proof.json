@@ -1,0 +1,84 @@
+{
+  "at": "2026-10-05T19:16:19.312Z",
+  "runtime": {
+    "base": "4092e93de0e62d9f48ff8d1c69bc125ebf543c69",
+    "adapterSourceSha256": "28ee8a799090223d5ad2e2284096cd3eff463cc17da552000505efcfc5a9ed51",
+    "dsh": "0.2.0-rc.1",
+    "provider": {
+      "runtimeFiles": 394,
+      "runtimeSha256": "69c513ff44fb802377ec7648e9c9075d2fc2c63b6f1c3205ee1d6012f956e58e"
+    }
+  },
+  "checks": [
+    {
+      "marker": "DISCORD-855-DELETED-SOURCE-UNEXPECTED",
+      "state": "unknown-outcome",
+      "reason": "provider-result-unknown",
+      "oneAdmission": true,
+      "oneIntent": true,
+      "modelBridgeReplyCalls": 1,
+      "nativeOwnBotReplies": 0
+    },
+    {
+      "marker": "DISCORD-855-PATCHED-PERMISSION-DENIED",
+      "state": "failed",
+      "reason": "reply-permission-denied",
+      "oneAdmission": true,
+      "oneIntent": true,
+      "modelBridgeReplyCalls": 1,
+      "nativeOwnBotReplies": 0
+    },
+    {
+      "marker": "DISCORD-855-SOURCE-RECOVERY-OK",
+      "state": "provider-accepted",
+      "oneAdmission": true,
+      "oneIntent": true,
+      "modelBridgeReplyCalls": 1,
+      "nativeOwnBotReplies": 1
+    },
+    {
+      "marker": "DISCORD-855-PERMISSION-RESTORED-OK",
+      "state": "provider-accepted",
+      "oneAdmission": true,
+      "oneIntent": true,
+      "modelBridgeReplyCalls": 1,
+      "nativeOwnBotReplies": 1
+    }
+  ],
+  "canonicalSourceExactlyRetained": true,
+  "deletedSourceNative404": 10008,
+  "exactOriginalPermissionsRestored": true,
+  "oldInterruptedIntentsExactlyRetained": true,
+  "noAutomaticResend": true,
+  "noLocalBridgePlacements": true,
+  "onlyOriginalThread": true,
+  "originalProfilePatch": true,
+  "identityAndGrantUnchanged": true,
+  "counts": {
+    "inbox": 36,
+    "intents": 32
+  },
+  "hostBindingRefusals": {
+    "results": [
+      {
+        "name": "wrong-binding-fingerprint",
+        "refusal": "rebind-required",
+        "actualHostBoundary": true,
+        "controlledExpectedInput": true
+      },
+      {
+        "name": "wrong-authorization-fingerprint",
+        "refusal": "rebind-required",
+        "actualHostBoundary": true,
+        "controlledExpectedInput": true
+      },
+      {
+        "name": "wrong-target-digest",
+        "refusal": "rebind-required",
+        "actualHostBoundary": true,
+        "controlledExpectedInput": true
+      }
+    ],
+    "noBindingGrantIntentChanges": true
+  }
+}

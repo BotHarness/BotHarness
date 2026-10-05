@@ -1,6 +1,38 @@
 # Discord mention/reply tracer — verification scope
 
-## Current bounded checkpoint — 2026-10-06
+## Source refusal correction and real permission recovery — 2026-10-06
+
+The authorized native deletion of the one synthetic `DISCORD-855-DELETED-SOURCE-QA` message exposed a real failure-classification defect. Discord returned HTTP 404 / `10008`, the complete canonical source stayed byte-for-byte equivalent on Host read-back, and the model made one `bridge_read` then one `bridge_reply` attempt. The preceding live Host recorded `unknown-outcome / provider-result-unknown` without a receipt. Its adapter omitted `source-not-found` and `reply-permission-denied` from the definite-refusal list. That existing intent remains unchanged and is never retried to manufacture a passing result.
+
+The adapter now preserves those two checked refusals as `failed` with the original reason. Regression-first coverage reproduced both incorrect unknown outcomes before the fix; afterward the canonical Inbox/Outbox contract covers channel success, existing-thread success, deleted source, thread permission refusal and genuinely unknown transport outcome. It asserts one attempt/intent and no fallback send or local placement. The focused messaging suite passed 130 tests; the full suite passed 2,580 tests across 315 files, with 9 tests / 5 files skipped. Typecheck, lint, formatting, bilingual ledgers and build passed.
+
+After a private stopped-Host backup, the same isolated Profile restarted from base `4092e93de0e62d9f48ff8d1c69bc125ebf543c69` with this adapter correction; `packages/core/src/messaging/dsh-im.ts` SHA-256 is `28ee8a799090223d5ad2e2284096cd3eff463cc17da552000505efcfc5a9ed51`. DSH remains `0.2.0-rc.1`, the 394-file Provider digest remains `69c513ff44fb802377ec7648e9c9075d2fc2c63b6f1c3205ee1d6012f956e58e`, and the original identity, receiving Grant and Profile Patch are unchanged.
+
+| Check                                               | Actual result                                                                                                                                                                                                          | Boundary                                                                                                                                                              |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fixed adapter against the actual deleted source     | Production native preflight returns `source-not-found / not-started`; zero pre-send callbacks and zero native create-message calls                                                                                     | No new receiver; this is corrected adapter/native preflight, not a fresh patched-model deleted-source attempt                                                         |
+| Fresh native permission refusal on the patched Host | Explicitly authorized temporary QA Bot-only `SEND_MESSAGES` denial; actual browser mention, one model `bridge_reply`, one Admission/Intent, `failed / reply-permission-denied`, no receipt and no own-Bot native reply | The native Bot API lacks permission-management rights; the already logged-in server owner UI performs the authorized narrow change, without broadening Bot privileges |
+| Exact restoration and fresh recovery                | All original channel permission overwrites restored and independently compared; `DISCORD-855-PERMISSION-RESTORED-OK` has one model attempt and one own-Bot original-channel native reply                               | No retry of the refused source and no fallback route                                                                                                                  |
+| Existing Host binding/authorization refusal         | Wrong expected binding fingerprint, authorization fingerprint and target digest each return `rebind-required`; identities, Grants and intents unchanged                                                                | Actual registered Host commands with controlled expected inputs, not a different real Application/user/guild                                                          |
+| Historical state and destination stability          | Full canonical store read-back finds 36 Inbox items / 32 intents; old deleted-source and interrupted intents unchanged; no bridge placements or extra active threads                                                   | Two original local DM admissions remain local; screenshots alone do not prove these counts                                                                            |
+
+**Recorded pre-fix defect** — The old deleted-source intent remains unknown after restart; this capture is its retained history, not a fresh execution on the patched Host.
+
+![Retained pre-fix deleted-source unknown outcome](../../assets/pr/855-discord-source-refusal/deleted-source-old-outcome.jpg)
+
+**Patched real-model refusal** — A separate fresh permission-denied source settles as failed.
+
+![Patched real-model permission refusal](../../assets/pr/855-discord-source-refusal/permission-refused.jpg)
+
+**Restored native destination** — The refused source has no Bot reply, then a fresh source gets one own-Bot original-channel reply after exact permission restoration.
+
+![Real native permission refusal and recovery](../../assets/pr/855-discord-source-refusal/native-permission-recovery.jpg)
+
+These are unedited browser captures of different actual test cases, not a matched before/after replay of one source. A matched patched-model deleted-source capture was deliberately not obtained: the existing intent is already settled and cannot safely be retried or rewritten; the user authorized deletion of only that one prepared message. The corrected deleted-source result is bounded to native preflight plus the canonical regression. For review, use a fresh explicitly disposable source on an authorized QA server, admit/read it, delete it after approval, then let the patched model reply once. Do not repurpose the historical unknown intent.
+
+Wrong native Application/user/guild binding and a fresh patched-model deleted-source path still need full evidence. **Discord remains unqualified**; no dependency promotion, release or Production deployment is included. Raw credentials, source IDs and model logs remain private.
+
+## Prior bounded checkpoint — 2026-10-06
 
 The implementation PRs [#870](https://github.com/BotHarness/BotHarness/pull/870), [#876](https://github.com/BotHarness/BotHarness/pull/876) and [Provider #6](https://github.com/DoodleBears/dsh-im/pull/6) are merged. The dedicated live QA Host is `4138eeebffbf7abda53d9cd1ba1ccc98f95e16b1`, DSH `0.2.0-rc.1`; Provider merge `1a605b11fa8d321110540de42d58a77bdcd60f13` has the tested candidate `8cf705ea474cdef8e658f7756ee48d5c936bd404` tree. Its 394 runtime files were rechecked at SHA-256 `69c513ff44fb802377ec7648e9c9075d2fc2c63b6f1c3205ee1d6012f956e58e`. Keep this explicit QA candidate separate from the qualified product pin.
 
@@ -19,7 +51,7 @@ The implementation PRs [#870](https://github.com/BotHarness/BotHarness/pull/870)
 
 Initial timing attempts that settled normally before interruption are not cancellation evidence. Private raw snapshots, source identifiers, model logs and interruption screenshots remain local. The earlier [public QA handoff](https://github.com/BotHarness/BotHarness/issues/855#issuecomment-5997080039) describes the preceding identity/source-edit checkpoint. [#876's UI evidence](../../evidence/issue-855-messaging-refresh/README.md) includes verified GitHub-rendered matched main/PR light/dark states; its exact-head [verify run](https://github.com/BotHarness/BotHarness/actions/runs/37315298837) passed. The historical loopback capture blocker below was subsequently resolved. The fresh agent-operated setup acceptance below follows the revised Human instruction.
 
-Remaining full native/model paths: deleted-source lifecycle and wrong Application/user/guild binding. Native authentication errors, missing resources and controlled identity-fence inputs below do not substitute for those complete paths. Context reads, files, ordinary collection, global defaults, shared placement, autonomous follow and proactive posting are separate tracers. **Discord remains unqualified; no product pin promotion or deployment is recorded here.**
+At that prior checkpoint, deleted-source lifecycle and wrong Application/user/guild binding still lacked full native/model evidence. Native authentication errors, missing resources and controlled identity-fence inputs below do not substitute for those complete paths. Context reads, files, ordinary collection, global defaults, shared placement, autonomous follow and proactive posting are separate tracers. **Discord remains unqualified; no product pin promotion or deployment is recorded here.**
 
 ## Native Gateway recovery and refusal checkpoint — 2026-10-06
 
