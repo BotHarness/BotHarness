@@ -25,6 +25,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 
 ### Added
 
+- Added a personal WeChat paired-owner text path into the existing Bot Inbox and own-identity reply, with explicit DM authorization and private source continuations; source and locally installed product exchanges are verified and Human QA approved ([#878](https://github.com/BotHarness/BotHarness/issues/878), [ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md), [connection guide](docs/wechat-connection.md)).
+
 - PersonaBot creation offers colleague, roleplay and blank starting points with editable PERSONA.md text; switching preserves drafts, while permissions and runtime capabilities stay the same ([#325](https://github.com/BotHarness/BotHarness/issues/325)).
 
 - Added the candidate checked Discord Provider registration and existing Inbox/source presentation contract, preserving exact channel/public-thread routes; real channel/thread model replies passed, with full qualification and Human QA pending ([#855](https://github.com/BotHarness/BotHarness/issues/855), [ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)).
@@ -539,6 +541,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 ### Documentation
 
 - The README and npm page now match the pixel-art website, with its share cards, desktop and CLI install, shipped IM platforms, pixel avatars and community links ([#895](https://github.com/BotHarness/BotHarness/pull/895), [website](https://deepseekbot.botharness.ai)).
+
+- Documented the accepted PersonaBot/Channel deletion contract: an unchecked optional Memory-erasure choice with direct folder access, history-preserving Channel deletion, and the real Purge Ledger prerequisite for Profile restore; runtime controls remain separate implementation work ([#138](https://github.com/BotHarness/BotHarness/issues/138), [ADR-0130](docs/adr/0130-deletion-preserves-history-and-makes-memory-erasure-explicit.md)).
 
 - Updated Discord integration guidance with merged QA revisions, bounded send-interruption/recovery evidence, agent-operated UI/E2E acceptance screenshots and explicit remaining native qualification gates ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
 

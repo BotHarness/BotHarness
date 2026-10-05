@@ -23,7 +23,7 @@ import { MemoryFilesEntry } from './memory-files-entry.js';
 import { MemoryDisplaySettings, SessionsDisplaySettings } from './channel-sidebar-settings.js';
 import { Modal } from './modal.js';
 import { ExternalSourceContent } from './external-source-content.js';
-import { externalPlatformLabel } from './bridge-source-label.js';
+import { externalPlatformLabel, externalSenderLabel } from './bridge-source-label.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
 import { SessionsEntry, type NativeSessionCatalog } from './sessions-entry.js';
@@ -283,7 +283,7 @@ function BotInboxItemRow({
     : item.summary;
   const author =
     item.externalOrigin !== undefined
-      ? `${externalPlatformLabel(item.externalOrigin.platform, t)} · ${item.externalOrigin.senderName ? `${item.externalOrigin.senderName} (${item.externalOrigin.senderId})` : item.externalOrigin.senderId}`
+      ? `${externalPlatformLabel(item.externalOrigin.platform, t)} · ${externalSenderLabel(item.externalOrigin, t)}`
       : memoryChange
         ? t('inbox.memoryChange')
         : item.sourceKind === 'assignment-report'

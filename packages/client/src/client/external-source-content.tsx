@@ -1,4 +1,4 @@
-import { externalPlatformLabel } from './bridge-source-label.js';
+import { externalPlatformLabel, externalSenderLabel } from './bridge-source-label.js';
 import type { ReactElement, ReactNode } from 'react';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -19,6 +19,7 @@ interface MessageView {
   messageId: string;
   senderId: string;
   senderName?: string;
+  senderLabel?: string;
   at: string;
   text: string;
   mentions?: readonly Mention[];
@@ -49,7 +50,7 @@ function MessageCard({
   message: MessageView;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const name = message.senderName ?? message.senderId;
+  const name = message.senderLabel ?? message.senderName ?? message.senderId;
   const date = new Date(message.at);
   const time = Number.isNaN(date.getTime())
     ? message.at
@@ -126,7 +127,13 @@ export function ExternalSourceContent({
         <div className="bh-external-route-head">
           <span className="bh-external-platform">{platform}</span>
           <span className="bh-external-scope">
-            {t(hasThread ? 'im.threadLabel' : 'im.groupLabel')}
+            {t(
+              hasThread
+                ? 'im.threadLabel'
+                : source.event.conversation.kind === 'dm'
+                  ? 'im.dmLabel'
+                  : 'im.groupLabel',
+            )}
           </span>
         </div>
         <strong>{source.conversationName}</strong>
@@ -202,6 +209,14 @@ export function ExternalSourceContent({
             sourceEventId: source.id,
             messageId: source.event.messageId,
             senderId: source.event.actor.id,
+            senderLabel: externalSenderLabel(
+              {
+                platform: source.platform,
+                senderId: source.event.actor.id,
+                ...(source.event.actor.name ? { senderName: source.event.actor.name } : {}),
+              },
+              t,
+            ),
             ...(source.event.actor.name ? { senderName: source.event.actor.name } : {}),
             at: source.at,
             text: source.body,

@@ -14,6 +14,10 @@ _Avoid_: bot (bare), agent, assistant, robot
 A PersonaBot whose new admissions, wakes, Session execution, and external actions are disabled while its identity, ownership, history, and audit attribution remain intact. Archiving first closes those gates, then stops its Orchestrator, Assignment Sessions, and owned Subagents; it completes only when that execution tree is quiescent. Reactivation never resumes old execution automatically.
 _Avoid_: deleted bot, paused UI, purged bot
 
+**PersonaBot Deletion**:
+The Human-confirmed end of a PersonaBot’s active identity, retaining historical attribution and its Memory Repository unless the Human explicitly selects Memory erasure. It is distinct from reversible archiving and from Messaging Content Purge.
+_Avoid_: archive, hide, automatic Memory purge
+
 **Bot as a Person**:
 The principle that a PersonaBot remains one product identity across Sessions, with durable learned continuity coming from its Memory Repository rather than Session history.
 _Avoid_: session-scoped identity
@@ -389,6 +393,10 @@ _Avoid_: room, server, board
 **Hidden Channel**:
 A Channel omitted from expanded and collapsed roster navigation by a Human presentation choice or the default for a Bot-to-Bot DM. Hiding retains Channel membership, history, routing, PersonaBot and Memory state, plus its pin, section, and order placement; the Human can open it for inspection, and can restore a Channel hidden by their own choice.
 _Avoid_: deleted Channel, archived Channel, muted Channel, Content Purge
+
+**Channel Deletion**:
+The Human-confirmed end of a Channel’s active membership and routing while retaining its history and causal attribution. It is distinct from reversible hiding and separately confirmed Content Purge.
+_Avoid_: Hidden Channel, Content Purge, provider conversation deletion
 
 **Channel section**:
 A user-created, collapsible grouping of Channels in the bot-mode sidebar. Local display arrangement, not part of a Soul.

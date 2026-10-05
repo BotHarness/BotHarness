@@ -116,9 +116,9 @@ describe('packaged product selection', () => {
       allowBuilds: { reviewed: true, other: false },
       overrides: { unrelated: '1.0.0' },
     });
-    expect(parse(result).overrides['@botharness/im-provider@4.32.0-botharness.3']).toMatch(
-      /^file:.*\.tgz$/,
-    );
+    expect(
+      parse(result).overrides[`${productImProvider.name}@${productImProvider.version}`],
+    ).toMatch(/^file:.*\.tgz$/);
     expect(() => packagedWorkspaceSettings('packages: [', root)).toThrow(
       'invalid Profile workspace settings',
     );
@@ -180,7 +180,7 @@ describe('release composition', () => {
     expect(() => verifyProductComposition(entries)).toThrow('conflicts');
   });
   it('keeps product provenance independent when the development Provider selection changes', () => {
-    expect(productImProvider.upstream.source).toBe('a0300e97d7996a5de3a6da2f5b9f50224eb12bd9');
+    expect(productImProvider.upstream.source).toBe('589e5507d47ab21de5b39c776a598452744a5368');
     expect(productImProvider.upstream.dsh).toBe('0.2.0-rc.1');
   });
 
@@ -193,7 +193,7 @@ describe('release composition', () => {
     expect(release.dependencies).toEqual({
       '@botharness/core': '0.0.0-test.823',
       '@botharness/ui': '0.0.0-test.823',
-      '@botharness/im-provider': '4.32.0-botharness.3',
+      '@botharness/im-provider': '4.32.0-botharness.4',
     });
     expect(release.dsh.bundle.patch).toBe('./cordis.im.patch.yml');
     expect(source.private).toBe(true);
