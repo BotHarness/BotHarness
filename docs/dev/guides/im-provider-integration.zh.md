@@ -105,3 +105,5 @@ Slack 公开频道 QA App 的 Bot scopes 为 `app_mentions:read`、`chat:write`�
 [Gateway 文档](https://docs.discord.com/developers/events/gateway#message-content-intent) 将提及 App 的消息列为 Message Content 限制的例外。因此只收 @ 的首片应验证能否只使用 `GUILDS`、`GUILD_MESSAGES`，而不请求特权内容访问；普通收件／历史可用性继续单独资格验证。[Thread](https://docs.discord.com/developers/topics/threads) 是原生子频道，`parent_id` 指向父频道，不是父消息 ID。Thread 发言需要 `SEND_MESSAGES_IN_THREADS`，普通频道发送使用 `SEND_MESSAGES`。消息引用本身不证明存在 thread。Snowflake ID 保留字符串，分别检查 guild、父子频道关系、当前访问、原消息和原生回复回执；thread 回复失败不能转发到父频道。
 
 真实 QA 门槛需要专用且已授权的 App／Bot、guild 文本频道、已有公开 thread 和本机凭据引用。创建 App、安装 Bot、扩大权限分别需要相应 Human 授权。源码改动和 E2E 证据见 #855；只读源码检查不推进资格表的任何能力状态。
+
+实现候选 `e6f0de2a989c28d20db92c0e7f43b20c6d3028b9` 补充 checked 身份／Consumer／回复及显式 external-only Profile 配置；目前只是本机源码候选，尚未发布或通过真实 App／模型 E2E。现有产品固定版本保持不变。待确认的 [ADR-0128](../../adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md) 记录父会话／原生子频道映射。受控测试不推进资格表。

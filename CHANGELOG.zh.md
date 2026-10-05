@@ -17,6 +17,8 @@
 
 ### Added
 
+- 增加候选 checked Discord Provider 注册与既有 Inbox／来源展示契约，保留准确频道／公开 thread 路由；真实 App／模型 E2E 资格和 Human QA 尚待完成（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)）。
+
 - 已保存头像使用了当前不可用的版本时，PersonaBot 不再消失：原始设置会被保留，显示与之配对的保存快照并说明暂时无法编辑和播放角色动画，活动与待审批指示照常工作，版本恢复后自动还原；与快照不匹配或不安全的头像数据会被忽略，但不会丢失 PersonaBot（[#755](https://github.com/BotHarness/BotHarness/issues/755)）。
 
 - 像素家族头像可在资料页编辑器里分别选择刘海、侧发和后发，并在范围内调节眼距、五官高度和发长；没有这些选择的已保存头像外观不变（[#752](https://github.com/BotHarness/BotHarness/issues/752)）。

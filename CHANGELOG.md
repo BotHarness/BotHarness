@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added the candidate checked Discord Provider registration and existing Inbox/source presentation contract, preserving exact channel/public-thread routes; real App/model E2E qualification and Human QA remain pending ([#855](https://github.com/BotHarness/BotHarness/issues/855), [ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)).
+
 - A PersonaBot whose saved Avatar uses an unavailable version no longer disappears: its original design is retained, the matching saved snapshot is shown with an explanation that editing and character animation are paused, activity and approval indicators keep working, and the design returns automatically once the version is available; mismatched or unsafe saved appearance data is ignored without losing the PersonaBot ([#755](https://github.com/BotHarness/BotHarness/issues/755)).
 
 - Pixel-family Avatars can choose bangs, side hair and back hair separately and adjust eye spacing, feature height and hair length within bounds in the Profile editor; saved Avatars without these choices render unchanged ([#752](https://github.com/BotHarness/BotHarness/issues/752)).
