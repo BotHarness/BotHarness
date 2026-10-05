@@ -291,6 +291,212 @@ describe('Assignment collaboration', () => {
     }
   });
 
+  it.each(['cancelled', 'failed'] as const)(
+    'harvests one native %s Notice and preserves its progress Report across restart',
+    async (state) => {
+      const { runtime, agents, admit, close, owner, channels, home, dmChannelId } = await setup();
+      let reopened: ReturnType<typeof mountOperationalDatabase> | undefined;
+      let recovered: BotRuntime | undefined;
+      try {
+        await admit('Start cancellation QA', 'human-native-cancel');
+        const created = agents.access!.create({
+          grantId: TEST_GRANT_ID,
+          purpose: 'Cancelled work',
+          key: 'cancel-direction',
+        });
+        if (created.outcome !== 'created') throw new Error('Assignment missing');
+        const run = agents.started[0]!.run;
+        await run.report(
+          { state: 'progress', summary: 'Evidence before cancellation' },
+          { turn: 1 },
+        );
+        const query = createBotAttentionQuery(
+          attachOperationalModule(owner, 'native-cancel-query'),
+          channels,
+        );
+        const reports = () =>
+          query
+            .list({ botSlug: 'ada' })
+            .items.filter((i) => i.assignmentSessionId === run.sessionId);
+        const original = reports()[0]!;
+        expect(original.state).toBe('pending');
+        const settle = state === 'cancelled' ? run.cancelledTurn! : run.failedTurn!;
+        settle({ turn: 1, endSeq: 30 });
+        settle({ turn: 1, endSeq: 30 });
+        agents.finish(run.sessionId);
+        await runtime.whenIdle();
+        const before = reports();
+        expect(before).toHaveLength(2);
+        const notice = before.find((i) => i.sourceKind === 'assignment-lifecycle')!;
+        expect(notice).toMatchObject({
+          authorKind: 'system',
+          assignmentTurn: 1,
+          state: 'handled',
+          sourceAvailable: true,
+        });
+        expect(notice.relatedReportSourceEventId).toBeUndefined();
+        expect(notice.summary).toContain(
+          state === 'cancelled' ? 'was cancelled' : 'execution error',
+        );
+        expect(before.find((i) => i.id === original.id)).toMatchObject({
+          ...original,
+          state: 'handled',
+          assignmentReportState: 'progress',
+        });
+        expect(agents.inboxTurns).toHaveLength(1);
+        expect(agents.inboxTurns[0]).toContain('Host lifecycle notice [Source Event ' + notice.id);
+        expect(runtime.getAssignment('ada', run.sessionId)).toMatchObject({
+          activity: 'error',
+          latestReport: { state: 'progress', summary: 'Evidence before cancellation' },
+        });
+        expect(runtime.getAssignment('ada', run.sessionId)?.continuityKey).toBeUndefined();
+        const payload = attachOperationalModule(owner, 'native-cancel-payload').read((db) =>
+          db
+            .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
+            .get(notice.id),
+        ) as { payload_json: string };
+        expect(JSON.parse(payload.payload_json)).toEqual({
+          author: { kind: 'system' },
+          assignmentLifecycle: {
+            state,
+            cause: state === 'cancelled' ? 'native-turn-aborted' : 'native-turn-error',
+            turn: 1,
+            endSeq: 30,
+          },
+        });
+        await runtime.close();
+        owner.close();
+        reopened = trackTestOwner(
+          mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+        );
+        const recoveredAgents = new ManualAgents();
+        recovered = createBotRuntime({
+          database: reopened,
+          registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+          channels,
+          agents: recoveredAgents,
+          grants: createTestWorkspaceGrants(reopened, home),
+          now: FIXED_NOW,
+        });
+        await recovered.whenIdle();
+        const after = createBotAttentionQuery(
+          attachOperationalModule(reopened, 'native-cancel-reopen'),
+          channels,
+        )
+          .list({ botSlug: 'ada' })
+          .items.filter((i) => i.assignmentSessionId === run.sessionId);
+        expect(after).toEqual(before);
+        expect(recoveredAgents.started).toHaveLength(0);
+        expect(recoveredAgents.inboxTurns).toHaveLength(0);
+        const reviewed = recovered.admitDmMessage({
+          channelId: dmChannelId,
+          messageId: 'cancel-review',
+          body: 'Review cancelled work',
+        });
+        if (!reviewed.admitted) throw new Error('Review admission rejected');
+        await reviewed.settled;
+        expect(recoveredAgents.allInboxTurns.at(-1)).not.toContain(notice.id);
+        expect(recoveredAgents.started).toHaveLength(0);
+      } finally {
+        await recovered?.close();
+        reopened?.close();
+        await close();
+      }
+    },
+  );
+
+  it('preserves a failed Report without pairing it to successful native completion or replaying after restart', async () => {
+    const { runtime, agents, owner, home, admit, close, channels, dmChannelId } = await setup();
+    let reopened: ReturnType<typeof mountOperationalDatabase> | undefined;
+    let recovered: BotRuntime | undefined;
+    const coldAgents = new ManualAgents();
+    try {
+      await admit('Check the unavailable result', 'failed-semantic-start');
+      agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Unavailable result' });
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'failed', summary: 'Required input is unavailable' }, { turn: 1 });
+      await vi.waitFor(() => expect(agents.inboxTurns).toHaveLength(1));
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(owner, 'failed-semantic-before'),
+        channels,
+      );
+      const before = attention
+        .list({ botSlug: 'ada' })
+        .items.filter((item) => item.assignmentSessionId === run.sessionId);
+      expect(before).toHaveLength(1);
+      expect(before[0]).toMatchObject({
+        sourceKind: 'assignment-report',
+        assignmentReportState: 'failed',
+        assignmentSessionId: run.sessionId,
+        assignmentTurn: 1,
+        authorKind: 'bot',
+        state: 'handled',
+        summary: 'Required input is unavailable',
+      });
+      expect(agents.inboxTurns[0]).toContain(before[0]!.id);
+      expect(agents.inboxTurns[0]).toContain('Required input is unavailable');
+      run.completedTurn!({ turn: 1, endSeq: 30 });
+      run.completedTurn!({ turn: 1, endSeq: 30 });
+      agents.finish(run.sessionId);
+      await runtime.whenIdle();
+      expect(runtime.getAssignment('ada', run.sessionId)).toMatchObject({
+        activity: 'idle',
+        latestReport: { state: 'failed', summary: 'Required input is unavailable' },
+      });
+      expect(
+        attention
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.assignmentSessionId === run.sessionId),
+      ).toEqual(before);
+      expect(agents.inboxTurns).toHaveLength(1);
+      await close();
+      owner.close();
+      reopened = trackTestOwner(
+        mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+      );
+      recovered = createBotRuntime({
+        database: reopened,
+        registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+        channels,
+        agents: coldAgents,
+        grants: createTestWorkspaceGrants(reopened, home),
+        now: FIXED_NOW,
+      });
+      await recovered.whenIdle();
+      const after = createBotAttentionQuery(
+        attachOperationalModule(reopened, 'failed-semantic-after'),
+        channels,
+      );
+      expect(
+        after
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.assignmentSessionId === run.sessionId),
+      ).toEqual(before);
+      expect(coldAgents.allInboxTurns).toHaveLength(0);
+      expect(coldAgents.started).toHaveLength(0);
+      const admission = recovered.admitDmMessage({
+        channelId: dmChannelId,
+        messageId: 'failed-semantic-review',
+        body: 'Review existing facts without new work',
+      });
+      if (!admission.admitted) throw new Error('Human message refused');
+      await admission.settled;
+      expect(
+        after
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.assignmentSessionId === run.sessionId),
+      ).toEqual(before);
+      expect(coldAgents.inboxTurns).toHaveLength(0);
+      expect(coldAgents.started).toHaveLength(0);
+    } finally {
+      coldAgents.finishAll();
+      await recovered?.close();
+      reopened?.close();
+      await close();
+      owner.close();
+    }
+  });
+
   it('does not infer completion pairing from a different Turn or progress-only run', async () => {
     const { runtime, agents, owner, admit, close } = await setup();
     try {

@@ -2917,6 +2917,7 @@ export async function loadMessagingSnapshot(
     !Array.isArray(record['accounts']) ||
     !Array.isArray(record['grants']) ||
     !Array.isArray(record['intents']) ||
+    (record['setup'] !== undefined && !validLarkSetupSnapshot(record['setup'])) ||
     (record['channelTargets'] !== undefined &&
       (!Array.isArray(record['channelTargets']) ||
         !record['channelTargets'].every((value) => {
@@ -2930,6 +2931,38 @@ export async function loadMessagingSnapshot(
   )
     throw new BridgeCallError('invalid-response', 'Invalid messaging snapshot');
   return value as MessagingSnapshot;
+}
+
+function validLarkSetupSnapshot(value: unknown): boolean {
+  const setup = asRecord(value);
+  return (
+    typeof setup?.['providerReady'] === 'boolean' &&
+    Array.isArray(setup['receipts']) &&
+    setup['receipts'].length <= 20 &&
+    setup['receipts'].every((item: unknown) => {
+      const row = asRecord(item);
+      return (
+        !!row &&
+        ['sourceEventId', 'grantId', 'messageId', 'conversationId', 'at'].every(
+          (key) => typeof row[key] === 'string' && row[key].length > 0,
+        ) &&
+        typeof row['echoObserved'] === 'boolean' &&
+        (row['replyMessageId'] === undefined ||
+          (typeof row['replyMessageId'] === 'string' && row['replyMessageId'].length > 0)) &&
+        (row['threadId'] === undefined || typeof row['threadId'] === 'string') &&
+        (row['replyState'] === undefined ||
+          [
+            'provider-accepted',
+            'unknown-outcome',
+            'pending',
+            'in-flight',
+            'grant-revoked',
+            'cancelled',
+            'failed',
+          ].includes(String(row['replyState'])))
+      );
+    })
+  );
 }
 export async function loadMessagingTargets(
   call: BridgeCall,
@@ -3057,7 +3090,7 @@ export async function readMessagingSource(
     !Number.isInteger(source?.['grantRevision']) ||
     Number(source?.['grantRevision']) < 1 ||
     event?.['version'] !== 1 ||
-    !['feishu', 'slack'].includes(String(event['channel'])) ||
+    !['feishu', 'slack', 'discord'].includes(String(event['channel'])) ||
     !strings(event, ['botId', 'fingerprint', 'eventId', 'messageId', 'at']) ||
     typeof event['mentionedAccount'] !== 'boolean' ||
     actor?.['kind'] !== 'user' ||

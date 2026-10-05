@@ -9,7 +9,7 @@ flowchart LR
   Runtime <--> W2["Independent Assignment Session B"]
   W1 -->|"report_to_orchestrator"| Report["Assignment Report Source Event"]
   W1 -->|"completed Turn paired with this Report"| Completion["Host Completion Notice<br/>paired completion #194"]
-  W2 -->|"confirmed stop"| Notice["Host Lifecycle Notice<br/>confirmed stop #194<br/>other boundaries planned"]
+  W2 -->|"confirmed stop / native cancellation / native error"| Notice["Host Lifecycle Notice<br/>stop / cancellation / error #194<br/>crash boundary planned"]
   Report --> Inbox
   Completion --> Inbox
   Notice --> Inbox

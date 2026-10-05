@@ -1,0 +1,44 @@
+{
+  "bot": "Native cancellation QA",
+  "assignment": {
+    "sessionId": "botharness-d38c2215-09e1-44d1-9b10-2ffb190ac370",
+    "activity": "error",
+    "latestReport": {
+      "state": "progress",
+      "summary": "CANCEL_PROGRESS: Evidence retained before Human cancellation.",
+      "at": "2026-10-05T09:57:03.535Z"
+    },
+    "continuityKey": "native-cancel-direction"
+  },
+  "sources": [
+    {
+      "id": "a84d7b91-5920-4f6d-a4f0-0bd36f254289",
+      "state": "pending",
+      "createdAt": "2026-10-05T09:57:03.535Z",
+      "sourceKind": "assignment-report",
+      "assignmentSessionId": "botharness-d38c2215-09e1-44d1-9b10-2ffb190ac370",
+      "assignmentReportState": "progress",
+      "assignmentTurn": 1,
+      "authorKind": "bot",
+      "authorBotSlug": "bot-83e6cc03f4924334ac4141af46125067",
+      "sourceAvailable": true,
+      "summary": "CANCEL_PROGRESS: Evidence retained before Human cancellation."
+    }
+  ],
+  "native": {
+    "turn": 1,
+    "endSeq": 30,
+    "endReason": "aborted",
+    "cancelCause": "user",
+    "starts": 1,
+    "ends": 1,
+    "ungrantedShellNeverSucceeded": true
+  },
+  "orchestrator": {
+    "starts": 1,
+    "ends": 1
+  },
+  "cancellationAcknowledgements": 0,
+  "approvalExpired": true,
+  "assignmentCount": 1
+}

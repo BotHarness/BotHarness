@@ -113,7 +113,7 @@ const identifier = z.string().min(1).max(512);
 const inboundSchema = z
   .object({
     version: z.literal(1),
-    channel: z.enum(['feishu', 'slack']),
+    channel: z.enum(['feishu', 'slack', 'discord']),
     botId: identifier,
     fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     eventId: identifier,
@@ -209,7 +209,7 @@ function providerFailure(error: unknown): MessagingProviderError {
 
 export function createDshImProvider(
   value: unknown,
-  platform: 'feishu' | 'slack' = 'feishu',
+  platform: 'feishu' | 'slack' | 'discord' = 'feishu',
 ): MessagingProvider | undefined {
   if (value === null || typeof value !== 'object') return undefined;
   const service = value as Partial<DshImOutboundService>;
@@ -259,12 +259,15 @@ export function createDshImProvider(
         typeof target.route.chatId === 'string') ||
       (platform === 'slack' &&
         target.kind === 'conversation' &&
+        typeof target.route.channelId === 'string') ||
+      (platform === 'discord' &&
+        target.kind === 'channel' &&
         typeof target.route.channelId === 'string')
         ? {
             receiveScope: {
               kind: 'group' as const,
               conversationId: String(
-                platform === 'slack' ? target.route.channelId : target.route.chatId,
+                platform === 'feishu' ? target.route.chatId : target.route.channelId,
               ),
             },
           }
@@ -440,7 +443,7 @@ export function createDshImProvider(
                   event.attachments?.some(
                     (item) =>
                       item.messageId !==
-                      (platform === 'slack' ? event.messageId : event.reply.parentId),
+                      (platform === 'feishu' ? event.reply.parentId : event.messageId),
                   )
                 )
                   throw new MessagingError('untrusted-source');
@@ -602,7 +605,7 @@ export function createDshImProvider(
           },
         }
       : {}),
-    ...(platform === 'feishu' && host.receiptVersion === 1
+    ...((platform === 'feishu' || platform === 'slack') && host.receiptVersion === 1
       ? {
           async post(input: Parameters<NonNullable<MessagingProvider['post']>>[0]) {
             input.signal.throwIfAborted();

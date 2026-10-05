@@ -35,9 +35,9 @@
 ```bash
 git clone https://github.com/BotHarness/BotHarness.git botharness-lark
 cd botharness-lark
-git checkout 3c4e05ca38fd0bfc65dfdb96e69f30feceb22c54
+git checkout c2a1f7cba13d1ba82e1b9e9b3b923babe428c0e7
 git clone https://github.com/DoodleBears/dsh-im.git /tmp/bh-lark-provider
-git -C /tmp/bh-lark-provider checkout b442da91b267412e84a4d18224adc30777024862
+git -C /tmp/bh-lark-provider checkout 48e7a35792af5222cd40cfe1ba2607ac55a59df2
 npm ci --prefix /tmp/bh-lark-provider --ignore-scripts --no-audit --no-fund
 pnpm install --frozen-lockfile
 pnpm build
@@ -52,7 +52,7 @@ node scripts/dev-instance.mjs \
 
 </details>
 
-启动器输出的登录 URL 只在本机打开，不放进截图或视频。下次使用同一个 `--home`，保留账号、授权和消息记录；同一个应用只由一个 Host 接收事件。完整打包背景见 [产品安装说明](https://github.com/BotHarness/BotHarness/blob/3c4e05ca38fd0bfc65dfdb96e69f30feceb22c54/docs/product-im-installation.md)。
+启动器输出的登录 URL 只在本机打开，不放进截图或视频。下次使用同一个 `--home`，保留账号、授权和消息记录；同一个应用只由一个 Host 接收事件。完整打包背景见 [产品安装说明](https://github.com/BotHarness/BotHarness/blob/c2a1f7cba13d1ba82e1b9e9b3b923babe428c0e7/docs/product-im-installation.md)。
 
 ## 操作视频：连接、授权、确认消息
 
@@ -90,7 +90,11 @@ Lark 打开 [Lark 开发者后台](https://open.larksuite.com/app)；飞书打�
 
 ### 对照真实后台配置
 
-以下截图来自已发布的测试应用，本轮只读核对配置。新应用仍需自己完成添加能力、申请权限、发布和管理员审批。不要照搬测试应用的全部权限或事件。
+![新创建的引导测试应用，仅加入三项初始应用身份权限](/guides/lark/18-new-app-minimum-scopes.webp)
+
+_这个新应用是在 Lark 后台实际创建的 #824 引导测试应用。三项权限的 Type 均为 Tenant token，状态为 Added。顶部仍显示 Pending release：加入权限不等于已生效。先建立本机连接、保存接收消息的事件订阅，再发布版本，之后才能验证群收件。此例没有开启全群消息权限。_
+
+以下旧版参考截图来自已发布的测试应用，本轮只读核对配置。新应用仍需自己完成添加能力、申请权限、发布和管理员审批。不要照搬测试应用的全部权限或事件。
 
 ![真实后台的凭证入口，App Secret 保持隐藏](/guides/lark/09-credentials.webp)
 
@@ -141,7 +145,7 @@ _图 1b：真实账号的绿色「运行正常」 只证明传输在线；还要
 2. 从 **从已聊过的会话选择** 中选测试群，检查显示名称和群 Chat ID；或手动填写平台提供的原生群 ID（`oc_…`），不要填群名称或消息 ID。
 3. 填一个调用别名，例如 `lark-test-group`，点击 **测试**，到 Lark 群确认测试消息，再点击 **保存目标**。
 
-如果会话列表还没有测试群，可先在该群 @应用机器人发送「连接测试」，再刷新会话列表。这一步用于让 dsh-im 发现目标；此时尚未绑定 PersonaBot，不发送业务请求。不要把 dsh-im 自己的会话回复当作 BotHarness 收件成功。
+全新应用可能没有会话候选。#824 实测中，绑定 PersonaBot 前的预备 @消息没有立即填充列表，且进入了 Provider 自己的独立会话路径。建议手动填入已核实的原生群 Chat ID，再测试、保存；不知道 ID 时请向群管理员核实。独立会话的回复或发现目标的消息，都不是 BotHarness 的 canonical 收件证据。
 
 ![真实账号的已保存群投递目标](/guides/lark/16-delivery-target.webp)
 
@@ -149,7 +153,7 @@ _账号设置 → 投递设置 → 投递目标。这里的测试、保存目标
 
 ## 4. 绑定 PersonaBot 身份并授权群
 
-在 **Bot 模式**打开目标 Bot 的 DM，点击顶部 Bot 名称，再点 **查看详细**，进入详细 Profile。
+在 **Bot 模式**打开目标 Bot 的 DM，点击顶部 Bot 名称，再点 **查看详细**，进入详细 Profile。 点击 **配置引导**，选择应用平台、IM账号和保存的指定群目标。每个群独立核对；其他群的成功不能替代本群验收。步骤的「定位现有控件」打开或高亮实际设置，完成状态由实际配置和关联收件／回复决定。
 
 ![身份与群授权的操作示意：先绑定身份，再授权具体群，最后可选添加频道连接器](/guides/lark/05-identity-routing-annotated.webp)
 
@@ -232,3 +236,39 @@ _图 5：这是已收件的真实话题消息。Source Event ID 是 BotHarness �
 | 本地 DM 没有消息              | 检查是否选了 Inbox-only；这是有效的独立投递路径，不是丢消息                                                   |
 
 如果需要协助，提供平台、操作步骤、可公开的错误码和已经完成的检查。不要附 App Secret、访问令牌或群中无关的消息内容。
+
+## #824：真实新应用操作记录
+
+以下是新应用的真实压缩截图，不是模拟成功。应用通过真实后台发布为 1.0.0，只加入指定 QA 群；本机连接、目标测试和保存、PersonaBot 身份绑定与指定群授权都通过产品界面完成。首次实测产物为一次安装的 `0.0.0-test.824.6`，新增指定群选择后的最终复验为 `0.0.0-test.824.7`（Provider `4.32.0-botharness.2`），没有另装接收进程。上文旧 #823 图与视频保留为参考，不替代本次新应用实测。
+
+![新应用已连接](/guides/lark/19-new-app-connected.webp)
+
+_连接正常仅确认 Provider 在线，尚不代表 Inbox 已收件。_
+
+![新应用事件订阅已保存](/guides/lark/20-new-app-events.webp)
+
+_长连接验证失败时先建立本机连接，再保存 im.message.receive_v1。_
+
+![新应用版本已发布](/guides/lark/21-new-app-released.webp)
+
+_发布、审批和可用范围与本机连接是不同状态。_
+
+![新应用目标已测试保存](/guides/lark/22-new-app-target.webp)
+
+_测试消息到达指定群后，保存投递目标。_
+
+![账号目标身份与授权已确认](/guides/lark/23-new-app-guide.webp)
+
+_前四步来自真实配置；点击引导不会推进完成状态。_
+
+![原生话题中的提及和新应用自己的回复](/guides/lark/24-new-app-topic-reply.webp)
+
+_无 @根消息未入库；两条指定 @消息进入该 Bot Inbox，LARK-SETUP-OK 在同一话题以新应用身份出现。截图裁掉无关会话；平台已读圆圈不是 canonical 收件证据。_
+
+![真实引导中的来源关联收件与回复](/guides/lark/25-new-app-receipt.webp)
+
+_原文 [BH-LARK-SETUP] 的 Source Event 末尾为 f708a3f1，对应 Inbox 已处理、关联回复为平台已接受。未观测到自身回传，引导要求 Human 到原话题核对。_
+
+![临时连接与本机凭据已移除](/guides/lark/26-new-app-cleaned.webp)
+
+_关闭重开和重启同一 Profile 后配置历史保留；重新加载后选择原账号核对。停用、撤销授权、解绑与移除账号使相应步骤重新待确认。验收后用原生移除接入停止接收并删除本机配置及凭据；外部应用保留，后台凭据重置仍由管理员操作。_

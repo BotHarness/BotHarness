@@ -29,6 +29,7 @@ export interface FakeSession {
 }
 
 export interface FakeAgentHostHooks {
+  assignmentTurnEnd?: TurnEndReason;
   onTurn?(session: FakeSession, tools: readonly ToolDefinition[]): Promise<void>;
   onAgentCreated?(agent: unknown): void;
 
@@ -131,7 +132,9 @@ export class FakeAgentHost implements DshAgentHost {
         const currentTurn = ++turn;
         session.append('turn/start', { turn: currentTurn });
         const isOrchestrator = scope.tools.some((tool) => tool.name === 'create_assignment');
-        const reason = isOrchestrator ? this.orchestratorTurnEnd : { kind: 'completed' as const };
+        const reason = isOrchestrator
+          ? this.orchestratorTurnEnd
+          : (this.hooks.assignmentTurnEnd ?? { kind: 'completed' as const });
         pending = (
           reason.kind === 'error'
             ? Promise.resolve()

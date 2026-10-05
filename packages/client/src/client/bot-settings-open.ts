@@ -37,3 +37,54 @@ export function openBotSettings(labels: () => readonly string[], doc?: Document)
 export function openModelsSettings(doc?: Document): void {
   openSettingsSection(() => ['模型', 'Models'], doc);
 }
+
+export function openImSettings(
+  doc: Document,
+  ready: (element: Element) => void,
+  unavailable: () => void = () => {},
+): () => void {
+  let disposed = false;
+  let selected = false;
+  const inspect = () => {
+    if (disposed) return;
+    const dialog = [...doc.querySelectorAll('[role="dialog"]')].find((d) =>
+      [...d.querySelectorAll('button')].some((b) =>
+        /^(IM机器人|IM Bots)$/i.test(b.textContent?.trim() ?? ''),
+      ),
+    );
+    if (!dialog) return;
+    const nav = [...dialog.querySelectorAll('button')].find((b) =>
+      /^(IM机器人|IM Bots)$/i.test(b.textContent?.trim() ?? ''),
+    );
+    if (!selected) {
+      selected = true;
+      nav?.click();
+      queueMicrotask(inspect);
+      return;
+    }
+    const platform = [...dialog.querySelectorAll('button')].find((b) =>
+      ['飞书', 'Feishu', 'Lark / Feishu'].includes(b.textContent?.trim() ?? ''),
+    );
+    if (!platform) return;
+    disposed = true;
+    observer.disconnect();
+    clearTimeout(timer);
+    platform.click();
+    ready(dialog);
+  };
+  const observer = new MutationObserver(inspect);
+  observer.observe(doc.body, { childList: true, subtree: true });
+  const timer = setTimeout(() => {
+    disposed = true;
+    observer.disconnect();
+    unavailable();
+  }, 10000);
+  const trigger = doc.querySelector<HTMLElement>(TRIGGER_SELECTOR);
+  if (trigger?.getAttribute('aria-expanded') !== 'true') trigger?.click();
+  inspect();
+  return () => {
+    disposed = true;
+    clearTimeout(timer);
+    observer.disconnect();
+  };
+}

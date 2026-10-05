@@ -4,6 +4,7 @@ import { Modal } from './modal.js';
 import { MessagingHelp } from './messaging-help.js';
 import type { OutboxIntent } from '../../../core/src/messaging/outbound.js';
 import { ExternalIdentityTable } from './external-identity-table.js';
+import { LarkSetupGuide } from './lark-setup-guide.js';
 import { ThreadReceptionSettings } from './thread-reception-settings.js';
 import type {
   GroupReceptionInput,
@@ -150,6 +151,12 @@ export function MessagingProfile({
   };
   return (
     <>
+      <LarkSetupGuide
+        snapshot={snapshot}
+        t={t}
+        refresh={refresh}
+        loadTargets={actions.messagingTargets}
+      />
       <ExternalIdentityTable
         snapshot={snapshot}
         t={t}
@@ -160,6 +167,7 @@ export function MessagingProfile({
         }}
       />
       <section
+        data-bh-lark-grant
         className="bh-profile-section bh-profile-policy-section bh-im-settings"
         aria-label={t('im.title')}
       >
@@ -284,21 +292,6 @@ export function MessagingProfile({
                           }
                         />
                       ) : null}
-                      {grant.threadPolicies?.length ? (
-                        <ThreadReceptionSettings
-                          policies={grant.threadPolicies}
-                          busy={busy}
-                          t={t}
-                          save={async (sourceEventId, input) => {
-                            let saved = false;
-                            await operate(async () => {
-                              await actions.messagingThreadPolicy(slug, sourceEventId, input);
-                              saved = true;
-                            });
-                            return saved;
-                          }}
-                        />
-                      ) : null}
                       <Button
                         size="sm"
                         variant="primary"
@@ -324,6 +317,21 @@ export function MessagingProfile({
                         )}
                       </Button>
                     </>
+                  ) : null}
+                  {grant.threadPolicies?.length ? (
+                    <ThreadReceptionSettings
+                      policies={grant.threadPolicies}
+                      busy={busy}
+                      t={t}
+                      save={async (sourceEventId, input) => {
+                        let saved = false;
+                        await operate(async () => {
+                          await actions.messagingThreadPolicy(slug, sourceEventId, input);
+                          saved = true;
+                        });
+                        return saved;
+                      }}
+                    />
                   ) : null}
                   <label className="bh-im-field">
                     <span>{t('im.message')}</span>

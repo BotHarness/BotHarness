@@ -17,6 +17,12 @@
 
 ### Added
 
+- 增加候选 checked Discord Provider 注册与既有 Inbox／来源展示契约，保留准确频道／公开 thread 路由；真实频道／thread 模型回复已通过，完整资格与 Human QA 尚待完成（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)）。
+
+- PersonaBot 可显式发布不镜像到本地聊天的 Slack 报告，查询已保存原文及真实回执，并在原 Slack 话题回答符合收件策略的 Human 追问（[#863](https://github.com/BotHarness/BotHarness/issues/863)、[IM 接入指南](docs/dev/guides/im-provider-integration.md)）。
+
+- PersonaBot 可在真实普通回复投递验证后显式跟进或退出已授权 Slack 原生话题，复用数量／时间汇总和 Human 覆盖；迁移后的频道连接器仍保留 Profile 话题管理（[#854](https://github.com/BotHarness/BotHarness/issues/854)、[IM 接入指南](docs/dev/guides/im-provider-integration.md)）。
+
 - 活动实时同步中断时，侧栏会提示；头像停在最后观察到的状态，活动指示变灰并暂停，不再播放装饰动画；重新连接或服务重启后从新的基线恢复（[#756](https://github.com/BotHarness/BotHarness/issues/756)）。
 
 - 已保存头像使用了当前不可用的版本时，PersonaBot 不再消失：原始设置会被保留，显示与之配对的保存快照并说明暂时无法编辑和播放角色动画，活动与待审批指示照常工作，版本恢复后自动还原；与快照不匹配或不安全的头像数据会被忽略，但不会丢失 PersonaBot（[#755](https://github.com/BotHarness/BotHarness/issues/755)）。
@@ -25,6 +31,9 @@
 
 - 像素家族的侧脸和思考转头帧改为真正的四分之三侧脸：五官向朝向一侧偏移、远侧眼睛变窄、只露近侧耳朵、下巴内收；双马尾等发尾保持贴着头部，嘴巴保持居中（[#752](https://github.com/BotHarness/BotHarness/issues/752)）。
 - Assignment 完成报告与 Host 确认的原生执行完成保留为独立、可跳转的 Inbox 来源，以可信 Session／Turn 身份关联且不重复唤醒；迟到通知重启后仍待处理，直到真实 Turn 纳入并处理（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)）。
+
+- 在 PersonaBot Profile 新增可恢复的 Lark／飞书配置引导，定位真实 IM 控件，并根据当前账号、身份、群授权及同话题回复证据核对进度，不另建新手引导工作流存储（[#824](https://github.com/BotHarness/BotHarness/issues/824), [指南](docs/lark-connection.md)).
+
 - 在 Bot 设置中新增独立的 Slack 收件、汇总与绑定身份默认值，Profile 可继承，既有显式覆盖继续保留（[#843](https://github.com/BotHarness/BotHarness/issues/843)）。
 
 - Human 可在 Profile 明确接收已授权 Slack 频道的普通文字，并选择现有数量／时间汇总或安全排队的逐条唤醒；新连接仍只收 @，重叠提及订阅不重复收件（[#837](https://github.com/BotHarness/BotHarness/issues/837)）。
@@ -260,6 +269,8 @@
 
 - 大量头像同时活动时更流畅：所有过渡共用一个动画帧循环，像素风格的工具切换按像素画帧率步进并合并同色像素（`@botharness/pixel-morph` 0.2.0），滚出视野的头像在状态更新后不再做过渡计算；实测 32 到 128 个混合风格的活动头像仍保持满帧（[#757](https://github.com/BotHarness/BotHarness/issues/757)）。
 
+- 产品 IM Provider 采用独立固定的资格验证输入，并为已验收的 Slack 能力递增自身版本，避免开发版选择隐式改变产品产物（[IM 安装指南](docs/product-im-installation.md)、[#868](https://github.com/BotHarness/BotHarness/issues/868)）。
+
 - Bot Inbox 侧栏以内容为先，分行展示来源、Report 信息与处理状态，并用原生错误色突出需要修复的项 ([#851](https://github.com/BotHarness/BotHarness/issues/851))。
 
 - Channel sidebar 显示设置改用悬停二级菜单，连续选择时保持打开并临时只展开对应项供预览；关闭菜单恢复原先展开状态，显示偏好立即保存（[#807](https://github.com/BotHarness/BotHarness/issues/807)）。
@@ -363,6 +374,10 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- Assignment 原生执行错误现在会向所属 PersonaBot 发送一条安全 Host 通知并释放 Continuity Key，保留原始进度报告，不自动重试或在重启后重放（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
+
+- Human 取消正在运行的 Assignment 后，Bot Inbox 会收到一条 Host 来源通知，保留原报告与原生 Turn 引用且不自动重跑；已处理事实在重启后保留（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0045](docs/adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)）。
 
 - 修复 Slack 频道连接器与成员提醒误显示 Lark 专属文案或默认值 ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 
@@ -500,6 +515,8 @@
 - 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
 
 ### Documentation
+
+- 记录固定源码的 Discord @ 收件／回复预检查与尚缺的真实 App 验证；Discord 能力表继续保持未验证，运行行为不变（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[integration guide](docs/dev/guides/im-provider-integration.md)）。
 
 - 整理已验证的 Lark／Slack IM 接入边界与后续平台可复用的资格验证流程 ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 

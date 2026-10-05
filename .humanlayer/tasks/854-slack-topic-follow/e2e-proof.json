@@ -1,0 +1,515 @@
+{
+  "issue": 854,
+  "qualificationBase": "751d88871ae9f3b25d8ef0381a3f1673330537b6",
+  "integratedBase": "2c767e30dcfbccc5ec78c3939b66327ed477e401",
+  "integratedCode": "49872217",
+  "provider": "48e7a35792af5222cd40cfe1ba2607ac55a59df2",
+  "scope": "Authorized public Slack QA channel, own Bot identity, native thread text",
+  "exclusionProof": [
+    {
+      "tag": "BEFORE",
+      "sources": 0
+    },
+    {
+      "tag": "PROBE",
+      "sources": 0
+    },
+    {
+      "tag": "MAINLINE",
+      "sources": 0
+    },
+    {
+      "tag": "OTHER",
+      "sources": 0
+    },
+    {
+      "tag": "EXCLUDED",
+      "sources": 0
+    },
+    {
+      "tag": "AFTER-EXIT",
+      "sources": 0
+    },
+    {
+      "tag": "FINAL-PROBE",
+      "sources": 0
+    }
+  ],
+  "sources": [
+    {
+      "sourceEventId": "im-ac3cbbfc4536d3cfac3bed300155e070cc108ebc8cc9221d022f6e090efcce93",
+      "text": "<@U0C6EQK4B8B> [BH854 BASELINE] 话题验收锚点。只用 bridge_read 读取本条，然后 bridge_reply 在原始话题回复 BH854-ANCHOR-OK；回复不代表自动跟进。不要 DM、Assignment 或修改 Memory。",
+      "route": {
+        "messageId": "1791188299.721909",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791188299.721909",
+        "rootId": "1791188299.721909"
+      },
+      "nativeEventId": "Ev0C69BXM6K1",
+      "mentioned": true,
+      "sender": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "wake": {
+        "mode": "all",
+        "count": 1,
+        "intervalMs": 0,
+        "threadPolicyRevision": null
+      },
+      "createdAt": "2026-10-05T08:18:19.721Z",
+      "handledAt": "2026-10-05T08:18:30.639Z",
+      "placements": [
+        {
+          "channel_id": "group-slack-qa-845"
+        }
+      ]
+    },
+    {
+      "sourceEventId": "im-cce4d01d2247a3ce59538f0e177fd667316bc9aed25b1a1c163fd14bfbb6ecc7",
+      "text": "<@U0C6EQK4B8B>  [BH854 FOLLOW] 先用 bridge_read 读取本条，再用 bridge_thread_policy_list 查本群话题；显式跟进 threadId 1791188299.721909，用 bridge_thread_policy_set 将本条来源对应话题设置 mode follow，expected_revision 使用查询结果，wake 设 digest_count 2 / digest_seconds 60。成功后只用 bridge_reply 在本话题回复 BH854-FOLLOW-OK。不要 DM、Assignment 或修改 Memory。",
+      "route": {
+        "messageId": "1791189446.057989",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791188299.721909",
+        "rootId": "1791188299.721909"
+      },
+      "nativeEventId": "Ev0C6JLRFDM1",
+      "mentioned": true,
+      "sender": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "wake": {
+        "mode": "all",
+        "count": 1,
+        "intervalMs": 0,
+        "threadPolicyRevision": null
+      },
+      "createdAt": "2026-10-05T08:37:26.057Z",
+      "handledAt": "2026-10-05T08:37:43.431Z",
+      "placements": [
+        {
+          "channel_id": "group-slack-qa-845"
+        }
+      ]
+    },
+    {
+      "sourceEventId": "im-dfedce7a7fc5d92a6a5920a3bdd075760899756c036fad28ffe1add16701b26e",
+      "text": "[BH854 COUNT-A] 已跟进话题的第一条普通回复；汇总时请 bridge_read 读取 A 和 B，用 bridge_reply 只在本话题回复 BH854-DIGEST-OK。不要 DM、Assignment 或改 Memory。",
+      "route": {
+        "messageId": "1791189510.999259",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791188299.721909",
+        "rootId": "1791188299.721909"
+      },
+      "nativeEventId": "Ev0C6UJ775GC",
+      "mentioned": false,
+      "sender": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "wake": {
+        "mode": "digest",
+        "count": 2,
+        "intervalMs": 60000,
+        "threadPolicyRevision": 1
+      },
+      "createdAt": "2026-10-05T08:38:30.999Z",
+      "handledAt": "2026-10-05T08:38:57.038Z",
+      "placements": [
+        {
+          "channel_id": "group-slack-qa-845"
+        }
+      ]
+    },
+    {
+      "sourceEventId": "im-ac87fbfdc47a03444f57058c7e20abb50285e712173f9a144f57a5b4cfc4e291",
+      "text": "[BH854 COUNT-B] 已跟进话题的第二条普通回复；只读取本批 A/B 并在本话题回复一次 BH854-DIGEST-OK。不要 DM、Assignment 或改 Memory。",
+      "route": {
+        "messageId": "1791189525.853609",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791188299.721909",
+        "rootId": "1791188299.721909"
+      },
+      "nativeEventId": "Ev0C7K91H98Q",
+      "mentioned": false,
+      "sender": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "wake": {
+        "mode": "digest",
+        "count": 2,
+        "intervalMs": 60000,
+        "threadPolicyRevision": 1
+      },
+      "createdAt": "2026-10-05T08:38:45.853Z",
+      "handledAt": "2026-10-05T08:38:57.038Z",
+      "placements": [
+        {
+          "channel_id": "group-slack-qa-845"
+        }
+      ]
+    },
+    {
+      "sourceEventId": "im-0354586f2365cbad8bf82971ecdb54357375f90a5a9aaaa633e99733b631db8e",
+      "text": "[BH854 RESTART] 冷重启后既有跟进策略恢复，稀疏普通消息按 60 秒汇总。只用 bridge_read 核对本条，再 bridge_reply 在本话题回复 BH854-RESTART-OK。不要 DM、Assignment 或修改 Memory。",
+      "route": {
+        "messageId": "1791189787.917289",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791188299.721909",
+        "rootId": "1791188299.721909"
+      },
+      "nativeEventId": "Ev0C7K9ZS4JU",
+      "mentioned": false,
+      "sender": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "wake": {
+        "mode": "digest",
+        "count": 2,
+        "intervalMs": 60000,
+        "threadPolicyRevision": 1
+      },
+      "createdAt": "2026-10-05T08:43:07.917Z",
+      "handledAt": "2026-10-05T08:44:19.565Z",
+      "placements": [
+        {
+          "channel_id": "group-slack-qa-845"
+        }
+      ]
+    },
+    {
+      "sourceEventId": "im-125f801078f8c30f3427748e4a324d0a6f60f6de283054e99b98c55c0804dbce",
+      "text": "<@U0C6EQK4B8B>  [BH854 OVERRIDE] 安全验收：先 bridge_read，本话题 Human 排除已生效。请 bridge_thread_policy_list 查询 revision，再仅调用一次 bridge_thread_policy_set(mode follow) 核对 Human override 拒绝；收到拒绝后不要重试，只在本话题 bridge_reply 回复 BH854-HUMAN-OVERRIDE-OK。不要 DM、Assignment 或改 Memory。",
+      "route": {
+        "messageId": "1791190089.927509",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791188299.721909",
+        "rootId": "1791188299.721909"
+      },
+      "nativeEventId": "Ev0C6STZ0GE5",
+      "mentioned": true,
+      "sender": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "wake": {
+        "mode": "all",
+        "count": 1,
+        "intervalMs": 0,
+        "threadPolicyRevision": 2
+      },
+      "createdAt": "2026-10-05T08:48:09.927Z",
+      "handledAt": "2026-10-05T08:48:34.406Z",
+      "placements": [
+        {
+          "channel_id": "group-slack-qa-845"
+        }
+      ]
+    },
+    {
+      "sourceEventId": "im-d4fedc9b519cdc7105e8bb0e5d55ce8d0803ca1c42eb874086e615f65b15b6dd",
+      "text": "<@U0C6EQK4B8B>  [BH854 EXIT] Human 已恢复本话题继承。请 bridge_read 本条，bridge_thread_policy_list 查询本话题最新 revision，用 bridge_thread_policy_set 显式 follow（wake null）验证可以再次选择。成功后重新 list，再 set mode inherit / wake null，显式退出本话题。最后仅 bridge_reply 在本话题回复 BH854-EXIT-OK。不要 DM、Assignment 或改 Memory。",
+      "route": {
+        "messageId": "1791190299.885249",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791188299.721909",
+        "rootId": "1791188299.721909"
+      },
+      "nativeEventId": "Ev0C6JPVKF8T",
+      "mentioned": true,
+      "sender": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "wake": {
+        "mode": "all",
+        "count": 1,
+        "intervalMs": 0,
+        "threadPolicyRevision": 3
+      },
+      "createdAt": "2026-10-05T08:51:39.885Z",
+      "handledAt": "2026-10-05T08:52:09.857Z",
+      "placements": [
+        {
+          "channel_id": "group-slack-qa-845"
+        }
+      ]
+    },
+    {
+      "sourceEventId": "im-1bf3baae96a5fb8cb0919efa20351e9bff2d0a98a1d24a58cb09b35228484eea",
+      "text": "<@U0C6EQK4B8B>  [BH854 INTEGRATED] 最新 main 集成验收。请 bridge_read 本条，bridge_thread_policy_list 核对本话题当前 inherit 状态，不修改策略。只用 bridge_reply 在当前话题回复 BH854-INTEGRATED-OK。不要本地 DM、Assignment 或修改 Memory。",
+      "route": {
+        "messageId": "1791191684.836289",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791188299.721909",
+        "rootId": "1791188299.721909"
+      },
+      "nativeEventId": "Ev0C6T4QB5SM",
+      "mentioned": true,
+      "sender": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "wake": {
+        "mode": "all",
+        "count": 1,
+        "intervalMs": 0,
+        "threadPolicyRevision": 5
+      },
+      "createdAt": "2026-10-05T09:14:44.836Z",
+      "handledAt": "2026-10-05T09:15:00.239Z",
+      "placements": [
+        {
+          "channel_id": "group-slack-qa-845"
+        }
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "threadId": "1791188299.721909",
+      "conversationId": "C0C6FPES0G5",
+      "rootId": "1791188299.721909",
+      "anchorSourceEventId": "im-cce4d01d2247a3ce59538f0e177fd667316bc9aed25b1a1c163fd14bfbb6ecc7",
+      "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+      "mode": "follow",
+      "wake": {
+        "wake": "digest",
+        "count": 2,
+        "intervalSeconds": 60
+      },
+      "revision": 1,
+      "changedAt": "2026-10-05T08:37:35.315Z",
+      "editor": {
+        "kind": "bot",
+        "botSlug": "bot-c30a3c24e3464f78a549ecd22c28be97"
+      }
+    },
+    {
+      "threadId": "1791188299.721909",
+      "conversationId": "C0C6FPES0G5",
+      "rootId": "1791188299.721909",
+      "anchorSourceEventId": "im-0354586f2365cbad8bf82971ecdb54357375f90a5a9aaaa633e99733b631db8e",
+      "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+      "mode": "exclude",
+      "wake": null,
+      "revision": 2,
+      "changedAt": "2026-10-05T08:45:52.015Z",
+      "editor": {
+        "kind": "human"
+      }
+    },
+    {
+      "threadId": "1791188299.721909",
+      "conversationId": "C0C6FPES0G5",
+      "rootId": "1791188299.721909",
+      "anchorSourceEventId": "im-125f801078f8c30f3427748e4a324d0a6f60f6de283054e99b98c55c0804dbce",
+      "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+      "mode": "inherit",
+      "wake": null,
+      "revision": 3,
+      "changedAt": "2026-10-05T08:50:30.043Z",
+      "editor": {
+        "kind": "human"
+      }
+    },
+    {
+      "threadId": "1791188299.721909",
+      "conversationId": "C0C6FPES0G5",
+      "rootId": "1791188299.721909",
+      "anchorSourceEventId": "im-d4fedc9b519cdc7105e8bb0e5d55ce8d0803ca1c42eb874086e615f65b15b6dd",
+      "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+      "mode": "follow",
+      "wake": null,
+      "revision": 4,
+      "changedAt": "2026-10-05T08:51:55.717Z",
+      "editor": {
+        "kind": "bot",
+        "botSlug": "bot-c30a3c24e3464f78a549ecd22c28be97"
+      }
+    },
+    {
+      "threadId": "1791188299.721909",
+      "conversationId": "C0C6FPES0G5",
+      "rootId": "1791188299.721909",
+      "anchorSourceEventId": "im-d4fedc9b519cdc7105e8bb0e5d55ce8d0803ca1c42eb874086e615f65b15b6dd",
+      "fingerprint": "cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733",
+      "mode": "inherit",
+      "wake": null,
+      "revision": 5,
+      "changedAt": "2026-10-05T08:52:02.490Z",
+      "editor": {
+        "kind": "bot",
+        "botSlug": "bot-c30a3c24e3464f78a549ecd22c28be97"
+      }
+    }
+  ],
+  "replies": [
+    {
+      "text": "BH854-ANCHOR-OK",
+      "messageTs": "1791188307.484399",
+      "threadTs": "1791188299.721909",
+      "botUser": "U0C6EQK4B8B",
+      "state": "provider-accepted"
+    },
+    {
+      "text": "BH854-FOLLOW-OK",
+      "messageTs": "1791189459.499699",
+      "threadTs": "1791188299.721909",
+      "botUser": "U0C6EQK4B8B",
+      "state": "provider-accepted"
+    },
+    {
+      "text": "BH854-DIGEST-OK",
+      "messageTs": "1791189534.412579",
+      "threadTs": "1791188299.721909",
+      "botUser": "U0C6EQK4B8B",
+      "state": "provider-accepted"
+    },
+    {
+      "text": "BH854-RESTART-OK",
+      "messageTs": "1791189856.091179",
+      "threadTs": "1791188299.721909",
+      "botUser": "U0C6EQK4B8B",
+      "state": "provider-accepted"
+    },
+    {
+      "text": "BH854-HUMAN-OVERRIDE-OK",
+      "messageTs": "1791190109.594119",
+      "threadTs": "1791188299.721909",
+      "botUser": "U0C6EQK4B8B",
+      "state": "provider-accepted"
+    },
+    {
+      "text": "BH854-EXIT-OK",
+      "messageTs": "1791190326.668599",
+      "threadTs": "1791188299.721909",
+      "botUser": "U0C6EQK4B8B",
+      "state": "provider-accepted"
+    },
+    {
+      "text": "BH854-INTEGRATED-OK",
+      "messageTs": "1791191696.719799",
+      "threadTs": "1791188299.721909",
+      "botUser": "U0C6EQK4B8B",
+      "state": "provider-accepted"
+    }
+  ],
+  "modelThreadTools": [
+    {
+      "at": 1791189454928,
+      "name": "bridge_thread_policy_set",
+      "arguments": {
+        "source_event_id": "im-cce4d01d2247a3ce59538f0e177fd667316bc9aed25b1a1c163fd14bfbb6ecc7",
+        "expected_revision": 0,
+        "mode": "follow",
+        "wake": "digest",
+        "count": 2,
+        "interval_seconds": 60
+      },
+      "result": [
+        {
+          "type": "text",
+          "text": "{\"threadId\":\"1791188299.721909\",\"conversationId\":\"C0C6FPES0G5\",\"rootId\":\"1791188299.721909\",\"anchorSourceEventId\":\"im-cce4d01d2247a3ce59538f0e177fd667316bc9aed25b1a1c163fd14bfbb6ecc7\",\"fingerprint\":\"cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733\",\"mode\":\"follow\",\"wake\":{\"wake\":\"digest\",\"count\":2,\"intervalSeconds\":60},\"revision\":1,\"changedAt\":\"2026-10-05T08:37:35.315Z\",\"editor\":{\"kind\":\"bot\",\"botSlug\":\"bot-c30a3c24e3464f78a549ecd22c28be97\"}}"
+        }
+      ],
+      "isError": false
+    },
+    {
+      "at": 1791190101687,
+      "name": "bridge_thread_policy_set",
+      "arguments": {
+        "count": 2,
+        "expected_revision": 2,
+        "interval_seconds": 60,
+        "mode": "follow",
+        "source_event_id": "im-125f801078f8c30f3427748e4a324d0a6f60f6de283054e99b98c55c0804dbce",
+        "wake": "digest"
+      },
+      "result": [
+        {
+          "type": "text",
+          "text": "Error: human-thread-override"
+        }
+      ],
+      "isError": true
+    },
+    {
+      "at": 1791190310369,
+      "name": "bridge_thread_policy_set",
+      "arguments": {
+        "count": 2,
+        "expected_revision": 3,
+        "interval_seconds": 60,
+        "mode": "follow",
+        "source_event_id": "im-d4fedc9b519cdc7105e8bb0e5d55ce8d0803ca1c42eb874086e615f65b15b6dd",
+        "wake": null
+      },
+      "result": [
+        {
+          "type": "text",
+          "text": "Error: invalid arguments: \"wake\" must be a string"
+        }
+      ],
+      "isError": true
+    },
+    {
+      "at": 1791190314870,
+      "name": "bridge_thread_policy_set",
+      "arguments": {
+        "count": 2,
+        "expected_revision": 3,
+        "interval_seconds": 60,
+        "mode": "follow",
+        "source_event_id": "im-d4fedc9b519cdc7105e8bb0e5d55ce8d0803ca1c42eb874086e615f65b15b6dd",
+        "wake": "inherit"
+      },
+      "result": [
+        {
+          "type": "text",
+          "text": "{\"threadId\":\"1791188299.721909\",\"conversationId\":\"C0C6FPES0G5\",\"rootId\":\"1791188299.721909\",\"anchorSourceEventId\":\"im-d4fedc9b519cdc7105e8bb0e5d55ce8d0803ca1c42eb874086e615f65b15b6dd\",\"fingerprint\":\"cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733\",\"mode\":\"follow\",\"wake\":null,\"revision\":4,\"changedAt\":\"2026-10-05T08:51:55.717Z\",\"editor\":{\"kind\":\"bot\",\"botSlug\":\"bot-c30a3c24e3464f78a549ecd22c28be97\"}}"
+        }
+      ],
+      "isError": false
+    },
+    {
+      "at": 1791190322070,
+      "name": "bridge_thread_policy_set",
+      "arguments": {
+        "count": 2,
+        "expected_revision": 4,
+        "interval_seconds": 60,
+        "mode": "inherit",
+        "source_event_id": "im-d4fedc9b519cdc7105e8bb0e5d55ce8d0803ca1c42eb874086e615f65b15b6dd",
+        "wake": "inherit"
+      },
+      "result": [
+        {
+          "type": "text",
+          "text": "{\"threadId\":\"1791188299.721909\",\"conversationId\":\"C0C6FPES0G5\",\"rootId\":\"1791188299.721909\",\"anchorSourceEventId\":\"im-d4fedc9b519cdc7105e8bb0e5d55ce8d0803ca1c42eb874086e615f65b15b6dd\",\"fingerprint\":\"cfd9829d7cfa8475b4254298a41db7f1e41ee1e2d6fd34e3128ef9d67a67c733\",\"mode\":\"inherit\",\"wake\":null,\"revision\":5,\"changedAt\":\"2026-10-05T08:52:02.490Z\",\"editor\":{\"kind\":\"bot\",\"botSlug\":\"bot-c30a3c24e3464f78a549ecd22c28be97\"}}"
+        }
+      ],
+      "isError": false
+    }
+  ]
+}

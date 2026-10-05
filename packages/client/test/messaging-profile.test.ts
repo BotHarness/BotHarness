@@ -402,6 +402,97 @@ it.each(['test', 'slack'])(
   },
 );
 
+it('keeps native Thread management available after a grant migrates to Channel Bridge routes', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const snapshot: MessagingSnapshot = {
+    accounts: [],
+    intents: [],
+    grants: [
+      {
+        id: 'slack-grant',
+        bindingId: 'binding',
+        botSlug: 'ada',
+        providerId: 'dsh-im',
+        accountRef: 'app',
+        accountName: 'Own Slack identity',
+        fingerprint: 'a'.repeat(64),
+        platform: 'slack',
+        targetRef: 'team',
+        targetName: 'Work channel',
+        targetDigest: 'b'.repeat(64),
+        revision: 1,
+        createdAt: '',
+        availability: 'available',
+        reception: 'receiving',
+        bridgeRoutes: [],
+        threadPolicies: [
+          {
+            threadId: '1791188299.721909',
+            rootId: '1791188299.721909',
+            conversationId: 'C-team',
+            anchorSourceEventId: 'source-slack',
+            fingerprint: 'a'.repeat(64),
+            mode: 'inherit',
+            revision: 3,
+            wake: null,
+            changedAt: '',
+            editor: { kind: 'bot', botSlug: 'ada' },
+            ordinaryDelivery: 'verified',
+            preview: 'Native Slack topic',
+          },
+        ],
+      },
+    ],
+  };
+  const messagingThreadPolicy = vi.fn(async () => undefined);
+  const actions = {
+    messagingThreadPolicy,
+    messagingGroupPolicy: vi.fn(),
+    messagingChannelTarget: vi.fn(),
+    messagingReceive: vi.fn(),
+    messagingSend: vi.fn(),
+    messagingIdentity: vi.fn(),
+    messagingSnapshot: async () => snapshot,
+    messagingTargets: async () => [],
+    messagingAuthorize: vi.fn(),
+    messagingRevoke: vi.fn(),
+  };
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
+    );
+    expect(container.textContent).toContain(zhTranslate('bridge.managed'));
+    expect(container.querySelector('table')?.textContent).toContain('Native Slack topic');
+    const manage = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === zhTranslate('im.threadManage'),
+    );
+    if (!manage) throw new Error('missing Thread management');
+    await act(async () => manage.click());
+    const mode = container.querySelector<HTMLSelectElement>('[role="dialog"] select');
+    if (!mode) throw new Error('missing Thread policy');
+    await act(async () => {
+      mode.value = 'exclude';
+      mode.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    const submit = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === zhTranslate('im.threadSave'),
+    );
+    if (!submit) throw new Error('missing Thread save');
+    await act(async () => submit.click());
+    expect(messagingThreadPolicy).toHaveBeenCalledExactlyOnceWith('ada', 'source-slack', {
+      mode: 'exclude',
+      expectedRevision: 3,
+      wake: null,
+    });
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
 it('shows per-Thread state, refuses unverified follow and saves the exact Human revision from the Modal', async () => {
   const { ThreadReceptionSettings } = await import('../src/client/thread-reception-settings.js');
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
