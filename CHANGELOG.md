@@ -18,6 +18,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Completed Assignment Reports and Host-confirmed native completion retain separate navigable Inbox sources linked by trusted Session/Turn identity, without a duplicate wake; late notices remain pending across restart until a real Turn handles them ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)).
+
+- Added a resumable Lark / Feishu setup guide in PersonaBot Profile that locates real IM controls and checks current account, identity, group authorization and same-topic reply evidence without storing a separate onboarding workflow ([#824](https://github.com/BotHarness/BotHarness/issues/824)).
+
 - Added independently editable Slack intake, harvest and bound-identity defaults in Bot settings, with Profile inheritance and explicit overrides preserved ([#843](https://github.com/BotHarness/BotHarness/issues/843)).
 
 - Human can explicitly collect ordinary text from an authorized Slack channel and choose existing count/time harvest or safely queued immediate wake in Profile; new connections remain mention-only, and overlapping mention subscriptions are deduplicated ([#837](https://github.com/BotHarness/BotHarness/issues/837)).

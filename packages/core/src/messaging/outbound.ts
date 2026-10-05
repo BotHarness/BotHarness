@@ -147,6 +147,20 @@ export interface OutboxIntent {
 }
 
 export interface MessagingSnapshot {
+  setup?: {
+    providerReady: boolean;
+    receipts: {
+      sourceEventId: string;
+      grantId: string;
+      messageId: string;
+      conversationId: string;
+      threadId?: string;
+      at: string;
+      replyState?: OutboxState;
+      replyMessageId?: string;
+      echoObserved: boolean;
+    }[];
+  };
   identities?: MessagingIdentityView[];
   channelTargets?: { id: string; name: string }[];
   accounts: (MessagingAccount & { providerId: string })[];
@@ -1038,7 +1052,71 @@ export function createOutboundMessaging(options: {
           }
         });
       });
-      return { accounts, identities, grants, channelTargets, intents: history(botSlug) };
+      const intents = history(botSlug);
+      const setupRows = database.read((db) =>
+        db
+          .prepare(`SELECT source_event_id FROM source_events
+          WHERE bot_slug = ? AND source_kind = 'bridge-message'
+          AND instr(body, '[BH-LARK-SETUP]') > 0
+          ORDER BY created_at DESC, source_event_id DESC LIMIT 20`)
+          .all(botSlug),
+      ) as { source_event_id: string }[];
+      const receipts: NonNullable<MessagingSnapshot['setup']>['receipts'] = [];
+      for (const row of setupRows) {
+        try {
+          const source = inbound.read(botSlug, row.source_event_id);
+          const current = grants.find((g) => g.id === source.grantId);
+          if (
+            source.platform !== 'feishu' ||
+            !source.event.mentionedAccount ||
+            current?.availability !== 'available' ||
+            current.revokedAt ||
+            current.reception !== 'receiving' ||
+            current.receiveScope?.conversationId !== source.event.conversation.id ||
+            !source.event.reply.threadId
+          )
+            continue;
+          const intent = intents.find(
+            (i) =>
+              i.sourceEventId === source.id &&
+              i.grantId === current.id &&
+              i.reply?.route.threadId === source.event.reply.threadId &&
+              i.text.trim() === 'LARK-SETUP-OK',
+          );
+          receipts.push({
+            sourceEventId: source.id,
+            grantId: current.id,
+            messageId: source.event.messageId,
+            conversationId: source.event.conversation.id,
+            threadId: source.event.reply.threadId,
+            at: source.at,
+            ...(intent ? { replyState: intent.state } : {}),
+            ...(intent?.receipt?.conversationId === source.event.conversation.id
+              ? { replyMessageId: intent.receipt.messageId }
+              : {}),
+            echoObserved:
+              intent?.state === 'provider-accepted' &&
+              !!intent.echo &&
+              intent.receipt?.conversationId === source.event.conversation.id,
+          });
+        } catch (error) {
+          if (!(error instanceof MessagingError)) throw error;
+        }
+      }
+      return {
+        accounts,
+        identities,
+        grants,
+        channelTargets,
+        intents,
+        setup: {
+          providerReady: [...providers.values()].some(
+            ({ provider }) =>
+              provider.id === 'dsh-im/feishu' && !!provider.consume && !!provider.reply,
+          ),
+          receipts,
+        },
+      };
     },
     async targets(providerId, accountRef) {
       return provider(providerId).provider.targets(accountRef);

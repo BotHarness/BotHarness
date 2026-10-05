@@ -21,6 +21,7 @@
     "@blobatar/react": "^2.7.0",
     "@botharness/botui-core": "0.3.0",
     "blobatar": "^2.7.0",
+    "driver.js": "1.4.0",
     "morphicons": "1.7.1"
   },
   "devDependencies": {

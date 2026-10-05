@@ -4,6 +4,7 @@ import { Modal } from './modal.js';
 import { MessagingHelp } from './messaging-help.js';
 import type { OutboxIntent } from '../../../core/src/messaging/outbound.js';
 import { ExternalIdentityTable } from './external-identity-table.js';
+import { LarkSetupGuide } from './lark-setup-guide.js';
 import { ThreadReceptionSettings } from './thread-reception-settings.js';
 import type {
   GroupReceptionInput,
@@ -150,6 +151,12 @@ export function MessagingProfile({
   };
   return (
     <>
+      <LarkSetupGuide
+        snapshot={snapshot}
+        t={t}
+        refresh={refresh}
+        loadTargets={actions.messagingTargets}
+      />
       <ExternalIdentityTable
         snapshot={snapshot}
         t={t}
@@ -160,6 +167,7 @@ export function MessagingProfile({
         }}
       />
       <section
+        data-bh-lark-grant
         className="bh-profile-section bh-profile-policy-section bh-im-settings"
         aria-label={t('im.title')}
       >

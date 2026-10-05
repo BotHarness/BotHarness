@@ -227,6 +227,8 @@ Source Event 是内容唯一权威；Channel 和 Inbox 都只保存关系。Repl
 
 Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完成后的安全边界、当前 turn 结束后，或 idle 时启动新 turn。普通外部消息不打断正在执行的 model/tool step；只有 DSH 明确支持且策略授权的控制路径才能 steer。就绪的 attention 按回合收割：忙碌期间新到的事件只把就绪集合置脏，当前回合结束（即空闲）时由一次 harvest turn 消费全部就绪项；主动 steer 只用于直接 @ 与 DM（ADR-0077）。
 
+[#824](https://github.com/BotHarness/BotHarness/issues/824) 在 PersonaBot Profile 增加可恢复的配置引导，本地打包的 Driver.js 定位既有原生 IM 设置、身份与群授权控件。进度只投影当前兼容 Provider、账号、Binding／Grant、已收测试 Source Event 和沿原来源回复的 Outbox 回执；可选的认证自身回传仍单独呈现。平台接受、外部可见投递和已读回执明确区分。不建立新手引导数据库、额外凭据存储或消息权威；打开和关闭引导不产生授权或发送。
+
 ### 首条外部出站路径（ADR-0101）
 
 [ADR-0127](../adr/0127-product-artifacts-compose-an-independently-versioned-im-provider.md) 提议在开发用 fork 政策之外增加产品分发路径：打包的 `deepseekbot` 固定 Core、Client 和独立版本的 `@botharness/im-provider`，通过同一 Bundle Patch 激活一个 Provider。Provider 保留 SDK、凭据、存储身份及公开 Service；Core 保留所有 application-defined authority。构建校验不可变输入、重建运行时来源和 tarball 完整性。原生优先从 CLI 安装位置解析 Bundle，因此产物验收使用独立安装的官方 CLI，避免误用开发链接。初始不连接账号；重复的 standalone Bundle 在启动前被拒绝。Provider 随产品更新。此构建路径不发布 npm、不自动资格验证其他平台，也不免除 Human QA 和生产启用门槛。参见[打包验收指南](../product-im-installation.md)。

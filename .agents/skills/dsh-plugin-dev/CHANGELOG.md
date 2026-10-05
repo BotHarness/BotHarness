@@ -10,6 +10,7 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded native Modal and third-party tour keyboard/focus ownership in the [local development guide](../dsh-dev/SKILL.md), verified with an independently installed DSH 0.2.0 RC1 packaged Client and Driver.js 1.4.0 ([#824](https://github.com/BotHarness/BotHarness/issues/824)).
 - Recorded DSH's installation-first Bundle resolution and pnpm 12 artifact override location in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), verified with an independent official DSH 0.2.0 RC1 installation and actual packaged Client inventory ([#823](https://github.com/BotHarness/BotHarness/issues/823)).
 - Recorded a duplicate detached Host after a timed-out isolated launch and the resulting operational writer lease refusal in the [local development guide](../dsh-dev/SKILL.md), verified with DSH 0.2.0 RC1 during Assignment capacity QA ([#811](https://github.com/BotHarness/BotHarness/issues/811)).
 

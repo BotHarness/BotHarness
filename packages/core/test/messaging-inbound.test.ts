@@ -3649,3 +3649,36 @@ it('binds nearby minima to continuation and permits delayed reads for thirty min
     ).rejects.toThrow('invalid-history-query');
   }
 });
+
+it('derives setup receipt from an admitted topic, own reply and authenticated echo; revocation removes completion', async () => {
+  const fx = await fixture({ receipts: true, secondIdentity: true });
+  await fx.enable();
+  await fx.receive(event({ text: '[BH-LARK-SETUP] Reply LARK-SETUP-OK' }));
+  await fx.idle();
+  const sources = fx.query(
+    "SELECT source_event_id FROM source_events WHERE source_kind = 'bridge-message'",
+  ) as { source_event_id: string }[];
+  const id = sources[0]!.source_event_id;
+  expect((await fx.core.externalMessaging.snapshot('ada')).setup).toMatchObject({
+    providerReady: true,
+    receipts: [{ sourceEventId: id, echoObserved: false, threadId: 'omt-topic' }],
+  });
+  await fx.core.externalMessaging.reply('ada', id, 'LARK-SETUP-OK');
+  expect((await fx.core.externalMessaging.snapshot('ada')).setup?.receipts[0]).toMatchObject({
+    replyState: 'provider-accepted',
+    echoObserved: false,
+  });
+  await fx.echo('lark-app-reply', 'Wrong text');
+  expect((await fx.core.externalMessaging.snapshot('ada')).setup?.receipts[0]?.echoObserved).toBe(
+    false,
+  );
+  await fx.echo('lark-app-reply', 'LARK-SETUP-OK');
+  expect((await fx.core.externalMessaging.snapshot('ada')).setup?.receipts[0]?.echoObserved).toBe(
+    true,
+  );
+  fx.setReady(false);
+  expect((await fx.core.externalMessaging.snapshot('ada')).setup?.receipts).toEqual([]);
+  fx.setReady(true);
+  fx.core.externalMessaging.revoke('ada', fx.grant.id);
+  expect((await fx.core.externalMessaging.snapshot('ada')).setup?.receipts).toEqual([]);
+});

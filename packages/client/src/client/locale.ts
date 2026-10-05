@@ -4,6 +4,58 @@ export const LOCALE_NS = 'botharness';
 
 export const zh = {
   'defaults.externalWake': '{platform} 普通消息',
+
+  'setup.test':
+    '[BH-LARK-SETUP] 请在本话题使用 bridge_reply 只回复 LARK-SETUP-OK。不要另发群主线消息，也不要创建 Assignment。',
+  'setup.title': '连接 Lark / 飞书',
+  'setup.open': '配置引导',
+  'setup.summary':
+    '沿用真实账号、身份和群授权。点击步骤只定位控件，不会发送消息，也不会把步骤标记为完成。',
+  'setup.platform': '应用平台',
+  'setup.lark': 'Lark（国际版）',
+  'setup.feishu': '飞书',
+  'setup.console': '打开开发者后台',
+  'setup.guide': '图文与视频教程',
+  'setup.guideUrl': 'https://botharness.ai/zh/docs/lark-connection/',
+  'setup.prepare': '先准备应用机器人',
+  'setup.application': '创建企业自建应用并添加机器人能力。',
+  'setup.permissions':
+    '应用身份至少需要 im:message.group_at_msg:readonly 与 im:message:send_as_bot；按需申请历史或附件权限。',
+  'setup.events':
+    '选择长连接并订阅 im.message.receive_v1。如果需要先建立连接，先完成本机账号连接，再回来保存事件。',
+  'setup.publish': '发布应用版本并完成组织审批；将新机器人加入指定测试群。',
+  'setup.credentials':
+    'App Secret 仅输入现有本机 Provider 设置；Human 扫码登录不能代替应用机器人身份。',
+  'setup.providerMissing': '尚未确认兼容的接收 Provider。请检查产品安装和 Provider 状态，再刷新。',
+  'setup.done': '已确认',
+  'setup.pending': '待确认',
+  'setup.locate': '定位现有控件',
+  'setup.verifyHint':
+    '在所选账号已授权群的话题中 @机器人发送以下测试文字。另发一条无 @消息，确认默认不收件。绿色／灰色已读圆圈不是收件证据。',
+  'setup.received': '已记录真实话题收件',
+  'setup.echo': '已观测到关联回复；请到 Lark 原话题核对。',
+  'setup.accepted': '平台已接受回复，尚未观测到回传；请到原话题核对。',
+  'setup.awaiting': '已收件，等待该身份回复。',
+  'setup.optional':
+    '初次保持仅 Bot Inbox、只收 @。完成后可在「频道连接器」中显式添加本地 DM／群投递；默认设置、Attention 和唤醒策略仍分别管理。',
+  'setup.failed': '状态核对失败或控件不可用。保留现有配置，关闭引导后打开实际设置，再刷新重试。',
+  'setup.checking': '正在核对…',
+  'setup.refresh': '核对真实状态',
+  'setup.resume':
+    '可以关闭后继续；重新打开会核对当前配置。断开、停用、解绑或撤销群授权会重新显示待确认步骤。',
+  'setup.step.account': '连接应用账号',
+  'setup.step.target': '测试并保存投递目标',
+  'setup.step.identity': '绑定此 Bot 的外部身份',
+  'setup.step.grant': '授权指定群并启用收件',
+  'setup.step.verify': '验证 @话题收件和原话题回复',
+  'setup.hint.account': '在「设置 → IM机器人 → 飞书」选择正确平台，使用应用凭据绑定并连接。',
+  'setup.hint.target': '在账号的投递设置中选择测试群，确认原生 Chat ID；测试后保存目标。',
+  'setup.hint.identity': '点击绑定身份，选择已连接的账号。每个平台一个身份；其他 Bot 不能借用它。',
+  'setup.hint.grant':
+    '在频道连接器与授权中选择已绑定账号和保存目标，再明确绑定并授权此目标。保持 Inbox-only 和只收 @。',
+  'setup.hint.verify':
+    '在原生话题中发送指定 @测试；核对 Source Event 和本 Bot 自己身份的关联回复。',
+
   'defaults.restore': '恢复继承',
   'defaults.threshold': '汇总阈值',
   'defaults.platform': '默认设置的平台',
@@ -1439,6 +1491,64 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 
 export const en = {
   'defaults.externalWake': '{platform} ordinary messages',
+
+  'setup.test':
+    '[BH-LARK-SETUP] Use bridge_reply to reply only LARK-SETUP-OK in this topic. Do not send to the group mainline or create an Assignment.',
+  'setup.title': 'Connect Lark / Feishu',
+  'setup.open': 'Setup guide',
+  'setup.summary':
+    'Use real accounts, identities and group grants. Steps locate existing controls; opening the guide never sends or marks an operation successful.',
+  'setup.platform': 'Application platform',
+  'setup.lark': 'Lark (international)',
+  'setup.feishu': 'Feishu',
+  'setup.console': 'Open developer console',
+  'setup.guide': 'Illustrated guide and video',
+  'setup.guideUrl': 'https://botharness.ai/docs/lark-connection/',
+  'setup.prepare': 'Prepare an application Bot',
+  'setup.application': 'Create an internal application and add Bot capability.',
+  'setup.permissions':
+    'Application scopes need im:message.group_at_msg:readonly and im:message:send_as_bot; request history or resource access only as needed.',
+  'setup.events':
+    'Use persistent connection and subscribe to im.message.receive_v1. If a connection is required first, connect locally before saving the event.',
+  'setup.publish':
+    'Publish the version, complete organization approval, and add the new Bot to the designated test group.',
+  'setup.credentials':
+    'Enter App Secret only in existing local Provider settings. Human QR login is distinct from an application Bot identity.',
+  'setup.providerMissing':
+    'A compatible receive Provider is not confirmed. Check the product installation and Provider, then refresh.',
+  'setup.done': 'Confirmed',
+  'setup.pending': 'Not confirmed',
+  'setup.locate': 'Locate existing controls',
+  'setup.verifyHint':
+    'In a topic of the selected account’s authorized group, @mention the Bot with the test text below. Send an unmentioned message separately to check default rejection. External read circles do not prove receipt.',
+  'setup.received': 'Real topic receipt recorded',
+  'setup.echo': 'Correlated reply observed; check the original Lark topic.',
+  'setup.accepted': 'Platform accepted the reply; echo not observed. Check the original topic.',
+  'setup.awaiting': 'Received; waiting for this identity to reply.',
+  'setup.optional':
+    'Start with Bot Inbox only and mentions only. Afterwards, explicitly add DM or Group routing in Channel connectors. Defaults, Attention and wake policy remain separate.',
+  'setup.failed':
+    'Status check failed or controls are unavailable. Keep the configuration, open actual settings after closing the guide, then retry.',
+  'setup.checking': 'Checking…',
+  'setup.refresh': 'Check current state',
+  'setup.resume':
+    'Close and resume anytime. Reopening checks current configuration; disconnection, disable, unbind or grant revocation returns the relevant step to unconfirmed.',
+  'setup.step.account': 'Connect application account',
+  'setup.step.target': 'Test and save a delivery target',
+  'setup.step.identity': 'Bind this Bot’s external identity',
+  'setup.step.grant': 'Authorize the exact group and enable intake',
+  'setup.step.verify': 'Verify topic @receipt and original-topic reply',
+  'setup.hint.account':
+    'In Settings → IM Bots → Feishu, choose the correct platform and connect with application credentials.',
+  'setup.hint.target':
+    'In account delivery settings, choose the test group and check its native Chat ID; test and save the target.',
+  'setup.hint.identity':
+    'Click Bind identity and choose the connected account. One identity per platform; other Bots cannot borrow it.',
+  'setup.hint.grant':
+    'In Channel Bridge and authorization, choose the bound account and saved target, then explicitly authorize. Keep Inbox-only and mentions-only.',
+  'setup.hint.verify':
+    'Send the designated @test in a native topic; inspect its Source Event and the correlated reply under this Bot’s own identity.',
+
   'defaults.restore': 'Restore inheritance',
   'defaults.threshold': 'Harvest threshold',
   'defaults.platform': 'Platform for defaults',
