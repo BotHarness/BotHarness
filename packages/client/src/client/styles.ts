@@ -756,7 +756,26 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   gap: 8px;
 }
 .bh-channel-island .bh-row-status,
-.bh-pinned .bh-row-status {
+.bh-pinned html[data-botharness-activity='stale'] .bh-persona-avatar *,
+html[data-botharness-activity='stale'] .bh-row-status * {
+  animation-play-state: paused !important;
+}
+html[data-botharness-activity='stale'] .bh-row-status,
+html[data-botharness-activity='stale'] .bh-avatar-botui,
+html[data-botharness-activity='stale'] .bh-avatar-indicator {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+.bh-activity-stale {
+  margin: 4px 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--bh-hover);
+}
+.bh-row-status {
   margin-left: 4px;
 }
 .bh-row-status {
