@@ -20,6 +20,14 @@
 源码包保留 private／0.0.0；已有打包器在独立暂存目录产生公开 manifest 和预编译入口，
 保留 MIT、Provider attribution 和 `PROVENANCE.json`，不打包账号、凭据、Binding 或 Grant。
 
+## 正式版本
+
+`0.1.0-alpha.1` 已发布。同一组 workflow 现在也可以发布 `1.0.0` 这样的正式 SemVer：
+正式版本的计划记录 dist-tag `latest`，alpha、beta、RC 版本记录 `next`；发布时需要输入
+字面确认 `publish <version> to <tag>`（例如 `publish 1.0.0 to latest`）。正式版本发布后，
+还会把 Core、Client 与产品包的 `next` 移到同一版本，避免 `deepseekbot@next` 落后于
+`deepseekbot`。Provider 保持独立版本；字节完全一致的已发布版本会被跳过。
+
 ## 无凭据准备
 
 在 main 手动运行 **npm prerelease preparation**，填写拟发布版本。它检查、构建精确版本，
@@ -57,13 +65,13 @@ BotUI 的 repository secret 不会自动共享给 BotHarness。需要在 **BotHa
 ## 明确发布与读回
 
 Human 批准后，从 main 手动运行 **publish reviewed npm prerelease**，输入成功的 main 手动
-preparation run、源码 SHA、版本、审阅过的 plan SHA-256，以及 `publish <version> to next`。
+preparation run、源码 SHA、版本、审阅过的 plan SHA-256，以及 `publish <version> to <tag>`（正式版本为 `latest`，预发布为 `next`）。
 首次发布的 SHA 必须仍是当前 main；main 前进后重新准备、审阅。
 已部分发布的版本适用下方显式恢复例外，保留原已批准的 source 和字节，不重建不可变版本。
 
 publisher 核对 preparation 的 workflow、事件、分支、成功状态和 SHA，下载原产物并在无
 发布凭据下校验、演练。只有最后发布步骤收到 `NPM_TOKEN`。不重建，不因 push、tag、merge
-自动发布。依赖先于产品，使用 public access 和 `next`，不使用 `latest`。每包发布后读回
+自动发布。依赖先于产品，使用 public access 和计划中的 dist-tag。每包发布后读回
 registry integrity；权限或网络失败立即停止，不盲目重试结果不明的发布。
 
 宣称 prerelease 可用前，独立核对四包版本、integrity 和 `next` 标签，再从公开 registry

@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Exact prerelease version to prepare (no publication)
+        description: Exact version to prepare (no publication); stable goes to latest, alpha/beta/rc to next
         required: true
-        default: 0.1.0-alpha.1
+        default: 1.0.0
   pull_request:
     paths:
       - .github/workflows/npm-prerelease-*.yml

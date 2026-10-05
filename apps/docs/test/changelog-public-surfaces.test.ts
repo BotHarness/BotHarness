@@ -44,8 +44,10 @@ describe("built release and Development status surfaces", () => {
 
       const englishRss = built("changelog/rss.xml");
       const chineseRss = built("zh/changelog/rss.xml");
-      expect(englishRss.match(/<item>/g)).toHaveLength(1);
-      expect(chineseRss.match(/<item>/g)).toHaveLength(1);
+      expect(englishRss.match(/<item>/g)).toHaveLength(2);
+      expect(chineseRss.match(/<item>/g)).toHaveLength(2);
+      expect(englishRss).toContain("/changelog/v100/");
+      expect(chineseRss).toContain("/zh/changelog/v100/");
       expect(englishRss).toContain("/changelog/development/");
       expect(chineseRss).toContain("/zh/changelog/development/");
 

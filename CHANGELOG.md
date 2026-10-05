@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Advances the first PersonaBot workflow with Assignment delivery, shared motion controls, and a channel composer island.
+Nothing yet since 1.0.0.
+
+## [1.0.0] - 2026-10-05
+
+First stable DeepSeekBot release on npm: PersonaBots with their own identity, Git Memory, Groups, Assignments, pixel avatars, and Lark, Slack, Discord and WeChat identities, installed into DSH as one plugin.
 
 ### Breaking Changes
 
@@ -60,10 +64,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a checked Slack text-mention path from an independently bound PersonaBot identity into its canonical Inbox and original native thread reply, reusing Profile identity/connector tables and source details; context, attachments and ordinary-message policies remain separate qualification slices ([#802](https://github.com/BotHarness/BotHarness/issues/802), [ADR-0126](docs/adr/0126-slack-text-intake-uses-exclusive-checked-provider.md)).
 - Host Plugins can subscribe to PersonaBot committed public output with trusted Session/Channel references; failed consumers cannot roll back messages or block other listeners, and restart does not replay notifications ([#125](https://github.com/BotHarness/BotHarness/issues/125)).
 
-- Line-family PersonaBot avatars briefly morph their face strokes into a symbol for the new activity (?, magnifier, </>, !, ♪, smiling face) and back, using morphicons spring stroke morphing; transitions retarget mid-way from the displayed shape and replace the corner activity marks, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
+- Line-family PersonaBot avatars briefly morph their face strokes into a symbol for the new activity (?, magnifier, `</>`, !, ♪, smiling face) and back, using morphicons spring stroke morphing; transitions retarget mid-way from the displayed shape and replace the corner activity marks, are shorter on small avatars and are skipped under reduced motion ([#754](https://github.com/BotHarness/BotHarness/issues/754)).
 - Added an opt-in Container `agent-browser` driver using the existing Browser Viewer, takeover, uploads and persistent profile; Local and Container retain independent default drivers ([#768](https://github.com/BotHarness/BotHarness/issues/768)).
 
-- PersonaBot Profile can switch the avatar between the pixel family and a new original line family (bold strokes on a coloured tile) with its own eyes and mouths (including kaomoji such as > <, T T, ω and ▽), brows, nose, cheeks, glasses, manga symbols (sweat, anger vein, gloom lines, sparkle and more), background/line colors and bounded spacing, height and tilt; line avatars save, snapshot, animate, show independent approval attention and recover through the same path; large avatars of both families show a manga `!?` mark while action is needed ([#753](https://github.com/BotHarness/BotHarness/issues/753)).
+- PersonaBot Profile can switch the avatar between the pixel family and a new original line family (bold strokes on a coloured tile) with its own eyes and mouths (including kaomoji such as `> <`, T T, ω and ▽), brows, nose, cheeks, glasses, manga symbols (sweat, anger vein, gloom lines, sparkle and more), background/line colors and bounded spacing, height and tilt; line avatars save, snapshot, animate, show independent approval attention and recover through the same path; large avatars of both families show a manga `!?` mark while action is needed ([#753](https://github.com/BotHarness/BotHarness/issues/753)).
 
 - Browser observations now include bounded form values and control states; the optional Local agent-browser snapshot removes repeated scaffolding while retaining page/dialog content and exact action refs ([#787](https://github.com/BotHarness/BotHarness/issues/787)).
 
@@ -274,6 +278,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- DeepSeekBot is published as a stable version on the npm `latest` tag, with `next` moved along; install it with `dsh plugin --profile web add deepseekbot` or by entering `deepseekbot` in the desktop Add plugin dialog ([#895](https://github.com/BotHarness/BotHarness/pull/895), [release guide](docs/npm-prerelease.md)).
 
 - Channel sections, pins, hidden entries and root order now persist in the Profile database after a validated one-time import; restart no longer depends on the retained legacy roster domain, while native sorting and per-Client collapse keep their existing owners ([#885](https://github.com/BotHarness/BotHarness/issues/885)).
 
@@ -533,6 +539,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
 
 ### Documentation
+
+- The README and npm page now match the pixel-art website, with its share cards, desktop and CLI install, shipped IM platforms, pixel avatars and community links ([#895](https://github.com/BotHarness/BotHarness/pull/895), [website](https://deepseekbot.botharness.ai)).
 
 - Documented the accepted PersonaBot/Channel deletion contract: an unchecked optional Memory-erasure choice with direct folder access, history-preserving Channel deletion, and the real Purge Ledger prerequisite for Profile restore; runtime controls remain separate implementation work ([#138](https://github.com/BotHarness/BotHarness/issues/138), [ADR-0130](docs/adr/0130-deletion-preserves-history-and-makes-memory-erasure-explicit.md)).
 
