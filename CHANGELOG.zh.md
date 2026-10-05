@@ -17,6 +17,7 @@
 
 ### Documentation
 
+- 通过真实原生 App／Bot 身份与错误服务器拒绝、新消息恢复和截图，完成开发源码 Discord @ 收件／回复首片资格验证；其他能力与产品 Provider 固定版本仍独立管理（[#855](https://github.com/BotHarness/BotHarness/issues/855), [验证](docs/dev/verification/discord-855-mention-reply.md)）。
 - 把 DeepSeekBot 使用教程迁到官网（英文 [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/)，中文 [/docs](https://deepseekbot.botharness.ai/docs/overview/)）；botharness.ai 上原来的每个教程地址都会跳到新站的同一篇，开发者文档仍留在 botharness.ai（[#914](https://github.com/BotHarness/BotHarness/pull/914)）。
 
 ## [1.0.0] - 2026-10-05

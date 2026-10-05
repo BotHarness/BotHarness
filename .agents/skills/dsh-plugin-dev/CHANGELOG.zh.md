@@ -9,7 +9,7 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 
 ### Documentation
 
-- 更新下游 Discord 验证指南，记录真实来源删除分类缺陷、新的修复后模型来源／权限拒绝、原权限精确恢复与原生回复恢复；DSH 词汇与 Skill 行为保持不变（[#855](https://github.com/BotHarness/BotHarness/issues/855), [验证](../../../docs/dev/verification/discord-855-mention-reply.md)）。
+- 更新下游 Discord 验证指南，记录真实来源删除分类缺陷、新的修复后模型来源／权限拒绝、原权限精确恢复、原生 App／Bot 与错误服务器边界及开发源码 @ 收件／回复资格验证；DSH 词汇与 Skill 行为保持不变（[#855](https://github.com/BotHarness/BotHarness/issues/855), [验证](../../../docs/dev/verification/discord-855-mention-reply.md)）。
 
 - 链接使用公共 DeepSeekBot 与 DSH 0.2.0 RC1 核验的下游 Channel sidebar 图文功能教程；平台词汇和 Skill 行为保持不变（[#893](https://github.com/BotHarness/BotHarness/issues/893), [教程](../../../docs/channel-sidebar/index.md)）。
 
