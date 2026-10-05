@@ -15,12 +15,50 @@ afterEach(async () => {
   }
 });
 
-it.each([undefined, '555555555555555555'])(
-  'Discord mention retains exact channel/thread %s through canonical Inbox and own-identity reply',
-  async (threadId) => {
+it.each([
+  {
+    name: 'channel reply',
+    threadId: undefined,
+    refusal: undefined,
+    state: 'provider-accepted',
+    reason: undefined,
+  },
+  {
+    name: 'thread reply',
+    threadId: '555555555555555555',
+    refusal: undefined,
+    state: 'provider-accepted',
+    reason: undefined,
+  },
+  {
+    name: 'deleted source',
+    threadId: undefined,
+    refusal: 'source-not-found',
+    state: 'failed',
+    reason: 'source-not-found',
+  },
+  {
+    name: 'thread permission refusal',
+    threadId: '555555555555555555',
+    refusal: 'reply-permission-denied',
+    state: 'failed',
+    reason: 'reply-permission-denied',
+  },
+  {
+    name: 'unknown transport outcome',
+    threadId: undefined,
+    refusal: 'reply-result-unknown',
+    state: 'unknown-outcome',
+    reason: 'provider-result-unknown',
+  },
+])(
+  'Discord canonical Inbox and own-identity reply preserve $name outcome',
+  async ({ threadId, refusal, state, reason }) => {
     const fingerprint = 'd'.repeat(64);
     let consumer: Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1] | undefined;
     let runs = 0;
+    let replyCalls = 0;
+    let outcome: unknown;
     let core: BotHarnessCore;
     const replies: { account: string; route: MessagingReplyRoute; text: string }[] = [];
     core = createCore({
@@ -32,7 +70,7 @@ it.each([undefined, '555555555555555555'])(
             .list({ botSlug: 'ada' })
             .items.find((item) => item.sourceKind === 'bridge-message');
           expect(source).toBeDefined();
-          await run.externalMessaging!.reply(source!.id, 'DISCORD-QA-OK');
+          outcome = await run.externalMessaging!.reply(source!.id, 'DISCORD-QA-OK');
         },
         async runAssignment() {},
         requestAssignment() {
@@ -82,6 +120,8 @@ it.each([undefined, '555555555555555555'])(
       },
       qualifyReplyChecked: async (_account, route) => route,
       replyChecked: async (account, route, text, options) => {
+        replyCalls++;
+        if (refusal) throw Object.assign(new Error(refusal), { code: refusal });
         expect(options.beforeSend?.()).toBe(true);
         replies.push({ account, route, text });
         return {
@@ -143,9 +183,13 @@ it.each([undefined, '555555555555555555'])(
     await core.runtime.whenIdle();
     await tick();
     expect(runs).toBe(1);
-    expect(replies).toEqual([
-      { account: 'discord-qa', route: source.reply, text: 'DISCORD-QA-OK' },
-    ]);
+    expect(replyCalls).toBe(1);
+    expect(outcome).toMatchObject({ state, ...(reason ? { reason } : {}) });
+    expect(replies).toEqual(
+      refusal ? [] : [{ account: 'discord-qa', route: source.reply, text: 'DISCORD-QA-OK' }],
+    );
+    expect(transport.sendChecked).not.toHaveBeenCalled();
+    expect(core.externalMessaging.history('ada')).toHaveLength(1);
     expect(core.attention.list({ botSlug: 'ada' }).items[0]).toMatchObject({
       externalOrigin: {
         platform: 'discord',
@@ -167,6 +211,7 @@ it.each([undefined, '555555555555555555'])(
     ).toHaveLength(0);
     await core.externalMessaging.revoke('ada', grant.id);
     await expect(consumer!.onEvent(source, { signal: consumer!.signal })).rejects.toThrow();
-    expect(replies).toHaveLength(1);
+    expect(replies).toHaveLength(refusal ? 0 : 1);
+    expect(replyCalls).toBe(1);
   },
 );
