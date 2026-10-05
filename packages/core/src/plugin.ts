@@ -286,6 +286,7 @@ export function createCore(
   );
   const externalMessaging = createOutboundMessaging({
     onDefaultsChanged: () => live?.publishRosterCommitted(),
+    onReceptionChanged: () => live?.publishRosterCommitted(),
     attachments,
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     sourcePolicy,
@@ -367,6 +368,8 @@ export function createCore(
       );
     refreshDurableAttention();
     operationalDatabase.subscribe(({ topics }) => {
+      if (topics.some((topic) => topic === 'bindings' || topic === 'grants'))
+        live?.publishRosterCommitted();
       if (
         topics.some((topic) =>
           ['assignments', 'source-event', 'channel', 'human-attention', 'usage'].includes(topic),

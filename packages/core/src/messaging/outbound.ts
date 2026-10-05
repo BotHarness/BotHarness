@@ -229,6 +229,7 @@ export function createOutboundMessaging(options: {
   isBotActive(slug: string): boolean;
   sourcePolicy?: BotSourcePolicyStore;
   onDefaultsChanged?: () => void;
+  onReceptionChanged?: () => void;
   onAdmitted?(botSlug: string, sourceEventId: string): void;
   onPlaced?(commit: ChannelMessageCommit): void;
   onShared?(botSlugs: string[]): void;
@@ -439,6 +440,7 @@ export function createOutboundMessaging(options: {
     sourcePolicy: options.sourcePolicy ?? createBotSourcePolicyStore(database),
     isBotActive: options.isBotActive,
     onAdmitted: options.onAdmitted ?? (() => undefined),
+    ...(options.onReceptionChanged ? { onReceptionChanged: options.onReceptionChanged } : {}),
     ...(options.onPlaced ? { onPlaced: options.onPlaced } : {}),
     ...(options.onShared ? { onShared: options.onShared } : {}),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
