@@ -1,0 +1,156 @@
+{
+  "baseline": "ba19dd80259833ba28b5a074e6050ddbcbcbfe0c",
+  "implementation": "d223aaabf615602fa6580350f5d21707a2513b52",
+  "provider": "48e7a35792af5222cd40cfe1ba2607ac55a59df2",
+  "checkedAt": "2026-10-05T05:13:14.048Z",
+  "viewport": {
+    "width": 882,
+    "height": 827
+  },
+  "locale": "zh",
+  "finalDefaults": {
+    "platform": "slack",
+    "collection": "all",
+    "wake": "digest",
+    "count": 2,
+    "intervalSeconds": 5,
+    "identityEnabled": true,
+    "revision": 5,
+    "changedAt": "2026-10-05T05:10:34.604Z"
+  },
+  "larkUnchanged": true,
+  "oldAdmissionSnapshotsUnchanged": true,
+  "restartDefaultsUnchanged": true,
+  "newOutbound": 0,
+  "excluded": ["EXCLUDE-STABLE", "PAUSED"],
+  "evidence": [
+    {
+      "tag": "CUSTOM",
+      "sourceEventId": "im-59190cc81930c150e74232cca1e467112164a9482a34f8e95d1bf590610b4b56",
+      "createdAt": "2026-10-05T05:02:20.099Z",
+      "handledAt": "2026-10-05T05:02:33.729Z",
+      "state": "handled",
+      "mode": "digest",
+      "count": 1,
+      "intervalMs": 5000,
+      "defaultRevision": 2
+    },
+    {
+      "tag": "COUNT-C",
+      "sourceEventId": "im-11a679a203475ba84d70f64ccfbab8f80c7a46acd3ac05f77ba6cf203a95f64b",
+      "createdAt": "2026-10-05T05:05:19.778Z",
+      "handledAt": "2026-10-05T05:06:10.344Z",
+      "state": "handled",
+      "mode": "digest",
+      "count": 2,
+      "intervalMs": 60000,
+      "defaultRevision": 3
+    },
+    {
+      "tag": "COUNT-D",
+      "sourceEventId": "im-55e3e48dbd5ab2e61987b39d2d820be5f2f2d6a395dee19d1291413ba68a9282",
+      "createdAt": "2026-10-05T05:06:01.106Z",
+      "handledAt": "2026-10-05T05:06:10.344Z",
+      "state": "handled",
+      "mode": "digest",
+      "count": 2,
+      "intervalMs": 60000,
+      "defaultRevision": 3
+    },
+    {
+      "tag": "ID-CUSTOM",
+      "sourceEventId": "im-a60a153ee1a0bfadd4699a80fcd92321951e942b8bc13e2f022c9659837b9105",
+      "createdAt": "2026-10-05T05:09:13.729Z",
+      "handledAt": "2026-10-05T05:09:30.971Z",
+      "state": "handled",
+      "mode": "digest",
+      "count": 2,
+      "intervalMs": 5000,
+      "defaultRevision": 4
+    },
+    {
+      "tag": "RESUME",
+      "sourceEventId": "im-149bbefb6deb43d9989fdb36c2c50572d2d90b3c2d860c25adbd589f0a7fc18e",
+      "createdAt": "2026-10-05T05:11:04.809Z",
+      "handledAt": "2026-10-05T05:11:18.086Z",
+      "state": "handled",
+      "mode": "digest",
+      "count": 2,
+      "intervalMs": 5000,
+      "defaultRevision": 5
+    },
+    {
+      "tag": "RESTART",
+      "sourceEventId": "im-bf104bacac7cf764fc89e48cc39c0848ed8113afb5a29723afe82224ea9905f4",
+      "createdAt": "2026-10-05T05:12:54.140Z",
+      "handledAt": "2026-10-05T05:13:07.043Z",
+      "state": "handled",
+      "mode": "digest",
+      "count": 2,
+      "intervalMs": 5000,
+      "defaultRevision": 5
+    }
+  ],
+  "modelReads": [
+    {
+      "time": "2026-10-05T05:02:23.319Z",
+      "turn": 20,
+      "sourceEventId": "im-59190cc81930c150e74232cca1e467112164a9482a34f8e95d1bf590610b4b56",
+      "callId": "call_00_ET_MnE8PuOO8JCjRy2ZzG3v6958",
+      "returned": true,
+      "isError": false,
+      "sourceContentVerified": true
+    },
+    {
+      "time": "2026-10-05T05:06:04.333Z",
+      "turn": 21,
+      "sourceEventId": "im-11a679a203475ba84d70f64ccfbab8f80c7a46acd3ac05f77ba6cf203a95f64b",
+      "callId": "call_00_ljyJ9f0qoWI51EqEqhSE7046",
+      "returned": true,
+      "isError": false,
+      "sourceContentVerified": true
+    },
+    {
+      "time": "2026-10-05T05:06:04.350Z",
+      "turn": 21,
+      "sourceEventId": "im-55e3e48dbd5ab2e61987b39d2d820be5f2f2d6a395dee19d1291413ba68a9282",
+      "callId": "call_01_lW0y5LHB3T4EMPTMNVby3980",
+      "returned": true,
+      "isError": false,
+      "sourceContentVerified": true
+    },
+    {
+      "time": "2026-10-05T05:09:20.682Z",
+      "turn": 22,
+      "sourceEventId": "im-a60a153ee1a0bfadd4699a80fcd92321951e942b8bc13e2f022c9659837b9105",
+      "callId": "call_00_ET_59H3ylZV5JUOCXiI9bBY9188",
+      "returned": true,
+      "isError": false,
+      "sourceContentVerified": true
+    },
+    {
+      "time": "2026-10-05T05:11:11.368Z",
+      "turn": 23,
+      "sourceEventId": "im-149bbefb6deb43d9989fdb36c2c50572d2d90b3c2d860c25adbd589f0a7fc18e",
+      "callId": "call_00_ET_LOHCUugTJLwYoD6R0VDW6760",
+      "returned": true,
+      "isError": false,
+      "sourceContentVerified": true
+    },
+    {
+      "time": "2026-10-05T05:13:01.039Z",
+      "turn": 24,
+      "sourceEventId": "im-bf104bacac7cf764fc89e48cc39c0848ed8113afb5a29723afe82224ea9905f4",
+      "callId": "call_00_ET_V52jPAPNOsulKrw5eKjg6771",
+      "returned": true,
+      "isError": false,
+      "sourceContentVerified": true
+    }
+  ],
+  "initialAttempts": {
+    "COUNT1": "timer fired before second message; not claimed as count-trigger evidence",
+    "COUNT2": "independent timer, not claimed as paired harvest",
+    "COUNT_A_B": "filter changed before native consumer receipt; excluded",
+    "EXCLUDE": "custom policy changed before native consumer receipt; admitted with custom count=1; negative test rerun as EXCLUDE-STABLE"
+  }
+}

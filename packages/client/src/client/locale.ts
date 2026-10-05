@@ -6,6 +6,7 @@ export const zh = {
   'defaults.externalWake': 'Lark 普通消息',
   'defaults.restore': '恢复继承',
   'defaults.threshold': '汇总阈值',
+  'defaults.platform': '默认设置的平台',
   'defaults.save': '保存平台默认设置',
   'defaults.title': '外部平台默认行为',
   'defaults.summary':
@@ -19,7 +20,7 @@ export const zh = {
   'defaults.count': '默认汇总条数',
   'defaults.seconds': '默认汇总秒数',
   'defaults.authorization':
-    '仅支持已验证的 Lark / 飞书。全量收件仍需平台权限与实际投递能力；@Bot 继续沿用直接提醒策略。',
+    '仅提供已资格验证的 Lark / 飞书和 Slack 群文字设置。全量收件仍需平台权限与实际投递能力；@Bot 继续沿用直接提醒策略。',
   'defaults.scope':
     '修改只影响仍在继承的配置及后续事件。不会绑定账号、扩大群授权、创建连接器、跟进话题或自动回复。',
   'defaults.revision': '当前全局版本：{revision}',
@@ -1440,6 +1441,7 @@ export const en = {
   'defaults.externalWake': 'Lark ordinary messages',
   'defaults.restore': 'Restore inheritance',
   'defaults.threshold': 'Harvest threshold',
+  'defaults.platform': 'Platform for defaults',
   'defaults.save': 'Save platform defaults',
   'defaults.title': 'External platform defaults',
   'defaults.summary':
@@ -1453,7 +1455,7 @@ export const en = {
   'defaults.count': 'Default digest count',
   'defaults.seconds': 'Default digest seconds',
   'defaults.authorization':
-    'Qualified Lark / Feishu only. Full intake still requires platform permission and observed delivery capability. @Bot keeps its direct-address policy.',
+    'Qualified Lark / Feishu and Slack group text only. Full intake still requires platform permission and observed delivery capability. @Bot keeps its direct-address policy.',
   'defaults.scope':
     'Changes affect inheriting configurations and future events only. They never bind accounts, expand group authorization, create bridges, follow topics or force replies.',
   'defaults.revision': 'Current global revision: {revision}',

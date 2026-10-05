@@ -5595,6 +5595,8 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-human-nickname-dialog p{margin:0}
 .bh-messaging-defaults{display:flex;flex-direction:column;gap:12px;margin-top:24px}
 .bh-messaging-defaults p{margin:0}
+.bh-platform-defaults{display:flex;flex-direction:column;gap:12px}
+.bh-default-platform{display:flex;align-items:center;gap:12px}
 .bh-messaging-defaults input{width:56px}
 .bh-messaging-defaults .bh-source-policy-table{table-layout:auto;min-width:0;width:100%;font-size:12px}
 .bh-messaging-defaults .bh-source-policy-table th,.bh-messaging-defaults .bh-source-policy-table td{width:auto;padding:10px 6px;text-align:left;vertical-align:middle}

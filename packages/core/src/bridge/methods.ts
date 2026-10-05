@@ -14,6 +14,7 @@ import { channelBridgeInput, type ChannelBridgeSnapshot } from '../messaging/cha
 import {
   externalMemberWake,
   messagingDefaultsInput,
+  messagingDefaultsPlatform,
   type MessagingDefaults,
 } from '../messaging/defaults.js';
 import type { MessagingIdentity } from '../messaging/identity.js';
@@ -930,8 +931,14 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         identity: await service.identity(input.data.slug, input.data.input),
       }));
     },
-    messagingDefaults() {
-      return messagingCall(async (service) => service.defaults());
+    messagingDefaults(payload) {
+      const parsed = z
+        .object({ platform: messagingDefaultsPlatform.optional() })
+        .strict()
+        .safeParse(payload);
+      if (!parsed.success)
+        return Promise.resolve(invalidInput('Valid qualified platform required'));
+      return messagingCall(async (service) => service.defaults(parsed.data.platform ?? 'feishu'));
     },
     messagingDefaultsSet(payload) {
       const parsed = messagingDefaultsInput.safeParse(payload);

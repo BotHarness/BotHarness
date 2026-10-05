@@ -24,3 +24,23 @@ Identity preference is resolved through the existing identity owner. A global pa
 An inherited all-message preference is visible even before ordinary delivery is verified, but the view clearly states that actual delivery is unverified. A preference is not evidence of permission or capability. Explicit custom all-message selection retains the existing qualification gate. Restart retains defaults, inheritance markers, old admissions and receive-after boundaries. Live views refresh through the existing roster event without introducing browser persistence or another scheduler.
 
 Validation covers migration, precedence, stale commands and drafts, restart, immutable thresholds, capability refusals, identity pause during asynchronous inspection, and the production-shaped qualified Lark path. Per-issue Human QA and independent merge authorization remain required.
+
+## Qualified Slack extension (#843)
+
+After #837 qualifies fresh public-channel Human text, Slack uses the same canonical
+platform-default owner and independent revision sequence. Bot settings selects Lark
+or Slack; each editor retains its own dirty draft and stale-save revision across
+platform switches and live notifications. The public read command accepts an optional
+qualified platform, defaulting to Lark for older Consumers, and rejects unknown values.
+
+Generation 53 broadens the existing defaults table's platform constraint to Lark and
+Slack, copies every prior immutable row unchanged and recreates its immutable triggers.
+It changes no existing identity or scoped policy inheritance marker. New qualified Slack
+identities inherit; existing custom identities require an explicit restore-inheritance
+command. Older Hosts cannot open generation 53: rollback requires a compatible Host,
+forward repair, or restoring a pre-upgrade Profile backup, not a blind binary downgrade.
+
+Slack collection, harvest and identity preferences retain all existing authorization,
+ordinary-delivery verification, policy snapshot and resume-boundary gates. The qualified
+event remains fresh public-channel Human text; changing its default does not qualify
+private/DM, ordinary file events or autonomous thread following.
