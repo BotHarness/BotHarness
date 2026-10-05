@@ -4,7 +4,7 @@ import {
   lineAvatarSvg,
   type LineAvatarRecipe,
 } from './avatar-line.js';
-export { LINE_MORPH_SYMBOLS, lineMorphFace, type LineMorphNode } from './avatar-line.js';
+export { LINE_TOOL_SYMBOLS, lineMorphFace, type LineMorphNode } from './avatar-line.js';
 import { pixelFigure } from './avatar-pixel.js';
 import type { PixelCell } from './avatar-pixel-symbols.js';
 export {
