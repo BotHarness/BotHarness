@@ -11,6 +11,8 @@ The first Bot Marketplace slice arrives, and the DeepSeekBot user guides moved t
 
 - Added a Bot Marketplace to the sidebar **+** menu: paste a public GitHub repository carrying the `botharness-bot` topic to list it, browse listed Bots, and install one as a new PersonaBot after a confirmation that shows the latest commit and a third-party risk notice ([#916](https://github.com/BotHarness/BotHarness/issues/916), [ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)).
 
+- Repositories that add the `botharness-bot` topic now appear in the Bot Marketplace after the daily discovery without a paste, and listed entries refresh hourly; removing the topic, archiving, deleting or making a repository private hides it, and renames keep the same entry ([#917](https://github.com/BotHarness/BotHarness/issues/917)).
+
 ### Documentation
 
 - Moved the DeepSeekBot user guides to [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/) (Chinese at [/docs](https://deepseekbot.botharness.ai/docs/overview/)); every former botharness.ai guide URL redirects to the same guide there, and developer docs stay on botharness.ai ([#914](https://github.com/BotHarness/BotHarness/pull/914)).

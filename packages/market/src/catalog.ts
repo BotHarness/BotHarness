@@ -1,11 +1,6 @@
 import type { D1Database } from './d1.js';
-import {
-  BOT_TOPIC,
-  parseRepositoryUrl,
-  type GitHubClient,
-  type GitHubCommit,
-  type GitHubRepository,
-} from './github.js';
+import { BOT_TOPIC, parseRepositoryUrl, type GitHubClient } from './github.js';
+import { createRepositoryStore, isEligible, type RepositoryRow } from './repositories.js';
 
 export interface MarketplaceEntry {
   id: string;
@@ -42,22 +37,6 @@ export interface MarketplacePage {
 
 export const DEFAULT_PAGE_SIZE = 30;
 export const MAX_PAGE_SIZE = 50;
-
-interface RepositoryRow {
-  node_id: string;
-  owner: string;
-  name: string;
-  html_url: string;
-  clone_url: string;
-  description: string | null;
-  topics: string;
-  stars: number;
-  pushed_at: string;
-  default_branch: string;
-  head_sha: string | null;
-  head_committed_at: string | null;
-  visibility: string;
-}
 
 function entryFromRow(row: RepositoryRow): MarketplaceEntry {
   let topics: string[] = [];
@@ -123,65 +102,7 @@ export function createCatalog(deps: {
 }): Catalog {
   const { db, github } = deps;
 
-  const findRow = (nodeId: string): Promise<RepositoryRow | null> =>
-    db
-      .prepare('SELECT * FROM indexed_repositories WHERE node_id = ?')
-      .bind(nodeId)
-      .first<RepositoryRow>();
-
-  const hideMissing = async (nodeId: string): Promise<void> => {
-    await db
-      .prepare(
-        "UPDATE indexed_repositories SET visibility = 'hidden_missing', last_refreshed_at = ? WHERE node_id = ? AND visibility = 'listed'",
-      )
-      .bind(deps.now().toISOString(), nodeId)
-      .run();
-  };
-
-  const upsert = async (
-    repository: GitHubRepository,
-    commit: GitHubCommit | undefined,
-  ): Promise<void> => {
-    const now = deps.now().toISOString();
-    await db
-      .prepare(
-        `INSERT INTO indexed_repositories (
-          node_id, owner, name, html_url, clone_url, description, topics, stars, pushed_at,
-          default_branch, head_sha, head_committed_at, visibility, first_seen_at, last_refreshed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'listed', ?, ?)
-        ON CONFLICT (node_id) DO UPDATE SET
-          owner = excluded.owner,
-          name = excluded.name,
-          html_url = excluded.html_url,
-          clone_url = excluded.clone_url,
-          description = excluded.description,
-          topics = excluded.topics,
-          stars = excluded.stars,
-          pushed_at = excluded.pushed_at,
-          default_branch = excluded.default_branch,
-          head_sha = excluded.head_sha,
-          head_committed_at = excluded.head_committed_at,
-          visibility = CASE WHEN indexed_repositories.visibility = 'hidden_missing' THEN 'listed' ELSE indexed_repositories.visibility END,
-          last_refreshed_at = excluded.last_refreshed_at`,
-      )
-      .bind(
-        repository.nodeId,
-        repository.owner,
-        repository.name,
-        repository.htmlUrl,
-        repository.cloneUrl,
-        repository.description,
-        JSON.stringify(repository.topics),
-        repository.stars,
-        repository.pushedAt,
-        repository.defaultBranch,
-        commit?.sha ?? null,
-        commit?.committedAt ?? null,
-        now,
-        now,
-      )
-      .run();
-  };
+  const store = createRepositoryStore(deps);
 
   return {
     async submit(url) {
@@ -195,16 +116,15 @@ export function createCatalog(deps: {
         };
       }
       const repository = lookup.value;
-      const existing = await findRow(repository.nodeId);
+      const existing = await store.find(repository.nodeId);
       if (existing?.visibility === 'blocked') return { ok: false, code: 'repository-blocked' };
       if (repository.private) return { ok: false, code: 'repository-private' };
-      if (repository.archived) {
-        await hideMissing(repository.nodeId);
-        return { ok: false, code: 'repository-archived' };
-      }
-      if (!repository.topics.includes(BOT_TOPIC)) {
-        await hideMissing(repository.nodeId);
-        return { ok: false, code: 'repository-missing-topic' };
+      if (!isEligible(repository)) {
+        if (existing !== null) await store.index(repository, undefined);
+        return {
+          ok: false,
+          code: repository.archived ? 'repository-archived' : 'repository-missing-topic',
+        };
       }
       const commit = await github.headCommit(
         { owner: repository.owner, name: repository.name },
@@ -213,8 +133,7 @@ export function createCatalog(deps: {
       if (!commit.ok && commit.reason === 'unavailable') {
         return { ok: false, code: 'upstream-unavailable' };
       }
-      await upsert(repository, commit.ok ? commit.value : undefined);
-      const row = await findRow(repository.nodeId);
+      const row = await store.index(repository, commit.ok ? commit.value : null);
       if (row === null) return { ok: false, code: 'upstream-unavailable' };
       if (row.visibility !== 'listed') return { ok: false, code: 'repository-blocked' };
       return { ok: true, entry: entryFromRow(row) };
