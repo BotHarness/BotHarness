@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Line-family PersonaBot avatars now morph into a stroke symbol bound to the current DSH tool (the same 16 as the pixel family: read, write, edit, bash, grep, web search/fetch, ask_user_question, todo, subagent, workflow, goal, present, approval and more), hold it at least 0.5s while the activity lasts, morph directly between tools and return to the face when the turn ends ([#838](https://github.com/BotHarness/BotHarness/issues/838)).
+
 - PersonaBots can read an explicitly mentioned Slack source file and return a processed file in the original native thread, using canonical attachment tools, current own-identity authorization and a pre-completion fence; source details retain safe file type/size metadata ([#831](https://github.com/BotHarness/BotHarness/issues/831)).
 - Line-family PersonaBot avatars gain more kaomoji-style eyes (big sparkly, hearts, rings, tall ovals, ^ ^, half-lidded, droopy), brows (thick, maro dots, thin) and mouths (▽, teeth, little fang, dot, pout, nervous zigzag, big laugh), and the Profile editor offers twelve face-only Line presets; Avatars no longer draw the corner `!?` attention mark or manga symbols, and the Profile preview, header title and pinned PersonaBots show the activity indicator and attention count beside the name instead of on the avatar ([#833](https://github.com/BotHarness/BotHarness/issues/833)).
 

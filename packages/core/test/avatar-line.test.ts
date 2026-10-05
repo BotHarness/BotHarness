@@ -6,7 +6,7 @@ import {
   LINE_PARTS,
   LINE_PRESETS,
   LINE_RANGES,
-  LINE_MORPH_SYMBOLS,
+  LINE_TOOL_SYMBOLS,
   isLineAvatarRecipe,
   lineAvatarSvg,
   lineMorphFace,
@@ -14,6 +14,7 @@ import {
   type LinePart,
   type LineAvatarRecipe,
 } from '../src/bots/avatar-line.js';
+import { PIXEL_SYMBOLS } from '../src/bots/avatar-pixel-symbols.js';
 import { deriveAvatarAppearance } from '../src/bots/avatar-snapshot.js';
 import { MAX_PERSONA_BOT_AVATAR_BYTES } from '../src/bots/persona-bot.js';
 
@@ -102,18 +103,11 @@ describe('line Avatar family', () => {
     const tilted = lineMorphFace({ ...DEFAULT_LINE_RECIPE, tilt: -10, height: 3 });
     expect(tilted.tilt).toBe(-10);
     expect(tilted.pivot).toEqual([24, 29]);
-    for (const key of [
-      'idle',
-      'thinking-dots',
-      'searching',
-      'coding',
-      'executing',
-      'generic-working',
-    ]) {
-      const symbol = LINE_MORPH_SYMBOLS[key];
+    for (const key of PIXEL_SYMBOLS) {
+      const symbol = LINE_TOOL_SYMBOLS[key];
       expect(symbol, key).toBeDefined();
-      expect(symbol!.length, key).toBeGreaterThanOrEqual(2);
-      expect(symbol!.length, key).toBeLessThanOrEqual(4);
+      expect(symbol.length, key).toBeGreaterThanOrEqual(1);
+      expect(symbol.length, key).toBeLessThanOrEqual(6);
     }
   });
 });
