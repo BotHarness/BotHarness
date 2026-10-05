@@ -1,0 +1,45 @@
+{
+  "sourceRevision": "7c5f64e0",
+  "baseRevision": "8e7db6a42508a2d1fe38137de3fa865e6cfbe6ce",
+  "dshVersion": "0.2.0-rc.1",
+  "viewport": {
+    "width": 1141,
+    "height": 827
+  },
+  "locale": "en",
+  "titleWidth": {
+    "before": 39.5703125,
+    "after": 253.1953125
+  },
+  "rowHeight": {
+    "before": 263,
+    "after": 104
+  },
+  "modalWidth": {
+    "before": 380,
+    "after": 760
+  },
+  "activityCenterUsesInlineDetails": true,
+  "compactOverviewUsesNativeModal": true,
+  "sessionId": "botharness-40bcc496-2d02-4013-a9e5-d49e883d9e7d",
+  "originalAskId": "16d4b410-7e36-4b1c-a26e-4827e2fd8c59",
+  "completed": true,
+  "activity": "idle",
+  "openAskId": null,
+  "canReply": false,
+  "nativeInboxInsertions": [
+    {
+      "type": "agent/inbox/spliced",
+      "seq": 3,
+      "messageIds": ["f5b30c25-5f71-4356-9f25-843ede102e9c"]
+    },
+    {
+      "type": "agent/inbox/spliced",
+      "seq": 30,
+      "messageIds": ["7d2062c2-7b0c-413a-90e5-db32e846bd12"]
+    }
+  ],
+  "additionalAcceptedAnswers": 1,
+  "permissionUnchanged": true,
+  "modelUnchanged": true
+}
