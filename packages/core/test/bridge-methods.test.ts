@@ -18,8 +18,11 @@ import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createTestOwnership } from './helpers.js';
+import { mountOperationalDatabase, type OperationalDatabaseOwner } from '../src/database/owner.js';
+import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 
 const roots: string[] = [];
+const modelOwners: OperationalDatabaseOwner[] = [];
 
 function tickingNow(): () => Date {
   let value = Date.parse('2026-09-19T00:00:00.000Z');
@@ -43,7 +46,12 @@ function setup(
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
   const registry = createPersonaBotRegistry({ rootDir: root });
-  const modelPresets = createModelPresetStore(root);
+  const modelOwner = mountOperationalDatabase({
+    dshHome: root,
+    schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+  });
+  modelOwners.push(modelOwner);
+  const modelPresets = createModelPresetStore({ rootDir: root, database: modelOwner });
   const states = createBotStateTracker();
   const attachments = createAttachmentStore({ rootDir: join(root, 'attachments') });
   const channels = createChannelStore({
@@ -58,6 +66,7 @@ function setup(
     root,
     registry,
     modelPresets,
+    modelOwner,
     states,
     channels,
     attachments,
@@ -84,6 +93,7 @@ function setup(
 }
 
 afterEach(() => {
+  for (const owner of modelOwners.splice(0)) owner.close();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
@@ -704,7 +714,7 @@ describe('bridge methods', () => {
           throw new Error('Selected route is unavailable');
       },
     };
-    const { root, registry, methods, modelPresets } = setup(
+    const { root, registry, methods, modelPresets, modelOwner } = setup(
       [],
       ['ada', 'bea'],
       undefined,
@@ -790,7 +800,10 @@ describe('bridge methods', () => {
       sourcePresetId: '',
       orchestrator: high,
     });
-    expect(createModelPresetStore(root).get(id)).toMatchObject({ revision: 2, orchestrator: low });
+    expect(createModelPresetStore({ rootDir: root, database: modelOwner }).get(id)).toMatchObject({
+      revision: 2,
+      orchestrator: low,
+    });
   });
   it('rejects stale customization when a preset is applied during model validation', async () => {
     const high = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
