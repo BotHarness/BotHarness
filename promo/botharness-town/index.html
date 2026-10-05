@@ -40,13 +40,13 @@ const STR = {
   welcome: { zh: '欢迎来到 DeepSeekBot 小镇。这里的每个 PersonaBot，都有自己的身份、人格和记忆。', en: 'Welcome to DeepSeekBot Town. Every PersonaBot here has its own identity, persona and memory.' },
   meet: { zh: '认识一下：Mira 负责研究，Theo 负责布局，Nova 负责实现。', en: 'Meet Mira on research, Theo on layout and Nova on building.' },
   miraNote: { zh: '今天的笔记，先写进我的 Memory。', en: "Today's notes go straight into my Memory." },
-  files1: { zh: 'Memory 就是一个普通的 Git 工作树。笔记、人格、代码都是文件。', en: 'Memory is a plain Git working tree. Notes, persona and code are all just files.' },
-  files2: { zh: 'Bot 用文件、搜索、Shell 和 Git 探索它；你也能用自己的编辑器打开。', en: 'Bots explore it with files, search, shell and Git. You can open it in your own editor too.' },
-  evo1: { zh: 'Memory evolution：记忆的每一次变化，都是一次提交。', en: 'Memory evolution: every change to a memory is a commit.' },
-  evo2: { zh: '点开 commit，逐行 diff 一目了然；分支与合并画成一张 graph。', en: 'Open a commit for a line-by-line diff. Branches and merges become a graph.' },
-  evo3: { zh: '还没提交的改动，也已经是当前记忆。', en: 'Uncommitted changes already count as current memory.' },
-  rewind1: { zh: '想回到过去？在任意一条记忆上切出新分支，从那里继续。', en: 'Want to go back? Branch off from any memory and carry on from there.' },
-  rewind2: { zh: '恢复检查点保存分支、提交和工作树，确认后即可找回。', en: 'Recovery checkpoints keep branches, commits and the working tree, ready to restore.' },
+  files1: { zh: '它们会记住和你有关的事：你的偏好、你的项目、你们聊过的话。', en: 'They remember what matters to you: your preferences, your projects, your conversations.' },
+  files2: { zh: '这些记忆都看得见，随时打开，看看它记住了什么。', en: 'Their memory is open: look inside any time to see what they kept.' },
+  evo1: { zh: '每学到一点新东西，它都在成长，每一步都有记录。', en: 'Every new thing it learns helps it grow, and every step is kept.' },
+  evo2: { zh: '想知道它为什么改了主意？点开就能看到前后的区别。', en: 'Wonder why it changed its mind? Open it and see the before and after.' },
+  evo3: { zh: '陪你一年以后，它比谁都懂你。', en: 'After a year together, it knows you better than anyone.' },
+  rewind1: { zh: '不只是陪伴，它还能和你一起学习、一起工作。', en: 'More than company: it learns and works alongside you.' },
+  rewind2: { zh: '记错了也不怕，随时可以回到过去重新来过。', en: 'Remembered something wrong? Go back to any moment and try again.' },
   import1: { zh: '创建 Bot 时，已经可以导入一个 Git 仓库，带上它的文件和历史。', en: 'You can already create a bot from an existing Git repository, files and history included.' },
   publish1: { zh: '接下来：把 Bot 的 Soul，也就是人格和选定的记忆，Publish 成一份 SoulSnapshot。', en: "Next: publish a bot's Soul, its persona and chosen memories, as a SoulSnapshot." },
   publish2: { zh: 'Mira 的 Soul 化成一束光，飞向 GitHub。', en: "Mira's Soul turns into a beam of light and heads for GitHub." },
@@ -72,10 +72,10 @@ const STR = {
   lark2: { zh: '每个成员 Bot 用自己的身份收件和回复，发言身份与收件路径分开管理。', en: 'Each member bot receives and replies as itself; speaking identity and intake routes are managed separately.' },
   slack1: { zh: 'Slack 也一样：每个 Bot 绑定独立的 Slack 身份。', en: 'Slack works the same way: every bot binds its own Slack identity.' },
   slack2: { zh: '频道连接器决定哪些消息进来，送进谁的 Inbox。', en: "Channel connectors decide which messages come in, and whose Inbox they land in." },
-  group1: { zh: '在 Group 里，人和 bots 一起讨论，每条消息都保留各自的身份。', en: 'In a Group, people and bots talk together, and every message keeps its own identity.' },
-  group2: { zh: '@ 谁就唤醒谁；每个成员也能按自己的方式收件。', en: '@ a member to wake them. Everyone else gets messages the way they chose.' },
-  larkAt1: { zh: '外部消息也能进来：Lark 话题里 @ 了 Nova。', en: 'Outside messages come in too: someone @mentions Nova in a Lark topic.' },
-  larkAt2: { zh: 'Nova 读完上下文，用自己的 Lark 身份回到原话题。', en: 'Nova reads the context and answers in the same topic with its own Lark identity.' },
+  group1: { zh: '像 Grok Bot 一样，给 bot 发消息、派活儿，就像找同事。', en: 'Like Grok Bot: message your bots and hand them work, like teammates.' },
+  group2: { zh: '你对人不对事：不用管理 session，有事直接 @ 它。', en: 'Talk to people, not sessions: just @ the one you need.' },
+  larkAt1: { zh: '让它加入飞书群，帮你总结消息、跟进话题。', en: 'Add it to a Lark group to summarize messages and follow topics.' },
+  larkAt2: { zh: '有人 @ 了 Nova，她读完上下文，在原话题里答复。', en: 'Someone @mentions Nova; she reads the context and answers in the thread.' },
   zip1: { zh: 'Slack 话题里发来一个 ZIP。', en: 'A ZIP arrives in a Slack thread.' },
   zip2: { zh: 'Bot 读取附件、在授权的工作区处理，再把结果文件发回同一个话题。', en: 'The bot reads the attachment, works on it in an authorized workspace, and sends the result back to the same thread.' },
   morph1: { zh: '工作时，头像随状态变形：搜索、写代码、读文件、思考……', en: 'While they work, avatars morph with their state: searching, coding, reading, thinking...' },
@@ -349,6 +349,8 @@ for (const c of Object.values(CLIPS)) {
 let legacyRate = 1;
 function clipTime(beat, f) {
   const c = beat.clip;
+  const dur = UI[beat.ui].video.duration || 1;
+  if (c.fit) return clamp((c.t0 ?? 0) + ((f - beat.a) / (beat.b - beat.a)) * (dur - (c.t0 ?? 0) - 0.05), 0, dur - 0.04);
   const seconds = ((f - beat.a) / legacyRate / FPS) * (c.rate ?? 1) + (c.t0 ?? 0);
   return clamp(seconds, 0, (UI[beat.ui].video.duration || 1) - 0.04);
 }
@@ -542,17 +544,19 @@ function houseTex(c) {
   return canvasTex(60, 58, (ctx) => {
     box(ctx, 4, 26, 52, 32, PAL.wood);
     for (let y = 31; y < 57; y += 5) rect(ctx, 5, y, 50, 1, PAL.woodDark);
+    // gable roof: the ridge is at the centre and the eaves slope down to both sides
+    const ridge = (x) => Math.round((29 - x) * 0.8); // roof height at x columns from the centre
     for (let x = 0; x < 30; x++) {
-      const y0 = 26 - Math.round(x * 0.8);
-      rect(ctx, 30 - x - 1, y0 - 2, 1, Math.round(x * 0.8) + 4, INK);
-      rect(ctx, 30 + x, y0 - 2, 1, Math.round(x * 0.8) + 4, INK);
+      const h = ridge(x);
+      rect(ctx, 30 - x - 1, 26 - h - 2, 1, h + 4, INK);
+      rect(ctx, 30 + x, 26 - h - 2, 1, h + 4, INK);
     }
     for (let x = 0; x < 29; x++) {
-      const y0 = 26 - Math.round(x * 0.8);
-      rect(ctx, 30 - x - 1, y0 - 1, 1, Math.round(x * 0.8) + 2, c.roof);
-      rect(ctx, 30 + x, y0 - 1, 1, Math.round(x * 0.8) + 2, c.roof);
+      const h = ridge(x);
+      rect(ctx, 30 - x - 1, 26 - h - 1, 1, h + 2, c.roof);
+      rect(ctx, 30 + x, 26 - h - 1, 1, h + 2, c.roof);
     }
-    for (let y = 8; y < 28; y += 4) for (let x = 2; x < 58; x++) if (Math.abs(x - 30) * 0.8 < y - 2) rect(ctx, x, y, 1, 1, c.tag);
+    for (let y = 8; y < 28; y += 4) for (let x = 2; x < 58; x++) if (y > 26 - ridge(Math.abs(x - 29.5) - 0.5) + 1) rect(ctx, x, y, 1, 1, c.tag);
     rect(ctx, 0, 26, 60, 3, INK); rect(ctx, 1, 27, 58, 1, c.tag);
     box(ctx, 23, 40, 14, 18, PAL.woodDark);
     rect(ctx, 25, 42, 10, 16, '#8a5a34');
@@ -1113,7 +1117,7 @@ const BEATS = [
   { a: 720, b: 850, mode: 'split', ui: 'files', crops: [[720, 720, 480, 1440], [790, 1280, 268, 420]], hl: [[800, 848, 1133, 86, 295, 364]], lines: [
     [730, NARRATOR, T('files1')],
   ] },
-  { a: 850, b: 1080, mode: 'split', ui: 'memClip', clip: { t0: 0.2, rate: 1 }, crops: [[850, 640, 400, 1280], [960, 760, 330, 900]], hl: [[960, 1078, 973, 122, 295, 111]], lines: [
+  { a: 850, b: 1080, mode: 'split', ui: 'memClip', clip: { t0: 0.2, fit: true }, crops: [[850, 640, 400, 1280], [960, 760, 330, 900]], hl: [[960, 1078, 973, 122, 295, 111]], lines: [
     [860, NARRATOR, T('files2')],
   ] },
   { a: 1080, b: 1560, mode: 'gal', ui: 'evo', crops: [[1080, 640, 400, 1280], [1170, 620, 244, 700], [1310, 1120, 436, 620], [1430, 1120, 178, 470]], hl: [[1200, 1300, 293, 234, 654, 72], [1340, 1425, 973, 275, 295, 322], [1450, 1550, 973, 122, 295, 111]], lines: [
@@ -1143,7 +1147,7 @@ const BEATS = [
   { a: 3360, b: 3500, mode: 'gal', ui: 'group', crops: [[3360, 1470, 923, 2940], [3420, 1500, LANG === 'en' ? 860 : 700, 1900]], hl: [[3420, 3460, 1196, 286, 1068, 161], [3460, 3498, 668, 516, 1068, LANG === 'en' ? 778 : 534]], lines: [
     [3370, NARRATOR, T('group1')],
   ] },
-  { a: 3500, b: 3720, mode: 'gal', ui: 'groupClip', clip: { t0: 0.6, rate: 1.6 }, crops: [[3500, 1330, 1050, 2660], [3560, 900, 880, 1700]], hl: [[3520, 3716, 24, 508, 512, 410]], lines: [
+  { a: 3500, b: 3720, mode: 'gal', ui: 'groupClip', clip: { t0: 0.6, fit: true }, crops: [[3500, 1330, 1050, 2660], [3560, 900, 880, 1700]], hl: [[3520, 3716, 24, 508, 512, 410]], lines: [
     [3510, NARRATOR, T('group2')],
   ] },
   { a: 3720, b: 4080, mode: 'split', ui: 'larkTopic', crops: [[3720, 1980, 880, 1800], [3880, 2510, LANG === 'en' ? 1130 : 1050, 1050]], hl: [[3740, 3870, 2200, LANG === 'en' ? 705 : 576, 660, LANG === 'en' ? 200 : 170], [3900, 4070, 2200, LANG === 'en' ? 936 : 778, 660, 640]], lines: [
@@ -1777,16 +1781,27 @@ function renderLegacy(f) {
 
 // ===== master timeline =============================================================
 // legacy segments replay the town film by its own frame numbers; the others are new modules
+// The story: puppet hook, welcome, bots at work in a Group, Lark and Slack, the connectors,
+// then what memory gives you, sharing a Soul, morphs and roleplay, the face wall, ecosystem, town.
+// Legacy rates are set so each narration line (voiceover/script.json) fits under its picture.
 const SEGMENTS = [
   { id: 'hook', len: 900 }, // HOOK_LEN
-  { id: 'legacy', len: 520, from: 200 },
-  { id: 'legacy', len: 1650, from: 720, rate: 1080 / 1650 }, // Memory, slowed so every panel can be read
-  { id: 'legacy', len: 240, from: 1800 },
-  { id: 'market', len: 1810, rate: 2160 / 1810 },
-  { id: 'legacy', len: 3490, from: 2160, rate: 3780 / 3490 },
-  { id: 'wall', len: 390, rate: 480 / 390 },
-  { id: 'eco', len: 660, rate: 840 / 660 },
-  { id: 'city', len: 840, rate: 1080 / 840 },
+  { id: 'legacy', len: 420, from: 200, rate: 400 / 420 }, // welcome, meet the cast
+  { id: 'legacy', len: 620, from: 3360, rate: 140 / 620 }, // Group: like Grok Bot, message and delegate
+  { id: 'legacy', len: 740, from: 3500, rate: 220 / 740 }, // Group clip: people, not sessions
+  { id: 'legacy', len: 620, from: 3720, rate: 360 / 620 }, // Lark topic
+  { id: 'legacy', len: 300, from: 4080, rate: 360 / 300 }, // Slack ZIP
+  { id: 'legacy', len: 490, from: 2160, rate: 360 / 490 }, // connectors
+  { id: 'legacy', len: 690, from: 720, rate: 360 / 690 }, // memory: what it remembers, open to read
+  { id: 'legacy', len: 410, from: 1080, rate: 340 / 410 }, // memory: it grows
+  { id: 'legacy', len: 300, from: 1420, rate: 140 / 300 }, // memory: a year together
+  { id: 'legacy', len: 540, from: 1560, rate: 240 / 540 }, // memory: study and work, rewind
+  { id: 'legacy', len: 240, from: 1800 }, // import from a repository
+  { id: 'market', len: 1530, rate: 2160 / 1530 },
+  { id: 'legacy', len: 1080, from: 4440, rate: 1360 / 1080 }, // morphs and roleplay
+  { id: 'wall', len: 300, rate: 480 / 300 },
+  { id: 'eco', len: 560, rate: 840 / 560 },
+  { id: 'city', len: 760, rate: 1080 / 760 },
   { id: 'end', len: 300 + TOTAL - 10800 },
 ];
 let segStart = 0;
@@ -3256,7 +3271,7 @@ function placeMascot(f) {
 // Legacy frames. Split beats show a slice of the stage beside the real UI; the cutaway replaces
 // the gallery for a moment while the narration line keeps typing over it.
 const MEM_STAGE = [[720, 1080], [1560, 1800]];
-const MEM_CUT = [1090, 1192];
+const MEM_CUTS = [[1090, 1192], [1420, 1560]]; // every step kept; a year together
 function tagTex(text, color = '#fff6e0') {
   const w = textWidth(text) + 12;
   return canvasTex(w + 2, 16, (ctx) => { rect(ctx, 2, 3, w, 13, 'rgba(42,34,48,0.3)'); box(ctx, 0, 0, w, 13, color, INK); drawText(ctx, text, 6, 4, INK); });
@@ -3266,11 +3281,24 @@ function buildMem() {
   if (!hk.built) buildHook();
   mem.built = true;
   const P = hk.makePuppet;
-  mem.files = ['NOTES', 'PERSONA', 'CODE'].map((t) => P(tagTex(t), 16));
+  mem.files = ['LIKES', 'PROJECTS', 'CHATS'].map((t) => P(tagTex(t), 16));
   mem.tools = [['FILES', '#fff6e0'], ['SEARCH', '#dff3ff'], ['SHELL', '#e8f7df'], ['GIT', '#ffe7c7']].map(([t, c]) => P(tagTex(t, c), 16));
   mem.graph = { tex: canvasTex(84, 60), n: -1 };
   mem.graphP = P(mem.graph.tex, 16);
   mem.check = P(tagTex('RESTORE', '#ffe7c7'), 16);
+  mem.diary = P(stickerCanvas(diaryNoted.canvas, 52, 20), 16);
+  mem.study = P(tagTex('STUDY', '#dff3ff'), 16);
+  mem.work = P(tagTex('WORK', '#e8f7df'), 16);
+  mem.cal = { tex: canvasTex(44, 46), m: -1 };
+  mem.calP = P(mem.cal.tex, 17);
+  mem.stack = { tex: canvasTex(60, 64), n: -1 };
+  mem.stackP = P(mem.stack.tex, 16);
+  mem.heart = canvasTex(40, 34, (ctx) => {
+    rect(ctx, 2, 2, 36, 24, 'rgba(42,34,48,0.3)'); box(ctx, 0, 0, 36, 24, '#ffffff', INK);
+    rect(ctx, 8, 24, 5, 3, '#ffffff'); rect(ctx, 8, 27, 3, 3, '#ffffff'); rect(ctx, 7, 24, 1, 7, INK); rect(ctx, 13, 24, 1, 3, INK); rect(ctx, 11, 27, 2, 1, INK);
+    ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'].forEach((row, y) => [...row].forEach((b, x) => b === '1' && rect(ctx, 11 + x * 2, 6 + y * 2, 2, 2, '#e2565f')));
+  });
+  mem.human = P(stickerCanvas(humanFrames[0].canvas, 32, 52), 15);
 }
 function memGraph(n, branch) {
   const key = n * 10 + (branch ? 1 : 0);
@@ -3311,31 +3339,62 @@ function drawStage(x0, w) {
 // called by renderLegacy after the world and HUD are drawn, before the overlay
 function renderMemStage(f, worldW) {
   const slice = MEM_STAGE.some(([a, b]) => f >= a && f < b);
-  const cut = f >= MEM_CUT[0] && f < MEM_CUT[1];
+  const cut = MEM_CUTS.some(([a, b]) => f >= a && f < b);
   if (!slice && !cut) return;
   if (!mem.built) buildMem();
   const w = cut ? VIEW_W : Math.round(worldW);
   stageBase(w);
   const t = smT(f);
+  const bubble = (tex, x, y, a0, w0, h0) => { if (t < a0) return; const k = POP[Math.min(5, Math.floor((f - a0) / 2))]; hk.bub[0].material.map = tex.tex ?? tex; hk.bub[0].material.needsUpdate = true; setPlane(hk.bub[0], x, y, w0 * k, h0 * k); };
   if (f < 850) {
-    // files: notes, persona and code are plain files in the memory
+    // what it remembers: your likes, your projects, your chats
     showPuppet(hk.mira, f, 134, 50, 720, null, { sway: 0.05, scale: 0.8 });
     mem.files.forEach((p, i) => showPuppet(p, f, 188, 64 + i * 24, 736 + i * 22, null, { sway: 0.08 }));
   } else if (f < 1080) {
-    // bots explore it with files, search, shell and Git
+    // the memory is open: hold up the diary and look inside
     showPuppet(hk.mira, f, 134, 50, 850, null, { sway: 0.05, scale: 0.8 });
-    mem.tools.forEach((p, i) => showPuppet(p, f, 190, 56 + i * 20, 866 + i * 26, null, { sway: 0.08 }));
-  } else if (cut) {
-    // every change to a memory is a commit
-    showPuppet(hk.mira, f, 110, 50, MEM_CUT[0], null, { sway: 0.06 });
-    if (showPuppet(mem.graphP, f, 214, 54, MEM_CUT[0] + 4, null)) memGraph(t < 1110 ? 1 : t < 1130 ? 2 : t < 1150 ? 3 : 4, false);
-    const k = POP[Math.min(5, Math.floor((f - 1100) / 2))];
-    if (f >= 1100) { hk.bub[0].material.map = hk.bubbles.ok.tex; hk.bub[0].material.needsUpdate = true; setPlane(hk.bub[0], 128, 104, 48 * k, 30 * k); }
-  } else {
-    // branch off from any memory; checkpoints keep everything restorable
+    showPuppet(mem.diary, f, 188, 96, 866, null, { sway: 0.06 });
+    mem.files.forEach((p, i) => showPuppet(p, f, 188, 50 + i * 14, 900 + i * 20, null, { sway: 0.08, scale: 0.8 }));
+  } else if (f < 1192) {
+    // every step it grows is kept
+    showPuppet(hk.mira, f, 110, 50, 1090, null, { sway: 0.06 });
+    if (showPuppet(mem.graphP, f, 214, 54, 1094, null)) memGraph(t < 1110 ? 1 : t < 1130 ? 2 : t < 1150 ? 3 : 4, false);
+    bubble(hk.bubbles.ok, 128, 104, 1100, 48, 30);
+  } else if (f < 1560) {
+    // a year together: the calendar flips through the months while the diaries pile up
+    const month = clamp(Math.floor((t - 1428) / 9), 0, 11);
+    if (mem.cal.m !== month) {
+      mem.cal.m = month;
+      const { ctx } = mem.cal.tex;
+      ctx.clearRect(0, 0, 44, 46);
+      rect(ctx, 2, 3, 42, 43, 'rgba(42,34,48,0.3)');
+      box(ctx, 0, 0, 42, 42, '#ffffff', INK);
+      rect(ctx, 1, 1, 40, 11, '#e2565f');
+      const name = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][month];
+      drawText(ctx, name, 21 - textWidth(name), 3, '#ffffff', 2);
+      for (let d = 0; d < 28; d++) rect(ctx, 5 + (d % 7) * 5, 16 + Math.floor(d / 7) * 6, 3, 3, d === (month * 5) % 28 ? '#e2565f' : '#c9bfa7');
+      mem.cal.tex.tex.needsUpdate = true;
+      const n = month + 1;
+      const s2 = mem.stack.tex.ctx;
+      s2.clearRect(0, 0, 60, 64);
+      for (let i = 0; i < n; i++) s2.drawImage(diaryNoted.canvas, 4 + ((i * 3) % 5), 54 - i * 4.4, 52, 20);
+      mem.stack.tex.tex.needsUpdate = true;
+    }
+    showPuppet(mem.human, f, 96, 50, 1420, null, { sway: 0.05 });
+    showPuppet(hk.mira, f, 150, 50, 1424, null, { sway: 0.06 });
+    showPuppet(mem.calP, f, 230, 98, 1424, null, { sway: 0.05 });
+    showPuppet(mem.stackP, f, 236, 50, 1440, null);
+    bubble(mem.heart, 112, 112, 1500, 40, 34);
+  } else if (f < 1690) {
+    // more than company: study and work together
     showPuppet(hk.mira, f, 132, 50, 1560, null, { sway: 0.05, scale: 0.8 });
-    if (showPuppet(mem.graphP, f, 186, 92, 1572, null, { scale: 0.62 })) memGraph(3, t >= 1600);
-    showPuppet(mem.check, f, 188, 60, 1690, null, { sway: 0.08 });
+    showPuppet(mem.study, f, 188, 92, 1576, null, { sway: 0.08 });
+    showPuppet(mem.work, f, 188, 62, 1600, null, { sway: 0.08 });
+  } else {
+    // remembered something wrong? go back to any moment
+    showPuppet(hk.mira, f, 132, 50, 1690, null, { sway: 0.05, scale: 0.8 });
+    if (showPuppet(mem.graphP, f, 186, 92, 1694, null, { scale: 0.62 })) memGraph(3, t >= 1710);
+    showPuppet(mem.check, f, 188, 60, 1730, null, { sway: 0.08 });
   }
   drawStage(0, w);
 }
