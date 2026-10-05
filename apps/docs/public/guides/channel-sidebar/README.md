@@ -1,0 +1,9 @@
+# Channel sidebar guide screenshots
+
+Captured from the real native UI in an isolated DSH 0.2.0-rc.1 public-web Profile with deepseekbot@0.1.0-alpha.1. Screenshots use the Chinese interface at a 1230 × 820 viewport; the English guide identifies the equivalent controls. The WebP files are format conversions of native browser captures, with no reconstructed UI.
+
+The example Bots and local channel were created for documentation. A real model reply saved `sidebar-demo.md` with the native file tool; the working diff shows that uncommitted file. The commit view shows the repository's actual initialization commit, not a fabricated Bot checkpoint. The second Bot supplied a real reply and handled Inbox record. The local group invitation was accepted under the Profile's automatic acceptance setting.
+
+Reading files/diffs, opening Sessions and returning to the chat, locating an Inbox source, inspecting group/member controls, and cancelling a sidebar visibility draft were exercised. Folder grants, broader execution permissions, restore/repair, branch switching, member removal and disbanding were not applied. Their descriptions were checked against the implementation and distinguish requests, confirmation and resulting state.
+
+Website comparison captures use base `5969d5bb25f10c702952bb4114dc6e4efc2ae635` (336 pages, Quickstart entry point without the chapter) and the synchronized guide revision `804c1e952b5b73f7528b814765b3560ea3928d11` (352 pages). Desktop pairs match Chinese locale and 1230 × 820 light/dark states; the mobile pair matches 390 × 844 light state. The seven subpages have no predecessor and share the baseline Quickstart entry point.

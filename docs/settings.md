@@ -107,6 +107,8 @@ Local Groups allow an ordinary-message override for each Bot under **Group heade
 
 ## Channel sidebar display settings
 
+The [Channel sidebar chapter](/docs/channel-sidebar) provides step-by-step feature guides; see [Display and layout](/docs/channel-sidebar/display) for ordering, visibility and save/cancel behavior.
+
 Open the right sidebar's gear menu. These browser display preferences do not change durable Bot memory or task authorization.
 
 ![Sidebar layout, memory terminology, and session view menus](/guides/settings/settings-sidebar-zh.webp)
