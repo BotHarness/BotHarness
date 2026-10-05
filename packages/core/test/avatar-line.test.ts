@@ -14,7 +14,7 @@ import {
   type LinePart,
   type LineAvatarRecipe,
 } from '../src/bots/avatar-line.js';
-import { PIXEL_SYMBOLS } from '../src/bots/avatar-pixel-symbols.js';
+import { PIXEL_SYMBOLS } from '../src/bots/avatar-appearance.js';
 import { deriveAvatarAppearance } from '../src/bots/avatar-snapshot.js';
 import { MAX_PERSONA_BOT_AVATAR_BYTES } from '../src/bots/persona-bot.js';
 
