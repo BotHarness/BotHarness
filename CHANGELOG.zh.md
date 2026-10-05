@@ -5,7 +5,7 @@
 
 ## [Unreleased]
 
-明确的 PersonaBot 删除与可选记忆文件清除。
+明确的 PersonaBot 删除与可选记忆清除，以及官网使用教程。
 
 ### Breaking Changes
 
@@ -14,6 +14,10 @@
 ### Added
 
 - Human 可从 Profile 删除 PersonaBot，默认保留记忆，明确选择清除已验证独占的仓库，并打开 Host 上的记忆文件夹、检查或重试未完成的清理；删除保留历史并永久关闭原身份的运行入口（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
+
+### Documentation
+
+- 把 DeepSeekBot 使用教程迁到官网（英文 [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/)，中文 [/docs](https://deepseekbot.botharness.ai/docs/overview/)）；botharness.ai 上原来的每个教程地址都会跳到新站的同一篇，开发者文档仍留在 botharness.ai（[#914](https://github.com/BotHarness/BotHarness/pull/914)）。
 
 ## [1.0.0] - 2026-10-05
 

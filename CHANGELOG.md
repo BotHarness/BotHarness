@@ -5,7 +5,7 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Explicit PersonaBot deletion and optional Memory erasure.
+Explicit PersonaBot deletion with optional Memory erasure, and product-site user guides.
 
 ### Breaking Changes
 
@@ -14,6 +14,10 @@ Explicit PersonaBot deletion and optional Memory erasure.
 ### Added
 
 - Human can delete a PersonaBot from Profile while retaining Memory by default, explicitly erase a verified exclusive repository, open its Host folder, and inspect/retry incomplete cleanup; deletion retains history and terminally fences the original identity ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
+
+### Documentation
+
+- Moved the DeepSeekBot user guides to [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/) (Chinese at [/docs](https://deepseekbot.botharness.ai/docs/overview/)); every former botharness.ai guide URL redirects to the same guide there, and developer docs stay on botharness.ai ([#914](https://github.com/BotHarness/BotHarness/pull/914)).
 
 ## [1.0.0] - 2026-10-05
 
