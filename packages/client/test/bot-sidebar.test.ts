@@ -113,6 +113,7 @@ function stubActions(): BridgeActions {
       throw new Error('unexpected Overview usage');
     }),
     marketplaceList: vi.fn(async () => ({ bots: [] })),
+    marketplaceTopics: vi.fn(async () => []),
     marketplaceSubmit: vi.fn(async () => {
       throw new Error('unexpected Marketplace submission');
     }),

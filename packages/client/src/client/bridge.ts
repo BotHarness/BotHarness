@@ -26,8 +26,11 @@ import type { OverviewMemory } from '../../../core/src/memory/overview.js';
 import {
   parseMarketplacePage,
   parseMarketplaceSubmission,
+  parseMarketplaceTopics,
   type MarketplaceEntry,
   type MarketplacePage,
+  type MarketplaceQuery,
+  type MarketplaceTopic,
 } from '../../../core/src/marketplace/client.js';
 import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
 import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
@@ -1223,13 +1226,17 @@ export async function createPersonaBot(
 
 export async function loadMarketplacePage(
   call: BridgeCall,
-  cursor?: string,
+  query: MarketplaceQuery = {},
 ): Promise<MarketplacePage> {
-  const page = parseMarketplacePage(
-    await unwrap(call, 'marketplaceList', cursor === undefined ? {} : { cursor }),
-  );
+  const page = parseMarketplacePage(await unwrap(call, 'marketplaceList', { query }));
   if (page === undefined) throw new Error('invalid marketplaceList response');
   return page;
+}
+
+export async function loadMarketplaceTopics(call: BridgeCall): Promise<MarketplaceTopic[]> {
+  const topics = parseMarketplaceTopics({ topics: await unwrap(call, 'marketplaceTopics', {}) });
+  if (topics === undefined) throw new Error('invalid marketplaceTopics response');
+  return topics;
 }
 
 export async function submitMarketplaceRepository(

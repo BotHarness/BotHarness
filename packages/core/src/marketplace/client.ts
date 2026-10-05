@@ -18,10 +18,25 @@ export interface MarketplacePage {
   nextCursor?: string;
 }
 
+export type MarketplaceSort = 'updated' | 'stars';
+
+export interface MarketplaceQuery {
+  cursor?: string;
+  sort?: MarketplaceSort;
+  q?: string;
+  topic?: string;
+}
+
+export interface MarketplaceTopic {
+  topic: string;
+  count: number;
+}
+
 export type MarketplaceResult<T> = { ok: true; value: T } | { ok: false; code: string };
 
 export interface MarketplaceClient {
-  list(options: { cursor?: string }): Promise<MarketplaceResult<MarketplacePage>>;
+  list(query: MarketplaceQuery): Promise<MarketplaceResult<MarketplacePage>>;
+  topics(): Promise<MarketplaceResult<MarketplaceTopic[]>>;
   submit(url: string): Promise<MarketplaceResult<{ bot: MarketplaceEntry }>>;
 }
 
@@ -83,6 +98,28 @@ export function parseMarketplacePage(value: unknown): MarketplacePage | undefine
   return typeof nextCursor === 'string' ? { bots, nextCursor } : { bots };
 }
 
+export function parseMarketplaceTopics(value: unknown): MarketplaceTopic[] | undefined {
+  const topics = record(value)?.['topics'];
+  if (!Array.isArray(topics)) return undefined;
+  const parsed = topics.map((item) => {
+    const source = record(item);
+    return typeof source?.['topic'] === 'string' && typeof source['count'] === 'number'
+      ? { topic: source['topic'], count: source['count'] }
+      : undefined;
+  });
+  return parsed.every((item): item is MarketplaceTopic => item !== undefined) ? parsed : undefined;
+}
+
+function listPath(query: MarketplaceQuery): string {
+  const params = new URLSearchParams();
+  if (query.sort !== undefined) params.set('sort', query.sort);
+  if (query.q !== undefined) params.set('q', query.q);
+  if (query.topic !== undefined) params.set('topic', query.topic);
+  if (query.cursor !== undefined) params.set('cursor', query.cursor);
+  const search = params.toString();
+  return search.length === 0 ? '/v1/bots' : `/v1/bots?${search}`;
+}
+
 export function parseMarketplaceSubmission(value: unknown): { bot: MarketplaceEntry } | undefined {
   const bot = parseEntry(record(value)?.['bot']);
   return bot === undefined ? undefined : { bot };
@@ -128,11 +165,17 @@ export function createMarketplaceClient(options: {
   };
 
   return {
-    list: ({ cursor }) =>
+    list: (query) =>
       request(
-        cursor === undefined ? '/v1/bots' : `/v1/bots?cursor=${encodeURIComponent(cursor)}`,
+        listPath(query),
         { method: 'GET', headers: { accept: 'application/json' } },
         parseMarketplacePage,
+      ),
+    topics: () =>
+      request(
+        '/v1/topics',
+        { method: 'GET', headers: { accept: 'application/json' } },
+        parseMarketplaceTopics,
       ),
     submit: (url) =>
       request(

@@ -194,6 +194,7 @@ describe('bridge typert service', () => {
       'botAppearanceSet',
       'marketplaceList',
       'marketplaceSubmit',
+      'marketplaceTopics',
     ]);
   });
 
@@ -227,7 +228,8 @@ describe('bridge typert service', () => {
       'roles',
       'description',
     ]);
-    expect(parameterNames(service.marketplaceList)).toEqual(['cursor']);
+    expect(parameterNames(service.marketplaceList)).toEqual(['query']);
+    expect(parameterNames(service.marketplaceTopics)).toEqual([]);
     expect(parameterNames(service.marketplaceSubmit)).toEqual(['url']);
     expect(parameterNames(service.messagingDefaults)).toEqual(['platform']);
     expect(parameterNames(service.channels)).toEqual([]);

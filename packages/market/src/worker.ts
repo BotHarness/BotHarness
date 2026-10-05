@@ -1,4 +1,10 @@
-import { createCatalog, type Catalog, type SubmissionRefusal } from './catalog.js';
+import {
+  createCatalog,
+  MAX_QUERY_LENGTH,
+  type BrowseSort,
+  type Catalog,
+  type SubmissionRefusal,
+} from './catalog.js';
 import type { D1Database } from './d1.js';
 import { createCrawler } from './crawl.js';
 import { createGitHubClient, type GitHubClient } from './github.js';
@@ -29,6 +35,10 @@ function failure(status: number, code: string): Response {
   return json(status, { error: { code } });
 }
 
+function isBrowseSort(value: string): value is BrowseSort {
+  return value === 'updated' || value === 'stars';
+}
+
 export function createMarketHandler(catalog: Catalog): (request: Request) => Promise<Response> {
   return async (request) => {
     const url = new URL(request.url);
@@ -38,11 +48,23 @@ export function createMarketHandler(catalog: Catalog): (request: Request) => Pro
       const limit = limitParam === null ? undefined : Number(limitParam);
       if (limit !== undefined && !Number.isInteger(limit)) return failure(400, 'invalid-limit');
       const cursor = url.searchParams.get('cursor') ?? undefined;
+      const sortParam = url.searchParams.get('sort') ?? 'updated';
+      if (!isBrowseSort(sortParam)) return failure(400, 'invalid-sort');
+      const query = url.searchParams.get('q')?.trim() ?? '';
+      if ([...query].length > MAX_QUERY_LENGTH) return failure(400, 'invalid-query');
+      const topic = url.searchParams.get('topic')?.trim().toLowerCase() ?? '';
       const page = await catalog.list({
+        sort: sortParam,
         ...(limit === undefined ? {} : { limit }),
         ...(cursor === undefined ? {} : { cursor }),
+        ...(query.length === 0 ? {} : { query }),
+        ...(topic.length === 0 ? {} : { topic }),
       });
       return page === undefined ? failure(400, 'invalid-cursor') : json(200, page);
+    }
+    if (url.pathname === '/v1/topics') {
+      if (request.method !== 'GET') return failure(405, 'method-not-allowed');
+      return json(200, { topics: await catalog.topics() });
     }
     if (url.pathname === '/v1/submissions') {
       if (request.method !== 'POST') return failure(405, 'method-not-allowed');

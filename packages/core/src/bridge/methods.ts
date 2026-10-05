@@ -34,7 +34,9 @@ import type {
   MarketplaceClient,
   MarketplaceEntry,
   MarketplacePage,
+  MarketplaceQuery,
   MarketplaceResult,
+  MarketplaceTopic,
 } from '../marketplace/client.js';
 import {
   AssignmentReplyTargetError,
@@ -406,6 +408,7 @@ export interface BridgeMethods {
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
+  marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
 }
 
 export interface BridgeMethodsDeps {
@@ -1409,11 +1412,23 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return { ok: true, value: detailOf(result.record) };
     },
     marketplaceList(payload) {
-      const cursor = parseOptional(asObject(payload), 'cursor');
-      if (!cursor.ok) return Promise.resolve(invalidInput('invalid cursor'));
-      return marketplaceCall((client) =>
-        client.list(cursor.value === undefined ? {} : { cursor: cursor.value }),
-      );
+      const source = asObject(payload);
+      const query: MarketplaceQuery = {};
+      for (const key of ['cursor', 'q', 'topic'] as const) {
+        const value = parseOptional(source, key);
+        if (!value.ok) return Promise.resolve(invalidInput(`invalid ${key}`));
+        const trimmed = value.value?.trim();
+        if (trimmed !== undefined && trimmed.length > 0) query[key] = trimmed;
+      }
+      const sort = source['sort'];
+      if (sort !== undefined && sort !== 'updated' && sort !== 'stars') {
+        return Promise.resolve(invalidInput('invalid sort'));
+      }
+      if (sort !== undefined) query.sort = sort;
+      return marketplaceCall((client) => client.list(query));
+    },
+    marketplaceTopics() {
+      return marketplaceCall((client) => client.topics());
     },
     marketplaceSubmit(payload) {
       const url = asObject(payload)['url'];
