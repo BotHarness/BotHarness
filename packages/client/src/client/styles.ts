@@ -767,7 +767,7 @@ html[data-botharness-activity='stale'] .bh-avatar-indicator {
   filter: grayscale(1);
 }
 .bh-activity-stale {
-  margin: 4px 12px;
+  margin: 4px 2px 8px;
   padding: 6px 10px;
   border-radius: 8px;
   font-size: 12px;
