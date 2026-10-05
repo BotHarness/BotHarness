@@ -4,7 +4,7 @@ The repository is still a source preview. The commands below build and test real
 npm tarballs locally; they do not publish packages or claim that a public product
 release exists. See [ADR-0127](adr/0127-product-artifacts-compose-an-independently-versioned-im-provider.md)
 for the distribution decision and [#823](https://github.com/BotHarness/BotHarness/issues/823)
-for the initial Lark qualification and Human QA evidence. [#868](https://github.com/BotHarness/BotHarness/issues/868) extends the independently pinned product Provider to the accepted Slack artifact `4.32.0-botharness.3`; this does not publish a registry release.
+for the initial Lark qualification and Human QA evidence. [#868](https://github.com/BotHarness/BotHarness/issues/868) extends the independently pinned product Provider to the accepted Slack artifact `4.32.0-botharness.3`; this does not publish a registry release. [#878](https://github.com/BotHarness/BotHarness/issues/878) selects locally qualified `4.32.0-botharness.4` with real paired-owner WeChat receive/model/reply verified after installation; Human QA approved this first slice; registry publication remains separate.
 
 ## What the product installs
 
@@ -21,7 +21,7 @@ identities and Channel connectors have separate tables; merely installing or
 binding an identity does not mirror messages into a local DM. The initial policy
 is @mention-only to Bot Inbox. Test an actual @mention and compare the original
 Lark topic reply with canonical source/Outbox details; Lark read indicators do not
-prove Bot receipt. First-time guided setup is the separate #824 tracer.
+prove Bot receipt. First-time guided setup is the separate #824 tracer. Personal WeChat uses QR pairing and an explicit paired-owner DM Grant instead; see the [WeChat connection guide](wechat-connection.md).
 
 ## Maintainer: build the distribution artifacts
 
@@ -32,14 +32,14 @@ fails before packing.
 
 ```bash
 git clone https://github.com/DoodleBears/dsh-im.git /tmp/bh-im-source
-git -C /tmp/bh-im-source checkout a0300e97d7996a5de3a6da2f5b9f50224eb12bd9
+git -C /tmp/bh-im-source checkout 589e5507d47ab21de5b39c776a598452744a5368
 npm ci --prefix /tmp/bh-im-source --ignore-scripts --no-audit --no-fund
 pnpm install --frozen-lockfile
 pnpm build
 node scripts/product-artifacts.mjs \
   --provider-source /tmp/bh-im-source \
   --output /tmp/bh-product-artifacts \
-  --version 0.0.0-test.823
+  --version 0.0.0-test.878
 ```
 
 Choose a fresh output directory. `artifacts.json` records the four actual tarballs,
@@ -89,4 +89,4 @@ recovery rules before any retained Profile downgrade.
 
 Operator preparation and explicit publication: [npm prerelease guide](npm-prerelease.md).
 
-The product Provider pin is independent of the optional development Provider pin. Changing a development selection does not qualify or version a product artifact. This input includes the accepted Slack public-channel contracts; the product still requires real installed-artifact messaging and restart evidence before qualification is complete.
+The product Provider pin is independent of the optional development Provider pin. Changing a development selection does not qualify or version a product artifact. This input preserves the accepted Slack public-channel contracts and adds the paired-owner WeChat DM candidate. #878 verifies retained pairing/authorization across installation restart and one fresh installed-artifact owner text/model/reply exchange. Human QA approved the first owner-text slice; broader live lifecycle qualification and registry publication remain separate.

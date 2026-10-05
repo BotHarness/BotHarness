@@ -14,6 +14,10 @@ _避免使用_：bot（单独使用）、agent、assistant、robot
 一种 PersonaBot 状态：禁止新的 admission、wake、Session execution 和 external action，同时保留其身份、所有权、历史记录与审计归属。归档时先关闭这些入口，再停止其 Orchestrator、Assignment Session 以及所拥有的 Subagent；只有整个执行树都进入静止状态，归档才算完成。重新激活绝不会自动恢复旧执行。
 _避免使用_：deleted bot、paused UI、purged bot
 
+**PersonaBot Deletion**：
+由 Human 确认，结束某个 PersonaBot 活跃身份的操作；它保留历史归属及 Memory Repository，除非 Human 显式选择清除记忆。它不同于可恢复的归档，也不同于 Messaging Content Purge。
+_避免使用_：archive、hide、automatic Memory purge
+
 **Bot as a Person**：
 一项原则：PersonaBot 跨 Session 仍是同一个产品身份，其学习所得的持久连续性来自 Memory Repository，而不是 Session 历史。
 _避免使用_：session-scoped identity
@@ -387,6 +391,10 @@ _避免使用_：room、server、board
 **Hidden Channel**：
 因 Human 的呈现选择或 Bot-to-Bot DM 的默认规则而从展开与折叠 roster navigation 中省略的 Channel。隐藏会保留 Channel membership、history、routing、PersonaBot 与 Memory 状态，也会保留它的 pin、section 和 order placement；Human 可以打开查看，也可以恢复自己主动隐藏的 Channel。
 _避免使用_：deleted Channel、archived Channel、muted Channel、Content Purge
+
+**Channel Deletion**：
+由 Human 确认，结束某个 Channel 活跃成员关系和路由的操作，同时保留历史及因果归属。它不同于可恢复的隐藏，也不同于另行确认的 Content Purge。
+_避免使用_：Hidden Channel、Content Purge、provider conversation deletion
 
 **Channel section**：
 用户创建、可折叠的 Channel 分组，显示在 bot-mode sidebar 中。它只是本地 display arrangement，不属于 Soul。

@@ -21,6 +21,8 @@
 
 ### Added
 
+- 增加个人微信扫码绑定者文本进入既有 Bot Inbox 与本身份回复链路，使用明确私聊授权和私有来源续接信息；源码版与本机安装产品的真实收发已验证，Human QA 已通过（[#878](https://github.com/BotHarness/BotHarness/issues/878)，[ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md)，[连接指南](docs/wechat-connection.md)）。
+
 - 创建 PersonaBot 时可选择同事、角色扮演或空白起点并编辑 PERSONA.md；切换保留草稿，工具权限与运行能力保持不变（[#325](https://github.com/BotHarness/BotHarness/issues/325)）。
 
 - 增加候选 checked Discord Provider 注册与既有 Inbox／来源展示契约，保留准确频道／公开 thread 路由；真实频道／thread 模型回复及代理操作界面验收已通过，剩余原生资格验证尚待完成（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)）。
@@ -531,6 +533,8 @@
 - 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
 
 ### Documentation
+
+- 记录已接受的 PersonaBot／Channel 删除契约：默认不勾选的记忆清除选项与直接打开文件夹、保留历史的 Channel 删除，以及 Profile 恢复所需的真实 Purge Ledger 前置实现；运行控件仍由后续实现交付（[#138](https://github.com/BotHarness/BotHarness/issues/138)，[ADR-0130](docs/adr/0130-deletion-preserves-history-and-makes-memory-erasure-explicit.md)）。
 
 - 更新 Discord 接入说明，记录已合并 QA 版本、有界发送中断／恢复证据、代理操作界面的 E2E 截图、真实 Gateway 重投且无重复入箱／回复、原生拒绝检查及仍待完成的资格路径（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[验证记录](docs/dev/verification/discord-855-mention-reply.md)）。
 
