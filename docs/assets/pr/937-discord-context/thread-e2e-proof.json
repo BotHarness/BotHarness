@@ -1,14 +1,8 @@
 {
   "at": "2026-10-05T22:09:42.161Z",
   "mode": "thread",
-  "actualModelToolNames": [
-    "bridge_read",
-    "bridge_context",
-    "bridge_reply"
-  ],
-  "actualContextScopes": [
-    "thread"
-  ],
+  "actualModelToolNames": ["bridge_read", "bridge_context", "bridge_reply"],
+  "actualContextScopes": ["thread"],
   "nativeBotIdentityVerified": true,
   "nativeOriginalSourceReferenceVerified": true,
   "nativeOriginalLocationVerified": true,

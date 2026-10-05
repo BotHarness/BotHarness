@@ -29,6 +29,12 @@
 
 截图来自真实浏览器，中文／深色、1230 × 820，表示不同运行时用例，不是 Client 渲染前后对比；本次没有可见 Client 代码变更。凭据和完整原生／模型日志留在私密本机文件。[频道](../../assets/pr/937-discord-context/group-e2e-proof.json)、[thread](../../assets/pr/937-discord-context/thread-e2e-proof.json)、[原生翻页](../../assets/pr/937-discord-context/native-pages-proof.json)、[恢复后拒绝](../../assets/pr/937-discord-context/off-e2e-proof.json)的精简断言区分每一层证据。
 
+分类修复后的冷重启后，一条**新**浏览器提及进入同一个已有 Orchestrator。Message Content 保持 OFF，新实际 `bridge_context(group)` 返回 `history-permission-denied`；一次 `bridge_reply` 在原来源下回复 `DISCORD-937-RESTART-OFF:history-permission-denied`。原生 Bot 作者／来源引用／位置与已结算 intent 一致。计数成为 **46 Admission / 40 Intent / 7 placement**；原 Binding/Grant 和原有 placement 全部保留。额外 placement 仍只来自前述显式本机 DM 故障报告。这验证新模型调用与回复恢复，不声称 OFF 权限下历史正向读取通过。
+
+![修复后重启的新模型拒绝与原位置回复](../../assets/pr/937-discord-context/restart-off-native.jpg)
+
+[重启后模型／原生精简证明](../../assets/pr/937-discord-context/off-restart-e2e-proof.json)。
+
 ### 已编辑来源的拒绝回归
 
 原生检查确认一条历史 QA 消息的当前正文与留存正文不同，作者及路由一致。确定性的续页回归重现通用 `Operational transaction for messaging failed`；上下文写入现改用已有 Messaging 事务边界，将 `source-conflict` 保留给调用方和拒绝审计。冲突整页回滚、旧来源不变、无新 Admission；不覆盖证据，也不静默跳过冲突的 Human 消息。相关 Core 测试 102 项通过。这修正拒绝分类，不同步远端编辑／删除。

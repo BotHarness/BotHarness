@@ -29,6 +29,12 @@ The application-defined path is `bridge_context` → `MessagingProvider.history`
 
 These are actual Chinese/dark browser captures at 1230 × 820, showing distinct runtime cases rather than a rendered Client before/after change. No visible Client code changes in this slice. Credentials and full native/model logs stay private. Sanitized [channel](../../assets/pr/937-discord-context/group-e2e-proof.json), [thread](../../assets/pr/937-discord-context/thread-e2e-proof.json), [native pages](../../assets/pr/937-discord-context/native-pages-proof.json) and [restored refusal](../../assets/pr/937-discord-context/off-e2e-proof.json) assertions distinguish each evidence layer.
 
+After the patched cold restart, a **fresh** browser mention reaches the same existing Orchestrator. Its actual new `bridge_context(group)` returns `history-permission-denied` while Message Content remains OFF; one `bridge_reply` produces `DISCORD-937-RESTART-OFF:history-permission-denied` under that source. Native Bot identity/reference/location agree with the settled intent. Counts become **46 Admissions / 40 Intents / 7 placements**; original Binding/Grant and all original placements remain preserved. The extra placement still belongs solely to the preceding explicit local-DM failure report. This proves fresh model/reply recovery, without claiming a positive history read under OFF permissions.
+
+![Fresh model refusal and original reply after patched restart](../../assets/pr/937-discord-context/restart-off-native.jpg)
+
+[Sanitized post-restart model/native proof](../../assets/pr/937-discord-context/off-restart-e2e-proof.json).
+
 ### Edited-source refusal regression
 
 Native inspection confirms one historical QA source has different current and retained body, with the same actor and route. A deterministic continuation regression reproduces the generic `Operational transaction for messaging failed` result. Context persistence now uses the existing Messaging transaction boundary, preserving `source-conflict` for the caller and refusal audit. The entire conflicting page rolls back, retains the old source unchanged and creates no new Admission; it does not overwrite evidence or silently skip a conflicting Human message. The related Core suite passes 102 tests. This fixes classification; it does not synchronize remote edits/deletions.
