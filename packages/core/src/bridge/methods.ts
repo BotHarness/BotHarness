@@ -51,7 +51,7 @@ import {
   type ChannelReference,
 } from '../channels/channel.js';
 import { BOT_AVATAR_PATH } from '../bots/avatar-http.js';
-import type { AvatarAppearance } from '../bots/avatar-appearance.js';
+import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef } from '../attachments/ref.js';
@@ -152,7 +152,7 @@ export interface ActivityOverview {
     slug: string;
     displayName: string;
     avatar?: string;
-    appearance?: AvatarAppearance;
+    appearance?: AvatarAppearance | RetainedAvatarAppearance;
     paused: boolean;
     hasAction: boolean;
     state: AggregatedState;
@@ -173,7 +173,7 @@ export interface PersonaBotSummary {
   roles: string[];
   description?: string;
   avatar?: string;
-  appearance?: AvatarAppearance;
+  appearance?: AvatarAppearance | RetainedAvatarAppearance;
   paused?: boolean;
   aggregateState: AggregatedState;
   workspaces: string[];
@@ -257,7 +257,7 @@ export interface OwnedSessionBot {
   botSlug: string;
   displayName: string;
   avatar?: string;
-  appearance?: AvatarAppearance;
+  appearance?: AvatarAppearance | RetainedAvatarAppearance;
   role: SessionRootRole;
 }
 

@@ -17,6 +17,13 @@
 
 ### Added
 
+- 活动实时同步中断时，侧栏会提示；头像停在最后观察到的状态，活动指示变灰并暂停，不再播放装饰动画；重新连接或服务重启后从新的基线恢复（[#756](https://github.com/BotHarness/BotHarness/issues/756)）。
+
+- 已保存头像使用了当前不可用的版本时，PersonaBot 不再消失：原始设置会被保留，显示与之配对的保存快照并说明暂时无法编辑和播放角色动画，活动与待审批指示照常工作，版本恢复后自动还原；与快照不匹配或不安全的头像数据会被忽略，但不会丢失 PersonaBot（[#755](https://github.com/BotHarness/BotHarness/issues/755)）。
+
+- 像素家族头像可在资料页编辑器里分别选择刘海、侧发和后发，并在范围内调节眼距、五官高度和发长；没有这些选择的已保存头像外观不变（[#752](https://github.com/BotHarness/BotHarness/issues/752)）。
+
+- 像素家族的侧脸和思考转头帧改为真正的四分之三侧脸：五官向朝向一侧偏移、远侧眼睛变窄、只露近侧耳朵、下巴内收；双马尾等发尾保持贴着头部，嘴巴保持居中（[#752](https://github.com/BotHarness/BotHarness/issues/752)）。
 - Assignment 完成报告与 Host 确认的原生执行完成保留为独立、可跳转的 Inbox 来源，以可信 Session／Turn 身份关联且不重复唤醒；迟到通知重启后仍待处理，直到真实 Turn 纳入并处理（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)）。
 
 - 在 PersonaBot Profile 新增可恢复的 Lark／飞书配置引导，定位真实 IM 控件，并根据当前账号、身份、群授权及同话题回复证据核对进度，不另建新手引导工作流存储（[#824](https://github.com/BotHarness/BotHarness/issues/824)）。
@@ -253,6 +260,8 @@
 - 新增 Computer 导出与迁移指南，覆盖跨机器单文件迁移、必须随迁移保留的文件所遵循的持久 `~/workspace` 约定，以及体积/耗时预期（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
 
 ### Changed
+
+- Bot Inbox 侧栏以内容为先，分行展示来源、Report 信息与处理状态，并用原生错误色突出需要修复的项 ([#851](https://github.com/BotHarness/BotHarness/issues/851))。
 
 - Channel sidebar 显示设置改用悬停二级菜单，连续选择时保持打开并临时只展开对应项供预览；关闭菜单恢复原先展开状态，显示偏好立即保存（[#807](https://github.com/BotHarness/BotHarness/issues/807)）。
 

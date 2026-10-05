@@ -1,6 +1,7 @@
 import { parsePublicAttention } from './activity-attention.js';
 import {
   isAvatarAppearance,
+  isRetainedAvatarAppearance,
   type AvatarAppearance,
   type AvatarRecipe,
 } from '../../../core/src/bots/avatar-appearance.js';
@@ -431,7 +432,11 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
     roles: roles.length > 0 ? roles : typeof legacyTag === 'string' ? [legacyTag] : [],
     ...(typeof description === 'string' ? { description } : {}),
     ...(typeof avatar === 'string' ? { avatar } : {}),
-    ...(isAvatarAppearance(record['appearance']) ? { appearance: record['appearance'] } : {}),
+    ...(isAvatarAppearance(record['appearance'])
+      ? { appearance: record['appearance'] }
+      : isRetainedAvatarAppearance(record['appearance'])
+        ? { appearanceUnsupported: true as const }
+        : {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
   };
 }

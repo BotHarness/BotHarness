@@ -1,5 +1,7 @@
 import { AssignmentInboxAcceptanceUncertainError } from '../src/runtime/assignment-delivery.js';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { mkdirSync } from 'node:fs';
+import { backup, DatabaseSync } from 'node:sqlite';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -1931,6 +1933,102 @@ describe('Assignment collaboration', () => {
     owner.close();
   });
 
+  it('recovers a snapshot of an actually running Assignment without replaying its pending Report', async () => {
+    const { runtime, owner, home, agents, admit, close, dmChannelId, channels } = await setup({
+      assignmentConcurrencyLimit: 1,
+    });
+    const coldHome = createTempRoot('botharness-active-assignment-snapshot-');
+    let recovered: BotRuntime | undefined;
+    let reopened: ReturnType<typeof mountOperationalDatabase> | undefined;
+    const coldAgents = new ManualAgents();
+    try {
+      await admit('Start one direction', 'active-crash-start');
+      const created = agents.access!.create({
+        grantId: TEST_GRANT_ID,
+        purpose: 'Unfinished investigation',
+        key: 'unfinished-direction',
+      });
+      if (created.outcome !== 'created') throw new Error('Assignment was not created');
+      const sessionId = created.assignment.sessionId;
+      const run = agents.started[0]!.run;
+      await run.report(
+        { state: 'progress', summary: 'Evidence retained before interruption' },
+        { turn: 1 },
+      );
+      expect(runtime.getAssignment('ada', sessionId)?.activity).toBe('working');
+      const before = createBotAttentionQuery(
+        attachOperationalModule(owner, 'active-crash-before'),
+        channels,
+      )
+        .list({ botSlug: 'ada' })
+        .items.filter((item) => item.assignmentSessionId === sessionId);
+      expect(before).toHaveLength(1);
+      expect(before[0]?.state).toBe('pending');
+      const snapshotPath = join(coldHome, 'botharness', 'botharness.db');
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      const snapshotReader = new DatabaseSync(owner.databasePath, { readOnly: true });
+      try {
+        await backup(snapshotReader, snapshotPath);
+      } finally {
+        snapshotReader.close();
+      }
+      await close();
+      reopened = trackTestOwner(
+        mountOperationalDatabase({ dshHome: coldHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+      );
+      const coldGrants = createTestWorkspaceGrants(reopened, home);
+      recovered = createBotRuntime({
+        database: reopened,
+        registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+        channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
+        agents: coldAgents,
+        grants: coldGrants,
+        now: FIXED_NOW,
+        assignmentConcurrencyLimit: 1,
+      });
+      await recovered.whenIdle();
+      expect(recovered.getAssignment('ada', sessionId)).toMatchObject({
+        sessionId,
+        activity: 'error',
+      });
+      expect(recovered.getAssignment('ada', sessionId)?.continuityKey).toBeUndefined();
+      const after = createBotAttentionQuery(
+        attachOperationalModule(reopened, 'active-crash-after'),
+        channels,
+      )
+        .list({ botSlug: 'ada' })
+        .items.filter((item) => item.assignmentSessionId === sessionId);
+      expect(after).toEqual(before);
+      expect(coldAgents.started).toHaveLength(0);
+      expect(coldAgents.resumed).toHaveLength(0);
+      expect(coldAgents.inboxTurns).toHaveLength(0);
+      const admission = recovered.admitDmMessage({
+        channelId: dmChannelId,
+        messageId: 'explicit-replacement',
+        body: 'Start replacement work',
+      });
+      if (!admission.admitted) throw new Error('Human message refused');
+      await admission.settled;
+      expect(() =>
+        coldAgents.access!.request({ sessionId, mode: 'next-turn', text: 'Resume crashed work' }),
+      ).toThrow('failed; start a new Assignment');
+      const replacement = coldAgents.access!.create({
+        grantId: TEST_GRANT_ID,
+        purpose: 'Replacement investigation',
+        key: 'unfinished-direction',
+      });
+      expect(replacement.outcome).toBe('created');
+      if (replacement.outcome === 'created')
+        expect(replacement.assignment.sessionId).not.toBe(sessionId);
+    } finally {
+      coldAgents.finishAll();
+      await recovered?.close();
+      reopened?.close();
+      await close();
+      owner.close();
+    }
+  });
+
   it('releases a stale working reservation after Host restart without deleting the Assignment', async () => {
     const { runtime, owner, home, agents, grants, dmChannelId, admit } = await setup({
       assignmentConcurrencyLimit: 1,
@@ -2174,6 +2272,93 @@ describe('Assignment collaboration', () => {
       expect(query.list({ category: 'info' }).items[0]?.sourceEventId).toBe(nextReportId);
     } finally {
       reopened.close();
+    }
+  });
+
+  it('retains failed report repair across restart and excludes it from later Human harvests', async () => {
+    const { runtime, agents, owner, home, channels, admit, close } = await setup();
+    let repairSourceId = '';
+    let repairSource;
+    try {
+      await admit('Start research', 'human-start');
+      const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'progress', summary: 'Report needing review' });
+      vi.spyOn(agents, 'runOrchestrator').mockImplementationOnce(async (turn) => {
+        expect(turn.inbox).toContain('Report needing review');
+        await turn.channels.send({ body: 'Report read; execution interrupted' });
+        throw new Error('Orchestrator interrupted after Channel side effect');
+      });
+      await expect(admit('Read the current report', 'human-read')).rejects.toThrow(
+        'Orchestrator interrupted after Channel side effect',
+      );
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(owner, 'failed-report-repair-query'),
+        channels,
+      );
+      repairSource = attention
+        .list({ botSlug: 'ada' })
+        .items.find((item) => item.sourceKind === 'assignment-report');
+      expect(repairSource).toMatchObject({
+        state: 'needs-repair',
+        summary: 'Report needing review',
+        sourceAvailable: true,
+      });
+      repairSourceId = repairSource!.id;
+      expect(repairSource!.handledAt).toBeUndefined();
+      await run.report({ state: 'progress', summary: 'Later informational update' });
+      agents.finish(created.assignment.sessionId);
+      await runtime.whenIdle();
+    } finally {
+      await close();
+      owner.close();
+    }
+
+    const reopenedOwner = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    const reopenedAgents = new ManualAgents();
+    const reopenedChannels = createChannelStore({
+      rootDir: join(home, 'channels'),
+      now: FIXED_NOW,
+    });
+    const reopenedRuntime = createBotRuntime({
+      database: reopenedOwner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: reopenedChannels,
+      agents: reopenedAgents,
+      now: FIXED_NOW,
+    });
+    try {
+      await reopenedRuntime.whenIdle();
+      expect(reopenedAgents.allInboxTurns).toEqual([]);
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(reopenedOwner, 'failed-report-repair-reopened'),
+        reopenedChannels,
+      );
+      expect(
+        attention.list({ botSlug: 'ada' }).items.find((item) => item.id === repairSourceId),
+      ).toEqual(repairSource);
+      const admission = reopenedRuntime.admitDmMessage({
+        channelId: reopenedChannels.getOrCreateDm('ada', 'Ada')!.id,
+        messageId: 'human-after-restart',
+        body: 'Read the new information',
+      });
+      if (!admission.admitted) throw new Error('admission rejected');
+      await admission.settled;
+      expect(reopenedAgents.allInboxTurns).toHaveLength(1);
+      expect(reopenedAgents.allInboxTurns[0]).toContain('Later informational update');
+      expect(reopenedAgents.allInboxTurns[0]).not.toContain('Report needing review');
+      const final = attention.list({ botSlug: 'ada' }).items;
+      expect(final.find((item) => item.id === repairSourceId)).toEqual(repairSource);
+      expect(final.find((item) => item.summary === 'Later informational update')).toMatchObject({
+        state: 'handled',
+      });
+    } finally {
+      await reopenedRuntime.close();
+      reopenedOwner.close();
     }
   });
 

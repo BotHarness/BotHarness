@@ -233,11 +233,11 @@ function hair(
     case 'pigtails':
       return {
         back: (x, y) =>
-          ellipse(C + b - 11.5, 21, 3, 4.4)(x, y) || ellipse(C + b + 11.5, 21, 3, 4.4)(x, y),
+          ellipse(C + s - 11.5, 21, 3, 4.4)(x, y) || ellipse(C + s + 11.5, 21, 3, 4.4)(x, y),
         front: bangs(13, 1, 21),
         ties: [
-          [C + b - 12, 16],
-          [C + b + 11, 16],
+          [C + s - 12, 16],
+          [C + s + 11, 16],
         ],
       };
     case 'afro':
@@ -247,34 +247,34 @@ function hair(
       return {
         back: (x, y) =>
           y >= 8 &&
-          (ellipse(C + b - 13.2, 20, 2.3, 12)(x, y) || ellipse(C + b + 13.2, 20, 2.3, 12)(x, y)),
+          (ellipse(C + s - 13.2, 20, 2.3, 12)(x, y) || ellipse(C + s + 13.2, 20, 2.3, 12)(x, y)),
         front: bangs(13, 1, 24),
         ties: [
-          [C + b - 13, 9],
-          [C + b - 12, 9],
-          [C + b + 11, 9],
-          [C + b + 12, 9],
+          [C + s - 13, 9],
+          [C + s - 12, 9],
+          [C + s + 11, 9],
+          [C + s + 12, 9],
         ],
         bands: recipe.hair === 'drills',
       };
     case 'ponytail':
       return {
-        back: (x, y) => ellipse(C + b + 11.5, 19, 3, 9)(x, y) && y >= 8,
+        back: (x, y) => ellipse(C + s + 11.5, 19, 3, 9)(x, y) && y >= 8,
         front: bangs(12, 1, 20),
         ties: [
-          [C + b + 10, 9],
-          [C + b + 11, 9],
+          [C + s + 10, 9],
+          [C + s + 11, 9],
         ],
       };
     case 'sidetail':
       return {
-        back: (x, y) => ellipse(C + b - 11.5, 21, 3, 8)(x, y) && y >= 12,
+        back: (x, y) => ellipse(C + s - 11.5, 21, 3, 8)(x, y) && y >= 12,
         front: (x, y) =>
           cap(x, Math.min(y, 13)) &&
           (y <= 9 + Math.max(0, (C + s - x) * 0.45) || (Math.abs(x + 0.5 - C - s) >= 7 && y <= 18)),
         ties: [
-          [C + b - 13, 13],
-          [C + b - 12, 13],
+          [C + s - 13, 13],
+          [C + s - 12, 13],
         ],
       };
     case 'hime':
@@ -343,6 +343,34 @@ function hair(
           ].some(([ax, ay]) => x === Math.round(C + s) + ax! && y === ay! + 1),
       };
   }
+}
+
+function detailedHair(
+  recipe: Recipe,
+  s: number,
+  b: number,
+): { back: Mask; front: Mask; ties?: Point[]; bands?: boolean } {
+  const of = (style: Recipe['hair'] | undefined) =>
+    hair({ ...recipe, hair: style ?? 'none' }, s, b);
+  const bangs = of(recipe.bangs);
+  const side = of(recipe.sideHair);
+  const back = of(recipe.backHair);
+  const length = (recipe.hairLength ?? 0) * 2;
+  const lengthen =
+    (mask: Mask): Mask =>
+    (x, y) =>
+      mask(x, y > 18 ? Math.round(y - length) : y);
+  return {
+    front: (x, y) =>
+      y <= 7
+        ? bangs.front(x, y) || back.front(x, y)
+        : Math.abs(x + 0.5 - C - s) < 7
+          ? bangs.front(x, y)
+          : lengthen(side.front)(x, y),
+    back: length === 0 ? back.back : lengthen(back.back),
+    ...(back.ties ? { ties: back.ties } : {}),
+    ...(back.bands ? { bands: back.bands } : {}),
+  };
 }
 
 function outfit(recipe: Recipe, g: Grid, s: number): void {
@@ -660,13 +688,22 @@ export function pixelFigure(
 ): { tile: string; body: string; head: string; cells: PixelCell[] } {
   const yaw = (yawDeg * Math.PI) / 180;
   const sinY = Math.sin(yaw);
-  const s = Math.round(sinY * 2.4);
-  const fs = Math.round(sinY * 5);
-  const b = -Math.round(sinY * 2);
+  const s = Math.round(sinY * 3);
+  const fs = Math.round(sinY * 10);
+  const b = -Math.round(sinY * 3.5);
+  const turned = Math.abs(sinY) >= 0.3;
+  const d = Math.sign(sinY);
   const skin = recipe.skinColor;
   const hairColor = recipe.hairColor;
-  const face = FACE[recipe.head](s * 0.5);
-  const masks = hair(recipe, s, b);
+  const front = FACE[recipe.head](s * 0.5);
+  const face: Mask = turned
+    ? (x, y) => {
+        const dx = x + 0.5 - C;
+        const tuck = y >= 17 && d * dx > 4 ? Math.min(2, (y - 16) * 0.35) : 0;
+        return front(x - Math.round(d * (1 + Math.max(0, y - 20) * 0.4) - d * tuck), y);
+      }
+    : front;
+  const masks = recipe.bangs === undefined ? hair(recipe, s, b) : detailedHair(recipe, s, b);
 
   const body = blank();
   outfit(recipe, body, s);
@@ -683,12 +720,18 @@ export function pixelFigure(
   const head = blank();
   paint(head, face, skin);
   const earY = 15;
-  if (Math.abs(fs) < 3)
-    for (const ex of [-1, 1]) {
-      const xs = [...Array(N).keys()].filter((x) => face(x, earY));
-      const x = ex < 0 ? xs[0]! - 1 : xs.at(-1)! + 1;
-      sprite(head, ['E', 'E', 'e'], x, earY, { E: skin, e: shade(skin, 0.86) });
-    }
+  const edge = (side: number) => {
+    const xs = [...Array(N).keys()].filter((x) => face(x, earY));
+    return side < 0 ? xs[0]! - 1 : xs.at(-1)! + 1;
+  };
+  if (!turned)
+    for (const ex of [-1, 1])
+      sprite(head, ['E', 'E', 'e'], edge(ex), earY, { E: skin, e: shade(skin, 0.86) });
+  else
+    sprite(head, ['EE', 'Ee', 'Ee', 'E.'], d > 0 ? edge(-d) - 1 : edge(-d), earY, {
+      E: skin,
+      e: shade(skin, 0.8),
+    });
   paint(head, masks.front, hairColor);
   for (const [x, y] of masks.ties ?? [])
     sprite(back, ['T'], Math.round(x), y, { T: shade(recipe.shirtColor, 0.8) });
@@ -755,13 +798,15 @@ export function pixelFigure(
   const eyes = blank();
   const closed = blank();
   const glasses = blank();
-  const eyeTop = 15;
-  const eyeW = (side: -1 | 1) => (Math.abs(fs) >= 3 && Math.sign(fs) === -side ? 3 : 4);
+  const sp = recipe.spacing ?? 0;
+  const h = recipe.height ?? 0;
+  const eyeTop = 15 + h;
+  const eyeW = (side: -1 | 1) => (turned && Math.sign(fs) === side ? 3 : 4);
   const eyeX = (side: -1 | 1) => {
     const w = eyeW(side);
     return side < 0
-      ? Math.round(C + fs * 0.5) - 6 - (w === 3 ? -1 : 0)
-      : Math.round(C + fs * 0.5) + 2;
+      ? Math.round(C + fs * 0.6) - 6 - sp - (w === 3 ? -1 : 0)
+      : Math.round(C + fs * 0.6) + 2 + sp;
   };
   const left = { x: eyeX(-1), w: eyeW(-1) };
   const right = { x: eyeX(1), w: eyeW(1) };
@@ -799,24 +844,25 @@ export function pixelFigure(
       true,
     );
   }
-  const cx = Math.round(C + fs * 0.6);
-  if (recipe.nose === 'dot') sprite(features, ['N'], cx, 18, { N: shade(skin, 0.78) });
-  if (recipe.nose === 'button') sprite(features, ['N'], cx, 18, { N: shade(skin, 0.88) });
-  if (recipe.nose === 'line') sprite(features, ['N', 'N'], cx, 17, { N: shade(skin, 0.82) });
+  const cx = Math.round(C + fs * (turned ? 0.85 : 0.6));
+  if (recipe.nose === 'dot') sprite(features, ['N'], cx, 18 + h, { N: shade(skin, 0.78) });
+  if (recipe.nose === 'button') sprite(features, ['N'], cx, 18 + h, { N: shade(skin, 0.88) });
+  if (recipe.nose === 'line') sprite(features, ['N', 'N'], cx, 17 + h, { N: shade(skin, 0.82) });
   const mouth = MOUTHS[recipe.mouth];
-  sprite(features, mouth, cx - Math.floor((mouth[0]!.length - 1) / 2), 20, {
+  const mx = C - 0.5 + fs * 0.6;
+  sprite(features, mouth, Math.round(mx - (mouth[0]!.length - 1) / 2), 20 + h, {
     K: MOUTH,
     M: MOUTH_INSIDE,
     T: TONGUE,
     W: WHITE,
   });
   if (recipe.cheeks === 'blush') {
-    sprite(features, ['PP'], left.x - 1, 19, { P: mix(BLUSH, skin, 0.25) });
-    sprite(features, ['PP'], right.x + right.w - 1, 19, { P: mix(BLUSH, skin, 0.25) });
+    sprite(features, ['PP'], left.x - 1, 19 + h, { P: mix(BLUSH, skin, 0.25) });
+    sprite(features, ['PP'], right.x + right.w - 1, 19 + h, { P: mix(BLUSH, skin, 0.25) });
   }
   if (recipe.cheeks === 'freckles') {
-    sprite(features, ['F.F'], left.x, 19, { F: shade(skin, 0.7) });
-    sprite(features, ['F.F'], right.x + 1, 19, { F: shade(skin, 0.7) });
+    sprite(features, ['F.F'], left.x, 19 + h, { F: shade(skin, 0.7) });
+    sprite(features, ['F.F'], right.x + 1, 19 + h, { F: shade(skin, 0.7) });
   }
   const frame = (fx: number, w: number, round: boolean) =>
     paint(

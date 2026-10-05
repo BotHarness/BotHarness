@@ -17,6 +17,7 @@ import { deriveAvatarAppearance } from './avatar-snapshot.js';
 import {
   isPersonaBotAvatar,
   isPersonaBotRecord,
+  isUsableAvatarAppearance,
   type CreatePersonaBotInput,
   type CreatePersonaBotResult,
   type PersonaBotPatch,
@@ -123,6 +124,13 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     } catch {
       return undefined;
     }
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'appearance' in parsed &&
+      !isUsableAvatarAppearance(parsed.appearance, (parsed as { avatar?: unknown }).avatar)
+    )
+      delete (parsed as { appearance?: unknown }).appearance;
     return isPersonaBotRecord(parsed, slug) ? parsed : undefined;
   };
 
