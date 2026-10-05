@@ -69,6 +69,35 @@ describe('live PersonaBot activity', () => {
     expect(store.getSnapshot().bots[0]?.aggregateState).toBe('idle');
   });
 
+  it('keeps the last observed activity as stale while the stream is down and returns to live on a new baseline', () => {
+    vi.useFakeTimers();
+    const store = createStore();
+    store.setRoster([BOT], []);
+    const sources: Source[] = [];
+    const dispose = mountActivityLive(store, () => {
+      const source = new Source();
+      sources.push(source);
+      return source as unknown as EventSource;
+    });
+    store.setMode('bot');
+    sources[0]!.emit('host-one', 1, 'working');
+    expect(store.getSnapshot().activitySync).toBe('live');
+    sources[0]!.readyState = 2;
+    sources[0]!.listeners.get('error')?.(new Event('error'));
+    expect(store.getSnapshot().activitySync).toBe('stale');
+    expect(store.getSnapshot().bots[0]?.aggregateState).toBe('working');
+    if (typeof document !== 'undefined')
+      expect(document.documentElement.dataset['botharnessActivity']).toBe('stale');
+    vi.advanceTimersByTime(10_000);
+    expect(sources).toHaveLength(2);
+    sources[1]!.emit('host-two', 0, 'idle');
+    expect(store.getSnapshot().activitySync).toBe('live');
+    expect(store.getSnapshot().bots[0]?.aggregateState).toBe('idle');
+    if (typeof document !== 'undefined')
+      expect(document.documentElement.dataset['botharnessActivity']).toBeUndefined();
+    dispose();
+  });
+
   it('refreshes only during stream failure and cancels recovery on mode exit', async () => {
     vi.useFakeTimers();
     const store = createStore();

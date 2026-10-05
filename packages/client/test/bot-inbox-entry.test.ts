@@ -51,67 +51,99 @@ const item: BotAttentionItem = {
 };
 
 describe('DM Bot Inbox sidebar entry', () => {
-  it('appears only with facts, groups by source, and opens the source message', async () => {
-    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-    const previous = store.getSnapshot().botInbox;
-    const entry = createChannelSidebarBuiltins(zhTranslate).find(
-      (candidate) => candidate.id === 'bot-inbox',
-    );
-    expect(entry).toBeDefined();
-    store.setBotInbox({ status: 'ready', items: [], error: undefined });
-    expect(entry?.visible?.(store.getSnapshot())).toBe(false);
-    store.setBotInbox({
-      status: 'ready',
-      items: [
-        item,
-        { ...item, id: 'source-2', state: 'handled', sourceMessageId: 'm2' },
-        { ...item, id: 'source-3', state: 'ignored', sourceMessageId: 'm3' },
-      ],
-      error: undefined,
-    });
-    expect(entry?.visible?.(store.getSnapshot())).toBe(true);
-    const container = document.createElement('div');
-    document.body.append(container);
-    const root = createRoot(container);
-    const openChannel = vi.fn(async () => undefined);
-    const openAround = vi.fn(async () => undefined);
-    try {
-      await act(async () =>
-        root.render(
-          createElement(ChannelSidebarEntrySection, {
-            entry: entry!,
-            expanded: true,
-            onToggle: () => undefined,
-            entryProps: {
-              scope: 'personabot',
-              channelId: 'dm-ada',
-              botSlug: 'ada',
-              actions: { openChannel, openAround } as unknown as BridgeActions,
-              t: zhTranslate,
-            },
-          }),
-        ),
+  it.each(['group', 'dm'] as const)(
+    'shows a readable %s source and opens the same message without consuming it',
+    async (type) => {
+      Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+      const previous = store.getSnapshot().botInbox;
+      const previousRoster = store.getSnapshot();
+      store.setRoster(
+        [
+          {
+            slug: 'ada',
+            displayName: 'Ada Lovelace',
+            roles: [],
+            aggregateState: 'idle',
+            workspaces: [],
+            createdAt: item.createdAt,
+          },
+        ],
+        [
+          {
+            id: 'group-team',
+            createdAt: item.createdAt,
+            updatedAt: item.createdAt,
+            type,
+            name: type === 'dm' ? 'ada' : 'Team',
+            members: ['ada'],
+            ...(type === 'dm' ? { botSlug: 'ada' } : {}),
+          },
+        ],
       );
-      expect(container.textContent).toContain('Team');
-      expect(container.textContent).toContain('待处理');
-      expect(container.textContent).toContain('已处理或忽略 · 2');
-      expect(container.textContent).toContain('已忽略');
-      const button = [...container.querySelectorAll<HTMLButtonElement>('.bh-inbox-item')].find(
-        (node) => node.textContent?.includes('Please check this'),
+      const sourceItem = { ...item, sourceChannelName: type === 'dm' ? 'ada' : 'Team' };
+      const entry = createChannelSidebarBuiltins(zhTranslate).find(
+        (candidate) => candidate.id === 'bot-inbox',
       );
-      expect(button).toBeDefined();
-      await act(async () => {
-        button?.click();
-        await Promise.resolve();
+      expect(entry).toBeDefined();
+      store.setBotInbox({ status: 'ready', items: [], error: undefined });
+      expect(entry?.visible?.(store.getSnapshot())).toBe(false);
+      store.setBotInbox({
+        status: 'ready',
+        items: [
+          sourceItem,
+          { ...sourceItem, id: 'source-2', state: 'handled', sourceMessageId: 'm2' },
+          { ...sourceItem, id: 'source-3', state: 'ignored', sourceMessageId: 'm3' },
+        ],
+        error: undefined,
       });
-      expect(openChannel).toHaveBeenCalledWith('group-team');
-      expect(openAround).toHaveBeenCalledWith('group-team', 'm1');
-    } finally {
-      await act(async () => root.unmount());
-      container.remove();
-      store.setBotInbox(previous);
-    }
-  });
+      expect(entry?.visible?.(store.getSnapshot())).toBe(true);
+      const container = document.createElement('div');
+      document.body.append(container);
+      const root = createRoot(container);
+      const openChannel = vi.fn(async () => undefined);
+      const openAround = vi.fn(async () => undefined);
+      try {
+        await act(async () =>
+          root.render(
+            createElement(ChannelSidebarEntrySection, {
+              entry: entry!,
+              expanded: true,
+              onToggle: () => undefined,
+              entryProps: {
+                scope: 'personabot',
+                channelId: 'dm-ada',
+                botSlug: 'ada',
+                actions: { openChannel, openAround } as unknown as BridgeActions,
+                t: zhTranslate,
+              },
+            }),
+          ),
+        );
+        expect(container.querySelector('.bh-inbox-group-head')?.textContent).toContain(
+          type === 'dm' ? 'Ada Lovelace' : 'Team',
+        );
+        expect(container.textContent).toContain('待处理');
+        expect(container.textContent).toContain('已处理或忽略 · 2');
+        expect(container.textContent).toContain('已忽略');
+        const button = [...container.querySelectorAll<HTMLButtonElement>('.bh-inbox-item')].find(
+          (node) => node.textContent?.includes('Please check this'),
+        );
+        expect(button).toBeDefined();
+        await act(async () => {
+          button?.click();
+          await Promise.resolve();
+        });
+        expect(openChannel).toHaveBeenCalledWith('group-team');
+        expect(openAround).toHaveBeenCalledWith('group-team', 'm1');
+        expect(store.getSnapshot().botInbox.items[0]?.state).toBe('pending');
+      } finally {
+        await act(async () => root.unmount());
+        container.remove();
+        store.setBotInbox(previous);
+        store.setRoster(previousRoster.bots, previousRoster.channels);
+      }
+    },
+  );
 
   it('reveals newly active or escalated attention in an existing collapsed source group', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });

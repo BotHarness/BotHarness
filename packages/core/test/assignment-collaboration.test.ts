@@ -1,5 +1,7 @@
 import { AssignmentInboxAcceptanceUncertainError } from '../src/runtime/assignment-delivery.js';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { mkdirSync } from 'node:fs';
+import { backup, DatabaseSync } from 'node:sqlite';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -1929,6 +1931,102 @@ describe('Assignment collaboration', () => {
     expect(reopened.getAssignment('ada', sessionId)?.activity).toBe('idle');
     await reopened.close();
     owner.close();
+  });
+
+  it('recovers a snapshot of an actually running Assignment without replaying its pending Report', async () => {
+    const { runtime, owner, home, agents, admit, close, dmChannelId, channels } = await setup({
+      assignmentConcurrencyLimit: 1,
+    });
+    const coldHome = createTempRoot('botharness-active-assignment-snapshot-');
+    let recovered: BotRuntime | undefined;
+    let reopened: ReturnType<typeof mountOperationalDatabase> | undefined;
+    const coldAgents = new ManualAgents();
+    try {
+      await admit('Start one direction', 'active-crash-start');
+      const created = agents.access!.create({
+        grantId: TEST_GRANT_ID,
+        purpose: 'Unfinished investigation',
+        key: 'unfinished-direction',
+      });
+      if (created.outcome !== 'created') throw new Error('Assignment was not created');
+      const sessionId = created.assignment.sessionId;
+      const run = agents.started[0]!.run;
+      await run.report(
+        { state: 'progress', summary: 'Evidence retained before interruption' },
+        { turn: 1 },
+      );
+      expect(runtime.getAssignment('ada', sessionId)?.activity).toBe('working');
+      const before = createBotAttentionQuery(
+        attachOperationalModule(owner, 'active-crash-before'),
+        channels,
+      )
+        .list({ botSlug: 'ada' })
+        .items.filter((item) => item.assignmentSessionId === sessionId);
+      expect(before).toHaveLength(1);
+      expect(before[0]?.state).toBe('pending');
+      const snapshotPath = join(coldHome, 'botharness', 'botharness.db');
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      const snapshotReader = new DatabaseSync(owner.databasePath, { readOnly: true });
+      try {
+        await backup(snapshotReader, snapshotPath);
+      } finally {
+        snapshotReader.close();
+      }
+      await close();
+      reopened = trackTestOwner(
+        mountOperationalDatabase({ dshHome: coldHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+      );
+      const coldGrants = createTestWorkspaceGrants(reopened, home);
+      recovered = createBotRuntime({
+        database: reopened,
+        registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+        channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
+        agents: coldAgents,
+        grants: coldGrants,
+        now: FIXED_NOW,
+        assignmentConcurrencyLimit: 1,
+      });
+      await recovered.whenIdle();
+      expect(recovered.getAssignment('ada', sessionId)).toMatchObject({
+        sessionId,
+        activity: 'error',
+      });
+      expect(recovered.getAssignment('ada', sessionId)?.continuityKey).toBeUndefined();
+      const after = createBotAttentionQuery(
+        attachOperationalModule(reopened, 'active-crash-after'),
+        channels,
+      )
+        .list({ botSlug: 'ada' })
+        .items.filter((item) => item.assignmentSessionId === sessionId);
+      expect(after).toEqual(before);
+      expect(coldAgents.started).toHaveLength(0);
+      expect(coldAgents.resumed).toHaveLength(0);
+      expect(coldAgents.inboxTurns).toHaveLength(0);
+      const admission = recovered.admitDmMessage({
+        channelId: dmChannelId,
+        messageId: 'explicit-replacement',
+        body: 'Start replacement work',
+      });
+      if (!admission.admitted) throw new Error('Human message refused');
+      await admission.settled;
+      expect(() =>
+        coldAgents.access!.request({ sessionId, mode: 'next-turn', text: 'Resume crashed work' }),
+      ).toThrow('failed; start a new Assignment');
+      const replacement = coldAgents.access!.create({
+        grantId: TEST_GRANT_ID,
+        purpose: 'Replacement investigation',
+        key: 'unfinished-direction',
+      });
+      expect(replacement.outcome).toBe('created');
+      if (replacement.outcome === 'created')
+        expect(replacement.assignment.sessionId).not.toBe(sessionId);
+    } finally {
+      coldAgents.finishAll();
+      await recovered?.close();
+      reopened?.close();
+      await close();
+      owner.close();
+    }
   });
 
   it('releases a stale working reservation after Host restart without deleting the Assignment', async () => {
