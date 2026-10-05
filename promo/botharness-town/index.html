@@ -27,13 +27,15 @@ const VIEW_H = 180;
 const PIXEL_RATIO = 4;
 const TILE = 16;
 const FPS = 60;
-const TOTAL = 10800; // 180 s, the length of the Pixel Town Disco track
 const BAR = 120; // 120 BPM in 4/4: one bar is 120 frames
 const params = new URLSearchParams(location.search);
 if (params.get('debug') === '0') DEBUG_FRAMES = false;
 
 // ----- localization: every on-screen sentence lives here --------------------------
 const LANG = params.get('lang') === 'en' ? 'en' : 'zh';
+// zh is cut to ピコピコひらめきタイム (Full), en to Pixel Town Disco; the extra zh second goes to the end card
+const FILM_FRAMES = { zh: 10896, en: 10800 };
+const TOTAL = FILM_FRAMES[LANG];
 const STR = {
   welcome: { zh: '欢迎来到 DeepSeekBot 小镇。这里的每个 PersonaBot，都有自己的身份、人格和记忆。', en: 'Welcome to DeepSeekBot Town. Every PersonaBot here has its own identity, persona and memory.' },
   meet: { zh: '认识一下：Mira 负责研究，Theo 负责布局，Nova 负责实现。', en: 'Meet Mira on research, Theo on layout and Nova on building.' },
@@ -1785,16 +1787,16 @@ function renderLegacy(f) {
 // ===== master timeline =============================================================
 // legacy segments replay the town film by its own frame numbers; the others are new modules
 const SEGMENTS = [
-  { id: 'hook', len: 480 },
-  { id: 'legacy', len: 590, from: 130 },
+  { id: 'hook', len: 600 },
+  { id: 'legacy', len: 520, from: 200 },
   { id: 'legacy', len: 1800, from: 720, rate: 1080 / 1800 }, // Memory, slowed so every panel can be read
   { id: 'legacy', len: 240, from: 1800 },
-  { id: 'market', len: 1860, rate: 2160 / 1860 },
+  { id: 'market', len: 1810, rate: 2160 / 1810 },
   { id: 'legacy', len: 3490, from: 2160, rate: 3780 / 3490 },
   { id: 'wall', len: 420, rate: 480 / 420 },
   { id: 'eco', len: 720, rate: 840 / 720 },
   { id: 'city', len: 900, rate: 1080 / 900 },
-  { id: 'end', len: 300 },
+  { id: 'end', len: 300 + TOTAL - 10800 },
 ];
 let segStart = 0;
 for (const sg of SEGMENTS) { sg.start = segStart; segStart += sg.len; }
@@ -2959,78 +2961,280 @@ function renderVoxel(c, { narration = true } = {}) {
   if (c >= 1020) { fadeQuad.visible = true; setRect(fadeQuad, 0, 0, VIEW_W, VIEW_H); fadeQuad.material.opacity = step8(span(c, 1020, 1080)); }
 }
 
-// ===== hook: the pitch in the first seconds, cut over the film's own shots ===========
-// Shots replay frames of the other modules (still UI panels only, so export never waits on a clip seek).
-const HOOK_SHOT = 66;
-const HOOK_TITLE = 330;
-const HOOK_SHOTS = [
-  { chip: 'hookMem', draw: (k) => renderLegacy(1240 + k) },
-  { chip: 'hookIm', draw: (k) => renderLegacy(3930 + k) },
-  { chip: 'hookGroup', draw: (k) => renderLegacy(3440 + k * 0.5) },
-  { chip: 'hookMorph', draw: (k) => renderLegacy(4560 + k) },
-  { chip: 'hookCity', draw: (k) => renderVoxel(640 + k * 1.5, { narration: false }) },
-];
+// ===== hook: a paper puppet theater pitches the product in the first ten seconds =======
+// Hand-cut stickers on wooden sticks, shot like stop-motion: every pose holds for SM frames
+// and jiggles a little, the way a hand-held puppet never stays perfectly still.
+const HOOK_LEN = 600;
+const SM = 4;
+const smStep = (h) => Math.floor(h / SM);
+const smT = (h) => smStep(h) * SM;
 const hookHud = new THREE.Scene();
-const hk = {};
-hk.dim = hudPlane(hookHud, null, 1);
-hk.dim.material.color.set('#1b1820');
-hk.band = hudPlane(hookHud, null, 2);
-hk.band.material.color.set('#1b1820');
-hk.head = hudPlane(hookHud, canvasTex(640, 104, (ctx) => {
-  const fit = (text, px, max) => Math.min(px, Math.floor((max / measureCJK(text, px)) * px));
-  const t1 = T('hook1');
-  const p1 = fit(t1, 40, 600);
-  const w1 = measureCJK(t1, p1);
-  crispText(ctx, t1, Math.round(320 - w1 / 2) + 2, 34, p1, INK, 110);
-  crispText(ctx, t1, Math.round(320 - w1 / 2), 32, p1, '#fff2a0', 110);
-  const t2 = T('hook2');
-  const p2 = fit(t2, 26, 560);
-  crispText(ctx, t2, Math.round(320 - measureCJK(t2, p2) / 2), 80, p2, '#ffffff', 110);
-}), 3, 0.5, 1);
-hk.chips = HOOK_SHOTS.map((s) => hudPlane(hookHud, canvasTex(560, 40, (ctx) => {
-  const t = T(s.chip);
-  const px = Math.min(24, Math.floor((500 / measureCJK(t, 24)) * 24));
-  const w = Math.ceil(measureCJK(t, px)) + 36;
-  rect(ctx, 4, 0, w - 8, 40, PAL.amber); rect(ctx, 0, 4, w, 32, PAL.amber); rect(ctx, 6, 6, w - 12, 28, '#fff4d6');
-  crispText(ctx, t, 18, 20, px, INK, 100);
-}), 4, 0, 0));
-hk.sub = hudPlane(hookHud, canvasTex(640, 40, (ctx) => {
-  const t = `${T('hook1')} · ${T('hook2')}`;
-  const px = Math.min(22, Math.floor((600 / measureCJK(t, 22)) * 22));
-  crispText(ctx, t, Math.round(320 - measureCJK(t, px) / 2), 20, px, '#fff2a0', 110);
-}), 44, 0.5, 1);
-hk.logo = hudPlane(hookHud, logoTex, 42);
-hk.title = hudPlane(hookHud, { tex: titleText.material.map }, 43, 0.5, 1);
-hk.flash = hudPlane(hookHud, null, 50);
-hk.flash.material.color.set('#ffffff');
+const hk = { built: false };
+function groupPlane(parent, t, order, ax, ay) { return hudPlane(parent, t, order, ax, ay); }
+// sticker: the art cut out with a white paper margin and a soft drop shadow
+function stickerCanvas(src, w, h, { smooth = false, margin = 2, into = null } = {}) {
+  const W = w + margin * 2 + 3;
+  const H = h + margin * 2 + 3;
+  const art = document.createElement('canvas');
+  art.width = w; art.height = h;
+  const a = art.getContext('2d');
+  a.imageSmoothingEnabled = smooth;
+  a.drawImage(src, 0, 0, w, h);
+  const sil = document.createElement('canvas');
+  sil.width = W; sil.height = H;
+  const s = sil.getContext('2d');
+  for (let dy = -margin; dy <= margin; dy++) for (let dx = -margin; dx <= margin; dx++) if (dx * dx + dy * dy <= margin * margin + 1) s.drawImage(art, margin + dx, margin + dy);
+  s.globalCompositeOperation = 'source-in';
+  s.fillStyle = '#fffaf0';
+  s.fillRect(0, 0, W, H);
+  const out = into ?? canvasTex(W, H);
+  const o = out.ctx;
+  o.clearRect(0, 0, W, H);
+  o.globalAlpha = 0.3;
+  o.filter = 'brightness(0)';
+  o.drawImage(sil, 2, 3);
+  o.filter = 'none';
+  o.globalAlpha = 1;
+  o.drawImage(sil, 0, 0);
+  o.drawImage(art, margin, margin);
+  out.tex.needsUpdate = true;
+  return out;
+}
+function paperCard(w, h, paint) {
+  // 2x resolution so text stays crisp; displayed at w x h
+  return canvasTex(w * 2, h * 2, (ctx) => {
+    const W = w * 2, H = h * 2;
+    rect(ctx, 4, 6, W - 4, H - 6, 'rgba(42,34,48,0.3)');
+    rect(ctx, 0, 0, W - 4, H - 6, INK);
+    rect(ctx, 3, 3, W - 10, H - 12, '#fff6e0');
+    for (let i = 0; i < 40; i++) rect(ctx, 6 + Math.floor(hash(i, w, 7) * (W - 20)), 6 + Math.floor(hash(i, h, 8) * (H - 24)), 2, 2, '#f1e3c4');
+    rect(ctx, 10, 0, 26, 10, 'rgba(243,214,120,0.85)');
+    rect(ctx, W - 40, 0, 26, 10, 'rgba(243,214,120,0.85)');
+    paint(ctx, W - 4, H - 6);
+  });
+}
+const fitPx = (text, px, max) => Math.min(px, Math.floor((max / measureCJK(text, px)) * px));
+function centered(ctx, text, cx, cy, px, max, color = INK) {
+  const p = fitPx(text, px, max);
+  crispText(ctx, text, Math.round(cx - measureCJK(text, p) / 2), cy, p, color, 110);
+}
+function talkTex(text) {
+  return canvasTex(64, 40, (ctx) => {
+    rect(ctx, 2, 2, 60, 26, 'rgba(42,34,48,0.3)');
+    box(ctx, 0, 0, 60, 26, '#ffffff', INK);
+    rect(ctx, 14, 25, 8, 3, '#ffffff'); rect(ctx, 14, 28, 5, 3, '#ffffff'); rect(ctx, 14, 31, 2, 3, '#ffffff');
+    rect(ctx, 13, 26, 1, 8, INK); rect(ctx, 22, 26, 1, 2, INK); rect(ctx, 19, 28, 3, 1, INK); rect(ctx, 16, 31, 3, 1, INK);
+    if (text === '...') for (let i = 0; i < 3; i++) disc(ctx, 20 + i * 10, 13, 3, INK);
+    else drawText(ctx, text, 30 - textWidth(text), 8, INK, 2);
+  });
+}
+function buildHook() {
+  hk.built = true;
+  hk.bg = groupPlane(hookHud, canvasTex(320, 180, (ctx) => {
+    for (let y = 0; y < 180; y++) rect(ctx, 0, y, 320, 1, `rgb(${Math.round(lerp(232, 214, y / 180))},${Math.round(lerp(205, 186, y / 180))},${Math.round(lerp(160, 140, y / 180))})`);
+    for (let r = 0; r < 6; r++) { ctx.fillStyle = `rgba(255,244,214,${0.07})`; ctx.beginPath(); ctx.ellipse(160, 80, 150 - r * 20, 80 - r * 11, 0, 0, Math.PI * 2); ctx.fill(); }
+    for (let i = 0; i < 700; i++) rect(ctx, Math.floor(hash(i, 1, 91) * 320), Math.floor(hash(i, 2, 91) * 180), 1, 1, hash(i, 3, 91) < 0.5 ? '#d8bd8c' : '#f4e2bc');
+    // cardboard town behind the actors
+    const roofs = [[18, 30, 26], [52, 36, 34], [96, 28, 24], [210, 34, 30], [250, 26, 28], [284, 38, 26]];
+    for (const [x, w, hgt] of roofs) {
+      rect(ctx, x, 180 - 36 - hgt, w, hgt, '#b89466');
+      for (let k = 0; k < w / 2; k++) rect(ctx, x + k, 180 - 36 - hgt - Math.floor(w / 2) + k, w - k * 2, 1, '#a07d52');
+      rect(ctx, x + Math.floor(w / 2) - 3, 180 - 36 - 10, 6, 10, '#8c6a42');
+      rect(ctx, x + 4, 180 - 36 - hgt + 6, 5, 5, '#e9cf8c');
+    }
+    // doodled stars and moon in ink
+    for (const [x, y] of [[40, 30], [82, 18], [140, 24], [190, 16], [236, 28], [292, 20], [120, 44], [262, 48]]) { rect(ctx, x, y - 2, 1, 5, '#6b5440'); rect(ctx, x - 2, y, 5, 1, '#6b5440'); }
+    disc(ctx, 300, 40, 9, '#f6e7b0'); disc(ctx, 304, 37, 8, '#e3cb9c');
+  }), 1);
+  // the stage apron in front hides the sticks
+  hk.apron = groupPlane(hookHud, canvasTex(320, 40, (ctx) => {
+    rect(ctx, 0, 6, 320, 34, '#9a6334');
+    for (let y = 14; y < 40; y += 8) rect(ctx, 0, y, 320, 1, '#7a4a24');
+    for (let x = 0; x < 320; x += 40) for (let y = 10; y < 40; y += 8) rect(ctx, x + ((y >> 3) % 2) * 20, y, 1, 4, '#7a4a24');
+    for (let x = 6; x < 320; x += 20) rect(ctx, x, 9, 1, 1, '#e9cf8c');
+    rect(ctx, 0, 4, 320, 3, '#6b3f1f');
+    rect(ctx, 0, 2, 320, 2, '#c58a4f');
+  }), 30);
+  const curtain = (flip) => canvasTex(176, 180, (ctx) => {
+    for (let x = 0; x < 176; x++) {
+      const fold = (x % 14) / 14;
+      const c = fold < 0.2 ? '#7e1a26' : fold < 0.55 ? '#b02a35' : fold < 0.7 ? '#cf4a52' : '#9c2430';
+      rect(ctx, flip ? 175 - x : x, 0, 1, 180, c);
+    }
+    for (let x = 0; x < 176; x += 4) rect(ctx, x, 172 - 0, 2, 8, '#e3b04b');
+    rect(ctx, 0, 170, 176, 2, '#c18f2c');
+  });
+  hk.curL = groupPlane(hookHud, curtain(false), 32);
+  hk.curR = groupPlane(hookHud, curtain(true), 32);
+  hk.valance = groupPlane(hookHud, canvasTex(320, 24, (ctx) => {
+    rect(ctx, 0, 0, 320, 12, '#9c2430');
+    for (let x = 0; x < 320; x += 32) for (let k = 0; k < 32; k++) rect(ctx, x + k, 12, 1, Math.round(Math.sqrt(Math.max(0, 256 - (k - 15.5) ** 2)) * 0.6), '#9c2430');
+    rect(ctx, 0, 0, 320, 3, '#e3b04b');
+    rect(ctx, 0, 10, 320, 1, '#e3b04b');
+  }), 33, 0, 1);
+  // sticks
+  hk.stickTex = canvasTex(4, 1, (ctx) => { rect(ctx, 0, 0, 1, 1, '#5a3a1e'); rect(ctx, 1, 0, 1, 1, '#c08850'); rect(ctx, 2, 0, 1, 1, '#8a5a2b'); rect(ctx, 3, 0, 1, 1, '#5a3a1e'); });
+  const puppet = (st, order, w, h) => {
+    const g = new THREE.Group();
+    hookHud.add(g);
+    const stick = groupPlane(g, hk.stickTex, order, 0.5, 1);
+    const art = groupPlane(g, st, order + 0.5, 0.5, 0);
+    return { g, stick, art, w: w ?? st.w, h: h ?? st.h };
+  };
+  const img = (t) => t.tex.image;
+  const castArt = Object.fromEntries(CAST.map((c) => [c.id, stickerCanvas(img(c.tex.front), 64, 64)]));
+  hk.mira = puppet(castArt.mira, 12);
+  hk.theo = puppet(castArt.theo, 13);
+  hk.nova = puppet(castArt.nova, 14);
+  hk.human = puppet(stickerCanvas(humanFrames[0].canvas, 32, 52), 11);
+  hk.mascot = puppet(stickerCanvas(logoTex.tex.image, 52, 52, { smooth: true }), 15);
+  const logoCanvas = (id) => { const c = document.createElement('canvas'); c.width = 12; c.height = 12; drawLogo(c.getContext('2d'), id, 0, 0, 1); return c; };
+  hk.lark = puppet(stickerCanvas(logoCanvas('lark'), 36, 36), 16);
+  hk.slack = puppet(stickerCanvas(logoCanvas('slack'), 36, 36), 16);
+  hk.graph = { tex: canvasTex(84, 60), n: -1 };
+  hk.graphP = puppet(hk.graph.tex, 16);
+  hk.morphSrc = canvasTex(32, 32);
+  hk.morphArt = stickerCanvas(hk.morphSrc.canvas, 80, 80);
+  hk.morph = puppet(hk.morphArt, 17);
+  // hanging signs, one per beat
+  const sign = (w, h, paint) => {
+    const g = new THREE.Group();
+    hookHud.add(g);
+    const card = paperCard(w, h, paint);
+    const strL = groupPlane(g, null, 24, 0.5, 0);
+    const strR = groupPlane(g, null, 24, 0.5, 0);
+    strL.material.color.set('#4a3a2c');
+    strR.material.color.set('#4a3a2c');
+    const art = groupPlane(g, card, 25, 0.5, 1);
+    return { g, art, strL, strR, w, h };
+  };
+  hk.signs = {
+    title: sign(268, 50, (ctx, W, H) => { centered(ctx, T('hook1'), W / 2, 36, 40, W - 40); centered(ctx, T('hook2'), W / 2, 76, 26, W - 60, '#7a3b4a'); }),
+  };
+  for (const k of ['hookMem', 'hookIm', 'hookGroup', 'hookMorph']) hk.signs[k] = sign(236, 24, (ctx, W, H) => centered(ctx, T(k), W / 2, H / 2 + 2, 24, W - 36));
+  hk.bubbles = { at: talkTex('@NOVA'), ok: talkTex('OK!'), dots: talkTex('...') };
+  hk.bub = [0, 1].map(() => groupPlane(hookHud, hk.bubbles.dots, 26, 0, 0));
+  // brand card at the end of the hook
+  hk.dim = groupPlane(hookHud, null, 40);
+  hk.dim.material.color.set('#1b1820');
+  hk.logo = groupPlane(hookHud, logoTex, 42);
+  hk.title = groupPlane(hookHud, { tex: titleText.material.map }, 43, 0.5, 1);
+  hk.sub = groupPlane(hookHud, canvasTex(640, 40, (ctx) => {
+    const t = `${T('hook1')} · ${T('hook2')}`;
+    const px = Math.min(22, Math.floor((600 / measureCJK(t, 22)) * 22));
+    crispText(ctx, t, Math.round(320 - measureCJK(t, px) / 2), 20, px, '#fff2a0', 110);
+  }), 44, 0.5, 1);
+  hk.flash = groupPlane(hookHud, null, 50);
+  hk.flash.material.color.set('#ffffff');
+}
+function drawGraph(n) {
+  if (hk.graph.n === n) return;
+  hk.graph.n = n;
+  const { ctx } = hk.graph.tex;
+  ctx.clearRect(0, 0, 84, 60);
+  rect(ctx, 2, 3, 80, 55, 'rgba(42,34,48,0.3)');
+  box(ctx, 0, 0, 80, 55, '#fff6e0', INK);
+  drawText(ctx, 'MEMORY GIT', 6, 4, '#7a3b4a');
+  rect(ctx, 14, 14, 2, 36, '#5a5070');
+  const ys = [44, 34, 24, 14];
+  ys.forEach((y, i) => {
+    if (i >= n) return;
+    disc(ctx, 15, y, 3, INK); disc(ctx, 15, y, 2, i === n - 1 ? PAL.amber : '#5cb85c');
+    drawText(ctx, ['INIT', 'NOTES', 'PERSONA', 'COMMIT'][i], 24, y - 2, INK);
+  });
+  if (n >= 3) { rect(ctx, 16, 33, 40, 1, '#4f7fcf'); rect(ctx, 56, 27, 1, 7, '#4f7fcf'); disc(ctx, 60, 26, 3, INK); disc(ctx, 60, 26, 2, '#4f7fcf'); }
+  hk.graph.tex.tex.needsUpdate = true;
+}
+// a puppet bobbing on its stick: rises from below the apron, jiggles each held pose, sinks away
+function showPuppet(p, h, x, y, inAt, outAt, { sway = 0, scale = 1 } = {}) {
+  const t = smT(h);
+  if (t < inAt || (outAt != null && t >= outAt + 16)) { p.g.visible = false; return false; }
+  p.g.visible = true;
+  const s = smStep(h);
+  const rise = ease(span(t, inAt, inAt + 16));
+  const sink = outAt == null ? 0 : ease(span(t, outAt, outAt + 16));
+  const hop = s % 4 < 2 ? 0 : 2;
+  const id = p.art.id;
+  const jx = Math.round((hash(s, id, 3) - 0.5) * 2);
+  p.g.position.set(x + jx, Math.round(y - (1 - rise) * 110 - sink * 110 + hop), 0);
+  p.g.rotation.z = (hash(s, id, 5) - 0.5) * 0.07 + Math.sin(s * 0.9) * sway;
+  setPlane(p.art, 0, 0, p.w * scale, p.h * scale);
+  setPlane(p.stick, 0, 2, 4, 120);
+  return true;
+}
+function showSign(sg, h, inAt, outAt, y = 152) {
+  const t = smT(h);
+  if (t < inAt || t >= outAt + 12) { sg.g.visible = false; return; }
+  sg.g.visible = true;
+  const s = smStep(h);
+  const drop = 1 - ease(span(t, inAt, inAt + 12));
+  const lift = ease(span(t, outAt, outAt + 12));
+  const bounce = t < inAt + 24 && t >= inAt + 12 ? (s % 2 ? 2 : -1) : 0;
+  const top = Math.round(y + drop * 70 + lift * 70 + bounce);
+  sg.g.position.set(160, top, 0);
+  sg.g.rotation.z = (hash(s, sg.w, 6) - 0.5) * 0.03;
+  setPlane(sg.art, 0, 0, sg.w, sg.h);
+  setPlane(sg.strL, -sg.w / 2 + 14, -4, 1, 200);
+  setPlane(sg.strR, sg.w / 2 - 14, -4, 1, 200);
+}
 function renderHook(h) {
-  const shot = Math.min(HOOK_SHOTS.length - 1, Math.floor(h / HOOK_SHOT));
-  const k = h - shot * HOOK_SHOT;
-  if (h < HOOK_TITLE) {
-    legacyRate = 1;
-    HOOK_SHOTS[shot].draw(k);
-  } else {
-    // the town the story opens on, under the title card that fades out at the end of the hook
-    renderLegacy(Math.max(0, h - 350));
-  }
+  if (!hk.built) buildHook();
+  const t = smT(h);
+  legacyRate = 1;
+  const brand = t >= 528;
+  const townUnder = h >= 560; // the town the story opens on, revealed as the brand card fades
+  if (townUnder) renderLegacy(h - 400);
+  else { renderer.setClearColor('#1b1820'); renderer.clear(); }
   hideOverlay();
   for (const o of hookHud.children) o.visible = false;
-  if (h < HOOK_TITLE) {
-    setPlane(hk.dim, 0, 0, 320, 180, 0.3);
-    setPlane(hk.band, 0, 128, 320, 52, 0.82);
-    const pop = POP[Math.min(5, Math.floor(h / 2))];
-    setPlane(hk.head, 160, 178, 320 * pop, 52 * pop);
-    const slide = Math.round((1 - ease(span(k, 0, 10))) * -200);
-    const chip = hk.chips[shot];
-    setPlane(chip, 8 + slide, 8, 280, 20);
-    if (k < 3 && h > 0) setPlane(hk.flash, 0, 0, 320, 180, 0.55 - k * 0.18);
+  if (!brand) {
+    setPlane(hk.bg, 0, 0, 320, 180);
+    setPlane(hk.apron, 0, 0, 320, 40);
+    setPlane(hk.valance, 0, 180, 320, 24);
+    // curtains open at the start and close at the end
+    const open = ease(span(t, 0, 24)) * (1 - ease(span(t, 500, 524)));
+    setPlane(hk.curL, Math.round(-12 - open * 138), 0, 176, 180);
+    setPlane(hk.curR, Math.round(156 + open * 138), 0, 176, 180);
+    // title
+    showSign(hk.signs.title, h, 8, 104, 158);
+    showPuppet(hk.mascot, h, 160, 46, 20, 96, { sway: 0.12 });
+    // memory is Git, then Lark and Slack, then a Group: the cast changes places between beats
+    showSign(hk.signs.hookMem, h, 112, 206);
+    showSign(hk.signs.hookIm, h, 216, 310);
+    showSign(hk.signs.hookGroup, h, 320, 414);
+    if (t < 300) showPuppet(hk.mira, h, 104, 50, 112, 200, { sway: 0.05 });
+    else showPuppet(hk.mira, h, 124, 50, 330, 410);
+    if (showPuppet(hk.graphP, h, 210, 54, 120, 200)) drawGraph(t < 138 ? 0 : t < 154 ? 1 : t < 170 ? 2 : t < 186 ? 3 : 4);
+    if (t < 316) showPuppet(hk.nova, h, 100, 50, 216, 304, { sway: 0.05 });
+    else showPuppet(hk.nova, h, 248, 50, 346, 410);
+    showPuppet(hk.lark, h, 200, 52, 226, 304, { sway: 0.1 });
+    showPuppet(hk.slack, h, 250, 48, 234, 304, { sway: 0.1 });
+    showPuppet(hk.human, h, 64, 50, 322, 410);
+    showPuppet(hk.theo, h, 186, 50, 338, 410);
+    const bubbleOn = (b, tex, x, y, a, z) => { if (t >= a && t < z) { b.material.map = tex.tex; b.material.needsUpdate = true; const k = POP[Math.min(5, Math.floor((h - a) / 2))] * 0.75; setPlane(b, x, y, 64 * k, 40 * k); } };
+    bubbleOn(hk.bub[0], hk.bubbles.at, 226, 96, 252, 304);
+    bubbleOn(hk.bub[1], hk.bubbles.ok, 136, 96, 276, 304);
+    bubbleOn(hk.bub[0], hk.bubbles.dots, 80, 96, 364, 388);
+    bubbleOn(hk.bub[1], hk.bubbles.dots, 200, 98, 380, 410);
+    bubbleOn(hk.bub[0], hk.bubbles.ok, 250, 100, 392, 410);
+    // avatars morph as they work
+    showSign(hk.signs.hookMorph, h, 424, 516);
+    if (showPuppet(hk.morph, h, 160, 38, 428, null, { sway: 0.04 }) && MORPH) {
+      const cells = t < 480 ? morphCells('theo', 'face', 'edit', span(t, 456, 476)) : morphCells('theo', 'edit', 'face', span(t, 484, 504));
+      paintCells(hk.morphSrc, cells, null);
+      stickerCanvas(hk.morphSrc.canvas, 80, 80, { into: hk.morphArt });
+    }
   } else {
-    const a = h < 450 ? step8(span(h, HOOK_TITLE, HOOK_TITLE + 16)) : 1 - step8(span(h, 450, 480));
+    if (!townUnder) {
+      setPlane(hk.curL, -12, 0, 176, 180);
+      setPlane(hk.curR, 156, 0, 176, 180);
+      setPlane(hk.valance, 0, 180, 320, 24);
+    }
+    const a = h < 580 ? step8(span(h, 528, 540)) : 1 - step8(span(h, 580, HOOK_LEN));
     setPlane(hk.dim, 0, 0, 320, 180, a);
     setPlane(hk.logo, 160 - 32, 98, 64, 64, a);
     setPlane(hk.title, 160, 94, 200, 70, a);
     setPlane(hk.sub, 160, 50, 320, 20, a);
-    if (h < HOOK_TITLE + 3) setPlane(hk.flash, 0, 0, 320, 180, 0.55 - (h - HOOK_TITLE) * 0.18);
   }
   renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
   renderer.clearDepth();

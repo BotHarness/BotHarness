@@ -1,5 +1,5 @@
 {
-  "note": "Single-voice (virtual idol) narration. `at` and `max` are seconds on the film timeline (180 s, cut to the Pixel Town Disco track). Text uses Fish Audio S2 bracket cues. The keynote multi-voice draft is kept in voiceover/_keynote/.",
+  "note": "Single-voice (virtual idol) narration. `at` and `max` are seconds on the film timeline (zh 181.6 s on ピコピコひらめきタイム (Full), en 180 s on Pixel Town Disco; the zh extra goes to the end card). Text uses Fish Audio S2 bracket cues. The keynote multi-voice draft is kept in voiceover/_keynote/.",
   "voices": {
     "idol": {
       "zh": {
@@ -49,7 +49,7 @@
     },
     {
       "id": "01-welcome",
-      "at": 8.5,
+      "at": 10.2,
       "max": 7.6,
       "zh": "[warm] 这里是 DeepSeekBot 小镇。住在这儿的，是一群有自己名字、性格和记忆的 bot。",
       "en": "[warm] Welcome to DeepSeekBot Town, home to bots that each have a name, a personality, and a memory of their own.",
@@ -57,7 +57,7 @@
     },
     {
       "id": "02-memory",
-      "at": 18.2,
+      "at": 19,
       "max": 10,
       "zh": "它们的记忆，其实就是一个 Git 仓库。[break] 笔记、人格、代码，全是看得见、摸得着的文件。",
       "en": "Their memory is simply a Git repository. [break] Notes, persona, code: all plain files you can open and read.",
@@ -65,7 +65,7 @@
     },
     {
       "id": "03-evolution",
-      "at": 28.3,
+      "at": 29.1,
       "max": 13.2,
       "zh": "每学到一点新东西，就留下一次提交。[curious] 想知道它是怎么想明白的？点开 diff 就知道了。[break] 还没提交的改动，也已经算进记忆里。",
       "en": "Every time a bot learns something, it leaves a commit. [curious] Wondering how it changed its mind? Just open the diff. [break] Even uncommitted changes already count.",
@@ -73,7 +73,7 @@
     },
     {
       "id": "04-rewind",
-      "at": 41.6,
+      "at": 42.4,
       "max": 6.2,
       "zh": "[relaxed] 走错了也不怕，从任何一段记忆切个分支，重新来过。",
       "en": "[relaxed] Took a wrong turn? Branch off from any memory and try again.",
@@ -81,7 +81,7 @@
     },
     {
       "id": "05-import",
-      "at": 48,
+      "at": 48.8,
       "max": 3.6,
       "zh": "甚至能从一个 Git 仓库，捏出一个新 bot。",
       "en": "You can even grow a new bot from a repo.",
@@ -89,7 +89,7 @@
     },
     {
       "id": "06-soul",
-      "at": 52.7,
+      "at": 53.5,
       "max": 9.5,
       "zh": "[hopeful] 再往前想一步：如果把一个 bot 的灵魂打包分享出去，会发生什么？",
       "en": "[hopeful] Now picture this: you package the soul of a bot, and share it with the world.",
@@ -97,7 +97,7 @@
     },
     {
       "id": "07-globe",
-      "at": 62.2,
+      "at": 62.8,
       "max": 10,
       "zh": "它飞过云层，落到世界各地的工作台上，被一次又一次地 Import。",
       "en": "It rises above the clouds and lands on desks around the world, imported again and again.",
@@ -105,7 +105,7 @@
     },
     {
       "id": "08-worldlines",
-      "at": 71.3,
+      "at": 71.6,
       "max": 12.8,
       "zh": "同一个起点，走出不同的人生。[break] 因为记忆是 Git，这些世界线还能合并回来，收束成一个更丰富的她。[soft] 这一段，还在规划中。",
       "en": "One origin, many lives. [break] And because memory is Git, those world lines can merge back into someone richer. [soft] That part is still on the roadmap.",

@@ -15,8 +15,8 @@ const RAMP_OUT = 0.9; // seconds of fade back up after the last word
 const BRIDGE = 1.2; // gaps shorter than this stay ducked instead of bouncing
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FILM_SECONDS = Number(/const TOTAL = (\d+)/.exec(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))[1]) / 60; // film length, read from the film
 const [lang, bgm, out] = process.argv.slice(2);
+const FILM_SECONDS = Number(new RegExp(`FILM_FRAMES = \\{[^}]*${lang}: (\\d+)`).exec(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))[1]) / 60; // film length per language, read from the film
 const { cues } = JSON.parse(fs.readFileSync(path.join(root, 'voiceover/script.json'), 'utf8'));
 const decode = (file, filter = 'anull', channels = 1) =>
   new Float32Array(new Uint8Array(execFileSync('ffmpeg', ['-loglevel', 'error', '-i', file, '-af', filter, '-ac', String(channels), '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 1 << 30 })).buffer);
