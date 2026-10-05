@@ -10,7 +10,7 @@ import {
 } from '../../core/src/bots/avatar-appearance.js';
 import { lineMorphD, sampleLineSymbol } from '../src/client/line-morph.js';
 import { PIXEL_MORPH_MS, PIXEL_SYMBOL_HOLD_MS } from '../src/client/illustrated-avatar.js';
-import { pixelMarkup as rawPixelMarkup } from '@botharness/pixel-morph';
+import { pixelPathMarkup as rawPixelMarkup } from '@botharness/pixel-morph';
 
 const pixelMarkup = (...args: Parameters<typeof rawPixelMarkup>) => {
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');

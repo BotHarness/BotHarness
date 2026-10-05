@@ -10,7 +10,7 @@ import {
   type PixelCell,
   type PixelSymbol,
 } from '../../../core/src/bots/avatar-appearance.js';
-import { morphPixels, pixelMarkup, type PixelMorphRun } from '@botharness/pixel-morph';
+import { morphPixels, pixelPathMarkup, type PixelMorphRun } from '@botharness/pixel-morph';
 import type { Sampled } from 'morphicons';
 import {
   lineMorphD,
@@ -102,6 +102,7 @@ interface LineShown {
 
 export const PIXEL_MORPH_MS = 800;
 export const PIXEL_SYMBOL_HOLD_MS = 500;
+export const PIXEL_FRAME_MS = 50;
 
 interface PixelShown {
   key?: PixelSymbol | 'face';
@@ -300,7 +301,7 @@ export function IllustratedAvatar({
             svg?.removeAttribute('data-pixel-cover');
             return;
           }
-          pixelGroup.innerHTML = pixelMarkup(cells ?? cellsFor(key));
+          pixelGroup.innerHTML = pixelPathMarkup(cells ?? cellsFor(key));
           svg?.setAttribute('data-pixel-cover', '');
         };
         const previous = pixel.current;
@@ -317,7 +318,10 @@ export function IllustratedAvatar({
         draw(previous.key, from);
         const start = () => {
           pixelTimer = undefined;
-          const run = morphPixels(pixelGroup, from, cellsFor(target), PIXEL_MORPH_MS);
+          const run = morphPixels(pixelGroup, from, cellsFor(target), PIXEL_MORPH_MS, {
+            frameMs: PIXEL_FRAME_MS,
+            markup: pixelPathMarkup,
+          });
           pixelRun = { run, key: target };
           void run.finished.then((done) => {
             if (!done) return;

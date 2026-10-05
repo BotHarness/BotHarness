@@ -2,7 +2,7 @@
 
 Issue: [#757](https://github.com/BotHarness/BotHarness/issues/757), child of hub [#750](https://github.com/BotHarness/BotHarness/issues/750) and source specification [#748](https://github.com/BotHarness/BotHarness/issues/748).
 
-Measured on 2026-10-05 at main `4b211178` plus this change, Apple M3 (24 GB), macOS 26.7.1, Google Chrome 154.0.8037.98 (headless, 1280 × 900, device scale 1), production React build.
+Measured on 2026-10-05 at main `ea4b9d32` plus this change, Apple M3 (24 GB), macOS 26.7.1, Google Chrome 154.0.8037.98 (headless, 1280 × 900, device scale 1), production React build.
 
 ## How the numbers were taken
 
@@ -22,37 +22,38 @@ node docs/evidence/issue-757/harness/measure.mjs family   # pixel-only vs line-o
 node docs/evidence/issue-757/harness/measure.mjs scroll   # sidebar column with 256 mounted Avatars
 ```
 
-Raw rows are in `measurements-before.jsonl` (main) and `measurements-after.jsonl` (this change). "Main thread" is Chrome `TaskDuration` per second.
+Raw rows are in `measurements-before.jsonl` (main) and `measurements-after.jsonl` (this change, with `@botharness/pixel-morph` 0.2.0). "Main thread" is Chrome `TaskDuration` per second. "rAF/s" counts animation-frame callbacks the page requests, excluding the measuring loop.
 
 ## What the measurements found and what changed
 
 Before this change, a pixel tool transition rebuilt its whole cell markup, one `<rect>` per run, on every display frame. Thirty-two pixel Avatars transitioning together cost about 1 s of main-thread work per second, and the page fell to 20 fps. In a sidebar column of 256 rows, rows scrolled out of view still restarted their transition, and read computed style, on every state update.
 
-The change touches two places and adds no new library:
+The change follows the morphicons model, which plans each morph pair once and drives every icon on screen from one shared `requestAnimationFrame`. It touches three places and adds no new library:
 
-- **`@botharness/pixel-morph`** ([BotHarness/BotPixel#3](https://github.com/BotHarness/BotPixel/pull/3)). Transitions advance in 50 ms pixel-art steps (`frameMs: 50`), so a frame is computed only when the step changes. Each step is drawn as one `<path>` per color (`pixelPathMarkup`) instead of one `<rect>` per run. Both are opt-in options; the library's defaults and golden output are unchanged.
-- **`illustrated-avatar.tsx`.** An Avatar remembers that it is out of view across updates, so an offscreen row stays still until the observer reports it visible again. Computed style is read only while motion is actually running.
+- **`@botharness/pixel-morph`** ([BotHarness/BotPixel#3](https://github.com/BotHarness/BotPixel/pull/3)). Transitions advance in 50 ms pixel-art steps (`frameMs: 50`), so a frame is computed only when the step changes. Each step is drawn as one `<path>` per color (`pixelPathMarkup`) instead of one `<rect>` per run. All running morphs share one `requestAnimationFrame` loop. The step and path options are opt-in, and the library's defaults and golden output are unchanged. Released as 0.2.0. Planning a face→symbol pair (about 700 pixels) takes about 0.16 ms, and a frame takes about 0.12 ms to compute and serialise. The package is about 2.8 KB gzip with no runtime dependencies.
+- **`line-morph.ts`.** Every running line-face morph ticks from one shared loop, like morphicons' own DOM player.
+- **`illustrated-avatar.tsx`.** Static pixel symbols use the same path markup. An Avatar remembers that it is out of view across updates, so an offscreen row stays still until the observer reports it visible again. Computed style is read only while motion is actually running.
 
 Truthful state, symbols, the 0.5 s symbol hold and both families are unchanged. The saved generator output, recipes and snapshots are untouched.
 
-| Scenario (stress cadence)  | Before: frame p50 / p95 / max | Before: main thread | After: frame p50 / p95 / max                 | After: main thread |
-| -------------------------- | ----------------------------- | ------------------- | -------------------------------------------- | ------------------ |
-| 1 mixed                    | 16.7 / 16.7 / 16.8 ms         | 45 ms/s             | 16.7 / 16.7 / 16.8 ms                        | 28 ms/s            |
-| 8 mixed                    | 16.7 / 16.7 / 16.8 ms         | 323 ms/s            | 16.7 / 16.7 / 16.8 ms                        | 103 ms/s           |
-| 32 mixed                   | 16.7 / 16.8 / 33.4 ms         | 796 ms/s            | 16.7 / 16.8 / 16.8 ms                        | 220 ms/s           |
-| 64 mixed                   | 33.3 / 50.0 / 83.4 ms         | 967 ms/s            | 16.7 / 16.8 / 33.4 ms                        | 286 ms/s           |
-| 128 mixed                  | 66.7 / 233 / 250 ms           | 1036 ms/s           | 16.7 / 16.8 / 50.1 ms                        | 416 ms/s           |
-| 32 pixel only              | 50 / 117 / 183 ms             | 1052 ms/s           | 16.7 / 16.8 / 16.8 ms                        | 215 ms/s           |
-| 32 line only               | 16.7 / 16.8 / 50.1 ms         | 339 ms/s            | 16.7 / 16.8 / 33.4 ms                        | 177 ms/s           |
-| 32 mixed, 4× CPU throttle  | 83 / 283 / 317 ms             | 1043 ms/s           | 16.7 / 16.8 / 50.0 ms                        | 428 ms/s           |
-| 64 mixed, 4× CPU throttle  | 167 / 617 / 633 ms            | 1067 ms/s           | 16.7 / 16.8 / 117 ms                         | 714 ms/s           |
-| 32 at 96 px                | 16.7 / 33.3 / 83.4 ms         | 894 ms/s            | 16.7 / 16.8 / 66.7 ms                        | 307 ms/s           |
-| 32 instances of one Bot    | 16.7 / 33.4 / 50.1 ms         | 894 ms/s            | 16.7 / 16.7 / 33.3 ms                        | 217 ms/s           |
-| Column of 256, top         | 16.7 / 117 / 233 ms           | 616 ms/s            | 16.7 / 16.8 / 50.1 ms                        | 278 ms/s           |
-| Column of 256, scrolling   | 16.7 / 100 / 217 ms           | 677 ms/s            | 16.7 / 16.8 / 50.1 ms                        | 335 ms/s           |
-| 32 static (no transitions) | 16.7 / 16.8 / 16.8 ms         | 23 ms/s             | 16.7 / 16.8 / 16.8 ms                        | 33 ms/s            |
-| 32 under reduced motion    | —                             | —                   | 16.7 / 16.8 / 33.3 ms, 0 rAF/s, 0 animations | 46 ms/s            |
-| 32 while activity is stale | —                             | —                   | 16.7 / 16.7 / 16.8 ms, 0 rAF/s, 0 animations | 50 ms/s            |
+| Scenario (stress cadence)  | Before: frame p50 / p95 / max | Before: main thread, rAF/s | After: frame p50 / p95 / max        | After: main thread, rAF/s |
+| -------------------------- | ----------------------------- | -------------------------- | ----------------------------------- | ------------------------- |
+| 1 mixed                    | 16.7 / 16.7 / 16.8 ms         | 45 ms/s, 23                | 16.7 / 16.7 / 16.8 ms               | 40 ms/s, 23               |
+| 8 mixed                    | 16.7 / 16.7 / 16.8 ms         | 323 ms/s, 415              | 16.7 / 16.8 / 16.8 ms               | 119 ms/s, 61              |
+| 32 mixed                   | 16.7 / 16.8 / 33.4 ms         | 796 ms/s, 1299             | 16.7 / 16.7 / 16.8 ms               | 192 ms/s, 122             |
+| 64 mixed                   | 33.3 / 50.0 / 83.4 ms         | 967 ms/s, 1565             | 16.7 / 16.7 / 16.8 ms               | 269 ms/s, 122             |
+| 128 mixed                  | 66.7 / 233 / 250 ms           | 1036 ms/s, 1238            | 16.7 / 16.8 / 33.4 ms               | 385 ms/s, 120             |
+| 32 pixel only              | 50 / 117 / 183 ms             | 1052 ms/s, 554             | 16.7 / 16.7 / 16.8 ms               | 120 ms/s, 61              |
+| 32 line only               | 16.7 / 16.8 / 50.1 ms         | 339 ms/s, 847              | 16.7 / 16.8 / 16.8 ms               | 100 ms/s, 61              |
+| 32 mixed, 4× CPU throttle  | 83 / 283 / 317 ms             | 1043 ms/s                  | 16.7 / 16.8 / 66.7 ms               | 536 ms/s                  |
+| 64 mixed, 4× CPU throttle  | 167 / 617 / 633 ms            | 1067 ms/s                  | 16.7 / 33.4 / 150 ms                | 884 ms/s                  |
+| 32 at 96 px                | 16.7 / 33.3 / 83.4 ms         | 894 ms/s                   | 16.7 / 16.8 / 33.4 ms               | 162 ms/s                  |
+| 32 instances of one Bot    | 16.7 / 33.4 / 50.1 ms         | 894 ms/s                   | 16.7 / 16.7 / 33.4 ms               | 115 ms/s                  |
+| Column of 256, top         | 16.7 / 117 / 233 ms           | 616 ms/s                   | 16.7 / 16.8 / 50.1 ms               | 245 ms/s                  |
+| Column of 256, scrolling   | 16.7 / 100 / 217 ms           | 677 ms/s                   | 16.7 / 16.8 / 66.7 ms               | 356 ms/s                  |
+| 32 static (no transitions) | 16.7 / 16.8 / 16.8 ms         | 23 ms/s, 0                 | 16.7 / 16.7 / 16.8 ms               | 42 ms/s, 0                |
+| 32 under reduced motion    | —                             | —                          | 16.7 / 16.8 / 16.8 ms, 0 animations | 20 ms/s, 0                |
+| 32 while activity is stale | —                             | —                          | 16.7 / 16.7 / 16.8 ms, 0 animations | 20 ms/s, 0                |
 
 The "Column of 256" before-numbers come from the intermediate build that already had the pixel-step change. That makes them an upper bound on what the offscreen fix alone saves.
 
@@ -60,13 +61,13 @@ Lifecycle after 20 mount/unmount cycles of 32 transitioning Avatars:
 
 - `document.getAnimations()` returns 0.
 - No `requestAnimationFrame` callbacks fire in 2 s.
-- DOM nodes return to the empty page (14–18).
+- DOM nodes return to the empty page (14–18) after repeated GC. A single GC sometimes still holds the last unmounted tree; a dedicated 60-cycle run returned to 14 nodes each time.
 - Event listeners return to the React root baseline (133).
-- JS heap settles near 3.5–4 MB, with roughly 0.15 MB of drift per 20 cycles. A repeat run with forced GC showed node counts fluctuating with GC timing but returning to 14 each time.
+- JS heap settles near 3.5–4 MB, with roughly 0.15 MB of drift per 20 cycles.
 
 Two costs do not come from the Avatar:
 
-- The activity dot matrix (`@botharness/botui-core`) is now shown next to row names. Thirty-two of them animating cost about 250–560 ms/s of main thread even with no Avatar transitions. They do pause under stale and reduced motion.
+- The activity dot matrix (`@botharness/botui-core`) is now shown next to row names. Thirty-two of them animating cost about 190–560 ms/s of main thread even with no Avatar transitions. They do pause under stale and reduced motion.
 - In real DSH, bash calls were refused with "Path is outside this Session's authorized workspace" even with a workspace grant. Read and grep in the same workspace succeeded.
 
 Neither is part of this change.
@@ -76,7 +77,7 @@ Neither is part of this change.
 | Item                                                                                                  | Measured                                                                                                                                          |
 | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Pixel Avatar SVG nodes (static figure)                                                                | 387–459 per Avatar; up to 2,017 at ≥ 96 px while the thinking head-turn frames are mounted                                                        |
-| Pixel transition overlay                                                                              | one `<path>` per color, typically 4–10 nodes                                                                                                      |
+| Pixel transition and symbol overlay                                                                   | one `<path>` per color, typically 4–10 nodes                                                                                                      |
 | Line Avatar SVG nodes                                                                                 | 16–21 per Avatar                                                                                                                                  |
 | Avatar renderer modules (core figure, line, symbols, appearance, morphicons, client renderer, morphs) | 75.7 KB minified, 25.5 KB gzip, bundled alone                                                                                                     |
 | Avatar-only modules inside the full client bundle (adds editor, excludes shared code)                 | about 81 KB minified, about 28 KB gzip                                                                                                            |
@@ -90,11 +91,12 @@ These budgets are derived from the after-measurements with headroom. The support
 | ---------------------------------------------------- | ------------------------------------------------------------ | ---------------------------- |
 | Frame p95 with 32 active, stress cadence             | ≤ 16.8 ms (one display frame)                                | 16.8 ms                      |
 | Frame p95 with 32 active, 4× CPU throttle            | ≤ 33.4 ms                                                    | 16.8 ms                      |
-| Frames over 25 ms with 32 active                     | ≤ 3 %                                                        | 0 % (0 of 360)               |
-| Main thread with 32 active, stress cadence           | ≤ 300 ms/s                                                   | 220 ms/s                     |
-| Main thread with 32 static                           | ≤ 50 ms/s                                                    | 33 ms/s                      |
+| Frames over 25 ms with 32 active                     | ≤ 3 %                                                        | 0 % (0 of 360); 3 % at 4×    |
+| Main thread with 32 active, stress cadence           | ≤ 300 ms/s                                                   | 192 ms/s                     |
+| Animation-frame callbacks while morphing             | one shared loop per family (≤ 2 × display rate)              | 122/s at 60 Hz               |
+| Main thread with 32 static                           | ≤ 50 ms/s                                                    | 42 ms/s                      |
 | Animation work under reduced motion, stale or hidden | 0 rAF/s, 0 Avatar animations                                 | 0 / 0                        |
-| JS heap with 32 active                               | ≤ 40 MB                                                      | 25–36 MB                     |
+| JS heap with 32 active                               | ≤ 40 MB                                                      | 21–38 MB                     |
 | Retained after unmount                               | 0 animations, 0 rAF, DOM and listeners at baseline           | met                          |
 | SVG nodes per Avatar                                 | pixel ≤ 460 (≤ 2,100 with turn frames at ≥ 96 px), line ≤ 24 | 459 / 2,017 / 21             |
 | Avatar code added to the client bundle               | ≤ 90 KB minified, ≤ 32 KB gzip                               | about 81 KB / 28 KB          |
@@ -119,7 +121,7 @@ These budgets are derived from the after-measurements with headroom. The support
 | Edit a draft, then Cancel       | 0 writes, revision unchanged                                                                                                                                                                                                                                      | `00-start.png`, `01-draft.png`                                            |
 | Edit, then Save                 | exactly 1 `botAppearanceSet`; fresh read shows the new recipe and revision; the editor preview changed                                                                                                                                                            | `02-saved.png`                                                            |
 | Same appearance across Bindings | identical SVG in sidebar (34 px), header (22 px), Profile (64 px) and editor (160 px)                                                                                                                                                                             | `real-dsh-path.json`                                                      |
-| Real work plus native approval  | real read turn; bash approval pending with the approval symbol; 240 frames at p95 16.8 ms; 0 bridge requests in that 4 s window                                                                                                                                   | `04-approval-pending.png`, `05-working.png`, `real-work.gif`              |
+| Real work plus native approval  | real read turn; bash approval pending with the approval symbol; 239 frames at p95 16.8 ms; 2 read-only bridge requests (`profileUsage`) and 0 writes in that 4 s window                                                                                           | `04-approval-pending.png`, `05-working.png`, `real-work.gif`              |
 | Resolution and cancellation     | approvals both allowed and rejected; the Bot returned to idle; appearance unchanged by work                                                                                                                                                                       | `real-dsh-path.json`                                                      |
 | Reload                          | same identity in all four Bindings                                                                                                                                                                                                                                | `06-reloaded.png`                                                         |
 | Disconnect (Host killed)        | stale notice; 0 Avatar animations while stale                                                                                                                                                                                                                     | `07-disconnected.png`                                                     |

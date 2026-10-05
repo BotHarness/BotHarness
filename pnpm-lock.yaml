@@ -394,8 +394,8 @@ importers:
         specifier: 0.3.0
         version: 0.3.0
       '@botharness/pixel-morph':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 0.2.0
+        version: 0.2.0
       blobatar:
         specifier: ^2.7.0
         version: 2.7.0(react@18.3.1)
@@ -1107,6 +1107,9 @@ packages:
 
   '@botharness/pixel-morph@0.1.0':
     resolution: {integrity: sha512-LHVZsfjRrBeWLwMjZ+ubeVTHt1lTTTPXzkCeGi7h2mwNjhlXOZZFOBojJts82PJsUaVAQPuNrjOOV3hU1M3q4A==}
+
+  '@botharness/pixel-morph@0.2.0':
+    resolution: {integrity: sha512-Mi8lIZJdYaBub6qYNMwqgFP88RkMEJFQOAUVVAsL/yCg8j9lw56EtIgYCHaFrIApx4bvs3eIwodwQAYd5OpLPg==}
 
   '@braintree/sanitize-url@7.1.2':
     resolution: {integrity: sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA==}
@@ -10649,6 +10652,8 @@ snapshots:
       '@botharness/pixel-morph': 0.1.0
 
   '@botharness/pixel-morph@0.1.0': {}
+
+  '@botharness/pixel-morph@0.2.0': {}
 
   '@braintree/sanitize-url@7.1.2': {}
 
