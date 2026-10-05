@@ -1543,6 +1543,11 @@ export function BotSidebar({
         channelGapDropProps(resolved.sectionId).drop(resolved.half);
       }}
     >
+      {state.activitySync === 'stale' ? (
+        <div className="bh-activity-stale" role="status" data-activity-stale>
+          {t('roster.activityStale')}
+        </div>
+      ) : null}
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
           {t('roster.messages')}

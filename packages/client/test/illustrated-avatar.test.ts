@@ -353,6 +353,7 @@ it('morphs line strokes into tool symbols, holds each briefly, returns to the fa
     expect(head().style.opacity).toBe('');
   } finally {
     delete document.documentElement.dataset['botharnessMotion'];
+    delete document.documentElement.dataset['botharnessActivity'];
     await act(() => root.unmount());
     vi.unstubAllGlobals();
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
@@ -433,6 +434,12 @@ it('morphs the whole pixel Avatar between tool symbols, holds each briefly and s
     await flush(Math.ceil(PIXEL_MORPH_MS / 16) + 2);
     expect(frames.size).toBe(0);
     expect(drawn()).toBe(pixelMarkup(pixelSymbolCells('search', hair)));
+    document.documentElement.dataset['botharnessActivity'] = 'stale';
+    await render('working', 'edit');
+    expect(frames.size).toBe(0);
+    expect(drawn()).toBe(pixelMarkup(pixelSymbolCells('edit', hair)));
+    delete document.documentElement.dataset['botharnessActivity'];
+    await act(async () => undefined);
     document.documentElement.dataset['botharnessMotion'] = 'reduce';
     await render('working', 'ask_user_question');
     expect(frames.size).toBe(0);
@@ -443,6 +450,7 @@ it('morphs the whole pixel Avatar between tool symbols, holds each briefly and s
     expect(drawn()).toBe('');
   } finally {
     delete document.documentElement.dataset['botharnessMotion'];
+    delete document.documentElement.dataset['botharnessActivity'];
     await act(() => root.unmount());
     vi.unstubAllGlobals();
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);

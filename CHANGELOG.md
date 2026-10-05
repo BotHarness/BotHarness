@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- When live activity sync drops, the sidebar says so, avatars keep the last observed state with greyed, paused activity indicators and no decorative motion, and everything resumes from a fresh Host baseline after reconnect or restart ([#756](https://github.com/BotHarness/BotHarness/issues/756)).
+
 - A PersonaBot whose saved Avatar uses an unavailable version no longer disappears: its original design is retained, the matching saved snapshot is shown with an explanation that editing and character animation are paused, activity and approval indicators keep working, and the design returns automatically once the version is available; mismatched or unsafe saved appearance data is ignored without losing the PersonaBot ([#755](https://github.com/BotHarness/BotHarness/issues/755)).
 
 - Pixel-family Avatars can choose bangs, side hair and back hair separately and adjust eye spacing, feature height and hair length within bounds in the Profile editor; saved Avatars without these choices render unchanged ([#752](https://github.com/BotHarness/BotHarness/issues/752)).
