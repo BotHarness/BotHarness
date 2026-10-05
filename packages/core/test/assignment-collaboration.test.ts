@@ -1,3 +1,4 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { AssignmentInboxAcceptanceUncertainError } from '../src/runtime/assignment-delivery.js';
 import { join, dirname } from 'node:path';
 import { mkdirSync } from 'node:fs';
@@ -5,7 +6,6 @@ import { backup, DatabaseSync } from 'node:sqlite';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
@@ -157,7 +157,7 @@ async function setup(
   dmChannelId: string;
 }> {
   const home = createTempRoot('botharness-assignment-collaboration-');
-  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
   expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
   const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -372,7 +372,7 @@ describe('Assignment collaboration', () => {
         const recoveredAgents = new ManualAgents();
         recovered = createBotRuntime({
           database: reopened,
-          registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+          registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
           channels,
           agents: recoveredAgents,
           grants: createTestWorkspaceGrants(reopened, home),
@@ -456,7 +456,7 @@ describe('Assignment collaboration', () => {
       );
       recovered = createBotRuntime({
         database: reopened,
-        registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+        registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
         channels,
         agents: coldAgents,
         grants: createTestWorkspaceGrants(reopened, home),
@@ -541,7 +541,7 @@ describe('Assignment collaboration', () => {
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const reopenedRuntime = createBotRuntime({
       database: reopenedOwner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels,
       agents: reopenedAgents,
       now: FIXED_NOW,
@@ -651,7 +651,7 @@ describe('Assignment collaboration', () => {
     const coldAgents = new ManualAgents();
     const reopened = createBotRuntime({
       database: owner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels,
       agents: coldAgents,
       grants,
@@ -959,7 +959,7 @@ describe('Assignment collaboration', () => {
       if (idle.outcome !== 'created') throw new Error('Ada Assignment missing');
       agents.finish(idle.assignment.sessionId);
       await runtime.whenIdle();
-      createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }).create({
+      createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }).create({
         slug: 'bob',
         displayName: 'Bob',
       });
@@ -1493,7 +1493,7 @@ describe('Assignment collaboration', () => {
     await close();
     const reopened = createBotRuntime({
       database: owner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
       agents: new ManualAgents(),
       now: FIXED_NOW,
@@ -1557,7 +1557,7 @@ describe('Assignment collaboration', () => {
     const diagnostics: string[] = [];
     const reopened = createBotRuntime({
       database: owner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
       agents: replayAgents,
       warn: (message) => diagnostics.push(message),
@@ -1620,7 +1620,7 @@ describe('Assignment collaboration', () => {
     const replayAgents = new ManualAgents();
     const reopened = createBotRuntime({
       database: owner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels,
       agents: replayAgents,
       now: FIXED_NOW,
@@ -2128,7 +2128,7 @@ describe('Assignment collaboration', () => {
 
     const reopened = createBotRuntime({
       database: owner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
       agents: new ManualAgents(),
       now: FIXED_NOW,
@@ -2188,7 +2188,7 @@ describe('Assignment collaboration', () => {
         const coldGrants = createTestWorkspaceGrants(reopened, home);
         recovered = createBotRuntime({
           database: reopened,
-          registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+          registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
           channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
           agents: coldAgents,
           grants: coldGrants,
@@ -2245,7 +2245,7 @@ describe('Assignment collaboration', () => {
         const secondAgents = new ManualAgents();
         recovered = createBotRuntime({
           database: reopened,
-          registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+          registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
           channels,
           agents: secondAgents,
           grants: createTestWorkspaceGrants(reopened, home),
@@ -2320,7 +2320,7 @@ describe('Assignment collaboration', () => {
     const resumedAgents = new ManualAgents();
     const resumed = createBotRuntime({
       database: owner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
       agents: resumedAgents,
       grants,
@@ -2399,7 +2399,7 @@ describe('Assignment collaboration', () => {
     });
     const reopenedRuntime = createBotRuntime({
       database: reopenedOwner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels: reopenedChannels,
       agents: reopenedAgents,
       now: FIXED_NOW,
@@ -2593,7 +2593,7 @@ describe('Assignment collaboration', () => {
     });
     const reopenedRuntime = createBotRuntime({
       database: reopenedOwner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels: reopenedChannels,
       agents: reopenedAgents,
       now: FIXED_NOW,
@@ -2662,7 +2662,7 @@ describe('Assignment collaboration', () => {
     });
     const reopenedRuntime = createBotRuntime({
       database: reopenedOwner,
-      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      registry: createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
       channels: reopenedChannels,
       agents: reopenedAgents,
       now: FIXED_NOW,

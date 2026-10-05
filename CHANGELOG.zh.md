@@ -9,6 +9,8 @@
 
 ### Breaking Changes
 
+- 调用公开 `createPersonaBotRegistry` 工厂时必须通过 `database` 传入 Profile 的 `OperationalDatabaseOwner`；Registry 命令与查询接口保持原状，不再隐式创建 JSON 存储（[#884](https://github.com/BotHarness/BotHarness/issues/884)）。
+
 - 自定义 `BotAgentAdapter` 必须处理纯外部 Inbox 回合中缺省的 `OrchestratorAgentRun.inboundChannelId`；本地发送时需显式选择已授权的 Channel（[#12](https://github.com/BotHarness/BotHarness/issues/12)）。
 
 - `channel_send` Tool 的成功确认从文本改为 `{channelId,messageId}` JSON，消费者须读取这两个字段。附件 `size` schema 改为 `integer`，与既有的安全非负整数校验一致；新发送使用当前 fileId 四字段引用；#577 迁移后的过期 hash 结果须重新读取所属消息（[#570](https://github.com/BotHarness/BotHarness/issues/570)）。
@@ -269,6 +271,8 @@
 
 ### Changed
 
+- PersonaBot 的身份、保存的外观、暂停／访问开关与独立模型配置现在由 Profile 数据库持久保存；旧 `bot.json` 经校验一次性迁入并保留，运行时不再回退读取，Soul 仍保持 Git 文件形式（[#884](https://github.com/BotHarness/BotHarness/issues/884)）。
+
 - 可复用 Model Preset 现由 Profile 数据库持久化；一次性校验迁入旧模板，保留 ID、revision 及 Bot 已应用方案的独立性，旧模板文件保留供恢复参考，切换后不再读写 ([#883](https://github.com/BotHarness/BotHarness/issues/883))。
 
 - 大量头像同时活动时更流畅：所有过渡共用一个动画帧循环，像素风格的工具切换按像素画帧率步进并合并同色像素（`@botharness/pixel-morph` 0.2.0），滚出视野的头像在状态更新后不再做过渡计算；实测 32 到 128 个混合风格的活动头像仍保持满帧（[#757](https://github.com/BotHarness/BotHarness/issues/757)）。
@@ -525,6 +529,8 @@
 ### Documentation
 
 - 更新 Discord 接入说明，记录已合并 QA 版本、有界发送中断／恢复证据、代理操作界面的 E2E 验收截图及仍待完成的原生资格验收（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[验证记录](docs/dev/verification/discord-855-mention-reply.md)）。
+
+- 新增公共 npm 插件图文安装、API 与各 Bot 模型配置、非 IM 设置参数教程，并把快速开始调整为用户安装路径；已使用 DSH 0.2.0 RC1 和 deepseekbot 0.1.0-alpha.1 实际验证（[#887](https://github.com/BotHarness/BotHarness/issues/887), [教程](docs/installation.md)）。
 
 - 记录 Profile 备份／恢复／迁移 UX 提案，明确校验、修复与显式激活；UX 已验收，运行实现另行跟踪 ([#76](https://github.com/BotHarness/BotHarness/issues/76), [提案](docs/proposals/profile-portability-ux.md))。
 

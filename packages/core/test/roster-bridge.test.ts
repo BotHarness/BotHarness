@@ -1,3 +1,4 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -5,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createBridgeMethods, type BridgeMethods } from '../src/bridge/methods.js';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createChannelStore } from '../src/channels/store.js';
 import { createRosterStore, type RosterStore } from '../src/roster/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
@@ -24,7 +25,7 @@ function setup(): { methods: BridgeMethods; roster: RosterStore; fake: FakeRoste
   const roster = createRosterStore();
   const fake = createFakeRosterDomain();
   const methods = createBridgeMethods({
-    registry: createPersonaBotRegistry({ rootDir: root }),
+    registry: createTestRegistry({ rootDir: root }),
     states: createBotStateTracker(),
     channels: createChannelStore({ rootDir: join(root, 'channels') }),
 

@@ -1433,6 +1433,20 @@ const MODEL_PRESET_STORAGE_MIGRATION: SchemaMigration = {
   },
 };
 
+const PERSONA_BOT_REGISTRY_MIGRATION: SchemaMigration = {
+  generation: 55,
+  module: 'bot-registry',
+  description: 'Own PersonaBot identities and applied plans with a durable Registry import marker',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE persona_bots (slug TEXT PRIMARY KEY, body TEXT NOT NULL CHECK (json_valid(body)));
+      CREATE TABLE persona_bots_import (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), imported_at TEXT NOT NULL
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1487,4 +1501,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BRIDGE_ROUTES_MIGRATION,
   QUALIFIED_PLATFORM_DEFAULTS_MIGRATION,
   MODEL_PRESET_STORAGE_MIGRATION,
+  PERSONA_BOT_REGISTRY_MIGRATION,
 ]);

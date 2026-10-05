@@ -1,14 +1,15 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { mkdirSync, realpathSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createMemoryService } from '../src/memory/service.js';
 import { createMemoryFileHttp, MEMORY_FILE_DOWNLOAD_PATH } from '../src/memory/file-http.js';
 import { createTempRoot, createTestOwnership } from './helpers.js';
 
 function setup() {
   const root = createTempRoot();
-  const registry = createPersonaBotRegistry({ rootDir: join(root, 'bots') });
+  const registry = createTestRegistry({ rootDir: join(root, 'bots') });
   expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   expect(registry.create({ slug: 'other', displayName: 'Other' }).ok).toBe(true);
   const memory = createMemoryService({ registry, ownership: createTestOwnership() });

@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
-import { atomicWriteFile } from '../fs/atomic-write.js';
+import { attachOperationalModule, type OperationalDatabaseOwner } from '../database/owner.js';
 import { deriveAvatarAppearance } from './avatar-snapshot.js';
 import {
   isPersonaBotAvatar,
@@ -42,6 +42,8 @@ export interface MemoryRepositoryInitialization {
 
 export interface PersonaBotRegistryOptions {
   rootDir: string;
+  database: OperationalDatabaseOwner;
+  onImport?: (event: { phase: 'complete' | 'failed'; count?: number; durationMs: number }) => void;
   now?: () => Date;
   onDisplayNameChanged?: () => void;
 
@@ -109,21 +111,59 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
   const botFile = (slug: string): string => join(botDir(slug), 'bot.json');
   const defaultMemoryDir = (slug: string): string => join(botDir(slug), 'memory');
 
-  const read = (slug: string): PersonaBotRecord | undefined => {
-    if (!isValidSlug(slug)) return undefined;
-    let text: string;
-    try {
-      text = readFileSync(botFile(slug), 'utf8');
-    } catch (error) {
-      if (isMissing(error)) return undefined;
-      throw error;
+  const port = attachOperationalModule(options.database, 'bot-registry');
+  const recordSnapshot = (record: PersonaBotRecord): PersonaBotRecord => {
+    const result: PersonaBotRecord = {
+      slug: record.slug,
+      displayName: record.displayName,
+      workspaces: [...record.workspaces],
+      createdAt: record.createdAt,
+    };
+    for (const key of [
+      'roles',
+      'tag',
+      'description',
+      'avatar',
+      'appearance',
+      'model',
+      'preset',
+      'memoryDir',
+      'paused',
+      'computerAccess',
+      'browserAccess',
+      'browserProfile',
+    ] as const) {
+      if (record[key] !== undefined) Object.assign(result, { [key]: record[key] });
     }
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      return undefined;
-    }
+    const route = (value: ModelRoute): ModelRoute => ({
+      provider: value.provider,
+      model: value.model,
+      ...(value.reasoningEffort === undefined ? {} : { reasoningEffort: value.reasoningEffort }),
+    });
+    const plan = record.modelPlan;
+    if (plan !== undefined)
+      result.modelPlan = {
+        revision: plan.revision,
+        sourcePresetId: plan.sourcePresetId,
+        sourcePresetName: plan.sourcePresetName,
+        appliedAt: plan.appliedAt,
+        orchestrator: route(plan.orchestrator),
+        assignmentDefault: route(plan.assignmentDefault),
+        ...(plan.assignmentModels === undefined
+          ? {}
+          : {
+              assignmentModels: plan.assignmentModels.map((option) => ({
+                provider: option.provider,
+                model: option.model,
+                allowedEfforts: [...option.allowedEfforts],
+                defaultEffort: option.defaultEffort,
+              })),
+            }),
+      };
+    return result;
+  };
+  const decode = (text: string, slug: string): PersonaBotRecord => {
+    const parsed: unknown = JSON.parse(text);
     if (
       typeof parsed === 'object' &&
       parsed !== null &&
@@ -131,29 +171,100 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       !isUsableAvatarAppearance(parsed.appearance, (parsed as { avatar?: unknown }).avatar)
     )
       delete (parsed as { appearance?: unknown }).appearance;
-    return isPersonaBotRecord(parsed, slug) ? parsed : undefined;
+    if (!isPersonaBotRecord(parsed, slug)) throw new Error('Invalid PersonaBot Registry record');
+    return recordSnapshot(parsed);
   };
-
+  const read = (slug: string): PersonaBotRecord | undefined => {
+    if (!isValidSlug(slug)) return undefined;
+    return port.read((database) => {
+      const row = database.prepare('SELECT body FROM persona_bots WHERE slug = ?').get(slug);
+      return row === undefined ? undefined : decode(String(row['body']), slug);
+    });
+  };
   const write = (record: PersonaBotRecord): void => {
-    const dir = botDir(record.slug);
-    mkdirSync(dir, { recursive: true });
-    atomicWriteFile(botFile(record.slug), `${JSON.stringify(record, null, 2)}\n`);
+    port.transaction(
+      (database) => {
+        database
+          .prepare(`INSERT INTO persona_bots (slug, body) VALUES (?, ?)
+        ON CONFLICT (slug) DO UPDATE SET body = excluded.body`)
+          .run(record.slug, JSON.stringify(recordSnapshot(record)));
+      },
+      ['bot-registry'],
+    );
   };
-
-  const list = (): PersonaBotRecord[] => {
-    let entries: Dirent[];
+  const erase = (slug: string): void => {
+    port.transaction(
+      (database) => {
+        database.prepare('DELETE FROM persona_bots WHERE slug = ?').run(slug);
+      },
+      ['bot-registry'],
+    );
+  };
+  const list = (): PersonaBotRecord[] =>
+    port.read((database) =>
+      database
+        .prepare('SELECT slug, body FROM persona_bots')
+        .all()
+        .map((row) => decode(String(row['body']), String(row['slug'])))
+        .sort((left, right) => left.slug.localeCompare(right.slug)),
+    );
+  if (
+    options.database.mode === 'ready' &&
+    !port.read((database) =>
+      database.prepare('SELECT singleton FROM persona_bots_import WHERE singleton = 1').get(),
+    )
+  ) {
+    const startedAt = performance.now();
+    const report = (phase: 'complete' | 'failed', count?: number) => {
+      try {
+        options.onImport?.({
+          phase,
+          ...(count === undefined ? {} : { count }),
+          durationMs: performance.now() - startedAt,
+        });
+      } catch {}
+    };
     try {
-      entries = readdirSync(rootDir, { withFileTypes: true });
-    } catch (error) {
-      if (isMissing(error)) return [];
-      throw error;
+      let entries: Dirent[];
+      try {
+        entries = readdirSync(rootDir, { withFileTypes: true });
+      } catch (error) {
+        if (!isMissing(error)) throw error;
+        entries = [];
+      }
+      const records: PersonaBotRecord[] = [];
+      for (const entry of entries.filter(
+        (entry) => entry.isDirectory() && isValidSlug(entry.name),
+      )) {
+        let text: string;
+        try {
+          text = readFileSync(botFile(entry.name), 'utf8');
+        } catch (error) {
+          if (isMissing(error)) continue;
+          throw error;
+        }
+        records.push(decode(text, entry.name));
+      }
+      port.transaction(
+        (database) => {
+          if (database.prepare('SELECT slug FROM persona_bots LIMIT 1').get())
+            throw new Error('PersonaBot Registry target is populated without an import marker');
+          const insert = database.prepare('INSERT INTO persona_bots (slug, body) VALUES (?, ?)');
+          for (const record of records) insert.run(record.slug, JSON.stringify(record));
+          database
+            .prepare('INSERT INTO persona_bots_import (singleton, imported_at) VALUES (1, ?)')
+            .run(now().toISOString());
+        },
+        ['bot-registry'],
+      );
+      report('complete', records.length);
+    } catch {
+      report('failed');
+      throw new Error(
+        'PersonaBot Registry import failed; repair retained legacy records before retry',
+      );
     }
-    return entries
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => read(entry.name))
-      .filter((record): record is PersonaBotRecord => record !== undefined)
-      .sort((left, right) => left.slug.localeCompare(right.slug));
-  };
+  }
 
   const memoryDirOf = (record: PersonaBotRecord): string =>
     record.memoryDir ?? defaultMemoryDir(record.slug);
@@ -256,7 +367,8 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         staging = mkdtempSync(join(rootDir, '.git-import-'));
         const cloned = await options.cloneMemory(staging, input.gitUrl);
         if (!cloned.ok) return { ok: false, reason: cloned.code };
-        if (existsSync(botDir(input.slug))) return { ok: false, reason: 'duplicate' };
+        if (read(input.slug) !== undefined || existsSync(botDir(input.slug)))
+          return { ok: false, reason: 'duplicate' };
 
         mkdirSync(botDir(input.slug));
         ownsBotDir = true;
@@ -271,8 +383,11 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         return { ok: false, reason: 'memory-unavailable' };
       } finally {
         if (staging !== undefined) rmSync(staging, { recursive: true, force: true });
-        if (ownsBotDir && !created && !existsSync(botFile(input.slug))) {
-          rmSync(botDir(input.slug), { recursive: true, force: true });
+        if (ownsBotDir && !created && options.database.mode === 'ready') {
+          try {
+            if (read(input.slug) === undefined)
+              rmSync(botDir(input.slug), { recursive: true, force: true });
+          } catch {}
         }
       }
     },
@@ -289,17 +404,19 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     },
     remove(slug, removeOptions) {
       if (!isValidSlug(slug)) return false;
-      const exists = existsSync(botDir(slug));
+      const record = read(slug);
+      const exists = record !== undefined || existsSync(botDir(slug));
       if (removeOptions?.purge === true) {
         const removeFiles = () => {
           if (exists) rmSync(botDir(slug), { recursive: true, force: true });
         };
         if (options.onPurge === undefined) removeFiles();
         else options.onPurge(slug, removeFiles);
+        erase(slug);
         return exists;
       }
       if (!exists) return false;
-      rmSync(botFile(slug), { force: true });
+      erase(slug);
       return true;
     },
     memoryDirFor(slug) {
