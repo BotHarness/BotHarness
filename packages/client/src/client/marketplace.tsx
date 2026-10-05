@@ -48,6 +48,24 @@ export function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
 
+export function marketplaceName(bot: MarketplaceEntry): string {
+  return bot.displayName ?? bot.name;
+}
+
+function MarketplaceName({ bot }: { bot: MarketplaceEntry }): ReactElement {
+  return (
+    <span className="bh-market-name">
+      <span>{marketplaceName(bot)}</span>
+      <span className="bh-market-owner">{bot.displayName === null ? bot.owner : bot.fullName}</span>
+      {bot.roles.map((role) => (
+        <Tag key={role} tone="outline">
+          {role}
+        </Tag>
+      ))}
+    </span>
+  );
+}
+
 function day(value: string): string {
   return value.slice(0, 10);
 }
@@ -114,17 +132,20 @@ function MarketplaceRow({
 }): ReactElement {
   return (
     <div className="bh-market-row" role="listitem" data-market-bot={bot.fullName}>
-      <PersonaBotAvatar personaBotId="" name={bot.name} size={36} indicator={false} t={t} />
+      <PersonaBotAvatar
+        personaBotId=""
+        name={marketplaceName(bot)}
+        size={36}
+        indicator={false}
+        t={t}
+      />
       <button
         type="button"
         className="bh-market-copy bh-market-open"
         aria-label={t('market.detail.open', { name: bot.fullName })}
         onClick={onOpen}
       >
-        <span className="bh-market-name">
-          <span>{bot.name}</span>
-          <span className="bh-market-owner">{bot.owner}</span>
-        </span>
+        <MarketplaceName bot={bot} />
         {bot.description === null ? null : (
           <span className="bh-market-description">{bot.description}</span>
         )}
@@ -164,12 +185,15 @@ function MarketplaceDetailView({
   return (
     <div className="bh-market-detail" data-market-detail={shown.fullName}>
       <div className="bh-market-confirm-head">
-        <PersonaBotAvatar personaBotId="" name={shown.name} size={44} indicator={false} t={t} />
+        <PersonaBotAvatar
+          personaBotId=""
+          name={marketplaceName(shown)}
+          size={44}
+          indicator={false}
+          t={t}
+        />
         <span className="bh-market-copy">
-          <span className="bh-market-name">
-            <span>{shown.name}</span>
-            <span className="bh-market-owner">{shown.owner}</span>
-          </span>
+          <MarketplaceName bot={shown} />
           {shown.description === null ? null : (
             <span className="bh-market-description">{shown.description}</span>
           )}
@@ -216,12 +240,15 @@ function InstallConfirmation({
   return (
     <div className="bh-market-confirm">
       <div className="bh-market-confirm-head">
-        <PersonaBotAvatar personaBotId="" name={bot.name} size={44} indicator={false} t={t} />
+        <PersonaBotAvatar
+          personaBotId=""
+          name={marketplaceName(bot)}
+          size={44}
+          indicator={false}
+          t={t}
+        />
         <span className="bh-market-copy">
-          <span className="bh-market-name">
-            <span>{bot.name}</span>
-            <span className="bh-market-owner">{bot.owner}</span>
-          </span>
+          <MarketplaceName bot={bot} />
           {bot.description === null ? null : (
             <span className="bh-market-description">{bot.description}</span>
           )}
@@ -405,9 +432,9 @@ export function MarketplaceModal({
     setInstallCause(undefined);
     void actions
       .createBot({
-        displayName: selected.name,
+        displayName: marketplaceName(selected),
         gitUrl: selected.cloneUrl,
-        roles: [],
+        roles: selected.roles,
         ...(selected.description === null ? {} : { description: selected.description }),
       })
       .then(
@@ -430,7 +457,7 @@ export function MarketplaceModal({
           if (!installing) onClose();
         }}
         closeLabel={t('common.close')}
-        title={t('market.confirm.title', { name: selected.name })}
+        title={t('market.confirm.title', { name: marketplaceName(selected) })}
         className="bh-market-modal"
         footer={
           <>
@@ -462,7 +489,7 @@ export function MarketplaceModal({
         open
         onClose={onClose}
         closeLabel={t('common.close')}
-        title={shown.name}
+        title={marketplaceName(shown)}
         className="bh-market-modal"
         footer={
           <>

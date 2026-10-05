@@ -3,6 +3,8 @@ export interface MarketplaceEntry {
   owner: string;
   name: string;
   fullName: string;
+  displayName: string | null;
+  roles: string[];
   description: string | null;
   topics: string[];
   stars: number;
@@ -75,11 +77,17 @@ function parseEntry(value: unknown): MarketplaceEntry | undefined {
   const head = record(source['headCommit']);
   if (description !== null && typeof description !== 'string') return undefined;
   if (typeof stars !== 'number' || !Array.isArray(topics)) return undefined;
+  const displayName = source['displayName'];
+  const roles = source['roles'];
   return {
     id: source['id'] as string,
     owner: source['owner'] as string,
     name: source['name'] as string,
     fullName: source['fullName'] as string,
+    displayName: typeof displayName === 'string' && displayName.length > 0 ? displayName : null,
+    roles: Array.isArray(roles)
+      ? roles.filter((role): role is string => typeof role === 'string')
+      : [],
     description,
     topics: topics.filter((topic): topic is string => typeof topic === 'string'),
     stars,

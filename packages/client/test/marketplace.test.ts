@@ -71,6 +71,8 @@ function entry(name: string, overrides: Partial<MarketplaceEntry> = {}): Marketp
     owner: 'alice',
     name,
     fullName: `alice/${name}`,
+    displayName: null,
+    roles: [],
     description: `${name} description`,
     topics: ['writing'],
     stars: 7,
@@ -468,6 +470,32 @@ describe('Bot Marketplace modal', () => {
         attempts += 1;
         if (attempts === 1) throw new BridgeCallError('marketplace-unavailable', 'down');
         return { bot: entry('helper'), readme: null, commitSha: null };
+      },
+    );
+  });
+
+  it('shows the shared name and role badges and installs with them', async () => {
+    await withMarketplace(
+      async () => ({
+        bots: [entry('helper-bot', { displayName: 'Helper', roles: ['writer', 'editor'] })],
+      }),
+      async ({ host, createBot }) => {
+        const row = host.querySelector('[data-market-bot="alice/helper-bot"]')!;
+        expect(row.textContent).toContain('Helper');
+        expect(row.textContent).toContain('alice/helper-bot');
+        expect(row.textContent).toContain('writer');
+        expect(row.textContent).toContain('editor');
+
+        await click(host, '安装');
+        expect(host.querySelector('h1')?.textContent).toBe('安装 Helper');
+        await click(host, '确认安装');
+
+        expect(createBot).toHaveBeenCalledWith({
+          displayName: 'Helper',
+          gitUrl: 'https://github.com/alice/helper-bot.git',
+          roles: ['writer', 'editor'],
+          description: 'helper-bot description',
+        });
       },
     );
   });

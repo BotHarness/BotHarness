@@ -25,6 +25,7 @@ import {
   type RemovePersonaBotOptions,
   type UpdatePersonaBotResult,
 } from './persona-bot.js';
+import { readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
 import type { MemoryCloneResult } from '../memory/clone.js';
 import type {
@@ -378,7 +379,16 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         void gitUrl;
         const result = this.create(recordInput);
         created = result.ok;
-        return result;
+        if (!result.ok) return result;
+        const presentation = readSharedPresentation(defaultMemoryDir(input.slug));
+        if (presentation === undefined) return result;
+        const presented = { ...result.record, ...presentation };
+        try {
+          write(presented);
+        } catch {
+          return result;
+        }
+        return { ok: true, record: presented };
       } catch {
         return { ok: false, reason: 'memory-unavailable' };
       } finally {

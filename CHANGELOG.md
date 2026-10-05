@@ -13,6 +13,7 @@ Add the first Bot Marketplace, preserve definite IM reply refusals, and move Dee
 - Repositories that add the `botharness-bot` topic now appear in the Bot Marketplace after the daily discovery without a paste, and listed entries refresh hourly; removing the topic, archiving, deleting or making a repository private hides it, and renames keep the same entry ([#917](https://github.com/BotHarness/BotHarness/issues/917)).
 - The Bot Marketplace can sort by recent update or stars, search names, descriptions, topics and READMEs (Chinese included) with relevance ranking, and filter by topic chips ([#918](https://github.com/BotHarness/BotHarness/issues/918)).
 - Opening a Bot Marketplace entry shows its README rendered like GitHub (relative images and links resolve at the listed commit; scripts, event handlers and unsafe URLs are removed), with stars, update date, topics, a GitHub link and Install ([#919](https://github.com/BotHarness/BotHarness/issues/919)).
+- Bot authors can commit `.botharness/bot.json` to share a display name, role badges and an avatar (a generated-avatar recipe or a committed PNG, JPEG or WebP image); the Bot Marketplace shows the name and badges, and installing applies the avatar from the cloned repository. Invalid descriptors are ignored ([#920](https://github.com/BotHarness/BotHarness/issues/920)).
 
 ### Fixed
 
