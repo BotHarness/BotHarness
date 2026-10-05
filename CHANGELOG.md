@@ -495,6 +495,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Recorded the fixed-source Discord mention/reply preflight and missing real-App qualification; Discord capability rows remain unqualified and runtime behavior is unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855), [integration guide](docs/dev/guides/im-provider-integration.md)).
+
 - Documented the verified Lark/Slack IM integration boundary and repeatable qualification workflow for future providers ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 
 - Added a Lark / Feishu beginner guide with compressed WebP captures of the actual console and connected Profile, a captioned step-by-step video, and qualified single-install, identity, group authorization and message-source checks ([#814](https://github.com/BotHarness/BotHarness/issues/814), [guide](docs/lark-connection.md)).

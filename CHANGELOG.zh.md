@@ -495,6 +495,8 @@
 
 ### Documentation
 
+- 记录固定源码的 Discord @ 收件／回复预检查与尚缺的真实 App 验证；Discord 能力表继续保持未验证，运行行为不变（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[integration guide](docs/dev/guides/im-provider-integration.md)）。
+
 - 整理已验证的 Lark／Slack IM 接入边界与后续平台可复用的资格验证流程 ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 
 - 新增 Lark / 飞书新手配置指南，含真实后台与已连接 Profile 的压缩 WebP 截图、带中英文字幕的分步视频，以及已验证单次安装、身份绑定、群授权和消息来源核验步骤（[#814](https://github.com/BotHarness/BotHarness/issues/814)、[指南](docs/lark-connection.md)）。
