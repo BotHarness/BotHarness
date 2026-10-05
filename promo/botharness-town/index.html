@@ -26,20 +26,25 @@ const VIEW_W = 320;
 const VIEW_H = 180;
 const PIXEL_RATIO = 4;
 const TILE = 16;
-const TOTAL = 900;
+const FPS = 60;
+const TOTAL = 7200;
+const BAR = 120; // 120 BPM in 4/4: one bar is 120 frames
 const params = new URLSearchParams(location.search);
 if (params.get('debug') === '0') DEBUG_FRAMES = false;
 
 // ----- palette -------------------------------------------------------------
 const INK = '#2a2230';
 const PAL = {
-  grass: '#78c257', grassDark: '#5fa847', grassLight: '#93d66a', tuft: '#4f9a3c',
+  grass: '#78c257', grassLight: '#93d66a', tuft: '#4f9a3c',
+  night: '#2f5a3e', nightLight: '#3a6b48', nightTuft: '#24452f',
   path: '#dcbb7f', pathDark: '#c19b62', pathLight: '#ead09a',
   stone: '#cfc7b4', stoneDark: '#aaa290', stoneLight: '#e2dccb',
   wood: '#b0763f', woodDark: '#7d4f2b', woodLight: '#d0955a',
   leaf: '#4e9e43', leafDark: '#357a33', leafLight: '#6fbd55',
   paper: '#fbf6e9', paperLine: '#c9bfa7', amber: '#f0a63a',
-  add: '#5cb85c', addBg: '#d8f0d0', del: '#d9534f', delBg: '#f6d6d2',
+  add: '#5cb85c', del: '#d9534f',
+  lark: '#3370ff', slack: '#611f69', discord: '#5865f2',
+  panel: '#1b1820', panelLine: '#fff2a0',
 };
 
 // ----- deterministic helpers ----------------------------------------------
@@ -53,16 +58,16 @@ const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const lerp = (a, b, t) => a + (b - a) * t;
 const span = (f, a, b) => clamp((f - a) / (b - a), 0, 1);
 const within = (f, a, b) => f >= a && f < b;
+const step8 = (v) => Math.round(clamp(v, 0, 1) * 8) / 8;
 
 // ----- 3x5 pixel font ------------------------------------------------------
 const GLYPHS = {
   A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110',
   E: '111100110100111', F: '111100110100100', G: '011100101101011', H: '101101111101101',
   I: '111010010010111', J: '001001001101010', K: '101101110101101', L: '100100100100111',
-  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100',
-  Q: '010101101110011', R: '110101110101101', S: '011100010001110', T: '111010010010010',
-  U: '101101101101111', V: '101101101101010', W: '101101111111101', X: '101101010101101',
-  Y: '101101010010010', Z: '111001010100111',
+  O: '010101101101010', P: '110101110100100', Q: '010101101110011', R: '110101110101101',
+  S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010',
+  X: '101101010101101', Y: '101101010010010', Z: '111001010100111',
   0: '111101101101111', 1: '010110010010111', 2: '110001010100111', 3: '110001010001110',
   4: '101101111001001', 5: '111100110001110', 6: '011100110101010', 7: '111001010010010',
   8: '010101010101010', 9: '010101011001110',
@@ -79,18 +84,18 @@ const WIDE = {
 const wideOf = (ch) => (GLYPHS[ch] && !/[A-Z]/.test(ch) ? null : WIDE[ch.toUpperCase()]);
 const glyphWidth = (ch) => (wideOf(ch) ? wideOf(ch)[0].length : 3);
 const textWidth = (s) => [...s].reduce((w, ch) => w + glyphWidth(ch) + 1, 0) - 1;
-function drawText(ctx, s, x, y, color) {
+function drawText(ctx, s, x, y, color, scale = 1) {
   ctx.fillStyle = color;
   let cx = x;
   for (const ch of s) {
     const wide = wideOf(ch);
     if (wide) {
-      wide.forEach((row, ry) => [...row].forEach((b, rx) => b === '1' && ctx.fillRect(cx + rx, y + ry, 1, 1)));
+      wide.forEach((row, ry) => [...row].forEach((b, rx) => b === '1' && ctx.fillRect(cx + rx * scale, y + ry * scale, scale, scale)));
     } else {
       const g = GLYPHS[ch] ?? GLYPHS[ch.toUpperCase()] ?? GLYPHS[' '];
-      for (let i = 0; i < 15; i++) if (g[i] === '1') ctx.fillRect(cx + (i % 3), y + Math.floor(i / 3), 1, 1);
+      for (let i = 0; i < 15; i++) if (g[i] === '1') ctx.fillRect(cx + (i % 3) * scale, y + Math.floor(i / 3) * scale, scale, scale);
     }
-    cx += glyphWidth(ch) + 1;
+    cx += (glyphWidth(ch) + 1) * scale;
   }
 }
 
@@ -101,7 +106,7 @@ function canvasTex(w, h, paint) {
   c.height = h;
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  paint(ctx, w, h);
+  paint?.(ctx, w, h);
   const t = new THREE.CanvasTexture(c);
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestFilter;
@@ -120,8 +125,44 @@ function disc(ctx, cx, cy, r, c) {
   for (let y = -r; y <= r; y++)
     for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * 0.6) ctx.fillRect(cx + x, cy + y, 1, 1);
 }
+const CJK_FONT = '"PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif';
+// System CJK glyphs snapped to hard pixels so text keeps the pixel look.
+function crispText(ctx, text, x, y, px, color, threshold = 120) {
+  const w = Math.ceil(px * text.length * 1.1) + 4;
+  const h = Math.ceil(px * 1.4);
+  const g = document.createElement('canvas');
+  g.width = w;
+  g.height = h;
+  const c = g.getContext('2d');
+  c.font = `${px}px ${CJK_FONT}`;
+  c.textBaseline = 'middle';
+  c.fillStyle = color;
+  c.fillText(text, 0, h / 2);
+  const img = c.getImageData(0, 0, w, h);
+  for (let i = 3; i < img.data.length; i += 4) img.data[i] = img.data[i] > threshold ? 255 : 0;
+  c.putImageData(img, 0, 0);
+  ctx.drawImage(g, x, y - h / 2);
+  return c.measureText(text).width;
+}
+function measureCJK(text, px) {
+  const c = measureCJK.c ?? (measureCJK.c = document.createElement('canvas').getContext('2d'));
+  c.font = `${px}px ${CJK_FONT}`;
+  return c.measureText(text).width;
+}
+function wrapCJK(text, px, maxW) {
+  const lines = [];
+  for (const para of text.split('\n')) {
+    let line = '';
+    for (const tok of para.match(/[A-Za-z0-9@./'-]+|\s+|./gu) ?? []) {
+      if (measureCJK(line + tok, px) > maxW && line) { lines.push(line); line = tok.trim() ? tok : ''; continue; }
+      line += tok;
+    }
+    lines.push(line);
+  }
+  return lines;
+}
 
-// ----- renderer / scene ----------------------------------------------------
+// ----- renderer / scenes ---------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1);
 renderer.setSize(VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
@@ -130,12 +171,11 @@ renderer.autoClear = false;
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#5fa847');
 const camera = new THREE.OrthographicCamera(-VIEW_W / 2, VIEW_W / 2, VIEW_H / 2, -VIEW_H / 2, 1, 4000);
 const hud = new THREE.Scene();
-const hudCam = new THREE.OrthographicCamera(0, VIEW_W, VIEW_H, 0, -10, 10);
+const hudCam = new THREE.OrthographicCamera(0, VIEW_W, VIEW_H, 0, -100, 100);
 
-const zOf = (y) => 100 + (400 - y) * 0.1;
+const zOf = (y) => 100 + (700 - y) * 0.1;
 const geoCache = new Map();
 function geometry(w, h, ax, ay) {
   const key = `${w}x${h}@${ax},${ay}`;
@@ -143,8 +183,9 @@ function geometry(w, h, ax, ay) {
   return geoCache.get(key);
 }
 function sprite(t, { ax = 0.5, ay = 0, parent = scene, transparent = false } = {}) {
-  const mat = new THREE.MeshBasicMaterial({ map: t.tex, alphaTest: transparent ? 0 : 0.5, transparent, depthWrite: !transparent });
+  const mat = new THREE.MeshBasicMaterial({ map: t.tex, alphaTest: transparent ? 0 : 0.5, transparent, depthWrite: !transparent, depthTest: parent !== hud });
   const m = new THREE.Mesh(geometry(t.w, t.h, ax, ay), mat);
+  m.userData.anchor = [ax, ay];
   parent.add(m);
   return m;
 }
@@ -156,12 +197,68 @@ function swap(m, t) {
     m.material.map = t.tex;
     m.material.needsUpdate = true;
   }
-  if (m.geometry.parameters.width !== t.w || m.geometry.parameters.height !== t.h) m.geometry = geometry(t.w, t.h, 0.5, 0);
+  const [ax, ay] = m.userData.anchor ?? [0.5, 0];
+  if (m.geometry.parameters.width !== t.w || m.geometry.parameters.height !== t.h) m.geometry = geometry(t.w, t.h, ax, ay);
+}
+function hudQuad(color, order) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0), new THREE.MeshBasicMaterial({ color, transparent: true, depthTest: false, depthWrite: false }));
+  m.renderOrder = order;
+  hud.add(m);
+  return m;
+}
+function setRect(m, x, y, w, h) {
+  m.position.set(x, y, 0);
+  m.scale.set(Math.max(0.001, w), Math.max(0.001, h), 1);
+}
+function hudSprite(t, order, ax = 0, ay = 0) {
+  const m = sprite(t, { ax, ay, parent: hud, transparent: true });
+  m.renderOrder = order;
+  return m;
 }
 
+// ----- asset loading -------------------------------------------------------
+const loader = new THREE.TextureLoader();
+let pending = 0;
+let started = false;
+const readyCallbacks = [];
+function load(url, { pixel = true } = {}) {
+  pending += 1;
+  const tex = loader.load(url, () => {
+    pending -= 1;
+    if (pending === 0) for (const cb of readyCallbacks.splice(0)) cb();
+  });
+  tex.magFilter = pixel ? THREE.NearestFilter : THREE.LinearFilter;
+  tex.minFilter = pixel ? THREE.NearestFilter : THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = !pixel;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  if (!pixel) tex.anisotropy = 4;
+  return tex;
+}
+const UI = {
+  files: { url: './ui/memory-files.jpg', w: 1440, h: 960, title: 'MEMORY FILES' },
+  evo: { url: './ui/memory-evolution.jpg', w: 1280, h: 800, title: 'MEMORY EVOLUTION' },
+  lark: { url: './ui/lark-connector.png', w: 882, h: 827, title: 'GROUP - LARK CONNECTOR' },
+  slack: { url: './ui/slack-connector.png', w: 1230, h: 820, title: 'PROFILE - SLACK CONNECTOR' },
+  group: { url: './ui/group.jpg', w: 2940, h: 1846, title: 'GROUP' },
+  larkTopic: { url: './ui/lark-topic.jpg', w: 1668, h: 1846, title: 'LARK TOPIC' },
+  slackThread: { url: './ui/slack-thread.png', w: 1230, h: 876, title: 'SLACK THREAD' },
+};
+for (const u of Object.values(UI)) u.tex = load(u.url, { pixel: false });
+const logoTex = { tex: load('./ui/logo.png', { pixel: false }), w: 128, h: 128 };
+let MORPH = null;
+pending += 1;
+fetch('./avatars/morph.json').then((r) => r.json()).then((json) => {
+  MORPH = {};
+  for (const [id, v] of Object.entries(json)) {
+    const unpack = (s) => s.split(';').map((p) => { const [x, y, c] = p.split(','); return { x: +x, y: +y, c: `#${c}` }; });
+    MORPH[id] = { tile: v.tile, face: unpack(v.face), symbols: Object.fromEntries(Object.entries(v.symbols).map(([k, c]) => [k, unpack(c)])) };
+  }
+  pending -= 1;
+  if (pending === 0) for (const cb of readyCallbacks.splice(0)) cb();
+});
+
 // ----- world layout (world units are art pixels, y up) ---------------------
-const WORLD_W = 768;
-const WORLD_H = 512;
+const WORLD = { x0: -512, x1: 512, y0: -640, y1: 384 };
 const HOUSE_Y = 92;
 const STAND_Y = 58;
 const BOARD = { x: 0, y: 176 };
@@ -169,96 +266,111 @@ const SIDE = { x: -150, y: HOUSE_Y };
 const LECTERN = { x: -138, y: 2 };
 const SHED = { x: 172, y: 4 };
 const TABLE = { x: 0, y: 2 };
+const MARKET = { x: -262, y: -64 };
+const TOWER = { x: 262, y: 96 };
+const CAVE = { x: 92, y: -430 };
 const CORD_X = -121;
+const NIGHT_Y = -300;
 
 // ----- ground --------------------------------------------------------------
-const ground = canvasTex(WORLD_W, WORLD_H, (ctx) => {
-  const toC = (x, y) => [x + WORLD_W / 2, WORLD_H / 2 - y];
-  for (let ty = 0; ty < WORLD_H / TILE; ty++)
-    for (let tx = 0; tx < WORLD_W / TILE; tx++) {
+const ground = canvasTex(WORLD.x1 - WORLD.x0, WORLD.y1 - WORLD.y0, (ctx, W, H) => {
+  const toC = (x, y) => [x - WORLD.x0, WORLD.y1 - y];
+  for (let ty = 0; ty < H / TILE; ty++)
+    for (let tx = 0; tx < W / TILE; tx++) {
+      const wy = WORLD.y1 - ty * TILE;
+      const night = wy < NIGHT_Y;
       const v = hash(tx, ty, 1);
-      rect(ctx, tx * TILE, ty * TILE, TILE, TILE, v < 0.5 ? PAL.grass : v < 0.85 ? '#73bd52' : PAL.grassLight);
+      rect(ctx, tx * TILE, ty * TILE, TILE, TILE, night ? (v < 0.6 ? PAL.night : PAL.nightLight) : v < 0.5 ? PAL.grass : v < 0.85 ? '#73bd52' : PAL.grassLight);
       for (let k = 0; k < 4; k++) {
         const px = Math.floor(hash(tx, ty, 10 + k) * 15);
         const py = Math.floor(hash(tx, ty, 20 + k) * 14);
-        rect(ctx, tx * TILE + px, ty * TILE + py, 1, 2, PAL.tuft);
-        rect(ctx, tx * TILE + px + 1, ty * TILE + py + 1, 1, 1, PAL.tuft);
+        rect(ctx, tx * TILE + px, ty * TILE + py, 1, 2, night ? PAL.nightTuft : PAL.tuft);
+        rect(ctx, tx * TILE + px + 1, ty * TILE + py + 1, 1, 1, night ? PAL.nightTuft : PAL.tuft);
       }
     }
-  const pathRect = (x0, y0, x1, y1) => {
+  const pathRect = (x0, y0, x1, y1, night = false) => {
     const [cx0, cy0] = toC(x0, y1);
     const w = x1 - x0;
     const h = y1 - y0;
-    rect(ctx, cx0 - 1, cy0 - 1, w + 2, h + 2, PAL.pathDark);
-    rect(ctx, cx0, cy0, w, h, PAL.path);
+    rect(ctx, cx0 - 1, cy0 - 1, w + 2, h + 2, night ? '#3d3a35' : PAL.pathDark);
+    rect(ctx, cx0, cy0, w, h, night ? '#5a5248' : PAL.path);
     for (let i = 0; i < (w * h) / 40; i++) {
       const px = Math.floor(hash(x0 + i, y0, 3) * w);
       const py = Math.floor(hash(x0, y0 + i, 4) * h);
-      rect(ctx, cx0 + px, cy0 + py, 1, 1, hash(i, x0, 5) < 0.5 ? PAL.pathDark : PAL.pathLight);
+      rect(ctx, cx0 + px, cy0 + py, 1, 1, hash(i, x0, 5) < 0.5 ? (night ? '#46413a' : PAL.pathDark) : night ? '#6b6256' : PAL.pathLight);
     }
   };
-  pathRect(-182, 40, 100, 54);
+  pathRect(-182, 40, 300, 54);
   for (const x of [-72, 0, 72]) pathRect(x - 7, 50, x + 7, HOUSE_Y);
   pathRect(CORD_X - 36, 50, CORD_X - 22, HOUSE_Y);
   pathRect(-7, 18, 7, 50);
   pathRect(-7, HOUSE_Y + 52, 7, BOARD.y);
-  pathRect(-190, -8, -40, 8);
+  pathRect(-300, -8, -40, 8);
   pathRect(40, -8, 200, 8);
-  // plaza
+  pathRect(TOWER.x - 7, 54, TOWER.x + 7, TOWER.y);
+  pathRect(MARKET.x - 7, -60, MARKET.x + 7, -8);
+  pathRect(-7, -290, 7, -48);
+  pathRect(-200, -452, 150, -438, true);
   const [pcx, pcy] = toC(TABLE.x, TABLE.y);
   disc(ctx, pcx, pcy, 50, PAL.stoneDark);
   disc(ctx, pcx, pcy, 49, PAL.stone);
-  for (let y = -48; y <= 48; y += 8)
-    for (let x = -48; x <= 48; x += 1) {
-      if (x * x + y * y > 47 * 47) continue;
-      rect(ctx, pcx + x, pcy + y, 1, 1, PAL.stoneDark);
-    }
   for (let y = -44; y <= 44; y += 8)
     for (let x = -48; x <= 48; x += 12) {
       const ox = (y / 8) % 2 === 0 ? 0 : 6;
       if ((x + ox) ** 2 + y * y > 46 * 46) continue;
       rect(ctx, pcx + x + ox, pcy + y, 1, 8, PAL.stoneDark);
+      rect(ctx, pcx + x + ox - 6, pcy + y, 12, 1, PAL.stoneDark);
       rect(ctx, pcx + x + ox + 1, pcy + y + 1, 4, 1, PAL.stoneLight);
     }
-  // flowers
   const busy = (x, y) =>
-    (x > -200 && x < 210 && y > -24 && y < 24) || (x * x + y * y < 62 * 62) || (x > -200 && x < 110 && y > 30 && y < 150) ||
-    (Math.abs(x) < 50 && y > 140 && y < 230) || (x > 120 && x < 230 && y > -30 && y < 70);
-  for (let i = 0; i < 260; i++) {
-    const x = Math.floor(hash(i, 7, 7) * WORLD_W) - WORLD_W / 2;
-    const y = Math.floor(hash(i, 9, 9) * WORLD_H) - WORLD_H / 2;
-    if (busy(x, y)) continue;
+    (x > -310 && x < 310 && y > -24 && y < 24) || x * x + y * y < 62 * 62 || (x > -200 && x < 310 && y > 30 && y < 150) ||
+    (Math.abs(x) < 50 && y > 140 && y < 230) || (x > 120 && x < 230 && y > -30 && y < 70) || (Math.abs(x) < 14 && y < -40 && y > -300) ||
+    (x > -310 && x < -210 && y > -110 && y < -20);
+  for (let i = 0; i < 520; i++) {
+    const x = Math.floor(hash(i, 7, 7) * W) + WORLD.x0;
+    const y = WORLD.y1 - Math.floor(hash(i, 9, 9) * H);
+    if (busy(x, y) || (y < NIGHT_Y + 20 && y > NIGHT_Y - 20)) continue;
     const [cx, cy] = toC(x, y);
-    const c = ['#f7e26b', '#f4f4f4', '#ef8fb1', '#9ad0f0'][Math.floor(hash(i, 3, 3) * 4)];
+    const night = y < NIGHT_Y;
+    const c = night ? ['#7fe0d0', '#b7a6ff', '#f7e26b'][Math.floor(hash(i, 3, 3) * 3)] : ['#f7e26b', '#f4f4f4', '#ef8fb1', '#9ad0f0'][Math.floor(hash(i, 3, 3) * 4)];
     rect(ctx, cx, cy - 1, 1, 1, c);
     rect(ctx, cx - 1, cy, 3, 1, c);
     rect(ctx, cx, cy + 1, 1, 1, c);
-    rect(ctx, cx, cy, 1, 1, '#f0a63a');
+    rect(ctx, cx, cy, 1, 1, night ? '#ffffff' : '#f0a63a');
   }
 });
-const groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(WORLD_W, WORLD_H), new THREE.MeshBasicMaterial({ map: ground.tex }));
-groundMesh.position.z = 0;
+const groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(ground.w, ground.h), new THREE.MeshBasicMaterial({ map: ground.tex }));
+groundMesh.position.set((WORLD.x0 + WORLD.x1) / 2, (WORLD.y0 + WORLD.y1) / 2, 0);
 scene.add(groundMesh);
+scene.background = new THREE.Color('#5fa847');
 
 // ----- props ---------------------------------------------------------------
-const shadowTex = (w) =>
-  canvasTex(w, 5, (ctx) => {
-    ctx.fillStyle = 'rgba(30,40,20,0.35)';
-    for (let y = 0; y < 5; y++) {
-      const hw = Math.round((w / 2) * Math.sqrt(1 - ((y - 2) / 2.6) ** 2));
-      ctx.fillRect(w / 2 - hw, y, hw * 2, 1);
-    }
+const shadowCache = new Map();
+const shadowTex = (w) => {
+  if (!shadowCache.has(w))
+    shadowCache.set(w, canvasTex(w, 5, (ctx) => {
+      ctx.fillStyle = 'rgba(30,40,20,0.35)';
+      for (let y = 0; y < 5; y++) {
+        const hw = Math.round((w / 2) * Math.sqrt(Math.max(0, 1 - ((y - 2) / 2.6) ** 2)));
+        ctx.fillRect(w / 2 - hw, y, hw * 2, 1);
+      }
+    }));
+  return shadowCache.get(w);
+};
+function treeTex(dark) {
+  const L = dark ? ['#1f4a33', '#2b6043', '#3c7a52'] : [PAL.leafDark, PAL.leaf, PAL.leafLight];
+  return canvasTex(30, 40, (ctx) => {
+    rect(ctx, 12, 26, 6, 14, PAL.woodDark);
+    rect(ctx, 13, 26, 3, 14, PAL.wood);
+    disc(ctx, 15, 14, 13, INK);
+    disc(ctx, 15, 14, 12, L[0]);
+    disc(ctx, 14, 12, 10, L[1]);
+    disc(ctx, 11, 9, 5, L[2]);
+    for (let i = 0; i < 12; i++) rect(ctx, 5 + Math.floor(hash(i, 1, 2) * 20), 4 + Math.floor(hash(i, 2, 1) * 20), 2, 1, L[0]);
   });
-
-const treeTex = canvasTex(30, 40, (ctx) => {
-  rect(ctx, 12, 26, 6, 14, PAL.woodDark);
-  rect(ctx, 13, 26, 3, 14, PAL.wood);
-  disc(ctx, 15, 14, 13, INK);
-  disc(ctx, 15, 14, 12, PAL.leafDark);
-  disc(ctx, 14, 12, 10, PAL.leaf);
-  disc(ctx, 11, 9, 5, PAL.leafLight);
-  for (let i = 0; i < 12; i++) rect(ctx, 5 + Math.floor(hash(i, 1, 2) * 20), 4 + Math.floor(hash(i, 2, 1) * 20), 2, 1, PAL.leafDark);
-});
+}
+const dayTree = treeTex(false);
+const nightTree = treeTex(true);
 const bushTex = canvasTex(18, 12, (ctx) => {
   disc(ctx, 6, 7, 5, INK); disc(ctx, 12, 7, 5, INK);
   disc(ctx, 6, 7, 4, PAL.leafDark); disc(ctx, 12, 7, 4, PAL.leafDark);
@@ -266,19 +378,26 @@ const bushTex = canvasTex(18, 12, (ctx) => {
   rect(ctx, 4, 4, 2, 1, PAL.leafLight); rect(ctx, 10, 4, 2, 1, PAL.leafLight);
 });
 const TREES = [
-  [-250, 200], [-220, 150], [-280, 60], [-250, -60], [-210, -120], [-120, -140], [-40, -150], [60, -140],
-  [140, -120], [240, -90], [270, 20], [250, 120], [200, 190], [120, 210], [-100, 215], [-170, 200],
-  [-300, -150], [300, -170], [320, 200], [-330, 230], [-60, -100], [90, -90], [230, 60], [-260, 0],
+  [-250, 200], [-220, 150], [-330, 60], [-210, -130], [-120, -150], [-60, -110], [60, -140], [90, -100],
+  [140, -120], [240, -90], [330, 20], [340, 130], [200, 190], [120, 210], [-100, 215], [-170, 200],
+  [-330, -170], [330, -190], [320, 220], [-330, 240], [-360, -40], [230, 230], [-40, -200], [40, -230],
+  [-400, 160], [400, 60], [420, -100], [-420, -110], [-150, -240], [160, -240], [-260, -230], [280, -250],
 ];
 for (const [x, y] of TREES) {
   place(sprite(shadowTex(22)), x, y - 2, 1);
-  place(sprite(treeTex), x, y);
+  place(sprite(dayTree), x, y);
 }
-for (const [x, y] of [[-40, 120], [40, 124], [110, 112], [-200, 70], [120, 60], [-100, -40], [60, -50], [-60, 170], [60, 166], [210, -40]])
+for (let i = 0; i < 30; i++) {
+  const x = -480 + i * 33 + Math.floor(hash(i, 5) * 10);
+  const y = NIGHT_Y - 20 - Math.floor(hash(i, 6) * 12);
+  if (Math.abs(x) < 20) continue;
+  place(sprite(nightTree), x, y);
+}
+for (const [x, y] of [[-320, -380], [-260, -560], [-120, -580], [240, -540], [300, -400], [200, -600], [-60, -360], [360, -500], [-380, -480], [10, -600]])
+  place(sprite(nightTree), x, y);
+for (const [x, y] of [[-40, 120], [40, 124], [110, 112], [-200, 70], [120, 60], [-100, -40], [60, -50], [-60, 170], [60, 166], [210, -40], [-200, -60], [300, 60]])
   place(sprite(bushTex), x, y);
 
-// roster board
-const NAMES = ['MIRA', 'THEO', 'NOVA'];
 const CAST = [
   { id: 'mira', name: 'MIRA', door: -72, roof: '#5fa898', tag: '#3f8f7c', skin: '#ffe3cf' },
   { id: 'theo', name: 'THEO', door: 0, roof: '#d9535b', tag: '#c0414a', skin: '#ffe3cf' },
@@ -304,15 +423,14 @@ const boardTex = canvasTex(84, 58, (ctx) => {
 place(sprite(shadowTex(70)), BOARD.x, BOARD.y - 2, 1);
 place(sprite(boardTex), BOARD.x, BOARD.y);
 
-// houses
 function houseTex(c) {
   return canvasTex(60, 58, (ctx) => {
     box(ctx, 4, 26, 52, 32, PAL.wood);
     for (let y = 31; y < 57; y += 5) rect(ctx, 5, y, 50, 1, PAL.woodDark);
     for (let x = 0; x < 30; x++) {
       const y0 = 26 - Math.round(x * 0.8);
-      rect(ctx, 30 - x - 1, y0 - 2, 1, 2 + Math.round(x * 0.8) + 2, INK);
-      rect(ctx, 30 + x, y0 - 2, 1, 2 + Math.round(x * 0.8) + 2, INK);
+      rect(ctx, 30 - x - 1, y0 - 2, 1, Math.round(x * 0.8) + 4, INK);
+      rect(ctx, 30 + x, y0 - 2, 1, Math.round(x * 0.8) + 4, INK);
     }
     for (let x = 0; x < 29; x++) {
       const y0 = 26 - Math.round(x * 0.8);
@@ -333,58 +451,24 @@ for (const c of CAST) {
   place(sprite(shadowTex(58)), c.door, HOUSE_Y - 1, 1);
   place(sprite(houseTex(c)), c.door, HOUSE_Y);
 }
-
-// browser side house
 const sideTex = canvasTex(64, 60, (ctx) => {
   box(ctx, 2, 22, 60, 38, '#c9b49a');
   for (let y = 27; y < 59; y += 5) rect(ctx, 3, y, 58, 1, '#a8937a');
   rect(ctx, 0, 14, 64, 10, INK);
   rect(ctx, 1, 15, 62, 8, '#7a6aa8');
   for (let x = 2; x < 62; x += 4) rect(ctx, x, 19, 2, 1, '#5d4f8a');
-  rect(ctx, 1, 22, 62, 1, '#5d4f8a');
   box(ctx, 5, 27, 46, 30, PAL.woodDark);
+  rect(ctx, 7, 29, 42, 26, '#f4f1ec');
+  rect(ctx, 7, 29, 42, 5, '#d9d4cc');
+  rect(ctx, 9, 36, 18, 9, '#9ad0f0'); rect(ctx, 10, 40, 7, 5, '#78c257');
+  for (let i = 0; i < 4; i++) rect(ctx, 30, 36 + i * 3, 16 - (i % 2) * 5, 1, '#b6afa4');
 });
 place(sprite(shadowTex(62)), SIDE.x, SIDE.y - 1, 1);
 place(sprite(sideTex), SIDE.x, SIDE.y);
-
-// browser screen states
-function browserTex(paused) {
-  return canvasTex(42, 26, (ctx) => {
-    rect(ctx, 0, 0, 42, 26, '#f4f1ec');
-    rect(ctx, 0, 0, 42, 5, '#d9d4cc');
-    rect(ctx, 1, 1, 12, 4, '#f4f1ec'); rect(ctx, 14, 1, 10, 4, '#c3bdb3');
-    rect(ctx, 2, 6, 38, 3, '#ffffff'); rect(ctx, 3, 7, 3, 1, PAL.add); rect(ctx, 7, 7, 18, 1, '#b6afa4');
-    rect(ctx, 2, 11, 18, 8, '#9ad0f0'); rect(ctx, 4, 15, 6, 4, '#78c257'); rect(ctx, 9, 13, 8, 6, '#5fa847');
-    for (let i = 0; i < 4; i++) rect(ctx, 22, 11 + i * 3, 16 - (i % 2) * 5, 1, '#b6afa4');
-    rect(ctx, 2, 21, 12, 3, '#4f7fcf'); rect(ctx, 16, 21, 12, 3, '#d9d4cc');
-    if (paused) {
-      ctx.fillStyle = 'rgba(42,34,48,0.55)';
-      ctx.fillRect(0, 0, 42, 26);
-      box(ctx, 9, 8, 24, 11, '#fff4d6');
-      rect(ctx, 12, 10, 2, 7, INK); rect(ctx, 15, 10, 2, 7, INK);
-      drawText(ctx, 'PAUSE', 19, 11, INK);
-    }
-  });
-}
-const browserActive = browserTex(false);
-const browserPaused = browserTex(true);
-const browserMesh = sprite(browserActive, { ax: 0.5, ay: 0 });
-place(browserMesh, SIDE.x - 4, SIDE.y + 4, zOf(SIDE.y) + 0.5);
-const cursorTex = canvasTex(5, 7, (ctx) => {
-  const rows = ['K....', 'KK...', 'KWK..', 'KWWK.', 'KWWWK', 'KWKK.', 'K.K..'];
-  rows.forEach((r, y) => [...r].forEach((ch, x) => ch !== '.' && rect(ctx, x, y, 1, 1, ch === 'K' ? INK : '#ffffff')));
-});
-const cursorMesh = sprite(cursorTex, { ax: 0, ay: 1 });
-const cordTex = canvasTex(1, 22, (ctx) => rect(ctx, 0, 0, 1, 22, '#e7d7a8'));
-const cordMesh = sprite(cordTex, { ax: 0.5, ay: 1 });
-const handleTex = canvasTex(5, 6, (ctx) => { box(ctx, 0, 0, 5, 6, '#e2565f'); rect(ctx, 1, 1, 1, 3, '#f59aa0'); });
-const handleMesh = sprite(handleTex, { ax: 0.5, ay: 1 });
-
-// table + stools
 const tableTex = canvasTex(34, 20, (ctx) => {
   rect(ctx, 6, 12, 4, 8, PAL.woodDark); rect(ctx, 24, 12, 4, 8, PAL.woodDark);
   for (let y = 0; y < 14; y++) {
-    const hw = Math.round(16 * Math.sqrt(1 - ((y - 6.5) / 7.2) ** 2));
+    const hw = Math.round(16 * Math.sqrt(Math.max(0, 1 - ((y - 6.5) / 7.2) ** 2)));
     rect(ctx, 17 - hw, y, hw * 2, 1, INK);
     if (y > 0 && y < 13) rect(ctx, 18 - hw, y, hw * 2 - 2, 1, y < 4 ? PAL.woodLight : PAL.wood);
   }
@@ -393,8 +477,6 @@ const tableTex = canvasTex(34, 20, (ctx) => {
 });
 place(sprite(shadowTex(36)), TABLE.x, TABLE.y - 3, 1);
 place(sprite(tableTex), TABLE.x, TABLE.y - 4);
-
-// lectern + diary book
 const lecternTex = canvasTex(24, 22, (ctx) => {
   box(ctx, 8, 6, 8, 16, PAL.woodDark);
   rect(ctx, 9, 7, 3, 14, PAL.wood);
@@ -403,170 +485,213 @@ const lecternTex = canvasTex(24, 22, (ctx) => {
 });
 place(sprite(shadowTex(26)), LECTERN.x, LECTERN.y - 2, 1);
 place(sprite(lecternTex), LECTERN.x, LECTERN.y);
-
-const PAGE_W = 48;
-const PAGE_H = 56;
-const BOOK_Y = LECTERN.y + 14;
-function filesPage(ctx, ox, withNote) {
-  rect(ctx, ox, 0, PAGE_W, PAGE_H, PAL.paper);
-  drawText(ctx, 'FILES', ox + 4, 3, INK);
-  rect(ctx, ox + 4, 9, 40, 1, PAL.paperLine);
-  const rows = [[0, 22, true], [1, 18, false], [1, 26, false], [0, 16, true], [1, 20, false], [1, 14, false]];
-  rows.forEach(([indent, len, folder], i) => {
-    const y = 12 + (i + (withNote ? 1 : 0)) * 6;
-    const x = ox + 4 + indent * 4;
-    if (folder) { rect(ctx, x, y, 5, 4, PAL.amber); rect(ctx, x, y - 1, 2, 1, PAL.amber); }
-    else { rect(ctx, x, y - 1, 4, 5, '#ffffff'); rect(ctx, x, y - 1, 4, 1, INK); rect(ctx, x, y + 3, 4, 1, INK); rect(ctx, x, y - 1, 1, 5, INK); rect(ctx, x + 3, y - 1, 1, 5, INK); }
-    rect(ctx, x + 7, y + 1, len, 2, '#8d8577');
-  });
-  if (withNote) {
-    // the new note is current memory before any commit
-    const y = 12;
-    rect(ctx, ox + 2, y - 2, 44, 8, '#fde9c4');
-    const x = ox + 8;
-    rect(ctx, x, y - 1, 4, 5, '#ffffff'); rect(ctx, x, y - 1, 4, 1, INK); rect(ctx, x, y + 3, 4, 1, INK); rect(ctx, x, y - 1, 1, 5, INK); rect(ctx, x + 3, y - 1, 1, 5, INK);
-    rect(ctx, x + 7, y + 1, 20, 2, INK);
-    disc(ctx, ox + 41, y + 1, 2, PAL.amber);
-  }
-}
-function oldPage(ctx, ox) {
-  rect(ctx, ox, 0, PAGE_W, PAGE_H, PAL.paper);
-  for (let i = 0; i < 8; i++) rect(ctx, ox + 5, 6 + i * 6, 20 + Math.floor(hash(i, 4, 4) * 18), 1, PAL.paperLine);
-}
-function evolutionPage(ctx, ox, reveal) {
-  rect(ctx, ox, 0, PAGE_W, PAGE_H, PAL.paper);
-  drawText(ctx, 'GIT', ox + 4, 3, INK);
-  rect(ctx, ox + 4, 9, 40, 1, PAL.paperLine);
-  const lanes = [ox + 7, ox + 12];
-  const rows = [13, 19, 25, 31];
-  const n = Math.min(4, Math.floor(reveal * 6));
-  // main lane
-  if (n > 0) rect(ctx, lanes[0], rows[0], 1, rows[Math.max(0, n - 1)] - rows[0] + 1, '#4f7fcf');
-  // branch lane: forks at row 3, merges at row 1
-  if (n > 1) {
-    rect(ctx, lanes[1], rows[1], 1, rows[Math.min(n, 3) - 1] - rows[1] + 1, '#d9535b');
-    rect(ctx, lanes[0] + 1, rows[1] - 1, 4, 1, '#d9535b');
-    if (n > 3) rect(ctx, lanes[0] + 1, rows[3] - 1, 4, 1, '#d9535b');
-  }
-  for (let i = 0; i < n; i++) {
-    const lane = i === 2 ? lanes[1] : lanes[0];
-    if (i === 0) {
-      // working tree: hollow amber, counts as memory before commit
-      rect(ctx, lane - 1, rows[i] - 1, 3, 3, PAL.amber);
-      rect(ctx, lane, rows[i], 1, 1, PAL.paper);
-    } else rect(ctx, lane - 1, rows[i] - 1, 3, 3, i === 2 ? '#d9535b' : '#4f7fcf');
-    rect(ctx, ox + 18, rows[i], 12 + ((i * 7) % 12), 1, i === 0 ? PAL.amber : '#8d8577');
-  }
-  if (reveal > 0.66) {
-    const dy = 37;
-    const show = Math.floor((reveal - 0.66) / 0.34 * 4 + 0.001);
-    const lines = [['-', 20], ['+', 26], ['+', 18], ['-', 14]];
-    lines.slice(0, show).forEach(([s, len], i) => {
-      const y = dy + i * 4;
-      rect(ctx, ox + 3, y - 1, 42, 4, s === '+' ? PAL.addBg : PAL.delBg);
-      drawText(ctx, s, ox + 4, y - 1, s === '+' ? PAL.add : PAL.del);
-      rect(ctx, ox + 9, y + 1, len, 1, s === '+' ? PAL.add : PAL.del);
-    });
-  }
-}
-function bookTex(withNote, right) {
-  return canvasTex(PAGE_W * 2 + 6, PAGE_H + 5, (ctx) => {
-    rect(ctx, 0, 2, PAGE_W * 2 + 6, PAGE_H + 3, INK);
-    rect(ctx, 1, 3, PAGE_W * 2 + 4, PAGE_H + 1, '#7a3b4a');
-    ctx.save(); ctx.translate(2, 0);
-    filesPage(ctx, 0, withNote);
-    if (right === 'old') oldPage(ctx, PAGE_W + 2);
-    else evolutionPage(ctx, PAGE_W + 2, right);
-    rect(ctx, PAGE_W, 0, 2, PAGE_H, '#d9cfb8');
-    ctx.restore();
+function diaryTex(pages, note) {
+  return canvasTex(26, 10, (ctx) => {
+    rect(ctx, 0, 2, 26, 8, INK);
+    rect(ctx, 1, 3, 24, 6, '#7a3b4a');
+    rect(ctx, 1, 0, 11, 7, PAL.paper); rect(ctx, 14, 0, 11, 7, PAL.paper);
+    rect(ctx, 12, 0, 2, 7, '#d9cfb8');
+    for (let i = 0; i < 2; i++) { rect(ctx, 2, 2 + i * 2, 8 - pages, 1, PAL.paperLine); rect(ctx, 15, 2 + i * 2, 7, 1, PAL.paperLine); }
+    if (note) disc(ctx, 22, 2, 1, PAL.amber);
   });
 }
-const bookStates = {
-  plain: bookTex(false, 'old'),
-  noted: bookTex(true, 'old'),
-  evo: Array.from({ length: 7 }, (_, i) => bookTex(true, i / 6)),
-};
-const bookMesh = sprite(bookStates.plain, { ax: 0.5, ay: 0 });
-place(bookMesh, LECTERN.x, BOOK_Y, zOf(LECTERN.y) + 0.2);
-const smallBookTex = canvasTex(22, 8, (ctx) => {
-  rect(ctx, 0, 1, 22, 7, INK);
-  rect(ctx, 1, 2, 20, 5, '#7a3b4a');
-  rect(ctx, 1, 0, 9, 6, PAL.paper); rect(ctx, 12, 0, 9, 6, PAL.paper);
-  rect(ctx, 10, 0, 2, 6, '#d9cfb8');
-  for (let i = 0; i < 2; i++) { rect(ctx, 2, 2 + i * 2, 6, 1, PAL.paperLine); rect(ctx, 13, 2 + i * 2, 6, 1, PAL.paperLine); }
-});
-const smallBook = sprite(smallBookTex, { ax: 0.5, ay: 0 });
-place(smallBook, LECTERN.x, LECTERN.y + 18, zOf(LECTERN.y) + 0.2);
-const flipFront = canvasTex(PAGE_W, PAGE_H, (ctx) => oldPage(ctx, 0));
-const flipBack = canvasTex(PAGE_W, PAGE_H, (ctx) => filesPage(ctx, 0, true));
-const flipMesh = sprite(flipFront, { ax: 0, ay: 0 });
-
-const noteTex = canvasTex(11, 13, (ctx) => {
-  rect(ctx, 0, 0, 11, 13, PAL.paper);
-  for (let i = 0; i < 11; i += 2) { rect(ctx, i, 0, 1, 1, PAL.amber); rect(ctx, i, 12, 1, 1, PAL.amber); }
-  for (let i = 0; i < 13; i += 2) { rect(ctx, 0, i, 1, 1, PAL.amber); rect(ctx, 10, i, 1, 1, PAL.amber); }
-  for (let i = 0; i < 3; i++) rect(ctx, 2, 3 + i * 3, 6 - (i % 2) * 2, 1, '#8d8577');
-});
-const noteMesh = sprite(noteTex, { ax: 0.5, ay: 0 });
-
-// shed
+const diaryPlain = diaryTex(0, false);
+const diaryNoted = diaryTex(2, true);
+const diaryMesh = sprite(diaryPlain);
 const shedTex = canvasTex(78, 60, (ctx) => {
   box(ctx, 3, 24, 72, 36, '#8a5a34');
   for (let x = 6; x < 74; x += 5) rect(ctx, x, 25, 1, 34, '#6e4527');
   rect(ctx, 0, 14, 78, 12, INK);
   rect(ctx, 1, 15, 76, 10, '#6b6f7a');
   for (let x = 2; x < 76; x += 6) rect(ctx, x, 15, 1, 10, '#555963');
-  rect(ctx, 1, 24, 76, 1, '#555963');
   rect(ctx, 60, 2, 8, 13, INK); rect(ctx, 61, 3, 6, 12, '#9a6b5a');
   box(ctx, 28, 34, 22, 26, PAL.woodDark);
+  rect(ctx, 30, 36, 18, 24, '#a86f3f');
   box(ctx, 8, 32, 14, 10, '#3b3540');
-  rect(ctx, 14, 33, 1, 8, INK);
+  box(ctx, 16, 2, 46, 12, PAL.wood);
+  drawText(ctx, 'WORKSPACE', 39 - Math.floor(textWidth('WORKSPACE') / 2), 5, INK);
 });
 place(sprite(shadowTex(76)), SHED.x, SHED.y - 1, 1);
 place(sprite(shedTex), SHED.x, SHED.y);
-const shedDoorClosed = canvasTex(20, 24, (ctx) => {
-  rect(ctx, 0, 0, 20, 24, '#a86f3f');
-  for (let x = 4; x < 20; x += 5) rect(ctx, x, 0, 1, 24, '#7d4f2b');
-  rect(ctx, 1, 11, 18, 2, '#7d4f2b');
-  rect(ctx, 15, 13, 2, 2, '#f7d26b');
+
+// market stall + git crate (Marketplace is planned)
+const marketTex = canvasTex(66, 54, (ctx) => {
+  rect(ctx, 6, 18, 3, 36, INK); rect(ctx, 57, 18, 3, 36, INK);
+  rect(ctx, 7, 18, 1, 36, PAL.woodLight); rect(ctx, 58, 18, 1, 36, PAL.woodLight);
+  for (let x = 0; x < 66; x++) {
+    const c = Math.floor(x / 6) % 2 ? '#f4f1ec' : '#e2565f';
+    rect(ctx, x, 10, 1, 10, c);
+    rect(ctx, x, 20 + (x % 6 < 3 ? 1 : 0), 1, 2, c);
+  }
+  rect(ctx, 0, 9, 66, 1, INK); rect(ctx, 0, 22, 66, 1, INK);
+  box(ctx, 14, 0, 38, 10, PAL.paper);
+  drawText(ctx, 'MARKET', 33 - Math.floor(textWidth('MARKET') / 2), 3, INK);
+  box(ctx, 4, 38, 58, 16, PAL.wood);
+  rect(ctx, 5, 39, 56, 2, PAL.woodLight);
+  for (let i = 0; i < 4; i++) { box(ctx, 9 + i * 13, 30, 10, 9, ['#9ad0c2', '#e2565f', '#5b8bd6', '#f2c14e'][i]); rect(ctx, 11 + i * 13, 32, 2, 2, '#ffffff'); }
 });
-const shedDoorOpen = canvasTex(20, 24, (ctx) => {
-  rect(ctx, 0, 0, 20, 24, '#2a2230');
-  rect(ctx, 2, 18, 16, 6, '#3d3346');
+place(sprite(shadowTex(66)), MARKET.x, MARKET.y - 1, 1);
+place(sprite(marketTex), MARKET.x, MARKET.y);
+const plannedSignTex = canvasTex(64, 44, (ctx) => {
+  rect(ctx, 30, 20, 4, 24, PAL.woodDark);
+  rect(ctx, 2, 0, 60, 24, PAL.amber);
+  rect(ctx, 0, 2, 64, 20, PAL.amber);
+  rect(ctx, 4, 4, 56, 16, '#fff4d6');
+  crispText(ctx, '规划中', 9, 12, 15, INK, 90);
 });
-const shedDoor = sprite(shedDoorClosed, { ax: 0.5, ay: 0 });
-place(shedDoor, SHED.x - 0, SHED.y + 1, zOf(SHED.y) + 0.3);
-const glowTex = canvasTex(12, 8, (ctx) => { rect(ctx, 0, 0, 12, 8, '#ffd66b'); rect(ctx, 5, 0, 1, 8, INK); rect(ctx, 1, 1, 3, 1, '#fff2c0'); });
-const glowMesh = sprite(glowTex, { ax: 0.5, ay: 0 });
-place(glowMesh, SHED.x - 24, SHED.y + 19, zOf(SHED.y) + 0.3);
-const signTex = canvasTex(46, 18, (ctx) => {
-  rect(ctx, 6, 0, 1, 7, INK); rect(ctx, 39, 0, 1, 7, INK);
-  box(ctx, 0, 6, 46, 12, PAL.wood);
-  rect(ctx, 1, 7, 44, 1, PAL.woodLight);
-  drawText(ctx, 'WORKSPACE', 23 - Math.floor(textWidth('WORKSPACE') / 2), 9, INK);
+const crateTex = canvasTex(22, 18, (ctx) => {
+  box(ctx, 0, 0, 22, 18, PAL.wood);
+  rect(ctx, 1, 6, 20, 1, PAL.woodDark); rect(ctx, 1, 12, 20, 1, PAL.woodDark);
+  box(ctx, 4, 4, 14, 9, '#f05133');
+  drawText(ctx, 'GIT', 11 - Math.floor(textWidth('GIT') / 2), 6, '#ffffff');
 });
-const signMesh = sprite(signTex, { ax: 0.5, ay: 0 });
-const puffTex = canvasTex(7, 6, (ctx) => { disc(ctx, 3, 3, 2, '#e9e6ef'); rect(ctx, 2, 2, 1, 1, '#ffffff'); });
-const puffs = [0, 1, 2].map(() => sprite(puffTex, { ax: 0.5, ay: 0 }));
-const reportTex = canvasTex(14, 18, (ctx) => {
-  box(ctx, 0, 0, 14, 18, '#ffffff');
-  rect(ctx, 3, 3, 8, 1, INK);
-  for (let i = 0; i < 4; i++) rect(ctx, 3, 6 + i * 2, 8 - (i % 2) * 2, 1, '#8d8577');
-  rect(ctx, 7, 14, 1, 1, PAL.add); rect(ctx, 8, 15, 1, 1, PAL.add); rect(ctx, 9, 14, 1, 1, PAL.add); rect(ctx, 10, 13, 1, 1, PAL.add); rect(ctx, 11, 12, 1, 1, PAL.add);
+const crateOpenTex = canvasTex(22, 18, (ctx) => {
+  box(ctx, 0, 4, 22, 14, PAL.wood);
+  rect(ctx, 2, 5, 18, 3, '#3b2a20');
+  box(ctx, 4, 8, 14, 8, '#f05133');
+  drawText(ctx, 'GIT', 11 - Math.floor(textWidth('GIT') / 2), 9, '#ffffff');
 });
-const reportMesh = sprite(reportTex, { ax: 0.5, ay: 0 });
-const reportShadow = sprite(shadowTex(12));
+const marketSign = sprite(plannedSignTex);
+marketSign.scale.set(0.5, 0.5, 1);
+place(marketSign, MARKET.x + 44, MARKET.y - 2);
+const crateMesh = sprite(crateTex);
+place(crateMesh, MARKET.x - 2, MARKET.y - 30);
+
+// connector tower: three flagpoles (Discord is planned)
+const PLATFORMS = [
+  { id: 'lark', label: 'LARK', color: PAL.lark, x: TOWER.x - 34 },
+  { id: 'slack', label: 'SLACK', color: PAL.slack, x: TOWER.x },
+  { id: 'discord', label: 'DISCORD', color: PAL.discord, x: TOWER.x + 34, planned: true },
+];
+const towerTex = canvasTex(40, 70, (ctx) => {
+  for (let y = 10; y < 70; y++) {
+    const hw = Math.round(4 + (y - 10) * 0.18);
+    rect(ctx, 20 - hw, y, 1, 1, INK); rect(ctx, 20 + hw, y, 1, 1, INK);
+    if (y % 8 === 0) rect(ctx, 20 - hw, y, hw * 2, 1, '#7d7b88');
+  }
+  disc(ctx, 20, 7, 5, INK); disc(ctx, 20, 7, 4, '#f0a63a'); rect(ctx, 18, 5, 2, 2, '#fff2c0');
+});
+place(sprite(shadowTex(30)), TOWER.x, TOWER.y + 18, 1);
+place(sprite(towerTex), TOWER.x, TOWER.y + 20);
+const flagFrames = PLATFORMS.map((p) => [0, 1].map((k) => canvasTex(36, 36, (ctx) => {
+  rect(ctx, 2, 0, 2, 36, INK);
+  const w = textWidth(p.label) + 6;
+  for (let x = 0; x < w; x++) {
+    const dy = k === 0 ? Math.round(Math.sin(x * 0.5) * 1) : Math.round(Math.cos(x * 0.5) * 1);
+    rect(ctx, 4 + x, 2 + dy, 1, 11, INK);
+    rect(ctx, 4 + x, 3 + dy, 1, 9, p.color);
+  }
+  drawText(ctx, p.label, 7, 5 + (k === 0 ? 0 : 0), '#ffffff');
+})));
+const flags = PLATFORMS.map((p, i) => {
+  const m = sprite(flagFrames[i][0], { ax: 0, ay: 0 });
+  place(m, p.x - 3, TOWER.y + 2);
+  return m;
+});
+const discordSign = sprite(plannedSignTex);
+discordSign.scale.set(0.5, 0.5, 1);
+place(discordSign, PLATFORMS[2].x + 52, TOWER.y + 4);
+
+// fantasy cave, campfire, slime, chest
+const caveTex = canvasTex(80, 52, (ctx) => {
+  for (let y = 0; y < 52; y++) {
+    const hw = Math.round(40 * Math.sqrt(Math.max(0, 1 - ((52 - y) / 52) ** 2)));
+    rect(ctx, 40 - hw, y, hw * 2, 1, INK);
+    rect(ctx, 41 - hw, y, Math.max(0, hw * 2 - 2), 1, y < 14 ? '#8a8a99' : '#6c6c7c');
+  }
+  for (let i = 0; i < 14; i++) rect(ctx, 8 + Math.floor(hash(i, 9) * 60), 10 + Math.floor(hash(i, 8) * 36), 4, 1, '#55556a');
+  for (let y = 22; y < 52; y++) {
+    const hw = Math.round(13 * Math.sqrt(Math.max(0, 1 - ((52 - y) / 30) ** 2)));
+    rect(ctx, 40 - hw, y, hw * 2, 1, '#121018');
+  }
+});
+place(sprite(shadowTex(80)), CAVE.x, CAVE.y - 2, 1);
+place(sprite(caveTex), CAVE.x, CAVE.y);
+const fireFrames = [0, 1, 2].map((k) => canvasTex(14, 16, (ctx) => {
+  rect(ctx, 1, 13, 12, 3, PAL.woodDark); rect(ctx, 3, 12, 8, 2, PAL.wood);
+  const hgt = [10, 12, 9][k];
+  for (let y = 0; y < hgt; y++) {
+    const hw = Math.round((1 - y / hgt) * 5);
+    rect(ctx, 7 - hw, 12 - y, hw * 2, 1, y < hgt * 0.4 ? '#f05133' : y < hgt * 0.75 ? '#f0a63a' : '#fff2a0');
+  }
+}));
+const fireMesh = sprite(fireFrames[0]);
+place(fireMesh, -90, -470);
+const slimeFrames = [0, 1].map((k) => canvasTex(22, 16, (ctx) => {
+  const h = k ? 12 : 14;
+  const w = k ? 22 : 20;
+  for (let y = 0; y < h; y++) {
+    const hw = Math.round((w / 2) * Math.sqrt(Math.max(0, 1 - ((h - y) / h) ** 2)));
+    rect(ctx, 11 - hw, 16 - h + y, hw * 2, 1, INK);
+    if (hw > 1) rect(ctx, 12 - hw, 16 - h + y, hw * 2 - 2, 1, y < 4 ? '#9be37a' : '#5fc24a');
+  }
+  rect(ctx, 7, 16 - h + 6, 2, 3, INK); rect(ctx, 13, 16 - h + 6, 2, 3, INK);
+  rect(ctx, 6, 16 - h + 3, 3, 1, '#d9ffc8');
+}));
+const slimeMesh = sprite(slimeFrames[0]);
+const poofTex = canvasTex(24, 24, (ctx) => { for (let i = 0; i < 10; i++) disc(ctx, 12 + Math.round(Math.cos(i) * 8), 12 + Math.round(Math.sin(i) * 8), 3, i % 2 ? '#e9e6ef' : '#ffffff'); });
+const poofMesh = sprite(poofTex, { ax: 0.5, ay: 0.5 });
+const chestClosed = canvasTex(20, 16, (ctx) => {
+  box(ctx, 0, 4, 20, 12, '#a8642f'); box(ctx, 0, 0, 20, 7, '#c27a3a');
+  rect(ctx, 1, 6, 18, 1, '#f2c14e'); rect(ctx, 9, 5, 2, 4, '#f2c14e');
+});
+const chestOpen = canvasTex(20, 16, (ctx) => {
+  box(ctx, 0, 6, 20, 10, '#a8642f'); box(ctx, 0, 0, 20, 5, '#7a4a22');
+  rect(ctx, 2, 5, 16, 3, '#ffe46b'); rect(ctx, 5, 4, 3, 2, '#fff7c0');
+});
+const chestMesh = sprite(chestClosed);
+place(chestMesh, CAVE.x + 22, -474);
+const glowRingFrames = [8, 14, 20, 26].map((r) => canvasTex(r * 2 + 4, r * 2 + 4, (ctx) => {
+  for (let a = 0; a < 64; a++) {
+    const x = Math.round(r + 2 + Math.cos((a / 64) * Math.PI * 2) * r);
+    const y = Math.round(r + 2 + Math.sin((a / 64) * Math.PI * 2) * r);
+    rect(ctx, x, y, 2, 2, a % 2 ? '#fff2a0' : '#ffffff');
+  }
+}));
+const glowMesh = sprite(glowRingFrames[0], { ax: 0.5, ay: 0.5 });
+
+// small props
 const sparkTex = canvasTex(5, 5, (ctx) => { rect(ctx, 2, 0, 1, 5, '#fff2a0'); rect(ctx, 0, 2, 5, 1, '#fff2a0'); rect(ctx, 2, 2, 1, 1, '#ffffff'); });
-const sparks = [0, 1, 2, 3].map(() => sprite(sparkTex, { ax: 0.5, ay: 0.5 }));
-const envTex = canvasTex(9, 7, (ctx) => {
+const sparks = Array.from({ length: 10 }, () => sprite(sparkTex, { ax: 0.5, ay: 0.5 }));
+const noteTex = canvasTex(11, 13, (ctx) => {
+  rect(ctx, 0, 0, 11, 13, PAL.paper);
+  for (let i = 0; i < 11; i += 2) { rect(ctx, i, 0, 1, 1, PAL.amber); rect(ctx, i, 12, 1, 1, PAL.amber); }
+  for (let i = 0; i < 13; i += 2) { rect(ctx, 0, i, 1, 1, PAL.amber); rect(ctx, 10, i, 1, 1, PAL.amber); }
+  for (let i = 0; i < 3; i++) rect(ctx, 2, 3 + i * 3, 6 - (i % 2) * 2, 1, '#8d8577');
+});
+const noteMesh = sprite(noteTex);
+const pigeonFrames = [0, 1].map((k) => canvasTex(11, 8, (ctx) => {
+  rect(ctx, 2, 3, 6, 4, INK); rect(ctx, 3, 4, 4, 2, '#e9e6ef');
+  rect(ctx, 8, 2, 2, 3, INK); rect(ctx, 8, 3, 1, 1, '#e9e6ef'); rect(ctx, 10, 3, 1, 1, PAL.amber);
+  if (k === 0) { rect(ctx, 3, 0, 4, 3, INK); rect(ctx, 4, 1, 2, 2, '#c9c6d4'); }
+  else { rect(ctx, 3, 6, 4, 2, INK); }
+  rect(ctx, 0, 4, 2, 2, INK);
+}));
+const letterTex = (color) => canvasTex(9, 7, (ctx) => {
   box(ctx, 0, 0, 9, 7, '#ffffff');
   rect(ctx, 1, 1, 1, 1, INK); rect(ctx, 2, 2, 1, 1, INK); rect(ctx, 3, 3, 3, 1, INK); rect(ctx, 6, 2, 1, 1, INK); rect(ctx, 7, 1, 1, 1, INK);
-  rect(ctx, 4, 4, 1, 1, '#e2565f');
+  rect(ctx, 4, 4, 1, 2, color);
 });
-const envelopes = [0, 1, 2].map(() => sprite(envTex, { ax: 0.5, ay: 0.5 }));
+const pigeons = Array.from({ length: 4 }, () => ({ bird: sprite(pigeonFrames[0], { ax: 0.5, ay: 0.5 }), letter: sprite(letterTex(PAL.lark), { ax: 0.5, ay: 1 }) }));
+const letterTexes = { lark: letterTex(PAL.lark), slack: letterTex(PAL.slack), discord: letterTex(PAL.discord) };
+const zipTex = canvasTex(12, 14, (ctx) => {
+  box(ctx, 0, 0, 12, 14, '#f2c14e');
+  for (let y = 1; y < 13; y += 2) rect(ctx, 5, y, 2, 1, INK);
+  drawText(ctx, 'Z', 8, 8, INK);
+});
+const zipMeshes = [sprite(zipTex), sprite(zipTex)];
+const musicTex = canvasTex(7, 8, (ctx) => { rect(ctx, 5, 0, 2, 6, INK); rect(ctx, 2, 0, 5, 2, INK); rect(ctx, 0, 5, 4, 3, INK); rect(ctx, 1, 6, 2, 1, '#b7a6ff'); });
+const musicNotes = Array.from({ length: 4 }, () => sprite(musicTex, { ax: 0.5, ay: 0.5 }));
+const fireflyTex = canvasTex(3, 3, (ctx) => { rect(ctx, 1, 0, 1, 3, '#d9ff8a'); rect(ctx, 0, 1, 3, 1, '#d9ff8a'); rect(ctx, 1, 1, 1, 1, '#ffffff'); });
+const fireflies = Array.from({ length: 14 }, () => sprite(fireflyTex, { ax: 0.5, ay: 0.5 }));
+const PROPS = {
+  sword: canvasTex(6, 16, (ctx) => { rect(ctx, 2, 0, 2, 11, '#dfe6ef'); rect(ctx, 2, 0, 1, 11, '#ffffff'); rect(ctx, 0, 11, 6, 2, '#f2c14e'); rect(ctx, 2, 13, 2, 3, PAL.woodDark); }),
+  staff: canvasTex(6, 22, (ctx) => { rect(ctx, 2, 5, 2, 17, PAL.woodDark); disc(ctx, 3, 3, 2, '#7fe0d0'); rect(ctx, 2, 2, 1, 1, '#ffffff'); }),
+  lute: canvasTex(10, 14, (ctx) => { disc(ctx, 4, 10, 4, INK); disc(ctx, 4, 10, 3, '#c98d52'); rect(ctx, 6, 0, 2, 9, PAL.woodDark); rect(ctx, 3, 9, 3, 2, INK); }),
+  lantern: canvasTex(7, 10, (ctx) => { rect(ctx, 3, 0, 1, 2, INK); box(ctx, 0, 2, 7, 8, '#ffd66b'); rect(ctx, 2, 4, 3, 4, '#fff7c0'); }),
+};
 
-// ----- bubbles -------------------------------------------------------------
-// Bubble text is limited to: PersonaBot, Group, @, Memory files, Memory evolution, Assignment, Workspace, Pause.
+// ----- bubbles (in-world, short product terms only) --------------------------
 const bubbleCache = new Map();
 function bubbleTex(text, signer, color) {
   const key = `${text}|${signer}`;
@@ -575,14 +700,11 @@ function bubbleTex(text, signer, color) {
   const tw = textWidth(label);
   const sw = textWidth(signer);
   const w = Math.max(tw + 8, sw + 10);
-  const h = 7 + 11 + 3;
-  const t = canvasTex(w, h, (ctx) => {
+  const t = canvasTex(w, 21, (ctx) => {
     box(ctx, 0, 6, w, 12, '#ffffff');
     drawText(ctx, label, Math.floor((w - tw) / 2), 9, INK);
-    rect(ctx, 5, 17, 5, 1, '#ffffff');
-    rect(ctx, 5, 17, 1, 3, INK); rect(ctx, 6, 18, 1, 2, '#ffffff'); rect(ctx, 7, 18, 1, 1, '#ffffff');
+    rect(ctx, 5, 17, 1, 3, INK); rect(ctx, 6, 17, 3, 1, '#ffffff'); rect(ctx, 6, 18, 2, 2, '#ffffff');
     rect(ctx, 6, 20, 1, 1, INK); rect(ctx, 7, 19, 1, 1, INK); rect(ctx, 8, 18, 1, 1, INK); rect(ctx, 9, 17, 1, 1, INK);
-    rect(ctx, 6, 17, 3, 1, '#ffffff');
     box(ctx, 2, 0, sw + 6, 9, color, INK);
     drawText(ctx, signer, 5, 2, '#ffffff');
   });
@@ -595,7 +717,7 @@ const bubblePool = Array.from({ length: 6 }, () => {
   return m;
 });
 const POP = [0, 0.5, 0.9, 1.15, 1.08, 1];
-function bubbleScale(f, a, b) {
+function popScale(f, a, b) {
   const i = f - a;
   if (i < POP.length * 2) return POP[Math.min(POP.length - 1, Math.floor(i / 2))];
   const out = b - f;
@@ -604,29 +726,17 @@ function bubbleScale(f, a, b) {
 }
 
 // ----- actors --------------------------------------------------------------
-const loader = new THREE.TextureLoader();
 function avatarTex(file) {
-  const tex = loader.load(`./avatars/${file}`, () => markReady());
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return { tex, w: 32, h: 32 };
-}
-let pending = 0;
-let started = false;
-function markReady() {
-  pending -= 1;
-  if (pending === 0 && !started) { started = true; loop(); }
+  return { tex: load(`./avatars/${file}`), w: 32, h: 32 };
 }
 for (const c of CAST) {
-  pending += 2;
   c.tex = { front: avatarTex(`${c.id}-front.png`), turned: avatarTex(`${c.id}-turn.png`) };
+  c.live = canvasTex(32, 32);
   c.shadow = sprite(shadowTex(22));
-  c.mesh = sprite(c.tex.front, { ax: 0.5, ay: 0 });
-  c.hand = sprite(canvasTex(7, 8, (ctx) => { box(ctx, 0, 0, 7, 7, c.skin); rect(ctx, 1, 1, 2, 1, '#ffffff'); rect(ctx, 2, 6, 3, 2, INK); }), { ax: 0.5, ay: 0 });
+  c.mesh = sprite(c.tex.front);
+  c.hand = sprite(canvasTex(7, 8, (ctx) => { box(ctx, 0, 0, 7, 7, c.skin); rect(ctx, 1, 1, 2, 1, '#ffffff'); rect(ctx, 2, 6, 3, 2, INK); }));
+  c.prop = sprite(PROPS.sword);
 }
-
 function humanTex(frame) {
   return canvasTex(16, 26, (ctx) => {
     const legL = frame === 1 ? 1 : 0;
@@ -644,9 +754,85 @@ function humanTex(frame) {
   });
 }
 const humanFrames = [0, 1, 2, 3].map(humanTex);
-const human = { shadow: sprite(shadowTex(16)), mesh: sprite(humanFrames[0], { ax: 0.5, ay: 0 }) };
+const human = { shadow: sprite(shadowTex(16)), mesh: sprite(humanFrames[0]), prop: sprite(PROPS.lantern) };
 
-// ----- choreography (all pure functions of frame) ---------------------------
+// crowd for the finale
+const CROWD = Array.from({ length: 48 }, (_, i) => {
+  const tex = avatarTex(`crowd/c${String(i).padStart(2, '0')}.png`);
+  return { tex, mesh: sprite(tex), shadow: sprite(shadowTex(22)) };
+});
+
+// ----- morph (port of the client pixel morph, driven by frame) --------------
+const MORPH_STAGGER = 0.67;
+function planPixels(from, to) {
+  const sweep = (set) => {
+    const cx = set.reduce((s, p) => s + p.x, 0) / set.length;
+    const cy = set.reduce((s, p) => s + p.y, 0) / set.length;
+    return set.map((p) => ({ p, a: Math.atan2(p.y - cy, p.x - cx), r: Math.hypot(p.x - cx, p.y - cy) }))
+      .sort((m, n) => m.a - n.a || m.r - n.r).map((i) => i.p);
+  };
+  const source = sweep(from);
+  const target = sweep(to);
+  const count = Math.max(source.length, target.length);
+  return Array.from({ length: count }, (_, index) => {
+    const a = source[Math.floor((index * source.length) / count)];
+    const b = target[Math.floor((index * target.length) / count)];
+    const by = Math.floor(a.y / 4);
+    const bx = Math.floor(a.x / 4);
+    return { from: a, to: b, delay: (by / 8) * 0.28 + ((bx + by) % 2) * 0.04, arc: 2 + ((bx * 3 + by) % 3) };
+  });
+}
+const morphEase = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+function pixelFrame(pairs, t) {
+  const grid = new Map();
+  for (const pair of pairs) {
+    const k = morphEase((t - pair.delay) / MORPH_STAGGER);
+    const x = Math.round(pair.from.x + (pair.to.x - pair.from.x) * k);
+    const y = Math.round(pair.from.y + (pair.to.y - pair.from.y) * k - Math.sin(k * Math.PI) * pair.arc);
+    if (x < 0 || y < 0 || x > 31 || y > 31) continue;
+    grid.set(y * 32 + x, { x, y, c: k < 0.5 ? pair.from.c : pair.to.c });
+  }
+  return [...grid.values()];
+}
+const planCache = new Map();
+function morphCells(id, fromKey, toKey, t) {
+  const m = MORPH[id];
+  const cells = (k) => (k === 'face' ? m.face : m.symbols[k]);
+  if (t <= 0) return cells(fromKey);
+  if (t >= 1) return cells(toKey);
+  const key = `${id}:${fromKey}>${toKey}`;
+  if (!planCache.has(key)) planCache.set(key, planPixels(cells(fromKey), cells(toKey)));
+  return pixelFrame(planCache.get(key), t);
+}
+function paintCells(t, cells, tile) {
+  const { ctx } = t;
+  ctx.clearRect(0, 0, 32, 32);
+  if (tile) { ctx.fillStyle = tile; ctx.beginPath(); ctx.roundRect(0, 0, 32, 32, 6); ctx.fill(); }
+  for (const { x, y, c } of cells) rect(ctx, x, y, 1, 1, c);
+  t.tex.needsUpdate = true;
+}
+// Morph schedule: [id, start, symbol]; face -> symbol over 36 frames, hold, symbol -> face.
+const MORPH_RUNS = [
+  ['nova', 3800, 'search'], ['nova', 3920, 'edit'],
+  ['theo', 4150, 'bash'], ['theo', 4290, 'edit'],
+  ['mira', 4460, 'search'], ['theo', 4480, 'edit'], ['nova', 4500, 'bash'],
+  ['mira', 4600, 'write'], ['theo', 4620, 'web'], ['nova', 4640, 'read'],
+  ['mira', 4710, 'thinking'], ['theo', 4730, 'todo'], ['nova', 4750, 'ask'],
+];
+const MORPH_IN = 36;
+const MORPH_HOLD = 30;
+function morphStateAt(id, f) {
+  for (const [who, start, sym] of MORPH_RUNS) {
+    if (who !== id || f < start || f >= start + MORPH_IN * 2 + MORPH_HOLD) continue;
+    const local = f - start;
+    if (local < MORPH_IN) return { from: 'face', to: sym, t: local / MORPH_IN };
+    if (local < MORPH_IN + MORPH_HOLD) return { from: sym, to: sym, t: 1 };
+    return { from: sym, to: 'face', t: (local - MORPH_IN - MORPH_HOLD) / MORPH_IN };
+  }
+  return null;
+}
+
+// ----- choreography -----------------------------------------------------------
 function path(keys, f) {
   if (f <= keys[0][0]) return { x: keys[0][1], y: keys[0][2], moving: false };
   for (let i = 1; i < keys.length; i++) {
@@ -654,281 +840,883 @@ function path(keys, f) {
     const [f0, x0, y0] = keys[i - 1];
     if (f < f1) {
       const t = (f - f0) / (f1 - f0);
-      return { x: lerp(x0, x1, t), y: lerp(y0, y1, t), moving: x0 !== x1 || y0 !== y1 };
+      const jump = Math.hypot(x1 - x0, y1 - y0) / Math.max(1, f1 - f0) > 6;
+      return jump ? { x: x0, y: y0, moving: false } : { x: lerp(x0, x1, t), y: lerp(y0, y1, t), moving: x0 !== x1 || y0 !== y1 };
     }
   }
   const last = keys[keys.length - 1];
   return { x: last[1], y: last[2], moving: false };
 }
 const SEAT = { mira: [-34, 12], theo: [0, 24], nova: [34, 12] };
-const LECTERN_STAND = [LECTERN.x - 66, 0];
-const SHED_DOOR = [SHED.x, -10];
+const DOOR = { mira: [-72, STAND_Y], theo: [0, STAND_Y], nova: [72, STAND_Y] };
+const TOWER_STAND = { mira: [TOWER.x - 34, 66], theo: [TOWER.x, 58], nova: [TOWER.x + 34, 66] };
+const PARTY = { nova: 44, mira: 2, theo: -40, human: -74 };
+// keyframes [frame, x, y]; a key with a large jump is a cut (teleport) hidden by a shot change
 const PATHS = {
   mira: [
-    [168, -72, STAND_Y], [180, -72, 46], [214, -34, 40], [232, ...SEAT.mira],
-    [362, ...SEAT.mira], [372, -60, 4], [408, ...LECTERN_STAND],
-    [768, ...LECTERN_STAND], [790, -110, 40], [816, -72, 46], [828, -72, STAND_Y],
+    [0, ...DOOR.mira], [610, ...DOOR.mira], [625, -72, 46], [660, -150, 20], [700, LECTERN.x - 66, 0],
+    [1800, LECTERN.x - 66, 0], [1830, -230, -24], [1860, MARKET.x + 30, -50],
+    [2160, MARKET.x + 30, -50], [2161, ...TOWER_STAND.mira],
+    [3360, ...TOWER_STAND.mira], [3361, ...SEAT.mira],
+    [4860, ...SEAT.mira], [4861, -170 + PARTY.mira, -440], [5100, -20 + PARTY.mira, -440], [5560, -20 + PARTY.mira, -440], [5620, 10 + PARTY.mira, -452],
+    [6000, 10 + PARTY.mira, -452], [6001, -30, -26], [7199, -30, -26],
   ],
-  theo: [[172, 0, STAND_Y], [228, ...SEAT.theo], [776, ...SEAT.theo], [804, 0, STAND_Y]],
+  theo: [
+    [0, ...DOOR.theo], [2160, ...DOOR.theo], [2161, ...TOWER_STAND.theo],
+    [3360, ...TOWER_STAND.theo], [3361, ...SEAT.theo],
+    [4860, ...SEAT.theo], [4861, -170 + PARTY.theo, -440], [5100, -20 + PARTY.theo, -440], [5560, -20 + PARTY.theo, -440], [5620, 10 + PARTY.theo, -452],
+    [6000, 10 + PARTY.theo, -452], [6001, 0, -34], [7199, 0, -34],
+  ],
   nova: [
-    [170, 72, STAND_Y], [182, 72, 46], [216, 34, 40], [234, ...SEAT.nova],
-    [600, ...SEAT.nova], [612, 60, 4], [654, ...SHED_DOOR],
-    [737, ...SHED_DOOR], [747, SHED.x + 34, -16],
-    [760, SHED.x + 34, -16], [790, 110, 40], [815, 72, 46], [828, 72, STAND_Y],
+    [0, ...DOOR.nova], [2160, ...DOOR.nova], [2161, ...TOWER_STAND.nova],
+    [3360, ...TOWER_STAND.nova], [3361, ...SEAT.nova],
+    [4860, ...SEAT.nova], [4861, -170 + PARTY.nova, -440], [5100, -20 + PARTY.nova, -440], [5560, -20 + PARTY.nova, -440], [5620, 10 + PARTY.nova, -452],
+    [6000, 10 + PARTY.nova, -452], [6001, 30, -26], [7199, 30, -26],
   ],
   human: [
-    [165, CORD_X, 78], [178, CORD_X, 46], [224, -40, -30], [236, 0, -34],
-    [740, 0, -34], [752, -40, -30], [780, CORD_X, 46], [792, CORD_X, 78],
+    [0, CORD_X, 78], [3360, CORD_X, 78], [3361, 0, -34],
+    [4860, 0, -34], [4861, -170 + PARTY.human, -444], [5100, -20 + PARTY.human, -444], [5560, -20 + PARTY.human, -444], [5620, 10 + PARTY.human, -456],
+    [6000, 10 + PARTY.human, -456], [6001, -56, -40], [7199, -56, -40],
   ],
 };
+const actorPos = (id, f) => path(PATHS[id], f);
 const BUBBLES = [
-  { a: 124, b: 162, who: 'human', text: 'Group' },
-  { a: 246, b: 300, who: 'mira', text: 'PersonaBot' },
-  { a: 262, b: 312, who: 'theo', text: 'PersonaBot' },
-  { a: 276, b: 304, who: 'nova', text: 'PersonaBot' },
-  { a: 304, b: 352, who: 'human', text: '@ Nova' },
-  { a: 412, b: 452, who: 'mira', text: 'Memory files' },
-  { a: 504, b: 556, who: 'mira', text: 'Memory evolution' },
-  { a: 676, b: 722, who: 'nova', text: 'Assignment', at: [SHED.x - 12, SHED.y + 58] },
-  { a: 800, b: 848, who: 'human', text: 'Pause' },
+  { a: 470, b: 560, who: 'mira', text: 'PersonaBot' },
+  { a: 486, b: 572, who: 'theo', text: 'PersonaBot' },
+  { a: 502, b: 584, who: 'nova', text: 'PersonaBot' },
+  { a: 704, b: 790, who: 'mira', text: 'Memory files' },
+  { a: 1580, b: 1680, who: 'mira', text: 'Memory evolution' },
+  { a: 2240, b: 2330, who: 'nova', text: 'Group' },
+  { a: 3780, b: 3880, who: 'nova', text: '@ Nova', signer: ['LARK', '#3370ff'] },
+  { a: 4140, b: 4260, who: 'theo', text: 'Assignment' },
+  { a: 4660, b: 4780, who: 'mira', text: 'Memory files' },
 ];
+// camera keys: [frame, x, y, zoom]; a big jump between neighbouring keys is a cut
 const CAMERA = [
-  [0, 0, 194, 2], [20, 0, 194, 2], [110, -30, 124, 1.25], [150, -30, 124, 1.25],
-  [204, 0, 20, 1.5], [362, 0, 20, 1.5], [402, LECTERN.x - 12, 40, 2.2], [560, LECTERN.x - 12, 40, 2.2],
-  [600, SHED.x, 6, 1.75], [760, SHED.x, 6, 1.75], [800, -36, 106, 1.1], [860, -36, 106, 1.1],
-  [900, 0, 194, 2],
+  [0, 0, 190, 2], [120, 0, 190, 2], [330, -20, 110, 1.3], [600, -20, 110, 1.3],
+  [700, LECTERN.x - 40, 26, 2], [740, LECTERN.x - 44, 24, 1.4], [1800, LECTERN.x - 44, 24, 1.4],
+  [1860, MARKET.x + 10, -40, 2], [2160, MARKET.x + 10, -40, 2],
+  [2161, TOWER.x, 90, 1.6], [2520, TOWER.x, 90, 1.6], [2560, TOWER.x - 34, 84, 1.5], [2940, TOWER.x - 34, 84, 1.5], [2980, TOWER.x, 84, 1.5], [3360, TOWER.x, 84, 1.5],
+  [3361, 0, 16, 1.5], [3720, 0, 16, 1.5], [3760, 34, 34, 1.5], [4080, 34, 34, 1.5], [4120, 0, 40, 1.5], [4440, 0, 40, 1.5], [4460, 0, 16, 1.5], [4860, 0, 16, 1.5],
+  [4861, -120, -430, 1.6], [5100, -10, -430, 1.6], [5560, 10, -430, 1.6], [5700, 40, -432, 1.4], [6000, 40, -432, 1.4],
+  [6001, 0, 40, 1.2], [6720, 0, 40, 1.2], [7080, 0, 70, 0.75], [7200, 0, 70, 0.75],
 ];
 function cameraAt(f) {
   for (let i = 1; i < CAMERA.length; i++) {
     const [f1, x1, y1, z1] = CAMERA[i];
     const [f0, x0, y0, z0] = CAMERA[i - 1];
-    if (f <= f1) {
-      const t = ease((f - f0) / (f1 - f0 || 1));
+    if (f < f1) {
+      if (f1 - f0 <= 1) return [x0, y0, z0];
+      const t = ease((f - f0) / (f1 - f0));
       return [lerp(x0, x1, t), lerp(y0, y1, t), 1 / lerp(1 / z0, 1 / z1, t)];
     }
   }
-  return CAMERA[0].slice(1);
+  const l = CAMERA[CAMERA.length - 1];
+  return [l[1], l[2], l[3]];
 }
 
-const PAUSED = (f) => f >= 805 || f < 400;
-const SIGN_UP = (f) => f >= 605 && f < 790;
-const REPORT_OUT = (f) => f >= 722 && f < 790;
-
-function actorPos(id, f) {
-  return path(PATHS[id], f);
+// ----- beats: layout mode, UI panel, narration -------------------------------
+// mode: town | split | gal. crops: [frame, cx, cy, w] in source pixels. hl: [from, to, x, y, w, h].
+const NARRATOR = 'DEEPSEEKBOT';
+const BEATS = [
+  { a: 90, b: 600, mode: 'town', lines: [
+    [200, NARRATOR, '欢迎来到 DeepSeekBot 小镇。这里的每个 PersonaBot，都有自己的身份、人格和记忆。'],
+    [420, NARRATOR, '认识一下：Mira 负责研究，Theo 负责布局，Nova 负责实现。'],
+  ] },
+  { a: 600, b: 720, mode: 'town', lines: [[610, 'MIRA', '今天的笔记，先写进我的 Memory。']] },
+  { a: 720, b: 1080, mode: 'split', ui: 'files', crops: [[720, 720, 480, 1440], [800, 1250, 175, 420]], hl: [[830, 1070, 1150, 118, 270, 82]], lines: [
+    [730, NARRATOR, 'Memory 就是一个普通的 Git 工作树。笔记、人格、代码都是文件。'],
+    [900, NARRATOR, 'Bot 用文件、搜索、Shell 和 Git 探索它；你也能用自己的编辑器打开。'],
+  ] },
+  { a: 1080, b: 1560, mode: 'gal', ui: 'evo', crops: [[1080, 640, 400, 1280], [1170, 620, 220, 700], [1310, 1065, 370, 620], [1430, 1090, 190, 470]], hl: [[1200, 1300, 293, 232, 655, 74], [1340, 1425, 975, 240, 295, 265], [1450, 1550, 970, 132, 300, 102]], lines: [
+    [1090, NARRATOR, 'Memory evolution：记忆的每一次变化，都是一次提交。'],
+    [1200, NARRATOR, '点开 commit，逐行 diff 一目了然；分支与合并画成一张 graph。'],
+    [1430, NARRATOR, '还没提交的改动，也已经是当前记忆。'],
+  ] },
+  { a: 1560, b: 1800, mode: 'split', ui: 'evo', crops: [[1560, 760, 140, 620], [1680, 1110, 470, 380]], hl: [[1580, 1675, 507, 10, 440, 36], [1700, 1795, 968, 528, 302, 26]], lines: [
+    [1570, NARRATOR, '想回到过去？在任意一条记忆上切出新分支，从那里继续。'],
+    [1690, NARRATOR, '恢复检查点保存分支、提交和工作树，确认后即可找回。'],
+  ] },
+  { a: 1800, b: 2160, mode: 'town', lines: [
+    [1810, NARRATOR, '创建 Bot 时，可以直接导入一个已有的 Git 仓库，带上别人的文件和历史。'],
+    [1990, NARRATOR, '以后还能在 Marketplace 挑选别人做好的 Bot，像 clone 一个仓库那样用起来。'],
+  ], tag: [1990, 2160] },
+  { a: 2160, b: 2520, mode: 'town', lines: [
+    [2180, NARRATOR, '连接器：让你的 bot 用自己的身份，出现在团队常用的地方。'],
+    [2350, NARRATOR, 'Lark / 飞书、Slack 已经接通，Discord 还在路上。'],
+  ] },
+  { a: 2520, b: 2940, mode: 'split', ui: 'lark', crops: [[2520, 441, 413, 882], [2610, 440, 600, 620]], hl: [[2640, 2930, 62, 585, 760, 62]], lines: [
+    [2530, NARRATOR, '把 Lark 群接进 Group：明确授权，按群开关收件。'],
+    [2720, NARRATOR, '每个成员 Bot 用自己的身份收件和回复，发言身份与收件路径分开管理。'],
+  ] },
+  { a: 2940, b: 3360, mode: 'split', ui: 'slack', crops: [[2940, 615, 410, 1230], [3020, 590, 320, 640], [3180, 590, 560, 640]], hl: [[3040, 3170, 290, 262, 600, 90], [3200, 3350, 292, 455, 600, 230]], lines: [
+    [2950, NARRATOR, 'Slack 也一样：每个 Bot 绑定独立的 Slack 身份。'],
+    [3150, NARRATOR, '频道连接器决定哪些消息进来，送进谁的 Inbox。'],
+  ] },
+  { a: 3360, b: 3720, mode: 'gal', ui: 'group', crops: [[3360, 1470, 923, 2940], [3440, 1700, 760, 1500], [3560, 1250, 1300, 1800], [3640, 2580, 560, 900]], hl: [[3460, 3555, 1134, 692, 1120, 166], [3580, 3635, 665, 940, 1140, 720], [3650, 3715, 2320, 480, 600, 240]], lines: [
+    [3370, NARRATOR, '在 Group 里，人和 bots 一起讨论，每条消息都保留各自的身份。'],
+    [3540, NARRATOR, '@ 谁就唤醒谁；每个成员也能按自己的方式收件。'],
+  ] },
+  { a: 3720, b: 4080, mode: 'split', ui: 'larkTopic', crops: [[3720, 1300, 500, 700], [3880, 1300, 1060, 700]], hl: [[3740, 3870, 990, 316, 630, 360], [3900, 4070, 990, 1130, 630, 100]], lines: [
+    [3730, NARRATOR, '外部消息也能进来：Lark 话题里 @ 了 Nova。'],
+    [3890, NARRATOR, 'Nova 读完上下文，用自己的 Lark 身份回到原话题。'],
+  ] },
+  { a: 4080, b: 4440, mode: 'split', ui: 'slackThread', crops: [[4080, 1050, 300, 560], [4250, 1050, 560, 560]], hl: [[4100, 4240, 887, 160, 338, 310], [4260, 4430, 887, 570, 338, 110]], lines: [
+    [4090, NARRATOR, 'Slack 话题里发来一个 ZIP。'],
+    [4250, NARRATOR, 'Bot 读取附件、在授权的工作区处理，再把结果文件发回同一个话题。'],
+  ] },
+  { a: 4440, b: 4800, mode: 'town', morphShow: true, lines: [
+    [4450, NARRATOR, '工作时，头像随状态变形：搜索、写代码、读文件、思考……'],
+    [4640, NARRATOR, '学到的东西，顺手写进自己的 Memory。'],
+  ] },
+  { a: 4800, b: 6000, mode: 'town', night: true, lines: [
+    [4880, NARRATOR, '换个舞台：写好 Persona，他们就能扮演小说和游戏里的角色。'],
+    [5040, 'NOVA · 骑士', '前面就是史莱姆洞窟，跟紧我！'],
+    [5220, 'MIRA · 贤者', '古书上说，它怕光。我来照亮。'],
+    [5400, 'THEO · 吟游诗人', '我把这段冒险写成歌，记进日记里。'],
+    [5580, 'HUMAN', '宝箱打开了！下一章去哪？'],
+    [5770, NARRATOR, '每一段故事，都留在他们各自的记忆里。'],
+  ] },
+  { a: 6000, b: 6720, mode: 'town', finale: true, lines: [] },
+  { a: 6720, b: 7110, mode: 'town', lines: [] },
+];
+function beatAt(f) {
+  return BEATS.find((b) => f >= b.a && f < b.b) ?? null;
 }
 
-function hopFor(moving, f, phase) {
-  if (moving) return Math.round(Math.abs(Math.sin(f * 0.38 + phase)) * 3);
-  return (f + phase * 20) % 60 < 6 ? 1 : 0;
+// ----- HUD components ----------------------------------------------------------
+const nightOverlay = hudQuad('#141a46', 5);
+const dimOverlay = hudQuad('#1b1820', 6);
+const rightBg = hudQuad('#1b1820', 7);
+const divider = hudQuad('#fff2a0', 8);
+const panelFrameTex = { w: 0, h: 0 };
+const panelFrame = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0), new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false }));
+panelFrame.renderOrder = 10;
+hud.add(panelFrame);
+const panelImage = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0), new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false, transparent: true }));
+panelImage.renderOrder = 11;
+hud.add(panelImage);
+const hlLines = [0, 1, 2, 3].map(() => hudQuad(PAL.amber, 12));
+const pointer = hudSprite(canvasTex(7, 10, (ctx) => {
+  const rows = ['K......', 'KK.....', 'KWK....', 'KWWK...', 'KWWWK..', 'KWWWWK.', 'KWWWWWK', 'KWWKKK.', 'KWK.K..', 'KK..KK.'];
+  rows.forEach((r, y) => [...r].forEach((ch, x) => ch !== '.' && rect(ctx, x, y, 1, 1, ch === 'K' ? INK : '#ffffff')));
+}), 13, 0, 1);
+const frameCache = new Map();
+function frameTex(w, h, title) {
+  const key = `${w}x${h}:${title}`;
+  if (!frameCache.has(key)) {
+    frameCache.set(key, canvasTex(w, h, (ctx) => {
+      box(ctx, 0, 0, w, h, '#f4f1ec', INK);
+      rect(ctx, 1, 1, w - 2, 9, '#3b3448');
+      for (const [i, c] of ['#e2565f', '#f2c14e', '#5cb85c'].entries()) rect(ctx, 4 + i * 5, 4, 3, 3, c);
+      drawText(ctx, title, 22, 3, '#fff2a0');
+    }));
+  }
+  return frameCache.get(key);
 }
-
-// ----- HUD -----------------------------------------------------------------
-const debugTex = canvasTex(58, 9, () => {});
-const debugMesh = sprite(debugTex, { ax: 0, ay: 1, parent: hud });
-debugMesh.position.set(3, VIEW_H - 3, 1);
+// dialog box (galgame style): text at 2x resolution, snapped to hard pixels
+const DIALOG_SCALE = 2;
+const dialog = { mesh: null, tex: null, key: '', w: 0, h: 0 };
+dialog.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0), new THREE.MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false }));
+dialog.mesh.renderOrder = 20;
+hud.add(dialog.mesh);
+function drawDialog(w, h, speaker, text, shown) {
+  const key = `${w}x${h}|${speaker}|${text}|${shown}`;
+  if (dialog.key === key) return;
+  dialog.key = key;
+  const S = DIALOG_SCALE;
+  if (!dialog.tex || dialog.w !== w || dialog.h !== h) {
+    dialog.tex = canvasTex(w * S, (h + 8) * S);
+    dialog.w = w;
+    dialog.h = h;
+    dialog.mesh.material.map = dialog.tex.tex;
+    dialog.mesh.material.needsUpdate = true;
+  }
+  const { ctx } = dialog.tex;
+  ctx.clearRect(0, 0, w * S, (h + 8) * S);
+  const by = 8 * S;
+  rect(ctx, S, by, (w - 2) * S, h * S, '#fff2a0');
+  rect(ctx, 0, by + S, w * S, (h - 2) * S, '#fff2a0');
+  rect(ctx, 2 * S, by + S, (w - 4) * S, (h - 2) * S, 'rgba(27,24,32,0.94)');
+  rect(ctx, S, by + 2 * S, (w - 2) * S, (h - 4) * S, 'rgba(27,24,32,0.94)');
+  if (speaker) {
+    const sw = textWidth(speaker.replace(/[^\x00-\x7f]/g, '')) ;
+    const cjk = /[^\x00-\x7f]/.test(speaker);
+    const tagW = cjk ? Math.ceil(measureCJK(speaker, 9 * S) / S) + 10 : sw + 10;
+    box(ctx, 4 * S, 0, tagW * S, 12 * S, speaker === NARRATOR ? '#3d68b8' : speaker === 'HUMAN' ? '#8a6a3a' : '#3f8f7c', '#fff2a0');
+    if (cjk) crispText(ctx, speaker, 9 * S, 6 * S, 9 * S, '#ffffff');
+    else {
+      const tmp = document.createElement('canvas');
+      tmp.width = sw;
+      tmp.height = 5;
+      drawText(tmp.getContext('2d'), speaker, 0, 0, '#ffffff');
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(tmp, 9 * S, 3.5 * S, sw * S, 5 * S);
+    }
+  }
+  const px = 10 * S;
+  const lines = wrapCJK(text, px, (w - 14) * S);
+  let left = shown;
+  lines.forEach((line, i) => {
+    if (left <= 0) return;
+    const part = [...line].slice(0, left).join('');
+    left -= [...line].length;
+    crispText(ctx, part, 7 * S, by + (9 + i * 13) * S, px, '#ffffff', 110);
+  });
+  dialog.tex.tex.needsUpdate = true;
+}
+const mascot = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0), new THREE.MeshBasicMaterial({ map: logoTex.tex, transparent: true, depthTest: false, depthWrite: false }));
+mascot.renderOrder = 21;
+hud.add(mascot);
+const plannedChip = hudSprite(canvasTex(72, 26, (ctx) => { rect(ctx, 2, 0, 68, 26, PAL.amber); rect(ctx, 0, 2, 72, 22, PAL.amber); rect(ctx, 4, 4, 64, 18, '#fff4d6'); crispText(ctx, '规划中', 11, 13, 17, INK, 90); }), 22);
+plannedChip.scale.set(0.5, 0.5, 1);
+// big morph showcase tiles
+const bigTiles = CAST.map((c) => {
+  const t = canvasTex(32, 32);
+  const m = hudSprite(t, 15, 0.5, 0);
+  m.scale.set(2, 2, 1);
+  return { t, m };
+});
+const bigLabels = CAST.map((c) => hudSprite(canvasTex(24, 7, (ctx) => { box(ctx, 0, 0, 24, 7, c.tag, INK); drawText(ctx, c.name, 12 - Math.floor(textWidth(c.name) / 2), 1, '#ffffff'); }), 16, 0.5, 1));
+// finale face wall
+const wall = Array.from({ length: 60 }, (_, i) => {
+  const m = hudSprite(CROWD[i % 48].tex, 30, 0.5, 0.5);
+  return m;
+});
+const wallDim = hudQuad('#1b1820', 31);
+const titleLogo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0), new THREE.MeshBasicMaterial({ map: logoTex.tex, transparent: true, depthTest: false, depthWrite: false }));
+titleLogo.renderOrder = 41;
+hud.add(titleLogo);
+const titleText = hudSprite(canvasTex(200, 70, (ctx) => {
+  drawText(ctx, 'BOTHARNESS', 100 - Math.floor((textWidth('BOTHARNESS') * 3) / 2), 2, '#fff2a0', 3);
+  drawText(ctx, 'DEEPSEEKBOT', 100 - Math.floor(textWidth('DEEPSEEKBOT') / 2), 24, '#ffffff');
+}), 42, 0.5, 1);
+const endText = hudSprite(canvasTex(300, 60, (ctx) => {
+  const t1 = '开源 · MIT · 基于 DeepSeek Harness 生态';
+  crispText(ctx, t1, 150 - measureCJK(t1, 11) / 2, 8, 11, '#ffffff');
+  drawText(ctx, 'GITHUB.COM/BOTHARNESS/BOTHARNESS', 150 - Math.floor(textWidth('GITHUB.COM/BOTHARNESS/BOTHARNESS') / 2), 22, '#fff2a0');
+  const t2 = '一组有各自身份、人格和记忆的 bots，一起做事。';
+  crispText(ctx, t2, 150 - measureCJK(t2, 12) / 2, 44, 12, '#ffffff');
+}), 42, 0.5, 1);
+const titleBg = hudQuad('#1b1820', 40);
+const fadeQuad = hudQuad('#1b1820', 60);
+const debugTex = canvasTex(66, 9);
+const debugMesh = hudSprite(debugTex, 90, 0, 1);
+debugMesh.position.set(3, VIEW_H - 3, 0);
 function drawDebug(f) {
   const { ctx } = debugTex;
-  ctx.clearRect(0, 0, 58, 9);
-  rect(ctx, 0, 0, 58, 9, 'rgba(27,24,32,0.82)');
-  const s = `f ${String(f).padStart(4, '0')} / ${String(TOTAL).padStart(4, '0')}`;
-  drawText(ctx, s, 2, 2, '#fff2a0');
+  ctx.clearRect(0, 0, 66, 9);
+  rect(ctx, 0, 0, 66, 9, 'rgba(27,24,32,0.82)');
+  drawText(ctx, `f ${String(f).padStart(4, '0')} / ${String(TOTAL).padStart(4, '0')}`, 2, 2, '#fff2a0');
   debugTex.tex.needsUpdate = true;
 }
-const SUBTITLE = '一组有各自身份、人格和记忆的 bots，一起做事。';
-const subtitleTex = canvasTex(300, 20, (ctx, w, h) => {
-  const glyphs = document.createElement('canvas');
-  glyphs.width = w;
-  glyphs.height = h;
-  const g = glyphs.getContext('2d');
-  g.font = '12px "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif';
-  g.textBaseline = 'middle';
-  const tw = Math.ceil(g.measureText(SUBTITLE).width);
-  const bx = Math.floor((w - tw) / 2) - 6;
-  g.fillStyle = '#ffffff';
-  g.fillText(SUBTITLE, bx + 6, 10);
-  // snap anti-aliased system-font glyphs to hard pixels
-  const img = g.getImageData(0, 0, w, h);
-  for (let i = 3; i < img.data.length; i += 4) img.data[i] = img.data[i] > 120 ? 255 : 0;
-  g.putImageData(img, 0, 0);
-  box(ctx, bx, 1, tw + 12, 18, '#2a2230', '#fff2a0');
-  ctx.drawImage(glyphs, 0, 0);
-});
-const subtitleMesh = sprite(subtitleTex, { ax: 0.5, ay: 0, parent: hud, transparent: true });
-subtitleMesh.position.set(VIEW_W / 2, 8, 1);
 
-// ----- frame render --------------------------------------------------------
+// ----- layout per frame ----------------------------------------------------------
+const SPLIT_W = 108;
+function layoutAt(f) {
+  const beat = beatAt(f);
+  const mode = beat?.mode ?? 'town';
+  const prev = beat ? BEATS[BEATS.indexOf(beat) - 1] : null;
+  const k = beat && prev && prev.mode !== mode ? ease((f - beat.a) / 18) : 1;
+  const target = (m) => ({
+    worldW: m === 'split' ? SPLIT_W : VIEW_W,
+    dim: m === 'gal' ? 0.62 : 0,
+    panel: m === 'split' ? { x: 114, y: 52, w: 200, h: 124 } : m === 'gal' ? { x: 10, y: 50, w: 300, h: 126 } : null,
+    dialogBox: m === 'split' ? { x: 114, y: 3, w: 200, h: 40 } : { x: 6, y: 3, w: 252, h: 40 },
+    mascot: m !== 'split',
+  });
+  const now = target(mode);
+  if (k >= 1 || !prev) return { ...now, beat, k: 1 };
+  const was = target(prev.mode);
+  return {
+    worldW: lerp(was.worldW, now.worldW, k),
+    dim: lerp(was.dim, now.dim, k),
+    panel: now.panel,
+    panelIn: k,
+    dialogBox: now.dialogBox,
+    mascot: now.mascot,
+    beat,
+    k,
+  };
+}
+
+// ----- frame render ------------------------------------------------------------
 function renderFrame(f) {
   f = ((f % TOTAL) + TOTAL) % TOTAL;
+  const L = layoutAt(f);
+  const beat = L.beat;
 
+  // camera
   const [cx, cy, cz] = cameraAt(f);
-  const snap = PIXEL_RATIO * cz;
+  const worldW = Math.round(L.worldW);
+  camera.left = -worldW / 2;
+  camera.right = worldW / 2;
   camera.zoom = cz;
+  const snap = PIXEL_RATIO * cz;
   camera.position.set(Math.round(cx * snap) / snap, Math.round(cy * snap) / snap, 1000);
   camera.updateProjectionMatrix();
 
   // cast
+  const morphing = MORPH && beat;
   for (const [i, c] of CAST.entries()) {
     const p = actorPos(c.id, f);
-    const hidden = c.id === 'nova' && f >= 656 && f < 737;
-    let hop = hopFor(p.moving, f, i);
-    if (c.id === 'nova' && within(f, 314, 322)) hop = [0, 2, 3, 3, 2, 1, 0, 0][f - 314];
-    const waving = within(f, 830, 872);
-    if (waving) hop = (f - 830 + i * 5) % 14 < 4 ? 2 : 0;
-    const turned = c.id === 'nova' && within(f, 314, 362);
-    swap(c.mesh, turned ? c.tex.turned : c.tex.front);
-    c.mesh.visible = c.shadow.visible = !hidden;
-    place(c.mesh, p.x, p.y + hop);
-    c.mesh.position.z = zOf(p.y);
+    let hop = p.moving ? Math.round(Math.abs(Math.sin(f * 0.38 + i)) * 3) : (f + i * 20) % 60 < 6 ? 1 : 0;
+    const waving = within(f, 5770, 5900) || within(f, 6800, 7090);
+    if (waving) hop = (f + i * 5) % 14 < 4 ? 2 : 0;
+    const ms = MORPH ? morphStateAt(c.id, f) : null;
+    if (ms) {
+      paintCells(c.live, morphCells(c.id, ms.from, ms.to, ms.t), null);
+      swap(c.mesh, c.live);
+    } else {
+      const turned = c.id === 'nova' && within(f, 3760, 3800);
+      swap(c.mesh, turned ? c.tex.turned : c.tex.front);
+    }
+    place(c.mesh, p.x, p.y + hop, zOf(p.y));
     place(c.shadow, p.x, p.y - 2, 2);
-    c.hand.visible = waving && !hidden;
+    c.hand.visible = waving;
     if (waving) place(c.hand, p.x + 17, p.y + 18 + ((f + i * 3) % 12 < 6 ? 4 : 0) + hop, zOf(p.y) + 0.05);
+    const roleplay = within(f, 4861, 6000);
+    c.prop.visible = roleplay;
+    if (roleplay) {
+      swap(c.prop, c.id === 'nova' ? PROPS.sword : c.id === 'mira' ? PROPS.staff : PROPS.lute);
+      let lift = 0;
+      if (c.id === 'nova' && within(f, 5060, 5120)) lift = (f >> 2) % 2 ? 6 : 0;
+      if (c.id === 'mira' && within(f, 5230, 5300)) lift = 6;
+      place(c.prop, p.x + (c.id === 'theo' ? 14 : -15), p.y + 6 + hop + lift, zOf(p.y) + 0.05);
+    }
   }
-
   // human
   const hp = actorPos('human', f);
-  const pulling = within(f, 792, 816);
-  const hframe = pulling ? 3 : hp.moving ? 1 + (Math.floor(f / 6) % 2) : 0;
-  swap(human.mesh, humanFrames[hframe]);
-  place(human.mesh, hp.x, hp.y + (hp.moving ? Math.floor(f / 6) % 2 : 0));
+  const jump = within(f, 5590, 5640) ? [0, 3, 5, 6, 5, 3, 0][Math.floor((f - 5590) / 4) % 7] : 0;
+  swap(human.mesh, hp.moving ? humanFrames[1 + (Math.floor(f / 6) % 2)] : jump ? humanFrames[3] : humanFrames[0]);
+  place(human.mesh, hp.x, hp.y + (hp.moving ? Math.floor(f / 6) % 2 : 0) + jump);
   place(human.shadow, hp.x, hp.y - 2, 2);
+  human.prop.visible = within(f, 4861, 6000);
+  if (human.prop.visible) place(human.prop, hp.x + 11, hp.y + 8 + jump, zOf(hp.y) + 0.05);
 
-  // browser + cord
-  const paused = PAUSED(f);
-  swap(browserMesh, paused ? browserPaused : browserActive);
-  browserMesh.geometry = geometry(42, 26, 0.5, 0);
-  place(browserMesh, SIDE.x - 6, SIDE.y + 5, zOf(SIDE.y) + 0.5);
-  const cf = paused ? 805 : f;
-  const cursorX = SIDE.x - 22 + Math.round(18 + Math.sin(cf * 0.07) * 14);
-  const cursorY = SIDE.y + 12 + Math.round(8 + Math.sin(cf * 0.11 + 1) * 6);
-  place(cursorMesh, cursorX, cursorY, zOf(SIDE.y) + 0.6);
-  const pull = within(f, 795, 814) ? Math.round(Math.min(1, (f - 795) / 4) * 6) : within(f, 814, 820) ? 6 - (f - 814) : 0;
-  const eave = SIDE.y + 38;
-  cordMesh.scale.y = (22 + pull) / 22;
-  place(cordMesh, CORD_X, eave, zOf(SIDE.y) + 0.7);
-  place(handleMesh, CORD_X, eave - 22 - pull, zOf(SIDE.y) + 0.8);
-
-  // envelopes (Group invites)
-  envelopes.forEach((m, i) => {
-    const t = span(f, 132 + i * 4, 156 + i * 4);
-    m.visible = t > 0 && t < 1;
-    if (!m.visible) return;
-    const from = [CORD_X, 104];
-    const to = [CAST[i].door, STAND_Y + 36];
-    place(m, lerp(from[0], to[0], t), lerp(from[1], to[1], t) + Math.sin(t * Math.PI) * 26, 300);
-  });
-
-  // diary
-  const noteIn = f >= 456 && f < 770;
-  if (f >= 494 && f < 770) swap(bookMesh, bookStates.evo[Math.min(6, Math.floor(span(f, 494, 530) * 6))]);
-  else swap(bookMesh, noteIn ? bookStates.noted : bookStates.plain);
-  place(bookMesh, LECTERN.x, BOOK_Y, zOf(LECTERN.y) + 0.2);
-  const bookOpen = within(f, 400, 568);
-  bookMesh.visible = bookOpen;
-  smallBook.visible = !bookOpen;
-  const bs = bookOpen ? Math.min([0.3, 0.6, 0.9, 1.05, 1][Math.min(4, Math.floor((f - 400) / 2))], 568 - f < 8 ? [0.2, 0.4, 0.6, 0.8, 0.9, 1, 1, 1][568 - f - 1] : 1) : 1;
-  bookMesh.scale.set(bs, bs, 1);
-  const flipT = span(f, 466, 494);
-  flipMesh.visible = flipT > 0 && flipT < 1;
-  if (flipMesh.visible) {
-    const sx = Math.cos(flipT * Math.PI);
-    swap(flipMesh, sx >= 0 ? flipFront : flipBack);
-    flipMesh.geometry = geometry(PAGE_W, PAGE_H, 0, 0);
-    const steps = Math.round(sx * 12) / 12;
-    flipMesh.scale.x = Math.abs(steps) < 0.05 ? 0.05 : steps;
-    place(flipMesh, LECTERN.x + 1, BOOK_Y + 2, zOf(LECTERN.y) + 0.4);
-    flipMesh.position.y += Math.round(Math.sin(flipT * Math.PI) * 4);
-  }
+  // diary + note (memory)
+  swap(diaryMesh, within(f, 760, 1800) || within(f, 4700, 4860) ? diaryNoted : diaryPlain);
+  place(diaryMesh, LECTERN.x, LECTERN.y + 20, zOf(LECTERN.y) + 0.2);
   const mira = actorPos('mira', f);
-  noteMesh.visible = within(f, 412, 456);
+  noteMesh.visible = within(f, 704, 760);
   if (noteMesh.visible) {
-    const held = [mira.x, mira.y + 34 + ((f >> 3) % 2)];
-    const t = span(f, 440, 456);
-    const target = [LECTERN.x - 24, BOOK_Y + 14];
-    place(noteMesh, lerp(held[0], target[0], t), lerp(held[1], target[1], t) + Math.sin(t * Math.PI) * 14, 320);
+    const t = span(f, 740, 760);
+    place(noteMesh, lerp(mira.x, LECTERN.x - 6, t), lerp(mira.y + 34 + ((f >> 3) % 2), LECTERN.y + 22, t) + Math.sin(t * Math.PI) * 14, 600);
   }
 
-  // shed
-  signMesh.visible = SIGN_UP(f);
-  if (signMesh.visible) {
-    const t = f - 605;
-    const drop = t < 10 ? Math.round((1 - t / 10) * 30) : t < 16 ? [0, -2, -3, -2, -1, 0][t - 10] : 0;
-    place(signMesh, SHED.x, SHED.y + 40 + drop, zOf(SHED.y) + 0.5);
+  // market crate: a new bot pops out of an imported Git repository
+  const crateOpen = f >= 1880 && f < 2160;
+  swap(crateMesh, crateOpen ? crateOpenTex : crateTex);
+  const cloned = CROWD[7];
+  const popT = span(f, 1880, 1900);
+  cloned.mesh.visible = cloned.shadow.visible = within(f, 1880, 2160) || within(f, 6600, 7110);
+  if (within(f, 1880, 2160)) {
+    const lift = Math.round(Math.sin(popT * Math.PI) * 18);
+    const x = lerp(MARKET.x - 2, MARKET.x - 34, popT);
+    place(cloned.mesh, x, MARKET.y - 44 + lift, zOf(MARKET.y - 44));
+    place(cloned.shadow, x, MARKET.y - 46, 2);
   }
-  const doorOpen = within(f, 650, 660) || within(f, 718, 742);
-  swap(shedDoor, doorOpen ? shedDoorOpen : shedDoorClosed);
-  place(shedDoor, SHED.x, SHED.y + 1, zOf(SHED.y) + 0.3);
-  glowMesh.visible = within(f, 660, 737) && Math.floor(f / 8) % 3 !== 0;
-  puffs.forEach((m, i) => {
-    const t = (f - 664 - i * 18) % 54;
-    m.visible = within(f, 664, 740) && t >= 0;
-    if (m.visible) place(m, SHED.x + 21 + Math.round(Math.sin(t * 0.2) * 2), SHED.y + 60 + Math.floor(t / 3), 300);
+
+  // connector flags + pigeons
+  PLATFORMS.forEach((p, i) => swap(flags[i], flagFrames[i][Math.floor((f + i * 7) / 12) % 2]));
+  const PIGEON_RUNS = [
+    [2200, 'mira', 0], [2215, 'theo', 1], [2230, 'nova', 2],
+    [2600, 'nova', 0], [2700, 'mira', 0], [3020, 'theo', 1], [3140, 'nova', 1],
+    [3740, 'lark', 'nova'],
+  ];
+  pigeons.forEach((pg) => { pg.bird.visible = pg.letter.visible = false; });
+  let pgi = 0;
+  for (const [start, who, target] of PIGEON_RUNS) {
+    const t = span(f, start, start + 70);
+    if (t <= 0 || t >= 1 || pgi >= pigeons.length) continue;
+    const pg = pigeons[pgi++];
+    let from;
+    let to;
+    let tex;
+    if (who === 'lark') {
+      const nv = actorPos('nova', f);
+      from = [nv.x - 120, nv.y + 80];
+      to = [nv.x, nv.y + 36];
+      tex = letterTexes.lark;
+    } else {
+      const a = actorPos(who, f);
+      const plat = PLATFORMS[target];
+      from = [a.x, a.y + 36];
+      to = [plat.x + 12, TOWER.y + 30];
+      tex = letterTexes[plat.id];
+    }
+    pg.bird.visible = pg.letter.visible = true;
+    swap(pg.bird, pigeonFrames[Math.floor(f / 5) % 2]);
+    swap(pg.letter, tex);
+    const x = lerp(from[0], to[0], ease(t));
+    const y = lerp(from[1], to[1], ease(t)) + Math.sin(t * Math.PI) * 26;
+    place(pg.bird, x, y, 650);
+    place(pg.letter, x, y - 2, 649);
+  }
+
+  // slack ZIP crates near Theo
+  const theo = actorPos('theo', f);
+  zipMeshes[0].visible = within(f, 4100, 4300);
+  if (zipMeshes[0].visible) {
+    const t = span(f, 4100, 4130);
+    place(zipMeshes[0], lerp(theo.x - 40, theo.x - 18, t), theo.y + Math.round(Math.sin(t * Math.PI) * 20), zOf(theo.y) + 0.1);
+  }
+  zipMeshes[1].visible = within(f, 4300, 4440);
+  if (zipMeshes[1].visible) {
+    const t = span(f, 4300, 4340);
+    place(zipMeshes[1], lerp(theo.x + 18, theo.x + 40, t), theo.y + Math.round(Math.sin(t * Math.PI) * 24), zOf(theo.y) + 0.1);
+  }
+
+  // roleplay set pieces
+  swap(fireMesh, fireFrames[Math.floor(f / 6) % 3]);
+  const slimeAlive = f < 5300 || f >= 6000;
+  slimeMesh.visible = slimeAlive;
+  swap(slimeMesh, slimeFrames[Math.floor(f / 14) % 2]);
+  const flash = within(f, 5250, 5300) && (f >> 2) % 2;
+  place(slimeMesh, CAVE.x - 30 + (flash ? 1 : 0), -452);
+  poofMesh.visible = within(f, 5300, 5316);
+  if (poofMesh.visible) place(poofMesh, CAVE.x - 19, -444, zOf(-452) + 1);
+  glowMesh.visible = within(f, 5236, 5300);
+  if (glowMesh.visible) {
+    swap(glowMesh, glowRingFrames[Math.min(3, Math.floor((f - 5236) / 8) % 4)]);
+    place(glowMesh, CAVE.x - 19, -444, zOf(-452) + 1);
+  }
+  swap(chestMesh, f >= 5585 && f < 6000 ? chestOpen : chestClosed);
+  musicNotes.forEach((m, i) => {
+    const t = (f - 5400 - i * 18) % 60;
+    m.visible = within(f, 5400, 5560) && t >= 0;
+    if (m.visible) place(m, theo.x + 10 + Math.round(Math.sin(t * 0.15 + i) * 4), theo.y + 30 + t / 2, 660);
   });
-  reportMesh.visible = reportShadow.visible = REPORT_OUT(f);
-  if (reportMesh.visible) {
-    const t = span(f, 722, 738);
-    const land = [SHED.x - 18, -22];
-    const x = lerp(SHED.x, land[0], t);
-    const y = lerp(SHED.y + 2, land[1], t) + Math.round(Math.sin(t * Math.PI) * 22);
-    const bounce = within(f, 738, 746) ? [2, 3, 3, 2, 1, 1, 0, 0][f - 738] : 0;
-    place(reportMesh, x, y + bounce, zOf(land[1]));
-    place(reportShadow, x, land[1] - 2, 2);
-  }
+  fireflies.forEach((m, i) => {
+    m.visible = within(f, 4861, 6000) && (f + i * 9) % 50 < 40;
+    if (m.visible) place(m, -180 + ((i * 47) % 320) + Math.round(Math.sin(f * 0.03 + i) * 10), -470 + ((i * 29) % 90) + Math.round(Math.cos(f * 0.04 + i) * 6), 660);
+  });
   sparks.forEach((m, i) => {
-    m.visible = within(f, 738, 760) && (f + i * 3) % 8 < 5;
-    if (m.visible) place(m, SHED.x - 18 + [-11, 11, -8, 9][i], -4 + [10, 14, 22, 24][i], 320);
+    const chest = within(f, 5590, 5700);
+    const clone = within(f, 1880, 1930);
+    m.visible = (chest || clone) && (f + i * 3) % 8 < 5;
+    if (!m.visible) return;
+    const [ox, oy] = chest ? [CAVE.x + 32, -466] : [MARKET.x - 20, MARKET.y - 30];
+    const a = i * 0.63 + f * 0.05;
+    place(m, ox + Math.round(Math.cos(a) * (10 + (i % 3) * 5)), oy + 8 + Math.round(Math.sin(a) * (8 + (i % 4) * 3)), 660);
   });
 
-  // bubbles
+  // finale crowd walking around the town
+  const crowdOn = within(f, 6600, 7110);
+  CROWD.forEach((c, i) => {
+    if (i === 7 && within(f, 1880, 2160)) return;
+    c.mesh.visible = c.shadow.visible = crowdOn;
+    if (!crowdOn) return;
+    const loopLen = 1200;
+    const u = ((f - 6600) * (0.6 + (i % 5) * 0.12) + i * 97) % loopLen / loopLen;
+    const lane = i % 4;
+    const rx = 120 + lane * 50 + (i % 3) * 8;
+    const ry = 70 + lane * 26;
+    const x = Math.round(Math.cos(u * Math.PI * 2) * rx);
+    const y = Math.round(28 + Math.sin(u * Math.PI * 2) * ry);
+    const hop = Math.round(Math.abs(Math.sin(f * 0.3 + i)) * 2);
+    place(c.mesh, x, y + hop, zOf(y));
+    place(c.shadow, x, y - 2, 2);
+  });
+
+  // world bubbles
   let k = 0;
   for (const bb of bubblePool) bb.visible = false;
   for (const b of BUBBLES) {
-    if (!within(f, b.a, b.b)) continue;
+    if (!within(f, b.a, b.b) || k >= bubblePool.length) continue;
     const m = bubblePool[k++];
-    const who = b.who === 'human' ? null : CAST.find((c) => c.id === b.who);
-    m.material.map = bubbleTex(b.text, who ? who.name : 'HUMAN', who ? who.tag : '#8a6a3a').tex;
-    const t = bubbleTex(b.text, who ? who.name : 'HUMAN', who ? who.tag : '#8a6a3a');
+    const who = CAST.find((c) => c.id === b.who);
+    const t = bubbleTex(b.text, b.signer?.[0] ?? who.name, b.signer?.[1] ?? who.tag);
+    swap(m, t);
     m.geometry = geometry(t.w, t.h, 0, 0);
-    m.material.needsUpdate = true;
-    const p = b.at ? { x: b.at[0], y: b.at[1] } : b.who === 'human' ? { x: hp.x, y: hp.y + 26 } : (() => { const q = actorPos(b.who, f); return { x: q.x, y: q.y + 34 }; })();
-    const s = bubbleScale(f, b.a, b.b);
+    const q = actorPos(b.who, f);
+    const s = popScale(f, b.a, b.b);
     m.visible = s > 0;
     m.scale.set(s, s, 1);
-    place(m, p.x - 6, p.y, 400 + k);
+    place(m, q.x - 6, q.y + 34, 700 + k);
   }
 
-  // HUD
+  // ----- HUD -----
+  const night = within(f, 4861, 6000);
+  nightOverlay.visible = night;
+  if (night) { setRect(nightOverlay, 0, 0, L.worldW, VIEW_H); nightOverlay.material.opacity = 0.38; }
+  dimOverlay.visible = L.dim > 0.01;
+  if (dimOverlay.visible) { setRect(dimOverlay, 0, 0, VIEW_W, VIEW_H); dimOverlay.material.opacity = step8(L.dim); }
+  const splitOn = L.worldW < VIEW_W - 0.5;
+  rightBg.visible = divider.visible = splitOn;
+  if (splitOn) {
+    setRect(rightBg, L.worldW, 0, VIEW_W - L.worldW, VIEW_H);
+    rightBg.material.opacity = 1;
+    setRect(divider, L.worldW, 0, 1, VIEW_H);
+    divider.material.opacity = 1;
+  }
+
+  // UI panel
+  const ui = beat?.ui ? UI[beat.ui] : null;
+  const showPanel = ui && L.panel;
+  panelFrame.visible = panelImage.visible = !!showPanel;
+  for (const h of hlLines) h.visible = false;
+  pointer.visible = false;
+  if (showPanel) {
+    const P = { ...L.panel };
+    const slide = L.panelIn !== undefined ? 1 - L.panelIn : 0;
+    P.x += Math.round(slide * 220);
+    const ft = frameTex(P.w, P.h, ui.title);
+    panelFrame.material.map = ft.tex;
+    panelFrame.material.needsUpdate = true;
+    panelFrame.position.set(P.x, P.y, 0);
+    panelFrame.scale.set(P.w, P.h, 1);
+    const IA = { x: P.x + 1, y: P.y + 1, w: P.w - 2, h: P.h - 11 };
+    const aspect = IA.w / IA.h;
+    // crop keys (ease between neighbours)
+    let crop = beat.crops[0].slice(1);
+    for (let i = 1; i < beat.crops.length; i++) {
+      const [f1, ...c1] = beat.crops[i];
+      const [f0, ...c0] = beat.crops[i - 1];
+      if (f >= f1) crop = c1;
+      else if (f >= f0) { const t = ease(span(f, f1 - 40, f1)); crop = c0.map((v, j) => lerp(v, c1[j], t)); break; }
+    }
+    let [ccx, ccy, cw] = crop;
+    let ch = cw / aspect;
+    if (ch > ui.h) { ch = ui.h; cw = ch * aspect; }
+    if (cw > ui.w) { cw = ui.w; ch = cw / aspect; }
+    const x0 = clamp(ccx - cw / 2, Math.min(0, ui.w - cw), Math.max(0, ui.w - cw));
+    const y0 = clamp(ccy - ch / 2, Math.min(0, ui.h - ch), Math.max(0, ui.h - ch));
+    const tex = ui.tex;
+    if (panelImage.material.map !== tex) { panelImage.material.map = tex; panelImage.material.needsUpdate = true; }
+    tex.repeat.set(cw / ui.w, ch / ui.h);
+    tex.offset.set(x0 / ui.w, 1 - (y0 + ch) / ui.h);
+    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+    // letterbox when the crop is wider/taller than the image
+    const drawW = Math.min(IA.w, (ui.w / cw) * IA.w);
+    const drawH = Math.min(IA.h, (ui.h / ch) * IA.h);
+    panelImage.position.set(IA.x + (IA.w - drawW) / 2, IA.y + (IA.h - drawH) / 2, 0);
+    panelImage.scale.set(drawW, drawH, 1);
+    panelImage.material.opacity = 1;
+    const toPanel = (sx, sy) => [IA.x + ((sx - x0) / cw) * IA.w, IA.y + IA.h - ((sy - y0) / ch) * IA.h];
+    for (const [h0, h1, hx, hy, hw, hh] of beat.hl ?? []) {
+      if (!within(f, h0, h1)) continue;
+      const on = (f - h0) % 40 < 30;
+      if (!on) continue;
+      const [ax, ay] = toPanel(hx, hy);
+      const [bx, by2] = toPanel(hx + hw, hy + hh);
+      const l = clamp(Math.round(ax), IA.x, IA.x + IA.w);
+      const r = clamp(Math.round(bx), IA.x, IA.x + IA.w);
+      const t = clamp(Math.round(ay), IA.y, IA.y + IA.h);
+      const b2 = clamp(Math.round(by2), IA.y, IA.y + IA.h);
+      setRect(hlLines[0], l, b2, r - l, 1);
+      setRect(hlLines[1], l, t - 1, r - l, 1);
+      setRect(hlLines[2], l, b2, 1, t - b2);
+      setRect(hlLines[3], r - 1, b2, 1, t - b2);
+      for (const h of hlLines) { h.visible = true; h.material.opacity = 1; }
+      const pt = ease(span(f, h0, h0 + 24));
+      pointer.visible = true;
+      pointer.position.set(Math.round(lerp(IA.x + IA.w - 8, r - 6, pt)), Math.round(lerp(IA.y + 12, b2 + 4, pt)), 0);
+      break;
+    }
+  }
+
+  // narration dialog
+  let line = null;
+  for (const l of beat?.lines ?? []) if (f >= l[0]) line = l;
+  const dialogOn = !!line && beat && !beat.finale;
+  dialog.mesh.visible = dialogOn;
+  mascot.visible = dialogOn && L.mascot && (!line || line[1] === NARRATOR);
+  if (dialogOn) {
+    const D = L.dialogBox;
+    const shown = Math.floor((f - line[0]) / 2) + 1;
+    drawDialog(D.w, D.h, line[1], line[2], shown);
+    const pop = Math.min(1, (f - beat.a) / 8);
+    dialog.mesh.position.set(D.x, D.y - Math.round((1 - pop) * 12), 0);
+    dialog.mesh.scale.set(D.w, D.h + 8, 1);
+    if (mascot.visible) {
+      const bob = Math.floor(f / 20) % 2;
+      mascot.position.set(262, 2 + bob, 0);
+      mascot.scale.set(56, 56, 1);
+    }
+  }
+  plannedChip.visible = !!beat?.tag && within(f, beat.tag[0], beat.tag[1]);
+  if (plannedChip.visible) plannedChip.position.set(L.dialogBox.x + L.dialogBox.w - 40, L.dialogBox.y + L.dialogBox.h - 2, 0);
+
+  // morph showcase tiles
+  const show = beat?.morphShow && MORPH;
+  for (const [i, c] of CAST.entries()) {
+    const bt = bigTiles[i];
+    bt.m.visible = bigLabels[i].visible = !!show;
+    if (!show) continue;
+    const ms = morphStateAt(c.id, f);
+    paintCells(bt.t, ms ? morphCells(c.id, ms.from, ms.to, ms.t) : MORPH[c.id].face, MORPH[c.id].tile);
+    const x = 160 + (i - 1) * 84;
+    const pop = popScale(f, beat.a + i * 6, beat.b);
+    bt.m.scale.set(2 * pop, 2 * pop, 1);
+    bt.m.position.set(x, 64, 0);
+    bigLabels[i].position.set(x, 62, 0);
+  }
+  if (show) { dimOverlay.visible = true; setRect(dimOverlay, 0, 0, VIEW_W, VIEW_H); dimOverlay.material.opacity = 0.5; }
+
+  // finale: face wall, then logo + open source line
+  const wallOn = within(f, 6000, 6720);
+  wall.forEach((m, i) => {
+    const col = i % 10;
+    const row = Math.floor(i / 10);
+    const appear = 6010 + (col + row) * 8;
+    m.visible = wallOn && f >= appear;
+    if (!m.visible) return;
+    const s = Math.min(1, POP[Math.min(5, Math.floor((f - appear) / 2))] ?? 1);
+    const wob = Math.floor((f + i * 7) / 30) % 2;
+    m.scale.set(s, s, 1);
+    m.position.set(16 + col * 32, VIEW_H - 15 - row * 31 + wob, 0);
+  });
+  wallDim.visible = within(f, 6300, 6720);
+  if (wallDim.visible) { setRect(wallDim, 0, 0, VIEW_W, VIEW_H); wallDim.material.opacity = step8(span(f, 6300, 6340) * 0.72); }
+  const endOn = within(f, 6330, 6720);
+  endText.visible = endOn;
+  if (endOn) endText.position.set(VIEW_H > 0 ? 160 : 0, 92, 0);
+
+  // title card (start and end of the loop)
+  const titleA = f < 90 ? 1 - step8(span(f, 60, 90)) : 0;
+  const titleB = f >= 7110 ? step8(span(f, 7110, 7140)) : 0;
+  const finaleLogo = within(f, 6330, 6720) ? step8(span(f, 6330, 6360)) : 0;
+  const titleAlpha = Math.max(titleA, titleB);
+  titleBg.visible = titleAlpha > 0;
+  if (titleBg.visible) { setRect(titleBg, 0, 0, VIEW_W, VIEW_H); titleBg.material.opacity = titleAlpha; }
+  const logoAlpha = Math.max(titleAlpha, finaleLogo);
+  titleLogo.visible = titleText.visible = logoAlpha > 0;
+  if (titleLogo.visible) {
+    const atEnd = finaleLogo > 0 && titleAlpha === 0;
+    const size = atEnd ? 48 : 64;
+    titleLogo.position.set(160 - size / 2, atEnd ? 112 : 92, 0);
+    titleLogo.scale.set(size, size, 1);
+    titleLogo.material.opacity = logoAlpha;
+    titleText.position.set(160, atEnd ? 110 : 88, 0);
+    titleText.material.opacity = logoAlpha;
+    titleText.visible = !atEnd || true;
+    if (atEnd) titleText.visible = false;
+  }
+  fadeQuad.visible = false;
+
   debugMesh.visible = DEBUG_FRAMES;
   if (DEBUG_FRAMES) drawDebug(f);
-  const sub = within(f, 816, 890);
-  subtitleMesh.visible = sub;
-  if (sub) subtitleMesh.material.opacity = Math.min(1, Math.floor(span(f, 816, 826) * 4) / 4, Math.floor((1 - span(f, 878, 890)) * 4 + 0.999) / 4);
 
+  // draw: world into its viewport, then HUD over the full frame
+  renderer.setScissorTest(true);
+  renderer.setViewport(0, 0, worldW * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
+  renderer.setScissor(0, 0, worldW * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
+  renderer.setClearColor('#1b1820');
   renderer.clear();
   renderer.render(scene, camera);
+  renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
+  renderer.setScissor(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
   renderer.clearDepth();
   renderer.render(hud, hudCam);
+  renderer.setScissorTest(false);
 }
 
-// ----- playback: one rendered frame per animation tick, no clock -----------
+// ----- 8-bit BGM (deterministic synth, sample-accurate, aligned to frames) ---------
+const SAMPLE_RATE = 44100;
+const EIGHTH = 0.25; // seconds per eighth note at 120 BPM; 15 frames
+const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const midi = (n) => 12 * (Number(n.slice(-1)) + 1) + NOTE[n[0]] + (n[1] === '#' ? 1 : 0);
+const hz = (m) => 440 * 2 ** ((m - 69) / 12);
+const CHORDS = { C: ['C3', 'E3', 'G3'], G: ['G2', 'B2', 'D3'], Am: ['A2', 'C3', 'E3'], F: ['F2', 'A2', 'C3'], Em: ['E2', 'G2', 'B2'] };
+const PROG_MAIN = ['C', 'G', 'Am', 'F'];
+const PROG_ADV = ['Am', 'F', 'C', 'G'];
+const MOTIFS = {
+  m1: ['E5 - G5 - C6 - B5 G5', 'D5 - G5 - B5 - A5 G5', 'C5 - E5 - A5 - G5 E5', 'F5 - A5 - G5 - - -'],
+  m2: ['E5 E5 G5 E5 D5 - C5 -', 'D5 - B4 - G4 - - -', 'A4 C5 E5 A5 G5 - E5 -', 'F5 E5 D5 C5 D5 - - -'],
+  m3: ['C5 - - E5 G5 - - -', 'B4 - - D5 G5 - - -', 'A4 - - C5 E5 - D5 C5', 'A4 - C5 - D5 - - -'],
+  a1: ['A4 C5 E5 A5 G5 E5 C5 E5', 'F5 - E5 - D5 - C5 D5', 'E5 - G5 - C6 - B5 A5', 'B5 - G5 - D5 - - -'],
+  a2: ['A5 - - G5 E5 - C5 -', 'F5 A5 C6 A5 F5 - E5 -', 'G5 E5 C5 E5 G5 - C6 -', 'B5 A5 G5 - D6 - - -'],
+};
+// per bar: section name drives instrumentation
+function barPlan(bar) {
+  if (bar < 5) return { sec: 'intro', lead: bar >= 1 ? 'm3' : null, drums: bar >= 2 ? 'light' : null, leadVol: 0.5 };
+  if (bar < 18) return { sec: 'memory', lead: ['m1', 'm2', 'm3'][Math.floor((bar - 5) / 4) % 3], drums: 'light', leadVol: 0.45 };
+  if (bar < 28) return { sec: 'connect', lead: ['m2', 'm1'][Math.floor((bar - 18) / 4) % 2], drums: 'full', leadVol: 0.5 };
+  if (bar < 40) return { sec: 'group', lead: ['m1', 'm2', 'm1'][Math.floor((bar - 28) / 4) % 3], drums: 'full', leadVol: 0.55, harmony: true };
+  if (bar < 50) return { sec: 'adventure', lead: ['a1', 'a2'][Math.floor((bar - 40) / 4) % 2], drums: 'drive', leadVol: 0.55 };
+  if (bar < 58) return { sec: 'finale', lead: ['m1', 'm2'][Math.floor((bar - 50) / 4) % 2], drums: 'full', leadVol: 0.6, harmony: true };
+  return { sec: 'end', lead: 'end', drums: bar === 58 ? 'light' : null, leadVol: 0.5 };
+}
+function chordFor(bar) {
+  if (bar === 58) return 'G';
+  if (bar === 59) return 'C';
+  if (bar >= 40 && bar < 50) return PROG_ADV[(bar - 40) % 4];
+  return PROG_MAIN[bar % 4];
+}
+function buildSong(rate = SAMPLE_RATE) {
+  const total = Math.round((TOTAL / FPS) * rate);
+  const out = new Float32Array(total);
+  const events = [];
+  const add = (t, dur, freq, inst, vol) => events.push({ t, dur, freq, inst, vol });
+  for (let bar = 0; bar < TOTAL / BAR; bar++) {
+    const t0 = bar * 8 * EIGHTH;
+    const plan = barPlan(bar);
+    const chord = CHORDS[chordFor(bar)].map(midi);
+    // arpeggio (12.5% pulse), 16ths
+    const arpNotes = [chord[0] + 12, chord[1] + 12, chord[2] + 12, chord[0] + 24];
+    for (let i = 0; i < 16; i++) {
+      if (bar === 59 && i > 3) break;
+      add(t0 + i * EIGHTH / 2, EIGHTH / 2 * 0.9, hz(arpNotes[(i + (plan.sec === 'adventure' ? i >> 2 : 0)) % 4]), 'arp', plan.sec === 'intro' && bar === 0 ? 0.18 : 0.13);
+    }
+    // bass (triangle)
+    const bassPattern = plan.sec === 'adventure' ? [0, 0, 12, 0, 0, 12, 0, 7] : plan.sec === 'intro' || plan.sec === 'memory' ? [0, null, 12, null, 0, null, 7, null] : [0, 0, 12, 0, 7, 0, 12, 7];
+    bassPattern.forEach((o, i) => {
+      if (o === null || (bar === 59 && i > 0)) return;
+      add(t0 + i * EIGHTH, (bar === 59 ? 4 : 1) * EIGHTH * 0.92, hz(chord[0] - 12 + o), 'bass', 0.55);
+    });
+    // lead
+    if (plan.lead === 'end') {
+      const seq = bar === 58 ? 'G5 - A5 - B5 - D6 -' : 'C6 - - - - - - -';
+      parseLine(seq).forEach(([s, len, m]) => add(t0 + s * EIGHTH, len * EIGHTH * 0.95, hz(m), 'lead', plan.leadVol));
+    } else if (plan.lead) {
+      parseLine(MOTIFS[plan.lead][bar % 4]).forEach(([s, len, m]) => {
+        add(t0 + s * EIGHTH, len * EIGHTH * 0.92, hz(m), plan.sec === 'adventure' ? 'lead50' : 'lead', plan.leadVol);
+        if (plan.harmony) add(t0 + s * EIGHTH, len * EIGHTH * 0.92, hz(m - 12), 'arp', 0.12);
+      });
+    }
+    // drums, 16 steps
+    if (plan.drums) {
+      for (let s = 0; s < 16; s++) {
+        const t = t0 + s * EIGHTH / 2;
+        const kick = s === 0 || s === 8 || (plan.drums !== 'light' && (s === 6 || (plan.drums === 'drive' && s === 10)));
+        const snare = plan.drums !== 'light' && (s === 4 || s === 12);
+        const hat = plan.drums === 'drive' ? true : s % 2 === 0;
+        if (kick) add(t, 0.12, 0, 'kick', 0.7);
+        if (snare) add(t, 0.14, 0, 'snare', 0.38);
+        if (hat) add(t, 0.035, 0, 'hat', plan.drums === 'light' ? 0.1 : 0.14);
+      }
+      if ((bar + 1) % 4 === 0 && plan.drums === 'full') for (const s of [13, 14, 15]) add(t0 + s * EIGHTH / 2, 0.1, 0, 'snare', 0.3);
+    }
+  }
+  let lfsr = 1;
+  for (const e of events) {
+    const start = Math.floor(e.t * rate);
+    const len = Math.floor((e.dur + 0.03) * rate);
+    let phase = 0;
+    for (let i = 0; i < len && start + i < total; i++) {
+      const t = i / rate;
+      const rel = t > e.dur ? Math.max(0, 1 - (t - e.dur) / 0.03) : 1;
+      let v = 0;
+      if (e.inst === 'lead' || e.inst === 'lead50' || e.inst === 'arp') {
+        phase = (phase + e.freq / rate) % 1;
+        const duty = e.inst === 'arp' ? 0.125 : e.inst === 'lead50' ? 0.5 : 0.25;
+        const vib = e.inst === 'arp' ? 0 : t > 0.18 ? Math.sin(t * 34) * 0.004 : 0;
+        phase = (phase + (e.freq * vib) / rate) % 1;
+        const env = Math.min(1, t / 0.004) * (0.55 + 0.45 * Math.exp(-t * 7));
+        v = (phase < duty ? 1 : -1) * env;
+      } else if (e.inst === 'bass') {
+        phase = (phase + e.freq / rate) % 1;
+        const tri = 1 - 4 * Math.abs(phase - 0.5);
+        v = (Math.round(tri * 7.5) / 7.5) * Math.min(1, t / 0.003);
+      } else if (e.inst === 'kick') {
+        const f = 40 + 120 * Math.exp(-t * 35);
+        phase = (phase + f / rate) % 1;
+        v = (1 - 4 * Math.abs(phase - 0.5)) * Math.exp(-t * 18);
+      } else {
+        if (i % (e.inst === 'hat' ? 1 : 2) === 0) {
+          const bit = (lfsr ^ (lfsr >> (e.inst === 'hat' ? 6 : 1))) & 1;
+          lfsr = (lfsr >> 1) | (bit << 14);
+        }
+        v = ((lfsr & 1) * 2 - 1) * Math.exp(-t * (e.inst === 'hat' ? 90 : 22));
+      }
+      out[start + i] += v * e.vol * rel * 0.32;
+    }
+  }
+  // remove pulse-wave DC, soften the top end a little, then soft-clip
+  let px = 0;
+  let py = 0;
+  let lp = 0;
+  for (let i = 0; i < total; i++) {
+    const x = out[i];
+    py = x - px + 0.995 * py;
+    px = x;
+    lp += (py - lp) * 0.55;
+    out[i] = Math.tanh(lp * 1.3);
+  }
+  // gentle fade at both ends keeps the loop seam quiet
+  const fade = Math.floor(rate * 0.6);
+  for (let i = 0; i < fade; i++) { out[i] *= i / fade; out[total - 1 - i] *= i / fade; }
+  return out;
+}
+function parseLine(line) {
+  const slots = line.trim().split(/\s+/);
+  const notes = [];
+  slots.forEach((s, i) => {
+    if (s === '-') { if (notes.length) notes[notes.length - 1][1] += 1; return; }
+    if (s === '.') return;
+    notes.push([i, 1, midi(s)]);
+  });
+  return notes;
+}
+let songCache = null;
+const song = () => songCache ?? (songCache = buildSong());
+function wavBase64() {
+  const data = song();
+  const buf = new ArrayBuffer(44 + data.length * 2);
+  const v = new DataView(buf);
+  const str = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); v.setUint32(4, 36 + data.length * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, SAMPLE_RATE, true);
+  v.setUint32(28, SAMPLE_RATE * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, data.length * 2, true);
+  for (let i = 0; i < data.length; i++) v.setInt16(44 + i * 2, clamp(data[i], -1, 1) * 32767, true);
+  let bin = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+// Live playback follows the frame counter: the audio is re-seeked whenever it drifts.
+const audio = { ctx: null, buffer: null, source: null, startFrame: 0, startTime: 0, on: false };
+function audioStart(f) {
+  if (!audio.ctx) {
+    audio.ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+    const data = song();
+    audio.buffer = audio.ctx.createBuffer(1, data.length, SAMPLE_RATE);
+    audio.buffer.copyToChannel(data, 0);
+  }
+  audio.source?.stop();
+  const src = audio.ctx.createBufferSource();
+  src.buffer = audio.buffer;
+  src.loop = true;
+  src.connect(audio.ctx.destination);
+  src.start(0, f / FPS);
+  audio.source = src;
+  audio.startFrame = f;
+  audio.startTime = audio.ctx.currentTime;
+  audio.on = true;
+}
+function audioFollow(f) {
+  if (!audio.on || !playing) return;
+  const heard = audio.startFrame / FPS + (audio.ctx.currentTime - audio.startTime);
+  const want = f / FPS;
+  const drift = (((heard - want) % (TOTAL / FPS)) + TOTAL / FPS) % (TOTAL / FPS);
+  if (Math.min(drift, TOTAL / FPS - drift) > 0.08) audioStart(f);
+}
+
+// ----- playback: one rendered frame per animation tick, no clock -------------------
 let frame = Number(params.get('f') ?? 0) | 0;
 let playing = params.get('play') !== '0';
 function loop() {
   renderFrame(frame);
+  audioFollow(frame);
   if (playing) frame = (frame + 1) % TOTAL;
   requestAnimationFrame(loop);
 }
+readyCallbacks.push(() => { started = true; loop(); });
 addEventListener('keydown', (e) => {
   if (e.key === 'd' || e.key === 'D') DEBUG_FRAMES = !DEBUG_FRAMES;
-  if (e.key === ' ') playing = !playing;
+  if (e.key === 'm' || e.key === 'M') { if (audio.on) { audio.source?.stop(); audio.on = false; } else audioStart(frame); }
+  if (e.key === ' ') { playing = !playing; if (!playing && audio.on) { audio.source?.stop(); audio.on = false; } }
   if (e.key === 'ArrowRight') frame = (frame + 1) % TOTAL;
   if (e.key === 'ArrowLeft') frame = (frame + TOTAL - 1) % TOTAL;
 });
+renderer.domElement.addEventListener('click', () => { if (!audio.on) audioStart(frame); });
 window.botTown = {
   TOTAL,
   ready: () => started,
   setDebug: (v) => { DEBUG_FRAMES = !!v; },
   renderFrame: (f) => { playing = false; frame = f; renderFrame(f); },
+  wavBase64,
 };
 </script>
 </body>
