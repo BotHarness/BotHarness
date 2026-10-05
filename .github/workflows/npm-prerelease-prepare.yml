@@ -38,10 +38,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
+      - name: Read the reviewed Provider pin
+        id: provider
+        run: node --input-type=module -e 'import {appendFileSync} from "node:fs"; import {qualifiedImProvider} from "./scripts/dev-im-provider.mjs"; appendFileSync(process.env.GITHUB_OUTPUT,"sha="+qualifiedImProvider.source+"\n")'
       - uses: actions/checkout@v7
         with:
           repository: DoodleBears/dsh-im
-          ref: 48e7a35792af5222cd40cfe1ba2607ac55a59df2
+          ref: ${{ steps.provider.outputs.sha }}
           path: .release-provider
           persist-credentials: false
       - run: npm ci --ignore-scripts --prefix .release-provider
