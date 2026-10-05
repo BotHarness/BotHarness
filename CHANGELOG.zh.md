@@ -522,6 +522,8 @@
 
 ### Documentation
 
+- 记录 Profile 备份／恢复／迁移 UX 提案，明确校验、修复与显式激活；运行交付及实现票交接仍需验收 ([#76](https://github.com/BotHarness/BotHarness/issues/76), [提案](docs/proposals/profile-portability-ux.md))。
+
 - 新增带真实截图的双语 Slack 连接指南，说明应用配置、身份绑定、频道授权与原话题回复验证（[#874](https://github.com/BotHarness/BotHarness/issues/874)、[指南](docs/slack-connection.md)）。
 
 - 记录 npm prerelease 的产物准备与明确发布路径，包括完整性校验、依赖顺序和部分发布恢复；不宣称已经公开发布（[#866](https://github.com/BotHarness/BotHarness/issues/866), [操作指南](docs/npm-prerelease.md)）。
