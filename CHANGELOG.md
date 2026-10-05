@@ -524,6 +524,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Added illustrated public npm installation, API / per-Bot model setup and non-IM settings guides with a user-focused Quickstart, verified with DSH 0.2.0 RC1 and deepseekbot 0.1.0-alpha.1 ([#887](https://github.com/BotHarness/BotHarness/issues/887), [guide](docs/installation.md)).
+
 - Documented the proposed Profile Backup / Restore / Transfer UX, including validation, repair and explicit activation; the UX is accepted and runtime implementation is tracked separately ([#76](https://github.com/BotHarness/BotHarness/issues/76), [proposal](docs/proposals/profile-portability-ux.md)).
 
 - Added an illustrated bilingual Slack connection guide covering App setup, identity binding, channel authorization and real same-thread replies ([#874](https://github.com/BotHarness/BotHarness/issues/874), [guide](docs/slack-connection.md)).
