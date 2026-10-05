@@ -22,6 +22,7 @@ export interface BotSummary {
   appearance?: AvatarAppearance;
   appearanceUnsupported?: true;
   paused?: boolean;
+  deleted?: boolean;
   aggregateState: string;
   activity?: PersonaBotToolActivity;
   attention?: PersonaBotAttention;

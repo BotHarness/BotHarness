@@ -9,6 +9,8 @@
 
 ### Breaking Changes
 
+- PersonaBot 删除引入 Profile schema Generation 57；升级前应备份，回退应向前修复而非仅回退代码。直接调用 Registry `remove`／`purge` 现会拒绝，需使用经确认的删除 owner，保留身份与用量历史（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
+
 - 调用导出的 `createRosterStore` factory 或 `RosterStore` constructor 时必须以 `database` 传入 Profile 的 `OperationalDatabaseOwner`；`attach` 仅一次性导入旧 domain，命令与查询合同保持不变（[#885](https://github.com/BotHarness/BotHarness/issues/885)）。
 
 - 调用公开 `createPersonaBotRegistry` 工厂时必须通过 `database` 传入 Profile 的 `OperationalDatabaseOwner`；Registry 命令与查询接口保持原状，不再隐式创建 JSON 存储（[#884](https://github.com/BotHarness/BotHarness/issues/884)）。
@@ -20,6 +22,8 @@
 - 自定义 `BotAgentAdapter` 需让 Orchestrator 的 `channels.contacts(input?)` 返回 `{ outputLimit, contacts, nextCursor? }`，稳定 ID 字段从 `slug` 改为 `botId`；`list_bot_contacts` Tool 也返回该有界页，消费方需处理续页（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
 
 ### Added
+
+- Human 可从 Profile 删除 PersonaBot，默认保留记忆，明确选择清除已验证独占的仓库，并打开 Host 上的记忆文件夹、检查或重试未完成的清理；删除保留历史并永久关闭原身份的运行入口（[#896](https://github.com/BotHarness/BotHarness/issues/896)）。
 
 - 增加个人微信扫码绑定者文本进入既有 Bot Inbox 与本身份回复链路，使用明确私聊授权和私有来源续接信息；源码版与本机安装产品的真实收发已验证，Human QA 已通过（[#878](https://github.com/BotHarness/BotHarness/issues/878)，[ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md)，[连接指南](docs/wechat-connection.md)）。
 

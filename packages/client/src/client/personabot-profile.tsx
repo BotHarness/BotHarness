@@ -1,3 +1,4 @@
+import { PersonaBotDeletionView } from './personabot-deletion.js';
 import { ChannelBridgeTable } from './channel-bridge-table.js';
 import { MessagingProfile } from './messaging-profile.js';
 import { useRef, useState, type FormEvent, type ReactElement } from 'react';
@@ -123,6 +124,7 @@ export function ProfileView({
   onTogglePin,
   onClose,
 }: ProfileViewProps): ReactElement {
+  const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(bot.displayName);
   const [busy, setBusy] = useState(false);
@@ -293,7 +295,7 @@ export function ProfileView({
           type="button"
           className="bh-profile-avatar-button"
           aria-label={t('profile.avatar.change')}
-          disabled={avatarBusy}
+          disabled={avatarBusy || bot.deleted}
           onClick={() => avatarInputRef.current?.click()}
         >
           <PersonaBotAvatar
@@ -347,6 +349,7 @@ export function ProfileView({
                 type="button"
                 className="bh-profile-edit"
                 aria-label={t('profile.name.edit')}
+                disabled={bot.deleted}
                 onClick={startEditing}
               >
                 <IconEditOutlineRegular />
@@ -359,7 +362,7 @@ export function ProfileView({
             <button
               type="button"
               className="bh-profile-action"
-              disabled={avatarBusy}
+              disabled={avatarBusy || bot.deleted}
               onClick={() => avatarInputRef.current?.click()}
             >
               {t('profile.avatar.change')}
@@ -368,7 +371,7 @@ export function ProfileView({
               <button
                 type="button"
                 className="bh-profile-action"
-                disabled={avatarBusy}
+                disabled={avatarBusy || bot.deleted}
                 onClick={() => void removeAvatar()}
               >
                 {t('profile.avatar.remove')}
@@ -393,13 +396,15 @@ export function ProfileView({
           )}
         </div>
       </div>
-      <AvatarAppearanceEditor
-        key={`avatar-${bot.slug}`}
-        bot={bot}
-        channelId={channel.id}
-        onSave={actions.setBotAppearance}
-        t={t}
-      />
+      {bot.deleted ? null : (
+        <AvatarAppearanceEditor
+          key={`avatar-${bot.slug}`}
+          bot={bot}
+          channelId={channel.id}
+          onSave={actions.setBotAppearance}
+          t={t}
+        />
+      )}
       {visibleCards.length === 0 ? null : (
         <section className="bh-profile-section" aria-label={t('profile.activitySection')}>
           <h2 className="bh-profile-section-title">{t('profile.activitySection')}</h2>
@@ -433,172 +438,203 @@ export function ProfileView({
           </div>
         </section>
       )}
-      <ModelPresetProfile key={bot.slug} slug={bot.slug} actions={actions} t={t} />
-      <MessagingProfile key={`im-${bot.slug}`} slug={bot.slug} actions={actions} t={t} />
-      <ChannelBridgeTable
-        channelId={channel.id}
-        channelName={channel.name}
-        botNames={new Map([[bot.slug, bot.displayName]])}
-        actions={actions}
-        t={t}
-      />
-      <section
-        className="bh-profile-section bh-profile-policy-section"
-        aria-label={t('sourcePolicy.title')}
-      >
-        <details className="bh-profile-policy-details">
-          <summary className="bh-profile-policy-summary">
-            <span className="bh-profile-policy-summary-text">
-              <strong>{t('sourcePolicy.title')}</strong>
-              <span>{t('sourcePolicy.summary')}</span>
-            </span>
-            <IconChevronRightOutlineRegular />
-          </summary>
-          <div className="bh-profile-cards">
-            <section className="bh-profile-card" aria-label={t('sourcePolicy.defaults')}>
-              <header className="bh-profile-card-head">
-                <span className="bh-profile-card-label">{t('sourcePolicy.defaults')}</span>
-                <Tag tone="neutral">{t('sourcePolicy.editableRules')}</Tag>
-              </header>
-              {sourcePolicyError ? (
-                <div className="bh-error" role="alert">
-                  {t('sourcePolicy.error')}
-                </div>
-              ) : sourcePolicies === undefined ? (
-                <div className="bh-note">{t('sourcePolicy.loading')}</div>
-              ) : (
-                <SourcePolicyTable
-                  key={bot.slug}
-                  policies={sourcePolicies}
-                  t={t}
-                  onEdit={(policy) => {
-                    setSourceWakeDraft(policy.wake);
-                    setSourceDeliveryDraft(policy.delivery);
-                    setDigestCountDraft(policy.digestCount ?? 5);
-                    setDigestIntervalDraft(policy.digestIntervalSeconds ?? 30);
-                    setSourcePolicySaveError(false);
-                    setEditingSourcePolicy(policy.sourceClass);
-                  }}
-                />
-              )}
-            </section>
-          </div>
-        </details>
-      </section>
-      {editingSourcePolicy !== undefined && (
-        <Modal
-          open
-          onClose={() => setEditingSourcePolicy(undefined)}
-          closeLabel={t('common.close')}
-          title={t(
-            editingSourcePolicy === 'group-ordinary'
-              ? 'sourcePolicy.groupEditTitle'
-              : editingSourcePolicy === 'assignment-report'
-                ? 'sourcePolicy.editTitle'
-                : 'sourcePolicy.immediateEditTitle',
-          )}
-          description={t(
-            editingSourcePolicy === 'group-ordinary'
-              ? 'sourcePolicy.groupEditDescription'
-              : editingSourcePolicy === 'assignment-report'
-                ? 'sourcePolicy.editDescription'
-                : 'sourcePolicy.immediateEditDescription',
-          )}
-          footer={
-            <>
-              <Button
-                variant="outline"
-                disabled={sourcePolicyBusy}
-                onClick={() => void changeSourcePolicy(true)}
-              >
-                {t('sourcePolicy.reset')}
-              </Button>
-              <Button
-                variant="primary"
-                disabled={sourcePolicyBusy}
-                onClick={() => void changeSourcePolicy(false)}
-              >
-                {t('profile.save')}
-              </Button>
-            </>
-          }
-        >
-          {editingSourcePolicy === 'human-dm' ||
-          editingSourcePolicy === 'bot-dm' ||
-          editingSourcePolicy === 'group-mention' ? (
-            <select
-              className="bh-profile-policy-select"
-              aria-label={t('sourcePolicy.immediateEditTitle')}
-              value={sourceDeliveryDraft}
-              disabled={sourcePolicyBusy}
-              onChange={(event) =>
-                setSourceDeliveryDraft(event.target.value === 'turn' ? 'turn' : 'steer')
-              }
-            >
-              <option value="steer">{t('sourcePolicy.deliverySteerOption')}</option>
-              <option value="turn">{t('sourcePolicy.deliveryTurnOption')}</option>
-            </select>
-          ) : (
-            <select
-              className="bh-profile-policy-select"
-              aria-label={t(
+      {bot.deleted ? (
+        <PersonaBotDeletionView
+          key={`deleted-${bot.slug}`}
+          slug={bot.slug}
+          actions={actions}
+          t={t}
+          onClose={onClose}
+          history
+        />
+      ) : (
+        <>
+          {deleting ? (
+            <PersonaBotDeletionView
+              key={bot.slug}
+              slug={bot.slug}
+              actions={actions}
+              t={t}
+              onClose={() => setDeleting(false)}
+            />
+          ) : null}
+          <ModelPresetProfile key={bot.slug} slug={bot.slug} actions={actions} t={t} />
+          <MessagingProfile key={`im-${bot.slug}`} slug={bot.slug} actions={actions} t={t} />
+          <ChannelBridgeTable
+            channelId={channel.id}
+            channelName={channel.name}
+            botNames={new Map([[bot.slug, bot.displayName]])}
+            actions={actions}
+            t={t}
+          />
+          <section
+            className="bh-profile-section bh-profile-policy-section"
+            aria-label={t('sourcePolicy.title')}
+          >
+            <details className="bh-profile-policy-details">
+              <summary className="bh-profile-policy-summary">
+                <span className="bh-profile-policy-summary-text">
+                  <strong>{t('sourcePolicy.title')}</strong>
+                  <span>{t('sourcePolicy.summary')}</span>
+                </span>
+                <IconChevronRightOutlineRegular />
+              </summary>
+              <div className="bh-profile-cards">
+                <section className="bh-profile-card" aria-label={t('sourcePolicy.defaults')}>
+                  <header className="bh-profile-card-head">
+                    <span className="bh-profile-card-label">{t('sourcePolicy.defaults')}</span>
+                    <Tag tone="neutral">{t('sourcePolicy.editableRules')}</Tag>
+                  </header>
+                  {sourcePolicyError ? (
+                    <div className="bh-error" role="alert">
+                      {t('sourcePolicy.error')}
+                    </div>
+                  ) : sourcePolicies === undefined ? (
+                    <div className="bh-note">{t('sourcePolicy.loading')}</div>
+                  ) : (
+                    <SourcePolicyTable
+                      key={bot.slug}
+                      policies={sourcePolicies}
+                      t={t}
+                      onEdit={(policy) => {
+                        setSourceWakeDraft(policy.wake);
+                        setSourceDeliveryDraft(policy.delivery);
+                        setDigestCountDraft(policy.digestCount ?? 5);
+                        setDigestIntervalDraft(policy.digestIntervalSeconds ?? 30);
+                        setSourcePolicySaveError(false);
+                        setEditingSourcePolicy(policy.sourceClass);
+                      }}
+                    />
+                  )}
+                </section>
+              </div>
+            </details>
+          </section>
+          {editingSourcePolicy !== undefined && (
+            <Modal
+              open
+              onClose={() => setEditingSourcePolicy(undefined)}
+              closeLabel={t('common.close')}
+              title={t(
                 editingSourcePolicy === 'group-ordinary'
                   ? 'sourcePolicy.groupEditTitle'
-                  : 'sourcePolicy.editTitle',
+                  : editingSourcePolicy === 'assignment-report'
+                    ? 'sourcePolicy.editTitle'
+                    : 'sourcePolicy.immediateEditTitle',
               )}
-              value={sourceWakeDraft}
-              disabled={sourcePolicyBusy}
-              onChange={(event) =>
-                setSourceWakeDraft(event.target.value as BotSourcePolicyView['wake'])
+              description={t(
+                editingSourcePolicy === 'group-ordinary'
+                  ? 'sourcePolicy.groupEditDescription'
+                  : editingSourcePolicy === 'assignment-report'
+                    ? 'sourcePolicy.editDescription'
+                    : 'sourcePolicy.immediateEditDescription',
+              )}
+              footer={
+                <>
+                  <Button
+                    variant="outline"
+                    disabled={sourcePolicyBusy}
+                    onClick={() => void changeSourcePolicy(true)}
+                  >
+                    {t('sourcePolicy.reset')}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    disabled={sourcePolicyBusy}
+                    onClick={() => void changeSourcePolicy(false)}
+                  >
+                    {t('profile.save')}
+                  </Button>
+                </>
               }
             >
-              {editingSourcePolicy === 'assignment-report' ? (
-                <>
-                  <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
-                  <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
-                </>
+              {editingSourcePolicy === 'human-dm' ||
+              editingSourcePolicy === 'bot-dm' ||
+              editingSourcePolicy === 'group-mention' ? (
+                <select
+                  className="bh-profile-policy-select"
+                  aria-label={t('sourcePolicy.immediateEditTitle')}
+                  value={sourceDeliveryDraft}
+                  disabled={sourcePolicyBusy}
+                  onChange={(event) =>
+                    setSourceDeliveryDraft(event.target.value === 'turn' ? 'turn' : 'steer')
+                  }
+                >
+                  <option value="steer">{t('sourcePolicy.deliverySteerOption')}</option>
+                  <option value="turn">{t('sourcePolicy.deliveryTurnOption')}</option>
+                </select>
               ) : (
-                <>
-                  <option value="immediate">{t('sourcePolicy.groupAllOption')}</option>
-                  <option value="digest">{t('sourcePolicy.groupDigestOption')}</option>
-                  <option value="mentions">{t('sourcePolicy.groupMentionsOption')}</option>
-                  <option value="silent">{t('sourcePolicy.groupSilentOption')}</option>
-                </>
+                <select
+                  className="bh-profile-policy-select"
+                  aria-label={t(
+                    editingSourcePolicy === 'group-ordinary'
+                      ? 'sourcePolicy.groupEditTitle'
+                      : 'sourcePolicy.editTitle',
+                  )}
+                  value={sourceWakeDraft}
+                  disabled={sourcePolicyBusy}
+                  onChange={(event) =>
+                    setSourceWakeDraft(event.target.value as BotSourcePolicyView['wake'])
+                  }
+                >
+                  {editingSourcePolicy === 'assignment-report' ? (
+                    <>
+                      <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
+                      <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="immediate">{t('sourcePolicy.groupAllOption')}</option>
+                      <option value="digest">{t('sourcePolicy.groupDigestOption')}</option>
+                      <option value="mentions">{t('sourcePolicy.groupMentionsOption')}</option>
+                      <option value="silent">{t('sourcePolicy.groupSilentOption')}</option>
+                    </>
+                  )}
+                </select>
               )}
-            </select>
+              {editingSourcePolicy === 'group-ordinary' && sourceWakeDraft === 'digest' && (
+                <div className="bh-profile-policy-digest">
+                  <label>
+                    {t('sourcePolicy.digestCount')}
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={digestCountDraft}
+                      disabled={sourcePolicyBusy}
+                      onChange={(event) => setDigestCountDraft(Number(event.target.value))}
+                    />
+                  </label>
+                  <label>
+                    {t('sourcePolicy.digestInterval')}
+                    <input
+                      type="number"
+                      min={1}
+                      max={3600}
+                      value={digestIntervalDraft}
+                      disabled={sourcePolicyBusy}
+                      onChange={(event) => setDigestIntervalDraft(Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+              )}
+              {sourcePolicySaveError && (
+                <div className="bh-modal-error" role="alert">
+                  {t('sourcePolicy.saveFailed')}
+                </div>
+              )}
+            </Modal>
           )}
-          {editingSourcePolicy === 'group-ordinary' && sourceWakeDraft === 'digest' && (
-            <div className="bh-profile-policy-digest">
-              <label>
-                {t('sourcePolicy.digestCount')}
-                <input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={digestCountDraft}
-                  disabled={sourcePolicyBusy}
-                  onChange={(event) => setDigestCountDraft(Number(event.target.value))}
-                />
-              </label>
-              <label>
-                {t('sourcePolicy.digestInterval')}
-                <input
-                  type="number"
-                  min={1}
-                  max={3600}
-                  value={digestIntervalDraft}
-                  disabled={sourcePolicyBusy}
-                  onChange={(event) => setDigestIntervalDraft(Number(event.target.value))}
-                />
-              </label>
-            </div>
-          )}
-          {sourcePolicySaveError && (
-            <div className="bh-modal-error" role="alert">
-              {t('sourcePolicy.saveFailed')}
-            </div>
-          )}
-        </Modal>
+          <section className="bh-profile-section" aria-label={t('deletion.title')}>
+            <Button
+              variant="outline"
+              className="bh-bot-deletion-confirm"
+              onClick={() => setDeleting(true)}
+            >
+              {t('deletion.title')}
+            </Button>
+          </section>
+        </>
       )}
       {avatarFile === undefined ? null : (
         <PersonaBotAvatarCropModal

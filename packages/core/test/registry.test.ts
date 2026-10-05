@@ -535,20 +535,14 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.get('broken')).toBeUndefined();
   });
 
-  it('removes the record, keeps memory by default, purges on request and frees the slug', () => {
+  it('refuses direct removal and purge without confirmed lifecycle ownership', () => {
     const root = createRoot();
     const registry = createTestRegistry({ rootDir: root });
-
     registry.create({ slug: 'a', displayName: 'A', persona: '# A\n' });
-    expect(registry.remove('a')).toBe(true);
-    expect(registry.get('a')).toBeUndefined();
+    expect(() => registry.remove('a')).toThrow('confirmed PersonaBot deletion');
+    expect(() => registry.remove('a', { purge: true })).toThrow('confirmed PersonaBot deletion');
+    expect(registry.get('a')).toBeDefined();
     expect(existsSync(join(root, 'a', 'memory'))).toBe(true);
-    expect(registry.create({ slug: 'a', displayName: 'A again' }).ok).toBe(true);
-
-    registry.create({ slug: 'b', displayName: 'B' });
-    expect(registry.remove('b', { purge: true })).toBe(true);
-    expect(existsSync(join(root, 'b'))).toBe(false);
-
     expect(registry.remove('missing')).toBe(false);
   });
 

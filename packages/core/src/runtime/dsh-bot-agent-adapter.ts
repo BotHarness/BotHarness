@@ -256,6 +256,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   >();
   readonly #runs = new Map<string, ActiveRun>();
   readonly #stopping = new Set<string>();
+  readonly #stoppedBots = new Set<string>();
   readonly #drafts: ChannelDraftTracker;
   #closed = false;
 
@@ -278,6 +279,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
 
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.#assertOpen();
+    if (this.#stoppedBots.has(run.bot.slug)) throw new Error('PersonaBot is deleted');
     const entry: ActiveRun = { role: 'orchestrator', run };
     this.#runs.set(run.sessionId, entry);
     const access = new Map<string, boolean>();
@@ -301,6 +303,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     try {
       await this.#prepareModelRoute?.(run.bot.slug, 'orchestrator');
       const handle = await this.#orchestratorHandle(run);
+      if (this.#stoppedBots.has(run.bot.slug)) throw new Error('PersonaBot is deleted');
       const selection = this.#orchestratorSelections.get(run.sessionId);
       if (selection !== undefined) {
         selection.current = agentOptions(
@@ -353,6 +356,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
 
   requestAssignment(run: AssignmentAgentRun): AssignmentRequestDelivery {
     this.#assertOpen();
+    if (this.#stoppedBots.has(run.bot.slug)) throw new Error('PersonaBot is deleted');
     const handle = this.#handles.get(run.sessionId);
     const active = this.#runs.get(run.sessionId);
     if (handle !== undefined && active?.role === 'assignment') {
@@ -380,6 +384,30 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     return { delivery: 'followup', accepted, done };
   }
 
+  async stopBot(botSlug: string, sessionIds: string[]): Promise<void> {
+    this.#stoppedBots.add(botSlug);
+    const ids = new Set([
+      ...sessionIds,
+      ...[...this.#runs].filter(([, entry]) => entry.run.bot.slug === botSlug).map(([id]) => id),
+    ]);
+    const agents = [...ids].flatMap((id) => {
+      this.#stopping.add(id);
+      const agent = this.#handles.get(id)?.agent ?? this.#agents.get?.(SessionId(id));
+      if (agent === undefined) return [];
+      agent.cancel({ kind: 'user' });
+      return [agent];
+    });
+    await Promise.all(agents.map((agent) => agent.whenIdle()));
+    for (const id of ids) {
+      const handle = this.#handles.get(id);
+      if (handle === undefined) continue;
+      await handle.dispose();
+      this.#handles.delete(id);
+      this.#orchestratorSelections.delete(id);
+      this.#assignmentSelections.delete(id);
+    }
+  }
+
   async stopAssignment(sessionId: string): Promise<void> {
     this.#stopping.add(sessionId);
     const handle = this.#handles.get(sessionId);
@@ -390,13 +418,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   }
 
   async #driveAssignment(run: AssignmentAgentRun, accepted?: () => void): Promise<void> {
+    if (this.#stoppedBots.has(run.bot.slug)) throw new Error('PersonaBot is deleted');
     const entry: ActiveRun = { role: 'assignment', run, reported: false };
     this.#runs.set(run.sessionId, entry);
     try {
       await this.#prepareModelRoute?.(run.bot.slug, 'assignment', run.modelRoute);
       const handle = await this.#assignmentHandle(run);
       this.#selectAssignmentModel(run);
-      if (this.#stopping.has(run.sessionId))
+      if (this.#stopping.has(run.sessionId) || this.#stoppedBots.has(run.bot.slug))
         throw new Error('Assignment stopped before Inbox acceptance');
       const fromSeq = handle.agent.session.seq;
       try {
@@ -411,7 +440,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       }
       accepted?.();
       await handle.agent.whenIdle();
-      if (this.#stopping.has(run.sessionId)) return;
+      if (this.#stopping.has(run.sessionId) || this.#stoppedBots.has(run.bot.slug)) return;
       const completion = requireCompletedTurn(handle, fromSeq, run.cancelledTurn, run.failedTurn);
       run.completedTurn?.(completion);
       if (run.resume === true) return;

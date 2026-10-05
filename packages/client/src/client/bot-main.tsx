@@ -589,7 +589,10 @@ function ConversationView({
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
   const botDm = isBotDmChannel(channel);
-  const readOnlyDm = isHumanReadOnlyDmChannel(channel);
+  const readOnlyDm =
+    isHumanReadOnlyDmChannel(channel) ||
+    (channel?.type === 'dm' &&
+      state.bots.find((candidate) => candidate.slug === channel.botSlug)?.deleted === true);
   const profileBot =
     channel?.type === 'dm' && channel.botSlug !== undefined
       ? state.bots.find((candidate) => candidate.slug === channel.botSlug)
@@ -1499,7 +1502,9 @@ function ConversationView({
                         : channel?.type === 'dm' && channel.botSlug !== undefined
                           ? state.bots.filter(
                               (candidate) =>
-                                candidate.slug !== channel.botSlug && candidate.paused !== true,
+                                candidate.slug !== channel.botSlug &&
+                                candidate.paused !== true &&
+                                !candidate.deleted,
                             )
                           : []
                     }

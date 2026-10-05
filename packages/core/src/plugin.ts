@@ -23,6 +23,7 @@ import { createBridgeMethods } from './bridge/methods.js';
 import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
+import { createPersonaBotDeletions, type PersonaBotDeletions } from './bots/deletion.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
 import { createModelRouteReadiness } from './models/readiness.js';
@@ -167,6 +168,7 @@ export interface BotHarnessCore {
   rootDir: string;
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
+  deletions: PersonaBotDeletions;
   modelPresets: ModelPresetStore;
 
   contributeBotAgentSetup(contribute: BotAgentSetup): () => void;
@@ -268,11 +270,6 @@ export function createCore(
           options.warn?.('bot-name-publication-failed');
         }
       },
-      onPurge: (slug, removeFiles) => {
-        if (usage === undefined)
-          throw new Error('Usage purge requires a ready operational database');
-        usage.purgeBot(slug, removeFiles);
-      },
       cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
       initializeMemory: (memoryDir) => {
         const repository = ensureMemoryRepository({ memoryDir });
@@ -342,7 +339,7 @@ export function createCore(
       return bot !== undefined && bot.paused !== true;
     },
     attachments,
-    botDisplayName: (botSlug) => registry.get(botSlug)?.displayName,
+    botDisplayName: (botSlug) => registry.getHistorical(botSlug)?.displayName,
     rootDir: join(dshHome, 'botharness', 'channels'),
     onCommitted: (commit) => {
       if (options.onOutputCommitted !== undefined) {
@@ -429,7 +426,7 @@ export function createCore(
       ? createUsageProjection({
           ownership,
           database: operationalDatabase,
-          botCreatedAt: (slug) => registry.get(slug)?.createdAt,
+          botCreatedAt: (slug) => registry.getHistorical(slug)?.createdAt,
         })
       : undefined;
   const grants = createWorkspaceGrantStore({
@@ -486,7 +483,63 @@ export function createCore(
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   if (operationalDatabase.mode === 'ready') runtime.reconcileMemoryChangesOnStartup?.();
+  const deletions = createPersonaBotDeletions({
+    protectedPaths: [dshHome],
+    database: operationalDatabase,
+    registry,
+    dependencies: (slug) => ({
+      sessions: ownership
+        .rootsFor(slug)
+        .flatMap((root) => [
+          root.sessionId,
+          ...ownership.descendantsOf(root.sessionId).map((child) => child.sessionId),
+        ])
+        .sort(),
+      workspaces: grants
+        .list(slug)
+        .filter((grant) => grant.revokedAt === undefined)
+        .map((grant) => grant.workspacePath)
+        .sort(),
+      grants: [
+        ...grants
+          .list(slug)
+          .filter((grant) => grant.revokedAt === undefined)
+          .map((grant) => grant.id),
+        ...toolRules.list(slug).map((rule) => rule.id),
+        ...externalMessaging.deletionDependencies(slug).grants,
+      ].sort(),
+      identities: externalMessaging.deletionDependencies(slug).identities,
+      channels: channels
+        .list()
+        .filter((channel) => channel.members.includes(slug) || channel.botSlug === slug)
+        .map((channel) => channel.id)
+        .sort(),
+    }),
+    allWorkspacePaths: () => [
+      ...(options.workspaces?.()?.list() ?? []).map((workspace) => workspace.path),
+      ...registry
+        .listHistorical()
+        .flatMap((bot) => [
+          ...bot.workspaces,
+          ...grants.list(bot.slug).map((grant) => grant.workspacePath),
+          ...ownership
+            .rootsFor(bot.slug, 'assignment')
+            .flatMap((root) => (root.cwdReference === undefined ? [] : [root.cwdReference])),
+        ]),
+    ],
+    stop: async (slug) => {
+      channels.cancelInvitationsForBot(slug);
+      for (const grant of grants.list(slug))
+        if (grant.revokedAt === undefined) grants.revoke(slug, grant.id);
+      for (const rule of toolRules.list(slug)) toolRules.revoke(slug, rule.id);
+      await runtime?.stopBot?.(slug);
+      await externalMessaging.disableBot(slug);
+    },
+    changed: () => live?.publishRosterCommitted(),
+    log: (event) => options.warn?.(JSON.stringify(event)),
+  });
   return {
+    deletions,
     rootDir,
     operationalDatabase,
     externalMessaging,
@@ -882,6 +935,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     createBridgeMethods({
       warn: (message) => ctx.logger.warn(message),
       registry: core.registry,
+      deletions: core.deletions,
       modelPresets: core.modelPresets,
       modelCatalog,
       modelReadiness,

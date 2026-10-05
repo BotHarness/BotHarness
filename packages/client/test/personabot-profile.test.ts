@@ -226,7 +226,8 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-profile-popover')).toBeNull();
       expect(container.querySelector('.bh-profile-view')).not.toBeNull();
       const sections = container.querySelectorAll('.bh-profile-view > .bh-profile-section');
-      expect(sections.length).toBe(7);
+      expect(sections.length).toBe(8);
+      expect(sections[7]?.getAttribute('aria-label')).toBe('删除 Bot');
       expect(sections[0]?.getAttribute('aria-label')).toBe('活动概览');
       expect(sections[1]?.getAttribute('aria-label')).toBe('模型预设');
       expect(sections[2]?.getAttribute('aria-label')).toBe('连接 Lark / 飞书');

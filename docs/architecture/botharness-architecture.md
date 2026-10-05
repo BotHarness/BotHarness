@@ -489,6 +489,25 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 
 Purge Ledger 是应用定义的 Host 深模块权威，必须单调持久并位于可恢复数据库快照之外。清除先接受 ledger，再幂等应用 Messaging 清除与受管文件清理；中断时已接受的范围不可重新显示、投递或用于新出站效果，文件失败需明确报告尚未清完。#886 必须依赖真实 ledger／checkpoint 实现，不能用空占位代替；恢复在 Messaging 可读前合并并应用 package／destination union，独立离线旧备份只保证其自身 checkpoint。备份包括保留的 deleted-identity 记忆仓库。设计验收不等于运行功能已交付。
 
+### PersonaBot deletion runtime (#896)
+
+Registry stores a terminal identity fence and the reviewed Memory locator in Generation 57.
+Its active queries exclude accepted deletions; historical queries retain identity, ownership,
+Reports, messages and usage attribution. The Human Profile confirmation uses the existing
+Typert/API Gateway and native Host file-opening capability. Memory erasure is unchecked and
+requires a dedicated Git repository, recorded directory identity, and no other retained
+repository or Workspace overlap. Newly created custom repositories can carry the same
+ownership proof; pre-existing custom paths alone cannot establish exclusive ownership.
+
+The deletion owner accepts its durable fence before stopping this Bot's native AgentHandle
+execution tree, revoking its Workspace/tool rules and disabling its Messaging bindings.
+Started native/provider effects retain their actual outcome. Optional filesystem cleanup has
+an explicit accepted intent and incomplete status; retry uses the original directory identity,
+never a newly selected path. It preserves DSH Session Persistence and shared provider accounts.
+A cold Host excludes the tombstone even when cleanup needs repair. Future Profile Backup must
+enumerate historical Registry records and deletion locators and distinguish intentional erasure.
+Channel Content Purge and its restore-safe ledger remain #897.
+
 ## 7 · 关键边界
 
 - 正常运行只认 explicit Session ownership；`cwd` 只可作为迁移/修复提示，不能决定 PersonaBot 身份。

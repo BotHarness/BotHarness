@@ -439,6 +439,7 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
         ? { appearanceUnsupported: true as const }
         : {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
+    ...(record['deleted'] === true ? { deleted: true } : {}),
   };
 }
 

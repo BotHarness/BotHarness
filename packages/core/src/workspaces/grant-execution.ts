@@ -22,6 +22,8 @@ export function grantExecutionDenial(
       ? 'BotHarness Session has no durable owner'
       : undefined;
   }
+  if (core.registry.get(owner.botSlug) === undefined)
+    return 'PersonaBot identity is deleted or unavailable';
   const delegatedSubagent = owner.provenance === 'subagent';
   const seen = new Set<string>();
   while (owner.parentSessionId !== undefined) {

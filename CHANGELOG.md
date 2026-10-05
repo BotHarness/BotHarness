@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Breaking Changes
 
+- PersonaBot deletion adds Profile schema Generation 57; back up before upgrading and repair forward instead of rolling back only code. Direct Registry `remove`/`purge` calls now refuse: use the confirmed deletion owner, which retains identity and usage history ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
+
 - Callers of the exported `createRosterStore` factory or `RosterStore` constructor must pass the Profile `OperationalDatabaseOwner` as `database`; `attach` only imports the legacy domain once and command/query contracts remain unchanged ([#885](https://github.com/BotHarness/BotHarness/issues/885)).
 
 - Callers of the exported `createPersonaBotRegistry` factory must pass the Profile `OperationalDatabaseOwner` as `database`; Registry commands and queries retain their interfaces, and implicit JSON-backed construction is removed ([#884](https://github.com/BotHarness/BotHarness/issues/884)).
@@ -20,6 +22,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Custom `BotAgentAdapter` implementations must return `{ outputLimit, contacts, nextCursor? }` from Orchestrator `channels.contacts(input?)`, with stable IDs under `botId` instead of `slug`; the `list_bot_contacts` Tool now returns that bounded page, so consumers must follow continuation ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
 
 ### Added
+
+- Human can delete a PersonaBot from Profile while retaining Memory by default, explicitly erase a verified exclusive repository, open its Host folder, and inspect/retry incomplete cleanup; deletion retains history and terminally fences the original identity ([#896](https://github.com/BotHarness/BotHarness/issues/896)).
 
 - Added a personal WeChat paired-owner text path into the existing Bot Inbox and own-identity reply, with explicit DM authorization and private source continuations; source and locally installed product exchanges are verified and Human QA approved ([#878](https://github.com/BotHarness/BotHarness/issues/878), [ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md), [connection guide](docs/wechat-connection.md)).
 
