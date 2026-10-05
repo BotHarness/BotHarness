@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Mix the voice-over cues over the BGM: node scripts/mix-voiceover.mjs <lang> <bgm.wav> <out.wav>
 // Each cue is loudness-normalised so different voices sit at the same level, then placed at its `at` second.
-// While someone speaks, the BGM dips by 5 dB with smooth raised-cosine ramps in and out. Output is stereo.
+// While someone speaks, the BGM dips (zh 8 dB, en 5 dB) with smooth raised-cosine ramps in and out. Output is stereo.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,13 +9,14 @@ import { fileURLToPath } from 'node:url';
 
 const RATE = 44100;
 const MUSIC_GAIN = 0.8; // BGM level with nobody speaking
-const DUCK_GAIN = 10 ** (-5 / 20); // relative level under speech: -5 dB
 const RAMP_IN = 0.45; // seconds of fade down, ending at the first word
 const RAMP_OUT = 0.9; // seconds of fade back up after the last word
 const BRIDGE = 1.2; // gaps shorter than this stay ducked instead of bouncing
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [lang, bgm, out] = process.argv.slice(2);
+const DUCK_DB = lang === 'zh' ? -8 : -5; // under speech; the zh song has sung lyrics, so it dips further
+const DUCK_GAIN = 10 ** (DUCK_DB / 20);
 const FILM_SECONDS = Number(new RegExp(`FILM_FRAMES = \\{[^}]*${lang}: (\\d+)`).exec(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))[1]) / 60; // film length per language, read from the film
 const { cues } = JSON.parse(fs.readFileSync(path.join(root, 'voiceover/script.json'), 'utf8'));
 const decode = (file, filter = 'anull', channels = 1) =>

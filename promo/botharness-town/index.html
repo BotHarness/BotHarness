@@ -61,13 +61,13 @@ const STR = {
   eco2: { zh: '每个 Bot 的记忆都是 Git。当成百上千个有记忆的 bots 生活在一起……', en: "Every bot's memory is Git. When hundreds of bots with memories live together..." },
   eco3: { zh: '就像「斯坦福小镇」实验那样，会长出什么样的故事？', en: "...like the Stanford 'Generative Agents' town, what stories will grow?" },
   wall1: { zh: '每个 Bot，都能长成独一无二的样子。', en: 'Every bot can grow into a look of its own.' },
-  marketPlanned: { zh: 'Bot Marketplace，正在规划中。', en: 'The Bot Marketplace is on its way.' },
+  marketPlanned: { zh: '通过 Git 和 GitHub，就能分享 Bot 的记忆。', en: "Share a bot's memory through Git and GitHub." },
   world0: { zh: '主厨 Mira', en: 'Chef Mira' },
   world1: { zh: '领航员 Mira', en: 'Navigator Mira' },
   world2: { zh: '宫廷学者 Mira', en: 'Court scholar Mira' },
   world3: { zh: '老师 Mira', en: 'Teacher Mira' },
   connect1: { zh: '连接器：让你的 bot 用自己的身份，出现在团队常用的地方。', en: 'Connectors let your bots show up where your team already talks, under their own identities.' },
-  connect2: { zh: 'Lark / 飞书、Slack 已经接通；Discord、微信和 QQ 正在规划中。', en: 'Lark and Slack are connected; Discord, WeChat and QQ are planned.' },
+  connect2: { zh: 'Lark / 飞书、Slack、Discord 和微信，都已经接通。', en: 'Lark, Slack, Discord and WeChat are all connected.' },
   lark1: { zh: '把 Lark 群接进 Group：明确授权，按群开关收件。', en: 'Bring a Lark group into a Group: explicit authorization, intake switched per group.' },
   lark2: { zh: '每个成员 Bot 用自己的身份收件和回复，发言身份与收件路径分开管理。', en: 'Each member bot receives and replies as itself; speaking identity and intake routes are managed separately.' },
   slack1: { zh: 'Slack 也一样：每个 Bot 绑定独立的 Slack 身份。', en: 'Slack works the same way: every bot binds its own Slack identity.' },
@@ -629,7 +629,7 @@ const shedTex = canvasTex(78, 60, (ctx) => {
 place(sprite(shadowTex(76)), SHED.x, SHED.y - 1, 1);
 place(sprite(shedTex), SHED.x, SHED.y);
 
-// market stall + git crate (Marketplace is planned)
+// market stall + git crate: memories shared through Git and GitHub
 const marketTex = canvasTex(66, 54, (ctx) => {
   rect(ctx, 6, 18, 3, 36, INK); rect(ctx, 57, 18, 3, 36, INK);
   rect(ctx, 7, 18, 1, 36, PAL.woodLight); rect(ctx, 58, 18, 1, 36, PAL.woodLight);
@@ -669,16 +669,16 @@ const crateOpenTex = canvasTex(22, 18, (ctx) => {
 const marketSign = sprite(plannedSignTex);
 marketSign.scale.set(0.5, 0.5, 1);
 place(marketSign, MARKET.x + 44, MARKET.y - 2);
+marketSign.visible = false;
 const crateMesh = sprite(crateTex);
 place(crateMesh, MARKET.x - 2, MARKET.y - 30);
 
-// connector tower: three flagpoles (Discord is planned)
+// connector tower: one flagpole per connected platform
 const PLATFORMS = [
   { id: 'lark', label: 'LARK', color: PAL.lark, x: TOWER.x - 34 },
   { id: 'slack', label: 'SLACK', color: PAL.slack, x: TOWER.x },
-  { id: 'discord', label: 'DISCORD', color: PAL.discord, x: TOWER.x + 34, planned: true },
-  { id: 'wechat', label: 'WECHAT', color: '#07c160', x: TOWER.x - 68, planned: true },
-  { id: 'qq', label: 'QQ', color: '#12b7f5', x: TOWER.x + 68, planned: true },
+  { id: 'discord', label: 'DISCORD', color: PAL.discord, x: TOWER.x + 34 },
+  { id: 'wechat', label: 'WECHAT', color: '#07c160', x: TOWER.x - 68 },
 ];
 const towerTex = canvasTex(40, 70, (ctx) => {
   for (let y = 10; y < 70; y++) {
@@ -1309,7 +1309,7 @@ const connMesh = hudSprite(connGraph, 17, 0, 0);
 const connFaces = CAST.map((c) => hudSprite(c.tex.front, 18, 0.5, 0.5));
 const connMail = Array.from({ length: 15 }, () => hudSprite(letterTexes.lark, 19, 0.5, 0.5));
 const connChips = [0, 1, 2].map(() => hudSprite({ tex: plannedChip.material.map, w: 72, h: 26 }, 19, 0, 0.5));
-const CONN = { hub: [124, 118], bots: [[40, 148], [40, 118], [40, 88]], plats: [[226, 168, 'lark', 'LARK'], [226, 143, 'slack', 'SLACK'], [226, 118, 'discord', 'DISCORD'], [226, 93, 'wechat', 'WECHAT'], [226, 68, 'qq', 'QQ']] };
+const CONN = { hub: [124, 118], bots: [[40, 148], [40, 118], [40, 88]], plats: [[226, 163, 'lark', 'LARK'], [226, 135, 'slack', 'SLACK'], [226, 107, 'discord', 'DISCORD'], [226, 79, 'wechat', 'WECHAT']] };
 function connPath(bot, plat, u) {
   const [bx, by] = CONN.bots[bot];
   const [hx, hy] = CONN.hub;
@@ -1339,7 +1339,7 @@ function renderConnGraph(f) {
     }
   };
   CONN.bots.forEach((_, b) => lineTo((u) => connPath(b, 1, u * 0.45), '#fff2a0'));
-  CONN.plats.forEach((p, i) => lineTo((u) => connPath(1, i, 0.45 + u * 0.55), [PAL.lark, '#e01e5a', PAL.discord, '#07c160', '#12b7f5'][i]));
+  CONN.plats.forEach((p, i) => lineTo((u) => connPath(1, i, 0.45 + u * 0.55), [PAL.lark, '#e01e5a', PAL.discord, '#07c160'][i]));
   // hub
   const [hx, hy] = CONN.hub;
   box(ctx, hx - 20, Y(hy) - 8, 40, 16, '#241f30', '#fff2a0');
@@ -1355,8 +1355,8 @@ function renderConnGraph(f) {
   connFaces.forEach((m, i) => { m.position.set(CONN.bots[i][0], CONN.bots[i][1], 0); m.scale.set(0.8, 0.8, 1); m.material.opacity = k; });
   if (f >= 2260) {
     connMail.forEach((m, i) => {
-      const plat = i % 5;
-      const bot = Math.floor(i / 5) % 3;
+      const plat = i % CONN.plats.length;
+      const bot = Math.floor(i / CONN.plats.length) % 3;
       const u = (((f - 2260) / 150 + i / 15) % 1);
       const [x, y] = connPath(bot, plat, u);
       m.visible = true;
@@ -1364,12 +1364,6 @@ function renderConnGraph(f) {
       m.geometry = geometry(28, 18, 0.5, 0.5);
       m.position.set(Math.round(x), Math.round(y), 0);
       m.scale.set(0.6, 0.6, 1);
-    });
-    [2, 3, 4].forEach((pi, k) => {
-      const [px, py, , label] = CONN.plats[pi];
-      connChips[k].visible = true;
-      connChips[k].position.set(px + 15 + textWidth(label) + 4, py, 0);
-      connChips[k].scale.set(0.5, 0.5, 1);
     });
   }
 }
@@ -2150,7 +2144,6 @@ function renderMarket(m) {
     [1850, NARRATOR, T('merge2')],
     [2030, NARRATOR, T('marketPlanned')],
   ]);
-  if (m >= 1230 || m < 200) { plannedChip.visible = true; plannedChip.position.set(6 + 252 - 40, 3 + DIALOG_H - 2, 0); }
   if (m >= 380) {
     renderer.setClearColor('#1b1820');
     renderer.clear();
@@ -2175,8 +2168,8 @@ const eco = {
 eco.bgMesh = hudPlane(ecoHud, eco.bg, 1);
 const ECO_NODES = [
   { key: 'CREATE', a: Math.PI * 0.75 },
-  { key: 'PUBLISH', a: Math.PI * 0.25, planned: true },
-  { key: 'IMPORT', a: -Math.PI * 0.25, planned: true },
+  { key: 'PUBLISH', a: Math.PI * 0.25 },
+  { key: 'IMPORT', a: -Math.PI * 0.25 },
   { key: 'LIVE TOGETHER', a: -Math.PI * 0.75 },
 ];
 const ECO_C = { x: 160, y: 108, rx: 92, ry: 46 };
@@ -2872,37 +2865,24 @@ const streetY = (u) => {
   return lerp(streetGround[i], streetGround[Math.min(STREET_SAMPLES, i + 1)], x - i);
 };
 const AERIAL = { yaw: (205 * Math.PI) / 180, pitch: (48 * Math.PI) / 180, dist: 720 };
-// fixed god's-eye view over the town centre: the diorama holds still and only the paper puppets move
-const GOD = { yaw: (205 * Math.PI) / 180, pitch: (56 * Math.PI) / 180, dist: 370, look: [0, 0, 24] };
 function voxelCamera(c) {
-  const centre = new THREE.Vector3(GOD.look[0], top(C, C) * VX.S + GOD.look[1], GOD.look[2]);
-  const pos = new THREE.Vector3(Math.cos(GOD.pitch) * Math.sin(GOD.yaw) * GOD.dist, Math.sin(GOD.pitch) * GOD.dist, Math.cos(GOD.pitch) * Math.cos(GOD.yaw) * GOD.dist).add(centre);
-  return { pos, look: centre, dist: GOD.dist };
-}
-// 2.5D paper puppets in the diorama: the sprite becomes a sticker on a stick planted in the ground
-const VX_PUPPET_SCALE = 0.5;
-function puppetBoardInto(mesh, src, into = null) {
-  const st = stickerCanvas(src, 64, 64, { into: into?.st ?? null });
-  const out = into ?? { st, tex: canvasTex(st.w, st.h + 24) };
-  const { ctx } = out.tex;
-  ctx.clearRect(0, 0, st.w, st.h + 24);
-  const sx = Math.floor(st.w / 2) - 2;
-  ['#5a3a1e', '#c08850', '#8a5a2b', '#5a3a1e'].forEach((col, i) => rect(ctx, sx + i, st.h - 8, 1, 32, col));
-  ctx.drawImage(st.canvas, 0, 0);
-  out.tex.tex.needsUpdate = true;
-  if (mesh.material.map !== out.tex.tex) {
-    mesh.material.map = out.tex.tex;
-    mesh.material.needsUpdate = true;
-    mesh.geometry = new THREE.PlaneGeometry(out.tex.w, out.tex.h).translate(0, out.tex.h / 2, 0);
-    mesh.scale.setScalar(VX_PUPPET_SCALE);
-  }
-  return out;
-}
-let vxPuppets = false;
-function makeVoxelPuppets() {
-  vxPuppets = true;
-  for (const w of VX.walkers) puppetBoardInto(w.mesh, w.mesh.material.map.image);
-  for (const st of VX.stationed) puppetBoardInto(st.mesh, st.mesh.material.map.image);
+  // ease in and out of the walk so speed never jumps
+  const walk = ease(clamp(c / 600, 0, 1)) * 0.6 + clamp(c / 600, 0, 1) * 0.4;
+  const u = 0.02 + walk * 0.88;
+  const p = streetCurve.getPointAt(u);
+  // look target: average of several points ahead, so curve corners turn the view gently
+  const look0 = new THREE.Vector3();
+  for (let k = 1; k <= 6; k++) look0.add(streetCurve.getPointAt(Math.min(1, u + k * 0.015)));
+  look0.multiplyScalar(1 / 6);
+  const street = { pos: new THREE.Vector3(p.x, streetY(u) + EYE, p.z), look: new THREE.Vector3(look0.x, streetY(Math.min(1, u + 0.05)) + EYE - 4, look0.z) };
+  const centre = new THREE.Vector3(0, top(C, C) * VX.S, 0);
+  const crane = ease(span(c, 560, 920));
+  const orbit = AERIAL.yaw + span(c, 560, 1080) * 0.35;
+  const aerialPos = new THREE.Vector3(Math.cos(AERIAL.pitch) * Math.sin(orbit) * AERIAL.dist, centre.y + Math.sin(AERIAL.pitch) * AERIAL.dist, Math.cos(AERIAL.pitch) * Math.cos(orbit) * AERIAL.dist);
+  const pos = street.pos.clone().lerp(aerialPos, crane);
+  pos.y = lerp(street.pos.y, aerialPos.y, ease(span(c, 560, 940)) ** 1.4);
+  const look = street.look.clone().lerp(centre, ease(span(c, 540, 860)));
+  return { pos, look, dist: lerp(60, AERIAL.dist, crane) };
 }
 function renderVoxel(c, { narration = true } = {}) {
   const cam = VX.cam;
@@ -2922,17 +2902,13 @@ function renderVoxel(c, { narration = true } = {}) {
     m.scale.setScalar(0.8 + t / 70);
   }));
   // walkers
-  if (!vxPuppets) makeVoxelPuppets();
-  const cs = smT(c); // stop-motion time: puppets move in held poses
-  const jig = (m, k) => { m.rotation.z = (hash(smStep(c), k, 5) - 0.5) * 0.1; };
   VX.walkers.forEach((w, i) => {
-    const [bx, bz] = roadPoint(w.road, w.u + cs * w.speed * 2.2);
+    const [bx, bz] = roadPoint(w.road, w.u + c * w.speed);
     const [x, z] = W(bx + w.side, bz + w.side * 0.5);
-    w.mesh.position.set(x, top(Math.round(bx), Math.round(bz)) * VX.S + ((smStep(c) + i) % 2 ? 2 : 0), z);
-    jig(w.mesh, i);
+    w.mesh.position.set(x, top(Math.round(bx), Math.round(bz)) * VX.S + Math.abs(Math.sin(c * 0.3 + i)) * 1.5, z);
     w.bx = bx; w.bz = bz;
   });
-  VX.stationed.forEach((s, k) => { s.mesh.position.y = top(s.bx, s.bz) * VX.S + ((cs + k * 12) % 48 < 12 ? 2 : 0); jig(s.mesh, 60 + k); });
+  VX.stationed.forEach((s, k) => { s.mesh.position.y = top(s.bx, s.bz) * VX.S + ((c + k * 11) % 50 < 6 ? 1.5 : 0); });
   // animals
   VX.animals.forEach((a, i) => {
     let bx, bz, heading;
@@ -2958,13 +2934,12 @@ function renderVoxel(c, { narration = true } = {}) {
   const states = [['read', 'search'], ['todo', 'write'], ['bash', 'edit']];
   VX.cast.forEach((cc, i) => {
     if (!MORPH) return;
-    const cyc = (cs + i * 40) % 240;
-    const sym = states[i][Math.floor((cs + i * 40) / 240) % 2];
+    const cyc = (c + i * 40) % 240;
+    const sym = states[i][Math.floor((c + i * 40) / 240) % 2];
     const cells = cyc < 40 ? morphCells(cc.c.id, 'face', sym, cyc / 40) : cyc < 100 ? morphCells(cc.c.id, sym, sym, 1) : cyc < 140 ? morphCells(cc.c.id, sym, 'face', (cyc - 100) / 40) : MORPH[cc.c.id].face;
     paintCells(cc.live, cells, null);
-    cc.puppet = puppetBoardInto(cc.mesh, cc.live.canvas, cc.puppet);
-    cc.mesh.position.y = top(cc.bx, cc.bz) * VX.S + ((cs + i * 8) % 32 < 8 ? 2 : 0);
-    jig(cc.mesh, 90 + i);
+    cc.mesh.material.map = cc.live.tex;
+    cc.mesh.position.y = top(cc.bx, cc.bz) * VX.S + ((c + i * 9) % 40 < 6 ? 1.5 : 0);
   });
   cam.updateProjectionMatrix();
   renderer.setClearColor('#9fd4f2');
@@ -3271,9 +3246,9 @@ function placeMascot(f) {
     mascot.material.needsUpdate = true;
     mascot.geometry = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0); // pivot at the hand holding the stick
   }
-  const s = smStep(f);
-  mascot.position.set(290 + Math.round((hash(s, 9, 3) - 0.5) * 2), -34 + (s % 4 < 2 ? 0 : 2), 0);
-  mascot.rotation.z = (hash(s, 9, 5) - 0.5) * 0.08 + Math.sin(s * 0.7) * 0.05;
+  const s = Math.floor(f / 18); // hold each pose longer than the stage puppets: the narrator stays calm
+  mascot.position.set(290, -34 + (s % 2), 0);
+  mascot.rotation.z = (hash(s, 9, 5) - 0.5) * 0.025;
   mascot.scale.set(mascotPuppetTex.w, mascotPuppetTex.h, 1);
 }
 
