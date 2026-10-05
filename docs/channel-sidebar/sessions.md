@@ -6,7 +6,7 @@ Open **Bot DM → Channel sidebar → Sessions**. The list contains this Persona
 
 1. Expand **Sessions** and choose a row.
 2. DSH opens the native Session. Inspect its conversation, trajectory, tool results, model selector and permission controls there.
-3. Click the Bot-labelled **Return to … DM** control in the native header to return to the Bot chat.
+3. Click the Bot-labelled **Back to …** control in the native header to return to the Bot chat.
 
 ![A Bot’s real Orchestrator Session in the sidebar](/guides/channel-sidebar/04-sessions-zh.webp)
 
