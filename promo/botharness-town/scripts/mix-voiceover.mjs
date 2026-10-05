@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Mix the voice-over cues over the BGM: node scripts/mix-voiceover.mjs <lang> <bgm.wav> <out.wav>
 // Each cue is loudness-normalised so different voices sit at the same level, then placed at its `at` second.
-// While someone speaks, the BGM dips gently (about -4 dB) with smooth raised-cosine ramps in and out.
+// While someone speaks, the BGM dips by 5 dB with smooth raised-cosine ramps in and out. Output is stereo.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const RATE = 44100;
 const FILM_SECONDS = 11640 / 60;
 const MUSIC_GAIN = 0.8; // BGM level with nobody speaking
-const DUCK_GAIN = 0.63; // relative level under speech (~ -4 dB)
+const DUCK_GAIN = 10 ** (-5 / 20); // relative level under speech: -5 dB
 const RAMP_IN = 0.45; // seconds of fade down, ending at the first word
 const RAMP_OUT = 0.9; // seconds of fade back up after the last word
 const BRIDGE = 1.2; // gaps shorter than this stay ducked instead of bouncing
@@ -18,11 +18,11 @@ const BRIDGE = 1.2; // gaps shorter than this stay ducked instead of bouncing
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const [lang, bgm, out] = process.argv.slice(2);
 const { cues } = JSON.parse(fs.readFileSync(path.join(root, 'voiceover/script.json'), 'utf8'));
-const decode = (file, filter = 'anull') =>
-  new Float32Array(new Uint8Array(execFileSync('ffmpeg', ['-loglevel', 'error', '-i', file, '-af', filter, '-ac', '1', '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 1 << 30 })).buffer);
+const decode = (file, filter = 'anull', channels = 1) =>
+  new Float32Array(new Uint8Array(execFileSync('ffmpeg', ['-loglevel', 'error', '-i', file, '-af', filter, '-ac', String(channels), '-ar', String(RATE), '-f', 'f32le', '-'], { maxBuffer: 1 << 30 })).buffer);
 
 const total = Math.round(FILM_SECONDS * RATE);
-const music = decode(bgm);
+const music = decode(bgm, 'anull', 2); // interleaved L/R
 const voice = new Float32Array(total);
 const spans = [];
 for (const c of cues) {
@@ -48,16 +48,18 @@ const duckAt = (t) => {
   }
   return d;
 };
-const mix = new Int16Array(total);
+const mix = new Int16Array(total * 2);
 for (let i = 0; i < total; i++) {
   const t = i / RATE;
   const g = MUSIC_GAIN * (1 - (1 - DUCK_GAIN) * duckAt(t));
-  const v = (music[i] ?? 0) * g + voice[i] * 1.05;
-  mix[i] = Math.round(Math.tanh(v * 1.05) * 0.95 * 32767);
+  for (let c = 0; c < 2; c++) {
+    const v = (music[i * 2 + c] ?? 0) * g + voice[i] * 1.05;
+    mix[i * 2 + c] = Math.round(Math.tanh(v * 1.05) * 0.95 * 32767);
+  }
 }
 const header = Buffer.alloc(44);
 header.write('RIFF', 0); header.writeUInt32LE(36 + mix.length * 2, 4); header.write('WAVE', 8); header.write('fmt ', 12);
-header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22); header.writeUInt32LE(RATE, 24);
-header.writeUInt32LE(RATE * 2, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(mix.length * 2, 40);
+header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(2, 22); header.writeUInt32LE(RATE, 24);
+header.writeUInt32LE(RATE * 4, 28); header.writeUInt16LE(4, 32); header.writeUInt16LE(16, 34); header.write('data', 36); header.writeUInt32LE(mix.length * 2, 40);
 fs.writeFileSync(out, Buffer.concat([header, Buffer.from(mix.buffer)]));
 console.log('mixed', out, `${merged.length} speech spans`);
