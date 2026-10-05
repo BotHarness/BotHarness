@@ -316,7 +316,7 @@ describe('roster store', () => {
     expect(storedWriteCount(store)).toBe(sets);
   });
 
-  it('closes the domain on detach and rejects writes afterwards', async () => {
+  it('disables roster commands after detach while the imported source stays closed', async () => {
     const fake = createFakeRosterDomain();
     const store = createTestRosterStore();
     await store.attach(fake.facility);
