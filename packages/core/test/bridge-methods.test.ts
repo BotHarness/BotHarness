@@ -1,3 +1,4 @@
+import { createTestRosterStore } from './roster-fixture.js';
 import { createTestRegistry } from './registry-fixture.js';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,7 +15,6 @@ import type { UsageProjection } from '../src/usage/usage.js';
 import { createModelPresetStore } from '../src/models/presets.js';
 import type { ModelCatalog } from '../src/models/catalog.js';
 import { createModelRouteReadiness } from '../src/models/readiness.js';
-import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
@@ -82,7 +82,7 @@ function setup(
       channels,
       attachments,
       ownership,
-      roster: createRosterStore(),
+      roster: createTestRosterStore(),
       ...(grants === undefined ? {} : { grants }),
       ...(memory === undefined ? {} : { memory }),
       ...(usage === undefined ? {} : { usage }),
@@ -256,7 +256,7 @@ describe('bridge methods', () => {
         states: h.states,
         channels: h.channels,
         ownership: createTestOwnership(),
-        roster: createRosterStore(),
+        roster: createTestRosterStore(),
         browserProfile: { changed },
       });
       expect(methods.browserProfileSet({ slug: 'ada', profile })).toMatchObject({

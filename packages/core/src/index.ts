@@ -29,7 +29,12 @@ export {
   RosterUnavailableError,
   RosterUnknownSectionError,
 } from './roster/store.js';
-export type { RosterDomainFacility, RosterSection, RosterSnapshot } from './roster/store.js';
+export type {
+  RosterDomainFacility,
+  RosterSection,
+  RosterSnapshot,
+  RosterStoreOptions,
+} from './roster/store.js';
 export { rosterDomainSpec, rosterDomainState, rosterSectionRecord } from './roster/spec.js';
 export type { RosterDomainState, RosterSectionRecord } from './roster/spec.js';
 export { createPersonaBotRegistry } from './bots/registry.js';

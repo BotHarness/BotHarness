@@ -1,11 +1,9 @@
+import { storedState, storedSection, storedWriteCount } from './roster-fixture.js';
+import { createTestRosterStore } from './roster-fixture.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import { rosterDomainSpec, rosterDomainState, rosterSectionRecord } from '../src/roster/spec.js';
-import {
-  createRosterStore,
-  RosterUnavailableError,
-  RosterUnknownSectionError,
-} from '../src/roster/store.js';
+import { RosterUnavailableError, RosterUnknownSectionError } from '../src/roster/store.js';
 import { createFakeRosterDomain } from './roster-fixture.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -41,7 +39,7 @@ describe('roster domain spec', () => {
 describe('roster store', () => {
   it('reports storage-unavailable for reads and writes and warns once without a domain', async () => {
     const warn = vi.fn();
-    const store = createRosterStore({ warn });
+    const store = createTestRosterStore({ warn });
 
     expect(store.available).toBe(false);
     expect(() => store.snapshot()).toThrow(RosterUnavailableError);
@@ -55,8 +53,11 @@ describe('roster store', () => {
   it('notifies subscribers only after a roster write settles', async () => {
     const fake = createFakeRosterDomain();
     const snapshots: string[][] = [];
-    const store = createRosterStore({ onCommitted: () => snapshots.push(store.snapshot().pins) });
+    const store = createTestRosterStore({
+      onCommitted: () => snapshots.push(store.snapshot().pins),
+    });
     await store.attach(fake.facility);
+    snapshots.length = 0;
     await store.pinsSet(['channel-a']);
     expect(snapshots).toEqual([['channel-a']]);
     await expect(store.channelAssign('channel-a', 'missing')).rejects.toBeInstanceOf(
@@ -67,7 +68,7 @@ describe('roster store', () => {
 
   it('creates a host-generated id and prepends the section to the order', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
 
     const first = await store.sectionCreate('研究');
@@ -75,8 +76,8 @@ describe('roster store', () => {
 
     expect(first.id).toMatch(UUID_RE);
     expect(first.id).not.toMatch(/^section-/);
-    expect(fake.records.get(first.id)).toEqual({ name: '研究', channelIds: [] });
-    expect(fake.state()).toEqual({ pins: [], sectionOrder: [second.id, first.id] });
+    expect(storedSection(store, first.id)).toEqual({ name: '研究', channelIds: [] });
+    expect(storedState(store)).toEqual({ pins: [], sectionOrder: [second.id, first.id] });
     expect(store.snapshot()).toEqual({
       pins: [],
       hidden: [],
@@ -91,17 +92,17 @@ describe('roster store', () => {
 
   it('renames a section, skips an unchanged name, and rejects unknown ids', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
     const section = await store.sectionCreate('旧名');
 
     const renamed = await store.sectionRename(section.id, '新名');
     expect(renamed).toEqual({ id: section.id, name: '新名', channelIds: [] });
-    expect(fake.records.get(section.id)?.name).toBe('新名');
+    expect(storedSection(store, section.id)?.name).toBe('新名');
 
-    const puts = fake.putCount();
+    const puts = storedWriteCount(store);
     await store.sectionRename(section.id, '新名');
-    expect(fake.putCount()).toBe(puts);
+    expect(storedWriteCount(store)).toBe(puts);
 
     await expect(store.sectionRename('missing', 'X')).rejects.toBeInstanceOf(
       RosterUnknownSectionError,
@@ -110,7 +111,7 @@ describe('roster store', () => {
 
   it('removes a section and its order slot while leaving other sections intact', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
     const first = await store.sectionCreate('A');
     const second = await store.sectionCreate('B');
@@ -119,14 +120,14 @@ describe('roster store', () => {
 
     await expect(store.sectionRemove(first.id)).resolves.toBe(true);
     expect(await store.sectionRemove(first.id)).toBe(false);
-    expect(fake.records.has(first.id)).toBe(false);
-    expect(fake.state()).toEqual({ pins: [], sectionOrder: [second.id] });
+    expect(storedSection(store, first.id) !== undefined).toBe(false);
+    expect(storedState(store)).toEqual({ pins: [], sectionOrder: [second.id] });
     expect(store.snapshot().sections).toEqual([{ id: second.id, name: 'B', channelIds: ['c2'] }]);
   });
 
   it('assigns a channel once, moving it out of its previous section', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
     const first = await store.sectionCreate('A');
     const second = await store.sectionCreate('B');
@@ -134,20 +135,20 @@ describe('roster store', () => {
 
     await store.channelAssign('c1', second.id);
 
-    expect(fake.records.get(first.id)?.channelIds).toEqual([]);
-    expect(fake.records.get(second.id)?.channelIds).toEqual(['c1']);
+    expect(storedSection(store, first.id)?.channelIds).toEqual([]);
+    expect(storedSection(store, second.id)?.channelIds).toEqual(['c1']);
 
     await store.channelAssign('c1', undefined);
-    expect(fake.records.get(second.id)?.channelIds).toEqual([]);
+    expect(storedSection(store, second.id)?.channelIds).toEqual([]);
 
-    const puts = fake.putCount();
+    const puts = storedWriteCount(store);
     await store.channelAssign('c1', undefined);
-    expect(fake.putCount()).toBe(puts);
+    expect(storedWriteCount(store)).toBe(puts);
   });
 
   it('positions an assigned channel at the requested index', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
     const section = await store.sectionCreate('A');
     await store.channelAssign('c1', section.id);
@@ -156,7 +157,7 @@ describe('roster store', () => {
 
     await store.channelAssign('c3', section.id, 0);
 
-    expect(fake.records.get(section.id)?.channelIds).toEqual(['c3', 'c1', 'c2']);
+    expect(storedSection(store, section.id)?.channelIds).toEqual(['c3', 'c1', 'c2']);
     await expect(store.channelAssign('c1', 'missing')).rejects.toBeInstanceOf(
       RosterUnknownSectionError,
     );
@@ -164,7 +165,7 @@ describe('roster store', () => {
 
   it('reorders known section ids and keeps omitted ids after them', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
     const first = await store.sectionCreate('A');
     const second = await store.sectionCreate('B');
@@ -175,24 +176,24 @@ describe('roster store', () => {
       first.id,
       second.id,
     ]);
-    expect(fake.state().sectionOrder).toEqual([third.id, first.id, second.id]);
+    expect(storedState(store).sectionOrder).toEqual([third.id, first.id, second.id]);
 
-    const sets = fake.setCount();
+    const sets = storedWriteCount(store);
     await store.sectionReorder([third.id, first.id, second.id]);
-    expect(fake.setCount()).toBe(sets);
+    expect(storedWriteCount(store)).toBe(sets);
   });
 
   it('sets pins with duplicates dropped and writes only on change', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
 
     await expect(store.pinsSet(['ada', 'ada', '', 'scout'])).resolves.toEqual(['ada', 'scout']);
-    expect(fake.state().pins).toEqual(['ada', 'scout']);
+    expect(storedState(store).pins).toEqual(['ada', 'scout']);
 
-    const sets = fake.setCount();
+    const sets = storedWriteCount(store);
     await store.pinsSet(['ada', 'scout']);
-    expect(fake.setCount()).toBe(sets);
+    expect(storedWriteCount(store)).toBe(sets);
   });
 
   it('applies pin, unpin, and hide batches with one write and notification each', async () => {
@@ -200,30 +201,31 @@ describe('roster store', () => {
       state: { pins: ['legacy-bot'], sectionOrder: [], topOrder: [] },
     });
     const onCommitted = vi.fn();
-    const store = createRosterStore({ onCommitted });
+    const store = createTestRosterStore({ onCommitted });
     await store.attach(fake.facility);
+    onCommitted.mockClear();
 
     const pinned = await store.applyBatch({ action: 'pin', channelIds: ['c1', 'c2'] }, (pin) =>
       pin === 'legacy-bot' ? 'dm-legacy-bot' : pin,
     );
     expect(pinned.pins).toEqual(['dm-legacy-bot', 'c1', 'c2']);
-    expect(fake.setCount()).toBe(1);
+    expect(storedWriteCount(store)).toBe(1);
     expect(onCommitted).toHaveBeenCalledTimes(1);
 
     const unpinned = await store.applyBatch({ action: 'unpin', channelIds: ['c1', 'c2'] });
     expect(unpinned.pins).toEqual(['dm-legacy-bot']);
-    expect(fake.setCount()).toBe(2);
+    expect(storedWriteCount(store)).toBe(2);
     expect(onCommitted).toHaveBeenCalledTimes(2);
 
     const hidden = await store.applyBatch({ action: 'hide', channelIds: ['c1', 'c2'] });
     expect(hidden.hidden).toEqual(['c1', 'c2']);
-    expect(fake.setCount()).toBe(3);
+    expect(storedWriteCount(store)).toBe(3);
     expect(onCommitted).toHaveBeenCalledTimes(3);
 
     const maxIds = Array.from({ length: 100 }, (_, index) => `bulk-${index}`);
     const fullBatch = await store.applyBatch({ action: 'pin', channelIds: maxIds });
     expect(fullBatch.pins).toHaveLength(101);
-    expect(fake.setCount()).toBe(4);
+    expect(storedWriteCount(store)).toBe(4);
     expect(onCommitted).toHaveBeenCalledTimes(4);
 
     await expect(
@@ -232,7 +234,7 @@ describe('roster store', () => {
         channelIds: Array.from({ length: 101 }, (_, index) => `c${index}`),
       }),
     ).rejects.toBeInstanceOf(RangeError);
-    expect(fake.setCount()).toBe(4);
+    expect(storedWriteCount(store)).toBe(4);
     expect(onCommitted).toHaveBeenCalledTimes(4);
   });
 
@@ -253,8 +255,9 @@ describe('roster store', () => {
       },
     });
     const onCommitted = vi.fn();
-    const store = createRosterStore({ onCommitted });
+    const store = createTestRosterStore({ onCommitted });
     await store.attach(fake.facility);
+    onCommitted.mockClear();
 
     const grouped = await store.applyBatch({
       action: 'move',
@@ -266,8 +269,7 @@ describe('roster store', () => {
       { id: 's1', name: 'Source', channelIds: ['c5'] },
       { id: 's2', name: 'Target', channelIds: ['c3', 'c1', 'c2'] },
     ]);
-    expect(fake.putCount()).toBe(2);
-    expect(fake.setCount()).toBe(1);
+    expect(storedWriteCount(store)).toBe(1);
     expect(onCommitted).toHaveBeenCalledTimes(1);
 
     const loose = await store.applyBatch({ action: 'move', channelIds: ['c1', 'c2'] });
@@ -279,14 +281,13 @@ describe('roster store', () => {
       { kind: 'channel', id: 'c1' },
       { kind: 'channel', id: 'c2' },
     ]);
-    expect(fake.putCount()).toBe(3);
-    expect(fake.setCount()).toBe(2);
+    expect(storedWriteCount(store)).toBe(2);
     expect(onCommitted).toHaveBeenCalledTimes(2);
 
     await expect(
       store.applyBatch({ action: 'move', channelIds: ['c1', 'c2'], sectionId: 'missing' }),
     ).rejects.toBeInstanceOf(RosterUnknownSectionError);
-    expect(fake.putCount()).toBe(3);
+    expect(storedWriteCount(store)).toBe(2);
     expect(onCommitted).toHaveBeenCalledTimes(2);
   });
 
@@ -295,11 +296,11 @@ describe('roster store', () => {
       records: { s1: { name: 'A', channelIds: ['c1'] } },
       state: { pins: ['c1'], sectionOrder: ['s1'] },
     });
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
 
     await expect(store.hiddenSet(['c1', 'c1', '', 'c2'])).resolves.toEqual(['c1', 'c2']);
-    expect(fake.state()).toEqual({
+    expect(storedState(store)).toEqual({
       pins: ['c1'],
       hidden: ['c1', 'c2'],
       sectionOrder: ['s1'],
@@ -310,14 +311,14 @@ describe('roster store', () => {
       sections: [{ id: 's1', channelIds: ['c1'] }],
     });
 
-    const sets = fake.setCount();
+    const sets = storedWriteCount(store);
     await store.hiddenSet(['c1', 'c2']);
-    expect(fake.setCount()).toBe(sets);
+    expect(storedWriteCount(store)).toBe(sets);
   });
 
   it('closes the domain on detach and rejects writes afterwards', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
 
     await store.detach();
@@ -329,7 +330,7 @@ describe('roster store', () => {
 
   it('closes a domain that resolves after detach', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     const attaching = store.attach(fake.facility);
     await store.detach();
     await attaching;
@@ -352,12 +353,12 @@ describe('roster flat topOrder', () => {
         ],
       },
     });
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
 
     const created = await store.sectionCreate('最新');
 
-    expect(fake.state().topOrder).toEqual([
+    expect(storedState(store).topOrder).toEqual([
       { kind: 'section', id: created.id },
       { kind: 'channel', id: 'loose' },
       { kind: 'section', id: 's1' },
@@ -366,7 +367,7 @@ describe('roster flat topOrder', () => {
 
   it('projects absent topOrder as undefined and keeps legacy writes flat-free', async () => {
     const fake = createFakeRosterDomain();
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
 
     const section = await store.sectionCreate('A');
@@ -374,11 +375,11 @@ describe('roster flat topOrder', () => {
     await store.channelAssign('c2', undefined);
 
     expect(store.snapshot().topOrder).toBeUndefined();
-    expect(fake.state()).toEqual({
+    expect(storedState(store)).toEqual({
       pins: [],
       sectionOrder: [section.id],
     });
-    expect(fake.records.get(section.id)).toEqual({ name: 'A', channelIds: ['c1'] });
+    expect(storedSection(store, section.id)).toEqual({ name: 'A', channelIds: ['c1'] });
   });
 
   it('maintains the flat list across section and membership writes', async () => {
@@ -397,24 +398,24 @@ describe('roster flat topOrder', () => {
         ],
       },
     });
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
 
     await store.channelAssign('loose', 's2', 0);
-    expect(fake.state().topOrder).toEqual([
+    expect(storedState(store).topOrder).toEqual([
       { kind: 'section', id: 's1' },
       { kind: 'section', id: 's2' },
     ]);
 
     await store.channelAssign('c1', undefined);
-    expect(fake.state().topOrder).toEqual([
+    expect(storedState(store).topOrder).toEqual([
       { kind: 'section', id: 's1' },
       { kind: 'section', id: 's2' },
       { kind: 'channel', id: 'c1' },
     ]);
 
     await store.sectionRemove('s2');
-    expect(fake.state().topOrder).toEqual([
+    expect(storedState(store).topOrder).toEqual([
       { kind: 'section', id: 's1' },
       { kind: 'channel', id: 'loose' },
       { kind: 'channel', id: 'c1' },
@@ -443,11 +444,11 @@ describe('roster flat topOrder', () => {
         ],
       },
     });
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
 
     await expect(store.sectionReorder(['s2', 's1'])).resolves.toEqual(['s2', 's1']);
-    expect(fake.state().topOrder).toEqual([
+    expect(storedState(store).topOrder).toEqual([
       { kind: 'channel', id: 'top' },
       { kind: 'section', id: 's2' },
       { kind: 'channel', id: 'mid' },
@@ -461,7 +462,7 @@ describe('roster flat topOrder', () => {
       records: { s1: { name: 'A', channelIds: ['c1'] } },
       state: { pins: [], sectionOrder: ['s1'], topOrder: [{ kind: 'section', id: 's1' }] },
     });
-    const store = createRosterStore();
+    const store = createTestRosterStore();
     await store.attach(fake.facility);
 
     await expect(
@@ -476,16 +477,16 @@ describe('roster flat topOrder', () => {
       { kind: 'channel', id: 'c9' },
       { kind: 'section', id: 's1' },
     ]);
-    expect(fake.state().topOrder).toEqual([
+    expect(storedState(store).topOrder).toEqual([
       { kind: 'channel', id: 'c9' },
       { kind: 'section', id: 's1' },
     ]);
 
-    const sets = fake.setCount();
+    const sets = storedWriteCount(store);
     await store.topReorder([
       { kind: 'channel', id: 'c9' },
       { kind: 'section', id: 's1' },
     ]);
-    expect(fake.setCount()).toBe(sets);
+    expect(storedWriteCount(store)).toBe(sets);
   });
 });
