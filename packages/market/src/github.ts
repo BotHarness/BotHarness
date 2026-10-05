@@ -51,6 +51,7 @@ export interface GitHubClient {
   searchTopic(range: CreatedRange, page: number): Promise<GitHubLookup<TopicSearchPage>>;
   nodes(ids: readonly string[]): Promise<GitHubLookup<(RepositoryNode | null)[]>>;
   readme(locator: RepositoryLocator): Promise<GitHubLookup<string | null>>;
+  file(locator: RepositoryLocator, path: string): Promise<GitHubLookup<string | null>>;
 }
 
 const repositoryUrl =
@@ -250,6 +251,23 @@ export function createGitHubClient(options: {
   const repoPath = (locator: RepositoryLocator): string =>
     `/repos/${encodeURIComponent(locator.owner)}/${encodeURIComponent(locator.name)}`;
 
+  const raw = async (path: string): Promise<GitHubLookup<string | null>> => {
+    let response: Response;
+    try {
+      response = await fetchImpl(`${apiBase}${path}`, {
+        headers: { ...headers, accept: 'application/vnd.github.raw+json' },
+      });
+    } catch {
+      return { ok: false, reason: 'unavailable' };
+    }
+    if (response.status === 404) return { ok: true, value: null };
+    if (!response.ok) return { ok: false, reason: 'unavailable' };
+    try {
+      return { ok: true, value: await response.text() };
+    } catch {
+      return { ok: false, reason: 'unavailable' };
+    }
+  };
   return {
     repository: (locator) => get(repoPath(locator), parseRepository),
     headCommit: (locator, ref) =>
@@ -269,22 +287,8 @@ export function createGitHubClient(options: {
         body: JSON.stringify({ query: NODES_QUERY, variables: { ids } }),
       });
     },
-    readme: async (locator) => {
-      let response: Response;
-      try {
-        response = await fetchImpl(`${apiBase}${repoPath(locator)}/readme`, {
-          headers: { ...headers, accept: 'application/vnd.github.raw+json' },
-        });
-      } catch {
-        return { ok: false, reason: 'unavailable' };
-      }
-      if (response.status === 404) return { ok: true, value: null };
-      if (!response.ok) return { ok: false, reason: 'unavailable' };
-      try {
-        return { ok: true, value: await response.text() };
-      } catch {
-        return { ok: false, reason: 'unavailable' };
-      }
-    },
+    readme: (locator) => raw(`${repoPath(locator)}/readme`),
+    file: (locator, path) =>
+      raw(`${repoPath(locator)}/contents/${path.split('/').map(encodeURIComponent).join('/')}`),
   };
 }

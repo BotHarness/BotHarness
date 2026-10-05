@@ -30,6 +30,7 @@ export interface FakeRepository extends GitHubRepository {
   head?: { sha: string; committedAt: string };
   createdAt: string;
   readme: string | null;
+  descriptor: string | null;
 }
 
 export function fakeRepository(overrides: Partial<FakeRepository> = {}): FakeRepository {
@@ -51,6 +52,7 @@ export function fakeRepository(overrides: Partial<FakeRepository> = {}): FakeRep
     head: { sha: 'abcdef1234567890abcdef1234567890abcdef12', committedAt: '2026-09-30T12:00:00Z' },
     createdAt: '2026-01-01T00:00:00Z',
     readme: `# ${name}`,
+    descriptor: null,
     ...overrides,
   };
 }
@@ -59,6 +61,7 @@ export function createFakeGitHub(): {
   repositories: Map<string, FakeRepository>;
   down: { value: boolean };
   nodesDown: { value: boolean };
+  contentsDown: { value: boolean };
   requests: string[];
   nodeBatches: number[];
   searches: string[];
@@ -130,6 +133,7 @@ export function createFakeGitHub(): {
       items: visible.slice((page - 1) * perPage, page * perPage).map(rest),
     });
   };
+  const contentsDown = { value: false };
   const fetchImpl: typeof fetch = async (input, init) => {
     const url = new URL(
       typeof input === 'string' ? input : input instanceof URL ? input : input.url,
@@ -144,7 +148,7 @@ export function createFakeGitHub(): {
       const byId = new Map([...repositories.values()].map((item) => [item.nodeId, item]));
       return respond(200, { data: { nodes: variables.ids.map((id) => graph(byId.get(id))) } });
     }
-    const match = /^\/repos\/([^/]+)\/([^/]+)(?:\/(commits|readme)(?:\/([^/]+))?)?$/u.exec(
+    const match = /^\/repos\/([^/]+)\/([^/]+)(?:\/(commits|readme|contents)(?:\/(.+))?)?$/u.exec(
       url.pathname,
     );
     const repository =
@@ -157,6 +161,12 @@ export function createFakeGitHub(): {
         ? respond(404, { message: 'Not Found' })
         : new Response(repository.readme, { status: 200 });
     }
+    if (match[3] === 'contents') {
+      if (contentsDown.value) return respond(503, { message: 'unavailable' });
+      return match[4] !== '.botharness/bot.json' || repository.descriptor === null
+        ? respond(404, { message: 'Not Found' })
+        : new Response(repository.descriptor, { status: 200 });
+    }
     if (match[3] === 'commits') {
       return repository.head === undefined
         ? respond(404, { message: 'Not Found' })
@@ -167,7 +177,16 @@ export function createFakeGitHub(): {
     }
     return respond(200, rest(repository));
   };
-  return { repositories, down, nodesDown, requests, nodeBatches, searches, fetchImpl };
+  return {
+    repositories,
+    down,
+    nodesDown,
+    contentsDown,
+    requests,
+    nodeBatches,
+    searches,
+    fetchImpl,
+  };
 }
 
 export function createMarket(): {

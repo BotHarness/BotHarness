@@ -11,6 +11,20 @@ The Bot Marketplace Worker ([ADR-0131](../../docs/adr/0131-bot-marketplace-start
 | `GET /v1/bots/{id}`                                                 | `{ bot, readme, commitSha }` for a listed entry (`id` is the GitHub node ID), else `404 bot-not-found`. `readme` is Markdown with relative images rewritten to `raw.githubusercontent.com` and links to `github.com/…/blob` at `commitSha` (or the default branch), common README HTML (`img`, `a`, `br`) turned into Markdown, other tags, comments, scripts and non-`http(s)`/`mailto` URLs removed |
 | `POST /v1/submissions` `{ "url": "https://github.com/owner/repo" }` | `201 { bot }`, or `{ error: { code } }` with `invalid-repository-url`, `repository-not-found`, `repository-private`, `repository-archived`, `repository-missing-topic`, `repository-blocked` or `upstream-unavailable`                                                                                                                                                                                |
 
+## Sharing presentation: `.botharness/bot.json`
+
+An optional descriptor in the Bot repository. Every field is optional; an invalid file (bad JSON, a wrong type, more than 8 roles, a name over 60 characters, an image path that is absolute, has `..` or a scheme, or is not `.png`/`.jpg`/`.jpeg`/`.webp`) is ignored as a whole and the defaults stay (repository name, no roles, generated avatar).
+
+```json
+{
+  "name": "BotPixel 像素画师",
+  "roles": ["像素画", "头像设计"],
+  "avatar": { "image": "assets/avatar.png" }
+}
+```
+
+`avatar` is either `{ "image": "<path in the repository>" }` (PNG, JPEG or WebP, at most 128 KiB) or `{ "recipe": { … } }` (the generated-avatar recipe a PersonaBot stores in `appearance.recipe`). The Worker reads the descriptor together with the README after each push and shows `name` and `roles` in the Marketplace. The Host reads it again from the cloned tree when installing and applies the avatar, never from the catalog; a symlink that leaves the clone is refused.
+
 ## Scheduled crawl
 
 | Cron         | Job                                                                                                                                                                                                              |

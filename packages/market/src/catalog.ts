@@ -8,6 +8,8 @@ export interface MarketplaceEntry {
   owner: string;
   name: string;
   fullName: string;
+  displayName: string | null;
+  roles: string[];
   description: string | null;
   topics: string[];
   stars: number;
@@ -39,23 +41,26 @@ export interface MarketplacePage {
 export const DEFAULT_PAGE_SIZE = 30;
 export const MAX_PAGE_SIZE = 50;
 
-function entryFromRow(row: RepositoryRow): MarketplaceEntry {
-  let topics: string[] = [];
+function stringList(value: string): string[] {
   try {
-    const parsed: unknown = JSON.parse(row.topics);
-    if (Array.isArray(parsed)) {
-      topics = parsed.filter(
-        (topic): topic is string => typeof topic === 'string' && topic !== BOT_TOPIC,
-      );
-    }
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : [];
   } catch {
-    topics = [];
+    return [];
   }
+}
+
+function entryFromRow(row: RepositoryRow): MarketplaceEntry {
+  const topics = stringList(row.topics).filter((topic) => topic !== BOT_TOPIC);
   return {
     id: row.node_id,
     owner: row.owner,
     name: row.name,
     fullName: `${row.owner}/${row.name}`,
+    displayName: row.display_name,
+    roles: stringList(row.roles),
     description: row.description,
     topics,
     stars: row.stars,
