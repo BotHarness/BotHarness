@@ -87,3 +87,7 @@ actions.
 - [ADR-0101](0101-external-grants-require-authenticated-accounts-and-checked-targets.md),
   [ADR-0104](0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md).
 - [DSH Bundle publishing](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish).
+
+## Slack qualification follow-up — #868
+
+Product Provider `4.32.0-botharness.3` explicitly selects fork input `a0300e97d7996a5de3a6da2f5b9f50224eb12bd9`, including the accepted Slack checked contracts. Its source, DSH and runtime integrity live in the product qualification record independently of the development selection. Development pin changes never implicitly change product bytes or provenance; product input changes require a distinct Provider version and installed-artifact E2E. The initial Lark artifact above remains historical evidence. Registry publication and release preparation remain separate.
