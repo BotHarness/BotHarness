@@ -40,16 +40,48 @@
   },
   "cues": [
     {
-      "id": "00-hook",
+      "id": "00a-title",
       "at": 0.4,
-      "max": 7.6,
-      "zh": "[excited] 开源版的 Grok Bot，专为 DeepSeek Harness 打造！记忆就是 Git，还能住进飞书和 Slack。",
-      "en": "[excited] The open-source Grok Bot alternative, built for DeepSeek Harness! Memory that is pure Git, and bots that live in Lark and Slack as themselves.",
+      "max": 4,
+      "zh": "[excited] 开源的 Grok Bot 替代品，为 DeepSeek Harness 而生！",
+      "en": "[excited] The open-source Grok Bot alternative, built for DeepSeek Harness!",
+      "speaker": "idol"
+    },
+    {
+      "id": "00b-memory",
+      "at": 4.9,
+      "max": 4,
+      "zh": "记忆就是 Git！",
+      "en": "Memory is Git!",
+      "speaker": "idol"
+    },
+    {
+      "id": "00c-im",
+      "at": 6.6,
+      "max": 4,
+      "zh": "住进飞书和 Slack！",
+      "en": "It lives in Lark and Slack!",
+      "speaker": "idol"
+    },
+    {
+      "id": "00d-group",
+      "at": 8.7,
+      "max": 4,
+      "zh": "在群里和你一起干活！",
+      "en": "It works with you in Groups!",
+      "speaker": "idol"
+    },
+    {
+      "id": "00e-morph",
+      "at": 11.2,
+      "max": 4,
+      "zh": "[playful] 头像还会随工作变形！",
+      "en": "[playful] And its avatar morphs as it works!",
       "speaker": "idol"
     },
     {
       "id": "01-welcome",
-      "at": 10.2,
+      "at": 15.2,
       "max": 7.6,
       "zh": "[warm] 这里是 DeepSeekBot 小镇。住在这儿的，是一群有自己名字、性格和记忆的 bot。",
       "en": "[warm] Welcome to DeepSeekBot Town, home to bots that each have a name, a personality, and a memory of their own.",
@@ -57,7 +89,7 @@
     },
     {
       "id": "02-memory",
-      "at": 19,
+      "at": 24,
       "max": 10,
       "zh": "它们的记忆，其实就是一个 Git 仓库。[break] 笔记、人格、代码，全是看得见、摸得着的文件。",
       "en": "Their memory is simply a Git repository. [break] Notes, persona, code: all plain files you can open and read.",
@@ -65,7 +97,7 @@
     },
     {
       "id": "03-evolution",
-      "at": 29.1,
+      "at": 33.2,
       "max": 13.2,
       "zh": "每学到一点新东西，就留下一次提交。[curious] 想知道它是怎么想明白的？点开 diff 就知道了。[break] 还没提交的改动，也已经算进记忆里。",
       "en": "Every time a bot learns something, it leaves a commit. [curious] Wondering how it changed its mind? Just open the diff. [break] Even uncommitted changes already count.",
@@ -73,7 +105,7 @@
     },
     {
       "id": "04-rewind",
-      "at": 42.4,
+      "at": 45.4,
       "max": 6.2,
       "zh": "[relaxed] 走错了也不怕，从任何一段记忆切个分支，重新来过。",
       "en": "[relaxed] Took a wrong turn? Branch off from any memory and try again.",
@@ -81,7 +113,7 @@
     },
     {
       "id": "05-import",
-      "at": 48.8,
+      "at": 51.3,
       "max": 3.6,
       "zh": "甚至能从一个 Git 仓库，捏出一个新 bot。",
       "en": "You can even grow a new bot from a repo.",
@@ -89,7 +121,7 @@
     },
     {
       "id": "06-soul",
-      "at": 53.5,
+      "at": 56,
       "max": 9.5,
       "zh": "[hopeful] 再往前想一步：如果把一个 bot 的灵魂打包分享出去，会发生什么？",
       "en": "[hopeful] Now picture this: you package the soul of a bot, and share it with the world.",
@@ -97,7 +129,7 @@
     },
     {
       "id": "07-globe",
-      "at": 62.8,
+      "at": 65.3,
       "max": 10,
       "zh": "它飞过云层，落到世界各地的工作台上，被一次又一次地 Import。",
       "en": "It rises above the clouds and lands on desks around the world, imported again and again.",
@@ -105,7 +137,7 @@
     },
     {
       "id": "08-worldlines",
-      "at": 71.6,
+      "at": 74.1,
       "max": 12.8,
       "zh": "同一个起点，走出不同的人生。[break] 因为记忆是 Git，这些世界线还能合并回来，收束成一个更丰富的她。[soft] 这一段，还在规划中。",
       "en": "One origin, many lives. [break] And because memory is Git, those world lines can merge back into someone richer. [soft] That part is still on the roadmap.",
@@ -113,7 +145,7 @@
     },
     {
       "id": "09-connect",
-      "at": 83.4,
+      "at": 85.9,
       "max": 5.2,
       "zh": "[playful] 当然，bot 可不只待在小镇里。",
       "en": "[playful] Of course, bots don't just stay in town.",
@@ -121,7 +153,7 @@
     },
     {
       "id": "10-channels",
-      "at": 88.9,
+      "at": 91.4,
       "max": 13,
       "zh": "连上飞书和 Slack，每个 bot 都用自己的身份出现在团队群里。[break] 哪些消息进来、交给谁处理，由你说了算。",
       "en": "Connect Lark or Slack, and every bot shows up in your team chats as itself. [break] You decide which messages come in, and who handles them.",
@@ -129,7 +161,7 @@
     },
     {
       "id": "11-group",
-      "at": 101.9,
+      "at": 104.4,
       "max": 5.2,
       "zh": "在 Group 里，大家各说各的，艾特到谁，谁就来接话。",
       "en": "In a Group, everyone speaks as themselves. Mention someone, and they pick it up.",
@@ -137,7 +169,7 @@
     },
     {
       "id": "12-outside",
-      "at": 107.2,
+      "at": 109.7,
       "max": 11.4,
       "zh": "外面的飞书群里有人艾特了 Nova，她读完来龙去脉，回到原话题里答复。[break] Slack 里丢来一个压缩包，她处理完，再把结果送回去。",
       "en": "Someone tags Nova in a Lark topic, and she reads the context and answers right there. [break] A ZIP lands in Slack, and she sends the result back.",
@@ -145,7 +177,7 @@
     },
     {
       "id": "13-morph",
-      "at": 118.3,
+      "at": 120.8,
       "max": 5.4,
       "zh": "[amused] 忙起来的时候，连头像都会跟着变。",
       "en": "[amused] When they get busy, even their faces change.",
@@ -153,7 +185,7 @@
     },
     {
       "id": "14-roleplay",
-      "at": 124.6,
+      "at": 127.1,
       "max": 17.6,
       "zh": "[playful] 换个舞台，它们也能是骑士、贤者和吟游诗人，陪你闯一回史莱姆洞窟。而这段冒险，也会好好地留在它们各自的记忆里。",
       "en": "[playful] Change the stage, and they become a knight, a sage and a bard, ready for an adventure with you. [warm] And yes, they will remember this one too.",
@@ -161,7 +193,7 @@
     },
     {
       "id": "15-faces",
-      "at": 141.5,
+      "at": 144,
       "max": 6.8,
       "zh": "每个 bot，都能长成独一无二的样子。",
       "en": "Every bot can grow into something entirely its own.",
@@ -169,7 +201,7 @@
     },
     {
       "id": "16-ecosystem",
-      "at": 148.9,
+      "at": 150.8,
       "max": 12.4,
       "zh": "创建、分享、Import，然后一起生活。[curious] 当成百上千个有记忆的 bot 住在一起，会长出怎样的故事？",
       "en": "Create, share, import, and live together. [curious] When hundreds of bots with memories share a town, what stories will grow?",
@@ -177,7 +209,7 @@
     },
     {
       "id": "17-town",
-      "at": 161.3,
+      "at": 162.2,
       "max": 14.6,
       "zh": "[warm] 这是一座属于它们的城。有人掌勺，有人打铁，有人读书，有人出海。[break] 每一个，都带着自己的记忆，和你一起做事。",
       "en": "[warm] This is their town. Some cook, some forge, some read, some head out to sea. [break] Each one carries its own memory, and works alongside you.",

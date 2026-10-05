@@ -95,10 +95,10 @@ const STR = {
   planned: { zh: '规划中', en: 'PLANNED' },
   hook1: { zh: '开源的 Grok Bot 替代品', en: 'The open-source Grok Bot alternative' },
   hook2: { zh: '为 DeepSeek Harness 而生', en: 'built for DeepSeek Harness' },
-  hookMem: { zh: '记忆就是 Git，每次成长都是一次提交', en: 'Memory is Git: every lesson is a commit' },
-  hookIm: { zh: '用自己的身份，住进飞书和 Slack', en: 'Lives in Lark and Slack, as itself' },
-  hookGroup: { zh: '人和 bots 在同一个群里协作', en: 'People and bots, working in one Group' },
-  hookMorph: { zh: '头像随工作状态实时变形', en: 'Avatars morph as they work' },
+  hookMem: { zh: '记忆就是 Git', en: 'Memory is Git' },
+  hookIm: { zh: '住进飞书和 Slack', en: 'It lives in Lark and Slack' },
+  hookGroup: { zh: '在群里和你一起干活', en: 'It works with you in Groups' },
+  hookMorph: { zh: '头像还会随工作变形', en: 'Its avatar morphs as it works' },
   hookCity: { zh: '一整座有记忆的 bots 小镇', en: 'A whole town of bots with memories' },
   openSource: { zh: '开源 · MIT · 基于 DeepSeek Harness 生态', en: 'Open source · MIT · Built on the DeepSeek Harness ecosystem' },
   slogan: { zh: '一组有各自身份、人格和记忆的 bots，一起做事。', en: 'A group of bots, each with its own identity, persona and memory, working together.' },
@@ -1787,15 +1787,15 @@ function renderLegacy(f) {
 // ===== master timeline =============================================================
 // legacy segments replay the town film by its own frame numbers; the others are new modules
 const SEGMENTS = [
-  { id: 'hook', len: 600 },
+  { id: 'hook', len: 900 }, // HOOK_LEN
   { id: 'legacy', len: 520, from: 200 },
-  { id: 'legacy', len: 1800, from: 720, rate: 1080 / 1800 }, // Memory, slowed so every panel can be read
+  { id: 'legacy', len: 1650, from: 720, rate: 1080 / 1650 }, // Memory, slowed so every panel can be read
   { id: 'legacy', len: 240, from: 1800 },
   { id: 'market', len: 1810, rate: 2160 / 1810 },
   { id: 'legacy', len: 3490, from: 2160, rate: 3780 / 3490 },
-  { id: 'wall', len: 420, rate: 480 / 420 },
-  { id: 'eco', len: 720, rate: 840 / 720 },
-  { id: 'city', len: 900, rate: 1080 / 900 },
+  { id: 'wall', len: 390, rate: 480 / 390 },
+  { id: 'eco', len: 660, rate: 840 / 660 },
+  { id: 'city', len: 840, rate: 1080 / 840 },
   { id: 'end', len: 300 + TOTAL - 10800 },
 ];
 let segStart = 0;
@@ -2964,7 +2964,7 @@ function renderVoxel(c, { narration = true } = {}) {
 // ===== hook: a paper puppet theater pitches the product in the first ten seconds =======
 // Hand-cut stickers on wooden sticks, shot like stop-motion: every pose holds for SM frames
 // and jiggles a little, the way a hand-held puppet never stays perfectly still.
-const HOOK_LEN = 600;
+const HOOK_LEN = 900;
 const SM = 4;
 const smStep = (h) => Math.floor(h / SM);
 const smT = (h) => smStep(h) * SM;
@@ -3181,9 +3181,10 @@ function renderHook(h) {
   if (!hk.built) buildHook();
   const t = smT(h);
   legacyRate = 1;
-  const brand = t >= 528;
-  const townUnder = h >= 560; // the town the story opens on, revealed as the brand card fades
-  if (townUnder) renderLegacy(h - 400);
+  // beats follow the narration: each spoken line (voiceover/script.json 00a-00e) starts just after its sign drops
+  const brand = t >= 808;
+  const townUnder = h >= 840; // the town the story opens on, revealed as the brand card fades
+  if (townUnder) renderLegacy(h - 700);
   else { renderer.setClearColor('#1b1820'); renderer.clear(); }
   hideOverlay();
   for (const o of hookHud.children) o.visible = false;
@@ -3192,35 +3193,35 @@ function renderHook(h) {
     setPlane(hk.apron, 0, 0, 320, 40);
     setPlane(hk.valance, 0, 180, 320, 24);
     // curtains open at the start and close at the end
-    const open = ease(span(t, 0, 24)) * (1 - ease(span(t, 500, 524)));
+    const open = ease(span(t, 0, 24)) * (1 - ease(span(t, 784, 808)));
     setPlane(hk.curL, Math.round(-12 - open * 138), 0, 176, 180);
     setPlane(hk.curR, Math.round(156 + open * 138), 0, 176, 180);
-    // title
-    showSign(hk.signs.title, h, 8, 104, 158);
-    showPuppet(hk.mascot, h, 160, 46, 20, 96, { sway: 0.12 });
-    // memory is Git, then Lark and Slack, then a Group: the cast changes places between beats
-    showSign(hk.signs.hookMem, h, 112, 206);
-    showSign(hk.signs.hookIm, h, 216, 310);
-    showSign(hk.signs.hookGroup, h, 320, 414);
-    if (t < 300) showPuppet(hk.mira, h, 104, 50, 112, 200, { sway: 0.05 });
-    else showPuppet(hk.mira, h, 124, 50, 330, 410);
-    if (showPuppet(hk.graphP, h, 210, 54, 120, 200)) drawGraph(t < 138 ? 0 : t < 154 ? 1 : t < 170 ? 2 : t < 186 ? 3 : 4);
-    if (t < 316) showPuppet(hk.nova, h, 100, 50, 216, 304, { sway: 0.05 });
-    else showPuppet(hk.nova, h, 248, 50, 346, 410);
-    showPuppet(hk.lark, h, 200, 52, 226, 304, { sway: 0.1 });
-    showPuppet(hk.slack, h, 250, 48, 234, 304, { sway: 0.1 });
-    showPuppet(hk.human, h, 64, 50, 322, 410);
-    showPuppet(hk.theo, h, 186, 50, 338, 410);
+    // title: "the open-source Grok Bot alternative, built for DeepSeek Harness" (0.4 s)
+    showSign(hk.signs.title, h, 8, 280, 158);
+    showPuppet(hk.mascot, h, 160, 46, 20, 272, { sway: 0.12 });
+    // memory is Git (4.9 s), then Lark and Slack (6.6 s), then a Group (8.7 s)
+    showSign(hk.signs.hookMem, h, 288, 376);
+    showSign(hk.signs.hookIm, h, 388, 500);
+    showSign(hk.signs.hookGroup, h, 512, 648);
+    if (t < 450) showPuppet(hk.mira, h, 104, 50, 288, 370, { sway: 0.05 });
+    else showPuppet(hk.mira, h, 124, 50, 520, 644);
+    if (showPuppet(hk.graphP, h, 210, 54, 292, 370)) drawGraph(t < 300 ? 0 : t < 318 ? 1 : t < 336 ? 2 : t < 354 ? 3 : 4);
+    if (t < 506) showPuppet(hk.nova, h, 100, 50, 388, 496, { sway: 0.05 });
+    else showPuppet(hk.nova, h, 248, 50, 536, 644);
+    showPuppet(hk.lark, h, 200, 52, 396, 496, { sway: 0.1 });
+    showPuppet(hk.slack, h, 250, 48, 404, 496, { sway: 0.1 });
+    showPuppet(hk.human, h, 64, 50, 512, 644);
+    showPuppet(hk.theo, h, 186, 50, 528, 644);
     const bubbleOn = (b, tex, x, y, a, z) => { if (t >= a && t < z) { b.material.map = tex.tex; b.material.needsUpdate = true; const k = POP[Math.min(5, Math.floor((h - a) / 2))] * 0.75; setPlane(b, x, y, 64 * k, 40 * k); } };
-    bubbleOn(hk.bub[0], hk.bubbles.at, 226, 96, 252, 304);
-    bubbleOn(hk.bub[1], hk.bubbles.ok, 136, 96, 276, 304);
-    bubbleOn(hk.bub[0], hk.bubbles.dots, 80, 96, 364, 388);
-    bubbleOn(hk.bub[1], hk.bubbles.dots, 200, 98, 380, 410);
-    bubbleOn(hk.bub[0], hk.bubbles.ok, 250, 100, 392, 410);
-    // avatars morph as they work
-    showSign(hk.signs.hookMorph, h, 424, 516);
-    if (showPuppet(hk.morph, h, 160, 38, 428, null, { sway: 0.04 }) && MORPH) {
-      const cells = t < 480 ? morphCells('theo', 'face', 'edit', span(t, 456, 476)) : morphCells('theo', 'edit', 'face', span(t, 484, 504));
+    bubbleOn(hk.bub[0], hk.bubbles.at, 226, 96, 420, 496);
+    bubbleOn(hk.bub[1], hk.bubbles.ok, 136, 96, 452, 496);
+    bubbleOn(hk.bub[0], hk.bubbles.dots, 80, 96, 552, 592);
+    bubbleOn(hk.bub[1], hk.bubbles.dots, 200, 98, 580, 644);
+    bubbleOn(hk.bub[0], hk.bubbles.ok, 250, 100, 608, 644);
+    // avatars morph as they work (11.2 s)
+    showSign(hk.signs.hookMorph, h, 660, 784);
+    if (showPuppet(hk.morph, h, 160, 38, 664, null, { sway: 0.04 }) && MORPH) {
+      const cells = t < 720 ? morphCells('theo', 'face', 'edit', span(t, 690, 710)) : morphCells('theo', 'edit', 'face', span(t, 730, 750));
       paintCells(hk.morphSrc, cells, null);
       stickerCanvas(hk.morphSrc.canvas, 80, 80, { into: hk.morphArt });
     }
@@ -3230,7 +3231,7 @@ function renderHook(h) {
       setPlane(hk.curR, 156, 0, 176, 180);
       setPlane(hk.valance, 0, 180, 320, 24);
     }
-    const a = h < 580 ? step8(span(h, 528, 540)) : 1 - step8(span(h, 580, HOOK_LEN));
+    const a = h < 864 ? step8(span(h, 808, 820)) : 1 - step8(span(h, 864, HOOK_LEN));
     setPlane(hk.dim, 0, 0, 320, 180, a);
     setPlane(hk.logo, 160 - 32, 98, 64, 64, a);
     setPlane(hk.title, 160, 94, 200, 70, a);
