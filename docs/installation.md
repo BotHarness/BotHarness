@@ -2,7 +2,7 @@
 
 Install the **DeepSeekBot** plugin in DeepSeek Harness (DSH), enable it and create your first PersonaBot. You install one product package; Core, Client and the qualified IM Provider arrive with it.
 
-This guide uses the public npm prerelease **`deepseekbot@0.1.0-alpha.1`**, verified with **DSH `0.2.0-rc.1`**. It is an early preview. Screenshots show a clean Profile using the Chinese DSH interface; the captions name the corresponding controls. No repository checkout or local build is required.
+This guide installs the public npm package **`deepseekbot`**, verified with **DSH `0.2.0-rc.1`**. Screenshots show a clean Profile using the Chinese DSH interface; the captions name the corresponding controls. No repository checkout or local build is required.
 
 ## 1. Open Plugins
 
@@ -17,18 +17,18 @@ Click **Plugins (插件)** in the left sidebar, then **Add plugin (添加插件)
 Paste this exact value into **Package name or address (包名或地址)**:
 
 ```text
-deepseekbot@0.1.0-alpha.1
+deepseekbot
 ```
 
 Keep **npm official registry (npm 官方源)** as the installation source and click **Install (安装)**. Wait for the installation task to finish.
 
-![Add plugin dialog with the exact npm package version](/guides/install/02-install-source-zh.webp)
+![Add plugin dialog with the npm package name filled in](/guides/install/02-install-source-zh.webp)
 
-_This field imports the package source. It is not a file-upload picker. The pinned version makes the installation repeatable._
+_This field imports the package source. It is not a file-upload picker. The package name alone installs the latest release (the screenshot shows an earlier pinned version); add `@<version>` to pin one._
 
 ## 3. Enable the installed plugin
 
-The completed task shows **Installed (已安装)**, the package name and version **`0.1.0-alpha.1`**. Click **Enable now (立即启用)**. If you closed the task, return to Plugins and turn on **Enable deepseekbot (启用 deepseekbot)**.
+The completed task shows **Installed (已安装)**, the package name and the installed version. Click **Enable now (立即启用)**. If you closed the task, return to Plugins and turn on **Enable deepseekbot (启用 deepseekbot)**.
 
 ![Actual successful installation showing version and Enable now](/guides/install/03-installed-zh.webp)
 
@@ -61,12 +61,12 @@ The initial installation has no IM accounts connected. After the local DM works,
 The [official DSH packaging reference](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish) also supports CLI installation into a named Profile:
 
 ```bash
-dsh plugin --profile <your-profile> add deepseekbot@0.1.0-alpha.1
+dsh plugin --profile <your-profile> add deepseekbot
 ```
 
 Use the Profile you actually start. Enable the plugin in that Profile's Plugins page afterward.
 
-To import the same precompiled archive, download the [public npm tarball](https://registry.npmjs.org/deepseekbot/-/deepseekbot-0.1.0-alpha.1.tgz). In the Web interface, enter its **absolute path on the machine running DSH** in Package name or address; a path on a different browser machine is not a Host path. With the CLI you can instead use `dsh plugin --profile <your-profile> add ./deepseekbot-0.1.0-alpha.1.tgz` from the download directory.
+To import the same precompiled archive, download the public npm tarball with `npm pack deepseekbot`, which saves `deepseekbot-<version>.tgz` in the current directory. In the Web interface, enter its **absolute path on the machine running DSH** in Package name or address; a path on a different browser machine is not a Host path. With the CLI you can instead use `dsh plugin --profile <your-profile> add ./deepseekbot-<version>.tgz` from the download directory.
 
 ## If installation does not finish
 

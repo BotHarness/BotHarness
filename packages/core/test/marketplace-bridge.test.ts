@@ -5,12 +5,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAttachmentStore } from '../src/attachments/store.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createChannelStore } from '../src/channels/store.js';
+import { solveChallenge } from '../src/marketplace/altcha.js';
 import { createMarketplaceClient, type MarketplaceClient } from '../src/marketplace/client.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createTestOwnership } from './helpers.js';
 import { createTestRegistry } from './registry-fixture.js';
 import { createTestRosterStore } from './roster-fixture.js';
-import { createMarket, fakeRepository } from '../../market/test/market-harness.js';
+import { createMarket, fakeRepository, submit } from '../../market/test/market-harness.js';
 
 const roots: string[] = [];
 
@@ -47,15 +48,27 @@ function marketClient(market: ReturnType<typeof createMarket>): MarketplaceClien
   });
 }
 
+type Methods = ReturnType<typeof methodsWith>;
+
+async function solved(methods: Methods): Promise<string> {
+  const challenge = await methods.marketplaceChallenge();
+  if (!challenge.ok) throw new Error(challenge.error.code);
+  const payload = await solveChallenge(challenge.value);
+  if (payload === undefined) throw new Error('unsolved challenge');
+  return payload;
+}
+
+async function submitThrough(methods: Methods, url: string) {
+  return methods.marketplaceSubmit({ url, altcha: await solved(methods) });
+}
+
 describe('Bot Marketplace bridge', () => {
   it('submits a pasted repository and lists it through the Marketplace Worker', async () => {
     const market = createMarket();
     market.publish(fakeRepository());
     const methods = methodsWith(marketClient(market));
 
-    const submitted = await methods.marketplaceSubmit({
-      url: ' https://github.com/alice/helper-bot ',
-    });
+    const submitted = await submitThrough(methods, ' https://github.com/alice/helper-bot ');
     const listed = await methods.marketplaceList({});
 
     expect(submitted).toMatchObject({ ok: true, value: { bot: { fullName: 'alice/helper-bot' } } });
@@ -78,10 +91,7 @@ describe('Bot Marketplace bridge', () => {
     for (const name of ['one', 'two']) {
       const repository = fakeRepository({ name });
       market.publish(repository);
-      await market.request('/v1/submissions', {
-        method: 'POST',
-        body: JSON.stringify({ url: repository.htmlUrl }),
-      });
+      await submit(market, repository.htmlUrl);
     }
     const first = (await (await market.request('/v1/bots?limit=1')).json()) as {
       nextCursor: string;
@@ -94,13 +104,91 @@ describe('Bot Marketplace bridge', () => {
     expect(page).toMatchObject({ ok: true, value: { bots: [{ fullName: 'alice/one' }] } });
   });
 
+  it('passes sort, search and topic through and lists topic counts', async () => {
+    const market = createMarket();
+    const methods = methodsWith(marketClient(market));
+    for (const repository of [
+      fakeRepository({ name: 'reader', stars: 40, topics: ['botharness-bot', 'research'] }),
+      fakeRepository({ name: 'writer', stars: 5, description: 'Drafts essays' }),
+    ]) {
+      market.publish(repository);
+      await submitThrough(methods, repository.htmlUrl);
+    }
+
+    expect(await methods.marketplaceList({ sort: 'stars' })).toMatchObject({
+      ok: true,
+      value: { bots: [{ fullName: 'alice/reader' }, { fullName: 'alice/writer' }] },
+    });
+    expect(await methods.marketplaceList({ q: ' essays ' })).toMatchObject({
+      ok: true,
+      value: { bots: [{ fullName: 'alice/writer' }] },
+    });
+    expect(await methods.marketplaceList({ topic: 'research' })).toMatchObject({
+      ok: true,
+      value: { bots: [{ fullName: 'alice/reader' }] },
+    });
+    expect(await methods.marketplaceTopics()).toEqual({
+      ok: true,
+      value: [
+        { topic: 'research', count: 1 },
+        { topic: 'writing', count: 1 },
+      ],
+    });
+  });
+
+  it('loads a listed entry detail with its prepared README', async () => {
+    const market = createMarket();
+    const repository = fakeRepository({ readme: '![shot](shot.png)' });
+    market.publish(repository);
+    const methods = methodsWith(marketClient(market));
+    await submitThrough(methods, repository.htmlUrl);
+
+    expect(await methods.marketplaceDetail({ id: repository.nodeId })).toEqual({
+      ok: true,
+      value: {
+        bot: expect.objectContaining({ fullName: 'alice/helper-bot' }),
+        readme: `![shot](<https://raw.githubusercontent.com/alice/helper-bot/${repository.head?.sha}/shot.png>)`,
+        commitSha: repository.head?.sha,
+      },
+    });
+    expect(await methods.marketplaceDetail({ id: 'R_missing' })).toMatchObject({
+      ok: false,
+      error: { code: 'bot-not-found' },
+    });
+    expect(await methods.marketplaceDetail({ id: ' ' })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+  });
+
+  it('forwards a solved challenge with a report and the Worker challenge refusals', async () => {
+    const market = createMarket({ env: { REPORT_THRESHOLD: '1' } });
+    const repository = fakeRepository();
+    market.publish(repository);
+    const methods = methodsWith(marketClient(market));
+    await submitThrough(methods, repository.htmlUrl);
+
+    const altcha = await solved(methods);
+    expect(
+      await methods.marketplaceReport({ id: repository.nodeId, altcha, reason: ' Spam ' }),
+    ).toEqual({ ok: true, value: { received: true } });
+    expect(market.sqlite.prepare('SELECT reason FROM reports').all()).toEqual([{ reason: 'Spam' }]);
+    expect(await methods.marketplaceReport({ id: repository.nodeId, altcha })).toMatchObject({
+      ok: false,
+      error: { code: 'challenge-replayed' },
+    });
+    expect(
+      await methods.marketplaceSubmit({ url: repository.htmlUrl, altcha: 'forged' }),
+    ).toMatchObject({ ok: false, error: { code: 'challenge-invalid' } });
+  });
+
   it('returns the Worker refusal code and logs a structured line', async () => {
     const market = createMarket();
     market.publish(fakeRepository({ topics: [] }));
     const warn = vi.fn();
     const methods = methodsWith(marketClient(market), warn);
 
-    const result = await methods.marketplaceSubmit({ url: 'https://github.com/alice/helper-bot' });
+    const result = await submitThrough(methods, 'https://github.com/alice/helper-bot');
 
     expect(result).toMatchObject({ ok: false, error: { code: 'repository-missing-topic' } });
     expect(JSON.parse(warn.mock.calls[0]?.[0] as string)).toEqual({
@@ -131,11 +219,26 @@ describe('Bot Marketplace bridge', () => {
       error: { code: 'marketplace-unavailable' },
     });
     const methods = methodsWith(marketClient(createMarket()));
-    expect(await methods.marketplaceSubmit({ url: ' ' })).toMatchObject({
+    for (const payload of [
+      { url: ' ', altcha: 'x' },
+      { url: 'https://github.com/alice/helper-bot' },
+    ]) {
+      expect(await methods.marketplaceSubmit(payload)).toMatchObject({
+        ok: false,
+        error: { code: 'invalid-input' },
+      });
+    }
+    for (const payload of [{ altcha: 'x' }, { id: 'R_x' }, { id: 'R_x', altcha: 'x', reason: 1 }]) {
+      expect(await methods.marketplaceReport(payload)).toMatchObject({
+        ok: false,
+        error: { code: 'invalid-input' },
+      });
+    }
+    expect(await methods.marketplaceList({ cursor: 3 })).toMatchObject({
       ok: false,
       error: { code: 'invalid-input' },
     });
-    expect(await methods.marketplaceList({ cursor: 3 })).toMatchObject({
+    expect(await methods.marketplaceList({ sort: 'random' })).toMatchObject({
       ok: false,
       error: { code: 'invalid-input' },
     });

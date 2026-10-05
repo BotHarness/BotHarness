@@ -32,10 +32,14 @@ import { MessagingError, type MessagingTarget } from '../messaging/provider.js';
 import { OperationalDatabaseError } from '../database/owner.js';
 import type {
   MarketplaceClient,
+  MarketplaceDetail,
   MarketplaceEntry,
   MarketplacePage,
+  MarketplaceQuery,
   MarketplaceResult,
+  MarketplaceTopic,
 } from '../marketplace/client.js';
+import type { AltchaChallenge } from '../marketplace/altcha.js';
 import {
   AssignmentReplyTargetError,
   type HumanAssignmentContext,
@@ -406,6 +410,10 @@ export interface BridgeMethods {
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
+  marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
+  marketplaceDetail(payload: unknown): Promise<BridgeResult<MarketplaceDetail>>;
+  marketplaceChallenge(): Promise<BridgeResult<AltchaChallenge>>;
+  marketplaceReport(payload: unknown): Promise<BridgeResult<{ received: true }>>;
 }
 
 export interface BridgeMethodsDeps {
@@ -1409,18 +1417,59 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return { ok: true, value: detailOf(result.record) };
     },
     marketplaceList(payload) {
-      const cursor = parseOptional(asObject(payload), 'cursor');
-      if (!cursor.ok) return Promise.resolve(invalidInput('invalid cursor'));
-      return marketplaceCall((client) =>
-        client.list(cursor.value === undefined ? {} : { cursor: cursor.value }),
-      );
+      const source = asObject(payload);
+      const query: MarketplaceQuery = {};
+      for (const key of ['cursor', 'q', 'topic'] as const) {
+        const value = parseOptional(source, key);
+        if (!value.ok) return Promise.resolve(invalidInput(`invalid ${key}`));
+        const trimmed = value.value?.trim();
+        if (trimmed !== undefined && trimmed.length > 0) query[key] = trimmed;
+      }
+      const sort = source['sort'];
+      if (sort !== undefined && sort !== 'updated' && sort !== 'stars') {
+        return Promise.resolve(invalidInput('invalid sort'));
+      }
+      if (sort !== undefined) query.sort = sort;
+      return marketplaceCall((client) => client.list(query));
+    },
+    marketplaceTopics() {
+      return marketplaceCall((client) => client.topics());
+    },
+    marketplaceDetail(payload) {
+      const id = asObject(payload)['id'];
+      if (typeof id !== 'string' || id.trim().length === 0) {
+        return Promise.resolve(invalidInput('id is required'));
+      }
+      return marketplaceCall((client) => client.detail(id.trim()));
     },
     marketplaceSubmit(payload) {
-      const url = asObject(payload)['url'];
+      const { url, altcha } = asObject(payload);
       if (typeof url !== 'string' || url.trim().length === 0) {
         return Promise.resolve(invalidInput('url is required'));
       }
-      return marketplaceCall((client) => client.submit(url.trim()));
+      if (typeof altcha !== 'string' || altcha.length === 0) {
+        return Promise.resolve(invalidInput('altcha is required'));
+      }
+      return marketplaceCall((client) => client.submit(url.trim(), altcha));
+    },
+    marketplaceChallenge() {
+      return marketplaceCall((client) => client.challenge());
+    },
+    marketplaceReport(payload) {
+      const { id, altcha, reason } = asObject(payload);
+      if (typeof id !== 'string' || id.trim().length === 0) {
+        return Promise.resolve(invalidInput('id is required'));
+      }
+      if (typeof altcha !== 'string' || altcha.length === 0) {
+        return Promise.resolve(invalidInput('altcha is required'));
+      }
+      if (reason !== undefined && typeof reason !== 'string') {
+        return Promise.resolve(invalidInput('invalid reason'));
+      }
+      const trimmed = reason?.trim() ?? '';
+      return marketplaceCall((client) =>
+        client.report(id.trim(), { altcha, ...(trimmed.length === 0 ? {} : { reason: trimmed }) }),
+      );
     },
     update(payload) {
       const slug = asSlug(payload);

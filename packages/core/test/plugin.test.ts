@@ -362,6 +362,10 @@ describe('plugin entry', () => {
       'botAppearanceSet',
       'marketplaceList',
       'marketplaceSubmit',
+      'marketplaceTopics',
+      'marketplaceDetail',
+      'marketplaceChallenge',
+      'marketplaceReport',
     ]);
   });
 

@@ -8,7 +8,14 @@ import type {
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
-import type { MarketplaceEntry, MarketplacePage } from '../marketplace/client.js';
+import type {
+  MarketplaceDetail,
+  MarketplaceEntry,
+  MarketplacePage,
+  MarketplaceQuery,
+  MarketplaceTopic,
+} from '../marketplace/client.js';
+import type { AltchaChallenge } from '../marketplace/altcha.js';
 import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
@@ -839,12 +846,34 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.developerModeSet({ enabled }));
   }
 
-  async marketplaceList(cursor?: string): Promise<MarketplacePage> {
-    return unwrapAsync(this.methods.marketplaceList({ cursor }));
+  async marketplaceList(query?: MarketplaceQuery): Promise<MarketplacePage> {
+    return unwrapAsync(this.methods.marketplaceList(query ?? {}));
   }
 
-  async marketplaceSubmit(url: string): Promise<{ bot: MarketplaceEntry }> {
-    return unwrapAsync(this.methods.marketplaceSubmit({ url }));
+  async marketplaceSubmit(url: string, altcha: string): Promise<{ bot: MarketplaceEntry }> {
+    return unwrapAsync(this.methods.marketplaceSubmit({ url, altcha }));
+  }
+
+  async marketplaceChallenge(): Promise<AltchaChallenge> {
+    return unwrapAsync(this.methods.marketplaceChallenge());
+  }
+
+  async marketplaceReport(
+    id: string,
+    altcha: string,
+    reason?: string,
+  ): Promise<{ received: true }> {
+    return unwrapAsync(
+      this.methods.marketplaceReport({ id, altcha, ...(reason === undefined ? {} : { reason }) }),
+    );
+  }
+
+  async marketplaceTopics(): Promise<MarketplaceTopic[]> {
+    return unwrapAsync(this.methods.marketplaceTopics());
+  }
+
+  async marketplaceDetail(id: string): Promise<MarketplaceDetail> {
+    return unwrapAsync(this.methods.marketplaceDetail({ id }));
   }
 }
 
@@ -968,6 +997,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'botAppearanceSet',
   'marketplaceList',
   'marketplaceSubmit',
+  'marketplaceTopics',
+  'marketplaceDetail',
+  'marketplaceChallenge',
+  'marketplaceReport',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

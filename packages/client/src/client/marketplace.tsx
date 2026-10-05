@@ -1,8 +1,22 @@
-import { useRef, useState, type ReactElement } from 'react';
+import { useId, useMemo, useRef, useState, type ReactElement } from 'react';
 
-import { Button, Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  Input,
+  MarkdownText,
+  SegmentedControl,
+  Tag,
+  type MarkdownLabels,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 
-import type { MarketplaceEntry } from '../../../core/src/marketplace/client.js';
+import { solveChallenge } from '../../../core/src/marketplace/altcha.js';
+import type {
+  MarketplaceDetail,
+  MarketplaceEntry,
+  MarketplaceQuery,
+  MarketplaceSort,
+  MarketplaceTopic,
+} from '../../../core/src/marketplace/client.js';
 import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { BridgeCallError, errorMessage } from './bridge.js';
@@ -20,7 +34,35 @@ const marketplaceErrorKeys: Record<string, BotHarnessKey> = {
   'repository-missing-topic': 'market.error.missingTopic',
   'repository-blocked': 'market.error.blocked',
   'upstream-unavailable': 'market.error.upstream',
+  'bot-not-found': 'market.error.botNotFound',
+  'challenge-unavailable': 'market.error.challengeUnavailable',
+  'challenge-invalid': 'market.error.challenge',
+  'challenge-expired': 'market.error.challenge',
+  'challenge-replayed': 'market.error.challenge',
+  'rate-limited': 'market.error.rateLimited',
+  'repository-rate-limited': 'market.error.repositoryRateLimited',
+  'invalid-report': 'market.error.invalidReport',
 };
+
+export const MAX_REPORT_REASON_LENGTH = 500;
+
+export async function proveHuman(actions: BridgeActions): Promise<string> {
+  const challenge = await actions.marketplaceChallenge();
+  const payload = await solveChallenge(challenge, {
+    yieldEvery: () => new Promise((resolve) => setTimeout(resolve, 0)),
+  });
+  if (payload === undefined) {
+    throw new BridgeCallError('challenge-invalid', 'challenge could not be solved');
+  }
+  return payload;
+}
+
+type Phase = 'idle' | 'verifying' | 'sending';
+
+type ReportState =
+  | { status: 'closed' }
+  | { status: 'open'; reason: string; phase: Phase; cause?: unknown }
+  | { status: 'done' };
 
 export function marketplaceError(error: unknown, t: BotHarnessTranslate): string {
   if (error instanceof BridgeCallError) {
@@ -34,8 +76,45 @@ export function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
 
+export function marketplaceName(bot: MarketplaceEntry): string {
+  return bot.displayName ?? bot.name;
+}
+
+function MarketplaceName({ bot }: { bot: MarketplaceEntry }): ReactElement {
+  return (
+    <span className="bh-market-name">
+      <span>{marketplaceName(bot)}</span>
+      <span className="bh-market-owner">{bot.displayName === null ? bot.owner : bot.fullName}</span>
+      {bot.roles.map((role) => (
+        <Tag key={role} tone="outline">
+          {role}
+        </Tag>
+      ))}
+    </span>
+  );
+}
+
 function day(value: string): string {
   return value.slice(0, 10);
+}
+
+export const SEARCH_DEBOUNCE_MS = 300;
+const VISIBLE_TOPICS = 12;
+const MAX_QUERY_LENGTH = 100;
+
+interface Filters {
+  sort: MarketplaceSort;
+  query: string;
+  topic?: string;
+}
+
+function queryFor(filters: Filters, cursor?: string): MarketplaceQuery {
+  return {
+    sort: filters.sort,
+    ...(filters.query.length === 0 ? {} : { q: filters.query }),
+    ...(filters.topic === undefined ? {} : { topic: filters.topic }),
+    ...(cursor === undefined ? {} : { cursor }),
+  };
 }
 
 type ListState =
@@ -48,39 +127,181 @@ function mergeBots(current: MarketplaceEntry[], next: MarketplaceEntry[]): Marke
   return [...current.filter((bot) => !seen.has(bot.id)), ...next];
 }
 
+function MarketplaceMeta({
+  bot,
+  t,
+}: {
+  bot: MarketplaceEntry;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  return (
+    <span className="bh-market-meta">
+      <span>{t('market.stars', { count: String(bot.stars) })}</span>
+      <span>{t('market.updated', { date: day(bot.pushedAt) })}</span>
+      {bot.topics.map((topic) => (
+        <Tag key={topic} tone="neutral">
+          {topic}
+        </Tag>
+      ))}
+    </span>
+  );
+}
+
 function MarketplaceRow({
   bot,
   t,
+  onOpen,
   onInstall,
 }: {
   bot: MarketplaceEntry;
   t: BotHarnessTranslate;
+  onOpen: () => void;
   onInstall: () => void;
 }): ReactElement {
   return (
     <div className="bh-market-row" role="listitem" data-market-bot={bot.fullName}>
-      <PersonaBotAvatar personaBotId="" name={bot.name} size={36} indicator={false} t={t} />
-      <span className="bh-market-copy">
-        <span className="bh-market-name">
-          <span>{bot.name}</span>
-          <span className="bh-market-owner">{bot.owner}</span>
-        </span>
+      <PersonaBotAvatar
+        personaBotId=""
+        name={marketplaceName(bot)}
+        size={36}
+        indicator={false}
+        t={t}
+      />
+      <button
+        type="button"
+        className="bh-market-copy bh-market-open"
+        aria-label={t('market.detail.open', { name: bot.fullName })}
+        onClick={onOpen}
+      >
+        <MarketplaceName bot={bot} />
         {bot.description === null ? null : (
           <span className="bh-market-description">{bot.description}</span>
         )}
-        <span className="bh-market-meta">
-          <span>{t('market.stars', { count: String(bot.stars) })}</span>
-          <span>{t('market.updated', { date: day(bot.pushedAt) })}</span>
-          {bot.topics.map((topic) => (
-            <Tag key={topic} tone="neutral">
-              {topic}
-            </Tag>
-          ))}
-        </span>
-      </span>
+        <MarketplaceMeta bot={bot} t={t} />
+      </button>
       <Button variant="outline" onClick={onInstall}>
         {t('market.install')}
       </Button>
+    </div>
+  );
+}
+
+type DetailState =
+  | { status: 'loading' }
+  | { status: 'error'; cause: unknown }
+  | { status: 'ready'; detail: MarketplaceDetail };
+
+function ReportPanel({
+  state,
+  t,
+  onReason,
+}: {
+  state: ReportState;
+  t: BotHarnessTranslate;
+  onReason: (reason: string) => void;
+}): ReactElement | null {
+  if (state.status === 'closed') return null;
+  if (state.status === 'done') {
+    return (
+      <div className="bh-market-report" role="status" data-market-report="done">
+        <strong>{t('market.report.doneTitle')}</strong>
+        <span>{t('market.report.done')}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="bh-market-report" data-market-report="open">
+      <strong>{t('market.report.title')}</strong>
+      <span className="bh-market-hint">{t('market.report.hint')}</span>
+      <label>
+        <span>{t('market.report.reason')}</span>
+        <textarea
+          rows={3}
+          maxLength={MAX_REPORT_REASON_LENGTH}
+          placeholder={t('market.report.placeholder')}
+          value={state.reason}
+          disabled={state.phase !== 'idle'}
+          onChange={(event) => onReason(event.currentTarget.value)}
+        />
+      </label>
+      {state.phase === 'verifying' ? (
+        <span className="bh-market-hint" role="status">
+          {t('market.challenge.verifying')}
+        </span>
+      ) : null}
+      {state.cause === undefined ? null : (
+        <div className="bh-modal-error" role="alert">
+          {marketplaceError(state.cause, t)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MarketplaceDetailView({
+  bot,
+  state,
+  t,
+  onRetry,
+  report,
+}: {
+  bot: MarketplaceEntry;
+  state: DetailState;
+  t: BotHarnessTranslate;
+  onRetry: () => void;
+  report: ReactElement | null;
+}): ReactElement {
+  const labels = useMemo<MarkdownLabels>(
+    () => ({
+      code: { copyLabel: t('message.code.copy'), copiedLabel: t('message.code.copied') },
+      footnotes: t('message.footnotes'),
+    }),
+    [t],
+  );
+  const shown = state.status === 'ready' ? state.detail.bot : bot;
+  return (
+    <div className="bh-market-detail" data-market-detail={shown.fullName}>
+      <div className="bh-market-confirm-head">
+        <PersonaBotAvatar
+          personaBotId=""
+          name={marketplaceName(shown)}
+          size={44}
+          indicator={false}
+          t={t}
+        />
+        <span className="bh-market-copy">
+          <MarketplaceName bot={shown} />
+          {shown.description === null ? null : (
+            <span className="bh-market-description">{shown.description}</span>
+          )}
+          <MarketplaceMeta bot={shown} t={t} />
+        </span>
+        <a className="bh-market-github" href={shown.htmlUrl} target="_blank" rel="noreferrer">
+          {t('market.detail.github')}
+        </a>
+      </div>
+      {report}
+      {state.status === 'loading' ? (
+        <div className="bh-market-state" role="status">
+          {t('market.detail.loading')}
+        </div>
+      ) : null}
+      {state.status === 'error' ? (
+        <div className="bh-market-state" role="alert">
+          <span>{t('market.detail.error', { error: marketplaceError(state.cause, t) })}</span>
+          <Button variant="outline" onClick={onRetry}>
+            {t('market.retry')}
+          </Button>
+        </div>
+      ) : null}
+      {state.status === 'ready' && state.detail.readme === null ? (
+        <div className="bh-market-state">{t('market.detail.noReadme')}</div>
+      ) : null}
+      {state.status === 'ready' && state.detail.readme !== null ? (
+        <div className="bh-market-readme" data-market-readme>
+          <MarkdownText text={state.detail.readme} labels={labels} />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -97,12 +318,15 @@ function InstallConfirmation({
   return (
     <div className="bh-market-confirm">
       <div className="bh-market-confirm-head">
-        <PersonaBotAvatar personaBotId="" name={bot.name} size={44} indicator={false} t={t} />
+        <PersonaBotAvatar
+          personaBotId=""
+          name={marketplaceName(bot)}
+          size={44}
+          indicator={false}
+          t={t}
+        />
         <span className="bh-market-copy">
-          <span className="bh-market-name">
-            <span>{bot.name}</span>
-            <span className="bh-market-owner">{bot.owner}</span>
-          </span>
+          <MarketplaceName bot={bot} />
           {bot.description === null ? null : (
             <span className="bh-market-description">{bot.description}</span>
           )}
@@ -155,19 +379,32 @@ export function MarketplaceModal({
   onInstalled: () => void;
 }): ReactElement {
   const [list, setList] = useState<ListState>({ status: 'loading' });
+  const [filters, setFilters] = useState<Filters>({ sort: 'updated', query: '' });
+  const [searchText, setSearchText] = useState('');
+  const [topics, setTopics] = useState<MarketplaceTopic[]>([]);
   const [url, setUrl] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [submitPhase, setSubmitPhase] = useState<Phase>('idle');
+  const submitting = submitPhase !== 'idle';
+  const [report, setReport] = useState<ReportState>({ status: 'closed' });
   const [submitCause, setSubmitCause] = useState<unknown | undefined>(undefined);
   const [submitted, setSubmitted] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<MarketplaceEntry | undefined>(undefined);
+  const [viewing, setViewing] = useState<MarketplaceEntry | undefined>(undefined);
+  const [detail, setDetail] = useState<DetailState>({ status: 'loading' });
+  const detailGeneration = useRef(0);
   const [installing, setInstalling] = useState(false);
   const [installCause, setInstallCause] = useState<unknown | undefined>(undefined);
   const generation = useRef(0);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const latestFilters = useRef(filters);
+  const sortId = useId();
 
-  const load = (): void => {
+  const load = (next: Filters = filters): void => {
     const ticket = ++generation.current;
+    latestFilters.current = next;
+    setFilters(next);
     setList({ status: 'loading' });
-    void actions.marketplaceList().then(
+    void actions.marketplaceList(queryFor(next)).then(
       (page) => {
         if (ticket !== generation.current) return;
         setList({
@@ -185,17 +422,37 @@ export function MarketplaceModal({
 
   const loadOnMount = useMountedResource<HTMLDivElement>(() => {
     load();
+    void actions.marketplaceTopics().then(
+      (loaded) => setTopics(loaded.slice(0, VISIBLE_TOPICS)),
+      () => setTopics([]),
+    );
     return () => {
       generation.current += 1;
+      clearTimeout(searchTimer.current);
     };
   }, []);
+
+  const search = (text: string): void => {
+    setSearchText(text);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      const query = text.trim();
+      const current = latestFilters.current;
+      if (query !== current.query) load({ ...current, query });
+    }, SEARCH_DEBOUNCE_MS);
+  };
+
+  const chooseTopic = (topic: string | undefined): void => {
+    const { topic: _previous, ...rest } = filters;
+    load(topic === undefined ? rest : { ...rest, topic });
+  };
 
   const loadMore = (): void => {
     if (list.status !== 'ready' || list.nextCursor === undefined || list.loadingMore) return;
     const ticket = generation.current;
     const current = list;
     setList({ ...current, loadingMore: true });
-    void actions.marketplaceList(current.nextCursor).then(
+    void actions.marketplaceList(queryFor(filters, current.nextCursor)).then(
       (page) => {
         if (ticket !== generation.current) return;
         setList({
@@ -211,28 +468,72 @@ export function MarketplaceModal({
     );
   };
 
+  const openDetail = (bot: MarketplaceEntry): void => {
+    const ticket = ++detailGeneration.current;
+    setViewing(bot);
+    setReport({ status: 'closed' });
+    setDetail({ status: 'loading' });
+    void actions.marketplaceDetail(bot.id).then(
+      (loaded) => {
+        if (ticket === detailGeneration.current) setDetail({ status: 'ready', detail: loaded });
+      },
+      (cause: unknown) => {
+        if (ticket === detailGeneration.current) setDetail({ status: 'error', cause });
+      },
+    );
+  };
+
   const submit = (): void => {
     const trimmed = url.trim();
     if (trimmed.length === 0 || submitting) return;
-    setSubmitting(true);
+    setSubmitPhase('verifying');
     setSubmitCause(undefined);
     setSubmitted(undefined);
-    void actions.marketplaceSubmit(trimmed).then(
-      (bot) => {
-        setSubmitting(false);
-        setUrl('');
-        setSubmitted(bot.fullName);
-        setList((current) =>
-          current.status === 'ready'
-            ? { ...current, bots: [bot, ...current.bots.filter((item) => item.id !== bot.id)] }
-            : { status: 'ready', bots: [bot], loadingMore: false },
-        );
-      },
-      (cause: unknown) => {
-        setSubmitting(false);
-        setSubmitCause(cause);
-      },
-    );
+    void proveHuman(actions)
+      .then((altcha) => {
+        setSubmitPhase('sending');
+        return actions.marketplaceSubmit(trimmed, altcha);
+      })
+      .then(
+        (bot) => {
+          setSubmitPhase('idle');
+          setUrl('');
+          setSubmitted(bot.fullName);
+          setList((current) =>
+            current.status === 'ready'
+              ? { ...current, bots: [bot, ...current.bots.filter((item) => item.id !== bot.id)] }
+              : { status: 'ready', bots: [bot], loadingMore: false },
+          );
+        },
+        (cause: unknown) => {
+          setSubmitPhase('idle');
+          setSubmitCause(cause);
+        },
+      );
+  };
+
+  const sendReport = (bot: MarketplaceEntry): void => {
+    if (report.status !== 'open' || report.phase !== 'idle') return;
+    const reason = report.reason.trim();
+    const ticket = detailGeneration.current;
+    setReport({ status: 'open', reason: report.reason, phase: 'verifying' });
+    void proveHuman(actions)
+      .then((altcha) => {
+        if (ticket === detailGeneration.current) {
+          setReport({ status: 'open', reason: report.reason, phase: 'sending' });
+        }
+        return actions.marketplaceReport(bot.id, altcha, reason.length === 0 ? undefined : reason);
+      })
+      .then(
+        () => {
+          if (ticket === detailGeneration.current) setReport({ status: 'done' });
+        },
+        (cause: unknown) => {
+          if (ticket === detailGeneration.current) {
+            setReport({ status: 'open', reason: report.reason, phase: 'idle', cause });
+          }
+        },
+      );
   };
 
   const install = (): void => {
@@ -241,9 +542,9 @@ export function MarketplaceModal({
     setInstallCause(undefined);
     void actions
       .createBot({
-        displayName: selected.name,
+        displayName: marketplaceName(selected),
         gitUrl: selected.cloneUrl,
-        roles: [],
+        roles: selected.roles,
         ...(selected.description === null ? {} : { description: selected.description }),
       })
       .then(
@@ -266,7 +567,7 @@ export function MarketplaceModal({
           if (!installing) onClose();
         }}
         closeLabel={t('common.close')}
-        title={t('market.confirm.title', { name: selected.name })}
+        title={t('market.confirm.title', { name: marketplaceName(selected) })}
         className="bh-market-modal"
         footer={
           <>
@@ -287,6 +588,91 @@ export function MarketplaceModal({
         }
       >
         <InstallConfirmation bot={selected} t={t} cause={installCause} />
+      </Modal>
+    );
+  }
+
+  if (viewing !== undefined) {
+    const shown = detail.status === 'ready' ? detail.detail.bot : viewing;
+    return (
+      <Modal
+        open
+        onClose={onClose}
+        closeLabel={t('common.close')}
+        title={marketplaceName(shown)}
+        className="bh-market-modal"
+        footer={
+          report.status === 'open' ? (
+            <>
+              <Button
+                variant="outline"
+                disabled={report.phase !== 'idle'}
+                onClick={() => setReport({ status: 'closed' })}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={report.phase !== 'idle'}
+                onClick={() => sendReport(shown)}
+              >
+                {report.phase === 'verifying'
+                  ? t('market.challenge.verifying')
+                  : report.phase === 'sending'
+                    ? t('market.report.sending')
+                    : t('market.report.send')}
+              </Button>
+            </>
+          ) : (
+            <>
+              {report.status === 'done' ? null : (
+                <Button
+                  variant="ghost"
+                  className="bh-market-report-open"
+                  onClick={() => setReport({ status: 'open', reason: '', phase: 'idle' })}
+                >
+                  {t('market.report.open')}
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  detailGeneration.current += 1;
+                  setViewing(undefined);
+                }}
+              >
+                {t('market.back')}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setSelected(shown);
+                  setInstallCause(undefined);
+                }}
+              >
+                {t('market.install')}
+              </Button>
+            </>
+          )
+        }
+      >
+        <MarketplaceDetailView
+          bot={viewing}
+          state={detail}
+          t={t}
+          onRetry={() => openDetail(viewing)}
+          report={
+            <ReportPanel
+              state={report}
+              t={t}
+              onReason={(reason) =>
+                setReport((current) =>
+                  current.status === 'open' ? { ...current, reason, cause: undefined } : current,
+                )
+              }
+            />
+          }
+        />
       </Modal>
     );
   }
@@ -327,7 +713,11 @@ export function MarketplaceModal({
             disabled={submitting || url.trim().length === 0}
             onClick={submit}
           >
-            {submitting ? t('market.submit.busy') : t('market.submit.action')}
+            {submitPhase === 'verifying'
+              ? t('market.challenge.verifying')
+              : submitting
+                ? t('market.submit.busy')
+                : t('market.submit.action')}
           </Button>
         </div>
         <span className="bh-market-hint">
@@ -340,6 +730,56 @@ export function MarketplaceModal({
             {marketplaceError(submitCause, t)}
           </div>
         )}
+        <div className="bh-market-browse">
+          <Input
+            type="search"
+            aria-label={t('market.search.label')}
+            placeholder={t('market.search.placeholder')}
+            autoComplete="off"
+            maxLength={MAX_QUERY_LENGTH}
+            value={searchText}
+            onChange={(event) => search(event.currentTarget.value)}
+          />
+          <SegmentedControl
+            id={sortId}
+            label={t('market.sort.label')}
+            value={filters.sort}
+            options={[
+              { value: 'updated', label: t('market.sort.updated') },
+              { value: 'stars', label: t('market.sort.stars') },
+            ]}
+            disabled={filters.query.length > 0}
+            onChange={(sort) => load({ ...filters, sort })}
+          />
+        </div>
+        {filters.query.length > 0 ? (
+          <span className="bh-market-hint">{t('market.search.relevance')}</span>
+        ) : null}
+        {topics.length === 0 ? null : (
+          <div className="bh-market-topics" role="group" aria-label={t('market.topics.label')}>
+            <button
+              type="button"
+              className="bh-market-topic"
+              aria-pressed={filters.topic === undefined}
+              onClick={() => chooseTopic(undefined)}
+            >
+              {t('market.topics.all')}
+            </button>
+            {topics.map(({ topic, count }) => (
+              <button
+                key={topic}
+                type="button"
+                className="bh-market-topic"
+                data-market-topic={topic}
+                aria-pressed={filters.topic === topic}
+                onClick={() => chooseTopic(filters.topic === topic ? undefined : topic)}
+              >
+                {topic}
+                <span className="bh-market-topic-count">{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {list.status === 'loading' ? (
           <div className="bh-market-state" role="status">
             {t('market.loading')}
@@ -348,13 +788,17 @@ export function MarketplaceModal({
         {list.status === 'error' ? (
           <div className="bh-market-state" role="alert">
             <span>{t('market.error.load', { error: marketplaceError(list.cause, t) })}</span>
-            <Button variant="outline" onClick={load}>
+            <Button variant="outline" onClick={() => load()}>
               {t('market.retry')}
             </Button>
           </div>
         ) : null}
         {list.status === 'ready' && list.bots.length === 0 ? (
-          <div className="bh-market-state">{t('market.empty')}</div>
+          <div className="bh-market-state">
+            {filters.query.length > 0 || filters.topic !== undefined
+              ? t('market.search.empty')
+              : t('market.empty')}
+          </div>
         ) : null}
         {list.status === 'ready' && list.bots.length > 0 ? (
           <div className="bh-market-list" role="list" aria-label={t('market.title')}>
@@ -363,6 +807,7 @@ export function MarketplaceModal({
                 key={bot.id}
                 bot={bot}
                 t={t}
+                onOpen={() => openDetail(bot)}
                 onInstall={() => {
                   setSelected(bot);
                   setInstallCause(undefined);

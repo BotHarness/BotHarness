@@ -2,8 +2,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import type { D1Database, D1PreparedStatement, D1Value } from '../src/d1.js';
 import type { GitHubRepository } from '../src/github.js';
-import { handlerForEnv, runScheduled } from '../src/worker.js';
+import { parseChallenge, solveChallenge } from '../../core/src/marketplace/altcha.js';
+import { handlerForEnv, runScheduled, type MarketEnv } from '../src/worker.js';
 import { createGitHubClient } from '../src/github.js';
+import type { ProtectionLimits } from '../src/protection.js';
+
+export const TEST_ADMIN_TOKEN = 'test-admin-token';
 
 export function createLocalD1(): { db: D1Database; sqlite: DatabaseSync } {
   const sqlite = new DatabaseSync(':memory:');
@@ -30,6 +34,7 @@ export interface FakeRepository extends GitHubRepository {
   head?: { sha: string; committedAt: string };
   createdAt: string;
   readme: string | null;
+  descriptor: string | null;
 }
 
 export function fakeRepository(overrides: Partial<FakeRepository> = {}): FakeRepository {
@@ -51,6 +56,7 @@ export function fakeRepository(overrides: Partial<FakeRepository> = {}): FakeRep
     head: { sha: 'abcdef1234567890abcdef1234567890abcdef12', committedAt: '2026-09-30T12:00:00Z' },
     createdAt: '2026-01-01T00:00:00Z',
     readme: `# ${name}`,
+    descriptor: null,
     ...overrides,
   };
 }
@@ -59,6 +65,7 @@ export function createFakeGitHub(): {
   repositories: Map<string, FakeRepository>;
   down: { value: boolean };
   nodesDown: { value: boolean };
+  contentsDown: { value: boolean };
   requests: string[];
   nodeBatches: number[];
   searches: string[];
@@ -130,6 +137,7 @@ export function createFakeGitHub(): {
       items: visible.slice((page - 1) * perPage, page * perPage).map(rest),
     });
   };
+  const contentsDown = { value: false };
   const fetchImpl: typeof fetch = async (input, init) => {
     const url = new URL(
       typeof input === 'string' ? input : input instanceof URL ? input : input.url,
@@ -144,7 +152,7 @@ export function createFakeGitHub(): {
       const byId = new Map([...repositories.values()].map((item) => [item.nodeId, item]));
       return respond(200, { data: { nodes: variables.ids.map((id) => graph(byId.get(id))) } });
     }
-    const match = /^\/repos\/([^/]+)\/([^/]+)(?:\/(commits|readme)(?:\/([^/]+))?)?$/u.exec(
+    const match = /^\/repos\/([^/]+)\/([^/]+)(?:\/(commits|readme|contents)(?:\/(.+))?)?$/u.exec(
       url.pathname,
     );
     const repository =
@@ -157,6 +165,12 @@ export function createFakeGitHub(): {
         ? respond(404, { message: 'Not Found' })
         : new Response(repository.readme, { status: 200 });
     }
+    if (match[3] === 'contents') {
+      if (contentsDown.value) return respond(503, { message: 'unavailable' });
+      return match[4] !== '.botharness/bot.json' || repository.descriptor === null
+        ? respond(404, { message: 'Not Found' })
+        : new Response(repository.descriptor, { status: 200 });
+    }
     if (match[3] === 'commits') {
       return repository.head === undefined
         ? respond(404, { message: 'Not Found' })
@@ -167,28 +181,67 @@ export function createFakeGitHub(): {
     }
     return respond(200, rest(repository));
   };
-  return { repositories, down, nodesDown, requests, nodeBatches, searches, fetchImpl };
+  return {
+    repositories,
+    down,
+    nodesDown,
+    contentsDown,
+    requests,
+    nodeBatches,
+    searches,
+    fetchImpl,
+  };
 }
 
-export function createMarket(): {
+export const LENIENT_LIMITS: ProtectionLimits = {
+  submitPerHour: 1000,
+  reportPerHour: 1000,
+  repositoryCooldownMs: 0,
+  elevatedAfter: 1000,
+  highAfter: 2000,
+};
+
+export function createMarket(
+  options: {
+    limits?: Partial<ProtectionLimits>;
+    env?: Partial<Omit<MarketEnv, 'MARKET_DB'>>;
+    realChallenges?: boolean;
+  } = {},
+): {
   request: (path: string, init?: RequestInit) => Promise<Response>;
   github: ReturnType<typeof createFakeGitHub>;
   sqlite: DatabaseSync;
+  clock: { value: Date };
   publish: (repository: FakeRepository) => void;
   scheduled: (cron: string) => Promise<Record<string, unknown>>;
 } {
   const { db, sqlite } = createLocalD1();
+  const clock = { value: new Date('2026-10-05T12:00:00Z') };
   const github = createFakeGitHub();
   const client = createGitHubClient({
     token: 'test-token',
     fetchImpl: github.fetchImpl,
     apiBase: 'https://api.github.test',
   });
-  const handler = handlerForEnv({ MARKET_DB: db }, client);
+  const handler = handlerForEnv(
+    {
+      MARKET_DB: db,
+      ALTCHA_HMAC_KEY: 'test-altcha-key',
+      ADMIN_TOKEN: TEST_ADMIN_TOKEN,
+      ...options.env,
+    },
+    client,
+    {
+      now: () => clock.value,
+      limits: { ...LENIENT_LIMITS, ...options.limits },
+      ...(options.realChallenges === true ? {} : { challengeNumber: () => 0 }),
+    },
+  );
   return {
     request: (path, init) => handler(new Request(`https://market.test${path}`, init)),
     github,
     sqlite,
+    clock,
     scheduled: async (cron) => {
       const lines: string[] = [];
       await runScheduled(cron, { MARKET_DB: db }, client, (line) => lines.push(line));
@@ -199,10 +252,49 @@ export function createMarket(): {
   };
 }
 
-export function submit(market: ReturnType<typeof createMarket>, url: string): Promise<Response> {
-  return market.request('/v1/submissions', {
+type Market = ReturnType<typeof createMarket>;
+
+export async function solve(market: Market, ip = '203.0.113.1'): Promise<string> {
+  const response = await market.request('/v1/challenge', {
+    headers: { 'cf-connecting-ip': ip },
+  });
+  const challenge = parseChallenge(await response.json());
+  if (challenge === undefined) throw new Error('no challenge');
+  const payload = await solveChallenge(challenge);
+  if (payload === undefined) throw new Error('unsolved challenge');
+  return payload;
+}
+
+export function post(market: Market, path: string, body: unknown, ip = '203.0.113.1') {
+  return market.request(path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ url }),
+    headers: { 'content-type': 'application/json', 'cf-connecting-ip': ip },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function submit(market: Market, url: string, ip?: string): Promise<Response> {
+  return post(market, '/v1/submissions', { url, altcha: await solve(market, ip) }, ip);
+}
+
+export async function report(
+  market: Market,
+  id: string,
+  ip?: string,
+  reason?: string,
+): Promise<Response> {
+  return post(
+    market,
+    `/v1/bots/${encodeURIComponent(id)}/reports`,
+    { altcha: await solve(market, ip), ...(reason === undefined ? {} : { reason }) },
+    ip,
+  );
+}
+
+export function admin(market: Market, body: unknown, token = TEST_ADMIN_TOKEN) {
+  return market.request('/v1/admin/blocklist', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
   });
 }

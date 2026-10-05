@@ -1,6 +1,13 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
-import type { MarketplaceEntry, MarketplacePage } from '../../../core/src/marketplace/client.js';
+import type {
+  MarketplaceDetail,
+  MarketplaceEntry,
+  MarketplacePage,
+  MarketplaceQuery,
+  MarketplaceTopic,
+} from '../../../core/src/marketplace/client.js';
+import type { AltchaChallenge } from '../../../core/src/marketplace/altcha.js';
 import { loadAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
 
@@ -106,8 +113,12 @@ import {
   loadProfileUsage,
   loadOverviewMemory,
   loadOverviewUsage,
+  loadMarketplaceDetail,
   loadMarketplacePage,
+  loadMarketplaceTopics,
   submitMarketplaceRepository,
+  loadMarketplaceChallenge,
+  reportMarketplaceBot,
   type UsageFilter,
   type UsageQueryResult,
   loadGroupProfileActivity,
@@ -445,8 +456,12 @@ export interface BridgeActions {
     allBotMention?: AllBotMention,
   ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
-  marketplaceList(cursor?: string): Promise<MarketplacePage>;
-  marketplaceSubmit(url: string): Promise<MarketplaceEntry>;
+  marketplaceList(query?: MarketplaceQuery): Promise<MarketplacePage>;
+  marketplaceChallenge(): Promise<AltchaChallenge>;
+  marketplaceSubmit(url: string, altcha: string): Promise<MarketplaceEntry>;
+  marketplaceReport(id: string, altcha: string, reason?: string): Promise<void>;
+  marketplaceTopics(): Promise<MarketplaceTopic[]>;
+  marketplaceDetail(id: string): Promise<MarketplaceDetail>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
   setHumanNickname(channelId: string, nickname: string | null): Promise<boolean>;
@@ -1654,8 +1669,12 @@ export function createActions(
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
     overviewMemory: (after) => loadOverviewMemory(call, after),
     overviewUsage: (period, after) => loadOverviewUsage(call, period, after),
-    marketplaceList: (cursor) => loadMarketplacePage(call, cursor),
-    marketplaceSubmit: (url) => submitMarketplaceRepository(call, url),
+    marketplaceList: (query) => loadMarketplacePage(call, query),
+    marketplaceChallenge: () => loadMarketplaceChallenge(call),
+    marketplaceSubmit: (url, altcha) => submitMarketplaceRepository(call, url, altcha),
+    marketplaceReport: (id, altcha, reason) => reportMarketplaceBot(call, id, altcha, reason),
+    marketplaceTopics: () => loadMarketplaceTopics(call),
+    marketplaceDetail: (id) => loadMarketplaceDetail(call, id),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     channelActivityToday: () => loadChannelActivityToday(call),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
