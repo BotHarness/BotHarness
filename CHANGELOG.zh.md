@@ -522,6 +522,7 @@
 
 ### Documentation
 
+- 补充 npm 版本已部分发布后 main 推进时的显式恢复流程，保留原审阅 source，并拒绝与公开版本字节冲突的产物（[#877](https://github.com/BotHarness/BotHarness/issues/877)、[操作指南](docs/npm-prerelease.md)）。
 - 新增带真实截图的双语 Slack 连接指南，说明应用配置、身份绑定、频道授权与原话题回复验证（[#874](https://github.com/BotHarness/BotHarness/issues/874)、[指南](docs/slack-connection.md)）。
 
 - 记录 npm prerelease 的产物准备与明确发布路径，包括完整性校验、依赖顺序和部分发布恢复；不宣称已经公开发布（[#866](https://github.com/BotHarness/BotHarness/issues/866), [操作指南](docs/npm-prerelease.md)）。

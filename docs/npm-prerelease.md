@@ -29,7 +29,8 @@ account, credential, Binding or Service Grant is shipped in a package.
 Use the **npm prerelease preparation** workflow manually from main. Enter the
 agreed prerelease version. It checks/builds the exact revision, downloads the
 immutable Provider source, verifies input digests and generates four tarballs.
-PR runs for release-related changes prepare a preview only; they cannot be used
+PR runs for release-related changes prepare a unique `0.1.0-alpha.1-preview.<PR>.<run>`
+version so they do not collide with immutable public packages; they cannot be used
 as a publication source.
 
 Download `npm-prerelease-<version>` and review `release-plan.json`, `artifacts.json`
@@ -74,7 +75,9 @@ commands, logs or issue comments. Do not retrieve BotUI's local token file.
 After Human approval, dispatch **publish reviewed npm prerelease** from main with
 the successful manual preparation run, source SHA, exact version, reviewed plan
 SHA-256 and the literal confirmation `publish <version> to next`. The source must
-still be current main; if main advanced, prepare and review a new run.
+still be current main for a new publication; if main advanced, prepare and review a new run.
+For an already started release, the explicit partial-recovery exception below retains the
+original approved source and bytes instead of rebuilding an immutable version.
 
 The publisher checks the run's workflow identity, event, branch, conclusion and SHA,
 downloads its artifacts, then verifies/dry-runs them without publish credentials.
@@ -98,6 +101,16 @@ authorized, and prerelease ledger evidence must point to its real tag and downlo
 artifact. This workflow does not create a tag/GitHub Release or deploy the website.
 
 ## Partial publication and recovery
+
+When main advances after a release has partly published, dispatch the same publisher from
+current main with `resume_partial=true` and the original approved preparation run, source,
+version, plan digest and confirmation. This requires a successful manual-main preparation
+whose source is an ancestor of current main, a clean original plan, and at least one already
+published Core, Client or product package with exactly matching SHA-512. An independently
+reused Provider alone does not establish a partial product release. Every existing version
+must match; unavailable registry evidence or any byte conflict refuses recovery before the
+publish credential is supplied. The workflow checks out the original reviewed source and
+uses its verifier/publisher without rebuilding. Keep new main features for a later version.
 
 npm publication is not atomic across packages. Preflight checks every existing
 version and direct runtime dependency before the first publish. If interrupted,
