@@ -1,0 +1,50 @@
+{
+  "phase": "prepare",
+  "passed": true,
+  "databaseGeneration": 55,
+  "databaseCutover": false,
+  "arrangement": {
+    "pins": ["group-pinned-qa", "group-research-a"],
+    "hidden": ["group-hidden-history-qa"],
+    "sectionOrder": [
+      "baa1ace0-7c71-47c0-a10a-e6a0af4706f8",
+      "cafd68d9-05a5-4332-b903-0a42406c7b0c"
+    ],
+    "sections": [
+      {
+        "id": "baa1ace0-7c71-47c0-a10a-e6a0af4706f8",
+        "name": "研究",
+        "channelIds": ["group-research-a", "group-research-b"]
+      },
+      {
+        "id": "cafd68d9-05a5-4332-b903-0a42406c7b0c",
+        "name": "工作",
+        "channelIds": ["group-hidden-history-qa"]
+      }
+    ],
+    "topOrder": [
+      {
+        "kind": "section",
+        "id": "baa1ace0-7c71-47c0-a10a-e6a0af4706f8"
+      },
+      {
+        "kind": "channel",
+        "id": "group-loose-qa"
+      },
+      {
+        "kind": "section",
+        "id": "cafd68d9-05a5-4332-b903-0a42406c7b0c"
+      },
+      {
+        "kind": "channel",
+        "id": "group-pinned-qa"
+      }
+    ]
+  },
+  "arrangementSha256": "040a7cc67ff1ff2bad5ec91dd1451221ee86038690b7e18b6a0a3254439a7eca",
+  "retainedLegacySourceSha256": "1f012565854858addaddea0e35af103ee797f3cddd3bbcdf8773a3e7c94652d7",
+  "crossConnectionRefreshVerified": false,
+  "channelHistoryRetained": false,
+  "browserInteractionVerified": false,
+  "actualSecondBrowserClientVerified": false
+}

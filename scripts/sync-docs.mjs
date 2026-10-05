@@ -214,6 +214,21 @@ export const PAGES = [
     },
   },
   {
+    slug: 'docs/wechat-connection',
+    order: 25,
+    en: {
+      source: 'docs/wechat-connection.md',
+      title: 'Connect a Bot to personal WeChat',
+      description:
+        'Pair a WeChat Bot, authorize owner text DMs and verify original-conversation replies.',
+    },
+    zh: {
+      source: 'docs/wechat-connection.zh.md',
+      title: '连接个人微信',
+      description: '扫码绑定微信 Bot、授权扫码者文字私聊，并核对原会话回复。',
+    },
+  },
+  {
     slug: 'docs/model-setup',
     order: 13,
     en: {

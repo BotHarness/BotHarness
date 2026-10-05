@@ -1,4 +1,6 @@
-import { createTestRegistry } from './registry-fixture.js';
+import { storedState, storedSection, storedWriteCount } from './roster-fixture.js';
+import { createTestRosterStore } from './roster-fixture.js';
+import { registryDatabase, createTestRegistry } from './registry-fixture.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,7 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createBridgeMethods, type BridgeMethods } from '../src/bridge/methods.js';
 
 import { createChannelStore } from '../src/channels/store.js';
-import { createRosterStore, type RosterStore } from '../src/roster/store.js';
+import type { RosterStore } from '../src/roster/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createFakeRosterDomain, type FakeRosterDomain } from './roster-fixture.js';
 import { createTestOwnership } from './helpers.js';
@@ -22,7 +24,7 @@ afterEach(() => {
 function setup(): { methods: BridgeMethods; roster: RosterStore; fake: FakeRosterDomain } {
   const root = mkdtempSync(join(tmpdir(), 'botharness-roster-bridge-'));
   roots.push(root);
-  const roster = createRosterStore();
+  const roster = createTestRosterStore({ database: registryDatabase(root) });
   const fake = createFakeRosterDomain();
   const methods = createBridgeMethods({
     registry: createTestRegistry({ rootDir: root }),
@@ -62,7 +64,7 @@ describe('roster bridge methods with storage', () => {
   }
 
   it('creates, renames, and removes sections through the envelope', async () => {
-    const { methods, fake } = await attached();
+    const { methods, roster: store } = await attached();
 
     const created = await methods.sectionCreate({ name: '  研究  ' });
     expect(created).toEqual({
@@ -77,7 +79,7 @@ describe('roster bridge methods with storage', () => {
       ok: true,
       value: { section: { id: sectionId, name: '工作流', channelIds: [] } },
     });
-    expect(fake.records.get(sectionId)?.name).toBe('工作流');
+    expect(storedSection(store, sectionId)?.name).toBe('工作流');
 
     expect(await methods.sectionRemove({ sectionId })).toEqual({
       ok: true,
@@ -94,7 +96,7 @@ describe('roster bridge methods with storage', () => {
   });
 
   it('assigns channels with single ownership, positioning, and ungrouping', async () => {
-    const { methods, fake } = await attached();
+    const { methods, roster: store } = await attached();
     const first = await methods.sectionCreate({ name: 'A' });
     const second = await methods.sectionCreate({ name: 'B' });
     const firstId = first.ok ? first.value.section.id : '';
@@ -104,13 +106,13 @@ describe('roster bridge methods with storage', () => {
     await methods.channelAssign({ channelId: 'c2', sectionId: firstId });
     await methods.channelAssign({ channelId: 'c1', sectionId: secondId });
 
-    expect(fake.records.get(firstId)?.channelIds).toEqual(['c2']);
-    expect(fake.records.get(secondId)?.channelIds).toEqual(['c1']);
+    expect(storedSection(store, firstId)?.channelIds).toEqual(['c2']);
+    expect(storedSection(store, secondId)?.channelIds).toEqual(['c1']);
 
     await methods.channelAssign({ channelId: 'c2', sectionId: firstId, index: 0 });
     await methods.channelAssign({ channelId: 'c1', sectionId: null });
-    expect(fake.records.get(firstId)?.channelIds).toEqual(['c2']);
-    expect(fake.records.get(secondId)?.channelIds).toEqual([]);
+    expect(storedSection(store, firstId)?.channelIds).toEqual(['c2']);
+    expect(storedSection(store, secondId)?.channelIds).toEqual([]);
 
     expect(await methods.channelAssign({ channelId: 'c1', sectionId: 'missing' })).toEqual({
       ok: false,
@@ -119,7 +121,7 @@ describe('roster bridge methods with storage', () => {
   });
 
   it('reorders sections and sets pins and hidden Channels', async () => {
-    const { methods, fake } = await attached();
+    const { methods, roster: store } = await attached();
     const first = await methods.sectionCreate({ name: 'A' });
     const second = await methods.sectionCreate({ name: 'B' });
     const firstId = first.ok ? first.value.section.id : '';
@@ -137,7 +139,7 @@ describe('roster bridge methods with storage', () => {
       ok: true,
       value: { hidden: ['scout'] },
     });
-    expect(fake.state()).toEqual({
+    expect(storedState(store)).toEqual({
       pins: ['ada', 'scout'],
       hidden: ['scout'],
       sectionOrder: [secondId, firstId],
@@ -181,7 +183,7 @@ describe('roster bridge methods with storage', () => {
   });
 
   it('applies a bounded roster batch through one bridge request', async () => {
-    const { methods, fake } = await attached();
+    const { methods, roster: store } = await attached();
     const first = methods.channelCreate({ name: 'Alpha', members: [] });
     const second = methods.channelCreate({ name: 'Beta', members: [] });
     const ids = [first, second].map((result) => (result.ok ? result.value.channel.id : ''));
@@ -190,7 +192,7 @@ describe('roster bridge methods with storage', () => {
 
     const pinned = await methods.rosterBatch({ action: 'pin', channelIds: ids });
     expect(pinned).toMatchObject({ ok: true, value: { pins: ids } });
-    expect(fake.setCount()).toBe(2);
+    expect(storedWriteCount(store)).toBe(2);
 
     const moved = await methods.rosterBatch({
       action: 'move',
@@ -204,8 +206,8 @@ describe('roster bridge methods with storage', () => {
         sections: [{ id: sectionId, channelIds: ids }],
       },
     });
-    expect(fake.records.get(sectionId)?.channelIds).toEqual(ids);
-    expect(fake.setCount()).toBe(3);
+    expect(storedSection(store, sectionId)?.channelIds).toEqual(ids);
+    expect(storedWriteCount(store)).toBe(3);
 
     expect(await methods.rosterBatch({ action: 'pin', channelIds: ['missing'] })).toMatchObject({
       ok: false,

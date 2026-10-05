@@ -299,7 +299,9 @@ export function createInboundMessaging(options: {
         grantId: value.id,
         grantRevision: value.revision,
         defaultRevision: messagingDefaults(db, value.platform).revision,
-        receptionRevision: groupReceptionPolicy(db, value.id).revision,
+        ...(event.conversation.kind === 'group'
+          ? { receptionRevision: groupReceptionPolicy(db, value.id).revision }
+          : {}),
         ...(value.channelBridge ? { bridgeRevision: value.channelBridge.revision } : {}),
         ...(!value.bridgeRoutes && value.receiveTargetChannelId
           ? { localChannelId: value.receiveTargetChannelId }
@@ -427,11 +429,13 @@ export function createInboundMessaging(options: {
         inspected.account.fingerprint !== value.fingerprint ||
         inspected.target.digest !== value.targetDigest ||
         (value.receiveScope
-          ? inspected.target.receiveScope?.conversationId !== value.receiveScope.conversationId
+          ? inspected.target.receiveScope?.kind !== value.receiveScope.kind ||
+            inspected.target.receiveScope?.conversationId !== value.receiveScope.conversationId
           : !inspected.target.receiveScope)
       )
         throw new MessagingError('rebind-required');
-      transaction((db) => initializeGroupReceptionPolicy(db, value.id));
+      if (value.receiveScope?.kind === 'group')
+        transaction((db) => initializeGroupReceptionPolicy(db, value.id));
       const dispose = await entry.consume!({
         accountRef: value.accountRef,
         fingerprint: value.fingerprint,
@@ -477,10 +481,42 @@ export function createInboundMessaging(options: {
             throw new MessagingError('untrusted-source');
           if (!latest.receiveScope) return { accepted: true };
           if (
-            event.conversation.kind !== 'group' ||
+            event.conversation.kind !== latest.receiveScope.kind ||
             event.conversation.id !== value.receiveScope!.conversationId
           )
             return { accepted: true };
+          if (event.conversation.kind === 'dm') {
+            if (latest.receiveTargetChannelId || latest.channelBridge || latest.bridgeRoutes)
+              throw new MessagingError('capability-unavailable');
+            const id = transaction(
+              (db) => {
+                signal.throwIfAborted();
+                lease.controller.signal.throwIfAborted();
+                if (latest.receiveAfter && Date.parse(event.at) < Date.parse(latest.receiveAfter))
+                  return undefined;
+                const sourceEventId = persistSource(db, latest, event);
+                const policy = options.sourcePolicy.resolveIn(db, latest.botSlug, 'human-dm');
+                db.prepare(`INSERT OR IGNORE INTO inbox_admissions
+                (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
+                 wake_policy_revision, wake_mode) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+                  sourceEventId,
+                  latest.botSlug,
+                  'human-dm',
+                  policy.revision,
+                  policy.wake,
+                  policy.revision,
+                  policy.wake === 'immediate' ? 'all' : policy.wake,
+                );
+                return sourceEventId;
+              },
+              ['source-event', 'bot-inbox'],
+            );
+            if (id !== undefined)
+              setImmediate(() => {
+                if (!closed && valid(grant(value.id))) options.onAdmitted(value.botSlug, id);
+              });
+            return { accepted: true };
+          }
           if (!event.mentionedAccount) {
             lease.ordinaryVerified = true;
             if (ordinaryThreadReply(event))
@@ -968,6 +1004,7 @@ export function createInboundMessaging(options: {
     async channelBridge(channelId, rawInput) {
       const input = channelBridgeInput.parse(rawInput);
       const value = grant(input.grantId);
+      if (value.platform === 'weixin') throw new MessagingError('capability-unavailable');
       const channel = database.read((db) => bridgeChannel(db, channelId, value.botSlug, true));
       const target = input.delivery === 'inbox' ? null : channelId;
       if (target === null && channel.type !== 'dm') throw new MessagingError('channel-unavailable');
@@ -1119,6 +1156,11 @@ export function createInboundMessaging(options: {
           throw new MessagingError('rebind-required');
         scope = inspected.target.receiveScope;
         if (!scope) throw new MessagingError('group-required');
+        if (
+          scope.kind === 'dm' &&
+          (value.receiveTargetChannelId || value.channelBridge || value.bridgeRoutes)
+        )
+          throw new MessagingError('capability-unavailable');
       }
       const updated = database.transaction(
         (db) => {

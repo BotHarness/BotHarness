@@ -10,7 +10,7 @@ export interface MessagingTarget {
   ref: string;
   name: string;
   digest: string;
-  receiveScope?: { kind: 'group'; conversationId: string };
+  receiveScope?: { kind: 'group' | 'dm'; conversationId: string };
 }
 
 export interface MessagingAttachment {
@@ -24,7 +24,7 @@ export interface MessagingAttachment {
 
 export interface MessagingInboundEvent {
   version: 1;
-  channel: 'feishu' | 'slack' | 'discord';
+  channel: 'feishu' | 'slack' | 'discord' | 'weixin';
   botId: string;
   fingerprint: string;
   eventId: string;
@@ -70,6 +70,7 @@ export interface MessagingHistoryPage {
 
 export interface MessagingReceipt {
   version: 1;
+  identityKind?: 'client-acknowledgement';
   messageId: string;
   conversationId: string;
 }

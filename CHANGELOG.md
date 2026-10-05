@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Breaking Changes
 
+- Callers of the exported `createRosterStore` factory or `RosterStore` constructor must pass the Profile `OperationalDatabaseOwner` as `database`; `attach` only imports the legacy domain once and command/query contracts remain unchanged ([#885](https://github.com/BotHarness/BotHarness/issues/885)).
+
 - Callers of the exported `createPersonaBotRegistry` factory must pass the Profile `OperationalDatabaseOwner` as `database`; Registry commands and queries retain their interfaces, and implicit JSON-backed construction is removed ([#884](https://github.com/BotHarness/BotHarness/issues/884)).
 
 - Custom `BotAgentAdapter` implementations must handle an absent `OrchestratorAgentRun.inboundChannelId` for external-only Inbox turns; choose an authorized local Channel explicitly when sending locally ([#12](https://github.com/BotHarness/BotHarness/issues/12)).
@@ -18,6 +20,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Custom `BotAgentAdapter` implementations must return `{ outputLimit, contacts, nextCursor? }` from Orchestrator `channels.contacts(input?)`, with stable IDs under `botId` instead of `slug`; the `list_bot_contacts` Tool now returns that bounded page, so consumers must follow continuation ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
 
 ### Added
+
+- Added a personal WeChat paired-owner text path into the existing Bot Inbox and own-identity reply, with explicit DM authorization and private source continuations; source and locally installed product exchanges are verified and Human QA approved ([#878](https://github.com/BotHarness/BotHarness/issues/878), [ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md), [connection guide](docs/wechat-connection.md)).
 
 - PersonaBot creation offers colleague, roleplay and blank starting points with editable PERSONA.md text; switching preserves drafts, while permissions and runtime capabilities stay the same ([#325](https://github.com/BotHarness/BotHarness/issues/325)).
 
@@ -270,6 +274,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- Channel sections, pins, hidden entries and root order now persist in the Profile database after a validated one-time import; restart no longer depends on the retained legacy roster domain, while native sorting and per-Client collapse keep their existing owners ([#885](https://github.com/BotHarness/BotHarness/issues/885)).
 
 - PersonaBot identity, saved appearance, pause/access flags and independent model plans now survive restart in the owning Profile database; validated legacy `bot.json` records are imported once and retained without runtime fallback, while Soul remains Git-backed ([#884](https://github.com/BotHarness/BotHarness/issues/884)).
 

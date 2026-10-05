@@ -1,8 +1,8 @@
+import { createTestRosterStore } from './roster-fixture.js';
 import { createTestRegistry } from './registry-fixture.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 
 import { createBotStateTracker } from '../src/state/bot-state.js';
-import { createRosterStore } from '../src/roster/store.js';
 import { createTestOwnership } from './helpers.js';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -36,7 +36,7 @@ function fixture() {
     channels,
     states: createBotStateTracker(),
     ownership: createTestOwnership(),
-    roster: createRosterStore(),
+    roster: createTestRosterStore(),
     humanAttention: query,
     humanAttentionDecisions: decisions,
   });

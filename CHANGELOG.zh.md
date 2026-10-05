@@ -9,6 +9,8 @@
 
 ### Breaking Changes
 
+- 调用导出的 `createRosterStore` factory 或 `RosterStore` constructor 时必须以 `database` 传入 Profile 的 `OperationalDatabaseOwner`；`attach` 仅一次性导入旧 domain，命令与查询合同保持不变（[#885](https://github.com/BotHarness/BotHarness/issues/885)）。
+
 - 调用公开 `createPersonaBotRegistry` 工厂时必须通过 `database` 传入 Profile 的 `OperationalDatabaseOwner`；Registry 命令与查询接口保持原状，不再隐式创建 JSON 存储（[#884](https://github.com/BotHarness/BotHarness/issues/884)）。
 
 - 自定义 `BotAgentAdapter` 必须处理纯外部 Inbox 回合中缺省的 `OrchestratorAgentRun.inboundChannelId`；本地发送时需显式选择已授权的 Channel（[#12](https://github.com/BotHarness/BotHarness/issues/12)）。
@@ -18,6 +20,8 @@
 - 自定义 `BotAgentAdapter` 需让 Orchestrator 的 `channels.contacts(input?)` 返回 `{ outputLimit, contacts, nextCursor? }`，稳定 ID 字段从 `slug` 改为 `botId`；`list_bot_contacts` Tool 也返回该有界页，消费方需处理续页（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
 
 ### Added
+
+- 增加个人微信扫码绑定者文本进入既有 Bot Inbox 与本身份回复链路，使用明确私聊授权和私有来源续接信息；源码版与本机安装产品的真实收发已验证，Human QA 已通过（[#878](https://github.com/BotHarness/BotHarness/issues/878)，[ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md)，[连接指南](docs/wechat-connection.md)）。
 
 - 创建 PersonaBot 时可选择同事、角色扮演或空白起点并编辑 PERSONA.md；切换保留草稿，工具权限与运行能力保持不变（[#325](https://github.com/BotHarness/BotHarness/issues/325)）。
 
@@ -270,6 +274,8 @@
 - 新增 Computer 导出与迁移指南，覆盖跨机器单文件迁移、必须随迁移保留的文件所遵循的持久 `~/workspace` 约定，以及体积/耗时预期（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
 
 ### Changed
+
+- Channel 分组、置顶、隐藏与顶层排列经一次性校验导入后保存在 Profile 数据库，重启不再依赖保留的旧 roster domain；原生排序与各 Client 的折叠状态保持既有归属（[#885](https://github.com/BotHarness/BotHarness/issues/885)）。
 
 - PersonaBot 的身份、保存的外观、暂停／访问开关与独立模型配置现在由 Profile 数据库持久保存；旧 `bot.json` 经校验一次性迁入并保留，运行时不再回退读取，Soul 仍保持 Git 文件形式（[#884](https://github.com/BotHarness/BotHarness/issues/884)）。
 

@@ -251,6 +251,8 @@ export function createCore(
   let usage: UsageProjection | undefined;
   let registry: PersonaBotRegistry;
   let modelPresets: ModelPresetStore;
+  let roster: RosterStore;
+  let live: ChannelLiveHub | undefined;
   try {
     registry = createPersonaBotRegistry({
       rootDir,
@@ -283,6 +285,11 @@ export function createCore(
             };
       },
     });
+    roster = createRosterStore({
+      database: operationalDatabase,
+      warn: options.warn,
+      onCommitted: () => live?.publishRosterCommitted(),
+    });
     modelPresets = createModelPresetStore({
       rootDir: join(dshHome, 'botharness'),
       database: operationalDatabase,
@@ -296,7 +303,6 @@ export function createCore(
     throw error;
   }
   const states = createBotStateTracker();
-  let live: ChannelLiveHub | undefined;
   let runtime: BotRuntime | undefined;
   const attachments = createAttachmentStore({
     rootDir: join(dshHome, 'botharness', 'attachments'),
@@ -519,10 +525,7 @@ export function createCore(
     humanAttentionDecisions,
     attachments,
     live,
-    roster: createRosterStore({
-      warn: options.warn,
-      onCommitted: () => live?.publishRosterCommitted(),
-    }),
+    roster,
     runtime,
   };
 }
@@ -620,6 +623,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
+  ctx.effect(() => () => core.roster.detach(), 'botharness: roster');
   ctx.effect(() => {
     const controller = new AbortController();
     if (core.operationalDatabase.mode === 'ready')
@@ -634,7 +638,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.provide('botharness', core);
   ctx.effect(() => () => core.externalMessaging.close(), 'botharness: external messaging');
   ctx.inject(['dshIm'], (child) => {
-    for (const platform of ['feishu', 'slack', 'discord'] as const) {
+    for (const platform of ['feishu', 'slack', 'discord', 'weixin'] as const) {
       const provider = createDshImProvider(child.get('dshIm'), platform);
       if (provider !== undefined) child.effect(() => core.externalMessaging.register(provider));
     }
@@ -1185,10 +1189,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   }
 
   ctx.inject(['storageDomain'], (storageCtx) => {
-    void core.roster.attach(storageCtx.storageDomain).catch((error: unknown) => {
-      ctx.logger.warn(`botharness: failed to open the roster domain: ${String(error)}`);
+    void core.roster.attach(storageCtx.storageDomain).catch(() => {
+      ctx.logger.warn(
+        'roster-import initiator=host-startup phase=unavailable arrangement=read-only',
+      );
     });
-    storageCtx.effect(() => () => core.roster.detach(), 'botharness: roster domain');
   });
 
   ctx.systemPrompt.section({

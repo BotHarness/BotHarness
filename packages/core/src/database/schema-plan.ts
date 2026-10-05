@@ -1447,6 +1447,24 @@ const PERSONA_BOT_REGISTRY_MIGRATION: SchemaMigration = {
   },
 };
 
+const ROSTER_ARRANGEMENT_MIGRATION: SchemaMigration = {
+  generation: 56,
+  module: 'roster',
+  description: 'Own Channel sections and roster arrangement in the Profile database',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE roster_arrangement (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+      CREATE TABLE roster_arrangement_import (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        imported_at TEXT NOT NULL
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1502,4 +1520,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   QUALIFIED_PLATFORM_DEFAULTS_MIGRATION,
   MODEL_PRESET_STORAGE_MIGRATION,
   PERSONA_BOT_REGISTRY_MIGRATION,
+  ROSTER_ARRANGEMENT_MIGRATION,
 ]);
