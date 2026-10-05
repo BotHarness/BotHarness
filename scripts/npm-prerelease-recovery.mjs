@@ -9,7 +9,10 @@ export function reviewedSource({
   if (
     !/^[a-f0-9]{40}$/.test(sourceSha) ||
     checkoutSha !== mainSha ||
-    run.path !== '.github/workflows/npm-prerelease-prepare.yml' ||
+    ![
+      '.github/workflows/npm-prerelease-prepare.yml',
+      '.github/workflows/npm-prerelease-prepare.yml@main',
+    ].includes(run.path) ||
     run.event !== 'workflow_dispatch' ||
     run.head_branch !== 'main' ||
     run.conclusion !== 'success' ||

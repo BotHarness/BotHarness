@@ -4,7 +4,7 @@ import { reviewedSource, requirePartialPublication } from '../npm-prerelease-rec
 const sourceSha = 'a'.repeat(40);
 const mainSha = 'b'.repeat(40);
 const run = {
-  path: '.github/workflows/npm-prerelease-prepare.yml',
+  path: '.github/workflows/npm-prerelease-prepare.yml@main',
   event: 'workflow_dispatch',
   head_branch: 'main',
   conclusion: 'success',
@@ -24,6 +24,14 @@ const artifacts = [
 const remote = (artifact) => ({ ...artifact, dist: { integrity: artifact.integrity } });
 
 describe('reviewed partial npm recovery', () => {
+  it.each([
+    '.github/workflows/npm-prerelease-prepare.yml',
+    '.github/workflows/npm-prerelease-prepare.yml@main',
+  ])('accepts the observed and documented main workflow paths: %s', (path) => {
+    expect(
+      reviewedSource({ ...candidate, resumePartial: true, run: { ...run, path } }).recovery,
+    ).toBe(true);
+  });
   it('keeps the default current-main publication path', () => {
     expect(
       reviewedSource({ ...candidate, mainSha: sourceSha, checkoutSha: sourceSha }).recovery,
@@ -41,6 +49,9 @@ describe('reviewed partial npm recovery', () => {
   });
   it.each([
     { path: '.github/workflows/ci.yml' },
+    { path: '.github/workflows/ci.yml@main' },
+    { path: '.github/workflows/npm-prerelease-prepare.yml@feature' },
+    { path: '.github/workflows/npm-prerelease-prepare.yml@refs/heads/main' },
     { event: 'pull_request' },
     { head_branch: 'feature' },
     { conclusion: 'failure' },
