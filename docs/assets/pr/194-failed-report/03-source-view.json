@@ -1,0 +1,44 @@
+{
+  "bot": "Failed result QA 1791189795244",
+  "source": {
+    "id": "0579db8e-8f28-4dfd-8a7e-35c87dd951e6",
+    "state": "handled",
+    "createdAt": "2026-10-05T08:43:21.211Z",
+    "observedAt": "2026-10-05T08:43:22.007Z",
+    "handledAt": "2026-10-05T08:43:25.200Z",
+    "sourceKind": "assignment-report",
+    "assignmentSessionId": "botharness-d573a84a-778f-4fdb-91c8-5b6e5bf30ffb",
+    "assignmentReportState": "failed",
+    "assignmentTurn": 1,
+    "authorKind": "bot",
+    "authorBotSlug": "bot-6f08f66683c44d66ac0f7d2fa36edb6a",
+    "sourceAvailable": true,
+    "summary": "FAILED_RESULT: Required input is unavailable; no result was produced."
+  },
+  "assignment": {
+    "sessionId": "botharness-d573a84a-778f-4fdb-91c8-5b6e5bf30ffb",
+    "activity": "idle",
+    "latestReport": {
+      "state": "failed",
+      "summary": "FAILED_RESULT: Required input is unavailable; no result was produced.",
+      "at": "2026-10-05T08:43:21.211Z"
+    }
+  },
+  "assignmentTurns": {
+    "starts": 1,
+    "ends": 1
+  },
+  "nativeEnd": {
+    "turn": 1,
+    "seq": 26,
+    "reason": "completed"
+  },
+  "orchestratorTurns": {
+    "starts": 2,
+    "ends": 2
+  },
+  "reportExposures": 1,
+  "assignmentCount": 1,
+  "successfulHostNotices": 0,
+  "automaticRetry": false
+}
