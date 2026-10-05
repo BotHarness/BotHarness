@@ -35,9 +35,9 @@
 ```bash
 git clone https://github.com/BotHarness/BotHarness.git botharness-lark
 cd botharness-lark
-git checkout 3c4e05ca38fd0bfc65dfdb96e69f30feceb22c54
+git checkout c2a1f7cba13d1ba82e1b9e9b3b923babe428c0e7
 git clone https://github.com/DoodleBears/dsh-im.git /tmp/bh-lark-provider
-git -C /tmp/bh-lark-provider checkout b442da91b267412e84a4d18224adc30777024862
+git -C /tmp/bh-lark-provider checkout 48e7a35792af5222cd40cfe1ba2607ac55a59df2
 npm ci --prefix /tmp/bh-lark-provider --ignore-scripts --no-audit --no-fund
 pnpm install --frozen-lockfile
 pnpm build
@@ -52,7 +52,7 @@ node scripts/dev-instance.mjs \
 
 </details>
 
-启动器输出的登录 URL 只在本机打开，不放进截图或视频。下次使用同一个 `--home`，保留账号、授权和消息记录；同一个应用只由一个 Host 接收事件。完整打包背景见 [产品安装说明](https://github.com/BotHarness/BotHarness/blob/3c4e05ca38fd0bfc65dfdb96e69f30feceb22c54/docs/product-im-installation.md)。
+启动器输出的登录 URL 只在本机打开，不放进截图或视频。下次使用同一个 `--home`，保留账号、授权和消息记录；同一个应用只由一个 Host 接收事件。完整打包背景见 [产品安装说明](https://github.com/BotHarness/BotHarness/blob/c2a1f7cba13d1ba82e1b9e9b3b923babe428c0e7/docs/product-im-installation.md)。
 
 ## 操作视频：连接、授权、确认消息
 
@@ -153,7 +153,7 @@ _账号设置 → 投递设置 → 投递目标。这里的测试、保存目标
 
 ## 4. 绑定 PersonaBot 身份并授权群
 
-在 **Bot 模式**打开目标 Bot 的 DM，点击顶部 Bot 名称，再点 **查看详细**，进入详细 Profile。
+在 **Bot 模式**打开目标 Bot 的 DM，点击顶部 Bot 名称，再点 **查看详细**，进入详细 Profile。 点击 **配置引导**，选择应用平台、IM账号和保存的指定群目标。每个群独立核对；其他群的成功不能替代本群验收。步骤的「定位现有控件」打开或高亮实际设置，完成状态由实际配置和关联收件／回复决定。
 
 ![身份与群授权的操作示意：先绑定身份，再授权具体群，最后可选添加频道连接器](/guides/lark/05-identity-routing-annotated.webp)
 
@@ -239,7 +239,7 @@ _图 5：这是已收件的真实话题消息。Source Event ID 是 BotHarness �
 
 ## #824：真实新应用操作记录
 
-以下是新应用的真实压缩截图，不是模拟成功。应用通过真实后台发布为 1.0.0，只加入指定 QA 群；本机连接、目标测试和保存、PersonaBot 身份绑定与指定群授权都通过产品界面完成。产物为一次安装的 `0.0.0-test.824.6`（Provider `4.32.0-botharness.2`），没有另装接收进程。上文旧 #823 图与视频保留为参考，不替代本次新应用实测。
+以下是新应用的真实压缩截图，不是模拟成功。应用通过真实后台发布为 1.0.0，只加入指定 QA 群；本机连接、目标测试和保存、PersonaBot 身份绑定与指定群授权都通过产品界面完成。首次实测产物为一次安装的 `0.0.0-test.824.6`，新增指定群选择后的最终复验为 `0.0.0-test.824.7`（Provider `4.32.0-botharness.2`），没有另装接收进程。上文旧 #823 图与视频保留为参考，不替代本次新应用实测。
 
 ![新应用已连接](/guides/lark/19-new-app-connected.webp)
 
@@ -267,7 +267,7 @@ _无 @根消息未入库；两条指定 @消息进入该 Bot Inbox，LARK-SETUP-
 
 ![真实引导中的来源关联收件与回复](/guides/lark/25-new-app-receipt.webp)
 
-_原文 [BH-LARK-SETUP] 的 Source Event 末尾为 279efc24，对应 Inbox 已处理、关联回复为平台已接受。未观测到自身回传，引导要求 Human 到原话题核对。_
+_原文 [BH-LARK-SETUP] 的 Source Event 末尾为 f708a3f1，对应 Inbox 已处理、关联回复为平台已接受。未观测到自身回传，引导要求 Human 到原话题核对。_
 
 ![临时连接与本机凭据已移除](/guides/lark/26-new-app-cleaned.webp)
 

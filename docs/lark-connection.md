@@ -35,9 +35,9 @@ Use Node ≥22 and pnpm 12.4.2. Pin the qualified revision in a new checkout rat
 ```bash
 git clone https://github.com/BotHarness/BotHarness.git botharness-lark
 cd botharness-lark
-git checkout 3c4e05ca38fd0bfc65dfdb96e69f30feceb22c54
+git checkout c2a1f7cba13d1ba82e1b9e9b3b923babe428c0e7
 git clone https://github.com/DoodleBears/dsh-im.git /tmp/bh-lark-provider
-git -C /tmp/bh-lark-provider checkout b442da91b267412e84a4d18224adc30777024862
+git -C /tmp/bh-lark-provider checkout 48e7a35792af5222cd40cfe1ba2607ac55a59df2
 npm ci --prefix /tmp/bh-lark-provider --ignore-scripts --no-audit --no-fund
 pnpm install --frozen-lockfile
 pnpm build
@@ -52,7 +52,7 @@ node scripts/dev-instance.mjs \
 
 </details>
 
-Open the launcher's private login URL locally; never include it in screenshots or video. Reuse the same `--home` to retain accounts, authorization and message records. Only one Host should receive events for an application. See the [product installation notes](https://github.com/BotHarness/BotHarness/blob/3c4e05ca38fd0bfc65dfdb96e69f30feceb22c54/docs/product-im-installation.md) for packaging details.
+Open the launcher's private login URL locally; never include it in screenshots or video. Reuse the same `--home` to retain accounts, authorization and message records. Only one Host should receive events for an application. See the [product installation notes](https://github.com/BotHarness/BotHarness/blob/c2a1f7cba13d1ba82e1b9e9b3b923babe428c0e7/docs/product-im-installation.md) for packaging details.
 
 ## Video: connect, authorize and verify a message
 
@@ -153,7 +153,7 @@ _Account settings → Delivery settings → Delivery targets. Testing and saving
 
 ## 4. Bind a PersonaBot identity and authorize the group
 
-In **Bot mode**, open the intended Bot DM, click its name at the top, then **View details** to open the detailed Profile.
+In **Bot mode**, open the intended Bot DM, click its name at the top, then **View details** to open the detailed Profile. Open **Setup guide**, select the application platform, IM account and saved group target. Each group is verified separately; another group’s successful reply cannot verify this group. Locate controls opens or highlights actual settings; committed configuration and correlated receipt/reply determine completion.
 
 ![Annotated identity and group setup: bind identity, authorize the specific group, then optionally add a Channel connector](/guides/lark/05-identity-routing-annotated.webp)
 
@@ -237,7 +237,7 @@ When requesting help, include the platform, reproduction steps, a public-safe er
 
 ## Fresh application walkthrough: #824
 
-These compressed captures show the actual new application. Version 1.0.0 was released and added only to the designated QA group; account connection, target Test/Save, PersonaBot Binding and exact-group authorization were operated through the UI. The qualified single-install product was `0.0.0-test.824.6` (Provider `4.32.0-botharness.2`), with no separate receiver. Earlier #823 images/video remain reference material and do not substitute for this fresh application test.
+These compressed captures show the actual new application. Version 1.0.0 was released and added only to the designated QA group; account connection, target Test/Save, PersonaBot Binding and exact-group authorization were operated through the UI. The initial single-install product was `0.0.0-test.824.6`; final revalidation with explicit group selection used `0.0.0-test.824.7` (Provider `4.32.0-botharness.2`), with no separate receiver. Earlier #823 images/video remain reference material and do not substitute for this fresh application test.
 
 ![New application connected](/guides/lark/19-new-app-connected.webp)
 
@@ -265,7 +265,7 @@ _The unmentioned root was not admitted; both designated mentions reached this Bo
 
 ![Source-bound receipt and reply in the actual guide](/guides/lark/25-new-app-receipt.webp)
 
-_The exact [BH-LARK-SETUP] source ends in 279efc24; its Inbox admission was handled and its correlated reply was provider-accepted. No own echo was observed, so the guide asks the Human to inspect the original topic._
+_The exact [BH-LARK-SETUP] source ends in f708a3f1; its Inbox admission was handled and its correlated reply was provider-accepted. No own echo was observed, so the guide asks the Human to inspect the original topic._
 
 ![Temporary connection and local credentials removed](/guides/lark/26-new-app-cleaned.webp)
 

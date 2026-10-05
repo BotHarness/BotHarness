@@ -3677,7 +3677,12 @@ it('derives setup receipt from an admitted topic, own reply and authenticated ec
     true,
   );
   for (let index = 0; index < 31; index++)
-    await fx.core.externalMessaging.send('ada', fx.grant.id, `later-${index}`, `later ${index}`);
+    await fx.core.externalMessaging.send(
+      'ada',
+      fx.grant.id,
+      `setup-later-${index}`,
+      `later ${index}`,
+    );
   const afterLaterSends = await fx.core.externalMessaging.snapshot('ada');
   expect(afterLaterSends.intents.some((intent) => intent.sourceEventId === id)).toBe(false);
   expect(afterLaterSends.setup?.receipts[0]).toMatchObject({
