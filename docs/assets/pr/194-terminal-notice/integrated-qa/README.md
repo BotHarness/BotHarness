@@ -18,7 +18,13 @@ Actual pre-restart UI captures at 1500 × 1000 (light):
 
 ![Opening a source reaches the real completed Assignment](native-source.jpg)
 
-For the original matched baseline/after and complete light/dark series, see [the parent evidence set](../README.md). The integration does not alter the feature's visible UI contracts. After cold restart, the in-app browser connection timed out while loading the new preview. A newly rendered restart/handled screenshot could not be captured in this rerun; these boundaries are supported by fresh real Host/native/model assertions above, while their earlier screenshots remain pinned to their original revision. Do not treat the loading or stale page as current acceptance evidence.
+The screenshot retry recovered the real preview on 2026-10-05. These fresh captures show the same isolated Profile after its final-runtime cold restart, at 1280 × 721 in light theme. They show two existing QA Bots, not a before/after comparison of the same Bot: the separate Human QA Bot is still pending; the earlier fully reviewed Bot retains both handled sources. No new message was sent to the Human QA Bot during capture. [Capture proof](07-ui-capture-proof.json) confirms exact source identities, unchanged Report timestamps, two versus three Orchestrator Turns, and zero versus one notice delivery.
+
+| Human QA notice still pending after restart         | Previously reviewed notice and Report remain handled |
+| --------------------------------------------------- | ---------------------------------------------------- |
+| ![Pending after restart](pending-after-restart.jpg) | ![Handled after restart](reviewed-after-restart.jpg) |
+
+The earlier browser connection timeout is resolved for this capture; no loading or stale page is used as evidence. For the original matched baseline/after and complete light/dark series, see [the parent evidence set](../README.md). The integration does not alter the feature's visible UI contracts.
 
 Final integration validation: lint, format, typecheck, build and 96 focused compatibility tests across 13 files pass. Independent Spec and Standards reviews of main `af7b1d57` to runtime code `399cf5c6` pass with no actionable findings. Earlier integration also passed 90 focused tests and both independent reviews. [Integration CI](https://github.com/BotHarness/BotHarness/actions/runs/37264916467) passes at `65496611`.
 

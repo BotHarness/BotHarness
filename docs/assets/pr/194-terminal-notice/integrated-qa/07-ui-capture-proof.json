@@ -1,0 +1,54 @@
+{
+  "capturedAt": "2026-10-05T06:05:12.403Z",
+  "runtimeRevision": "399cf5c634852db6d3f3e49a791e6543eef44d4b",
+  "prRevisionAtCapture": "66c8934279f694728f4e62b56281ab59bfe35eb7",
+  "viewport": {
+    "width": 1280,
+    "height": 721
+  },
+  "theme": "light",
+  "scenes": [
+    {
+      "bot": "Terminal notice QA 1791175637021",
+      "assignmentSessionId": "botharness-6bbfff6d-0456-4a02-b199-1e6e8a1d1396",
+      "screenshot": "reviewed-after-restart.jpg",
+      "orchestratorTurns": 3,
+      "noticeDeliveries": 1,
+      "report": {
+        "id": "415bcfbd-3e22-4080-9580-2b75e9554e1c",
+        "state": "handled",
+        "observedAt": "2026-10-05T04:47:21.610Z",
+        "handledAt": "2026-10-05T04:47:23.945Z"
+      },
+      "notice": {
+        "id": "61f935e6-903f-47e3-9a59-1a2bdfc8ff08",
+        "state": "handled",
+        "relatedReportSourceEventId": "415bcfbd-3e22-4080-9580-2b75e9554e1c",
+        "assignmentTurn": 1,
+        "observedAt": "2026-10-05T05:23:27.700Z",
+        "handledAt": "2026-10-05T05:23:30.700Z"
+      },
+      "uiCaptureChangedAttention": false
+    },
+    {
+      "bot": "Human QA 835 1791178007551",
+      "assignmentSessionId": "botharness-4b8ed86f-0d53-4c23-97fb-d864276ccb54",
+      "screenshot": "pending-after-restart.jpg",
+      "orchestratorTurns": 2,
+      "noticeDeliveries": 0,
+      "report": {
+        "id": "e00db9b0-1f86-4191-b2c8-b54511ca2030",
+        "state": "handled",
+        "observedAt": "2026-10-05T05:26:53.729Z",
+        "handledAt": "2026-10-05T05:26:55.943Z"
+      },
+      "notice": {
+        "id": "34ac2656-05d7-4b97-9054-263dcc80ebfd",
+        "state": "pending",
+        "relatedReportSourceEventId": "e00db9b0-1f86-4191-b2c8-b54511ca2030",
+        "assignmentTurn": 1
+      },
+      "uiCaptureChangedAttention": false
+    }
+  ]
+}
