@@ -3212,13 +3212,51 @@ class BotRuntimeImplementation implements BotRuntime {
           )
           .run();
 
-        database
+        const interrupted = database
           .prepare(
-            "UPDATE assignments SET activity = 'error', continuity_key = NULL, updated_at = ? WHERE activity = 'working' AND stop_state = 'running'",
+            "SELECT bot_slug, session_id FROM assignments WHERE activity = 'working' AND stop_state = 'running'",
           )
-          .run(this.#now().toISOString());
+          .all() as Array<Pick<AssignmentRow, 'bot_slug' | 'session_id'>>;
+        const at = this.#now().toISOString();
+        for (const assignment of interrupted) {
+          const id = this.#createEventId();
+          const rule = this.#sourcePolicy.resolveIn(
+            database,
+            assignment.bot_slug,
+            'assignment-lifecycle',
+          );
+          database
+            .prepare(
+              "UPDATE assignments SET activity = 'error', continuity_key = NULL, updated_at = ? WHERE bot_slug = ? AND session_id = ? AND activity = 'working' AND stop_state = 'running'",
+            )
+            .run(at, assignment.bot_slug, assignment.session_id);
+          database
+            .prepare(`
+              INSERT INTO source_events (source_event_id, source_kind, bot_slug, assignment_session_id,
+                body, created_at, handled_at, attempt_state, expects_reply, payload_json)
+              VALUES (?, 'assignment-lifecycle', ?, ?, ?, ?, ?, 'handled', 0, ?)
+            `)
+            .run(
+              id,
+              assignment.bot_slug,
+              assignment.session_id,
+              'Host recovery found this Assignment still marked as executing. Its prior execution outcome is unconfirmed; it was not resumed automatically.',
+              at,
+              at,
+              JSON.stringify({
+                author: { kind: 'system' },
+                assignmentLifecycle: { state: 'interrupted', cause: 'host-recovery' },
+              }),
+            );
+          database
+            .prepare(`
+              INSERT INTO inbox_admissions (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode)
+              VALUES (?, ?, 'assignment-lifecycle', ?, ?)
+            `)
+            .run(id, assignment.bot_slug, rule.revision, rule.wake);
+        }
       },
-      ['assignments'],
+      ['assignments', 'source-event', 'bot-inbox'],
     );
     this.#database.transaction(
       (database) => {

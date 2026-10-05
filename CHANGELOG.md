@@ -375,6 +375,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- After Host restart, previously executing Assignments now produce one safe recovery notification for their PersonaBot, preserving original Reports and avoiding automatic Assignment replay; handled notifications are not recreated on later restarts ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
+
 - A native Assignment execution error now produces one safe Host notification for its PersonaBot and releases its Continuity Key, preserving the original progress Report without retry or replay after restart ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 
 - Human cancellation of a running Assignment now delivers one Host-origin Bot Inbox notice, preserving the original Report and native Turn identity without automatic retry; handled facts survive restart ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0045](docs/adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)).
