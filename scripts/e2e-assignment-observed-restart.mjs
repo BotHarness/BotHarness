@@ -54,7 +54,10 @@ const exposures = (rows) =>
 if (phase === 'prepare') {
   const stamp = Date.now();
   const model = (await rpc('modelCatalog')).models.find(
-    (m) => m.model.includes('flash') && m.efforts.some((e) => e.id === 'low'),
+    (m) =>
+      m.provider === 'deepseek-official' &&
+      m.model.includes('flash') &&
+      m.efforts.some((e) => e.id === 'low'),
   );
   assert.ok(model);
   const route = { provider: model.provider, model: model.model, reasoningEffort: 'low' };
@@ -69,7 +72,10 @@ if (phase === 'prepare') {
     await rpc('create', {
       displayName: 'Observed restart QA ' + stamp,
       persona:
-        'Follow the Human exactly. Create only one requested Assignment, which reports one progress update and ends. After creation channel_send OBSERVED_CREATED and end. Never use files or subagents. Only when the Human says OBSERVE_AND_WAIT, first channel_send OBSERVED_READ, then invoke native Shell exactly once with command sleep 1 and description Observed report QA timer. Omit sandbox_permissions and justification. Await Human approval; never approve it yourself. Do not resume the Assignment or create another one.',
+        'Follow the Human exactly. When running as an Assignment, follow the full purpose: only invoke report_to_orchestrator as instructed and end; never use Shell, question tools, channel_send, files or subagents. When running as Orchestrator, create only one requested Assignment, which reports one progress update and ends. After creation channel_send OBSERVED_CREATED and end. Never use files or subagents. Only when the Human says OBSERVE_AND_WAIT, first channel_send OBSERVED_READ, then invoke native Shell exactly once with command sleep 1 and description Observed report QA timer. Omit sandbox_permissions and justification. Await Human approval; never approve it yourself. Do not create another Assignment. ' +
+        (process.env.BH_E2E_REPAIR_SCENARIO === '1'
+          ? 'Only when the Human explicitly says REPAIR_WEAKER_UPDATE, forward their exact supplied request to the same Assignment Session through send_assignment_request mode next-turn exactly once, then channel_send REPAIR_WEAKER_REQUESTED and end. On READ_WEAKER_INFORMATION, only channel_send REPAIR_WEAKER_READ and end. Otherwise never resume the Assignment.'
+          : 'Do not resume the Assignment.'),
     })
   ).bot;
   await rpc('modelPresetApply', { slug: bot.slug, presetId: preset.id });
@@ -83,7 +89,7 @@ if (phase === 'prepare') {
   saveState();
   await rpc('channelSend', {
     channelId: dm.id,
-    body: `Create exactly one Assignment using grant_id ${grant.id} with purpose Observed report restart acceptance. It must invoke report_to_orchestrator once, state progress, summary ${JSON.stringify(marker)}, expects_reply false, then end without any other tools or Reports. After creating it you must channel_send OBSERVED_CREATED and end, without Shell, files or subagents.`,
+    body: `Create exactly one Assignment using grant_id ${grant.id}. Set its purpose to this full text verbatim, including the Report instructions: ${JSON.stringify('Observed report restart acceptance. Invoke report_to_orchestrator exactly once, state progress, summary ' + JSON.stringify(marker) + ', expects_reply false, then end without any other tools or Reports. Do not ask questions or run Shell.')} After creating it you must channel_send OBSERVED_CREATED and end, without Shell, files or subagents.`,
   });
   scene.sessionId = (
     await waitFor(
