@@ -106,7 +106,7 @@ Slack 公开频道 QA App 的 Bot scopes 为 `app_mentions:read`、`chat:write`�
 
 真实频道及已有公开 thread 的 @ 消息已贯通一条 canonical Source Event／Inbox Admission、既有 Orchestrator 模型和一条独立原生读回的本身份原位置回复。后续有界检查覆盖身份暂停／恢复、Grant 撤销、真实 Provider Service 丢失／恢复、独占 consumer 冲突、来源编辑，以及发送中的身份／Grant／Provider 丢失。恢复后的新频道和原 thread 模型回复均通过；旧中断请求没有自动重发。Provider 在发送中丢失仍保留 `unknown-outcome`，不能因原生读回未见回复就改称确定未发送。
 
-Human 已明确确认，首次身份绑定与来源授权**尚未由 Human 亲自操作界面完成**。已有配置由授权的 Host 命令建立，不能代替这项验收。来源删除、错误凭据／Application／guild 和强制 Gateway 重投／缺口仍缺少新的原生／模型证据。错误原生路由与真实权限丢失通过调用 Discord API 的 Provider preflight 检查过；这比真实模型尝试回复并被拒绝的证据范围更窄。
+Human 后续明确要求代理直接完成 E2E 验收，取消本人操作与人工 QA 等待条件。代理通过既有 Profile 界面解绑并重新绑定同一已认证账号、授权同一目标、开启仅 @ 收件。随后在真实 Discord 输入框发送的新频道与已有 thread 提及，各产生一次 canonical Admission、一次模型 `bridge_reply` Intent 和一条独立原生读回的本 Bot 原位置回复。这是代理操作界面的验收，不声称 Human 亲自完成了设置。来源删除、错误凭据／Application／guild 和强制 Gateway 重投／缺口仍缺少新的原生／模型证据。错误原生路由与真实权限丢失通过调用 Discord API 的 Provider preflight 检查过；这比真实模型尝试回复并被拒绝的证据范围更窄。
 
 见[当前验证范围及历史首片检查点](../verification/discord-855-mention-reply.md)和 [#876 的成对 UI 证据](../../evidence/issue-855-messaging-refresh/README.md)。[ADR-0128](../../adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md) 记录父会话／原生子频道映射。已验证的产品 Provider 和 Discord 其他能力表行保持不变。
 

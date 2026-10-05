@@ -524,7 +524,7 @@
 
 ### Documentation
 
-- 更新 Discord 接入说明，记录已合并 QA 版本、有界发送中断／恢复证据及仍待完成的 Human／原生资格验收（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[验证记录](docs/dev/verification/discord-855-mention-reply.md)）。
+- 更新 Discord 接入说明，记录已合并 QA 版本、有界发送中断／恢复证据、代理操作界面的 E2E 验收截图及仍待完成的原生资格验收（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[验证记录](docs/dev/verification/discord-855-mention-reply.md)）。
 
 - 记录 Profile 备份／恢复／迁移 UX 提案，明确校验、修复与显式激活；UX 已验收，运行实现另行跟踪 ([#76](https://github.com/BotHarness/BotHarness/issues/76), [提案](docs/proposals/profile-portability-ux.md))。
 
