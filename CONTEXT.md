@@ -308,6 +308,14 @@ _Avoid_: Channel authority, database backup, live inbox
 An inactive imported reference describing a provider account or authority the Human may reconnect and reauthorize locally; until then it cannot admit events, wake a PersonaBot, or execute a Service Action.
 _Avoid_: credential, Service Grant, automatic reconnect
 
+**Bot Marketplace**:
+The hosted catalog the harness opens to browse, search and install shareable Bots. Phase 1 lists only Indexed Repositories; uploaded Bots join in a later phase (ADR-0131).
+_Avoid_: store, hub, Soul registry
+
+**Indexed Repository**:
+A public GitHub repository carrying the `botharness-bot` topic that the Bot Marketplace lists by reference and refreshes on a schedule. Installing it creates a fresh PersonaBot from its Git URL; it is not a SoulSnapshot, Listing or Version.
+_Avoid_: submission, Listing, SoulSnapshot, mirror
+
 **Soul registry**:
 The hosted service that stores, versions, and serves SoulSnapshots — the marketplace backend, distinct from the Host's PersonaBot registry.
 _Avoid_: hub, store, database

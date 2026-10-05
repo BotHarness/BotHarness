@@ -10,7 +10,7 @@ on:
         description: Reviewed source SHA (must still be current main)
         required: true
       version:
-        description: Reviewed prerelease version
+        description: Reviewed version
         required: true
       plan_sha256:
         description: Reviewed release-plan.json SHA-256 from preparation summary
@@ -20,7 +20,7 @@ on:
         type: boolean
         default: false
       confirmation:
-        description: 'Type: publish VERSION to next (requires Human release approval)'
+        description: 'Type: publish VERSION to latest (stable) or publish VERSION to next (alpha/beta/rc); requires Human release approval'
         required: true
 
 permissions:

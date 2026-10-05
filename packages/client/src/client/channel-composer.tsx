@@ -336,6 +336,7 @@ function PersonaBotActivityStatus({
         <PersonaBotFacepile
           t={t}
           className="bh-composer-activity-facepile"
+          indicator={false}
           items={activity.items}
           renderAvatar={
             activity.presentation === 'group'
