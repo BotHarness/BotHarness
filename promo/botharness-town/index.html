@@ -309,7 +309,7 @@ const UI = {
   lark: { url: './ui/lark-connector.png', w: 882, h: 827, title: 'GROUP - LARK CONNECTOR' },
   slack: { url: './ui/slack-connector.png', w: 1230, h: 820, title: 'PROFILE - SLACK CONNECTOR' },
   group: { url: `./ui/${LANG}/group.jpg`, w: 2940, h: 1846, title: 'GROUP' },
-  larkTopic: { url: './ui/lark-topic.jpg', w: 1668, h: 1846, title: 'LARK TOPIC' },
+  larkTopic: { url: `./ui/${LANG}/lark-topic.jpg`, w: 2880, h: 1920, title: 'LARK TOPIC' },
   slackThread: { url: './ui/slack-thread.png', w: 1230, h: 876, title: 'SLACK THREAD' },
 };
 for (const u of Object.values(UI)) u.tex = load(u.url, { pixel: false });
@@ -1137,7 +1137,7 @@ const BEATS = [
   { a: 3500, b: 3720, mode: 'gal', ui: 'groupClip', clip: { t0: 0.6, rate: 1.6 }, crops: [[3500, 1330, 1050, 2660], [3560, 900, 880, 1700]], hl: [[3520, 3716, 24, 508, 512, 410]], lines: [
     [3510, NARRATOR, T('group2')],
   ] },
-  { a: 3720, b: 4080, mode: 'split', ui: 'larkTopic', crops: [[3720, 1300, 500, 700], [3880, 1300, 1060, 700]], hl: [[3740, 3870, 990, 316, 630, 360], [3900, 4070, 990, 1130, 630, 100]], lines: [
+  { a: 3720, b: 4080, mode: 'split', ui: 'larkTopic', crops: [[3720, 1980, 880, 1800], [3880, 2510, LANG === 'en' ? 1130 : 1050, 1050]], hl: [[3740, 3870, 2200, LANG === 'en' ? 705 : 576, 660, LANG === 'en' ? 200 : 170], [3900, 4070, 2200, LANG === 'en' ? 936 : 778, 660, 640]], lines: [
     [3730, NARRATOR, T('larkAt1')],
     [3890, NARRATOR, T('larkAt2')],
   ] },
@@ -2844,14 +2844,38 @@ VX.clouds = Array.from({ length: 10 }, (_, i) => vxBoard(vxCloudTex, (hash(i, 41
 const STREET = [[123, 30], [124, 46], [126, 62], [123, 78], [117, 94], [118, 108], [121, 116]];
 const streetCurve = new THREE.CatmullRomCurve3(STREET.map(([bx, bz]) => { const [x, z] = [(bx - C) * VX.S, (bz - C) * VX.S]; return new THREE.Vector3(x, 0, z); }), false, 'centripetal');
 const EYE = 15;
+// ground height along the walk, smoothed so block steps never jolt the camera
+const STREET_SAMPLES = 400;
+const streetGround = (() => {
+  let h = Array.from({ length: STREET_SAMPLES + 1 }, (_, i) => {
+    const v = streetCurve.getPointAt(i / STREET_SAMPLES);
+    return top(Math.round(v.x / VX.S + C), Math.round(v.z / VX.S + C)) * VX.S;
+  });
+  for (let pass = 0; pass < 4; pass++)
+    h = h.map((_, i) => {
+      let sum = 0;
+      let n = 0;
+      for (let k = -24; k <= 24; k++) { const j = clamp(i + k, 0, STREET_SAMPLES); sum += h[j]; n += 1; }
+      return sum / n;
+    });
+  return h;
+})();
+const streetY = (u) => {
+  const x = clamp(u, 0, 1) * STREET_SAMPLES;
+  const i = Math.floor(x);
+  return lerp(streetGround[i], streetGround[Math.min(STREET_SAMPLES, i + 1)], x - i);
+};
 const AERIAL = { yaw: (205 * Math.PI) / 180, pitch: (48 * Math.PI) / 180, dist: 720 };
 function voxelCamera(c) {
-  const walk = clamp(c / 600, 0, 1);
-  const u = 0.02 + walk * 0.9;
+  // ease in and out of the walk so speed never jumps
+  const walk = ease(clamp(c / 600, 0, 1)) * 0.6 + clamp(c / 600, 0, 1) * 0.4;
+  const u = 0.02 + walk * 0.88;
   const p = streetCurve.getPointAt(u);
-  const ahead = streetCurve.getPointAt(Math.min(1, u + 0.06));
-  const ground = (v) => top(Math.round(v.x / VX.S + C), Math.round(v.z / VX.S + C)) * VX.S;
-  const street = { pos: new THREE.Vector3(p.x, ground(p) + EYE, p.z), look: new THREE.Vector3(ahead.x, ground(ahead) + EYE - 4, ahead.z) };
+  // look target: average of several points ahead, so curve corners turn the view gently
+  const look0 = new THREE.Vector3();
+  for (let k = 1; k <= 6; k++) look0.add(streetCurve.getPointAt(Math.min(1, u + k * 0.015)));
+  look0.multiplyScalar(1 / 6);
+  const street = { pos: new THREE.Vector3(p.x, streetY(u) + EYE, p.z), look: new THREE.Vector3(look0.x, streetY(Math.min(1, u + 0.05)) + EYE - 4, look0.z) };
   const centre = new THREE.Vector3(0, top(C, C) * VX.S, 0);
   const crane = ease(span(c, 560, 920));
   const orbit = AERIAL.yaw + span(c, 560, 1080) * 0.35;
@@ -3198,6 +3222,25 @@ window.botTown = {
     renderFrame(f);
   },
   wavBase64,
+  // debug: largest per-frame camera move / view turn over a frame range of the voxel finale
+  cameraTrace: (a, b) => {
+    let maxMove = 0, maxTurn = 0, at = 0, atTurn = 0;
+    let prev = null;
+    for (let F = a; F < b; F++) {
+      const sg = segmentAt(F);
+      if (sg.id !== 'city') continue;
+      const { pos, look } = voxelCamera(F - sg.start);
+      const dir = look.clone().sub(pos).normalize();
+      if (prev) {
+        const mv = pos.distanceTo(prev.pos);
+        const tn = Math.acos(clamp(dir.dot(prev.dir), -1, 1)) * 180 / Math.PI;
+        if (mv > maxMove) { maxMove = mv; at = F; }
+        if (tn > maxTurn) { maxTurn = tn; atTurn = F; }
+      }
+      prev = { pos, dir };
+    }
+    return { maxMove, at, maxTurn, atTurn };
+  },
 };
 </script>
 </body>
