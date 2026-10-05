@@ -2,7 +2,7 @@
 
 The **Channel sidebar** is the right-hand column in **Bot mode**. It follows the selected chat: a PersonaBot DM shows that Bot’s own resources; a local group shows the group’s members and management controls. Opening a native DSH Session takes you to a different, Session-scoped interface.
 
-These pages use DSH **0.2.0-rc.1** and the public **deepseekbot@0.1.0-alpha.1** package. First complete [installation](/docs/installation) and [API and Bot model setup](/docs/model-setup).
+These pages use DSH **0.2.0-rc.1** and the public **deepseekbot** package. First complete [installation](/docs/installation) and [API and Bot model setup](/docs/model-setup).
 
 ## Open the sidebar
 
@@ -33,4 +33,4 @@ These pages use DSH **0.2.0-rc.1** and the public **deepseekbot@0.1.0-alpha.1** 
 
 Bot-only entries do not appear in a group; group management does not appear in a Bot DM. The Bot Inbox entry is conditional on having records or a loading/error state. An entry may also be hidden through **Edit sidebar**.
 
-Optional plugins can contribute further entries. The public alpha.1 product does not include the Browser or Computer packages: their absence is expected. When those packages are installed and available, follow [Share a browser tab](/docs/daily-browser) or [Computer export and migration](/docs/computer-export) for their separate prerequisites and procedures. Installing an IM connection is a separate setup flow.
+Optional plugins can contribute further entries. The public npm package does not include the Browser or Computer packages: their absence is expected. When those packages are installed and available, follow [Share a browser tab](/docs/daily-browser) or [Computer export and migration](/docs/computer-export) for their separate prerequisites and procedures. Installing an IM connection is a separate setup flow.

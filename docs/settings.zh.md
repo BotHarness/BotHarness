@@ -1,6 +1,6 @@
 # 设置指南
 
-本页说明公共 **deepseekbot@0.1.0-alpha.1** 在 DSH **0.2.0-rc.1** 中的非 IM 设置：从哪里打开、各参数做什么，以及保存后的作用范围。先完成 [安装](/zh/docs/installation) 和 [API 与 Bot 模型配置](/zh/docs/model-setup)。Slack、Lark 的账号和连接参数分别见现有连接教程。
+本页说明公共包 **deepseekbot** 在 DSH **0.2.0-rc.1** 中的非 IM 设置：从哪里打开、各参数做什么，以及保存后的作用范围。先完成 [安装](/zh/docs/installation) 和 [API 与 Bot 模型配置](/zh/docs/model-setup)。Slack、Lark 的账号和连接参数分别见现有连接教程。
 
 ## 设置入口地图
 
@@ -139,6 +139,6 @@ Profile 向下展开 **提醒策略**，在对应来源行点击修改，选择�
 
 ## 高级参数与可选能力
 
-公共 alpha.1 产品组合是 Core、Client 和已验证的 IM Provider。Browser / Computer 等开发能力不因为上述安装步骤就自动可用；只在实际部署了相应插件时出现。Core 的 `enabled`（启用）、`agentPreset`（会话工具预设，默认 standard）、`activityDetailConsumers`（允许读取活动详情的受信任 Host 插件名单，默认空）见代码生成的 [Core 配置参考](/zh/dev/reference/config)。可选 Browser 的目标、驱动、路径、无窗口模式和空闲停止参数见 [Browser 配置定义](https://github.com/BotHarness/BotHarness/blob/main/packages/browser/src/index.ts)；Computer 的目标、桌面资源、导出目录和操作授权参数见 [Computer 配置定义](https://github.com/BotHarness/BotHarness/blob/main/packages/computer/src/index.ts)。操作教程见 [分享日常浏览器标签页](/zh/docs/daily-browser) 与 [Computer 导出与迁移](/zh/docs/computer-export)。
+公共 npm 包的产品组合是 Core、Client 和已验证的 IM Provider。Browser / Computer 等开发能力不因为上述安装步骤就自动可用；只在实际部署了相应插件时出现。Core 的 `enabled`（启用）、`agentPreset`（会话工具预设，默认 standard）、`activityDetailConsumers`（允许读取活动详情的受信任 Host 插件名单，默认空）见代码生成的 [Core 配置参考](/zh/dev/reference/config)。可选 Browser 的目标、驱动、路径、无窗口模式和空闲停止参数见 [Browser 配置定义](https://github.com/BotHarness/BotHarness/blob/main/packages/browser/src/index.ts)；Computer 的目标、桌面资源、导出目录和操作授权参数见 [Computer 配置定义](https://github.com/BotHarness/BotHarness/blob/main/packages/computer/src/index.ts)。操作教程见 [分享日常浏览器标签页](/zh/docs/daily-browser) 与 [Computer 导出与迁移](/zh/docs/computer-export)。
 
-高级修改时先核对实际安装版本，再从 **设置 → 内置插件** 查看对应插件的详情 / 参数；没有表单的部署参数按 [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish) 在 Profile / Patch 层配置。当前网站开发参考可能比 npm alpha.1 更新，不能把开发参考中的可选能力当作这个安装包已经提供。
+高级修改时先核对实际安装版本，再从 **设置 → 内置插件** 查看对应插件的详情 / 参数；没有表单的部署参数按 [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish) 在 Profile / Patch 层配置。当前网站开发参考可能比 npm 发布版更新，不能把开发参考中的可选能力当作这个安装包已经提供。
