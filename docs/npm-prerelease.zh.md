@@ -87,5 +87,5 @@ npm 多包发布不是原子的。首次发布前检查全部已有版本及直�
 
 参考：[DSH Bundle 发布](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish)、
 [npm publish](https://docs.npmjs.com/cli/v11/commands/npm-publish/)、
-[BotUI release 参考](https://github.com/BotHarness/BotUI/blob/3fe0a5b72be0984bb688e91279f84c56a7cabb1c/scripts/release.mjs)、
+[BotUI release 参考](https://github.com/BotHarness/BotUI/blob/dee41211aca0da71fe60206b5099283361fdb75a/scripts/release.mjs)、
 [产品验收](product-im-installation.md)。

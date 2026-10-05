@@ -116,5 +116,5 @@ enabling the product and stop the exact owning Host before switching artifacts.
 
 References: [DSH Bundle publication](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish),
 [npm publish](https://docs.npmjs.com/cli/v11/commands/npm-publish/),
-[BotUI release reference](https://github.com/BotHarness/BotUI/blob/3fe0a5b72be0984bb688e91279f84c56a7cabb1c/scripts/release.mjs),
+[BotUI release reference](https://github.com/BotHarness/BotUI/blob/dee41211aca0da71fe60206b5099283361fdb75a/scripts/release.mjs),
 [product qualification](product-im-installation.md).
