@@ -54,11 +54,9 @@ describe("DeepSeekBot guides on the product site", () => {
     expect(rules).toContain(`/zh/docs ${SITE}/docs/overview/ 301`);
   });
 
-  it("stays within the Cloudflare limit of 100 dynamic redirects", () => {
-    const dynamic = rules.filter((rule) => {
-      const [from = "", to = ""] = rule.split(/\s+/);
-      return /[*:]/.test(from) || /^https?:\/\//.test(to);
-    });
-    expect(dynamic.length).toBeLessThanOrEqual(100);
+  it("stays within the Cloudflare limit of 100 dynamic redirects, counted from the first wildcard on", () => {
+    const firstWildcard = rules.findIndex((rule) => /[*:]/.test(rule.split(/\s+/)[0] ?? ""));
+    const dynamic = firstWildcard === -1 ? 0 : rules.length - firstWildcard;
+    expect(dynamic).toBeLessThanOrEqual(100);
   });
 });

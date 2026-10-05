@@ -1,12 +1,11 @@
-# English used to live under /en/**; it is now the root tree.
-/en/* /:splat 301
+# English used to live under /en/**; it is now the root tree (its wildcard is at the end).
 /en / 301
 
 # The DeepSeekBot user guides moved to the product site, which keeps Chinese at its
 # root and English under /en. Each former page (and its .md twin) lands on the same
-# guide there; developer docs (/dev, /dsh) stay here. Cloudflare allows at most 100
-# dynamic rules (splats, placeholders, other hosts), so only the .md twins are listed
-# one by one; the product site adds the trailing slash to bare paths itself.
+# guide there; developer docs (/dev, /dsh) stay here. Only the .md twins are listed
+# one by one; the /docs/* wildcards at the end cover the rest, and the product site
+# adds the trailing slash to bare paths itself.
 /docs https://deepseekbot.botharness.ai/en/docs/overview/ 301
 /zh/docs https://deepseekbot.botharness.ai/docs/overview/ 301
 /docs/overview.md https://deepseekbot.botharness.ai/en/docs/overview/ 301
@@ -51,8 +50,6 @@
 /zh/docs/slack-connection.md https://deepseekbot.botharness.ai/docs/slack-connection/ 301
 /zh/docs/wechat-connection.md https://deepseekbot.botharness.ai/docs/wechat-connection/ 301
 /zh/docs/concepts.md https://deepseekbot.botharness.ai/docs/concepts/ 301
-/docs/* https://deepseekbot.botharness.ai/en/docs/:splat 301
-/zh/docs/* https://deepseekbot.botharness.ai/docs/:splat 301
 
 # BotHarness product runtime docs moved out of the DSH/Cordis development tree.
 /dsh/bot-runtime /dev/design/bot-runtime 301
@@ -87,58 +84,42 @@
 # Reference, and Decisions. Keep every former architecture/spec URL working.
 /dev/architecture/bot-runtime /dev/design/bot-runtime 301
 /dev/architecture/bot-runtime/ /dev/design/bot-runtime 301
-/dev/architecture/bot-runtime/* /dev/design/bot-runtime/:splat 301
 /dev/architecture /dev/design/architecture 301
 /dev/architecture/ /dev/design/architecture 301
-/dev/architecture/* /dev/design/architecture/:splat 301
 /dev/spec/client-bridge /dev/guides/client-bridge 301
 /dev/spec/client-bridge/ /dev/guides/client-bridge 301
-/dev/spec/client-bridge/* /dev/guides/client-bridge/:splat 301
 /dev/spec/platform /dev/design/architecture 301
 /dev/spec/platform/ /dev/design/architecture 301
-/dev/spec/platform/* /dev/design/architecture/:splat 301
 /dev/spec/app-prd /dev/design/architecture 301
 /dev/spec/app-prd/ /dev/design/architecture 301
-/dev/spec/app-prd/* /dev/design/architecture/:splat 301
 /dev/spec/context /dev/design/context 301
 /dev/spec/context/ /dev/design/context 301
-/dev/spec/context/* /dev/design/context/:splat 301
 /zh/dev/architecture/bot-runtime /zh/dev/design/bot-runtime 301
 /zh/dev/architecture/bot-runtime/ /zh/dev/design/bot-runtime 301
-/zh/dev/architecture/bot-runtime/* /zh/dev/design/bot-runtime/:splat 301
 /zh/dev/architecture /zh/dev/design/architecture 301
 /zh/dev/architecture/ /zh/dev/design/architecture 301
-/zh/dev/architecture/* /zh/dev/design/architecture/:splat 301
 /zh/dev/spec/client-bridge /zh/dev/guides/client-bridge 301
 /zh/dev/spec/client-bridge/ /zh/dev/guides/client-bridge 301
-/zh/dev/spec/client-bridge/* /zh/dev/guides/client-bridge/:splat 301
 /zh/dev/spec/platform /zh/dev/design/architecture 301
 /zh/dev/spec/platform/ /zh/dev/design/architecture 301
-/zh/dev/spec/platform/* /zh/dev/design/architecture/:splat 301
 /zh/dev/spec/app-prd /zh/dev/design/architecture 301
 /zh/dev/spec/app-prd/ /zh/dev/design/architecture 301
-/zh/dev/spec/app-prd/* /zh/dev/design/architecture/:splat 301
 /zh/dev/spec/context /zh/dev/design/context 301
 /zh/dev/spec/context/ /zh/dev/design/context 301
-/zh/dev/spec/context/* /zh/dev/design/context/:splat 301
 
 # Mutable platform/app planning snapshots are no longer public design
 # authorities. Preserve their URLs at the integrated living architecture.
 /dev/design/platform /dev/design/architecture 301
 /dev/design/platform/ /dev/design/architecture 301
-/dev/design/platform/* /dev/design/architecture/:splat 301
 /dev/design/platform.md /dev/design/architecture.md 301
 /dev/design/app-prd /dev/design/architecture 301
 /dev/design/app-prd/ /dev/design/architecture 301
-/dev/design/app-prd/* /dev/design/architecture/:splat 301
 /dev/design/app-prd.md /dev/design/architecture.md 301
 /zh/dev/design/platform /zh/dev/design/architecture 301
 /zh/dev/design/platform/ /zh/dev/design/architecture 301
-/zh/dev/design/platform/* /zh/dev/design/architecture/:splat 301
 /zh/dev/design/platform.md /zh/dev/design/architecture.md 301
 /zh/dev/design/app-prd /zh/dev/design/architecture 301
 /zh/dev/design/app-prd/ /zh/dev/design/architecture 301
-/zh/dev/design/app-prd/* /zh/dev/design/architecture/:splat 301
 /zh/dev/design/app-prd.md /zh/dev/design/architecture.md 301
 
 # `/zh` is a language tree, not a host root: site-wide endpoints and generated
@@ -150,8 +131,32 @@
 # English, so `/zh/llms-full.txt` falls back to the zh agent index.
 /zh/llms-full.txt /zh/llms.txt 301
 /zh/og.png /og.png 301
-/zh/og/* /og/:splat 301
 /zh/robots.txt /robots.txt 301
 /zh/sitemap-0.xml /sitemap-0.xml 301
 /zh/sitemap-index.xml /sitemap-index.xml 301
+
+# Wildcard rules go last. Cloudflare counts every rule from the first splat or
+# placeholder onward as dynamic (at most 100), so a wildcard near the top turns
+# all the exact rules below it dynamic too. None of the exact rules above falls
+# under one of these wildcards.
+/en/* /:splat 301
+/docs/* https://deepseekbot.botharness.ai/en/docs/:splat 301
+/zh/docs/* https://deepseekbot.botharness.ai/docs/:splat 301
+/dev/architecture/bot-runtime/* /dev/design/bot-runtime/:splat 301
+/dev/architecture/* /dev/design/architecture/:splat 301
+/dev/spec/client-bridge/* /dev/guides/client-bridge/:splat 301
+/dev/spec/platform/* /dev/design/architecture/:splat 301
+/dev/spec/app-prd/* /dev/design/architecture/:splat 301
+/dev/spec/context/* /dev/design/context/:splat 301
+/zh/dev/architecture/bot-runtime/* /zh/dev/design/bot-runtime/:splat 301
+/zh/dev/architecture/* /zh/dev/design/architecture/:splat 301
+/zh/dev/spec/client-bridge/* /zh/dev/guides/client-bridge/:splat 301
+/zh/dev/spec/platform/* /zh/dev/design/architecture/:splat 301
+/zh/dev/spec/app-prd/* /zh/dev/design/architecture/:splat 301
+/zh/dev/spec/context/* /zh/dev/design/context/:splat 301
+/dev/design/platform/* /dev/design/architecture/:splat 301
+/dev/design/app-prd/* /dev/design/architecture/:splat 301
+/zh/dev/design/platform/* /zh/dev/design/architecture/:splat 301
+/zh/dev/design/app-prd/* /zh/dev/design/architecture/:splat 301
+/zh/og/* /og/:splat 301
 /zh/nimbus-api/* /nimbus-api/:splat 301
