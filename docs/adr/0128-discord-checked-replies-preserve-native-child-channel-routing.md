@@ -30,6 +30,8 @@ Provider candidate source: `e6f0de2a989c28d20db92c0e7f43b20c6d3028b9`, based on 
 
 An isolated DSH `0.2.0-rc.1` Profile loaded BotHarness candidate `ea5ca546` and the local Provider candidate through their real Bundle layers. Authenticated `/api/botharness/list` and `/api/dsh-im/discord` status returned HTTP 200 with `ok: true`; the Discord controller reported zero configured/connected accounts. The composed Profile retained `discord.consumerMode: external-consumer` before any account connection. The Provider runtime digest covered 394 files with SHA-256 `2d1f6c0d313cf044024e7e2609070934249e4a00a4a777f09aa45b2dd2c89727`. This proves candidate Host loading and Profile composition only; it provides no native Gateway, real mention/model reply, visual or Human acceptance evidence.
 
+The same isolated Profile also completed a real model DM probe at `2026-10-05T08:49:17.791Z`: a dedicated PersonaBot received the Human request, used `channel_send` to append `DISCORD-LOCAL-MODEL-855-OK` to that same DM, and returned to idle with its Session marked done. The Human message's delivery was handled. This verifies local Inbox/model/Channel execution with the actual Host adapter; it does not verify Discord intake, native external delivery or thread routing.
+
 ## References
 
 - [Discord Gateway](https://docs.discord.com/developers/events/gateway)
