@@ -5,11 +5,15 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Preserve definite IM reply refusals without weakening unknown-outcome protection.
+Preserve definite IM reply refusals and move the DeepSeekBot user guides to the product site.
 
 ### Fixed
 
 - Preserve definite checked IM source-not-found and reply-permission refusals as failed replies instead of unknown outcomes; genuinely unknown sends and previously recorded outcomes remain unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855)).
+
+### Documentation
+
+- Moved the DeepSeekBot user guides to [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/) (Chinese at [/docs](https://deepseekbot.botharness.ai/docs/overview/)); every former botharness.ai guide URL redirects to the same guide there, and developer docs stay on botharness.ai ([#914](https://github.com/BotHarness/BotHarness/pull/914)).
 
 ## [1.0.0] - 2026-10-05
 
@@ -543,6 +547,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 - Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
 
 ### Documentation
+
+- Documented the accepted Bot Marketplace order, starting as a GitHub-indexed catalog: repositories opt in with the `botharness-bot` topic, a Cloudflare Worker/D1 crawler powers search in a harness modal, and Install reuses Git-URL Bot creation; accounts, uploads, favorites and import counts follow in a second phase ([#18](https://github.com/BotHarness/BotHarness/issues/18), [ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)).
 
 - The README and npm page now match the pixel-art website, with its share cards, desktop and CLI install, shipped IM platforms, pixel avatars and community links ([#895](https://github.com/BotHarness/BotHarness/pull/895), [website](https://deepseekbot.botharness.ai)).
 

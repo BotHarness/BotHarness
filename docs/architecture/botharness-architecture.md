@@ -489,6 +489,10 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 
 Purge Ledger 是应用定义的 Host 深模块权威，必须单调持久并位于可恢复数据库快照之外。清除先接受 ledger，再幂等应用 Messaging 清除与受管文件清理；中断时已接受的范围不可重新显示、投递或用于新出站效果，文件失败需明确报告尚未清完。#886 必须依赖真实 ledger／checkpoint 实现，不能用空占位代替；恢复在 Messaging 可读前合并并应用 package／destination union，独立离线旧备份只保证其自身 checkpoint。备份包括保留的 deleted-identity 记忆仓库。设计验收不等于运行功能已交付。
 
+### Bot Marketplace（已接受设计，待实现）
+
+[ADR-0131](../adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md) 与 #18 让 Bot Marketplace 先作为 GitHub 索引目录上线：作者给公开仓库加 `botharness-bot` topic 即同意收录，也可在 Marketplace 贴链接立即抓取。独立的 Cloudflare Worker 与 D1 每日按 topic 切片发现、每小时用 GraphQL 批量刷新，README 进入 FTS5 索引；浏览用 keyset cursor，搜索只取前 200 条。harness 的 Marketplace modal 展示 README 详情；安装复用 #298 的 Git URL 创建路径，确认框显示最新提交并提示第三方仓库风险。贴链接与一键举报共用 ALTCHA 和限流。第一阶段不建账号、不计下载；Better Auth、上传 Bot、收藏与导入计数属于第二阶段，沿用 #18 的完整仓库发布契约。
+
 ## 7 · 关键边界
 
 - 正常运行只认 explicit Session ownership；`cwd` 只可作为迁移/修复提示，不能决定 PersonaBot 身份。

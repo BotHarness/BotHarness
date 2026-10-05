@@ -5,11 +5,15 @@
 
 ## [Unreleased]
 
-保留 IM 回复的明确拒绝，同时维持未知结果保护。
+保留 IM 回复的明确拒绝，并将 DeepSeekBot 使用教程迁到官网。
 
 ### Fixed
 
 - 将 checked IM 的来源不存在与回复权限拒绝保留为明确失败，避免误记为结果未知；真正未知的发送与历史已记录结果保持原状（[#855](https://github.com/BotHarness/BotHarness/issues/855)）。
+
+### Documentation
+
+- 把 DeepSeekBot 使用教程迁到官网（英文 [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/)，中文 [/docs](https://deepseekbot.botharness.ai/docs/overview/)）；botharness.ai 上原来的每个教程地址都会跳到新站的同一篇，开发者文档仍留在 botharness.ai（[#914](https://github.com/BotHarness/BotHarness/pull/914)）。
 
 ## [1.0.0] - 2026-10-05
 
@@ -543,6 +547,8 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 - 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
 
 ### Documentation
+
+- 记录已接受的 Bot Marketplace 顺序，先作为 GitHub 索引目录上线：仓库通过 `botharness-bot` topic 加入，Cloudflare Worker/D1 抓取后在 harness modal 中搜索，安装复用 Git URL 创建 Bot；账号、上传、收藏与导入计数放到第二阶段（[#18](https://github.com/BotHarness/BotHarness/issues/18)、[ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)）。
 
 - README 与 npm 页面与像素风官网保持一致：分享卡片、桌面端与命令行安装、已支持的 IM 平台、像素头像与社区入口（[#895](https://github.com/BotHarness/BotHarness/pull/895)、[官网](https://deepseekbot.botharness.ai)）。
 
