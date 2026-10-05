@@ -1,4 +1,4 @@
-Closes #868 · Refs #822, #863 · [qualification evidence](docs/assets/pr/868-slack-product/README.md)
+Closes #868 · Refs #822, #863 · [qualification evidence](https://github.com/BotHarness/BotHarness/blob/codex/868-slack-product/docs/assets/pr/868-slack-product/README.md)
 
 ## Why the change
 
