@@ -2,7 +2,7 @@
 
 在 DeepSeek Harness（DSH）中安装 **DeepSeekBot** 插件，启用后创建第一个 PersonaBot。只需安装一个产品包，Core、Client 和已验证的 IM Provider 会随包一起安装。
 
-本页使用公共 npm 预发布版本 **`deepseekbot@0.1.0-alpha.1`**，实际验证环境是 **DSH `0.2.0-rc.1`**。这是早期预览版本。截图来自干净 Profile 的真实中文界面；安装不需要克隆仓库或本地编译。
+本页安装公共 npm 包 **`deepseekbot`**，实际验证环境是 **DSH `0.2.0-rc.1`**。截图来自干净 Profile 的真实中文界面；安装不需要克隆仓库或本地编译。
 
 ## 1. 打开插件管理器
 
@@ -17,18 +17,18 @@
 在 **包名或地址** 中粘贴完整内容：
 
 ```text
-deepseekbot@0.1.0-alpha.1
+deepseekbot
 ```
 
 安装源保持 **npm 官方源**，点击 **安装**，等待安装任务完成。
 
-![添加插件窗口中填写完整的 npm 包名和版本](/guides/install/02-install-source-zh.webp)
+![添加插件窗口中填写 npm 包名](/guides/install/02-install-source-zh.webp)
 
-_这里通过来源地址导入插件，没有文件上传选择器。指定版本可以复现本页的安装过程。_
+_这里通过来源地址导入插件，没有文件上传选择器。只填包名会安装最新正式版（截图里是早先固定的版本号）；想固定版本可以写成 `deepseekbot@<版本号>`。_
 
 ## 3. 启用已安装插件
 
-安装完成后，窗口显示 **已安装**、包名和版本 **`0.1.0-alpha.1`**。点击 **立即启用**。如果已经关闭窗口，也可以回到插件页，打开 **启用 deepseekbot** 开关。
+安装完成后，窗口显示 **已安装**、包名和已安装的版本。点击 **立即启用**。如果已经关闭窗口，也可以回到插件页，打开 **启用 deepseekbot** 开关。
 
 ![实际安装成功，显示版本和立即启用按钮](/guides/install/03-installed-zh.webp)
 
@@ -61,12 +61,12 @@ _本次验证从网页 DM 发送消息，在安装并冷启动后的产品中收
 [DSH 官方打包文档](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish)也支持通过 CLI 安装到指定 Profile：
 
 ```bash
-dsh plugin --profile <your-profile> add deepseekbot@0.1.0-alpha.1
+dsh plugin --profile <your-profile> add deepseekbot
 ```
 
 使用你实际启动的 Profile 名称，之后在该 Profile 的插件页启用插件。
 
-如果想导入同一份已编译安装包，可以下载 [公共 npm tarball](https://registry.npmjs.org/deepseekbot/-/deepseekbot-0.1.0-alpha.1.tgz)。在 Web 界面的「包名或地址」填写 **运行 DSH 的机器上的绝对路径**；另一台浏览器机器的路径不能替代 Host 路径。使用 CLI 时，也可以在下载目录运行 `dsh plugin --profile <your-profile> add ./deepseekbot-0.1.0-alpha.1.tgz`。
+如果想导入同一份已编译安装包，可以运行 `npm pack deepseekbot` 下载公共 npm tarball，它会在当前目录保存 `deepseekbot-<version>.tgz`。在 Web 界面的「包名或地址」填写 **运行 DSH 的机器上的绝对路径**；另一台浏览器机器的路径不能替代 Host 路径。使用 CLI 时，也可以在下载目录运行 `dsh plugin --profile <your-profile> add ./deepseekbot-<version>.tgz`。
 
 ## 安装遇到问题
 

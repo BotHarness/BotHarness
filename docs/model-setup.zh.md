@@ -1,6 +1,6 @@
 # 配置 API 与 Bot 模型
 
-本页接续 [安装 DeepSeekBot](/zh/docs/installation)，使用 DSH **0.2.0-rc.1** 与公共包 **deepseekbot@0.1.0-alpha.1** 的实际界面。先配置 API 提供商，再为 Bot 选择模型；同一提供商可以供多个 Bot 使用。
+本页接续 [安装 DeepSeekBot](/zh/docs/installation)，使用 DSH **0.2.0-rc.1** 与公共包 **deepseekbot** 的实际界面。先配置 API 提供商，再为 Bot 选择模型；同一提供商可以供多个 Bot 使用。
 
 ## 1. 在 DSH 配置 Provider
 
