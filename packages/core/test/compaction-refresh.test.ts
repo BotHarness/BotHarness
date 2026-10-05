@@ -1,16 +1,17 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { createMemoryService, createPersonaBotRegistry } from '../src/index.js';
+import { createMemoryService } from '../src/index.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
 import { handleCompactionEvent } from '../src/plugin.js';
 import { createTestOwnership, FIXED_NOW, createTempRoot } from './helpers.js';
 
 function setup() {
   const root = createTempRoot();
-  const registry = createPersonaBotRegistry({
+  const registry = createTestRegistry({
     rootDir: join(root, 'bots'),
     initializeMemory(memoryDir: string) {
       const repository = ensureMemoryRepository({ memoryDir });

@@ -1,8 +1,9 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { createMemoryService } from '../src/memory/service.js';
@@ -15,7 +16,7 @@ import { createTempRoot, createTestOwnership, trackTestOwner } from './helpers.j
 
 function setup() {
   const root = createTempRoot();
-  const registry = createPersonaBotRegistry({
+  const registry = createTestRegistry({
     rootDir: join(root, 'bots'),
     initializeMemory: (memoryDir) => {
       const result = ensureMemoryRepository({ memoryDir });

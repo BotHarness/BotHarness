@@ -1,12 +1,15 @@
+import { mountOperationalDatabase } from '../src/database/owner.js';
+import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { createTestRegistry } from './registry-fixture.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { createPersonaBotRegistry, isValidSlug } from '../src/index.js';
-import * as atomicFiles from '../src/fs/atomic-write.js';
+import { isValidSlug } from '../src/index.js';
+import { registryDatabase } from './registry-fixture.js';
 import { createHash } from 'node:crypto';
 import { DEFAULT_ILLUSTRATED_RECIPE, avatarSvg } from '../src/bots/avatar-appearance.js';
 import { DEFAULT_LINE_RECIPE } from '../src/bots/avatar-line.js';
@@ -43,35 +46,43 @@ describe('isValidSlug', () => {
 });
 
 describe('createPersonaBotRegistry', () => {
-  it('retains the committed appearance when the atomic writer refuses the next save', () => {
+  it('retains the committed appearance when the owner refuses the next commit', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    let refuse = false;
+    const database = registryDatabase(root, {
+      faultInjector: ({ stage }) => {
+        if (refuse && stage === 'before-commit') throw new Error('write refused');
+      },
+    });
+    const registry = createTestRegistry({ rootDir: root, database });
     registry.create({ slug: 'ada', displayName: 'Ada' });
     expect(registry.setAppearance('ada', DEFAULT_ILLUSTRATED_RECIPE).ok).toBe(true);
-    const original = readFileSync(join(root, 'ada', 'bot.json'), 'utf8');
-    const writer = vi.spyOn(atomicFiles, 'atomicWriteFile').mockImplementation(() => {
-      throw new Error('write refused');
+    const original = registry.get('ada');
+    refuse = true;
+    expect(() =>
+      registry.setAppearance('ada', { ...DEFAULT_ILLUSTRATED_RECIPE, hair: 'bob' }),
+    ).toThrow();
+    expect(database.mode).toBe('recovery');
+    database.close();
+    const reopened = mountOperationalDatabase({
+      dshHome: root,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
     });
     try {
-      expect(() =>
-        registry.setAppearance('ada', { ...DEFAULT_ILLUSTRATED_RECIPE, hair: 'bob' }),
-      ).toThrow('write refused');
-      expect(readFileSync(join(root, 'ada', 'bot.json'), 'utf8')).toBe(original);
-      expect(
-        createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance?.recipe,
-      ).toMatchObject({ family: 'illustrated', hair: 'crop' });
+      expect(createTestRegistry({ rootDir: root, database: reopened }).get('ada')).toEqual(
+        original,
+      );
     } finally {
-      writer.mockRestore();
+      reopened.close();
     }
   });
 
   it('retains an unsupported but safe appearance with its paired snapshot and drops unsafe or mismatched ones without losing the Bot', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     registry.create({ slug: 'ada', displayName: 'Ada' });
     expect(registry.setAppearance('ada', DEFAULT_ILLUSTRATED_RECIPE).ok).toBe(true);
-    const file = join(root, 'ada', 'bot.json');
-    const saved = JSON.parse(readFileSync(file, 'utf8')) as {
+    const saved = registry.get('ada') as unknown as {
       avatar: string;
       appearance: { recipe: Record<string, unknown>; revision: string };
     };
@@ -81,20 +92,24 @@ describe('createPersonaBotRegistry', () => {
       revision: createHash('sha256').update(JSON.stringify(recipe)).update(png).digest('hex'),
     });
     const future = { ...saved.appearance.recipe, assetVersion: 2, tail: 'swirl', wiggle: 3 };
-    writeFileSync(file, JSON.stringify({ ...saved, appearance: pair(future) }));
-    const retained = createPersonaBotRegistry({ rootDir: root });
+    const importRecord = (appearance: unknown) => {
+      const importedRoot = createRoot();
+      mkdirSync(join(importedRoot, 'ada'));
+      writeFileSync(
+        join(importedRoot, 'ada', 'bot.json'),
+        JSON.stringify({ ...saved, appearance }),
+      );
+      return createTestRegistry({ rootDir: importedRoot });
+    };
+    const retained = importRecord(pair(future));
     expect(retained.get('ada')?.appearance).toEqual(pair(future));
     expect(retained.get('ada')?.avatar).toBe(saved.avatar);
     expect(retained.setPaused('ada', true).ok).toBe(true);
-    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance).toEqual(
-      pair(future),
-    );
+    expect(retained.get('ada')?.appearance).toEqual(pair(future));
     expect(retained.setAppearance('ada', { ...DEFAULT_ILLUSTRATED_RECIPE, hair: 'nope' }).ok).toBe(
       false,
     );
-    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance).toEqual(
-      pair(future),
-    );
+    expect(retained.get('ada')?.appearance).toEqual(pair(future));
     for (const hostile of [
       { ...future, tail: '<script>' },
       { ...future, tail: 'url(x)' },
@@ -103,27 +118,19 @@ describe('createPersonaBotRegistry', () => {
       { ...future, assetVersion: 0 },
       { ...future, family: undefined },
     ]) {
-      writeFileSync(file, JSON.stringify({ ...saved, appearance: pair(hostile) }));
-      const bot = createPersonaBotRegistry({ rootDir: root }).get('ada');
+      const bot = importRecord(pair(hostile)).get('ada');
       expect(bot?.displayName).toBe('Ada');
       expect(bot?.appearance).toBeUndefined();
     }
-    writeFileSync(
-      file,
-      JSON.stringify({ ...saved, appearance: { ...saved.appearance, revision: 'f'.repeat(64) } }),
-    );
-    const mismatched = createPersonaBotRegistry({ rootDir: root }).get('ada');
+    const mismatched = importRecord({ ...saved.appearance, revision: 'f'.repeat(64) }).get('ada');
     expect(mismatched?.displayName).toBe('Ada');
     expect(mismatched?.appearance).toBeUndefined();
-    writeFileSync(file, JSON.stringify(saved));
-    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance).toEqual(
-      saved.appearance,
-    );
+    expect(importRecord(saved.appearance).get('ada')?.appearance).toEqual(saved.appearance);
   });
 
   it('round-trips a portable recipe and snapshot through the owning validation and render path', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     registry.create({ slug: 'ada', displayName: 'Ada' });
     const recipe = { ...DEFAULT_LINE_RECIPE, eyes: 'big', mouth: 'fang' } as const;
     expect(registry.setAppearance('ada', recipe).ok).toBe(true);
@@ -131,7 +138,7 @@ describe('createPersonaBotRegistry', () => {
     const target = createRoot();
     mkdirSync(join(target, 'ada'), { recursive: true });
     writeFileSync(join(target, 'ada', 'bot.json'), portable);
-    const restored = createPersonaBotRegistry({ rootDir: target }).get('ada');
+    const restored = createTestRegistry({ rootDir: target }).get('ada');
     expect(restored?.appearance).toEqual(registry.get('ada')?.appearance);
     expect(avatarSvg(restored!.appearance!.recipe as typeof recipe)).toBe(avatarSvg(recipe));
   });
@@ -160,7 +167,7 @@ describe('createPersonaBotRegistry', () => {
     }).trim();
 
     let rejectClone = true;
-    const registry = createPersonaBotRegistry({
+    const registry = createTestRegistry({
       rootDir: join(root, 'bots'),
       initializeMemory: (memoryDir) => ({ ok: ensureMemoryRepository({ memoryDir }).ok }),
       cloneMemory: async (destination) => {
@@ -193,55 +200,48 @@ describe('createPersonaBotRegistry', () => {
       }).trim(),
     ).toBe(originalHead);
   });
-  it('persists bot.json and reads it back through a fresh instance', () => {
+  it('persists the owning record without writing bot.json and reads it back through a fresh instance', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root, now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: root, now: FIXED_NOW });
 
     const result = registry.create({ slug: 'research', displayName: '研究助手' });
 
     expect(result.ok).toBe(true);
-    const stored = JSON.parse(readFileSync(join(root, 'research', 'bot.json'), 'utf8')) as Record<
-      string,
-      unknown
-    >;
+    const stored = createTestRegistry({ rootDir: root }).get('research');
+    expect(existsSync(join(root, 'research', 'bot.json'))).toBe(false);
     expect(stored).toMatchObject({
       slug: 'research',
       displayName: '研究助手',
       workspaces: [],
       createdAt: '2026-09-17T00:00:00.000Z',
     });
-    expect(createPersonaBotRegistry({ rootDir: root }).get('research')).toMatchObject({
+    expect(createTestRegistry({ rootDir: root }).get('research')).toMatchObject({
       slug: 'research',
     });
   });
 
   it('persists independent Browser Access through record serialization and reload', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     registry.create({ slug: 'browser-qa', displayName: 'Browser QA' });
     expect(registry.get('browser-qa')?.browserAccess).not.toBe(true);
     expect(registry.setBrowserAccess('browser-qa', true).ok).toBe(true);
     expect(registry.setComputerAccess('browser-qa', false).ok).toBe(true);
-    const path = join(root, 'browser-qa', 'bot.json');
-    const serialized = readFileSync(path, 'utf8');
-    const snapshot = JSON.parse(serialized);
-    expect(snapshot.browserAccess).toBe(true);
-    expect(snapshot.computerAccess).not.toBe(true);
-    writeFileSync(path, JSON.stringify(snapshot));
-    const reopened = createPersonaBotRegistry({ rootDir: root });
+    expect(existsSync(join(root, 'browser-qa', 'bot.json'))).toBe(false);
+    const reopened = createTestRegistry({ rootDir: root });
     expect(reopened.get('browser-qa')?.browserAccess).toBe(true);
     expect(reopened.get('browser-qa')?.computerAccess).not.toBe(true);
     expect(reopened.setComputerAccess('browser-qa', true).ok).toBe(true);
     expect(reopened.get('browser-qa')?.browserAccess).toBe(true);
     expect(reopened.setBrowserAccess('browser-qa', false).ok).toBe(true);
-    const off = createPersonaBotRegistry({ rootDir: root }).get('browser-qa');
+    const off = createTestRegistry({ rootDir: root }).get('browser-qa');
     expect(off?.browserAccess).not.toBe(true);
     expect(off?.computerAccess).toBe(true);
   });
 
   it('provisions the Memory directory for a name-only bot but writes no Persona', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     registry.create({ slug: 'research', displayName: '研究助手' });
 
     expect(existsSync(join(root, 'research', 'memory'))).toBe(true);
@@ -251,7 +251,7 @@ describe('createPersonaBotRegistry', () => {
 
   it('fails closed when the Memory Repository cannot be initialized', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({
+    const registry = createTestRegistry({
       rootDir: root,
       initializeMemory: () => ({ ok: false, message: 'git-init-failed' }),
     });
@@ -267,7 +267,7 @@ describe('createPersonaBotRegistry', () => {
 
   it('writes the provided persona body and never overwrites an existing PERSONA.md', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     registry.create({ slug: 'ada', displayName: 'Ada', persona: '# Ada\n\nBe kind.\n' });
     expect(readFileSync(join(root, 'ada', 'memory', 'PERSONA.md'), 'utf8')).toBe(
       '# Ada\n\nBe kind.\n',
@@ -286,7 +286,7 @@ describe('createPersonaBotRegistry', () => {
 
   it('puts an explicitly provided Persona beside a custom memory dir', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     const custom = join(root, 'outside-memory');
     registry.create({
       slug: 'ada',
@@ -298,7 +298,7 @@ describe('createPersonaBotRegistry', () => {
   });
 
   it('rejects duplicate slugs', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const registry = createTestRegistry({ rootDir: createRoot() });
     expect(registry.create({ slug: 'a', displayName: 'A' }).ok).toBe(true);
     expect(registry.create({ slug: 'a', displayName: 'A again' })).toEqual({
       ok: false,
@@ -307,7 +307,7 @@ describe('createPersonaBotRegistry', () => {
   });
 
   it('rejects invalid slugs at create time and never escapes the root', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const registry = createTestRegistry({ rootDir: createRoot() });
     expect(registry.create({ slug: '../evil', displayName: 'x' })).toEqual({
       ok: false,
       reason: 'invalid-slug',
@@ -318,14 +318,14 @@ describe('createPersonaBotRegistry', () => {
   });
 
   it('falls back to the slug when the display name is blank', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const registry = createTestRegistry({ rootDir: createRoot() });
     const result = registry.create({ slug: 'quiet', displayName: '   ' });
     expect(result.ok && result.record.displayName).toBe('quiet');
   });
 
   it('rejects a relative memory dir and stores an absolute one', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     expect(registry.create({ slug: 'a', displayName: 'A', memoryDir: 'relative/path' })).toEqual({
       ok: false,
       reason: 'invalid-memory-dir',
@@ -338,7 +338,7 @@ describe('createPersonaBotRegistry', () => {
 
   it('finds a bot by workspace, tolerating trailing slashes and unknown paths', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     registry.create({
       slug: 'research',
       displayName: 'Research',
@@ -353,7 +353,7 @@ describe('createPersonaBotRegistry', () => {
   });
 
   it('stores model, preset, avatar and workspaces', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const registry = createTestRegistry({ rootDir: createRoot() });
     const result = registry.create({
       slug: 'research',
       displayName: '研究助手',
@@ -378,7 +378,7 @@ describe('createPersonaBotRegistry', () => {
   });
 
   it('normalizes role badges and description and omits blank ones', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const registry = createTestRegistry({ rootDir: createRoot() });
     const padded = registry.create({
       slug: 'padded',
       displayName: 'Padded',
@@ -399,7 +399,7 @@ describe('createPersonaBotRegistry', () => {
 
   it('updates editable fields, persists them, and clears blanks', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     registry.create({
       slug: 'ada',
       displayName: 'Ada',
@@ -431,7 +431,7 @@ describe('createPersonaBotRegistry', () => {
     });
     expect(result.ok && 'description' in result.record).toBe(false);
     expect(result.ok && result.record.model).toBe('old-model');
-    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')).toMatchObject({
+    expect(createTestRegistry({ rootDir: root }).get('ada')).toMatchObject({
       displayName: 'Ada Lovelace',
       avatar:
         'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJQBOgCHwAP7+4AAAAA==',
@@ -440,7 +440,7 @@ describe('createPersonaBotRegistry', () => {
   });
 
   it('rejects updates for unknown slugs and invalid input', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const registry = createTestRegistry({ rootDir: createRoot() });
     registry.create({ slug: 'ada', displayName: 'Ada' });
 
     expect(registry.update('missing', { roles: ['x'] })).toEqual({
@@ -475,7 +475,7 @@ describe('createPersonaBotRegistry', () => {
   });
 
   it('rejects a non-data avatar at creation', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const registry = createTestRegistry({ rootDir: createRoot() });
     expect(registry.create({ slug: 'ada', displayName: 'Ada', avatar: 'blue' })).toEqual({
       ok: false,
       reason: 'invalid-input',
@@ -484,13 +484,13 @@ describe('createPersonaBotRegistry', () => {
 
   it('pauses and resumes through setPaused', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     registry.create({ slug: 'ada', displayName: 'Ada' });
 
     const paused = registry.setPaused('ada', true);
     expect(paused.ok && paused.record.paused).toBe(true);
     expect(registry.get('ada')?.paused).toBe(true);
-    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.paused).toBe(true);
+    expect(createTestRegistry({ rootDir: root }).get('ada')?.paused).toBe(true);
 
     const resumed = registry.setPaused('ada', false);
     expect(resumed.ok && 'paused' in resumed.record).toBe(false);
@@ -500,7 +500,7 @@ describe('createPersonaBotRegistry', () => {
 
   it('drops records whose paused flag is not a boolean', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     mkdirSync(join(root, 'broken'));
     writeFileSync(
       join(root, 'broken', 'bot.json'),
@@ -518,7 +518,7 @@ describe('createPersonaBotRegistry', () => {
 
   it('lists bots sorted and skips junk entries and poisoned records', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     registry.create({ slug: 'zeta', displayName: 'Z' });
     registry.create({ slug: 'alpha', displayName: 'A' });
     mkdirSync(join(root, 'not-a-bot'));
@@ -537,7 +537,7 @@ describe('createPersonaBotRegistry', () => {
 
   it('removes the record, keeps memory by default, purges on request and frees the slug', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
 
     registry.create({ slug: 'a', displayName: 'A', persona: '# A\n' });
     expect(registry.remove('a')).toBe(true);
@@ -554,7 +554,7 @@ describe('createPersonaBotRegistry', () => {
 
   it('treats a corrupt bot.json as absent and recreates over it', () => {
     const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
+    const registry = createTestRegistry({ rootDir: root });
     mkdirSync(join(root, 'broken', 'memory'), { recursive: true });
     writeFileSync(join(root, 'broken', 'bot.json'), '{ not json');
 

@@ -1,0 +1,22 @@
+{
+  "phase": "prepare",
+  "passed": true,
+  "databaseGeneration": 54,
+  "databaseCutover": false,
+  "bots": [
+    {
+      "slug": "bot-48320245485f4605b849fb4782f0725b",
+      "recordSha256": "44195f45443530a3fada03bd7231ba28c5b75f2a3944637dec5b741083455635",
+      "soulSha256": "3baf6e046973fca43b19b07b5873d1ad8c3901069246e79ae60d9018b1a12f25",
+      "planRevision": 1
+    },
+    {
+      "slug": "bot-bed9db1d969847be8b4386a672705166",
+      "recordSha256": "bfad6139afb75f47dac46ef60f651e95870f1421212437f88a27c9db8f43cea5",
+      "soulSha256": "3baf6e046973fca43b19b07b5873d1ad8c3901069246e79ae60d9018b1a12f25",
+      "planRevision": 1
+    }
+  ],
+  "realModelReply": false,
+  "browserInteractionVerified": false
+}

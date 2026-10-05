@@ -1,9 +1,10 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { createMemoryService, createPersonaBotRegistry, type MemoryService } from '../src/index.js';
+import { createMemoryService, type MemoryService } from '../src/index.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
 import { createTestOwnership, FIXED_NOW, createTempRoot, remember } from './helpers.js';
 
@@ -13,12 +14,12 @@ function initializeMemory(memoryDir: string) {
 }
 
 function setup(options: { memoryDir?: string } = {}): {
-  registry: ReturnType<typeof createPersonaBotRegistry>;
+  registry: ReturnType<typeof createTestRegistry>;
   ownership: ReturnType<typeof createTestOwnership>;
   service: MemoryService;
 } {
   const root = createTempRoot();
-  const registry = createPersonaBotRegistry({
+  const registry = createTestRegistry({
     rootDir: join(root, 'bots'),
     initializeMemory,
   });

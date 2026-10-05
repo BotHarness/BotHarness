@@ -1,10 +1,10 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { expect, it } from 'vitest';
 
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
@@ -32,7 +32,7 @@ async function admit(runtime: BotRuntime, channelId: string, messageId: string, 
 
 it('coordinates a dirty Memory switch with an addressed Assignment and retries in the same Session', async () => {
   const home = createTempRoot('botharness-memory-coordinate-');
-  const registry = createPersonaBotRegistry({
+  const registry = createTestRegistry({
     rootDir: join(home, 'bots'),
     initializeMemory(memoryDir) {
       const result = ensureMemoryRepository({ memoryDir });

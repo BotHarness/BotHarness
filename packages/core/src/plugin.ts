@@ -249,33 +249,40 @@ export function createCore(
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
   let usage: UsageProjection | undefined;
-  const registry = createPersonaBotRegistry({
-    rootDir,
-    onDisplayNameChanged: () => {
-      try {
-        live?.publishRosterCommitted();
-      } catch {
-        options.warn?.('bot-name-publication-failed');
-      }
-    },
-    onPurge: (slug, removeFiles) => {
-      if (usage === undefined) throw new Error('Usage purge requires a ready operational database');
-      usage.purgeBot(slug, removeFiles);
-    },
-    cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
-    initializeMemory: (memoryDir) => {
-      const repository = ensureMemoryRepository({ memoryDir });
-      return repository.ok
-        ? { ok: true }
-        : {
-            ok: false,
-            ...(repository.code === 'git-not-found' ? { code: 'git-not-found' as const } : {}),
-            message: `${repository.code}: ${repository.message}`,
-          };
-    },
-  });
+  let registry: PersonaBotRegistry;
   let modelPresets: ModelPresetStore;
   try {
+    registry = createPersonaBotRegistry({
+      rootDir,
+      database: operationalDatabase,
+      onImport: (event) =>
+        options.warn?.(
+          `bot-registry-import initiator=host-startup phase=${event.phase} count=${event.count ?? 0} durationMs=${Math.round(event.durationMs)}`,
+        ),
+      onDisplayNameChanged: () => {
+        try {
+          live?.publishRosterCommitted();
+        } catch {
+          options.warn?.('bot-name-publication-failed');
+        }
+      },
+      onPurge: (slug, removeFiles) => {
+        if (usage === undefined)
+          throw new Error('Usage purge requires a ready operational database');
+        usage.purgeBot(slug, removeFiles);
+      },
+      cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
+      initializeMemory: (memoryDir) => {
+        const repository = ensureMemoryRepository({ memoryDir });
+        return repository.ok
+          ? { ok: true }
+          : {
+              ok: false,
+              ...(repository.code === 'git-not-found' ? { code: 'git-not-found' as const } : {}),
+              message: `${repository.code}: ${repository.message}`,
+            };
+      },
+    });
     modelPresets = createModelPresetStore({
       rootDir: join(dshHome, 'botharness'),
       database: operationalDatabase,

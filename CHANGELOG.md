@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Breaking Changes
 
+- Callers of the exported `createPersonaBotRegistry` factory must pass the Profile `OperationalDatabaseOwner` as `database`; Registry commands and queries retain their interfaces, and implicit JSON-backed construction is removed ([#884](https://github.com/BotHarness/BotHarness/issues/884)).
+
 - Custom `BotAgentAdapter` implementations must handle an absent `OrchestratorAgentRun.inboundChannelId` for external-only Inbox turns; choose an authorized local Channel explicitly when sending locally ([#12](https://github.com/BotHarness/BotHarness/issues/12)).
 
 - `channel_send` Tool acknowledgements change from prose to `{channelId,messageId}` JSON; consumers must read those fields. Attachment `size` is now declared as `integer`, matching the already-enforced safe nonnegative integer contract; new sends use the current four-field fileId reference; obsolete hash results must be refreshed from their owning message after #577 migration ([#570](https://github.com/BotHarness/BotHarness/issues/570)).
@@ -268,6 +270,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- PersonaBot identity, saved appearance, pause/access flags and independent model plans now survive restart in the owning Profile database; validated legacy `bot.json` records are imported once and retained without runtime fallback, while Soul remains Git-backed ([#884](https://github.com/BotHarness/BotHarness/issues/884)).
 
 - Reusable Model Presets now persist in the Profile database, with a validated one-time import of existing templates and preserved IDs, revisions and independent applied Bot plans; legacy template files remain recovery inputs and are no longer used after cutover ([#883](https://github.com/BotHarness/BotHarness/issues/883)).
 

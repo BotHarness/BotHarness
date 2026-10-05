@@ -1,10 +1,11 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { createAttachmentStore } from '../src/attachments/store.js';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createChannelStore } from '../src/channels/store.js';
 import {
   attachOperationalModule,
@@ -117,7 +118,7 @@ function sourceEvents(owner: OperationalDatabaseOwner): Array<{
 
 it('publishes failed Orchestrator and Assignment turns into the owning DM', async () => {
   const home = createTempRoot('botharness-turn-failure-');
-  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
   expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
   const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -184,7 +185,7 @@ it('publishes failed Orchestrator and Assignment turns into the owning DM', asyn
 
 it('reads only a joined Channel image by durable message and attachment reference', async () => {
   const home = createTempRoot('botharness-bot-runtime-image-read-');
-  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
   expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   const attachments = createAttachmentStore({ rootDir: join(home, 'attachments') });
   const bytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
@@ -329,7 +330,7 @@ it('reads only a joined Channel image by durable message and attachment referenc
 describe('Bot runtime tracer bullet', () => {
   it('sends a staged attachment through the trusted Orchestrator Channel access', async () => {
     const home = createTempRoot('botharness-bot-runtime-attachment-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const attachments = createAttachmentStore({ rootDir: join(home, 'attachments') });
     const ref = await attachments.upload({
@@ -389,7 +390,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('keeps an invalid Bot reply retryable because no Channel side effect started', async () => {
     const home = createTempRoot('botharness-bot-runtime-invalid-reply-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -454,7 +455,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('keeps a failed Source Event pending, then retries and acknowledges it exactly once', async () => {
     const home = createTempRoot('botharness-bot-runtime-retry-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -565,7 +566,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('keeps a partially executed Source Event pending for reconciliation instead of replaying effects', async () => {
     const home = createTempRoot('botharness-bot-runtime-repair-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -667,7 +668,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('rejects Channel read, search, and send outside the trusted PersonaBot membership', async () => {
     const home = createTempRoot('botharness-bot-runtime-membership-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     expect(registry.create({ slug: 'bob', displayName: 'Bob' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
@@ -722,7 +723,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('snapshots default and permitted explicit Assignment routes before creating Sessions', async () => {
     const home = createTempRoot('botharness-assignment-model-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     registry.create({ slug: 'ada', displayName: 'Ada' });
     const pro = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };
     registry.applyModelPreset('ada', {
@@ -916,7 +917,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('runs one DM through an Orchestrator and durable Assignment report, then restores the read model', async () => {
     const home = createTempRoot('botharness-bot-runtime-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -1020,7 +1021,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('freezes each new Assignment access mode while later Bot preset changes leave old Sessions intact', async () => {
     const home = createTempRoot('botharness-bot-runtime-access-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const dm = channels.getOrCreateDm('ada', 'Ada')!;
@@ -1074,7 +1075,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('owns Sessions explicitly and records the run cwd as evidence, not identity', async () => {
     const home = createTempRoot('botharness-bot-runtime-ownership-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(
       registry.create({ slug: 'ada', displayName: 'Ada', workspaces: ['/srv/shared'] }).ok,
     ).toBe(true);
@@ -1145,7 +1146,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('records the default runtime workspace as the cwd reference when no workspace is configured', async () => {
     const home = createTempRoot('botharness-bot-runtime-cwd-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -1191,7 +1192,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('keeps an attempt running while its side effect is in flight', async () => {
     const home = createTempRoot('botharness-bot-runtime-inflight-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -1262,7 +1263,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('recovers attempts a previous process left behind at boot', async () => {
     const home = createTempRoot('botharness-bot-runtime-recover-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     attachOperationalModule(owner, 'test-seed').transaction((database) => {
@@ -1316,7 +1317,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('admits DM messages without waiting and runs them serially in order', async () => {
     const home = createTempRoot('botharness-bot-runtime-queue-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -1390,7 +1391,7 @@ describe('Bot runtime tracer bullet', () => {
 
   it('rejects admission for unknown, non-DM, archived, and blank targets without scheduling', async () => {
     const home = createTempRoot('botharness-bot-runtime-admission-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
     const dm = channels.getOrCreateDm('ada', 'Ada');
@@ -1448,7 +1449,7 @@ describe('Bot runtime tracer bullet', () => {
 
 it('requests a folder in the DM and resumes the same Orchestrator after Human authorization', async () => {
   const home = createTempRoot('botharness-grant-request-');
-  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
   expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
   const dm = channels.getOrCreateDm('ada', 'Ada')!;

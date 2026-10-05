@@ -1,5 +1,6 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createRosterStore } from '../src/roster/store.js';
 import { createTestOwnership } from './helpers.js';
@@ -28,7 +29,7 @@ function fixture() {
   });
   const query = createHumanAttentionQuery(port);
   const decisions = createHumanAttentionDecisions(port, FIXED_NOW);
-  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  const registry = createTestRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
   registry.create({ slug: 'ada', displayName: 'Ada' });
   const methods = createBridgeMethods({
     registry,

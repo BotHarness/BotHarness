@@ -9,6 +9,8 @@
 
 ### Breaking Changes
 
+- 调用公开 `createPersonaBotRegistry` 工厂时必须通过 `database` 传入 Profile 的 `OperationalDatabaseOwner`；Registry 命令与查询接口保持原状，不再隐式创建 JSON 存储（[#884](https://github.com/BotHarness/BotHarness/issues/884)）。
+
 - 自定义 `BotAgentAdapter` 必须处理纯外部 Inbox 回合中缺省的 `OrchestratorAgentRun.inboundChannelId`；本地发送时需显式选择已授权的 Channel（[#12](https://github.com/BotHarness/BotHarness/issues/12)）。
 
 - `channel_send` Tool 的成功确认从文本改为 `{channelId,messageId}` JSON，消费者须读取这两个字段。附件 `size` schema 改为 `integer`，与既有的安全非负整数校验一致；新发送使用当前 fileId 四字段引用；#577 迁移后的过期 hash 结果须重新读取所属消息（[#570](https://github.com/BotHarness/BotHarness/issues/570)）。
@@ -268,6 +270,8 @@
 - 新增 Computer 导出与迁移指南，覆盖跨机器单文件迁移、必须随迁移保留的文件所遵循的持久 `~/workspace` 约定，以及体积/耗时预期（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
 
 ### Changed
+
+- PersonaBot 的身份、保存的外观、暂停／访问开关与独立模型配置现在由 Profile 数据库持久保存；旧 `bot.json` 经校验一次性迁入并保留，运行时不再回退读取，Soul 仍保持 Git 文件形式（[#884](https://github.com/BotHarness/BotHarness/issues/884)）。
 
 - 可复用 Model Preset 现由 Profile 数据库持久化；一次性校验迁入旧模板，保留 ID、revision 及 Bot 已应用方案的独立性，旧模板文件保留供恢复参考，切换后不再读写 ([#883](https://github.com/BotHarness/BotHarness/issues/883))。
 
