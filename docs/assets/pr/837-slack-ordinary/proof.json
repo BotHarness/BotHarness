@@ -1,0 +1,276 @@
+{
+  "scope": "Synthetic fresh Human text in the explicitly authorized public Slack QA channel",
+  "runtime": {
+    "firstApp": "04695fbd3907fd0935426dfe402c19166c6fac98",
+    "finalApp": "1d0431a994f9273ee428fb1e08ef2a24fdd88858",
+    "latestMain": "ab919960a4e0ae3102f3e637744dab051c3056dc",
+    "provider": "48e7a35792af5222cd40cfe1ba2607ac55a59df2",
+    "runtimeFiles": 393,
+    "runtimeSha256": "15e60e507f8ff3b47ca011ca7f9471a0018f1686cf7e93700d3cc35cb6e43aaf"
+  },
+  "excluded": [
+    {
+      "tag": "PROBE",
+      "sources": 0
+    },
+    {
+      "tag": "FILTER",
+      "sources": 0
+    },
+    {
+      "tag": "DISABLED",
+      "sources": 0
+    },
+    {
+      "tag": "REVOKED",
+      "sources": 0
+    },
+    {
+      "tag": "RESTORE-PROBE",
+      "sources": 0
+    }
+  ],
+  "sources": [
+    {
+      "tag": "COUNT1",
+      "id": "im-2550501b36ca07ca59356578de7042a1c7f54137a360be6b4db1eed055a630b7",
+      "messageId": "1791172744.986599",
+      "eventId": "Ev0C6STZPLA0",
+      "actor": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "createdAt": "2026-10-05T03:59:04.986Z",
+      "state": "handled",
+      "handledAt": "2026-10-05T03:59:26.930Z",
+      "wakeMode": "digest",
+      "count": 2,
+      "intervalMs": 300000,
+      "policyRevision": 1
+    },
+    {
+      "tag": "COUNT2",
+      "id": "im-3a3c4aad22fbc3984ec9e8a3e7007f0c9d534e5fd89d0b9d12c07513097aed60",
+      "messageId": "1791172762.326279",
+      "eventId": "Ev0C7HJUFD24",
+      "actor": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "createdAt": "2026-10-05T03:59:22.326Z",
+      "state": "handled",
+      "handledAt": "2026-10-05T03:59:26.930Z",
+      "wakeMode": "digest",
+      "count": 2,
+      "intervalMs": 300000,
+      "policyRevision": 1
+    },
+    {
+      "tag": "TIMER",
+      "id": "im-d165fb8f8d5e9463e2680285886a17d179a0c9468d8bee3a1fb35a87d0dc90a0",
+      "messageId": "1791172818.867119",
+      "eventId": "Ev0C67SJJZMM",
+      "actor": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "createdAt": "2026-10-05T04:00:18.867Z",
+      "state": "handled",
+      "handledAt": "2026-10-05T04:00:28.065Z",
+      "wakeMode": "digest",
+      "count": 10,
+      "intervalMs": 5000,
+      "policyRevision": 1
+    },
+    {
+      "tag": "IMMEDIATE",
+      "id": "im-b3dcadc17901bad12444e09ca48f0542f741c846a73ef9c78909eb75db9737cd",
+      "messageId": "1791172872.201589",
+      "eventId": "Ev0C6P3W8X0A",
+      "actor": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "createdAt": "2026-10-05T04:01:12.201Z",
+      "state": "handled",
+      "handledAt": "2026-10-05T04:01:14.827Z",
+      "wakeMode": "all",
+      "count": 1,
+      "intervalMs": 0,
+      "policyRevision": 1
+    },
+    {
+      "tag": "MENTION",
+      "id": "im-539df5eb0eb51795e8f9b0243fc8f8a6ccfb58e127f4db1485d6dfce07851152",
+      "messageId": "1791172957.758289",
+      "eventId": "Ev0C6M9VAEQN",
+      "actor": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "createdAt": "2026-10-05T04:02:37.758Z",
+      "state": "handled",
+      "handledAt": "2026-10-05T04:02:42.215Z",
+      "wakeMode": "all",
+      "count": null,
+      "intervalMs": null,
+      "policyRevision": 1
+    },
+    {
+      "tag": "RESTART",
+      "id": "im-289af58d66952eeaacbeee6330b1f0212ec641887e4ef02252dd3d6595a7dfa3",
+      "messageId": "1791173192.006979",
+      "eventId": "Ev0C6MADUV3Q",
+      "actor": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "createdAt": "2026-10-05T04:06:32.006Z",
+      "state": "handled",
+      "handledAt": "2026-10-05T04:06:41.148Z",
+      "wakeMode": "digest",
+      "count": 2,
+      "intervalMs": 5000,
+      "policyRevision": 1
+    },
+    {
+      "tag": "FINAL",
+      "id": "im-752b7fe5da2d553dfbc3cce0cd169689d6a620b7f8af1ae76ba60e96219c08dc",
+      "messageId": "1791173369.218809",
+      "eventId": "Ev0C6H2VRR51",
+      "actor": {
+        "kind": "user",
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "createdAt": "2026-10-05T04:09:29.218Z",
+      "state": "handled",
+      "handledAt": "2026-10-05T04:09:54.499Z",
+      "wakeMode": "digest",
+      "count": 2,
+      "intervalMs": 5000,
+      "policyRevision": 1
+    }
+  ],
+  "wakes": [
+    {
+      "source_class": "group-ordinary",
+      "session_id": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "started_at": "2026-10-05T03:59:21.518Z"
+    },
+    {
+      "source_class": "group-ordinary",
+      "session_id": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "started_at": "2026-10-05T04:00:23.881Z"
+    },
+    {
+      "source_class": "group-ordinary",
+      "session_id": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "started_at": "2026-10-05T04:01:11.309Z"
+    },
+    {
+      "source_class": "group-mention",
+      "session_id": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "started_at": "2026-10-05T04:02:37.053Z"
+    },
+    {
+      "source_class": "group-ordinary",
+      "session_id": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "started_at": "2026-10-05T04:06:37.021Z"
+    },
+    {
+      "source_class": "group-ordinary",
+      "session_id": "botharness-5591cef2-1273-45d5-9093-69af33d77531",
+      "started_at": "2026-10-05T04:09:34.228Z"
+    }
+  ],
+  "calls": [
+    {
+      "at": "2026-10-05T03:59:24.038Z",
+      "turn": 9,
+      "name": "bridge_read",
+      "args": {
+        "source_event_id": "im-2550501b36ca07ca59356578de7042a1c7f54137a360be6b4db1eed055a630b7"
+      },
+      "resultOk": true
+    },
+    {
+      "at": "2026-10-05T03:59:24.056Z",
+      "turn": 9,
+      "name": "bridge_read",
+      "args": {
+        "source_event_id": "im-3a3c4aad22fbc3984ec9e8a3e7007f0c9d534e5fd89d0b9d12c07513097aed60"
+      },
+      "resultOk": true
+    },
+    {
+      "at": "2026-10-05T04:00:25.767Z",
+      "turn": 10,
+      "name": "bridge_read",
+      "args": {
+        "source_event_id": "im-d165fb8f8d5e9463e2680285886a17d179a0c9468d8bee3a1fb35a87d0dc90a0"
+      },
+      "resultOk": true
+    },
+    {
+      "at": "2026-10-05T04:01:13.019Z",
+      "turn": 11,
+      "name": "bridge_read",
+      "args": {
+        "source_event_id": "im-b3dcadc17901bad12444e09ca48f0542f741c846a73ef9c78909eb75db9737cd"
+      },
+      "resultOk": true
+    },
+    {
+      "at": "2026-10-05T04:02:38.635Z",
+      "turn": 12,
+      "name": "bridge_reply",
+      "args": {
+        "source_event_id": "im-539df5eb0eb51795e8f9b0243fc8f8a6ccfb58e127f4db1485d6dfce07851152",
+        "text": "BH837-MENTION-OK"
+      },
+      "resultOk": true
+    },
+    {
+      "at": "2026-10-05T04:06:38.677Z",
+      "turn": 13,
+      "name": "bridge_read",
+      "args": {
+        "source_event_id": "im-289af58d66952eeaacbeee6330b1f0212ec641887e4ef02252dd3d6595a7dfa3"
+      },
+      "resultOk": true
+    },
+    {
+      "at": "2026-10-05T04:09:51.032Z",
+      "turn": 14,
+      "name": "bridge_read",
+      "args": {
+        "source_event_id": "im-752b7fe5da2d553dfbc3cce0cd169689d6a620b7f8af1ae76ba60e96219c08dc"
+      },
+      "resultOk": true
+    }
+  ],
+  "outbox": [
+    {
+      "state": "provider-accepted",
+      "sourceEventId": "im-539df5eb0eb51795e8f9b0243fc8f8a6ccfb58e127f4db1485d6dfce07851152",
+      "text": "BH837-MENTION-OK",
+      "messageId": "1791172962.702189",
+      "threadId": "1791172957.758289"
+    }
+  ],
+  "independentReply": {
+    "accountVerified": true,
+    "channelId": "C0C6FPES0G5",
+    "threadTs": "1791172957.758289",
+    "messageTs": "1791172962.702189",
+    "botUser": "U0C6EQK4B8B",
+    "text": "BH837-MENTION-OK"
+  }
+}

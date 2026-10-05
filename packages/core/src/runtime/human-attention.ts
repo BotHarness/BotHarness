@@ -204,14 +204,14 @@ const ACTION_ATTENTION_CTE = `WITH attention AS (
              AND a.stop_state = 'running'
              AND a.latest_report_at IS NOT NULL
              AND NOT EXISTS (SELECT 1 FROM channel_records dm WHERE dm.channel_id = 'dm-' || a.bot_slug AND json_extract(dm.record_json, '$.deletedAt') IS NOT NULL)
-             AND NOT EXISTS (
+             AND (a.open_ask_source_event_id IS NOT NULL OR NOT EXISTS (
                SELECT 1 FROM source_events reply WHERE reply.channel_id = 'dm-' || a.bot_slug
                  AND reply.source_kind = 'human-message' AND json_extract(reply.payload_json, '$.author.kind') = 'human'
                  AND json_extract(reply.payload_json, '$.assignmentReply.sessionId') = +a.session_id
                  AND json_extract(reply.payload_json, '$.assignmentReply.sourceEventId') = coalesce(a.open_ask_source_event_id, (
                    SELECT latest.source_event_id FROM source_events latest WHERE latest.assignment_session_id = a.session_id AND latest.source_kind = 'assignment-report' ORDER BY latest.rowid DESC LIMIT 1
                  ))
-             )
+             ))
           UNION ALL
           SELECT 'repair:' || a.source_event_id || ':' || a.bot_slug AS id,
                  'action' AS category, 'bot-message-needs-repair' AS kind,
@@ -473,6 +473,7 @@ SELECT 'handled:' || request.source_event_id AS id,
              AND json_extract(c.record_json, '$.type') = 'dm'
              AND json_extract(c.record_json, '$.botSlug') = a.bot_slug
              AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             AND a.open_ask_source_event_id IS NOT request.source_event_id
              AND request.source_kind = 'assignment-report'
              AND NOT EXISTS (SELECT 1 FROM source_events earlier INDEXED BY source_events_human_assignment_response
                WHERE earlier.source_kind = 'human-message' AND json_extract(earlier.payload_json, '$.author.kind') = 'human'

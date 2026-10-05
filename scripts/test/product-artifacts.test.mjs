@@ -1,0 +1,238 @@
+import { createHash } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { productManifest, productImProvider } from '../product-artifacts.mjs';
+import {
+  packagedProfileManifest,
+  packagedWorkspaceSettings,
+  verifiedProductArtifacts,
+  verifyProductComposition,
+  parseProductComposition,
+} from '../packaged-profile.mjs';
+import { parse } from 'yaml';
+import { productManagedUpdate } from '../product-provider/update-policy.mjs';
+
+const temporary = [];
+afterEach(() => {
+  for (const path of temporary.splice(0)) rmSync(path, { recursive: true, force: true });
+});
+
+function artifactSet(version = '0.0.0-test.823') {
+  const root = mkdtempSync(join(tmpdir(), 'product-packages-'));
+  temporary.push(root);
+  const artifacts = [
+    'deepseekbot',
+    '@botharness/core',
+    '@botharness/ui',
+    productImProvider.name,
+  ].map((name) => {
+    const selectedVersion = name === productImProvider.name ? productImProvider.version : version;
+    const filename = `${name.replace(/^@/, '').replace('/', '-')}-${selectedVersion}.tgz`;
+    const bytes = Buffer.from(`artifact-check-fixture:${name}:${selectedVersion}`);
+    writeFileSync(join(root, filename), bytes);
+    return {
+      name,
+      version: selectedVersion,
+      filename,
+      integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}`,
+    };
+  });
+  writeFileSync(
+    join(root, 'artifacts.json'),
+    JSON.stringify({
+      productVersion: version,
+      dsh: '0.2.0-rc.1',
+      providerRuntime: { runtimeFiles: 1, runtimeSha256: 'a'.repeat(64) },
+      artifacts,
+    }),
+  );
+  return { root, artifacts };
+}
+
+describe('packaged product selection', () => {
+  it('installs one product Bundle from verified artifacts without a developer Provider or workspace links', () => {
+    const { root } = artifactSet();
+    const saved = {
+      dependencies: { other: '1.0.0' },
+      dsh: {
+        profile: {
+          bundles: ['@deepseek-ai/dsh-base', 'other'],
+          custom: true,
+        },
+      },
+    };
+    const result = packagedProfileManifest(saved, root);
+    expect(result.dependencies).toEqual({
+      other: '1.0.0',
+      deepseekbot: expect.stringMatching(/^file:.*\.tgz$/),
+    });
+    expect(result.dsh.profile.bundles).toEqual([
+      '@deepseek-ai/dsh-base',
+      '@deepseek-ai/dsh-web-app',
+      'deepseekbot',
+      'other',
+    ]);
+    expect(result.dsh.profile.custom).toBe(true);
+    expect(JSON.stringify(result)).not.toContain('link:');
+    expect(JSON.stringify(result)).not.toContain('github:');
+    expect(saved.dependencies).toEqual({ other: '1.0.0' });
+  });
+
+  it.each(['@xmanrui/dsh-im', productImProvider.name, '@botharness/core', '@botharness/ui'])(
+    'refuses a conflicting standalone %s before overwriting existing configuration',
+    (name) => {
+      const saved = { dsh: { profile: { bundles: [name] } }, untouched: 'retain' };
+      expect(() => packagedProfileManifest(saved, '/not-needed')).toThrow(
+        /remove its Bundle entry, retain credentials\/history/,
+      );
+      expect(saved).toEqual({ dsh: { profile: { bundles: [name] } }, untouched: 'retain' });
+    },
+  );
+
+  it('refuses changed tarballs instead of installing an artifact with stale qualification', () => {
+    const { root, artifacts } = artifactSet();
+    writeFileSync(join(root, artifacts[0].filename), 'different package bytes');
+    expect(() => verifiedProductArtifacts(root)).toThrow('Product artifact changed');
+  });
+
+  it('places artifact substitution in pnpm 12 settings and preserves unrelated build policy', () => {
+    const { root } = artifactSet();
+    const source =
+      '# owned Profile\npackages: [.]\nautoInstallPeers: false\nallowBuilds:\n  reviewed: true\n  other: false\noverrides:\n  unrelated: 1.0.0\n';
+    const result = packagedWorkspaceSettings(source, root);
+    expect(result).toContain('# owned Profile');
+    expect(parse(result)).toMatchObject({
+      autoInstallPeers: false,
+      allowBuilds: { reviewed: true, other: false },
+      overrides: { unrelated: '1.0.0' },
+    });
+    expect(parse(result).overrides['@botharness/im-provider@4.32.0-botharness.2']).toMatch(
+      /^file:.*\.tgz$/,
+    );
+    expect(() => packagedWorkspaceSettings('packages: [', root)).toThrow(
+      'invalid Profile workspace settings',
+    );
+  });
+
+  it('refuses duplicate, missing, mismatched-version or escaping artifact entries', () => {
+    const { root, artifacts } = artifactSet();
+    for (const invalid of [
+      artifacts.slice(1),
+      [artifacts[0], artifacts[0], ...artifacts.slice(2)],
+      [{ ...artifacts[0], filename: '../escape.tgz' }, ...artifacts.slice(1)],
+      [{ ...artifacts[0], version: '9.0.0' }, ...artifacts.slice(1)],
+    ]) {
+      writeFileSync(
+        join(root, 'artifacts.json'),
+        JSON.stringify({ productVersion: '0.0.0-test.823', dsh: '0.2.0-rc.1', artifacts: invalid }),
+      );
+      expect(() => verifiedProductArtifacts(root)).toThrow();
+    }
+  });
+
+  it('changes the local product artifact for an upgrade while retaining unrelated preferences', () => {
+    const first = artifactSet();
+    const second = artifactSet('0.0.0-test.823.1');
+    const saved = packagedProfileManifest({ preferences: { retained: true } }, first.root);
+    const upgraded = packagedProfileManifest(saved, second.root);
+    expect(upgraded.preferences).toEqual({ retained: true });
+    expect(upgraded.dependencies.deepseekbot).toContain(second.root);
+    expect(upgraded.dsh.profile.bundles.filter((name) => name === 'deepseekbot')).toHaveLength(1);
+  });
+});
+
+describe('release composition', () => {
+  it('refuses duplicates in a composed native Patch before a receiver can start', () => {
+    const entries = [
+      { id: 'xmanrui-dsh-im', name: productImProvider.name },
+      { id: 'botharness-core', name: '@botharness/core' },
+      { id: 'botharness-client', name: '@botharness/ui' },
+    ];
+    expect(() => verifyProductComposition(entries)).not.toThrow();
+    expect(() =>
+      verifyProductComposition([...entries, { name: 'group', config: [entries[0]] }]),
+    ).toThrow('conflicts');
+    expect(() =>
+      verifyProductComposition([...entries, { id: 'legacy', name: '@xmanrui/dsh-im' }]),
+    ).toThrow('Standalone upstream');
+    expect(() => verifyProductComposition(entries.slice(1))).toThrow('all three');
+    expect(() =>
+      verifyProductComposition([{ ...entries[0], disabled: true }, ...entries.slice(1)]),
+    ).toThrow('conflicts');
+  });
+  it('reads native JS tags as data and refuses dynamic component disabling without evaluating code', () => {
+    const entries = parseProductComposition(
+      "- id: unrelated\n  name: native\n  disabled: !!js 'throw new Error(\"must not execute\")'\n- id: xmanrui-dsh-im\n  name: '@botharness/im-provider'\n- id: botharness-core\n  name: '@botharness/core'\n- id: botharness-client\n  name: '@botharness/ui'\n",
+    );
+    expect(entries[0].disabled.__jsExpr).toContain('must not execute');
+    expect(() => verifyProductComposition(entries)).not.toThrow();
+    entries[1].disabled = entries[0].disabled;
+    expect(() => verifyProductComposition(entries)).toThrow('conflicts');
+  });
+  it('pins independently named Provider and release packages in the product artifact', () => {
+    const source = JSON.parse(
+      readFileSync(new URL('../../packages/deepseekbot/package.json', import.meta.url), 'utf8'),
+    );
+    const release = productManifest(source, '0.0.0-test.823');
+    expect(release.private).toBeUndefined();
+    expect(release.dependencies).toEqual({
+      '@botharness/core': '0.0.0-test.823',
+      '@botharness/ui': '0.0.0-test.823',
+      '@botharness/im-provider': '4.32.0-botharness.2',
+    });
+    expect(release.dsh.bundle.patch).toBe('./cordis.im.patch.yml');
+    expect(source.private).toBe(true);
+  });
+
+  it.each(['latest', '01.0.0', '', '1.0', 'v1.0.0'])(
+    'rejects a nonexact release version %s',
+    (version) => {
+      expect(() => productManifest({}, version)).toThrow('explicit product SemVer');
+    },
+  );
+});
+
+describe('product-managed Provider updates', () => {
+  it('reports the running artifact without starting any independent check or installation job', () => {
+    expect(productManagedUpdate('update.status', {}, undefined, '4.32.0-botharness.2')).toEqual({
+      ok: true,
+      value: {
+        runningVersion: '4.32.0-botharness.2',
+        installedVersion: '4.32.0-botharness.2',
+        latestVersion: null,
+        canInstall: false,
+        sourceInstall: false,
+        blockedReason: 'product-managed',
+        profileName: null,
+        environmentKind: 'product',
+        checkedAt: null,
+        checkId: null,
+        job: null,
+      },
+    });
+  });
+  it.each([
+    ['update.check', {}],
+    ['update.install', { checkId: 'old', requestId: 'test' }],
+    ['update.status', { registry: 'https://unreviewed.invalid' }],
+    ['unknown', {}],
+    ['update.status', null],
+    ['update.status', []],
+  ])(
+    'refuses %s so upstream update paths cannot replace the qualified artifact',
+    (endpoint, payload) => {
+      expect(
+        productManagedUpdate(endpoint, payload, undefined, '4.32.0-botharness.2'),
+      ).toMatchObject({ ok: false, error: { code: 'product-managed' } });
+    },
+  );
+  it('retains cancellation without running an update', () => {
+    const controller = new AbortController();
+    controller.abort();
+    expect(
+      productManagedUpdate('update.status', {}, controller.signal, '4.32.0-botharness.2'),
+    ).toMatchObject({ ok: false, error: { code: 'cancelled' } });
+  });
+});

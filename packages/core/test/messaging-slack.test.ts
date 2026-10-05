@@ -68,6 +68,7 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
       capabilities: [
         'proactive-text-checked',
         'exclusive-text-consumer',
+        'ordinary-text-consumer',
         'reply-text-checked',
         'reply-context-checked',
         'reply-receipt-checked',
@@ -78,6 +79,7 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
     }),
     sendChecked: vi.fn(async (): Promise<{ sent: true }> => ({ sent: true })),
     consumeInbound: async (_id, input) => {
+      expect(input.ordinaryText).toBe(true);
       callback = input;
       return () => {};
     },
@@ -154,6 +156,21 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
     },
     replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
   };
+  await callback!.onEvent(
+    {
+      ...source,
+      eventId: 'EvOrdinary',
+      messageId: '1791127735.000001',
+      mentions: [],
+      mentionedAccount: false,
+      text: 'Ordinary message does not enter the default mention-only Inbox',
+      reply: { ...source.reply, messageId: '1791127735.000001' },
+    },
+    { signal: callback!.signal },
+  );
+  await tick();
+  expect(runs).toBe(0);
+  expect(core.attention.list({ botSlug: 'ada' }).items).toHaveLength(0);
   await callback!.onEvent(source, { signal: callback!.signal });
   await callback!.onEvent({ ...source, eventId: 'EvRedelivery' }, { signal: callback!.signal });
   await tick();

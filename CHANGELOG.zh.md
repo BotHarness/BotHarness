@@ -18,6 +18,12 @@
 ### Added
 
 - Assignment 完成报告与 Host 确认的原生执行完成保留为独立、可跳转的 Inbox 来源，以可信 Session／Turn 身份关联且不重复唤醒；迟到通知重启后仍待处理，直到真实 Turn 纳入并处理（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)）。
+- Human 可在 Profile 明确接收已授权 Slack 频道的普通文字，并选择现有数量／时间汇总或安全排队的逐条唤醒；新连接仍只收 @，重叠提及订阅不重复收件（[#837](https://github.com/BotHarness/BotHarness/issues/837)）。
+- 新增产品产物构建与隔离安装路径，在一次产品安装中组合 Core、Client 和独立版本的已验证 IM Provider；初始不连接账号，Provider 随产品更新，公开 npm 发布仍是独立的发布操作（[#823](https://github.com/BotHarness/BotHarness/issues/823)、[打包指南](docs/product-im-installation.md)）。
+- Line 家族 PersonaBot 头像改为变形成与当前 DSH 工具对应的线条符号（与像素风同一套 16 个：读文件、新建、修改、执行命令、搜代码、搜网页、抓取、提问、待办、分身、工作流、目标、展示、待审批等），活动持续时保持符号（至少 0.5 秒），工具之间直接变形，回合结束后变回脸（[#838](https://github.com/BotHarness/BotHarness/issues/838)）。
+
+- PersonaBot 可通过 canonical 附件工具读取明确 @ 的 Slack 原消息文件，并用自己的绑定身份沿原生话题回传处理结果；发送完成前复查当前授权，来源详情保留安全文件类型和大小信息（[#831](https://github.com/BotHarness/BotHarness/issues/831)）。
+- Line 家族 PersonaBot 头像新增更多颜文字风格的眼睛（闪亮大眼、爱心眼、圆圈眼、竖椭圆眼、^ ^、半睁眼、下垂眼）、眉毛（粗眉、麻吕眉、细眉）和嘴（▽、露齿、小虎牙、小点嘴、嘟嘴、紧张锯齿、大笑张嘴），资料页编辑器提供 12 个只有五官的 Line 预设；头像不再画左上角的 !? 和漫画符号，资料页预览、顶部标题和置顶头像的活动指示与待处理数量移到名字后面，不再压在头像上（[#833](https://github.com/BotHarness/BotHarness/issues/833)）。
 
 - Human 可在 Bot 模式设置中调整 Profile 级 Assignment 并发上限（1–32，默认 3）；保存后立即影响后续准入并在重启后保留，降低上限不中止正在执行的任务 ([#825](https://github.com/BotHarness/BotHarness/issues/825)).
 - Channel sidebar 编辑模式可隐藏或恢复指定项目，完成时一起保存显示与排序偏好，取消时一起丢弃，并可通过恢复默认布局重新显示全部项目（[#809](https://github.com/BotHarness/BotHarness/issues/809)）。
@@ -344,6 +350,10 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- Assignment 答复在原生 Inbox 接收后才清除原问题；可证的投递准备失败保留重试入口，结果不明仍显示待修复，旧答复不会清除新问题（[#812](https://github.com/BotHarness/BotHarness/issues/812)）。
+
+- Human 收件箱操作按钮与条目统一展开双列详情；标题独占首行，摘要与操作放在第二行，紧凑入口弹窗加宽（[#812](https://github.com/BotHarness/BotHarness/issues/812)）。
 
 - 空闲 Assignment 的继续执行和按 key 复用现在遵守与新建工作相同的 Profile 并发上限，容量满时保留尚未答复的问题 ([#811](https://github.com/BotHarness/BotHarness/issues/811))。
 - Channel sidebar 编辑时不显示展开箭头，整行可拖动；拖动时即时预览草稿顺序并显示清晰插入线，标签区域可接收落点，取消拖拽恢复拖动前的草稿（[#808](https://github.com/BotHarness/BotHarness/issues/808)）。

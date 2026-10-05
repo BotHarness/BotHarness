@@ -878,5 +878,3 @@ export function pixelFigure(
     ].join(''),
   };
 }
-
-export { blank as pixelGrid, rects as pixelRects, sprite as pixelSprite };

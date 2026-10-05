@@ -1,0 +1,85 @@
+{
+  "runtimeHead": "ee00fbeae6579f6b8e2c637d59d793dcd4e37747",
+  "integratedMain": "4db250db1a55e44d7de6ccbf62bc367b9e2c2503",
+  "providerSource": "b442da91b267412e84a4d18224adc30777024862",
+  "providerVersion": "4.32.0-botharness.2",
+  "productVersion": "0.0.0-test.823.6",
+  "dsh": "0.2.0-rc.1",
+  "validation": {
+    "botharness": {
+      "passed": 2439,
+      "skipped": 9
+    },
+    "providerRegisteredTests": {
+      "passed": 3553,
+      "failed": 0
+    },
+    "focusedProductArtifactTests": 25,
+    "typecheck": "passed",
+    "build": "passed",
+    "lint": "passed with existing warnings",
+    "format": "passed",
+    "releaseLedgers": "passed"
+  },
+  "realLarkFlows": [
+    {
+      "sourceEventId": "im-2baff81272ec5e25b58aeeea43c5c5c316df7d73a26e80d75282afa9c2857d5f",
+      "sourceMessageId": "om_x100b631f12aced30ed07c7d9f4ceef9",
+      "admissionState": "handled",
+      "handledAt": "2026-10-04T20:23:43.972Z",
+      "outboxState": "provider-accepted",
+      "reply": {
+        "text": "BH823-PACKAGED-TOPIC-OK",
+        "appId": "cli_aa37adda29f89e15",
+        "threadId": "omt_19a4a9df4a0f1944",
+        "messageId": "om_x100b631f122fb4a0ee8ddd112cbeb80"
+      },
+      "sourceRoute": {
+        "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+        "threadId": "omt_19a4a9df4a0f1944",
+        "rootId": "om_x100b63265fab4ca0ee85732645290b6",
+        "parentId": "om_x100b63265fab4ca0ee85732645290b6"
+      }
+    },
+    {
+      "sourceEventId": "im-a62a044843902776b3f12b8c06794134a04def99225080eb3dc43b9d02b4d8d2",
+      "sourceMessageId": "om_x100b631f3e0a94a0eecd3e86dc9ae83",
+      "admissionState": "handled",
+      "handledAt": "2026-10-04T20:29:10.115Z",
+      "outboxState": "provider-accepted",
+      "reply": {
+        "text": "BH823-UPGRADED-TOPIC-OK",
+        "appId": "cli_aa37adda29f89e15",
+        "threadId": "omt_19a4a9df4a0f1944",
+        "messageId": "om_x100b631f3f89a0a0ee86b19f47c74ba"
+      },
+      "sourceRoute": {
+        "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+        "threadId": "omt_19a4a9df4a0f1944",
+        "rootId": "om_x100b63265fab4ca0ee85732645290b6",
+        "parentId": "om_x100b631f12aced30ed07c7d9f4ceef9"
+      }
+    },
+    {
+      "sourceEventId": "im-24e0c16e528b195747b40f08ddbefe84b2a5ee5a7631f302825af1176c1ed029",
+      "sourceMessageId": "om_x100b631fc32648a0eecd123ee5a09f5",
+      "admissionState": "handled",
+      "handledAt": "2026-10-04T20:36:56.152Z",
+      "outboxState": "provider-accepted",
+      "reply": {
+        "text": "BH823-FINAL-MAIN-OK",
+        "appId": "cli_aa37adda29f89e15",
+        "threadId": "omt_19a4a9df4a0f1944",
+        "messageId": "om_x100b631fc0a86ca4ee8b4a8c98f576b"
+      },
+      "sourceRoute": {
+        "conversationId": "oc_125a9ca3ca3ddecdbdbe6c495bf34753",
+        "threadId": "omt_19a4a9df4a0f1944",
+        "rootId": "om_x100b63265fab4ca0ee85732645290b6",
+        "parentId": "om_x100b631f3e0a94a0eecd3e86dc9ae83"
+      }
+    }
+  ],
+  "humanInput": "Existing authorized Human identity via Lark CLI; product connections, Binding, target and Grant configured in the actual Client.",
+  "captureLimit": "Native Lark client clicks did not open the topic; platform replies were independently read from Lark, paired with actual Client source screenshots."
+}

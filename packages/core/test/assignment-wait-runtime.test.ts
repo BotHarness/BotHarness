@@ -26,6 +26,7 @@ function agents() {
       runs.push(run);
       return {
         delivery: 'followup',
+        accepted: Promise.resolve(),
         done: new Promise<void>((resolve) => finishes.set(run.sessionId, resolve)),
       };
     },

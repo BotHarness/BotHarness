@@ -1876,9 +1876,18 @@ export function BotSidebar({
                           activity={bot.activity}
                           attention={bot.attention}
                           size={54}
+                          indicator={false}
                         />
                       )}
-                      <span className="bh-name">{bot?.displayName ?? channel.name}</span>
+                      <span className="bh-name">
+                        {bot?.displayName ?? channel.name}
+                        {bot === undefined ? null : (
+                          <PersonaBotStatusBadges
+                            state={personaBotActivity(state, bot)}
+                            attention={bot.attention}
+                          />
+                        )}
+                      </span>
                       {bot === undefined ? null : <RoleBadges roles={bot.roles} />}
                       {showShortcutHints && shortcutFor(channel.id) !== undefined ? (
                         <kbd className="bh-shortcut-badge" aria-hidden="true">

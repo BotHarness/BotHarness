@@ -136,8 +136,8 @@ describe('Human Inbox native question', () => {
         await act(async () => root.render(createElement(HumanInboxView, { actions })));
         expect(button('回答问题')).toBeDefined();
         await act(async () => button('回答问题')!.click());
-        expect(container.querySelector('.bh-human-inbox-detail')).toBeNull();
-        expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+        expect(container.querySelector('.bh-human-inbox-detail')).not.toBeNull();
+        expect(container.querySelector('[role="dialog"]')).toBeNull();
         expect(container.querySelector('.bh-question-prompt')?.textContent).toBe(
           'Which launch channel?',
         );

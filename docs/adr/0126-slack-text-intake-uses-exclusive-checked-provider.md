@@ -46,6 +46,54 @@ page content rather than renewed opaque cursor bytes; changed messages remain st
 No new durable table or shared transcript store is introduced. Files, ordinary-message
 subscription, private/DM reads and editable platform preferences remain separate slices.
 
+## Follow-up: source files (#831)
+
+Slack's exclusive Consumer can explicitly opt into one hosted file on a Human mention.
+The Provider re-reads the exact native source before canonical acceptance and records
+only the native file ID, source message ID, bounded name, safe MIME type and declared
+size. It does not persist private download URLs or expose them to the model/Client.
+Unlike Lark's referenced parent file, Slack's file belongs to the mentioned message;
+Core validates this platform-specific association without fabricating a parent ID.
+Multiple files and unsupported file modes are refused in this narrow slice.
+
+An explicit read requalifies account, exclusive lease, public-channel membership,
+source author/native thread and the current file association, then calls `files.info`
+and privately streams the hosted resource into the existing canonical Attachment
+owner. Declared and actual bytes are bounded to 25 MiB and checked for completeness.
+Host stop, lease revocation and cancellation invalidate the read; downloads block
+redirects and only send credentials to Slack's validated private-file host.
+
+The existing file Outbox accepts an explicitly imported result and uploads it through
+Slack's ticket, raw-byte and `files.completeUploadExternal` stages. A checked fence
+revalidates the source and runtime immediately before completion makes the file visible
+in the original thread. Final completion is never blindly retried: a confirmed file ID
+is platform acceptance, while ambiguous completion remains an unknown outcome.
+`files:read` and `files:write` are independently authorized App scopes, not Human login.
+No extra file store, Session, DM mirror, ordinary subscription or history-file search is
+introduced. The Client reuses its source Modal and file download row.
+
+## Follow-up: ordinary channel text (#837)
+
+The same exclusive Consumer can opt into fresh public-channel Human text with
+`ordinaryText: true` after `ordinary-text-consumer` is advertised. The Provider
+retains account/App pairing, membership and lease checks and acknowledges after
+canonical acceptance. Native `message.channels` subscription uses the App's existing
+`channels:history` scope; adding automatic delivery is explicitly authorized separately.
+Own mentions arriving through that subscription are ignored in favor of the existing
+`app_mention` path. Bot/self events, private/DM traffic, edits/deletions, unsupported
+subtypes and ordinary file shares are excluded.
+
+Messaging keeps the existing per-authorized-group collection authority. New bindings
+remain mention-only; a real current ordinary event must qualify delivery before Human
+can enable full collection. The excluded probe creates neither Source Event nor Admission.
+Collected text uses existing canonical Source Events, optional Channel placement, per-Bot
+Admission snapshots and count/time harvest or immediate turn queuing (ADR-0109/0113).
+Collection does not force a reply. Profile reuses the existing localized compact policy
+editor; Slack's built-in defaults remain independent of mutable Lark platform defaults.
+Lease/Host restart resets verification but preserves policy, without remote gap backfill.
+No schema, queue or Session authority is added. Autonomous native-thread follow, ordinary
+files, private/DM intake and an editable Slack global-defaults page remain later slices.
+
 ## Consequences
 
 One canonical source and Outbox continue to serve all supported Providers; no new database authority or schema migration is required for this text slice. Native Slack routing is adapted at the Provider boundary rather than imposed on Lark or on platforms without threads. Socket redelivery and uncertain sends remain explicit reliability boundaries. A passing automated regression is preparatory evidence; real Slack App installation, a fresh model round trip, screenshots and Human QA are still required before issue completion.

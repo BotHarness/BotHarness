@@ -47,7 +47,20 @@ const event: MessagingInboundEvent = {
   },
   replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
 };
-async function fixture(onRun?: (run: OrchestratorAgentRun) => Promise<void>) {
+async function fixture(
+  onRun?: (run: OrchestratorAgentRun) => Promise<void>,
+  platform: 'feishu' | 'slack' = 'feishu',
+) {
+  const { parentId: _parentId, ...slackReply } = event.reply;
+  const platformEvent: MessagingInboundEvent =
+    platform === 'slack'
+      ? {
+          ...event,
+          channel: platform,
+          attachments: [{ ...attachment, messageId: event.messageId }],
+          reply: slackReply,
+        }
+      : event;
   const home = realpathSync(createTempRoot('bh-bridge-files-'));
   const project = join(home, 'project');
   mkdirSync(project);
@@ -92,12 +105,18 @@ async function fixture(onRun?: (run: OrchestratorAgentRun) => Promise<void>) {
   const service: DshImOutboundService = {
     contractVersion: 1,
     fileVersion: 1,
-    listBots: async () => [{ botId: 'account', channel: 'feishu' }],
-    listTargets: async () => [{ targetId: 'team', kind: 'group', route: { chatId: 'team' } }],
+    listBots: async () => [{ botId: 'account', channel: platform }],
+    listTargets: async () => [
+      {
+        targetId: 'team',
+        kind: platform === 'slack' ? 'conversation' : 'group',
+        route: platform === 'slack' ? { channelId: 'team' } : { chatId: 'team' },
+      },
+    ],
     describeBot: async () => ({
       version: 1,
       botId: 'account',
-      channel: 'feishu',
+      channel: platform,
       account: { fingerprint },
       connected: true,
       capabilities: [
@@ -111,24 +130,25 @@ async function fixture(onRun?: (run: OrchestratorAgentRun) => Promise<void>) {
     sendChecked: async () => ({ sent: true }),
     replyChecked: async () => ({ sent: true }),
     consumeInbound: async (_id, input) => {
+      expect(input.sourceFiles).toBe(true);
       receive = input;
       return () => {};
     },
     readSourceFile: async () => download(),
     replyFileChecked: reply,
   };
-  core.externalMessaging.register(createDshImProvider(service)!);
-  const target = (await core.externalMessaging.targets('dsh-im/feishu', 'account'))[0]!;
+  core.externalMessaging.register(createDshImProvider(service, platform)!);
+  const target = (await core.externalMessaging.targets(`dsh-im/${platform}`, 'account'))[0]!;
   const grant = await core.externalMessaging.authorize({
     botSlug: 'ada',
-    providerId: 'dsh-im/feishu',
+    providerId: `dsh-im/${platform}`,
     accountRef: 'account',
     targetRef: 'team',
     fingerprint,
     targetDigest: target.digest,
   });
   await core.externalMessaging.inbound.setEnabled('ada', grant.id, true);
-  const source = async (value = event) => {
+  const source = async (value = platformEvent) => {
     await receive!.onEvent(value, { signal: receive!.signal });
     await tick();
     await core.runtime.whenIdle();
@@ -141,6 +161,7 @@ async function fixture(onRun?: (run: OrchestratorAgentRun) => Promise<void>) {
       return core;
     },
     project,
+    platformEvent,
     grant,
     service,
     source,
@@ -154,7 +175,7 @@ async function fixture(onRun?: (run: OrchestratorAgentRun) => Promise<void>) {
       cores.splice(cores.indexOf(core), 1);
       core = makeCore();
       cores.push(core);
-      core.externalMessaging.register(createDshImProvider(service)!);
+      core.externalMessaging.register(createDshImProvider(service, platform)!);
       await tick();
       await tick();
       expect(core.externalMessaging.inbound.status(grant.id)).toBe('receiving');
@@ -162,44 +183,47 @@ async function fixture(onRun?: (run: OrchestratorAgentRun) => Promise<void>) {
   };
 }
 
-it('one trusted source reaches writable native files and a selected same-topic file reply without creating a Channel', async () => {
-  let grantId = '';
-  let resultId = '';
-  const fx = await fixture(async (run) => {
-    const items = fx.core.attention.list({ botSlug: 'ada' }).items;
-    const id = items.find((item) => item.sourceKind === 'bridge-message')!.id;
-    const saved = await run.externalMessaging!.saveFile({
-      sourceEventId: id,
-      attachmentId: attachment.id,
-      grantId,
-      destinationPath: 'work.zip',
-    });
-    expect(readFileSync(saved.path, 'utf8')).toBe('original bytes');
-    writeFileSync(saved.path, 'processed bytes');
-    const imported = await run.channels.importAttachment!({ filePath: saved.path });
-    resultId = imported.fileId!;
-    expect(imported.fileId).not.toBe(saved.source.fileId);
-    expect(() => run.externalMessaging!.replyFile(id, saved.source.fileId!)).toThrow(
-      'Select a result',
-    );
-    expect((await run.externalMessaging!.replyFile(id, imported.fileId!)).state).toBe(
-      'provider-accepted',
-    );
-    expect(readFileSync(fx.core.attachments.fileTarget(saved.source.fileId!).path, 'utf8')).toBe(
-      'original bytes',
-    );
-  });
-  const workspaceGrant = await fx.core.grants.create('ada', 'project');
-  grantId = workspaceGrant.id;
-  fx.core.grants.setOrchestratorWrite('ada', grantId, true);
-  await fx.source();
-  expect(fx.observed).toEqual([{ state: 'in-flight', body: 'processed bytes' }]);
-  expect(fx.core.externalMessaging.history('ada')[0]?.state).toBe('provider-accepted');
-  expect(fx.reply).toHaveBeenCalledTimes(1);
-  expect(fx.reply.mock.calls[0]?.[1]).toEqual(event.reply);
-  expect(fx.core.externalMessaging.history('ada')[0]?.file?.fileId).toBe(resultId);
-  expect(fx.core.channels.list()).toEqual([]);
-});
+it.each(['feishu', 'slack'] as const)(
+  '%s trusted source reaches writable native files and a selected same-topic file reply without creating a Channel',
+  async (platform) => {
+    let grantId = '';
+    let resultId = '';
+    const fx = await fixture(async (run) => {
+      const items = fx.core.attention.list({ botSlug: 'ada' }).items;
+      const id = items.find((item) => item.sourceKind === 'bridge-message')!.id;
+      const saved = await run.externalMessaging!.saveFile({
+        sourceEventId: id,
+        attachmentId: attachment.id,
+        grantId,
+        destinationPath: 'work.zip',
+      });
+      expect(readFileSync(saved.path, 'utf8')).toBe('original bytes');
+      writeFileSync(saved.path, 'processed bytes');
+      const imported = await run.channels.importAttachment!({ filePath: saved.path });
+      resultId = imported.fileId!;
+      expect(imported.fileId).not.toBe(saved.source.fileId);
+      expect(() => run.externalMessaging!.replyFile(id, saved.source.fileId!)).toThrow(
+        'Select a result',
+      );
+      expect((await run.externalMessaging!.replyFile(id, imported.fileId!)).state).toBe(
+        'provider-accepted',
+      );
+      expect(readFileSync(fx.core.attachments.fileTarget(saved.source.fileId!).path, 'utf8')).toBe(
+        'original bytes',
+      );
+    }, platform);
+    const workspaceGrant = await fx.core.grants.create('ada', 'project');
+    grantId = workspaceGrant.id;
+    fx.core.grants.setOrchestratorWrite('ada', grantId, true);
+    await fx.source();
+    expect(fx.observed).toEqual([{ state: 'in-flight', body: 'processed bytes' }]);
+    expect(fx.core.externalMessaging.history('ada')[0]?.state).toBe('provider-accepted');
+    expect(fx.reply).toHaveBeenCalledTimes(1);
+    expect(fx.reply.mock.calls[0]?.[1]).toEqual(fx.platformEvent.reply);
+    expect(fx.core.externalMessaging.history('ada')[0]?.file?.fileId).toBe(resultId);
+    expect(fx.core.channels.list()).toEqual([]);
+  },
+);
 
 it('receipt and restart use the same file identity without fetching again; missing originals fail instead of reappearing', async () => {
   const fx = await fixture();
@@ -356,3 +380,25 @@ it.each(['provider-accepted', 'unknown-outcome'])(
     expect(send).toHaveBeenCalledTimes(1);
   },
 );
+
+it('Slack source metadata survives canonical intake and refuses unrelated message attachments', async () => {
+  const fx = await fixture(undefined, 'slack');
+  const source = {
+    ...fx.platformEvent,
+    attachments: [
+      { ...attachment, messageId: event.messageId, sizeBytes: 14, mediaType: 'application/zip' },
+    ],
+  };
+  const id = await fx.source(source);
+  const detail = fx.core.externalMessaging.inbound.read('ada', id);
+  expect(detail.event.attachments).toEqual(source.attachments);
+  await expect(
+    fx.source({
+      ...source,
+      eventId: 'unrelated',
+      messageId: 'other',
+      reply: { ...source.reply, messageId: 'other' },
+    }),
+  ).rejects.toThrow('untrusted-source');
+  expect(fx.download).not.toHaveBeenCalled();
+});

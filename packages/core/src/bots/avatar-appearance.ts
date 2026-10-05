@@ -4,8 +4,8 @@ import {
   lineAvatarSvg,
   type LineAvatarRecipe,
 } from './avatar-line.js';
-export { LINE_MORPH_SYMBOLS, lineMorphFace, type LineMorphNode } from './avatar-line.js';
-import { pixelFigure, pixelGrid, pixelRects, pixelSprite } from './avatar-pixel.js';
+export { LINE_TOOL_SYMBOLS, lineMorphFace, type LineMorphNode } from './avatar-line.js';
+import { pixelFigure } from './avatar-pixel.js';
 import type { PixelCell } from './avatar-pixel-symbols.js';
 export {
   PIXEL_SYMBOLS,
@@ -410,12 +410,6 @@ const YAW = { front: 0, left: -25, right: 25 } as const;
 
 export const AVATAR_TURNS = [-14, -7, 7, 14] as const;
 
-function pixelAttentionMark(): string {
-  const grid = pixelGrid();
-  pixelSprite(grid, ['X.XXX', 'X...X', 'X..X.', '.....', 'X..X.'], 2, 2, { X: '#e2565f' });
-  return `<g data-avatar-attention-mark="" opacity="0">${pixelRects(grid)}</g>`;
-}
-
 export function pixelFaceCells(recipe: IllustratedAvatarRecipe): PixelCell[] {
   return pixelFigure(recipe, YAW[recipe.pose]).cells;
 }
@@ -443,7 +437,6 @@ export function illustratedAvatarSvg(
     base.head,
     turns,
     '<g data-avatar-pixel-morph=""></g>',
-    `<g class="bh-illustrated-marks">${pixelAttentionMark()}</g>`,
     '</svg>',
   ].join('');
 }

@@ -18,6 +18,12 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Completed Assignment Reports and Host-confirmed native completion retain separate navigable Inbox sources linked by trusted Session/Turn identity, without a duplicate wake; late notices remain pending across restart until a real Turn handles them ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)).
+- Human can explicitly collect ordinary text from an authorized Slack channel and choose existing count/time harvest or safely queued immediate wake in Profile; new connections remain mention-only, and overlapping mention subscriptions are deduplicated ([#837](https://github.com/BotHarness/BotHarness/issues/837)).
+- Added a product-artifact build and isolated installation path composing Core, Client and an independently versioned qualified IM Provider, with disconnected initial accounts and product-managed Provider updates; public npm publication remains a separate release action ([#823](https://github.com/BotHarness/BotHarness/issues/823), [packaging guide](docs/product-im-installation.md)).
+- Line-family PersonaBot avatars now morph into a stroke symbol bound to the current DSH tool (the same 16 as the pixel family: read, write, edit, bash, grep, web search/fetch, ask_user_question, todo, subagent, workflow, goal, present, approval and more), hold it at least 0.5s while the activity lasts, morph directly between tools and return to the face when the turn ends ([#838](https://github.com/BotHarness/BotHarness/issues/838)).
+
+- PersonaBots can read an explicitly mentioned Slack source file and return a processed file in the original native thread, using canonical attachment tools, current own-identity authorization and a pre-completion fence; source details retain safe file type/size metadata ([#831](https://github.com/BotHarness/BotHarness/issues/831)).
+- Line-family PersonaBot avatars gain more kaomoji-style eyes (big sparkly, hearts, rings, tall ovals, ^ ^, half-lidded, droopy), brows (thick, maro dots, thin) and mouths (▽, teeth, little fang, dot, pout, nervous zigzag, big laugh), and the Profile editor offers twelve face-only Line presets; Avatars no longer draw the corner `!?` attention mark or manga symbols, and the Profile preview, header title and pinned PersonaBots show the activity indicator and attention count beside the name instead of on the avatar ([#833](https://github.com/BotHarness/BotHarness/issues/833)).
 
 - Human can change the Profile-wide Assignment concurrency limit (1–32, default 3) in Bot mode Settings; saves govern subsequent admission immediately and survive restart, while lowering the limit preserves running work ([#825](https://github.com/BotHarness/BotHarness/issues/825)).
 - Channel sidebar edit mode can hide or restore individual items, saving visibility and order together with Done, discarding both with Cancel, and recovering all items through Restore defaults ([#809](https://github.com/BotHarness/BotHarness/issues/809)).
@@ -344,6 +350,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Assignment answers retain their original question until native Inbox acceptance; proven delivery preparation failures remain retryable, uncertain delivery stays visible for repair and older answers cannot clear newer questions ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
+
+- Human Inbox action buttons now open the same split detail view as the row; titles span the full first line above summaries and actions, and compact-entry dialogs have more room ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
 
 - Idle Assignment continuation and keyed reuse now respect the same profile-wide concurrency limit as new work, preserving unanswered questions when capacity is full ([#811](https://github.com/BotHarness/BotHarness/issues/811)).
 - Channel sidebar edit mode omits expansion chevrons and supports dragging the whole row; dragging now previews the actual draft order with a clear insertion line, accepts row labels as drop surfaces and restores the pre-drag draft on cancellation ([#808](https://github.com/BotHarness/BotHarness/issues/808)).

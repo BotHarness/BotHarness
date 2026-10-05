@@ -2,7 +2,7 @@ import { useMemo, useRef, type ReactElement } from 'react';
 import {
   AVATAR_TURNS,
   avatarSvg,
-  LINE_MORPH_SYMBOLS,
+  LINE_TOOL_SYMBOLS,
   lineMorphFace,
   pixelFaceCells,
   pixelSymbolCells,
@@ -93,10 +93,11 @@ const GAZE_STEPS: Record<PersonaBotActivityEffect, readonly Step[]> = {
 const LARGE_SPRING = { k: 420, c: 30 };
 const SMALL_SPRING = { k: 760, c: 54 };
 
-interface Flight {
+interface LineShown {
+  key?: PixelSymbol | 'face';
   shape?: Sampled[];
   velocity: number;
-  phase?: 'out' | 'back';
+  since: number;
 }
 
 export const PIXEL_MORPH_MS = 800;
@@ -157,16 +158,10 @@ export function IllustratedAvatar({
     () => avatarSvg(recipe, turning ? { turns: AVATAR_TURNS } : {}),
     [recipe, turning],
   );
-  const presentation =
-    state === 'working' ? effect : state === 'thinking' ? 'thinking-dots' : 'idle';
-  const shown = useRef<string | undefined>(undefined);
-  const flight = useRef<Flight>({ velocity: 0 });
+  const line = useRef<LineShown>({ velocity: 0, since: 0 });
   const pixel = useRef<PixelShown>({ since: 0 });
   const mount = useMountedResource<HTMLSpanElement>(
     (node) => {
-      const previous = shown.current;
-      shown.current = presentation;
-      let pendingTransition = previous !== undefined && previous !== presentation;
       const morphPath = node.querySelector<SVGPathElement>('path[data-avatar-transition]');
       const head = node.querySelector<SVGGElement>('.bh-illustrated-head');
       const gaze = node.querySelector<SVGGElement>('.bh-illustrated-gaze');
@@ -176,10 +171,10 @@ export function IllustratedAvatar({
       const animations = new Set<Animation>();
       let visible = true;
       let disposed = false;
-      let run: LineMorphRun | undefined;
+      let run: { run: LineMorphRun; key: PixelSymbol | 'face' } | undefined;
+      let lineTimer: ReturnType<typeof setTimeout> | undefined;
       let pixelRun: { run: PixelMorphRun; key: PixelSymbol | 'face' } | undefined;
       let pixelTimer: ReturnType<typeof setTimeout> | undefined;
-      let pause: { timer: ReturnType<typeof setTimeout>; done(value: boolean): void } | undefined;
       const halt = () => {
         if (pixelTimer) clearTimeout(pixelTimer);
         pixelTimer = undefined;
@@ -188,16 +183,17 @@ export function IllustratedAvatar({
           pixelRun.run.cancel();
           pixelRun = undefined;
         }
+        if (lineTimer) clearTimeout(lineTimer);
+        lineTimer = undefined;
         if (run) {
-          flight.current.shape = run.current();
-          flight.current.velocity = run.velocity();
-          run.cancel();
+          line.current = {
+            key: run.key,
+            shape: run.run.current(),
+            velocity: run.run.velocity(),
+            since: 0,
+          };
+          run.run.cancel();
           run = undefined;
-        }
-        if (pause) {
-          clearTimeout(pause.timer);
-          pause.done(false);
-          pause = undefined;
         }
       };
       const stop = () => {
@@ -214,66 +210,83 @@ export function IllustratedAvatar({
             easing: 'ease-in-out',
           });
       };
-      const leg = async (
-        path: SVGPathElement,
-        from: Sampled[],
-        to: Sampled[],
-        phase: 'out' | 'back',
-        onNear?: () => void,
-      ) => {
-        flight.current.phase = phase;
-        const current = morphLinePath(path, from, to, spring(), flight.current.velocity, onNear);
-        run = current;
-        const done = await current.finished;
-        if (!done) return false;
-        run = undefined;
-        flight.current.shape = current.current();
-        flight.current.velocity = 0;
-        return true;
-      };
       const spring = () => (size <= 64 ? SMALL_SPRING : LARGE_SPRING);
-      const wait = (ms: number) =>
-        new Promise<boolean>((resolve) => {
-          pause = {
-            timer: setTimeout(() => {
-              pause = undefined;
-              resolve(true);
-            }, ms),
-            done: resolve,
-          };
-        });
-      const morph = async (path: SVGPathElement, phase: 'out' | 'back') => {
-        if (recipe.family !== 'line') return;
+      const showLine = (still: boolean): Promise<unknown> => {
+        if (!morphPath || recipe.family !== 'line') return Promise.resolve();
+        const path = morphPath;
         const compact = size <= 64;
-        const face = sampleLineFace(lineMorphFace(recipe));
-        const symbol = sampleLineSymbol(
-          LINE_MORPH_SYMBOLS[presentation] ?? LINE_MORPH_SYMBOLS['idle']!,
-          compact ? 0.8 : 1,
-        );
-        const start = flight.current.shape ?? face;
-        path.setAttribute('d', lineMorphD(start));
-        const fresh = !flight.current.shape;
         const blend = compact ? 120 : 200;
-        fade(head, 0, blend);
-        fade(path, 1, blend);
-        if (fresh && !(await wait(blend * 0.6))) return;
-        if (phase === 'out') {
-          if (!(await leg(path, start, symbol, 'out'))) return;
-          if (!(await wait(compact ? 140 : 380))) return;
-        }
-        const reveal = () => {
-          fade(path, 0, blend * 1.4);
-          fade(head, 1, blend * 1.4);
+        const target = symbol ?? 'face';
+        const shapeFor = (key: PixelSymbol | 'face') =>
+          key === 'face'
+            ? sampleLineFace(lineMorphFace(recipe))
+            : sampleLineSymbol(LINE_TOOL_SYMBOLS[key], compact ? 0.8 : 1);
+        const settleOn = (key: PixelSymbol | 'face') => {
+          if (key === 'face') {
+            path.style.opacity = '0';
+            head.style.opacity = '';
+            return;
+          }
+          path.setAttribute('d', lineMorphD(shapeFor(key)));
+          path.style.opacity = '1';
+          head.style.opacity = '0';
         };
-        if (!(await leg(path, flight.current.shape ?? symbol, face, 'back', reveal))) return;
-        flight.current = { velocity: 0 };
-      };
-      const settle = (path: SVGPathElement, phase: 'out' | 'back') =>
-        morph(path, phase).catch(() => {
-          flight.current = { velocity: 0 };
-          path.style.opacity = '';
-          head.style.opacity = '';
+        const previous = line.current;
+        if (still || previous.key === undefined) {
+          settleOn(target);
+          line.current = { key: target, velocity: 0, since: performance.now() };
+          return Promise.resolve();
+        }
+        if (previous.key === target && !previous.shape) {
+          settleOn(target);
+          return Promise.resolve();
+        }
+        const from = previous.shape ?? shapeFor(previous.key);
+        path.setAttribute('d', lineMorphD(from));
+        const fromFace = previous.key === 'face' && !previous.shape;
+        if (fromFace) {
+          fade(head, 0, blend);
+          fade(path, 1, blend);
+        } else {
+          path.style.opacity = '1';
+          head.style.opacity = '0';
+        }
+        return new Promise<void>((resolve) => {
+          const start = () => {
+            lineTimer = undefined;
+            const reveal =
+              target === 'face'
+                ? () => {
+                    fade(path, 0, blend * 1.4);
+                    fade(head, 1, blend * 1.4);
+                  }
+                : undefined;
+            const current = morphLinePath(
+              path,
+              from,
+              shapeFor(target),
+              spring(),
+              previous.velocity,
+              reveal,
+            );
+            run = { run: current, key: target };
+            void current.finished.then((done) => {
+              if (!done) return;
+              run = undefined;
+              line.current = { key: target, velocity: 0, since: performance.now() };
+              resolve();
+            });
+          };
+          const held = performance.now() - previous.since;
+          const delay = fromFace
+            ? blend * 0.6
+            : !previous.shape && held < PIXEL_SYMBOL_HOLD_MS
+              ? PIXEL_SYMBOL_HOLD_MS - held
+              : 0;
+          if (delay > 0) lineTimer = setTimeout(start, delay);
+          else start();
         });
+      };
       const showPixels = (still: boolean) => {
         if (!pixelGroup || recipe.family !== 'illustrated') return;
         const svg = pixelGroup.ownerSVGElement;
@@ -333,12 +346,14 @@ export function IllustratedAvatar({
           document.hidden ||
           document.documentElement.dataset['botharnessMotion'] === 'reduce'
         ) {
-          pendingTransition = false;
-          flight.current = { velocity: 0 };
-          if (!disposed) showPixels(true);
+          if (!disposed) {
+            showPixels(true);
+            void showLine(true);
+          }
           return;
         }
         showPixels(false);
+        const morphing = showLine(false);
         const compact = size <= 64;
         const enter = head.animate([{ transform: start || 'none' }, { transform: 'none' }], {
           duration: 120,
@@ -350,18 +365,12 @@ export function IllustratedAvatar({
           { duration: 120, easing: 'steps(2, end)' },
         );
         animations.add(gazeEnter);
-        let morphing: Promise<void> = Promise.resolve();
-        if (morphPath && (pendingTransition || flight.current.phase)) {
-          const phase = pendingTransition ? 'out' : flight.current.phase!;
-          pendingTransition = false;
-          morphing = settle(morphPath, phase);
-        }
         Promise.all([enter.finished, gazeEnter.finished, morphing])
           .then(() => {
             animations.delete(enter);
             animations.delete(gazeEnter);
             if (
-              flight.current.phase ||
+              (recipe.family === 'line' && symbol !== undefined) ||
               disposed ||
               !visible ||
               document.hidden ||
@@ -431,7 +440,7 @@ export function IllustratedAvatar({
         document.removeEventListener('visibilitychange', sync);
       };
     },
-    [state, effect, size, markup, recipe, presentation, symbol],
+    [state, effect, size, markup, recipe, symbol],
   );
   return (
     <span
