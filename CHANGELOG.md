@@ -27,6 +27,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Pixel-family side poses and thinking head-turn frames now read as a real three-quarter turn: features shift toward the facing side, the far eye narrows, only the near ear shows and the chin tucks; side tails stay attached to the head and the mouth stays centred ([#752](https://github.com/BotHarness/BotHarness/issues/752)).
 - Completed Assignment Reports and Host-confirmed native completion retain separate navigable Inbox sources linked by trusted Session/Turn identity, without a duplicate wake; late notices remain pending across restart until a real Turn handles them ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)).
+
+- Added a resumable Lark / Feishu setup guide in PersonaBot Profile that locates real IM controls and checks current account, identity, group authorization and same-topic reply evidence without storing a separate onboarding workflow ([#824](https://github.com/BotHarness/BotHarness/issues/824), [guide](docs/lark-connection.md)).
+
 - Added independently editable Slack intake, harvest and bound-identity defaults in Bot settings, with Profile inheritance and explicit overrides preserved ([#843](https://github.com/BotHarness/BotHarness/issues/843)).
 
 - Human can explicitly collect ordinary text from an authorized Slack channel and choose existing count/time harvest or safely queued immediate wake in Profile; new connections remain mention-only, and overlapping mention subscriptions are deduplicated ([#837](https://github.com/BotHarness/BotHarness/issues/837)).

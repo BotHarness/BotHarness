@@ -27,6 +27,9 @@
 
 - 像素家族的侧脸和思考转头帧改为真正的四分之三侧脸：五官向朝向一侧偏移、远侧眼睛变窄、只露近侧耳朵、下巴内收；双马尾等发尾保持贴着头部，嘴巴保持居中（[#752](https://github.com/BotHarness/BotHarness/issues/752)）。
 - Assignment 完成报告与 Host 确认的原生执行完成保留为独立、可跳转的 Inbox 来源，以可信 Session／Turn 身份关联且不重复唤醒；迟到通知重启后仍待处理，直到真实 Turn 纳入并处理（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)）。
+
+- 在 PersonaBot Profile 新增可恢复的 Lark／飞书配置引导，定位真实 IM 控件，并根据当前账号、身份、群授权及同话题回复证据核对进度，不另建新手引导工作流存储（[#824](https://github.com/BotHarness/BotHarness/issues/824), [指南](docs/lark-connection.md)).
+
 - 在 Bot 设置中新增独立的 Slack 收件、汇总与绑定身份默认值，Profile 可继承，既有显式覆盖继续保留（[#843](https://github.com/BotHarness/BotHarness/issues/843)）。
 
 - Human 可在 Profile 明确接收已授权 Slack 频道的普通文字，并选择现有数量／时间汇总或安全排队的逐条唤醒；新连接仍只收 @，重叠提及订阅不重复收件（[#837](https://github.com/BotHarness/BotHarness/issues/837)）。
