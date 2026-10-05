@@ -304,15 +304,52 @@ function load(url, { pixel = true } = {}) {
   return tex;
 }
 const UI = {
-  files: { url: './ui/memory-files.jpg', w: 1440, h: 960, title: 'MEMORY FILES' },
-  evo: { url: './ui/memory-evolution.jpg', w: 1280, h: 800, title: 'MEMORY EVOLUTION' },
+  files: { url: `./ui/${LANG}/memory-files.jpg`, w: 1440, h: 960, title: 'MEMORY FILES' },
+  evo: { url: `./ui/${LANG}/memory-evolution.jpg`, w: 1280, h: 800, title: 'MEMORY EVOLUTION' },
   lark: { url: './ui/lark-connector.png', w: 882, h: 827, title: 'GROUP - LARK CONNECTOR' },
   slack: { url: './ui/slack-connector.png', w: 1230, h: 820, title: 'PROFILE - SLACK CONNECTOR' },
-  group: { url: './ui/group.jpg', w: 2940, h: 1846, title: 'GROUP' },
+  group: { url: `./ui/${LANG}/group.jpg`, w: 2940, h: 1846, title: 'GROUP' },
   larkTopic: { url: './ui/lark-topic.jpg', w: 1668, h: 1846, title: 'LARK TOPIC' },
   slackThread: { url: './ui/slack-thread.png', w: 1230, h: 876, title: 'SLACK THREAD' },
 };
 for (const u of Object.values(UI)) u.tex = load(u.url, { pixel: false });
+// recorded product clips (real UI, real model turns), played by frame: the clip time is derived from the film frame
+const CLIPS = {
+  memClip: { src: `./ui/${LANG}/clips/memory-activity.mp4`, w: 1280, h: 800, title: 'MEMORY EVOLUTION' },
+  groupClip: { src: `./ui/${LANG}/clips/group-activity.mp4`, w: 2940, h: 1846, title: 'GROUP' },
+};
+for (const c of Object.values(CLIPS)) {
+  const v = document.createElement('video');
+  v.muted = true;
+  v.playsInline = true;
+  v.preload = 'auto';
+  v.crossOrigin = 'anonymous';
+  pending += 1;
+  v.addEventListener('loadeddata', () => { pending -= 1; if (pending === 0) for (const cb of readyCallbacks.splice(0)) cb(); }, { once: true });
+  v.src = c.src;
+  c.video = v;
+  c.canvas = document.createElement('canvas');
+  c.tex = new THREE.CanvasTexture(c.canvas);
+  c.tex.colorSpace = THREE.SRGBColorSpace;
+  c.tex.minFilter = THREE.LinearFilter;
+  c.tex.magFilter = THREE.LinearFilter;
+  c.tex.generateMipmaps = false;
+  c.clip = true;
+  UI[Object.keys(CLIPS).find((k) => CLIPS[k] === c)] = c;
+}
+let legacyRate = 1;
+function clipTime(beat, f) {
+  const c = beat.clip;
+  const seconds = ((f - beat.a) / legacyRate / FPS) * (c.rate ?? 1) + (c.t0 ?? 0);
+  return clamp(seconds, 0, (UI[beat.ui].video.duration || 1) - 0.04);
+}
+function drawClip(ui) {
+  const v = ui.video;
+  if (!v.videoWidth) return;
+  if (ui.canvas.width !== v.videoWidth) { ui.canvas.width = v.videoWidth; ui.canvas.height = v.videoHeight; }
+  ui.canvas.getContext('2d').drawImage(v, 0, 0);
+  ui.tex.needsUpdate = true;
+}
 const logoTex = { tex: load('./ui/logo.png', { pixel: false }), w: 128, h: 128 };
 let MORPH = null;
 pending += 1;
@@ -1064,16 +1101,18 @@ const BEATS = [
     [420, NARRATOR, T('meet')],
   ] },
   { a: 600, b: 720, mode: 'town', lines: [[610, 'MIRA', T('miraNote')]] },
-  { a: 720, b: 1080, mode: 'split', ui: 'files', crops: [[720, 720, 480, 1440], [800, 1250, 175, 420]], hl: [[830, 1070, 1150, 118, 270, 82]], lines: [
+  { a: 720, b: 850, mode: 'split', ui: 'files', crops: [[720, 720, 480, 1440], [790, 1280, 268, 420]], hl: [[800, 848, 1133, 86, 295, 364]], lines: [
     [730, NARRATOR, T('files1')],
-    [900, NARRATOR, T('files2')],
   ] },
-  { a: 1080, b: 1560, mode: 'gal', ui: 'evo', crops: [[1080, 640, 400, 1280], [1170, 620, 220, 700], [1310, 1065, 370, 620], [1430, 1090, 190, 470]], hl: [[1200, 1300, 293, 232, 655, 74], [1340, 1425, 975, 240, 295, 265], [1450, 1550, 970, 132, 300, 102]], lines: [
+  { a: 850, b: 1080, mode: 'split', ui: 'memClip', clip: { t0: 0.2, rate: 1 }, crops: [[850, 640, 400, 1280], [960, 760, 330, 900]], hl: [[960, 1078, 973, 122, 295, 111]], lines: [
+    [860, NARRATOR, T('files2')],
+  ] },
+  { a: 1080, b: 1560, mode: 'gal', ui: 'evo', crops: [[1080, 640, 400, 1280], [1170, 620, 244, 700], [1310, 1120, 436, 620], [1430, 1120, 178, 470]], hl: [[1200, 1300, 293, 234, 654, 72], [1340, 1425, 973, 275, 295, 322], [1450, 1550, 973, 122, 295, 111]], lines: [
     [1090, NARRATOR, T('evo1')],
     [1200, NARRATOR, T('evo2')],
     [1430, NARRATOR, T('evo3')],
   ] },
-  { a: 1560, b: 1800, mode: 'split', ui: 'evo', crops: [[1560, 760, 140, 620], [1680, 1110, 470, 380]], hl: [[1580, 1675, 507, 10, 440, 36], [1700, 1795, 968, 528, 302, 26]], lines: [
+  { a: 1560, b: 1800, mode: 'split', ui: 'evo', crops: [[1560, 820, 150, 560], [1680, 1110, 560, 380]], hl: [[1580, 1675, 736, 14, 212, 28], [1700, 1795, 973, 614, 295, 18]], lines: [
     [1570, NARRATOR, T('rewind1')],
     [1690, NARRATOR, T('rewind2')],
   ] },
@@ -1092,9 +1131,11 @@ const BEATS = [
     [2950, NARRATOR, T('slack1')],
     [3150, NARRATOR, T('slack2')],
   ] },
-  { a: 3360, b: 3720, mode: 'gal', ui: 'group', crops: [[3360, 1470, 923, 2940], [3440, 1700, 760, 1500], [3560, 1250, 1300, 1800], [3640, 2580, 560, 900]], hl: [[3460, 3555, 1134, 692, 1120, 166], [3580, 3635, 665, 940, 1140, 720], [3650, 3715, 2320, 480, 600, 240]], lines: [
+  { a: 3360, b: 3500, mode: 'gal', ui: 'group', crops: [[3360, 1470, 923, 2940], [3420, 1500, LANG === 'en' ? 860 : 700, 1900]], hl: [[3420, 3460, 1196, 286, 1068, 161], [3460, 3498, 668, 516, 1068, LANG === 'en' ? 778 : 534]], lines: [
     [3370, NARRATOR, T('group1')],
-    [3540, NARRATOR, T('group2')],
+  ] },
+  { a: 3500, b: 3720, mode: 'gal', ui: 'groupClip', clip: { t0: 0.6, rate: 1.6 }, crops: [[3500, 1330, 1050, 2660], [3560, 900, 880, 1700]], hl: [[3520, 3716, 24, 508, 512, 410]], lines: [
+    [3510, NARRATOR, T('group2')],
   ] },
   { a: 3720, b: 4080, mode: 'split', ui: 'larkTopic', crops: [[3720, 1300, 500, 700], [3880, 1300, 1060, 700]], hl: [[3740, 3870, 990, 316, 630, 360], [3900, 4070, 990, 1130, 630, 100]], lines: [
     [3730, NARRATOR, T('larkAt1')],
@@ -1600,6 +1641,11 @@ function renderLegacy(f) {
     if (cw > ui.w) { cw = ui.w; ch = cw / aspect; }
     const x0 = clamp(ccx - cw / 2, Math.min(0, ui.w - cw), Math.max(0, ui.w - cw));
     const y0 = clamp(ccy - ch / 2, Math.min(0, ui.h - ch), Math.max(0, ui.h - ch));
+    if (ui.clip) {
+      const t = clipTime(beat, f);
+      if (Math.abs(ui.video.currentTime - t) > 0.0005) ui.video.currentTime = t;
+      drawClip(ui);
+    }
     const tex = ui.tex;
     if (panelImage.material.map !== tex) { panelImage.material.map = tex; panelImage.material.needsUpdate = true; }
     tex.repeat.set(cw / ui.w, ch / ui.h);
@@ -2910,7 +2956,7 @@ function renderFrame(F) {
   const local = F - sg.start;
   renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
   renderer.setScissorTest(false);
-  if (sg.id === 'legacy') renderLegacy(sg.from + local * (sg.rate ?? 1));
+  if (sg.id === 'legacy') { legacyRate = sg.rate ?? 1; renderLegacy(sg.from + local * (sg.rate ?? 1)); }
   else if (sg.id === 'market') renderMarket(local);
   else if (sg.id === 'wall') renderWall(local);
   else if (sg.id === 'eco') renderEco(local);
@@ -3132,7 +3178,25 @@ window.botTown = {
   TOTAL,
   ready: () => started,
   setDebug: (v) => { DEBUG_FRAMES = !!v; },
-  renderFrame: (f) => { playing = false; frame = f; renderFrame(f); },
+  renderFrame: async (f) => {
+    playing = false;
+    frame = f;
+    const F = ((f % TOTAL) + TOTAL) % TOTAL;
+    const sg = segmentAt(F);
+    if (sg.id === 'legacy') {
+      legacyRate = sg.rate ?? 1;
+      const lf = sg.from + (F - sg.start) * legacyRate;
+      const beat = beatAt(lf);
+      if (beat?.clip && lf >= beat.a) {
+        const v = UI[beat.ui].video;
+        const t = clipTime(beat, lf);
+        if (Math.abs(v.currentTime - t) > 0.0005 || v.seeking) {
+          await new Promise((resolve) => { v.addEventListener('seeked', resolve, { once: true }); v.currentTime = t; });
+        }
+      }
+    }
+    renderFrame(f);
+  },
   wavBase64,
 };
 </script>
