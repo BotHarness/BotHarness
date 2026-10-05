@@ -9,7 +9,7 @@
 建议审阅 `0.1.0-alpha.1`，使用 npm `next` 标签。版本在 Human 发布批准前仍是提案。
 四个预编译包按以下顺序发布：
 
-1. `@botharness/im-provider@4.32.0-botharness.3`，保留独立 Provider 版本；
+1. `@botharness/im-provider@4.32.0-botharness.4`，保留独立 Provider 版本；
 2. `@botharness/core@0.1.0-alpha.1`；
 3. `@botharness/ui@0.1.0-alpha.1`；
 4. `deepseekbot@0.1.0-alpha.1`，通过精确依赖组合一个产品 Bundle。

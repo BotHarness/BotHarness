@@ -96,7 +96,7 @@ export interface MessagingGrant {
   revision: number;
   createdAt: string;
   receiveAfter?: string;
-  receiveScope?: { kind: 'group'; conversationId: string };
+  receiveScope?: { kind: 'group' | 'dm'; conversationId: string };
   receiveTargetChannelId?: string;
   receptionInheritance?: 'inherit' | 'custom';
   channelBridge?: ChannelBridgeConfiguration;
@@ -906,7 +906,9 @@ export function createOutboundMessaging(options: {
       const snapshots = await Promise.all(channel.members.map((slug) => service.snapshot(slug)));
       const current = database.read((db) => humanBridgeChannel(db, channelId));
       const grants = snapshots.flatMap((snapshot, index) =>
-        current.members.includes(channel.members[index]!) ? snapshot.grants : [],
+        current.members.includes(channel.members[index]!)
+          ? snapshot.grants.filter((grant) => grant.platform !== 'weixin')
+          : [],
       );
       const source = (g: MessagingSnapshot['grants'][number]) => ({
         grantId: g.id,
@@ -1030,7 +1032,9 @@ export function createOutboundMessaging(options: {
             canPost,
             ...(current.revokedAt === undefined &&
             !current.suspendedReason &&
-            options.isBotActive(botSlug)
+            options.isBotActive(botSlug) &&
+            current.receiveScope?.kind !== 'dm' &&
+            current.platform !== 'weixin'
               ? {
                   groupPolicy: inbound.policy(botSlug, value.id),
                   threadPolicies: inbound.threads(botSlug, value.id),

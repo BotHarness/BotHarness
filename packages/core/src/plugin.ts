@@ -614,7 +614,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.provide('botharness', core);
   ctx.effect(() => () => core.externalMessaging.close(), 'botharness: external messaging');
   ctx.inject(['dshIm'], (child) => {
-    for (const platform of ['feishu', 'slack', 'discord'] as const) {
+    for (const platform of ['feishu', 'slack', 'discord', 'weixin'] as const) {
       const provider = createDshImProvider(child.get('dshIm'), platform);
       if (provider !== undefined) child.effect(() => core.externalMessaging.register(provider));
     }

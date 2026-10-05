@@ -113,7 +113,7 @@ const identifier = z.string().min(1).max(512);
 const inboundSchema = z
   .object({
     version: z.literal(1),
-    channel: z.enum(['feishu', 'slack', 'discord']),
+    channel: z.enum(['feishu', 'slack', 'discord', 'weixin']),
     botId: identifier,
     fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     eventId: identifier,
@@ -209,7 +209,7 @@ function providerFailure(error: unknown): MessagingProviderError {
 
 export function createDshImProvider(
   value: unknown,
-  platform: 'feishu' | 'slack' | 'discord' = 'feishu',
+  platform: 'feishu' | 'slack' | 'discord' | 'weixin' = 'feishu',
 ): MessagingProvider | undefined {
   if (value === null || typeof value !== 'object') return undefined;
   const service = value as Partial<DshImOutboundService>;
@@ -271,7 +271,11 @@ export function createDshImProvider(
               ),
             },
           }
-        : {}),
+        : platform === 'weixin' &&
+            target.kind === 'user' &&
+            typeof target.route.toUserId === 'string'
+          ? { receiveScope: { kind: 'dm' as const, conversationId: target.route.toUserId } }
+          : {}),
     }));
   return {
     id: `dsh-im/${platform}`,
@@ -469,12 +473,29 @@ export function createDshImProvider(
                     version: z.literal(1),
                     messageId: identifier,
                     conversationId: identifier,
+                    identityKind: z.literal('client-acknowledgement').optional(),
                   })
                   .strict()
                   .safeParse(result.receipt);
-                if (!receipt.success || receipt.data.conversationId !== input.route.conversationId)
+                if (
+                  !receipt.success ||
+                  receipt.data.conversationId !== input.route.conversationId ||
+                  (platform === 'weixin'
+                    ? receipt.data.identityKind !== 'client-acknowledgement'
+                    : receipt.data.identityKind !== undefined)
+                )
                   throw new MessagingProviderError('provider-result-unknown', 'unknown');
-                return { accepted: true as const, receipt: receipt.data };
+                return {
+                  accepted: true as const,
+                  receipt: {
+                    version: 1 as const,
+                    messageId: receipt.data.messageId,
+                    conversationId: receipt.data.conversationId,
+                    ...(receipt.data.identityKind
+                      ? { identityKind: receipt.data.identityKind }
+                      : {}),
+                  },
+                };
               }
               return { accepted: true as const };
             } catch (error) {

@@ -244,7 +244,11 @@ export function MessagingProfile({
                             text={
                               grant.receiveTargetChannelId
                                 ? t('im.channelTargetHint')
-                                : t('im.receiveHint')
+                                : t(
+                                    grant.platform === 'weixin'
+                                      ? 'im.receiveHintDM'
+                                      : 'im.receiveHint',
+                                  )
                             }
                             t={t}
                           />
@@ -253,7 +257,7 @@ export function MessagingProfile({
                           id={targetFieldId + '-local'}
                           aria-label={t('im.localTarget')}
                           value={grant.receiveTargetChannelId ?? ''}
-                          disabled={busy}
+                          disabled={busy || grant.platform === 'weixin'}
                           onChange={(event) => {
                             const channelId = event.target.value || null;
                             void operate(() =>
@@ -278,7 +282,13 @@ export function MessagingProfile({
                         </select>
                       </div>
                       <p className="bh-im-status" role="status">
-                        {t(`im.reception.${grant.reception ?? 'off'}`)}
+                        {grant.platform === 'weixin'
+                          ? t(
+                              grant.reception === 'receiving'
+                                ? 'im.receptionDM'
+                                : 'im.receptionDMOff',
+                            )
+                          : t(`im.reception.${grant.reception ?? 'off'}`)}
                       </p>
                       {grant.receiveScope && grant.groupPolicy ? (
                         <GroupReceptionSettings
@@ -312,8 +322,12 @@ export function MessagingProfile({
                       >
                         {t(
                           grant.receiveScope === undefined
-                            ? 'im.receiveEnable'
-                            : 'im.receiveDisable',
+                            ? grant.platform === 'weixin'
+                              ? 'im.receiveEnableDM'
+                              : 'im.receiveEnable'
+                            : grant.platform === 'weixin'
+                              ? 'im.receiveDisableDM'
+                              : 'im.receiveDisable',
                         )}
                       </Button>
                     </>
@@ -333,25 +347,31 @@ export function MessagingProfile({
                       }}
                     />
                   ) : null}
-                  <label className="bh-im-field">
-                    <span>{t('im.message')}</span>
-                    <textarea
-                      aria-label={t('im.message')}
-                      value={text}
-                      maxLength={4000}
-                      disabled={busy}
-                      onChange={(event) => setText(event.target.value)}
-                    />
-                  </label>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    className="bh-im-submit"
-                    disabled={busy || !text.trim() || grant.availability !== 'available'}
-                    onClick={() => void send()}
-                  >
-                    {t('im.send')}
-                  </Button>
+                  {grant.platform === 'weixin' ? (
+                    <p>{t('im.weixinReplyOnly')}</p>
+                  ) : (
+                    <>
+                      <label className="bh-im-field">
+                        <span>{t('im.message')}</span>
+                        <textarea
+                          aria-label={t('im.message')}
+                          value={text}
+                          maxLength={4000}
+                          disabled={busy}
+                          onChange={(event) => setText(event.target.value)}
+                        />
+                      </label>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        className="bh-im-submit"
+                        disabled={busy || !text.trim() || grant.availability !== 'available'}
+                        onClick={() => void send()}
+                      >
+                        {t('im.send')}
+                      </Button>
+                    </>
+                  )}
                 </>
               ) : snapshot.accounts.length === 0 ? (
                 <p>{t('im.setup')}</p>

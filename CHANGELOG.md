@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added a personal WeChat paired-owner text path into the existing Bot Inbox and own-identity reply, with explicit DM authorization and private source continuations; source and locally installed product exchanges are verified and Human QA approved ([#878](https://github.com/BotHarness/BotHarness/issues/878), [ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md), [connection guide](docs/wechat-connection.md)).
+
 - PersonaBot creation offers colleague, roleplay and blank starting points with editable PERSONA.md text; switching preserves drafts, while permissions and runtime capabilities stay the same ([#325](https://github.com/BotHarness/BotHarness/issues/325)).
 
 - Added the candidate checked Discord Provider registration and existing Inbox/source presentation contract, preserving exact channel/public-thread routes; real channel/thread model replies passed, with full qualification and Human QA pending ([#855](https://github.com/BotHarness/BotHarness/issues/855), [ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)).
