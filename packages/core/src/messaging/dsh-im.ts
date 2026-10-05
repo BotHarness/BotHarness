@@ -605,7 +605,7 @@ export function createDshImProvider(
           },
         }
       : {}),
-    ...(platform === 'feishu' && host.receiptVersion === 1
+    ...((platform === 'feishu' || platform === 'slack') && host.receiptVersion === 1
       ? {
           async post(input: Parameters<NonNullable<MessagingProvider['post']>>[0]) {
             input.signal.throwIfAborted();

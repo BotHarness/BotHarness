@@ -104,6 +104,8 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 
 | 42 | Retrying a timed-out isolated launch leaves two Hosts for one home | API health responds, but Bot commands fail with `lease-unavailable` | A prior launch can leave its detached Host alive after a token wait fails. Before retrying, inspect that exact task home/port and its `botharness.writer.json` PID; stop only the task-owned Hosts, then cold-launch once. An authenticated API health probe alone does not prove the operational database writer lease is ready. Observed in #811 QA. |
 
+| 43 | A third-party tour shares Escape and focus with a native Modal | Escape dismisses both the tour and the native settings; closing the tour returns focus behind a newly opened Modal | Pinned DSH 0.2.0 RC1 native Modal handles Escape on document bubble and captures its invoking control. Give the tour capture-phase Escape ownership, remove its listener on dismissal, and retarget the actual visible native dialog after asynchronous opening. Driver.js 1.4.0 restores old focus after onDestroyed, so restore focus to the foreground dialog in a microtask after that callback. Verify the actual packaged Client with keyboard navigation and keep reduced-motion behavior covered (#824). |
+
 ## Reference
 
 Pinned DSH 0.2.0 RC1 selects one directory picker interaction at boot. A loopback Windows Host commonly serves native; uiWorkspace.listDirectory() then throws DirectoryBrowseError with rpcError.code = directory-picker/unavailable. A consumer may fall back to uiWorkspace.pickDirectory() only for this capability refusal; unreadable directories and other failures remain errors, and cancellation returns no selection. Authorization still follows an explicit Human choice.

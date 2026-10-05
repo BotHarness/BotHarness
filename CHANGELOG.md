@@ -19,12 +19,21 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Added the candidate checked Discord Provider registration and existing Inbox/source presentation contract, preserving exact channel/public-thread routes; real channel/thread model replies passed, with full qualification and Human QA pending ([#855](https://github.com/BotHarness/BotHarness/issues/855), [ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)).
 
+- PersonaBots can explicitly publish Slack reports without mirroring them into local chat, inspect the saved text and native receipt, and answer eligible Human follow-up in the original Slack topic ([#863](https://github.com/BotHarness/BotHarness/issues/863), [IM integration guide](docs/dev/guides/im-provider-integration.md)).
+
+- PersonaBots can explicitly follow or leave an authorized Slack native topic after real ordinary-reply delivery is verified, reusing count/time harvest and Human overrides; Profile retains topic management for migrated Channel connectors ([#854](https://github.com/BotHarness/BotHarness/issues/854), [IM integration guide](docs/dev/guides/im-provider-integration.md)).
+
+- When live activity sync drops, the sidebar says so, avatars keep the last observed state with greyed, paused activity indicators and no decorative motion, and everything resumes from a fresh Host baseline after reconnect or restart ([#756](https://github.com/BotHarness/BotHarness/issues/756)).
+
 - A PersonaBot whose saved Avatar uses an unavailable version no longer disappears: its original design is retained, the matching saved snapshot is shown with an explanation that editing and character animation are paused, activity and approval indicators keep working, and the design returns automatically once the version is available; mismatched or unsafe saved appearance data is ignored without losing the PersonaBot ([#755](https://github.com/BotHarness/BotHarness/issues/755)).
 
 - Pixel-family Avatars can choose bangs, side hair and back hair separately and adjust eye spacing, feature height and hair length within bounds in the Profile editor; saved Avatars without these choices render unchanged ([#752](https://github.com/BotHarness/BotHarness/issues/752)).
 
 - Pixel-family side poses and thinking head-turn frames now read as a real three-quarter turn: features shift toward the facing side, the far eye narrows, only the near ear shows and the chin tucks; side tails stay attached to the head and the mouth stays centred ([#752](https://github.com/BotHarness/BotHarness/issues/752)).
 - Completed Assignment Reports and Host-confirmed native completion retain separate navigable Inbox sources linked by trusted Session/Turn identity, without a duplicate wake; late notices remain pending across restart until a real Turn handles them ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)).
+
+- Added a resumable Lark / Feishu setup guide in PersonaBot Profile that locates real IM controls and checks current account, identity, group authorization and same-topic reply evidence without storing a separate onboarding workflow ([#824](https://github.com/BotHarness/BotHarness/issues/824), [guide](docs/lark-connection.md)).
+
 - Added independently editable Slack intake, harvest and bound-identity defaults in Bot settings, with Profile inheritance and explicit overrides preserved ([#843](https://github.com/BotHarness/BotHarness/issues/843)).
 
 - Human can explicitly collect ordinary text from an authorized Slack channel and choose existing count/time harvest or safely queued immediate wake in Profile; new connections remain mention-only, and overlapping mention subscriptions are deduplicated ([#837](https://github.com/BotHarness/BotHarness/issues/837)).
@@ -258,6 +267,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Bot Inbox sidebar rows now put readable content first, separate source/report metadata from lifecycle status, and highlight items needing repair using the native error color ([#851](https://github.com/BotHarness/BotHarness/issues/851)).
+
 - Channel sidebar display settings open hover submenus that keep repeated selections visible and temporarily isolate the relevant entry for preview; dismissing restores prior disclosure while saving the chosen display preferences ([#807](https://github.com/BotHarness/BotHarness/issues/807)).
 
 - Channel message groups keep consecutive bubbles compact, show one hover/focus timestamp beside the author, and reveal per-message copy/reply beside delivery receipts without a reserved action row ([#803](https://github.com/BotHarness/BotHarness/issues/803)).
@@ -359,6 +370,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Human cancellation of a running Assignment now delivers one Host-origin Bot Inbox notice, preserving the original Report and native Turn identity without automatic retry; handled facts survive restart ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0045](docs/adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)).
 
 - Fixed Slack Channel connectors and member reminders showing Lark-only labels or defaults ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 

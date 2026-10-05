@@ -10,7 +10,7 @@ import {
   type PixelCell,
   type PixelSymbol,
 } from '../../../core/src/bots/avatar-appearance.js';
-import { morphPixels, pixelMarkup, type PixelMorphRun } from './pixel-morph.js';
+import { morphPixels, pixelMarkup, type PixelMorphRun } from '@botharness/pixel-morph';
 import type { Sampled } from 'morphicons';
 import {
   lineMorphD,
@@ -344,7 +344,8 @@ export function IllustratedAvatar({
           disposed ||
           !visible ||
           document.hidden ||
-          document.documentElement.dataset['botharnessMotion'] === 'reduce'
+          document.documentElement.dataset['botharnessMotion'] === 'reduce' ||
+          document.documentElement.dataset['botharnessActivity'] === 'stale'
         ) {
           if (!disposed) {
             showPixels(true);
@@ -374,7 +375,8 @@ export function IllustratedAvatar({
               disposed ||
               !visible ||
               document.hidden ||
-              document.documentElement.dataset['botharnessMotion'] === 'reduce'
+              document.documentElement.dataset['botharnessMotion'] === 'reduce' ||
+              document.documentElement.dataset['botharnessActivity'] === 'stale'
             )
               return;
             if (state !== 'thinking' && state !== 'working') {
@@ -422,7 +424,7 @@ export function IllustratedAvatar({
       const motion = new MutationObserver(sync);
       motion.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ['data-botharness-motion'],
+        attributeFilter: ['data-botharness-motion', 'data-botharness-activity'],
       });
       document.addEventListener('visibilitychange', sync);
       sync();

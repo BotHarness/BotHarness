@@ -41,7 +41,26 @@ import {
   type MessagingInboundEvent,
   type MessagingProvider,
   type MessagingHistoryScope,
+  type MessagingReplyRoute,
 } from './provider.js';
+
+function threadRoute(
+  platform: string,
+  route: MessagingReplyRoute,
+): route is MessagingReplyRoute & { threadId: string; rootId: string } {
+  if (!route.threadId || !route.rootId) return false;
+  if (platform === 'feishu') return !!route.parentId;
+  return platform === 'slack' && route.rootId === route.threadId && route.parentId === undefined;
+}
+
+function ordinaryThreadReply(event: MessagingInboundEvent): boolean {
+  return (
+    !event.mentionedAccount &&
+    threadRoute(event.channel, event.reply) &&
+    event.reply.conversationId === event.conversation.id &&
+    (event.channel !== 'slack' || event.messageId !== event.reply.threadId)
+  );
+}
 
 export interface ExternalContextRead {
   at: string;
@@ -450,13 +469,8 @@ export function createInboundMessaging(options: {
             return { accepted: true };
           if (!event.mentionedAccount) {
             lease.ordinaryVerified = true;
-            if (
-              event.reply.threadId &&
-              event.reply.rootId &&
-              event.reply.parentId &&
-              event.reply.conversationId === event.conversation.id
-            )
-              lease.ordinaryThreads.set(event.reply.threadId, event.reply.rootId);
+            if (ordinaryThreadReply(event))
+              lease.ordinaryThreads.set(event.reply.threadId!, event.reply.rootId!);
           }
           if (latest.bridgeRoutes) {
             const placed: ChannelMessageCommit[] = [];
@@ -481,7 +495,7 @@ export function createInboundMessaging(options: {
                 if (
                   !event.mentionedAccount &&
                   thread?.mode === 'follow' &&
-                  (!event.reply.rootId || !event.reply.parentId)
+                  !threadRoute(value.platform, event.reply)
                 )
                   throw new MessagingError('thread-route-mismatch');
                 const routes = channelBridgeRoutes(latest).filter((route) => {
@@ -639,15 +653,8 @@ export function createInboundMessaging(options: {
               }),
             );
           }
-          if (
-            !event.mentionedAccount &&
-            event.reply.threadId &&
-            event.reply.rootId &&
-            event.reply.parentId &&
-            event.reply.conversationId === event.conversation.id
-          ) {
-            lease.ordinaryThreads.set(event.reply.threadId, event.reply.rootId);
-          }
+          if (ordinaryThreadReply(event))
+            lease.ordinaryThreads.set(event.reply.threadId!, event.reply.rootId!);
           let placement: ChannelMessageCommit | undefined;
           const id = transaction(
             (db) => {
@@ -680,7 +687,7 @@ export function createInboundMessaging(options: {
               if (
                 !event.mentionedAccount &&
                 thread?.mode === 'follow' &&
-                (!event.reply.rootId || !event.reply.parentId)
+                !threadRoute(value.platform, event.reply)
               )
                 throw new MessagingError('thread-route-mismatch');
               const ordinary = thread?.mode === 'follow' && thread.wake ? thread.wake : reception;
@@ -1258,7 +1265,7 @@ export function createInboundMessaging(options: {
         !options.isBotActive(botSlug)
       )
         throw new MessagingError('grant-unavailable');
-      if (value.platform !== 'feishu') return [];
+      if (value.platform !== 'feishu' && value.platform !== 'slack') return [];
       return database.read((db) => {
         const rows = db
           .prepare(`WITH candidates AS (
@@ -1283,9 +1290,7 @@ export function createInboundMessaging(options: {
             if (
               source.grantId !== id ||
               source.grantRevision !== value.revision ||
-              !route.threadId ||
-              !route.rootId ||
-              !route.parentId ||
+              !threadRoute(value.platform, route) ||
               seen.has(route.threadId)
             )
               return [];
@@ -1336,10 +1341,7 @@ export function createInboundMessaging(options: {
         throw new MessagingError('grant-unavailable');
       const route = source.event.reply;
       if (
-        value.platform !== 'feishu' ||
-        !route.threadId ||
-        !route.rootId ||
-        !route.parentId ||
+        !threadRoute(value.platform, route) ||
         route.conversationId !== value.receiveScope?.conversationId ||
         source.event.fingerprint !== value.fingerprint
       )

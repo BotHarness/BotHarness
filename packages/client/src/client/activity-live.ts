@@ -122,6 +122,13 @@ export function mountActivityLive(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let controller: AbortController | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
+  const mark = (sync: 'live' | 'stale'): void => {
+    store.setActivitySync(sync);
+    const root = typeof document === 'undefined' ? undefined : document.documentElement;
+    if (root === undefined) return;
+    if (sync === 'stale') root.dataset['botharnessActivity'] = 'stale';
+    else delete root.dataset['botharnessActivity'];
+  };
   const apply = (snapshot: PersonaBotActivitySnapshot): void => {
     if (latest?.generation === snapshot.generation && snapshot.revision <= latest.revision) return;
     latest = snapshot;
@@ -191,11 +198,13 @@ export function mountActivityLive(
       healthy = true;
       clearTimer();
       apply(snapshot);
+      mark('live');
       if (gap) refresh();
     });
     next.addEventListener('error', () => {
       if (!active || source !== next) return;
       healthy = false;
+      mark('stale');
       if (next.readyState === 2) {
         next.close();
         source = undefined;
@@ -228,6 +237,8 @@ export function mountActivityLive(
   return () => {
     disposed = true;
     unsubscribe();
+    if (typeof document !== 'undefined' && document.documentElement !== undefined)
+      delete document.documentElement.dataset['botharnessActivity'];
     if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', sync);
     sync();
   };

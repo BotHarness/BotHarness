@@ -102,6 +102,7 @@ export function ExternalIdentityTable({
             {t('im.refresh')}
           </Button>
           <Button
+            data-bh-lark-bind
             size="sm"
             variant="primary"
             disabled={busy || !snapshot}

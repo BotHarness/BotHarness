@@ -399,6 +399,7 @@ export interface ClientState {
     value: ActivityOverview | undefined;
     error: string | undefined;
   };
+  activitySync: 'live' | 'stale';
 }
 
 export interface PersonaBotActivitySnapshot {
@@ -422,6 +423,7 @@ export interface ClientStore {
   setRosterStatus(status: ClientStatus, error: string | undefined): void;
   setRoster(bots: readonly BotSummary[], channels: readonly ChannelSummary[]): void;
   applyActivity(snapshot: PersonaBotActivitySnapshot): void;
+  setActivitySync(sync: ClientState['activitySync']): void;
   upsertBot(bot: BotSummary): void;
   setRosterState(patch: Partial<RosterState>): void;
   upsertChannel(channel: ChannelSummary): void;
@@ -564,6 +566,7 @@ export function createStore(): ClientStore {
     botInbox: initialBotInbox(),
     overview: { status: 'idle', value: undefined, error: undefined },
     humanInbox: initialHumanInbox(),
+    activitySync: 'live',
   };
   const listeners = new Set<() => void>();
   let activity: PersonaBotActivitySnapshot | undefined;
@@ -621,6 +624,9 @@ export function createStore(): ClientStore {
       activity = snapshot;
       activityStates = new Map(snapshot.bots.map((bot) => [bot.slug, bot]));
       update({ bots: state.bots.map(withActivity) });
+    },
+    setActivitySync(activitySync) {
+      if (state.activitySync !== activitySync) update({ activitySync });
     },
     upsertBot(incoming) {
       const bot = withActivity(incoming);

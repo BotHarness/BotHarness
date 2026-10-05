@@ -94,6 +94,12 @@ Lease/Host restart resets verification but preserves policy, without remote gap 
 No schema, queue or Session authority is added. Autonomous native-thread follow, ordinary
 files, private/DM intake remain later slices; #843 extends the existing global-defaults owner after this qualification.
 
+## Follow-up: external-only report (#863)
+
+The same checked Service now optionally returns proactive Slack receipts for root plain-text reports in joined public channels. The Slack Controller requalifies authenticated account identity and the exclusive Consumer lease; the runtime checks membership and cancellation/generation after preflight, then posts once without retry. DeliveryService maps Feishu `group.route.chatId` and Slack `conversation.route.channelId` explicitly and combines caller cancellation with Registration disposal.
+
+BotHarness enables `post` only when the Service exposes the versioned receipt contract and the account advertises the checked capability. The existing canonical Outbox persists content and native receipt without local Channel placement or self Inbox admission. A subsequently admitted Human reply associates via Slack root/`thread_ts`, scoped to own account, fingerprint and conversation; Slack still has no fabricated parent ID. Existing collection/wake/reply authority remains unchanged. No new schema, queue, receiver or scheduler is introduced; own output stays excluded from intake.
+
 ## Consequences
 
 One canonical source and Outbox continue to serve all supported Providers; no new database authority or schema migration is required for this text slice. Native Slack routing is adapted at the Provider boundary rather than imposed on Lark or on platforms without threads. Socket redelivery and uncertain sends remain explicit reliability boundaries. A passing automated regression is preparatory evidence; real Slack App installation, a fresh model round trip, screenshots and Human QA are still required before issue completion.

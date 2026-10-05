@@ -1,0 +1,23 @@
+{
+  "original": {
+    "id": "1cb19450-92cf-4afc-81a3-0acead74ce46",
+    "summary": "OBSERVED_REPORT: Research remains available.",
+    "assignmentSessionId": "botharness-772c7095-6483-487e-bfa4-beb772ad6966",
+    "assignmentReportState": "progress",
+    "assignmentTurn": 1,
+    "authorKind": "bot",
+    "sourceAvailable": true,
+    "state": "needs-repair",
+    "observedAt": "2026-10-05T10:39:39.062Z"
+  },
+  "weaker": {
+    "id": "534b6ba0-d6c9-4524-ba70-72aa3c5e1ee4",
+    "summary": "WEAKER_PROGRESS: Additional information remains available.",
+    "assignmentSessionId": "botharness-772c7095-6483-487e-bfa4-beb772ad6966",
+    "assignmentReportState": "progress",
+    "assignmentTurn": 2,
+    "authorKind": "bot",
+    "sourceAvailable": true,
+    "state": "pending"
+  }
+}
