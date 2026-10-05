@@ -4,15 +4,22 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import semver from 'semver';
-import { qualifiedImProvider, providerRuntimeDigest } from './dev-im-provider.mjs';
+import { providerRuntimeDigest } from './dev-im-provider.mjs';
 import { pnpmCommand } from './dev-package-manager.mjs';
 
 export const productImProvider = Object.freeze({
   name: '@botharness/im-provider',
-  version: '4.32.0-botharness.2',
+  version: '4.32.0-botharness.3',
   sourceManifestSha256: '501e62d558eceb2b42ad9cd03fc0910e09581fd6531ec68e074fe5a16225ed1e',
   sourceLockSha256: 'c7f16baaa5bb1ab3bbb607b59a10327f0af010c61e1ea1ab4a72d7d08af9ffe9',
-  upstream: qualifiedImProvider,
+  upstream: Object.freeze({
+    package: '@xmanrui/dsh-im',
+    packageVersion: '4.32.0',
+    source: 'a0300e97d7996a5de3a6da2f5b9f50224eb12bd9',
+    dsh: '0.2.0-rc.1',
+    runtimeFiles: 393,
+    runtimeSha256: 'caeb3c0bbed424012730d2a658d5f6ba86e6a892c007d8bbb7dd6def42d38544',
+  }),
 });
 
 export function productManifest(manifest, version) {
@@ -46,14 +53,14 @@ export function verifyProviderSource(directory) {
   const manifest = JSON.parse(bytes.toString('utf8'));
   const digest = providerRuntimeDigest(directory);
   if (
-    manifest.name !== qualifiedImProvider.package ||
-    manifest.version !== qualifiedImProvider.packageVersion ||
+    manifest.name !== productImProvider.upstream.package ||
+    manifest.version !== productImProvider.upstream.packageVersion ||
     createHash('sha256').update(bytes).digest('hex') !== productImProvider.sourceManifestSha256 ||
     createHash('sha256')
       .update(readFileSync(join(directory, 'package-lock.json')))
       .digest('hex') !== productImProvider.sourceLockSha256 ||
-    digest.runtimeFiles !== qualifiedImProvider.runtimeFiles ||
-    digest.runtimeSha256 !== qualifiedImProvider.runtimeSha256
+    digest.runtimeFiles !== productImProvider.upstream.runtimeFiles ||
+    digest.runtimeSha256 !== productImProvider.upstream.runtimeSha256
   )
     throw new Error('Provider input differs from the qualified immutable artifact');
   return digest;
@@ -120,12 +127,12 @@ export function stageProvider(source, target, repoRoot) {
       'README.en.md',
       'PROVENANCE.json',
     ],
-    engines: { node: '>=22', dsh: qualifiedImProvider.dsh },
+    engines: { node: '>=22', dsh: productImProvider.upstream.dsh },
     dsh: {
       ...manifest.dsh,
-      compatibility: { dsh: qualifiedImProvider.dsh, profiles: ['web'] },
+      compatibility: { dsh: productImProvider.upstream.dsh, profiles: ['web'] },
     },
-    botharness: { managedByProduct: true, upstreamSource: qualifiedImProvider.source },
+    botharness: { managedByProduct: true, upstreamSource: productImProvider.upstream.source },
   });
   writeFileSync(
     join(target, 'cordis.patch.yml'),
@@ -171,10 +178,10 @@ export function stageProvider(source, target, repoRoot) {
   writeJson(join(target, 'PROVENANCE.json'), {
     name: productImProvider.name,
     version: productImProvider.version,
-    source: qualifiedImProvider.source,
+    source: productImProvider.upstream.source,
     sourceRepository: 'https://github.com/DoodleBears/dsh-im',
     upstreamRepository: 'https://github.com/xmanrui/dsh-im',
-    dsh: qualifiedImProvider.dsh,
+    dsh: productImProvider.upstream.dsh,
     qualifiedInput: input,
     compiledOutput: output,
     sourceManifestSha256: productImProvider.sourceManifestSha256,
@@ -253,7 +260,7 @@ export function packProduct({ repoRoot, outputDirectory, providerSource, version
   }
   writeJson(join(output, 'artifacts.json'), {
     productVersion: version,
-    dsh: qualifiedImProvider.dsh,
+    dsh: productImProvider.upstream.dsh,
     providerRuntime,
     artifacts,
   });

@@ -261,7 +261,7 @@ async function main() {
       );
     writeFileSync(
       join(options.runtime, 'package.json'),
-      `${JSON.stringify({ name: 'botharness-packaged-cli-qa', private: true, devDependencies: { '@deepseek-ai/dsh': qualifiedImProvider.dsh } }, null, 2)}\n`,
+      `${JSON.stringify({ name: 'botharness-packaged-cli-qa', private: true, devDependencies: { '@deepseek-ai/dsh': verifiedProductArtifacts(options.productArtifacts).dsh } }, null, 2)}\n`,
     );
     const [command, args] = pnpmCommand(['install']);
     run(command, args, { cwd: options.runtime });

@@ -105,3 +105,5 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 本次 Slack 切片使用既有 `chat:write`，向已加入的公开频道发送纯文本根消息。Provider 在一次不重试的请求前重新核对已认证 Bot 身份、独占 Consumer lease、公开频道成员资格及取消状态。回执使用 Slack 的 `channel` 与 `ts`；后续被收件的 Human 回复通过 `thread_ts`／root ID，在同一 Bot 身份、fingerprint 和频道范围内关联 Outbox 报告。不伪造 Lark 的 `parentId`。追问仍遵守连接器与唤醒策略，发报告不会自动跟进话题；Bot 显式调用 `bridge_reply` 时留在原生话题里。
 
 这项验证没有增加晨报调度器、DM／私密频道发送、富文本 blocks 或自己发言的 echo 补全。自己的 Socket 消息仍不进入收件。固定 fork 的可选契约不依赖上游合并；通用 checked 回执扩展可在此切片审查后贡献上游。
+
+产品 Provider `4.32.0-botharness.3` 独立固定已验证的 Slack 输入 `a0300e97`；#868 验证本地打包后的实际安装。开发源码资格、产品压缩包资格与 npm 发布分别保留证据。开发版固定值变化不会隐式改变产品资格记录。

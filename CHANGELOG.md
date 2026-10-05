@@ -265,6 +265,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Made the packaged IM Provider qualification independent of developer selections and advanced its own artifact version for the accepted Slack capabilities ([IM installation](docs/product-im-installation.md), [#868](https://github.com/BotHarness/BotHarness/issues/868)).
+
 - Bot Inbox sidebar rows now put readable content first, separate source/report metadata from lifecycle status, and highlight items needing repair using the native error color ([#851](https://github.com/BotHarness/BotHarness/issues/851)).
 
 - Channel sidebar display settings open hover submenus that keep repeated selections visible and temporarily isolate the relevant entry for preview; dismissing restores prior disclosure while saving the chosen display preferences ([#807](https://github.com/BotHarness/BotHarness/issues/807)).
