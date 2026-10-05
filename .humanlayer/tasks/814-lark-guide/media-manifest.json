@@ -1,0 +1,98 @@
+{
+  "kind": "actual UI captures; screenshot edit video, not continuous recording",
+  "product": "0.0.0-test.823.6",
+  "provider": "4.32.0-botharness.2",
+  "records": [
+    {
+      "asset": "01-provider.webp",
+      "source": "product-form.jpg",
+      "dimensions": [1230, 820],
+      "inputBytes": 74709,
+      "webpBytes": 43076
+    },
+    {
+      "asset": "06-connected.webp",
+      "source": "product-connected.jpg",
+      "dimensions": [1230, 820],
+      "inputBytes": 63708,
+      "webpBytes": 36352
+    },
+    {
+      "asset": "07-granted.webp",
+      "source": "product-granted.jpg",
+      "dimensions": [1230, 820],
+      "inputBytes": 97428,
+      "webpBytes": 63434
+    },
+    {
+      "asset": "08-source.webp",
+      "source": "product-source-details.jpg",
+      "dimensions": [1230, 820],
+      "inputBytes": 100666,
+      "webpBytes": 69074
+    },
+    {
+      "asset": "09-credentials.webp",
+      "source": "console-credentials.jpg",
+      "dimensions": [1280, 1182],
+      "inputBytes": 68508,
+      "webpBytes": 36660
+    },
+    {
+      "asset": "10-bot-capability.webp",
+      "source": "console-bot.jpg",
+      "dimensions": [1280, 720],
+      "inputBytes": 96987,
+      "webpBytes": 63500
+    },
+    {
+      "asset": "11-message-permissions.webp",
+      "source": "console-message-permissions-full.jpg",
+      "dimensions": [1280, 1182],
+      "inputBytes": 147969,
+      "webpBytes": 93702
+    },
+    {
+      "asset": "12-send-permission.webp",
+      "source": "console-send-permission.jpg",
+      "dimensions": [1280, 720],
+      "inputBytes": 85046,
+      "webpBytes": 52558
+    },
+    {
+      "asset": "13-long-connection.webp",
+      "source": "console-events.jpg",
+      "dimensions": [1280, 720],
+      "inputBytes": 96779,
+      "webpBytes": 62184
+    },
+    {
+      "asset": "14-message-event.webp",
+      "source": "console-events-full.jpg",
+      "dimensions": [1280, 1182],
+      "inputBytes": 143711,
+      "webpBytes": 91372
+    },
+    {
+      "asset": "15-published.webp",
+      "source": "console-release.jpg",
+      "dimensions": [1280, 720],
+      "inputBytes": 66585,
+      "webpBytes": 39554
+    },
+    {
+      "asset": "16-delivery-target.webp",
+      "source": "product-target.jpg",
+      "dimensions": [1230, 820],
+      "inputBytes": 71183,
+      "webpBytes": 41212
+    },
+    {
+      "asset": "17-identity-bound.webp",
+      "source": "product-identity.jpg",
+      "dimensions": [1230, 820],
+      "inputBytes": 68277,
+      "webpBytes": 42236
+    }
+  ]
+}

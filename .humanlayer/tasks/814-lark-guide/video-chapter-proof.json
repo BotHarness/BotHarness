@@ -1,0 +1,86 @@
+{
+  "durationSeconds": 104,
+  "codec": "H264",
+  "dimensions": [1280, 960],
+  "bytes": 831761,
+  "frameChecks": [
+    {
+      "second": 4,
+      "expectedFrame": 0,
+      "actualFrame": 0,
+      "matches": true
+    },
+    {
+      "second": 12,
+      "expectedFrame": 1,
+      "actualFrame": 1,
+      "matches": true
+    },
+    {
+      "second": 20,
+      "expectedFrame": 2,
+      "actualFrame": 2,
+      "matches": true
+    },
+    {
+      "second": 28,
+      "expectedFrame": 3,
+      "actualFrame": 3,
+      "matches": true
+    },
+    {
+      "second": 36,
+      "expectedFrame": 4,
+      "actualFrame": 4,
+      "matches": true
+    },
+    {
+      "second": 44,
+      "expectedFrame": 5,
+      "actualFrame": 5,
+      "matches": true
+    },
+    {
+      "second": 52,
+      "expectedFrame": 6,
+      "actualFrame": 6,
+      "matches": true
+    },
+    {
+      "second": 60,
+      "expectedFrame": 7,
+      "actualFrame": 7,
+      "matches": true
+    },
+    {
+      "second": 68,
+      "expectedFrame": 8,
+      "actualFrame": 8,
+      "matches": true
+    },
+    {
+      "second": 76,
+      "expectedFrame": 9,
+      "actualFrame": 9,
+      "matches": true
+    },
+    {
+      "second": 84,
+      "expectedFrame": 10,
+      "actualFrame": 10,
+      "matches": true
+    },
+    {
+      "second": 92,
+      "expectedFrame": 11,
+      "actualFrame": 11,
+      "matches": true
+    },
+    {
+      "second": 100,
+      "expectedFrame": 12,
+      "actualFrame": 12,
+      "matches": true
+    }
+  ]
+}

@@ -96,6 +96,21 @@ const DSH_CONTEXT_DIAGRAMS_EN = [
 
 export const PAGES = [
   {
+    slug: 'docs/lark-connection',
+    order: 23,
+    en: {
+      source: 'docs/lark-connection.md',
+      title: 'Connect a Bot to Lark / Feishu',
+      description:
+        'Set up an application bot, bind its identity and route authorized group messages.',
+    },
+    zh: {
+      source: 'docs/lark-connection.zh.md',
+      title: '连接 Lark / 飞书',
+      description: '配置应用机器人、绑定外部身份，并把授权群消息接入 Bot 收件箱或频道。',
+    },
+  },
+  {
     slug: 'docs/daily-browser',
     order: 22,
     en: {

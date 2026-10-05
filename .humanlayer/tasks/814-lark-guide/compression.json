@@ -1,0 +1,42 @@
+[
+  {
+    "file": "apps/docs/public/guides/lark/02-identity.webp",
+    "before": 58549,
+    "after": 39136
+  },
+  {
+    "file": "apps/docs/public/guides/lark/03-authorize.webp",
+    "before": 55829,
+    "after": 35368
+  },
+  {
+    "file": "apps/docs/public/guides/lark/04-connector.webp",
+    "before": 55851,
+    "after": 41308
+  },
+  {
+    "file": "apps/docs/public/guides/lark/01-provider.webp",
+    "before": 57660,
+    "after": 33118
+  },
+  {
+    "file": ".humanlayer/tasks/814-lark-guide/mobile-docs.webp",
+    "before": 41983,
+    "after": 31074
+  },
+  {
+    "file": ".humanlayer/tasks/814-lark-guide/after-docs.webp",
+    "before": 73497,
+    "after": 49446
+  },
+  {
+    "file": ".humanlayer/tasks/814-lark-guide/guide-setup.webp",
+    "before": 72334,
+    "after": 48266
+  },
+  {
+    "file": ".humanlayer/tasks/814-lark-guide/before-docs.webp",
+    "before": 64661,
+    "after": 41974
+  }
+]
