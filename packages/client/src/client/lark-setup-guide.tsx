@@ -23,6 +23,7 @@ export function LarkSetupGuide({
   const [open, setOpen] = useState(false);
   const [platform, setPlatform] = useState<'lark' | 'feishu'>('lark');
   const [accountKey, setAccountKey] = useState('');
+  const [targetRef, setTargetRef] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [targetRows, setTargetRows] = useState<{
@@ -82,7 +83,16 @@ export function LarkSetupGuide({
       stopTour.current?.();
     };
   }, []);
-  const state = larkSetupState(failed ? undefined : snapshot, accountKey);
+  const targets =
+    targetRows?.accountKey === accountKey
+      ? targetRows.targets.filter((target) => target.receiveScope?.kind === 'group')
+      : [];
+  const selectedTarget = targets.find((target) => target.ref === targetRef);
+  const state = larkSetupState(
+    failed ? undefined : snapshot,
+    accountKey,
+    selectedTarget?.ref ?? '',
+  );
   const check = async () => {
     if (busy) return;
     setBusy(true);
@@ -219,6 +229,7 @@ export function LarkSetupGuide({
               onChange={(e) => {
                 const key = e.target.value;
                 setAccountKey(key);
+                setTargetRef('');
                 setTargetRows(undefined);
                 void readTargets(key).catch(() => {
                   if (alive.current) setFailed(true);
@@ -234,6 +245,20 @@ export function LarkSetupGuide({
                     {a.connected ? '' : ` · ${t('im.unavailable')}`}
                   </option>
                 ))}
+            </select>
+          </label>
+          <label className="bh-im-field">
+            <span>{t('im.target')}</span>
+            <select
+              value={selectedTarget?.ref ?? ''}
+              onChange={(e) => setTargetRef(e.target.value)}
+            >
+              <option value="">{t('im.select')}</option>
+              {targets.map((target) => (
+                <option key={target.ref} value={target.ref}>
+                  {target.name}
+                </option>
+              ))}
             </select>
           </label>
           {busy || !snapshot ? (
@@ -252,12 +277,7 @@ export function LarkSetupGuide({
                       ? !!state.grants.length
                       : step === 'verify'
                         ? state.complete
-                        : !!state.account?.connected &&
-                          (state.grants.length > 0 ||
-                            (targetRows?.accountKey === accountKey &&
-                              targetRows.targets.some(
-                                (target) => target.receiveScope?.kind === 'group',
-                              )));
+                        : !!state.account?.connected && !!selectedTarget;
               return (
                 <li key={step}>
                   <div>

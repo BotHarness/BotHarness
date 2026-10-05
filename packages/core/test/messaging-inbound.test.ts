@@ -3676,6 +3676,14 @@ it('derives setup receipt from an admitted topic, own reply and authenticated ec
   expect((await fx.core.externalMessaging.snapshot('ada')).setup?.receipts[0]?.echoObserved).toBe(
     true,
   );
+  for (let index = 0; index < 31; index++)
+    await fx.core.externalMessaging.send('ada', fx.grant.id, `later-${index}`, `later ${index}`);
+  const afterLaterSends = await fx.core.externalMessaging.snapshot('ada');
+  expect(afterLaterSends.intents.some((intent) => intent.sourceEventId === id)).toBe(false);
+  expect(afterLaterSends.setup?.receipts[0]).toMatchObject({
+    replyState: 'provider-accepted',
+    replyMessageId: 'lark-app-reply',
+  });
   fx.setReady(false);
   expect((await fx.core.externalMessaging.snapshot('ada')).setup?.receipts).toEqual([]);
   fx.setReady(true);

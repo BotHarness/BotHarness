@@ -78,6 +78,12 @@ it('recognizes a saved group target independently and returns it to unconfirmed 
   await act(async () => container.querySelector('button')!.click());
   await choose('dsh-im/feishu:one');
   expect(loadTargets).toHaveBeenCalledWith('dsh-im/feishu', 'one');
+  expect(container.querySelectorAll('.bh-lark-setup-steps li')[1]?.textContent).toContain('待确认');
+  await act(async () => {
+    const group = container.querySelectorAll('select')[2]!;
+    group.value = 'qa';
+    group.dispatchEvent(new Event('change', { bubbles: true }));
+  });
   expect(container.querySelectorAll('.bh-lark-setup-steps li')[1]?.textContent).toContain('已确认');
   expect(container.querySelectorAll('.bh-lark-setup-steps li')[2]?.textContent).toContain('待确认');
   expect(container.querySelectorAll('.bh-lark-setup-steps li')[4]?.textContent).toContain('待确认');

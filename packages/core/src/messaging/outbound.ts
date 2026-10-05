@@ -1076,13 +1076,19 @@ export function createOutboundMessaging(options: {
             !source.event.reply.threadId
           )
             continue;
-          const intent = intents.find(
-            (i) =>
-              i.sourceEventId === source.id &&
-              i.grantId === current.id &&
-              i.reply?.route.threadId === source.event.reply.threadId &&
-              i.text.trim() === 'LARK-SETUP-OK',
-          );
+          const setupReply = database.read((db) =>
+            db
+              .prepare('SELECT body FROM messaging_outbox WHERE bot_slug = ? AND request_id = ?')
+              .get(botSlug, `reply-${source.id}`),
+          ) as { body: string } | undefined;
+          const candidate = setupReply ? (JSON.parse(setupReply.body) as OutboxIntent) : undefined;
+          const intent =
+            candidate?.sourceEventId === source.id &&
+            candidate.grantId === current.id &&
+            candidate.reply?.route.threadId === source.event.reply.threadId &&
+            candidate.text.trim() === 'LARK-SETUP-OK'
+              ? candidate
+              : undefined;
           receipts.push({
             sourceEventId: source.id,
             grantId: current.id,
