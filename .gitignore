@@ -56,3 +56,7 @@ apps/docs/src/content/docs/docs/model-setup.mdx
 apps/docs/src/content/docs-zh/docs/model-setup.mdx
 apps/docs/src/content/docs/docs/settings.mdx
 apps/docs/src/content/docs-zh/docs/settings.mdx
+
+# Generated Channel sidebar guide chapter
+/apps/docs/src/content/docs/docs/channel-sidebar/
+/apps/docs/src/content/docs-zh/docs/channel-sidebar/

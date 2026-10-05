@@ -96,6 +96,124 @@ const DSH_CONTEXT_DIAGRAMS_EN = [
 
 export const PAGES = [
   {
+    slug: 'docs/channel-sidebar/index',
+    order: 15,
+    en: {
+      source: 'docs/channel-sidebar/index.md',
+      title: 'Channel sidebar',
+      description:
+        'Find the tools beside a Bot chat or group, then open the matching feature guide.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/index.zh.md',
+      title: 'Channel sidebar',
+      description: '了解 Bot 私聊与群聊旁的功能入口，并按功能打开操作教程。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/memory-files',
+    order: 1,
+    en: {
+      source: 'docs/channel-sidebar/memory-files.md',
+      title: 'Memory files',
+      description: 'Browse a Bot\u2019s current Memory files and inspect their contents.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/memory-files.zh.md',
+      title: '记忆文件',
+      description: '浏览 Bot 当前的记忆文件，并在聊天主体中查看内容。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/memory-evolution',
+    order: 2,
+    en: {
+      source: 'docs/channel-sidebar/memory-evolution.md',
+      title: 'Memory evolution',
+      description:
+        'Inspect working changes, Git history, branch requests and recovery checkpoints.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/memory-evolution.zh.md',
+      title: '记忆演化',
+      description: '查看未提交改动、Git 历史、分支请求与恢复检查点。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/sessions',
+    order: 3,
+    en: {
+      source: 'docs/channel-sidebar/sessions.md',
+      title: 'Sessions',
+      description: 'Open a Bot\u2019s owned DSH Sessions and choose the list scope and layout.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/sessions.zh.md',
+      title: '会话',
+      description: '打开 Bot 所属的 DSH 会话，并调整列表范围与排列方式。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/bot-inbox',
+    order: 4,
+    en: {
+      source: 'docs/channel-sidebar/bot-inbox.md',
+      title: 'Bot Inbox',
+      description:
+        'Inspect a Bot\u2019s received items, their processing state and their original source.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/bot-inbox.zh.md',
+      title: 'Bot 收件箱',
+      description: '检查 Bot 收件、处理状态，并打开对应的原始来源。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/workspaces',
+    order: 5,
+    en: {
+      source: 'docs/channel-sidebar/workspaces.md',
+      title: 'Workspace Grants',
+      description:
+        'Review a Bot\u2019s folders and understand the separate task and tool permissions.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/workspaces.zh.md',
+      title: '工作区授权',
+      description: '查看 Bot 可用的文件夹，区分文件夹授权、任务权限与工具批准。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/groups',
+    order: 6,
+    en: {
+      source: 'docs/channel-sidebar/groups.md',
+      title: 'Members and group management',
+      description:
+        'Manage a local group\u2019s members, invitations, attention settings and identity.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/groups.zh.md',
+      title: '成员与群管理',
+      description: '管理本地群聊的成员、邀请、提醒设置与群信息。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/display',
+    order: 7,
+    en: {
+      source: 'docs/channel-sidebar/display.md',
+      title: 'Display and layout',
+      description:
+        'Resize, reorder and hide sidebar entries, with explicit save and cancel behavior.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/display.zh.md',
+      title: '显示与布局',
+      description: '调整侧栏宽度、项目顺序与显示，了解完成和取消的作用。',
+    },
+  },
+  {
     slug: 'docs/wechat-connection',
     order: 25,
     en: {

@@ -1,29 +1,60 @@
 <div align="center">
-  <img src="packages/client/assets/bot/deepseekbot-transparent.png" width="112" alt="DeepSeekBot 吉祥物" />
+  <a href="https://deepseekbot.botharness.ai"><img src="docs/assets/readme/deepseekbot-og-zh-v2.png" width="800" alt="DeepSeekBot：开源的 GrokBot 平替。基于 DeepSeek Harness，兼容其他 DSH 插件，连接飞书、Slack、Discord 和微信，MIT 开源" /></a>
 
-# BotHarness
+# DeepSeekBot
 
 **中文** ｜ [English](README.en.md)
 
+[![npm](https://img.shields.io/npm/v/deepseekbot?color=CB3837&logo=npm)](https://www.npmjs.com/package/deepseekbot)
+[![官网](https://img.shields.io/badge/官网-deepseekbot.botharness.ai-3D5AFE)](https://deepseekbot.botharness.ai)
 [![MIT 许可](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![开发状态](https://img.shields.io/badge/status-source%20preview-orange)](#current-status)
+[![Discord](https://img.shields.io/badge/Discord-加入-5865F2?logo=discord&logoColor=white)](https://discord.gg/aEB2Ayhu7B)
+[![QQ 群：1125565676](https://img.shields.io/badge/QQ-1125565676-12B7F5)](#community)
 [![GitHub stars](https://img.shields.io/github/stars/BotHarness/BotHarness?style=flat)](https://github.com/BotHarness/BotHarness)
-[![文档](https://img.shields.io/badge/docs-botharness.ai-5865F2)](https://botharness.ai)
-[![QQ 社区：1125565676](https://img.shields.io/badge/QQ-1125565676-12B7F5)](#community)
 
-**一组有各自身份、人格和记忆的 bots，一起做事。**
+**开源的 GrokBot 平替。一组有各自身份、人格和记忆的 bots，一起做事。**
 
-<img src="docs/assets/readme/hero.webp" width="800" alt="概念插画：一位 Human 与三位不同角色的 bots 围坐协作" />
-
-_概念插画：不同角色的 bots 与 Human 协作。下方为真实产品截图。_
+[官网](https://deepseekbot.botharness.ai) · [安装](#install) · [能力](#features) · [像素头像](#pixel-avatars) · [社区](#community) · [文档](https://botharness.ai)
 
 </div>
 
-BotHarness 在 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 中为 agent 提供持久身份。创建负责研究、设计或实现的 **PersonaBots**，分别私聊，或把它们带进 Group 协作。每个 Bot 保留自己的文件与历史，跨对话、Session 和 Workspace 延续。
+DeepSeekBot 以一个 npm 包装进 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness)：Bot 名册、私聊与 Group、看得见的 Git Memory、任务委派，以及 Bot 自己的 IM 身份。创建负责研究、设计或实现的 **PersonaBots**，分别私聊，或把它们带进 Group 协作；每个 Bot 保留自己的文件与历史，跨对话、Session 和 Workspace 延续。
 
-**BotHarness** 是本仓库的插件层；**DeepSeekBot** 是首个应用，提供 Bot 名册、对话、记忆视图和委派。它基于 DSH 的 Plugin、Bundle 与 Session 能力构建；这里介绍的是 BotHarness 的产品能力，由社区插件交付。
+- **GrokBot 的开源平替**，MIT 开源
+- **基于 DeepSeek Harness**，你在 DSH 里接入的任何模型 provider 都能用
+- **兼容其他 DSH 插件**，可以和它们装在同一个 Profile
+- **连接飞书 / Lark、Slack、Discord 和微信**，Bot 用自己的身份发言
 
-[Git Memory](#git-memory) · [Group 协作](#groups) · [Computer 与 Browser use](#computer-and-browser-use) · [IM 身份](#im-identities) · [开始使用](#try-it) · [文档](#docs) · [社区](#community)
+本仓库是 **BotHarness**：为 DSH agent 提供持久身份的插件层，DeepSeekBot 是它的首个产品。
+
+<a id="install"></a>
+
+## 安装
+
+**桌面端**：打开 DeepSeek Harness 桌面端，点「插件 → 添加插件」，在「包名或地址」里输入 `deepseekbot`，保持「npm 官方源」，点「安装」。显示「已安装」后点「立即启用」（提示重启时重启当前 Profile），侧栏会出现「Bot 模式」。还没装 DSH？先[下载桌面端](https://www.deepseek.com/en/harness/)。
+
+**开发者（命令行）**：需要 Node 22 以上，支持 DSH `0.2.0-rc.1` 起的 0.2 系列。
+
+```bash
+npm i -g @deepseek-ai/dsh@0.2.0-rc.1
+dsh plugin --profile web add deepseekbot
+dsh web
+```
+
+打开后进入 **Bot mode**，创建 PersonaBot，先私聊，再建 Group 邀请成员。要接入飞书、Slack、Discord 或微信，到「设置 → IM bots」连接应用，再在 Bot 的 Profile 里绑定身份、授权群组。安装后账号默认不连接，由你逐个开启。想先试试又不想动现有配置，可以换一个新的 Profile 名字。参见 [DSH 官方文档：打包与安装插件](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish)。
+
+<a id="features"></a>
+
+## 每个 Bot 都是一位同事
+
+| 能力                        | 说明                                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **持久身份**                | 每个 PersonaBot 有自己的名字、人格（PERSONA.md）和头像，跨对话、Session 与 Workspace 延续。                                     |
+| **看得见的 Git Memory**     | Bot 的记忆是一个普通 Git 工作树。在侧栏浏览文件、分支、commit 历史与 diff，也能推到 GitHub，在多台机器之间共享同一份记忆。      |
+| **Group 协作**              | 消息保留各自身份，需要谁就 @ 谁。每个成员可以选择每条提醒、摘要、仅提及或静默。                                                 |
+| **Assignments 委派**        | 授予 Workspace 后，Bot 可以委派独立的 Assignment，各自保留 Session 与报告；需要你回答或批准时，侧栏会显示待办数。               |
+| **自己的 IM 身份**          | 在飞书 / Lark、Slack、Discord 和微信里绑定 Bot 自己的身份，被 @ 时在原话题里回复。只有你授权过的群和频道才会进入 Bot 的 Inbox。 |
+| **Computer 与 Browser use** | 操作共享桌面（需要 Docker）或受管浏览器，你能实时观看，也能暂停它的浏览器操作。源码版可选。                                     |
 
 <a id="git-memory"></a>
 
@@ -39,7 +70,7 @@ _真实 DSH 截图，内容为虚构的展览笔记。graph 展示研究分支�
 - **Memory evolution**：分支、commit 历史与当前改动。点击 commit 查看 diff，或检查尚未提交的修改；可选择易读的记忆术语或 Git 术语。
 - **Recovery checkpoints**：为显式恢复保存上下文，保留 Git 作者与历史。也可以从已有 Git 仓库创建 Bot，复用其文件与历史。
 
-远端仓库可通过普通 Git 操作使用；项目没有内置的一键自动远端同步服务。[记忆设计](docs/architecture/botharness-architecture.md) · [恢复决策](docs/adr/0097-memory-recovery-checkpoints-separate-provenance-from-git-authorship.md)
+把记忆推到 GitHub 等 Git 远端，就能在多台机器、多个 DSH 之间共享同一份记忆。[记忆设计](docs/architecture/botharness-architecture.md) · [恢复决策](docs/adr/0097-memory-recovery-checkpoints-separate-provenance-from-git-authorship.md)
 
 <a id="groups"></a>
 
@@ -61,6 +92,8 @@ _隔离本地 Group 中的真实模型回复：Mira 回顾访客需求，Theo �
 
 ## Computer use 与 Browser use
 
+> 这两个 Bundle 目前只在源码版中可选，不包含在 npm 上的 `deepseekbot` 包里。
+
 | 能力             | 当前已交付                                                                                                              | 启用条件与边界                                                                                                                                                                                               |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Computer use** | 通过 Cua Driver 观察、操作共享桌面，提供 VNC 观看与 Computer Audit。                                                    | 可选 `@botharness/computer` Bundle；当前运行容器桌面，需要 Docker。按 Bot 打开 Computer Access，Auto-allow 关闭时，每个 Session 首次动作请求授权。                                                           |
@@ -78,23 +111,29 @@ _复用 [Browser profile 验证](https://github.com/BotHarness/BotHarness/pull/6
 
 ## 让 Bot 以自己的 IM 身份发言
 
-IM 方向是将 PersonaBot 绑定到自己的平台 Bot 账号，让外部消息以该 Bot 获授权的身份发出。**飞书 / Lark 是首个正在推进的接入**，由 [dsh-im](https://github.com/xmanrui/dsh-im) 持有传输、凭据与连接生命周期。
+把 PersonaBot 绑定到自己的平台 Bot 账号，外部消息就以这个 Bot 获授权的身份发出。已支持 **飞书 / Lark、Slack、Discord 和微信**，连接由 DeepSeekBot 随包管理的 IM Provider（维护自 [dsh-im](https://github.com/xmanrui/dsh-im)）负责传输、凭据与连接生命周期。
 
-当前交付边界：
+- 在群聊或话题里 @Bot，消息进入该 PersonaBot 的 Inbox，由它在原话题回复。
+- 只有你授权过的群和频道才会进入 Bot 的 Inbox；出站发送需要显式授权，并留有发送记录。
+- 可以按 Bot 设置收件方式：只响应提及、按数量或时间汇总普通消息，或立即唤醒。
 
-- **已交付，需主动选择的开发路径**：Profile 绑定、显式出站授权与持久发送记录。隔离验证使用固定版本的临时 [dsh-im fork](docs/adr/0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md)；普通上游 npm `4.32.0` 缺少所需公开契约。已有出站证据是 **provider 接受**，不等于接收方已看到或阅读消息（[#117](https://github.com/BotHarness/BotHarness/issues/117)、[#624](https://github.com/BotHarness/BotHarness/pull/624)）。
-- **仍在推进**：真实群组或 Thread 的 `@Bot` 进入对应 PersonaBot 的 Inbox 与 Orchestrator，再向同源回复（[#12](https://github.com/BotHarness/BotHarness/issues/12)）。provider 的提及与话题回复已有验证，但尚不能据此宣称完整产品链路已交付。
-- **规划中**：外部 Channel/Inbox Bridge、普通消息收件、有限上下文读取与 Bot 主动选择跟随 Thread（[#48](https://github.com/BotHarness/BotHarness/issues/48)、[#629](https://github.com/BotHarness/BotHarness/issues/629)）。其他 IM 平台（包括 Slack、Discord、QQ 和微信）需要独立 provider 验证，此处不列为可用接入。
+连接指南：[飞书 / Lark](docs/lark-connection.zh.md) · [Slack](docs/slack-connection.zh.md)。
 
-参见 [可选 IM 验证配置](docs/client-bridge.md#qualified-optional-im-provider)。默认安装不会启用这条外部发言路径。
+<a id="pixel-avatars"></a>
 
-<a id="current-status"></a>
+## 像素头像：输入名字，得到一张脸
 
-## 当前状态
+<img src="docs/assets/readme/pixel-avatars-crew.gif" width="660" alt="六个像素风 PersonaBot 头像" />
 
-项目是 **源码预览**，基于固定的 **DSH 0.2.0-rc.1** 开发。本地 PersonaBot 创建、私聊与 Group、Git Memory、Assignment 委派、模型计划与用量视图、Computer use 和 Browser use 已有合并实现。这不代表已有稳定可下载的 BotHarness 发布：当前包仍为 private，下方方式从源码构建。
+每个 Bot 的默认头像都由名字生成：同一个名字，在哪里都是同一张脸。Bot 工作时，头像会一颗像素一颗像素地变成它正在用的工具（读文件、终端、搜索、等你批准……）。到[官网](https://deepseekbot.botharness.ai/#avatar)输入名字试试，还能下载高清头像。头像来自开源的 [BotPixel](https://github.com/BotHarness/BotPixel)（`@botharness/pixel-avatar` 与 `@botharness/pixel-morph`）。
 
-[双语 Release Ledger](CHANGELOG.md) 记录已交付变化；[Issues](https://github.com/BotHarness/BotHarness/issues) 与 [Projects](https://github.com/BotHarness/BotHarness/projects) 跟踪后续工作。持续维护的架构也包含目标设计与实现边界，设计页面本身不是交付承诺。
+<a id="dsh"></a>
+
+## 站在 DeepSeek Harness 上
+
+DeepSeekBot 直接用 DSH 自己的 Session 管理和 Harness：你在 DSH 里接入的任何 LLM 模型 provider，Bot 都能用；也可以和其他 DSH 插件装在一起。个别插件可能还不兼容，遇到了欢迎提 [Issue](https://github.com/BotHarness/BotHarness/issues) 或 PR。
+
+[双语 Release Ledger](CHANGELOG.md) 记录每个版本的变化；[Issues](https://github.com/BotHarness/BotHarness/issues) 与 [Projects](https://github.com/BotHarness/BotHarness/projects) 跟踪后续工作。
 
 <a id="try-it"></a>
 
@@ -110,7 +149,7 @@ pnpm build
 node scripts/dev-instance.mjs --home /tmp/botharness-demo --port 31967
 ```
 
-选择一个全新的 `--home` 目录作为隔离 DSH Profile。helper 使用工作树固定的 CLI、链接本地 Bundles，验证已认证 API，并打印本地登录 URL。打开后进入 **Bot mode**，创建 PersonaBots、发送私聊，再建 Group 邀请成员。在 Bot 私聊的侧栏打开 **Memory files** 或 **Memory evolution**。
+选择一个全新的 `--home` 目录作为隔离 DSH Profile。helper 使用工作树固定的 CLI、链接本地 Bundles（包括可选的 Computer 与 Browser），验证已认证 API，并打印本地登录 URL。打开后进入 **Bot mode**，创建 PersonaBots、发送私聊，再建 Group 邀请成员。在 Bot 私聊的侧栏打开 **Memory files** 或 **Memory evolution**。
 
 helper 可注入机器本地的 DeepSeek key，也可使用隔离 Profile 的凭据；密钥始终留在仓库外。模型配置、可选 IM 安装和 Client/Host 开发循环见 [本地实例指南](docs/client-bridge.md#7-本地开发环路dsh-020-rc1)。
 
@@ -118,7 +157,7 @@ helper 可注入机器本地的 DeepSeek key，也可使用隔离 Profile 的凭
 
 ## 文档与开发
 
-- [文档站](https://botharness.ai) · [介绍 Slides](https://botharness.ai/slides/s/botharness-intro)
+- [DeepSeekBot 官网](https://deepseekbot.botharness.ai) · [文档站](https://botharness.ai) · [介绍 Slides](https://botharness.ai/slides/s/botharness-intro)
 - [产品术语](CONTEXT.zh.md) · [持续维护的架构与数据流](docs/architecture/botharness-architecture.md) · [架构决策](docs/adr/)
 - [贡献指南](AGENTS.md) · [Release Ledger](CHANGELOG.md) · [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/)
 
@@ -145,7 +184,11 @@ apps/presentations    介绍与其他 Slides
 
 ## 社区
 
-在 QQ 中搜索群号 **1125565676** 加入社区。顶部徽章链接到这里；当前没有发布已验证的邀请链接或二维码。问题反馈、功能建议与开发讨论请使用 [GitHub Issues](https://github.com/BotHarness/BotHarness/issues)。
+问题、想法，还有你做出来的 Bot，都欢迎带来。
+
+- **Discord**：[加入 DeepSeekBot 服务器](https://discord.gg/aEB2Ayhu7B)
+- **QQ 群**：在 QQ 中搜索群号 **1125565676**
+- **问题反馈与功能建议**：[GitHub Issues](https://github.com/BotHarness/BotHarness/issues)
 
 ## 灵感与致谢
 
