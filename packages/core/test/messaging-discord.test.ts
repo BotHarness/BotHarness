@@ -256,7 +256,6 @@ it.each([
     await expect(
       core.externalMessaging.inbound.context('ada', anchor, 'revoked-context', {
         scope: 'group',
-        limit: 2,
       }),
     ).rejects.toThrow('source-unavailable');
     expect(historyCalls).toBe(1);

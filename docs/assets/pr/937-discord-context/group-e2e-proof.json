@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-05T22:03:59.492Z",
+  "mode": "group",
+  "actualModelToolNames": [
+    "bridge_read",
+    "bridge_context",
+    "bridge_reply"
+  ],
+  "actualContextScopes": [
+    "group"
+  ],
+  "nativeBotIdentityVerified": true,
+  "nativeOriginalSourceReferenceVerified": true,
+  "nativeOriginalLocationVerified": true,
+  "replyText": "DISCORD-937-GROUP-OK:cobalt-37",
+  "ordinaryCodeFromActualToolResult": true,
+  "contextReadsAudited": 1,
+  "canonicalCounts": {
+    "admissions": 42,
+    "intents": 37,
+    "placements": 6
+  },
+  "identityGrantAndPlacementsExactlyUnchanged": true,
+  "oneNativeReplyIntent": true
+}

@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-05T22:09:42.161Z",
+  "mode": "thread",
+  "actualModelToolNames": [
+    "bridge_read",
+    "bridge_context",
+    "bridge_reply"
+  ],
+  "actualContextScopes": [
+    "thread"
+  ],
+  "nativeBotIdentityVerified": true,
+  "nativeOriginalSourceReferenceVerified": true,
+  "nativeOriginalLocationVerified": true,
+  "replyText": "DISCORD-937-THREAD-OK:iris-62",
+  "ordinaryCodeFromActualToolResult": true,
+  "contextReadsAudited": 1,
+  "canonicalCounts": {
+    "admissions": 43,
+    "intents": 38,
+    "placements": 6
+  },
+  "identityGrantAndPlacementsExactlyUnchanged": true,
+  "oneNativeReplyIntent": true
+}

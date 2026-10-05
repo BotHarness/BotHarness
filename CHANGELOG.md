@@ -15,6 +15,8 @@ Add the first Bot Marketplace, preserve definite IM reply refusals, and move Dee
 
 ### Fixed
 
+- Context reads now retain the precise `source-conflict` refusal when native history disagrees with retained evidence, rolling back the conflicting page without replacing its original source ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
+
 - Preserve definite checked IM source-not-found and reply-permission refusals as failed replies instead of unknown outcomes; genuinely unknown sends and previously recorded outcomes remain unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855)).
 
 ### Documentation

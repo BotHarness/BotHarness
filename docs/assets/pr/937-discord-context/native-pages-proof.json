@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-05T22:03:15.486Z",
+  "nativeGroupPaging": true,
+  "pageLimit": 2,
+  "pageCount": 2,
+  "first": {
+    "humanText": 1,
+    "omitted": 1
+  },
+  "second": {
+    "humanText": 1,
+    "omitted": 1
+  },
+  "secondPageFindsOrdinaryCode": true,
+  "tamperedCursorRefused": true,
+  "foreignChannelCursorRefused": true,
+  "callerCancellationRefused": true,
+  "negativeCasesIssueNoAdditionalHistoryRequests": true,
+  "allCanonicalRowsExactlyUnchanged": true,
+  "provenance": "Production Provider reader with native Discord API; separate from the Orchestrator tool evidence."
+}

@@ -1,0 +1,28 @@
+{
+  "at": "2026-10-05T22:15:29.526Z",
+  "mode": "off",
+  "actualModelToolNames": [
+    "bridge_context",
+    "bridge_reply"
+  ],
+  "actualContextScopes": [
+    "group"
+  ],
+  "nativeBotIdentityVerified": true,
+  "nativeOriginalSourceReferenceVerified": true,
+  "nativeOriginalLocationVerified": true,
+  "replyText": "DISCORD-937-CONTENT-OFF:history-permission-denied",
+  "ordinaryCodeFromActualToolResult": false,
+  "actualModelPermissionRefusalVerified": true,
+  "actualDistinctPagesVerified": false,
+  "contextReadsAudited": 0,
+  "canonicalCounts": {
+    "admissions": 45,
+    "intents": 39,
+    "placements": 7
+  },
+  "identityAndGrantExactlyUnchanged": true,
+  "originalPlacementsExactlyPreserved": true,
+  "additionalPlacements": 1,
+  "oneNativeReplyIntent": true
+}
