@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added the candidate checked Discord Provider registration and existing Inbox/source presentation contract, preserving exact channel/public-thread routes; real channel/thread model replies passed, with full qualification and Human QA pending ([#855](https://github.com/BotHarness/BotHarness/issues/855), [ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)).
+
 - PersonaBots can explicitly publish Slack reports without mirroring them into local chat, inspect the saved text and native receipt, and answer eligible Human follow-up in the original Slack topic ([#863](https://github.com/BotHarness/BotHarness/issues/863), [IM integration guide](docs/dev/guides/im-provider-integration.md)).
 
 - PersonaBots can explicitly follow or leave an authorized Slack native topic after real ordinary-reply delivery is verified, reusing count/time harvest and Human overrides; Profile retains topic management for migrated Channel connectors ([#854](https://github.com/BotHarness/BotHarness/issues/854), [IM integration guide](docs/dev/guides/im-provider-integration.md)).
@@ -507,6 +509,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
 
 ### Documentation
+
+- Recorded the fixed-source Discord mention/reply preflight and missing real-App qualification; Discord capability rows remain unqualified and runtime behavior is unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855), [integration guide](docs/dev/guides/im-provider-integration.md)).
 
 - Documented the verified Lark/Slack IM integration boundary and repeatable qualification workflow for future providers ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 
