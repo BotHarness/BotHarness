@@ -3816,3 +3816,51 @@ it.each(['receiving', 'unavailable'] as const)(
     }
   },
 );
+
+it('refuses an edited source on a continuation with source-conflict and preserves retained evidence', async () => {
+  const older = contextEvent('om-older', 'original retained body', true);
+  const history = vi.fn<NonNullable<DshImOutboundService['historyChecked']>>(
+    async (_account, _route, query) => ({
+      version: 1,
+      scope: query.scope,
+      events:
+        query.cursor === undefined
+          ? [contextEvent('om-newer', 'first page')]
+          : [
+              contextEvent('om-new-on-refused-page', 'must roll back'),
+              { ...older, text: 'edited native body' },
+            ],
+      omitted: 0,
+      hasMore: query.cursor === undefined,
+      ...(query.cursor === undefined ? { nextCursor: 'page-2' } : {}),
+      coverage: 'provider-visible-human-text',
+    }),
+  );
+  const fx = await fixture({ history });
+  await fx.enable();
+  await fx.receive(older);
+  await fx.idle();
+  await fx.receive();
+  await fx.idle();
+  const anchor = fx.core.attention
+    .list({ botSlug: 'ada' })
+    .items.find((item) => item.summary === event().text)!.id;
+  const first = await fx.core.externalMessaging.inbound.context('ada', anchor, 'read', {
+    scope: 'group',
+  });
+  await expect(
+    fx.core.externalMessaging.inbound.context('ada', anchor, 'read', {
+      scope: 'group',
+      cursor: first.nextCursor!,
+    }),
+  ).rejects.toThrow('source-conflict');
+  expect(
+    fx.query("SELECT body FROM source_events WHERE body = 'original retained body'"),
+  ).toHaveLength(1);
+  expect(fx.query("SELECT body FROM source_events WHERE body = 'must roll back'")).toHaveLength(0);
+  expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(2);
+  expect(fx.core.externalMessaging.inbound.read('ada', anchor).contextReads?.at(-1)).toMatchObject({
+    outcome: 'refused',
+    reason: 'source-conflict',
+  });
+});
