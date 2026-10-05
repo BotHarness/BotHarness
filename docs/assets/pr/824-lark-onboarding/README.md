@@ -2,9 +2,10 @@
 
 ## Revisions and installation
 
-- Current-main visual baseline: `2c767e30dcfbccc5ec78c3939b66327ed477e401`.
+- Current-main visual baseline: `ea4b9d32ccf84bc9e948e2687dc16aff24dc34bc`.
 - Initial implementation/application run: `fd78c98119d00d58524609a09b5a23a9ac7bfc68`, qualified packed product `0.0.0-test.824.6`.
-- Final runtime code: `c2a1f7cb` (plus the test request-ID length correction; no runtime difference), qualified packed product `0.0.0-test.824.7`.
+- Final runtime code: `c2a1f7cba13d1ba82e1b9e9b3b923babe428c0e7` (plus the test request-ID length correction; no runtime difference), qualified packed product `0.0.0-test.824.7`.
+- Latest-main integration/runtime smoke: `87b2a9949f5bf284699fc55af9bde1d9316a012e`, qualified product `0.0.0-test.824.8`; only the independent main Avatar dependency refactor differs from the final real-topic run. Same cleaned Profile and both latest-main images were verified.
 - Provider: `4.32.0-botharness.2`, source `48e7a35792af5222cd40cfe1ba2607ac55a59df2`; DSH `0.2.0-rc.1`.
 - Product installed Core, Client and Provider together. No separate SDK receiver, Human CLI identity or successful state injection.
 
