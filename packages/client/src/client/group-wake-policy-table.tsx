@@ -1,3 +1,4 @@
+import { externalPlatformLabel } from './bridge-source-label.js';
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import { useRef, useState, type ReactElement } from 'react';
@@ -90,26 +91,6 @@ export function GroupWakePolicyTable({
                   <th scope="row">{botNames.get(member.botSlug) ?? member.botSlug}</th>
                   <td>
                     {t(`members.wake.${member.policy.mode}`)}
-                    {member.external ? (
-                      <span className="bh-bridge-secondary">
-                        {t('defaults.externalWake')}:{' '}
-                        {t(`members.wake.${member.external.policy.mode}`)}
-                        {member.external.policy.mode === 'digest'
-                          ? ` · ${t('groupWake.threshold', { count: member.external.policy.count, seconds: member.external.policy.intervalSeconds })}`
-                          : ''}
-                        <br />
-                        {t(
-                          member.external.origin === 'platform'
-                            ? 'defaults.inherited'
-                            : member.external.origin === 'channel'
-                              ? 'groupWake.custom'
-                              : 'groupWake.default',
-                        )}
-                        {member.external.origin === 'platform'
-                          ? ` · v${member.external.defaultRevision}`
-                          : ''}
-                      </span>
-                    ) : null}
                     {member.policy.mode === 'digest' ? (
                       <span className="bh-bridge-secondary">
                         {t('groupWake.threshold', {
@@ -118,6 +99,28 @@ export function GroupWakePolicyTable({
                         })}
                       </span>
                     ) : null}
+                    {(member.externals ?? (member.external ? [member.external] : [])).map(
+                      (external) => (
+                        <span key={external.platform} className="bh-bridge-secondary">
+                          {t('defaults.externalWake', {
+                            platform: externalPlatformLabel(external.platform, t),
+                          })}
+                          : {t(`members.wake.${external.policy.mode}`)}
+                          {external.policy.mode === 'digest'
+                            ? ` · ${t('groupWake.threshold', { count: external.policy.count, seconds: external.policy.intervalSeconds })}`
+                            : ''}
+                          <br />
+                          {t(
+                            external.origin === 'platform'
+                              ? 'defaults.inherited'
+                              : external.origin === 'channel'
+                                ? 'groupWake.custom'
+                                : 'groupWake.default',
+                          )}
+                          {external.origin === 'platform' ? ` · v${external.defaultRevision}` : ''}
+                        </span>
+                      ),
+                    )}
                   </td>
                   <td>
                     <Tag tone="neutral">

@@ -352,6 +352,8 @@
 
 ### Fixed
 
+- 修复 Slack 频道连接器与成员提醒误显示 Lark 专属文案或默认值 ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
+
 - Assignment 答复在原生 Inbox 接收后才清除原问题；可证的投递准备失败保留重试入口，结果不明仍显示待修复，旧答复不会清除新问题（[#812](https://github.com/BotHarness/BotHarness/issues/812)）。
 
 - Human 收件箱操作按钮与条目统一展开双列详情；标题独占首行，摘要与操作放在第二行，紧凑入口弹窗加宽（[#812](https://github.com/BotHarness/BotHarness/issues/812)）。
@@ -486,6 +488,8 @@
 - 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
 
 ### Documentation
+
+- 整理已验证的 Lark／Slack IM 接入边界与后续平台可复用的资格验证流程 ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 
 - 新增已核验的 [Assignment Report 批次指南](docs/dev/guides/assignment-report-harvest.md)，包含原生 harvest 证明、来源历史保留、Host 冷启动验收及 Human 来源导航核验（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
 

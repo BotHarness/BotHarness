@@ -3,7 +3,7 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
-  'defaults.externalWake': 'Lark 普通消息',
+  'defaults.externalWake': '{platform} 普通消息',
   'defaults.restore': '恢复继承',
   'defaults.threshold': '汇总阈值',
   'defaults.platform': '默认设置的平台',
@@ -347,7 +347,7 @@ export const zh = {
   'channel.name.placeholder': '频道名称',
   'channel.create.title': '创建频道',
   'channel.create.inSection': '在「{name}」中创建频道',
-  'channel.create.description': '先建一个本地频道；Bot 参与和消息投递随 v1.1 到来。',
+  'channel.create.description': '创建频道后，可邀请 Bot，并在频道 Profile 中接入外部来源。',
   'create.failed': '创建失败：{error}',
   'bot.create.title': '创建 PersonaBot',
   'bot.create.inSection': '在「{name}」中创建 PersonaBot',
@@ -421,7 +421,7 @@ export const zh = {
   'message.failed': '发送失败',
   'message.failedRestore': '将失败消息放回输入框修改后重发',
   'message.restoreBlocked': '输入框已有草稿，请先处理草稿再恢复失败消息。',
-  'main.group.note': '群聊消息保存在本地；Bot 参与随 v1.1 到来。',
+  'main.group.note': '邀请 Bot 加入，或在频道 Profile 中添加频道连接器。',
   'main.localChat': '本地对话',
   'main.localChat.with': '这是与 {name} 的本地对话',
   'main.localChat.hint': '直接发消息即可；Bot 会自行安排事项，并在这里回复结果。',
@@ -491,15 +491,15 @@ export const zh = {
   'bridge.editFor': '编辑频道连接器：{name}',
   'bridge.deleteFor': '删除频道连接器：{name}',
   'bridge.enableDraft': '接收新消息',
-  'bridge.authorizedSource': '已授权的 Lark 群',
+  'bridge.authorizedSource': '已授权的外部群',
   'bridge.noSources':
-    '暂无可添加来源。请先在成员 Bot 的 Profile 中绑定 Lark 身份并明确授权测试群。同一来源可接入多个目标，各路径独立管理。',
+    '暂无可添加来源。请先在成员 Bot 的 Profile 中绑定外部身份并明确授权测试群。同一来源可接入多个目标，各路径独立管理。',
   'bridge.addHint':
     '只使用已授权的群。添加后，新消息进入当前频道，之前的 Inbox 历史保留；不会新增外部账号或群授权。',
   'bridge.receiver': '接收身份：{name}。这不授予其他成员以该身份发言的权限。',
   'bridge.target': '本地目标：{name}',
   'bridge.providerHint':
-    'Lark 收件条件经过实际投递验证。话题跟进仍由现有话题策略管理；本地讨论不会自动广播到 Lark。',
+    '收件条件需经过实际投递验证；话题能力按平台提供。本地讨论不会自动发送到外部平台。',
   'bridge.unverified':
     '需要先确认该身份实际收到普通消息，才能选择全量收件。可在已授权的测试群发送一条无 @ 消息后刷新。',
   'bridge.deleteImpact':
@@ -1438,7 +1438,7 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
-  'defaults.externalWake': 'Lark ordinary messages',
+  'defaults.externalWake': '{platform} ordinary messages',
   'defaults.restore': 'Restore inheritance',
   'defaults.threshold': 'Harvest threshold',
   'defaults.platform': 'Platform for defaults',
@@ -1796,7 +1796,7 @@ export const en = {
   'channel.create.title': 'Create channel',
   'channel.create.inSection': 'Create a channel in “{name}”',
   'channel.create.description':
-    'Creates a local channel first; Bot participation and message delivery arrive with v1.1.',
+    'Create a channel, then invite Bots and connect external sources in its Profile.',
   'create.failed': 'Create failed: {error}',
   'bot.create.title': 'Create PersonaBot',
   'bot.create.inSection': 'Create a PersonaBot in “{name}”',
@@ -1859,7 +1859,7 @@ export const en = {
   'message.draftInterrupted': 'Reply interrupted and not sent.',
   'message.draftExpired': 'Draft reply was not sent.',
   'message.sending': 'Sending',
-  'main.group.note': 'Group messages stay local; Bot participation arrives with v1.1.',
+  'main.group.note': 'Invite Bots or add a channel connector in the Channel Profile.',
   'main.localChat': 'Local chat',
   'main.localChat.with': 'This is a local conversation with {name}',
   'message.mention.openDm': 'Open DM with {bot}',
@@ -1946,16 +1946,16 @@ export const en = {
   'bridge.editFor': 'Edit Bridge: {name}',
   'bridge.deleteFor': 'Delete Bridge: {name}',
   'bridge.enableDraft': 'Receive new messages',
-  'bridge.authorizedSource': 'Authorized Lark group',
+  'bridge.authorizedSource': 'Authorized external group',
   'bridge.noSources':
-    'No source available. Bind a member Bot’s Lark identity and explicitly authorize a group in its Profile first. The same source can be connected to multiple independently managed targets.',
+    'No source available. Bind a member Bot’s external identity and explicitly authorize a group in its Profile first. The same source can be connected to multiple independently managed targets.',
   'bridge.addHint':
     'Uses an existing authorized group only. Future messages enter this Channel; earlier Inbox history stays. No new external account or group authorization is created.',
   'bridge.receiver':
     'Receiving identity: {name}. Other members do not gain permission to speak as this identity.',
   'bridge.target': 'Local target: {name}',
   'bridge.providerHint':
-    'Lark collection conditions require verified delivery. Existing topic policies manage following. Local discussion is not automatically broadcast to Lark.',
+    'Collection conditions require verified delivery; topic capabilities depend on the platform. Local discussion is not automatically sent to the external platform.',
   'bridge.unverified':
     'Verify that this identity receives ordinary messages before enabling all-text collection. Send a non-mentioned test message in the authorized group, then refresh.',
   'bridge.deleteImpact':

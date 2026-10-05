@@ -25,11 +25,12 @@ export interface GroupMemberWakePolicy {
   inherited: boolean;
   policy: GroupWakePolicyView;
   external?: {
-    platform: 'feishu';
+    platform: 'feishu' | 'slack';
     policy: GroupWakePolicy;
     origin: 'channel' | 'bot' | 'platform';
     defaultRevision: number;
   };
+  externals?: NonNullable<GroupMemberWakePolicy['external']>[];
 }
 
 export const DEFAULT_GROUP_WAKE_POLICY: GroupWakePolicy = {
