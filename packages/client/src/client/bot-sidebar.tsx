@@ -14,6 +14,7 @@ import {
   IconCloseFillRegular,
   IconEllipsisOutlineRegular,
   IconFolderOpenOutlineRegular,
+  IconGlobeOutlineRegular,
   IconNewChatOutlineRegular,
   IconPlusOutlineRegular,
   IconSearchOutlineRegular,
@@ -72,6 +73,7 @@ import { needsYou, toBotState } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { personaBotActivity } from './persona-activity.js';
 import { CreatePersonaBotModal } from './persona-bot-create.js';
+import { MarketplaceModal } from './marketplace.js';
 import {
   defaultStorage,
   saveRosterConfig,
@@ -729,7 +731,8 @@ type CreateRequest =
       moveChannelIds?: readonly string[];
       pinned?: boolean;
     }
-  | { kind: 'channel'; sectionId?: string };
+  | { kind: 'channel'; sectionId?: string }
+  | { kind: 'marketplace' };
 
 type FlatBlockView =
   | { kind: 'section'; section: RosterSection; channels: ChannelSummary[] }
@@ -1046,6 +1049,7 @@ export function BotSidebar({
     if (id === 'bot') setCreateRequest({ kind: 'bot' });
     if (id === 'channel') setCreateRequest({ kind: 'channel' });
     if (id === 'section') setCreateRequest({ kind: 'section' });
+    if (id === 'marketplace') setCreateRequest({ kind: 'marketplace' });
   };
 
   const selectSortMenu = (id: string): void => {
@@ -2215,6 +2219,18 @@ export function BotSidebar({
           }}
         />
       ) : null}
+      {createRequest?.kind === 'marketplace' ? (
+        <MarketplaceModal
+          t={t}
+          actions={actions}
+          onClose={() => {
+            setCreateRequest(undefined);
+          }}
+          onInstalled={() => {
+            setCreateRequest(undefined);
+          }}
+        />
+      ) : null}
       {createRequest?.kind === 'section' ? (
         <CreateSectionModal
           t={t}
@@ -2600,6 +2616,11 @@ function menuItems(t: BotHarnessTranslate): MenuEntry[] {
       id: 'section',
       label: t('roster.menu.createSection'),
       icon: <IconFolderOpenOutlineRegular size={16} />,
+    },
+    {
+      id: 'marketplace',
+      label: t('roster.menu.marketplace'),
+      icon: <IconGlobeOutlineRegular size={16} />,
     },
   ];
 }

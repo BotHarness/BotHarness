@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-The DeepSeekBot user guides moved to the product site.
+The first Bot Marketplace slice arrives, and the DeepSeekBot user guides moved to the product site.
+
+### Added
+
+- Added a Bot Marketplace to the sidebar **+** menu: paste a public GitHub repository carrying the `botharness-bot` topic to list it, browse listed Bots, and install one as a new PersonaBot after a confirmation that shows the latest commit and a third-party risk notice ([#916](https://github.com/BotHarness/BotHarness/issues/916), [ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)).
 
 ### Documentation
 

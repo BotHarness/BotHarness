@@ -360,6 +360,8 @@ describe('plugin entry', () => {
       'browserProfileSet',
       'botAvatarSet',
       'botAppearanceSet',
+      'marketplaceList',
+      'marketplaceSubmit',
     ]);
   });
 
