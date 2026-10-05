@@ -24,6 +24,7 @@
 
 - `before-latest-main.jpg`: actual Chrome capture of exact latest main; managed connector Grant hides the thread controls.
 - `after-latest-main.jpg`: actual integrated feature capture, same 1230 × 820 viewport, Chinese locale, dark theme and authorization section position.
+- `source-details-latest-main.jpg`: final canonical source Modal, preserving native message timestamp, topic timestamp, sender ID and Source Event ID.
 - `after-modal-latest-main.jpg`: final integrated topic Modal, inheritance restored and ordinary delivery requalified.
 - `after-follow-modal.jpg` / `human-exclude.jpg`: actual working policy and Human override during initial real E2E.
 - `slack-native-exit.jpg` / `slack-native-integrated.jpg`: native Slack thread exit / final integrated reply.
