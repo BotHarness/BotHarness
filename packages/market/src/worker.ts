@@ -1,5 +1,6 @@
 import { createCatalog, type Catalog, type SubmissionRefusal } from './catalog.js';
 import type { D1Database } from './d1.js';
+import { createCrawler } from './crawl.js';
 import { createGitHubClient, type GitHubClient } from './github.js';
 
 export interface MarketEnv {
@@ -70,8 +71,39 @@ export function handlerForEnv(
   return createMarketHandler(createCatalog({ db: env.MARKET_DB, github, now: () => new Date() }));
 }
 
+export const DISCOVERY_CRON = '0 3 * * *';
+export const REFRESH_CRON = '17 * * * *';
+
+export async function runScheduled(
+  cron: string,
+  env: MarketEnv,
+  github: GitHubClient = createGitHubClient({ token: env.GITHUB_TOKEN }),
+  log: (line: string) => void = (line) => console.log(line),
+): Promise<void> {
+  const crawler = createCrawler({ db: env.MARKET_DB, github, now: () => new Date() });
+  const started = Date.now();
+  const phase = cron === DISCOVERY_CRON ? 'discovery' : 'refresh';
+  const report = phase === 'discovery' ? await crawler.discover() : await crawler.refresh();
+  log(
+    JSON.stringify({
+      module: 'marketplace-worker',
+      initiator: 'scheduled',
+      phase,
+      durationMs: Date.now() - started,
+      ...report,
+    }),
+  );
+}
+
 export default {
   fetch(request: Request, env: MarketEnv): Promise<Response> {
     return handlerForEnv(env)(request);
+  },
+  scheduled(
+    controller: { cron: string },
+    env: MarketEnv,
+    context: { waitUntil(promise: Promise<unknown>): void },
+  ): void {
+    context.waitUntil(runScheduled(controller.cron, env));
   },
 };

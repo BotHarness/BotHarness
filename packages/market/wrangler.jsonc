@@ -3,6 +3,7 @@
   "name": "botharness-market",
   "main": "src/worker.ts",
   "compatibility_date": "2026-09-17",
+  "triggers": { "crons": ["0 3 * * *", "17 * * * *"] },
   "d1_databases": [
     {
       "binding": "MARKET_DB",
