@@ -27,7 +27,7 @@ const VIEW_H = 180;
 const PIXEL_RATIO = 4;
 const TILE = 16;
 const FPS = 60;
-const TOTAL = 12960;
+const TOTAL = 11640;
 const BAR = 120; // 120 BPM in 4/4: one bar is 120 frames
 const params = new URLSearchParams(location.search);
 if (params.get('debug') === '0') DEBUG_FRAMES = false;
@@ -65,7 +65,7 @@ const STR = {
   world2: { zh: '宫廷学者 Mira', en: 'Court scholar Mira' },
   world3: { zh: '老师 Mira', en: 'Teacher Mira' },
   connect1: { zh: '连接器：让你的 bot 用自己的身份，出现在团队常用的地方。', en: 'Connectors let your bots show up where your team already talks, under their own identities.' },
-  connect2: { zh: 'Lark / 飞书、Slack 已经接通，Discord 还在路上。', en: 'Lark and Slack are connected. Discord is on its way.' },
+  connect2: { zh: 'Lark / 飞书、Slack 已经接通；Discord、微信和 QQ 正在规划中。', en: 'Lark and Slack are connected; Discord, WeChat and QQ are planned.' },
   lark1: { zh: '把 Lark 群接进 Group：明确授权，按群开关收件。', en: 'Bring a Lark group into a Group: explicit authorization, intake switched per group.' },
   lark2: { zh: '每个成员 Bot 用自己的身份收件和回复，发言身份与收件路径分开管理。', en: 'Each member bot receives and replies as itself; speaking identity and intake routes are managed separately.' },
   slack1: { zh: 'Slack 也一样：每个 Bot 绑定独立的 Slack 身份。', en: 'Slack works the same way: every bot binds its own Slack identity.' },
@@ -631,6 +631,8 @@ const PLATFORMS = [
   { id: 'lark', label: 'LARK', color: PAL.lark, x: TOWER.x - 34 },
   { id: 'slack', label: 'SLACK', color: PAL.slack, x: TOWER.x },
   { id: 'discord', label: 'DISCORD', color: PAL.discord, x: TOWER.x + 34, planned: true },
+  { id: 'wechat', label: 'WECHAT', color: '#07c160', x: TOWER.x - 68, planned: true },
+  { id: 'qq', label: 'QQ', color: '#12b7f5', x: TOWER.x + 68, planned: true },
 ];
 const towerTex = canvasTex(40, 70, (ctx) => {
   for (let y = 10; y < 70; y++) {
@@ -642,7 +644,67 @@ const towerTex = canvasTex(40, 70, (ctx) => {
 });
 place(sprite(shadowTex(30)), TOWER.x, TOWER.y + 18, 1);
 place(sprite(towerTex), TOWER.x, TOWER.y + 20);
+// pixel logos on a 12x12 grid
+function drawLogo(ctx, id, ox, oy, s = 1) {
+  const px = (x, y, c) => { ctx.fillStyle = c; ctx.fillRect(ox + x * s, oy + y * s, s, s); };
+  if (id === 'slack') {
+    // pinwheel of four pills, rotated a quarter turn each
+    const piece = [];
+    for (let y = 0; y < 6; y++) for (const x of [4, 5]) piece.push([x, y]);
+    for (const [x, y] of [[1, 4], [2, 4], [1, 5], [2, 5]]) piece.push([x, y]);
+    const colors = ['#36c5f0', '#2eb67d', '#ecb22e', '#e01e5a'];
+    colors.forEach((c, r) => {
+      for (const [x0, y0] of piece) {
+        let [x, y] = [x0, y0];
+        for (let k = 0; k < r; k++) [x, y] = [11 - y, x];
+        if ((x0 === 4 || x0 === 5) && (y0 === 0) && x0 === 5) continue;
+        px(x, y, c);
+      }
+    });
+  } else if (id === 'discord') {
+    for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) {
+      const corner = (x < 2 || x > 9) && (y < 2 || y > 9) && !((x === 1 || x === 10) && (y === 1 || y === 10));
+      if (!corner || (x > 0 && x < 11 && y > 0 && y < 11)) px(x, y, '#5865f2');
+    }
+    for (let y = 3; y <= 8; y++) for (let x = 2; x <= 9; x++) {
+      if ((y === 3 && (x === 2 || x === 9)) || (y === 8 && (x === 2 || x === 9)) || (y === 8 && (x === 5 || x === 6))) continue;
+      px(x, y, '#ffffff');
+    }
+    px(3, 2, '#ffffff'); px(8, 2, '#ffffff');
+    px(4, 5, '#5865f2'); px(4, 6, '#5865f2'); px(7, 5, '#5865f2'); px(7, 6, '#5865f2');
+  } else if (id === 'wechat') {
+    for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) if (!((x === 0 || x === 11) && (y === 0 || y === 11))) px(x, y, '#07c160');
+    for (let y = 2; y <= 7; y++) for (let x = 1; x <= 7; x++) if ((x - 4) ** 2 / 10 + (y - 4.5) ** 2 / 7 <= 1) px(x, y, '#ffffff');
+    px(2, 8, '#ffffff');
+    for (let y = 5; y <= 10; y++) for (let x = 5; x <= 10; x++) if ((x - 7.5) ** 2 / 7 + (y - 7.5) ** 2 / 6 <= 1) px(x, y, '#ffffff');
+    px(10, 10, '#ffffff');
+    px(3, 4, '#07c160'); px(5, 4, '#07c160'); px(6, 7, '#07c160'); px(8, 7, '#07c160');
+  } else if (id === 'qq') {
+    for (let y = 1; y <= 9; y++) for (let x = 3; x <= 8; x++) if ((x - 5.5) ** 2 / 7 + (y - 5) ** 2 / 18 <= 1) px(x, y, '#1d1b22');
+    for (let y = 4; y <= 9; y++) for (let x = 4; x <= 7; x++) if ((x - 5.5) ** 2 / 3 + (y - 6.8) ** 2 / 6 <= 1) px(x, y, '#ffffff');
+    px(4, 3, '#ffffff'); px(7, 3, '#ffffff'); px(5, 4, '#f2c14e'); px(6, 4, '#f2c14e');
+    for (let x = 3; x <= 8; x++) px(x, 5, '#e2565f'); px(8, 6, '#e2565f');
+    px(3, 10, '#f2c14e'); px(4, 10, '#f2c14e'); px(7, 10, '#f2c14e'); px(8, 10, '#f2c14e');
+  } else {
+    // lark: cyan upper wing, blue body, navy tail
+    for (let y = 2; y <= 5; y++) for (let x = 1 + (5 - y); x <= 6; x++) px(x, y, '#00d6b9');
+    for (let y = 5; y <= 10; y++) for (let x = 1 + Math.max(0, y - 8); x <= 11 - Math.floor((y - 5) * 1.2); x++) px(x, y, '#3370ff');
+    for (let y = 2; y <= 6; y++) for (let x = 7 + Math.max(0, 4 - y); x <= 11; x++) if (x - 7 >= y - 2) px(x, y, '#133c9a');
+  }
+}
+const logoBadge = (id, size = 16) => canvasTex(size, size, (ctx) => {
+  box(ctx, 0, 0, size, size, '#ffffff', INK);
+  drawLogo(ctx, id, Math.floor((size - 12) / 2), Math.floor((size - 12) / 2));
+});
 const flagFrames = PLATFORMS.map((p) => [0, 1].map((k) => canvasTex(36, 36, (ctx) => {
+  rect(ctx, 2, 0, 2, 36, INK);
+  box(ctx, 4, 0 + k, 18, 18, '#ffffff', INK);
+  drawLogo(ctx, p.id, 7, 3 + k);
+  const tw = textWidth(p.label);
+  box(ctx, 4, 20, tw + 6, 9, p.color, INK);
+  drawText(ctx, p.label, 7, 22, '#ffffff');
+})));
+const flagFramesOld = PLATFORMS.map((p) => [0, 1].map((k) => canvasTex(36, 36, (ctx) => {
   rect(ctx, 2, 0, 2, 36, INK);
   const w = textWidth(p.label) + 6;
   for (let x = 0; x < w; x++) {
@@ -658,6 +720,7 @@ const flags = PLATFORMS.map((p, i) => {
   return m;
 });
 const discordSign = sprite(plannedSignTex);
+discordSign.visible = false;
 discordSign.scale.set(0.5, 0.5, 1);
 place(discordSign, PLATFORMS[2].x + 52, TOWER.y + 4);
 
@@ -743,7 +806,14 @@ const letterTex = (color) => canvasTex(9, 7, (ctx) => {
   rect(ctx, 4, 4, 1, 2, color);
 });
 const pigeons = Array.from({ length: 4 }, () => ({ bird: sprite(pigeonFrames[0], { ax: 0.5, ay: 0.5 }), letter: sprite(letterTex(PAL.lark), { ax: 0.5, ay: 1 }) }));
-const letterTexes = { lark: letterTex(PAL.lark), slack: letterTex(PAL.slack), discord: letterTex(PAL.discord) };
+const mailTex = (id) => canvasTex(28, 18, (ctx) => {
+  box(ctx, 0, 0, 28, 18, '#ffffff', INK);
+  for (let i = 0; i < 8; i++) { rect(ctx, 1 + i, 1 + i, 1, 1, '#b6afa4'); rect(ctx, 12 - i + 0, 1 + i, 0, 0, '#b6afa4'); }
+  rect(ctx, 1, 1, 12, 1, '#e9e4da');
+  box(ctx, 13, 2, 14, 14, '#ffffff', INK);
+  drawLogo(ctx, id, 14, 3);
+});
+const letterTexes = { lark: mailTex('lark'), slack: mailTex('slack'), discord: mailTex('discord'), wechat: mailTex('wechat'), qq: mailTex('qq') };
 const zipTex = canvasTex(12, 14, (ctx) => {
   box(ctx, 0, 0, 12, 14, '#f2c14e');
   for (let y = 1; y < 13; y += 2) rect(ctx, 5, y, 2, 1, INK);
@@ -1183,6 +1253,76 @@ function drawDebug(f) {
   drawText(ctx, `f ${String(f).padStart(4, '0')} / ${String(TOTAL).padStart(4, '0')}`, 2, 2, '#fff2a0');
   debugTex.tex.needsUpdate = true;
 }
+// connector graph: mail fans out from the bots through a connector to each platform
+const connGraph = canvasTex(320, 180);
+const connMesh = hudSprite(connGraph, 17, 0, 0);
+const connFaces = CAST.map((c) => hudSprite(c.tex.front, 18, 0.5, 0.5));
+const connMail = Array.from({ length: 15 }, () => hudSprite(letterTexes.lark, 19, 0.5, 0.5));
+const connChips = [0, 1, 2].map(() => hudSprite({ tex: plannedChip.material.map, w: 72, h: 26 }, 19, 0, 0.5));
+const CONN = { hub: [124, 118], bots: [[40, 148], [40, 118], [40, 88]], plats: [[226, 168, 'lark', 'LARK'], [226, 143, 'slack', 'SLACK'], [226, 118, 'discord', 'DISCORD'], [226, 93, 'wechat', 'WECHAT'], [226, 68, 'qq', 'QQ']] };
+function connPath(bot, plat, u) {
+  const [bx, by] = CONN.bots[bot];
+  const [hx, hy] = CONN.hub;
+  const [px, py] = CONN.plats[plat];
+  if (u < 0.45) { const t = u / 0.45; return [lerp(bx + 14, hx - 18, t), lerp(by, hy, ease(t))]; }
+  const t = (u - 0.45) / 0.55;
+  return [lerp(hx + 18, px - 14, t), lerp(hy, py, ease(Math.min(1, t * 1.4)))];
+}
+function renderConnGraph(f) {
+  const on = within(f, 2186, 2520);
+  connMesh.visible = on;
+  connFaces.forEach((m) => { m.visible = on; });
+  connMail.forEach((m) => { m.visible = false; });
+  connChips.forEach((c) => { c.visible = false; });
+  if (!on) return;
+  const k = step8(span(f, 2186, 2214));
+  const grow = ease(span(f, 2200, 2260));
+  const { ctx } = connGraph;
+  ctx.clearRect(0, 0, 320, 180);
+  const Y = (y) => 180 - y;
+  const lineTo = (pts, color) => {
+    for (let i = 0; i <= 120; i++) {
+      const u = i / 120;
+      if (u > grow) break;
+      const [x, y] = pts(u);
+      rect(ctx, Math.round(x), Math.round(Y(y)) - 1, 1, 3, color);
+    }
+  };
+  CONN.bots.forEach((_, b) => lineTo((u) => connPath(b, 1, u * 0.45), '#fff2a0'));
+  CONN.plats.forEach((p, i) => lineTo((u) => connPath(1, i, 0.45 + u * 0.55), [PAL.lark, '#e01e5a', PAL.discord, '#07c160', '#12b7f5'][i]));
+  // hub
+  const [hx, hy] = CONN.hub;
+  box(ctx, hx - 20, Y(hy) - 8, 40, 16, '#241f30', '#fff2a0');
+  drawText(ctx, 'CONNECTOR', hx - Math.floor(textWidth('CONNECTOR') / 2), Y(hy) - 2, '#fff2a0');
+  CONN.plats.forEach(([px, py, id, label]) => {
+    box(ctx, px - 11, Y(py) - 11, 22, 22, '#ffffff', INK);
+    ctx.save(); ctx.translate(px - 9, Y(py) - 9); ctx.scale(1.5, 1.5); drawLogo(ctx, id, 0, 0, 1); ctx.restore();
+    drawText(ctx, label, px + 15, Y(py) - 2, '#ffffff');
+  });
+  connGraph.tex.needsUpdate = true;
+  connMesh.position.set(0, 0, 0);
+  connMesh.material.opacity = k;
+  connFaces.forEach((m, i) => { m.position.set(CONN.bots[i][0], CONN.bots[i][1], 0); m.scale.set(0.8, 0.8, 1); m.material.opacity = k; });
+  if (f >= 2260) {
+    connMail.forEach((m, i) => {
+      const plat = i % 5;
+      const bot = Math.floor(i / 5) % 3;
+      const u = (((f - 2260) / 150 + i / 15) % 1);
+      const [x, y] = connPath(bot, plat, u);
+      m.visible = true;
+      swap(m, letterTexes[CONN.plats[plat][2]]);
+      m.geometry = geometry(28, 18, 0.5, 0.5);
+      m.position.set(Math.round(x), Math.round(y), 0);
+      m.scale.set(0.6, 0.6, 1);
+    });
+    [2, 3, 4].forEach((pi, k) => {
+      const [px, py, , label] = CONN.plats[pi];
+      connChips[k].visible = true;
+      connChips[k].position.set(px + 15 + textWidth(label) + 4, py, 0);
+      connChips[k].scale.set(0.5, 0.5, 1);
+    });
+  }
+}
 // overlay: narration, titles and the frame counter sit above every module
 const overlay = new THREE.Scene();
 for (const o of [dialog.mesh, mascot, plannedChip, titleBg, titleLogo, titleText, endText, fadeQuad, debugMesh]) overlay.add(o);
@@ -1320,13 +1460,13 @@ function renderLegacy(f) {
       to = [plat.x + 12, TOWER.y + 30];
       tex = letterTexes[plat.id];
     }
-    pg.bird.visible = pg.letter.visible = true;
-    swap(pg.bird, pigeonFrames[Math.floor(f / 5) % 2]);
+    pg.bird.visible = false;
+    pg.letter.visible = true;
     swap(pg.letter, tex);
     const x = lerp(from[0], to[0], ease(t));
     const y = lerp(from[1], to[1], ease(t)) + Math.sin(t * Math.PI) * 26;
     place(pg.bird, x, y, 650);
-    place(pg.letter, x, y - 2, 649);
+    place(pg.letter, x, y + 4 + (Math.floor(f / 6) % 2), 649);
   }
 
   // slack ZIP crates near Theo
@@ -1425,6 +1565,9 @@ function renderLegacy(f) {
     setRect(divider, L.worldW, 0, 1, VIEW_H);
     divider.material.opacity = 1;
   }
+
+  renderConnGraph(f);
+  if (within(f, 2186, 2520)) { dimOverlay.visible = true; setRect(dimOverlay, 0, 0, VIEW_W, VIEW_H); dimOverlay.material.opacity = step8(span(f, 2186, 2214) * 0.84); }
 
   // UI panel
   const ui = beat?.ui ? UI[beat.ui] : null;
@@ -1596,7 +1739,7 @@ const SEGMENTS = [
   { id: 'legacy', len: 3840, from: 2160 },
   { id: 'wall', len: 480 },
   { id: 'eco', len: 840 },
-  { id: 'city', len: 2400 },
+  { id: 'city', len: 1080 },
   { id: 'end', len: 360 },
 ];
 let segStart = 0;
@@ -2217,10 +2360,11 @@ VX.scene.background = new THREE.Color('#9fd4f2');
 VX.scene.fog = new THREE.Fog('#bfe3f5', 500, 1500);
 VX.scene.add(new THREE.HemisphereLight('#e8f6ff', '#5f7d3c', 1.15));
 const vxSun = new THREE.DirectionalLight('#fff3dc', 1.7);
-vxSun.position.set(-260, 420, 180);
+vxSun.position.set(-300, 560, 220);
 vxSun.castShadow = true;
 vxSun.shadow.mapSize.set(2048, 2048);
-Object.assign(vxSun.shadow.camera, { left: -520, right: 520, top: 520, bottom: -520, near: 10, far: 1400 });
+Object.assign(vxSun.shadow.camera, { left: -500, right: 500, top: 500, bottom: -500, near: 10, far: 1600 });
+vxSun.shadow.mapSize.set(4096, 4096);
 vxSun.shadow.bias = -0.0008;
 vxSun.shadow.normalBias = 0.6;
 VX.scene.add(vxSun);
@@ -2397,7 +2541,7 @@ function house(x0, z0, w, d, o = {}) {
     for (let y = base + wallH; y < base + wallH + layers + 2; y++) put(cx, y, cz, BLOCK.brick);
     VX.smoke.push([cx, base + wallH + layers + 2, cz]);
   }
-  if (o.sign) SIGNS.push({ label: o.sign, bx: door[0], y: base + 2.4, bz: door[1], face });
+  if (o.sign) SIGNS.push({ label: o.sign, bx: x0 + (w - 1) / 2, y: base + wallH + layers + 1.6, bz: z0 + (d - 1) / 2, face });
   return { base, door, x0, z0, w, d };
 }
 function tree(x, z, kind = 'oak') {
@@ -2476,6 +2620,15 @@ for (const [kx, kz] of [...roadCells.keys()].map((k) => k.split(',').map(Number)
   put(kx, 7, kz, BLOCK.plank);
 }
 for (let x = LAKE.x - 24; x < LAKE.x - 12; x++) for (let z = LAKE.z - 4; z <= LAKE.z - 2; z++) put(x, 7, z, BLOCK.plank);
+// keep the camera's street walk clear of lamps and trees
+for (let i = 0; i < ROADS[1].length - 1; i++) {
+  const [p0, p1] = [ROADS[1][i], ROADS[1][i + 1]];
+  for (let k = 0; k <= 40; k++) {
+    const x = Math.round(lerp(p0[0], p1[0], k / 40));
+    const z = Math.round(lerp(p0[1], p1[1], k / 40));
+    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) used.add(`${x + dx},${z + dz}`);
+  }
+}
 // lamps along the roads
 for (const road of ROADS.slice(0, 3))
   for (let i = 0; i < road.length - 1; i++) {
@@ -2580,9 +2733,9 @@ function vxBoard(t, bx, by, bz, scale = 0.55) {
 }
 const signTexCache = new Map();
 for (const s of SIGNS) {
-  if (!signTexCache.has(s.label)) signTexCache.set(s.label, canvasTex(textWidth(s.label) + 8, 9, (ctx, w) => { box(ctx, 0, 0, w, 9, PAL.paper); drawText(ctx, s.label, 4, 2, INK); }));
-  const off = { south: [0, 0.75], north: [0, -0.75], east: [0.75, 0], west: [-0.75, 0] }[s.face];
-  vxBoard(signTexCache.get(s.label), s.bx + off[0], s.y, s.bz + off[1], 0.9);
+  if (!signTexCache.has(s.label)) signTexCache.set(s.label, canvasTex(textWidth(s.label) + 10, 13, (ctx, w) => { box(ctx, 0, 0, w, 11, '#3b3448', '#fff2a0'); drawText(ctx, s.label, 5, 3, '#fff2a0'); rect(ctx, Math.floor(w / 2) - 1, 11, 2, 2, '#fff2a0'); }));
+  const label = vxBoard(signTexCache.get(s.label), s.bx, s.y, s.bz, 1.5);
+  label.castShadow = false;
 }
 VX.smokeBoards = VX.smoke.map(([bx, y, bz]) => [0, 1, 2].map(() => vxBoard(puffTex, bx, y, bz, 1.1)));
 // walkers on the roads
@@ -2597,7 +2750,7 @@ function roadPoint(road, u) {
   }
   return road[road.length - 1];
 }
-VX.walkers = CROWD.map((cr, i) => ({ road: ROADS[i % 3], u: hash(i, 31), speed: (0.00018 + hash(i, 32) * 0.0002) * (i % 2 ? 1 : -1), side: (hash(i, 33) - 0.5) * 2.4, mesh: vxBoard(cr.tex, 0, 0, 0) }));
+VX.walkers = CROWD.map((cr, i) => ({ road: ROADS[[0, 2, 3, 4, 5][i % 5]], u: hash(i, 31), speed: (0.00018 + hash(i, 32) * 0.0002) * (i % 2 ? 1 : -1), side: (hash(i, 33) - 0.5) * 2.4, mesh: vxBoard(cr.tex, 0, 0, 0) }));
 const OUT = { south: [0, 1], north: [0, -1], east: [1, 0], west: [-1, 0] };
 VX.cast = CAST.map((c, i) => {
   const [v, face] = [[VENUES.library, 'north'], [VENUES.tavern, 'north'], [VENUES.smithy, 'south']][i];
@@ -2641,50 +2794,35 @@ const vxCloudTex = canvasTex(120, 46, (ctx) => {
 });
 VX.clouds = Array.from({ length: 10 }, (_, i) => vxBoard(vxCloudTex, (hash(i, 41) - 0.5) * 400 + C, 90 + (i % 4) * 6, (hash(i, 42) - 0.5) * 400 + C, 3 + (i % 3)));
 
-// drone: [frame, targetBx, targetBz, distance, yawDeg, pitchDeg]
-const VDRONE = [
-  [0, C, C, 760, 20, 50],
-  [300, C, C + 4, 240, 10, 40],
-  [480, VENUES.kitchen.door[0], VENUES.kitchen.door[1] + 2, 190, -15, 38],
-  [660, VENUES.smithy.door[0], VENUES.smithy.door[1] + 2, 190, 20, 36],
-  [840, VENUES.tavern.door[0], VENUES.tavern.door[1] - 3, 200, 165, 38],
-  [1040, 160, 116, 230, 75, 38],
-  [1240, 56, 66, 280, -55, 40],
-  [1420, VENUES.theo.x0 + 3, VENUES.theo.z0 + 8, 210, 5, 38],
-  [1600, VENUES.library.door[0], VENUES.library.door[1] - 3, 210, 185, 36],
-  [1780, 120, 156, 220, 15, 38],
-  [1960, LAKE.x - 12, LAKE.z - 8, 240, 215, 38],
-  [2240, C, C, 700, 205, 47],
-  [2400, C, C, 760, 210, 49],
-];
-function vdroneAt(f) {
-  for (let i = 1; i < VDRONE.length; i++) {
-    const a = VDRONE[i - 1];
-    const b = VDRONE[i];
-    if (f < b[0]) {
-      const t = ease((f - a[0]) / (b[0] - a[0]));
-      let dy = b[4] - a[4];
-      if (dy > 180) dy -= 360;
-      if (dy < -180) dy += 360;
-      return [lerp(a[1], b[1], t), lerp(a[2], b[2], t), 1 / lerp(1 / a[3], 1 / b[3], t), a[4] + dy * t, lerp(a[5], b[5], t)];
-    }
-  }
-  const l = VDRONE[VDRONE.length - 1];
-  return [l[1], l[2], l[3], l[4], l[5]];
+// camera: walk the lane between the houses at eye height, then crane up over the whole valley
+const STREET = [[123, 30], [124, 46], [126, 62], [123, 78], [117, 94], [118, 108], [121, 116]];
+const streetCurve = new THREE.CatmullRomCurve3(STREET.map(([bx, bz]) => { const [x, z] = [(bx - C) * VX.S, (bz - C) * VX.S]; return new THREE.Vector3(x, 0, z); }), false, 'centripetal');
+const EYE = 15;
+const AERIAL = { yaw: (205 * Math.PI) / 180, pitch: (48 * Math.PI) / 180, dist: 720 };
+function voxelCamera(c) {
+  const walk = clamp(c / 600, 0, 1);
+  const u = 0.02 + walk * 0.9;
+  const p = streetCurve.getPointAt(u);
+  const ahead = streetCurve.getPointAt(Math.min(1, u + 0.06));
+  const ground = (v) => top(Math.round(v.x / VX.S + C), Math.round(v.z / VX.S + C)) * VX.S;
+  const street = { pos: new THREE.Vector3(p.x, ground(p) + EYE, p.z), look: new THREE.Vector3(ahead.x, ground(ahead) + EYE - 4, ahead.z) };
+  const centre = new THREE.Vector3(0, top(C, C) * VX.S, 0);
+  const crane = ease(span(c, 560, 920));
+  const orbit = AERIAL.yaw + span(c, 560, 1080) * 0.35;
+  const aerialPos = new THREE.Vector3(Math.cos(AERIAL.pitch) * Math.sin(orbit) * AERIAL.dist, centre.y + Math.sin(AERIAL.pitch) * AERIAL.dist, Math.cos(AERIAL.pitch) * Math.cos(orbit) * AERIAL.dist);
+  const pos = street.pos.clone().lerp(aerialPos, crane);
+  pos.y = lerp(street.pos.y, aerialPos.y, ease(span(c, 560, 940)) ** 1.4);
+  const look = street.look.clone().lerp(centre, ease(span(c, 540, 860)));
+  return { pos, look, dist: lerp(60, AERIAL.dist, crane) };
 }
 function renderVoxel(c, { narration = true } = {}) {
-  const [tbx, tbz, dist, yawD, pitchD] = vdroneAt(c);
-  const yaw = ((yawD + Math.sin(c * 0.004) * 3) * Math.PI) / 180;
-  const pitch = (pitchD * Math.PI) / 180;
-  const [tx, tz] = W(tbx, tbz);
-  const ty = top(Math.round(tbx), Math.round(tbz)) * VX.S;
   const cam = VX.cam;
-  cam.position.set(tx + dist * Math.cos(pitch) * Math.sin(yaw), ty + dist * Math.sin(pitch), tz + dist * Math.cos(pitch) * Math.cos(yaw));
-  cam.lookAt(tx, ty + 8, tz);
+  const { pos, look, dist } = voxelCamera(c);
+  cam.position.copy(pos);
+  cam.lookAt(look);
   VX.scene.fog.near = dist * 0.75 + 160;
   VX.scene.fog.far = dist * 1.7 + 520;
-  vxSun.position.set(tx - 260, 520, tz + 200);
-  vxSun.target.position.set(tx, 0, tz);
+  const yaw = Math.atan2(cam.position.x - look.x, cam.position.z - look.z);
   for (const m of VX.boards) m.rotation.y = yaw;
   // smoke
   VX.smokeBoards.forEach((puffs, i) => puffs.forEach((m, k) => {
@@ -2722,7 +2860,7 @@ function renderVoxel(c, { narration = true } = {}) {
   });
   millBlades.rotation.z = c * 0.02;
   boatModels.forEach((b, i) => { const [x, z] = W(VX.boats[i][0] + Math.sin(c * 0.005 + i) * 3, VX.boats[i][1]); b.position.set(x, 7 * VX.S + Math.sin(c * 0.05 + i) * 0.6, z); });
-  VX.clouds.forEach((m, i) => { m.visible = dist > 450; m.position.x = ((hash(i, 41) * 1600 + c * 0.3) % 1600) - 800; });
+  VX.clouds.forEach((m, i) => { m.visible = false; m.position.x = ((hash(i, 41) * 1600 + c * 0.3) % 1600) - 800; });
   // cast morphs through their work
   const states = [['read', 'search'], ['todo', 'write'], ['bash', 'edit']];
   VX.cast.forEach((cc, i) => {
@@ -2739,8 +2877,8 @@ function renderVoxel(c, { narration = true } = {}) {
   renderer.clear();
   renderer.render(VX.scene, cam);
   hideOverlay();
-  if (narration) narrate(c, [[340, NARRATOR, T('city1')], [800, NARRATOR, T('city2')], [1400, NARRATOR, T('city3')]].filter(() => c < 2160));
-  if (c >= 2340) { fadeQuad.visible = true; setRect(fadeQuad, 0, 0, VIEW_W, VIEW_H); fadeQuad.material.opacity = step8(span(c, 2340, 2400)); }
+  if (narration) narrate(c, [[60, NARRATOR, T('city1')], [520, NARRATOR, T('city3')]].filter(() => c < 960));
+  if (c >= 1020) { fadeQuad.visible = true; setRect(fadeQuad, 0, 0, VIEW_W, VIEW_H); fadeQuad.material.opacity = step8(span(c, 1020, 1080)); }
 }
 
 // ===== end card: open source line, then the title card that frame 0 starts on ==========
@@ -2813,8 +2951,8 @@ function barPlan(bar) {
   if (bar < 64) return { sec: 'group', lead: ['m1', 'm2', 'm1'][Math.floor((bar - 52) / 4) % 3], drums: 'full', leadVol: 0.55, harmony: true };
   if (bar < 74) return { sec: 'adventure', lead: ['a1', 'a2'][Math.floor((bar - 64) / 4) % 2], drums: 'drive', leadVol: 0.55 };
   if (bar < 85) return { sec: 'build', lead: bar < 78 ? 'm3' : 'm1', drums: bar < 78 ? 'light' : 'full', leadVol: 0.5 };
-  if (bar < 105) return { sec: 'finale', lead: ['m1', 'm2'][Math.floor((bar - 85) / 4) % 2], drums: 'full', leadVol: 0.6, harmony: true };
-  return { sec: 'end', lead: bar === 105 ? 'm3' : 'end', drums: bar === 106 ? 'light' : null, leadVol: 0.45 };
+  if (bar < 94) return { sec: 'finale', lead: ['m1', 'm2'][Math.floor((bar - 85) / 4) % 2], drums: 'full', leadVol: 0.6, harmony: true };
+  return { sec: 'end', lead: bar === 94 ? 'm3' : 'end', drums: bar === 95 ? 'light' : null, leadVol: 0.45 };
 }
 const LAST_BAR = TOTAL / BAR - 1;
 function chordFor(bar) {
