@@ -14,7 +14,7 @@
 
 ## 导出一个文件
 
-1. **导出 Profile** 展示完整 core：Bot 数量、全量 operational database、全部 Soul／Memory、可达 Attachment、依赖 manifest 和 purge checkpoint。core 不提供复选框或逐 Bot 选择。排除 provider 凭据、可执行 Plugin 和 Workspace 内容。Model Preset 与每个 Bot 独立 Model Plan 属于完整 core，不能用单独导出模型文件代替（[#505](https://github.com/BotHarness/BotHarness/issues/505)）。
+1. **导出 Profile** 展示完整 core：Bot 数量、全量 operational database、全部 Soul／Memory、可达 Attachment、依赖 manifest 和 purge checkpoint。core 不提供复选框或逐 Bot 选择。摘要明确列出敏感 core 数据：消息／Source Event 内容及修订、非 secret 账号描述、授权／Service Grant／Trigger 记录、Outbox 与审计历史；取消勾选 DSH 会话历史也不会排除这些记录。排除 provider 凭据、可执行 Plugin 和 Workspace 内容。Model Preset 与每个 Bot 独立 Model Plan 属于完整 core，不能用单独导出模型文件代替（[#505](https://github.com/BotHarness/BotHarness/issues/505)）。
 2. 当前 Session Persistence adapter 支持可移植导入／导出时，默认勾选 **包含 DSH 会话历史**，展示引用的 Session 数量、估算字节及“会话历史可能含私人对话和工具结果”。不支持时禁用并说明：“此存储适配器无法包含会话内容；保留归属和历史关联，但这些会话不能恢复执行。” Human 主动取消勾选时也展示不可用内容说明。
 3. 展示未压缩内容估算与目标可用空间，说明压缩文件实际大小完成后才确定；未知估算显示未知，不当作零。Host 最终空间检查计入 staging／工作空间需求，空间不足则拒绝。Human 授权选择一个 `.botharness-backup` 保存位置；v1 遇到同名文件拒绝覆盖，提供另选名称，保留旧文件。
 4. 确认文案：“创建一个备份文件，包含私人运行数据，但不包含凭据。旧文件只能知道其 checkpoint 前的删除记录。” 按钮 **导出**；原子发布前允许取消。
@@ -51,6 +51,8 @@
 **移至另一设备** 是导出内的选项，不是第三套目录。开始前：“这将停止此设备的新工作，并在目标设备保留相同身份。” source quiesce、关闭 ingress／外部执行入口，使用已有 lifecycle 规则 drain 或分类 in-flight work。只有绑定唯一 Transfer Generation 的文件校验成功，才允许 source 持久化为 **Transferred out**。准备／导出失败不得显示成功迁移，Host 必须报告实际 durable source state 与安全恢复动作。
 
 source 完成页显示 **已迁出 — 此设备保持停用**、generation、文件凭证和目标导入步骤。重启 source、恢复凭据、改变 archive 都不能清除 gate。目标导入检查 generation 并说明“重新绑定本地账号和 Workspace，再激活”。仅持有文件不能证明当前唯一 holder。
+
+source 的 Transferred out 页提供 **取消迁移**，先检查目标 activation evidence。只有确认目标未激活，才展示确认：“使本次迁移 generation 失效，并恢复此设备原先获授权的入口。该迁移文件将不能用于普通激活。” 按钮 **取消迁移并恢复此设备**；成功显示 **迁移已取消 — 此设备恢复使用资格**，展示失效 generation 的凭证，未知 in-flight 结果不会因此 replay。关闭确认弹窗保留 Transferred out。检查无法确定目标状态时，保留 gate 并显示“无法确认目标尚未激活，请恢复连接后重试；目标丢失时使用显式灾难恢复”，不得执行取消。已确认激活则显示“目标已经激活，需要从目标反向迁移”，不提供本地撤销。
 
 Transfer eligibility 与取消是实现前置检查点：activation evidence 必须绑定 generation；取消必须先验证目标尚未激活并使 generation 失效。离线文件不能证明取消信息的新鲜度或唯一性。无法建立 eligibility 时拒绝普通 activation，提供显式 Disaster Restore，不承诺尚未实现的协调服务。Human 接受 UX 不等于选择 distributed protocol；第一次迁移切片必须记录并验证实际支持的 handoff 才能宣称交付。
 
