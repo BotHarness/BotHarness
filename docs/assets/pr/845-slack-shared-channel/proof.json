@@ -266,7 +266,7 @@
       "messageId": "1791179279.053029",
       "conversationId": "C0C6FPES0G5"
     },
-    "nativeClientScreenshot": "slack-thread-reply.png"
+    "nativeClientScreenshot": "slack-thread-reply.jpg"
   },
   "regressionBoundary": "Independent two-member admissions, changed-delivery-ID deduplication, unconnected Channel isolation and borrowed-identity refusal are automated checked-Provider regressions; the real Slack run used one Bot App.",
   "tests": {

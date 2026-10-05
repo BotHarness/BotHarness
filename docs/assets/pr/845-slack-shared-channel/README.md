@@ -37,15 +37,15 @@ Open the retained local QA page, select **Slack 共享来源 QA #845**, click th
 
 | View                   | Before                                  | After                                 |
 | ---------------------- | --------------------------------------- | ------------------------------------- |
-| Member reminder, light | [Before](before-member-policy.png)      | [After](after-member-policy.png)      |
-| Member reminder, dark  | [Before](before-member-policy-dark.png) | [After](after-member-policy-dark.png) |
-| Add connector          | [Before](before-connector-add.png)      | [After](after-connector-add.png)      |
-| Edit connector         | [Before](before-connector-edit.png)     | [After](after-connector-edit.png)     |
-| Create Channel         | [Before](before-create-channel.png)     | [After](after-create-channel.png)     |
-| Empty Channel          | [Before](before-channel.png)            | [After](after-channel.png)            |
+| Member reminder, light | [Before](before-member-policy.jpg)      | [After](after-member-policy.jpg)      |
+| Member reminder, dark  | [Before](before-member-policy-dark.jpg) | [After](after-member-policy-dark.jpg) |
+| Add connector          | [Before](before-connector-add.jpg)      | [After](after-connector-add.jpg)      |
+| Edit connector         | [Before](before-connector-edit.jpg)     | [After](after-connector-edit.jpg)     |
+| Create Channel         | [Before](before-create-channel.jpg)     | [After](after-create-channel.jpg)     |
+| Empty Channel          | [Before](before-channel.jpg)            | [After](after-channel.jpg)            |
 
-![Native own-identity thread reply](slack-thread-reply.png)
+![Native own-identity thread reply](slack-thread-reply.jpg)
 
-![Retained shared Channel after cold restart](restart-channel.png)
+![Retained shared Channel after cold restart](restart-channel.jpg)
 
-![Exact native/source metadata](restart-source-details.png)
+![Exact native/source metadata](restart-source-details.jpg)
