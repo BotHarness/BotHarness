@@ -345,6 +345,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Assignment answers retain their original question until native Inbox acceptance; proven delivery preparation failures remain retryable, uncertain delivery stays visible for repair and older answers cannot clear newer questions ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
 
+- Human Inbox action buttons now open the same split detail view as the row; titles span the full first line above summaries and actions, and compact-entry dialogs have more room ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
+
 - Idle Assignment continuation and keyed reuse now respect the same profile-wide concurrency limit as new work, preserving unanswered questions when capacity is full ([#811](https://github.com/BotHarness/BotHarness/issues/811)).
 - Channel sidebar edit mode omits expansion chevrons and supports dragging the whole row; dragging now previews the actual draft order with a clear insertion line, accepts row labels as drop surfaces and restores the pre-drag draft on cancellation ([#808](https://github.com/BotHarness/BotHarness/issues/808)).
 

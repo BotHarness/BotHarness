@@ -5294,10 +5294,6 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-human-inbox-list {
   min-width: 0;
 }
-@media (max-width: 720px) {
-  .bh-human-inbox-row { flex-wrap: wrap; }
-  .bh-human-inbox-row-actions { margin-left: auto; }
-}
 @media (max-width: 1000px) {
   .bh-human-inbox-with-context .bh-human-inbox-workspace {
     grid-template-columns: minmax(0, 1fr);
@@ -5354,10 +5350,10 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-human-inbox-selector > svg { flex-shrink: 0; }
 .bh-human-inbox-row {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   min-height: 76px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--dsw-alias-border-l3);
@@ -5379,8 +5375,15 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-human-inbox-row-main {
   position: relative;
   pointer-events: none;
-  flex: 1;
   min-width: 0;
+}
+.bh-human-inbox-action-dialog {
+  width: min(760px, 100%);
+  max-height: 100%;
+}
+.bh-human-inbox-action-dialog-content {
+  min-height: 0;
+  overflow-y: auto;
 }
 .bh-human-inbox-source-link {
   position: relative;
@@ -5536,6 +5539,10 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
   outline-offset: 2px;
 }
 .bh-human-inbox-row-title {
+  position: relative;
+  pointer-events: none;
+  grid-column: 1 / -1;
+  min-width: 0;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -5625,8 +5632,7 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-session-role-icon {display:flex;align-items:center;flex-shrink:0;}
 .bh-overview-actions {padding:0;overflow:visible;}
 .bh-overview-actions .bh-human-inbox-inner {width:100%;margin:0;}
-.bh-overview-actions .bh-human-inbox-row {min-height:64px;padding:10px 12px;flex-wrap:wrap;}
-.bh-overview-actions .bh-human-inbox-row-main {flex-basis:160px;}
+.bh-overview-actions .bh-human-inbox-row {min-height:64px;padding:10px 12px;}
 .bh-overview-actions .bh-human-inbox-row-actions {margin-left:auto;}
 .bh-overview-actions .bh-human-inbox-row-title {font-weight:500;}
 .bh-overview-actions .bh-human-inbox-row:last-child {border-bottom:0;}
