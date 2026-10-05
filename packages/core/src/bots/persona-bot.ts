@@ -1,5 +1,11 @@
 import { isPersonaBotModelPlan, type PersonaBotModelPlan } from '../models/presets.js';
-import { isAvatarAppearance, type AvatarAppearance } from './avatar-appearance.js';
+import { createHash } from 'node:crypto';
+import {
+  isAvatarAppearance,
+  isRetainedAvatarAppearance,
+  type AvatarAppearance,
+  type RetainedAvatarAppearance,
+} from './avatar-appearance.js';
 
 export interface PersonaBotRecord {
   slug: string;
@@ -9,7 +15,7 @@ export interface PersonaBotRecord {
   tag?: string;
   description?: string;
   avatar?: string;
-  appearance?: AvatarAppearance;
+  appearance?: AvatarAppearance | RetainedAvatarAppearance;
   model?: string;
   modelPlan?: PersonaBotModelPlan;
   preset?: string;
@@ -86,6 +92,20 @@ export function isPersonaBotAvatar(value: unknown): value is string {
       : bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
 }
 
+export function isUsableAvatarAppearance(
+  appearance: unknown,
+  avatar: unknown,
+): appearance is AvatarAppearance | RetainedAvatarAppearance {
+  if (!isAvatarAppearance(appearance) && !isRetainedAvatarAppearance(appearance)) return false;
+  if (!isPersonaBotAvatar(avatar) || !avatar.startsWith('data:image/png;base64,')) return false;
+  const png = Buffer.from(avatar.slice('data:image/png;base64,'.length), 'base64');
+  const revision = createHash('sha256')
+    .update(JSON.stringify(appearance.recipe))
+    .update(png)
+    .digest('hex');
+  return revision === appearance.revision;
+}
+
 export interface RemovePersonaBotOptions {
   purge?: boolean;
 }
@@ -105,7 +125,7 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
     return false;
   if (
     record['appearance'] !== undefined &&
-    (!isAvatarAppearance(record['appearance']) || !isPersonaBotAvatar(record['avatar']))
+    !isUsableAvatarAppearance(record['appearance'], record['avatar'])
   )
     return false;
   if (!Array.isArray(record['workspaces'])) return false;

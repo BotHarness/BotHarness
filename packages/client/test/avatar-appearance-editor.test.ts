@@ -3,6 +3,7 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 import { AvatarAppearanceEditor } from '../src/client/avatar-appearance-editor.js';
+import { parseBotSummaries } from '../src/client/bridge.js';
 import {
   AVATAR_HAIR_PARTS,
   AVATAR_PARTS,
@@ -209,6 +210,56 @@ describe('Profile Avatar Appearance editing', () => {
         eyes: 'cross',
         spacing: 3,
       });
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+});
+
+describe('unsupported saved appearance', () => {
+  it('shows the saved snapshot, explains the pause and keeps editing closed', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const [bot] = parseBotSummaries({
+      bots: [
+        {
+          slug: 'ada',
+          displayName: 'Ada',
+          workspaces: [],
+          createdAt: '',
+          avatar: 'data:image/png;base64,iVBORw0KGgo=',
+          appearance: {
+            revision: 'a'.repeat(64),
+            recipe: {
+              family: 'illustrated',
+              schemaVersion: 1,
+              assetVersion: 2,
+              rigVersion: 1,
+              tail: 'swirl',
+            },
+          },
+        },
+      ],
+    });
+    expect(bot?.appearance).toBeUndefined();
+    expect(bot?.appearanceUnsupported).toBe(true);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot: bot!,
+            channelId: 'dm-ada',
+            onSave: vi.fn(async () => true),
+            t: zhTranslate,
+          }),
+        ),
+      );
+      expect(container.querySelector('[data-avatar-unsupported]')).not.toBeNull();
+      expect(container.querySelector<HTMLButtonElement>('[data-avatar-edit]')?.disabled).toBe(true);
+      expect(container.querySelector('[data-avatar-preview] img')).not.toBeNull();
     } finally {
       await act(() => root.unmount());
       container.remove();

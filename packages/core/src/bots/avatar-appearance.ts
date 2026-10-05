@@ -257,6 +257,47 @@ export function isIllustratedAvatarRecipe(value: unknown): value is IllustratedA
   );
 }
 
+export interface RetainedAvatarAppearance {
+  revision: string;
+  recipe: Readonly<Record<string, string | number>>;
+}
+
+const RETAINED_KEY = /^[A-Za-z][A-Za-z0-9]{0,31}$/u;
+const RETAINED_TEXT = /^[#A-Za-z0-9_-]{1,32}$/u;
+
+export function isRetainedAvatarAppearance(value: unknown): value is RetainedAvatarAppearance {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const appearance = value as Record<string, unknown>;
+  const recipe = appearance['recipe'];
+  if (
+    Object.keys(appearance).length !== 2 ||
+    typeof appearance['revision'] !== 'string' ||
+    !/^[a-f\d]{64}$/u.test(appearance['revision']) ||
+    typeof recipe !== 'object' ||
+    recipe === null ||
+    Array.isArray(recipe) ||
+    Object.getPrototypeOf(recipe) !== Object.prototype
+  )
+    return false;
+  const entries = Object.entries(recipe);
+  const version = (key: string) => {
+    const v = (recipe as Record<string, unknown>)[key];
+    return typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 1_000;
+  };
+  return (
+    entries.length >= 1 &&
+    entries.length <= 64 &&
+    entries.every(
+      ([key, v]) =>
+        RETAINED_KEY.test(key) &&
+        ((typeof v === 'string' && RETAINED_TEXT.test(v)) ||
+          (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= 1_000_000)),
+    ) &&
+    typeof (recipe as Record<string, unknown>)['family'] === 'string' &&
+    ['schemaVersion', 'assetVersion', 'rigVersion'].every(version)
+  );
+}
+
 export function isAvatarAppearance(value: unknown): value is AvatarAppearance {
   if (typeof value !== 'object' || value === null) return false;
   const appearance = value as Record<string, unknown>;

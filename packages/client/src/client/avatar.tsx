@@ -15,6 +15,7 @@ import {
   isAvatarAppearance,
   seededAvatarRecipe,
   type AvatarAppearance,
+  type RetainedAvatarAppearance,
   pixelSymbolFor,
 } from '../../../core/src/bots/avatar-appearance.js';
 import { IllustratedAvatar } from './illustrated-avatar.js';
@@ -41,7 +42,7 @@ export interface PersonaBotAvatarProps {
   name: string;
   size: number;
   src?: string | undefined;
-  appearance?: AvatarAppearance | undefined;
+  appearance?: AvatarAppearance | RetainedAvatarAppearance | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;
@@ -56,7 +57,7 @@ export interface PersonaBotFacepileItem {
   personaBotId: string;
   name: string;
   src?: string | undefined;
-  appearance?: AvatarAppearance | undefined;
+  appearance?: AvatarAppearance | RetainedAvatarAppearance | undefined;
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   activity?: PersonaBotToolActivity | undefined;

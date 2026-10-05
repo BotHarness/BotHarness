@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createPersonaBotRegistry, isValidSlug } from '../src/index.js';
 import * as atomicFiles from '../src/fs/atomic-write.js';
-import { DEFAULT_ILLUSTRATED_RECIPE } from '../src/bots/avatar-appearance.js';
+import { createHash } from 'node:crypto';
+import { DEFAULT_ILLUSTRATED_RECIPE, avatarSvg } from '../src/bots/avatar-appearance.js';
+import { DEFAULT_LINE_RECIPE } from '../src/bots/avatar-line.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
 
 const roots: string[] = [];
@@ -61,6 +63,77 @@ describe('createPersonaBotRegistry', () => {
     } finally {
       writer.mockRestore();
     }
+  });
+
+  it('retains an unsupported but safe appearance with its paired snapshot and drops unsafe or mismatched ones without losing the Bot', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    expect(registry.setAppearance('ada', DEFAULT_ILLUSTRATED_RECIPE).ok).toBe(true);
+    const file = join(root, 'ada', 'bot.json');
+    const saved = JSON.parse(readFileSync(file, 'utf8')) as {
+      avatar: string;
+      appearance: { recipe: Record<string, unknown>; revision: string };
+    };
+    const png = Buffer.from(saved.avatar.split(',')[1]!, 'base64');
+    const pair = (recipe: Record<string, unknown>) => ({
+      recipe,
+      revision: createHash('sha256').update(JSON.stringify(recipe)).update(png).digest('hex'),
+    });
+    const future = { ...saved.appearance.recipe, assetVersion: 2, tail: 'swirl', wiggle: 3 };
+    writeFileSync(file, JSON.stringify({ ...saved, appearance: pair(future) }));
+    const retained = createPersonaBotRegistry({ rootDir: root });
+    expect(retained.get('ada')?.appearance).toEqual(pair(future));
+    expect(retained.get('ada')?.avatar).toBe(saved.avatar);
+    expect(retained.setPaused('ada', true).ok).toBe(true);
+    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance).toEqual(
+      pair(future),
+    );
+    expect(retained.setAppearance('ada', { ...DEFAULT_ILLUSTRATED_RECIPE, hair: 'nope' }).ok).toBe(
+      false,
+    );
+    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance).toEqual(
+      pair(future),
+    );
+    for (const hostile of [
+      { ...future, tail: '<script>' },
+      { ...future, tail: 'url(x)' },
+      { ...future, tail: 'javascript:alert(1)' },
+      { ...future, tail: { nested: true } },
+      { ...future, assetVersion: 0 },
+      { ...future, family: undefined },
+    ]) {
+      writeFileSync(file, JSON.stringify({ ...saved, appearance: pair(hostile) }));
+      const bot = createPersonaBotRegistry({ rootDir: root }).get('ada');
+      expect(bot?.displayName).toBe('Ada');
+      expect(bot?.appearance).toBeUndefined();
+    }
+    writeFileSync(
+      file,
+      JSON.stringify({ ...saved, appearance: { ...saved.appearance, revision: 'f'.repeat(64) } }),
+    );
+    const mismatched = createPersonaBotRegistry({ rootDir: root }).get('ada');
+    expect(mismatched?.displayName).toBe('Ada');
+    expect(mismatched?.appearance).toBeUndefined();
+    writeFileSync(file, JSON.stringify(saved));
+    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.appearance).toEqual(
+      saved.appearance,
+    );
+  });
+
+  it('round-trips a portable recipe and snapshot through the owning validation and render path', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    const recipe = { ...DEFAULT_LINE_RECIPE, eyes: 'big', mouth: 'fang' } as const;
+    expect(registry.setAppearance('ada', recipe).ok).toBe(true);
+    const portable = JSON.stringify(registry.get('ada'));
+    const target = createRoot();
+    mkdirSync(join(target, 'ada'), { recursive: true });
+    writeFileSync(join(target, 'ada', 'bot.json'), portable);
+    const restored = createPersonaBotRegistry({ rootDir: target }).get('ada');
+    expect(restored?.appearance).toEqual(registry.get('ada')?.appearance);
+    expect(avatarSvg(restored!.appearance!.recipe as typeof recipe)).toBe(avatarSvg(recipe));
   });
 
   it('clones Git history into Memory, preserves HEAD, and leaves no Bot after failure', async () => {

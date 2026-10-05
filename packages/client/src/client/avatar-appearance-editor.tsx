@@ -219,6 +219,11 @@ export function AvatarAppearanceEditor({
           <PersonaBotStatusBadges state={state} attention={bot.attention} />
         </h3>
         <p>{t('profile.avatar.designDescription')}</p>
+        {bot.appearanceUnsupported && !draft ? (
+          <p className="bh-avatar-unsupported" data-avatar-unsupported role="note">
+            {t('profile.avatar.unsupported')}
+          </p>
+        ) : null}
         {draft && fields ? (
           <fieldset disabled={busy} className="bh-avatar-editor-fields">
             <div
@@ -398,7 +403,13 @@ export function AvatarAppearanceEditor({
               </button>
             </>
           ) : (
-            <button data-avatar-edit type="button" className="bh-profile-action" onClick={start}>
+            <button
+              data-avatar-edit
+              type="button"
+              className="bh-profile-action"
+              disabled={bot.appearanceUnsupported === true}
+              onClick={start}
+            >
               {t('profile.avatar.design')}
             </button>
           )}

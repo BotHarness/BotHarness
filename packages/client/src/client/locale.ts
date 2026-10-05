@@ -988,6 +988,8 @@ export const zh = {
   'profile.avatar.family.line': '线条',
   'profile.avatar.shape': '五官布局',
   'profile.avatar.spacing': '间距',
+  'profile.avatar.unsupported':
+    '这个头像使用的版本当前不可用，暂时显示保存时的静态图片，无法编辑或播放角色动画。原始设置已保留，版本恢复后会自动还原。',
   'profile.avatar.bangs': '刘海',
   'profile.avatar.sideHair': '侧发',
   'profile.avatar.backHair': '后发',
@@ -2505,6 +2507,8 @@ export const en = {
   'profile.avatar.family.line': 'Line',
   'profile.avatar.shape': 'Layout',
   'profile.avatar.spacing': 'Spacing',
+  'profile.avatar.unsupported':
+    'This Avatar uses a version that is not available right now, so its saved still image is shown and editing and character animation are paused. The original design is kept and returns when the version is available again.',
   'profile.avatar.bangs': 'Bangs',
   'profile.avatar.sideHair': 'Side hair',
   'profile.avatar.backHair': 'Back hair',
