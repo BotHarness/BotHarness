@@ -522,10 +522,13 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
-- Documented explicit recovery of an already started npm prerelease after main advances, retaining the original reviewed source and refusing conflicting published bytes ([#877](https://github.com/BotHarness/BotHarness/issues/877), [operator guide](docs/npm-prerelease.md)).
+- Documented the proposed Profile Backup / Restore / Transfer UX, including validation, repair and explicit activation; runtime delivery and implementation-ticket handoff still require acceptance ([#76](https://github.com/BotHarness/BotHarness/issues/76), [proposal](docs/proposals/profile-portability-ux.md)).
+
 - Added an illustrated bilingual Slack connection guide covering App setup, identity binding, channel authorization and real same-thread replies ([#874](https://github.com/BotHarness/BotHarness/issues/874), [guide](docs/slack-connection.md)).
 
 - Documented preparation and explicit publication of reviewed npm prerelease artifacts, including integrity checks, dependency order and partial-publication recovery; no public release is claimed ([#866](https://github.com/BotHarness/BotHarness/issues/866), [operator guide](docs/npm-prerelease.md)).
+
+- Documented explicit recovery of an already started npm prerelease after main advances, retaining the original reviewed source and refusing conflicting published bytes ([#877](https://github.com/BotHarness/BotHarness/issues/877), [operator guide](docs/npm-prerelease.md)).
 
 - Recorded the fixed-source Discord mention/reply preflight and missing real-App qualification; Discord capability rows remain unqualified and runtime behavior is unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855), [integration guide](docs/dev/guides/im-provider-integration.md)).
 
