@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "colleague",
+    "slug": "bot-cb3f7d97c0fc4f878016d0eb888679a6",
+    "channelId": "dm-bot-cb3f7d97c0fc4f878016d0eb888679a6",
+    "exactPersona": true,
+    "personaBytes": 414,
+    "personaSha256": "9660f1ff9db1e998634946f5bc801eee0104c3f0c7339a615fe3b6076ea7258a",
+    "noModelPreset": true,
+    "noWorkspaceGrants": true
+  },
+  {
+    "kind": "roleplay",
+    "slug": "bot-88d5cdb90f94485e924a0d6f4547af63",
+    "channelId": "dm-bot-88d5cdb90f94485e924a0d6f4547af63",
+    "exactPersona": true,
+    "personaBytes": 410,
+    "personaSha256": "a0f3888f291abb7d241902947c881ebaaa9cbe59922101ddf0b3463dc95b45ee",
+    "noModelPreset": true,
+    "noWorkspaceGrants": true
+  },
+  {
+    "kind": "blank",
+    "slug": "bot-8e8f873b5f584829b86994f56a58429a",
+    "channelId": "dm-bot-8e8f873b5f584829b86994f56a58429a",
+    "exactPersona": true,
+    "personaBytes": 0,
+    "personaSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "noModelPreset": true,
+    "noWorkspaceGrants": true
+  }
+]

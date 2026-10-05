@@ -253,6 +253,7 @@ export async function setModelPlanAssignments(
 
 export interface CreatePersonaBotInput {
   displayName: string;
+  persona?: string;
   roles: string[];
   description?: string;
   gitUrl?: string;

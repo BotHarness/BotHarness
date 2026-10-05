@@ -1589,6 +1589,7 @@ describe('bridge actions', () => {
       displayName: '小研',
       roles: ['研究员', '写作'],
       description: '负责资料研究与写作。',
+      persona: '# Custom colleague\n',
     });
 
     expect(creates).toEqual([
@@ -1596,6 +1597,7 @@ describe('bridge actions', () => {
         displayName: '小研',
         roles: ['研究员', '写作'],
         description: '负责资料研究与写作。',
+        persona: '# Custom colleague\n',
       },
     ]);
     expect(created.slug).toBe('bot-generated');

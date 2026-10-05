@@ -85,8 +85,16 @@ export function CreatePersonaBotModal({
   const gitUrlId = useId();
   const roleId = useId();
   const descriptionId = useId();
+  const personaId = useId();
+  const personaPresetId = useId();
   const [displayName, setDisplayName] = useState('');
   const [source, setSource] = useState<'empty' | 'git'>('empty');
+  const [personaPreset, setPersonaPreset] = useState<'blank' | 'colleague' | 'roleplay'>('blank');
+  const [personaDrafts, setPersonaDrafts] = useState(() => ({
+    blank: '',
+    colleague: t('bot.create.persona.colleague.seed'),
+    roleplay: t('bot.create.persona.roleplay.seed'),
+  }));
   const [gitUrl, setGitUrl] = useState('');
   const [roleDraft, setRoleDraft] = useState('');
   const [description, setDescription] = useState('');
@@ -116,7 +124,9 @@ export function CreatePersonaBotModal({
       .createBot(
         {
           displayName: displayName.trim(),
-          ...(source === 'git' ? { gitUrl: gitUrl.trim() } : {}),
+          ...(source === 'git'
+            ? { gitUrl: gitUrl.trim() }
+            : { persona: personaDrafts[personaPreset] }),
           roles: submittedRoles,
           ...(submittedDescription.length === 0 ? {} : { description: submittedDescription }),
         },
@@ -262,6 +272,40 @@ export function CreatePersonaBotModal({
             onChange={(event) => setDescription(event.currentTarget.value)}
           />
         </Field>
+        {source === 'empty' ? (
+          <>
+            <SegmentedControl
+              id={personaPresetId}
+              label={t('bot.create.persona.preset')}
+              value={personaPreset}
+              options={[
+                { value: 'blank', label: t('bot.create.persona.blank') },
+                { value: 'colleague', label: t('bot.create.persona.colleague') },
+                { value: 'roleplay', label: t('bot.create.persona.roleplay') },
+              ]}
+              disabled={creating}
+              onChange={setPersonaPreset}
+            />
+            <Field
+              id={personaId}
+              label={t('bot.create.persona.label')}
+              hint={t('bot.create.persona.hint')}
+            >
+              <textarea
+                id={personaId}
+                className="bh-name-input bh-personabot-persona"
+                rows={6}
+                value={personaDrafts[personaPreset]}
+                disabled={creating}
+                placeholder={t('bot.create.persona.placeholder')}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setPersonaDrafts((current) => ({ ...current, [personaPreset]: value }));
+                }}
+              />
+            </Field>
+          </>
+        ) : null}
         {cause === undefined ? null : (
           <div className="bh-modal-error" role="alert">
             {t('create.failed', { error: personaBotCreateError(cause, t) })}

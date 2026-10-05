@@ -1,4 +1,6 @@
-import { createElement, type ReactNode } from 'react';
+// @vitest-environment jsdom
+import { act, createElement, type ReactNode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -6,11 +8,25 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: (props: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) =>
     createElement('button', { disabled: props.disabled, onClick: props.onClick }, props.children),
   IconCloseOutlineRegular: () => createElement('span'),
-  SegmentedControl: (props: { options: { label: string }[] }) =>
+  SegmentedControl: (props: {
+    label: string;
+    value: string;
+    disabled?: boolean;
+    onChange: (value: string) => void;
+    options: { label: string; value: string }[];
+  }) =>
     createElement(
-      'div',
-      null,
-      ...props.options.map((option) => createElement('span', null, option.label)),
+      'select',
+      {
+        'aria-label': props.label,
+        value: props.value,
+        disabled: props.disabled,
+        onChange: (event: { currentTarget: HTMLSelectElement }) =>
+          props.onChange(event.currentTarget.value),
+      },
+      ...props.options.map((option) =>
+        createElement('option', { key: option.value, value: option.value }, option.label),
+      ),
     ),
   Tag: (props: { children?: ReactNode }) => createElement('span', null, props.children),
   Modal: (props: {
@@ -58,7 +74,10 @@ describe('PersonaBot creation form', () => {
     expect(markup).toContain('placeholder="例如：负责代码审查与质量把关"');
     expect(markup).not.toContain('标识');
     expect(markup).not.toContain('Persona</');
-    expect(markup).not.toContain('<textarea');
+    expect(markup).toContain('<textarea');
+    expect(markup).toContain('人格起点');
+    expect(markup).toContain('同事');
+    expect(markup).toContain('角色扮演');
     expect(markup).toContain('<button disabled="">创建</button>');
   });
 
@@ -101,5 +120,114 @@ describe('PersonaBot creation form', () => {
       personaBotCreateError(new BridgeCallError('git-clone-timeout', 'private token')),
     ).toContain('超时');
     expect(personaBotCreateError(new Error('disk read-only'))).toBe('disk read-only');
+  });
+});
+
+async function withForm(
+  test: (host: HTMLDivElement, create: ReturnType<typeof vi.fn>) => Promise<void>,
+) {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  const create = vi.fn(async () => undefined);
+  try {
+    await act(async () =>
+      root.render(
+        createElement(CreatePersonaBotModal, {
+          actions: { createBot: create } as unknown as BridgeActions,
+          onCancel: vi.fn(),
+          onCreated: vi.fn(),
+        }),
+      ),
+    );
+    await test(host, create);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+}
+
+async function typeText(host: HTMLElement, selector: string, value: string) {
+  const input = host.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector)!;
+  const prototype =
+    input instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+async function choose(host: HTMLElement, label: string, value: string) {
+  const input = host.querySelector<HTMLSelectElement>('select[aria-label="' + label + '"]')!;
+  await act(async () => {
+    input.value = value;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+async function submit(host: HTMLElement) {
+  await act(async () =>
+    [...host.querySelectorAll('button')].find((b) => b.textContent === '创建')!.click(),
+  );
+}
+
+describe('editable creation starting points', () => {
+  it('retains independent drafts while switching and submits exact edited persona without preset metadata', async () => {
+    await withForm(async (host, create) => {
+      expect(host.querySelector('textarea')!.value).toBe('');
+      await typeText(host, 'input[placeholder="例如：小研"]', 'Ada');
+      await choose(host, '人格起点', 'colleague');
+      expect(host.querySelector('textarea')!.value).toContain('# 协作方式');
+      const edited = '# Ada\n\n  Human-written identity.\n';
+      await typeText(host, 'textarea', edited);
+      await choose(host, '人格起点', 'roleplay');
+      expect(host.querySelector('textarea')!.value).toContain('# 角色与世界');
+      await typeText(host, 'textarea', '# A lunar librarian\n');
+      await choose(host, '人格起点', 'blank');
+      expect(host.querySelector('textarea')!.value).toBe('');
+      await choose(host, '人格起点', 'colleague');
+      expect(host.querySelector('textarea')!.value).toBe(edited);
+      await submit(host);
+      expect(create).toHaveBeenCalledWith(
+        { displayName: 'Ada', roles: [], persona: edited },
+        undefined,
+      );
+    });
+  });
+
+  it('does not seed imported memory, and keeps the local draft when returning from Git import', async () => {
+    await withForm(async (host, create) => {
+      await typeText(host, 'input[placeholder="例如：小研"]', 'Imported');
+      await typeText(host, 'textarea', '# Keep my draft');
+      await choose(host, '记忆来源', 'git');
+      expect(host.querySelector('textarea')).toBeNull();
+      await typeText(
+        host,
+        'input[placeholder="https://github.com/owner/repo.git"]',
+        'https://github.com/owner/repo.git',
+      );
+      await choose(host, '记忆来源', 'empty');
+      expect(host.querySelector('textarea')!.value).toBe('# Keep my draft');
+      await choose(host, '记忆来源', 'git');
+      await submit(host);
+      expect(create).toHaveBeenCalledWith(
+        { displayName: 'Imported', roles: [], gitUrl: 'https://github.com/owner/repo.git' },
+        undefined,
+      );
+    });
+  });
+
+  it('allows the blank starting point to stay blank', async () => {
+    await withForm(async (host, create) => {
+      await typeText(host, 'input[placeholder="例如：小研"]', 'Blank');
+      await submit(host);
+      expect(create).toHaveBeenCalledWith(
+        { displayName: 'Blank', roles: [], persona: '' },
+        undefined,
+      );
+    });
   });
 });
