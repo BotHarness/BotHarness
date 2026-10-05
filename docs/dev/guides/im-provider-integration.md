@@ -2,7 +2,7 @@
 
 This guide describes the implemented BotHarness integration boundary and the evidence required to extend it. Product meaning belongs to [Product Context](../../../CONTEXT.md), [Messaging architecture](../../architecture/botharness-architecture.md), and specs [#629](https://github.com/BotHarness/BotHarness/issues/629) / [#693](https://github.com/BotHarness/BotHarness/issues/693). The source contracts are `packages/core/src/messaging/provider.ts` and `dsh-im.ts`; the public RPC Reference is generated from code.
 
-For a user-facing setup walkthrough, see the verified [Lark / Feishu connection guide](../../lark-connection.md).
+For user-facing setup walkthroughs, see the verified [Lark / Feishu connection guide](../../lark-connection.md) and [Slack connection guide](../../slack-connection.md).
 
 ## Keep the two layers distinct
 
