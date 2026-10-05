@@ -1,6 +1,6 @@
 # DeepSeekBot Town
 
-DeepSeekBot（BotHarness）像素小镇宣传片：Three.js r186 单文件 HTML，10920 帧 @ 60fps（约 3 分钟），首尾都是标题卡，动画只由帧号驱动；8bit BGM 在页面内由确定性合成器生成，按 120 BPM 与帧对齐（一小节 = 120 帧）。
+DeepSeekBot（BotHarness）像素小镇宣传片：Three.js r186 单文件 HTML，12960 帧 @ 60fps（3 分 36 秒），首尾都是标题卡，动画只由帧号驱动；8bit BGM 在页面内由确定性合成器生成，按 120 BPM 与帧对齐（一小节 = 120 帧）。
 
 ```bash
 python3 -m http.server 8765   # 在本目录运行，再打开 http://127.0.0.1:8765/
