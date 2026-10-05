@@ -277,6 +277,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 
 ### Changed
 
+- DeepSeekBot is published as a stable version on the npm `latest` tag, with `next` moved along; install it with `dsh plugin --profile web add deepseekbot` or by entering `deepseekbot` in the desktop Add plugin dialog ([#895](https://github.com/BotHarness/BotHarness/pull/895), [release guide](docs/npm-prerelease.md)).
+
 - Channel sections, pins, hidden entries and root order now persist in the Profile database after a validated one-time import; restart no longer depends on the retained legacy roster domain, while native sorting and per-Client collapse keep their existing owners ([#885](https://github.com/BotHarness/BotHarness/issues/885)).
 
 - PersonaBot identity, saved appearance, pause/access flags and independent model plans now survive restart in the owning Profile database; validated legacy `bot.json` records are imported once and retained without runtime fallback, while Soul remains Git-backed ([#884](https://github.com/BotHarness/BotHarness/issues/884)).
@@ -535,6 +537,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 - Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
 
 ### Documentation
+
+- The README and npm page now match the pixel-art website, with its share cards, desktop and CLI install, shipped IM platforms, pixel avatars and community links ([#895](https://github.com/BotHarness/BotHarness/pull/895), [website](https://deepseekbot.botharness.ai)).
 
 - Updated Discord integration guidance with merged QA revisions, bounded send-interruption/recovery evidence, agent-operated UI/E2E acceptance screenshots and explicit remaining native qualification gates ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
 
