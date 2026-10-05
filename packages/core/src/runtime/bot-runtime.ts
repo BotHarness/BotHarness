@@ -1002,8 +1002,8 @@ class BotRuntimeImplementation implements BotRuntime {
     if (!row || !['pending', 'retryable'].includes(row.attempt_state)) return;
     const active = this.#activeTurns.get(botSlug);
     if (
-      row.reason === 'group-mention' &&
-      this.#delivery(botSlug, 'group-mention') === 'steer' &&
+      (row.reason === 'group-mention' || row.reason === 'human-dm') &&
+      this.#delivery(botSlug, row.reason) === 'steer' &&
       active &&
       this.#agents.steerOrchestrator
     ) {
@@ -3283,7 +3283,7 @@ class BotRuntimeImplementation implements BotRuntime {
              WHERE source_kind IN ('memory-change', 'bridge-message')
                AND source_event_id IN (
                  SELECT source_event_id FROM inbox_admissions
-                  WHERE reason IN ('memory-change', 'group-mention', 'group-ordinary') AND attempt_state = 'retryable'
+                  WHERE reason IN ('memory-change', 'group-mention', 'group-ordinary', 'human-dm') AND attempt_state = 'retryable'
                     AND side_effect_started_at IS NULL
                )
           `)
@@ -3291,7 +3291,10 @@ class BotRuntimeImplementation implements BotRuntime {
         database
           .prepare(`
             UPDATE inbox_admissions SET observed_at = NULL
-             WHERE reason IN ('memory-change', 'group-mention', 'group-ordinary') AND attempt_state = 'retryable'
+             WHERE (reason IN ('memory-change', 'group-mention', 'group-ordinary') OR
+                    (reason = 'human-dm' AND source_event_id IN (
+                      SELECT source_event_id FROM source_events WHERE source_kind = 'bridge-message'
+                    ))) AND attempt_state = 'retryable'
                AND side_effect_started_at IS NULL
           `)
           .run();
@@ -5235,7 +5238,7 @@ class BotRuntimeImplementation implements BotRuntime {
         AND a.attempt_state IN ('pending', 'retryable') AND a.observed_at IS NULL
       WINDOW policy AS (PARTITION BY g.id, a.wake_policy_revision, a.source_policy_revision, a.external_default_revision, a.reason, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.thread_id ELSE '' END, CASE WHEN json_extract(tp.body, '$.mode') = 'follow' THEN tp.revision ELSE 0 END)
     ) SELECT source_event_id, body, created_at, attempt_state FROM pending
-      WHERE reason = 'group-mention' OR (reason = 'group-ordinary' AND (
+      WHERE reason = 'group-mention' OR (reason = 'human-dm' AND wake_mode = 'all') OR (reason = 'group-ordinary' AND (
         wake_mode = 'all' OR (wake_mode = 'digest' AND (pending_count >= wake_count OR
           (julianday(?) - julianday(first_at)) * 86400000 >= wake_interval_ms)) OR
         (? = 1 AND has_mention = 1 AND wake_mode IN ('digest', 'mentions'))))
@@ -5433,7 +5436,7 @@ class BotRuntimeImplementation implements BotRuntime {
           const row = db
             .prepare(`UPDATE inbox_admissions SET observed_at = COALESCE(observed_at, ?),
           side_effect_started_at = COALESCE(side_effect_started_at, ?), attempt_state = 'running', last_error = NULL
-          WHERE bot_slug = ? AND source_event_id = ? AND reason IN ('group-mention', 'group-ordinary')
+          WHERE bot_slug = ? AND source_event_id = ? AND reason IN ('group-mention', 'group-ordinary', 'human-dm')
             AND attempt_state IN ('pending', 'retryable') RETURNING source_event_id`)
             .get(at, at, botSlug, id);
           if (row) readAdmissions.add(id);
@@ -5515,7 +5518,7 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(`
             UPDATE inbox_admissions
                SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
-             WHERE bot_slug = ? AND reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary')
+             WHERE bot_slug = ? AND reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary', 'human-dm')
                AND attempt_state = 'running'
                AND source_event_id IN (${placeholders})
           `)
@@ -5544,7 +5547,7 @@ class BotRuntimeImplementation implements BotRuntime {
                      WHEN side_effect_started_at IS NULL THEN 'retryable'
                      ELSE 'needs-repair'
                    END
-             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary')
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary', 'human-dm')
                AND attempt_state IN ('pending', 'retryable', 'running')
                AND (? IS NULL OR bot_slug = ?)
                AND source_event_id IN (${placeholders})
@@ -5563,7 +5566,7 @@ class BotRuntimeImplementation implements BotRuntime {
         database
           .prepare(`
             UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
-             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary')
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary', 'human-dm')
                AND attempt_state = 'running'
                AND (? IS NULL OR bot_slug = ?)
                AND source_event_id IN (${placeholders})

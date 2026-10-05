@@ -1,0 +1,31 @@
+# ADR-0129: WeChat owner DMs use private source continuations
+
+- Status: Accepted; source and installed-product E2E verified, Human QA approved 2026-10-06
+- Date: 2026-10-05
+- Issue: [#878](https://github.com/BotHarness/BotHarness/issues/878)
+
+## Context
+
+Personal WeChat iLink uses server-confirmed QR pairing and polling rather than Lark application credentials or Slack Socket Mode. Its first useful interaction is a text DM from the QR-paired owner into a PersonaBot Inbox, followed by that PersonaBot replying through its own bound identity. A DM needs no fabricated mention, group or topic. The native API supplies a private continuation token for subsequent sends; it does not expose the checked history and source reread contracts qualified for Lark and Slack.
+
+## Decision
+
+Reuse the DSH Plugin/Fiber and public Service Definition → Provider → Consumer seam. BotHarness owns canonical Binding, Grant, Source Event, Inbox Admission and Outbox. The Provider owns the QR credential reference, polling cursor and bounded private reply continuation. No second transcript, shared Inbox store or platform-specific execution Session is added.
+
+The paired identity comes from the QR service's confirmed account/owner and stored credential reference. Its fingerprint includes the immutable account and owner, endpoint and a credential digest; secret values never reach the application DTO. This is pairing provenance, not a fabricated `auth.test` or live self-introspection API. Each accepted native inbound event must target that exact paired account and originate from that exact paired owner. Other contacts, Bot messages and nontext are outside this first slice. Decimal native message IDs remain exact strings, including numbers beyond JavaScript's safe integer range.
+
+An explicitly enabled DM Grant admits its accepted Source Event as `human-dm`, reusing existing immediate delivery, steer/turn boundaries and restart recovery. Author provenance remains external; no local Human message or DM Channel placement is created. Group harvest, mention rules and thread controls do not apply. The target is discovered as the paired-owner DM, but discovery and identity binding do not grant receipt or send authority.
+
+Claiming the exclusive Consumer persists external ownership. Polling advances its native cursor only after every eligible event has been accepted by canonical Messaging. A callback failure preserves the cursor for retry; canonical Source/Admission identity prevents duplicate execution. A missing or disposed lease never falls back to the Provider's standalone Session path. Consumer callbacks execute outside the per-Bot transition queue so canonical replies cannot deadlock intake.
+
+For each original source, the Provider privately retains its continuation token, message/actor identity, current fingerprint and expiry in the existing state file. Bound retention is 1,000 entries / 30 days; the public snapshot excludes continuations. `qualifyReplyChecked` verifies the exact stored source and current lease/identity, then `replyChecked` runs the latest BotHarness authority fence immediately before one bounded plaintext send to the paired owner. This is local original-source qualification; without a native reread endpoint it does not prove the source still exists remotely. A changed pairing, expired/missing continuation or revoked Grant refuses instead of substituting another source.
+
+Native send acknowledgement uses the sent client-generated ID. The receipt explicitly records `identityKind: client-acknowledgement`; it is neither a native server message ID nor read/delivery evidence. The existing Outbox retains the honest accepted/failed/unknown outcome. Ambiguous sends are not blindly retried. No WeChat history, source file, group, topic follow or canonical proactive-report capability is advertised by BotHarness in this slice.
+
+## Evidence boundary
+
+Candidate fork source: `589e5507d47ab21de5b39c776a598452744a5368`; runtime SHA-256 `e1242db609f7f2a133494cd903c672b156d6ed5e337dff0986c26d1a7a79ea69` over 394 files, DSH `0.2.0-rc.1`. The isolated Host preserves a real QR-paired account and completed a local model reply. Automated Provider/Core contracts passed. Both source mode and the locally installed product `0.0.0-test.878` completed external owner DM → one canonical Inbox Admission → model `bridge_reply` → original WeChat reply without a local DM mirror. The Human confirmed both replies in WeChat. Restarting into the installed product preserved pairing, authorization and canonical records. Product Provider `4.32.0-botharness.4` composes 395 runtime files with SHA-256 `9ddbd3b233e293f8a26d08ab67054d82950a4d4fe82b4ec68f794a2a61578df4`. Refusal paths have automated regression coverage; they are not claimed as a complete live lifecycle matrix. The Human approved this first slice, provided its original-conversation screenshot and authorized PR creation/merge on 2026-10-06. Merge, registry publication and deployment remain separate recorded actions.
+
+## Consequences
+
+Platform fields remain adapted at the Provider boundary. WeChat's private continuation is not a model reply route, and client acknowledgement cannot impersonate Slack/Lark native receipt semantics. Other contacts, files and context are future independently qualified slices. The integration guide records screenshots and provenance during implementation; the final bilingual user guide must describe only verified installation and runtime behavior.
