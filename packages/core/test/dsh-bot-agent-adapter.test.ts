@@ -100,6 +100,57 @@ describe('DSH Bot Agent adapter', () => {
     }
   });
 
+  it('reports only the committed native error identity without fabricating a Report or completion', async () => {
+    const host = new FakeAgentHost(
+      { kind: 'completed' },
+      {
+        assignmentTurnEnd: {
+          kind: 'error',
+          error: { code: 'UNKNOWN', message: 'PRIVATE_QA_ERROR_CANARY' },
+        },
+        onTurn: async () => undefined,
+      },
+    );
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    const failedTurn = vi.fn();
+    const completedTurn = vi.fn();
+    const cancelledTurn = vi.fn();
+    const report = vi.fn();
+    try {
+      await expect(
+        adapter.runAssignment({
+          sessionId: 'native-error-assignment',
+          bot: BOT,
+          purpose: 'Failing work',
+          permission: {
+            grantId: 'grant-1',
+            workspaceId: 'workspace-1',
+            primaryCwd: '/project',
+            mode: 'workspace-write',
+            approval: 'ask',
+            presetRevision: 0,
+          },
+          failedTurn,
+          completedTurn,
+          cancelledTurn,
+          report,
+        }),
+      ).rejects.toThrow('UNKNOWN: PRIVATE_QA_ERROR_CANARY');
+      const end = host.sessions[0]!.snapshotEvents().find((e) => e.type === 'turn/end')!;
+      expect(failedTurn).toHaveBeenCalledExactlyOnceWith({ turn: 1, endSeq: end.seq });
+      expect(completedTurn).not.toHaveBeenCalled();
+      expect(cancelledTurn).not.toHaveBeenCalled();
+      expect(report).not.toHaveBeenCalled();
+    } finally {
+      await adapter.close();
+    }
+  });
+
   it('returns retryable capacity facts to the model for creation and addressed requests', async () => {
     const calls: Array<Promise<unknown>> = [];
     const refusal = {

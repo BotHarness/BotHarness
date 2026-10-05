@@ -1,0 +1,45 @@
+{
+  "bot": "Native execution error QA",
+  "assignment": {
+    "sessionId": "botharness-28148b9e-adde-4b33-a3e9-08c0e701c65a",
+    "activity": "error",
+    "latestReport": {
+      "state": "progress",
+      "summary": "NATIVE_ERROR_PROGRESS: Evidence retained before execution failure.",
+      "at": "2026-10-05T11:06:48.722Z"
+    },
+    "continuityKey": "native-error-direction"
+  },
+  "sources": [
+    {
+      "id": "1ced071f-14e3-4d11-8e5c-d632c4430527",
+      "state": "pending",
+      "createdAt": "2026-10-05T11:06:48.722Z",
+      "sourceKind": "assignment-report",
+      "assignmentSessionId": "botharness-28148b9e-adde-4b33-a3e9-08c0e701c65a",
+      "assignmentReportState": "progress",
+      "assignmentTurn": 1,
+      "authorKind": "bot",
+      "summary": "NATIVE_ERROR_PROGRESS: Evidence retained before execution failure.",
+      "sourceAvailable": true
+    }
+  ],
+  "native": {
+    "starts": 1,
+    "ends": 1,
+    "turn": 1,
+    "endSeq": 25,
+    "endReason": "error",
+    "errorCode": "UNKNOWN",
+    "faultInjectedAfterRealReport": true,
+    "actualProvider": "deepseek-official",
+    "actualModel": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "orchestrator": {
+    "starts": 1,
+    "ends": 1
+  },
+  "acknowledgementCount": 0,
+  "assignmentCount": 1
+}

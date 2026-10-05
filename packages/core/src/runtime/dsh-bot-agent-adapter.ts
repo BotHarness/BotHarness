@@ -194,6 +194,7 @@ function requireCompletedTurn(
   handle: AgentHandle,
   fromSeq: SessionLogOffset,
   cancelledTurn?: AssignmentAgentRun['cancelledTurn'],
+  failedTurn?: AssignmentAgentRun['failedTurn'],
 ): { turn: number; endSeq: number } {
   const turnEnd = handle.agent.session
     .snapshotEvents(fromSeq)
@@ -206,6 +207,7 @@ function requireCompletedTurn(
   if (reason.kind === 'aborted' && reason.reason.kind === 'user')
     cancelledTurn?.({ turn: turnEnd.data.turn, endSeq: turnEnd.seq });
   if (reason.kind === 'error') {
+    failedTurn?.({ turn: turnEnd.data.turn, endSeq: turnEnd.seq });
     const routeNeedsRepair =
       [
         'MISSING_CREDENTIAL',
@@ -410,7 +412,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       accepted?.();
       await handle.agent.whenIdle();
       if (this.#stopping.has(run.sessionId)) return;
-      const completion = requireCompletedTurn(handle, fromSeq, run.cancelledTurn);
+      const completion = requireCompletedTurn(handle, fromSeq, run.cancelledTurn, run.failedTurn);
       run.completedTurn?.(completion);
       if (run.resume === true) return;
       if (!entry.reported) {

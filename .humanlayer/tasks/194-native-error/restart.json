@@ -1,0 +1,65 @@
+{
+  "bot": "Native execution error QA",
+  "assignment": {
+    "sessionId": "botharness-9b8eafe1-f91c-4c9e-bdff-3ddd8689f1b8",
+    "activity": "error",
+    "latestReport": {
+      "state": "progress",
+      "summary": "NATIVE_ERROR_PROGRESS: Evidence retained before execution failure.",
+      "at": "2026-10-05T11:16:40.083Z"
+    }
+  },
+  "sources": [
+    {
+      "id": "824eb52d-f1f4-4526-a225-53c3ae6ad610",
+      "state": "handled",
+      "createdAt": "2026-10-05T11:16:40.099Z",
+      "observedAt": "2026-10-05T11:16:41.163Z",
+      "handledAt": "2026-10-05T11:17:12.580Z",
+      "sourceKind": "assignment-lifecycle",
+      "assignmentSessionId": "botharness-9b8eafe1-f91c-4c9e-bdff-3ddd8689f1b8",
+      "assignmentTurn": 1,
+      "authorKind": "system",
+      "summary": "DSH confirmed Assignment Turn 1 ended with an execution error. Execution did not complete successfully.",
+      "sourceAvailable": true
+    },
+    {
+      "id": "2d74bbbe-3f58-4847-a352-696d3ac7259d",
+      "state": "handled",
+      "createdAt": "2026-10-05T11:16:40.083Z",
+      "observedAt": "2026-10-05T11:16:41.163Z",
+      "handledAt": "2026-10-05T11:17:12.580Z",
+      "sourceKind": "assignment-report",
+      "assignmentSessionId": "botharness-9b8eafe1-f91c-4c9e-bdff-3ddd8689f1b8",
+      "assignmentReportState": "progress",
+      "assignmentTurn": 1,
+      "authorKind": "bot",
+      "summary": "NATIVE_ERROR_PROGRESS: Evidence retained before execution failure.",
+      "sourceAvailable": true
+    }
+  ],
+  "native": {
+    "starts": 1,
+    "ends": 1,
+    "turn": 1,
+    "endSeq": 25,
+    "endReason": "error",
+    "errorCode": "UNKNOWN",
+    "faultInjectedAfterRealReport": true,
+    "actualProvider": "deepseek-official",
+    "actualModel": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  "nativeNotice": {
+    "state": "failed",
+    "cause": "native-turn-error",
+    "turn": 1,
+    "endSeq": 25
+  },
+  "orchestrator": {
+    "starts": 2,
+    "ends": 2
+  },
+  "acknowledgementCount": 1,
+  "assignmentCount": 1
+}
