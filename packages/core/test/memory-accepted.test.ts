@@ -1,10 +1,10 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { LOCAL_HUMAN_ID } from '../src/channels/channel.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
@@ -22,7 +22,7 @@ function git(root: string, ...args: string[]): string {
 function fixture() {
   const home = createTempRoot('botharness-memory-git-');
   const database = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
-  const registry = createPersonaBotRegistry({
+  const registry = createTestRegistry({
     rootDir: join(home, 'bots'),
     initializeMemory(memoryDir) {
       const result = ensureMemoryRepository({ memoryDir });

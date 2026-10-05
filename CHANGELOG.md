@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Breaking Changes
 
+- Callers of the exported `createPersonaBotRegistry` factory must pass the Profile `OperationalDatabaseOwner` as `database`; Registry commands and queries retain their interfaces, and implicit JSON-backed construction is removed ([#884](https://github.com/BotHarness/BotHarness/issues/884)).
+
 - Custom `BotAgentAdapter` implementations must handle an absent `OrchestratorAgentRun.inboundChannelId` for external-only Inbox turns; choose an authorized local Channel explicitly when sending locally ([#12](https://github.com/BotHarness/BotHarness/issues/12)).
 
 - `channel_send` Tool acknowledgements change from prose to `{channelId,messageId}` JSON; consumers must read those fields. Attachment `size` is now declared as `integer`, matching the already-enforced safe nonnegative integer contract; new sends use the current four-field fileId reference; obsolete hash results must be refreshed from their owning message after #577 migration ([#570](https://github.com/BotHarness/BotHarness/issues/570)).
@@ -271,6 +273,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- PersonaBot identity, saved appearance, pause/access flags and independent model plans now survive restart in the owning Profile database; validated legacy `bot.json` records are imported once and retained without runtime fallback, while Soul remains Git-backed ([#884](https://github.com/BotHarness/BotHarness/issues/884)).
+
+- Reusable Model Presets now persist in the Profile database, with a validated one-time import of existing templates and preserved IDs, revisions and independent applied Bot plans; legacy template files remain recovery inputs and are no longer used after cutover ([#883](https://github.com/BotHarness/BotHarness/issues/883)).
+
 - Many active Avatars now animate smoothly together: all transitions share one animation-frame loop, pixel-family tool transitions step at a pixel-art frame rate with merged color runs (`@botharness/pixel-morph` 0.2.0), and Avatars scrolled out of view skip transition work after updates, keeping 32 to 128 active mixed-family Avatars at full frame rate in measured runs ([#757](https://github.com/BotHarness/BotHarness/issues/757)).
 
 - Made the packaged IM Provider qualification independent of developer selections and advanced its own artifact version for the accepted Slack capabilities ([IM installation](docs/product-im-installation.md), [#868](https://github.com/BotHarness/BotHarness/issues/868)).
@@ -524,9 +530,17 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Updated Discord integration guidance with merged QA revisions, bounded send-interruption/recovery evidence, agent-operated UI/E2E acceptance screenshots and explicit remaining native qualification gates ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
+
+- Added illustrated public npm installation, API / per-Bot model setup and non-IM settings guides with a user-focused Quickstart, verified with DSH 0.2.0 RC1 and deepseekbot 0.1.0-alpha.1 ([#887](https://github.com/BotHarness/BotHarness/issues/887), [guide](docs/installation.md)).
+
+- Documented the proposed Profile Backup / Restore / Transfer UX, including validation, repair and explicit activation; the UX is accepted and runtime implementation is tracked separately ([#76](https://github.com/BotHarness/BotHarness/issues/76), [proposal](docs/proposals/profile-portability-ux.md)).
+
 - Added an illustrated bilingual Slack connection guide covering App setup, identity binding, channel authorization and real same-thread replies ([#874](https://github.com/BotHarness/BotHarness/issues/874), [guide](docs/slack-connection.md)).
 
 - Documented preparation and explicit publication of reviewed npm prerelease artifacts, including integrity checks, dependency order and partial-publication recovery; no public release is claimed ([#866](https://github.com/BotHarness/BotHarness/issues/866), [operator guide](docs/npm-prerelease.md)).
+
+- Documented explicit recovery of an already started npm prerelease after main advances, retaining the original reviewed source and refusing conflicting published bytes ([#877](https://github.com/BotHarness/BotHarness/issues/877), [operator guide](docs/npm-prerelease.md)).
 
 - Recorded the fixed-source Discord mention/reply preflight and missing real-App qualification; Discord capability rows remain unqualified and runtime behavior is unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855), [integration guide](docs/dev/guides/im-provider-integration.md)).
 

@@ -23,8 +23,8 @@
 ## 无凭据准备
 
 在 main 手动运行 **npm prerelease preparation**，填写拟发布版本。它检查、构建精确版本，
-下载并验证不可变 Provider 输入，产生四个 tarball。涉及发布代码的 PR 会生成预览；PR run
-不能成为公开发布来源。
+下载并验证不可变 Provider 输入，产生四个 tarball。涉及发布代码的 PR 会生成独立的
+`0.1.0-alpha.1-preview.<PR>.<run>` 版本，避免与公开的不可变版本冲突；PR run 不能成为公开发布来源。
 
 下载 `npm-prerelease-<version>`，审阅 `release-plan.json`、`artifacts.json` 和 tarball。
 记录 run ID、main SHA、版本和 summary 中的 plan SHA-256。plan 绑定源码、DSH、Provider、
@@ -58,7 +58,8 @@ BotUI 的 repository secret 不会自动共享给 BotHarness。需要在 **BotHa
 
 Human 批准后，从 main 手动运行 **publish reviewed npm prerelease**，输入成功的 main 手动
 preparation run、源码 SHA、版本、审阅过的 plan SHA-256，以及 `publish <version> to next`。
-SHA 必须仍是当前 main；main 前进后重新准备、审阅。
+首次发布的 SHA 必须仍是当前 main；main 前进后重新准备、审阅。
+已部分发布的版本适用下方显式恢复例外，保留原已批准的 source 和字节，不重建不可变版本。
 
 publisher 核对 preparation 的 workflow、事件、分支、成功状态和 SHA，下载原产物并在无
 发布凭据下校验、演练。只有最后发布步骤收到 `NPM_TOKEN`。不重建，不因 push、tag、merge
@@ -75,6 +76,14 @@ registry integrity；权限或网络失败立即停止，不盲目重试结果�
 真实 tag 和可下载产物。本 workflow 不创建 tag／GitHub Release，也不部署网站。
 
 ## 部分发布恢复
+
+发布到一半后若 main 已推进，从当前 main 手动运行同一 publisher，设置 `resume_partial=true`，
+沿用原已批准的准备 run、source、版本、plan 摘要和 confirmation。仅接受成功的手动 main
+准备记录，其 source 必须是当前 main 的祖先，原 plan 必须标记干净，且已公开至少一个
+Core、Client 或产品包，并与审阅产物的 SHA-512 完全匹配。可复用的独立 Provider 本身不能
+证明某个产品版本已部分发布。所有已有版本都必须匹配；registry 不可读或任一字节冲突，
+都会在提供发布凭据前拒绝恢复。workflow 检出原审阅 source，使用其验证／发布脚本，
+不重新构建。当前 main 的新功能留给后续版本。
 
 npm 多包发布不是原子的。首次发布前检查全部已有版本及直接运行依赖。中断后先查 registry，
 再用同一组审阅过的产物恢复；已有版本仅在完整性完全一致时跳过。同版本不同字节会停止整轮，

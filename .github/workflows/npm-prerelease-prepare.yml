@@ -11,10 +11,12 @@ on:
     paths:
       - .github/workflows/npm-prerelease-*.yml
       - scripts/npm-prerelease.mjs
+      - scripts/npm-prerelease-recovery.mjs
       - scripts/product-artifacts.mjs
       - scripts/dev-im-provider.mjs
       - scripts/product-provider/**
       - scripts/test/npm-prerelease.test.mjs
+      - scripts/test/npm-prerelease-recovery.test.mjs
 
 permissions:
   contents: read
@@ -27,6 +29,8 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      RELEASE_VERSION: ${{ inputs.version || format('0.1.0-alpha.1-preview.{0}.{1}', github.event.number, github.run_id) }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -52,7 +56,6 @@ jobs:
       - run: npm ci --ignore-scripts --prefix .release-provider
       - name: Prepare and dry-run the exact package set
         env:
-          RELEASE_VERSION: ${{ inputs.version || '0.1.0-alpha.1' }}
           PREPARATION_EVENT: ${{ github.event_name }}
         run: |
           node scripts/npm-prerelease.mjs prepare --version "$RELEASE_VERSION" --provider-source .release-provider --output "$RUNNER_TEMP/npm-prerelease"
@@ -60,7 +63,7 @@ jobs:
           node -e 'const fs=require("fs"); const crypto=require("crypto"); const p=process.env.RUNNER_TEMP+"/npm-prerelease/release-plan.json"; fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,"Reviewed plan SHA-256: `"+crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")+"`\n\n```json\n"+fs.readFileSync(p)+"\n```\n")'
       - uses: actions/upload-artifact@v4
         with:
-          name: npm-prerelease-${{ inputs.version || '0.1.0-alpha.1' }}
+          name: npm-prerelease-${{ env.RELEASE_VERSION }}
           path: |
             ${{ runner.temp }}/npm-prerelease/*.tgz
             ${{ runner.temp }}/npm-prerelease/artifacts.json

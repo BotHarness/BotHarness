@@ -1,8 +1,9 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createBotRuntime } from '../src/runtime/bot-runtime.js';
 import { createTestWorkspaceGrants } from './workspace-grant-fixture.js';
 import { createAttachmentStore } from '../src/attachments/store.js';
@@ -383,7 +384,7 @@ describe('retained legacy attachment migration', () => {
 
   it('reads a migrated image through cached legacy and canonical model references using current bytes and membership', async () => {
     const f = fixture(['ada']);
-    const registry = createPersonaBotRegistry({ rootDir: join(f.home, 'bots') });
+    const registry = createTestRegistry({ rootDir: join(f.home, 'bots') });
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const bytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
     const hash = 'sha256:' + createHash('sha256').update(bytes).digest('hex');

@@ -1,9 +1,10 @@
+import { createTestRegistry } from './registry-fixture.js';
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it } from 'vitest';
 
 import { botDmChannelId } from '../src/channels/channel.js';
 import { createCore } from '../src/plugin.js';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createDshBotAgentAdapter } from '../src/runtime/dsh-bot-agent-adapter.js';
 import { discoverBotContacts } from '../src/runtime/bot-contact-discovery.js';
 import { FakeAgentHost } from './dsh-agent-host-fixture.js';
@@ -42,7 +43,9 @@ async function exercise(
   try {
     core.registry.create({ slug: 'owner', displayName: 'Owner' });
     const registry =
-      count > 50 ? createPersonaBotRegistry({ rootDir: core.registry.rootDir }) : core.registry;
+      count > 50
+        ? createTestRegistry({ rootDir: core.registry.rootDir, database: core.operationalDatabase })
+        : core.registry;
     for (let index = count - 1; index >= 0; index--) {
       expect(
         registry.create({

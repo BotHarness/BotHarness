@@ -1,15 +1,16 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { createMemoryService, createPersonaBotRegistry } from '../src/index.js';
+import { createMemoryService } from '../src/index.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
 import { createTestOwnership, FIXED_NOW, createTempRoot, remember } from './helpers.js';
 
 describe('memory across sessions', () => {
   it('lets one session search and read a fact another session committed', async () => {
     const root = createTempRoot();
-    const registry = createPersonaBotRegistry({
+    const registry = createTestRegistry({
       rootDir: join(root, 'bots'),
       initializeMemory: (memoryDir) => {
         const repository = ensureMemoryRepository({ memoryDir });

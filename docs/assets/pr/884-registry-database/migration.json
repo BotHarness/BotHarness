@@ -1,0 +1,23 @@
+{
+  "phase": "migration",
+  "passed": true,
+  "databaseGeneration": 55,
+  "databaseCutover": true,
+  "bots": [
+    {
+      "slug": "bot-48320245485f4605b849fb4782f0725b",
+      "recordSha256": "6778aa55499e31ba823303260832ec153aa151726656fb789207cd7d75579e3f",
+      "soulSha256": "3baf6e046973fca43b19b07b5873d1ad8c3901069246e79ae60d9018b1a12f25",
+      "planRevision": 2
+    },
+    {
+      "slug": "bot-bed9db1d969847be8b4386a672705166",
+      "recordSha256": "bfad6139afb75f47dac46ef60f651e95870f1421212437f88a27c9db8f43cea5",
+      "soulSha256": "3baf6e046973fca43b19b07b5873d1ad8c3901069246e79ae60d9018b1a12f25",
+      "planRevision": 1
+    }
+  ],
+  "newBotUsesDatabaseOnly": true,
+  "realModelReply": true,
+  "browserInteractionVerified": false
+}

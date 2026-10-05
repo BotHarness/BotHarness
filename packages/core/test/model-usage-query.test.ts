@@ -1,8 +1,8 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { mountOperationalDatabase } from '../src/database/owner.js';
@@ -22,7 +22,7 @@ function setup() {
     'actual-session': { botSlug: 'ada', rootRole: 'orchestrator' },
   });
   const usage = createUsageProjection({ ownership, database: owner });
-  const registry = createPersonaBotRegistry({ rootDir: join(root, 'bots') });
+  const registry = createTestRegistry({ rootDir: join(root, 'bots') });
   registry.create({ slug: 'ada', displayName: 'Ada', model: 'configured-but-never-called' });
   const channels = createChannelStore({ rootDir: join(root, 'channels') });
   const dm = channels.getOrCreateDm('ada', 'Ada')!;

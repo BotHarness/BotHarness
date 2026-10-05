@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 
 import { createCore } from '../src/plugin.js';
@@ -284,5 +287,13 @@ it('refuses Host Registry Purge in recovery mode before deleting the PersonaBot 
   trackTestOwner(recovery.operationalDatabase);
   expect(recovery.operationalDatabase.mode).toBe('recovery');
   expect(() => recovery.registry.remove('ada', { purge: true })).toThrow();
-  expect(recovery.registry.get('ada')?.displayName).toBe('Ada');
+  expect(() => recovery.registry.get('ada')).toThrow();
+  expect(existsSync(join(recovery.registry.rootDir, 'ada'))).toBe(true);
+  const database = new DatabaseSync(recovery.operationalDatabase.databasePath, { readOnly: true });
+  try {
+    const stored = database.prepare('SELECT body FROM persona_bots WHERE slug = ?').get('ada');
+    expect(JSON.parse(String(stored?.['body'])).displayName).toBe('Ada');
+  } finally {
+    database.close();
+  }
 });
