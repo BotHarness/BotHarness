@@ -55,6 +55,7 @@ export interface DshImOutboundService {
       expectedFingerprint: string;
       signal: AbortSignal;
       sourceFiles?: boolean;
+      ordinaryText?: boolean;
       onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
     },
@@ -371,6 +372,9 @@ export function createDshImProvider(
             return host.consumeInbound!(input.accountRef, {
               expectedFingerprint: input.fingerprint,
               signal: input.signal,
+              ...(info.capabilities.includes('ordinary-text-consumer')
+                ? { ordinaryText: true }
+                : {}),
               ...(host.fileVersion === 1 &&
               info.capabilities.includes('source-file-checked') &&
               info.capabilities.includes('reply-file-checked')
