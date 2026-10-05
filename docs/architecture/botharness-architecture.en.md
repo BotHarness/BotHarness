@@ -354,9 +354,11 @@ flowchart LR
   Runtime <--> W1["Independent Assignment Session A"]
   Runtime <--> W2["Independent Assignment Session B"]
   W1 -->|"report_to_orchestrator"| Report["Assignment Report Source Event"]
-  W2 -.-> Notice["Host Lifecycle Notice<br/>settled / error / cancel<br/>(planned #194)"]
+  W1 -->|"completed Turn paired with this Report"| Completion["Host Completion Notice<br/>paired completion #194"]
+  W2 -->|"confirmed stop"| Notice["Host Lifecycle Notice<br/>confirmed stop #194<br/>other boundaries planned"]
   Report --> Inbox
-  Notice -.-> Inbox
+  Completion --> Inbox
+  Notice --> Inbox
   W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]
 ```
 
@@ -368,7 +370,7 @@ The Assignment Runtime's concurrency limit covers all PersonaBots on the Host (d
 
 Humans adjust this Profile-wide limit from 1 to 32 in Bot mode Settings. The native DSH Settings schema declares a Volatile field persisted by the Profile Config Editor; the UI Plugin's Host Fiber binds a live reader to the application-defined Assignment Runtime and releases the binding on disposal. The Client displays only Host-confirmed saved values, and the Runtime reads the current value whenever it admits creation or an idle wake. Saving affects subsequent admissions immediately and survives restart. Lowering the limit does not cancel running work; new execution starts only once usage falls below the new limit (#825).
 
-The current `stop_assignment` uses DSH `Agent.cancel({ kind: "user" })` to abort the active turn and clear queued input. BotHarness persists a stopping state first, then a stopped state after the Agent is quiescent. A stopped Assignment rejects requests and late reports; its Continuity Key can start a new Session. Cancellation retains DSH Session history. Independent Host Lifecycle Notices and Attention/digest remain later #194 slices.
+The current `stop_assignment` uses DSH `Agent.cancel({ kind: "user" })` to abort the active turn and clear queued input. BotHarness persists a stopping state first, then a stopped state after the Agent is quiescent. A stopped Assignment rejects requests and late reports; its Continuity Key can start a new Session. Cancellation retains DSH Session history. The confirmed stop writes an independent Host Lifecycle Notice in the same transaction as the stopped state. A successful native completion now creates one idempotent Host/system Source Event linked to a Bot-authored completed Report from the exact owned Session and trusted native Turn. The adapter supplies the Turn number from native Session Events; the notice retains the native end sequence and exact Report Source Event ID. The existing Bot Inbox query exposes this causal identity. The Report owns the wake: the paired notice rides that harvest or the next real Turn, remains pending until actually exposed, and never independently wakes or replays after restart. The harvest preserves both Report meaning and Host confirmation with separate source references ([ADR-0077](../adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)). Progress-only successful Turns do not create paired notices. Failure, interruption and other #194 Attention acceptance remain later slices.
 
 The Assignment Request modes `context-update`, `next-step`, and `next-turn` map to verified DSH inject, steer, and followup seams. An ordinary request never cancels the current step. Across the SQLite/DSH boundary BotHarness retains only a minimal Assignment Delivery Intent and performs bounded restart reconciliation. Ambiguity becomes `needs-repair`; it does not grow into a general workflow engine.
 
@@ -480,8 +482,7 @@ collection remains mention-only by default and requires real current delivery to
 full collection. Existing canonical Source Events, Admission snapshots and count/time
 harvest or immediate turn queuing govern collected text; reply participation stays independent.
 Profile reuses the compact policy editor. Restart resets verification without changing policy
-or backfilling gaps. Native thread following, ordinary files and editable Slack global defaults
-remain separate qualifications; there is no new queue, store or Session authority.
+or backfilling gaps. Native thread following and ordinary files remain separate qualifications; #843 extends global defaults after this qualification, with no new queue, store or Session authority.
 
 ### Human Inbox details and dismissal (#687 QA)
 
@@ -530,3 +531,7 @@ The Host expands the selected token into ordinary per-Bot mention text and stabl
 ### Own-identity replies to shared external sources (#637)
 
 [ADR-0122](../adr/0122-shared-source-replies-use-responder-owned-authorization.md) keeps source content and receiving identity canonical while allowing a current Group member to inspect its shared placement without creating an Inbox Admission. An explicit reply requires that member's own enabled external identity and one verified Grant for the original external group. The optional dsh-im checked reply-context contract resolves the exact source under the responder's application, retaining conversation/thread/root/parent while translating only the app-scoped sender identifier. The existing Outbox records a per-responder/source intent, owned identity, qualified route, receipt and honest outcome; Profile projects these details. Membership, Binding/Grant revisions and Provider Registration are fenced again after remote validation and immediately before SDK dispatch. Missing authority, mismatched routes and unknown outcomes never borrow the receiver, fall back to the group mainline or retry blindly. Text replies add no source copy, automatic ownership lock, wake or schema migration; shared remote context/files remain separately qualified. Before qualification, the existing Consumer fanout acquires a reply-only account lease when reception is disabled; it acknowledges and discards inbound messages while retaining exact own-echo correspondence. Profile still shows reception off, and identity/provider lifecycle cancels the process-local lease.
+
+### Qualified external-platform defaults
+
+[#843](https://github.com/BotHarness/BotHarness/issues/843) extends [ADR-0119](../adr/0119-external-platform-defaults-retain-explicit-inheritance.md) to qualified Slack group text. Bot settings selects Lark or Slack with independent drafts and immutable preference revisions. The authenticated read RPC accepts an optional qualified platform; legacy calls still read Lark. Generation 53 preserves all prior default rows and scoped overrides while allowing Slack revisions. New Slack identities inherit; existing identities retain their explicit choices until Human restores inheritance. Only future inherited intake/harvest and enabled behavior changes; authorization, delivery verification, per-Admission snapshots and resume fencing keep their existing owners. No account, Grant, Source, queue or reply authority is added.

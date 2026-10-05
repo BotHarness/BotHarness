@@ -2817,11 +2817,16 @@ export async function manageMessagingIdentity(
     throw new BridgeCallError('invalid-response', 'Invalid identity result');
   return identity as unknown as MessagingIdentity;
 }
-export async function loadMessagingDefaults(call: BridgeCall): Promise<MessagingDefaults> {
-  const value = asRecord(await unwrap(call, 'messagingDefaults', {}));
+export async function loadMessagingDefaults(
+  call: BridgeCall,
+  platform: MessagingDefaultsInput['platform'] = 'feishu',
+): Promise<MessagingDefaults> {
+  const value = asRecord(
+    await unwrap(call, 'messagingDefaults', platform === 'feishu' ? {} : { platform }),
+  );
   if (
     !value ||
-    value['platform'] !== 'feishu' ||
+    value['platform'] !== platform ||
     !Number.isInteger(value['revision']) ||
     Number(value['revision']) < 0 ||
     typeof value['changedAt'] !== 'string' ||
@@ -2843,7 +2848,7 @@ export async function saveMessagingDefaults(
   input: MessagingDefaultsInput,
 ): Promise<MessagingDefaults> {
   await unwrap(call, 'messagingDefaultsSet', { input });
-  return loadMessagingDefaults(call);
+  return loadMessagingDefaults(call, input.platform);
 }
 export async function loadChannelBridges(
   call: BridgeCall,

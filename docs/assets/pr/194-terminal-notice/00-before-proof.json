@@ -1,0 +1,25 @@
+{
+  "phase": "before",
+  "reports": [
+    {
+      "id": "44a64335-bf7a-4e58-81f2-b1716b6ac76e",
+      "state": "completed"
+    },
+    {
+      "id": "be2a6e21-0933-4e8e-82f3-454468a189a5",
+      "state": "progress"
+    },
+    {
+      "id": "a0c73909-7fe6-4a35-87ed-bba6e155e538",
+      "state": "progress"
+    }
+  ],
+  "lifecycleNotices": 0,
+  "turnEnds": [
+    {
+      "seq": 46,
+      "turn": 1,
+      "reason": "completed"
+    }
+  ]
+}

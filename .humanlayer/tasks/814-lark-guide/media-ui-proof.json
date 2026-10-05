@@ -1,0 +1,24 @@
+{
+  "product": "0.0.0-test.823.6",
+  "provider": "4.32.0-botharness.2",
+  "publishedApp": "MUFENG YANG\u7684Lark CLI",
+  "testGroup": "BotHarness IM QA #78",
+  "captureKind": "read-only existing configuration and processed designated QA source",
+  "locales": ["en", "zh"],
+  "desktop": [1280, 720],
+  "mobile": [390, 844],
+  "loadedGuideImagesPerLocale": 16,
+  "horizontalOverflow": false,
+  "video": {
+    "durationSeconds": 104,
+    "codec": "H264",
+    "preload": "none",
+    "autoplay": false,
+    "controls": true,
+    "defaultCaptionByLocale": true,
+    "browserPlaybackReadyState": 4,
+    "browserPauseVerified": true,
+    "all13ChapterFramesVerified": true
+  },
+  "publicSecretVisible": false
+}

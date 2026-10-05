@@ -20,7 +20,7 @@ The first slice supports public-channel Human text mentions only. Slack's channe
 
 Before each reply, the same Bot verifies current channel membership and reads the exact root or child through the native history/replies endpoint. The actor and route must match. The existing BotHarness dispatch fence runs after qualification and before one `chat.postMessage` request with `thread_ts`. A checked receipt records the native channel and message timestamp. Ambiguous transport or malformed result is unknown, never automatically resent or redirected to the channel mainline.
 
-Client Profile identity and connector tables and source details reuse existing components and localized platform labels. Built-in preferences are resolved per platform; Slack does not inherit the Human's mutable Lark defaults. The global settings editor remains qualified for Lark in this slice. Ordinary-message intake, editable Slack platform defaults, bounded context, files and proactive receipt capabilities are withheld until separately qualified tracer bullets.
+Client Profile identity and connector tables and source details reuse existing components and localized platform labels. Built-in preferences are resolved per platform; Slack does not inherit the Human's mutable Lark defaults. At the #802 stage the global settings editor remains qualified for Lark. Ordinary-message intake, editable Slack platform defaults, bounded context, files and proactive receipt capabilities are withheld until separately qualified tracer bullets.
 
 ## Follow-up: bounded context (#819)
 
@@ -92,7 +92,7 @@ Collection does not force a reply. Profile reuses the existing localized compact
 editor; Slack's built-in defaults remain independent of mutable Lark platform defaults.
 Lease/Host restart resets verification but preserves policy, without remote gap backfill.
 No schema, queue or Session authority is added. Autonomous native-thread follow, ordinary
-files, private/DM intake and an editable Slack global-defaults page remain later slices.
+files, private/DM intake remain later slices; #843 extends the existing global-defaults owner after this qualification.
 
 ## Consequences
 

@@ -13,6 +13,43 @@ export function MessagingDefaultsSettings({
   call,
   t,
 }: Pick<HumanNameSettingsProps, 'call' | 't'>): ReactElement {
+  const [selected, setSelected] = useState<MessagingDefaultsInput['platform']>('feishu');
+  return (
+    <div className="bh-profile-section bh-messaging-defaults">
+      <strong>{t('defaults.title')}</strong>
+      <p>{t('defaults.summary')}</p>
+      <label className="bh-default-platform">
+        <span>{t('identity.platform')}</span>
+        <select
+          aria-label={t('defaults.platform')}
+          value={selected}
+          onChange={(e) => setSelected(e.target.value === 'slack' ? 'slack' : 'feishu')}
+        >
+          <option value="feishu">Lark / 飞书</option>
+          <option value="slack">Slack</option>
+        </select>
+      </label>
+      {(['feishu', 'slack'] as const).map((platform) => (
+        <div
+          key={platform}
+          hidden={selected !== platform}
+          role="region"
+          aria-label={platform === 'slack' ? 'Slack' : 'Lark / 飞书'}
+        >
+          <PlatformDefaultsSettings call={call} t={t} platform={platform} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PlatformDefaultsSettings({
+  call,
+  t,
+  platform,
+}: Pick<HumanNameSettingsProps, 'call' | 't'> & {
+  platform: MessagingDefaultsInput['platform'];
+}): ReactElement {
   const [current, setCurrent] = useState<MessagingDefaults>();
   const [draft, setDraft] = useState<MessagingDefaults>();
   const [busy, setBusy] = useState(false);
@@ -23,7 +60,7 @@ export function MessagingDefaultsSettings({
     request = useRef(0);
   const refresh = async () => {
     const sequence = ++request.current;
-    const value = await loadMessagingDefaults(call);
+    const value = await loadMessagingDefaults(call, platform);
     if (!mounted.current || sequence !== request.current) return;
     setCurrent(value);
     if (!dirty.current) {
@@ -46,7 +83,7 @@ export function MessagingDefaultsSettings({
       ++request.current;
       unsubscribeDefaults();
     };
-  }, [call]);
+  }, [call, platform]);
   const change = (patch: Partial<MessagingDefaults>) => {
     dirty.current = true;
     setDraft((value) => (value ? { ...value, ...patch } : value));
@@ -60,7 +97,7 @@ export function MessagingDefaultsSettings({
     ++request.current;
     try {
       const input: MessagingDefaultsInput = {
-        platform: 'feishu',
+        platform,
         expectedRevision: draft.revision,
         collection: draft.collection,
         wake: draft.wake,
@@ -97,9 +134,7 @@ export function MessagingDefaultsSettings({
     draft.intervalSeconds >= 1 &&
     draft.intervalSeconds <= 86400;
   return (
-    <div className="bh-profile-section bh-messaging-defaults" ref={mount}>
-      <strong>{t('defaults.title')}</strong>
-      <p>{t('defaults.summary')}</p>
+    <div className="bh-platform-defaults" ref={mount}>
       {error ? (
         <p className="bh-error" role="alert">
           {error}
@@ -121,7 +156,7 @@ export function MessagingDefaultsSettings({
               </thead>
               <tbody>
                 <tr>
-                  <th scope="row">Lark / 飞书</th>
+                  <th scope="row">{platform === 'slack' ? 'Slack' : 'Lark / 飞书'}</th>
                   <td>
                     <select
                       aria-label={t('defaults.collection')}
@@ -191,7 +226,7 @@ export function MessagingDefaultsSettings({
             </thead>
             <tbody>
               <tr>
-                <th scope="row">Lark / 飞书</th>
+                <th scope="row">{platform === 'slack' ? 'Slack' : 'Lark / 飞书'}</th>
                 <td>
                   <Switch
                     checked={draft.identityEnabled}

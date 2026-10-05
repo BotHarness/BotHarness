@@ -8,6 +8,7 @@ import {
 import type { ThreadReceptionView } from './thread-policy.js';
 import {
   messagingDefaults,
+  messagingDefaultsPlatform,
   commitMessagingDefaults,
   type MessagingDefaults,
   type MessagingDefaultsInput,
@@ -551,7 +552,7 @@ export function createOutboundMessaging(options: {
               input.fingerprint,
               now(),
               account.name,
-              account.platform === 'feishu' ? 1 : 0,
+              messagingDefaultsPlatform.safeParse(account.platform).success ? 1 : 0,
             );
             return readMessagingIdentity(db, id);
           },
@@ -1113,7 +1114,7 @@ export function createOutboundMessaging(options: {
               value.fingerprint,
               at,
               inspected.account.name,
-              value.platform === 'feishu' ? 1 : 0,
+              messagingDefaultsPlatform.safeParse(value.platform).success ? 1 : 0,
             );
           db.prepare(
             'INSERT INTO messaging_grants (id, binding_id, bot_slug, revision, created_at, body) VALUES (?, ?, ?, ?, ?, ?)',

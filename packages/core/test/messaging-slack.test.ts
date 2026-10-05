@@ -1,3 +1,4 @@
+import { createBridgeMethods } from '../src/bridge/methods.js';
 import { setImmediate as tick } from 'node:timers/promises';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createCore, type BotHarnessCore } from '../src/plugin.js';
@@ -218,4 +219,210 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
   ).rejects.toThrow('untrusted-source');
   await core.externalMessaging.revoke('ada', grant.id);
   await expect(callback!.onEvent(source, { signal: callback!.signal })).rejects.toThrow();
+});
+
+it('Slack shared routing preserves one source, independent member policy and own-identity thread authority across connector pause', async () => {
+  const fingerprint = 'b'.repeat(64);
+  let callback: Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1] | undefined;
+  const replies: { botId: string; route: MessagingReplyRoute }[] = [];
+  const core = createCore({ dshHome: createTempRoot('botharness-slack-shared-') });
+  cores.push(core);
+  for (const slug of ['ada', 'bea'])
+    expect(core.registry.create({ slug, displayName: slug }).ok).toBe(true);
+  const transport: DshImOutboundService = {
+    contractVersion: 1,
+    replyContextVersion: 1,
+    replyReceiptVersion: 1,
+    replyFenceVersion: 1,
+    listBots: async () => [{ botId: 'slack-shared', channel: 'slack' }],
+    listTargets: async () => [
+      {
+        targetId: 'qa',
+        name: 'Shared QA',
+        kind: 'conversation',
+        route: { channelId: 'C12345678' },
+      },
+    ],
+    describeBot: async (botId) => ({
+      version: 1,
+      botId,
+      channel: 'slack',
+      connected: true,
+      account: { fingerprint, name: 'Own Slack identity' },
+      capabilities: [
+        'proactive-text-checked',
+        'exclusive-text-consumer',
+        'ordinary-text-consumer',
+        'reply-text-checked',
+        'reply-context-checked',
+        'reply-receipt-checked',
+        'reply-fence-checked',
+      ],
+    }),
+    sendChecked: async () => ({ sent: true }),
+    consumeInbound: async (_id, input) => {
+      callback = input;
+      return () => {};
+    },
+    qualifyReplyChecked: async (_id, route) => route,
+    replyChecked: async (botId, route, _text, options) => {
+      expect(options.beforeSend?.()).toBe(true);
+      replies.push({ botId, route });
+      return {
+        sent: true,
+        receipt: {
+          version: 1,
+          messageId: '1791127999.000001',
+          conversationId: route.conversationId,
+        },
+      };
+    },
+  };
+  core.externalMessaging.register(createDshImProvider(transport, 'slack')!);
+  const target = (await core.externalMessaging.targets('dsh-im/slack', 'slack-shared'))[0]!;
+  const grant = await core.externalMessaging.authorize({
+    botSlug: 'ada',
+    providerId: 'dsh-im/slack',
+    accountRef: 'slack-shared',
+    targetRef: target.ref,
+    fingerprint,
+    targetDigest: target.digest,
+  });
+  const channel = core.channels.createGroup({ name: 'Shared Slack', members: ['ada', 'bea'] });
+  const channelId = channel.id;
+  const other = core.channels.createGroup({ name: 'Unconnected', members: ['ada'] });
+  await core.externalMessaging.setDefaults({
+    platform: 'slack',
+    expectedRevision: 0,
+    collection: 'all',
+    wake: 'digest',
+    count: 7,
+    intervalSeconds: 45,
+    identityEnabled: true,
+  });
+  const policies = createBridgeMethods({ ...core }).channelGroupWakePolicies({ channelId });
+  expect(policies).toMatchObject({
+    ok: true,
+    value: {
+      members: [
+        {
+          botSlug: 'ada',
+          externals: [
+            {
+              platform: 'feishu',
+              origin: 'platform',
+              defaultRevision: 0,
+              policy: { mode: 'digest', count: 5, intervalSeconds: 30 },
+            },
+            {
+              platform: 'slack',
+              origin: 'platform',
+              defaultRevision: 1,
+              policy: { mode: 'digest', count: 7, intervalSeconds: 45 },
+            },
+          ],
+        },
+        {
+          botSlug: 'bea',
+          externals: [{ platform: 'feishu' }, { platform: 'slack', policy: { count: 7 } }],
+        },
+      ],
+    },
+  });
+  core.channels.setGroupWakePolicy(channelId, 'ada', {
+    mode: 'digest',
+    count: 2,
+    intervalSeconds: 60,
+  });
+  core.channels.setGroupWakePolicy(channelId, 'bea', {
+    mode: 'silent',
+    count: 2,
+    intervalSeconds: 60,
+  });
+  await core.externalMessaging.inbound.channelBridge(channelId, {
+    kind: 'add',
+    grantId: grant.id,
+    expectedGrantRevision: grant.revision,
+    name: 'Slack source',
+    enabled: true,
+    collection: 'mentions',
+  });
+  const event = (id: string, mentionedAccount = false): MessagingInboundEvent => ({
+    version: 1,
+    channel: 'slack',
+    botId: 'slack-shared',
+    fingerprint,
+    eventId: 'Ev-' + id,
+    messageId: id,
+    actor: { kind: 'user', id: 'U87654321', name: 'Human sender' },
+    conversation: { kind: 'group', id: 'C12345678' },
+    mentions: mentionedAccount ? [{ id: 'U12345678', key: '<@U12345678>' }] : [],
+    mentionedAccount,
+    at: new Date(Date.now() + 1000).toISOString(),
+    text: 'Shared text ' + id,
+    reply: {
+      conversationId: 'C12345678',
+      messageId: id,
+      actorId: 'U87654321',
+      threadId: '1791127600.000001',
+      rootId: '1791127600.000001',
+    },
+    replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
+  });
+  const receive = async (e: MessagingInboundEvent) =>
+    callback!.onEvent(e, { signal: callback!.signal });
+  await receive(event('1791127730.000001'));
+  expect(core.channels.readMessages(channelId)).toHaveLength(0);
+  let row = (await core.externalMessaging.channelBridges(channelId)).bridges[0]!;
+  const change = async (enabled: boolean, collection: 'all' | 'mentions') => {
+    await core.externalMessaging.inbound.channelBridge(channelId, {
+      kind: 'update',
+      routeId: row.routeId,
+      grantId: row.grantId,
+      expectedGrantRevision: row.grantRevision,
+      expectedRevision: row.revision,
+      name: row.name,
+      enabled,
+      collection,
+    });
+    row = (await core.externalMessaging.channelBridges(channelId)).bridges[0]!;
+  };
+  expect(row.ordinaryDelivery).toBe('verified');
+  await change(true, 'all');
+  const first = event('1791127731.000001');
+  await receive(first);
+  await receive({ ...first, eventId: 'Ev-redelivery' });
+  expect(core.channels.readMessages(channelId)).toHaveLength(1);
+  expect(core.channels.readMessages(other.id)).toHaveLength(0);
+  const sourceId = core.channels.readMessages(channelId)[0]!.id;
+  expect(core.externalMessaging.inbound.read('bea', sourceId)).toMatchObject({
+    event: { actor: { id: 'U87654321', name: 'Human sender' }, reply: first.reply },
+  });
+  const db = attachOperationalModule(core.operationalDatabase, 'test');
+  const admissions = db.read((d) =>
+    d
+      .prepare(
+        'SELECT bot_slug, wake_mode, wake_count FROM inbox_admissions WHERE source_event_id = ? ORDER BY bot_slug',
+      )
+      .all(sourceId),
+  );
+  expect(admissions).toEqual([
+    { bot_slug: 'ada', wake_mode: 'digest', wake_count: 2 },
+    { bot_slug: 'bea', wake_mode: 'silent', wake_count: null },
+  ]);
+  await expect(core.externalMessaging.reply('bea', sourceId, 'Borrow receiver')).rejects.toThrow(
+    'own-reply-grant-unavailable',
+  );
+  await core.externalMessaging.reply('ada', sourceId, 'Own reply');
+  expect(replies).toEqual([{ botId: 'slack-shared', route: first.reply }]);
+  await change(false, 'all');
+  const missed = event('1791127732.000001');
+  missed.at = new Date(Date.now() - 1000).toISOString();
+  await receive(missed);
+  await change(true, 'all');
+  await receive({ ...missed, eventId: 'Ev-late-paused' });
+  expect(core.channels.readMessages(channelId)).toHaveLength(1);
+  await receive(event('1791127733.000001'));
+  expect(core.channels.readMessages(channelId)).toHaveLength(2);
+  expect(replies).toHaveLength(1);
 });

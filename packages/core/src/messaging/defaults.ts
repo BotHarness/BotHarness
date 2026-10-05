@@ -4,9 +4,12 @@ import { z } from 'zod';
 import type { DatabaseSync } from 'node:sqlite';
 import { MessagingError } from './provider.js';
 
+export const messagingDefaultsPlatform = z.enum(['feishu', 'slack']);
+export type MessagingDefaultsPlatform = z.infer<typeof messagingDefaultsPlatform>;
+
 export const messagingDefaultsInput = z
   .object({
-    platform: z.literal('feishu'),
+    platform: messagingDefaultsPlatform,
     expectedRevision: z.number().int().min(0),
     collection: z.enum(['mentions', 'all']),
     wake: z.enum(['immediate', 'digest', 'mentions', 'silent']),
@@ -16,7 +19,7 @@ export const messagingDefaultsInput = z
   })
   .strict();
 export type MessagingDefaultsInput = z.infer<typeof messagingDefaultsInput>;
-export type MessagingDefaults<Platform extends string = 'feishu'> = Omit<
+export type MessagingDefaults<Platform extends string = MessagingDefaultsPlatform> = Omit<
   MessagingDefaultsInput,
   'expectedRevision' | 'platform'
 > & {

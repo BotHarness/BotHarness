@@ -8,5 +8,6 @@ Guides explain verified implementation and integration workflows. They must poin
 - [Assignment Report batches](assignment-report-harvest.md) — progress batching, native harvest and independent source history.
 - [Assignment stop and recovery](/dev/guides/assignment-stop-recovery): verified Human stop workflow, restart semantics and isolated DSH acceptance.
 - [PersonaBot Output Committed](/dev/guides/personabot-output): Host-only public output notifications, correlation, failure isolation and Consumer lifecycle.
+- [IM Provider integration](im-provider-integration.md): verified Lark/Slack contracts, shared source authority and qualification for the next platform.
 
 Additional guides should be added only after their workflow exists and can be verified. Research snapshots do not become guides by default.

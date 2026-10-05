@@ -18,6 +18,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Pixel-family side poses and thinking head-turn frames now read as a real three-quarter turn: features shift toward the facing side, the far eye narrows, only the near ear shows and the chin tucks; side tails stay attached to the head and the mouth stays centred ([#752](https://github.com/BotHarness/BotHarness/issues/752)).
+- Completed Assignment Reports and Host-confirmed native completion retain separate navigable Inbox sources linked by trusted Session/Turn identity, without a duplicate wake; late notices remain pending across restart until a real Turn handles them ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)).
+- Added independently editable Slack intake, harvest and bound-identity defaults in Bot settings, with Profile inheritance and explicit overrides preserved ([#843](https://github.com/BotHarness/BotHarness/issues/843)).
 
 - Human can explicitly collect ordinary text from an authorized Slack channel and choose existing count/time harvest or safely queued immediate wake in Profile; new connections remain mention-only, and overlapping mention subscriptions are deduplicated ([#837](https://github.com/BotHarness/BotHarness/issues/837)).
 - Added a product-artifact build and isolated installation path composing Core, Client and an independently versioned qualified IM Provider, with disconnected initial accounts and product-managed Provider updates; public npm publication remains a separate release action ([#823](https://github.com/BotHarness/BotHarness/issues/823), [packaging guide](docs/product-im-installation.md)).
@@ -352,6 +354,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed Slack Channel connectors and member reminders showing Lark-only labels or defaults ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
+
 - Assignment answers retain their original question until native Inbox acceptance; proven delivery preparation failures remain retryable, uncertain delivery stays visible for repair and older answers cannot clear newer questions ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
 
 - Human Inbox action buttons now open the same split detail view as the row; titles span the full first line above summaries and actions, and compact-entry dialogs have more room ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
@@ -486,6 +490,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
 
 ### Documentation
+
+- Documented the verified Lark/Slack IM integration boundary and repeatable qualification workflow for future providers ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
+
+- Added a Lark / Feishu beginner guide with compressed WebP captures of the actual console and connected Profile, a captioned step-by-step video, and qualified single-install, identity, group authorization and message-source checks ([#814](https://github.com/BotHarness/BotHarness/issues/814), [guide](docs/lark-connection.md)).
 
 - Added a verified [Assignment Report batch guide](docs/dev/guides/assignment-report-harvest.md), with native harvest evidence, retained source history, cold Host restart acceptance and Human source-navigation checks ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 

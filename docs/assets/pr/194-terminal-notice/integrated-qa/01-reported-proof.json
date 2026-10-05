@@ -1,0 +1,21 @@
+{
+  "bot": "Terminal notice QA 1791175637021",
+  "assignmentSessionId": "botharness-6bbfff6d-0456-4a02-b199-1e6e8a1d1396",
+  "orchestratorTurns": 2,
+  "report": {
+    "id": "415bcfbd-3e22-4080-9580-2b75e9554e1c",
+    "state": "handled",
+    "createdAt": "2026-10-05T04:47:21.608Z",
+    "observedAt": "2026-10-05T04:47:21.610Z",
+    "handledAt": "2026-10-05T04:47:23.945Z",
+    "sourceKind": "assignment-report",
+    "assignmentSessionId": "botharness-6bbfff6d-0456-4a02-b199-1e6e8a1d1396",
+    "assignmentReportState": "completed",
+    "assignmentTurn": 1,
+    "sourceAvailable": true,
+    "authorKind": "bot",
+    "authorBotSlug": "bot-880c2dd8869d43f4a0e98690e265bf9e",
+    "summary": "TERMINAL_RESULT_VERIFIED"
+  },
+  "nativeCompletion": false
+}
