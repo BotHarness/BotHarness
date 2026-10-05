@@ -1,10 +1,10 @@
 # Connect a Bot to personal WeChat
 
-This first integration accepts plain-text direct messages from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. Group messages, other contacts, files, history/search and scheduled or proactive messages are outside this slice. Enterprise WeChat is a separate integration.
+The integration accepts text and one file per direct message from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. Group messages, other contacts, images, voice, video, history/search and scheduled or proactive messages are separate slices. Enterprise WeChat is a separate integration.
 
 ## Before you start
 
-Use the matching BotHarness source-preview product and DSH 0.2.0-rc.1. Create a PersonaBot and confirm a real local DM response. The local test package is `0.0.0-test.878`, with `@botharness/im-provider@4.32.0-botharness.4` built from fork `589e5507d47ab21de5b39c776a598452744a5368`; it is not a published npm release. Source-mode WeChat receive/model/reply has been verified in the native client. The installed package preserved the same connection and records and passed a fresh owner text → canonical Inbox → model → original reply exchange. The Human confirmed `BH878-PACKED-OK` in WeChat. Human QA approved this first slice on 2026-10-06. For source-preview artifact preparation, see [Product IM installation](product-im-installation.md).
+Use the matching BotHarness source-preview product and DSH 0.2.0-rc.1. Create a PersonaBot and confirm a real local DM response. The text slice was verified using local test package `0.0.0-test.878`, with `@botharness/im-provider@4.32.0-botharness.4` built from fork `589e5507d47ab21de5b39c776a598452744a5368`; it is not a published npm release. Source-mode WeChat receive/model/reply has been verified in the native client. The installed package preserved the same connection and records and passed a fresh owner text → canonical Inbox → model → original reply exchange. The Human confirmed `BH878-PACKED-OK` in WeChat. Human QA approved this first slice on 2026-10-06. For source-preview artifact preparation, see [Product IM installation](product-im-installation.md).
 
 ## 1. Pair the WeChat Bot
 
@@ -38,11 +38,21 @@ Check both sides: the Inbox item should become handled and the response should a
 
 The first reply verifies source mode; the second verifies the locally installed package after restart. Neither external test is mirrored into local Human DM history.
 
+## 5. Process a file and return a result
+
+The #903 source-preview candidate uses product `0.0.0-test.903` with managed Provider `4.32.0-botharness.5`; it is not a public npm release. Its fresh external file verification is still pending. The text screenshots above do not prove file support.
+
+Send one file up to 25 MiB in the paired WeChat Bot DM. Open its **Bot Inbox** source details to inspect the original filename and optional declared size. Intake saves metadata; it does not automatically download bytes. A missing native MIME type remains generic rather than guessing from the extension.
+
+Authorize a dedicated writable Workspace for that PersonaBot before processing. Ask the Bot to save an independent working copy with `bridge_attachment_save`, process it with native tools and approved commands, import the finished file with `channel_attachment_import`, and return it using `bridge_reply_file`. Approve native Tool requests only for the intended work. The original file remains unchanged. File results and text replies share one source reply intent; avoid a preliminary acknowledgement when you want a file result.
+
+Download the returned file in WeChat and inspect its contents independently. A locally accepted send alone does not prove receipt or correct processing. If a declared file exceeds 25 MiB, its metadata stays inspectable but download is refused. Changed identity, revoked authorization, disposed reception or an expired private file ticket also refuses access. Native images, voice and video are not ordinary file intake in this slice.
+
 ## Pause or reconnect
 
 Disable DM intake to stop future receipt while retaining configuration and history. Revoke the target authorization or unbind the identity to remove its authority. Re-pairing changes the identity fingerprint and requires explicit reauthorization; stale source continuations must not be reused. Restart with the same Profile to retain local pairing, canonical source records and Outbox outcomes.
 
-If text does not arrive, check the connected account, enabled identity and owner-DM authorization. Messages from other contacts, groups or nontext are not supported by this first tracer. If a reply is refused because its original continuation expired or is absent, send a new text in the paired conversation; the Bot must not borrow another conversation. An unknown send outcome must not be blindly resent.
+If text does not arrive, check the connected account, enabled identity and owner-DM authorization. Messages from other contacts and groups, and native media outside text/file, are not supported by this slice. If a reply is refused because its original continuation expired or is absent, send a new text in the paired conversation; the Bot must not borrow another conversation. An unknown send outcome must not be blindly resent.
 
 ## Verification and scope
 

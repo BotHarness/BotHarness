@@ -704,7 +704,7 @@ export const zh = {
   'im.groupLabel': '群聊',
   'im.dmLabel': '私聊',
   'im.weixinUser': '微信用户',
-  'im.weixinReplyOnly': '目前支持回复已收取的微信私聊文字；主动发送尚未开放。',
+  'im.weixinReplyOnly': '支持回复已收取的微信私聊文字和文件；主动发送尚未开放。',
   'im.receivedAs': '接收身份：{name}',
   'im.readDetails': '读取记录 · {count} 次',
   'im.sourceError': '无法读取已保存的外部消息',
@@ -2314,7 +2314,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.dmLabel': 'Direct message',
   'im.weixinUser': 'WeChat user',
   'im.weixinReplyOnly':
-    'Replies to received WeChat DM text are supported; proactive sending is not available yet.',
+    'Replies to received WeChat DM text and files are supported; proactive sending is not available yet.',
   'im.receivedAs': 'Received as {name}',
   'im.readDetails': 'Read history · {count} reads',
   'im.sourceError': 'Unable to read the retained external message',

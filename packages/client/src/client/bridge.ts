@@ -3119,7 +3119,7 @@ export async function readMessagingSource(
             (asRecord(file)?.['sizeBytes'] === undefined ||
               (Number.isSafeInteger(asRecord(file)?.['sizeBytes']) &&
                 Number(asRecord(file)?.['sizeBytes']) > 0 &&
-                Number(asRecord(file)?.['sizeBytes']) <= 25 * 1024 * 1024)) &&
+                Number(asRecord(file)?.['sizeBytes']) <= Number.MAX_SAFE_INTEGER)) &&
             (asRecord(file)?.['mediaType'] === undefined ||
               typeof asRecord(file)?.['mediaType'] === 'string'),
         ))) ||
