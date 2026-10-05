@@ -244,6 +244,10 @@ export function createCore(
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
   const rootDir = join(dshHome, 'botharness', 'bots');
+  const operationalDatabase = mountOperationalDatabase({
+    dshHome,
+    schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+  });
   let usage: UsageProjection | undefined;
   const registry = createPersonaBotRegistry({
     rootDir,
@@ -270,16 +274,25 @@ export function createCore(
           };
     },
   });
-  const modelPresets = createModelPresetStore(join(dshHome, 'botharness'));
+  let modelPresets: ModelPresetStore;
+  try {
+    modelPresets = createModelPresetStore({
+      rootDir: join(dshHome, 'botharness'),
+      database: operationalDatabase,
+      onImport: (event) =>
+        options.warn?.(
+          `model-presets-import initiator=host-startup phase=${event.phase} count=${event.count ?? 0} durationMs=${Math.round(event.durationMs)}`,
+        ),
+    });
+  } catch (error) {
+    operationalDatabase.close();
+    throw error;
+  }
   const states = createBotStateTracker();
   let live: ChannelLiveHub | undefined;
   let runtime: BotRuntime | undefined;
   const attachments = createAttachmentStore({
     rootDir: join(dshHome, 'botharness', 'attachments'),
-  });
-  const operationalDatabase = mountOperationalDatabase({
-    dshHome,
-    schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
   const sourcePolicy = createBotSourcePolicyStore(
     attachOperationalModule(operationalDatabase, 'bot-inbox'),

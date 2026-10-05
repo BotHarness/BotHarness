@@ -269,6 +269,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Reusable Model Presets now persist in the Profile database, with a validated one-time import of existing templates and preserved IDs, revisions and independent applied Bot plans; legacy template files remain recovery inputs and are no longer used after cutover ([#883](https://github.com/BotHarness/BotHarness/issues/883)).
+
 - Many active Avatars now animate smoothly together: all transitions share one animation-frame loop, pixel-family tool transitions step at a pixel-art frame rate with merged color runs (`@botharness/pixel-morph` 0.2.0), and Avatars scrolled out of view skip transition work after updates, keeping 32 to 128 active mixed-family Avatars at full frame rate in measured runs ([#757](https://github.com/BotHarness/BotHarness/issues/757)).
 
 - Made the packaged IM Provider qualification independent of developer selections and advanced its own artifact version for the accepted Slack capabilities ([IM installation](docs/product-im-installation.md), [#868](https://github.com/BotHarness/BotHarness/issues/868)).
@@ -524,7 +526,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Updated Discord integration guidance with merged QA revisions, bounded send-interruption/recovery evidence and explicit remaining Human/native qualification gates ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
 
-- Documented the proposed Profile Backup / Restore / Transfer UX, including validation, repair and explicit activation; runtime delivery and implementation-ticket handoff still require acceptance ([#76](https://github.com/BotHarness/BotHarness/issues/76), [proposal](docs/proposals/profile-portability-ux.md)).
+- Documented the proposed Profile Backup / Restore / Transfer UX, including validation, repair and explicit activation; the UX is accepted and runtime implementation is tracked separately ([#76](https://github.com/BotHarness/BotHarness/issues/76), [proposal](docs/proposals/profile-portability-ux.md)).
 
 - Added an illustrated bilingual Slack connection guide covering App setup, identity binding, channel authorization and real same-thread replies ([#874](https://github.com/BotHarness/BotHarness/issues/874), [guide](docs/slack-connection.md)).
 

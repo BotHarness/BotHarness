@@ -269,6 +269,8 @@
 
 ### Changed
 
+- 可复用 Model Preset 现由 Profile 数据库持久化；一次性校验迁入旧模板，保留 ID、revision 及 Bot 已应用方案的独立性，旧模板文件保留供恢复参考，切换后不再读写 ([#883](https://github.com/BotHarness/BotHarness/issues/883))。
+
 - 大量头像同时活动时更流畅：所有过渡共用一个动画帧循环，像素风格的工具切换按像素画帧率步进并合并同色像素（`@botharness/pixel-morph` 0.2.0），滚出视野的头像在状态更新后不再做过渡计算；实测 32 到 128 个混合风格的活动头像仍保持满帧（[#757](https://github.com/BotHarness/BotHarness/issues/757)）。
 
 - 产品 IM Provider 采用独立固定的资格验证输入，并为已验收的 Slack 能力递增自身版本，避免开发版选择隐式改变产品产物（[IM 安装指南](docs/product-im-installation.md)、[#868](https://github.com/BotHarness/BotHarness/issues/868)）。
@@ -524,7 +526,7 @@
 
 - 更新 Discord 接入说明，记录已合并 QA 版本、有界发送中断／恢复证据及仍待完成的 Human／原生资格验收（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[验证记录](docs/dev/verification/discord-855-mention-reply.md)）。
 
-- 记录 Profile 备份／恢复／迁移 UX 提案，明确校验、修复与显式激活；运行交付及实现票交接仍需验收 ([#76](https://github.com/BotHarness/BotHarness/issues/76), [提案](docs/proposals/profile-portability-ux.md))。
+- 记录 Profile 备份／恢复／迁移 UX 提案，明确校验、修复与显式激活；UX 已验收，运行实现另行跟踪 ([#76](https://github.com/BotHarness/BotHarness/issues/76), [提案](docs/proposals/profile-portability-ux.md))。
 
 - 新增带真实截图的双语 Slack 连接指南，说明应用配置、身份绑定、频道授权与原话题回复验证（[#874](https://github.com/BotHarness/BotHarness/issues/874)、[指南](docs/slack-connection.md)）。
 
