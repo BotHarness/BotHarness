@@ -1,0 +1,42 @@
+{
+  "bot": "Recovery notice QA 1791200426136",
+  "assignment": {
+    "sessionId": "botharness-498c2d89-f737-4b78-883c-862894e43bb9",
+    "activity": "working",
+    "purpose": "Active Assignment crash QA. FIRST invoke report_to_orchestrator exactly once with state progress, summary \"ACTIVE_PROGRESS: Evidence retained before interruption.\", expects_reply false. THEN invoke native Shell with only command `sleep 1` and description `Recovery notice QA timer`, omitting sandbox_permissions and justification, and wait for Human approval. Do not report completed, do not stop, do not use files, and perform no other tool.",
+    "latestReport": {
+      "state": "progress",
+      "summary": "ACTIVE_PROGRESS: Evidence retained before interruption.",
+      "at": "2026-10-05T11:40:31.088Z"
+    },
+    "permission": {
+      "grantId": "00f17e19-8195-402c-a74b-86cd9713f205",
+      "workspaceId": "ee90bf1b-aad3-457d-aae7-740a23ce10f8"
+    },
+    "continuityKey": "active-crash-direction"
+  },
+  "sources": [
+    {
+      "id": "afd1a763-768c-4545-bea5-a2c0de2ed42a",
+      "summary": "ACTIVE_PROGRESS: Evidence retained before interruption.",
+      "createdAt": "2026-10-05T11:40:31.088Z",
+      "sourceKind": "assignment-report",
+      "assignmentSessionId": "botharness-498c2d89-f737-4b78-883c-862894e43bb9",
+      "assignmentReportState": "progress",
+      "assignmentTurn": 1,
+      "authorKind": "bot",
+      "authorBotSlug": "bot-5cac094bb7b54fbe84570d9f4fd1fec4",
+      "sourceAvailable": true,
+      "state": "pending"
+    }
+  ],
+  "assignmentTurns": {
+    "starts": 1,
+    "ends": 0
+  },
+  "orchestratorTurns": {
+    "starts": 1,
+    "ends": 1
+  },
+  "timerExecuted": false
+}

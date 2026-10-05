@@ -371,6 +371,8 @@
 
 ### Fixed
 
+- Host 重启后，原先正在执行的 Assignment 会向所属 PersonaBot 发送一条安全恢复通知，保留原报告、不自动重跑 Assignment；已处理通知在后续重启不重复生成（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
+
 - Assignment 原生执行错误现在会向所属 PersonaBot 发送一条安全 Host 通知并释放 Continuity Key，保留原始进度报告，不自动重试或在重启后重放（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
 
 - Human 取消正在运行的 Assignment 后，Bot Inbox 会收到一条 Host 来源通知，保留原报告与原生 Turn 引用且不自动重跑；已处理事实在重启后保留（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0045](docs/adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)）。

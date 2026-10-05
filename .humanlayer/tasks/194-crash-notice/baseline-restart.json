@@ -1,0 +1,45 @@
+{
+  "bot": "Active crash QA 1791200183735",
+  "assignment": {
+    "sessionId": "botharness-1dc49f99-b001-4659-bbff-fc5fb0203e34",
+    "activity": "error",
+    "purpose": "Active Assignment crash QA. It must FIRST invoke report_to_orchestrator exactly once with state progress, summary \"ACTIVE_PROGRESS: Evidence retained before interruption.\", expects_reply false. Then invoke native Shell with only command sleep 1 and description Active crash QA timer, omitting sandbox_permissions and justification. Wait for Human approval. Do not report completed, stop, use files or perform any other tool.",
+    "latestReport": {
+      "state": "progress",
+      "summary": "ACTIVE_PROGRESS: Evidence retained before interruption.",
+      "at": "2026-10-05T11:36:28.082Z"
+    },
+    "permission": {
+      "grantId": "7f8e8cba-5a98-4f28-841c-96839b854a67",
+      "workspaceId": "a6c226a7-6a60-4d0e-bb40-471022a82f41"
+    }
+  },
+  "sources": [
+    {
+      "id": "8cfc1761-d0a2-44dd-a976-85ace78b2127",
+      "summary": "ACTIVE_PROGRESS: Evidence retained before interruption.",
+      "createdAt": "2026-10-05T11:36:28.082Z",
+      "sourceKind": "assignment-report",
+      "assignmentSessionId": "botharness-1dc49f99-b001-4659-bbff-fc5fb0203e34",
+      "assignmentReportState": "progress",
+      "assignmentTurn": 1,
+      "authorKind": "bot",
+      "authorBotSlug": "bot-59e5914ce4ec4c969616b063529b5112",
+      "sourceAvailable": true,
+      "state": "pending"
+    }
+  ],
+  "assignmentTurns": {
+    "starts": 1,
+    "ends": 1
+  },
+  "orchestratorTurns": {
+    "starts": 1,
+    "ends": 1
+  },
+  "nativeEndReason": "interrupted",
+  "approvalExpired": true,
+  "timerExecuted": false,
+  "noAutomaticReplay": true,
+  "noFabricatedCompletion": true
+}
