@@ -100,21 +100,17 @@ Slack 后接入 Discord。其 Gateway 事件／intents、guild／channel／threa
 
 Slack 公开频道 QA App 的 Bot scopes 为 `app_mentions:read`、`chat:write`、`channels:read`、`channels:history`、`users:read`、`files:read`、`files:write`；Socket Mode 单独使用 App-level `connections:write` token。`app_mention` 与 `message.channels` 事件订阅和 scopes 是不同配置；重新安装新增 scope 和保存事件订阅也是不同步骤。纯文字切片不要求文件权限，不借 Human 凭据绕过 Bot 能力拒绝。Lark 群历史权限 `im:message.group_msg` 必须给**应用身份**开通并发布，Human OAuth 登录取得同名权限不代表 Bot 有权限。配置后核对原生成员资格与真实 API 结果，不凭绿色开关推断能力。
 
-## Discord 首片检查点 — 2026-10-05
+## Discord @ 收件／回复检查点 — 2026-10-06
 
-独立 @ 收件／回复 tracer 为 [#855](https://github.com/BotHarness/BotHarness/issues/855)。只读检查使用 BotHarness `751d88871ae9f3b25d8ef0381a3f1673330537b6` 和[固定 Provider 源码](https://github.com/DoodleBears/dsh-im/tree/abaee436e707c7d9cc7e5cefaa7bd5227321ff55)。**Discord 仍未资格验证**：这个检查点没有验证专用 App、guild、channel／thread、安装运行产物或真实模型回复。
+[#855](https://github.com/BotHarness/BotHarness/issues/855) 的实现已合并，但 **Discord 仍未资格验证**。[BotHarness #870](https://github.com/BotHarness/BotHarness/pull/870) 增加 checked @ 收件与原位置回复，[#876](https://github.com/BotHarness/BotHarness/pull/876) 修复身份／Grant／接收状态变化后相邻视图不刷新的问题。[Provider #6](https://github.com/DoodleBears/dsh-im/pull/6) 合并提交为 `1a605b11fa8d321110540de42d58a77bdcd60f13`，与实测候选 `8cf705ea474cdef8e658f7756ee48d5c936bd404` 的 tree 相同。专用 QA Host 使用 `4138eeebffbf7abda53d9cd1ba1ccc98f95e16b1`、DSH `0.2.0-rc.1`；394 个 Provider 运行文件的 SHA-256 为 `69c513ff44fb802377ec7648e9c9075d2fc2c63b6f1c3205ee1d6012f956e58e`。这些是 QA 版本，不表示产品依赖已升级。
 
-该版本的 Discord controller 继承通用 token controller，没有 checked account、独占 consumer 或 checked reply 操作。独立运行的 transport 请求 Message Content intent，并可能在频道 @ 后创建原生 thread。这不满足 BotHarness 所需契约：首片必须回复原 channel 或已有 thread，不能新建竞争 Session 或另一个原生 thread。
+真实频道及已有公开 thread 的 @ 消息已贯通一条 canonical Source Event／Inbox Admission、既有 Orchestrator 模型和一条独立原生读回的本身份原位置回复。后续有界检查覆盖身份暂停／恢复、Grant 撤销、真实 Provider Service 丢失／恢复、独占 consumer 冲突、来源编辑，以及发送中的身份／Grant／Provider 丢失。恢复后的新频道和原 thread 模型回复均通过；旧中断请求没有自动重发。Provider 在发送中丢失仍保留 `unknown-outcome`，不能因原生读回未见回复就改称确定未发送。
 
-[Gateway 文档](https://docs.discord.com/developers/events/gateway#message-content-intent) 将提及 App 的消息列为 Message Content 限制的例外。因此只收 @ 的首片应验证能否只使用 `GUILDS`、`GUILD_MESSAGES`，而不请求特权内容访问；普通收件／历史可用性继续单独资格验证。[Thread](https://docs.discord.com/developers/topics/threads) 是原生子频道，`parent_id` 指向父频道，不是父消息 ID。Thread 发言需要 `SEND_MESSAGES_IN_THREADS`，普通频道发送使用 `SEND_MESSAGES`。消息引用本身不证明存在 thread。Snowflake ID 保留字符串，分别检查 guild、父子频道关系、当前访问、原消息和原生回复回执；thread 回复失败不能转发到父频道。
+Human 后续明确要求代理直接完成 E2E 验收，取消本人操作与人工 QA 等待条件。代理通过既有 Profile 界面解绑并重新绑定同一已认证账号、授权同一目标、开启仅 @ 收件。随后在真实 Discord 输入框发送的新频道与已有 thread 提及，各产生一次 canonical Admission、一次模型 `bridge_reply` Intent 和一条独立原生读回的本 Bot 原位置回复。这是代理操作界面的验收，不声称 Human 亲自完成了设置。来源删除、错误凭据／Application／guild 和强制 Gateway 重投／缺口仍缺少新的原生／模型证据。错误原生路由与真实权限丢失通过调用 Discord API 的 Provider preflight 检查过；这比真实模型尝试回复并被拒绝的证据范围更窄。
 
-真实 QA 门槛需要专用且已授权的 App／Bot、guild 文本频道、已有公开 thread 和本机凭据引用。创建 App、安装 Bot、扩大权限分别需要相应 Human 授权。源码改动和 E2E 证据见 #855；只读源码检查不推进资格表的任何能力状态。
+见[当前验证范围及历史首片检查点](../verification/discord-855-mention-reply.md)和 [#876 的成对 UI 证据](../../evidence/issue-855-messaging-refresh/README.md)。[ADR-0128](../../adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md) 记录父会话／原生子频道映射。已验证的产品 Provider 和 Discord 其他能力表行保持不变。
 
-实现候选 `e6f0de2a989c28d20db92c0e7f43b20c6d3028b9` 补充 checked 身份／Consumer／回复及显式 external-only Profile 配置；目前只是本机源码候选，已发布且真实频道／thread E2E 已通过，Human QA 尚待完成。现有产品固定版本保持不变。待确认的 [ADR-0128](../../adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md) 记录父会话／原生子频道映射。受控测试不推进资格表。
-
-## 真实首片检查点 — 2026-10-05
-
-专用 App／服务器的文字频道及已有公开 thread 已通过真实 Human @ → canonical Inbox → 模型 → 本身份原位置回复。两条外部 Source／Admission 对应两条已原生读回的回复，未镜像到 Human DM。见[准确版本、原生回执、截图与可重复 QA 路径](../verification/discord-855-mention-reply.md)。Human 绑定／来源 UI 验收及更完整的真实异常／生命周期矩阵尚待完成，Discord 尚未完全资格验证；产品 Provider 固定版本及其他能力表行保持不变。
+早期只读检查使用 [Provider `abaee436`](https://github.com/DoodleBears/dsh-im/tree/abaee436e707c7d9cc7e5cefaa7bd5227321ff55)，其通用 token controller 没有 checked 身份／consumer／回复能力，可能新建独立 thread；该历史输入不是已合并的 checked Provider。当前仅 @ QA 配置使用 `GUILDS`、`GUILD_MESSAGES`，不请求特权 Message Content intent。[Gateway 文档](https://docs.discord.com/developers/events/gateway#message-content-intent) 将提及 App 的消息列为内容限制例外；普通文字与历史读取继续独立验证。[Thread](https://docs.discord.com/developers/topics/threads) 是原生子频道，`parent_id` 不是父消息 ID，发言需要 `SEND_MESSAGES_IN_THREADS`。保留 Snowflake 字符串，核对 guild、父子关系、权限、原消息及回复回执；不能失败后转发父频道或开启 standalone Session。
 
 ## 仅在外部发布报告与原话题追问
 
