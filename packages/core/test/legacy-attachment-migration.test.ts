@@ -427,7 +427,11 @@ describe('retained legacy attachment migration', () => {
           inspected = true;
         },
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
     });

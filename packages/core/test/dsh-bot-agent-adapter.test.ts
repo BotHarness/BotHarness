@@ -1118,10 +1118,112 @@ describe('DSH Bot Agent adapter', () => {
     await adapter.close();
   });
 
+  it.each(['prepare', 'resume', 'native-send'] as const)(
+    'exposes the %s acceptance failure separately from completion',
+    async (phase) => {
+      const host = new FakeAgentHost();
+      if (phase === 'resume')
+        vi.spyOn(host, 'resume').mockRejectedValueOnce(new Error('cold resume unavailable'));
+      const adapter = createDshBotAgentAdapter({
+        agents: host,
+        defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+        orchestratorCwd: () => '/memory/ada',
+        ensureWorkspace: () => undefined,
+        ...(phase === 'prepare'
+          ? {
+              prepareModelRoute: async () => {
+                throw new Error('model preparation unavailable');
+              },
+            }
+          : {}),
+      });
+      const run: AssignmentAgentRun = {
+        sessionId: 'acceptance-test',
+        bot: BOT,
+        purpose: 'Answer',
+        resume: true,
+        permission: {
+          grantId: 'grant-1',
+          workspaceId: 'workspace-1',
+          primaryCwd: '/project',
+          mode: 'workspace-write',
+          approval: 'ask',
+          presetRevision: 0,
+        },
+        report: async (input) => ({ ...input, at: BOT.createdAt }),
+      };
+      if (phase === 'native-send') {
+        await adapter.runAssignment({ ...run, resume: false });
+        vi.spyOn(host.get(run.sessionId)!, 'followup').mockImplementationOnce(() => {
+          throw new Error('native send threw');
+        });
+      }
+      try {
+        const result = adapter.requestAssignment(run);
+        if (result.delivery !== 'followup') throw new Error('Missing followup');
+        const [acceptance, completion] = await Promise.allSettled([result.accepted, result.done]);
+        expect(acceptance.status).toBe('rejected');
+        expect(completion.status).toBe('rejected');
+        if (acceptance.status !== 'rejected') throw new Error('Missing refusal');
+        expect(acceptance.reason.message).toContain(
+          phase === 'native-send' ? 'acceptance is uncertain' : 'unavailable',
+        );
+      } finally {
+        await adapter.close();
+      }
+    },
+  );
+
+  it('acknowledges native Inbox acceptance before the resumed turn finishes', async () => {
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const host = new FakeAgentHost({ kind: 'completed' }, { onTurn: () => pending });
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      hasSession: async () => false,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    try {
+      const result = adapter.requestAssignment({
+        sessionId: 'delayed-completion',
+        bot: BOT,
+        purpose: 'Answer',
+        resume: true,
+        permission: {
+          grantId: 'grant-1',
+          workspaceId: 'workspace-1',
+          primaryCwd: '/project',
+          mode: 'workspace-write',
+          approval: 'ask',
+          presetRevision: 0,
+        },
+        report: async (input) => ({ ...input, at: BOT.createdAt }),
+      });
+      if (result.delivery !== 'followup') throw new Error('Missing followup');
+      let completed = false;
+      void result.done.then(() => {
+        completed = true;
+      });
+      await result.accepted;
+      expect(completed).toBe(false);
+      finish();
+      await result.done;
+      expect(completed).toBe(true);
+    } finally {
+      finish();
+      await adapter.close();
+    }
+  });
+
   it('follows up a settled Assignment instead of steering a stale run', async () => {
     const host = new FakeAgentHost();
     const adapter = createDshBotAgentAdapter({
       agents: host,
+      hasSession: async () => false,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
       orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,

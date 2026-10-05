@@ -130,8 +130,8 @@ describe('Human Inbox tool approval', () => {
         await act(async () => root.render(createElement(HumanInboxView, { actions })));
         expect(button('处理审批')).toBeDefined();
         await act(async () => button('处理审批')!.click());
-        expect(container.querySelector('.bh-human-inbox-detail')).toBeNull();
-        expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+        expect(container.querySelector('.bh-human-inbox-detail')).not.toBeNull();
+        expect(container.querySelector('[role="dialog"]')).toBeNull();
         expect(container.querySelector('.bh-tool-approval-input')?.textContent).toBe(
           '{"command":"echo QA_RELEASE"}',
         );
