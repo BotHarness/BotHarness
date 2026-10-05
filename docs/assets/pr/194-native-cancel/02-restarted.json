@@ -1,0 +1,64 @@
+{
+  "bot": "Native cancellation QA",
+  "assignment": {
+    "sessionId": "botharness-2306c6b7-a585-48b0-b737-ec5986316f4c",
+    "activity": "error",
+    "latestReport": {
+      "state": "progress",
+      "summary": "CANCEL_PROGRESS: Evidence retained before Human cancellation.",
+      "at": "2026-10-05T10:07:21.665Z"
+    }
+  },
+  "sources": [
+    {
+      "id": "189d6d82-433d-4fa6-a416-19807be8d2e8",
+      "state": "handled",
+      "createdAt": "2026-10-05T10:08:22.507Z",
+      "observedAt": "2026-10-05T10:08:22.511Z",
+      "handledAt": "2026-10-05T10:08:25.148Z",
+      "sourceKind": "assignment-lifecycle",
+      "assignmentSessionId": "botharness-2306c6b7-a585-48b0-b737-ec5986316f4c",
+      "assignmentTurn": 1,
+      "authorKind": "system",
+      "sourceAvailable": true,
+      "summary": "DSH confirmed Assignment Turn 1 was cancelled. Execution did not complete successfully."
+    },
+    {
+      "id": "98a2bb63-0944-48dd-938a-e166e44b053f",
+      "state": "handled",
+      "createdAt": "2026-10-05T10:07:21.665Z",
+      "observedAt": "2026-10-05T10:08:22.511Z",
+      "handledAt": "2026-10-05T10:08:25.148Z",
+      "sourceKind": "assignment-report",
+      "assignmentSessionId": "botharness-2306c6b7-a585-48b0-b737-ec5986316f4c",
+      "assignmentReportState": "progress",
+      "assignmentTurn": 1,
+      "authorKind": "bot",
+      "authorBotSlug": "bot-e3c2905561df4fb1863c0cf940e21be2",
+      "sourceAvailable": true,
+      "summary": "CANCEL_PROGRESS: Evidence retained before Human cancellation."
+    }
+  ],
+  "native": {
+    "turn": 1,
+    "endSeq": 26,
+    "endReason": "aborted",
+    "cancelCause": "user",
+    "starts": 1,
+    "ends": 1,
+    "ungrantedShellNeverSucceeded": true
+  },
+  "orchestrator": {
+    "starts": 2,
+    "ends": 2
+  },
+  "nativeNotice": {
+    "state": "cancelled",
+    "cause": "native-turn-aborted",
+    "turn": 1,
+    "endSeq": 26
+  },
+  "cancellationAcknowledgements": 1,
+  "approvalExpired": true,
+  "assignmentCount": 1
+}
