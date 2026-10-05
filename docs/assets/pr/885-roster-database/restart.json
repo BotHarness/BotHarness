@@ -1,0 +1,46 @@
+{
+  "phase": "restart",
+  "passed": true,
+  "databaseGeneration": 56,
+  "databaseCutover": true,
+  "arrangement": {
+    "pins": ["group-pinned-qa", "group-loose-qa"],
+    "hidden": ["group-hidden-history-qa", "group-research-b"],
+    "sectionOrder": [
+      "cafd68d9-05a5-4332-b903-0a42406c7b0c",
+      "baa1ace0-7c71-47c0-a10a-e6a0af4706f8"
+    ],
+    "sections": [
+      {
+        "id": "cafd68d9-05a5-4332-b903-0a42406c7b0c",
+        "name": "工作",
+        "channelIds": ["group-hidden-history-qa", "group-research-b", "group-loose-qa"]
+      },
+      {
+        "id": "baa1ace0-7c71-47c0-a10a-e6a0af4706f8",
+        "name": "SQLite Research QA",
+        "channelIds": ["group-pinned-qa"]
+      }
+    ],
+    "topOrder": [
+      {
+        "kind": "section",
+        "id": "cafd68d9-05a5-4332-b903-0a42406c7b0c"
+      },
+      {
+        "kind": "channel",
+        "id": "group-research-a"
+      },
+      {
+        "kind": "section",
+        "id": "baa1ace0-7c71-47c0-a10a-e6a0af4706f8"
+      }
+    ]
+  },
+  "arrangementSha256": "8ef6e92f0c2a8d4512b0f64c3ded3b0ed3f4ba0412a0ef9b8fbc976a76b22e33",
+  "retainedLegacySourceSha256": "1f012565854858addaddea0e35af103ee797f3cddd3bbcdf8773a3e7c94652d7",
+  "crossConnectionRefreshVerified": true,
+  "channelHistoryRetained": true,
+  "browserInteractionVerified": false,
+  "actualSecondBrowserClientVerified": false
+}

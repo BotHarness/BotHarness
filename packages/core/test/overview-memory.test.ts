@@ -1,3 +1,4 @@
+import { createTestRosterStore } from './roster-fixture.js';
 import { createTestRegistry } from './registry-fixture.js';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -8,7 +9,6 @@ import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { createMemoryService } from '../src/memory/service.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
-import { createRosterStore } from '../src/roster/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
@@ -39,7 +39,7 @@ function setup() {
     ownership,
     memory,
     channels: createChannelStore({ rootDir: join(root, 'channels') }),
-    roster: createRosterStore(),
+    roster: createTestRosterStore(),
     states: createBotStateTracker(),
   });
   const dir = registry.memoryDirFor('ada')!;

@@ -1,3 +1,4 @@
+import { createTestRosterStore } from './roster-fixture.js';
 import { createTestRegistry } from './registry-fixture.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,7 +12,6 @@ import { createBridgeMethods, type BridgeMethods } from '../src/bridge/methods.j
 import { BRIDGE_NAMESPACE, BRIDGE_SERVICE_KEY, registerBridge } from '../src/bridge/rpc.js';
 
 import { createChannelStore } from '../src/channels/store.js';
-import { createRosterStore } from '../src/roster/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
@@ -40,7 +40,7 @@ function setup(sourcePolicy?: BotSourcePolicyStore) {
     states: createBotStateTracker(),
     channels,
     ownership: createTestOwnership(),
-    roster: createRosterStore(),
+    roster: createTestRosterStore(),
     createBotId: () => 'ada',
     ...(sourcePolicy === undefined ? {} : { sourcePolicy }),
   });

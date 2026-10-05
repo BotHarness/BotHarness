@@ -1,8 +1,24 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach } from 'vitest';
+import { z } from 'zod';
+import { attachOperationalModule, type OperationalDatabaseOwner } from '../src/database/owner.js';
+import {
+  createRosterStore,
+  type RosterStore,
+  type RosterStoreOptions,
+} from '../src/roster/store.js';
+
+import { registryDatabase } from './registry-fixture.js';
+
 import type { Domain, DomainGlobal, DomainSpec, KvTable } from '@deepseek-ai/dsh-storage-domain';
 
 import type { RosterDomainFacility } from '../src/roster/store.js';
 import {
   rosterDomainSpec,
+  rosterDomainState,
+  rosterSectionRecord,
   type RosterDomainState,
   type RosterSectionRecord,
 } from '../src/roster/spec.js';
@@ -96,3 +112,59 @@ export function createFakeRosterDomain(
     closeCount: () => closes,
   };
 }
+
+const rosterRoots: string[] = [];
+const rosterOwners = new WeakMap<RosterStore, OperationalDatabaseOwner>();
+const changeBaselines = new WeakMap<RosterStore, number>();
+const storedArrangement = z.object({
+  state: rosterDomainState,
+  sections: z.array(z.tuple([z.string(), rosterSectionRecord])),
+});
+
+export function createTestRosterStore(options: Partial<RosterStoreOptions> = {}): RosterStore {
+  const root =
+    options.database === undefined
+      ? mkdtempSync(join(tmpdir(), 'botharness-roster-db-'))
+      : undefined;
+  if (root !== undefined) rosterRoots.push(root);
+  const database = options.database ?? (root === undefined ? undefined : registryDatabase(root));
+  if (database === undefined) throw new Error('Missing test database');
+  const store = createRosterStore({ ...options, database });
+  rosterOwners.set(store, database);
+  const attach = store.attach.bind(store);
+  store.attach = async (facility) => {
+    await attach(facility);
+    changeBaselines.set(store, totalChanges(store));
+  };
+  return store;
+}
+
+function rosterPort(store: RosterStore) {
+  const owner = rosterOwners.get(store);
+  if (owner === undefined) throw new Error('Missing test roster owner');
+  return attachOperationalModule(owner, 'roster-test-query');
+}
+function storedData(store: RosterStore) {
+  return rosterPort(store).read((database) => {
+    const row = database.prepare('SELECT body FROM roster_arrangement WHERE singleton = 1').get();
+    if (typeof row?.body !== 'string') throw new Error('Missing roster record');
+    return storedArrangement.parse(JSON.parse(row.body));
+  });
+}
+export function storedState(store: RosterStore): RosterDomainState {
+  return storedData(store).state;
+}
+export function storedSection(store: RosterStore, id: string): RosterSectionRecord | undefined {
+  return storedData(store).sections.find(([key]) => key === id)?.[1];
+}
+function totalChanges(store: RosterStore): number {
+  return rosterPort(store).read((database) =>
+    Number(database.prepare('SELECT total_changes() AS changes').get()?.changes),
+  );
+}
+export function storedWriteCount(store: RosterStore): number {
+  return totalChanges(store) - (changeBaselines.get(store) ?? 0);
+}
+afterEach(() => {
+  for (const root of rosterRoots.splice(0)) rmSync(root, { recursive: true, force: true });
+});

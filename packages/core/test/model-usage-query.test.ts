@@ -1,3 +1,4 @@
+import { createTestRosterStore } from './roster-fixture.js';
 import { createTestRegistry } from './registry-fixture.js';
 import { join } from 'node:path';
 
@@ -7,7 +8,6 @@ import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
-import { createRosterStore } from '../src/roster/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createUsageProjection, usageLocalDay } from '../src/usage/usage.js';
 import { createTempRoot, createTestOwnership, trackTestOwner } from './helpers.js';
@@ -32,7 +32,7 @@ function setup() {
     ownership,
     usage,
     states: createBotStateTracker(),
-    roster: createRosterStore(),
+    roster: createTestRosterStore(),
   });
   const time = Date.now();
   const fold = (

@@ -1,3 +1,4 @@
+import { createTestRosterStore } from './roster-fixture.js';
 import { createTestRegistry } from './registry-fixture.js';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -7,7 +8,6 @@ import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
-import { createRosterStore } from '../src/roster/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createWorkspaceGrantStore, type DshWorkspace } from '../src/workspaces/grants.js';
 import { createTempRoot, createTestOwnership, trackTestOwner } from './helpers.js';
@@ -57,7 +57,7 @@ async function setup() {
     grants,
     channels: createChannelStore({ rootDir: join(root, 'channels') }),
     states: createBotStateTracker(),
-    roster: createRosterStore(),
+    roster: createTestRosterStore(),
   });
   return {
     methods,
