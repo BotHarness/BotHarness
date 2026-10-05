@@ -1418,6 +1418,21 @@ const QUALIFIED_PLATFORM_DEFAULTS_MIGRATION: SchemaMigration = {
   },
 };
 
+const MODEL_PRESET_STORAGE_MIGRATION: SchemaMigration = {
+  generation: 54,
+  module: 'model-presets',
+  description:
+    'Own reusable Model Presets and their one-time import marker in the Profile database',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE model_presets (id TEXT PRIMARY KEY, body TEXT NOT NULL CHECK (json_valid(body)));
+      CREATE TABLE model_presets_import (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1), imported_at TEXT NOT NULL
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1471,4 +1486,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   MESSAGING_DEFAULTS_MIGRATION,
   BRIDGE_ROUTES_MIGRATION,
   QUALIFIED_PLATFORM_DEFAULTS_MIGRATION,
+  MODEL_PRESET_STORAGE_MIGRATION,
 ]);

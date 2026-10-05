@@ -1,0 +1,22 @@
+{
+  "phase": "migration",
+  "passed": true,
+  "templateId": "4fb04bf3-40bc-45d1-986f-0991f93a2870",
+  "revision": 2,
+  "databaseGeneration": 54,
+  "databaseCutover": true,
+  "independentBotPlans": [
+    {
+      "slug": "bot-5a1036f4df9f4012bb3bd7660fcfc9be",
+      "revision": 1,
+      "sha256": "205e7d81d761a3120ed35628712eaa2b1eed1b6ae8b3283658773a24dd7bcb57"
+    },
+    {
+      "slug": "bot-05ec2ceb5bdd4f1fba9e9211c04bb2ca",
+      "revision": 1,
+      "sha256": "e9df741f810eb60f31171adf19fbd388e48ee120431d46647777ce8938ae895a"
+    }
+  ],
+  "realModelReply": true,
+  "browserInteractionVerified": false
+}
