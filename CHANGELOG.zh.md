@@ -522,6 +522,8 @@
 
 ### Documentation
 
+- 更新 Discord 接入说明，记录已合并 QA 版本、有界发送中断／恢复证据及仍待完成的 Human／原生资格验收（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[验证记录](docs/dev/verification/discord-855-mention-reply.md)）。
+
 - 记录 Profile 备份／恢复／迁移 UX 提案，明确校验、修复与显式激活；运行交付及实现票交接仍需验收 ([#76](https://github.com/BotHarness/BotHarness/issues/76), [提案](docs/proposals/profile-portability-ux.md))。
 
 - 新增带真实截图的双语 Slack 连接指南，说明应用配置、身份绑定、频道授权与原话题回复验证（[#874](https://github.com/BotHarness/BotHarness/issues/874)、[指南](docs/slack-connection.md)）。

@@ -1,4 +1,31 @@
-# Discord mention/reply tracer — live checkpoint
+# Discord mention/reply tracer — verification scope
+
+## Current bounded checkpoint — 2026-10-06
+
+The implementation PRs [#870](https://github.com/BotHarness/BotHarness/pull/870), [#876](https://github.com/BotHarness/BotHarness/pull/876) and [Provider #6](https://github.com/DoodleBears/dsh-im/pull/6) are merged. The dedicated live QA Host is `4138eeebffbf7abda53d9cd1ba1ccc98f95e16b1`, DSH `0.2.0-rc.1`; Provider merge `1a605b11fa8d321110540de42d58a77bdcd60f13` has the tested candidate `8cf705ea474cdef8e658f7756ee48d5c936bd404` tree. Its 394 runtime files were rechecked at SHA-256 `69c513ff44fb802377ec7648e9c9075d2fc2c63b6f1c3205ee1d6012f956e58e`. Keep this explicit QA candidate separate from the qualified product pin.
+
+| Evidence                              | Observed scope                                                                                                                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Real model/native positive path       | Direct mention in the text channel and existing public thread; one canonical admission, one accepted intent and one own-Bot reply at the original location; no DM mirror or new thread                       |
+| Identity/Grant pause and recovery     | Paused identity and revoked target refuse admission without backfill; restored original scope accepts fresh mentions                                                                                         |
+| Provider Service loss and exclusivity | Native Plugin Manager disable/re-enable changes reception; an offline mention is not admitted after recovery; a second registered-Service consumer gets `consumer-conflict`                                  |
+| Source edit                           | Native Human edit does not create another admission or retry the interrupted reply; original canonical source remains immutable                                                                              |
+| In-flight identity loss               | Observed sending state before identity pause; `identity-paused` failure with no native reply, followed by a successful fresh reply                                                                           |
+| In-flight Grant loss                  | Read-only canonical Outbox observation before the existing Host revoke command; `failed / grant-revoked`, no receipt or native reply                                                                         |
+| In-flight Provider loss               | Observed sending state before native Plugin Manager disable; `unknown-outcome / provider-interrupted`, no receipt; native read-back found no reply, which does not convert uncertainty into definite failure |
+| Recovery after both interrupted sends | Fresh channel and existing-thread model replies use the restored same-identity/same-target Grant; old interrupted intents retain their state and have no automatic resend                                    |
+| Native preflight, not model E2E       | Incorrect parent/child/actor and missing source/channel; actual archived thread and channel/thread permission denial                                                                                         |
+| Human setup                           | Human explicitly confirmed first-time binding and exact source authorization have not been performed personally in the UI; authorized Host setup is insufficient                                             |
+
+Initial timing attempts that settled normally before interruption are not cancellation evidence. Private raw snapshots, source identifiers, model logs and newer screenshots remain local for Human acceptance. The earlier [public QA handoff](https://github.com/BotHarness/BotHarness/issues/855#issuecomment-5997080039) describes the preceding identity/source-edit checkpoint. [#876's UI evidence](../../evidence/issue-855-messaging-refresh/README.md) includes verified GitHub-rendered matched main/PR light/dark states; its exact-head [verify run](https://github.com/BotHarness/BotHarness/actions/runs/37315298837) passed. The historical loopback capture blocker below was subsequently resolved. These facts do not establish first-time Human setup acceptance.
+
+Remaining native/model evidence: deleted source, wrong credentials/Application/guild, and forced Gateway redelivery/gap. Fixtures and native preflight cannot be silently counted as these live paths. Context reads, files, ordinary collection, global defaults, shared placement, autonomous follow and proactive posting are separate tracers. **Discord remains unqualified; no product pin promotion or deployment is recorded here.**
+
+For the remaining Human setup gate, use the existing PersonaBot Profile identity binding and exact target authorization UI, then a real native mention in the authorized channel and its pre-existing public thread. Credentials stay machine-local; new App creation, broader permissions and deployment require their applicable authorization. The [bilingual integration guide](../guides/im-provider-integration.md) owns the current qualification summary.
+
+## Historical first live checkpoint — 2026-10-05
+
+The following records the initial candidate and limitations at that time; its revisions, pending CI and capture blocker are historical, not the current merged state.
 
 - Issue: [#855](https://github.com/BotHarness/BotHarness/issues/855)
 - Date: 2026-10-05, Asia/Tokyo; live channel/thread probes at 20:00 and 20:02
