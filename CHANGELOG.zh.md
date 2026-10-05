@@ -5,7 +5,11 @@
 
 ## [Unreleased]
 
-1.0.0 之后暂无变化。
+DeepSeekBot 使用教程迁到官网。
+
+### Documentation
+
+- 把 DeepSeekBot 使用教程迁到官网（英文 [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/)，中文 [/docs](https://deepseekbot.botharness.ai/docs/overview/)）；botharness.ai 上原来的每个教程地址都会跳到新站的同一篇，开发者文档仍留在 botharness.ai（[#914](https://github.com/BotHarness/BotHarness/pull/914)）。
 
 ## [1.0.0] - 2026-10-05
 
