@@ -9,6 +9,8 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 
 ### Documentation
 
+- 引用下游 [npm prerelease 操作指南](../../../docs/npm-prerelease.md)，说明审阅过的预编译 Bundle 分发；平台词汇与 Skill 行为不变（[#866](https://github.com/BotHarness/BotHarness/issues/866)）。
+
 - 在[本地开发指南](../dsh-dev/SKILL.md)记录原生 Modal 与第三方引导浮层的键盘和焦点归属，通过独立安装的 DSH 0.2.0 RC1 打包 Client 和 Driver.js 1.4.0 验证（[#824](https://github.com/BotHarness/BotHarness/issues/824)）。
 - 在[调试手册](../dsh-dev/references/debugging-playbook.md)记录 DSH 优先从 CLI 安装位置解析 Bundle，以及 pnpm 12 产物覆盖配置的位置，已通过独立安装的官方 DSH 0.2.0 RC1 和真实打包 Client 组件列表验证（[#823](https://github.com/BotHarness/BotHarness/issues/823)）。
 - 在[本地开发指南](../dsh-dev/SKILL.md)记录隔离启动超时后遗留重复 Host 导致 operational writer 租约拒绝的情况；通过 DSH 0.2.0 RC1 的 Assignment 容量 QA 验证（[#811](https://github.com/BotHarness/BotHarness/issues/811)）。
