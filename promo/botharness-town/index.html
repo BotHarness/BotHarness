@@ -195,6 +195,8 @@ function crispText(ctx, text, x, y, px, color, threshold = 120) {
   g.height = h;
   const c = g.getContext('2d');
   c.font = `${px}px ${CJK_FONT}`;
+  // a little tracking keeps Latin pairs like "rn" from fusing once snapped to pixels
+  c.letterSpacing = `${Math.max(0.5, px * 0.05).toFixed(1)}px`;
   c.textBaseline = 'middle';
   c.fillStyle = color;
   c.fillText(text, 0, h / 2);
@@ -207,6 +209,7 @@ function crispText(ctx, text, x, y, px, color, threshold = 120) {
 function measureCJK(text, px) {
   const c = measureCJK.c ?? (measureCJK.c = document.createElement('canvas').getContext('2d'));
   c.font = `${px}px ${CJK_FONT}`;
+  c.letterSpacing = `${Math.max(0.5, px * 0.05).toFixed(1)}px`;
   return c.measureText(text).width;
 }
 function wrapCJK(text, px, maxW) {
