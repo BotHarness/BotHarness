@@ -8,7 +8,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RATE = 44100;
-const FILM_SECONDS = 11640 / 60;
 const MUSIC_GAIN = 0.8; // BGM level with nobody speaking
 const DUCK_GAIN = 10 ** (-5 / 20); // relative level under speech: -5 dB
 const RAMP_IN = 0.45; // seconds of fade down, ending at the first word
@@ -16,6 +15,7 @@ const RAMP_OUT = 0.9; // seconds of fade back up after the last word
 const BRIDGE = 1.2; // gaps shorter than this stay ducked instead of bouncing
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const FILM_SECONDS = Number(/const TOTAL = (\d+)/.exec(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))[1]) / 60; // film length, read from the film
 const [lang, bgm, out] = process.argv.slice(2);
 const { cues } = JSON.parse(fs.readFileSync(path.join(root, 'voiceover/script.json'), 'utf8'));
 const decode = (file, filter = 'anull', channels = 1) =>
