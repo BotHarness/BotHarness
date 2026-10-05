@@ -114,6 +114,9 @@ function stubActions(): BridgeActions {
     }),
     marketplaceList: vi.fn(async () => ({ bots: [] })),
     marketplaceTopics: vi.fn(async () => []),
+    marketplaceDetail: vi.fn(async () => {
+      throw new Error('unused');
+    }),
     marketplaceSubmit: vi.fn(async () => {
       throw new Error('unexpected Marketplace submission');
     }),

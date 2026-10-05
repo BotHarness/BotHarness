@@ -8,6 +8,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     createElement('button', { disabled: props.disabled, onClick: props.onClick }, props.children),
   Input: (props: Record<string, unknown>) => createElement('input', props),
   Tag: (props: { children?: ReactNode }) => createElement('span', null, props.children),
+  MarkdownText: (props: { text: string }) =>
+    createElement('div', { 'data-markdown': '' }, props.text),
   SegmentedControl: (props: {
     value: string;
     disabled?: boolean;
@@ -53,6 +55,7 @@ vi.mock('../src/client/avatar.js', () => ({
 }));
 
 import type {
+  MarketplaceDetail,
   MarketplaceEntry,
   MarketplacePage,
   MarketplaceQuery,
@@ -97,6 +100,9 @@ async function withMarketplace(
   submit: (url: string) => Promise<MarketplaceEntry> = async () => entry('pasted'),
   createBot: () => Promise<unknown> = async () => undefined,
   topics: () => Promise<MarketplaceTopic[]> = async () => [],
+  detail: (id: string) => Promise<MarketplaceDetail> = async () => {
+    throw new Error('unused');
+  },
 ) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const host = document.createElement('div');
@@ -117,6 +123,7 @@ async function withMarketplace(
             marketplaceList: harness.list,
             marketplaceSubmit: harness.submit,
             marketplaceTopics: topics,
+            marketplaceDetail: detail,
             createBot: harness.createBot,
           } as unknown as BridgeActions,
           t: (await import('../src/client/locale.js')).zhTranslate,
@@ -388,6 +395,79 @@ describe('Bot Marketplace modal', () => {
       undefined,
       async () => {
         throw new BridgeCallError('marketplace-unavailable', 'down');
+      },
+    );
+  });
+
+  it('opens a detail view with the README and installs from it', async () => {
+    const detail = vi.fn(async (id: string) => ({
+      bot: entry('helper', { stars: 9 }),
+      readme: '# Helper\n\nReads your notes.',
+      commitSha: id === 'R_helper' ? '0123456789abcdef0123456789abcdef01234567' : null,
+    }));
+    await withMarketplace(
+      async () => ({ bots: [entry('helper')] }),
+      async ({ host, createBot }) => {
+        await act(async () =>
+          host.querySelector<HTMLButtonElement>('[aria-label="查看 alice/helper 详情"]')!.click(),
+        );
+
+        expect(detail).toHaveBeenCalledWith('R_helper');
+        expect(host.querySelector('h1')?.textContent).toBe('helper');
+        expect(host.querySelector('[data-markdown]')?.textContent).toBe(
+          '# Helper\n\nReads your notes.',
+        );
+        expect(host.textContent).toContain('★ 9');
+        expect(
+          [...host.querySelectorAll('a')].find((link) => link.textContent === '在 GitHub 查看')
+            ?.href,
+        ).toBe('https://github.com/alice/helper');
+
+        await click(host, '安装');
+        expect(host.querySelector('[data-market-commit]')?.textContent).toBe(
+          '0123456 · 2026-09-30',
+        );
+        await click(host, '返回');
+        expect(host.querySelector('[data-markdown]')).not.toBeNull();
+
+        await click(host, '安装');
+        await click(host, '确认安装');
+        expect(createBot).toHaveBeenCalledWith(
+          expect.objectContaining({ gitUrl: 'https://github.com/alice/helper.git' }),
+        );
+      },
+      undefined,
+      undefined,
+      undefined,
+      detail,
+    );
+  });
+
+  it('shows a missing README and retries a failed detail load', async () => {
+    let attempts = 0;
+    await withMarketplace(
+      async () => ({ bots: [entry('helper')] }),
+      async ({ host }) => {
+        await act(async () =>
+          host.querySelector<HTMLButtonElement>('[aria-label="查看 alice/helper 详情"]')!.click(),
+        );
+        expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+          'README 加载失败：Bot 市场暂时无法访问',
+        );
+
+        await click(host, '重试');
+
+        expect(host.textContent).toContain('这个仓库没有 README。');
+        await click(host, '返回');
+        expect(host.querySelector('[data-market-bot="alice/helper"]')).not.toBeNull();
+      },
+      undefined,
+      undefined,
+      undefined,
+      async () => {
+        attempts += 1;
+        if (attempts === 1) throw new BridgeCallError('marketplace-unavailable', 'down');
+        return { bot: entry('helper'), readme: null, commitSha: null };
       },
     );
   });

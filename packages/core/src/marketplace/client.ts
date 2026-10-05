@@ -32,11 +32,18 @@ export interface MarketplaceTopic {
   count: number;
 }
 
+export interface MarketplaceDetail {
+  bot: MarketplaceEntry;
+  readme: string | null;
+  commitSha: string | null;
+}
+
 export type MarketplaceResult<T> = { ok: true; value: T } | { ok: false; code: string };
 
 export interface MarketplaceClient {
   list(query: MarketplaceQuery): Promise<MarketplaceResult<MarketplacePage>>;
   topics(): Promise<MarketplaceResult<MarketplaceTopic[]>>;
+  detail(id: string): Promise<MarketplaceResult<MarketplaceDetail>>;
   submit(url: string): Promise<MarketplaceResult<{ bot: MarketplaceEntry }>>;
 }
 
@@ -96,6 +103,16 @@ export function parseMarketplacePage(value: unknown): MarketplacePage | undefine
   if (!bots.every((bot): bot is MarketplaceEntry => bot !== undefined)) return undefined;
   const nextCursor = source['nextCursor'];
   return typeof nextCursor === 'string' ? { bots, nextCursor } : { bots };
+}
+
+export function parseMarketplaceDetail(value: unknown): MarketplaceDetail | undefined {
+  const source = record(value);
+  const bot = parseEntry(source?.['bot']);
+  const readme = source?.['readme'];
+  const commitSha = source?.['commitSha'];
+  if (bot === undefined || (readme !== null && typeof readme !== 'string')) return undefined;
+  if (commitSha !== null && typeof commitSha !== 'string') return undefined;
+  return { bot, readme, commitSha };
 }
 
 export function parseMarketplaceTopics(value: unknown): MarketplaceTopic[] | undefined {
@@ -170,6 +187,12 @@ export function createMarketplaceClient(options: {
         listPath(query),
         { method: 'GET', headers: { accept: 'application/json' } },
         parseMarketplacePage,
+      ),
+    detail: (id) =>
+      request(
+        `/v1/bots/${encodeURIComponent(id)}`,
+        { method: 'GET', headers: { accept: 'application/json' } },
+        parseMarketplaceDetail,
       ),
     topics: () =>
       request(

@@ -62,6 +62,18 @@ export function createMarketHandler(catalog: Catalog): (request: Request) => Pro
       });
       return page === undefined ? failure(400, 'invalid-cursor') : json(200, page);
     }
+    const detailId = /^\/v1\/bots\/([^/]+)$/u.exec(url.pathname)?.[1];
+    if (detailId !== undefined) {
+      if (request.method !== 'GET') return failure(405, 'method-not-allowed');
+      let id: string;
+      try {
+        id = decodeURIComponent(detailId);
+      } catch {
+        return failure(404, 'bot-not-found');
+      }
+      const detail = await catalog.detail(id);
+      return detail === undefined ? failure(404, 'bot-not-found') : json(200, detail);
+    }
     if (url.pathname === '/v1/topics') {
       if (request.method !== 'GET') return failure(405, 'method-not-allowed');
       return json(200, { topics: await catalog.topics() });

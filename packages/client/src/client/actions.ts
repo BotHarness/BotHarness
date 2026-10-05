@@ -1,6 +1,7 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
 import type {
+  MarketplaceDetail,
   MarketplaceEntry,
   MarketplacePage,
   MarketplaceQuery,
@@ -111,6 +112,7 @@ import {
   loadProfileUsage,
   loadOverviewMemory,
   loadOverviewUsage,
+  loadMarketplaceDetail,
   loadMarketplacePage,
   loadMarketplaceTopics,
   submitMarketplaceRepository,
@@ -454,6 +456,7 @@ export interface BridgeActions {
   marketplaceList(query?: MarketplaceQuery): Promise<MarketplacePage>;
   marketplaceSubmit(url: string): Promise<MarketplaceEntry>;
   marketplaceTopics(): Promise<MarketplaceTopic[]>;
+  marketplaceDetail(id: string): Promise<MarketplaceDetail>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
   setHumanNickname(channelId: string, nickname: string | null): Promise<boolean>;
@@ -1664,6 +1667,7 @@ export function createActions(
     marketplaceList: (query) => loadMarketplacePage(call, query),
     marketplaceSubmit: (url) => submitMarketplaceRepository(call, url),
     marketplaceTopics: () => loadMarketplaceTopics(call),
+    marketplaceDetail: (id) => loadMarketplaceDetail(call, id),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),
     channelActivityToday: () => loadChannelActivityToday(call),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),

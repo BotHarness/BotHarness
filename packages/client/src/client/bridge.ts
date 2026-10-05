@@ -24,9 +24,11 @@ import type {
 } from '../../../core/src/messaging/identity.js';
 import type { OverviewMemory } from '../../../core/src/memory/overview.js';
 import {
+  parseMarketplaceDetail,
   parseMarketplacePage,
   parseMarketplaceSubmission,
   parseMarketplaceTopics,
+  type MarketplaceDetail,
   type MarketplaceEntry,
   type MarketplacePage,
   type MarketplaceQuery,
@@ -1231,6 +1233,15 @@ export async function loadMarketplacePage(
   const page = parseMarketplacePage(await unwrap(call, 'marketplaceList', { query }));
   if (page === undefined) throw new Error('invalid marketplaceList response');
   return page;
+}
+
+export async function loadMarketplaceDetail(
+  call: BridgeCall,
+  id: string,
+): Promise<MarketplaceDetail> {
+  const detail = parseMarketplaceDetail(await unwrap(call, 'marketplaceDetail', { id }));
+  if (detail === undefined) throw new Error('invalid marketplaceDetail response');
+  return detail;
 }
 
 export async function loadMarketplaceTopics(call: BridgeCall): Promise<MarketplaceTopic[]> {
