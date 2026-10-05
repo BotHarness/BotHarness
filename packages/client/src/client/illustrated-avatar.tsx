@@ -10,7 +10,7 @@ import {
   type PixelCell,
   type PixelSymbol,
 } from '../../../core/src/bots/avatar-appearance.js';
-import { morphPixels, pixelMarkup, type PixelMorphRun } from './pixel-morph.js';
+import { morphPixels, pixelMarkup, type PixelMorphRun } from '@botharness/pixel-morph';
 import type { Sampled } from 'morphicons';
 import {
   lineMorphD,

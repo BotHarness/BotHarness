@@ -1,4 +1,4 @@
-import type { PixelSymbol } from './avatar-pixel-symbols.js';
+import type { PixelSymbol } from '@botharness/pixel-avatar';
 import { seededRandom } from './avatar-random.js';
 
 export const LINE_PARTS = {
