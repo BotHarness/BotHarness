@@ -369,6 +369,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- A native Assignment execution error now produces one safe Host notification for its PersonaBot and releases its Continuity Key, preserving the original progress Report without retry or replay after restart ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
+
 - Human cancellation of a running Assignment now delivers one Host-origin Bot Inbox notice, preserving the original Report and native Turn identity without automatic retry; handled facts survive restart ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0045](docs/adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)).
 
 - Fixed Slack Channel connectors and member reminders showing Lark-only labels or defaults ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
