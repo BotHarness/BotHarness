@@ -6,7 +6,7 @@ This guide uses the public npm prerelease **`deepseekbot@0.1.0-alpha.1`**, verif
 
 ## 1. Open Plugins
 
-Start DSH and open its Web interface. If DSH is not installed yet, follow the [official DSH getting-started documentation](https://deepseek-harness.github.io/deepseek-harness/). Use a working model before testing a Bot reply.
+Start DSH and open its Web interface. If DSH is not installed yet, follow the [official DSH getting-started documentation](https://deepseek-harness.github.io/deepseek-harness/). Follow [API and Bot model setup](/docs/model-setup) to configure a provider first; apply a model preset in the Bot Profile after creating the Bot.
 
 Click **Plugins (插件)** in the left sidebar, then **Add plugin (添加插件)**.
 
@@ -44,11 +44,13 @@ Click **Bot mode (Bot 模式)**, then **Create your first PersonaBot (创建第�
 
 ![Create PersonaBot dialog with a tutorial Bot name](/guides/install/06-create-bot-zh.webp)
 
-Open the new Bot's DM and send a short greeting. A reply verifies that your model is usable as well as the plugin being enabled. Model credentials are configured in DSH; npm installation does not provide them.
+Open the new Bot's DM and click its header name/avatar → **View details → Model preset**. Choose Orchestrator and Assignment models, then **Create and apply**. See [API and Bot models](/docs/model-setup) for all fields. Return to the DM and send a short greeting. A reply verifies that your model is usable as well as the plugin being enabled. Model credentials are configured in DSH; npm installation does not provide them.
 
 ![A real model reply in the freshly installed product after a cold restart](/guides/install/07-local-reply-zh.webp)
 
 _The verification Bot answered a message sent through the Web DM after installation and a cold Host restart. Messaging app accounts remain disconnected._
+
+See [Settings guide](/docs/settings) for appearance, concurrency, persona, attention, sidebar, and workspace authorization fields.
 
 ## 5. Connect a messaging app
 

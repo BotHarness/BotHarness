@@ -10,7 +10,7 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
-- Linked the downstream illustrated public npm installation guide, verified with DSH 0.2.0 RC1; platform vocabulary and Skill runtime behavior remain unchanged ([#887](https://github.com/BotHarness/BotHarness/issues/887), [guide](../../../docs/installation.md)).
+- Linked the downstream illustrated public npm installation, model setup and non-IM settings guides, verified with DSH 0.2.0 RC1; platform vocabulary and Skill runtime behavior remain unchanged ([#887](https://github.com/BotHarness/BotHarness/issues/887), [guide](../../../docs/installation.md)).
 
 - Linked the downstream [npm prerelease operator guide](../../../docs/npm-prerelease.md) for reviewed precompiled Bundle distribution; platform vocabulary and Skill runtime behavior remain unchanged ([#866](https://github.com/BotHarness/BotHarness/issues/866)).
 

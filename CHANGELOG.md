@@ -522,7 +522,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
-- Added an illustrated public npm installation guide and a user-focused Quickstart, verified with DSH 0.2.0 RC1 and deepseekbot 0.1.0-alpha.1 ([#887](https://github.com/BotHarness/BotHarness/issues/887), [guide](docs/installation.md)).
+- Added illustrated public npm installation, API / per-Bot model setup and non-IM settings guides with a user-focused Quickstart, verified with DSH 0.2.0 RC1 and deepseekbot 0.1.0-alpha.1 ([#887](https://github.com/BotHarness/BotHarness/issues/887), [guide](docs/installation.md)).
 
 - Documented the proposed Profile Backup / Restore / Transfer UX, including validation, repair and explicit activation; runtime delivery and implementation-ticket handoff still require acceptance ([#76](https://github.com/BotHarness/BotHarness/issues/76), [proposal](docs/proposals/profile-portability-ux.md)).
 

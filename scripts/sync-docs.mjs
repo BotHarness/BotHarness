@@ -96,6 +96,34 @@ const DSH_CONTEXT_DIAGRAMS_EN = [
 
 export const PAGES = [
   {
+    slug: 'docs/model-setup',
+    order: 13,
+    en: {
+      source: 'docs/model-setup.md',
+      title: 'API and Bot models',
+      description: 'Configure API providers, choose each Bot’s models and verify its model preset.',
+    },
+    zh: {
+      source: 'docs/model-setup.zh.md',
+      title: 'API 与 Bot 模型',
+      description: '配置 API 提供商，为每个 Bot 选择模型并验证模型预设。',
+    },
+  },
+  {
+    slug: 'docs/settings',
+    order: 14,
+    en: {
+      source: 'docs/settings.md',
+      title: 'Settings guide',
+      description: 'Find non-IM settings, understand each field and its application scope.',
+    },
+    zh: {
+      source: 'docs/settings.zh.md',
+      title: '设置指南',
+      description: '找到非 IM 设置入口，了解每个参数、默认值与生效范围。',
+    },
+  },
+  {
     slug: 'docs/installation',
     order: 12,
     en: {

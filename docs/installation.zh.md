@@ -6,7 +6,7 @@
 
 ## 1. 打开插件管理器
 
-启动 DSH 并打开 Web 界面。尚未安装 DSH 时，先按 [DSH 官方入门文档](https://deepseek-harness.github.io/deepseek-harness/)准备环境。验证 Bot 回复前，需要配置可用模型。
+启动 DSH 并打开 Web 界面。尚未安装 DSH 时，先按 [DSH 官方入门文档](https://deepseek-harness.github.io/deepseek-harness/)准备环境。先按 [API 与 Bot 模型教程](/zh/docs/model-setup) 配置 Provider；创建 Bot 后还需要在其 Profile 应用模型预设。
 
 点击左侧 **插件**，再点击 **添加插件**。
 
@@ -44,11 +44,13 @@ _这里通过来源地址导入插件，没有文件上传选择器。指定版�
 
 ![填写教程助手名称的创建窗口](/guides/install/06-create-bot-zh.webp)
 
-打开新 Bot 的 DM，发送一句问候。收到回复才能确认模型也能正常使用。模型凭据在 DSH 中配置，npm 安装不会提供模型凭据。
+打开新 Bot 的 DM，点击顶部名称 / 头像 → **查看详细 → 模型预设**，选择 Orchestrator 与 Assignment 模型并点击 **创建并应用**。完整表单说明见 [API 与 Bot 模型](/zh/docs/model-setup)。返回 DM 后发送一句问候。收到回复才能确认模型也能正常使用。模型凭据在 DSH 中配置，npm 安装不会提供模型凭据。
 
 ![公开安装包冷启动后，在网页 DM 中收到真实模型回复](/guides/install/07-local-reply-zh.webp)
 
 _本次验证从网页 DM 发送消息，在安装并冷启动后的产品中收到真实模型回复。聊天平台账号仍未连接。_
+
+图标、并发上限、人格、提醒策略、侧栏与工作区授权等参数见 [设置指南](/zh/docs/settings)。
 
 ## 5. 连接聊天平台
 
