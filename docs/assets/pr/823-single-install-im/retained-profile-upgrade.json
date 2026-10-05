@@ -1,0 +1,21 @@
+{
+  "canonicalRowsBefore": {
+    "channel_records": 1,
+    "source_events": 8,
+    "inbox_admissions": 5,
+    "messaging_bindings": 2,
+    "messaging_grants": 1,
+    "messaging_outbox": 2
+  },
+  "canonicalRowsAfter": {
+    "channel_records": 1,
+    "source_events": 8,
+    "inbox_admissions": 5,
+    "messaging_bindings": 2,
+    "messaging_grants": 1,
+    "messaging_outbox": 2
+  },
+  "canonicalRowsUnchanged": true,
+  "credentialsUnchanged": true,
+  "canonicalIdsUnchanged": true
+}

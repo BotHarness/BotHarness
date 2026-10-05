@@ -1,0 +1,7 @@
+- insert:
+    - id: xmanrui-dsh-im
+      name: '@botharness/im-provider'
+    - id: botharness-core
+      name: '@botharness/core'
+    - id: botharness-client
+      name: '@botharness/ui'

@@ -1,0 +1,46 @@
+[
+  {
+    "method": "update.status",
+    "httpStatus": 200,
+    "result": {
+      "ok": true,
+      "value": {
+        "runningVersion": "4.32.0-botharness.2",
+        "installedVersion": "4.32.0-botharness.2",
+        "latestVersion": null,
+        "canInstall": false,
+        "sourceInstall": false,
+        "blockedReason": "product-managed",
+        "profileName": null,
+        "environmentKind": "product",
+        "checkedAt": null,
+        "checkId": null,
+        "job": null
+      }
+    }
+  },
+  {
+    "method": "update.check",
+    "httpStatus": 200,
+    "result": {
+      "ok": false,
+      "error": {
+        "code": "product-managed",
+        "message": "Update this Provider with BotHarness.",
+        "details": {}
+      }
+    }
+  },
+  {
+    "method": "update.install",
+    "httpStatus": 200,
+    "result": {
+      "ok": false,
+      "error": {
+        "code": "product-managed",
+        "message": "Update this Provider with BotHarness.",
+        "details": {}
+      }
+    }
+  }
+]

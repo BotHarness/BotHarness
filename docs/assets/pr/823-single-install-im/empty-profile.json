@@ -1,0 +1,10 @@
+{
+  "canonicalInitialRows": {
+    "source_events": 0,
+    "inbox_admissions": 0,
+    "messaging_bindings": 0,
+    "messaging_grants": 0,
+    "messaging_outbox": 0
+  },
+  "accountsDisconnectedVerifiedInClient": true
+}
