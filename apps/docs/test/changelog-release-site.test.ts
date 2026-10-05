@@ -80,7 +80,7 @@ Made bot work visible and dependable.
     expect(entry?.chinese).not.toContain("Preparing the next release");
   });
 
-  it("publishes only the one canonical Development summary before the first release", () => {
+  it("publishes the canonical Development summary alongside each dated release", () => {
     const root = mkdtempSync(resolve(tmpdir(), "botharness-changelog-site-"));
     roots.push(root);
 
@@ -92,8 +92,8 @@ Made bot work visible and dependable.
 
     const englishDirectory = resolve(root, "content/changelog");
     const chineseDirectory = resolve(root, "content/changelog-zh");
-    expect(readdirSync(englishDirectory)).toEqual(["development.mdx"]);
-    expect(readdirSync(chineseDirectory)).toEqual(["development.mdx"]);
+    expect(readdirSync(englishDirectory)).toEqual(["development.mdx", "v1.0.0.mdx"]);
+    expect(readdirSync(chineseDirectory)).toEqual(["development.mdx", "v1.0.0.mdx"]);
 
     const english = readFileSync(resolve(englishDirectory, "development.mdx"), "utf8");
     const chinese = readFileSync(resolve(chineseDirectory, "development.mdx"), "utf8");

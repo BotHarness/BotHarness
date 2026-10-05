@@ -418,6 +418,29 @@ The diagram includes current attachment destinations and their identity records;
 
 v1 has only two backup actions: Export Profile produces one self-contained `.botharness-backup`, and Import Profile selects one file. There is no automatic backup, scheduler, catalog, retention, or incremental chain. Restore always validates in isolated staging. A restored PersonaBot stays cold, provider authorities stay suspended, and Workspace/model/plugin dependencies must be resolved on the target before a Human explicitly activates it.
 
+### PersonaBot deletion runtime (#896)
+
+Registry stores a terminal identity fence and the reviewed Memory locator in Generation 57.
+Its active queries exclude accepted deletions; historical queries retain identity, ownership,
+Reports, messages and usage attribution. The Human Profile confirmation uses the existing
+Typert/API Gateway and native Host file-opening capability. Memory erasure is unchecked and
+requires a dedicated Git repository, recorded directory identity, and no other retained
+repository or registered Workspace overlap; shared Host storage is protected. Newly created custom repositories can carry the same
+ownership proof; pre-existing custom paths alone cannot establish exclusive ownership.
+
+The deletion owner accepts its durable fence before stopping this Bot's native AgentHandle
+execution tree, revoking its Workspace/tool rules and disabling its Messaging bindings.
+Started native/provider effects retain their actual outcome. Optional filesystem cleanup has
+an explicit accepted intent and incomplete status; retry uses the original directory identity,
+never a newly selected path. It preserves DSH Session Persistence and shared provider accounts.
+A cold Host excludes the tombstone even when cleanup needs repair. Future Profile Backup must
+enumerate historical Registry records and deletion locators and distinguish intentional erasure.
+Channel Content Purge and its restore-safe ledger remain #897.
+
+### Bot Marketplace (accepted design, not implemented)
+
+[ADR-0131](../adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md) and #18 start the Bot Marketplace as a GitHub-indexed catalog: adding the `botharness-bot` topic to a public repository is the author's consent to be listed, and pasting the URL into the Marketplace crawls it at once. A dedicated Cloudflare Worker with its own D1 runs a daily topic discovery sliced by creation date and an hourly GraphQL batch refresh, indexing READMEs with FTS5; browsing uses keyset cursors and search returns at most 200 results. The harness Marketplace modal shows README details; Install reuses #298 Git-URL creation, with a confirmation showing the latest commit and a third-party risk notice. URL paste and one-click reporting share ALTCHA and rate limits. Phase 1 has no accounts and no download counts; Better Auth, uploaded Bots, favorites and import counts are Phase 2 under #18's full-repository publication contract.
+
 ## 7 · Critical boundaries
 
 - Normal runtime uses explicit Session ownership only. `cwd` may be a migration or repair hint but never decides PersonaBot identity.

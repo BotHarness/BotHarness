@@ -21,14 +21,14 @@ export const publicationOrder = [
 const registry = 'https://registry.npmjs.org';
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
-export function prereleaseVersion(version) {
-  if (
-    semver.valid(version) !== version ||
-    !semver.prerelease(version) ||
-    version.startsWith('0.0.0-')
-  )
-    throw new Error('Choose an exact public prerelease SemVer, for example 0.1.0-alpha.1');
+export function releaseVersion(version) {
+  if (semver.valid(version) !== version || semver.lt(version, '0.0.1'))
+    throw new Error('Choose an exact public SemVer, for example 1.0.0 or 1.1.0-alpha.1');
   return version;
+}
+
+export function distTagFor(version) {
+  return semver.prerelease(version) ? 'next' : 'latest';
 }
 
 function tarText(directory, artifact, path) {
@@ -73,12 +73,12 @@ export function checkPackage(manifest, artifact, files, inventory) {
 
 export function verifyRelease(directory, expected = {}) {
   const inventory = verifiedProductArtifacts(directory);
-  prereleaseVersion(inventory.productVersion);
+  releaseVersion(inventory.productVersion);
   const planBytes = readFileSync(join(directory, 'release-plan.json'));
   const plan = JSON.parse(planBytes);
   if (
     plan.productVersion !== inventory.productVersion ||
-    plan.distTag !== 'next' ||
+    plan.distTag !== distTagFor(inventory.productVersion) ||
     !/^[a-f0-9]{40}$/.test(plan.sourceSha) ||
     plan.providerSource !== productImProvider.upstream.source ||
     plan.dsh !== inventory.dsh ||
@@ -193,7 +193,7 @@ async function main() {
   )
     throw new Error('Use prepare --output, verify/publish --artifacts');
   if (mode === 'prepare') {
-    const version = prereleaseVersion(args.get('--version'));
+    const version = releaseVersion(args.get('--version'));
     if (!args.get('--provider-source')) throw new Error('Qualified --provider-source is required');
     packProduct({
       repoRoot: root,
@@ -206,7 +206,7 @@ async function main() {
       `${JSON.stringify(
         {
           productVersion: version,
-          distTag: 'next',
+          distTag: distTagFor(version),
           sourceSha: execFileSync('git', ['rev-parse', 'HEAD'], {
             cwd: root,
             encoding: 'utf8',
@@ -239,7 +239,7 @@ async function main() {
     (!args.get('--version') ||
       !args.get('--source-sha') ||
       !args.get('--plan-sha256') ||
-      args.get('--confirm') !== `publish ${release.plan.productVersion} to next`)
+      args.get('--confirm') !== `publish ${release.plan.productVersion} to ${release.plan.distTag}`)
   )
     throw new Error(
       'Publishing requires the reviewed version, source SHA, plan SHA-256 and exact confirmation',
@@ -247,6 +247,29 @@ async function main() {
   const existing = await registryPreflight(release.packages);
   const emptyUserConfig = join(directory, '.npm-release-empty');
   writeFileSync(emptyUserConfig, '');
+  const npmConfig = [
+    '--registry',
+    registry,
+    '--userconfig',
+    emptyUserConfig,
+    '--globalconfig',
+    process.platform === 'win32' ? 'NUL' : '/dev/null',
+  ];
+  const env = { ...process.env };
+  for (const key of Object.keys(env))
+    if (/^npm_config_.*(auth|token|password)/i.test(key)) delete env[key];
+  delete env.NPM_TOKEN;
+  delete env.NODE_AUTH_TOKEN;
+  if (mode === 'publish') {
+    if (!process.env.NPM_TOKEN) throw new Error('NPM_TOKEN is required for publication');
+    env['npm_config_//registry.npmjs.org/:_authToken'] = process.env.NPM_TOKEN;
+  }
+  const npm = (args) =>
+    execFileSync('npm', [...args, ...npmConfig], {
+      cwd: directory,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
   for (const { artifact } of release.packages) {
     if (mode === 'publish' && existing.has(artifact.name)) {
       console.log(`Verified already published bytes: ${artifact.name}@${artifact.version}`);
@@ -255,29 +278,14 @@ async function main() {
     const publishArgs = [
       'publish',
       join(directory, artifact.filename),
-      '--registry',
-      registry,
       '--access',
       'public',
       '--tag',
-      'next',
+      release.plan.distTag,
       '--ignore-scripts',
-      '--userconfig',
-      emptyUserConfig,
-      '--globalconfig',
-      process.platform === 'win32' ? 'NUL' : '/dev/null',
     ];
     if (mode !== 'publish') publishArgs.push('--dry-run');
-    const env = { ...process.env };
-    for (const key of Object.keys(env))
-      if (/^npm_config_.*(auth|token|password)/i.test(key)) delete env[key];
-    delete env.NPM_TOKEN;
-    delete env.NODE_AUTH_TOKEN;
-    if (mode === 'publish') {
-      if (!process.env.NPM_TOKEN) throw new Error('NPM_TOKEN is required for publication');
-      env['npm_config_//registry.npmjs.org/:_authToken'] = process.env.NPM_TOKEN;
-    }
-    execFileSync('npm', publishArgs, { cwd: directory, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    npm(publishArgs);
     registryMetadata.delete(artifact.name);
     if (
       mode === 'publish' &&
@@ -289,6 +297,13 @@ async function main() {
     console.log(
       `${mode === 'publish' ? 'Published and read back' : 'Dry run passed'}: ${artifact.name}@${artifact.version}`,
     );
+  }
+  if (mode === 'publish' && release.plan.distTag === 'latest') {
+    for (const { artifact } of release.packages) {
+      if (artifact.version !== release.plan.productVersion) continue;
+      npm(['dist-tag', 'add', `${artifact.name}@${artifact.version}`, 'next']);
+      console.log(`Moved next to ${artifact.name}@${artifact.version}`);
+    }
   }
   console.log(JSON.stringify({ ...release.plan, planSha256: release.planSha256 }, null, 2));
 }

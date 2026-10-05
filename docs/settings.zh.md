@@ -107,6 +107,8 @@ Profile 向下展开 **提醒策略**，在对应来源行点击修改，选择�
 
 ## Channel sidebar 显示设置
 
+[Channel sidebar 章节](/zh/docs/channel-sidebar)按功能提供操作教程；排序、隐藏与完成／取消的具体流程见[显示与布局](/zh/docs/channel-sidebar/display)。
+
 点击右侧栏顶部齿轮，展开对应菜单；这些是浏览器中的显示偏好，不改变 Bot 的持久记忆或任务授权。
 
 ![右侧栏齿轮的顺序、记忆术语和会话显示菜单](/guides/settings/settings-sidebar-zh.webp)

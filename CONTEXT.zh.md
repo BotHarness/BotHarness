@@ -306,6 +306,14 @@ _避免使用_：Channel authority、database backup、live inbox
 一种 inactive 的导入 reference，用来描述 Human 可以在本地重新连接并授权的 provider account 或 authority；在此之前，它不能 admit event、wake PersonaBot 或执行 Service Action。
 _避免使用_：credential、Service Grant、automatic reconnect
 
+**Bot Marketplace**：
+harness 中打开、用于浏览、搜索和安装可分享 Bot 的 hosted catalog。第一阶段只列出 Indexed Repository；上传的 Bot 在后续阶段加入（ADR-0131）。
+_避免使用_：store、hub、Soul registry
+
+**Indexed Repository**：
+带有 `botharness-bot` topic、被 Bot Marketplace 以引用方式列出并定期刷新的公开 GitHub 仓库。安装它即以其 Git URL 创建新的 PersonaBot；它不是 SoulSnapshot、Listing 或 Version。
+_避免使用_：submission、Listing、SoulSnapshot、mirror
+
 **Soul registry**：
 存储、版本化并提供 SoulSnapshot 的 hosted service——即 marketplace backend，与 Host 的 PersonaBot registry 不同。
 _避免使用_：hub、store、database
