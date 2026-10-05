@@ -1,0 +1,42 @@
+{
+  "bot": "Human QA 835 1791178007551",
+  "assignmentSessionId": "botharness-4b8ed86f-0d53-4c23-97fb-d864276ccb54",
+  "orchestratorTurns": 2,
+  "sources": [
+    {
+      "id": "34ac2656-05d7-4b97-9054-263dcc80ebfd",
+      "state": "pending",
+      "createdAt": "2026-10-05T05:28:33.226Z",
+      "sourceKind": "assignment-lifecycle",
+      "assignmentSessionId": "botharness-4b8ed86f-0d53-4c23-97fb-d864276ccb54",
+      "assignmentTurn": 1,
+      "relatedReportSourceEventId": "e00db9b0-1f86-4191-b2c8-b54511ca2030",
+      "sourceAvailable": true,
+      "authorKind": "system",
+      "summary": "DSH confirmed successful completion of Assignment Turn 1."
+    },
+    {
+      "id": "e00db9b0-1f86-4191-b2c8-b54511ca2030",
+      "state": "handled",
+      "createdAt": "2026-10-05T05:26:52.119Z",
+      "observedAt": "2026-10-05T05:26:53.729Z",
+      "handledAt": "2026-10-05T05:26:55.943Z",
+      "sourceKind": "assignment-report",
+      "assignmentSessionId": "botharness-4b8ed86f-0d53-4c23-97fb-d864276ccb54",
+      "assignmentReportState": "completed",
+      "assignmentTurn": 1,
+      "sourceAvailable": true,
+      "authorKind": "bot",
+      "authorBotSlug": "bot-7b000f0374ef4c5a813ceae3e30ed661",
+      "summary": "TERMINAL_RESULT_VERIFIED"
+    }
+  ],
+  "nativeEnd": {
+    "turn": 1,
+    "seq": 34,
+    "reason": "completed"
+  },
+  "duplicateWake": false,
+  "runtimeRevision": "399cf5c634852db6d3f3e49a791e6543eef44d4b",
+  "integratedMainRevision": "af7b1d57ac39944348ccf0e9fb30e6d4889125b6"
+}
