@@ -1395,6 +1395,29 @@ const BRIDGE_ROUTES_MIGRATION: SchemaMigration = {
   },
 };
 
+const QUALIFIED_PLATFORM_DEFAULTS_MIGRATION: SchemaMigration = {
+  generation: 53,
+  module: 'messaging',
+  description:
+    'Allow independently versioned qualified Slack preferences while retaining every existing override',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_default_revisions_qualified (
+        platform TEXT NOT NULL CHECK (platform IN ('feishu', 'slack')),
+        revision INTEGER NOT NULL CHECK (revision > 0), body TEXT NOT NULL,
+        PRIMARY KEY (platform, revision)
+      );
+      INSERT INTO messaging_default_revisions_qualified SELECT * FROM messaging_default_revisions;
+      DROP TABLE messaging_default_revisions;
+      ALTER TABLE messaging_default_revisions_qualified RENAME TO messaging_default_revisions;
+      CREATE TRIGGER messaging_defaults_no_update BEFORE UPDATE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+      CREATE TRIGGER messaging_defaults_no_delete BEFORE DELETE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1447,4 +1470,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   CHANNEL_BRIDGE_MIGRATION,
   MESSAGING_DEFAULTS_MIGRATION,
   BRIDGE_ROUTES_MIGRATION,
+  QUALIFIED_PLATFORM_DEFAULTS_MIGRATION,
 ]);

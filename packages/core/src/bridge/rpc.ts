@@ -1,6 +1,10 @@
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
-import type { MessagingDefaults, MessagingDefaultsInput } from '../messaging/defaults.js';
+import type {
+  MessagingDefaults,
+  MessagingDefaultsInput,
+  MessagingDefaultsPlatform,
+} from '../messaging/defaults.js';
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
@@ -153,8 +157,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
   ): Promise<{ updated: true }> {
     return unwrapAsync(this.methods.messagingGroupPolicy({ slug, grantId, policy }));
   }
-  messagingDefaults(): Promise<MessagingDefaults> {
-    return unwrapAsync(this.methods.messagingDefaults({}));
+  messagingDefaults(platform?: MessagingDefaultsPlatform): Promise<MessagingDefaults> {
+    return unwrapAsync(this.methods.messagingDefaults(platform === undefined ? {} : { platform }));
   }
   messagingDefaultsSet(input: MessagingDefaultsInput): Promise<MessagingDefaults> {
     return unwrapAsync(this.methods.messagingDefaultsSet(input));

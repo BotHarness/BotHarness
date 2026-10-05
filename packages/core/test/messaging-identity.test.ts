@@ -7,7 +7,7 @@ import { createTempRoot } from './helpers.js';
 
 const cleanup: (() => void)[] = [];
 afterEach(() => cleanup.splice(0).forEach((f) => f()));
-function fixture() {
+function fixture(platform: 'feishu' | 'slack' = 'feishu') {
   const home = createTempRoot('bh-identity-');
   let owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
   let fingerprint = 'a'.repeat(64),
@@ -19,9 +19,7 @@ function fixture() {
     sends = 0;
   const provider: MessagingProvider = {
     id: 'qa/lark',
-    accounts: async () => [
-      { ref: 'app', platform: 'feishu', name: 'QA Bot', fingerprint, connected },
-    ],
+    accounts: async () => [{ ref: 'app', platform, name: 'QA Bot', fingerprint, connected }],
     targets: async () => [
       {
         ref: 'team',
@@ -281,71 +279,74 @@ it('provider loss reports unavailable while enabled preference remains durable a
   ).rejects.toThrow('provider-unavailable');
 });
 
-it('inherits live identity defaults, preserves custom choices, restores inheritance, and fences queued sends', async () => {
-  const f = fixture();
-  let identity = await f.bind();
-  const grant = await f.authorize();
-  await f.service.inbound.setEnabled('ada', grant.id, true);
-  expect(identity.enabledInheritance).toBe('inherit');
-  expect(f.leases).toBe(1);
-  const save = (identityEnabled: boolean) => {
-    const value = f.service.defaults();
-    const { revision, changedAt: _at, ...preferences } = value;
-    return f.service.setDefaults({ ...preferences, expectedRevision: revision, identityEnabled });
-  };
-  await save(false);
-  expect(f.leases).toBe(0);
-  identity = (await f.service.snapshot('ada')).identities![0]!;
-  expect(identity).toMatchObject({
-    enabled: false,
-    availability: 'paused',
-    enabledInheritance: 'inherit',
-  });
-  await expect(f.service.send('ada', grant.id, 'paused-request', 'QA')).rejects.toThrow(
-    'identity-paused',
-  );
-  identity = await f.service.identity('ada', {
-    kind: 'update',
-    id: identity.id,
-    expectedRevision: identity.revision,
-    name: identity.name,
-    enabled: true,
-  });
-  expect(identity.enabledInheritance).toBe('custom');
-  await save(true);
-  await save(false);
-  expect((await f.service.snapshot('ada')).identities![0]!.enabled).toBe(true);
-  identity = await f.service.identity('ada', {
-    kind: 'update',
-    id: identity.id,
-    expectedRevision: identity.revision,
-    expectedDefaultRevision: f.service.defaults().revision,
-    name: identity.name,
-    enabled: true,
-    inheritEnabled: true,
-  });
-  expect(identity.enabled).toBe(false);
-  expect(f.leases).toBe(0);
-  await save(true);
-  expect(f.leases).toBe(1);
-  f.restart();
-  expect(f.service.defaults().identityEnabled).toBe(true);
-  expect((await f.service.snapshot('ada')).identities![0]!.enabledInheritance).toBe('inherit');
-  let release!: () => void;
-  f.gate(
-    () =>
-      new Promise<void>((resolve) => {
-        release = resolve;
-      }),
-  );
-  const sending = f.service.send('ada', grant.id, 'paused-during-inspect', 'QA');
-  await Promise.resolve();
-  const pausing = save(false);
-  release();
-  await pausing;
-  await expect(sending).rejects.toThrow('identity-paused');
-  expect(f.sends).toBe(0);
-});
+it.each(['feishu', 'slack'] as const)(
+  '%s inherits live identity defaults, preserves custom choices, restores inheritance, and fences queued sends',
+  async (platform) => {
+    const f = fixture(platform);
+    let identity = await f.bind();
+    const grant = await f.authorize();
+    await f.service.inbound.setEnabled('ada', grant.id, true);
+    expect(identity.enabledInheritance).toBe('inherit');
+    expect(f.leases).toBe(1);
+    const save = (identityEnabled: boolean) => {
+      const value = f.service.defaults(platform);
+      const { revision, changedAt: _at, ...preferences } = value;
+      return f.service.setDefaults({ ...preferences, expectedRevision: revision, identityEnabled });
+    };
+    await save(false);
+    expect(f.leases).toBe(0);
+    identity = (await f.service.snapshot('ada')).identities![0]!;
+    expect(identity).toMatchObject({
+      enabled: false,
+      availability: 'paused',
+      enabledInheritance: 'inherit',
+    });
+    await expect(f.service.send('ada', grant.id, 'paused-request', 'QA')).rejects.toThrow(
+      'identity-paused',
+    );
+    identity = await f.service.identity('ada', {
+      kind: 'update',
+      id: identity.id,
+      expectedRevision: identity.revision,
+      name: identity.name,
+      enabled: true,
+    });
+    expect(identity.enabledInheritance).toBe('custom');
+    await save(true);
+    await save(false);
+    expect((await f.service.snapshot('ada')).identities![0]!.enabled).toBe(true);
+    identity = await f.service.identity('ada', {
+      kind: 'update',
+      id: identity.id,
+      expectedRevision: identity.revision,
+      expectedDefaultRevision: f.service.defaults(platform).revision,
+      name: identity.name,
+      enabled: true,
+      inheritEnabled: true,
+    });
+    expect(identity.enabled).toBe(false);
+    expect(f.leases).toBe(0);
+    await save(true);
+    expect(f.leases).toBe(1);
+    f.restart();
+    expect(f.service.defaults(platform).identityEnabled).toBe(true);
+    expect((await f.service.snapshot('ada')).identities![0]!.enabledInheritance).toBe('inherit');
+    let release!: () => void;
+    f.gate(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const sending = f.service.send('ada', grant.id, 'paused-during-inspect', 'QA');
+    await Promise.resolve();
+    const pausing = save(false);
+    release();
+    await pausing;
+    await expect(sending).rejects.toThrow('identity-paused');
+    expect(f.sends).toBe(0);
+  },
+);
 it('rejects stale global writes without silently replacing the committed preferences', async () => {
   const f = fixture();
   const defaults = f.service.defaults();

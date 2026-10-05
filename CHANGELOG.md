@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added independently editable Slack intake, harvest and bound-identity defaults in Bot settings, with Profile inheritance and explicit overrides preserved ([#843](https://github.com/BotHarness/BotHarness/issues/843)).
+
 - Human can explicitly collect ordinary text from an authorized Slack channel and choose existing count/time harvest or safely queued immediate wake in Profile; new connections remain mention-only, and overlapping mention subscriptions are deduplicated ([#837](https://github.com/BotHarness/BotHarness/issues/837)).
 - Added a product-artifact build and isolated installation path composing Core, Client and an independently versioned qualified IM Provider, with disconnected initial accounts and product-managed Provider updates; public npm publication remains a separate release action ([#823](https://github.com/BotHarness/BotHarness/issues/823), [packaging guide](docs/product-im-installation.md)).
 - Line-family PersonaBot avatars now morph into a stroke symbol bound to the current DSH tool (the same 16 as the pixel family: read, write, edit, bash, grep, web search/fetch, ask_user_question, todo, subagent, workflow, goal, present, approval and more), hold it at least 0.5s while the activity lasts, morph directly between tools and return to the face when the turn ends ([#838](https://github.com/BotHarness/BotHarness/issues/838)).

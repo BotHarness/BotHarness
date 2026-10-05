@@ -74,3 +74,83 @@ it('upgrades legacy choices without reinterpreting identity, group policy, or Hu
     next.close();
   }
 });
+
+it('retains Lark revisions and existing Slack custom identities when upgrading the qualified defaults table', () => {
+  const home = createTempRoot('bh-slack-defaults-upgrade-');
+  const prior = mountOperationalDatabase({
+    dshHome: home,
+    schemaPlan: defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((m) => m.generation < 53),
+    ),
+  });
+  const priorPort = attachOperationalModule(prior, 'messaging');
+  const old = priorPort.transaction((db) => {
+    const { revision, changedAt: _at, ...preferences } = messagingDefaults(db);
+    const saved = commitMessagingDefaults(db, {
+      ...preferences,
+      expectedRevision: revision,
+      collection: 'all',
+      count: 8,
+    });
+    db.prepare(
+      'INSERT INTO messaging_bindings (id,bot_slug,provider_id,platform,account_ref,fingerprint,created_at,enabled,display_name,enabled_inherited) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    ).run(
+      'slack-old',
+      'ada',
+      'slack',
+      'slack',
+      'app',
+      'a'.repeat(64),
+      '2026-10-05T00:00:00Z',
+      0,
+      'QA',
+      0,
+    );
+    return saved;
+  });
+  prior.close();
+  const next = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  try {
+    expect(next.mode).toBe('ready');
+    const port = attachOperationalModule(next, 'messaging');
+    expect(port.read((db) => messagingDefaults(db))).toEqual(old);
+    port.transaction((db) => {
+      const { revision, changedAt: _at, ...preferences } = messagingDefaults(db, 'slack');
+      commitMessagingDefaults(db, {
+        ...preferences,
+        expectedRevision: revision,
+        identityEnabled: true,
+        collection: 'all',
+        count: 2,
+      });
+    });
+    expect(port.read((db) => messagingDefaults(db))).toEqual(old);
+    expect(port.read((db) => readMessagingIdentity(db, 'slack-old'))).toMatchObject({
+      enabled: false,
+      enabledInheritance: 'custom',
+      revision: 1,
+    });
+    expect(() =>
+      port.transaction((db) =>
+        db
+          .prepare("UPDATE messaging_default_revisions SET body = '{}' WHERE platform = 'slack'")
+          .run(),
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        cause: expect.objectContaining({ message: expect.stringContaining('immutable') }),
+      }),
+    );
+    expect(() =>
+      port.transaction((db) =>
+        db.prepare("DELETE FROM messaging_default_revisions WHERE platform = 'feishu'").run(),
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        cause: expect.objectContaining({ message: expect.stringContaining('immutable') }),
+      }),
+    );
+  } finally {
+    next.close();
+  }
+});

@@ -224,6 +224,7 @@ describe('bridge typert service', () => {
       'roles',
       'description',
     ]);
+    expect(parameterNames(service.messagingDefaults)).toEqual(['platform']);
     expect(parameterNames(service.channels)).toEqual([]);
     expect(parameterNames(service.channelDm)).toEqual(['slug', 'displayName']);
     expect(parameterNames(service.channelCreate)).toEqual(['name', 'members']);
