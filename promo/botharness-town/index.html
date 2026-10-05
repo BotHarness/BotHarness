@@ -1702,11 +1702,7 @@ function renderLegacy(f) {
     const pop = Math.min(1, (f - beat.a) / 8);
     dialog.mesh.position.set(D.x, D.y - Math.round((1 - pop) * 12), 0);
     dialog.mesh.scale.set(D.w, D.h + 8, 1);
-    if (mascot.visible) {
-      const bob = Math.floor(f / 20) % 2;
-      mascot.position.set(262, 2 + bob, 0);
-      mascot.scale.set(56, 56, 1);
-    }
+    if (mascot.visible) placeMascot(f);
   }
   plannedChip.visible = !!beat?.tag && within(f, beat.tag[0], beat.tag[1]);
   if (plannedChip.visible) plannedChip.position.set(L.dialogBox.x + L.dialogBox.w - 40, L.dialogBox.y + L.dialogBox.h - 2, 0);
@@ -1782,6 +1778,7 @@ function renderLegacy(f) {
   renderer.clearDepth();
   renderer.render(hud, hudCam);
   renderer.setScissorTest(false);
+  renderMemStage(f, worldW);
 }
 
 // ===== master timeline =============================================================
@@ -1829,8 +1826,7 @@ function narrate(f, lines, box = { x: 6, y: 3, w: 252, h: DIALOG_H }, mascotOn =
   dialog.mesh.scale.set(box.w, box.h + 8, 1);
   if (mascotOn && speaker === NARRATOR) {
     mascot.visible = true;
-    mascot.position.set(262, 2 + (Math.floor(f / 20) % 2), 0);
-    mascot.scale.set(56, 56, 1);
+    placeMascot(f);
   }
   return line;
 }
@@ -2876,24 +2872,37 @@ const streetY = (u) => {
   return lerp(streetGround[i], streetGround[Math.min(STREET_SAMPLES, i + 1)], x - i);
 };
 const AERIAL = { yaw: (205 * Math.PI) / 180, pitch: (48 * Math.PI) / 180, dist: 720 };
+// fixed god's-eye view over the town centre: the diorama holds still and only the paper puppets move
+const GOD = { yaw: (205 * Math.PI) / 180, pitch: (56 * Math.PI) / 180, dist: 370, look: [0, 0, 24] };
 function voxelCamera(c) {
-  // ease in and out of the walk so speed never jumps
-  const walk = ease(clamp(c / 600, 0, 1)) * 0.6 + clamp(c / 600, 0, 1) * 0.4;
-  const u = 0.02 + walk * 0.88;
-  const p = streetCurve.getPointAt(u);
-  // look target: average of several points ahead, so curve corners turn the view gently
-  const look0 = new THREE.Vector3();
-  for (let k = 1; k <= 6; k++) look0.add(streetCurve.getPointAt(Math.min(1, u + k * 0.015)));
-  look0.multiplyScalar(1 / 6);
-  const street = { pos: new THREE.Vector3(p.x, streetY(u) + EYE, p.z), look: new THREE.Vector3(look0.x, streetY(Math.min(1, u + 0.05)) + EYE - 4, look0.z) };
-  const centre = new THREE.Vector3(0, top(C, C) * VX.S, 0);
-  const crane = ease(span(c, 560, 920));
-  const orbit = AERIAL.yaw + span(c, 560, 1080) * 0.35;
-  const aerialPos = new THREE.Vector3(Math.cos(AERIAL.pitch) * Math.sin(orbit) * AERIAL.dist, centre.y + Math.sin(AERIAL.pitch) * AERIAL.dist, Math.cos(AERIAL.pitch) * Math.cos(orbit) * AERIAL.dist);
-  const pos = street.pos.clone().lerp(aerialPos, crane);
-  pos.y = lerp(street.pos.y, aerialPos.y, ease(span(c, 560, 940)) ** 1.4);
-  const look = street.look.clone().lerp(centre, ease(span(c, 540, 860)));
-  return { pos, look, dist: lerp(60, AERIAL.dist, crane) };
+  const centre = new THREE.Vector3(GOD.look[0], top(C, C) * VX.S + GOD.look[1], GOD.look[2]);
+  const pos = new THREE.Vector3(Math.cos(GOD.pitch) * Math.sin(GOD.yaw) * GOD.dist, Math.sin(GOD.pitch) * GOD.dist, Math.cos(GOD.pitch) * Math.cos(GOD.yaw) * GOD.dist).add(centre);
+  return { pos, look: centre, dist: GOD.dist };
+}
+// 2.5D paper puppets in the diorama: the sprite becomes a sticker on a stick planted in the ground
+const VX_PUPPET_SCALE = 0.5;
+function puppetBoardInto(mesh, src, into = null) {
+  const st = stickerCanvas(src, 64, 64, { into: into?.st ?? null });
+  const out = into ?? { st, tex: canvasTex(st.w, st.h + 24) };
+  const { ctx } = out.tex;
+  ctx.clearRect(0, 0, st.w, st.h + 24);
+  const sx = Math.floor(st.w / 2) - 2;
+  ['#5a3a1e', '#c08850', '#8a5a2b', '#5a3a1e'].forEach((col, i) => rect(ctx, sx + i, st.h - 8, 1, 32, col));
+  ctx.drawImage(st.canvas, 0, 0);
+  out.tex.tex.needsUpdate = true;
+  if (mesh.material.map !== out.tex.tex) {
+    mesh.material.map = out.tex.tex;
+    mesh.material.needsUpdate = true;
+    mesh.geometry = new THREE.PlaneGeometry(out.tex.w, out.tex.h).translate(0, out.tex.h / 2, 0);
+    mesh.scale.setScalar(VX_PUPPET_SCALE);
+  }
+  return out;
+}
+let vxPuppets = false;
+function makeVoxelPuppets() {
+  vxPuppets = true;
+  for (const w of VX.walkers) puppetBoardInto(w.mesh, w.mesh.material.map.image);
+  for (const st of VX.stationed) puppetBoardInto(st.mesh, st.mesh.material.map.image);
 }
 function renderVoxel(c, { narration = true } = {}) {
   const cam = VX.cam;
@@ -2913,13 +2922,17 @@ function renderVoxel(c, { narration = true } = {}) {
     m.scale.setScalar(0.8 + t / 70);
   }));
   // walkers
+  if (!vxPuppets) makeVoxelPuppets();
+  const cs = smT(c); // stop-motion time: puppets move in held poses
+  const jig = (m, k) => { m.rotation.z = (hash(smStep(c), k, 5) - 0.5) * 0.1; };
   VX.walkers.forEach((w, i) => {
-    const [bx, bz] = roadPoint(w.road, w.u + c * w.speed);
+    const [bx, bz] = roadPoint(w.road, w.u + cs * w.speed * 2.2);
     const [x, z] = W(bx + w.side, bz + w.side * 0.5);
-    w.mesh.position.set(x, top(Math.round(bx), Math.round(bz)) * VX.S + Math.abs(Math.sin(c * 0.3 + i)) * 1.5, z);
+    w.mesh.position.set(x, top(Math.round(bx), Math.round(bz)) * VX.S + ((smStep(c) + i) % 2 ? 2 : 0), z);
+    jig(w.mesh, i);
     w.bx = bx; w.bz = bz;
   });
-  VX.stationed.forEach((s, k) => { s.mesh.position.y = top(s.bx, s.bz) * VX.S + ((c + k * 11) % 50 < 6 ? 1.5 : 0); });
+  VX.stationed.forEach((s, k) => { s.mesh.position.y = top(s.bx, s.bz) * VX.S + ((cs + k * 12) % 48 < 12 ? 2 : 0); jig(s.mesh, 60 + k); });
   // animals
   VX.animals.forEach((a, i) => {
     let bx, bz, heading;
@@ -2945,12 +2958,13 @@ function renderVoxel(c, { narration = true } = {}) {
   const states = [['read', 'search'], ['todo', 'write'], ['bash', 'edit']];
   VX.cast.forEach((cc, i) => {
     if (!MORPH) return;
-    const cyc = (c + i * 40) % 240;
-    const sym = states[i][Math.floor((c + i * 40) / 240) % 2];
+    const cyc = (cs + i * 40) % 240;
+    const sym = states[i][Math.floor((cs + i * 40) / 240) % 2];
     const cells = cyc < 40 ? morphCells(cc.c.id, 'face', sym, cyc / 40) : cyc < 100 ? morphCells(cc.c.id, sym, sym, 1) : cyc < 140 ? morphCells(cc.c.id, sym, 'face', (cyc - 100) / 40) : MORPH[cc.c.id].face;
     paintCells(cc.live, cells, null);
-    cc.mesh.material.map = cc.live.tex;
-    cc.mesh.position.y = top(cc.bx, cc.bz) * VX.S + ((c + i * 9) % 40 < 6 ? 1.5 : 0);
+    cc.puppet = puppetBoardInto(cc.mesh, cc.live.canvas, cc.puppet);
+    cc.mesh.position.y = top(cc.bx, cc.bz) * VX.S + ((cs + i * 8) % 32 < 8 ? 2 : 0);
+    jig(cc.mesh, 90 + i);
   });
   cam.updateProjectionMatrix();
   renderer.setClearColor('#9fd4f2');
@@ -3081,6 +3095,7 @@ function buildHook() {
     const art = groupPlane(g, st, order + 0.5, 0.5, 0);
     return { g, stick, art, w: w ?? st.w, h: h ?? st.h };
   };
+  hk.makePuppet = puppet;
   const img = (t) => t.tex.image;
   const castArt = Object.fromEntries(CAST.map((c) => [c.id, stickerCanvas(img(c.tex.front), 64, 64)]));
   hk.mira = puppet(castArt.mira, 12);
@@ -3240,6 +3255,114 @@ function renderHook(h) {
   renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
   renderer.clearDepth();
   renderer.render(hookHud, hudCam);
+}
+
+// ----- the narrator, a stick puppet of the logo in the corner of every dialog -----------
+let mascotPuppetTex = null;
+function placeMascot(f) {
+  if (!mascotPuppetTex) {
+    const st = stickerCanvas(logoTex.tex.image, 52, 52, { smooth: true });
+    mascotPuppetTex = canvasTex(st.w, st.h + 40, (ctx) => {
+      const sx = Math.floor(st.w / 2) - 2;
+      ['#5a3a1e', '#c08850', '#8a5a2b', '#5a3a1e'].forEach((c, i) => rect(ctx, sx + i, st.h - 6, 1, 46, c));
+      ctx.drawImage(st.canvas, 0, 0);
+    });
+    mascot.material.map = mascotPuppetTex.tex;
+    mascot.material.needsUpdate = true;
+    mascot.geometry = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0); // pivot at the hand holding the stick
+  }
+  const s = smStep(f);
+  mascot.position.set(290 + Math.round((hash(s, 9, 3) - 0.5) * 2), -34 + (s % 4 < 2 ? 0 : 2), 0);
+  mascot.rotation.z = (hash(s, 9, 5) - 0.5) * 0.08 + Math.sin(s * 0.7) * 0.05;
+  mascot.scale.set(mascotPuppetTex.w, mascotPuppetTex.h, 1);
+}
+
+// ----- memory B-roll: the puppet stage takes the left third, and cuts in full screen -------
+// Legacy frames. Split beats show a slice of the stage beside the real UI; the cutaway replaces
+// the gallery for a moment while the narration line keeps typing over it.
+const MEM_STAGE = [[720, 1080], [1560, 1800]];
+const MEM_CUT = [1090, 1192];
+function tagTex(text, color = '#fff6e0') {
+  const w = textWidth(text) + 12;
+  return canvasTex(w + 2, 16, (ctx) => { rect(ctx, 2, 3, w, 13, 'rgba(42,34,48,0.3)'); box(ctx, 0, 0, w, 13, color, INK); drawText(ctx, text, 6, 4, INK); });
+}
+const mem = { built: false };
+function buildMem() {
+  if (!hk.built) buildHook();
+  mem.built = true;
+  const P = hk.makePuppet;
+  mem.files = ['NOTES', 'PERSONA', 'CODE'].map((t) => P(tagTex(t), 16));
+  mem.tools = [['FILES', '#fff6e0'], ['SEARCH', '#dff3ff'], ['SHELL', '#e8f7df'], ['GIT', '#ffe7c7']].map(([t, c]) => P(tagTex(t, c), 16));
+  mem.graph = { tex: canvasTex(84, 60), n: -1 };
+  mem.graphP = P(mem.graph.tex, 16);
+  mem.check = P(tagTex('RESTORE', '#ffe7c7'), 16);
+}
+function memGraph(n, branch) {
+  const key = n * 10 + (branch ? 1 : 0);
+  if (mem.graph.n === key) return;
+  mem.graph.n = key;
+  const { ctx } = mem.graph.tex;
+  ctx.clearRect(0, 0, 84, 60);
+  rect(ctx, 2, 3, 80, 55, 'rgba(42,34,48,0.3)');
+  box(ctx, 0, 0, 80, 55, '#fff6e0', INK);
+  drawText(ctx, branch ? 'NEW BRANCH' : 'COMMITS', 6, 4, '#7a3b4a');
+  rect(ctx, 14, 14, 2, 36, '#5a5070');
+  [44, 34, 24, 14].forEach((y, i) => { if (i < n) { disc(ctx, 15, y, 3, INK); disc(ctx, 15, y, 2, i === n - 1 && !branch ? PAL.amber : '#5cb85c'); } });
+  if (branch) { rect(ctx, 16, 34, 30, 1, '#4f7fcf'); rect(ctx, 46, 18, 1, 17, '#4f7fcf'); disc(ctx, 46, 24, 3, INK); disc(ctx, 46, 24, 2, '#4f7fcf'); disc(ctx, 46, 14, 3, INK); disc(ctx, 46, 14, 2, PAL.amber); }
+  mem.graph.tex.tex.needsUpdate = true;
+}
+function stageBase(w) {
+  for (const o of hookHud.children) o.visible = false;
+  setPlane(hk.bg, 0, 0, 320, 180);
+  setPlane(hk.apron, 0, 0, 320, 40);
+  setPlane(hk.valance, 0, 180, 320, 24);
+  const inset = w < 200 ? 4 : 12; // a slim curtain edge when the stage is only a slice of the screen
+  setPlane(hk.curL, Math.round(160 - w / 2 + inset - 176), 0, 176, 180);
+  setPlane(hk.curR, Math.round(160 + w / 2 - inset), 0, 176, 180);
+}
+const stageCam = new THREE.OrthographicCamera(0, VIEW_W, VIEW_H, 0, -100, 100);
+function drawStage(x0, w) {
+  stageCam.left = 160 - w / 2;
+  stageCam.right = 160 + w / 2;
+  stageCam.updateProjectionMatrix();
+  renderer.setScissorTest(true);
+  renderer.setViewport(Math.round(x0 * PIXEL_RATIO), 0, Math.round(w * PIXEL_RATIO), VIEW_H * PIXEL_RATIO);
+  renderer.setScissor(Math.round(x0 * PIXEL_RATIO), 0, Math.round(w * PIXEL_RATIO), VIEW_H * PIXEL_RATIO);
+  renderer.clearDepth();
+  renderer.render(hookHud, stageCam);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
+}
+// called by renderLegacy after the world and HUD are drawn, before the overlay
+function renderMemStage(f, worldW) {
+  const slice = MEM_STAGE.some(([a, b]) => f >= a && f < b);
+  const cut = f >= MEM_CUT[0] && f < MEM_CUT[1];
+  if (!slice && !cut) return;
+  if (!mem.built) buildMem();
+  const w = cut ? VIEW_W : Math.round(worldW);
+  stageBase(w);
+  const t = smT(f);
+  if (f < 850) {
+    // files: notes, persona and code are plain files in the memory
+    showPuppet(hk.mira, f, 134, 50, 720, null, { sway: 0.05, scale: 0.8 });
+    mem.files.forEach((p, i) => showPuppet(p, f, 188, 64 + i * 24, 736 + i * 22, null, { sway: 0.08 }));
+  } else if (f < 1080) {
+    // bots explore it with files, search, shell and Git
+    showPuppet(hk.mira, f, 134, 50, 850, null, { sway: 0.05, scale: 0.8 });
+    mem.tools.forEach((p, i) => showPuppet(p, f, 190, 56 + i * 20, 866 + i * 26, null, { sway: 0.08 }));
+  } else if (cut) {
+    // every change to a memory is a commit
+    showPuppet(hk.mira, f, 110, 50, MEM_CUT[0], null, { sway: 0.06 });
+    if (showPuppet(mem.graphP, f, 214, 54, MEM_CUT[0] + 4, null)) memGraph(t < 1110 ? 1 : t < 1130 ? 2 : t < 1150 ? 3 : 4, false);
+    const k = POP[Math.min(5, Math.floor((f - 1100) / 2))];
+    if (f >= 1100) { hk.bub[0].material.map = hk.bubbles.ok.tex; hk.bub[0].material.needsUpdate = true; setPlane(hk.bub[0], 128, 104, 48 * k, 30 * k); }
+  } else {
+    // branch off from any memory; checkpoints keep everything restorable
+    showPuppet(hk.mira, f, 132, 50, 1560, null, { sway: 0.05, scale: 0.8 });
+    if (showPuppet(mem.graphP, f, 186, 92, 1572, null, { scale: 0.62 })) memGraph(3, t >= 1600);
+    showPuppet(mem.check, f, 188, 60, 1690, null, { sway: 0.08 });
+  }
+  drawStage(0, w);
 }
 
 // ===== end card: open source line, then the title card that frame 0 starts on ==========
