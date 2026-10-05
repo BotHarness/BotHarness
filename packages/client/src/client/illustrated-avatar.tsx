@@ -160,6 +160,7 @@ export function IllustratedAvatar({
   );
   const line = useRef<LineShown>({ velocity: 0, since: 0 });
   const pixel = useRef<PixelShown>({ since: 0 });
+  const seen = useRef(true);
   const mount = useMountedResource<HTMLSpanElement>(
     (node) => {
       const morphPath = node.querySelector<SVGPathElement>('path[data-avatar-transition]');
@@ -169,7 +170,7 @@ export function IllustratedAvatar({
       const pixelGroup = node.querySelector<SVGGElement>('[data-avatar-pixel-morph]');
       if (!head || !gaze || !blink || typeof head.animate !== 'function') return;
       const animations = new Set<Animation>();
-      let visible = true;
+      let visible = seen.current;
       let disposed = false;
       let run: { run: LineMorphRun; key: PixelSymbol | 'face' } | undefined;
       let lineTimer: ReturnType<typeof setTimeout> | undefined;
@@ -332,9 +333,11 @@ export function IllustratedAvatar({
       };
       const loop = (target: Element, frames: Keyframe[], duration: number) =>
         animations.add(target.animate(frames, { duration, iterations: Infinity }));
+      const settled = () => animations.size === 0 && !run && !lineTimer && !pixelRun;
       const sync = () => {
-        const start = getComputedStyle(head).transform;
-        const gazeStart = getComputedStyle(gaze).transform;
+        const moving = !settled();
+        const start = moving ? getComputedStyle(head).transform : 'none';
+        const gazeStart = moving ? getComputedStyle(gaze).transform : 'none';
         stop();
         head.style.transform = 'none';
         gaze.style.transform = 'none';
@@ -417,7 +420,7 @@ export function IllustratedAvatar({
           : new IntersectionObserver((entries) => {
               const next = entries.some((entry) => entry.isIntersecting);
               if (next === visible) return;
-              visible = next;
+              seen.current = visible = next;
               sync();
             });
       observer?.observe(node);
@@ -430,13 +433,17 @@ export function IllustratedAvatar({
       sync();
       return () => {
         disposed = true;
-        const pose = getComputedStyle(head).transform;
-        const gazePose = getComputedStyle(gaze).transform;
-        const headOpacity = getComputedStyle(head).opacity;
-        stop();
-        head.style.transform = pose;
-        gaze.style.transform = gazePose;
-        head.style.opacity = headOpacity;
+        if (settled()) {
+          stop();
+        } else {
+          const pose = getComputedStyle(head).transform;
+          const gazePose = getComputedStyle(gaze).transform;
+          const headOpacity = getComputedStyle(head).opacity;
+          stop();
+          head.style.transform = pose;
+          gaze.style.transform = gazePose;
+          head.style.opacity = headOpacity;
+        }
         observer?.disconnect();
         motion.disconnect();
         document.removeEventListener('visibilitychange', sync);
