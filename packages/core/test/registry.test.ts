@@ -498,7 +498,7 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.setPaused('missing', true)).toEqual({ ok: false, reason: 'not-found' });
   });
 
-  it('drops records whose paused flag is not a boolean', () => {
+  it('ignores a legacy paused flag introduced after the empty import marker', () => {
     const root = createRoot();
     const registry = createTestRegistry({ rootDir: root });
     mkdirSync(join(root, 'broken'));
@@ -516,7 +516,7 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.get('broken')).toBeUndefined();
   });
 
-  it('lists bots sorted and skips junk entries and poisoned records', () => {
+  it('lists database Bots sorted and ignores late junk or poisoned legacy records', () => {
     const root = createRoot();
     const registry = createTestRegistry({ rootDir: root });
     registry.create({ slug: 'zeta', displayName: 'Z' });
@@ -552,7 +552,7 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.remove('missing')).toBe(false);
   });
 
-  it('treats a corrupt bot.json as absent and recreates over it', () => {
+  it('ignores late corrupt bot.json and creates a database record without overwriting the source', () => {
     const root = createRoot();
     const registry = createTestRegistry({ rootDir: root });
     mkdirSync(join(root, 'broken', 'memory'), { recursive: true });
@@ -563,5 +563,6 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.create({ slug: 'broken', displayName: 'Broken' }).ok).toBe(true);
     expect(existsSync(join(root, 'broken', 'memory'))).toBe(true);
     expect(existsSync(join(root, 'broken', 'memory', 'PERSONA.md'))).toBe(false);
+    expect(readFileSync(join(root, 'broken', 'bot.json'), 'utf8')).toBe('{ not json');
   });
 });
