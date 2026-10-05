@@ -1,0 +1,37 @@
+{
+  "bot": "Terminal notice QA 1791175637021",
+  "orchestratorTurns": 3,
+  "sources": [
+    {
+      "id": "61f935e6-903f-47e3-9a59-1a2bdfc8ff08",
+      "state": "handled",
+      "createdAt": "2026-10-05T04:53:09.506Z",
+      "observedAt": "2026-10-05T05:23:27.700Z",
+      "handledAt": "2026-10-05T05:23:30.700Z",
+      "sourceKind": "assignment-lifecycle",
+      "assignmentSessionId": "botharness-6bbfff6d-0456-4a02-b199-1e6e8a1d1396",
+      "assignmentTurn": 1,
+      "relatedReportSourceEventId": "415bcfbd-3e22-4080-9580-2b75e9554e1c",
+      "sourceAvailable": true,
+      "authorKind": "system",
+      "summary": "DSH confirmed successful completion of Assignment Turn 1."
+    },
+    {
+      "id": "415bcfbd-3e22-4080-9580-2b75e9554e1c",
+      "state": "handled",
+      "createdAt": "2026-10-05T04:47:21.608Z",
+      "observedAt": "2026-10-05T04:47:21.610Z",
+      "handledAt": "2026-10-05T04:47:23.945Z",
+      "sourceKind": "assignment-report",
+      "assignmentSessionId": "botharness-6bbfff6d-0456-4a02-b199-1e6e8a1d1396",
+      "assignmentReportState": "completed",
+      "assignmentTurn": 1,
+      "sourceAvailable": true,
+      "authorKind": "bot",
+      "authorBotSlug": "bot-880c2dd8869d43f4a0e98690e265bf9e",
+      "summary": "TERMINAL_RESULT_VERIFIED"
+    }
+  ],
+  "noticeDeliveries": 1,
+  "reportReferenceRetained": true
+}

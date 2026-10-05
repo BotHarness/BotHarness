@@ -122,11 +122,14 @@ export class FakeAgentHost implements DshAgentHost {
         events.slice(fromSeq, toSeqExclusive),
     };
     let pending = Promise.resolve();
+    let turn = 0;
     const fakeAgent = {
       id: sessionId,
       session,
       followup: (message: UserMessage) => {
         messages.push(message);
+        const currentTurn = ++turn;
+        session.append('turn/start', { turn: currentTurn });
         const isOrchestrator = scope.tools.some((tool) => tool.name === 'create_assignment');
         const reason = isOrchestrator ? this.orchestratorTurnEnd : { kind: 'completed' as const };
         pending = (
@@ -140,7 +143,7 @@ export class FakeAgentHost implements DshAgentHost {
             type: 'turn/end',
             seq: events.length,
             time: session.header.createdAt,
-            data: { turn: events.length + 1, reason },
+            data: { turn: currentTurn, reason },
           });
         });
       },

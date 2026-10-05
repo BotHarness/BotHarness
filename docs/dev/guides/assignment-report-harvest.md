@@ -63,3 +63,25 @@ node scripts/e2e-assignment-report-restart.mjs verify
 The restart is an explicit operator action outside the verification script. Keep both launch records private and verify the replacement PID and authenticated API before continuing; do not kill shared processes. No model/tool request runs during after-restart or verify. The harvest phase sends one real Human DM; it creates no Assignment and uses no Shell/file operation. Capture mode only reads current state and exercises source navigation. Optional BH_E2E_STATE selects a private scene file when verifying an earlier scene without replacing the pending Human QA scene.
 
 For Human QA, open the prepared post-restart Bot, inspect both pending progress markers and open one source, then return to the Bot DM and send RESTART_HARVEST. The Bot replies RESTART_REVIEWED; both original entries remain in handled history after refresh. Tokens consumed by the actual QA model requests are normal recorded usage.
+
+## Completed Report paired with native completion
+
+A completed Report states the Assignment’s semantic outcome; the Host completion notice independently confirms that its native DSH Turn ended successfully. The Report remains Bot-authored and the notice remains system-authored. Both have separate navigable Source Event IDs. The existing Bot Inbox query additionally exposes their trusted native Turn number and the notice’s exact related Report ID.
+
+The Report owns the causal wake. A notice available before that harvest joins it with its own source reference; a late notice remains pending until the next real Turn. It never creates another automatic Turn or falsely inherits the Report’s observation/handling timestamps. Cold restart preserves this passive behavior. A progress-only Turn does not create a paired completion notice.
+
+For reproduction in a fresh isolated Profile, set the same three environment variables above and run:
+
+```bash
+node scripts/e2e-assignment-terminal-notice.mjs prepare
+node scripts/e2e-assignment-terminal-notice.mjs complete
+# Stop only the verified isolated Host PID and relaunch the same home/port.
+node scripts/e2e-assignment-terminal-notice.mjs after-restart
+node scripts/e2e-assignment-terminal-notice.mjs review
+```
+
+The real Assignment sends one completed Report before a harmless one-second Shell timer awaiting Human approval. Prepare waits until that Report’s harvest settles; complete approves only that timer, then verifies an actual successful native Turn and its newly pending Host notice without another Orchestrator Turn. After-restart is read-only and verifies unchanged source identity and two historical Orchestrator Turns. Review sends one real Human DM, verifies exactly one additional Turn and one exposure of the notice, and checks both sources in handled history. Each phase captures actual light/dark UI and authenticated native source navigation without changing observation or causing a wake.
+
+[Screenshots and bounded proof](https://github.com/BotHarness/BotHarness/blob/main/docs/assets/pr/194-terminal-notice/README.md) establish this narrow successful completion boundary. Failure, interruption, escalation and crash recovery during active execution remain separate #194 slices.
+
+For Human QA, inspect the prepared Bot’s pending system notice and handled completed Report, open either source and return to the DM, then send REVIEW_NATIVE_COMPLETION. The Bot replies NATIVE_COMPLETION_REVIEWED; the notice moves into handled history while the original Report remains unchanged after refresh.

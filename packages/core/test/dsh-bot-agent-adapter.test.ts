@@ -821,6 +821,7 @@ describe('DSH Bot Agent adapter', () => {
       ensureWorkspace: (path) => void preparedWorkspaces.push(path),
     });
     const reports: unknown[] = [];
+    const completions: unknown[] = [];
     const sends: unknown[] = [];
 
     await adapter.runOrchestrator({
@@ -889,7 +890,9 @@ describe('DSH Bot Agent adapter', () => {
         approval: 'ask',
         presetRevision: 0,
       },
-      report: async (input) => {
+      completedTurn: (execution) => void completions.push(execution),
+      report: async (input, execution) => {
+        expect(execution).toEqual({ turn: 1 });
         reports.push(input);
         return { ...input, at: BOT.createdAt };
       },
@@ -898,6 +901,15 @@ describe('DSH Bot Agent adapter', () => {
 
     expect(sends).toEqual([{ body: '发布状态已经核对完成。' }]);
     expect(reports).toEqual([{ state: 'completed', summary: '发布状态正常' }]);
+    expect(completions).toEqual([
+      {
+        turn: 1,
+        endSeq: host.sessions
+          .find((session) => session.id === 'assignment-1')!
+          .snapshotEvents()
+          .find((event) => event.type === 'turn/end')!.seq,
+      },
+    ]);
     expect(host.createOptions).toHaveLength(2);
     expect(host.createOptions.map((options) => options.agentOptions)).toEqual([
       { provider: 'test', model: 'test' },

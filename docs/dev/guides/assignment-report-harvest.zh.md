@@ -63,3 +63,25 @@ node scripts/e2e-assignment-report-restart.mjs verify
 重启是验证脚本之外的明确操作。两份启动记录保持私有，继续前核对替换后的 PID 和认证 API；不要停止共享进程。after-restart 和 verify 不发模型或工具请求；harvest 只提交一条真实 Human 私聊，不创建 Assignment，也不操作 Shell／文件。capture 仅读取当前状态并验证来源导航。可选 BH_E2E_STATE 指向私有场景文件，允许复核先前场景而不覆盖待 Human 验收的场景。
 
 Human QA 时打开已准备好的重启后 Bot，检查两条待处理进度并打开一个来源；回到 Bot 私聊发送 RESTART_HARVEST。Bot 应回复 RESTART_REVIEWED，刷新后两个原条目仍留在已处理历史。真实 QA 模型请求消耗的 token 正常计入用量。
+
+## 完成报告与原生执行完成配对
+
+completed Report 表达 Assignment 的语义结果；Host 通知则独立确认其原生 DSH Turn 成功结束。报告保留 Bot 来源，通知保留系统来源，两者都有独立、可跳转的 Source Event ID。既有 Bot Inbox 查询额外返回可信 Turn 编号与通知关联的确切报告 ID。
+
+同一因果唤醒由报告负责：及时到达的通知搭乘该次收割，迟到的通知则保持待处理，直到下一次真实 Turn。通知不会单独产生新的自动 Turn，也不会继承报告的观察／处理时间；冷重启保留此规则。仅有 progress 报告的 Turn 不生成完成配对通知。
+
+在全新隔离 Profile 中设置前述三个环境变量，再执行：
+
+```bash
+node scripts/e2e-assignment-terminal-notice.mjs prepare
+node scripts/e2e-assignment-terminal-notice.mjs complete
+# 只停止已核实的隔离 Host PID，再启动同一 home／端口。
+node scripts/e2e-assignment-terminal-notice.mjs after-restart
+node scripts/e2e-assignment-terminal-notice.mjs review
+```
+
+真实 Assignment 先提交一条 completed 报告，再请求一个需 Human 批准的无害一秒 Shell 计时器。prepare 等待报告收割完成；complete 仅批准该计时器，验证真实成功 Turn 与新待处理 Host 通知，Orchestrator 不增加 Turn。after-restart 只读验证来源身份不变和历史两个 Turn。review 发送真实 Human DM，验证只增加一个 Turn、通知只曝光一次，两条来源都保留在已处理历史。各阶段捕获真实明暗主题截图，并验证认证原生来源导航不会观察或唤醒。
+
+[截图与有界证据](https://github.com/BotHarness/BotHarness/blob/main/docs/assets/pr/194-terminal-notice/README.md) 仅证明成功完成的配对边界；失败、中断、升级和活动执行中的崩溃恢复仍由 #194 后续切片验收。
+
+Human QA：查看准备好的 Bot 中待处理系统通知和已处理完成报告，打开任一来源后返回私聊，发送 REVIEW_NATIVE_COMPLETION。Bot 回复 NATIVE_COMPLETION_REVIEWED，通知进入已处理历史；原报告刷新后保持不变。

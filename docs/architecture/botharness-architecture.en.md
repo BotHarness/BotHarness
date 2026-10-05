@@ -354,9 +354,11 @@ flowchart LR
   Runtime <--> W1["Independent Assignment Session A"]
   Runtime <--> W2["Independent Assignment Session B"]
   W1 -->|"report_to_orchestrator"| Report["Assignment Report Source Event"]
-  W2 -.-> Notice["Host Lifecycle Notice<br/>settled / error / cancel<br/>(planned #194)"]
+  W1 -->|"completed Turn paired with this Report"| Completion["Host Completion Notice<br/>paired completion #194"]
+  W2 -->|"confirmed stop"| Notice["Host Lifecycle Notice<br/>confirmed stop #194<br/>other boundaries planned"]
   Report --> Inbox
-  Notice -.-> Inbox
+  Completion --> Inbox
+  Notice --> Inbox
   W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]
 ```
 
@@ -368,7 +370,7 @@ The Assignment Runtime's concurrency limit covers all PersonaBots on the Host (d
 
 Humans adjust this Profile-wide limit from 1 to 32 in Bot mode Settings. The native DSH Settings schema declares a Volatile field persisted by the Profile Config Editor; the UI Plugin's Host Fiber binds a live reader to the application-defined Assignment Runtime and releases the binding on disposal. The Client displays only Host-confirmed saved values, and the Runtime reads the current value whenever it admits creation or an idle wake. Saving affects subsequent admissions immediately and survives restart. Lowering the limit does not cancel running work; new execution starts only once usage falls below the new limit (#825).
 
-The current `stop_assignment` uses DSH `Agent.cancel({ kind: "user" })` to abort the active turn and clear queued input. BotHarness persists a stopping state first, then a stopped state after the Agent is quiescent. A stopped Assignment rejects requests and late reports; its Continuity Key can start a new Session. Cancellation retains DSH Session history. Independent Host Lifecycle Notices and Attention/digest remain later #194 slices.
+The current `stop_assignment` uses DSH `Agent.cancel({ kind: "user" })` to abort the active turn and clear queued input. BotHarness persists a stopping state first, then a stopped state after the Agent is quiescent. A stopped Assignment rejects requests and late reports; its Continuity Key can start a new Session. Cancellation retains DSH Session history. The confirmed stop writes an independent Host Lifecycle Notice in the same transaction as the stopped state. A successful native completion now creates one idempotent Host/system Source Event linked to a Bot-authored completed Report from the exact owned Session and trusted native Turn. The adapter supplies the Turn number from native Session Events; the notice retains the native end sequence and exact Report Source Event ID. The existing Bot Inbox query exposes this causal identity. The Report owns the wake: the paired notice rides that harvest or the next real Turn, remains pending until actually exposed, and never independently wakes or replays after restart. The harvest preserves both Report meaning and Host confirmation with separate source references ([ADR-0077](../adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)). Progress-only successful Turns do not create paired notices. Failure, interruption and other #194 Attention acceptance remain later slices.
 
 The Assignment Request modes `context-update`, `next-step`, and `next-turn` map to verified DSH inject, steer, and followup seams. An ordinary request never cancels the current step. Across the SQLite/DSH boundary BotHarness retains only a minimal Assignment Delivery Intent and performs bounded restart reconciliation. Ambiguity becomes `needs-repair`; it does not grow into a general workflow engine.
 

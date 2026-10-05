@@ -32,6 +32,7 @@ class ManualAgents implements BotAgentAdapter {
   readonly started: Array<{ sessionId: string; purpose: string; run: AssignmentAgentRun }> = [];
   readonly resumed: Array<{ sessionId: string; text: string }> = [];
   readonly inboxTurns: string[] = [];
+  readonly allInboxTurns: string[] = [];
   access: OrchestratorAssignmentAccess | undefined;
   failNextStop = false;
   failInbox: 'before-side-effect' | 'after-side-effect' | undefined;
@@ -40,6 +41,7 @@ class ManualAgents implements BotAgentAdapter {
 
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.access = run.assignments;
+    this.allInboxTurns.push(run.inbox);
     if (run.message.trim().length > 0) return;
     if (this.factoryUnavailableCount > 0) {
       this.factoryUnavailableCount -= 1;
@@ -203,6 +205,167 @@ async function setup(
 }
 
 describe('Assignment collaboration', () => {
+  it('retains two causally linked sources without a second completed wake', async () => {
+    const { runtime, agents, owner, admit, close, channels } = await setup();
+    try {
+      await admit('Start', 'completion-start');
+      agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Complete' });
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'completed', summary: 'Verified release' }, { turn: 7 });
+      await vi.waitFor(() => expect(agents.inboxTurns).toHaveLength(1));
+      run.completedTurn!({ turn: 7, endSeq: 42 });
+      run.completedTurn!({ turn: 7, endSeq: 42 });
+      agents.finish(run.sessionId);
+      await runtime.whenIdle();
+      expect(agents.inboxTurns).toHaveLength(1);
+      const port = attachOperationalModule(owner, 'completion-test');
+      const items = createBotAttentionQuery(port, channels).list({ botSlug: 'ada' }).items;
+      const report = items.find((i) => i.sourceKind === 'assignment-report')!;
+      const notice = items.find((i) => i.sourceKind === 'assignment-lifecycle')!;
+      expect(items.filter((i) => i.sourceKind === 'assignment-lifecycle')).toHaveLength(1);
+      expect(report).toMatchObject({
+        state: 'handled',
+        authorKind: 'bot',
+        authorBotSlug: 'ada',
+        sourceAvailable: true,
+      });
+      expect(notice).toMatchObject({
+        state: 'pending',
+        authorKind: 'system',
+        sourceAvailable: true,
+      });
+      const payload = port.read((db) =>
+        db
+          .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
+          .get(notice.id),
+      ) as { payload_json: string };
+      expect(JSON.parse(payload.payload_json)).toMatchObject({
+        assignmentLifecycle: {
+          state: 'completed',
+          turn: 7,
+          endSeq: 42,
+          reportSourceEventId: report.id,
+        },
+      });
+      await admit('Review current facts', 'completion-review');
+      expect(agents.allInboxTurns.at(-1)).toContain(notice.id);
+      expect(agents.allInboxTurns.at(-1)).toContain(report.id);
+      expect(
+        createBotAttentionQuery(port, channels)
+          .list({ botSlug: 'ada' })
+          .items.find((i) => i.id === notice.id)?.state,
+      ).toBe('handled');
+    } finally {
+      await close();
+    }
+  });
+
+  it('keeps Report meaning alongside a paired Host completion in one harvest', async () => {
+    const { runtime, agents, owner, admit, close } = await setup();
+    try {
+      await admit('Start', 'paired-start');
+      agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Complete' });
+      const run = agents.started[0]!.run;
+      const reporting = run.report(
+        { state: 'completed', summary: 'The result is verified' },
+        { turn: 1 },
+      );
+      run.completedTurn!({ turn: 1, endSeq: 30 });
+      await reporting;
+      agents.finish(run.sessionId);
+      await runtime.whenIdle();
+      expect(agents.inboxTurns).toHaveLength(1);
+      expect(agents.inboxTurns[0]).toContain('reported [Source Event');
+      expect(agents.inboxTurns[0]).toContain('The result is verified');
+      expect(agents.inboxTurns[0]).toContain('Host lifecycle notice [Source Event');
+      expect(agents.inboxTurns[0]).toContain('same native Turn as Report');
+      expect(
+        sourceEvents(owner)
+          .filter((e) => e.source_kind.startsWith('assignment-'))
+          .every((e) => e.observed_at !== null),
+      ).toBe(true);
+    } finally {
+      await close();
+    }
+  });
+
+  it('does not infer completion pairing from a different Turn or progress-only run', async () => {
+    const { runtime, agents, owner, admit, close } = await setup();
+    try {
+      await admit('Start', 'unpaired-start');
+      agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Complete' });
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'progress', summary: 'Still checking' }, { turn: 1 });
+      run.completedTurn!({ turn: 1, endSeq: 20 });
+      await run.report({ state: 'completed', summary: 'Verified' }, { turn: 2 });
+      run.completedTurn!({ turn: 3, endSeq: 40 });
+      agents.finish(run.sessionId);
+      await runtime.whenIdle();
+      expect(sourceEvents(owner).filter((e) => e.source_kind === 'assignment-lifecycle')).toEqual(
+        [],
+      );
+      expect(agents.inboxTurns).toHaveLength(1);
+    } finally {
+      await close();
+    }
+  });
+
+  it('keeps a late paired notice pending through restart without a replay wake', async () => {
+    const { runtime, agents, owner, home, admit, close } = await setup();
+    await admit('Start', 'late-start');
+    agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Complete' });
+    const run = agents.started[0]!.run;
+    await run.report({ state: 'completed', summary: 'Verified before settlement' }, { turn: 1 });
+    await vi.waitFor(() => expect(agents.inboxTurns).toHaveLength(1));
+    run.completedTurn!({ turn: 1, endSeq: 24 });
+    agents.finish(run.sessionId);
+    await runtime.whenIdle();
+    const noticeId = sourceEvents(owner).find(
+      (e) => e.source_kind === 'assignment-lifecycle',
+    )!.source_event_id;
+    await close();
+    owner.close();
+    const reopenedOwner = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    const reopenedAgents = new ManualAgents();
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const reopenedRuntime = createBotRuntime({
+      database: reopenedOwner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels,
+      agents: reopenedAgents,
+      now: FIXED_NOW,
+    });
+    try {
+      await reopenedRuntime.whenIdle();
+      expect(reopenedAgents.inboxTurns).toEqual([]);
+      expect(
+        createBotAttentionQuery(attachOperationalModule(reopenedOwner, 'late-query'), channels)
+          .list({ botSlug: 'ada' })
+          .items.find((i) => i.id === noticeId),
+      ).toMatchObject({ state: 'pending' });
+      const dm = channels.getOrCreateDm('ada', 'Ada')!;
+      const admission = reopenedRuntime.admitDmMessage({
+        channelId: dm.id,
+        messageId: 'late-review',
+        body: 'Review completion',
+      });
+      if (!admission.admitted) throw new Error('DM denied');
+      await admission.settled;
+      expect(reopenedAgents.allInboxTurns.at(-1)).toContain(noticeId);
+      expect(
+        createBotAttentionQuery(attachOperationalModule(reopenedOwner, 'late-result'), channels)
+          .list({ botSlug: 'ada' })
+          .items.find((i) => i.id === noticeId)?.state,
+      ).toBe('handled');
+    } finally {
+      await reopenedRuntime.close();
+      reopenedOwner.close();
+    }
+  });
+
   it('applies a live limit to create and wake without cancelling existing work', async () => {
     let limit = 3;
     const { runtime, agents, admit, close } = await setup({

@@ -1,0 +1,21 @@
+{
+  "assignmentSessionId": "botharness-6bbfff6d-0456-4a02-b199-1e6e8a1d1396",
+  "reportId": "415bcfbd-3e22-4080-9580-2b75e9554e1c",
+  "noticeId": "61f935e6-903f-47e3-9a59-1a2bdfc8ff08",
+  "sourceStates": [
+    {
+      "id": "61f935e6-903f-47e3-9a59-1a2bdfc8ff08",
+      "state": "pending"
+    },
+    {
+      "id": "415bcfbd-3e22-4080-9580-2b75e9554e1c",
+      "state": "handled",
+      "observedAt": "2026-10-05T04:47:21.610Z",
+      "handledAt": "2026-10-05T04:47:23.945Z"
+    }
+  ],
+  "orchestratorTurns": 2,
+  "bothSourcesOpenedInRealUI": true,
+  "navigationChangedAttention": false,
+  "navigationWokeBot": false
+}
