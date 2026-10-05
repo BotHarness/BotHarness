@@ -90,7 +90,11 @@ Your organization determines availability and approval requirements. Even with a
 
 ### Compare the actual console configuration
 
-These are read-only captures of an already published test application. A new app still needs its own capability, scope requests, publication and administrator approval. Do not copy all of this test application's scopes or events.
+![Fresh onboarding application with only the three initial application scopes added](/guides/lark/18-new-app-minimum-scopes.webp)
+
+_This fresh application was created through the Lark console for the #824 onboarding test. All three scopes use Tenant token, with status Added. The top banner still says Pending release: adding scopes alone does not make them effective. Establish the local connection, save the message event subscription and publish the version before testing group intake. All-group-message access is not enabled in this example._
+
+The following older captures are read-only references from an already published test application. A new app still needs its own capability, scope requests, publication and administrator approval. Do not copy all of this test application's scopes or events.
 
 ![Actual credential settings with the App Secret hidden](/guides/lark/09-credentials.webp)
 

@@ -236,7 +236,11 @@ export function LarkSetupGuide({
                 ))}
             </select>
           </label>
-          {!state.providerReady ? <p role="status">{t('setup.providerMissing')}</p> : null}
+          {busy || !snapshot ? (
+            <p role="status">{t('setup.checking')}</p>
+          ) : !failed && !state.providerReady ? (
+            <p role="status">{t('setup.providerMissing')}</p>
+          ) : null}
           <ol className="bh-lark-setup-steps">
             {LARK_SETUP_STEPS.map((step) => {
               const done =
