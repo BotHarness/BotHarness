@@ -14,6 +14,10 @@ refused a stale confirmation before persisting deletion, refused an escaping Mem
 symlink while preserving outside bytes, and reported an injected filesystem
 permission failure as incomplete. After a second cold restart, the incomplete
 state still fenced execution; explicit retry completed the original erasure scope.
+Custom/shared fixtures were created through the canonical Registry API with the
+Host stopped and then verified through the authenticated running Host: a newly
+created exclusive custom repository was erased, while a pre-existing unproven
+root and two overlapping custom roots refused erasure and retained their bytes.
 
 `backend-e2e.json` contains the checkpoints and opaque test identity/session IDs.
 No authentication token or credentials are included.
@@ -30,7 +34,11 @@ It also leaves two active disposable Bots for Human UI review. Then run
 `node docs/evidence/issue-896/failure-e2e.mjs <private-launch-json>`; restart the exact
 Host again and run that script with `retry-after-cold-restart` as its final argument.
 This temporarily changes permissions only on the new disposable Memory root and
-restores its original permissions before exiting. Do not commit the
+restores its original permissions before exiting. For custom paths, stop that exact
+Host and run `custom-host-e2e.mjs <private-launch-json> seed-stopped-profile` from
+this directory, restart the same Profile, then run the script without that final
+argument. It uses the built Core Registry API for fixture setup, not SQL edits or
+a second store. All fixtures are newly created and disposable. Do not commit the
 launch JSON, credentials or other private Profile contents.
 
 ## UI capture blocker and Human review
@@ -53,7 +61,7 @@ Verify in both themes:
 5. Compare against the base Profile entry point, and capture matching before/after
    screenshots. Failure/incomplete state has real API/cold-restart evidence; a rendered
    failure-state review remains pending. Custom/shared-path ownership and overlap
-   refusal have owner-module tests and still need real Host scenario qualification.
+   refusal also have real Host API evidence and focused owner-module tests.
 
 A real native operating-system folder open has not been executed by these API
 scripts; `native-folder-target` only verifies its Host target metadata.

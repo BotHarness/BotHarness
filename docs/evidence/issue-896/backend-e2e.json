@@ -43,6 +43,14 @@
     {
       "name": "real-Host-cold-restart-incomplete-cleanup-and-explicit-retry",
       "passed": true
+    },
+    {
+      "name": "real-Host-new-custom-exclusive-Memory-erasure",
+      "passed": true
+    },
+    {
+      "name": "real-Host-unproven-and-shared-custom-paths-refuse-erasure-retain-bytes",
+      "passed": true
     }
   ],
   "bots": {
@@ -62,5 +70,12 @@
     }
   ],
   "coldCheckedAt": "2026-10-05T18:53:03.434Z",
-  "failureBot": "bot-14370b3be88445b293caca3dcbb47952"
+  "failureBot": "bot-14370b3be88445b293caca3dcbb47952",
+  "customCases": {
+    "owned": "qa896-4a3387cc1d8f45ad807ab49ac32cb214",
+    "unproven": "qa896-3a779079b2e141958bb5e8517948abaf",
+    "sharedParent": "qa896-a9593523b8d848a2800a8146c9a69202",
+    "sharedChild": "qa896-b3dfb40083654cbba8d4bf4a043597c5"
+  },
+  "customFixture": "Seeded through canonical Registry API with Host stopped; verified through authenticated running Host API after restart."
 }
