@@ -1,0 +1,124 @@
+{
+  "baselineRevision": "93f8cd520724ec946eb32ca754f85e1fd2d0dac6",
+  "implementationRevision": "98d3704051c6a48e32dac3bcbb214f0223176fb7",
+  "dshVersion": "0.2.0-rc.1",
+  "viewport": {
+    "width": 1500,
+    "height": 1000
+  },
+  "locale": "zh",
+  "fault": "Duplicate only the task-local native Session log after clean Host boot; native SessionPersistence.stat refuses before Inbox insertion.",
+  "original": {
+    "sessionId": "botharness-40bcc496-2d02-4013-a9e5-d49e883d9e7d",
+    "continuityKey": "answer-b",
+    "activity": "idle",
+    "openAskId": "16d4b410-7e36-4b1c-a26e-4827e2fd8c59",
+    "report": "waiting-human",
+    "permission": {
+      "grantId": "3694e41b-e741-4d44-bc81-121cbd229b73",
+      "workspaceId": "272b95ff-1649-4d43-b2aa-e37b1a86695b",
+      "mode": "workspace-write",
+      "approval": "ask",
+      "presetRevision": 0
+    },
+    "modelRoute": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off"
+    }
+  },
+  "beforeFailure": {
+    "sessionId": "botharness-40bcc496-2d02-4013-a9e5-d49e883d9e7d",
+    "continuityKey": "answer-b",
+    "activity": "error",
+    "openAskId": null,
+    "report": "waiting-human",
+    "permission": {
+      "grantId": "3694e41b-e741-4d44-bc81-121cbd229b73",
+      "workspaceId": "272b95ff-1649-4d43-b2aa-e37b1a86695b",
+      "mode": "workspace-write",
+      "approval": "ask",
+      "presetRevision": 0
+    },
+    "modelRoute": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off"
+    }
+  },
+  "afterFailure": {
+    "sessionId": "botharness-40bcc496-2d02-4013-a9e5-d49e883d9e7d",
+    "continuityKey": "answer-b",
+    "activity": "idle",
+    "openAskId": "16d4b410-7e36-4b1c-a26e-4827e2fd8c59",
+    "report": "waiting-human",
+    "permission": {
+      "grantId": "3694e41b-e741-4d44-bc81-121cbd229b73",
+      "workspaceId": "272b95ff-1649-4d43-b2aa-e37b1a86695b",
+      "mode": "workspace-write",
+      "approval": "ask",
+      "presetRevision": 0
+    },
+    "modelRoute": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off"
+    }
+  },
+  "afterFailureHasCanonicalRetryProof": true,
+  "afterRetry": {
+    "sessionId": "botharness-40bcc496-2d02-4013-a9e5-d49e883d9e7d",
+    "continuityKey": "answer-b",
+    "activity": "idle",
+    "openAskId": null,
+    "report": "completed",
+    "permission": {
+      "grantId": "3694e41b-e741-4d44-bc81-121cbd229b73",
+      "workspaceId": "272b95ff-1649-4d43-b2aa-e37b1a86695b",
+      "mode": "workspace-write",
+      "approval": "ask",
+      "presetRevision": 0
+    },
+    "modelRoute": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off"
+    }
+  },
+  "afterRetryCanReply": false,
+  "nativeInboxInsertions": [
+    {
+      "seq": 3,
+      "type": "agent/inbox/spliced",
+      "messageIds": ["f5b30c25-5f71-4356-9f25-843ede102e9c"]
+    },
+    {
+      "seq": 30,
+      "type": "agent/inbox/spliced",
+      "messageIds": ["b1858d8f-4cf1-4baa-bc76-18481efb64df"]
+    }
+  ],
+  "baselineInsertionCount": 1,
+  "additionalAcceptedAnswerCount": 1,
+  "orchestratorDeliveryResults": [
+    {
+      "seq": 131,
+      "acceptance": "pending",
+      "delivery": "followup"
+    },
+    {
+      "seq": 152,
+      "acceptance": "pending",
+      "delivery": "followup"
+    }
+  ],
+  "completionTurnEndSeq": 46,
+  "permissionUnchanged": true,
+  "modelRouteUnchanged": true,
+  "afterRestart": {
+    "activity": "idle",
+    "report": "completed",
+    "openAskId": null,
+    "canReply": false
+  }
+}

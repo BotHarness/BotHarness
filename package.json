@@ -47,7 +47,8 @@
     "typescript": "^7.0.2",
     "typescript-legacy": "npm:typescript@5.9.3",
     "unrun": "^0.3.1",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "yaml": "2.9.1"
   },
   "engines": {
     "node": ">=22"

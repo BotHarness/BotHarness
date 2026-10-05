@@ -30,7 +30,7 @@ describe('Human Inbox addressed Assignment response', () => {
         return new Promise<void>((resolve) => finish.set(run.sessionId, resolve));
       },
       requestAssignment() {
-        throw new Error('Human response must reach the Orchestrator first');
+        return { delivery: 'followup', accepted: Promise.resolve(), done: Promise.resolve() };
       },
       async stopAssignment(id) {
         finish.get(id)?.();
@@ -142,6 +142,20 @@ describe('Human Inbox addressed Assignment response', () => {
         core.channels.readMessages(dm.id).filter((message) => message.assignmentReply),
       ).toHaveLength(1);
       const response = core.channels.readMessages(dm.id).find((m) => m.assignmentReply)!;
+      expect(core.humanAttention.list({ category: 'action' }).items).toMatchObject([
+        { sourceEventId },
+      ]);
+      expect(core.humanAttention.list({ category: 'handled' }).items).toEqual([]);
+      expect(core.runtime.getAssignment('ada', sessionId)?.openAsk?.sourceEventId).toBe(
+        sourceEventId,
+      );
+      orchestrator!.assignments.request({
+        sessionId,
+        mode: 'next-turn',
+        text: 'Use canary.',
+        answerTo: sourceEventId,
+      });
+      await Promise.resolve();
       expect(core.humanAttention.list({ category: 'action' }).items).toEqual([]);
       expect(methods.humanAttention({ category: 'handled', channelId: dm.id })).toMatchObject({
         ok: true,
@@ -156,9 +170,7 @@ describe('Human Inbox addressed Assignment response', () => {
           ],
         },
       });
-      expect(core.runtime.getAssignment('ada', sessionId)?.openAsk?.sourceEventId).toBe(
-        sourceEventId,
-      );
+      expect(core.runtime.getAssignment('ada', sessionId)?.openAsk).toBeUndefined();
       expect(
         methods.humanAssignmentContext({ slug: 'ada', sessionId, sourceEventId }),
       ).toMatchObject({

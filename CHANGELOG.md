@@ -18,6 +18,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Human can explicitly collect ordinary text from an authorized Slack channel and choose existing count/time harvest or safely queued immediate wake in Profile; new connections remain mention-only, and overlapping mention subscriptions are deduplicated ([#837](https://github.com/BotHarness/BotHarness/issues/837)).
+- Added a product-artifact build and isolated installation path composing Core, Client and an independently versioned qualified IM Provider, with disconnected initial accounts and product-managed Provider updates; public npm publication remains a separate release action ([#823](https://github.com/BotHarness/BotHarness/issues/823), [packaging guide](docs/product-im-installation.md)).
 - Line-family PersonaBot avatars now morph into a stroke symbol bound to the current DSH tool (the same 16 as the pixel family: read, write, edit, bash, grep, web search/fetch, ask_user_question, todo, subagent, workflow, goal, present, approval and more), hold it at least 0.5s while the activity lasts, morph directly between tools and return to the face when the turn ends ([#838](https://github.com/BotHarness/BotHarness/issues/838)).
 
 - PersonaBots can read an explicitly mentioned Slack source file and return a processed file in the original native thread, using canonical attachment tools, current own-identity authorization and a pre-completion fence; source details retain safe file type/size metadata ([#831](https://github.com/BotHarness/BotHarness/issues/831)).
@@ -348,6 +349,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Assignment answers retain their original question until native Inbox acceptance; proven delivery preparation failures remain retryable, uncertain delivery stays visible for repair and older answers cannot clear newer questions ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
+
+- Human Inbox action buttons now open the same split detail view as the row; titles span the full first line above summaries and actions, and compact-entry dialogs have more room ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
 
 - Idle Assignment continuation and keyed reuse now respect the same profile-wide concurrency limit as new work, preserving unanswered questions when capacity is full ([#811](https://github.com/BotHarness/BotHarness/issues/811)).
 - Channel sidebar edit mode omits expansion chevrons and supports dragging the whole row; dragging now previews the actual draft order with a clear insertion line, accepts row labels as drop surfaces and restores the pre-drag draft on cancellation ([#808](https://github.com/BotHarness/BotHarness/issues/808)).

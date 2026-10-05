@@ -113,6 +113,7 @@ export interface ChannelReplyPreview {
 }
 
 export interface SessionFailureCard {
+  assignmentAnswerTo?: string;
   role: 'orchestrator' | 'assignment';
   sessionId: string;
   code?: string;

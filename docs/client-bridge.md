@@ -129,6 +129,11 @@ corepack pnpm dev:client
 
 ### Qualified optional IM provider
 
+For real packaged-product qualification, use `--product-artifacts` instead of
+`--im-provider`; see [Packaging and qualification](product-im-installation.md).
+This selects a separate official CLI installation so DSH's installation-first
+resolver cannot substitute workspace-linked Core/Client for the tarballs.
+
 工作群 IM tracer 可在隔离 Profile 中显式加入已验证的临时 dsh-im fork：
 
 ```bash
