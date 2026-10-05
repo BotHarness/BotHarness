@@ -1,0 +1,35 @@
+# 工作区授权
+
+打开 **Bot 私聊 → Channel sidebar → 工作区授权**。授权属于这个 Bot。文件夹出现在 DSH 左侧工作区列表中，不等于所有 Bot 都获得了访问权。
+
+## 核对文件夹
+
+展开 **工作区授权**。Bot 自己的 **Memory Repository** 单独显示；已授权文件夹可展开查看完整 Host 路径及控件。路径操作会在 Host 打开，或下载到当前设备，详见[在 Host 上打开文件](/zh/docs/file-open)。
+
+![隔离 Bot 的 Memory Repository 与文件夹授权入口](/guides/channel-sidebar/06-workspaces-zh.webp)
+
+## 添加文件夹
+
+1. 点击 **添加文件夹**。
+2. 在选择器中浏览到目标 **Host** 目录；Host 提供原生选择器时，使用该选择器。
+3. 确认选择，等待授权完成，再核对新行里的实际路径。
+4. 告诉 Bot 哪个任务需要使用它。新 Assignment 仍须选择有效的 Workspace Grant；只在聊天里提到路径不会授权。
+
+Workspace Grant 允许 Bot 的 Orchestrator 读取该目录，使用它的 Assignment 可以在其中读写。文件夹的 **允许 Bot 写入此文件夹** 开关是另一次明确选择，用于 Orchestrator 直接写入。工具批准与原生执行限制仍然适用。移除文件夹授权会撤销 Grant；隐藏侧栏项目不会撤销授权。
+
+## 新任务权限
+
+| 控件                         | 作用范围                                                                                       |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- |
+| 新事项允许所有文件访问：关闭 | 新 Assignment 默认使用 workspace-write 与逐次询问。                                            |
+| 打开后，再确认启用           | 将今后的 Assignment 设为 danger-full-access 与 never；仍然需要所选 Grant。启用前阅读确认提示。 |
+| 已存在的 Assignment          | 保持已保存的权限快照，修改默认值不会重配它。                                                   |
+| 已保存的工具批准规则         | 为记录中的 Bot 角色和 Workspace Grant 范围，回答今后匹配的工具请求；查看详情后可单独撤销。     |
+
+新事项开关不改变 Orchestrator 权限。单个文件夹的 Orchestrator 写入、新 Assignment 访问范围、工具批准是不同控件。
+
+**开发者模式** 还会显示手动输入 Host 路径、已注册文件夹和已撤销授权历史。日常配置使用 **添加文件夹**；不要仅凭保存过的文本路径推断授权成立。
+
+截图展示真实初始状态，本次教程截图没有添加文件夹或扩大权限。任务被拒绝时，打开它的[会话](/zh/docs/channel-sidebar/sessions)，核对所选目录、访问模式和实际工具结果，不要仅凭看到了文件夹就认为执行一定成功。
+
+相关教程：[设置指南](/zh/docs/settings)、[侧栏总览](/zh/docs/channel-sidebar)。
