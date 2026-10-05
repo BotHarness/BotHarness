@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Updated the downstream Discord verification guide with the real deleted-source classification defect, fresh patched-model source/permission refusals, exact restoration and native recovery; DSH vocabulary and Skill behavior are unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](../../../docs/dev/verification/discord-855-mention-reply.md)).
+
 - Linked the downstream illustrated Channel sidebar feature guides, verified with public DeepSeekBot on DSH 0.2.0 RC1; platform vocabulary and Skill behavior remain unchanged ([#893](https://github.com/BotHarness/BotHarness/issues/893), [guide](../../../docs/channel-sidebar/index.md)).
 
 - Linked the downstream illustrated public npm installation, model setup and non-IM settings guides, verified with DSH 0.2.0 RC1; platform vocabulary and Skill runtime behavior remain unchanged ([#887](https://github.com/BotHarness/BotHarness/issues/887), [guide](../../../docs/installation.md)).

@@ -197,6 +197,8 @@ function providerFailure(error: unknown): MessagingProviderError {
     'bot-not-connected',
     'bad-request',
     'stale-route',
+    'source-not-found',
+    'reply-permission-denied',
     'consumer-unavailable',
     'file-upload-failed',
     'file-provider-rejected',
