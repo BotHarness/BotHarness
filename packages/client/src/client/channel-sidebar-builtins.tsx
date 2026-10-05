@@ -22,6 +22,7 @@ import { MemoryFilesEntry } from './memory-files-entry.js';
 import { MemoryDisplaySettings, SessionsDisplaySettings } from './channel-sidebar-settings.js';
 import { Modal } from './modal.js';
 import { ExternalSourceContent } from './external-source-content.js';
+import { externalPlatformLabel } from './bridge-source-label.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
 import { SessionsEntry, type NativeSessionCatalog } from './sessions-entry.js';
@@ -280,7 +281,7 @@ function BotInboxItemRow({
     : item.summary;
   const author =
     item.externalOrigin !== undefined
-      ? `${item.externalOrigin.platform} · ${item.externalOrigin.senderName ? `${item.externalOrigin.senderName} (${item.externalOrigin.senderId})` : item.externalOrigin.senderId}`
+      ? `${externalPlatformLabel(item.externalOrigin.platform, t)} · ${item.externalOrigin.senderName ? `${item.externalOrigin.senderName} (${item.externalOrigin.senderId})` : item.externalOrigin.senderId}`
       : memoryChange
         ? t('inbox.memoryChange')
         : item.sourceKind === 'assignment-report'
@@ -364,7 +365,23 @@ function BotInboxItemRow({
             <ExternalSourceContent source={external} t={t}>
               {external.event.attachments?.map((file) => (
                 <div className="bh-external-source-file" key={file.id}>
-                  <span>{file.name}</span>
+                  <span>
+                    {file.name}
+                    {file.sizeBytes !== undefined || file.mediaType ? (
+                      <small>
+                        {' '}
+                        ·{' '}
+                        {[
+                          file.mediaType,
+                          file.sizeBytes === undefined
+                            ? undefined
+                            : `${new Intl.NumberFormat().format(file.sizeBytes)} B`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </small>
+                    ) : null}
+                  </span>
                   <Button
                     disabled={fileBusy !== undefined}
                     onClick={() => void download(file.id, file.name)}

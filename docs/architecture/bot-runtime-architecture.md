@@ -123,7 +123,11 @@ SQLite 与 DSH Session Persistence 无法原子 commit。因此 Assignment creat
 
 Assignment Report 携带有意义的 progress、blocked/waiting state、result 与 artifact reference；当它声明 `expects-reply`（Assignment Ask）时，Assignment 结束自己的 turn 等待答复，Orchestrator 用带 `answer_to` 的 Assignment Request 恢复它。创建 Assignment 与投递请求都不阻塞 Orchestrator 的 turn。完整 execution history 留在 DSH。Assignment Lifecycle Notice 携带 Host-derived settlement/error/cancellation fact，并使用独立 provenance。两者都是 immutable Source Event，走普通 Inbox Trigger/Wake Policy path；attention coalescing 可以避免重复 wake，但不能删除任何事实。
 
+当前答复路径只在 DSH 原生 Inbox 接收后清除所捕获的 open ask。冷准备的接收确认与 turn 完成分开；pending 仅表示已安排投递。可证的接收前失败释放 idle wake 名额，保留原问题与权限／模型快照供明确重试；原生 send 结果不明或准备中重启保持 error／修复可见，不自动重放。清除时匹配原 ask ID，旧答复不能抹掉新报告。Human Inbox 和来源详情读取同一 open ask authority，收到 Human DM 本身不表示问题已处理。此切片不新增 Delivery Intent store 或通用重试调度器（#812）。可证的准备拒绝在原 Session failure card 中记录原 `answer_to`；Human 重试读取该已提交 Source Event 与最新 Human 回应，消费一次重试机会，不另存投递状态。
+
 Profile-wide **Assignment Concurrency Limit** 默认是 `3`，只计算正在执行的独立 Assignment Session。超过上限的 create 或 idle-wake attempt 立即失败，并返回结构化 machine field 和 LLM 可读说明。被拒绝的 attempt 不创建 queue、intent 或 dormant DSH Session。
+
+Human 在 Bot 模式设置中调整此上限。DSH 原生 Settings schema 声明 integer volatile field（1–32，默认 3），由 Profile Config Editor 持久化。UI Plugin 的 Host 半侧将 live Volatile reader 绑定到 application-defined Assignment Runtime，绑定随 Fiber dispose 释放。每次 create 或 idle-wake 准入读取当前值，Client 不向 Assignment Tool 传递上限。降低上限不中止已有执行；只有 active use 低于新值后才允许启动新工作。
 
 ## Optional Memory capability
 

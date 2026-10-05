@@ -3047,7 +3047,7 @@ export async function readMessagingSource(
     !Number.isInteger(source?.['grantRevision']) ||
     Number(source?.['grantRevision']) < 1 ||
     event?.['version'] !== 1 ||
-    event['channel'] !== 'feishu' ||
+    !['feishu', 'slack'].includes(String(event['channel'])) ||
     !strings(event, ['botId', 'fingerprint', 'eventId', 'messageId', 'at']) ||
     typeof event['mentionedAccount'] !== 'boolean' ||
     actor?.['kind'] !== 'user' ||
@@ -3069,8 +3069,15 @@ export async function readMessagingSource(
     (event['attachments'] !== undefined &&
       (!Array.isArray(event['attachments']) ||
         event['attachments'].length > 1 ||
-        !event['attachments'].every((file) =>
-          strings(asRecord(file), ['id', 'messageId', 'resourceKey', 'name']),
+        !event['attachments'].every(
+          (file) =>
+            strings(asRecord(file), ['id', 'messageId', 'resourceKey', 'name']) &&
+            (asRecord(file)?.['sizeBytes'] === undefined ||
+              (Number.isSafeInteger(asRecord(file)?.['sizeBytes']) &&
+                Number(asRecord(file)?.['sizeBytes']) > 0 &&
+                Number(asRecord(file)?.['sizeBytes']) <= 25 * 1024 * 1024)) &&
+            (asRecord(file)?.['mediaType'] === undefined ||
+              typeof asRecord(file)?.['mediaType'] === 'string'),
         ))) ||
     replay?.['kind'] !== 'provider-redelivery' ||
     replay['resumeCursor'] !== false ||

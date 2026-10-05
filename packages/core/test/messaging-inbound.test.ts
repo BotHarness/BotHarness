@@ -722,6 +722,42 @@ it('binds bounded continuations to source/scope, returns omitted content later, 
   expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(1);
 });
 
+it('resumes the same character-limited page when its opaque Provider continuation is renewed', async () => {
+  let signing = 0;
+  const history = vi.fn<NonNullable<DshImOutboundService['historyChecked']>>(
+    async (_account, _route, query) => ({
+      version: 1,
+      scope: query.scope,
+      events: [contextEvent('om-large', 'x'.repeat(5000))],
+      omitted: 0,
+      hasMore: true,
+      nextCursor: `signed-${++signing}`,
+      coverage: 'provider-visible-human-text',
+    }),
+  );
+  const fx = await fixture({ history });
+  await fx.enable();
+  await fx.receive();
+  await fx.idle();
+  const anchor = fx.core.attention.list({ botSlug: 'ada' }).items[0]!.id;
+  const first = await fx.core.externalMessaging.inbound.context('ada', anchor, 'read', {
+    scope: 'group',
+    maxCharacters: 1000,
+  });
+  const resumed = await fx.core.externalMessaging.inbound.context('ada', anchor, 'read', {
+    scope: 'group',
+    cursor: first.nextCursor!,
+    maxCharacters: 12000,
+  });
+  expect(resumed.messages.map((message) => message.messageId)).toEqual(['om-large']);
+  await fx.core.externalMessaging.inbound.context('ada', anchor, 'read', {
+    scope: 'group',
+    cursor: resumed.nextCursor!,
+  });
+  expect(history.mock.calls.at(-1)?.[2].cursor).toBe('signed-2');
+  expect(fx.query('SELECT * FROM inbox_admissions')).toHaveLength(1);
+});
+
 it.each([1000, 12000])(
   'refuses an unchanged provider continuation before retaining its page (budget %i)',
   async (maxCharacters) => {

@@ -1,0 +1,13 @@
+{
+  "sourceEventId": "im-46b20896a6832d377d39e1ad39e13b1dca0174554b8a6a0a838e7b66e7b88cf9",
+  "attachmentId": "d5e0dc753909d4d169240f830561b523b2c5d642846c005d2ae24071256cc476",
+  "messageId": "1791142359.951939",
+  "resourceKey": "F0C7FTEBVPS",
+  "name": "bh831-source.zip",
+  "declaredSize": 147,
+  "mediaType": "application/zip",
+  "downloadedSize": 147,
+  "sha256": "d6ad964d6c0c55936f92a88c5df50da24e763710adeb6998f15894eb1a0e4538",
+  "sourceBytesMatch": true,
+  "httpStatus": 200
+}

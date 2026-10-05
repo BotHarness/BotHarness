@@ -163,7 +163,7 @@ export interface MessagingSnapshot {
 
 export interface OutboundMessaging {
   inbound: InboundMessaging;
-  defaults(): MessagingDefaults;
+  defaults<Platform extends string = 'feishu'>(platform?: Platform): MessagingDefaults<Platform>;
   setDefaults(input: MessagingDefaultsInput): Promise<MessagingDefaults>;
   identity(botSlug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
   reply(botSlug: string, sourceEventId: string, text: string): Promise<OutboxIntent>;
@@ -489,11 +489,11 @@ export function createOutboundMessaging(options: {
   };
   const service: OutboundMessaging = {
     inbound,
-    defaults() {
-      return database.read((db) => messagingDefaults(db));
+    defaults<Platform extends string = 'feishu'>(platform?: Platform) {
+      return database.read((db) => messagingDefaults(db, platform));
     },
     async setDefaults(input) {
-      const prior = service.defaults();
+      const prior = service.defaults(input.platform);
       const value = transaction(
         (db) => commitMessagingDefaults(db, input),
         ['bindings', 'grants', 'channel', 'bot-inbox'],
@@ -572,11 +572,11 @@ export function createOutboundMessaging(options: {
       const enabled =
         input.kind === 'update'
           ? input.inheritEnabled
-            ? service.defaults().identityEnabled
+            ? service.defaults(value.platform).identityEnabled
             : input.enabled
           : input.kind === 'reconnect'
             ? value.enabledInheritance === 'inherit'
-              ? service.defaults().identityEnabled
+              ? service.defaults(value.platform).identityEnabled
               : true
             : false;
       const validatedTokens = new Map<string, object>();
@@ -899,7 +899,7 @@ export function createOutboundMessaging(options: {
         accountName: g.accountName,
         conversationName: g.targetName,
         ordinaryDelivery: g.ordinaryDelivery ?? ('unverified' as const),
-        defaultRevision: service.defaults().revision,
+        defaultRevision: service.defaults(g.platform).revision,
       });
       return {
         channelId,
@@ -918,21 +918,15 @@ export function createOutboundMessaging(options: {
               delivery: route.channelId === null ? ('inbox' as const) : ('channel' as const),
               collection:
                 route.collectionInheritance === 'inherit'
-                  ? service.defaults().collection
+                  ? service.defaults(g.platform).collection
                   : route.collection,
-              defaultRevision: service.defaults().revision,
+              defaultRevision: service.defaults(g.platform).revision,
               availability: g.availability,
               reception: route.enabled ? g.reception : ('off' as const),
             })),
         ),
         sources: grants
-          .filter(
-            (g) =>
-              !g.revokedAt &&
-              g.platform === 'feishu' &&
-              g.availability === 'available' &&
-              g.canReceive,
-          )
+          .filter((g) => !g.revokedAt && g.availability === 'available' && g.canReceive)
           .map(source),
       };
     },

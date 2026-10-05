@@ -1,3 +1,4 @@
+import { AssignmentInboxAcceptanceUncertainError } from '../src/runtime/assignment-delivery.js';
 import { join } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
@@ -62,6 +63,7 @@ class ManualAgents implements BotAgentAdapter {
     this.started.push({ sessionId: run.sessionId, purpose: run.purpose, run });
     return {
       delivery: 'followup',
+      accepted: Promise.resolve(),
       done: new Promise<void>((resolve) => this.#finish.set(run.sessionId, resolve)),
     };
   }
@@ -110,7 +112,7 @@ function sourceEvents(owner: ReturnType<typeof mountOperationalDatabase>): Array
 
 async function setup(
   options: {
-    assignmentConcurrencyLimit?: number;
+    assignmentConcurrencyLimit?: number | (() => number);
     saveReportSpill?: (input: {
       sessionId: string;
       content: string;
@@ -201,6 +203,534 @@ async function setup(
 }
 
 describe('Assignment collaboration', () => {
+  it('applies a live limit to create and wake without cancelling existing work', async () => {
+    let limit = 3;
+    const { runtime, agents, admit, close } = await setup({
+      assignmentConcurrencyLimit: () => limit,
+    });
+    try {
+      await admit('Start', 'human-live-limit');
+      const access = agents.access!;
+      const a = access.create({ grantId: TEST_GRANT_ID, purpose: 'idle A', key: 'live-A' });
+      if (a.outcome !== 'created') throw new Error('A missing');
+      await agents.started[0]!.run.report({
+        state: 'waiting-human',
+        summary: 'Need decision',
+        expectsReply: true,
+      });
+      agents.finish(a.assignment.sessionId);
+      await runtime.whenIdle();
+      for (const purpose of ['B', 'C'])
+        expect(access.create({ grantId: TEST_GRANT_ID, purpose }).outcome).toBe('created');
+      const before = runtime.getAssignment('ada', a.assignment.sessionId);
+      limit = 1;
+      expect(access.create({ grantId: TEST_GRANT_ID, purpose: 'denied' })).toMatchObject({
+        outcome: 'capacity',
+        activeCount: 2,
+        limit: 1,
+      });
+      expect(
+        access.request({
+          sessionId: a.assignment.sessionId,
+          mode: 'next-turn',
+          text: 'answer',
+          answerTo: before!.openAsk!.sourceEventId,
+        }),
+      ).toMatchObject({ outcome: 'capacity', activeCount: 2, limit: 1 });
+      expect(runtime.getAssignment('ada', a.assignment.sessionId)).toEqual(before);
+      expect(runtime.listAssignments('ada').filter((a) => a.activity === 'working')).toHaveLength(
+        2,
+      );
+      limit = 3;
+      expect(
+        access.create({ grantId: TEST_GRANT_ID, purpose: 'reuse A', key: 'live-A' }),
+      ).toMatchObject({ outcome: 'reused', assignment: { sessionId: a.assignment.sessionId } });
+      expect(access.create({ grantId: TEST_GRANT_ID, purpose: 'denied again' })).toMatchObject({
+        outcome: 'capacity',
+        activeCount: 3,
+        limit: 3,
+      });
+      expect(runtime.getAssignment('ada', a.assignment.sessionId)?.permission).toEqual(
+        before?.permission,
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  it('checks capacity before waking an idle Session after a cold restart', async () => {
+    const { runtime, agents, owner, home, grants, channels, dmChannelId, admit, close } =
+      await setup({ assignmentConcurrencyLimit: 1 });
+    await admit('Prepare cold wake', 'human-cold-prepare');
+    const original = agents.access!.create({
+      grantId: TEST_GRANT_ID,
+      purpose: 'Choose a route',
+      key: 'cold',
+    });
+    if (original.outcome !== 'created') throw new Error('Cold Assignment missing');
+    await agents.started[0]!.run.report({
+      state: 'waiting-human',
+      summary: 'Choose A',
+      expectsReply: true,
+    });
+    agents.finish(original.assignment.sessionId);
+    await runtime.whenIdle();
+    const before = runtime.getAssignment('ada', original.assignment.sessionId)!;
+    await close();
+    const coldAgents = new ManualAgents();
+    const reopened = createBotRuntime({
+      database: owner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels,
+      agents: coldAgents,
+      grants,
+      now: FIXED_NOW,
+      assignmentConcurrencyLimit: 1,
+    });
+    try {
+      const admission = reopened.admitDmMessage({
+        channelId: dmChannelId,
+        messageId: 'human-cold-resume',
+        body: 'Resume',
+      });
+      if (!admission.admitted) throw new Error('Cold admission missing');
+      await admission.settled;
+      const access = coldAgents.access!;
+      expect(access.create({ grantId: TEST_GRANT_ID, purpose: 'Active work' }).outcome).toBe(
+        'created',
+      );
+      expect(
+        access.request({
+          sessionId: before.sessionId,
+          mode: 'next-turn',
+          text: 'Choose A',
+          answerTo: before.openAsk!.sourceEventId,
+        }),
+      ).toMatchObject({ outcome: 'capacity', activeCount: 1, limit: 1 });
+      expect(reopened.getAssignment('ada', before.sessionId)).toEqual(before);
+      expect(coldAgents.resumed).toHaveLength(0);
+    } finally {
+      coldAgents.finishAll();
+      await reopened.whenIdle();
+      await reopened.close();
+    }
+  });
+
+  it('keeps the original question after synchronous answer delivery refuses', async () => {
+    const { runtime, agents, admit, close } = await setup();
+    try {
+      await admit('Start', 'human-answer-refusal');
+      const access = agents.access!;
+      const created = access.create({ grantId: TEST_GRANT_ID, purpose: 'Choose a direction' });
+      if (created.outcome !== 'created') throw new Error('Missing Assignment');
+      await agents.started[0]!.run.report({
+        state: 'waiting-human',
+        summary: 'Choose A or B',
+        expectsReply: true,
+      });
+      agents.finish(created.assignment.sessionId);
+      await runtime.whenIdle();
+      const before = runtime.getAssignment('ada', created.assignment.sessionId)!;
+      vi.spyOn(agents, 'requestAssignment').mockImplementationOnce(() => {
+        throw new Error('Inbox unavailable');
+      });
+      expect(() =>
+        access.request({
+          sessionId: before.sessionId,
+          mode: 'next-turn',
+          text: 'Choose A',
+          answerTo: before.openAsk!.sourceEventId,
+        }),
+      ).toThrow('Inbox unavailable');
+      expect(runtime.getAssignment('ada', before.sessionId)).toEqual(before);
+    } finally {
+      await close();
+    }
+  });
+
+  it.each([false, true])(
+    'preserves delayed delivery refusal and distinguishes uncertainty=%s',
+    async (uncertain) => {
+      const { runtime, agents, owner, admit, close } = await setup();
+      try {
+        await admit('Start', 'human-delayed-refusal');
+        const access = agents.access!;
+        const created = access.create({ grantId: TEST_GRANT_ID, purpose: 'Answer delivery' });
+        if (created.outcome !== 'created') throw new Error('Missing Assignment');
+        await agents.started[0]!.run.report({
+          state: 'waiting-human',
+          summary: 'Choose A or B',
+          expectsReply: true,
+        });
+        agents.finish(created.assignment.sessionId);
+        await runtime.whenIdle();
+        const before = runtime.getAssignment('ada', created.assignment.sessionId)!;
+        let reject!: (error: unknown) => void;
+        const accepted = new Promise<void>((_resolve, refuse) => {
+          reject = refuse;
+        });
+        vi.spyOn(agents, 'requestAssignment').mockReturnValueOnce({
+          delivery: 'followup',
+          accepted,
+          done: accepted,
+        });
+        access.request({
+          sessionId: before.sessionId,
+          mode: 'next-turn',
+          text: 'Choose A',
+          answerTo: before.openAsk!.sourceEventId,
+        });
+        expect(runtime.getAssignment('ada', before.sessionId)?.openAsk).toEqual(before.openAsk);
+        reject(
+          uncertain
+            ? new AssignmentInboxAcceptanceUncertainError(new Error('native send threw'))
+            : new Error('Resume failed before native send'),
+        );
+        await runtime.whenIdle();
+        const failed = runtime.getAssignment('ada', before.sessionId)!;
+        expect(failed).toMatchObject({ ...before, activity: uncertain ? 'error' : 'idle' });
+        const query = createHumanAttentionQuery(
+          attachOperationalModule(owner, 'answer-refusal-test'),
+        );
+        expect(query.list({ category: 'action' }).items).toContainEqual(
+          expect.objectContaining({ sourceEventId: before.openAsk!.sourceEventId }),
+        );
+        if (uncertain) {
+          expect(() =>
+            access.request({
+              sessionId: before.sessionId,
+              mode: 'next-turn',
+              text: 'Choose A',
+              answerTo: before.openAsk!.sourceEventId,
+            }),
+          ).toThrow('failed');
+        } else {
+          access.request({
+            sessionId: before.sessionId,
+            mode: 'next-turn',
+            text: 'Choose A',
+            answerTo: before.openAsk!.sourceEventId,
+          });
+          await Promise.resolve();
+          expect(runtime.getAssignment('ada', before.sessionId)?.openAsk).toBeUndefined();
+          expect(runtime.getAssignment('ada', before.sessionId)?.permission).toEqual(
+            before.permission,
+          );
+          expect(() =>
+            access.request({
+              sessionId: before.sessionId,
+              mode: 'next-turn',
+              text: 'Choose A',
+              answerTo: before.openAsk!.sourceEventId,
+            }),
+          ).toThrow('no open ask');
+          agents.finish(before.sessionId);
+          await runtime.whenIdle();
+          expect(runtime.getAssignment('ada', before.sessionId)?.activity).toBe('idle');
+        }
+      } finally {
+        await close();
+      }
+    },
+  );
+
+  it('does not erase a newer question when the older answer is accepted', async () => {
+    const { runtime, agents, admit, close } = await setup();
+    try {
+      await admit('Start', 'human-newer-ask');
+      const access = agents.access!;
+      const created = access.create({ grantId: TEST_GRANT_ID, purpose: 'Question race' });
+      if (created.outcome !== 'created') throw new Error('Missing Assignment');
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'waiting-human', summary: 'First question', expectsReply: true });
+      agents.finish(run.sessionId);
+      await runtime.whenIdle();
+      const first = runtime.getAssignment('ada', run.sessionId)!.openAsk!;
+      let accept!: () => void;
+      const accepted = new Promise<void>((resolve) => {
+        accept = resolve;
+      });
+      vi.spyOn(agents, 'requestAssignment').mockReturnValueOnce({
+        delivery: 'followup',
+        accepted,
+        done: accepted,
+      });
+      access.request({
+        sessionId: run.sessionId,
+        mode: 'next-turn',
+        text: 'First answer',
+        answerTo: first.sourceEventId,
+      });
+      await run.report({ state: 'waiting-human', summary: 'Newer question', expectsReply: true });
+      const newer = runtime.getAssignment('ada', run.sessionId)!.openAsk!;
+      expect(newer.sourceEventId).not.toBe(first.sourceEventId);
+      accept();
+      await runtime.whenIdle();
+      expect(runtime.getAssignment('ada', run.sessionId)?.openAsk).toEqual(newer);
+    } finally {
+      await close();
+    }
+  });
+
+  it('retains active steering uncertainty after the original turn finishes', async () => {
+    const { runtime, agents, owner, admit, close } = await setup();
+    try {
+      await admit('Start', 'human-steer-uncertain');
+      const access = agents.access!;
+      const created = access.create({ grantId: TEST_GRANT_ID, purpose: 'Active steering' });
+      if (created.outcome !== 'created') throw new Error('Missing Assignment');
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'waiting-human', summary: 'Question', expectsReply: true });
+      const ask = runtime.getAssignment('ada', run.sessionId)!.openAsk!;
+      vi.spyOn(agents, 'requestAssignment').mockImplementationOnce(() => {
+        throw new AssignmentInboxAcceptanceUncertainError(new Error('native steer threw'));
+      });
+      expect(() =>
+        access.request({
+          sessionId: run.sessionId,
+          mode: 'next-step',
+          text: 'Answer',
+          answerTo: ask.sourceEventId,
+        }),
+      ).toThrow('acceptance is uncertain');
+      agents.finish(run.sessionId);
+      await runtime.whenIdle();
+      expect(runtime.getAssignment('ada', run.sessionId)).toMatchObject({
+        activity: 'error',
+        openAsk: ask,
+      });
+      expect(
+        createHumanAttentionQuery(
+          attachOperationalModule(owner, 'steer-uncertainty'),
+        ).assignmentContext('ada', run.sessionId, ask.sourceEventId)?.canReply,
+      ).toBe(false);
+      expect(() =>
+        access.request({
+          sessionId: run.sessionId,
+          mode: 'next-turn',
+          text: 'Replay',
+          answerTo: ask.sourceEventId,
+        }),
+      ).toThrow('failed');
+    } finally {
+      await close();
+    }
+  });
+
+  it('settles an accepted answer even when its subsequent execution fails', async () => {
+    const { runtime, agents, admit, close } = await setup();
+    try {
+      await admit('Start', 'human-after-accept');
+      const access = agents.access!;
+      const created = access.create({ grantId: TEST_GRANT_ID, purpose: 'Accepted failure' });
+      if (created.outcome !== 'created') throw new Error('Missing Assignment');
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'waiting-human', summary: 'Question', expectsReply: true });
+      agents.finish(run.sessionId);
+      await runtime.whenIdle();
+      const before = runtime.getAssignment('ada', run.sessionId)!;
+      vi.spyOn(agents, 'requestAssignment').mockReturnValueOnce({
+        delivery: 'followup',
+        accepted: Promise.resolve(),
+        done: Promise.reject(new Error('Native turn failed after acceptance')),
+      });
+      access.request({
+        sessionId: run.sessionId,
+        mode: 'next-turn',
+        text: 'Answer',
+        answerTo: before.openAsk!.sourceEventId,
+      });
+      await runtime.whenIdle();
+      expect(runtime.getAssignment('ada', run.sessionId)).toMatchObject({ activity: 'error' });
+      expect(runtime.getAssignment('ada', run.sessionId)?.openAsk).toBeUndefined();
+    } finally {
+      await close();
+    }
+  });
+
+  it('releases a wake reservation when the adapter rejects synchronously', async () => {
+    const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: 1 });
+    try {
+      await admit('Start wake rejection test', 'human-wake-rejection');
+      const access = agents.access!;
+      const idle = access.create({ grantId: TEST_GRANT_ID, purpose: 'Idle work' });
+      if (idle.outcome !== 'created') throw new Error('Idle Assignment missing');
+      agents.finish(idle.assignment.sessionId);
+      await runtime.whenIdle();
+      vi.spyOn(agents, 'requestAssignment').mockImplementationOnce(() => {
+        throw new Error('DSH delivery unavailable');
+      });
+      expect(() =>
+        access.request({
+          sessionId: idle.assignment.sessionId,
+          mode: 'next-turn',
+          text: 'Continue',
+        }),
+      ).toThrow('DSH delivery unavailable');
+      expect(runtime.getAssignment('ada', idle.assignment.sessionId)?.activity).toBe('idle');
+      expect(access.create({ grantId: TEST_GRANT_ID, purpose: 'Next work' }).outcome).toBe(
+        'created',
+      );
+      expect(agents.resumed).toHaveLength(0);
+    } finally {
+      await close();
+    }
+  });
+
+  it('shares capacity across Bots when an idle Assignment resumes', async () => {
+    const { runtime, agents, grants, channels, home, admit, close } = await setup({
+      assignmentConcurrencyLimit: 1,
+    });
+    try {
+      await admit('Start Ada', 'human-ada-capacity');
+      const ada = agents.access!;
+      const idle = ada.create({ grantId: TEST_GRANT_ID, purpose: 'Ada work' });
+      if (idle.outcome !== 'created') throw new Error('Ada Assignment missing');
+      agents.finish(idle.assignment.sessionId);
+      await runtime.whenIdle();
+      createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }).create({
+        slug: 'bob',
+        displayName: 'Bob',
+      });
+      const bobGrant = await grants.create('bob', 'test-workspace');
+      const dm = channels.getOrCreateDm('bob', 'Bob')!;
+      const incoming = runtime.admitDmMessage({
+        channelId: dm.id,
+        messageId: 'human-bob-capacity',
+        body: 'Start Bob',
+      });
+      if (!incoming.admitted) throw new Error('Bob admission missing');
+      await incoming.settled;
+      expect(agents.access!.create({ grantId: bobGrant.id, purpose: 'Bob work' }).outcome).toBe(
+        'created',
+      );
+      expect(
+        ada.request({
+          sessionId: idle.assignment.sessionId,
+          mode: 'next-turn',
+          text: 'Continue Ada',
+        }),
+      ).toMatchObject({ outcome: 'capacity', activeCount: 1, limit: 1 });
+      expect(agents.resumed).toHaveLength(0);
+    } finally {
+      await close();
+    }
+  });
+
+  it('reserves the final wake slot before entering the adapter and allows updates to running work', async () => {
+    const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: 1 });
+    try {
+      await admit('Start reservation test', 'human-reservation');
+      const access = agents.access!;
+      const idle = access.create({ grantId: TEST_GRANT_ID, purpose: 'Idle work' });
+      if (idle.outcome !== 'created') throw new Error('Idle Assignment missing');
+      agents.finish(idle.assignment.sessionId);
+      await runtime.whenIdle();
+      let competitor: string | undefined;
+      vi.spyOn(agents, 'requestAssignment').mockImplementationOnce(() => {
+        competitor = access.create({ grantId: TEST_GRANT_ID, purpose: 'Competing work' }).outcome;
+        return { delivery: 'steer' };
+      });
+      expect(
+        access.request({
+          sessionId: idle.assignment.sessionId,
+          mode: 'next-turn',
+          text: 'Continue',
+        }).delivery,
+      ).toBe('steer');
+      expect(competitor).toBe('capacity');
+      vi.spyOn(agents, 'requestAssignment').mockImplementationOnce(() => ({ delivery: 'steer' }));
+      expect(
+        access.request({
+          sessionId: idle.assignment.sessionId,
+          mode: 'next-step',
+          text: 'More context',
+        }).delivery,
+      ).toBe('steer');
+      expect(runtime.listAssignments('ada')).toHaveLength(1);
+    } finally {
+      await close();
+    }
+  });
+
+  it.each([
+    [1, 'addressed'],
+    [3, 'addressed'],
+    [1, 'keyed'],
+    [3, 'keyed'],
+  ] as const)(
+    'refuses an idle %s-slot %s wake without changing its ask or snapshot',
+    async (limit, path) => {
+      const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: limit });
+      try {
+        await admit('Start capacity test', 'human-capacity');
+        const access = agents.access!;
+        const idle = access.create({
+          grantId: TEST_GRANT_ID,
+          purpose: 'Choose route',
+          key: 'capacity-idle',
+        });
+        if (idle.outcome !== 'created') throw new Error('Idle Assignment missing');
+        await agents.started[0]!.run.report({
+          state: 'waiting-human',
+          summary: 'Choose A or B',
+          expectsReply: true,
+        });
+        agents.finish(idle.assignment.sessionId);
+        await runtime.whenIdle();
+        const before = runtime.getAssignment('ada', idle.assignment.sessionId)!;
+        const activeIds: string[] = [];
+        for (let index = 0; index < limit; index++) {
+          const other = access.create({ grantId: TEST_GRANT_ID, purpose: `Other work ${index}` });
+          if (other.outcome !== 'created') throw new Error('Capacity fixture missing');
+          activeIds.push(other.assignment.sessionId);
+        }
+        const refused =
+          path === 'keyed'
+            ? access.create({
+                grantId: TEST_GRANT_ID,
+                purpose: 'Continue route',
+                key: 'capacity-idle',
+              })
+            : access.request({
+                sessionId: before.sessionId,
+                mode: 'next-turn',
+                text: 'Choose A',
+                answerTo: before.openAsk!.sourceEventId,
+              });
+        expect(refused).toMatchObject({
+          outcome: 'capacity',
+          code: 'assignment-capacity',
+          activeCount: limit,
+          limit,
+          retryable: true,
+        });
+        expect(runtime.getAssignment('ada', before.sessionId)).toEqual(before);
+        expect(agents.resumed).toEqual([]);
+        expect(runtime.listAssignments('ada')).toHaveLength(limit + 1);
+        agents.finish(activeIds[0]!);
+        await vi.waitFor(() =>
+          expect(runtime.getAssignment('ada', activeIds[0]!)?.activity).toBe('idle'),
+        );
+        const resumed = access.request({
+          sessionId: before.sessionId,
+          mode: 'next-turn',
+          text: 'Choose A',
+          answerTo: before.openAsk!.sourceEventId,
+        });
+        expect(resumed.delivery).toBe('followup');
+        expect(agents.resumed).toEqual([{ sessionId: before.sessionId, text: 'Choose A' }]);
+        await Promise.resolve();
+        expect(runtime.getAssignment('ada', before.sessionId)?.openAsk).toBeUndefined();
+        expect(runtime.getAssignment('ada', before.sessionId)?.permission).toEqual(
+          before.permission,
+        );
+      } finally {
+        await close();
+      }
+    },
+  );
+
   it('applies an edited Assignment report wake only to later Admissions', async () => {
     const { agents, owner, admit, close } = await setup();
     try {
@@ -454,6 +984,7 @@ describe('Assignment collaboration', () => {
         replyTo: 'grant-request-1',
         grantRequestResolution: { requestMessageId: 'grant-request-1', grantId: TEST_GRANT_ID },
       });
+      await Promise.resolve();
       expect(query.list({ category: 'action' }).items).toEqual([]);
 
       await channels.appendMessage(dmChannelId, {
@@ -917,6 +1448,7 @@ describe('Assignment collaboration', () => {
     });
     expect(answered.delivery).toBe('followup');
     expect(agents.resumed).toEqual([{ sessionId, text: '选 A' }]);
+    await Promise.resolve();
     expect(runtime.getAssignment('ada', sessionId)?.openAsk).toBeUndefined();
     await close();
   });
@@ -981,6 +1513,7 @@ describe('Assignment collaboration', () => {
           agents.access!.request({ sessionId, mode: 'next-turn', text: 'Choose A', answerTo })
             .delivery,
         ).toBe('followup');
+        await Promise.resolve();
         expect(runtime.getAssignment('ada', sessionId)?.openAsk).toBeUndefined();
       } finally {
         release();
@@ -1033,6 +1566,7 @@ describe('Assignment collaboration', () => {
         text: 'Choose A',
         answerTo: askId,
       });
+      await Promise.resolve();
       expect(attention.list({ category: 'action' }).items).toEqual([]);
     } finally {
       await close();
@@ -1095,6 +1629,7 @@ describe('Assignment collaboration', () => {
         text: 'Use the new grant',
         answerTo,
       });
+      await Promise.resolve();
       expect(query.list({ category: 'action' }).items).toEqual([]);
       agents.finish(sessionId);
       await runtime.whenIdle();
@@ -1114,6 +1649,7 @@ describe('Assignment collaboration', () => {
       });
       agents.finish(sessionId);
       await runtime.whenIdle();
+      await Promise.resolve();
       expect(query.list({ category: 'action' }).items).toEqual([]);
     } finally {
       await close();
@@ -1127,6 +1663,7 @@ describe('Assignment collaboration', () => {
       const query = createHumanAttentionQuery(
         attachOperationalModule(reopened, 'assignment-blocked-restart-test'),
       );
+      await Promise.resolve();
       expect(query.list({ category: 'action' }).items).toEqual([]);
     } finally {
       reopened.close();

@@ -18,11 +18,13 @@ export interface MessagingAttachment {
   messageId: string;
   resourceKey: string;
   name: string;
+  sizeBytes?: number;
+  mediaType?: string;
 }
 
 export interface MessagingInboundEvent {
   version: 1;
-  channel: 'feishu';
+  channel: 'feishu' | 'slack';
   botId: string;
   fingerprint: string;
   eventId: string;

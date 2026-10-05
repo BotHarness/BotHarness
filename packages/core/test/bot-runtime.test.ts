@@ -54,7 +54,7 @@ class DeterministicAgentAdapter implements BotAgentAdapter {
   }
 
   requestAssignment(run: AssignmentAgentRun): AssignmentRequestDelivery {
-    return { delivery: 'followup', done: this.runAssignment(run) };
+    return { delivery: 'followup', accepted: Promise.resolve(), done: this.runAssignment(run) };
   }
 
   async stopAssignment(): Promise<void> {}
@@ -136,7 +136,7 @@ it('publishes failed Orchestrator and Assignment turns into the owning DM', asyn
       throw new Error('TRANSPORT: provider unavailable');
     },
     requestAssignment(run) {
-      return { delivery: 'followup', done: this.runAssignment(run) };
+      return { delivery: 'followup', accepted: Promise.resolve(), done: this.runAssignment(run) };
     },
     async close() {},
   };
@@ -306,7 +306,11 @@ it('reads only a joined Channel image by durable message and attachment referenc
         inspected = true;
       },
       runAssignment: async () => undefined,
-      requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+      requestAssignment: () => ({
+        delivery: 'followup' as const,
+        accepted: Promise.resolve(),
+        done: Promise.resolve(),
+      }),
       close: async () => undefined,
     },
     now: FIXED_NOW,
@@ -357,7 +361,11 @@ describe('Bot runtime tracer bullet', () => {
           await run.channels.send({ body: '', attachments: [ref] });
         },
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -403,7 +411,11 @@ describe('Bot runtime tracer bullet', () => {
           await run.channels.send({ body: 'bad reply', replyTo: 'missing' });
         },
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -479,7 +491,7 @@ describe('Bot runtime tracer bullet', () => {
         await run.report({ state: 'completed', summary: `Assignment 已处理「${run.purpose}」` });
       },
       requestAssignment(run) {
-        return { delivery: 'followup', done: this.runAssignment(run) };
+        return { delivery: 'followup', accepted: Promise.resolve(), done: this.runAssignment(run) };
       },
       async close() {},
     };
@@ -597,7 +609,11 @@ describe('Bot runtime tracer bullet', () => {
           await run.report({ state: 'completed', summary: '副作用已完成' });
         },
         requestAssignment(run) {
-          return { delivery: 'followup', done: this.runAssignment(run) };
+          return {
+            delivery: 'followup',
+            accepted: Promise.resolve(),
+            done: this.runAssignment(run),
+          };
         },
         async close() {},
       },
@@ -680,7 +696,11 @@ describe('Bot runtime tracer bullet', () => {
           await run.channels.send({ channelId: bobDm!.id, body: '冒充 Bob' });
         },
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -773,7 +793,11 @@ describe('Bot runtime tracer bullet', () => {
         requestAssignment: (run) => {
           if (run.purpose === 'Delivery failure') throw new Error('Delivery unavailable');
           resumedRoutes.push(run.modelRoute);
-          return { delivery: 'followup' as const, done: Promise.resolve() };
+          return {
+            delivery: 'followup' as const,
+            accepted: Promise.resolve(),
+            done: Promise.resolve(),
+          };
         },
         close: async () => undefined,
       },
@@ -821,6 +845,7 @@ describe('Bot runtime tracer bullet', () => {
       mode: 'next-turn',
       text: 'Keep old route',
     });
+    await Promise.resolve();
     expect(resumedRoutes.at(-1)).toEqual({
       provider: 'deepseek',
       model: 'flash',
@@ -859,6 +884,7 @@ describe('Bot runtime tracer bullet', () => {
       model: { provider: 'deepseek', model: 'pro' },
     });
     expect(resumedRoutes.at(-1)).toEqual(pro);
+    await Promise.resolve();
     expect(runtime.getAssignment('ada', 'assignment-low')?.modelRoute).toEqual(pro);
     await runtime.close();
     owner.close();
@@ -874,7 +900,11 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         runOrchestrator: async () => undefined,
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -1075,7 +1105,11 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         runOrchestrator: async () => undefined,
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -1130,7 +1164,11 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         runOrchestrator: async () => undefined,
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       workspaceRoot: '/srv/runtime-workspaces',
@@ -1179,7 +1217,11 @@ describe('Bot runtime tracer bullet', () => {
           await gate;
         },
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -1243,7 +1285,11 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         runOrchestrator: async () => undefined,
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -1300,7 +1346,11 @@ describe('Bot runtime tracer bullet', () => {
           if (started.length === 1) await gate;
         },
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -1357,7 +1407,11 @@ describe('Bot runtime tracer bullet', () => {
           runs.push(run.message);
         },
         runAssignment: async () => undefined,
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: () => ({
+          delivery: 'followup' as const,
+          accepted: Promise.resolve(),
+          done: Promise.resolve(),
+        }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -1431,7 +1485,11 @@ it('requests a folder in the DM and resumes the same Orchestrator after Human au
       runAssignment: async (run) => {
         await run.report({ state: 'completed', summary: '项目已读取' });
       },
-      requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+      requestAssignment: () => ({
+        delivery: 'followup' as const,
+        accepted: Promise.resolve(),
+        done: Promise.resolve(),
+      }),
       close: async () => undefined,
     },
     now: FIXED_NOW,

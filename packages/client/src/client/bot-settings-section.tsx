@@ -17,6 +17,7 @@ import {
   type BotModeMotionPreference,
   type BotModeSortMode,
 } from '../bot-mode-settings.js';
+import { AssignmentConcurrencySetting } from './assignment-concurrency-setting.js';
 import { BotIcon } from './bot-icon.js';
 import type { BotModePrefsFace } from './bot-mode-prefs.js';
 import type { BotHarnessKey } from './locale.js';
@@ -81,6 +82,7 @@ export function BotSettingsSection({
   setBotIcon,
   setDeveloperMode,
   setAutoAcceptGroupInvites,
+  setAssignmentConcurrencyLimit,
 }: BotSettingsSectionProps): ReactElement {
   const prefs = useBotModePrefs((value) => value);
   const [motionOpen, setMotionOpen] = useState(false);
@@ -221,6 +223,12 @@ export function BotSettingsSection({
           label={t('groupAutoAccept.row.title')}
         />
       </div>
+      <AssignmentConcurrencySetting
+        t={t}
+        limit={prefs.assignmentConcurrencyLimit}
+        writable={prefs.status === 'ready' && prefs.mode === 'host'}
+        save={setAssignmentConcurrencyLimit}
+      />
       {renderSlot('botharness.settings.item', {}) as unknown as ReactNode}
     </div>
   );

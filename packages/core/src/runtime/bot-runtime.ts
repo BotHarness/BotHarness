@@ -1,3 +1,4 @@
+import { AssignmentInboxAcceptanceUncertainError } from './assignment-delivery.js';
 import { waitForAssignment, type AssignmentWaitOutcome } from './assignment-wait.js';
 import { externalMemberWake } from '../messaging/defaults.js';
 import type {
@@ -136,15 +137,28 @@ export interface AssignmentEventTail {
   estimatedTokens: number;
 }
 
+export interface AssignmentCapacityRefusal {
+  outcome: 'capacity';
+  code: 'assignment-capacity';
+  activeCount: number;
+  limit: number;
+  retryable: true;
+  message: string;
+}
+
 export type AssignmentCreateOutcome =
   | { outcome: 'created'; assignment: AssignmentSummary }
   | { outcome: 'reused'; assignment: AssignmentSummary }
-  | { outcome: 'key-busy' | 'capacity'; message: string };
+  | { outcome: 'key-busy'; message: string }
+  | AssignmentCapacityRefusal;
 
-export interface AssignmentRequestOutcome {
-  assignment: AssignmentSummary;
-  delivery: 'steer' | 'followup';
-}
+export type AssignmentRequestOutcome =
+  | {
+      assignment: AssignmentSummary;
+      delivery: 'steer' | 'followup';
+      acceptance?: 'accepted' | 'pending';
+    }
+  | (AssignmentCapacityRefusal & { assignment: AssignmentSummary; delivery: 'capacity' });
 
 export interface OrchestratorAssignmentAccess {
   wait?(sessionId: string, signal: AbortSignal, timeoutMs?: number): Promise<AssignmentWaitOutcome>;
@@ -257,7 +271,7 @@ export interface AssignmentAgentRun {
 
 export type AssignmentRequestDelivery =
   | { delivery: 'steer' }
-  | { delivery: 'followup'; done: Promise<void> };
+  | { delivery: 'followup'; accepted: Promise<void>; done: Promise<void> };
 
 export interface ChannelMessageView {
   actorNames?: { humans: Record<string, string>; bots: Record<string, string> };
@@ -465,7 +479,7 @@ export interface BotRuntimeOptions {
 
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
 
-  assignmentConcurrencyLimit?: number;
+  assignmentConcurrencyLimit?: number | (() => number);
 
   warn?: (message: string) => void;
   now?: () => Date;
@@ -685,7 +699,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
     if (unit.external !== undefined) {
-      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, attachments: unit.external.event.attachments?.map(({ id, name }) => ({ id, name })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
+      return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, attachments: unit.external.event.attachments?.map(({ id, name, sizeBytes, mediaType }) => ({ id, name, sizeBytes, mediaType })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
     }
     if (unit.sourceKind === 'memory-change') {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
@@ -764,7 +778,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #createSessionId: () => string;
   readonly #createEventId: () => string;
   readonly #createMessageId: () => string;
-  readonly #assignmentConcurrencyLimit: number;
+  readonly #assignmentConcurrencyLimit: () => number;
   readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
@@ -780,6 +794,8 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #digestFailureCount = new Map<string, number>();
   readonly #inboxFactoryRetries = new Map<string, { attempts: number; timer?: NodeJS.Timeout }>();
   readonly #assignmentRuns = new Map<string, Promise<void>>();
+  readonly #assignmentAcceptances = new Set<string>();
+  readonly #assignmentNotices = new Set<Promise<void>>();
   readonly #waitLifetime = new AbortController();
   readonly #waitOptions: Pick<BotRuntimeOptions, 'database' | 'beginAssignmentWait'>;
   #closed = false;
@@ -809,10 +825,9 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#createSessionId = options.createSessionId ?? (() => `botharness-${randomUUID()}`);
     this.#createEventId = options.createEventId ?? (() => randomUUID());
     this.#createMessageId = options.createMessageId ?? (() => randomUUID());
-    this.#assignmentConcurrencyLimit = Math.min(
-      Math.max(options.assignmentConcurrencyLimit ?? 3, 1),
-      32,
-    );
+    const configuredLimit = options.assignmentConcurrencyLimit ?? 3;
+    this.#assignmentConcurrencyLimit =
+      typeof configuredLimit === 'function' ? configuredLimit : () => configuredLimit;
     this.#warn = options.warn;
 
     if (options.database.mode === 'ready') {
@@ -2409,6 +2424,7 @@ class BotRuntimeImplementation implements BotRuntime {
       const pending = [
         ...this.#tails.values(),
         ...this.#assignmentRuns.values(),
+        ...this.#assignmentNotices,
         ...this.#steerSettlements,
       ];
       if (pending.length === 0) return;
@@ -2429,9 +2445,15 @@ class BotRuntimeImplementation implements BotRuntime {
     for (const retry of this.#inboxFactoryRetries.values())
       if (retry.timer !== undefined) clearTimeout(retry.timer);
     this.#inboxFactoryRetries.clear();
-    await Promise.allSettled([...this.#tails.values(), ...this.#assignmentRuns.values()]);
+    await Promise.allSettled([
+      ...this.#tails.values(),
+      ...this.#assignmentRuns.values(),
+      ...this.#assignmentNotices,
+    ]);
     this.#tails.clear();
     this.#assignmentRuns.clear();
+    this.#assignmentAcceptances.clear();
+    this.#assignmentNotices.clear();
     await this.#agents.close();
   }
 
@@ -2883,6 +2905,7 @@ class BotRuntimeImplementation implements BotRuntime {
     role: 'orchestrator' | 'assignment';
     error: unknown;
     context?: string;
+    assignmentAnswerTo?: string;
   }): Promise<void> {
     const details = sessionFailureDetails(input.error);
     const failure = {
@@ -2890,6 +2913,9 @@ class BotRuntimeImplementation implements BotRuntime {
       sessionId: input.sessionId,
       ...details,
       ...(input.context === undefined ? {} : { context: input.context }),
+      ...(input.assignmentAnswerTo === undefined
+        ? {}
+        : { assignmentAnswerTo: input.assignmentAnswerTo }),
     };
     const original = this.#channels.get(input.channelId);
     const target =
@@ -2950,7 +2976,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       request: (input) => {
         const outcome = this.#requestAssignment(bot, input);
-        markSideEffect();
+        if (outcome.delivery !== 'capacity') markSideEffect();
         return outcome;
       },
       wait: (sessionId, signal, timeoutMs = 30000) => {
@@ -4303,11 +4329,15 @@ class BotRuntimeImplementation implements BotRuntime {
           throw new Error(
             'An existing keyed Assignment keeps its model; use a new key for a new model choice',
           );
-        this.#requestAssignment(bot, {
+        const request = this.#requestAssignment(bot, {
           sessionId: holder.session_id,
           mode: 'next-turn',
           text: purpose,
         });
+        if (request.delivery === 'capacity') {
+          const { assignment: _assignment, delivery: _delivery, ...refusal } = request;
+          return refusal;
+        }
         return {
           outcome: 'reused',
           assignment: this.#requireAssignmentSummary(bot.slug, holder.session_id),
@@ -4320,12 +4350,8 @@ class BotRuntimeImplementation implements BotRuntime {
         };
       }
     }
-    if (this.#activeAssignmentCount() >= this.#assignmentConcurrencyLimit) {
-      return {
-        outcome: 'capacity',
-        message: `Assignment Concurrency Limit ${this.#assignmentConcurrencyLimit} reached; retryable: true. Nothing was created.`,
-      };
-    }
+    const refusal = this.#assignmentCapacityRefusal('created');
+    if (refusal !== undefined) return refusal;
     const sessionId = this.#createSessionId();
     const createdAt = this.#now().toISOString();
     this.#database.transaction(
@@ -4404,13 +4430,17 @@ class BotRuntimeImplementation implements BotRuntime {
     ) {
       throw new Error('Assignment Workspace Grant no longer matches its permission snapshot');
     }
+    if (this.#assignmentAcceptances.has(input.sessionId)) {
+      throw new Error(
+        `Assignment Session ${input.sessionId} is awaiting Inbox acceptance; inspect it before retrying`,
+      );
+    }
     const text = requireNonBlank(input.text, 'Assignment Request text');
     if (row.activity === 'error') {
       throw new Error(
         `Assignment Session ${input.sessionId} failed; start a new Assignment instead`,
       );
     }
-    const at = this.#now().toISOString();
     if (input.answerTo !== undefined && input.answerTo !== row.open_ask_source_event_id) {
       throw new Error(
         `Assignment Session ${input.sessionId} has no open ask ${input.answerTo}; inspect it before answering`,
@@ -4425,19 +4455,17 @@ class BotRuntimeImplementation implements BotRuntime {
         throw new Error('Apply a Model Preset before choosing an Assignment model');
       modelRoute = selectAssignmentRoute(plan, input.model);
     }
-    if (row.open_ask_source_event_id !== null) {
-      this.#database.transaction(
-        (database) => {
-          database
-            .prepare(
-              `UPDATE assignments
-                  SET open_ask_source_event_id = NULL, open_ask_at = NULL, updated_at = ?
-                WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`,
-            )
-            .run(at, input.sessionId, bot.slug);
-        },
-        ['assignments'],
-      );
+    const waking = row.activity === 'idle';
+    if (waking) {
+      const refusal = this.#assignmentCapacityRefusal('awakened');
+      if (refusal !== undefined) {
+        return {
+          ...refusal,
+          assignment: this.#requireAssignmentSummary(bot.slug, input.sessionId),
+          delivery: 'capacity',
+        };
+      }
+      this.#setActivity(input.sessionId, 'working');
     }
     const run: AssignmentAgentRun = {
       sessionId: input.sessionId,
@@ -4448,29 +4476,73 @@ class BotRuntimeImplementation implements BotRuntime {
       ...(modelRoute === undefined ? {} : { modelRoute }),
       report: async (report) => this.#recordReport(bot.slug, input.sessionId, report),
     };
-    const delivery = this.#agents.requestAssignment(run);
-    if (input.model !== undefined) {
+    let delivery: AssignmentRequestDelivery;
+    try {
+      delivery = this.#agents.requestAssignment(run);
+    } catch (error) {
+      if (error instanceof AssignmentInboxAcceptanceUncertainError)
+        this.#setActivity(input.sessionId, 'error');
+      else if (waking) this.#setActivity(input.sessionId, 'idle');
+      this.#publishAssignmentRefusal(row, error);
+      throw error;
+    }
+    const settleAcceptance = () => {
+      const at = this.#now().toISOString();
       this.#database.transaction(
         (database) => {
-          database
-            .prepare(
-              `UPDATE assignments
-                  SET model_route_json = ?, updated_at = ?
-                WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`,
-            )
-            .run(JSON.stringify(modelRoute), at, input.sessionId, bot.slug);
+          if (row.open_ask_source_event_id !== null) {
+            database
+              .prepare(`UPDATE assignments
+              SET open_ask_source_event_id = NULL, open_ask_at = NULL, updated_at = ?
+              WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'
+                AND open_ask_source_event_id = ?`)
+              .run(at, input.sessionId, bot.slug, row.open_ask_source_event_id);
+          }
+          if (input.model !== undefined) {
+            database
+              .prepare(`UPDATE assignments SET model_route_json = ?, updated_at = ?
+              WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`)
+              .run(JSON.stringify(modelRoute), at, input.sessionId, bot.slug);
+          }
         },
         ['assignments'],
       );
-    }
+    };
     if (delivery.delivery === 'followup') {
-      this.#trackAssignmentRun(input.sessionId, () => delivery.done);
+      this.#assignmentAcceptances.add(input.sessionId);
+      let accepted = false;
+      let uncertain = false;
+      void delivery.done.catch(() => undefined);
+      this.#trackAssignmentRun(
+        input.sessionId,
+        async () => {
+          try {
+            await delivery.accepted;
+          } catch (error) {
+            uncertain = error instanceof AssignmentInboxAcceptanceUncertainError;
+            this.#assignmentAcceptances.delete(input.sessionId);
+            throw error;
+          }
+          this.#assignmentAcceptances.delete(input.sessionId);
+          accepted = true;
+          settleAcceptance();
+          await delivery.done;
+        },
+        () => ({
+          activity: !accepted && !uncertain && waking ? 'idle' : 'error',
+          ...(!accepted && !uncertain && row.open_ask_source_event_id !== null
+            ? { answerTo: row.open_ask_source_event_id }
+            : {}),
+        }),
+      );
     } else {
+      settleAcceptance();
       this.#setActivity(input.sessionId, 'working');
     }
     return {
       assignment: this.#requireAssignmentSummary(bot.slug, input.sessionId),
       delivery: delivery.delivery,
+      acceptance: delivery.delivery === 'steer' ? 'accepted' : 'pending',
     };
   }
 
@@ -4542,15 +4614,48 @@ class BotRuntimeImplementation implements BotRuntime {
     return this.#requireAssignmentSummary(bot.slug, sessionId);
   }
 
-  #trackAssignmentRun(sessionId: string, task: () => Promise<void>): void {
+  #publishAssignmentRefusal(row: AssignmentRow, error: unknown): void {
+    const channel = this.#dmChannel(row.bot_slug);
+    if (channel === undefined) return;
+    const notice = this.#publishSessionFailure({
+      channelId: channel.id,
+      botSlug: row.bot_slug,
+      sessionId: row.session_id,
+      role: 'assignment',
+      error,
+      context: row.purpose,
+      ...(error instanceof AssignmentInboxAcceptanceUncertainError ||
+      row.open_ask_source_event_id === null
+        ? {}
+        : { assignmentAnswerTo: row.open_ask_source_event_id }),
+    });
+    this.#assignmentNotices.add(notice);
+    void notice.then(
+      () => this.#assignmentNotices.delete(notice),
+      () => this.#assignmentNotices.delete(notice),
+    );
+  }
+
+  #trackAssignmentRun(
+    sessionId: string,
+    task: () => Promise<void>,
+    failure: () => { activity: 'idle' | 'error'; answerTo?: string } = () => ({
+      activity: 'error',
+    }),
+  ): void {
+    let tracked: Promise<void> | undefined;
     const run = (async () => {
       if (this.#assignmentRow(undefined, sessionId) === undefined) return;
       this.#setActivity(sessionId, 'working');
       try {
         await task();
+        if (this.#assignmentRuns.get(sessionId) !== tracked) return;
+        if (this.#assignmentRow(undefined, sessionId)?.activity === 'error') return;
         this.#setActivity(sessionId, 'idle');
       } catch (error) {
-        this.#setActivity(sessionId, 'error');
+        if (this.#assignmentRuns.get(sessionId) !== tracked) return;
+        const refused = failure();
+        this.#setActivity(sessionId, refused.activity);
         const row = this.#assignmentRow(undefined, sessionId);
         if (row?.stop_state !== 'running') return;
         if (row !== undefined) {
@@ -4563,12 +4668,13 @@ class BotRuntimeImplementation implements BotRuntime {
               role: 'assignment',
               error,
               context: row.purpose,
+              ...(refused.answerTo === undefined ? {} : { assignmentAnswerTo: refused.answerTo }),
             });
           }
         }
       }
     })();
-    const tracked = run.then(
+    tracked = run.then(
       () => {
         if (this.#assignmentRuns.get(sessionId) === tracked) this.#assignmentRuns.delete(sessionId);
       },
@@ -4608,6 +4714,24 @@ class BotRuntimeImplementation implements BotRuntime {
         .get() as { count: number };
       return row.count;
     });
+  }
+
+  #assignmentCapacityRefusal(
+    action: 'created' | 'awakened',
+  ): AssignmentCapacityRefusal | undefined {
+    const activeCount = this.#activeAssignmentCount();
+    const limit = this.#assignmentConcurrencyLimit();
+    if (!Number.isInteger(limit) || limit < 1 || limit > 32)
+      throw new Error('Invalid Assignment Concurrency Limit; expected an integer from 1 to 32');
+    if (activeCount < limit) return undefined;
+    return {
+      outcome: 'capacity',
+      code: 'assignment-capacity',
+      activeCount,
+      limit,
+      retryable: true,
+      message: `Assignment Concurrency Limit ${limit} reached; retryable: true. Nothing was ${action}. Wait for active work to settle before retrying.`,
+    };
   }
 
   #requireAssignmentSummary(botSlug: string, sessionId: string): AssignmentSummary {

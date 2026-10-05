@@ -55,6 +55,7 @@ export interface DshImOutboundService {
       expectedFingerprint: string;
       signal: AbortSignal;
       sourceFiles?: boolean;
+      ordinaryText?: boolean;
       onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
     },
@@ -112,7 +113,7 @@ const identifier = z.string().min(1).max(512);
 const inboundSchema = z
   .object({
     version: z.literal(1),
-    channel: z.literal('feishu'),
+    channel: z.enum(['feishu', 'slack']),
     botId: identifier,
     fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
     eventId: identifier,
@@ -142,6 +143,17 @@ const inboundSchema = z
             messageId: identifier,
             resourceKey: identifier,
             name: identifier,
+            sizeBytes: z
+              .number()
+              .int()
+              .positive()
+              .max(25 * 1024 * 1024)
+              .optional(),
+            mediaType: z
+              .string()
+              .regex(/^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/)
+              .max(127)
+              .optional(),
           })
           .strict(),
       )
@@ -195,7 +207,10 @@ function providerFailure(error: unknown): MessagingProviderError {
   );
 }
 
-export function createDshImProvider(value: unknown): MessagingProvider | undefined {
+export function createDshImProvider(
+  value: unknown,
+  platform: 'feishu' | 'slack' = 'feishu',
+): MessagingProvider | undefined {
   if (value === null || typeof value !== 'object') return undefined;
   const service = value as Partial<DshImOutboundService>;
   if (
@@ -221,7 +236,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
     if (
       info.version !== 1 ||
       info.botId !== ref ||
-      info.channel !== 'feishu' ||
+      info.channel !== platform ||
       !/^[a-f0-9]{64}$/.test(info.account?.fingerprint ?? '') ||
       !info.capabilities.includes('proactive-text-checked')
     )
@@ -239,14 +254,26 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
       ref: target.targetId,
       name: target.name ?? target.targetId,
       digest: targetDigest(target),
-      ...(target.kind === 'group' && typeof target.route.chatId === 'string'
-        ? { receiveScope: { kind: 'group' as const, conversationId: target.route.chatId } }
+      ...((platform === 'feishu' &&
+        target.kind === 'group' &&
+        typeof target.route.chatId === 'string') ||
+      (platform === 'slack' &&
+        target.kind === 'conversation' &&
+        typeof target.route.channelId === 'string')
+        ? {
+            receiveScope: {
+              kind: 'group' as const,
+              conversationId: String(
+                platform === 'slack' ? target.route.channelId : target.route.chatId,
+              ),
+            },
+          }
         : {}),
     }));
   return {
-    id: 'dsh-im/feishu',
+    id: `dsh-im/${platform}`,
     async accounts() {
-      const bots = (await host.listBots()).filter((bot) => bot.channel === 'feishu');
+      const bots = (await host.listBots()).filter((bot) => bot.channel === platform);
       const result = await Promise.allSettled(bots.map((bot) => account(bot.botId)));
       return result.flatMap((item) => (item.status === 'fulfilled' ? [item.value] : []));
     },
@@ -345,6 +372,9 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
             return host.consumeInbound!(input.accountRef, {
               expectedFingerprint: input.fingerprint,
               signal: input.signal,
+              ...(info.capabilities.includes('ordinary-text-consumer')
+                ? { ordinaryText: true }
+                : {}),
               ...(host.fileVersion === 1 &&
               info.capabilities.includes('source-file-checked') &&
               info.capabilities.includes('reply-file-checked')
@@ -379,11 +409,20 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
                 : {}),
               onEvent: async (raw, context) => {
                 const parsed = inboundSchema.parse(raw);
+                if (parsed.channel !== platform) throw new MessagingError('untrusted-source');
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
                 const { attachments, ...base } = parsed;
                 const event: MessagingInboundEvent = {
                   ...base,
-                  ...(attachments === undefined ? {} : { attachments }),
+                  ...(attachments === undefined
+                    ? {}
+                    : {
+                        attachments: attachments.map(({ sizeBytes, mediaType, ...file }) => ({
+                          ...file,
+                          ...(sizeBytes === undefined ? {} : { sizeBytes }),
+                          ...(mediaType === undefined ? {} : { mediaType }),
+                        })),
+                      }),
                   reply: {
                     ...required,
                     ...(threadId === undefined ? {} : { threadId }),
@@ -398,7 +437,11 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
                   event.reply.messageId !== event.messageId ||
                   event.reply.conversationId !== event.conversation.id ||
                   event.reply.actorId !== event.actor.id ||
-                  event.attachments?.some((item) => item.messageId !== event.reply.parentId)
+                  event.attachments?.some(
+                    (item) =>
+                      item.messageId !==
+                      (platform === 'slack' ? event.messageId : event.reply.parentId),
+                  )
                 )
                   throw new MessagingError('untrusted-source');
                 return input.onEvent(event, context.signal);
@@ -501,6 +544,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
               throw new MessagingError('untrusted-source');
             for (const event of parsed.events) {
               if (
+                event.channel !== platform ||
                 event.botId !== input.accountRef ||
                 event.fingerprint !== input.fingerprint ||
                 event.conversation.kind !== 'group' ||
@@ -558,7 +602,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
           },
         }
       : {}),
-    ...(host.receiptVersion === 1
+    ...(platform === 'feishu' && host.receiptVersion === 1
       ? {
           async post(input: Parameters<NonNullable<MessagingProvider['post']>>[0]) {
             input.signal.throwIfAborted();

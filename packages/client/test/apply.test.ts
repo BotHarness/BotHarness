@@ -69,6 +69,7 @@ function fakeScope(): FakeScope {
       value: {
         botIcon: 'mascot' as const,
         autoAcceptGroupInvites: true,
+        assignmentConcurrencyLimit: 3,
         developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',

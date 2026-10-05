@@ -3,6 +3,7 @@ import {
   AVATAR_COLORS,
   AVATAR_FAMILIES,
   AVATAR_PARTS,
+  AVATAR_PRESETS,
   AVATAR_SWATCHES,
   avatarSvg,
   seededAvatarRecipe,
@@ -12,11 +13,12 @@ import {
 import {
   LINE_COLORS,
   LINE_PARTS,
+  LINE_PRESETS,
   LINE_RANGES,
   LINE_SWATCHES,
   seededLineRecipe,
 } from '../../../core/src/bots/avatar-line.js';
-import { PersonaBotAvatar, normalizePersonaBotActivity } from './avatar.js';
+import { PersonaBotAvatar, PersonaBotStatusBadges, normalizePersonaBotActivity } from './avatar.js';
 import type { BotSummary } from './store.js';
 import type { BotHarnessTranslate } from './locale.js';
 
@@ -28,6 +30,7 @@ interface FamilySpec {
   swatches: Readonly<Record<string, readonly string[]>>;
   ranges: Readonly<Record<string, readonly [number, number]>>;
   categories: readonly string[];
+  presets: readonly AvatarRecipe[];
   option(part: string, value: string): Key;
   seeded(name: string): AvatarRecipe;
 }
@@ -38,9 +41,10 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
     colors: AVATAR_COLORS,
     swatches: AVATAR_SWATCHES,
     ranges: {},
+    presets: AVATAR_PRESETS,
     categories: [
+      'presets',
       ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop'),
-      'backdrop',
       'colors',
     ],
     option: (part, value) => `profile.avatar.option.${part}.${value}` as Key,
@@ -51,7 +55,13 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
     colors: LINE_COLORS,
     swatches: LINE_SWATCHES,
     ranges: LINE_RANGES,
-    categories: [...Object.keys(LINE_PARTS), 'shape', 'colors'],
+    presets: LINE_PRESETS,
+    categories: [
+      'presets',
+      ...Object.keys(LINE_PARTS).filter((part) => part !== 'symbol'),
+      'shape',
+      'colors',
+    ],
     option: (part, value) => `profile.avatar.line.${part}.${value}` as Key,
     seeded: seededLineRecipe,
   },
@@ -167,11 +177,15 @@ export function AvatarAppearanceEditor({
           state={state}
           activity={bot.activity}
           attention={bot.attention}
+          indicator={false}
           t={t}
         />
       </div>
       <div className="bh-avatar-editor-controls">
-        <h3>{t('profile.avatar.design')}</h3>
+        <h3 className="bh-avatar-editor-title">
+          <span>{t('profile.avatar.design')}</span>
+          <PersonaBotStatusBadges state={state} attention={bot.attention} />
+        </h3>
         <p>{t('profile.avatar.designDescription')}</p>
         {draft && fields ? (
           <fieldset disabled={busy} className="bh-avatar-editor-fields">
@@ -262,6 +276,24 @@ export function AvatarAppearanceEditor({
                       onChange={(event) => set(key, event.currentTarget.value)}
                     />
                   </div>
+                ))}
+              </div>
+            ) : category === 'presets' ? (
+              <div
+                className="bh-avatar-options"
+                role="tabpanel"
+                id="bh-avatar-panel"
+                aria-labelledby="bh-avatar-tab-presets"
+              >
+                {spec.presets.map((preset, index) => (
+                  <OptionTile
+                    key={index}
+                    id={`preset:${index}`}
+                    recipe={preset}
+                    selected={JSON.stringify(preset) === JSON.stringify(draft)}
+                    label={`${t('profile.avatar.presets')} ${index + 1}`}
+                    onSelect={() => update({ ...preset })}
+                  />
                 ))}
               </div>
             ) : category === 'shape' ? (

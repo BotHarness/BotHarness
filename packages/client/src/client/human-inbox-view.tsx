@@ -55,6 +55,11 @@ export function HumanInboxView({
   const [replySource, setReplySource] = useState<HumanAttentionItem>();
   const [actionSource, setActionSource] = useState<HumanAttentionItem>();
 
+  const openAction = (item: HumanAttentionItem): void => {
+    if (actionBotSlug !== undefined) setActionSource(item);
+    else setReplySource(item);
+  };
+
   const mount = useMountedResource<HTMLDivElement>(() => {
     if (actionBotSlug !== undefined) return;
     const timer = window.setInterval(() => {
@@ -397,8 +402,8 @@ export function HumanInboxView({
                   }}
                 />
 
+                <div className="bh-human-inbox-row-title">{itemTitle(item)}</div>
                 <div className="bh-human-inbox-row-main">
-                  <div className="bh-human-inbox-row-title">{itemTitle(item)}</div>
                   {item.kind === 'channel-reply' || item.kind === 'channel-mention' ? (
                     <div className="bh-human-inbox-unread-meta">
                       <span>{item.channelName}</span>
@@ -477,7 +482,7 @@ export function HumanInboxView({
                         variant="primary"
                         size="sm"
                         type="button"
-                        onClick={() => setActionSource(item)}
+                        onClick={() => openAction(item)}
                       >
                         {t(
                           item.category === 'handled'
@@ -589,6 +594,7 @@ export function HumanInboxView({
             closeLabel={t('common.close')}
             onClose={() => setActionSource(undefined)}
             className="bh-root bh-human-inbox-action-dialog"
+            contentClassName="bh-human-inbox-action-dialog-content"
           >
             {renderSource(actionSource, () => setActionSource(undefined))}
           </Modal>

@@ -4,8 +4,9 @@ import { avatarSvg, isAvatarAppearance, isAvatarRecipe } from '../src/bots/avata
 import {
   DEFAULT_LINE_RECIPE,
   LINE_PARTS,
+  LINE_PRESETS,
   LINE_RANGES,
-  LINE_MORPH_SYMBOLS,
+  LINE_TOOL_SYMBOLS,
   isLineAvatarRecipe,
   lineAvatarSvg,
   lineMorphFace,
@@ -13,6 +14,7 @@ import {
   type LinePart,
   type LineAvatarRecipe,
 } from '../src/bots/avatar-line.js';
+import { PIXEL_SYMBOLS } from '../src/bots/avatar-pixel-symbols.js';
 import { deriveAvatarAppearance } from '../src/bots/avatar-snapshot.js';
 import { MAX_PERSONA_BOT_AVATAR_BYTES } from '../src/bots/persona-bot.js';
 
@@ -23,7 +25,7 @@ const extremes: LineAvatarRecipe[] = (
 
 describe('line Avatar family', () => {
   it('renders every part and legal extreme as distinct, inert, id-free markup with the shared rig nodes', () => {
-    for (const part of parts) {
+    for (const part of parts.filter((name) => name !== 'symbol')) {
       const rendered = new Set(
         LINE_PARTS[part].map((value) => lineAvatarSvg({ ...DEFAULT_LINE_RECIPE, [part]: value })),
       );
@@ -41,8 +43,17 @@ describe('line Avatar family', () => {
         expect(svg).toContain(`class="bh-illustrated-${node}"`);
       expect(svg.match(/data-avatar-turn=/gu)).toHaveLength(2);
       expect(svg).not.toContain('data-avatar-mark=');
-      expect(svg).toContain('<g data-avatar-attention-mark="" opacity="0"');
+      expect(svg).not.toContain('data-avatar-attention-mark');
+      expect(svg).not.toContain('data-avatar-symbol');
     }
+  });
+
+  it('ships distinct, valid face-only presets', () => {
+    expect(LINE_PRESETS.length).toBeGreaterThanOrEqual(12);
+    expect(new Set(LINE_PRESETS.map((recipe) => lineAvatarSvg(recipe))).size).toBe(
+      LINE_PRESETS.length,
+    );
+    for (const recipe of LINE_PRESETS) expect(isLineAvatarRecipe(recipe)).toBe(true);
   });
 
   it('accepts only bounded integer geometry and closed parts', () => {
@@ -92,18 +103,11 @@ describe('line Avatar family', () => {
     const tilted = lineMorphFace({ ...DEFAULT_LINE_RECIPE, tilt: -10, height: 3 });
     expect(tilted.tilt).toBe(-10);
     expect(tilted.pivot).toEqual([24, 29]);
-    for (const key of [
-      'idle',
-      'thinking-dots',
-      'searching',
-      'coding',
-      'executing',
-      'generic-working',
-    ]) {
-      const symbol = LINE_MORPH_SYMBOLS[key];
+    for (const key of PIXEL_SYMBOLS) {
+      const symbol = LINE_TOOL_SYMBOLS[key];
       expect(symbol, key).toBeDefined();
-      expect(symbol!.length, key).toBeGreaterThanOrEqual(2);
-      expect(symbol!.length, key).toBeLessThanOrEqual(4);
+      expect(symbol.length, key).toBeGreaterThanOrEqual(1);
+      expect(symbol.length, key).toBeLessThanOrEqual(6);
     }
   });
 });

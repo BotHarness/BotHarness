@@ -976,7 +976,7 @@ export function createInboundMessaging(options: {
           providers.get(value.providerId) !== entry ||
           !inspected.account.connected ||
           inspected.account.ref !== value.accountRef ||
-          inspected.account.platform !== 'feishu' ||
+          inspected.account.platform !== value.platform ||
           inspected.account.fingerprint !== value.fingerprint ||
           inspected.target.ref !== value.targetRef ||
           inspected.target.digest !== value.targetDigest ||
@@ -1633,7 +1633,9 @@ export function createInboundMessaging(options: {
           page.nextCursor === cursor.providerCursor
         )
           throw new MessagingError('untrusted-source');
-        const digest = createHash('sha256').update(JSON.stringify(page)).digest('hex');
+        const digest = createHash('sha256')
+          .update(JSON.stringify({ ...page, nextCursor: undefined }))
+          .digest('hex');
         if (cursor?.digest && cursor.digest !== digest)
           throw new MessagingError('history-cursor-stale');
         const result: ExternalContextResult = {

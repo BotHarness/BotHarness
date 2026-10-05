@@ -262,7 +262,7 @@ export function HumanInboxAssignment({
         <p role="alert">{t('humanInbox.reply.unavailable')}</p>
       ) : null}
       {navigationError ? <p role="alert">{t('humanInbox.reply.unavailable')}</p> : null}
-      {reply !== undefined ? (
+      {reply !== undefined && (sent !== undefined || context?.canReply !== true) ? (
         <div role="status">
           <strong>{t('humanInbox.assignment.sent')}</strong>
           <p>{reply.body}</p>
@@ -285,6 +285,9 @@ export function HumanInboxAssignment({
             void submit();
           }}
         >
+          {reply !== undefined && context?.canReply === true ? (
+            <p role="status">{t('humanInbox.assignment.retry')}</p>
+          ) : null}
           {context !== undefined && !context.canReply ? (
             <p role="status">{t('humanInbox.assignment.stale')}</p>
           ) : null}

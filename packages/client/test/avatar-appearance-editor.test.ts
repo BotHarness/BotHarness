@@ -3,8 +3,12 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 import { AvatarAppearanceEditor } from '../src/client/avatar-appearance-editor.js';
-import { seededAvatarRecipe } from '../../core/src/bots/avatar-appearance.js';
-import { seededLineRecipe } from '../../core/src/bots/avatar-line.js';
+import {
+  AVATAR_PARTS,
+  AVATAR_PRESETS,
+  seededAvatarRecipe,
+} from '../../core/src/bots/avatar-appearance.js';
+import { LINE_PARTS, LINE_PRESETS, seededLineRecipe } from '../../core/src/bots/avatar-line.js';
 import { zhTranslate } from '../src/client/locale.js';
 
 describe('Profile Avatar Appearance editing', () => {
@@ -78,8 +82,13 @@ describe('Profile Avatar Appearance editing', () => {
       await click('[data-avatar-edit]');
       await click('[data-avatar-option="hair:bob"]');
       expect(container.querySelector('[data-avatar-preview] svg')).not.toBeNull();
-      expect(container.querySelector('[data-approval-count="2"]')).not.toBeNull();
-      expect(container.querySelectorAll('[data-avatar-option^="hair:"]')).toHaveLength(19);
+      expect(container.querySelector('[data-avatar-preview] [data-approval-count="2"]')).toBeNull();
+      expect(
+        container.querySelector('.bh-avatar-editor-title [data-approval-count="2"]'),
+      ).not.toBeNull();
+      expect(container.querySelectorAll('[data-avatar-option^="hair:"]')).toHaveLength(
+        AVATAR_PARTS.hair.length,
+      );
       expect(
         container.querySelector('[data-avatar-option="hair:bob"]')?.getAttribute('aria-pressed'),
       ).toBe('true');
@@ -103,6 +112,17 @@ describe('Profile Avatar Appearance editing', () => {
         shirtColor: '#3d9970',
       });
       expect(container.querySelector('[data-avatar-save]')).toBeNull();
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="presets"]');
+      expect(container.querySelectorAll('[data-avatar-option^="preset:"]')).toHaveLength(
+        AVATAR_PRESETS.length,
+      );
+      await click('[data-avatar-option="preset:2"]');
+      expect(
+        container.querySelector('[data-avatar-option="preset:2"]')?.getAttribute('aria-pressed'),
+      ).toBe('true');
+      await click('[data-avatar-save]');
+      expect(save).toHaveBeenLastCalledWith('dm-ada', AVATAR_PRESETS[2]);
     } finally {
       await act(() => root.unmount());
       container.remove();
@@ -143,7 +163,9 @@ describe('Profile Avatar Appearance editing', () => {
         container.querySelector('[data-avatar-family="line"]')?.getAttribute('aria-checked'),
       ).toBe('true');
       expect(container.querySelector('[data-avatar-option^="hair:"]')).toBeNull();
-      expect(container.querySelectorAll('[data-avatar-option^="eyes:"]')).toHaveLength(16);
+      expect(container.querySelectorAll('[data-avatar-option^="eyes:"]')).toHaveLength(
+        LINE_PARTS.eyes.length,
+      );
       await click('[data-avatar-option="eyes:cross"]');
       await click('[data-avatar-category="shape"]');
       const spacing = container.querySelector<HTMLInputElement>('input[name="spacing"]')!;

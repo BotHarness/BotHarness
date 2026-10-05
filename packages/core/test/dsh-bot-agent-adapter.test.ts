@@ -47,6 +47,93 @@ const groupTools = {
 };
 
 describe('DSH Bot Agent adapter', () => {
+  it('returns retryable capacity facts to the model for creation and addressed requests', async () => {
+    const calls: Array<Promise<unknown>> = [];
+    const refusal = {
+      outcome: 'capacity' as const,
+      code: 'assignment-capacity' as const,
+      activeCount: 3,
+      limit: 3,
+      retryable: true as const,
+      message: 'Nothing was awakened. Wait for active work to settle before retrying.',
+    };
+    const host = new FakeAgentHost(
+      { kind: 'completed' },
+      {
+        onAgentCreated: () => {
+          const tools = host.scopes.get('orchestrator-ada')?.tools ?? [];
+          for (const [name, args] of [
+            ['create_assignment', { purpose: 'Continue A', grant_id: 'grant-1', key: 'a' }],
+            ['send_assignment_request', { session_id: 'assignment-1', text: 'Continue A' }],
+          ] as const) {
+            const tool = tools.find((tool) => tool.name === name);
+            if (tool === undefined) throw new Error(`Missing Tool ${name}`);
+            calls.push(tool.execute(args, {} as ToolRunContext));
+          }
+        },
+      },
+    );
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    try {
+      await adapter.runOrchestrator({
+        sessionId: 'orchestrator-ada',
+        resume: false,
+        bot: BOT,
+        inboundChannelId: 'dm-test',
+        inbox: '',
+        message: 'Continue A',
+        channels: {
+          ...groupTools,
+          contacts: () => ({ outputLimit: 12_000, contacts: [] }),
+          sendToBot: async () => {
+            throw new Error('unexpected Bot DM');
+          },
+          ignore: () => ({
+            sourceEventId: 'source-1',
+            ignoredAt: BOT.createdAt,
+            alreadyIgnored: false,
+          }),
+          read: () => [],
+          requestGrant: async () => {
+            throw new Error('unexpected Grant request');
+          },
+          send: async (input) => ({
+            id: 'bot-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: BOT.slug },
+            body: input.body,
+          }),
+        },
+        assignments: {
+          create: () => refusal,
+          request: () => ({
+            ...refusal,
+            assignment: { ...ASSIGNMENT, activity: 'idle' },
+            delivery: 'capacity',
+          }),
+          grants: () => [],
+          list: () => [],
+          inspect: () => undefined,
+          stop: async () => {
+            throw new Error('unexpected stop');
+          },
+        },
+      });
+      const outputs = (await Promise.all(calls)).map((output) => JSON.parse(String(output)));
+      expect(outputs).toEqual([
+        refusal,
+        { ...refusal, sessionId: 'assignment-1', activity: 'idle' },
+      ]);
+    } finally {
+      await adapter.close();
+    }
+  });
+
   it('dispatches Group attention Tools only during the owning Orchestrator run', async () => {
     const calls: Array<Promise<unknown>> = [];
     const writes: unknown[] = [];
@@ -1031,10 +1118,112 @@ describe('DSH Bot Agent adapter', () => {
     await adapter.close();
   });
 
+  it.each(['prepare', 'resume', 'native-send'] as const)(
+    'exposes the %s acceptance failure separately from completion',
+    async (phase) => {
+      const host = new FakeAgentHost();
+      if (phase === 'resume')
+        vi.spyOn(host, 'resume').mockRejectedValueOnce(new Error('cold resume unavailable'));
+      const adapter = createDshBotAgentAdapter({
+        agents: host,
+        defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+        orchestratorCwd: () => '/memory/ada',
+        ensureWorkspace: () => undefined,
+        ...(phase === 'prepare'
+          ? {
+              prepareModelRoute: async () => {
+                throw new Error('model preparation unavailable');
+              },
+            }
+          : {}),
+      });
+      const run: AssignmentAgentRun = {
+        sessionId: 'acceptance-test',
+        bot: BOT,
+        purpose: 'Answer',
+        resume: true,
+        permission: {
+          grantId: 'grant-1',
+          workspaceId: 'workspace-1',
+          primaryCwd: '/project',
+          mode: 'workspace-write',
+          approval: 'ask',
+          presetRevision: 0,
+        },
+        report: async (input) => ({ ...input, at: BOT.createdAt }),
+      };
+      if (phase === 'native-send') {
+        await adapter.runAssignment({ ...run, resume: false });
+        vi.spyOn(host.get(run.sessionId)!, 'followup').mockImplementationOnce(() => {
+          throw new Error('native send threw');
+        });
+      }
+      try {
+        const result = adapter.requestAssignment(run);
+        if (result.delivery !== 'followup') throw new Error('Missing followup');
+        const [acceptance, completion] = await Promise.allSettled([result.accepted, result.done]);
+        expect(acceptance.status).toBe('rejected');
+        expect(completion.status).toBe('rejected');
+        if (acceptance.status !== 'rejected') throw new Error('Missing refusal');
+        expect(acceptance.reason.message).toContain(
+          phase === 'native-send' ? 'acceptance is uncertain' : 'unavailable',
+        );
+      } finally {
+        await adapter.close();
+      }
+    },
+  );
+
+  it('acknowledges native Inbox acceptance before the resumed turn finishes', async () => {
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const host = new FakeAgentHost({ kind: 'completed' }, { onTurn: () => pending });
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      hasSession: async () => false,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    try {
+      const result = adapter.requestAssignment({
+        sessionId: 'delayed-completion',
+        bot: BOT,
+        purpose: 'Answer',
+        resume: true,
+        permission: {
+          grantId: 'grant-1',
+          workspaceId: 'workspace-1',
+          primaryCwd: '/project',
+          mode: 'workspace-write',
+          approval: 'ask',
+          presetRevision: 0,
+        },
+        report: async (input) => ({ ...input, at: BOT.createdAt }),
+      });
+      if (result.delivery !== 'followup') throw new Error('Missing followup');
+      let completed = false;
+      void result.done.then(() => {
+        completed = true;
+      });
+      await result.accepted;
+      expect(completed).toBe(false);
+      finish();
+      await result.done;
+      expect(completed).toBe(true);
+    } finally {
+      finish();
+      await adapter.close();
+    }
+  });
+
   it('follows up a settled Assignment instead of steering a stale run', async () => {
     const host = new FakeAgentHost();
     const adapter = createDshBotAgentAdapter({
       agents: host,
+      hasSession: async () => false,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
       orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
