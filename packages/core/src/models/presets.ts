@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-import { atomicWriteFile } from '../fs/atomic-write.js';
+import { attachOperationalModule, type OperationalDatabaseOwner } from '../database/owner.js';
 
 export interface ModelRoute {
   provider: string;
@@ -203,22 +203,116 @@ function isModelPreset(value: unknown): value is ModelPreset {
   );
 }
 
-export function createModelPresetStore(rootDir: string, now = () => new Date()): ModelPresetStore {
-  const file = join(rootDir, 'model-presets.json');
-  const read = (): ModelPreset[] => {
-    let body: string;
+export interface ModelPresetStoreOptions {
+  rootDir: string;
+  database: OperationalDatabaseOwner;
+  now?: () => Date;
+  onImport?: (event: { phase: 'complete' | 'failed'; count?: number; durationMs: number }) => void;
+}
+
+function presetRecord(preset: ModelPreset): ModelPreset {
+  const route = (value: ModelRoute): ModelRoute => ({
+    provider: value.provider,
+    model: value.model,
+    ...(value.reasoningEffort === undefined ? {} : { reasoningEffort: value.reasoningEffort }),
+  });
+  return {
+    id: preset.id,
+    name: preset.name,
+    revision: preset.revision,
+    createdAt: preset.createdAt,
+    orchestrator: route(preset.orchestrator),
+    assignmentDefault: route(preset.assignmentDefault),
+    ...(preset.assignmentModels === undefined
+      ? {}
+      : {
+          assignmentModels: preset.assignmentModels.map((option) => ({
+            provider: option.provider,
+            model: option.model,
+            allowedEfforts: [...option.allowedEfforts],
+            defaultEffort: option.defaultEffort,
+          })),
+        }),
+  };
+}
+
+export function createModelPresetStore(options: ModelPresetStoreOptions): ModelPresetStore {
+  const now = options.now ?? (() => new Date());
+  const reportImport = (
+    event: Parameters<NonNullable<ModelPresetStoreOptions['onImport']>>[0],
+  ): void => {
     try {
-      body = readFileSync(file, 'utf8');
+      options.onImport?.(event);
+    } catch {}
+  };
+  const port = attachOperationalModule(options.database, 'model-presets');
+  const read = (): ModelPreset[] =>
+    port.read((database) => {
+      const rows = database.prepare('SELECT body FROM model_presets ORDER BY rowid').all();
+      return rows.map((row) => {
+        const parsed: unknown = JSON.parse(String(row['body']));
+        if (!isModelPreset(parsed)) throw new Error('Invalid Model Preset record');
+        return parsed;
+      });
+    });
+  const write = (preset: ModelPreset): void => {
+    port.transaction(
+      (database) => {
+        database
+          .prepare(`INSERT INTO model_presets (id, body) VALUES (?, ?)
+        ON CONFLICT (id) DO UPDATE SET body = excluded.body`)
+          .run(preset.id, JSON.stringify(presetRecord(preset)));
+      },
+      ['model-presets'],
+    );
+  };
+
+  if (
+    options.database.mode === 'ready' &&
+    !port.read((database) =>
+      database.prepare('SELECT singleton FROM model_presets_import WHERE singleton = 1').get(),
+    )
+  ) {
+    const startedAt = performance.now();
+    try {
+      let legacy: unknown;
+      try {
+        legacy = JSON.parse(readFileSync(join(options.rootDir, 'model-presets.json'), 'utf8'));
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+          throw new Error('Invalid Model Preset import source');
+        legacy = [];
+      }
+      if (
+        !Array.isArray(legacy) ||
+        !legacy.every(isModelPreset) ||
+        legacy.some((preset) => !preset.id.trim() || !preset.name.trim() || preset.revision < 1) ||
+        new Set(legacy.map((preset) => preset.id)).size !== legacy.length ||
+        new Set(legacy.map((preset) => preset.name.toLowerCase())).size !== legacy.length
+      )
+        throw new Error('Invalid Model Preset import source');
+      port.transaction(
+        (database) => {
+          if (database.prepare('SELECT id FROM model_presets LIMIT 1').get())
+            throw new Error('Model Preset target is populated without an import marker');
+          const insert = database.prepare('INSERT INTO model_presets (id, body) VALUES (?, ?)');
+          for (const preset of legacy) insert.run(preset.id, JSON.stringify(presetRecord(preset)));
+          database
+            .prepare('INSERT INTO model_presets_import (singleton, imported_at) VALUES (1, ?)')
+            .run(now().toISOString());
+        },
+        ['model-presets'],
+      );
+      reportImport({
+        phase: 'complete',
+        count: legacy.length,
+        durationMs: performance.now() - startedAt,
+      });
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+      reportImport({ phase: 'failed', durationMs: performance.now() - startedAt });
       throw error;
     }
-    const parsed: unknown = JSON.parse(body);
-    if (!Array.isArray(parsed) || !parsed.every(isModelPreset)) {
-      throw new Error('Invalid Model Preset store');
-    }
-    return parsed;
-  };
+  }
   return {
     list: read,
     get: (id) => read().find((preset) => preset.id === id),
@@ -247,8 +341,7 @@ export function createModelPresetStore(rootDir: string, now = () => new Date()):
             }),
         createdAt: now().toISOString(),
       };
-      mkdirSync(dirname(file), { recursive: true });
-      atomicWriteFile(file, `${JSON.stringify([...presets, preset], null, 2)}\n`);
+      write(preset);
       return preset;
     },
     update(id, input) {
@@ -286,8 +379,7 @@ export function createModelPresetStore(rootDir: string, now = () => new Date()):
               })),
             }),
       };
-      presets[index] = updated;
-      atomicWriteFile(file, `${JSON.stringify(presets, null, 2)}\n`);
+      write(updated);
       return updated;
     },
   };
