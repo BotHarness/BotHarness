@@ -17,6 +17,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBots can explicitly publish Slack reports without mirroring them into local chat, inspect the saved text and native receipt, and answer eligible Human follow-up in the original Slack topic ([#863](https://github.com/BotHarness/BotHarness/issues/863), [IM integration guide](docs/dev/guides/im-provider-integration.md)).
+
 - PersonaBots can explicitly follow or leave an authorized Slack native topic after real ordinary-reply delivery is verified, reusing count/time harvest and Human overrides; Profile retains topic management for migrated Channel connectors ([#854](https://github.com/BotHarness/BotHarness/issues/854), [IM integration guide](docs/dev/guides/im-provider-integration.md)).
 
 - When live activity sync drops, the sidebar says so, avatars keep the last observed state with greyed, paused activity indicators and no decorative motion, and everything resumes from a fresh Host baseline after reconnect or restart ([#756](https://github.com/BotHarness/BotHarness/issues/756)).
