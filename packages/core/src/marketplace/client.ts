@@ -1,3 +1,5 @@
+import { parseChallenge, type AltchaChallenge } from './altcha.js';
+
 export interface MarketplaceEntry {
   id: string;
   owner: string;
@@ -46,7 +48,12 @@ export interface MarketplaceClient {
   list(query: MarketplaceQuery): Promise<MarketplaceResult<MarketplacePage>>;
   topics(): Promise<MarketplaceResult<MarketplaceTopic[]>>;
   detail(id: string): Promise<MarketplaceResult<MarketplaceDetail>>;
-  submit(url: string): Promise<MarketplaceResult<{ bot: MarketplaceEntry }>>;
+  challenge(): Promise<MarketplaceResult<AltchaChallenge>>;
+  submit(url: string, altcha: string): Promise<MarketplaceResult<{ bot: MarketplaceEntry }>>;
+  report(
+    id: string,
+    options: { altcha: string; reason?: string },
+  ): Promise<MarketplaceResult<{ received: true }>>;
 }
 
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -150,6 +157,10 @@ export function parseMarketplaceSubmission(value: unknown): { bot: MarketplaceEn
   return bot === undefined ? undefined : { bot };
 }
 
+function parseReceipt(value: unknown): { received: true } | undefined {
+  return record(value)?.['received'] === true ? { received: true } : undefined;
+}
+
 export function createMarketplaceClient(options: {
   baseUrl: string;
   fetchImpl?: typeof fetch;
@@ -208,15 +219,31 @@ export function createMarketplaceClient(options: {
         { method: 'GET', headers: { accept: 'application/json' } },
         parseMarketplaceTopics,
       ),
-    submit: (url) =>
+    challenge: () =>
+      request(
+        '/v1/challenge',
+        { method: 'GET', headers: { accept: 'application/json' } },
+        parseChallenge,
+      ),
+    submit: (url, altcha) =>
       request(
         '/v1/submissions',
         {
           method: 'POST',
           headers: { accept: 'application/json', 'content-type': 'application/json' },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, altcha }),
         },
         parseMarketplaceSubmission,
+      ),
+    report: (id, options) =>
+      request(
+        `/v1/bots/${encodeURIComponent(id)}/reports`,
+        {
+          method: 'POST',
+          headers: { accept: 'application/json', 'content-type': 'application/json' },
+          body: JSON.stringify(options),
+        },
+        parseReceipt,
       ),
   };
 }

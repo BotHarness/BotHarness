@@ -2,8 +2,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import type { D1Database, D1PreparedStatement, D1Value } from '../src/d1.js';
 import type { GitHubRepository } from '../src/github.js';
-import { handlerForEnv, runScheduled } from '../src/worker.js';
+import { parseChallenge, solveChallenge } from '../../core/src/marketplace/altcha.js';
+import { handlerForEnv, runScheduled, type MarketEnv } from '../src/worker.js';
 import { createGitHubClient } from '../src/github.js';
+import type { ProtectionLimits } from '../src/protection.js';
+
+export const TEST_ADMIN_TOKEN = 'test-admin-token';
 
 export function createLocalD1(): { db: D1Database; sqlite: DatabaseSync } {
   const sqlite = new DatabaseSync(':memory:');
@@ -189,25 +193,55 @@ export function createFakeGitHub(): {
   };
 }
 
-export function createMarket(): {
+export const LENIENT_LIMITS: ProtectionLimits = {
+  submitPerHour: 1000,
+  reportPerHour: 1000,
+  repositoryCooldownMs: 0,
+  elevatedAfter: 1000,
+  highAfter: 2000,
+};
+
+export function createMarket(
+  options: {
+    limits?: Partial<ProtectionLimits>;
+    env?: Partial<Omit<MarketEnv, 'MARKET_DB'>>;
+    realChallenges?: boolean;
+  } = {},
+): {
   request: (path: string, init?: RequestInit) => Promise<Response>;
   github: ReturnType<typeof createFakeGitHub>;
   sqlite: DatabaseSync;
+  clock: { value: Date };
   publish: (repository: FakeRepository) => void;
   scheduled: (cron: string) => Promise<Record<string, unknown>>;
 } {
   const { db, sqlite } = createLocalD1();
+  const clock = { value: new Date('2026-10-05T12:00:00Z') };
   const github = createFakeGitHub();
   const client = createGitHubClient({
     token: 'test-token',
     fetchImpl: github.fetchImpl,
     apiBase: 'https://api.github.test',
   });
-  const handler = handlerForEnv({ MARKET_DB: db }, client);
+  const handler = handlerForEnv(
+    {
+      MARKET_DB: db,
+      ALTCHA_HMAC_KEY: 'test-altcha-key',
+      ADMIN_TOKEN: TEST_ADMIN_TOKEN,
+      ...options.env,
+    },
+    client,
+    {
+      now: () => clock.value,
+      limits: { ...LENIENT_LIMITS, ...options.limits },
+      ...(options.realChallenges === true ? {} : { challengeNumber: () => 0 }),
+    },
+  );
   return {
     request: (path, init) => handler(new Request(`https://market.test${path}`, init)),
     github,
     sqlite,
+    clock,
     scheduled: async (cron) => {
       const lines: string[] = [];
       await runScheduled(cron, { MARKET_DB: db }, client, (line) => lines.push(line));
@@ -218,10 +252,49 @@ export function createMarket(): {
   };
 }
 
-export function submit(market: ReturnType<typeof createMarket>, url: string): Promise<Response> {
-  return market.request('/v1/submissions', {
+type Market = ReturnType<typeof createMarket>;
+
+export async function solve(market: Market, ip = '203.0.113.1'): Promise<string> {
+  const response = await market.request('/v1/challenge', {
+    headers: { 'cf-connecting-ip': ip },
+  });
+  const challenge = parseChallenge(await response.json());
+  if (challenge === undefined) throw new Error('no challenge');
+  const payload = await solveChallenge(challenge);
+  if (payload === undefined) throw new Error('unsolved challenge');
+  return payload;
+}
+
+export function post(market: Market, path: string, body: unknown, ip = '203.0.113.1') {
+  return market.request(path, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ url }),
+    headers: { 'content-type': 'application/json', 'cf-connecting-ip': ip },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function submit(market: Market, url: string, ip?: string): Promise<Response> {
+  return post(market, '/v1/submissions', { url, altcha: await solve(market, ip) }, ip);
+}
+
+export async function report(
+  market: Market,
+  id: string,
+  ip?: string,
+  reason?: string,
+): Promise<Response> {
+  return post(
+    market,
+    `/v1/bots/${encodeURIComponent(id)}/reports`,
+    { altcha: await solve(market, ip), ...(reason === undefined ? {} : { reason }) },
+    ip,
+  );
+}
+
+export function admin(market: Market, body: unknown, token = TEST_ADMIN_TOKEN) {
+  return market.request('/v1/admin/blocklist', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
   });
 }

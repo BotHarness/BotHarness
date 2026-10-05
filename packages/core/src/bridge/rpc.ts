@@ -15,6 +15,7 @@ import type {
   MarketplaceQuery,
   MarketplaceTopic,
 } from '../marketplace/client.js';
+import type { AltchaChallenge } from '../marketplace/altcha.js';
 import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
@@ -849,8 +850,22 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.marketplaceList(query ?? {}));
   }
 
-  async marketplaceSubmit(url: string): Promise<{ bot: MarketplaceEntry }> {
-    return unwrapAsync(this.methods.marketplaceSubmit({ url }));
+  async marketplaceSubmit(url: string, altcha: string): Promise<{ bot: MarketplaceEntry }> {
+    return unwrapAsync(this.methods.marketplaceSubmit({ url, altcha }));
+  }
+
+  async marketplaceChallenge(): Promise<AltchaChallenge> {
+    return unwrapAsync(this.methods.marketplaceChallenge());
+  }
+
+  async marketplaceReport(
+    id: string,
+    altcha: string,
+    reason?: string,
+  ): Promise<{ received: true }> {
+    return unwrapAsync(
+      this.methods.marketplaceReport({ id, altcha, ...(reason === undefined ? {} : { reason }) }),
+    );
   }
 
   async marketplaceTopics(): Promise<MarketplaceTopic[]> {
@@ -984,6 +999,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'marketplaceSubmit',
   'marketplaceTopics',
   'marketplaceDetail',
+  'marketplaceChallenge',
+  'marketplaceReport',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

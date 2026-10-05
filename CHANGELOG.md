@@ -14,6 +14,7 @@ Add the first Bot Marketplace, preserve definite IM reply refusals, and move Dee
 - The Bot Marketplace can sort by recent update or stars, search names, descriptions, topics and READMEs (Chinese included) with relevance ranking, and filter by topic chips ([#918](https://github.com/BotHarness/BotHarness/issues/918)).
 - Opening a Bot Marketplace entry shows its README rendered like GitHub (relative images and links resolve at the listed commit; scripts, event handlers and unsafe URLs are removed), with stars, update date, topics, a GitHub link and Install ([#919](https://github.com/BotHarness/BotHarness/issues/919)).
 - Bot authors can commit `.botharness/bot.json` to share a display name, role badges and an avatar (a generated-avatar recipe or a committed PNG, JPEG or WebP image); the Bot Marketplace shows the name and badges, and installing applies the avatar from the cloned repository. Invalid descriptors are ignored ([#920](https://github.com/BotHarness/BotHarness/issues/920)).
+- Pasting a repository or reporting a Bot in the Bot Marketplace now passes a self-hosted proof-of-work check (ALTCHA, no third-party CAPTCHA) whose cost rises with recent volume, with per-source and per-repository rate limits. Each entry has a **Report** button with an optional reason; reports from enough distinct sources hide the entry until an administrator restores it, and blocked repositories stay out of the catalog. Raw IP addresses are never stored ([#921](https://github.com/BotHarness/BotHarness/issues/921)).
 
 ### Fixed
 

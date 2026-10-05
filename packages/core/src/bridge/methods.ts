@@ -39,6 +39,7 @@ import type {
   MarketplaceResult,
   MarketplaceTopic,
 } from '../marketplace/client.js';
+import type { AltchaChallenge } from '../marketplace/altcha.js';
 import {
   AssignmentReplyTargetError,
   type HumanAssignmentContext,
@@ -411,6 +412,8 @@ export interface BridgeMethods {
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
   marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
   marketplaceDetail(payload: unknown): Promise<BridgeResult<MarketplaceDetail>>;
+  marketplaceChallenge(): Promise<BridgeResult<AltchaChallenge>>;
+  marketplaceReport(payload: unknown): Promise<BridgeResult<{ received: true }>>;
 }
 
 export interface BridgeMethodsDeps {
@@ -1440,11 +1443,33 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return marketplaceCall((client) => client.detail(id.trim()));
     },
     marketplaceSubmit(payload) {
-      const url = asObject(payload)['url'];
+      const { url, altcha } = asObject(payload);
       if (typeof url !== 'string' || url.trim().length === 0) {
         return Promise.resolve(invalidInput('url is required'));
       }
-      return marketplaceCall((client) => client.submit(url.trim()));
+      if (typeof altcha !== 'string' || altcha.length === 0) {
+        return Promise.resolve(invalidInput('altcha is required'));
+      }
+      return marketplaceCall((client) => client.submit(url.trim(), altcha));
+    },
+    marketplaceChallenge() {
+      return marketplaceCall((client) => client.challenge());
+    },
+    marketplaceReport(payload) {
+      const { id, altcha, reason } = asObject(payload);
+      if (typeof id !== 'string' || id.trim().length === 0) {
+        return Promise.resolve(invalidInput('id is required'));
+      }
+      if (typeof altcha !== 'string' || altcha.length === 0) {
+        return Promise.resolve(invalidInput('altcha is required'));
+      }
+      if (reason !== undefined && typeof reason !== 'string') {
+        return Promise.resolve(invalidInput('invalid reason'));
+      }
+      const trimmed = reason?.trim() ?? '';
+      return marketplaceCall((client) =>
+        client.report(id.trim(), { altcha, ...(trimmed.length === 0 ? {} : { reason: trimmed }) }),
+      );
     },
     update(payload) {
       const slug = asSlug(payload);

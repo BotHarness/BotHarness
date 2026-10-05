@@ -7,6 +7,7 @@ import type {
   MarketplaceQuery,
   MarketplaceTopic,
 } from '../../../core/src/marketplace/client.js';
+import type { AltchaChallenge } from '../../../core/src/marketplace/altcha.js';
 import { loadAllBotPreview } from './bridge.js';
 import type { AllBotPreview, AllBotMention } from '../../../core/src/channels/all-bot-mention.js';
 
@@ -116,6 +117,8 @@ import {
   loadMarketplacePage,
   loadMarketplaceTopics,
   submitMarketplaceRepository,
+  loadMarketplaceChallenge,
+  reportMarketplaceBot,
   type UsageFilter,
   type UsageQueryResult,
   loadGroupProfileActivity,
@@ -454,7 +457,9 @@ export interface BridgeActions {
   ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   marketplaceList(query?: MarketplaceQuery): Promise<MarketplacePage>;
-  marketplaceSubmit(url: string): Promise<MarketplaceEntry>;
+  marketplaceChallenge(): Promise<AltchaChallenge>;
+  marketplaceSubmit(url: string, altcha: string): Promise<MarketplaceEntry>;
+  marketplaceReport(id: string, altcha: string, reason?: string): Promise<void>;
   marketplaceTopics(): Promise<MarketplaceTopic[]>;
   marketplaceDetail(id: string): Promise<MarketplaceDetail>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
@@ -1665,7 +1670,9 @@ export function createActions(
     overviewMemory: (after) => loadOverviewMemory(call, after),
     overviewUsage: (period, after) => loadOverviewUsage(call, period, after),
     marketplaceList: (query) => loadMarketplacePage(call, query),
-    marketplaceSubmit: (url) => submitMarketplaceRepository(call, url),
+    marketplaceChallenge: () => loadMarketplaceChallenge(call),
+    marketplaceSubmit: (url, altcha) => submitMarketplaceRepository(call, url, altcha),
+    marketplaceReport: (id, altcha, reason) => reportMarketplaceBot(call, id, altcha, reason),
     marketplaceTopics: () => loadMarketplaceTopics(call),
     marketplaceDetail: (id) => loadMarketplaceDetail(call, id),
     profileUsage: (channelId, filter) => loadProfileUsage(call, channelId, filter),

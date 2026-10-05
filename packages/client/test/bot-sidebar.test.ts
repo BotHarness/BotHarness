@@ -120,6 +120,12 @@ function stubActions(): BridgeActions {
     marketplaceSubmit: vi.fn(async () => {
       throw new Error('unexpected Marketplace submission');
     }),
+    marketplaceChallenge: vi.fn(async () => {
+      throw new Error('unused');
+    }),
+    marketplaceReport: vi.fn(async () => {
+      throw new Error('unused');
+    }),
     groupWakePolicies: vi.fn(async () => []),
     channelBridges: vi.fn(async (channelId) => ({ channelId, bridges: [], sources: [] })),
     channelBridge: vi.fn(async () => undefined),
