@@ -18,6 +18,7 @@
 ### Added
 
 - Human 可在 Profile 明确接收已授权 Slack 频道的普通文字，并选择现有数量／时间汇总或安全排队的逐条唤醒；新连接仍只收 @，重叠提及订阅不重复收件（[#837](https://github.com/BotHarness/BotHarness/issues/837)）。
+- Line 家族 PersonaBot 头像改为变形成与当前 DSH 工具对应的线条符号（与像素风同一套 16 个：读文件、新建、修改、执行命令、搜代码、搜网页、抓取、提问、待办、分身、工作流、目标、展示、待审批等），活动持续时保持符号（至少 0.5 秒），工具之间直接变形，回合结束后变回脸（[#838](https://github.com/BotHarness/BotHarness/issues/838)）。
 
 - PersonaBot 可通过 canonical 附件工具读取明确 @ 的 Slack 原消息文件，并用自己的绑定身份沿原生话题回传处理结果；发送完成前复查当前授权，来源详情保留安全文件类型和大小信息（[#831](https://github.com/BotHarness/BotHarness/issues/831)）。
 - Line 家族 PersonaBot 头像新增更多颜文字风格的眼睛（闪亮大眼、爱心眼、圆圈眼、竖椭圆眼、^ ^、半睁眼、下垂眼）、眉毛（粗眉、麻吕眉、细眉）和嘴（▽、露齿、小虎牙、小点嘴、嘟嘴、紧张锯齿、大笑张嘴），资料页编辑器提供 12 个只有五官的 Line 预设；头像不再画左上角的 !? 和漫画符号，资料页预览、顶部标题和置顶头像的活动指示与待处理数量移到名字后面，不再压在头像上（[#833](https://github.com/BotHarness/BotHarness/issues/833)）。
