@@ -7,8 +7,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   checkPackage,
   existingArtifact,
-  prereleaseVersion,
+  distTagFor,
   publicationOrder,
+  releaseVersion,
   verifyRelease,
 } from '../npm-prerelease.mjs';
 import { productImProvider } from '../product-artifacts.mjs';
@@ -16,14 +17,14 @@ import { productImProvider } from '../product-artifacts.mjs';
 const roots = [];
 afterEach(() => roots.splice(0).forEach((r) => rmSync(r, { recursive: true, force: true })));
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
-function fixture() {
+function fixture(productVersion = '0.1.0-alpha.1') {
   const root = mkdtempSync(join(tmpdir(), 'npm-prerelease-test-'));
   roots.push(root);
   const runtime = { runtimeFiles: 1, runtimeSha256: 'a'.repeat(64) };
   const artifacts = publicationOrder.map((name, index) => {
     const dir = join(root, String(index));
     mkdirSync(join(dir, 'package'), { recursive: true });
-    const version = name === productImProvider.name ? productImProvider.version : '0.1.0-alpha.1';
+    const version = name === productImProvider.name ? productImProvider.version : productVersion;
     const manifest = { name, version, license: 'MIT', main: './index.js' };
     if (name === 'deepseekbot') {
       manifest.dependencies = Object.fromEntries(
@@ -59,19 +60,19 @@ function fixture() {
   writeFileSync(
     join(root, 'artifacts.json'),
     JSON.stringify({
-      productVersion: '0.1.0-alpha.1',
+      productVersion,
       dsh: productImProvider.upstream.dsh,
       providerRuntime: runtime,
       artifacts,
     }),
   );
   const plan = {
-    productVersion: '0.1.0-alpha.1',
+    productVersion,
     sourceSha: 'b'.repeat(40),
     sourceDirty: false,
     providerSource: productImProvider.upstream.source,
     dsh: productImProvider.upstream.dsh,
-    distTag: 'next',
+    distTag: distTagFor(productVersion),
     publicationOrder,
     artifactsSha256: sha256(readFileSync(join(root, 'artifacts.json'))),
   };
@@ -80,10 +81,30 @@ function fixture() {
 }
 
 describe('reviewed npm prerelease', () => {
-  it.each(['1.0.0', '0.0.0-test.824', 'v0.1.0-alpha.1', 'latest', ''])(
+  it.each(['0.0.0', '0.0.0-test.824', 'v0.1.0-alpha.1', 'latest', ''])(
     'refuses unintended public version %s',
-    (v) => expect(() => prereleaseVersion(v)).toThrow(),
+    (v) => expect(() => releaseVersion(v)).toThrow(),
   );
+  it.each([
+    ['1.0.0', 'latest'],
+    ['1.2.3', 'latest'],
+    ['0.1.0-alpha.1', 'next'],
+    ['1.1.0-rc.1', 'next'],
+  ])('publishes %s to the %s dist-tag', (version, tag) => {
+    expect(releaseVersion(version)).toBe(version);
+    expect(distTagFor(version)).toBe(tag);
+  });
+  it('verifies a stable release planned for latest', () => {
+    const { root } = fixture('1.0.0');
+    const result = verifyRelease(root, { version: '1.0.0', clean: true });
+    expect(result.plan.distTag).toBe('latest');
+    expect(result.packages.at(-1).manifest.dependencies['@botharness/core']).toBe('1.0.0');
+  });
+  it('refuses a stable release planned for next', () => {
+    const { root, plan } = fixture('1.0.0');
+    writeFileSync(join(root, 'release-plan.json'), JSON.stringify({ ...plan, distTag: 'next' }));
+    expect(() => verifyRelease(root)).toThrow('Reviewed release plan');
+  });
   it('verifies real tarballs and dependency order with source/plan agreement', () => {
     const { root } = fixture();
     const result = verifyRelease(root, {

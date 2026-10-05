@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Advances the first PersonaBot workflow with Assignment delivery, shared motion controls, and a channel composer island.
+Nothing yet since 1.0.0.
+
+## [1.0.0] - 2026-10-05
+
+First stable DeepSeekBot release on npm: PersonaBots with their own identity, Git Memory, Groups, Assignments, pixel avatars, and Lark, Slack, Discord and WeChat identities, installed into DSH as one plugin.
 
 ### Breaking Changes
 

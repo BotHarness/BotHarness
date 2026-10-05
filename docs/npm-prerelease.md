@@ -24,6 +24,16 @@ release manifests and precompiled entries in a separate staging directory. It
 keeps MIT licenses, Provider attribution and `PROVENANCE.json`. No installed
 account, credential, Binding or Service Grant is shipped in a package.
 
+## Stable releases
+
+`0.1.0-alpha.1` is published. The same workflows now also release a stable SemVer such
+as `1.0.0`: the plan records dist-tag `latest` for a stable version and `next` for an
+alpha, beta or RC version, and the publisher requires the literal confirmation
+`publish <version> to <tag>` (for example `publish 1.0.0 to latest`). After a stable
+publication it also moves `next` on Core, Client and the product to the same version,
+so `deepseekbot@next` never lags behind `deepseekbot`. The Provider keeps its own
+independent version and is skipped when its exact bytes already exist.
+
 ## Prepare without credentials
 
 Use the **npm prerelease preparation** workflow manually from main. Enter the
@@ -74,7 +84,7 @@ commands, logs or issue comments. Do not retrieve BotUI's local token file.
 
 After Human approval, dispatch **publish reviewed npm prerelease** from main with
 the successful manual preparation run, source SHA, exact version, reviewed plan
-SHA-256 and the literal confirmation `publish <version> to next`. The source must
+SHA-256 and the literal confirmation `publish <version> to <tag>` (`latest` for a stable version, `next` for a prerelease). The source must
 still be current main for a new publication; if main advanced, prepare and review a new run.
 For an already started release, the explicit partial-recovery exception below retains the
 original approved source and bytes instead of rebuilding an immutable version.
@@ -83,7 +93,7 @@ The publisher checks the run's workflow identity, event, branch, conclusion and 
 downloads its artifacts, then verifies/dry-runs them without publish credentials.
 Only the final publishing step receives `NPM_TOKEN`. There is no rebuild and no
 push/tag/merge-triggered publish. Dependencies publish before the product, with
-public access and `next`, never `latest`. Registry integrity is read back after
+public access and the planned dist-tag. Registry integrity is read back after
 each send. A network or permission failure stops the run rather than blindly
 repeating an ambiguous publication.
 

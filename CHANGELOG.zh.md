@@ -5,7 +5,11 @@
 
 ## [Unreleased]
 
-推进首个 PersonaBot 工作流，交付 Assignment、共享动效控制与 Channel composer island。
+1.0.0 之后暂无变化。
+
+## [1.0.0] - 2026-10-05
+
+DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Memory、Group、Assignment、像素头像，以及飞书、Slack、Discord 和微信身份，作为一个插件装进 DSH。
 
 ### Breaking Changes
 
