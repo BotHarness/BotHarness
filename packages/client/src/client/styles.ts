@@ -1392,6 +1392,10 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   min-height: 120px;
   resize: vertical;
 }
+.bh-personabot-persona:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
 .bh-personabot-field {
   display: flex;
   flex-direction: column;
