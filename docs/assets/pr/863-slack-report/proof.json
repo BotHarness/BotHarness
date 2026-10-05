@@ -1,0 +1,118 @@
+{
+  "issue": 863,
+  "base": "4321fdb8807e69958754748f7dd92818c0e519ea",
+  "implementation": "0265419e7af9f988789e40c646e55b0cf387aa70",
+  "provider": {
+    "source": "a0300e97d7996a5de3a6da2f5b9f50224eb12bd9",
+    "dsh": "0.2.0-rc.1",
+    "runtimeFiles": 393,
+    "runtimeSha256": "caeb3c0bbed424012730d2a658d5f6ba86e6a892c007d8bbb7dd6def42d38544",
+    "upstreamReleased": false
+  },
+  "report": {
+    "id": "f7b27121-163c-4227-96d1-615f881ebdcb",
+    "requestId": "bh863_report_01",
+    "text": "[BH863 REPORT] Slack 晨报验收：今天完成了群收件、话题跟进与上下文读取。此报告仅发送到 Slack，后续在此话题 @Bot 提问即可。",
+    "state": "provider-accepted",
+    "receipt": {
+      "version": 1,
+      "messageId": "1791194942.009129",
+      "conversationId": "C0C6FPES0G5"
+    }
+  },
+  "sources": [
+    {
+      "sourceEventId": "im-b265d898f53c4abd773d029509e93555abf15d6295744ff3c5c8d4ded408539f",
+      "handledAt": "2026-10-05T10:13:00.107Z",
+      "native": {
+        "messageId": "1791195167.313289",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791194942.009129",
+        "rootId": "1791194942.009129"
+      },
+      "report": {
+        "intentId": "f7b27121-163c-4227-96d1-615f881ebdcb",
+        "text": "[BH863 REPORT] Slack 晨报验收：今天完成了群收件、话题跟进与上下文读取。此报告仅发送到 Slack，后续在此话题 @Bot 提问即可。",
+        "createdAt": "2026-10-05T10:09:00.018Z",
+        "accountName": "BotHarness Slack QA",
+        "targetName": "botharness-im-qa-802",
+        "messageId": "1791194942.009129",
+        "state": "provider-accepted"
+      },
+      "admissions": 1,
+      "placements": 0
+    },
+    {
+      "sourceEventId": "im-3f55ea1a5483d13210f679385d56de48d39af848fa10dc6bf7e079af656384f3",
+      "handledAt": "2026-10-05T10:23:55.041Z",
+      "native": {
+        "messageId": "1791195823.919119",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791194942.009129",
+        "rootId": "1791194942.009129"
+      },
+      "report": {
+        "intentId": "f7b27121-163c-4227-96d1-615f881ebdcb",
+        "text": "[BH863 REPORT] Slack 晨报验收：今天完成了群收件、话题跟进与上下文读取。此报告仅发送到 Slack，后续在此话题 @Bot 提问即可。",
+        "createdAt": "2026-10-05T10:09:00.018Z",
+        "accountName": "BotHarness Slack QA",
+        "targetName": "botharness-im-qa-802",
+        "messageId": "1791194942.009129",
+        "state": "provider-accepted"
+      },
+      "admissions": 1,
+      "placements": 0
+    }
+  ],
+  "replies": [
+    {
+      "id": "17c64f06-6e90-4241-9b6d-58a40e0c52a7",
+      "state": "provider-accepted",
+      "text": "BH863-REPORT-OK",
+      "receipt": {
+        "version": 1,
+        "messageId": "1791195176.998129",
+        "conversationId": "C0C6FPES0G5"
+      },
+      "route": {
+        "messageId": "1791195167.313289",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791194942.009129",
+        "rootId": "1791194942.009129"
+      }
+    },
+    {
+      "id": "20641afe-8a57-4ee8-bad1-25a97778db73",
+      "state": "provider-accepted",
+      "text": "BH863-FINAL-OK",
+      "receipt": {
+        "version": 1,
+        "messageId": "1791195832.092289",
+        "conversationId": "C0C6FPES0G5"
+      },
+      "route": {
+        "messageId": "1791195823.919119",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791194942.009129",
+        "rootId": "1791194942.009129"
+      }
+    }
+  ],
+  "assertions": {
+    "reportIntentCount": 1,
+    "ownMessageSourceCount": 0,
+    "localReportCopyCount": 0,
+    "noAtAdmissions": 0,
+    "sameRequestIdAfterRestart": "single existing report intent and native root"
+  },
+  "validation": {
+    "core": "2477 passed / 9 skipped",
+    "provider": "3561 passed",
+    "postMergeSlackAndDelivery": "91 passed",
+    "finalPinRegression": "8 passed"
+  }
+}
