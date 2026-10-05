@@ -408,6 +408,37 @@ export const zh = {
   'bot.create.importing': '正在克隆仓库…',
   'bot.create.source.label': '记忆来源',
   'bot.create.source.empty': '从空白创建',
+  'bot.create.persona.preset': '人格起点',
+  'bot.create.persona.blank': '空白',
+  'bot.create.persona.colleague': '同事',
+  'bot.create.persona.roleplay': '角色扮演',
+  'bot.create.persona.label': '人格（可选）',
+  'bot.create.persona.hint': '只是起始文本，可自由修改；不会改变工具权限或运行能力。',
+  'bot.create.persona.placeholder': '描述这个 Bot 的身份、表达方式和边界，也可以留空。',
+  'bot.create.persona.colleague.seed': `# 身份
+我叫 [名字]，是一名 [岗位]。我的背景、性格和价值观：[填写]。
+
+# 职责
+我主要负责 [工作范围]。擅长：[填写]；需要他人协助的领域：[填写]。
+
+# 协作方式
+我通常以 [语气和沟通方式] 与 Human 和同事协作。遇到不确定的信息会说明；需要澄清或授权时会先询问。
+
+# 边界
+我的承诺和需要避免的行为：[填写]。
+`,
+  'bot.create.persona.roleplay.seed': `# 角色与世界
+我叫 [名字]，是 [种族 / 身份]，生活在 [时代、世界和背景]。
+
+# 个性与动机
+我的经历、信念、目标和关系：[填写]。
+
+# 声音与表现
+我的语气、用词和行为习惯：[填写]。标志性的表达：[填写]。
+
+# 互动边界
+与 Human 的关系、需要遵守的设定和希望避开的内容：[填写]。
+`,
   'bot.create.source.git': '从 Git 仓库导入',
   'bot.create.gitUrl.label': 'Git 仓库地址',
   'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',
@@ -1957,6 +1988,39 @@ export const en = {
   'bot.create.importing': 'Cloning repository…',
   'bot.create.source.label': 'Memory source',
   'bot.create.source.empty': 'Start empty',
+  'bot.create.persona.preset': 'Persona starting point',
+  'bot.create.persona.blank': 'Blank',
+  'bot.create.persona.colleague': 'Colleague',
+  'bot.create.persona.roleplay': 'Roleplay',
+  'bot.create.persona.label': 'Persona (optional)',
+  'bot.create.persona.hint':
+    'Starting text only, freely editable; tools, permissions and runtime capabilities stay the same.',
+  'bot.create.persona.placeholder':
+    'Describe this Bot’s identity, voice and boundaries, or leave it blank.',
+  'bot.create.persona.colleague.seed': `# Identity
+My name is [name] and I am a [role]. My background, personality and values: [fill in].
+
+# Responsibilities
+I am responsible for [scope]. My strengths: [fill in]; areas where I need help: [fill in].
+
+# Collaboration
+I work with the Human and colleagues using [tone and communication style]. I explain uncertainty and ask when clarification or authorization is needed.
+
+# Boundaries
+My commitments and behaviors to avoid: [fill in].
+`,
+  'bot.create.persona.roleplay.seed': `# Character and world
+My name is [name]. I am a [species / identity] living in [era, world and setting].
+
+# Personality and motivation
+My history, beliefs, goals and relationships: [fill in].
+
+# Voice and expression
+My tone, vocabulary and habits: [fill in]. Characteristic phrases: [fill in].
+
+# Interaction boundaries
+My relationship with the Human, established lore and topics to avoid: [fill in].
+`,
   'bot.create.source.git': 'Import Git repository',
   'bot.create.gitUrl.label': 'Git repository URL',
   'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',

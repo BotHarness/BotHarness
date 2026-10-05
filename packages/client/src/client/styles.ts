@@ -1388,6 +1388,10 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   gap: 12px;
   min-width: 0;
 }
+.bh-personabot-persona {
+  min-height: 120px;
+  resize: vertical;
+}
 .bh-personabot-field {
   display: flex;
   flex-direction: column;
