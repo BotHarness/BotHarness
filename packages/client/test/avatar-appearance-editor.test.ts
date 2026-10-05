@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 import { AvatarAppearanceEditor } from '../src/client/avatar-appearance-editor.js';
 import {
+  AVATAR_HAIR_PARTS,
   AVATAR_PARTS,
   AVATAR_PRESETS,
   seededAvatarRecipe,
@@ -123,6 +124,27 @@ describe('Profile Avatar Appearance editing', () => {
       ).toBe('true');
       await click('[data-avatar-save]');
       expect(save).toHaveBeenLastCalledWith('dm-ada', AVATAR_PRESETS[2]);
+      await click('[data-avatar-edit]');
+      await click('[data-avatar-category="bangs"]');
+      expect(container.querySelectorAll('[data-avatar-option^="bangs:"]')).toHaveLength(
+        AVATAR_HAIR_PARTS.bangs.length,
+      );
+      await click('[data-avatar-option="bangs:sweep"]');
+      await click('[data-avatar-category="backHair"]');
+      await click('[data-avatar-option="backHair:twintails"]');
+      await click('[data-avatar-category="shape"]');
+      expect(container.querySelector('input[name="hairLength"]')).not.toBeNull();
+      await click('[data-avatar-save]');
+      expect(save).toHaveBeenLastCalledWith(
+        'dm-ada',
+        expect.objectContaining({
+          bangs: 'sweep',
+          backHair: 'twintails',
+          spacing: 0,
+          height: 0,
+          hairLength: 0,
+        }),
+      );
     } finally {
       await act(() => root.unmount());
       container.remove();

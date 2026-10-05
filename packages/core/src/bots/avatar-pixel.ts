@@ -345,6 +345,34 @@ function hair(
   }
 }
 
+function detailedHair(
+  recipe: Recipe,
+  s: number,
+  b: number,
+): { back: Mask; front: Mask; ties?: Point[]; bands?: boolean } {
+  const of = (style: Recipe['hair'] | undefined) =>
+    hair({ ...recipe, hair: style ?? 'none' }, s, b);
+  const bangs = of(recipe.bangs);
+  const side = of(recipe.sideHair);
+  const back = of(recipe.backHair);
+  const length = (recipe.hairLength ?? 0) * 2;
+  const lengthen =
+    (mask: Mask): Mask =>
+    (x, y) =>
+      mask(x, y > 18 ? Math.round(y - length) : y);
+  return {
+    front: (x, y) =>
+      y <= 7
+        ? bangs.front(x, y) || back.front(x, y)
+        : Math.abs(x + 0.5 - C - s) < 7
+          ? bangs.front(x, y)
+          : lengthen(side.front)(x, y),
+    back: length === 0 ? back.back : lengthen(back.back),
+    ...(back.ties ? { ties: back.ties } : {}),
+    ...(back.bands ? { bands: back.bands } : {}),
+  };
+}
+
 function outfit(recipe: Recipe, g: Grid, s: number): void {
   const shirt = recipe.shirtColor;
   const skin = recipe.skinColor;
@@ -675,7 +703,7 @@ export function pixelFigure(
         return front(x - Math.round(d * (1 + Math.max(0, y - 20) * 0.4) - d * tuck), y);
       }
     : front;
-  const masks = hair(recipe, s, b);
+  const masks = recipe.bangs === undefined ? hair(recipe, s, b) : detailedHair(recipe, s, b);
 
   const body = blank();
   outfit(recipe, body, s);
@@ -770,13 +798,15 @@ export function pixelFigure(
   const eyes = blank();
   const closed = blank();
   const glasses = blank();
-  const eyeTop = 15;
+  const sp = recipe.spacing ?? 0;
+  const h = recipe.height ?? 0;
+  const eyeTop = 15 + h;
   const eyeW = (side: -1 | 1) => (turned && Math.sign(fs) === side ? 3 : 4);
   const eyeX = (side: -1 | 1) => {
     const w = eyeW(side);
     return side < 0
-      ? Math.round(C + fs * 0.6) - 6 - (w === 3 ? -1 : 0)
-      : Math.round(C + fs * 0.6) + 2;
+      ? Math.round(C + fs * 0.6) - 6 - sp - (w === 3 ? -1 : 0)
+      : Math.round(C + fs * 0.6) + 2 + sp;
   };
   const left = { x: eyeX(-1), w: eyeW(-1) };
   const right = { x: eyeX(1), w: eyeW(1) };
@@ -815,24 +845,24 @@ export function pixelFigure(
     );
   }
   const cx = Math.round(C + fs * (turned ? 0.85 : 0.6));
-  if (recipe.nose === 'dot') sprite(features, ['N'], cx, 18, { N: shade(skin, 0.78) });
-  if (recipe.nose === 'button') sprite(features, ['N'], cx, 18, { N: shade(skin, 0.88) });
-  if (recipe.nose === 'line') sprite(features, ['N', 'N'], cx, 17, { N: shade(skin, 0.82) });
+  if (recipe.nose === 'dot') sprite(features, ['N'], cx, 18 + h, { N: shade(skin, 0.78) });
+  if (recipe.nose === 'button') sprite(features, ['N'], cx, 18 + h, { N: shade(skin, 0.88) });
+  if (recipe.nose === 'line') sprite(features, ['N', 'N'], cx, 17 + h, { N: shade(skin, 0.82) });
   const mouth = MOUTHS[recipe.mouth];
   const mx = C - 0.5 + fs * 0.6;
-  sprite(features, mouth, Math.round(mx - (mouth[0]!.length - 1) / 2), 20, {
+  sprite(features, mouth, Math.round(mx - (mouth[0]!.length - 1) / 2), 20 + h, {
     K: MOUTH,
     M: MOUTH_INSIDE,
     T: TONGUE,
     W: WHITE,
   });
   if (recipe.cheeks === 'blush') {
-    sprite(features, ['PP'], left.x - 1, 19, { P: mix(BLUSH, skin, 0.25) });
-    sprite(features, ['PP'], right.x + right.w - 1, 19, { P: mix(BLUSH, skin, 0.25) });
+    sprite(features, ['PP'], left.x - 1, 19 + h, { P: mix(BLUSH, skin, 0.25) });
+    sprite(features, ['PP'], right.x + right.w - 1, 19 + h, { P: mix(BLUSH, skin, 0.25) });
   }
   if (recipe.cheeks === 'freckles') {
-    sprite(features, ['F.F'], left.x, 19, { F: shade(skin, 0.7) });
-    sprite(features, ['F.F'], right.x + 1, 19, { F: shade(skin, 0.7) });
+    sprite(features, ['F.F'], left.x, 19 + h, { F: shade(skin, 0.7) });
+    sprite(features, ['F.F'], right.x + 1, 19 + h, { F: shade(skin, 0.7) });
   }
   const frame = (fx: number, w: number, round: boolean) =>
     paint(
