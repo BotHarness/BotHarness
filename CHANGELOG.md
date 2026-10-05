@@ -18,6 +18,7 @@ Add the first Bot Marketplace, preserve definite IM reply refusals, and move Dee
 
 ### Documentation
 
+- Qualified the development-source Discord mention/reply tracer with real native App/Bot identity and wrong-guild refusal, fresh recovery and screenshots; other capabilities and the product Provider pin remain separate ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
 - Moved the DeepSeekBot user guides to [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/) (Chinese at [/docs](https://deepseekbot.botharness.ai/docs/overview/)); every former botharness.ai guide URL redirects to the same guide there, and developer docs stay on botharness.ai ([#914](https://github.com/BotHarness/BotHarness/pull/914)).
 
 ## [1.0.0] - 2026-10-05
