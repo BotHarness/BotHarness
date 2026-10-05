@@ -364,6 +364,8 @@
 
 ### Fixed
 
+- Human 取消正在运行的 Assignment 后，Bot Inbox 会收到一条 Host 来源通知，保留原报告与原生 Turn 引用且不自动重跑；已处理事实在重启后保留（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0045](docs/adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)）。
+
 - 修复 Slack 频道连接器与成员提醒误显示 Lark 专属文案或默认值 ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 
 - Assignment 答复在原生 Inbox 接收后才清除原问题；可证的投递准备失败保留重试入口，结果不明仍显示待修复，旧答复不会清除新问题（[#812](https://github.com/BotHarness/BotHarness/issues/812)）。

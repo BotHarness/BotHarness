@@ -193,6 +193,7 @@ function isReportState(value: string): value is AssignmentReportState {
 function requireCompletedTurn(
   handle: AgentHandle,
   fromSeq: SessionLogOffset,
+  cancelledTurn?: AssignmentAgentRun['cancelledTurn'],
 ): { turn: number; endSeq: number } {
   const turnEnd = handle.agent.session
     .snapshotEvents(fromSeq)
@@ -202,6 +203,8 @@ function requireCompletedTurn(
   }
   const reason = turnEnd.data.reason;
   if (reason.kind === 'completed') return { turn: turnEnd.data.turn, endSeq: turnEnd.seq };
+  if (reason.kind === 'aborted' && reason.reason.kind === 'user')
+    cancelledTurn?.({ turn: turnEnd.data.turn, endSeq: turnEnd.seq });
   if (reason.kind === 'error') {
     const routeNeedsRepair =
       [
@@ -407,7 +410,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       accepted?.();
       await handle.agent.whenIdle();
       if (this.#stopping.has(run.sessionId)) return;
-      const completion = requireCompletedTurn(handle, fromSeq);
+      const completion = requireCompletedTurn(handle, fromSeq, run.cancelledTurn);
       run.completedTurn?.(completion);
       if (run.resume === true) return;
       if (!entry.reported) {

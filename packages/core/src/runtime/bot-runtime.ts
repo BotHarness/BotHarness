@@ -268,6 +268,7 @@ export interface AssignmentAgentRun {
   modelRoute?: ModelRoute;
   report(input: AssignmentReportInput, execution?: { turn: number }): Promise<AssignmentReport>;
   completedTurn?(execution: { turn: number; endSeq: number }): void;
+  cancelledTurn?(execution: { turn: number; endSeq: number }): void;
 }
 
 export type AssignmentRequestDelivery =
@@ -752,7 +753,7 @@ function renderInbox(units: InboxUnit[]): string {
     )
       return `- ${target} (${facts})${lifecycle}`;
     if (unit.sourceKind === 'assignment-lifecycle') {
-      return `- ${target} (${facts}) Host lifecycle notice: ${unit.summary}`;
+      return `- ${target} (${facts}) Host lifecycle notice [Source Event ${unit.sourceEventId}]: ${unit.summary}`;
     }
     return `- ${target} (${facts}) reported [Source Event ${unit.sourceEventId}]: ${unit.summary}${lifecycle}`;
   });
@@ -4444,6 +4445,8 @@ class BotRuntimeImplementation implements BotRuntime {
           this.#recordReport(bot.slug, sessionId, report, execution),
         completedTurn: (execution) =>
           this.#recordCompletedAssignment(bot.slug, sessionId, execution),
+        cancelledTurn: (execution) =>
+          this.#recordCancelledAssignment(bot.slug, sessionId, execution),
       }),
     );
     return { outcome: 'created', assignment: this.#requireAssignmentSummary(bot.slug, sessionId) };
@@ -4523,6 +4526,8 @@ class BotRuntimeImplementation implements BotRuntime {
         this.#recordReport(bot.slug, input.sessionId, report, execution),
       completedTurn: (execution) =>
         this.#recordCompletedAssignment(bot.slug, input.sessionId, execution),
+      cancelledTurn: (execution) =>
+        this.#recordCancelledAssignment(bot.slug, input.sessionId, execution),
     };
     let delivery: AssignmentRequestDelivery;
     try {
@@ -4786,6 +4791,83 @@ class BotRuntimeImplementation implements BotRuntime {
     const assignment = this.getAssignment(botSlug, sessionId);
     if (assignment === undefined) throw new Error(`Unknown Assignment Session: ${sessionId}`);
     return assignment;
+  }
+
+  #recordCancelledAssignment(
+    botSlug: string,
+    sessionId: string,
+    execution: { turn: number; endSeq: number },
+  ): void {
+    if (
+      !Number.isSafeInteger(execution.turn) ||
+      execution.turn < 1 ||
+      !Number.isSafeInteger(execution.endSeq) ||
+      execution.endSeq < 0
+    )
+      throw new Error('Invalid native Assignment cancellation');
+    const at = this.#now().toISOString();
+    const created = this.#database.transaction(
+      (database) => {
+        const assignment = database
+          .prepare(`
+          SELECT 1 FROM assignments WHERE bot_slug = ? AND session_id = ?
+            AND stop_state = 'running'
+        `)
+          .get(botSlug, sessionId);
+        if (assignment === undefined) return false;
+        const existing = database
+          .prepare(`
+          SELECT 1 FROM source_events WHERE bot_slug = ? AND assignment_session_id = ?
+            AND source_kind = 'assignment-lifecycle'
+            AND json_extract(payload_json, '$.assignmentLifecycle.turn') = ?
+            AND json_extract(payload_json, '$.assignmentLifecycle.cause') = 'native-turn-aborted'
+        `)
+          .get(botSlug, sessionId, execution.turn);
+        if (existing !== undefined) return false;
+        const id = this.#createEventId();
+        const rule = this.#sourcePolicy.resolveIn(database, botSlug, 'assignment-lifecycle');
+        database
+          .prepare(`
+          UPDATE assignments SET activity = 'error', continuity_key = NULL, updated_at = ?
+            WHERE bot_slug = ? AND session_id = ? AND stop_state = 'running'
+        `)
+          .run(at, botSlug, sessionId);
+        database
+          .prepare(`
+          INSERT INTO source_events (source_event_id, source_kind, bot_slug, assignment_session_id,
+            body, created_at, handled_at, attempt_state, expects_reply, payload_json)
+          VALUES (?, 'assignment-lifecycle', ?, ?, ?, ?, ?, 'handled', 0, ?)
+        `)
+          .run(
+            id,
+            botSlug,
+            sessionId,
+            'DSH confirmed Assignment Turn ' +
+              execution.turn +
+              ' was cancelled. Execution did not complete successfully.',
+            at,
+            at,
+            JSON.stringify({
+              author: { kind: 'system' },
+              assignmentLifecycle: {
+                state: 'cancelled',
+                cause: 'native-turn-aborted',
+                turn: execution.turn,
+                endSeq: execution.endSeq,
+              },
+            }),
+          );
+        database
+          .prepare(`
+          INSERT INTO inbox_admissions (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode)
+          VALUES (?, ?, 'assignment-lifecycle', ?, ?)
+        `)
+          .run(id, botSlug, rule.revision, rule.wake);
+        return rule.wake === 'immediate';
+      },
+      ['assignments', 'source-event', 'bot-inbox'],
+    );
+    if (created) this.#scheduleHarvest(botSlug);
   }
 
   #recordCompletedAssignment(
