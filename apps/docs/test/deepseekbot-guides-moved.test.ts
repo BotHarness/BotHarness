@@ -55,10 +55,9 @@ describe("DeepSeekBot guides on the product site", () => {
   });
 
   it("stays within the Cloudflare limit of 100 dynamic redirects", () => {
-    const dynamic = rules.filter((rule) => {
-      const [from = "", to = ""] = rule.split(/\s+/);
-      return /[*:]/.test(from) || /^https?:\/\//.test(to);
-    });
-    expect(dynamic.length).toBeLessThanOrEqual(100);
+    // Cloudflare counts every rule from the first splat or placeholder onward as dynamic.
+    const firstWildcard = rules.findIndex((rule) => /[*:]/.test(rule.split(/\s+/)[0] ?? ""));
+    const dynamic = firstWildcard === -1 ? 0 : rules.length - firstWildcard;
+    expect(dynamic).toBeLessThanOrEqual(100);
   });
 });
