@@ -8,7 +8,12 @@ import type {
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
-import type { MarketplaceEntry, MarketplacePage } from '../marketplace/client.js';
+import type {
+  MarketplaceEntry,
+  MarketplacePage,
+  MarketplaceQuery,
+  MarketplaceTopic,
+} from '../marketplace/client.js';
 import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
@@ -839,12 +844,16 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.developerModeSet({ enabled }));
   }
 
-  async marketplaceList(cursor?: string): Promise<MarketplacePage> {
-    return unwrapAsync(this.methods.marketplaceList({ cursor }));
+  async marketplaceList(query?: MarketplaceQuery): Promise<MarketplacePage> {
+    return unwrapAsync(this.methods.marketplaceList(query ?? {}));
   }
 
   async marketplaceSubmit(url: string): Promise<{ bot: MarketplaceEntry }> {
     return unwrapAsync(this.methods.marketplaceSubmit({ url }));
+  }
+
+  async marketplaceTopics(): Promise<MarketplaceTopic[]> {
+    return unwrapAsync(this.methods.marketplaceTopics());
   }
 }
 
@@ -968,6 +977,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'botAppearanceSet',
   'marketplaceList',
   'marketplaceSubmit',
+  'marketplaceTopics',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

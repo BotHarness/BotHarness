@@ -94,6 +94,38 @@ describe('Bot Marketplace bridge', () => {
     expect(page).toMatchObject({ ok: true, value: { bots: [{ fullName: 'alice/one' }] } });
   });
 
+  it('passes sort, search and topic through and lists topic counts', async () => {
+    const market = createMarket();
+    const methods = methodsWith(marketClient(market));
+    for (const repository of [
+      fakeRepository({ name: 'reader', stars: 40, topics: ['botharness-bot', 'research'] }),
+      fakeRepository({ name: 'writer', stars: 5, description: 'Drafts essays' }),
+    ]) {
+      market.publish(repository);
+      await methods.marketplaceSubmit({ url: repository.htmlUrl });
+    }
+
+    expect(await methods.marketplaceList({ sort: 'stars' })).toMatchObject({
+      ok: true,
+      value: { bots: [{ fullName: 'alice/reader' }, { fullName: 'alice/writer' }] },
+    });
+    expect(await methods.marketplaceList({ q: ' essays ' })).toMatchObject({
+      ok: true,
+      value: { bots: [{ fullName: 'alice/writer' }] },
+    });
+    expect(await methods.marketplaceList({ topic: 'research' })).toMatchObject({
+      ok: true,
+      value: { bots: [{ fullName: 'alice/reader' }] },
+    });
+    expect(await methods.marketplaceTopics()).toEqual({
+      ok: true,
+      value: [
+        { topic: 'research', count: 1 },
+        { topic: 'writing', count: 1 },
+      ],
+    });
+  });
+
   it('returns the Worker refusal code and logs a structured line', async () => {
     const market = createMarket();
     market.publish(fakeRepository({ topics: [] }));
@@ -136,6 +168,10 @@ describe('Bot Marketplace bridge', () => {
       error: { code: 'invalid-input' },
     });
     expect(await methods.marketplaceList({ cursor: 3 })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+    expect(await methods.marketplaceList({ sort: 'random' })).toMatchObject({
       ok: false,
       error: { code: 'invalid-input' },
     });
