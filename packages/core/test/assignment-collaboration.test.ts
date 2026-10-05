@@ -2177,6 +2177,93 @@ describe('Assignment collaboration', () => {
     }
   });
 
+  it('retains failed report repair across restart and excludes it from later Human harvests', async () => {
+    const { runtime, agents, owner, home, channels, admit, close } = await setup();
+    let repairSourceId = '';
+    let repairSource;
+    try {
+      await admit('Start research', 'human-start');
+      const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'progress', summary: 'Report needing review' });
+      vi.spyOn(agents, 'runOrchestrator').mockImplementationOnce(async (turn) => {
+        expect(turn.inbox).toContain('Report needing review');
+        await turn.channels.send({ body: 'Report read; execution interrupted' });
+        throw new Error('Orchestrator interrupted after Channel side effect');
+      });
+      await expect(admit('Read the current report', 'human-read')).rejects.toThrow(
+        'Orchestrator interrupted after Channel side effect',
+      );
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(owner, 'failed-report-repair-query'),
+        channels,
+      );
+      repairSource = attention
+        .list({ botSlug: 'ada' })
+        .items.find((item) => item.sourceKind === 'assignment-report');
+      expect(repairSource).toMatchObject({
+        state: 'needs-repair',
+        summary: 'Report needing review',
+        sourceAvailable: true,
+      });
+      repairSourceId = repairSource!.id;
+      expect(repairSource!.handledAt).toBeUndefined();
+      await run.report({ state: 'progress', summary: 'Later informational update' });
+      agents.finish(created.assignment.sessionId);
+      await runtime.whenIdle();
+    } finally {
+      await close();
+      owner.close();
+    }
+
+    const reopenedOwner = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    const reopenedAgents = new ManualAgents();
+    const reopenedChannels = createChannelStore({
+      rootDir: join(home, 'channels'),
+      now: FIXED_NOW,
+    });
+    const reopenedRuntime = createBotRuntime({
+      database: reopenedOwner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: reopenedChannels,
+      agents: reopenedAgents,
+      now: FIXED_NOW,
+    });
+    try {
+      await reopenedRuntime.whenIdle();
+      expect(reopenedAgents.allInboxTurns).toEqual([]);
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(reopenedOwner, 'failed-report-repair-reopened'),
+        reopenedChannels,
+      );
+      expect(
+        attention.list({ botSlug: 'ada' }).items.find((item) => item.id === repairSourceId),
+      ).toEqual(repairSource);
+      const admission = reopenedRuntime.admitDmMessage({
+        channelId: reopenedChannels.getOrCreateDm('ada', 'Ada')!.id,
+        messageId: 'human-after-restart',
+        body: 'Read the new information',
+      });
+      if (!admission.admitted) throw new Error('admission rejected');
+      await admission.settled;
+      expect(reopenedAgents.allInboxTurns).toHaveLength(1);
+      expect(reopenedAgents.allInboxTurns[0]).toContain('Later informational update');
+      expect(reopenedAgents.allInboxTurns[0]).not.toContain('Report needing review');
+      const final = attention.list({ botSlug: 'ada' }).items;
+      expect(final.find((item) => item.id === repairSourceId)).toEqual(repairSource);
+      expect(final.find((item) => item.summary === 'Later informational update')).toMatchObject({
+        state: 'handled',
+      });
+    } finally {
+      await reopenedRuntime.close();
+      reopenedOwner.close();
+    }
+  });
+
   it('shows an interrupted observed report as needs-repair instead of waking it twice', async () => {
     const { agents, owner, home, admit, close } = await setup();
     await admit('Start research', 'human-1');
