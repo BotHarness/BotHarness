@@ -27,10 +27,70 @@ const VIEW_H = 180;
 const PIXEL_RATIO = 4;
 const TILE = 16;
 const FPS = 60;
-const TOTAL = 7200;
+const TOTAL = 10920;
 const BAR = 120; // 120 BPM in 4/4: one bar is 120 frames
 const params = new URLSearchParams(location.search);
 if (params.get('debug') === '0') DEBUG_FRAMES = false;
+
+// ----- localization: every on-screen sentence lives here --------------------------
+const LANG = params.get('lang') === 'en' ? 'en' : 'zh';
+const STR = {
+  welcome: { zh: '欢迎来到 DeepSeekBot 小镇。这里的每个 PersonaBot，都有自己的身份、人格和记忆。', en: 'Welcome to DeepSeekBot Town. Every PersonaBot here has its own identity, persona and memory.' },
+  meet: { zh: '认识一下：Mira 负责研究，Theo 负责布局，Nova 负责实现。', en: 'Meet Mira on research, Theo on layout and Nova on building.' },
+  miraNote: { zh: '今天的笔记，先写进我的 Memory。', en: "Today's notes go straight into my Memory." },
+  files1: { zh: 'Memory 就是一个普通的 Git 工作树。笔记、人格、代码都是文件。', en: 'Memory is a plain Git working tree. Notes, persona and code are all just files.' },
+  files2: { zh: 'Bot 用文件、搜索、Shell 和 Git 探索它；你也能用自己的编辑器打开。', en: 'Bots explore it with files, search, shell and Git. You can open it in your own editor too.' },
+  evo1: { zh: 'Memory evolution：记忆的每一次变化，都是一次提交。', en: 'Memory evolution: every change to a memory is a commit.' },
+  evo2: { zh: '点开 commit，逐行 diff 一目了然；分支与合并画成一张 graph。', en: 'Open a commit for a line-by-line diff. Branches and merges become a graph.' },
+  evo3: { zh: '还没提交的改动，也已经是当前记忆。', en: 'Uncommitted changes already count as current memory.' },
+  rewind1: { zh: '想回到过去？在任意一条记忆上切出新分支，从那里继续。', en: 'Want to go back? Branch off from any memory and carry on from there.' },
+  rewind2: { zh: '恢复检查点保存分支、提交和工作树，确认后即可找回。', en: 'Recovery checkpoints keep branches, commits and the working tree, ready to restore.' },
+  import1: { zh: '创建 Bot 时，已经可以导入一个 Git 仓库，带上它的文件和历史。', en: 'You can already create a bot from an existing Git repository, files and history included.' },
+  publish1: { zh: '接下来：把 Bot 的 Soul，也就是人格和选定的记忆，Publish 成一份 SoulSnapshot。', en: "Next: publish a bot's Soul, its persona and chosen memories, as a SoulSnapshot." },
+  publish2: { zh: 'Mira 的 Soul 化成一束光，飞向 GitHub。', en: "Mira's Soul turns into a beam of light and heads for GitHub." },
+  publish3: { zh: '一份不可变的 SoulSnapshot，从此有了自己的 Listing 和 Version。', en: 'An immutable SoulSnapshot, now with its own Listing and Version.' },
+  import2: { zh: '世界各地的人，都能 Import 它。', en: 'People all over the world can import it.' },
+  import3: { zh: '每一次 Import 都是一份新的副本：同一个起点，新的人生。', en: 'Every import is a fresh copy: the same starting point, a new life.' },
+  worlds1: { zh: '从同一个起点出发，每条分支都走出自己的世界线。', en: 'From one origin, every branch walks its own world line.' },
+  worlds2: { zh: '在不同的人手里，她成了主厨、领航员、学者和老师，记忆也各自生长。', en: 'In different hands she becomes a chef, a navigator, a scholar and a teacher, each memory growing its own way.' },
+  marketPlanned: { zh: 'Bot Marketplace，正在规划中。', en: 'The Bot Marketplace is on its way.' },
+  world0: { zh: '主厨 Mira', en: 'Chef Mira' },
+  world1: { zh: '领航员 Mira', en: 'Navigator Mira' },
+  world2: { zh: '宫廷学者 Mira', en: 'Court scholar Mira' },
+  world3: { zh: '老师 Mira', en: 'Teacher Mira' },
+  connect1: { zh: '连接器：让你的 bot 用自己的身份，出现在团队常用的地方。', en: 'Connectors let your bots show up where your team already talks, under their own identities.' },
+  connect2: { zh: 'Lark / 飞书、Slack 已经接通，Discord 还在路上。', en: 'Lark and Slack are connected. Discord is on its way.' },
+  lark1: { zh: '把 Lark 群接进 Group：明确授权，按群开关收件。', en: 'Bring a Lark group into a Group: explicit authorization, intake switched per group.' },
+  lark2: { zh: '每个成员 Bot 用自己的身份收件和回复，发言身份与收件路径分开管理。', en: 'Each member bot receives and replies as itself; speaking identity and intake routes are managed separately.' },
+  slack1: { zh: 'Slack 也一样：每个 Bot 绑定独立的 Slack 身份。', en: 'Slack works the same way: every bot binds its own Slack identity.' },
+  slack2: { zh: '频道连接器决定哪些消息进来，送进谁的 Inbox。', en: "Channel connectors decide which messages come in, and whose Inbox they land in." },
+  group1: { zh: '在 Group 里，人和 bots 一起讨论，每条消息都保留各自的身份。', en: 'In a Group, people and bots talk together, and every message keeps its own identity.' },
+  group2: { zh: '@ 谁就唤醒谁；每个成员也能按自己的方式收件。', en: '@ a member to wake them. Everyone else gets messages the way they chose.' },
+  larkAt1: { zh: '外部消息也能进来：Lark 话题里 @ 了 Nova。', en: 'Outside messages come in too: someone @mentions Nova in a Lark topic.' },
+  larkAt2: { zh: 'Nova 读完上下文，用自己的 Lark 身份回到原话题。', en: 'Nova reads the context and answers in the same topic with its own Lark identity.' },
+  zip1: { zh: 'Slack 话题里发来一个 ZIP。', en: 'A ZIP arrives in a Slack thread.' },
+  zip2: { zh: 'Bot 读取附件、在授权的工作区处理，再把结果文件发回同一个话题。', en: 'The bot reads the attachment, works on it in an authorized workspace, and sends the result back to the same thread.' },
+  morph1: { zh: '工作时，头像随状态变形：搜索、写代码、读文件、思考……', en: 'While they work, avatars morph with their state: searching, coding, reading, thinking...' },
+  morph2: { zh: '学到的东西，顺手写进自己的 Memory。', en: 'Whatever they learn goes straight into their own Memory.' },
+  rp0: { zh: '换个舞台：写好 Persona，他们就能扮演小说和游戏里的角色。', en: 'Change the stage: give them a Persona and they play characters from novels and games.' },
+  rp1: { zh: '前面就是史莱姆洞窟，跟紧我！', en: 'The slime cave is just ahead. Stay close!' },
+  rp2: { zh: '古书上说，它怕光。我来照亮。', en: 'The old books say it fears light. Let me shine one.' },
+  rp3: { zh: '我把这段冒险写成歌，记进日记里。', en: "I'll turn this adventure into a song and write it in my diary." },
+  rp4: { zh: '宝箱打开了！下一章去哪？', en: 'The chest is open! Where does the next chapter go?' },
+  rp5: { zh: '每一段故事，都留在他们各自的记忆里。', en: 'Every story stays in their own memories.' },
+  spkKnight: { zh: 'NOVA · 骑士', en: 'NOVA · KNIGHT' },
+  spkSage: { zh: 'MIRA · 贤者', en: 'MIRA · SAGE' },
+  spkBard: { zh: 'THEO · 吟游诗人', en: 'THEO · BARD' },
+  city1: { zh: '一整座城，住满了各有身份的 bots。', en: 'A whole town of bots, each with an identity of its own.' },
+  city2: { zh: '有人掌勺，有人打铁，有人读书，有人出海。', en: 'Some cook, some forge, some read, some head out to sea.' },
+  city3: { zh: '每一个都带着自己的记忆，和你一起做事。', en: 'Each carries its own memory, and works alongside you.' },
+  planned: { zh: '规划中', en: 'PLANNED' },
+  openSource: { zh: '开源 · MIT · 基于 DeepSeek Harness 生态', en: 'Open source · MIT · Built on the DeepSeek Harness ecosystem' },
+  slogan: { zh: '一组有各自身份、人格和记忆的 bots，一起做事。', en: 'A group of bots, each with its own identity, persona and memory, working together.' },
+};
+const T = (key) => STR[key][LANG];
+const TYPE_FRAMES = LANG === 'en' ? 1 : 2; // frames per typed character
+const DIALOG_H = LANG === 'en' ? 46 : 40; // English narration can need a third line
 
 // ----- palette -------------------------------------------------------------
 const INK = '#2a2230';
@@ -537,7 +597,7 @@ const plannedSignTex = canvasTex(64, 44, (ctx) => {
   rect(ctx, 2, 0, 60, 24, PAL.amber);
   rect(ctx, 0, 2, 64, 20, PAL.amber);
   rect(ctx, 4, 4, 56, 16, '#fff4d6');
-  crispText(ctx, '规划中', 9, 12, 15, INK, 90);
+  { const px = Math.min(15, Math.floor((50 / measureCJK(T('planned'), 15)) * 15)); const w = measureCJK(T('planned'), px); crispText(ctx, T('planned'), Math.round(32 - w / 2), 12, px, INK, 90); }
 });
 const crateTex = canvasTex(22, 18, (ctx) => {
   box(ctx, 0, 0, 22, 18, PAL.wood);
@@ -651,6 +711,7 @@ const glowRingFrames = [8, 14, 20, 26].map((r) => canvasTex(r * 2 + 4, r * 2 + 4
 const glowMesh = sprite(glowRingFrames[0], { ax: 0.5, ay: 0.5 });
 
 // small props
+const puffTex = canvasTex(7, 6, (ctx) => { disc(ctx, 3, 3, 2, '#e9e6ef'); rect(ctx, 2, 2, 1, 1, '#ffffff'); });
 const sparkTex = canvasTex(5, 5, (ctx) => { rect(ctx, 2, 0, 1, 5, '#fff2a0'); rect(ctx, 0, 2, 5, 1, '#fff2a0'); rect(ctx, 2, 2, 1, 1, '#ffffff'); });
 const sparks = Array.from({ length: 10 }, () => sprite(sparkTex, { ax: 0.5, ay: 0.5 }));
 const noteTex = canvasTex(11, 13, (ctx) => {
@@ -920,62 +981,62 @@ function cameraAt(f) {
 const NARRATOR = 'DEEPSEEKBOT';
 const BEATS = [
   { a: 90, b: 600, mode: 'town', lines: [
-    [200, NARRATOR, '欢迎来到 DeepSeekBot 小镇。这里的每个 PersonaBot，都有自己的身份、人格和记忆。'],
-    [420, NARRATOR, '认识一下：Mira 负责研究，Theo 负责布局，Nova 负责实现。'],
+    [200, NARRATOR, T('welcome')],
+    [420, NARRATOR, T('meet')],
   ] },
-  { a: 600, b: 720, mode: 'town', lines: [[610, 'MIRA', '今天的笔记，先写进我的 Memory。']] },
+  { a: 600, b: 720, mode: 'town', lines: [[610, 'MIRA', T('miraNote')]] },
   { a: 720, b: 1080, mode: 'split', ui: 'files', crops: [[720, 720, 480, 1440], [800, 1250, 175, 420]], hl: [[830, 1070, 1150, 118, 270, 82]], lines: [
-    [730, NARRATOR, 'Memory 就是一个普通的 Git 工作树。笔记、人格、代码都是文件。'],
-    [900, NARRATOR, 'Bot 用文件、搜索、Shell 和 Git 探索它；你也能用自己的编辑器打开。'],
+    [730, NARRATOR, T('files1')],
+    [900, NARRATOR, T('files2')],
   ] },
   { a: 1080, b: 1560, mode: 'gal', ui: 'evo', crops: [[1080, 640, 400, 1280], [1170, 620, 220, 700], [1310, 1065, 370, 620], [1430, 1090, 190, 470]], hl: [[1200, 1300, 293, 232, 655, 74], [1340, 1425, 975, 240, 295, 265], [1450, 1550, 970, 132, 300, 102]], lines: [
-    [1090, NARRATOR, 'Memory evolution：记忆的每一次变化，都是一次提交。'],
-    [1200, NARRATOR, '点开 commit，逐行 diff 一目了然；分支与合并画成一张 graph。'],
-    [1430, NARRATOR, '还没提交的改动，也已经是当前记忆。'],
+    [1090, NARRATOR, T('evo1')],
+    [1200, NARRATOR, T('evo2')],
+    [1430, NARRATOR, T('evo3')],
   ] },
   { a: 1560, b: 1800, mode: 'split', ui: 'evo', crops: [[1560, 760, 140, 620], [1680, 1110, 470, 380]], hl: [[1580, 1675, 507, 10, 440, 36], [1700, 1795, 968, 528, 302, 26]], lines: [
-    [1570, NARRATOR, '想回到过去？在任意一条记忆上切出新分支，从那里继续。'],
-    [1690, NARRATOR, '恢复检查点保存分支、提交和工作树，确认后即可找回。'],
+    [1570, NARRATOR, T('rewind1')],
+    [1690, NARRATOR, T('rewind2')],
   ] },
   { a: 1800, b: 2160, mode: 'town', lines: [
-    [1810, NARRATOR, '创建 Bot 时，可以直接导入一个已有的 Git 仓库，带上别人的文件和历史。'],
-    [1990, NARRATOR, '以后还能在 Marketplace 挑选别人做好的 Bot，像 clone 一个仓库那样用起来。'],
-  ], tag: [1990, 2160] },
+    [1810, NARRATOR, T('import1')],
+    [1990, NARRATOR, T('publish1')],
+  ] },
   { a: 2160, b: 2520, mode: 'town', lines: [
-    [2180, NARRATOR, '连接器：让你的 bot 用自己的身份，出现在团队常用的地方。'],
-    [2350, NARRATOR, 'Lark / 飞书、Slack 已经接通，Discord 还在路上。'],
+    [2180, NARRATOR, T('connect1')],
+    [2350, NARRATOR, T('connect2')],
   ] },
   { a: 2520, b: 2940, mode: 'split', ui: 'lark', crops: [[2520, 441, 413, 882], [2610, 440, 600, 620]], hl: [[2640, 2930, 62, 585, 760, 62]], lines: [
-    [2530, NARRATOR, '把 Lark 群接进 Group：明确授权，按群开关收件。'],
-    [2720, NARRATOR, '每个成员 Bot 用自己的身份收件和回复，发言身份与收件路径分开管理。'],
+    [2530, NARRATOR, T('lark1')],
+    [2720, NARRATOR, T('lark2')],
   ] },
   { a: 2940, b: 3360, mode: 'split', ui: 'slack', crops: [[2940, 615, 410, 1230], [3020, 590, 320, 640], [3180, 590, 560, 640]], hl: [[3040, 3170, 290, 262, 600, 90], [3200, 3350, 292, 455, 600, 230]], lines: [
-    [2950, NARRATOR, 'Slack 也一样：每个 Bot 绑定独立的 Slack 身份。'],
-    [3150, NARRATOR, '频道连接器决定哪些消息进来，送进谁的 Inbox。'],
+    [2950, NARRATOR, T('slack1')],
+    [3150, NARRATOR, T('slack2')],
   ] },
   { a: 3360, b: 3720, mode: 'gal', ui: 'group', crops: [[3360, 1470, 923, 2940], [3440, 1700, 760, 1500], [3560, 1250, 1300, 1800], [3640, 2580, 560, 900]], hl: [[3460, 3555, 1134, 692, 1120, 166], [3580, 3635, 665, 940, 1140, 720], [3650, 3715, 2320, 480, 600, 240]], lines: [
-    [3370, NARRATOR, '在 Group 里，人和 bots 一起讨论，每条消息都保留各自的身份。'],
-    [3540, NARRATOR, '@ 谁就唤醒谁；每个成员也能按自己的方式收件。'],
+    [3370, NARRATOR, T('group1')],
+    [3540, NARRATOR, T('group2')],
   ] },
   { a: 3720, b: 4080, mode: 'split', ui: 'larkTopic', crops: [[3720, 1300, 500, 700], [3880, 1300, 1060, 700]], hl: [[3740, 3870, 990, 316, 630, 360], [3900, 4070, 990, 1130, 630, 100]], lines: [
-    [3730, NARRATOR, '外部消息也能进来：Lark 话题里 @ 了 Nova。'],
-    [3890, NARRATOR, 'Nova 读完上下文，用自己的 Lark 身份回到原话题。'],
+    [3730, NARRATOR, T('larkAt1')],
+    [3890, NARRATOR, T('larkAt2')],
   ] },
   { a: 4080, b: 4440, mode: 'split', ui: 'slackThread', crops: [[4080, 1050, 300, 560], [4250, 1050, 560, 560]], hl: [[4100, 4240, 887, 160, 338, 310], [4260, 4430, 887, 570, 338, 110]], lines: [
-    [4090, NARRATOR, 'Slack 话题里发来一个 ZIP。'],
-    [4250, NARRATOR, 'Bot 读取附件、在授权的工作区处理，再把结果文件发回同一个话题。'],
+    [4090, NARRATOR, T('zip1')],
+    [4250, NARRATOR, T('zip2')],
   ] },
   { a: 4440, b: 4800, mode: 'town', morphShow: true, lines: [
-    [4450, NARRATOR, '工作时，头像随状态变形：搜索、写代码、读文件、思考……'],
-    [4640, NARRATOR, '学到的东西，顺手写进自己的 Memory。'],
+    [4450, NARRATOR, T('morph1')],
+    [4640, NARRATOR, T('morph2')],
   ] },
   { a: 4800, b: 6000, mode: 'town', night: true, lines: [
-    [4880, NARRATOR, '换个舞台：写好 Persona，他们就能扮演小说和游戏里的角色。'],
-    [5040, 'NOVA · 骑士', '前面就是史莱姆洞窟，跟紧我！'],
-    [5220, 'MIRA · 贤者', '古书上说，它怕光。我来照亮。'],
-    [5400, 'THEO · 吟游诗人', '我把这段冒险写成歌，记进日记里。'],
-    [5580, 'HUMAN', '宝箱打开了！下一章去哪？'],
-    [5770, NARRATOR, '每一段故事，都留在他们各自的记忆里。'],
+    [4880, NARRATOR, T('rp0')],
+    [5040, T('spkKnight'), T('rp1')],
+    [5220, T('spkSage'), T('rp2')],
+    [5400, T('spkBard'), T('rp3')],
+    [5580, 'HUMAN', T('rp4')],
+    [5770, NARRATOR, T('rp5')],
   ] },
   { a: 6000, b: 6720, mode: 'town', finale: true, lines: [] },
   { a: 6720, b: 7110, mode: 'town', lines: [] },
@@ -1068,7 +1129,7 @@ function drawDialog(w, h, speaker, text, shown) {
 const mascot = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0), new THREE.MeshBasicMaterial({ map: logoTex.tex, transparent: true, depthTest: false, depthWrite: false }));
 mascot.renderOrder = 21;
 hud.add(mascot);
-const plannedChip = hudSprite(canvasTex(72, 26, (ctx) => { rect(ctx, 2, 0, 68, 26, PAL.amber); rect(ctx, 0, 2, 72, 22, PAL.amber); rect(ctx, 4, 4, 64, 18, '#fff4d6'); crispText(ctx, '规划中', 11, 13, 17, INK, 90); }), 22);
+const plannedChip = hudSprite(canvasTex(72, 26, (ctx) => { rect(ctx, 2, 0, 68, 26, PAL.amber); rect(ctx, 0, 2, 72, 22, PAL.amber); rect(ctx, 4, 4, 64, 18, '#fff4d6'); { const px = Math.min(16, Math.floor((58 / measureCJK(T('planned'), 16)) * 16)); const w = measureCJK(T('planned'), px); crispText(ctx, T('planned'), Math.round(36 - w / 2), 13, px, INK, 90); } }), 22);
 plannedChip.scale.set(0.5, 0.5, 1);
 // big morph showcase tiles
 const bigTiles = CAST.map((c) => {
@@ -1091,13 +1152,17 @@ const titleText = hudSprite(canvasTex(200, 70, (ctx) => {
   drawText(ctx, 'BOTHARNESS', 100 - Math.floor((textWidth('BOTHARNESS') * 3) / 2), 2, '#fff2a0', 3);
   drawText(ctx, 'DEEPSEEKBOT', 100 - Math.floor(textWidth('DEEPSEEKBOT') / 2), 24, '#ffffff');
 }), 42, 0.5, 1);
-const endText = hudSprite(canvasTex(300, 60, (ctx) => {
-  const t1 = '开源 · MIT · 基于 DeepSeek Harness 生态';
-  crispText(ctx, t1, 150 - measureCJK(t1, 11) / 2, 8, 11, '#ffffff');
-  drawText(ctx, 'GITHUB.COM/BOTHARNESS/BOTHARNESS', 150 - Math.floor(textWidth('GITHUB.COM/BOTHARNESS/BOTHARNESS') / 2), 22, '#fff2a0');
-  const t2 = '一组有各自身份、人格和记忆的 bots，一起做事。';
-  crispText(ctx, t2, 150 - measureCJK(t2, 12) / 2, 44, 12, '#ffffff');
+const endText = hudSprite(canvasTex(600, 120, (ctx) => {
+  const fit = (text, px, max) => Math.min(px, Math.floor((max / measureCJK(text, px)) * px));
+  const t1 = T('openSource');
+  const p1 = fit(t1, 22, 580);
+  crispText(ctx, t1, 300 - measureCJK(t1, p1) / 2, 16, p1, '#ffffff');
+  drawText(ctx, 'GITHUB.COM/BOTHARNESS/BOTHARNESS', 300 - textWidth('GITHUB.COM/BOTHARNESS/BOTHARNESS'), 40, '#fff2a0', 2);
+  const t2 = T('slogan');
+  const p2 = fit(t2, 24, 580);
+  crispText(ctx, t2, 300 - measureCJK(t2, p2) / 2, 88, p2, '#ffffff');
 }), 42, 0.5, 1);
+endText.scale.set(0.5, 0.5, 1);
 const titleBg = hudQuad('#1b1820', 40);
 const fadeQuad = hudQuad('#1b1820', 60);
 const debugTex = canvasTex(66, 9);
@@ -1110,6 +1175,9 @@ function drawDebug(f) {
   drawText(ctx, `f ${String(f).padStart(4, '0')} / ${String(TOTAL).padStart(4, '0')}`, 2, 2, '#fff2a0');
   debugTex.tex.needsUpdate = true;
 }
+// overlay: narration, titles and the frame counter sit above every module
+const overlay = new THREE.Scene();
+for (const o of [dialog.mesh, mascot, plannedChip, titleBg, titleLogo, titleText, endText, fadeQuad, debugMesh]) overlay.add(o);
 
 // ----- layout per frame ----------------------------------------------------------
 const SPLIT_W = 108;
@@ -1122,7 +1190,7 @@ function layoutAt(f) {
     worldW: m === 'split' ? SPLIT_W : VIEW_W,
     dim: m === 'gal' ? 0.62 : 0,
     panel: m === 'split' ? { x: 114, y: 52, w: 200, h: 124 } : m === 'gal' ? { x: 10, y: 50, w: 300, h: 126 } : null,
-    dialogBox: m === 'split' ? { x: 114, y: 3, w: 200, h: 40 } : { x: 6, y: 3, w: 252, h: 40 },
+    dialogBox: m === 'split' ? { x: 114, y: 3, w: 200, h: DIALOG_H } : { x: 6, y: 3, w: 252, h: DIALOG_H },
     mascot: m !== 'split',
   });
   const now = target(mode);
@@ -1141,8 +1209,7 @@ function layoutAt(f) {
 }
 
 // ----- frame render ------------------------------------------------------------
-function renderFrame(f) {
-  f = ((f % TOTAL) + TOTAL) % TOTAL;
+function renderLegacy(f) {
   const L = layoutAt(f);
   const beat = L.beat;
 
@@ -1424,7 +1491,7 @@ function renderFrame(f) {
   mascot.visible = dialogOn && L.mascot && (!line || line[1] === NARRATOR);
   if (dialogOn) {
     const D = L.dialogBox;
-    const shown = Math.floor((f - line[0]) / 2) + 1;
+    const shown = Math.floor((f - line[0]) / TYPE_FRAMES) + 1;
     drawDialog(D.w, D.h, line[1], line[2], shown);
     const pop = Math.min(1, (f - beat.a) / 8);
     dialog.mesh.position.set(D.x, D.y - Math.round((1 - pop) * 12), 0);
@@ -1451,6 +1518,7 @@ function renderFrame(f) {
     bt.m.scale.set(2 * pop, 2 * pop, 1);
     bt.m.position.set(x, 64, 0);
     bigLabels[i].position.set(x, 62, 0);
+    bigLabels[i].visible = pop >= 1;
   }
   if (show) { dimOverlay.visible = true; setRect(dimOverlay, 0, 0, VIEW_W, VIEW_H); dimOverlay.material.opacity = 0.5; }
 
@@ -1495,8 +1563,7 @@ function renderFrame(f) {
   }
   fadeQuad.visible = false;
 
-  debugMesh.visible = DEBUG_FRAMES;
-  if (DEBUG_FRAMES) drawDebug(f);
+  updateSoulInTown(f);
 
   // draw: world into its viewport, then HUD over the full frame
   renderer.setScissorTest(true);
@@ -1510,6 +1577,882 @@ function renderFrame(f) {
   renderer.clearDepth();
   renderer.render(hud, hudCam);
   renderer.setScissorTest(false);
+}
+
+// ===== master timeline =============================================================
+// legacy segments replay the town film by its own frame numbers; the others are new modules
+const SEGMENTS = [
+  { id: 'legacy', len: 2160, from: 0 },
+  { id: 'market', len: 1560 },
+  { id: 'legacy', len: 3840, from: 2160 },
+  { id: 'wall', len: 840 },
+  { id: 'city', len: 2160 },
+  { id: 'end', len: 360 },
+];
+let segStart = 0;
+for (const sg of SEGMENTS) { sg.start = segStart; segStart += sg.len; }
+if (segStart !== TOTAL) console.warn('TOTAL mismatch', segStart, TOTAL);
+function segmentAt(F) {
+  return SEGMENTS.find((sg) => F >= sg.start && F < sg.start + sg.len);
+}
+
+function hudPlane(target, t, order, ax = 0, ay = 0) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5 - ax, 0.5 - ay, 0), new THREE.MeshBasicMaterial({ map: t?.tex ?? null, transparent: true, depthTest: false, depthWrite: false }));
+  m.renderOrder = order;
+  target.add(m);
+  return m;
+}
+function setPlane(m, x, y, w, h, opacity = 1) {
+  m.visible = true;
+  m.position.set(Math.round(x), Math.round(y), 0);
+  m.scale.set(w, h, 1);
+  m.material.opacity = opacity;
+}
+function narrate(f, lines, box = { x: 6, y: 3, w: 252, h: DIALOG_H }, mascotOn = true) {
+  let line = null;
+  for (const l of lines) if (f >= l[0]) line = l;
+  if (!line) return null;
+  const [start, speaker, text] = line;
+  drawDialog(box.w, box.h, speaker, text, Math.floor((f - start) / TYPE_FRAMES) + 1);
+  dialog.mesh.visible = true;
+  const pop = Math.min(1, (f - lines[0][0]) / 8);
+  dialog.mesh.position.set(box.x, box.y - Math.round((1 - pop) * 12), 0);
+  dialog.mesh.scale.set(box.w, box.h + 8, 1);
+  if (mascotOn && speaker === NARRATOR) {
+    mascot.visible = true;
+    mascot.position.set(262, 2 + (Math.floor(f / 20) % 2), 0);
+    mascot.scale.set(56, 56, 1);
+  }
+  return line;
+}
+
+// ----- soul: Mira's face cells, lifted into light (no redraw) ----------------------
+let soulTex = null;
+function makeSoul() {
+  if (soulTex || !MORPH) return soulTex;
+  soulTex = canvasTex(36, 36, (ctx) => {
+    const cells = MORPH.mira.face;
+    const set = new Set(cells.map(({ x, y }) => `${x},${y}`));
+    const ch = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+    for (const { x, y } of cells)
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
+        if (!set.has(`${x + dx},${y + dy}`)) rect(ctx, x + dx + 2, y + dy + 2, 1, 1, 'rgba(127,224,255,0.85)');
+    for (const { x, y, c } of cells) {
+      const [r, g, b] = ch(c);
+      const k = 0.68;
+      rect(ctx, x + 2, y + 2, 1, 1, `rgb(${Math.round(r * (1 - k) + 216 * k)},${Math.round(g * (1 - k) + 251 * k)},${Math.round(b * (1 - k) + 255 * k)})`);
+    }
+  });
+  return soulTex;
+}
+const soulMesh = new THREE.Mesh(new THREE.PlaneGeometry(36, 36).translate(0, 18, 0), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
+scene.add(soulMesh);
+const beamMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0), new THREE.MeshBasicMaterial({ color: '#bff4ff', transparent: true, opacity: 0.7, depthWrite: false }));
+scene.add(beamMesh);
+function updateSoulInTown(f) {
+  const on = MORPH && within(f, 2030, 2160);
+  soulMesh.visible = beamMesh.visible = !!on;
+  if (!on) return;
+  soulMesh.material.map = makeSoul().tex;
+  soulMesh.material.needsUpdate = true;
+  const mira = actorPos('mira', f);
+  const t = span(f, 2050, 2150);
+  const y = mira.y + 34 + Math.round(ease(span(f, 2030, 2060)) * 10) + Math.round(t * t * 220);
+  soulMesh.position.set(Math.round(mira.x), y, 690);
+  soulMesh.material.opacity = within(f, 2030, 2040) ? (f - 2030) / 10 : 1;
+  beamMesh.visible = f >= 2050;
+  beamMesh.position.set(Math.round(mira.x), mira.y + 34, 689);
+  beamMesh.scale.set(4 + ((f >> 2) % 2), Math.max(1, y - mira.y - 30), 1);
+}
+
+// ===== market module: Publish to GitHub, imports around the globe, world lines =========
+const marketHud = new THREE.Scene();
+const mk = {
+  sky: canvasTex(320, 180),
+  globe: canvasTex(150, 150),
+  lines: canvasTex(320, 180),
+};
+mk.skyMesh = hudPlane(marketHud, mk.sky, 1);
+mk.globeMesh = hudPlane(marketHud, mk.globe, 3, 0.5, 0.5);
+mk.linesMesh = hudPlane(marketHud, mk.lines, 4);
+mk.soul = hudPlane(marketHud, null, 6, 0.5, 0.5);
+mk.beam = hudPlane(marketHud, null, 5, 0.5, 0);
+mk.beam.material.color.set('#bff4ff');
+mk.beamCore = hudPlane(marketHud, null, 5, 0.5, 0);
+mk.beamCore.material.color.set('#ffffff');
+mk.repo = hudPlane(marketHud, canvasTex(136, 44, (ctx) => {
+  box(ctx, 0, 0, 136, 44, '#f6f8fa', INK);
+  rect(ctx, 1, 1, 134, 11, '#24292f');
+  drawText(ctx, 'GITHUB', 6, 4, '#ffffff');
+  // repository glyph: a book with a branch
+  box(ctx, 6, 16, 14, 18, '#ffffff', '#57606a');
+  rect(ctx, 9, 20, 1, 9, '#2da44e'); rect(ctx, 13, 22, 1, 4, '#2da44e'); rect(ctx, 10, 25, 3, 1, '#2da44e');
+  rect(ctx, 8, 19, 3, 3, '#2da44e'); rect(ctx, 8, 28, 3, 3, '#2da44e'); rect(ctx, 12, 21, 3, 3, '#2da44e');
+  drawText(ctx, '@BOTHARNESS/MIRA', 26, 17, '#0969da');
+  drawText(ctx, 'SOULSNAPSHOT', 26, 25, '#57606a');
+  box(ctx, 26, 32, 22, 8, '#dafbe1', '#2da44e');
+  drawText(ctx, 'V1', 33, 34, '#1a7f37');
+  drawText(ctx, 'PERSONA + MEMORY', 52, 34, '#57606a');
+}), 7, 0.5, 0);
+mk.counter = canvasTex(80, 9);
+mk.counterMesh = hudPlane(marketHud, mk.counter, 8, 0.5, 0);
+mk.pins = Array.from({ length: 24 }, () => hudPlane(marketHud, CAST[0].tex.front, 4, 0.5, 0));
+mk.sparks = Array.from({ length: 10 }, () => hudPlane(marketHud, sparkTex, 9, 0.5, 0.5));
+mk.cards = [0, 1, 2, 3].map((i) => {
+  const scene = canvasTex(44, 28);
+  const label = canvasTex(160, 24, (ctx) => {
+    const text = T(`world${i}`);
+    crispText(ctx, text, 0, 12, 18, '#ffffff', 100);
+  });
+  return {
+    scene,
+    sceneMesh: hudPlane(marketHud, scene, 10, 0, 0),
+    face: hudPlane(marketHud, CAST[0].tex.front, 11, 0.5, 0),
+    label: hudPlane(marketHud, label, 11, 0, 0.5),
+    frame: hudPlane(marketHud, canvasTex(48, 32, (ctx) => { box(ctx, 0, 0, 48, 32, 'rgba(0,0,0,0)', '#fff2a0'); ctx.clearRect(2, 2, 44, 28); }), 12, 0, 0),
+  };
+});
+mk.origin = hudPlane(marketHud, CAST[0].tex.front, 10, 0.5, 0.5);
+mk.ring = hudPlane(marketHud, canvasTex(40, 40, (ctx) => {
+  for (let a = 0; a < 80; a++) rect(ctx, Math.round(20 + Math.cos(a / 80 * Math.PI * 2) * 18), Math.round(20 + Math.sin(a / 80 * Math.PI * 2) * 18), 1, 1, '#fff2a0');
+}), 9, 0.5, 0.5);
+mk.white = hudPlane(marketHud, null, 50);
+mk.white.material.color.set('#ffffff');
+
+const CLOUDS = Array.from({ length: 14 }, (_, i) => ({ x: Math.floor(hash(i, 1, 7) * 340) - 20, y: Math.floor(hash(i, 2, 7) * 400), w: 26 + Math.floor(hash(i, 3, 7) * 30) }));
+function drawSky(m) {
+  const { ctx } = mk.sky;
+  const rise = m * 0.9;
+  const deep = clamp(m / 300, 0, 1);
+  for (let y = 0; y < 180; y++) {
+    const t = y / 180;
+    const r = Math.round(lerp(lerp(126, 40, deep), lerp(170, 120, deep), t));
+    const g = Math.round(lerp(lerp(180, 50, deep), lerp(214, 170, deep), t));
+    const b = Math.round(lerp(lerp(232, 120, deep), lerp(240, 220, deep), t));
+    rect(ctx, 0, y, 320, 1, `rgb(${r},${g},${b})`);
+  }
+  for (let i = 0; i < 70; i++) {
+    if (hash(i, 9) > deep) continue;
+    const x = Math.floor(hash(i, 4) * 320);
+    const y = Math.floor(hash(i, 5) * 120);
+    rect(ctx, x, y, 1, 1, (m + i * 7) % 50 < 40 ? '#ffffff' : '#9fb6ff');
+  }
+  for (const c of CLOUDS) {
+    const y = ((c.y + rise) % 420) - 60;
+    const x = c.x;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    for (let k = 0; k < 4; k++) disc(ctx, x + k * Math.floor(c.w / 4), 180 - y + (k % 2) * 2, Math.floor(c.w / 5), 'rgba(255,255,255,0.85)');
+  }
+  mk.sky.tex.needsUpdate = true;
+}
+function noise2(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const s = (a) => a * a * (3 - 2 * a);
+  const h = (i, j) => hash(((i % 32) + 32) % 32, j + 50, 99);
+  const a = lerp(h(xi, yi), h(xi + 1, yi), s(xf));
+  const b = lerp(h(xi, yi + 1), h(xi + 1, yi + 1), s(xf));
+  return lerp(a, b, s(yf));
+}
+const R_GLOBE = 72;
+function landAt(lon, lat) {
+  const u = (lon / (Math.PI * 2)) * 32;
+  const v = (lat / Math.PI) * 16 + 8;
+  return noise2(u * 0.55, v * 0.55) * 0.65 + noise2(u * 1.3, v * 1.3) * 0.35;
+}
+function drawGlobe(rot) {
+  const { ctx } = mk.globe;
+  const img = ctx.createImageData(150, 150);
+  for (let py = 0; py < 150; py++)
+    for (let px = 0; px < 150; px++) {
+      const x = (px - 75 + 0.5) / R_GLOBE;
+      const y = (75 - py - 0.5) / R_GLOBE;
+      const d = x * x + y * y;
+      const o = (py * 150 + px) * 4;
+      if (d > 1) {
+        if (d < 1.06) { img.data[o] = 150; img.data[o + 1] = 210; img.data[o + 2] = 255; img.data[o + 3] = 120; }
+        continue;
+      }
+      const z = Math.sqrt(1 - d);
+      const lat = Math.asin(y);
+      const lon = Math.atan2(x, z) + rot;
+      const light = clamp(0.35 + 0.75 * (x * -0.4 + y * 0.45 + z * 0.8), 0.25, 1.1);
+      const n = landAt(((lon % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2), lat);
+      let c;
+      if (Math.abs(lat) > 1.25) c = [236, 244, 250];
+      else if (n > 0.56) c = n > 0.68 ? [120, 160, 80] : [96, 170, 84];
+      else c = n > 0.52 ? [72, 150, 200] : [40, 104, 178];
+      const q = (v) => Math.round(clamp(v * light, 0, 255) / 16) * 16;
+      img.data[o] = q(c[0]); img.data[o + 1] = q(c[1]); img.data[o + 2] = q(c[2]); img.data[o + 3] = 255;
+      if (d > 0.93) { img.data[o] = Math.min(255, img.data[o] + 40); img.data[o + 1] = Math.min(255, img.data[o + 1] + 50); img.data[o + 2] = 255; }
+    }
+  ctx.putImageData(img, 0, 0);
+  mk.globe.tex.needsUpdate = true;
+}
+const PIN_SITES = Array.from({ length: 24 }, (_, i) => ({ lon: hash(i, 3, 3) * Math.PI * 2, lat: (hash(i, 4, 4) - 0.5) * 2.0, at: 430 + i * 15 }));
+const LANES = [160, 130, 100, 70];
+const LANE_COLORS = ['#e2565f', '#f2c14e', '#5cb85c', '#5b8bd6'];
+function drawLines(m) {
+  const { ctx } = mk.lines;
+  ctx.clearRect(0, 0, 320, 180);
+  rect(ctx, 0, 0, 320, 180, '#15121c');
+  for (let x = 0; x < 320; x += 16) rect(ctx, x, 0, 1, 180, '#1f1a28');
+  for (let y = 0; y < 180; y += 16) rect(ctx, 0, y, 320, 1, '#1f1a28');
+  const ox = 46;
+  const oy = 180 - 115;
+  LANES.forEach((ly, i) => {
+    const grow = ease(span(m, 860 + i * 18, 990 + i * 18));
+    const endX = ox + Math.round(grow * 150);
+    const yy = 180 - ly;
+    for (let x = ox; x <= endX; x++) {
+      const t = clamp((x - ox) / 40, 0, 1);
+      const y = Math.round(lerp(oy, yy, t * t * (3 - 2 * t)));
+      rect(ctx, x, y - 1, 1, 3, LANE_COLORS[i]);
+    }
+    for (let k = 1; k <= 4; k++) {
+      const cx = ox + 40 + k * 26;
+      if (cx > endX) break;
+      rect(ctx, cx - 2, yy - 2, 5, 5, INK);
+      rect(ctx, cx - 1, yy - 1, 3, 3, (m >> 3) % 4 === k % 4 ? '#ffffff' : LANE_COLORS[i]);
+    }
+  });
+  mk.lines.tex.needsUpdate = true;
+}
+function drawWorld(i, m) {
+  const { ctx } = mk.cards[i].scene;
+  ctx.clearRect(0, 0, 44, 28);
+  if (i === 0) { // kitchen
+    rect(ctx, 0, 0, 44, 28, '#f3e1c4'); for (let x = 0; x < 44; x += 6) rect(ctx, x, 0, 1, 18, '#e6cfaa');
+    rect(ctx, 0, 18, 44, 10, '#8a5a34'); box(ctx, 26, 12, 14, 8, '#7d7b88'); rect(ctx, 28, 9, 10, 4, '#555963');
+    for (let k = 0; k < 3; k++) disc(ctx, 31 + k * 2, 6 - ((m / 4 + k * 3) % 8), 1, '#ffffff');
+  } else if (i === 1) { // starship
+    rect(ctx, 0, 0, 44, 28, '#1d2340'); box(ctx, 4, 3, 36, 14, '#05060d', '#7d7b88');
+    for (let k = 0; k < 9; k++) rect(ctx, 5 + ((k * 13 + Math.floor(m / 2)) % 34), 4 + ((k * 7) % 12), 1, 1, '#ffffff');
+    rect(ctx, 0, 20, 44, 8, '#3a4170'); rect(ctx, 6, 21, 4, 2, (m >> 3) % 2 ? '#5cb85c' : '#e2565f'); rect(ctx, 30, 21, 8, 2, '#5b8bd6');
+  } else if (i === 2) { // castle
+    rect(ctx, 0, 0, 44, 28, '#8a8a99'); for (let y = 0; y < 28; y += 5) for (let x = (y / 5) % 2 ? 0 : 4; x < 44; x += 8) rect(ctx, x, y, 1, 5, '#6c6c7c');
+    for (let y = 0; y < 28; y += 5) rect(ctx, 0, y, 44, 1, '#6c6c7c');
+    rect(ctx, 30, 2, 8, 12, '#c0414a'); rect(ctx, 31, 4, 6, 2, '#f2c14e');
+    rect(ctx, 6, 6, 2, 8, PAL.woodDark); rect(ctx, 5, 2 + ((m >> 2) % 2), 4, 4, '#f0a63a');
+  } else { // classroom
+    rect(ctx, 0, 0, 44, 28, '#e9dcc4'); box(ctx, 3, 3, 38, 14, '#2f5a3e', PAL.woodDark);
+    const n = Math.floor(m / 6) % 20;
+    for (let k = 0; k < Math.min(n, 12); k++) rect(ctx, 6 + k * 2, 7 + (k % 3), 1, 1, '#ffffff');
+    drawText(ctx, '1+1', 22, 9, '#ffffff');
+    rect(ctx, 0, 22, 44, 6, PAL.wood);
+  }
+  mk.cards[i].scene.tex.needsUpdate = true;
+}
+function renderMarket(m) {
+  hideMarket();
+  // sky ascent with the soul and the GitHub repository
+  if (m < 470) {
+    drawSky(m);
+    setPlane(mk.skyMesh, 0, 0, 320, 180);
+  }
+  const soul = makeSoul();
+  if (m < 260 && soul) {
+    mk.soul.material.map = soul.tex;
+    const y = Math.round(lerp(10, 128, ease(span(m, 0, 230))));
+    setPlane(mk.soul, 160, y, 36, 36);
+    setPlane(mk.beam, 160, 0, 6 + ((m >> 2) % 2) * 2, y, 0.55);
+    setPlane(mk.beamCore, 160, 0, 2, y, 0.9);
+  }
+  const repoY = m < 470 ? Math.round(lerp(200, 128, ease(span(m, 60, 160)))) : Math.round(lerp(128, 132, span(m, 470, 480)));
+  if (m < 840) {
+    setPlane(mk.repo, 160, repoY, 136, 44);
+    if (within(m, 230, 270)) mk.repo.material.opacity = (m >> 2) % 2 ? 1 : 0.6;
+  }
+  mk.sparks.forEach((s, i) => {
+    if (!within(m, 230, 300)) return;
+    const a = i * 0.63 + m * 0.07;
+    setPlane(s, 160 + Math.round(Math.cos(a) * (30 + i * 3)), repoY + 22 + Math.round(Math.sin(a) * 14), 5, 5);
+  });
+  // globe with imports
+  if (within(m, 400, 840)) {
+    if (m >= 470) setPlane(mk.skyMesh, 0, 0, 320, 180);
+    if (m >= 470) drawSky(470);
+    const rot = m * 0.012;
+    drawGlobe(rot);
+    const gy = Math.round(lerp(-80, 62, ease(span(m, 400, 470))));
+    setPlane(mk.globeMesh, 160, gy, 150, 150);
+    let count = 0;
+    PIN_SITES.forEach((p, i) => {
+      if (m < p.at) return;
+      count += 1;
+      const lon = p.lon - rot;
+      const x = Math.cos(p.lat) * Math.sin(lon);
+      const z = Math.cos(p.lat) * Math.cos(lon);
+      const y = Math.sin(p.lat);
+      const sx = 160 + x * R_GLOBE;
+      const sy = gy + y * R_GLOBE;
+      if (m < p.at + 16) {
+        const t = (m - p.at) / 16;
+        const bx = lerp(160, sx, t);
+        const by = lerp(repoY, sy, t);
+        setPlane(mk.beam, bx, by, 2, Math.max(1, repoY - by), 0.8);
+      }
+      if (z > 0.15) setPlane(mk.pins[i], Math.round(sx), Math.round(sy), 16, 16);
+    });
+    const imports = count === 0 ? 0 : Math.min(99999, Math.round(2 ** (count * 0.62)) + count * 3);
+    const { ctx } = mk.counter;
+    ctx.clearRect(0, 0, 80, 9);
+    rect(ctx, 0, 0, 80, 9, 'rgba(27,24,32,0.85)');
+    drawText(ctx, `IMPORTS ${String(imports).padStart(5, '0')}`, 4, 2, '#fff2a0');
+    mk.counter.tex.needsUpdate = true;
+    if (m >= 430) setPlane(mk.counterMesh, 160, repoY - 12, 80, 9);
+  }
+  // world lines
+  if (within(m, 820, 1560)) {
+    const fadeIn = step8(span(m, 820, 860));
+    drawLines(m);
+    setPlane(mk.linesMesh, 0, 0, 320, 180, fadeIn);
+    setPlane(mk.origin, 46, 115, 32, 32, fadeIn);
+    setPlane(mk.ring, 46, 115, 40, 40, fadeIn);
+    mk.cards.forEach((c, i) => {
+      const appear = 980 + i * 20;
+      if (m < appear) return;
+      const s = POP[Math.min(5, Math.floor((m - appear) / 2))];
+      drawWorld(i, m);
+      const x = 204;
+      const y = LANES[i] - 13;
+      setPlane(c.sceneMesh, x, y, 44 * s, 28 * s);
+      setPlane(c.frame, x - 2, y - 2, 48 * s, 32 * s);
+      setPlane(c.face, x + 22, y + 1 + ((m + i * 9) % 40 < 20 ? 1 : 0), 16 * s, 16 * s);
+      setPlane(c.label, 104, LANES[i] + 8, 80, 12);
+    });
+  }
+  if (within(m, 1500, 1560)) setPlane(mk.white, 0, 0, 320, 180, step8(span(m, 1500, 1560)));
+  // narration
+  hideOverlay();
+  narrate(m, [
+    [10, NARRATOR, T('publish2')],
+    [220, NARRATOR, T('publish3')],
+    [420, NARRATOR, T('import2')],
+    [620, NARRATOR, T('import3')],
+    [860, NARRATOR, T('worlds1')],
+    [1080, NARRATOR, T('worlds2')],
+    [1360, NARRATOR, T('marketPlanned')],
+  ]);
+  if (m >= 1360) { plannedChip.visible = true; plannedChip.position.set(6 + 252 - 40, 3 + DIALOG_H - 2, 0); }
+  renderer.setClearColor('#1b1820');
+  renderer.clear();
+  renderer.render(marketHud, hudCam);
+}
+function hideMarket() {
+  for (const o of marketHud.children) o.visible = false;
+}
+function hideOverlay() {
+  for (const o of overlay.children) o.visible = false;
+}
+
+// ===== face wall: every tile steps through generator parameters ===================
+const wallHud = new THREE.Scene();
+const wallCanvas = canvasTex(320, 192);
+const wallMesh = hudPlane(wallHud, wallCanvas, 1);
+const wallDim2 = hudPlane(wallHud, null, 2);
+wallDim2.material.color.set('#1b1820');
+const atlas = new Image();
+pending += 1;
+atlas.onload = () => { pending -= 1; if (pending === 0) for (const cb of readyCallbacks.splice(0)) cb(); };
+atlas.src = './avatars/wall-atlas.png';
+const WALL_STEPS = 20;
+function wallStep(i, m) {
+  const period = 26 + Math.floor(hash(i, 1, 5) * 30);
+  const phase = Math.floor(hash(i, 2, 5) * period);
+  const n = Math.floor((m + phase) / period);
+  const cyc = n % (WALL_STEPS * 2 - 2);
+  const step = cyc < WALL_STEPS ? cyc : WALL_STEPS * 2 - 2 - cyc;
+  const prevCyc = (n - 1 + (WALL_STEPS * 2 - 2)) % (WALL_STEPS * 2 - 2);
+  const prev = prevCyc < WALL_STEPS ? prevCyc : WALL_STEPS * 2 - 2 - prevCyc;
+  const since = (m + phase) % period;
+  return { step, prev, wipe: n > 0 ? clamp(since / 6, 0, 1) : 1 };
+}
+function renderWall(m) {
+  const { ctx } = wallCanvas;
+  ctx.fillStyle = '#1b1820';
+  ctx.fillRect(0, 0, 320, 192);
+  for (let i = 0; i < 60; i++) {
+    const col = i % 10;
+    const row = Math.floor(i / 10);
+    const appear = (col + row) * 5;
+    if (m < appear) continue;
+    const { step, prev, wipe } = wallStep(i, m);
+    const dx = col * 32;
+    const dy = row * 32;
+    const rows = Math.round(wipe * 32);
+    const intro = clamp((m - appear) / 6, 0, 1);
+    if (intro < 1) {
+      const h = Math.round(intro * 32);
+      ctx.drawImage(atlas, i * 32, step * 32, 32, h, dx, dy, 32, h);
+      continue;
+    }
+    if (rows < 32) ctx.drawImage(atlas, i * 32, prev * 32 + rows, 32, 32 - rows, dx, dy + rows, 32, 32 - rows);
+    if (rows > 0) ctx.drawImage(atlas, i * 32, step * 32, 32, rows, dx, dy, 32, rows);
+    if (rows > 0 && rows < 32) { ctx.fillStyle = 'rgba(255,242,160,0.9)'; ctx.fillRect(dx, dy + rows - 1, 32, 1); }
+  }
+  wallCanvas.tex.needsUpdate = true;
+  setPlane(wallMesh, 0, -6, 320, 192);
+  wallDim2.visible = false;
+  hideOverlay();
+  if (m >= 420) {
+    const a = step8(span(m, 420, 470) * 0.72);
+    setPlane(wallDim2, 0, 0, 320, 180, a);
+    const k = step8(span(m, 440, 480));
+    titleLogo.visible = true;
+    titleLogo.position.set(160 - 24, 112, 0);
+    titleLogo.scale.set(48, 48, 1);
+    titleLogo.material.opacity = k;
+    endText.visible = true;
+    endText.position.set(160, 92, 0);
+    endText.material.opacity = k;
+  }
+  if (m >= 800) { fadeQuad.visible = true; setRect(fadeQuad, 0, 0, VIEW_W, VIEW_H); fadeQuad.material.opacity = step8(span(m, 800, 840)); }
+  renderer.setClearColor('#1b1820');
+  renderer.clear();
+  renderer.render(wallHud, hudCam);
+}
+
+// ===== 2.5D city with a drone camera ===================================================
+const city = {
+  scene: new THREE.Scene(),
+  cam: new THREE.PerspectiveCamera(30, VIEW_W / VIEW_H, 4, 8000),
+  boards: [],
+  movers: [],
+};
+city.scene.background = new THREE.Color('#a9dcf5');
+city.scene.fog = new THREE.Fog('#c6e8f7', 1400, 3600);
+const CITY_W = 1600;
+const CITY_H = 1280;
+const cityGround = canvasTex(CITY_W, CITY_H, (ctx) => {
+  const toC = (x, z) => [x + CITY_W / 2, z + CITY_H / 2];
+  for (let ty = 0; ty < CITY_H / TILE; ty++)
+    for (let tx = 0; tx < CITY_W / TILE; tx++) {
+      const v = hash(tx, ty, 41);
+      rect(ctx, tx * TILE, ty * TILE, TILE, TILE, v < 0.5 ? PAL.grass : v < 0.85 ? '#73bd52' : PAL.grassLight);
+      for (let k = 0; k < 3; k++) rect(ctx, tx * TILE + Math.floor(hash(tx, ty, 50 + k) * 15), ty * TILE + Math.floor(hash(tx, ty, 60 + k) * 14), 1, 2, PAL.tuft);
+    }
+  // sea along the south edge
+  for (let y = 0; y < 220; y++) {
+    const cy = CITY_H - 220 + y;
+    rect(ctx, 0, cy, CITY_W, 1, y < 6 ? '#e8d9a8' : y < 10 ? '#9ad8f0' : y % 7 === 0 ? '#5aa8dc' : '#4a96d0');
+  }
+  const road = (x0, z0, x1, z1) => {
+    const [cx0, cy0] = toC(x0, z0);
+    const w = x1 - x0;
+    const h = z1 - z0;
+    rect(ctx, cx0 - 1, cy0 - 1, w + 2, h + 2, '#8f8778');
+    rect(ctx, cx0, cy0, w, h, '#b9b09c');
+    for (let y = 0; y < h; y += 6) for (let x = (y / 6) % 2 ? 0 : 4; x < w; x += 8) rect(ctx, cx0 + x, cy0 + y, 1, 6, '#a39a86');
+    for (let y = 0; y < h; y += 6) rect(ctx, cx0, cy0 + y, w, 1, '#a39a86');
+  };
+  road(-640, -14, 640, 14);
+  road(-14, -520, 14, 420);
+  road(-420, -360, 420, -334);
+  road(-420, 226, 420, 254);
+  road(-434, -360, -406, 254);
+  road(406, -360, 434, 254);
+  road(-14, 420, 14, 470);
+  // plaza
+  const [pcx, pcy] = toC(0, 0);
+  disc(ctx, pcx, pcy, 96, '#8f8778');
+  disc(ctx, pcx, pcy, 95, '#cfc7b4');
+  for (let r = 20; r < 95; r += 12) for (let a = 0; a < 360; a += 3) rect(ctx, pcx + Math.round(Math.cos(a * Math.PI / 180) * r), pcy + Math.round(Math.sin(a * Math.PI / 180) * r), 1, 1, '#aaa290');
+  // farm fields (north west)
+  for (let f = 0; f < 4; f++) {
+    const [fx, fy] = toC(-640 + (f % 2) * 110, -560 + Math.floor(f / 2) * 110);
+    rect(ctx, fx, fy, 100, 100, '#8a5a34');
+    for (let y = 4; y < 100; y += 8) {
+      rect(ctx, fx, fy + y, 100, 3, '#6e4527');
+      for (let x = 4; x < 100; x += 6) rect(ctx, fx + x, fy + y - 3, 3, 3, ['#9be37a', '#f2c14e', '#e2565f', '#7fe0d0'][f]);
+    }
+  }
+  // dock
+  const [dx, dy] = toC(-14, 470);
+  rect(ctx, dx - 60, dy, 148, 70, PAL.woodDark);
+  for (let x = 0; x < 148; x += 6) rect(ctx, dx - 60 + x, dy, 1, 70, PAL.wood);
+  // flowers
+  for (let i = 0; i < 1600; i++) {
+    const x = Math.floor(hash(i, 71) * CITY_W);
+    const y = Math.floor(hash(i, 72) * (CITY_H - 240));
+    const c = ['#f7e26b', '#f4f4f4', '#ef8fb1', '#9ad0f0'][Math.floor(hash(i, 73) * 4)];
+    rect(ctx, x, y, 1, 1, c);
+  }
+});
+cityGround.tex.anisotropy = 8;
+const groundPlane = new THREE.Mesh(new THREE.PlaneGeometry(CITY_W, CITY_H), new THREE.MeshBasicMaterial({ map: cityGround.tex }));
+groundPlane.rotation.x = -Math.PI / 2;
+city.scene.add(groundPlane);
+const outerGrass = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshBasicMaterial({ color: '#6fb64f' }));
+outerGrass.rotation.x = -Math.PI / 2;
+outerGrass.position.y = -0.5;
+city.scene.add(outerGrass);
+const outerSea = new THREE.Mesh(new THREE.PlaneGeometry(9000, 3000), new THREE.MeshBasicMaterial({ color: '#4a96d0' }));
+outerSea.rotation.x = -Math.PI / 2;
+outerSea.position.set(0, -0.3, CITY_H / 2 + 1500 - 210);
+city.scene.add(outerSea);
+
+const shadowMat = new THREE.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.22, depthWrite: false });
+function board(t, x, z, { scale = 1, shadow = true, y = 0 } = {}) {
+  const geo = new THREE.PlaneGeometry(t.w, t.h).translate(0, t.h / 2, 0);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: t.tex, alphaTest: 0.5, side: THREE.DoubleSide }));
+  m.position.set(x, y, z);
+  m.scale.set(scale, scale, scale);
+  city.scene.add(m);
+  city.boards.push(m);
+  if (shadow) {
+    const s = new THREE.Mesh(new THREE.CircleGeometry(1, 20), shadowMat);
+    s.rotation.x = -Math.PI / 2;
+    s.position.set(x, 0.4, z);
+    s.scale.set(t.w * 0.45 * scale, t.w * 0.16 * scale, 1);
+    city.scene.add(s);
+    m.userData.shadow = s;
+  }
+  return m;
+}
+function sign(ctx, w, label, y = 2) {
+  const tw = textWidth(label) + 8;
+  box(ctx, Math.floor((w - tw) / 2), y, tw, 9, PAL.paper);
+  drawText(ctx, label, Math.floor((w - tw) / 2) + 4, y + 2, INK);
+}
+function roofHouse(ctx, w, h, wall, roof, roofDark) {
+  const rh = Math.floor(h * 0.45);
+  box(ctx, 4, rh - 2, w - 8, h - rh + 2, wall);
+  for (let y = rh + 3; y < h - 1; y += 5) rect(ctx, 5, y, w - 10, 1, 'rgba(0,0,0,0.12)');
+  for (let x = 0; x < w / 2; x++) {
+    const top = Math.round(rh - (x / (w / 2)) * (rh - 4));
+    rect(ctx, w / 2 - x - 1, top, 1, rh - top + 2, INK);
+    rect(ctx, w / 2 + x, top, 1, rh - top + 2, INK);
+    rect(ctx, w / 2 - x - 1, top + 1, 1, rh - top, roof);
+    rect(ctx, w / 2 + x, top + 1, 1, rh - top, x % 6 < 3 ? roof : roofDark);
+  }
+  rect(ctx, 0, rh - 1, w, 3, INK);
+  rect(ctx, 1, rh, w - 2, 1, roofDark);
+}
+const B = {
+  kitchen: canvasTex(110, 96, (ctx, w, h) => {
+    roofHouse(ctx, w, h, '#c9603f', '#7a3b2a', '#5e2c1f');
+    for (let y = 48; y < 94; y += 6) for (let x = 6; x < 104; x += 10) rect(ctx, x + ((y / 6) % 2) * 5, y, 1, 6, '#a84e33');
+    rect(ctx, 80, 6, 12, 30, INK); rect(ctx, 81, 7, 10, 29, '#8a8a99');
+    for (let x = 6; x < 104; x++) rect(ctx, x, 46 + (x % 10 < 5 ? 0 : 1), 1, 7, Math.floor(x / 8) % 2 ? '#f4f1ec' : '#e2565f');
+    box(ctx, 14, 60, 26, 20, '#ffd66b'); box(ctx, 70, 60, 26, 20, '#ffd66b');
+    rect(ctx, 18, 70, 8, 6, '#7d7b88'); rect(ctx, 30, 66, 6, 10, '#c98d52');
+    box(ctx, 44, 64, 22, 32, PAL.woodDark);
+    sign(ctx, w, 'KITCHEN', 34);
+  }),
+  smithy: canvasTex(116, 92, (ctx, w, h) => {
+    roofHouse(ctx, w, h, '#8f8a84', '#4b4f5c', '#3a3d48');
+    for (let y = 46; y < 90; y += 7) for (let x = 6; x < 110; x += 12) rect(ctx, x + ((y / 7) % 2) * 6, y, 1, 7, '#6c6862');
+    for (let y = 46; y < 90; y += 7) rect(ctx, 5, y, 106, 1, '#6c6862');
+    box(ctx, 14, 56, 40, 36, '#2a1f1a');
+    rect(ctx, 18, 76, 32, 12, '#f05133'); rect(ctx, 22, 72, 24, 6, '#f0a63a'); rect(ctx, 28, 70, 12, 3, '#fff2a0');
+    rect(ctx, 86, 4, 12, 30, INK); rect(ctx, 87, 5, 10, 29, '#6c6862');
+    box(ctx, 66, 62, 26, 30, PAL.woodDark);
+    sign(ctx, w, 'SMITHY', 34);
+  }),
+  library: canvasTex(130, 120, (ctx, w, h) => {
+    for (let x = 0; x < w / 2; x++) {
+      const top = Math.round(40 - (x / (w / 2)) * 34);
+      rect(ctx, w / 2 - x - 1, top, 1, 42 - top, INK); rect(ctx, w / 2 + x, top, 1, 42 - top, INK);
+      rect(ctx, w / 2 - x - 1, top + 1, 1, 40 - top, '#4f7fcf'); rect(ctx, w / 2 + x, top + 1, 1, 40 - top, '#3d68b8');
+    }
+    box(ctx, 6, 40, w - 12, 80, '#e9e1cf');
+    rect(ctx, 4, 40, w - 8, 6, '#cfc4ad'); rect(ctx, 4, 114, w - 8, 6, '#cfc4ad');
+    for (let i = 0; i < 6; i++) { rect(ctx, 14 + i * 19, 48, 7, 66, '#f6f1e4'); rect(ctx, 14 + i * 19, 48, 2, 66, '#ffffff'); rect(ctx, 20 + i * 19, 48, 1, 66, '#cfc4ad'); }
+    box(ctx, 52, 82, 26, 38, PAL.woodDark);
+    for (let k = 0; k < 6; k++) rect(ctx, 56 + k * 3, 60, 2, 12, ['#e2565f', '#5b8bd6', '#f2c14e', '#5cb85c', '#7a5cc7', '#f0a63a'][k]);
+    sign(ctx, w, 'LIBRARY', 30);
+  }),
+  tavern: canvasTex(116, 110, (ctx, w, h) => {
+    roofHouse(ctx, w, h, '#b0763f', '#6b3f22', '#57321b');
+    for (let x = 6; x < 110; x += 5) rect(ctx, x, 50, 1, 58, PAL.woodDark);
+    rect(ctx, 5, 76, 106, 3, PAL.woodDark);
+    box(ctx, 14, 56, 18, 14, '#ffd66b'); box(ctx, 84, 56, 18, 14, '#ffd66b');
+    box(ctx, 14, 84, 18, 14, '#ffd66b'); box(ctx, 84, 84, 18, 14, '#ffd66b');
+    box(ctx, 46, 80, 24, 30, '#5a3a22');
+    rect(ctx, 98, 40, 2, 12, INK); box(ctx, 92, 50, 18, 12, '#f2c14e'); rect(ctx, 97, 53, 8, 6, '#c98d52');
+    sign(ctx, w, 'TAVERN', 38);
+  }),
+  barn: canvasTex(100, 84, (ctx, w, h) => {
+    roofHouse(ctx, w, h, '#c0414a', '#7a2a30', '#5e1f24');
+    box(ctx, 34, 48, 32, 36, '#f4f1ec');
+    rect(ctx, 36, 50, 28, 32, '#c0414a'); rect(ctx, 36, 50, 28, 2, '#f4f1ec'); for (let k = 0; k < 28; k++) { rect(ctx, 36 + k, 50 + Math.round(k * 32 / 28), 2, 2, '#f4f1ec'); rect(ctx, 63 - k, 50 + Math.round(k * 32 / 28), 2, 2, '#f4f1ec'); }
+    sign(ctx, w, 'FARM', 30);
+  }),
+  windmillBase: canvasTex(40, 90, (ctx) => {
+    for (let y = 10; y < 90; y++) { const hw = Math.round(8 + (y - 10) * 0.12); rect(ctx, 20 - hw, y, hw * 2, 1, INK); rect(ctx, 21 - hw, y, hw * 2 - 2, 1, y % 8 === 0 ? '#cfc4ad' : '#e9e1cf'); }
+    disc(ctx, 20, 12, 8, INK); disc(ctx, 20, 12, 7, '#7a3b2a');
+    box(ctx, 15, 72, 10, 18, PAL.woodDark);
+  }),
+  blades: canvasTex(80, 80, (ctx) => {
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (let k = 6; k < 38; k++) {
+        const x = 40 + dx * k;
+        const y = 40 + dy * k;
+        if (dx) { rect(ctx, x, y - 1, 1, 2, PAL.woodDark); rect(ctx, x, dx > 0 ? y + 1 : y - 7, 1, 6, k % 4 ? '#f4f1ec' : '#cfc4ad'); }
+        else { rect(ctx, x - 1, y, 2, 1, PAL.woodDark); rect(ctx, dy > 0 ? x - 7 : x + 1, y, 6, 1, k % 4 ? '#f4f1ec' : '#cfc4ad'); }
+      }
+    }
+    disc(ctx, 40, 40, 3, INK);
+  }),
+  lighthouse: canvasTex(44, 130, (ctx) => {
+    for (let y = 24; y < 130; y++) { const hw = Math.round(8 + (y - 24) * 0.09); rect(ctx, 22 - hw, y, hw * 2, 1, INK); rect(ctx, 23 - hw, y, hw * 2 - 2, 1, Math.floor(y / 14) % 2 ? '#e2565f' : '#f4f1ec'); }
+    box(ctx, 12, 10, 20, 16, '#3b3448'); rect(ctx, 15, 13, 14, 10, '#ffd66b');
+    for (let x = 0; x < 12; x++) rect(ctx, 22 - x, Math.round(x * 0.6), x * 2, 1, x % 2 ? '#c0414a' : INK);
+  }),
+  stall: (color) => canvasTex(54, 46, (ctx) => {
+    rect(ctx, 4, 14, 3, 32, INK); rect(ctx, 47, 14, 3, 32, INK);
+    for (let x = 0; x < 54; x++) { rect(ctx, x, 6, 1, 10, Math.floor(x / 6) % 2 ? '#f4f1ec' : color); rect(ctx, x, 16 + (x % 6 < 3 ? 1 : 0), 1, 2, Math.floor(x / 6) % 2 ? '#f4f1ec' : color); }
+    rect(ctx, 0, 5, 54, 1, INK);
+    box(ctx, 2, 32, 50, 14, PAL.wood);
+    for (let i = 0; i < 4; i++) disc(ctx, 10 + i * 11, 29, 3, ['#e2565f', '#f2c14e', '#5cb85c', '#f0a63a'][(i + color.length) % 4]);
+  }),
+  fountain: [0, 1, 2].map((k) => canvasTex(70, 56, (ctx) => {
+    for (let y = 0; y < 18; y++) { const hw = Math.round(34 * Math.sqrt(Math.max(0, 1 - ((y - 9) / 9.5) ** 2))); rect(ctx, 35 - hw, 38 + y, hw * 2, 1, y < 2 || y > 15 ? INK : y < 6 ? '#cfc7b4' : '#7fc8ee'); }
+    rect(ctx, 31, 18, 8, 26, INK); rect(ctx, 32, 18, 6, 26, '#cfc7b4');
+    for (let a = 0; a < 8; a++) {
+      const ang = (a / 8) * Math.PI * 2;
+      for (let s = 0; s < 14; s++) {
+        const t = (s + k * 2) / 16;
+        const x = 35 + Math.cos(ang) * t * 26;
+        const y = 16 + t * 30 - Math.sin(t * Math.PI) * 14;
+        rect(ctx, Math.round(x), Math.round(y), 1, 2, s % 3 === k ? '#ffffff' : '#9ad8f0');
+      }
+    }
+  })),
+  tree: canvasTex(34, 48, (ctx) => {
+    rect(ctx, 14, 30, 6, 18, PAL.woodDark); rect(ctx, 15, 30, 3, 18, PAL.wood);
+    disc(ctx, 17, 17, 15, INK); disc(ctx, 17, 17, 14, PAL.leafDark); disc(ctx, 16, 15, 11, PAL.leaf); disc(ctx, 12, 11, 5, PAL.leafLight);
+  }),
+  pine: canvasTex(28, 50, (ctx) => {
+    rect(ctx, 12, 40, 4, 10, PAL.woodDark);
+    for (let y = 0; y < 42; y++) { const hw = Math.round((y % 14) * 0.8 + y * 0.18); rect(ctx, 14 - hw - 1, y, hw * 2 + 2, 1, INK); rect(ctx, 14 - hw, y, hw * 2, 1, y % 14 < 4 ? PAL.leafLight : PAL.leafDark); }
+  }),
+  lamp: canvasTex(10, 34, (ctx) => { rect(ctx, 4, 8, 2, 26, INK); box(ctx, 1, 0, 8, 9, '#ffd66b'); rect(ctx, 3, 2, 4, 5, '#fff7c0'); }),
+  boat: canvasTex(44, 34, (ctx) => {
+    for (let y = 0; y < 10; y++) rect(ctx, 4 + y, 24 + y, 36 - y * 2, 1, y < 2 ? INK : '#a8642f');
+    rect(ctx, 21, 2, 2, 22, INK);
+    for (let y = 4; y < 22; y++) rect(ctx, 23, y, Math.round((y - 4) * 0.9), 1, '#f4f1ec');
+  }),
+  anvil: canvasTex(18, 12, (ctx) => { rect(ctx, 0, 0, 18, 4, INK); rect(ctx, 1, 1, 16, 2, '#7d7b88'); rect(ctx, 6, 4, 6, 4, INK); rect(ctx, 3, 8, 12, 4, INK); }),
+  pot: [0, 1].map((k) => canvasTex(20, 22, (ctx) => {
+    rect(ctx, 2, 18, 16, 4, PAL.woodDark);
+    box(ctx, 2, 8, 16, 11, '#555963');
+    rect(ctx, 4, 8 + k, 12, 2, '#f2c14e');
+    for (let i = 0; i < 3; i++) disc(ctx, 6 + i * 4, 4 - ((k + i) % 2) * 2, 1, '#ffffff');
+  })),
+  barrel: canvasTex(14, 16, (ctx) => { box(ctx, 0, 0, 14, 16, '#a8642f'); rect(ctx, 1, 4, 12, 1, INK); rect(ctx, 1, 11, 12, 1, INK); }),
+  crate: canvasTex(16, 14, (ctx) => { box(ctx, 0, 0, 16, 14, PAL.wood); rect(ctx, 1, 6, 14, 1, PAL.woodDark); }),
+  cloud: canvasTex(120, 46, (ctx) => {
+    for (const [x, y, r] of [[22, 30, 16], [46, 22, 20], [72, 26, 18], [94, 32, 14], [58, 34, 14]]) disc(ctx, x, y, r, '#ffffff');
+    for (const [x, y, r] of [[40, 38, 10], [80, 38, 10]]) disc(ctx, x, y, r, '#e7f3fb');
+  }),
+  bookStack: canvasTex(12, 14, (ctx) => { for (let i = 0; i < 4; i++) box(ctx, i % 2, 10 - i * 3, 11, 4, ['#e2565f', '#5b8bd6', '#f2c14e', '#5cb85c'][i]); }),
+  rod: canvasTex(24, 30, (ctx) => { for (let i = 0; i < 24; i++) rect(ctx, i, 29 - Math.round(i * 1.1), 1, 1, PAL.woodDark); for (let y = 4; y < 22; y++) rect(ctx, 23, y, 1, 1, '#e9e6ef'); }),
+};
+const PLACES = {
+  plaza: [0, 40], kitchen: [-300, -40], tavern: [-470, 190], farm: [-500, -420], library: [-40, -440],
+  houses: [270, -440], smithy: [300, -40], workshop: [300, 170], market: [0, 300], harbor: [60, 520],
+};
+// buildings
+board(B.kitchen, -300, -80);
+board(B.tavern, -470, 150);
+board(B.library, -40, -400);
+board(B.smithy, 300, -80);
+board(B.barn, -470, -560);
+board(B.windmillBase, -620, -420);
+const blades = board(B.blades, -620, -420, { shadow: false, y: 60 });
+board(B.lighthouse, 240, 560);
+board(B.fountain[0], 0, 0);
+const fountainBoard = city.boards[city.boards.length - 1];
+for (const [i, c] of CAST.entries()) board(houseTex(c), 200 + i * 70, -440);
+board(shedTex, 300, 130);
+board(towerTex, 450, -440);
+board(marketTex, -70, 290);
+board(B.stall('#5b8bd6'), 0, 290);
+board(B.stall('#5cb85c'), 70, 290);
+board(B.stall('#f2c14e'), 140, 290);
+board(B.anvil, 330, -46);
+const potBoard = board(B.pot[0], -270, -46);
+board(B.barrel, -440, 180); board(B.barrel, -426, 182); board(B.crate, -500, 182);
+board(B.bookStack, -10, -390); board(B.bookStack, -70, -392);
+board(lecternTex, -120, -400);
+const boats = [board(B.boat, -40, 560), board(B.boat, 120, 600), board(B.boat, -160, 620)];
+for (let i = 0; i < 70; i++) {
+  const ang = hash(i, 81) * Math.PI * 2;
+  const r = 560 + hash(i, 82) * 180;
+  const x = Math.cos(ang) * r * 1.15;
+  const z = Math.sin(ang) * r * 0.75 - 40;
+  if (z > 420) continue;
+  board(hash(i, 83) < 0.5 ? B.tree : B.pine, Math.round(x), Math.round(z));
+}
+for (const [x, z] of [[-140, -100], [140, -100], [-140, 120], [140, 120], [-200, 0], [200, 0], [-60, -230], [60, -230], [-520, 30], [520, -10], [-230, -330], [230, 250]]) board(B.tree, x, z);
+for (let x = -380; x <= 380; x += 76) { board(B.lamp, x, -24, { shadow: false }); board(B.lamp, x, 24, { shadow: false }); }
+const clouds = Array.from({ length: 10 }, (_, i) => board(B.cloud, -900 + i * 200, -200 + (i % 3) * 300, { shadow: false, y: 520 + (i % 4) * 60, scale: 2.2 }));
+const steamPuffs = Array.from({ length: 5 }, () => board(puffTex, -276, -84, { shadow: false, y: 90 }));
+const smithSparks = Array.from({ length: 6 }, () => board(sparkTex, 330, -44, { shadow: false, y: 12, scale: 1.4 }));
+const tavernNotes = Array.from({ length: 3 }, () => board(musicTex, -300, 170, { shadow: false, y: 40, scale: 1.4 }));
+const cityBirds = Array.from({ length: 6 }, () => board(pigeonFrames[0], 0, 0, { shadow: false, y: 160, scale: 1.6 }));
+const beamLight = board(canvasTex(60, 12, (ctx) => { for (let x = 0; x < 60; x++) rect(ctx, x, 6 - Math.round(x / 12), 1, 1 + Math.round(x / 6), 'rgba(255,240,160,0.8)'); }), 270, 560, { shadow: false, y: 112 });
+// cast at their workplaces (with live morph tiles) and a crowd walking the streets
+const cityCast = CAST.map((c, i) => {
+  const live = canvasTex(32, 32);
+  const spot = [[-20, -360], [-470, 210], [300, -30]][i];
+  return { c, live, spot, mesh: board(c.tex.front, spot[0], spot[1]) };
+});
+const LOOPS = [
+  [[-420, -347], [420, -347], [420, 240], [-420, 240]],
+  [[-90, -90], [90, -90], [90, 90], [-90, 90]],
+  [[-600, 0], [600, 0]],
+  [[0, -500], [0, 440]],
+  [[-420, 0], [-420, 240], [0, 240], [0, 0]],
+  [[0, -347], [420, -347], [420, 0], [0, 0]],
+];
+function loopPos(loop, u) {
+  const segs = [];
+  let total = 0;
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i];
+    const b = loop[(i + 1) % loop.length];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    segs.push([a, b, len]);
+    total += len;
+  }
+  let d = (((u % 1) + 1) % 1) * total;
+  for (const [a, b, len] of segs) {
+    if (d <= len) return [lerp(a[0], b[0], d / len), lerp(a[1], b[1], d / len)];
+    d -= len;
+  }
+  return loop[0];
+}
+const walkers = CROWD.map((cr, i) => ({ loop: LOOPS[i % LOOPS.length], speed: (0.00045 + hash(i, 91) * 0.0005) * (i % 2 ? 1 : -1), phase: hash(i, 92), mesh: board(cr.tex, 0, 0), side: (i % 3) * 7 - 7 }));
+const stationed = [
+  [3, -322, -40], [11, -256, -40], [20, 340, -30], [25, -500, -480], [31, -440, -470], [36, -560, -360],
+  [40, 0, 320], [44, 70, 320], [5, 140, 320], [15, 20, 470], [27, -60, -360], [33, 280, 150],
+].map(([i, x, z]) => ({ i, x, z, mesh: board(CROWD[i].tex, x, z) }));
+const rod = board(B.rod, 34, 470, { shadow: false, y: 10 });
+
+// drone path: [frame, targetX, targetZ, distance, yawDeg, pitchDeg]
+const DRONE = [
+  [0, 0, 0, 2600, -8, 72],
+  [260, ...PLACES.plaza, 420, 0, 40],
+  [420, ...PLACES.kitchen, 250, -22, 30],
+  [580, ...PLACES.tavern, 250, -38, 30],
+  [760, ...PLACES.farm, 360, -50, 36],
+  [940, -40, -380, 360, -12, 30],
+  [1110, ...PLACES.houses, 300, 18, 32],
+  [1280, ...PLACES.smithy, 230, 30, 28],
+  [1440, ...PLACES.workshop, 240, 40, 30],
+  [1600, ...PLACES.market, 280, 12, 32],
+  [1770, ...PLACES.harbor, 380, 24, 36],
+  [1990, 0, 40, 2100, 0, 60],
+  [2160, 0, 40, 2300, 0, 62],
+];
+function droneAt(f) {
+  for (let i = 1; i < DRONE.length; i++) {
+    const a = DRONE[i - 1];
+    const b = DRONE[i];
+    if (f < b[0]) {
+      const t = ease((f - a[0]) / (b[0] - a[0]));
+      return a.map((v, k) => (k === 0 ? f : k === 3 ? 1 / lerp(1 / a[3], 1 / b[3], t) : lerp(v, b[k], t)));
+    }
+  }
+  return DRONE[DRONE.length - 1];
+}
+function renderCity(c) {
+  const [, tx, tz, dist, yawD, pitchD] = droneAt(c);
+  const yaw = (yawD + Math.sin(c * 0.004) * 4) * Math.PI / 180;
+  const pitch = pitchD * Math.PI / 180;
+  const cam = city.cam;
+  cam.position.set(tx + dist * Math.cos(pitch) * Math.sin(yaw), dist * Math.sin(pitch), tz + dist * Math.cos(pitch) * Math.cos(yaw));
+  cam.lookAt(tx, 18, tz);
+  city.scene.fog.near = dist * 1.1;
+  city.scene.fog.far = dist * 3.2;
+  cam.updateProjectionMatrix();
+  for (const m of city.boards) m.rotation.y = yaw;
+  blades.rotation.set(0, yaw, c * 0.03);
+  fountainBoard.material.map = B.fountain[Math.floor(c / 6) % 3].tex;
+  potBoard.material.map = B.pot[Math.floor(c / 10) % 2].tex;
+  steamPuffs.forEach((m, i) => { const t = (c + i * 16) % 80; m.position.set(-276 + Math.sin(t * 0.1 + i) * 4, 92 + t * 0.8, -84); });
+  smithSparks.forEach((m, i) => { const t = (c + i * 5) % 24; m.visible = t < 12; m.position.set(330 + Math.cos(i * 1.7) * t * 1.4, 14 + t * 1.6 - t * t * 0.08, -44 + Math.sin(i * 1.7) * 4); });
+  tavernNotes.forEach((m, i) => { const t = (c + i * 22) % 66; m.position.set(-454 + Math.sin(t * 0.12 + i) * 6, 40 + t * 0.7, 212); });
+  cityBirds.forEach((m, i) => {
+    const u = c * 0.002 + i / 6;
+    m.position.set(Math.cos(u * Math.PI * 2) * (300 + i * 30), 170 + (i % 3) * 20 + Math.sin(c * 0.05 + i) * 6, Math.sin(u * Math.PI * 2) * (220 + i * 20) - 60);
+    m.material.map = pigeonFrames[Math.floor((c + i * 3) / 6) % 2].tex;
+  });
+  boats.forEach((m, i) => { m.position.y = Math.round(Math.sin(c * 0.05 + i) * 2); m.position.x += Math.sin(c * 0.01 + i) * 0.15; });
+  beamLight.visible = Math.floor(c / 30) % 2 === 0;
+  clouds.forEach((m, i) => { m.position.x = ((-900 + i * 220 + c * 0.4 + 1100) % 2200) - 1100; });
+  walkers.forEach((w, i) => {
+    const [x, z] = loopPos(w.loop, w.phase + c * w.speed);
+    w.mesh.position.set(x + w.side, Math.round(Math.abs(Math.sin(c * 0.3 + i)) * 2), z + w.side * 0.6);
+    w.mesh.userData.shadow.position.set(x + w.side, 0.4, z + w.side * 0.6);
+  });
+  stationed.forEach((s, k) => { s.mesh.position.y = (c + k * 11) % 50 < 6 ? 2 : 0; });
+  rod.position.y = 10 + ((c >> 4) % 2);
+  // cast morph through their work states
+  const states = [['read', 'search'], ['todo', 'write'], ['bash', 'edit']];
+  cityCast.forEach((cc, i) => {
+    if (!MORPH) return;
+    const cyc = (c + i * 40) % 240;
+    const sym = states[i][Math.floor((c + i * 40) / 240) % 2];
+    let cells;
+    if (cyc < 40) cells = morphCells(cc.c.id, 'face', sym, cyc / 40);
+    else if (cyc < 100) cells = morphCells(cc.c.id, sym, sym, 1);
+    else if (cyc < 140) cells = morphCells(cc.c.id, sym, 'face', (cyc - 100) / 40);
+    else cells = MORPH[cc.c.id].face;
+    paintCells(cc.live, cells, null);
+    cc.mesh.material.map = cc.live.tex;
+    cc.mesh.position.y = (c + i * 9) % 40 < 6 ? 2 : 0;
+  });
+  renderer.setClearColor('#a9dcf5');
+  renderer.clear();
+  renderer.render(city.scene, cam);
+  hideOverlay();
+  narrate(c, [[300, NARRATOR, T('city1')], [700, NARRATOR, T('city2')], [1300, NARRATOR, T('city3')]].filter(() => c < 1940));
+  if (c >= 2100) { fadeQuad.visible = true; setRect(fadeQuad, 0, 0, VIEW_W, VIEW_H); fadeQuad.material.opacity = step8(span(c, 2100, 2160)); }
+}
+
+// ===== end card: open source line, then the title card that frame 0 starts on ==========
+function renderEnd(e) {
+  renderer.setClearColor('#1b1820');
+  renderer.clear();
+  hideOverlay();
+  titleBg.visible = true;
+  setRect(titleBg, 0, 0, VIEW_W, VIEW_H);
+  titleBg.material.opacity = 1;
+  const toTitle = step8(span(e, 230, 270));
+  titleLogo.visible = true;
+  const size = lerp(48, 64, toTitle);
+  titleLogo.position.set(Math.round(160 - size / 2), Math.round(lerp(112, 92, toTitle)), 0);
+  titleLogo.scale.set(size, size, 1);
+  titleLogo.material.opacity = step8(span(e, 0, 30));
+  endText.visible = toTitle < 1;
+  endText.position.set(160, 92, 0);
+  endText.material.opacity = (1 - toTitle) * step8(span(e, 10, 40));
+  titleText.visible = toTitle > 0;
+  titleText.position.set(160, 88, 0);
+  titleText.material.opacity = toTitle;
+}
+
+// ===== master frame ==================================================================
+function renderFrame(F) {
+  F = ((F % TOTAL) + TOTAL) % TOTAL;
+  const sg = segmentAt(F);
+  const local = F - sg.start;
+  renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
+  renderer.setScissorTest(false);
+  if (sg.id === 'legacy') renderLegacy(sg.from + local);
+  else if (sg.id === 'market') renderMarket(local);
+  else if (sg.id === 'wall') renderWall(local);
+  else if (sg.id === 'city') renderCity(local);
+  else renderEnd(local);
+  debugMesh.visible = DEBUG_FRAMES;
+  if (DEBUG_FRAMES) drawDebug(F);
+  renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
+  renderer.clearDepth();
+  renderer.render(overlay, hudCam);
 }
 
 // ----- 8-bit BGM (deterministic synth, sample-accurate, aligned to frames) ---------
@@ -1532,16 +2475,21 @@ const MOTIFS = {
 function barPlan(bar) {
   if (bar < 5) return { sec: 'intro', lead: bar >= 1 ? 'm3' : null, drums: bar >= 2 ? 'light' : null, leadVol: 0.5 };
   if (bar < 18) return { sec: 'memory', lead: ['m1', 'm2', 'm3'][Math.floor((bar - 5) / 4) % 3], drums: 'light', leadVol: 0.45 };
-  if (bar < 28) return { sec: 'connect', lead: ['m2', 'm1'][Math.floor((bar - 18) / 4) % 2], drums: 'full', leadVol: 0.5 };
-  if (bar < 40) return { sec: 'group', lead: ['m1', 'm2', 'm1'][Math.floor((bar - 28) / 4) % 3], drums: 'full', leadVol: 0.55, harmony: true };
-  if (bar < 50) return { sec: 'adventure', lead: ['a1', 'a2'][Math.floor((bar - 40) / 4) % 2], drums: 'drive', leadVol: 0.55 };
-  if (bar < 58) return { sec: 'finale', lead: ['m1', 'm2'][Math.floor((bar - 50) / 4) % 2], drums: 'full', leadVol: 0.6, harmony: true };
-  return { sec: 'end', lead: 'end', drums: bar === 58 ? 'light' : null, leadVol: 0.5 };
+  if (bar < 21) return { sec: 'dream', lead: 'm3', drums: null, leadVol: 0.4, octave: 12 };
+  if (bar < 25) return { sec: 'rise', lead: ['m1', 'm2'][Math.floor((bar - 21) / 2) % 2], drums: 'light', leadVol: 0.5 };
+  if (bar < 31) return { sec: 'wonder', lead: ['m2', 'm1', 'm3'][Math.floor((bar - 25) / 2) % 3], drums: 'full', leadVol: 0.5, harmony: true };
+  if (bar < 41) return { sec: 'connect', lead: ['m2', 'm1'][Math.floor((bar - 31) / 4) % 2], drums: 'full', leadVol: 0.5 };
+  if (bar < 53) return { sec: 'group', lead: ['m1', 'm2', 'm1'][Math.floor((bar - 41) / 4) % 3], drums: 'full', leadVol: 0.55, harmony: true };
+  if (bar < 63) return { sec: 'adventure', lead: ['a1', 'a2'][Math.floor((bar - 53) / 4) % 2], drums: 'drive', leadVol: 0.55 };
+  if (bar < 70) return { sec: 'build', lead: bar < 66 ? 'm3' : 'm1', drums: bar < 66 ? 'light' : 'full', leadVol: 0.5 };
+  if (bar < 88) return { sec: 'finale', lead: ['m1', 'm2'][Math.floor((bar - 70) / 4) % 2], drums: 'full', leadVol: 0.6, harmony: true };
+  return { sec: 'end', lead: bar === 88 ? 'm3' : 'end', drums: bar === 89 ? 'light' : null, leadVol: 0.45 };
 }
+const LAST_BAR = TOTAL / BAR - 1;
 function chordFor(bar) {
-  if (bar === 58) return 'G';
-  if (bar === 59) return 'C';
-  if (bar >= 40 && bar < 50) return PROG_ADV[(bar - 40) % 4];
+  if (bar === LAST_BAR - 1) return 'G';
+  if (bar === LAST_BAR) return 'C';
+  if (bar >= 53 && bar < 63) return PROG_ADV[(bar - 53) % 4];
   return PROG_MAIN[bar % 4];
 }
 function buildSong(rate = SAMPLE_RATE) {
@@ -1556,22 +2504,22 @@ function buildSong(rate = SAMPLE_RATE) {
     // arpeggio (12.5% pulse), 16ths
     const arpNotes = [chord[0] + 12, chord[1] + 12, chord[2] + 12, chord[0] + 24];
     for (let i = 0; i < 16; i++) {
-      if (bar === 59 && i > 3) break;
+      if (bar === LAST_BAR && i > 3) break;
       add(t0 + i * EIGHTH / 2, EIGHTH / 2 * 0.9, hz(arpNotes[(i + (plan.sec === 'adventure' ? i >> 2 : 0)) % 4]), 'arp', plan.sec === 'intro' && bar === 0 ? 0.18 : 0.13);
     }
     // bass (triangle)
-    const bassPattern = plan.sec === 'adventure' ? [0, 0, 12, 0, 0, 12, 0, 7] : plan.sec === 'intro' || plan.sec === 'memory' ? [0, null, 12, null, 0, null, 7, null] : [0, 0, 12, 0, 7, 0, 12, 7];
+    const bassPattern = plan.sec === 'adventure' ? [0, 0, 12, 0, 0, 12, 0, 7] : plan.sec === 'intro' || plan.sec === 'memory' || plan.sec === 'dream' || plan.sec === 'end' ? [0, null, 12, null, 0, null, 7, null] : [0, 0, 12, 0, 7, 0, 12, 7];
     bassPattern.forEach((o, i) => {
-      if (o === null || (bar === 59 && i > 0)) return;
-      add(t0 + i * EIGHTH, (bar === 59 ? 4 : 1) * EIGHTH * 0.92, hz(chord[0] - 12 + o), 'bass', 0.55);
+      if (o === null || (bar === LAST_BAR && i > 0)) return;
+      add(t0 + i * EIGHTH, (bar === LAST_BAR ? 4 : 1) * EIGHTH * 0.92, hz(chord[0] - 12 + o), 'bass', 0.55);
     });
     // lead
     if (plan.lead === 'end') {
-      const seq = bar === 58 ? 'G5 - A5 - B5 - D6 -' : 'C6 - - - - - - -';
+      const seq = bar === LAST_BAR - 1 ? 'G5 - A5 - B5 - D6 -' : 'C6 - - - - - - -';
       parseLine(seq).forEach(([s, len, m]) => add(t0 + s * EIGHTH, len * EIGHTH * 0.95, hz(m), 'lead', plan.leadVol));
     } else if (plan.lead) {
       parseLine(MOTIFS[plan.lead][bar % 4]).forEach(([s, len, m]) => {
-        add(t0 + s * EIGHTH, len * EIGHTH * 0.92, hz(m), plan.sec === 'adventure' ? 'lead50' : 'lead', plan.leadVol);
+        add(t0 + s * EIGHTH, len * EIGHTH * 0.92, hz(m + (plan.octave ?? 0)), plan.sec === 'adventure' ? 'lead50' : 'lead', plan.leadVol);
         if (plan.harmony) add(t0 + s * EIGHTH, len * EIGHTH * 0.92, hz(m - 12), 'arp', 0.12);
       });
     }
