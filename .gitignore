@@ -11,6 +11,8 @@ apps/docs/src/content/docs/docs/file-open.mdx
 apps/docs/src/content/docs-zh/docs/file-open.mdx
 apps/docs/src/content/docs/docs/daily-browser.mdx
 apps/docs/src/content/docs-zh/docs/daily-browser.mdx
+apps/docs/src/content/docs/docs/lark-connection.mdx
+apps/docs/src/content/docs-zh/docs/lark-connection.mdx
 *.tsbuildinfo
 
 # env / secrets
@@ -23,6 +25,7 @@ apps/docs/src/content/docs-zh/docs/daily-browser.mdx
 
 # reference repos (read-only checkouts for research; never committed)
 reference/
+.release-provider/
 
 # local state (sessions, memory, caches)
 .cache/

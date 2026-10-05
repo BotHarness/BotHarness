@@ -87,4 +87,6 @@ exemption or a second receiver. No restart/upgrade should backfill remote histor
 or blindly repeat an unknown send. Apply the existing database backup/forward
 recovery rules before any retained Profile downgrade.
 
+Operator preparation and explicit publication: [npm prerelease guide](npm-prerelease.md).
+
 The product Provider pin is independent of the optional development Provider pin. Changing a development selection does not qualify or version a product artifact. This input includes the accepted Slack public-channel contracts; the product still requires real installed-artifact messaging and restart evidence before qualification is complete.
