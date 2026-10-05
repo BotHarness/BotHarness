@@ -1,0 +1,89 @@
+{
+  "issue": 874,
+  "base": "5e91748ef485b16a1f7fd62ae9768a5423263592",
+  "docsBuildPages": 326,
+  "focusedTestsPassed": 37,
+  "rendered": [
+    {
+      "language": "en",
+      "htmlStatus": 200,
+      "markdownStatus": 200,
+      "images": 13
+    },
+    {
+      "language": "zh/",
+      "htmlStatus": 200,
+      "markdownStatus": 200,
+      "images": 13
+    }
+  ],
+  "assets": [
+    {
+      "name": "01-onboarding.webp",
+      "bytes": 45764,
+      "sha256": "f4c681ca7ef48cf24edcde66343780a1f907f09db9a2f02359827ba19c1e7023"
+    },
+    {
+      "name": "02-create.webp",
+      "bytes": 42410,
+      "sha256": "8efc8901189ee4fce6b0d41c6a6520d0f6dd3f58183b94df82f15a243c8b0520"
+    },
+    {
+      "name": "03-socket.webp",
+      "bytes": 74056,
+      "sha256": "7b93e1d62f9118d8eb9c13b720cacd3b0fd2bec27d15b5a6da3d1acf87c0c898"
+    },
+    {
+      "name": "04-scopes.webp",
+      "bytes": 45936,
+      "sha256": "06208dc9a1b2d4162d858d7ceb942de2da132a884d81102cdd1230b7b7f42e7c"
+    },
+    {
+      "name": "05-scopes-detail.webp",
+      "bytes": 40960,
+      "sha256": "4fc26e150d45b605cead8c8fbb881335daed550c6d996b562e234df630234235"
+    },
+    {
+      "name": "06-events.webp",
+      "bytes": 73110,
+      "sha256": "404637b8b097e8c7632a6a0fe47b6736657a87c4bfddb91be9056f07ce054659"
+    },
+    {
+      "name": "07-connected.webp",
+      "bytes": 44072,
+      "sha256": "f6e90e711a749db9b6ed6c879c52252acfd2d00f093ce1daa981a1a4b8e784ea"
+    },
+    {
+      "name": "08-bind.webp",
+      "bytes": 80632,
+      "sha256": "588c9903edb18cfbba39a0e4d20aff1469aa8200b74ec6967bd94d58990731ff"
+    },
+    {
+      "name": "09-identity.webp",
+      "bytes": 97082,
+      "sha256": "8e1d864a4da3300c67304c89683b2de59dedb61b0c23b2d69fde99bf975570bc"
+    },
+    {
+      "name": "10-source.webp",
+      "bytes": 78080,
+      "sha256": "f7831659d98e95e59e85e7e8847ea8073d4466aa3ec10442b1df84e122cdc265"
+    },
+    {
+      "name": "11-native.webp",
+      "bytes": 137998,
+      "sha256": "7e8e826e1096652d33c8aa11f75854fe19e8a692b9f2ad5a5401607ea7590f2b"
+    },
+    {
+      "name": "12-connector.webp",
+      "bytes": 58344,
+      "sha256": "78552e60e4f42417b55e00a57f85093b696c50bdd664a11a29262dee1e7b94d2"
+    },
+    {
+      "name": "13-authorized.webp",
+      "bytes": 101548,
+      "sha256": "107a1af0993c290465b4e7beae2e77cc7632641ed0d9177a62ebabdeff88eb67"
+    }
+  ],
+  "runtimeChanged": false,
+  "websiteDeployed": false
+}

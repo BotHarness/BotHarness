@@ -4,6 +4,8 @@
 
 面向用户的配置步骤见已验证的 [Lark／飞书接入指南](../../lark-connection.zh.md)。
 
+用户接入 Slack 请参见[带截图的连接指南](../../slack-connection.zh.md)。
+
 ## 区分平台层与产品层
 
 DSH 原生 Plugin／Fiber 管理连接与 Service 注册。Service Definition → Provider → Consumer 提供受校验的外部操作；API Gateway 管理 Host／Client 通信。PersonaBot 身份、Grant、Source Event、Channel placement、Inbox Admission 和 Outbox intent 是 **BotHarness 应用定义的持久记录**。

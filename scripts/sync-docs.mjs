@@ -96,6 +96,21 @@ const DSH_CONTEXT_DIAGRAMS_EN = [
 
 export const PAGES = [
   {
+    slug: 'docs/slack-connection',
+    order: 24,
+    en: {
+      source: 'docs/slack-connection.md',
+      title: 'Connect a Bot to Slack',
+      description:
+        'Configure a Slack app, bind a Bot identity and verify authorized public-channel messages.',
+    },
+    zh: {
+      source: 'docs/slack-connection.zh.md',
+      title: '连接 Slack',
+      description: '配置 Slack 应用、绑定 Bot 身份，并验证已授权公共频道的收件与原话题回复。',
+    },
+  },
+  {
     slug: 'docs/lark-connection',
     order: 23,
     en: {
