@@ -1,5 +1,6 @@
 import type { D1Database } from './d1.js';
 import { BOT_TOPIC, parseRepositoryUrl, type GitHubClient } from './github.js';
+import { prepareReadme } from './readme.js';
 import { createRepositoryStore, isEligible, type RepositoryRow } from './repositories.js';
 
 export interface MarketplaceEntry {
@@ -129,8 +130,15 @@ function ftsQuery(terms: readonly string[]): string {
   return terms.map((term) => `"${term.replaceAll('"', '""')}"`).join(' ');
 }
 
+export interface MarketplaceDetail {
+  bot: MarketplaceEntry;
+  readme: string | null;
+  commitSha: string | null;
+}
+
 export interface Catalog {
   submit(url: string): Promise<SubmissionResult>;
+  detail(id: string): Promise<MarketplaceDetail | undefined>;
   list(options: ListOptions): Promise<MarketplacePage | undefined>;
   topics(): Promise<TopicCount[]>;
 }
@@ -252,6 +260,20 @@ export function createCatalog(deps: {
             ? { mode: 'stars', key: last.stars, nodeId: last.node_id }
             : { mode: 'updated', key: last.pushed_at, nodeId: last.node_id },
         ),
+      };
+    },
+
+    async detail(id) {
+      const row = await store.find(id);
+      if (row === null || row.visibility !== 'listed') return undefined;
+      const ref = row.head_sha ?? row.default_branch;
+      return {
+        bot: entryFromRow(row),
+        readme:
+          row.readme === null
+            ? null
+            : prepareReadme(row.readme, { owner: row.owner, name: row.name, ref }),
+        commitSha: row.head_sha,
       };
     },
 

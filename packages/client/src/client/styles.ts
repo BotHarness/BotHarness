@@ -1590,6 +1590,43 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   font-size: 12px;
   line-height: 18px;
 }
+.bh-market-open {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bh-market-open:hover .bh-market-name > :first-child {
+  text-decoration: underline;
+}
+.bh-market-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.bh-market-github {
+  flex: none;
+  color: var(--bh-accent);
+  font-size: 13px;
+  text-decoration: none;
+}
+.bh-market-github:hover {
+  text-decoration: underline;
+}
+.bh-market-readme {
+  max-height: min(56vh, 480px);
+  overflow-y: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  min-width: 0;
+}
+.bh-market-readme img {
+  max-width: 100%;
+}
 .bh-market-confirm {
   display: flex;
   flex-direction: column;

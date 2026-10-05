@@ -9,6 +9,7 @@ import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/ide
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
 import type {
+  MarketplaceDetail,
   MarketplaceEntry,
   MarketplacePage,
   MarketplaceQuery,
@@ -855,6 +856,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
   async marketplaceTopics(): Promise<MarketplaceTopic[]> {
     return unwrapAsync(this.methods.marketplaceTopics());
   }
+
+  async marketplaceDetail(id: string): Promise<MarketplaceDetail> {
+    return unwrapAsync(this.methods.marketplaceDetail({ id }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -978,6 +983,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'marketplaceList',
   'marketplaceSubmit',
   'marketplaceTopics',
+  'marketplaceDetail',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

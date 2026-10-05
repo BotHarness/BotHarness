@@ -363,6 +363,7 @@ describe('plugin entry', () => {
       'marketplaceList',
       'marketplaceSubmit',
       'marketplaceTopics',
+      'marketplaceDetail',
     ]);
   });
 

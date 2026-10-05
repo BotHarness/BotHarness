@@ -1,8 +1,16 @@
-import { useId, useRef, useState, type ReactElement } from 'react';
+import { useId, useMemo, useRef, useState, type ReactElement } from 'react';
 
-import { Button, Input, SegmentedControl, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  Input,
+  MarkdownText,
+  SegmentedControl,
+  Tag,
+  type MarkdownLabels,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type {
+  MarketplaceDetail,
   MarketplaceEntry,
   MarketplaceQuery,
   MarketplaceSort,
@@ -25,6 +33,7 @@ const marketplaceErrorKeys: Record<string, BotHarnessKey> = {
   'repository-missing-topic': 'market.error.missingTopic',
   'repository-blocked': 'market.error.blocked',
   'upstream-unavailable': 'market.error.upstream',
+  'bot-not-found': 'market.error.botNotFound',
 };
 
 export function marketplaceError(error: unknown, t: BotHarnessTranslate): string {
@@ -72,19 +81,46 @@ function mergeBots(current: MarketplaceEntry[], next: MarketplaceEntry[]): Marke
   return [...current.filter((bot) => !seen.has(bot.id)), ...next];
 }
 
+function MarketplaceMeta({
+  bot,
+  t,
+}: {
+  bot: MarketplaceEntry;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  return (
+    <span className="bh-market-meta">
+      <span>{t('market.stars', { count: String(bot.stars) })}</span>
+      <span>{t('market.updated', { date: day(bot.pushedAt) })}</span>
+      {bot.topics.map((topic) => (
+        <Tag key={topic} tone="neutral">
+          {topic}
+        </Tag>
+      ))}
+    </span>
+  );
+}
+
 function MarketplaceRow({
   bot,
   t,
+  onOpen,
   onInstall,
 }: {
   bot: MarketplaceEntry;
   t: BotHarnessTranslate;
+  onOpen: () => void;
   onInstall: () => void;
 }): ReactElement {
   return (
     <div className="bh-market-row" role="listitem" data-market-bot={bot.fullName}>
       <PersonaBotAvatar personaBotId="" name={bot.name} size={36} indicator={false} t={t} />
-      <span className="bh-market-copy">
+      <button
+        type="button"
+        className="bh-market-copy bh-market-open"
+        aria-label={t('market.detail.open', { name: bot.fullName })}
+        onClick={onOpen}
+      >
         <span className="bh-market-name">
           <span>{bot.name}</span>
           <span className="bh-market-owner">{bot.owner}</span>
@@ -92,19 +128,78 @@ function MarketplaceRow({
         {bot.description === null ? null : (
           <span className="bh-market-description">{bot.description}</span>
         )}
-        <span className="bh-market-meta">
-          <span>{t('market.stars', { count: String(bot.stars) })}</span>
-          <span>{t('market.updated', { date: day(bot.pushedAt) })}</span>
-          {bot.topics.map((topic) => (
-            <Tag key={topic} tone="neutral">
-              {topic}
-            </Tag>
-          ))}
-        </span>
-      </span>
+        <MarketplaceMeta bot={bot} t={t} />
+      </button>
       <Button variant="outline" onClick={onInstall}>
         {t('market.install')}
       </Button>
+    </div>
+  );
+}
+
+type DetailState =
+  | { status: 'loading' }
+  | { status: 'error'; cause: unknown }
+  | { status: 'ready'; detail: MarketplaceDetail };
+
+function MarketplaceDetailView({
+  bot,
+  state,
+  t,
+  onRetry,
+}: {
+  bot: MarketplaceEntry;
+  state: DetailState;
+  t: BotHarnessTranslate;
+  onRetry: () => void;
+}): ReactElement {
+  const labels = useMemo<MarkdownLabels>(
+    () => ({
+      code: { copyLabel: t('message.code.copy'), copiedLabel: t('message.code.copied') },
+      footnotes: t('message.footnotes'),
+    }),
+    [t],
+  );
+  const shown = state.status === 'ready' ? state.detail.bot : bot;
+  return (
+    <div className="bh-market-detail" data-market-detail={shown.fullName}>
+      <div className="bh-market-confirm-head">
+        <PersonaBotAvatar personaBotId="" name={shown.name} size={44} indicator={false} t={t} />
+        <span className="bh-market-copy">
+          <span className="bh-market-name">
+            <span>{shown.name}</span>
+            <span className="bh-market-owner">{shown.owner}</span>
+          </span>
+          {shown.description === null ? null : (
+            <span className="bh-market-description">{shown.description}</span>
+          )}
+          <MarketplaceMeta bot={shown} t={t} />
+        </span>
+        <a className="bh-market-github" href={shown.htmlUrl} target="_blank" rel="noreferrer">
+          {t('market.detail.github')}
+        </a>
+      </div>
+      {state.status === 'loading' ? (
+        <div className="bh-market-state" role="status">
+          {t('market.detail.loading')}
+        </div>
+      ) : null}
+      {state.status === 'error' ? (
+        <div className="bh-market-state" role="alert">
+          <span>{t('market.detail.error', { error: marketplaceError(state.cause, t) })}</span>
+          <Button variant="outline" onClick={onRetry}>
+            {t('market.retry')}
+          </Button>
+        </div>
+      ) : null}
+      {state.status === 'ready' && state.detail.readme === null ? (
+        <div className="bh-market-state">{t('market.detail.noReadme')}</div>
+      ) : null}
+      {state.status === 'ready' && state.detail.readme !== null ? (
+        <div className="bh-market-readme" data-market-readme>
+          <MarkdownText text={state.detail.readme} labels={labels} />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -187,6 +282,9 @@ export function MarketplaceModal({
   const [submitCause, setSubmitCause] = useState<unknown | undefined>(undefined);
   const [submitted, setSubmitted] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<MarketplaceEntry | undefined>(undefined);
+  const [viewing, setViewing] = useState<MarketplaceEntry | undefined>(undefined);
+  const [detail, setDetail] = useState<DetailState>({ status: 'loading' });
+  const detailGeneration = useRef(0);
   const [installing, setInstalling] = useState(false);
   const [installCause, setInstallCause] = useState<unknown | undefined>(undefined);
   const generation = useRef(0);
@@ -259,6 +357,20 @@ export function MarketplaceModal({
       },
       (cause: unknown) => {
         if (ticket === generation.current) setList({ status: 'error', cause });
+      },
+    );
+  };
+
+  const openDetail = (bot: MarketplaceEntry): void => {
+    const ticket = ++detailGeneration.current;
+    setViewing(bot);
+    setDetail({ status: 'loading' });
+    void actions.marketplaceDetail(bot.id).then(
+      (loaded) => {
+        if (ticket === detailGeneration.current) setDetail({ status: 'ready', detail: loaded });
+      },
+      (cause: unknown) => {
+        if (ticket === detailGeneration.current) setDetail({ status: 'error', cause });
       },
     );
   };
@@ -339,6 +451,48 @@ export function MarketplaceModal({
         }
       >
         <InstallConfirmation bot={selected} t={t} cause={installCause} />
+      </Modal>
+    );
+  }
+
+  if (viewing !== undefined) {
+    const shown = detail.status === 'ready' ? detail.detail.bot : viewing;
+    return (
+      <Modal
+        open
+        onClose={onClose}
+        closeLabel={t('common.close')}
+        title={shown.name}
+        className="bh-market-modal"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                detailGeneration.current += 1;
+                setViewing(undefined);
+              }}
+            >
+              {t('market.back')}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setSelected(shown);
+                setInstallCause(undefined);
+              }}
+            >
+              {t('market.install')}
+            </Button>
+          </>
+        }
+      >
+        <MarketplaceDetailView
+          bot={viewing}
+          state={detail}
+          t={t}
+          onRetry={() => openDetail(viewing)}
+        />
       </Modal>
     );
   }
@@ -469,6 +623,7 @@ export function MarketplaceModal({
                 key={bot.id}
                 bot={bot}
                 t={t}
+                onOpen={() => openDetail(bot)}
                 onInstall={() => {
                   setSelected(bot);
                   setInstallCause(undefined);

@@ -126,6 +126,31 @@ describe('Bot Marketplace bridge', () => {
     });
   });
 
+  it('loads a listed entry detail with its prepared README', async () => {
+    const market = createMarket();
+    const repository = fakeRepository({ readme: '![shot](shot.png)' });
+    market.publish(repository);
+    const methods = methodsWith(marketClient(market));
+    await methods.marketplaceSubmit({ url: repository.htmlUrl });
+
+    expect(await methods.marketplaceDetail({ id: repository.nodeId })).toEqual({
+      ok: true,
+      value: {
+        bot: expect.objectContaining({ fullName: 'alice/helper-bot' }),
+        readme: `![shot](<https://raw.githubusercontent.com/alice/helper-bot/${repository.head?.sha}/shot.png>)`,
+        commitSha: repository.head?.sha,
+      },
+    });
+    expect(await methods.marketplaceDetail({ id: 'R_missing' })).toMatchObject({
+      ok: false,
+      error: { code: 'bot-not-found' },
+    });
+    expect(await methods.marketplaceDetail({ id: ' ' })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+  });
+
   it('returns the Worker refusal code and logs a structured line', async () => {
     const market = createMarket();
     market.publish(fakeRepository({ topics: [] }));

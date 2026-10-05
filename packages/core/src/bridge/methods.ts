@@ -32,6 +32,7 @@ import { MessagingError, type MessagingTarget } from '../messaging/provider.js';
 import { OperationalDatabaseError } from '../database/owner.js';
 import type {
   MarketplaceClient,
+  MarketplaceDetail,
   MarketplaceEntry,
   MarketplacePage,
   MarketplaceQuery,
@@ -409,6 +410,7 @@ export interface BridgeMethods {
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
   marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
   marketplaceTopics(): Promise<BridgeResult<MarketplaceTopic[]>>;
+  marketplaceDetail(payload: unknown): Promise<BridgeResult<MarketplaceDetail>>;
 }
 
 export interface BridgeMethodsDeps {
@@ -1429,6 +1431,13 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     marketplaceTopics() {
       return marketplaceCall((client) => client.topics());
+    },
+    marketplaceDetail(payload) {
+      const id = asObject(payload)['id'];
+      if (typeof id !== 'string' || id.trim().length === 0) {
+        return Promise.resolve(invalidInput('id is required'));
+      }
+      return marketplaceCall((client) => client.detail(id.trim()));
     },
     marketplaceSubmit(payload) {
       const url = asObject(payload)['url'];
