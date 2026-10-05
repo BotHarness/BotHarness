@@ -4,7 +4,7 @@ The repository is still a source preview. The commands below build and test real
 npm tarballs locally; they do not publish packages or claim that a public product
 release exists. See [ADR-0127](adr/0127-product-artifacts-compose-an-independently-versioned-im-provider.md)
 for the distribution decision and [#823](https://github.com/BotHarness/BotHarness/issues/823)
-for the current qualification and Human QA evidence.
+for the initial Lark qualification and Human QA evidence. [#868](https://github.com/BotHarness/BotHarness/issues/868) extends the independently pinned product Provider to the accepted Slack artifact `4.32.0-botharness.3`; this does not publish a registry release.
 
 ## What the product installs
 
@@ -32,7 +32,7 @@ fails before packing.
 
 ```bash
 git clone https://github.com/DoodleBears/dsh-im.git /tmp/bh-im-source
-git -C /tmp/bh-im-source checkout b442da91b267412e84a4d18224adc30777024862
+git -C /tmp/bh-im-source checkout a0300e97d7996a5de3a6da2f5b9f50224eb12bd9
 npm ci --prefix /tmp/bh-im-source --ignore-scripts --no-audit --no-fund
 pnpm install --frozen-lockfile
 pnpm build
@@ -88,3 +88,5 @@ or blindly repeat an unknown send. Apply the existing database backup/forward
 recovery rules before any retained Profile downgrade.
 
 Operator preparation and explicit publication: [npm prerelease guide](npm-prerelease.md).
+
+The product Provider pin is independent of the optional development Provider pin. Changing a development selection does not qualify or version a product artifact. This input includes the accepted Slack public-channel contracts; the product still requires real installed-artifact messaging and restart evidence before qualification is complete.

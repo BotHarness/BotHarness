@@ -267,6 +267,8 @@
 
 ### Changed
 
+- 产品 IM Provider 采用独立固定的资格验证输入，并为已验收的 Slack 能力递增自身版本，避免开发版选择隐式改变产品产物（[IM 安装指南](docs/product-im-installation.md)、[#868](https://github.com/BotHarness/BotHarness/issues/868)）。
+
 - Bot Inbox 侧栏以内容为先，分行展示来源、Report 信息与处理状态，并用原生错误色突出需要修复的项 ([#851](https://github.com/BotHarness/BotHarness/issues/851))。
 
 - Channel sidebar 显示设置改用悬停二级菜单，连续选择时保持打开并临时只展开对应项供预览；关闭菜单恢复原先展开状态，显示偏好立即保存（[#807](https://github.com/BotHarness/BotHarness/issues/807)）。
@@ -370,6 +372,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- Assignment 原生执行错误现在会向所属 PersonaBot 发送一条安全 Host 通知并释放 Continuity Key，保留原始进度报告，不自动重试或在重启后重放（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
 
 - Human 取消正在运行的 Assignment 后，Bot Inbox 会收到一条 Host 来源通知，保留原报告与原生 Turn 引用且不自动重跑；已处理事实在重启后保留（[#194](https://github.com/BotHarness/BotHarness/issues/194)，[ADR-0045](docs/adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)）。
 

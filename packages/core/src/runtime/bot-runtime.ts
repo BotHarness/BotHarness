@@ -269,6 +269,7 @@ export interface AssignmentAgentRun {
   report(input: AssignmentReportInput, execution?: { turn: number }): Promise<AssignmentReport>;
   completedTurn?(execution: { turn: number; endSeq: number }): void;
   cancelledTurn?(execution: { turn: number; endSeq: number }): void;
+  failedTurn?(execution: { turn: number; endSeq: number }): void;
 }
 
 export type AssignmentRequestDelivery =
@@ -4446,7 +4447,9 @@ class BotRuntimeImplementation implements BotRuntime {
         completedTurn: (execution) =>
           this.#recordCompletedAssignment(bot.slug, sessionId, execution),
         cancelledTurn: (execution) =>
-          this.#recordCancelledAssignment(bot.slug, sessionId, execution),
+          this.#recordUnsuccessfulAssignment(bot.slug, sessionId, execution, 'cancelled'),
+        failedTurn: (execution) =>
+          this.#recordUnsuccessfulAssignment(bot.slug, sessionId, execution, 'failed'),
       }),
     );
     return { outcome: 'created', assignment: this.#requireAssignmentSummary(bot.slug, sessionId) };
@@ -4527,7 +4530,9 @@ class BotRuntimeImplementation implements BotRuntime {
       completedTurn: (execution) =>
         this.#recordCompletedAssignment(bot.slug, input.sessionId, execution),
       cancelledTurn: (execution) =>
-        this.#recordCancelledAssignment(bot.slug, input.sessionId, execution),
+        this.#recordUnsuccessfulAssignment(bot.slug, input.sessionId, execution, 'cancelled'),
+      failedTurn: (execution) =>
+        this.#recordUnsuccessfulAssignment(bot.slug, input.sessionId, execution, 'failed'),
     };
     let delivery: AssignmentRequestDelivery;
     try {
@@ -4793,10 +4798,11 @@ class BotRuntimeImplementation implements BotRuntime {
     return assignment;
   }
 
-  #recordCancelledAssignment(
+  #recordUnsuccessfulAssignment(
     botSlug: string,
     sessionId: string,
     execution: { turn: number; endSeq: number },
+    state: 'cancelled' | 'failed',
   ): void {
     if (
       !Number.isSafeInteger(execution.turn) ||
@@ -4804,7 +4810,9 @@ class BotRuntimeImplementation implements BotRuntime {
       !Number.isSafeInteger(execution.endSeq) ||
       execution.endSeq < 0
     )
-      throw new Error('Invalid native Assignment cancellation');
+      throw new Error('Invalid native Assignment unsuccessful settlement');
+    const cause = state === 'cancelled' ? 'native-turn-aborted' : 'native-turn-error';
+    const outcome = state === 'cancelled' ? 'was cancelled' : 'ended with an execution error';
     const at = this.#now().toISOString();
     const created = this.#database.transaction(
       (database) => {
@@ -4820,9 +4828,9 @@ class BotRuntimeImplementation implements BotRuntime {
           SELECT 1 FROM source_events WHERE bot_slug = ? AND assignment_session_id = ?
             AND source_kind = 'assignment-lifecycle'
             AND json_extract(payload_json, '$.assignmentLifecycle.turn') = ?
-            AND json_extract(payload_json, '$.assignmentLifecycle.cause') = 'native-turn-aborted'
+            AND json_extract(payload_json, '$.assignmentLifecycle.cause') = ?
         `)
-          .get(botSlug, sessionId, execution.turn);
+          .get(botSlug, sessionId, execution.turn, cause);
         if (existing !== undefined) return false;
         const id = this.#createEventId();
         const rule = this.#sourcePolicy.resolveIn(database, botSlug, 'assignment-lifecycle');
@@ -4844,14 +4852,16 @@ class BotRuntimeImplementation implements BotRuntime {
             sessionId,
             'DSH confirmed Assignment Turn ' +
               execution.turn +
-              ' was cancelled. Execution did not complete successfully.',
+              ' ' +
+              outcome +
+              '. Execution did not complete successfully.',
             at,
             at,
             JSON.stringify({
               author: { kind: 'system' },
               assignmentLifecycle: {
-                state: 'cancelled',
-                cause: 'native-turn-aborted',
+                state,
+                cause,
                 turn: execution.turn,
                 endSeq: execution.endSeq,
               },

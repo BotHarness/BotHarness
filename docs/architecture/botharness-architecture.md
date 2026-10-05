@@ -231,7 +231,7 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 ### 首条外部出站路径（ADR-0101）
 
-[ADR-0127](../adr/0127-product-artifacts-compose-an-independently-versioned-im-provider.md) 提议在开发用 fork 政策之外增加产品分发路径：打包的 `deepseekbot` 固定 Core、Client 和独立版本的 `@botharness/im-provider`，通过同一 Bundle Patch 激活一个 Provider。Provider 保留 SDK、凭据、存储身份及公开 Service；Core 保留所有 application-defined authority。构建校验不可变输入、重建运行时来源和 tarball 完整性。原生优先从 CLI 安装位置解析 Bundle，因此产物验收使用独立安装的官方 CLI，避免误用开发链接。初始不连接账号；重复的 standalone Bundle 在启动前被拒绝。Provider 随产品更新。此构建路径不发布 npm、不自动资格验证其他平台，也不免除 Human QA 和生产启用门槛。参见[打包验收指南](../product-im-installation.md)。
+[ADR-0127](../adr/0127-product-artifacts-compose-an-independently-versioned-im-provider.md) 提议在开发用 fork 政策之外增加产品分发路径：打包的 `deepseekbot` 固定 Core、Client 和独立版本的 `@botharness/im-provider`，通过同一 Bundle Patch 激活一个 Provider。Provider 保留 SDK、凭据、存储身份及公开 Service；Core 保留所有 application-defined authority。构建校验不可变输入、重建运行时来源和 tarball 完整性。原生优先从 CLI 安装位置解析 Bundle，因此产物验收使用独立安装的官方 CLI，避免误用开发链接。初始不连接账号；重复的 standalone Bundle 在启动前被拒绝。Provider 随产品更新。此构建路径不发布 npm、不自动资格验证其他平台，也不免除 Human QA 和生产启用门槛。参见[打包验收指南](../product-im-installation.md)。 产品 Provider 的来源、DSH 版本和运行时摘要独立于开发版固定值；改变产品输入需要递增自身版本并重做实际安装验收（[#868](https://github.com/BotHarness/BotHarness/issues/868)）。
 
 PersonaBot Profile 的 IM 连接经现有 Typert/API Gateway 选择账号和已测试目标，再由 Human 建立 Binding 与单目标主动发送 Grant。application-defined Messaging Provider Registration 由 Consumer Fiber 持有，Binding／Grant／Outbox 使用同一 `botharness.db`。接受和执行都复核活跃 Bot、Grant、Registration、认证账号 fingerprint 和目标内容 digest；删除、改址或账号变化要求显式重新授权。先提交 Intent 和 attempt-start，再调用 provider，结果只记平台接受、明确失败或未知；重启不重发 pending／in-flight，未知结果留待 Human 核对。
 
@@ -381,7 +381,7 @@ flowchart LR
   Runtime <--> W2["Independent Assignment Session B"]
   W1 -->|"report_to_orchestrator"| Report["Assignment Report Source Event"]
   W1 -->|"completed Turn paired with this Report"| Completion["Host Completion Notice<br/>paired completion #194"]
-  W2 -->|"confirmed stop / native user cancellation"| Notice["Host Lifecycle Notice<br/>stop / cancellation #194<br/>error / crash boundaries planned"]
+  W2 -->|"confirmed stop / native cancellation / native error"| Notice["Host Lifecycle Notice<br/>stop / cancellation / error #194<br/>crash boundary planned"]
   Report --> Inbox
   Completion --> Inbox
   Notice --> Inbox
@@ -402,7 +402,7 @@ Human 在 Bot 模式设置中将此 Profile 级上限调整为 1–32。DSH 原�
 
 Agent 可自行选择发送内联报告，或先写入其工作区文件并报告路径；超长内联报告由 Host 自动处理，不触发额外提问。
 
-当前 `stop_assignment` 通过 DSH `Agent.cancel({ kind: "user" })` 取消活动回合并清空待执行输入；BotHarness 先持久记录「停止中」，待 Agent 静止后在同一事务里记录「已停止」和 Host 来源的 Lifecycle Notice。通知进入该 PersonaBot 的 Bot Inbox，Orchestrator 可在私聊报告停止结果；未观察的通知在 Host 重启后恢复，已交给 Orchestrator 但在运行中中断的通知标为 needs-repair，以免重复执行不确定的副作用。停止的事项不再接收请求或迟到报告，其 Continuity Key 可用于新 Session；取消不销毁 DSH Session 历史。成功完成路径读取可信 DSH `turn/start` 的编号并记录在独立 Assignment Report 的 payload 中；原生 `turn/end` 确认成功后，Host 仅为同一所属 Session、同一 Turn 的 completed Report 追加一条幂等完成通知，保存该报告 Source Event ID 与结束 seq。报告保持 Bot 来源，通知保持 Host/system 来源；Bot Inbox 只读查询返回 Turn 和关联报告 ID。配对通知搭乘报告触发的收割或下一次真实 Turn，不单独唤醒，也不因报告已处理而伪造通知已观察／已处理；重启仍保持这一规则，正文同时保留报告语义与 Host 完成事实及各自来源引用（[ADR-0077](../adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)）。progress-only Turn 不产生完成配对通知。Human 通过 DSH 原生 Session 控制取消活动 Assignment 时，adapter 仅从已提交 reason=aborted 的 turn/end 读取可信 Turn/end seq；Runtime 在同一事务内投影 error、释放 Continuity Key，并按所属 Session／Turn／native-turn-aborted cause 幂等写入 Host/system Lifecycle Notice 与 Inbox Admission。它沿用即时收割，保留原 Report，不伪造成功配对或自动重试；通知与原报告分别可导航，已处理通知重启不重放。Orchestrator stop 路径抑制原生取消回调，继续只发已确认 stop 的通知（[ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)）。原生执行错误、崩溃重启结算通知和其他 #194 Attention 验收仍由后续切片交付。
+当前 `stop_assignment` 通过 DSH `Agent.cancel({ kind: "user" })` 取消活动回合并清空待执行输入；BotHarness 先持久记录「停止中」，待 Agent 静止后在同一事务里记录「已停止」和 Host 来源的 Lifecycle Notice。通知进入该 PersonaBot 的 Bot Inbox，Orchestrator 可在私聊报告停止结果；未观察的通知在 Host 重启后恢复，已交给 Orchestrator 但在运行中中断的通知标为 needs-repair，以免重复执行不确定的副作用。停止的事项不再接收请求或迟到报告，其 Continuity Key 可用于新 Session；取消不销毁 DSH Session 历史。成功完成路径读取可信 DSH `turn/start` 的编号并记录在独立 Assignment Report 的 payload 中；原生 `turn/end` 确认成功后，Host 仅为同一所属 Session、同一 Turn 的 completed Report 追加一条幂等完成通知，保存该报告 Source Event ID 与结束 seq。报告保持 Bot 来源，通知保持 Host/system 来源；Bot Inbox 只读查询返回 Turn 和关联报告 ID。配对通知搭乘报告触发的收割或下一次真实 Turn，不单独唤醒，也不因报告已处理而伪造通知已观察／已处理；重启仍保持这一规则，正文同时保留报告语义与 Host 完成事实及各自来源引用（[ADR-0077](../adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md)）。progress-only Turn 不产生完成配对通知。Human 通过 DSH 原生 Session 控制取消活动 Assignment 时，adapter 仅从已提交 reason=aborted 的 turn/end 读取可信 Turn/end seq；Runtime 在同一事务内投影 error、释放 Continuity Key，并按所属 Session／Turn／native-turn-aborted cause 幂等写入 Host/system Lifecycle Notice 与 Inbox Admission。它沿用即时收割，保留原 Report，不伪造成功配对或自动重试；通知与原报告分别可导航，已处理通知重启不重放。Orchestrator stop 路径抑制原生取消回调，继续只发已确认 stop 的通知（[ADR-0045](../adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)）。已提交的原生 error Turn 沿用同一失败结算事务，以 failed／native-turn-error 区分来源；adapter 只传可信 Turn/end 身份，不把原始错误写入通知。Runtime 释放 Continuity Key，保留进度 Report，独立即时收割一次，不生成成功配对、自动重试或替代 Assignment；已处理事实冷重启不重放。准入前失败与崩溃重启结算通知仍是独立边界，#194 尚待完成的视觉验收记录在 issue。
 
 Assignment Request 的 `context-update`、`next-step`、`next-turn` 分别映射到经过验证的 DSH inject、steer、followup seam；普通请求不 cancel 当前 step。跨 SQLite/DSH 边界只保留最小 Assignment Delivery Intent，重启时有界 reconciliation；歧义进入 `needs-repair`，不扩张为通用 workflow engine。
 

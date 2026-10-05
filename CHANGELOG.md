@@ -267,6 +267,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Made the packaged IM Provider qualification independent of developer selections and advanced its own artifact version for the accepted Slack capabilities ([IM installation](docs/product-im-installation.md), [#868](https://github.com/BotHarness/BotHarness/issues/868)).
+
 - Bot Inbox sidebar rows now put readable content first, separate source/report metadata from lifecycle status, and highlight items needing repair using the native error color ([#851](https://github.com/BotHarness/BotHarness/issues/851)).
 
 - Channel sidebar display settings open hover submenus that keep repeated selections visible and temporarily isolate the relevant entry for preview; dismissing restores prior disclosure while saving the chosen display preferences ([#807](https://github.com/BotHarness/BotHarness/issues/807)).
@@ -370,6 +372,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- A native Assignment execution error now produces one safe Host notification for its PersonaBot and releases its Continuity Key, preserving the original progress Report without retry or replay after restart ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 
 - Human cancellation of a running Assignment now delivers one Host-origin Bot Inbox notice, preserving the original Report and native Turn identity without automatic retry; handled facts survive restart ([#194](https://github.com/BotHarness/BotHarness/issues/194), [ADR-0045](docs/adr/0045-orchestrator-manages-assignments-through-a-durable-directory.md)).
 

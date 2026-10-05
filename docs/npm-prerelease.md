@@ -10,7 +10,7 @@ reviewable artifacts; it does not publish a release or deploy the website.
 Review `0.1.0-alpha.1` under npm dist-tag `next`. The version is a proposal until
 Human release approval. Publish these precompiled packages in this order:
 
-1. `@botharness/im-provider@4.32.0-botharness.2` — independent Provider version;
+1. `@botharness/im-provider@4.32.0-botharness.3` — independent Provider version;
 2. `@botharness/core@0.1.0-alpha.1`;
 3. `@botharness/ui@0.1.0-alpha.1`;
 4. `deepseekbot@0.1.0-alpha.1` — one product Bundle with exact dependencies.

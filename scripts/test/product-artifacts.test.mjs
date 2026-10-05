@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { productManifest, productImProvider } from '../product-artifacts.mjs';
 import {
   packagedProfileManifest,
@@ -13,6 +13,14 @@ import {
 } from '../packaged-profile.mjs';
 import { parse } from 'yaml';
 import { productManagedUpdate } from '../product-provider/update-policy.mjs';
+
+vi.mock('../dev-im-provider.mjs', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    qualifiedImProvider: { source: 'unqualified-development-tip', dsh: 'unqualified' },
+  };
+});
 
 const temporary = [];
 afterEach(() => {
@@ -108,7 +116,7 @@ describe('packaged product selection', () => {
       allowBuilds: { reviewed: true, other: false },
       overrides: { unrelated: '1.0.0' },
     });
-    expect(parse(result).overrides['@botharness/im-provider@4.32.0-botharness.2']).toMatch(
+    expect(parse(result).overrides['@botharness/im-provider@4.32.0-botharness.3']).toMatch(
       /^file:.*\.tgz$/,
     );
     expect(() => packagedWorkspaceSettings('packages: [', root)).toThrow(
@@ -171,6 +179,11 @@ describe('release composition', () => {
     entries[1].disabled = entries[0].disabled;
     expect(() => verifyProductComposition(entries)).toThrow('conflicts');
   });
+  it('keeps product provenance independent when the development Provider selection changes', () => {
+    expect(productImProvider.upstream.source).toBe('a0300e97d7996a5de3a6da2f5b9f50224eb12bd9');
+    expect(productImProvider.upstream.dsh).toBe('0.2.0-rc.1');
+  });
+
   it('pins independently named Provider and release packages in the product artifact', () => {
     const source = JSON.parse(
       readFileSync(new URL('../../packages/deepseekbot/package.json', import.meta.url), 'utf8'),
@@ -180,7 +193,7 @@ describe('release composition', () => {
     expect(release.dependencies).toEqual({
       '@botharness/core': '0.0.0-test.823',
       '@botharness/ui': '0.0.0-test.823',
-      '@botharness/im-provider': '4.32.0-botharness.2',
+      '@botharness/im-provider': '4.32.0-botharness.3',
     });
     expect(release.dsh.bundle.patch).toBe('./cordis.im.patch.yml');
     expect(source.private).toBe(true);
@@ -196,11 +209,11 @@ describe('release composition', () => {
 
 describe('product-managed Provider updates', () => {
   it('reports the running artifact without starting any independent check or installation job', () => {
-    expect(productManagedUpdate('update.status', {}, undefined, '4.32.0-botharness.2')).toEqual({
+    expect(productManagedUpdate('update.status', {}, undefined, '4.32.0-botharness.3')).toEqual({
       ok: true,
       value: {
-        runningVersion: '4.32.0-botharness.2',
-        installedVersion: '4.32.0-botharness.2',
+        runningVersion: '4.32.0-botharness.3',
+        installedVersion: '4.32.0-botharness.3',
         latestVersion: null,
         canInstall: false,
         sourceInstall: false,
@@ -224,7 +237,7 @@ describe('product-managed Provider updates', () => {
     'refuses %s so upstream update paths cannot replace the qualified artifact',
     (endpoint, payload) => {
       expect(
-        productManagedUpdate(endpoint, payload, undefined, '4.32.0-botharness.2'),
+        productManagedUpdate(endpoint, payload, undefined, '4.32.0-botharness.3'),
       ).toMatchObject({ ok: false, error: { code: 'product-managed' } });
     },
   );
@@ -232,7 +245,7 @@ describe('product-managed Provider updates', () => {
     const controller = new AbortController();
     controller.abort();
     expect(
-      productManagedUpdate('update.status', {}, controller.signal, '4.32.0-botharness.2'),
+      productManagedUpdate('update.status', {}, controller.signal, '4.32.0-botharness.3'),
     ).toMatchObject({ ok: false, error: { code: 'cancelled' } });
   });
 });
