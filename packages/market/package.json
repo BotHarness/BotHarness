@@ -1,0 +1,15 @@
+{
+  "name": "@botharness/market",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Bot Marketplace Worker: indexes public GitHub Bot repositories into D1",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:migrate:local": "wrangler d1 migrations apply MARKET_DB --local",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.95.0"
+  }
+}

@@ -29,6 +29,7 @@
     "packages/core/src",
     "packages/deepseekbot/src",
     "packages/browser/src",
+    "packages/market/src",
     "packages/*/test",
     "*.config.ts"
   ]
