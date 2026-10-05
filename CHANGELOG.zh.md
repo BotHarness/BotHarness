@@ -283,6 +283,8 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 
 ### Changed
 
+- Channel 顶部 Profile 入口与底部活动区头像不再重复显示提醒徽标和活动点阵；左侧 sidebar 标记与活动详情仍保留（[#928](https://github.com/BotHarness/BotHarness/issues/928)）。
+
 - DeepSeekBot 以正式版本发布在 npm `latest` 标签，`next` 同步指向它；可用 `dsh plugin --profile web add deepseekbot` 安装，或在桌面端「添加插件」里输入 `deepseekbot`（[#895](https://github.com/BotHarness/BotHarness/pull/895)、[发布指南](docs/npm-prerelease.md)）。
 
 - Channel 分组、置顶、隐藏与顶层排列经一次性校验导入后保存在 Profile 数据库，重启不再依赖保留的旧 roster domain；原生排序与各 Client 的折叠状态保持既有归属（[#885](https://github.com/BotHarness/BotHarness/issues/885)）。
