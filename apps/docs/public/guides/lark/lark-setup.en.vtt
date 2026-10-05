@@ -1,0 +1,53 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:08.000
+Find App ID and App Secret in Credentials & Basic Info. Keep the secret private.
+
+2
+00:00:08.000 --> 00:00:16.000
+Add the Bot capability to your company-built app. This example is already configured.
+
+3
+00:00:16.000 --> 00:00:24.000
+Use Tenant token scopes for the application. Start with mentions; request all-group access only if needed.
+
+4
+00:00:24.000 --> 00:00:32.000
+Enable im:message:send_as_bot to reply as the application bot.
+
+5
+00:00:32.000 --> 00:00:40.000
+Settings → IM Bots → Feishu → Manual setup. Choose international Lark and enter credentials privately.
+
+6
+00:00:40.000 --> 00:00:48.000
+Confirm the account is online. BotHarness updates the qualified Provider together with the product.
+
+7
+00:00:48.000 --> 00:00:56.000
+Choose persistent connection. If the console requires an active connection, connect locally first.
+
+8
+00:00:56.000 --> 00:01:04.000
+Subscribe to im.message.receive_v1 with the application identity. Other events here are not required for this guide.
+
+9
+00:01:04.000 --> 00:01:12.000
+Publish a version and obtain required approval. The example shows Released. Add the bot to your test group.
+
+10
+00:01:12.000 --> 00:01:20.000
+Open the account settings → Delivery targets. Test and save the intended group.
+
+11
+00:01:20.000 --> 00:01:28.000
+In the PersonaBot Profile, bind your connected application identity. Each Bot uses its own identity.
+
+12
+00:01:28.000 --> 00:01:36.000
+Authorize this exact group. Start with Inbox-only and mentions-only intake.
+
+13
+00:01:36.000 --> 00:01:44.000
+Mention the bot in Lark. Open Bot Inbox → group → processed messages → source details; verify the reply in Lark.

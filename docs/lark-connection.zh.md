@@ -14,7 +14,7 @@
 
 **绑定身份后，还要明确授权群**。绑定身份不会自动接收所有群消息；添加频道连接器也不会给其他 Bot 借用这个身份。
 
-本页截图来自实际运行的 BotHarness main 界面，使用没有外部账号的独立演示 Profile。因此账号和群下拉框为空，展示的是配置入口；完成前一步后，你会看到自己的账号和已授权群。截图不包含应用密钥或真实群消息。右键（手机长按）截图，可在浏览器中查看原图。
+本页结合真实界面入口与已完成 Lark 连接的测试 Profile。已连接截图来自 #823 验证的产品产物（`0.0.0-test.823.6` / Provider `4.32.0-botharness.2`）；测试群为「BotHarness IM QA #78」。空表单截图用于说明填写位置，不代表已完成连接。App Secret 不出现在媒体中。右键（手机长按）截图，可查看原图。
 
 ## 1. 准备可用环境
 
@@ -23,17 +23,50 @@
 - 已加入 Lark / 飞书组织，并有创建、发布企业自建应用的权限，或能请组织管理员协助。
 - 一个用于验证的群，以及一个能在该群发送消息的 Human 账号。
 - 已运行的 BotHarness、可用模型和一个 PersonaBot。先在本地 DM 中确认 Bot 能正常回复。
-- 与 BotHarness 兼容的 dsh-im Provider。本页完整流程使用仓库开发启动器安装的固定、已验证 fork；仅安装任意版本的官方 dsh-im，不能保证包含这些接口。
+- 包含已验证 IM Provider 的 BotHarness 产品。产品把 Core、Client 与 Provider 一起安装；**不用另外安装 Lark SDK、Human lark-cli 或任意版本的 dsh-im**。
 
-如果你从仓库启动，在完成基本开发环境准备后运行：
+**公开 npm 产品尚未发布。** 当前可复现路径是构建本地产品包；不要把下面的测试版本当成 npm 安装命令。已有 #823 验证产物的用户直接启动同一 Profile，然后进入下一节。
+
+<details>
+<summary>当前源码预览：构建已验证的单次安装产品</summary>
+
+使用 Node ≥22 与 pnpm 12.4.2。在新的目录中固定已验证版本，不在正在运行的 checkout 上切换分支：
 
 ```bash
+git clone https://github.com/BotHarness/BotHarness.git botharness-lark
+cd botharness-lark
+git checkout 3c4e05ca38fd0bfc65dfdb96e69f30feceb22c54
+git clone https://github.com/DoodleBears/dsh-im.git /tmp/bh-lark-provider
+git -C /tmp/bh-lark-provider checkout b442da91b267412e84a4d18224adc30777024862
+npm ci --prefix /tmp/bh-lark-provider --ignore-scripts --no-audit --no-fund
 pnpm install --frozen-lockfile
 pnpm build
-node scripts/dev-instance.mjs --home "$HOME/.local/share/botharness-lark" --port 32620 --im-provider
+node scripts/product-artifacts.mjs \
+  --provider-source /tmp/bh-lark-provider \
+  --output /tmp/bh-lark-product \
+  --version 0.0.0-test.lark-guide
+node scripts/dev-instance.mjs \
+  --home "$HOME/.local/share/botharness-lark" \
+  --port 32620 --product-artifacts /tmp/bh-lark-product
 ```
 
-打开启动器输出的登录 URL，保持 Host 运行。下次使用同一个 `--home`，保留账号和连接设置；不要用两个 Host 同时接收同一个应用的事件。安装与开发环境详见 [快速开始](/zh/docs/quickstart) 和 [Client Bridge 开发指南](/zh/dev/guides/client-bridge)。
+</details>
+
+启动器输出的登录 URL 只在本机打开，不放进截图或视频。下次使用同一个 `--home`，保留账号、授权和消息记录；同一个应用只由一个 Host 接收事件。完整打包背景见 [产品安装说明](https://github.com/BotHarness/BotHarness/blob/3c4e05ca38fd0bfc65dfdb96e69f30feceb22c54/docs/product-im-installation.md)。
+
+## 操作视频：连接、授权、确认消息
+
+以下是**真实界面截图的分步剪辑**，不是连续录屏或模拟连接成功。可暂停、拖动进度或打开中英文字幕；首次播放才下载视频。
+
+<video controls preload="none" playsInline poster="/guides/lark/06-connected.webp" style={{width: '100%', maxHeight: '640px'}}>
+<source src="/guides/lark/lark-setup-walkthrough.mp4" type="video/mp4" />
+  <track kind="captions" src="/guides/lark/lark-setup.zh.vtt" srcLang="zh" label="中文" default />
+  <track kind="captions" src="/guides/lark/lark-setup.en.vtt" srcLang="en" label="English" />
+</video>
+
+[下载视频](/guides/lark/lark-setup-walkthrough.mp4) · [中文字幕](/guides/lark/lark-setup.zh.vtt) · [English captions](/guides/lark/lark-setup.en.vtt)
+
+观看顺序：0:00 应用凭据与权限 → 0:32 本机连接 → 0:48 事件订阅与发布 → 1:12 投递目标 → 1:20 身份与群授权 → 1:36 消息来源。下文保留可逐项执行的步骤。
 
 ## 2. 在开放平台准备应用机器人
 
@@ -55,6 +88,38 @@ Lark 打开 [Lark 开发者后台](https://open.larksuite.com/app)；飞书打�
 
 权限是否可申请、是否需要审批，以你的组织后台为准。开通全群消息权限后，BotHarness 仍按明确授权的群和收件条件处理，不会自动把所有消息放进 Inbox。接口细节可参考 [接收消息事件](https://open.larksuite.com/document/server-docs/im-v1/message/events/receive) 和 [获取历史消息](https://open.larksuite.com/document/server-docs/im-v1/message/get-2)。
 
+### 对照真实后台配置
+
+以下截图来自已发布的测试应用，本轮只读核对配置。新应用仍需自己完成添加能力、申请权限、发布和管理员审批。不要照搬测试应用的全部权限或事件。
+
+![真实后台的凭证入口，App Secret 保持隐藏](/guides/lark/09-credentials.webp)
+
+_进入 Credentials & Basic Info 找到凭据；复制密钥到本机表单，不要点击展示密钥后截图。_
+
+![已添加机器人能力的应用](/guides/lark/10-bot-capability.webp)
+
+_在 Add Features 添加 Bot；添加后出现左侧 Bot 设置页。_
+
+![筛选应用身份的消息权限](/guides/lark/11-message-permissions.webp)
+
+_进入 Permissions & Scopes，搜索权限名，Type 选 Tenant token scopes。`im:message.group_msg` 是敏感权限，只有需要普通消息、群历史或话题跟进时才申请；图中的置顶、表情等权限不是本页要求。_
+
+![以应用身份发送消息的权限](/guides/lark/12-send-permission.webp)
+
+_搜索 `im:message:send_as_bot`，确认 Type 为 Tenant token、状态为 Added；还要发布变更才会生效。_
+
+![真实事件配置使用长连接](/guides/lark/13-long-connection.webp)
+
+_进入 Events & Callbacks → Event Configuration，Subscription mode 选择 persistent connection。连接由产品内的 Provider 建立，不用另开一个 SDK 接收进程。_
+
+![已订阅接收消息事件](/guides/lark/14-message-event.webp)
+
+_在 Events added 中核对 `im.message.receive_v1` 与 Tenant token。首次收件不需要图中的已读、表情、会议事件；本页不使用它们。_
+
+![应用版本已经发布](/guides/lark/15-published.webp)
+
+_进入 Version Management & Release 创建并发布版本，按组织要求完成审批；Released 和顶部已发布提示是本例的成功状态。_
+
 ## 3. 在本机连接应用
 
 1. 打开左下角 **设置 → IM机器人 → 飞书**。
@@ -66,6 +131,10 @@ Lark 打开 [Lark 开发者后台](https://open.larksuite.com/app)；飞书打�
 
 _图 1：Lark 应用选择国际版。密钥只输入本机设置，不粘贴到聊天、Git 或公开截图。界面的飞书扫码接入与 Lark CLI 的 Human 登录是不同流程；本页使用应用凭据接入。_
 
+![实际测试应用显示「运行正常」；这是已连接状态，不是空配置示意](/guides/lark/06-connected.webp)
+
+_图 1b：真实账号的绿色「运行正常」 只证明传输在线；还要绑定 PersonaBot、授权群，并核对消息来源与回复。_
+
 接着为该账号配置一个**投递目标**：
 
 1. 打开已连接机器人的设置，找到 **投递目标 → 新建目标**。
@@ -73,6 +142,10 @@ _图 1：Lark 应用选择国际版。密钥只输入本机设置，不粘贴到
 3. 填一个调用别名，例如 `lark-test-group`，点击 **测试**，到 Lark 群确认测试消息，再点击 **保存目标**。
 
 如果会话列表还没有测试群，可先在该群 @应用机器人发送「连接测试」，再刷新会话列表。这一步用于让 dsh-im 发现目标；此时尚未绑定 PersonaBot，不发送业务请求。不要把 dsh-im 自己的会话回复当作 BotHarness 收件成功。
+
+![真实账号的已保存群投递目标](/guides/lark/16-delivery-target.webp)
+
+_账号设置 → 投递设置 → 投递目标。这里的测试、保存目标只确认发送目的地；下一节还需给 PersonaBot 绑定身份并授权。_
 
 ## 4. 绑定 PersonaBot 身份并授权群
 
@@ -94,6 +167,10 @@ _图 2：外部身份属于 PersonaBot。列表为空时，先检查上一步的
 ![PersonaBot Profile 中外部身份与频道连接器授权的准备状态](/guides/lark/03-authorize.webp)
 
 _图 3：先绑定身份，再在「频道连接器与授权」中授权具体群。示例尚未连接账号，所以授权控件尚不可用。_
+
+![已绑定真实 Lark 身份与测试群，保留 Inbox-only 与只收 @](/guides/lark/07-granted.webp)
+
+_图 3b：真实测试群已绑定并授权，群接收已连接；普通消息收件仍未开启。截图中“继承全局默认”与“只收 @”是不同的配置字段。_
 
 每个 Bot 可以绑定多个平台，每个平台绑定一个身份。同一个 Bot 在不同本地群中仍使用自己的外部身份。共享频道的其他 Bot 如需对外回复，也要绑定自己的身份并获得目标群授权。
 
@@ -128,10 +205,16 @@ _图 4：来源、投递位置和接收条件分别选择。演示账号尚未�
 
 成功应能逐项确认：
 
-1. Bot 的 **活动中心 / Bot 收件箱**出现该消息，来源是正确的 Lark 群，带原始发送人与消息内容。
+1. Bot DM 右侧的 **Bot 收件箱**出现该消息，来源是正确的 Lark 群，带原始发送人与消息内容。
 2. 点开来源详情，能看到外部消息 ID、Source Event ID，以及存在时的话题信息。
 3. Lark 原会话收到这个 Bot 以自己的应用身份发出的 `LARK-OK`。若在话题内测试，回复仍在原话题。
 4. 默认只收 @ 时，再发送一条不带 @ 的普通消息，确认它不会作为新的普通收件触发该 Bot。已显式跟进的话题按话题策略处理。
+
+![真实 Lark 话题消息的来源详情，显示外部会话和接收身份](/guides/lark/08-source.webp)
+
+_图 5：这是已收件的真实话题消息。Source Event ID 是 BotHarness 的来源定位符；外部 message / thread / root / parent ID 由 Lark 提供，不能用本地 Channel ID 替代。_
+
+在 Bot DM 右侧展开 **Bot 收件箱 → 群名**；若消息已处理，再展开「已处理或忽略」。点击消息打开 Modal，然后展开「来源详情」和「消息详情」。发送人名字无法解析时会显示平台 ID。
 
 **不要以 Lark 消息旁的绿色 / 灰色已读圆圈判断 Bot 是否收件**。以本地 Inbox 来源记录和实际外部回复为准。
 

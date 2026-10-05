@@ -485,7 +485,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
-- Added a Lark / Feishu setup guide with compressed WebP screenshots and an annotated walkthrough covering application connection, PersonaBot identity, group authorization, Channel connectors and observable first-message verification ([#814](https://github.com/BotHarness/BotHarness/issues/814), [guide](docs/lark-connection.md)).
+- Added a Lark / Feishu beginner guide with compressed WebP captures of the actual console and connected Profile, a captioned step-by-step video, and qualified single-install, identity, group authorization and message-source checks ([#814](https://github.com/BotHarness/BotHarness/issues/814), [guide](docs/lark-connection.md)).
 - Added a verified [Assignment Report batch guide](docs/dev/guides/assignment-report-harvest.md), with native harvest evidence, retained source history, cold Host restart acceptance and Human source-navigation checks ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 
 - Added a verified [Assignment stop and recovery guide](docs/dev/guides/assignment-stop-recovery.md), including pending approvals, persistent stopped state and new work after Host restart ([#81](https://github.com/BotHarness/BotHarness/issues/81)).

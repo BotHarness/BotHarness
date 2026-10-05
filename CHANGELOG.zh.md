@@ -485,7 +485,7 @@
 
 ### Documentation
 
-- 新增带压缩 WebP 截图和合成标注示意的 Lark / 飞书配置指南，覆盖应用连接、PersonaBot 身份、群授权、频道连接器与可观察的首次消息验证（[#814](https://github.com/BotHarness/BotHarness/issues/814)、[指南](docs/lark-connection.md)）。
+- 新增 Lark / 飞书新手配置指南，含真实后台与已连接 Profile 的压缩 WebP 截图、带中英文字幕的分步视频，以及已验证单次安装、身份绑定、群授权和消息来源核验步骤（[#814](https://github.com/BotHarness/BotHarness/issues/814)、[指南](docs/lark-connection.md)）。
 - 新增已核验的 [Assignment Report 批次指南](docs/dev/guides/assignment-report-harvest.md)，包含原生 harvest 证明、来源历史保留、Host 冷启动验收及 Human 来源导航核验（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
 
 - 新增已核验的 [Assignment 停止与恢复指南](docs/dev/guides/assignment-stop-recovery.md)，说明待处理审批、持久 stopped 状态及 Host 重启后的新工作流程（[#81](https://github.com/BotHarness/BotHarness/issues/81)）。
