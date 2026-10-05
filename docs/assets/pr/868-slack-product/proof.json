@@ -1,0 +1,148 @@
+{
+  "issue": 868,
+  "base": "070b74a1a69e26a2d4f082170587d488725f2857",
+  "installed": {
+    "version": "0.0.0-test.868",
+    "providerVersion": "4.32.0-botharness.3",
+    "source": "a0300e97d7996a5de3a6da2f5b9f50224eb12bd9",
+    "runtime": {
+      "runtimeFiles": 394,
+      "runtimeSha256": "2b56d5bb172eddea3c88e841cd27917fbcfc3fa033ba11b68db69ad3a7d5ea05"
+    }
+  },
+  "qualifiedInput": {
+    "name": "@botharness/im-provider",
+    "version": "4.32.0-botharness.3",
+    "sourceManifestSha256": "501e62d558eceb2b42ad9cd03fc0910e09581fd6531ec68e074fe5a16225ed1e",
+    "sourceLockSha256": "c7f16baaa5bb1ab3bbb607b59a10327f0af010c61e1ea1ab4a72d7d08af9ffe9",
+    "upstream": {
+      "package": "@xmanrui/dsh-im",
+      "packageVersion": "4.32.0",
+      "source": "a0300e97d7996a5de3a6da2f5b9f50224eb12bd9",
+      "dsh": "0.2.0-rc.1",
+      "runtimeFiles": 393,
+      "runtimeSha256": "caeb3c0bbed424012730d2a658d5f6ba86e6a892c007d8bbb7dd6def42d38544"
+    },
+    "runtimeFiles": 393,
+    "runtimeSha256": "caeb3c0bbed424012730d2a658d5f6ba86e6a892c007d8bbb7dd6def42d38544"
+  },
+  "artifacts": [
+    {
+      "name": "@botharness/core",
+      "version": "0.0.0-test.868",
+      "filename": "botharness-core-0.0.0-test.868.tgz",
+      "integrity": "sha512-uzGC9o49gTVDF6MX2MrXSBJt6qNxKmd3jGwj+1g00uOIlhgkguFzBYt5hSxSx5SczhXlBOemCKUbtyhyOVLsyA=="
+    },
+    {
+      "name": "@botharness/ui",
+      "version": "0.0.0-test.868",
+      "filename": "botharness-ui-0.0.0-test.868.tgz",
+      "integrity": "sha512-DLTXskEuXyoCMIK3baSFrVGYVbqQq237hrJwGiVCJ9jgRBzI0UMyS4d8Y/xXOt8cgiRDWDbUZG5AoFa2Bl8P5Q=="
+    },
+    {
+      "name": "@botharness/im-provider",
+      "version": "4.32.0-botharness.3",
+      "filename": "botharness-im-provider-4.32.0-botharness.3.tgz",
+      "integrity": "sha512-p/tA6hqw6mKN+JsgLddanJgvO5xWjLt7mdilaYXxGtshQ83RwjggVZ1m/PjSTzibdhPbkb3OcYj9OiEhT8ly2A=="
+    },
+    {
+      "name": "deepseekbot",
+      "version": "0.0.0-test.868",
+      "filename": "deepseekbot-0.0.0-test.868.tgz",
+      "integrity": "sha512-gqlSyMrRQ3hEs9Uw/HTBBrCTZoLlHjiMZBt9J/qcqUfNInS9eHdqdwQkFZiInZxdZVGUeDhumgSE2OCSO8i+ZA=="
+    }
+  ],
+  "sources": [
+    {
+      "marker": "[BH868 PRODUCT]",
+      "sourceEventId": "im-5bcb404f13f1da619807dee5803fdb4c6c6a1a30d4399b169351e88b79f43fbb",
+      "native": {
+        "messageId": "1791198531.588319",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791194942.009129",
+        "rootId": "1791194942.009129"
+      },
+      "reportIntentId": "f7b27121-163c-4227-96d1-615f881ebdcb",
+      "admissions": [
+        {
+          "bot_slug": "bot-c30a3c24e3464f78a549ecd22c28be97",
+          "attempt_state": "handled",
+          "handled_at": "2026-10-05T11:09:01.885Z"
+        }
+      ],
+      "placements": 0
+    },
+    {
+      "marker": "[BH868 RESTART]",
+      "sourceEventId": "im-27d97abf0b75845be0ba1de505a9b4abfe8150df64a9b15aa14df778a6c9e805",
+      "native": {
+        "messageId": "1791198719.845269",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791194942.009129",
+        "rootId": "1791194942.009129"
+      },
+      "reportIntentId": "f7b27121-163c-4227-96d1-615f881ebdcb",
+      "admissions": [
+        {
+          "bot_slug": "bot-c30a3c24e3464f78a549ecd22c28be97",
+          "attempt_state": "handled",
+          "handled_at": "2026-10-05T11:12:21.673Z"
+        }
+      ],
+      "placements": 0
+    }
+  ],
+  "replies": [
+    {
+      "id": "d34482f5-f198-4d36-be83-bc1aca72e9f5",
+      "text": "BH868-PRODUCT-OK",
+      "state": "provider-accepted",
+      "receipt": {
+        "version": 1,
+        "messageId": "1791198539.183919",
+        "conversationId": "C0C6FPES0G5"
+      },
+      "route": {
+        "messageId": "1791198531.588319",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791194942.009129",
+        "rootId": "1791194942.009129"
+      }
+    },
+    {
+      "id": "582b0d99-56c9-4bc3-b880-64c27b8d3ed2",
+      "text": "BH868-RESTART-OK",
+      "state": "provider-accepted",
+      "receipt": {
+        "version": 1,
+        "messageId": "1791198727.499089",
+        "conversationId": "C0C6FPES0G5"
+      },
+      "route": {
+        "messageId": "1791198719.845269",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791194942.009129",
+        "rootId": "1791194942.009129"
+      }
+    }
+  ],
+  "assertions": {
+    "standaloneProviderRemoved": true,
+    "noCoreOrClientDeveloperLinks": true,
+    "originalReportUnchanged": true,
+    "oneAdmissionPerSource": true,
+    "noChannelPlacements": true,
+    "tamperedInputRejected": true
+  },
+  "validation": {
+    "core": "2493 passed / 9 skipped",
+    "finalFocused": "32 passed",
+    "native": "BH868-PRODUCT-OK and BH868-RESTART-OK in original report thread",
+    "initialInstall": "three running product components; no Slack account, shown in UI"
+  },
+  "implementation": "98fe70c138e48dbb93570eecd5b369a9304b9b84"
+}
