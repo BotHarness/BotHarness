@@ -3695,3 +3695,124 @@ it('derives setup receipt from an admitted topic, own reply and authenticated ec
   fx.core.externalMessaging.revoke('ada', fx.grant.id);
   expect((await fx.core.externalMessaging.snapshot('ada')).setup?.receipts).toEqual([]);
 });
+
+function watchMessagingViews(core: BotHarnessCore) {
+  const reader = core.live
+    .open(new Request('http://localhost/api/botharness/stream?scope=roster'))
+    .body!.getReader();
+  const frames: string[] = [];
+  const draining = (async () => {
+    for (;;) {
+      const part = await reader.read();
+      if (part.done) return;
+      frames.push(new TextDecoder().decode(part.value));
+    }
+  })();
+  return {
+    notices: () => frames.filter((frame) => frame.includes('event: roster/changed')).length,
+    async close() {
+      await reader.cancel();
+      await draining;
+    },
+  };
+}
+
+it('invalidates mounted messaging views after identity and Grant commits and after reception settles', async () => {
+  const fx = await fixture();
+  const views = watchMessagingViews(fx.core);
+  const { notices } = views;
+  try {
+    const initial = notices();
+    await fx.enable();
+    await expect.poll(notices, { timeout: 500 }).toBeGreaterThan(initial);
+    expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]?.reception).toBe(
+      'receiving',
+    );
+    const identity = (await fx.core.externalMessaging.snapshot('ada')).identities![0]!;
+    const beforePause = notices();
+    await fx.core.externalMessaging.identity('ada', {
+      kind: 'update',
+      id: identity.id,
+      expectedRevision: identity.revision,
+      name: identity.name,
+      enabled: false,
+    });
+    await expect.poll(notices, { timeout: 500 }).toBeGreaterThan(beforePause);
+    expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]?.reception).toBe(
+      'unavailable',
+    );
+    const paused = (await fx.core.externalMessaging.snapshot('ada')).identities![0]!;
+    const beforeResume = notices();
+    await fx.core.externalMessaging.identity('ada', {
+      kind: 'update',
+      id: paused.id,
+      expectedRevision: paused.revision,
+      name: paused.name,
+      enabled: true,
+    });
+    await expect.poll(notices, { timeout: 500 }).toBeGreaterThan(beforeResume);
+    expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]?.reception).toBe(
+      'receiving',
+    );
+    const beforeRevoke = notices();
+    fx.core.externalMessaging.revoke('ada', fx.grant.id);
+    await expect.poll(notices, { timeout: 500 }).toBeGreaterThan(beforeRevoke);
+    expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]).toMatchObject({
+      availability: 'unavailable',
+      reception: 'off',
+    });
+  } finally {
+    await views.close();
+  }
+});
+
+it('invalidates mounted messaging views when revoking a Grant without a reception lease', async () => {
+  const fx = await fixture();
+  const views = watchMessagingViews(fx.core);
+  try {
+    expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]?.reception).toBe('off');
+    const before = views.notices();
+    fx.core.externalMessaging.revoke('ada', fx.grant.id);
+    await expect.poll(views.notices, { timeout: 500 }).toBeGreaterThan(before);
+    expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]?.availability).toBe(
+      'unavailable',
+    );
+  } finally {
+    await views.close();
+  }
+});
+
+it.each(['receiving', 'unavailable'] as const)(
+  'invalidates connecting views when an asynchronous consumer settles to %s',
+  async (reception) => {
+    const fx = await fixture();
+    let resolve!: (dispose: () => void) => void;
+    let reject!: (error: Error) => void;
+    const pending = new Promise<() => void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    fx.publicService.consumeInbound = async () => pending;
+    const views = watchMessagingViews(fx.core);
+    const enabling = fx.enable();
+    try {
+      await expect
+        .poll(async () => (await fx.core.externalMessaging.snapshot('ada')).grants[0]?.reception)
+        .toBe('connecting');
+      await expect.poll(views.notices, { timeout: 500 }).toBeGreaterThan(0);
+      await tick();
+      const beforeSettlement = views.notices();
+      if (reception === 'receiving') resolve(() => undefined);
+      else reject(new Error('Consumer failed'));
+      await enabling;
+      await expect.poll(views.notices, { timeout: 500 }).toBeGreaterThan(beforeSettlement);
+      expect((await fx.core.externalMessaging.snapshot('ada')).grants[0]?.reception).toBe(
+        reception,
+      );
+    } finally {
+      resolve(() => undefined);
+      await enabling;
+      await views.close();
+    }
+  },
+);

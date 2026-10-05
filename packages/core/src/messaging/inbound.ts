@@ -176,6 +176,7 @@ export function createInboundMessaging(options: {
   sourcePolicy: BotSourcePolicyStore;
   isBotActive(slug: string): boolean;
   onAdmitted(botSlug: string, sourceEventId: string): void;
+  onReceptionChanged?(): void;
   onPlaced?(commit: ChannelMessageCommit): void;
   onShared?(botSlugs: string[]): void;
   warn?(message: string): void;
@@ -322,13 +323,25 @@ export function createInboundMessaging(options: {
     if (!row) throw new MessagingError('grant-unavailable');
     return JSON.parse(row.body) as MessagingGrant;
   };
+  const receptionChanged = () => {
+    if (closed) return;
+    try {
+      options.onReceptionChanged?.();
+    } catch {
+      options.warn?.('messaging-reception-publication-failed');
+    }
+  };
   const stop = (id: string) => {
     clearTimeout(retries.get(id)?.timer);
     retries.delete(id);
     const lease = leases.get(id);
     leases.delete(id);
     lease?.controller.abort();
-    lease?.dispose?.();
+    try {
+      lease?.dispose?.();
+    } finally {
+      if (lease) receptionChanged();
+    }
   };
   const targetAvailable = (value: MessagingGrant): boolean => {
     if (value.bridgeRoutes) return true;
@@ -406,6 +419,7 @@ export function createInboundMessaging(options: {
       dispose: undefined as (() => void) | undefined,
     };
     leases.set(value.id, lease);
+    receptionChanged();
     const startedAt = Date.now();
     try {
       const inspected = await entry.provider.inspect(value.accountRef, value.targetRef);
@@ -779,6 +793,7 @@ export function createInboundMessaging(options: {
         return;
       }
       lease.dispose = dispose;
+      receptionChanged();
       notifyPending(grant(value.id));
       options.warn?.(
         JSON.stringify({
@@ -790,7 +805,10 @@ export function createInboundMessaging(options: {
       );
     } catch (error) {
       lease.controller.abort();
-      if (leases.get(value.id) === lease) leases.delete(value.id);
+      if (leases.get(value.id) === lease) {
+        leases.delete(value.id);
+        receptionChanged();
+      }
       const reason = error instanceof MessagingError ? error.code : 'consumer-unavailable';
       const delays = [250, 1000, 3000];
       const delay = delays[attempt];

@@ -375,6 +375,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Open Profile identity and Channel connector tables now refresh after identity or Grant changes and when reception connects or fails, without a manual refresh ([#855](https://github.com/BotHarness/BotHarness/issues/855)).
+
 - After Host restart, previously executing Assignments now produce one safe recovery notification for their PersonaBot, preserving original Reports and avoiding automatic Assignment replay; handled notifications are not recreated on later restarts ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 
 - A native Assignment execution error now produces one safe Host notification for its PersonaBot and releases its Continuity Key, preserving the original progress Report without retry or replay after restart ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
