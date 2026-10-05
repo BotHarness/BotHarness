@@ -1,6 +1,20 @@
 # Discord mention/reply tracer — verification scope
 
-## Source refusal correction and real permission recovery — 2026-10-06
+## Fresh patched-model deleted-source refusal — 2026-10-06
+
+The Human separately confirmed deleting the newly prepared synthetic `DISCORD-855-PATCHED-SOURCE-QA` message at 04:43 Tokyo. The actual native mention had one handled Inbox Admission, one model `bridge_read` and no reply intent before deletion. The native owner UI deleted only that message; independent Discord read-back returned HTTP 404 / `10008`, and the full canonical source remained exactly equal to the pre-deletion snapshot.
+
+On the unchanged patched Host described below, one native Host local-DM instruction asked the real model to read that retained source and reply once. Actual Session tool call/result evidence and the canonical Outbox independently confirm **one `bridge_reply`, one intent, `failed / source-not-found`, no receipt and zero own-Bot native replies**. A fresh native mention then received one model reply, one accepted intent and one own-Bot reply to that new source in the original channel. The old unknown and interrupted intents were not retried or rewritten.
+
+![Fresh patched-model deleted-source refusal](../../assets/pr/855-discord-source-refusal/patched-source-refused.jpg)
+
+![New source recovery at the native destination](../../assets/pr/855-discord-source-refusal/patched-source-recovery.jpg)
+
+Both are unedited real browser captures, Chinese/dark, 1230 × 820 viewport. The failure capture is 730 × 330; the native recovery capture is 850 × 820. These use separate fresh sources and do not replay the historical pre-fix intent. Full read-only canonical audit now finds **39 Inbox items / 34 reply intents**, including three original/local-QA DM Admissions. Exact original permissions, identity/receiving Grant, Profile Patch and Provider runtime digest remain unchanged; no local bridge placement or extra active thread exists. The [sanitized proof](../../assets/pr/855-discord-source-refusal/proof.json) separates this fresh model result from the earlier fixed-adapter native preflight.
+
+The deleted-source model path is now accepted. Wrong real native Application/user/guild binding still lacks complete evidence. **Discord remains unqualified**; no product Provider promotion, release or Production deployment is included.
+
+## Earlier source correction and permission recovery checkpoint — 2026-10-06
 
 The authorized native deletion of the one synthetic `DISCORD-855-DELETED-SOURCE-QA` message exposed a real failure-classification defect. Discord returned HTTP 404 / `10008`, the complete canonical source stayed byte-for-byte equivalent on Host read-back, and the model made one `bridge_read` then one `bridge_reply` attempt. The preceding live Host recorded `unknown-outcome / provider-result-unknown` without a receipt. Its adapter omitted `source-not-found` and `reply-permission-denied` from the definite-refusal list. That existing intent remains unchanged and is never retried to manufacture a passing result.
 
@@ -28,9 +42,9 @@ After a private stopped-Host backup, the same isolated Profile restarted from ba
 
 ![Real native permission refusal and recovery](../../assets/pr/855-discord-source-refusal/native-permission-recovery.jpg)
 
-These are unedited browser captures of different actual test cases, not a matched before/after replay of one source. A matched patched-model deleted-source capture was deliberately not obtained: the existing intent is already settled and cannot safely be retried or rewritten; the user authorized deletion of only that one prepared message. The corrected deleted-source result is bounded to native preflight plus the canonical regression. For review, use a fresh explicitly disposable source on an authorized QA server, admit/read it, delete it after approval, then let the patched model reply once. Do not repurpose the historical unknown intent.
+These are unedited browser captures of different actual test cases, not a matched before/after replay of one source. At this earlier checkpoint a fresh patched-model deleted-source capture had not been obtained: the existing intent is already settled and cannot safely be retried or rewritten; the user authorized deletion of only that one prepared message. The corrected deleted-source result is bounded to native preflight plus the canonical regression. For review, use a fresh explicitly disposable source on an authorized QA server, admit/read it, delete it after approval, then let the patched model reply once. Do not repurpose the historical unknown intent.
 
-Wrong native Application/user/guild binding and a fresh patched-model deleted-source path still need full evidence. **Discord remains unqualified**; no dependency promotion, release or Production deployment is included. Raw credentials, source IDs and model logs remain private.
+At this earlier checkpoint wrong native Application/user/guild binding and a fresh patched-model deleted-source path still needed full evidence; the later section above completes the latter. **Discord remains unqualified**; no dependency promotion, release or Production deployment is included. Raw credentials, source IDs and model logs remain private.
 
 ## Prior bounded checkpoint — 2026-10-06
 

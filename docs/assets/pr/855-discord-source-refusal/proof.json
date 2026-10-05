@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-05T19:16:19.312Z",
+  "at": "2026-10-05T20:01:35.176Z",
   "runtime": {
     "base": "4092e93de0e62d9f48ff8d1c69bc125ebf543c69",
     "adapterSourceSha256": "28ee8a799090223d5ad2e2284096cd3eff463cc17da552000505efcfc5a9ed51",
@@ -18,6 +18,23 @@
       "oneIntent": true,
       "modelBridgeReplyCalls": 1,
       "nativeOwnBotReplies": 0
+    },
+    {
+      "marker": "DISCORD-855-PATCHED-SOURCE-REFUSAL",
+      "state": "failed",
+      "reason": "source-not-found",
+      "oneAdmission": true,
+      "oneIntent": true,
+      "modelBridgeReplyCalls": 1,
+      "nativeOwnBotReplies": 0
+    },
+    {
+      "marker": "DISCORD-855-PATCHED-SOURCE-RECOVERED-OK",
+      "state": "provider-accepted",
+      "oneAdmission": true,
+      "oneIntent": true,
+      "modelBridgeReplyCalls": 1,
+      "nativeOwnBotReplies": 1
     },
     {
       "marker": "DISCORD-855-PATCHED-PERMISSION-DENIED",
@@ -55,8 +72,8 @@
   "originalProfilePatch": true,
   "identityAndGrantUnchanged": true,
   "counts": {
-    "inbox": 36,
-    "intents": 32
+    "inbox": 39,
+    "intents": 34
   },
   "hostBindingRefusals": {
     "results": [
@@ -80,5 +97,21 @@
       }
     ],
     "noBindingGrantIntentChanges": true
+  },
+  "freshPatchedDeletedSource": {
+    "at": "2026-10-05T20:03:43.412Z",
+    "mode": "model",
+    "marker": "DISCORD-855-PATCHED-SOURCE-QA",
+    "canonicalSourceExactlyRetained": true,
+    "oneAdmission": true,
+    "nativeStatus": 404,
+    "replyIntents": 1,
+    "state": "failed",
+    "reason": "source-not-found",
+    "modelBridgeReplyCalls": 1,
+    "modelBridgeReads": 2,
+    "oldUnknownIntentExactlyRetained": true,
+    "noReceipt": true,
+    "nativeOwnBotReplies": 0
   }
 }
