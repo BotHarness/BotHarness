@@ -47,7 +47,10 @@ const assignment = async () =>
 if (phase === 'prepare') {
   const stamp = Date.now();
   const model = (await rpc('modelCatalog')).models.find(
-    (m) => m.model.includes('flash') && m.efforts.some((e) => e.id === 'low'),
+    (m) =>
+      m.provider === 'deepseek-official' &&
+      m.model.includes('flash') &&
+      m.efforts.some((e) => e.id === 'low'),
   );
   assert.ok(model);
   const route = { provider: model.provider, model: model.model, reasoningEffort: 'low' };
