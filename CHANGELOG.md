@@ -29,7 +29,7 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 
 - PersonaBot creation offers colleague, roleplay and blank starting points with editable PERSONA.md text; switching preserves drafts, while permissions and runtime capabilities stay the same ([#325](https://github.com/BotHarness/BotHarness/issues/325)).
 
-- Added the candidate checked Discord Provider registration and existing Inbox/source presentation contract, preserving exact channel/public-thread routes; real channel/thread model replies passed, with full qualification and Human QA pending ([#855](https://github.com/BotHarness/BotHarness/issues/855), [ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)).
+- Added the candidate checked Discord Provider registration and existing Inbox/source presentation contract, preserving exact channel/public-thread routes; real channel/thread model replies and agent-operated UI acceptance passed, with remaining native qualification pending ([#855](https://github.com/BotHarness/BotHarness/issues/855), [ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)).
 
 - PersonaBots can explicitly publish Slack reports without mirroring them into local chat, inspect the saved text and native receipt, and answer eligible Human follow-up in the original Slack topic ([#863](https://github.com/BotHarness/BotHarness/issues/863), [IM integration guide](docs/dev/guides/im-provider-integration.md)).
 
@@ -546,7 +546,7 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 
 - Added a bilingual Channel sidebar chapter with seven illustrated feature guides for Memory files/history, owned Sessions, Bot Inbox, Workspace Grants, local group management and display controls ([#893](https://github.com/BotHarness/BotHarness/issues/893), [guide](docs/channel-sidebar/index.md)).
 
-- Updated Discord integration guidance with merged QA revisions, bounded send-interruption/recovery evidence, agent-operated UI/E2E acceptance screenshots and explicit remaining native qualification gates ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
+- Updated Discord integration guidance with merged QA revisions, bounded send-interruption/recovery evidence, agent-operated UI/E2E screenshots, real Gateway redelivery without duplicate admission/reply, native refusal checks and explicit remaining qualification paths ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
 
 - Added illustrated public npm installation, API / per-Bot model setup and non-IM settings guides with a user-focused Quickstart, verified with DSH 0.2.0 RC1 and deepseekbot 0.1.0-alpha.1 ([#887](https://github.com/BotHarness/BotHarness/issues/887), [guide](docs/installation.md)).
 
