@@ -34,6 +34,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Verify the reviewed preparation provenance
         env:
           GH_TOKEN: ${{ github.token }}
