@@ -1,0 +1,80 @@
+name: publish reviewed npm prerelease
+
+on:
+  workflow_dispatch:
+    inputs:
+      preparation_run:
+        description: Successful main-branch manual preparation run ID
+        required: true
+      source_sha:
+        description: Reviewed source SHA (must still be current main)
+        required: true
+      version:
+        description: Reviewed prerelease version
+        required: true
+      plan_sha256:
+        description: Reviewed release-plan.json SHA-256 from preparation summary
+        required: true
+      confirmation:
+        description: 'Type: publish VERSION to next (requires Human release approval)'
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: npm-prerelease-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify the reviewed preparation provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.preparation_run }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          node --input-type=module - <<'JS'
+          import { execFileSync } from 'node:child_process';
+          const { RUN_ID, SOURCE_SHA, GITHUB_REPOSITORY } = process.env;
+          if (!/^\d+$/.test(RUN_ID) || !/^[a-f0-9]{40}$/.test(SOURCE_SHA)) throw new Error('Invalid reviewed run/SHA');
+          const api = (path) => JSON.parse(execFileSync('gh', ['api', path], {encoding:'utf8'}));
+          const run = api(`repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}`);
+          const main = api(`repos/${GITHUB_REPOSITORY}/commits/main`);
+          if (run.path !== '.github/workflows/npm-prerelease-prepare.yml' || run.event !== 'workflow_dispatch' || run.head_branch !== 'main' || run.conclusion !== 'success' || run.head_sha !== SOURCE_SHA || main.sha !== SOURCE_SHA) throw new Error('Preparation is not the successful reviewed current-main run');
+          if (execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim() !== SOURCE_SHA) throw new Error('Publisher source differs from reviewed main');
+          JS
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-prerelease-${{ inputs.version }}
+          path: ${{ runner.temp }}/npm-prerelease
+          run-id: ${{ inputs.preparation_run }}
+          github-token: ${{ github.token }}
+      - name: Verify reviewed bytes without publish credentials
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          PLAN_SHA: ${{ inputs.plan_sha256 }}
+        run: node scripts/npm-prerelease.mjs verify --artifacts "$RUNNER_TEMP/npm-prerelease" --version "$RELEASE_VERSION" --source-sha "$SOURCE_SHA" --plan-sha256 "$PLAN_SHA"
+      - name: Publish dependencies before product and read back integrity
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          PLAN_SHA: ${{ inputs.plan_sha256 }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: node scripts/npm-prerelease.mjs publish --artifacts "$RUNNER_TEMP/npm-prerelease" --version "$RELEASE_VERSION" --source-sha "$SOURCE_SHA" --plan-sha256 "$PLAN_SHA" --confirm "$CONFIRMATION"

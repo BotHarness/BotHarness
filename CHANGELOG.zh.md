@@ -506,6 +506,8 @@
 
 ### Documentation
 
+- 记录 npm prerelease 的产物准备与明确发布路径，包括完整性校验、依赖顺序和部分发布恢复；不宣称已经公开发布（[#866](https://github.com/BotHarness/BotHarness/issues/866), [操作指南](docs/npm-prerelease.md)）。
+
 - 整理已验证的 Lark／Slack IM 接入边界与后续平台可复用的资格验证流程 ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 
 - 新增 Lark / 飞书新手配置指南，含真实后台与已连接 Profile 的压缩 WebP 截图、带中英文字幕的分步视频，以及已验证单次安装、身份绑定、群授权和消息来源核验步骤（[#814](https://github.com/BotHarness/BotHarness/issues/814)、[指南](docs/lark-connection.md)）。

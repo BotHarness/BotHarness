@@ -86,3 +86,5 @@ An incompatible Provider replacement requires requalification, not a version
 exemption or a second receiver. No restart/upgrade should backfill remote history
 or blindly repeat an unknown send. Apply the existing database backup/forward
 recovery rules before any retained Profile downgrade.
+
+Operator preparation and explicit publication: [npm prerelease guide](npm-prerelease.md).

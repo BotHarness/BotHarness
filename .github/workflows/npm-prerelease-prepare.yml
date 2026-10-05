@@ -1,0 +1,62 @@
+name: npm prerelease preparation
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact prerelease version to prepare (no publication)
+        required: true
+        default: 0.1.0-alpha.1
+  pull_request:
+    paths:
+      - .github/workflows/npm-prerelease-*.yml
+      - scripts/npm-prerelease.mjs
+      - scripts/product-artifacts.mjs
+      - scripts/dev-im-provider.mjs
+      - scripts/product-provider/**
+      - scripts/test/npm-prerelease.test.mjs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-prerelease-prepare-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
+      - uses: actions/checkout@v7
+        with:
+          repository: DoodleBears/dsh-im
+          ref: 48e7a35792af5222cd40cfe1ba2607ac55a59df2
+          path: .release-provider
+          persist-credentials: false
+      - run: npm ci --ignore-scripts --prefix .release-provider
+      - name: Prepare and dry-run the exact package set
+        env:
+          RELEASE_VERSION: ${{ inputs.version || '0.1.0-alpha.1' }}
+        run: |
+          node scripts/npm-prerelease.mjs prepare --version "$RELEASE_VERSION" --provider-source .release-provider --output "$RUNNER_TEMP/npm-prerelease"
+          node -e 'const fs=require("fs"); const crypto=require("crypto"); const p=process.env.RUNNER_TEMP+"/npm-prerelease/release-plan.json"; fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,"Reviewed plan SHA-256: `"+crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")+"`\n\n```json\n"+fs.readFileSync(p)+"\n```\n")'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-prerelease-${{ inputs.version || '0.1.0-alpha.1' }}
+          path: |
+            ${{ runner.temp }}/npm-prerelease/*.tgz
+            ${{ runner.temp }}/npm-prerelease/artifacts.json
+            ${{ runner.temp }}/npm-prerelease/release-plan.json
+          if-no-files-found: error
+          retention-days: 14

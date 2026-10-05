@@ -1,0 +1,303 @@
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import semver from 'semver';
+import { packProduct, productImProvider } from './product-artifacts.mjs';
+import {
+  verifiedProductArtifacts,
+  parseProductComposition,
+  verifyProductComposition,
+} from './packaged-profile.mjs';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+export const publicationOrder = [
+  productImProvider.name,
+  '@botharness/core',
+  '@botharness/ui',
+  'deepseekbot',
+];
+const registry = 'https://registry.npmjs.org';
+const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+export function prereleaseVersion(version) {
+  if (
+    semver.valid(version) !== version ||
+    !semver.prerelease(version) ||
+    version.startsWith('0.0.0-')
+  )
+    throw new Error('Choose an exact public prerelease SemVer, for example 0.1.0-alpha.1');
+  return version;
+}
+
+function tarText(directory, artifact, path) {
+  return execFileSync('tar', ['-xOf', join(directory, artifact.filename), `package/${path}`], {
+    encoding: 'utf8',
+  });
+}
+
+export function checkPackage(manifest, artifact, files, inventory) {
+  if (
+    manifest.name !== artifact.name ||
+    manifest.version !== artifact.version ||
+    manifest.private ||
+    manifest.license !== 'MIT'
+  )
+    throw new Error(`Invalid public manifest: ${artifact.name}`);
+  for (const [name, spec] of Object.entries({
+    ...manifest.dependencies,
+    ...manifest.optionalDependencies,
+    ...manifest.peerDependencies,
+  })) {
+    if (typeof spec !== 'string' || !semver.validRange(spec))
+      throw new Error(`Non-registry dependency: ${name}`);
+    const internal = inventory.find((a) => a.name === name);
+    if (internal && spec !== internal.version)
+      throw new Error(`Unpinned product dependency: ${name}`);
+  }
+  for (const path of [
+    manifest.main,
+    manifest.dsh?.bundle?.patch,
+    manifest.dsh?.client ? './lib/client.js' : undefined,
+    'LICENSE',
+  ].filter(Boolean)) {
+    if (!files.includes(`package/${path.replace(/^\.\//, '')}`))
+      throw new Error(`Missing packed entry: ${artifact.name}:${path}`);
+  }
+  if (
+    files.some((path) => /(^|\/)(\.npmrc|\.env(?:\..*)?|.*\.token|\.credentials\.yaml)$/.test(path))
+  )
+    throw new Error(`Private configuration in package: ${artifact.name}`);
+}
+
+export function verifyRelease(directory, expected = {}) {
+  const inventory = verifiedProductArtifacts(directory);
+  prereleaseVersion(inventory.productVersion);
+  const planBytes = readFileSync(join(directory, 'release-plan.json'));
+  const plan = JSON.parse(planBytes);
+  if (
+    plan.productVersion !== inventory.productVersion ||
+    plan.distTag !== 'next' ||
+    !/^[a-f0-9]{40}$/.test(plan.sourceSha) ||
+    plan.providerSource !== productImProvider.upstream.source ||
+    plan.dsh !== inventory.dsh ||
+    JSON.stringify(plan.publicationOrder) !== JSON.stringify(publicationOrder) ||
+    plan.artifactsSha256 !== digest(readFileSync(join(directory, 'artifacts.json'))) ||
+    (expected.version && plan.productVersion !== expected.version) ||
+    (expected.sourceSha && plan.sourceSha !== expected.sourceSha) ||
+    (expected.planSha256 && digest(planBytes) !== expected.planSha256) ||
+    (expected.clean && plan.sourceDirty !== false)
+  )
+    throw new Error('Reviewed release plan does not match these artifacts');
+  const packages = publicationOrder.map((name) => {
+    const artifact = inventory.artifacts.find((a) => a.name === name);
+    const files = execFileSync('tar', ['-tzf', join(directory, artifact.filename)], {
+      encoding: 'utf8',
+    })
+      .trim()
+      .split('\n');
+    if (files.some((path) => !path.startsWith('package/') || path.split('/').includes('..')))
+      throw new Error('Unsafe tarball path');
+    const manifest = JSON.parse(tarText(directory, artifact, 'package.json'));
+    checkPackage(manifest, artifact, files, inventory.artifacts);
+    return { artifact, manifest };
+  });
+  const product = packages.find((p) => p.artifact.name === 'deepseekbot');
+  for (const name of publicationOrder.slice(0, -1)) {
+    if (
+      product.manifest.dependencies?.[name] !==
+      inventory.artifacts.find((a) => a.name === name).version
+    )
+      throw new Error(`Missing exact product dependency: ${name}`);
+  }
+  const patch = parseProductComposition(
+    tarText(directory, product.artifact, 'cordis.im.patch.yml'),
+  );
+  if (
+    !Array.isArray(patch) ||
+    patch.some((row) => Object.keys(row).length !== 1 || !Array.isArray(row.insert))
+  )
+    throw new Error('Unexpected product Patch operation');
+  verifyProductComposition(patch.flatMap((row) => row.insert));
+  const provider = packages[0];
+  const provenance = JSON.parse(tarText(directory, provider.artifact, 'PROVENANCE.json'));
+  if (
+    provenance.source !== plan.providerSource ||
+    JSON.stringify(provenance.compiledOutput) !== JSON.stringify(inventory.providerRuntime)
+  )
+    throw new Error('Provider provenance differs from release inventory');
+  return { plan, packages, planSha256: digest(planBytes) };
+}
+
+const registryMetadata = new Map();
+async function registryPackage(name, version) {
+  if (!registryMetadata.has(name)) {
+    const response = await fetch(`${registry}/${encodeURIComponent(name)}`);
+    if (response.status === 404) registryMetadata.set(name, undefined);
+    else {
+      if (!response.ok) throw new Error(`Registry read failed (${response.status}): ${name}`);
+      registryMetadata.set(name, await response.json());
+    }
+  }
+  const metadata = registryMetadata.get(name);
+  if (!metadata) return undefined;
+  const selected = semver.valid(version)
+    ? version
+    : semver.maxSatisfying(Object.keys(metadata.versions ?? {}), version);
+  return metadata.versions?.[selected];
+}
+
+export function existingArtifact(artifact, remote) {
+  if (!remote) return false;
+  if (
+    remote.name !== artifact.name ||
+    remote.version !== artifact.version ||
+    remote.dist?.integrity !== artifact.integrity
+  )
+    throw new Error(
+      `Registry version already has different bytes: ${artifact.name}@${artifact.version}`,
+    );
+  return true;
+}
+
+async function registryPreflight(packages) {
+  const internal = new Set(publicationOrder);
+  const checked = new Set();
+  const existing = new Set();
+  for (const { artifact, manifest } of packages) {
+    if (existingArtifact(artifact, await registryPackage(artifact.name, artifact.version)))
+      existing.add(artifact.name);
+    for (const [name, spec] of Object.entries({
+      ...manifest.dependencies,
+      ...manifest.optionalDependencies,
+    })) {
+      const key = `${name}@${spec}`;
+      if (internal.has(name) || checked.has(key)) continue;
+      if (!(await registryPackage(name, spec)))
+        throw new Error(`Unavailable registry dependency: ${key}`);
+      checked.add(key);
+    }
+  }
+  return existing;
+}
+
+async function main() {
+  const mode = process.argv[2];
+  const args = new Map();
+  for (let i = 3; i < process.argv.length; i += 2) args.set(process.argv[i], process.argv[i + 1]);
+  const directory = resolve(args.get('--output') ?? args.get('--artifacts') ?? '');
+  if (
+    !['prepare', 'verify', 'publish'].includes(mode) ||
+    (!args.get('--output') && !args.get('--artifacts'))
+  )
+    throw new Error('Use prepare --output, verify/publish --artifacts');
+  if (mode === 'prepare') {
+    const version = prereleaseVersion(args.get('--version'));
+    if (!args.get('--provider-source')) throw new Error('Qualified --provider-source is required');
+    packProduct({
+      repoRoot: root,
+      outputDirectory: directory,
+      providerSource: resolve(args.get('--provider-source')),
+      version,
+    });
+    writeFileSync(
+      join(directory, 'release-plan.json'),
+      `${JSON.stringify(
+        {
+          productVersion: version,
+          distTag: 'next',
+          sourceSha: execFileSync('git', ['rev-parse', 'HEAD'], {
+            cwd: root,
+            encoding: 'utf8',
+          }).trim(),
+          sourceDirty: !!execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+            cwd: root,
+            encoding: 'utf8',
+          })
+            .trim()
+            .split('\n')
+            .filter((line) => line && !line.startsWith('?? .release-provider/')).length,
+          providerSource: productImProvider.upstream.source,
+          dsh: productImProvider.upstream.dsh,
+          publicationOrder,
+          artifactsSha256: digest(readFileSync(join(directory, 'artifacts.json'))),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+  }
+  const release = verifyRelease(directory, {
+    version: args.get('--version'),
+    sourceSha: args.get('--source-sha'),
+    planSha256: args.get('--plan-sha256'),
+    clean: mode === 'publish',
+  });
+  if (
+    mode === 'publish' &&
+    (!args.get('--version') ||
+      !args.get('--source-sha') ||
+      !args.get('--plan-sha256') ||
+      args.get('--confirm') !== `publish ${release.plan.productVersion} to next`)
+  )
+    throw new Error(
+      'Publishing requires the reviewed version, source SHA, plan SHA-256 and exact confirmation',
+    );
+  const existing = await registryPreflight(release.packages);
+  for (const { artifact } of release.packages) {
+    if (mode === 'publish' && existing.has(artifact.name)) {
+      console.log(`Verified already published bytes: ${artifact.name}@${artifact.version}`);
+      continue;
+    }
+    const publishArgs = [
+      'publish',
+      join(directory, artifact.filename),
+      '--registry',
+      registry,
+      '--access',
+      'public',
+      '--tag',
+      'next',
+      '--ignore-scripts',
+      '--userconfig',
+      process.platform === 'win32' ? 'NUL' : '/dev/null',
+      '--globalconfig',
+      process.platform === 'win32' ? 'NUL' : '/dev/null',
+    ];
+    if (mode !== 'publish') publishArgs.push('--dry-run');
+    const env = { ...process.env };
+    for (const key of Object.keys(env))
+      if (/^npm_config_.*(auth|token|password)/i.test(key)) delete env[key];
+    delete env.NPM_TOKEN;
+    delete env.NODE_AUTH_TOKEN;
+    if (mode === 'publish') {
+      if (!process.env.NPM_TOKEN) throw new Error('NPM_TOKEN is required for publication');
+      env['npm_config_//registry.npmjs.org/:_authToken'] = process.env.NPM_TOKEN;
+    }
+    execFileSync('npm', publishArgs, { cwd: directory, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    registryMetadata.delete(artifact.name);
+    if (
+      mode === 'publish' &&
+      !existingArtifact(artifact, await registryPackage(artifact.name, artifact.version))
+    )
+      throw new Error(
+        `Registry has not confirmed ${artifact.name}; stop and inspect before retrying`,
+      );
+    console.log(
+      `${mode === 'publish' ? 'Published and read back' : 'Dry run passed'}: ${artifact.name}@${artifact.version}`,
+    );
+  }
+  console.log(JSON.stringify({ ...release.plan, planSha256: release.planSha256 }, null, 2));
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(
+      error?.status !== undefined
+        ? 'npm/tar subprocess failed; inspect registry state and permissions before retrying'
+        : error.message,
+    );
+    process.exitCode = 1;
+  });
+}

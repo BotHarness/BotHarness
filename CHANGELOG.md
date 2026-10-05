@@ -506,6 +506,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Documented preparation and explicit publication of reviewed npm prerelease artifacts, including integrity checks, dependency order and partial-publication recovery; no public release is claimed ([#866](https://github.com/BotHarness/BotHarness/issues/866), [operator guide](docs/npm-prerelease.md)).
+
 - Documented the verified Lark/Slack IM integration boundary and repeatable qualification workflow for future providers ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 
 - Added a Lark / Feishu beginner guide with compressed WebP captures of the actual console and connected Profile, a captioned step-by-step video, and qualified single-install, identity, group authorization and message-source checks ([#814](https://github.com/BotHarness/BotHarness/issues/814), [guide](docs/lark-connection.md)).
