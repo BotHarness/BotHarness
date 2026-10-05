@@ -137,7 +137,7 @@ export interface MessagingProvider {
     accountRef: string;
     fingerprint: string;
     route: MessagingReplyRoute;
-    file: { id: string; name: string; bytes: Uint8Array };
+    file: { id: string; name: string; bytes: Uint8Array; mediaType?: string };
     signal: AbortSignal;
     beforeSend?: () => boolean;
   }): Promise<{ accepted: true }>;

@@ -1,5 +1,5 @@
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
-import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   Button,
@@ -235,7 +235,15 @@ function BotInboxItemRow({
   const [fileBusy, setFileBusy] = useState<string>();
   const [fileError, setFileError] = useState(false);
   const fileRequest = useRef<AbortController>();
-  const download = async (attachmentId: string, name: string): Promise<void> => {
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  const previewUrls = useRef(new Set<string>());
+  const previewLifecycle = useCallback((node: HTMLDivElement | null) => {
+    if (node !== null) return;
+    fileRequest.current?.abort();
+    for (const url of previewUrls.current) URL.revokeObjectURL(url);
+    previewUrls.current.clear();
+  }, []);
+  const download = async (attachmentId: string, name: string, preview = false): Promise<void> => {
     if (fileBusy !== undefined) return;
     const controller = new AbortController();
     fileRequest.current = controller;
@@ -257,7 +265,14 @@ function BotInboxItemRow({
       if (!response.ok) throw new Error('Download unavailable');
       const blob = await response.blob();
       controller.signal.throwIfAborted();
+      if (preview && !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(blob.type))
+        throw new Error('Unsupported image');
       const url = URL.createObjectURL(blob);
+      if (preview) {
+        previewUrls.current.add(url);
+        setImagePreviews((value) => ({ ...value, [attachmentId]: url }));
+        return;
+      }
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download = name;
@@ -367,48 +382,68 @@ function BotInboxItemRow({
           onClose={() => {
             ++externalRequest.current;
             fileRequest.current?.abort();
+            setImagePreviews({});
             setExternalOpen(false);
           }}
           title={t('im.sourceTitle')}
           className="bh-external-source-modal"
           closeLabel={t('common.close')}
         >
-          {externalError ? (
-            <p role="alert">{t('im.sourceError')}</p>
-          ) : external === undefined ? (
-            <p>{t('im.sourceLoading')}</p>
-          ) : (
-            <ExternalSourceContent source={external} t={t}>
-              {external.event.attachments?.map((file) => (
-                <div className="bh-external-source-file" key={file.id}>
-                  <span>
-                    {file.name}
-                    {file.sizeBytes !== undefined || file.mediaType ? (
-                      <small>
-                        {' '}
-                        ·{' '}
-                        {[
-                          file.mediaType,
-                          file.sizeBytes === undefined
-                            ? undefined
-                            : `${new Intl.NumberFormat().format(file.sizeBytes)} B`,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </small>
+          <div ref={previewLifecycle}>
+            {externalError ? (
+              <p role="alert">{t('im.sourceError')}</p>
+            ) : external === undefined ? (
+              <p>{t('im.sourceLoading')}</p>
+            ) : (
+              <ExternalSourceContent source={external} t={t}>
+                {external.event.attachments?.map((file) => (
+                  <div className="bh-external-source-attachment" key={file.id}>
+                    <div className="bh-external-source-file">
+                      <span>
+                        {file.name}
+                        {file.sizeBytes !== undefined || file.mediaType ? (
+                          <small>
+                            {' '}
+                            ·{' '}
+                            {[
+                              file.mediaType,
+                              file.sizeBytes === undefined
+                                ? undefined
+                                : `${new Intl.NumberFormat().format(file.sizeBytes)} B`,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </small>
+                        ) : null}
+                      </span>
+                      {file.mediaType?.startsWith('image/') && !imagePreviews[file.id] ? (
+                        <Button
+                          disabled={fileBusy !== undefined}
+                          onClick={() => void download(file.id, file.name, true)}
+                        >
+                          {fileBusy === file.id ? t('im.fileDownloading') : t('im.imagePreview')}
+                        </Button>
+                      ) : null}
+                      <Button
+                        disabled={fileBusy !== undefined}
+                        onClick={() => void download(file.id, file.name)}
+                      >
+                        {fileBusy === file.id ? t('im.fileDownloading') : t('im.fileDownload')}
+                      </Button>
+                    </div>
+                    {imagePreviews[file.id] ? (
+                      <img
+                        className="bh-external-source-image"
+                        src={imagePreviews[file.id]}
+                        alt={file.name}
+                      />
                     ) : null}
-                  </span>
-                  <Button
-                    disabled={fileBusy !== undefined}
-                    onClick={() => void download(file.id, file.name)}
-                  >
-                    {fileBusy === file.id ? t('im.fileDownloading') : t('im.fileDownload')}
-                  </Button>
-                </div>
-              ))}
-              {fileError ? <p role="alert">{t('im.fileError')}</p> : null}
-            </ExternalSourceContent>
-          )}
+                  </div>
+                ))}
+                {fileError ? <p role="alert">{t('im.fileError')}</p> : null}
+              </ExternalSourceContent>
+            )}
+          </div>
         </Modal>
       ) : null}
     </>
