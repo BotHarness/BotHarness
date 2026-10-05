@@ -540,6 +540,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 
 ### Documentation
 
+- Documented the accepted Bot Marketplace order, starting as a GitHub-indexed catalog: repositories opt in with the `botharness-bot` topic, a Cloudflare Worker/D1 crawler powers search in a harness modal, and Install reuses Git-URL Bot creation; accounts, uploads, favorites and import counts follow in a second phase ([#18](https://github.com/BotHarness/BotHarness/issues/18), [ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)).
+
 - The README and npm page now match the pixel-art website, with its share cards, desktop and CLI install, shipped IM platforms, pixel avatars and community links ([#895](https://github.com/BotHarness/BotHarness/pull/895), [website](https://deepseekbot.botharness.ai)).
 
 - Documented the accepted PersonaBot/Channel deletion contract: an unchecked optional Memory-erasure choice with direct folder access, history-preserving Channel deletion, and the real Purge Ledger prerequisite for Profile restore; runtime controls remain separate implementation work ([#138](https://github.com/BotHarness/BotHarness/issues/138), [ADR-0130](docs/adr/0130-deletion-preserves-history-and-makes-memory-erasure-explicit.md)).
