@@ -245,6 +245,8 @@ async function main() {
       'Publishing requires the reviewed version, source SHA, plan SHA-256 and exact confirmation',
     );
   const existing = await registryPreflight(release.packages);
+  const emptyUserConfig = join(directory, '.npm-release-empty');
+  writeFileSync(emptyUserConfig, '');
   for (const { artifact } of release.packages) {
     if (mode === 'publish' && existing.has(artifact.name)) {
       console.log(`Verified already published bytes: ${artifact.name}@${artifact.version}`);
@@ -261,7 +263,7 @@ async function main() {
       'next',
       '--ignore-scripts',
       '--userconfig',
-      process.platform === 'win32' ? 'NUL' : '/dev/null',
+      emptyUserConfig,
       '--globalconfig',
       process.platform === 'win32' ? 'NUL' : '/dev/null',
     ];
