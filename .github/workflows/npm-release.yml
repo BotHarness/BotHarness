@@ -1,0 +1,109 @@
+name: npm release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-prerelease-publication
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      plan_sha256: ${{ steps.plan.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Read the version from a tag on main
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$TAG is not on main"; exit 1; }
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
+      - name: Read the reviewed Provider pin
+        id: provider
+        run: node --input-type=module -e 'import {appendFileSync} from "node:fs"; import {productImProvider} from "./scripts/product-artifacts.mjs"; appendFileSync(process.env.GITHUB_OUTPUT,"sha="+productImProvider.upstream.source+"\n")'
+      - uses: actions/checkout@v7
+        with:
+          repository: DoodleBears/dsh-im
+          ref: ${{ steps.provider.outputs.sha }}
+          path: .release-provider
+          persist-credentials: false
+      - run: npm ci --ignore-scripts --prefix .release-provider
+      - name: Prepare and dry-run the exact package set
+        id: plan
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          node scripts/npm-prerelease.mjs prepare --version "$RELEASE_VERSION" --provider-source .release-provider --output "$RUNNER_TEMP/npm-release"
+          node -e 'const plan=require(process.env.RUNNER_TEMP+"/npm-release/release-plan.json"); if(plan.sourceDirty) throw new Error("Release requires a clean source checkout")'
+          node -e 'const fs=require("fs"); const crypto=require("crypto"); const p=process.env.RUNNER_TEMP+"/npm-release/release-plan.json"; const sha=crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex"); fs.appendFileSync(process.env.GITHUB_OUTPUT,"sha256="+sha+"\n"); fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,"Plan SHA-256: `"+sha+"`\n\n```json\n"+fs.readFileSync(p)+"\n```\n")'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-release-${{ steps.version.outputs.version }}
+          path: |
+            ${{ runner.temp }}/npm-release/*.tgz
+            ${{ runner.temp }}/npm-release/artifacts.json
+            ${{ runner.temp }}/npm-release/release-plan.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-release-${{ needs.prepare.outputs.version }}
+          path: ${{ runner.temp }}/npm-release
+      - name: Verify the prepared bytes without publish credentials
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          PLAN_SHA: ${{ needs.prepare.outputs.plan_sha256 }}
+        run: node scripts/npm-prerelease.mjs verify --artifacts "$RUNNER_TEMP/npm-release" --version "$RELEASE_VERSION" --source-sha "$GITHUB_SHA" --plan-sha256 "$PLAN_SHA"
+      - name: Publish dependencies before product and read back integrity
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          PLAN_SHA: ${{ needs.prepare.outputs.plan_sha256 }}
+        run: |
+          TAG=$(node -p 'require(process.env.RUNNER_TEMP+"/npm-release/release-plan.json").distTag')
+          node scripts/npm-prerelease.mjs publish --artifacts "$RUNNER_TEMP/npm-release" --version "$RELEASE_VERSION" --source-sha "$GITHUB_SHA" --plan-sha256 "$PLAN_SHA" --confirm "publish $RELEASE_VERSION to $TAG"
