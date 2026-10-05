@@ -4,6 +4,7 @@ import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react
 import {
   Button,
   IconEllipsisOutlineRegular,
+  IconChevronDownOutlineRegular,
   Input,
   Menu,
   Tag,
@@ -226,6 +227,7 @@ function BotInboxItemRow({
   actions: ChannelSidebarEntryProps['actions'];
   t: BotHarnessTranslate;
 }): ReactElement {
+  const bots = useClientState().bots;
   const externalRequest = useRef(0);
   const [externalOpen, setExternalOpen] = useState(false);
   const [external, setExternal] = useState<ExternalSource>();
@@ -289,7 +291,9 @@ function BotInboxItemRow({
           : item.authorKind === 'human'
             ? t('main.author.human')
             : item.authorKind === 'bot'
-              ? (item.authorBotSlug ?? t('inbox.bot'))
+              ? (bots.find((bot) => bot.slug === item.authorBotSlug)?.displayName ??
+                item.authorBotSlug ??
+                t('inbox.bot'))
               : t('inbox.system');
   const open = async (): Promise<void> => {
     if (!item.sourceAvailable) return;
@@ -317,21 +321,31 @@ function BotInboxItemRow({
   };
   const content = (
     <>
-      <span className="bh-inbox-item-top">
-        <span>{author}</span>
-        {item.assignmentReportState === undefined ? null : (
-          <Tag tone="neutral">{t(`inbox.report.${item.assignmentReportState}`)}</Tag>
-        )}
-        <Tag tone="neutral">{t(`inbox.state.${item.state}`)}</Tag>
-      </span>
       <span className="bh-inbox-item-summary">{summary || t('inbox.system')}</span>
       <span className="bh-inbox-item-meta">
-        {item.externalOrigin === undefined
-          ? ''
-          : `${item.externalOrigin.accountName} · ${item.externalOrigin.conversationName} · `}
-        {formatRelativeTime(Date.parse(item.createdAt), Date.now(), t)}
-        {!memoryChange && !item.sourceAvailable ? ` · ${t('inbox.sourceUnavailable')}` : ''}
+        <span className="bh-inbox-item-author" title={author}>
+          {author}
+        </span>
+        {item.assignmentReportState === undefined ? null : (
+          <span>{t(`inbox.report.${item.assignmentReportState}`)}</span>
+        )}
       </span>
+      {item.externalOrigin === undefined ? null : (
+        <span className="bh-inbox-item-meta bh-inbox-item-origin">
+          {item.externalOrigin.accountName} · {item.externalOrigin.conversationName}
+        </span>
+      )}
+      <span className="bh-inbox-item-footer">
+        <span className="bh-inbox-item-state" data-state={item.state}>
+          {t(`inbox.state.${item.state}`)}
+        </span>
+        <span className="bh-inbox-item-time">
+          {formatRelativeTime(Date.parse(item.createdAt), Date.now(), t)}
+        </span>
+      </span>
+      {!memoryChange && !item.sourceAvailable ? (
+        <span className="bh-inbox-item-meta">{t('inbox.sourceUnavailable')}</span>
+      ) : null}
     </>
   );
   if (memoryChange) return <div className="bh-inbox-item bh-inbox-item-info">{content}</div>;
@@ -340,6 +354,8 @@ function BotInboxItemRow({
       <button
         type="button"
         className="bh-inbox-item"
+        data-state={item.state}
+        title={summary}
         disabled={!item.sourceAvailable}
         onClick={() => void open()}
       >
@@ -431,7 +447,10 @@ function BotInboxGroup({
       }
     >
       <summary className="bh-inbox-group-head">
-        <span title={name}>{name}</span>
+        <IconChevronDownOutlineRegular className="bh-inbox-group-chevron" size={14} />
+        <span className="bh-inbox-group-name" title={name}>
+          {name}
+        </span>
         <Tag tone="neutral">{items.length}</Tag>
       </summary>
       {active.map((item) => (
@@ -439,7 +458,10 @@ function BotInboxGroup({
       ))}
       {history.length > 0 ? (
         <details className="bh-inbox-history">
-          <summary>{t('inbox.handledHistory', { count: history.length })}</summary>
+          <summary>
+            <IconChevronDownOutlineRegular className="bh-inbox-group-chevron" size={14} />
+            <span>{t('inbox.handledHistory', { count: history.length })}</span>
+          </summary>
           {history.map((item) => (
             <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
           ))}
@@ -449,7 +471,15 @@ function BotInboxGroup({
   );
 }
 function BotInboxEntry({ actions, t, botSlug }: ChannelSidebarEntryProps): ReactElement {
-  const inbox = useClientState().botInbox;
+  const state = useClientState();
+  const inbox = state.botInbox;
+  const sourceName = (item: BotAttentionItem): string | undefined => {
+    const channel = state.channels.find((channel) => channel.id === item.sourceChannelId);
+    if (channel?.type === 'dm') {
+      return state.bots.find((bot) => bot.slug === channel.botSlug)?.displayName ?? channel.name;
+    }
+    return item.sourceChannelName ?? channel?.name;
+  };
   const groups = new Map<string, { name: string; items: BotAttentionItem[] }>();
   for (const item of inbox.items) {
     const key =
@@ -463,7 +493,7 @@ function BotInboxEntry({ actions, t, botSlug }: ChannelSidebarEntryProps): React
       name:
         item.assignmentPurpose ??
         item.externalOrigin?.conversationName ??
-        item.sourceChannelName ??
+        sourceName(item) ??
         item.sourceChannelId ??
         t(item.assignmentSessionId === undefined ? 'inbox.system' : 'inbox.assignment'),
       items: [],

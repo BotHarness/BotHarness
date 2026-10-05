@@ -254,6 +254,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Bot Inbox sidebar rows now put readable content first, separate source/report metadata from lifecycle status, and highlight items needing repair using the native error color ([#851](https://github.com/BotHarness/BotHarness/issues/851)).
+
 - Channel sidebar display settings open hover submenus that keep repeated selections visible and temporarily isolate the relevant entry for preview; dismissing restores prior disclosure while saving the chosen display preferences ([#807](https://github.com/BotHarness/BotHarness/issues/807)).
 
 - Channel message groups keep consecutive bubbles compact, show one hover/focus timestamp beside the author, and reveal per-message copy/reply beside delivery receipts without a reserved action row ([#803](https://github.com/BotHarness/BotHarness/issues/803)).

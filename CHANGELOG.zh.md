@@ -254,6 +254,8 @@
 
 ### Changed
 
+- Bot Inbox 侧栏以内容为先，分行展示来源、Report 信息与处理状态，并用原生错误色突出需要修复的项 ([#851](https://github.com/BotHarness/BotHarness/issues/851))。
+
 - Channel sidebar 显示设置改用悬停二级菜单，连续选择时保持打开并临时只展开对应项供预览；关闭菜单恢复原先展开状态，显示偏好立即保存（[#807](https://github.com/BotHarness/BotHarness/issues/807)）。
 
 - Channel 连续消息气泡保持紧凑，作者旁只显示一次悬浮／聚焦时间，复制与回复在每条消息的送达圈旁显示，不再预留操作行 ([#803](https://github.com/BotHarness/BotHarness/issues/803))。
