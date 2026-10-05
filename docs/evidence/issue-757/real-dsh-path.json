@@ -1,0 +1,78 @@
+[
+  {
+    "step": "edit-cancel",
+    "ok": true,
+    "draftWrites": 0,
+    "revision": "d448e288de9c"
+  },
+  {
+    "step": "edit-save-read",
+    "ok": true,
+    "hair": "ponytail",
+    "saveWrites": 1,
+    "revision": "ed94f1823e12"
+  },
+  {
+    "step": "same-identity-after-save",
+    "ok": true,
+    "bindings": ["sidebar@34", "header@22", "profile@64", "editor@160"]
+  },
+  {
+    "step": "approval-frames-no-per-frame-rpc",
+    "ok": true,
+    "frames": {
+      "count": 239,
+      "p50": 16.69999999999891,
+      "p95": 16.799999999999272,
+      "max": 16.80000000000109
+    },
+    "rpcInWindow": 2,
+    "seconds": 4.1,
+    "methods": ["botharness/profileUsage"]
+  },
+  {
+    "step": "real-work",
+    "ok": true,
+    "lastReply": [
+      "read 依然成功（notes.txt = “avatar mixed family acceptance”），但 `sleep 12 && echo AVATAR_757_OK` 同样依然被拒（“Path is outside this Session's authorized workspace”），AVATAR_757_OK 没有输出。"
+    ]
+  },
+  {
+    "step": "reload",
+    "ok": true,
+    "bindings": ["sidebar@34", "header@22", "profile@64", "editor@160"]
+  },
+  {
+    "step": "disconnect-stale",
+    "ok": true,
+    "staleAvatarAnimations": 0
+  },
+  {
+    "step": "host-restart",
+    "ok": true,
+    "bindings": ["sidebar@34", "header@22", "profile@64", "editor@160"],
+    "revision": "ed94f1823e12"
+  },
+  {
+    "step": "round-trip-and-malformed",
+    "ok": true,
+    "rejected": {
+      "unknown part": true,
+      "partial hair split": true,
+      "missing range": true,
+      "range overflow": true,
+      "non-integer range": true,
+      "extra key": true,
+      "bad color": true,
+      "future schema": true,
+      "not an object": true
+    },
+    "detailedRoundTrip": true,
+    "restoredHair": "ponytail"
+  },
+  {
+    "step": "mixed-sidebar",
+    "ok": true,
+    "families": ["pixel", "line", "image"]
+  }
+]

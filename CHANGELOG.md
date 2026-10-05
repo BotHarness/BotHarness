@@ -267,6 +267,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Many active Avatars now animate smoothly together: all transitions share one animation-frame loop, pixel-family tool transitions step at a pixel-art frame rate with merged color runs (`@botharness/pixel-morph` 0.2.0), and Avatars scrolled out of view skip transition work after updates, keeping 32 to 128 active mixed-family Avatars at full frame rate in measured runs ([#757](https://github.com/BotHarness/BotHarness/issues/757)).
+
 - Made the packaged IM Provider qualification independent of developer selections and advanced its own artifact version for the accepted Slack capabilities ([IM installation](docs/product-im-installation.md), [#868](https://github.com/BotHarness/BotHarness/issues/868)).
 
 - Bot Inbox sidebar rows now put readable content first, separate source/report metadata from lifecycle status, and highlight items needing repair using the native error color ([#851](https://github.com/BotHarness/BotHarness/issues/851)).

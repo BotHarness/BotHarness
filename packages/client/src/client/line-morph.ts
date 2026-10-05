@@ -60,6 +60,40 @@ export function lineMorphD(shape: readonly Sampled[]): string {
   );
 }
 
+const tickers = new Set<(time: number) => void>();
+let loopId = 0;
+let looping = false;
+
+function loop(time: number): void {
+  loopId = 0;
+  looping = true;
+  for (const tick of [...tickers]) {
+    try {
+      tick(time);
+    } catch (error) {
+      tickers.delete(tick);
+      queueMicrotask(() => {
+        throw error;
+      });
+    }
+  }
+  looping = false;
+  if (tickers.size > 0) loopId = requestAnimationFrame(loop);
+}
+
+function addTicker(tick: (time: number) => void): void {
+  tickers.add(tick);
+  if (!looping && loopId === 0) loopId = requestAnimationFrame(loop);
+}
+
+function removeTicker(tick: (time: number) => void): void {
+  tickers.delete(tick);
+  if (tickers.size === 0 && loopId !== 0) {
+    cancelAnimationFrame(loopId);
+    loopId = 0;
+  }
+}
+
 export function morphLinePath(
   path: SVGPathElement,
   from: readonly Sampled[],
@@ -75,7 +109,6 @@ export function morphLinePath(
   motion.config(spring.k, spring.c);
   motion.v = velocity;
   motion.start();
-  let frame = 0;
   let last = -1;
   let settle: (done: boolean) => void = () => undefined;
   const finished = new Promise<boolean>((resolve) => {
@@ -98,23 +131,21 @@ export function morphLinePath(
       motion.x = 1;
       motion.v = 0;
       render();
-      frame = 0;
+      removeTicker(tick);
       settle(true);
       return;
     }
     render();
-    frame = requestAnimationFrame(tick);
   };
   render();
-  frame = requestAnimationFrame(tick);
+  addTicker(tick);
   return {
     finished,
     current: () =>
       out.map((pts, index) => ({ pts: Float64Array.from(pts), closed: closed[index]! })),
     velocity: () => motion.v,
     cancel: () => {
-      if (frame) cancelAnimationFrame(frame);
-      frame = 0;
+      removeTicker(tick);
       settle(false);
     },
   };

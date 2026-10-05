@@ -10,7 +10,7 @@ import {
 } from '../../core/src/bots/avatar-appearance.js';
 import { lineMorphD, sampleLineSymbol } from '../src/client/line-morph.js';
 import { PIXEL_MORPH_MS, PIXEL_SYMBOL_HOLD_MS } from '../src/client/illustrated-avatar.js';
-import { pixelMarkup as rawPixelMarkup } from '@botharness/pixel-morph';
+import { pixelPathMarkup as rawPixelMarkup } from '@botharness/pixel-morph';
 
 const pixelMarkup = (...args: Parameters<typeof rawPixelMarkup>) => {
   const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -451,6 +451,81 @@ it('morphs the whole pixel Avatar between tool symbols, holds each briefly and s
   } finally {
     delete document.documentElement.dataset['botharnessMotion'];
     delete document.documentElement.dataset['botharnessActivity'];
+    await act(() => root.unmount());
+    vi.unstubAllGlobals();
+    if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
+    else Reflect.deleteProperty(Element.prototype, 'animate');
+    Reflect.deleteProperty(document, 'hidden');
+    node.remove();
+  }
+});
+
+it('keeps an Avatar scrolled out of view still across updates and resumes motion when it returns', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const node = document.createElement('div');
+  document.body.append(node);
+  const root = createRoot(node);
+  const animate = vi.fn(() => ({ cancel: vi.fn(), finished: Promise.resolve() }));
+  const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
+  Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate });
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextFrame = 0;
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+  const observers: ((entries: { isIntersecting: boolean }[]) => void)[] = [];
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
+        observers.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
+  const scroll = (isIntersecting: boolean) =>
+    act(async () => observers.at(-1)!([{ isIntersecting }]));
+  const render = (toolName: string) =>
+    act(async () =>
+      root.render(
+        createElement(PersonaBotAvatar, {
+          personaBotId: 'ada',
+          name: 'Ada',
+          appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
+          size: 40,
+          state: 'working',
+          activity: {
+            effect: 'generic-working' as const,
+            toolKind: 'other' as const,
+            toolName,
+            startedAt: 0,
+            activeToolCount: 1,
+          },
+        }),
+      ),
+    );
+  const hair = DEFAULT_ILLUSTRATED_RECIPE.hairColor;
+  const drawn = () => node.querySelector('[data-avatar-pixel-morph]')!.innerHTML;
+  try {
+    await render('edit');
+    await scroll(false);
+    animate.mockClear();
+    await render('bash');
+    await render('grep');
+    await act(() => new Promise((resolve) => setTimeout(resolve, PIXEL_SYMBOL_HOLD_MS + 40)));
+    expect(frames.size).toBe(0);
+    expect(animate).not.toHaveBeenCalled();
+    expect(drawn()).toBe(pixelMarkup(pixelSymbolCells('search', hair)));
+    await scroll(true);
+    expect(animate).toHaveBeenCalled();
+    await render('edit');
+    await act(() => new Promise((resolve) => setTimeout(resolve, PIXEL_SYMBOL_HOLD_MS + 40)));
+    expect(frames.size).toBe(1);
+  } finally {
     await act(() => root.unmount());
     vi.unstubAllGlobals();
     if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
