@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Nothing yet since 1.0.0.
+The DeepSeekBot user guides moved to the product site.
+
+### Documentation
+
+- Moved the DeepSeekBot user guides to [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/) (Chinese at [/docs](https://deepseekbot.botharness.ai/docs/overview/)); every former botharness.ai guide URL redirects to the same guide there, and developer docs stay on botharness.ai ([#914](https://github.com/BotHarness/BotHarness/pull/914)).
 
 ## [1.0.0] - 2026-10-05
 
