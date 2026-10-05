@@ -1,0 +1,30 @@
+[
+  {
+    "role": "assignment",
+    "seq": 11,
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  {
+    "role": "assignment",
+    "seq": 35,
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  {
+    "role": "orchestrator",
+    "seq": 11,
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  },
+  {
+    "role": "orchestrator",
+    "seq": 59,
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "low"
+  }
+]

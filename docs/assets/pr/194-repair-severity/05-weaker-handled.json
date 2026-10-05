@@ -1,0 +1,42 @@
+{
+  "bot": "Observed restart QA 1791196773203",
+  "original": {
+    "id": "1cb19450-92cf-4afc-81a3-0acead74ce46",
+    "summary": "OBSERVED_REPORT: Research remains available.",
+    "assignmentSessionId": "botharness-772c7095-6483-487e-bfa4-beb772ad6966",
+    "assignmentReportState": "progress",
+    "assignmentTurn": 1,
+    "authorKind": "bot",
+    "sourceAvailable": true,
+    "state": "needs-repair",
+    "observedAt": "2026-10-05T10:39:39.062Z"
+  },
+  "weaker": {
+    "id": "534b6ba0-d6c9-4524-ba70-72aa3c5e1ee4",
+    "summary": "WEAKER_PROGRESS: Additional information remains available.",
+    "assignmentSessionId": "botharness-772c7095-6483-487e-bfa4-beb772ad6966",
+    "assignmentReportState": "progress",
+    "assignmentTurn": 2,
+    "authorKind": "bot",
+    "sourceAvailable": true,
+    "state": "handled",
+    "observedAt": "2026-10-05T10:40:48.551Z",
+    "handledAt": "2026-10-05T10:40:51.398Z"
+  },
+  "assignmentTurns": {
+    "starts": 2,
+    "ends": 2
+  },
+  "orchestratorTurns": {
+    "starts": 4,
+    "ends": 4
+  },
+  "nativeOrchestratorEndReasons": ["completed", "interrupted", "completed", "completed"],
+  "repairExposures": 1,
+  "weakerExposures": 1,
+  "explicitHumanContinuation": true,
+  "noAutomaticReplayOrReplacement": true,
+  "noSuccessfulCompletionNotice": true,
+  "approvalExpired": true,
+  "assignmentCount": 1
+}

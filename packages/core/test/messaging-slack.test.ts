@@ -16,7 +16,7 @@ afterEach(async () => {
   }
 });
 
-it('Slack @ enters canonical Inbox once, retains native thread and replies through its own identity', async () => {
+it('Slack external-only report stays in Outbox; Human @ enters Inbox once and replies through its own identity', async () => {
   const fingerprint = 'a'.repeat(64);
   let callback: Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1] | undefined;
   let runs = 0;
@@ -31,6 +31,11 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
           .list({ botSlug: 'ada' })
           .items.find((item) => item.sourceKind === 'bridge-message');
         expect(source).toBeDefined();
+        const details = core.externalMessaging.inbound.read('ada', source!.id);
+        expect(details.report?.text).toBe('Slack morning report');
+        expect(details.event.reply.parentId).toBeUndefined();
+        expect(details.event.reply.rootId).toBe('1791127600.000001');
+        expect(run.inbox).toContain('Slack morning report');
         const context = await run.externalMessaging!.context(source!.id, { scope: 'thread' });
         expect(context.messages).toHaveLength(1);
         expect(context.messages[0]).toMatchObject({ text: 'ordinary earlier context' });
@@ -48,6 +53,7 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
   expect(core.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   const transport: DshImOutboundService = {
     contractVersion: 1,
+    receiptVersion: 1,
     replyContextVersion: 1,
     replyReceiptVersion: 1,
     replyFenceVersion: 1,
@@ -68,6 +74,7 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
       account: { fingerprint, name: 'Slack QA Bot' },
       capabilities: [
         'proactive-text-checked',
+        'proactive-receipt-checked',
         'exclusive-text-consumer',
         'ordinary-text-consumer',
         'reply-text-checked',
@@ -78,7 +85,10 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
         'thread-history-text-checked',
       ],
     }),
-    sendChecked: vi.fn(async (): Promise<{ sent: true }> => ({ sent: true })),
+    sendChecked: vi.fn(async () => ({
+      sent: true as const,
+      receipt: { version: 1 as const, messageId: '1791127600.000001', conversationId: 'C12345678' },
+    })),
     consumeInbound: async (_id, input) => {
       expect(input.ordinaryText).toBe(true);
       callback = input;
@@ -120,7 +130,7 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
   const lark = createDshImProvider(transport)!;
   expect(slack.history).toBeDefined();
   expect(slack.readFile).toBeUndefined();
-  expect(slack.post).toBeUndefined();
+  expect(slack.post).toBeDefined();
   core.externalMessaging.register(slack);
   core.externalMessaging.register(lark);
   expect(await lark.accounts()).toEqual([]);
@@ -135,6 +145,37 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
   });
   await core.externalMessaging.inbound.setEnabled('ada', grant.id, true);
   expect(callback).toBeDefined();
+  const db = attachOperationalModule(core.operationalDatabase, 'test');
+  const report = await core.externalMessaging.post(
+    'ada',
+    grant.id,
+    'slack_morning_report',
+    'Slack morning report',
+  );
+  expect(report.state).toBe('provider-accepted');
+  expect(report.receipt).toEqual({
+    version: 1,
+    messageId: '1791127600.000001',
+    conversationId: 'C12345678',
+  });
+  for (const table of ['source_events', 'channel_placements', 'inbox_admissions']) {
+    expect(db.read((d) => d.prepare(`SELECT * FROM ${table}`).all())).toHaveLength(0);
+  }
+  expect(core.externalMessaging.inspectIntent('ada', report.id).text).toBe('Slack morning report');
+  expect(
+    (
+      await core.externalMessaging.post(
+        'ada',
+        grant.id,
+        'slack_morning_report',
+        'Slack morning report',
+      )
+    ).id,
+  ).toBe(report.id);
+  expect(transport.sendChecked).toHaveBeenCalledTimes(1);
+  await expect(
+    core.externalMessaging.post('bea', grant.id, 'borrow_report', 'Wrong'),
+  ).rejects.toThrow('grant-unavailable');
   const source: MessagingInboundEvent = {
     version: 1,
     channel: 'slack',
@@ -187,7 +228,6 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
       senderName: 'QA Human',
     },
   });
-  const db = attachOperationalModule(core.operationalDatabase, 'test');
   expect(
     db.read((database) =>
       database.prepare("SELECT * FROM source_events WHERE source_kind = 'bridge-message'").all(),
@@ -217,7 +257,27 @@ it('Slack @ enters canonical Inbox once, retains native thread and replies throu
       signal: new AbortController().signal,
     }),
   ).rejects.toThrow('untrusted-source');
+  transport.sendChecked = vi.fn(async () => ({
+    sent: true as const,
+    receipt: { version: 1 as const, messageId: '1791127800.000001', conversationId: 'C87654321' },
+  }));
+  const unknown = await core.externalMessaging.post(
+    'ada',
+    grant.id,
+    'slack_ambiguous_report',
+    'Unknown report',
+  );
+  expect(unknown.state).toBe('unknown-outcome');
+  expect(
+    (await core.externalMessaging.post('ada', grant.id, 'slack_ambiguous_report', 'Unknown report'))
+      .id,
+  ).toBe(unknown.id);
+  expect(transport.sendChecked).toHaveBeenCalledTimes(1);
   await core.externalMessaging.revoke('ada', grant.id);
+  expect(core.externalMessaging.inspectIntent('ada', report.id).text).toBe('Slack morning report');
+  await expect(
+    core.externalMessaging.post('ada', grant.id, 'revoked_report', 'Refused'),
+  ).rejects.toThrow('grant-revoked');
   await expect(callback!.onEvent(source, { signal: callback!.signal })).rejects.toThrow();
 });
 
