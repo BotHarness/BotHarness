@@ -15,6 +15,7 @@ import {
   type BlocklistTarget,
   type Moderation,
 } from './moderation.js';
+import { isPublicRead, preflight, publicResponse } from './public-api.js';
 import {
   createProtection,
   DEFAULT_LIMITS,
@@ -111,7 +112,7 @@ export function createMarketHandler(
     return { ok: true, source };
   };
 
-  return async (request) => {
+  const route = async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
     if (url.pathname === '/v1/challenge') {
       if (request.method !== 'GET') return failure(405, 'method-not-allowed');
@@ -232,6 +233,12 @@ export function createMarketHandler(
         : failure(refusalStatus[result.code], result.code);
     }
     return failure(404, 'not-found');
+  };
+
+  return async (request) => {
+    if (!isPublicRead(new URL(request.url).pathname)) return route(request);
+    if (request.method === 'OPTIONS') return preflight(request);
+    return publicResponse(request, await route(request));
   };
 }
 
