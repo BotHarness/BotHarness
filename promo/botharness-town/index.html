@@ -33,8 +33,8 @@ if (params.get('debug') === '0') DEBUG_FRAMES = false;
 
 // ----- localization: every on-screen sentence lives here --------------------------
 const LANG = params.get('lang') === 'en' ? 'en' : 'zh';
-// zh is cut to ピコピコひらめきタイム (Full), en to Pixel Town Disco; the extra zh second goes to the end card
-const FILM_FRAMES = { zh: 10896, en: 10800 };
+// zh is cut to 如果我是 AI (179.4 s), en to Pixel Town Disco (180 s); the difference comes off the end card
+const FILM_FRAMES = { zh: 10764, en: 10800 };
 const TOTAL = FILM_FRAMES[LANG];
 const STR = {
   welcome: { zh: '欢迎来到 DeepSeekBot 小镇。这里的每个 PersonaBot，都有自己的身份、人格和记忆。', en: 'Welcome to DeepSeekBot Town. Every PersonaBot here has its own identity, persona and memory.' },
@@ -3407,7 +3407,7 @@ function renderEnd(e) {
   titleBg.visible = true;
   setRect(titleBg, 0, 0, VIEW_W, VIEW_H);
   titleBg.material.opacity = 1;
-  const toTitle = step8(span(e, 230, 270));
+  const toTitle = step8(span(e, 210, 250));
   titleLogo.visible = true;
   const size = lerp(48, 64, toTitle);
   titleLogo.position.set(Math.round(160 - size / 2), Math.round(lerp(112, 92, toTitle)), 0);
