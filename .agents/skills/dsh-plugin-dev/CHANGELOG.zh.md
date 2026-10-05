@@ -9,6 +9,8 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 
 ### Documentation
 
+- 链接经 DSH 0.2.0 RC1 验证的下游公共 npm 图文安装教程；平台词汇与 Skill 运行行为保持不变（[#887](https://github.com/BotHarness/BotHarness/issues/887), [教程](../../../docs/installation.md)）。
+
 - 引用下游 [npm prerelease 操作指南](../../../docs/npm-prerelease.md)，说明审阅过的预编译 Bundle 分发；平台词汇与 Skill 行为不变（[#866](https://github.com/BotHarness/BotHarness/issues/866)）。
 
 - 在[本地开发指南](../dsh-dev/SKILL.md)记录原生 Modal 与第三方引导浮层的键盘和焦点归属，通过独立安装的 DSH 0.2.0 RC1 打包 Client 和 Driver.js 1.4.0 验证（[#824](https://github.com/BotHarness/BotHarness/issues/824)）。

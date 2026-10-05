@@ -1,5 +1,7 @@
 # Connect a Bot to Lark / Feishu
 
+Install the plugin first using the [illustrated installation guide](/docs/installation), then return here after a local Bot DM works.
+
 Connect a PersonaBot to a work group: connect the application bot, bind its identity and authorize a group, then choose whether incoming messages belong in the Bot Inbox or a local Channel.
 
 This guide starts with **Lark international, an application bot, a test group and mentions-only intake**. Feishu uses the same sequence, with a Feishu application and the Feishu platform selected.

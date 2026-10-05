@@ -96,6 +96,20 @@ const DSH_CONTEXT_DIAGRAMS_EN = [
 
 export const PAGES = [
   {
+    slug: 'docs/installation',
+    order: 12,
+    en: {
+      source: 'docs/installation.md',
+      title: 'Install DeepSeekBot',
+      description: 'Import the public npm plugin in DSH, enable Bot mode and create a PersonaBot.',
+    },
+    zh: {
+      source: 'docs/installation.zh.md',
+      title: '安装 DeepSeekBot',
+      description: '通过 DSH 导入公开 npm 插件，启用 Bot 模式并创建 PersonaBot。',
+    },
+  },
+  {
     slug: 'docs/slack-connection',
     order: 24,
     en: {
