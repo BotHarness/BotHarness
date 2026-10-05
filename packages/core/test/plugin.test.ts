@@ -364,6 +364,8 @@ describe('plugin entry', () => {
       'marketplaceSubmit',
       'marketplaceTopics',
       'marketplaceDetail',
+      'marketplaceChallenge',
+      'marketplaceReport',
     ]);
   });
 

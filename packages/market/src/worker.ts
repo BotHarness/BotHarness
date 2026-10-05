@@ -7,11 +7,42 @@ import {
 } from './catalog.js';
 import type { D1Database } from './d1.js';
 import { createCrawler } from './crawl.js';
-import { createGitHubClient, type GitHubClient } from './github.js';
+import { createGitHubClient, parseRepositoryUrl, type GitHubClient } from './github.js';
+import {
+  createModeration,
+  DEFAULT_REPORT_THRESHOLD,
+  MAX_REPORT_REASON_LENGTH,
+  type BlocklistTarget,
+  type Moderation,
+} from './moderation.js';
+import {
+  createProtection,
+  DEFAULT_LIMITS,
+  sameSecret,
+  type Protection,
+  type ProtectionLimits,
+} from './protection.js';
 
 export interface MarketEnv {
   MARKET_DB: D1Database;
   GITHUB_TOKEN?: string;
+  ALTCHA_HMAC_KEY?: string;
+  ADMIN_TOKEN?: string;
+  REPORT_THRESHOLD?: string;
+}
+
+export interface MarketHandlerDeps {
+  catalog: Catalog;
+  moderation: Moderation;
+  protection: Protection | undefined;
+  adminToken: string | undefined;
+  reportThreshold: number;
+}
+
+export interface MarketOptions {
+  now?: () => Date;
+  limits?: Partial<ProtectionLimits>;
+  challengeNumber?: () => number;
 }
 
 const refusalStatus: Record<SubmissionRefusal, number> = {
@@ -31,17 +62,118 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-function failure(status: number, code: string): Response {
-  return json(status, { error: { code } });
+function failure(status: number, code: string, headers: Record<string, string> = {}): Response {
+  const response = json(status, { error: { code } });
+  for (const [name, value] of Object.entries(headers)) response.headers.set(name, value);
+  return response;
+}
+
+async function readBody(request: Request): Promise<Record<string, unknown> | undefined> {
+  try {
+    const body: unknown = await request.json();
+    return typeof body === 'object' && body !== null && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function blocklistTarget(body: Record<string, unknown>): BlocklistTarget | undefined {
+  const { id, url } = body;
+  if (typeof id === 'string' && id.length > 0 && url === undefined) return { id };
+  if (typeof url === 'string' && url.length > 0 && id === undefined) return { url };
+  return undefined;
 }
 
 function isBrowseSort(value: string): value is BrowseSort {
   return value === 'updated' || value === 'stars';
 }
 
-export function createMarketHandler(catalog: Catalog): (request: Request) => Promise<Response> {
+export function createMarketHandler(
+  deps: MarketHandlerDeps,
+): (request: Request) => Promise<Response> {
+  const { catalog, moderation, protection } = deps;
+  const guard = async (
+    request: Request,
+    payload: unknown,
+    action: 'submit' | 'report',
+  ): Promise<{ ok: true; source: string } | { ok: false; response: Response }> => {
+    if (protection === undefined) {
+      return { ok: false, response: failure(503, 'challenge-unavailable') };
+    }
+    const check = await protection.verify(payload);
+    if (!check.ok) return { ok: false, response: failure(400, check.code) };
+    const source = await protection.source(request);
+    if (!(await protection.allow(source, action))) {
+      return { ok: false, response: failure(429, 'rate-limited', { 'retry-after': '3600' }) };
+    }
+    return { ok: true, source };
+  };
+
   return async (request) => {
     const url = new URL(request.url);
+    if (url.pathname === '/v1/challenge') {
+      if (request.method !== 'GET') return failure(405, 'method-not-allowed');
+      if (protection === undefined) return failure(503, 'challenge-unavailable');
+      const response = json(200, await protection.challenge(await protection.source(request)));
+      response.headers.set('cache-control', 'no-store');
+      return response;
+    }
+    if (url.pathname === '/v1/admin/blocklist') {
+      if (request.method !== 'POST') return failure(405, 'method-not-allowed');
+      const given = /^Bearer (.+)$/u.exec(request.headers.get('authorization') ?? '')?.[1];
+      if (
+        deps.adminToken === undefined ||
+        given === undefined ||
+        !(await sameSecret(given, deps.adminToken))
+      ) {
+        return failure(401, 'unauthorized');
+      }
+      const body = await readBody(request);
+      const target = body === undefined ? undefined : blocklistTarget(body);
+      const action = body?.['action'];
+      if (target === undefined || (action !== 'block' && action !== 'restore')) {
+        return failure(400, 'invalid-admin-request');
+      }
+      const result =
+        action === 'block' ? await moderation.block(target) : await moderation.restore(target);
+      if (result.ok) return json(200, { bot: result.bot });
+      const status = {
+        'bot-not-found': 404,
+        'invalid-repository-url': 400,
+        'upstream-unavailable': 502,
+      };
+      return failure(status[result.code], result.code);
+    }
+    const reportId = /^\/v1\/bots\/([^/]+)\/reports$/u.exec(url.pathname)?.[1];
+    if (reportId !== undefined) {
+      if (request.method !== 'POST') return failure(405, 'method-not-allowed');
+      let id: string;
+      try {
+        id = decodeURIComponent(reportId);
+      } catch {
+        return failure(404, 'bot-not-found');
+      }
+      const body = await readBody(request);
+      const reasonValue = body?.['reason'];
+      const reason = typeof reasonValue === 'string' ? reasonValue.trim() : '';
+      if (
+        (reasonValue !== undefined && typeof reasonValue !== 'string') ||
+        [...reason].length > MAX_REPORT_REASON_LENGTH
+      ) {
+        return failure(400, 'invalid-report');
+      }
+      const guarded = await guard(request, body?.['altcha'], 'report');
+      if (!guarded.ok) return guarded.response;
+      const received = await moderation.report({
+        id,
+        source: guarded.source,
+        reason: reason.length === 0 ? undefined : reason,
+        threshold: deps.reportThreshold,
+      });
+      return received ? json(202, { received: true }) : failure(404, 'bot-not-found');
+    }
     if (url.pathname === '/v1/bots') {
       if (request.method !== 'GET') return failure(405, 'method-not-allowed');
       const limitParam = url.searchParams.get('limit');
@@ -80,15 +212,20 @@ export function createMarketHandler(catalog: Catalog): (request: Request) => Pro
     }
     if (url.pathname === '/v1/submissions') {
       if (request.method !== 'POST') return failure(405, 'method-not-allowed');
-      let body: unknown;
-      try {
-        body = await request.json();
-      } catch {
+      const body = await readBody(request);
+      const guarded = await guard(request, body?.['altcha'], 'submit');
+      if (!guarded.ok) return guarded.response;
+      const submitted = body?.['url'];
+      const locator = typeof submitted === 'string' ? parseRepositoryUrl(submitted) : undefined;
+      if (typeof submitted !== 'string' || locator === undefined) {
         return failure(400, 'invalid-repository-url');
       }
-      const submitted =
-        typeof body === 'object' && body !== null && 'url' in body ? body.url : undefined;
-      if (typeof submitted !== 'string') return failure(400, 'invalid-repository-url');
+      const retryAfter = await protection?.claimRepository(
+        `${locator.owner}/${locator.name}`.toLowerCase(),
+      );
+      if (retryAfter !== undefined) {
+        return failure(429, 'repository-rate-limited', { 'retry-after': String(retryAfter) });
+      }
       const result = await catalog.submit(submitted);
       return result.ok
         ? json(201, { bot: result.entry })
@@ -98,11 +235,39 @@ export function createMarketHandler(catalog: Catalog): (request: Request) => Pro
   };
 }
 
+function reportThreshold(value: string | undefined): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_REPORT_THRESHOLD;
+}
+
 export function handlerForEnv(
   env: MarketEnv,
   github: GitHubClient = createGitHubClient({ token: env.GITHUB_TOKEN }),
+  options: MarketOptions = {},
 ): (request: Request) => Promise<Response> {
-  return createMarketHandler(createCatalog({ db: env.MARKET_DB, github, now: () => new Date() }));
+  const now = options.now ?? (() => new Date());
+  const db = env.MARKET_DB;
+  const catalog = createCatalog({ db, github, now });
+  const key = env.ALTCHA_HMAC_KEY;
+  return createMarketHandler({
+    catalog,
+    moderation: createModeration({ db, github, catalog, now }),
+    protection:
+      key === undefined || key.length === 0
+        ? undefined
+        : createProtection({
+            db,
+            key,
+            now,
+            limits: { ...DEFAULT_LIMITS, ...options.limits },
+            ...(options.challengeNumber === undefined
+              ? {}
+              : { challengeNumber: options.challengeNumber }),
+          }),
+    adminToken:
+      env.ADMIN_TOKEN === undefined || env.ADMIN_TOKEN.length === 0 ? undefined : env.ADMIN_TOKEN,
+    reportThreshold: reportThreshold(env.REPORT_THRESHOLD),
+  });
 }
 
 export const DISCOVERY_CRON = '0 3 * * *';

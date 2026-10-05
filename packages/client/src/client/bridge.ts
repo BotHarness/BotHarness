@@ -34,6 +34,7 @@ import {
   type MarketplaceQuery,
   type MarketplaceTopic,
 } from '../../../core/src/marketplace/client.js';
+import { parseChallenge, type AltchaChallenge } from '../../../core/src/marketplace/altcha.js';
 import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
 import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
@@ -1250,13 +1251,35 @@ export async function loadMarketplaceTopics(call: BridgeCall): Promise<Marketpla
   return topics;
 }
 
+export async function loadMarketplaceChallenge(call: BridgeCall): Promise<AltchaChallenge> {
+  const challenge = parseChallenge(await unwrap(call, 'marketplaceChallenge', {}));
+  if (challenge === undefined) throw new Error('invalid marketplaceChallenge response');
+  return challenge;
+}
+
 export async function submitMarketplaceRepository(
   call: BridgeCall,
   url: string,
+  altcha: string,
 ): Promise<MarketplaceEntry> {
-  const result = parseMarketplaceSubmission(await unwrap(call, 'marketplaceSubmit', { url }));
+  const result = parseMarketplaceSubmission(
+    await unwrap(call, 'marketplaceSubmit', { url, altcha }),
+  );
   if (result === undefined) throw new Error('invalid marketplaceSubmit response');
   return result.bot;
+}
+
+export async function reportMarketplaceBot(
+  call: BridgeCall,
+  id: string,
+  altcha: string,
+  reason?: string,
+): Promise<void> {
+  await unwrap(call, 'marketplaceReport', {
+    id,
+    altcha,
+    ...(reason === undefined ? {} : { reason }),
+  });
 }
 
 export async function loadChannels(

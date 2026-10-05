@@ -196,6 +196,8 @@ describe('bridge typert service', () => {
       'marketplaceSubmit',
       'marketplaceTopics',
       'marketplaceDetail',
+      'marketplaceChallenge',
+      'marketplaceReport',
     ]);
   });
 
@@ -232,7 +234,9 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.marketplaceList)).toEqual(['query']);
     expect(parameterNames(service.marketplaceTopics)).toEqual([]);
     expect(parameterNames(service.marketplaceDetail)).toEqual(['id']);
-    expect(parameterNames(service.marketplaceSubmit)).toEqual(['url']);
+    expect(parameterNames(service.marketplaceSubmit)).toEqual(['url', 'altcha']);
+    expect(parameterNames(service.marketplaceChallenge)).toEqual([]);
+    expect(parameterNames(service.marketplaceReport)).toEqual(['id', 'altcha', 'reason']);
     expect(parameterNames(service.messagingDefaults)).toEqual(['platform']);
     expect(parameterNames(service.channels)).toEqual([]);
     expect(parameterNames(service.channelDm)).toEqual(['slug', 'displayName']);

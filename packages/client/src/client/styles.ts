@@ -1627,6 +1627,45 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-market-readme img {
   max-width: 100%;
 }
+.bh-market-report-open {
+  margin-right: auto;
+}
+.bh-market-report {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 18px;
+}
+.bh-market-report strong {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+.bh-market-report label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bh-market-report textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+.bh-market-report textarea:focus-visible {
+  outline: 2px solid var(--bh-accent);
+  outline-offset: 2px;
+}
 .bh-market-confirm {
   display: flex;
   flex-direction: column;
