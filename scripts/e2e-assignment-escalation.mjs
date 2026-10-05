@@ -52,8 +52,8 @@ const proofSource = ({
   sourceAvailable,
   authorKind,
   state,
-  observedAt,
-  handledAt,
+  ...(observedAt === undefined ? {} : { observedAt }),
+  ...(handledAt === undefined ? {} : { handledAt }),
 });
 const expected = [
   'ESCALATION_WAITING: Choose Canary or Stable?',

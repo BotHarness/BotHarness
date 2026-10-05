@@ -1,67 +1,60 @@
 {
-  "bot": "Escalation QA 1791181739171",
-  "assignmentSessionId": "botharness-76d63286-ab74-4a5c-84c3-c82251e8f881",
+  "bot": "Escalation QA 1791182162904",
+  "assignmentSessionId": "botharness-f0f3922d-34c7-461c-bea1-4ab5015710ab",
   "latestReportState": "progress",
-  "openAskSourceEventId": "bd1ef4b3-5532-4f77-83d0-4a1fccdad3a6",
+  "openAskSourceEventId": "0a106187-c7f5-40b3-b58d-3f2e2e2bd9c4",
   "action": {
     "kind": "assignment-blocked",
-    "sourceEventId": "bd1ef4b3-5532-4f77-83d0-4a1fccdad3a6",
+    "sourceEventId": "0a106187-c7f5-40b3-b58d-3f2e2e2bd9c4",
     "summary": "ESCALATION_BLOCKED: Release is blocked. Choose Canary or Stable."
   },
   "canReply": true,
   "sources": [
     {
-      "id": "9da819b8-98d7-4c06-b8ed-f6fadeaf1418",
+      "id": "cbdda995-292d-4e32-a3ca-36fdb267ee12",
       "summary": "WEAKER_PROGRESS: Documentation checked.",
       "assignmentReportState": "progress",
       "assignmentTurn": 1,
       "sourceAvailable": true,
       "authorKind": "bot",
-      "state": "handled",
-      "observedAt": "2026-10-05T06:29:11.135Z",
-      "handledAt": "2026-10-05T06:29:14.737Z"
+      "state": "pending"
     },
     {
-      "id": "6c9a39c0-ceca-472f-b2dd-ff692f6a6f11",
+      "id": "710b71a7-1d8c-4191-9a27-cda01dbc4949",
       "summary": "WEAKER_WAITING: Still awaiting a route.",
       "assignmentReportState": "waiting-human",
       "assignmentTurn": 1,
       "sourceAvailable": true,
       "authorKind": "bot",
       "state": "handled",
-      "observedAt": "2026-10-05T06:29:11.135Z",
-      "handledAt": "2026-10-05T06:29:14.737Z"
+      "observedAt": "2026-10-05T06:36:15.624Z",
+      "handledAt": "2026-10-05T06:36:18.494Z"
     },
     {
-      "id": "bd1ef4b3-5532-4f77-83d0-4a1fccdad3a6",
+      "id": "0a106187-c7f5-40b3-b58d-3f2e2e2bd9c4",
       "summary": "ESCALATION_BLOCKED: Release is blocked. Choose Canary or Stable.",
       "assignmentReportState": "blocked",
       "assignmentTurn": 1,
       "sourceAvailable": true,
       "authorKind": "bot",
       "state": "handled",
-      "observedAt": "2026-10-05T06:29:11.135Z",
-      "handledAt": "2026-10-05T06:29:14.737Z"
+      "observedAt": "2026-10-05T06:36:15.624Z",
+      "handledAt": "2026-10-05T06:36:18.494Z"
     },
     {
-      "id": "328f3a7e-d70d-41af-9253-7fded111bfef",
+      "id": "7fcc83eb-4678-43c3-900b-1a8b34adaf8c",
       "summary": "ESCALATION_WAITING: Choose Canary or Stable?",
       "assignmentReportState": "waiting-human",
       "assignmentTurn": 1,
       "sourceAvailable": true,
       "authorKind": "bot",
       "state": "handled",
-      "observedAt": "2026-10-05T06:29:08.365Z",
-      "handledAt": "2026-10-05T06:29:11.134Z"
+      "observedAt": "2026-10-05T06:36:12.203Z",
+      "handledAt": "2026-10-05T06:36:15.621Z"
     }
   ],
   "orchestratorTurns": 3,
   "nativeReportCalls": 4,
   "canonicalBlockerExposed": true,
-  "harvestRepeatCounts": [1, 3],
-  "repeatCountVerification": {
-    "retainedNativeHistory": true,
-    "beforeOrchestratorTurn": 4,
-    "originalSourceSnapshotsPreserved": true
-  }
+  "harvestRepeatCounts": [1, 2]
 }

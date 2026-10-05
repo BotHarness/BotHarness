@@ -27,7 +27,7 @@ In the completed scene, the actual Inbox reply field was used to send “Use Can
 
 Screenshots are actual light-theme captures at the browser's default 1280 × 720, with normal scrolling between states. They are a functional sequence, not a changed-UI before/after comparison. All were visually inspected. Public proof deliberately omits credentials, machine-local paths and raw native Session logs.
 
-Repeat counts are verified against each batch's actual observation timestamps, not assumed to equal four in one wake. Completed scene: one Report followed by three in a batch. Human QA scene: one then two; the final progress arrives after harvest and stays pending, as conditional progress must not wake by itself. The initial driver incorrectly required every progress to be handled immediately; that assertion was corrected to distinguish pending from consumed sources, with no production policy change.
+Repeat counts are verified against each batch's actual observation timestamps, not assumed to equal four in one wake. Completed scene: one Report followed by three in a batch. Human QA scene: one then two; the final progress arrives after harvest and stays pending, as conditional progress must not wake by itself. Independent review caught the initial baseline counting only the blocker batch (`3`). Its complete counts were corrected to `[1, 3]` from retained native messages before Orchestrator Turn 4; all original source snapshots/timestamps stayed unchanged and match the source-view proof. The initial driver incorrectly required every progress to be handled immediately; that assertion was corrected to distinguish pending from consumed sources, with no production policy change.
 
 ## Reproduce / Human QA
 
