@@ -161,6 +161,37 @@ export function existingArtifact(artifact, remote) {
   return true;
 }
 
+async function registryVersion(name, version) {
+  const response = await fetch(
+    `${registry}/${encodeURIComponent(name)}/${encodeURIComponent(version)}?readback=${Date.now()}`,
+    { headers: { 'cache-control': 'no-cache' }, signal: AbortSignal.timeout(10_000) },
+  );
+  if (response.status === 404) return undefined;
+  if (!response.ok) throw new Error(`Registry read failed (${response.status}): ${name}`);
+  return response.json();
+}
+
+export async function awaitPublished(
+  artifact,
+  {
+    read = registryVersion,
+    attempts = 80,
+    delayMs = 30_000,
+    sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
+  } = {},
+) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    if (existingArtifact(artifact, await read(artifact.name, artifact.version))) return attempt;
+    if (attempt < attempts) {
+      console.log(
+        `Waiting for the registry to show ${artifact.name}@${artifact.version} (${attempt}/${attempts})`,
+      );
+      await sleep(delayMs);
+    }
+  }
+  return 0;
+}
+
 async function registryPreflight(packages) {
   const internal = new Set(publicationOrder);
   const checked = new Set();
@@ -295,10 +326,7 @@ async function main() {
     if (mode !== 'publish') publishArgs.push('--dry-run');
     npm(publishArgs);
     registryMetadata.delete(artifact.name);
-    if (
-      mode === 'publish' &&
-      !existingArtifact(artifact, await registryPackage(artifact.name, artifact.version))
-    )
+    if (mode === 'publish' && !(await awaitPublished(artifact)))
       throw new Error(
         `Registry has not confirmed ${artifact.name}; stop and inspect before retrying`,
       );
