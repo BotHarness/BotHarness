@@ -532,7 +532,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
-- Documented the accepted PersonaBot/Channel deletion contract: an unchecked optional Memory-erasure choice with direct folder access, history-preserving Channel deletion, and the real Purge Ledger prerequisite for Profile restore; runtime controls remain separate implementation work ([#138](https://github.com/BotHarness/BotHarness/issues/138), [ADR-0129](docs/adr/0129-deletion-preserves-history-and-makes-memory-erasure-explicit.md)).
+- Documented the accepted PersonaBot/Channel deletion contract: an unchecked optional Memory-erasure choice with direct folder access, history-preserving Channel deletion, and the real Purge Ledger prerequisite for Profile restore; runtime controls remain separate implementation work ([#138](https://github.com/BotHarness/BotHarness/issues/138), [ADR-0130](docs/adr/0130-deletion-preserves-history-and-makes-memory-erasure-explicit.md)).
 
 - Updated Discord integration guidance with merged QA revisions, bounded send-interruption/recovery evidence, agent-operated UI/E2E acceptance screenshots and explicit remaining native qualification gates ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
 
