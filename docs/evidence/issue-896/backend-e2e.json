@@ -27,6 +27,22 @@
     {
       "name": "cold-restart-terminal-fence-Memory-outcome-and-native-history",
       "passed": true
+    },
+    {
+      "name": "real-Host-stale-confirmation-refused-before-terminal-fence",
+      "passed": true
+    },
+    {
+      "name": "real-Host-escaping-link-refused-ordinary-deletion-retains-outside-bytes",
+      "passed": true
+    },
+    {
+      "name": "real-Host-injected-filesystem-failure-keeps-terminal-fence-and-pending-cleanup",
+      "passed": true
+    },
+    {
+      "name": "real-Host-cold-restart-incomplete-cleanup-and-explicit-retry",
+      "passed": true
     }
   ],
   "bots": {
@@ -45,5 +61,6 @@
       "displayName": "Human QA896 erase Memory"
     }
   ],
-  "coldCheckedAt": "2026-10-05T18:53:03.434Z"
+  "coldCheckedAt": "2026-10-05T18:53:03.434Z",
+  "failureBot": "bot-14370b3be88445b293caca3dcbb47952"
 }

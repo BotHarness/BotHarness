@@ -9,7 +9,11 @@ history; subsequent resume and DM delivery were rejected. Explicit Memory erasur
 removed only the selected disposable repository. A real Agent waiting for native
 tool approval was stopped before deletion completed. After a cold Host restart,
 all three identities remained deleted, their Memory outcomes and native history
-were unchanged, and late input/resume remained rejected.
+were unchanged, and late input/resume remained rejected. Further real Host checks
+refused a stale confirmation before persisting deletion, refused an escaping Memory
+symlink while preserving outside bytes, and reported an injected filesystem
+permission failure as incomplete. After a second cold restart, the incomplete
+state still fenced execution; explicit retry completed the original erasure scope.
 
 `backend-e2e.json` contains the checkpoints and opaque test identity/session IDs.
 No authentication token or credentials are included.
@@ -22,7 +26,11 @@ path to `node docs/evidence/issue-896/host-e2e.mjs <private-launch-json>`.
 The script creates and deletes only its own disposable Bots. Stop that exact Host
 PID, restart the same Profile, and run
 `node docs/evidence/issue-896/cold-e2e.mjs <fresh-private-launch-json>`.
-It also leaves two active disposable Bots for Human UI review. Do not commit the
+It also leaves two active disposable Bots for Human UI review. Then run
+`node docs/evidence/issue-896/failure-e2e.mjs <private-launch-json>`; restart the exact
+Host again and run that script with `retry-after-cold-restart` as its final argument.
+This temporarily changes permissions only on the new disposable Memory root and
+restores its original permissions before exiting. Do not commit the
 launch JSON, credentials or other private Profile contents.
 
 ## UI capture blocker and Human review
@@ -43,8 +51,9 @@ Verify in both themes:
 4. For the second disposable Bot, explicitly check Memory erasure; the final label
    includes Memory files, and the resulting state reports erasure honestly.
 5. Compare against the base Profile entry point, and capture matching before/after
-   screenshots. Failure/incomplete state and refused custom-path cleanup have
-   focused owner-module tests; a rendered failure-state review remains pending.
+   screenshots. Failure/incomplete state has real API/cold-restart evidence; a rendered
+   failure-state review remains pending. Custom/shared-path ownership and overlap
+   refusal have owner-module tests and still need real Host scenario qualification.
 
 A real native operating-system folder open has not been executed by these API
 scripts; `native-folder-target` only verifies its Host target metadata.
