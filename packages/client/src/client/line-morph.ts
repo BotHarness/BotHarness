@@ -62,15 +62,28 @@ export function lineMorphD(shape: readonly Sampled[]): string {
 
 const tickers = new Set<(time: number) => void>();
 let loopId = 0;
+let looping = false;
 
 function loop(time: number): void {
-  for (const tick of [...tickers]) tick(time);
-  loopId = tickers.size > 0 ? requestAnimationFrame(loop) : 0;
+  loopId = 0;
+  looping = true;
+  for (const tick of [...tickers]) {
+    try {
+      tick(time);
+    } catch (error) {
+      tickers.delete(tick);
+      queueMicrotask(() => {
+        throw error;
+      });
+    }
+  }
+  looping = false;
+  if (tickers.size > 0) loopId = requestAnimationFrame(loop);
 }
 
 function addTicker(tick: (time: number) => void): void {
   tickers.add(tick);
-  if (loopId === 0) loopId = requestAnimationFrame(loop);
+  if (!looping && loopId === 0) loopId = requestAnimationFrame(loop);
 }
 
 function removeTicker(tick: (time: number) => void): void {

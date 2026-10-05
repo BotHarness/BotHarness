@@ -7,17 +7,17 @@ const puppeteer = createRequire(process.cwd() + '/node_modules/.pnpm/' + pkg + '
 import http from 'node:http';
 import fs from 'node:fs';
 const dir = process.cwd() + '/docs/evidence/issue-757/harness';
-const server = http
-  .createServer((q, r) => {
-    const f = q.url === '/' ? '/index.html' : q.url;
-    try {
-      r.end(fs.readFileSync(dir + f));
-    } catch {
-      r.statusCode = 404;
-      r.end();
-    }
-  })
-  .listen(0);
+const served = { '/': 'index.html', '/index.html': 'index.html', '/bundle.js': 'bundle.js' };
+const server = http.createServer((q, r) => {
+  const file = served[q.url];
+  if (!file) {
+    r.statusCode = 404;
+    r.end();
+    return;
+  }
+  r.end(fs.readFileSync(`${dir}/${file}`));
+});
+await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const port = server.address().port;
 const browser = await puppeteer.launch({
   executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
