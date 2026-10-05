@@ -1,12 +1,12 @@
 {
   "zh": {
-    "id": "834c28d2f7f94e2daa872bfbe877d0f8",
-    "candidate": 0,
+    "id": "c340baa665634ed3840f833e173177a0",
+    "candidate": 3,
     "state": "trained"
   },
   "en": {
-    "id": "64ea26c1924748618de8836a5d19acaf",
-    "candidate": 0,
+    "id": "abf1059ade97440eb27d5b294b968db3",
+    "candidate": 1,
     "state": "trained"
   }
 }

@@ -23,12 +23,23 @@ function apiKey() {
   return m[1].trim().replace(/^['"]|['"]$/g, '');
 }
 const auth = () => ({ Authorization: `Bearer ${apiKey()}` });
+// Fish sometimes drops the TLS socket mid-request; retry a few times.
+async function fetchRetry(url, init, tries = 4) {
+  for (let i = 1; ; i++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      if (i >= tries) throw err;
+      await new Promise((r) => setTimeout(r, 1500 * i));
+    }
+  }
+}
 const langs = (arg) => (arg ? [arg] : ['zh', 'en']);
 const readVoices = () => (fs.existsSync(voicesFile) ? JSON.parse(fs.readFileSync(voicesFile, 'utf8')) : {});
 
 async function design(lang) {
   const v = script.voices[lang];
-  const res = await fetch(`${API}/v1/voice-design`, {
+  const res = await fetchRetry(`${API}/v1/voice-design`, {
     method: 'POST',
     headers: { ...auth(), 'Content-Type': 'application/json', model: 'voice-design-1' },
     body: JSON.stringify({ instruction: v.instruction, reference_text: v.reference_text, language: v.language, n: 4, seed: 7 }),
@@ -54,7 +65,7 @@ async function pick(lang, index) {
   form.append('enhance_audio_quality', 'false');
   form.append('texts', script.voices[lang].reference_text);
   form.append('voices', new Blob([fs.readFileSync(file)], { type: 'audio/wav' }), path.basename(file));
-  const res = await fetch(`${API}/model`, { method: 'POST', headers: auth(), body: form });
+  const res = await fetchRetry(`${API}/model`, { method: 'POST', headers: auth(), body: form });
   if (!res.ok) throw new Error(`create model ${lang}: HTTP ${res.status} ${await res.text()}`);
   const model = await res.json();
   const voices = readVoices();
@@ -71,7 +82,7 @@ async function tts(lang, only) {
   for (const cue of script.cues) {
     if (only && cue.id !== only) continue;
     const speed = cue[`${lang}Speed`] ?? 1;
-    const res = await fetch(`${API}/v1/tts`, {
+    const res = await fetchRetry(`${API}/v1/tts`, {
       method: 'POST',
       headers: { ...auth(), 'Content-Type': 'application/json', model: 's2.1-pro-free' },
       body: JSON.stringify({ text: cue[lang], reference_id: voice.id, format: 'wav', sample_rate: 44100, normalize: true, latency: 'normal', prosody: { speed } }),

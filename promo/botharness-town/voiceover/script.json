@@ -2,12 +2,12 @@
   "note": "Voice-over cues. `at` and `max` are seconds on the film timeline (60 fps master). Text uses Fish Audio S2 bracket cues for delivery.",
   "voices": {
     "zh": {
-      "instruction": "一位温暖、亲切的年轻女性旁白，普通话标准，语速适中，带着一点好奇和笑意，像游戏里的引路人在给玩家介绍小镇，不夸张、不播音腔，安静的录音棚。",
+      "instruction": "一位虚拟电子歌姬风格的少女声线：音色明亮、偏高、清脆可爱，带一点合成器般的电子质感和轻微的机械感，吐字干净利落，语气活泼又亲切，像二次元虚拟偶像在给大家介绍小镇。普通话，安静的录音棚。",
       "reference_text": "欢迎来到小镇。这里的每个居民，都有自己的名字、性格和记忆，我带你慢慢逛一逛。",
       "language": "zh"
     },
     "en": {
-      "instruction": "A warm, friendly young female narrator with a natural American accent, relaxed medium pace, gently curious and smiling, like a game guide showing a player around a cozy pixel town. Conversational, not a radio announcer. Clean studio recording.",
+      "instruction": "A virtual pop idol style voice inspired by vocal-synth singers: a bright, high-pitched, crisp and cute young female voice with a subtle synthesized, slightly robotic digital sheen, clean articulation, upbeat and friendly, like an anime virtual idol introducing her town. Clean studio recording.",
       "reference_text": "Welcome to town. Everyone who lives here has a name, a personality and a memory of their own. Let me show you around.",
       "language": "en"
     }
