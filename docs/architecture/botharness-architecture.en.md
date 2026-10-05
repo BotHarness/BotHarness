@@ -354,8 +354,10 @@ flowchart LR
   Runtime <--> W1["Independent Assignment Session A"]
   Runtime <--> W2["Independent Assignment Session B"]
   W1 -->|"report_to_orchestrator"| Report["Assignment Report Source Event"]
-  W2 -->|"confirmed stop / completed Turn"| Notice["Host Lifecycle Notice<br/>stop and paired completion #194<br/>other boundaries planned"]
+  W1 -->|"completed Turn paired with this Report"| Completion["Host Completion Notice<br/>paired completion #194"]
+  W2 -->|"confirmed stop"| Notice["Host Lifecycle Notice<br/>confirmed stop #194<br/>other boundaries planned"]
   Report --> Inbox
+  Completion --> Inbox
   Notice --> Inbox
   W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]
 ```
