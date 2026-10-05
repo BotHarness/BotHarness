@@ -17,6 +17,8 @@
 
 ### Added
 
+- PersonaBot 可显式发布不镜像到本地聊天的 Slack 报告，查询已保存原文及真实回执，并在原 Slack 话题回答符合收件策略的 Human 追问 ([#863](https://github.com/BotHarness/BotHarness/issues/863), [IM integration guide](docs/dev/guides/im-provider-integration.md)).
+
 - PersonaBot 可在真实普通回复投递验证后显式跟进或退出已授权 Slack 原生话题，复用数量／时间汇总和 Human 覆盖；迁移后的频道连接器仍保留 Profile 话题管理（[#854](https://github.com/BotHarness/BotHarness/issues/854)、[IM 接入指南](docs/dev/guides/im-provider-integration.md)）。
 
 - 活动实时同步中断时，侧栏会提示；头像停在最后观察到的状态，活动指示变灰并暂停，不再播放装饰动画；重新连接或服务重启后从新的基线恢复（[#756](https://github.com/BotHarness/BotHarness/issues/756)）。
