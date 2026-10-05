@@ -89,6 +89,79 @@ export const AVATAR_PARTS = {
   ],
 } as const;
 
+export const AVATAR_HAIR_PARTS = {
+  bangs: [
+    'crop',
+    'bob',
+    'sweep',
+    'spiky',
+    'curly',
+    'messy',
+    'wolf',
+    'wavy',
+    'ahoge',
+    'hime',
+    'buzz',
+    'mohawk',
+    'none',
+  ],
+  sideHair: ['crop', 'bun', 'bob', 'long', 'hime', 'curly', 'braids', 'none'],
+  backHair: [
+    'none',
+    'bob',
+    'long',
+    'wavy',
+    'wolf',
+    'bun',
+    'odango',
+    'pigtails',
+    'twintails',
+    'drills',
+    'ponytail',
+    'sidetail',
+    'afro',
+  ],
+} as const satisfies Record<string, readonly (typeof AVATAR_PARTS)['hair'][number][]>;
+const HAIR_SPLIT: Record<
+  (typeof AVATAR_PARTS)['hair'][number],
+  { [P in AvatarHairPart]: (typeof AVATAR_HAIR_PARTS)[P][number] }
+> = {
+  crop: { bangs: 'crop', sideHair: 'crop', backHair: 'none' },
+  sweep: { bangs: 'sweep', sideHair: 'crop', backHair: 'none' },
+  spiky: { bangs: 'spiky', sideHair: 'crop', backHair: 'none' },
+  buzz: { bangs: 'buzz', sideHair: 'none', backHair: 'none' },
+  curly: { bangs: 'curly', sideHair: 'curly', backHair: 'none' },
+  mohawk: { bangs: 'mohawk', sideHair: 'none', backHair: 'none' },
+  bob: { bangs: 'bob', sideHair: 'bob', backHair: 'bob' },
+  long: { bangs: 'bob', sideHair: 'long', backHair: 'long' },
+  bun: { bangs: 'bob', sideHair: 'bun', backHair: 'bun' },
+  pigtails: { bangs: 'bob', sideHair: 'bun', backHair: 'pigtails' },
+  afro: { bangs: 'buzz', sideHair: 'none', backHair: 'afro' },
+  twintails: { bangs: 'bob', sideHair: 'bob', backHair: 'twintails' },
+  drills: { bangs: 'bob', sideHair: 'bob', backHair: 'drills' },
+  ponytail: { bangs: 'bob', sideHair: 'bun', backHair: 'ponytail' },
+  sidetail: { bangs: 'sweep', sideHair: 'bun', backHair: 'sidetail' },
+  hime: { bangs: 'hime', sideHair: 'hime', backHair: 'long' },
+  odango: { bangs: 'bob', sideHair: 'bun', backHair: 'odango' },
+  messy: { bangs: 'messy', sideHair: 'bun', backHair: 'none' },
+  wavy: { bangs: 'wavy', sideHair: 'long', backHair: 'wavy' },
+  braids: { bangs: 'bob', sideHair: 'braids', backHair: 'none' },
+  wolf: { bangs: 'wolf', sideHair: 'bun', backHair: 'wolf' },
+  ahoge: { bangs: 'ahoge', sideHair: 'bob', backHair: 'bob' },
+  none: { bangs: 'none', sideHair: 'none', backHair: 'none' },
+};
+export const AVATAR_RANGES = {
+  spacing: [-1, 1],
+  height: [-1, 1],
+  hairLength: [-2, 2],
+} as const;
+export type AvatarHairPart = keyof typeof AVATAR_HAIR_PARTS;
+export type AvatarRange = keyof typeof AVATAR_RANGES;
+const DETAIL_KEYS = [
+  ...(Object.keys(AVATAR_HAIR_PARTS) as AvatarHairPart[]),
+  ...(Object.keys(AVATAR_RANGES) as AvatarRange[]),
+] as const;
+
 export type AvatarPart = keyof typeof AVATAR_PARTS;
 export const AVATAR_COLORS = ['skinColor', 'hairColor', 'eyeColor', 'shirtColor'] as const;
 export type AvatarColor = (typeof AVATAR_COLORS)[number];
@@ -98,7 +171,9 @@ export type IllustratedAvatarRecipe = {
   family: 'illustrated';
   assetVersion: 1;
   rigVersion: 1;
-} & { [P in AvatarPart]: (typeof AVATAR_PARTS)[P][number] } & Record<AvatarColor, string>;
+} & { [P in AvatarPart]: (typeof AVATAR_PARTS)[P][number] } & Record<AvatarColor, string> & {
+    [P in AvatarHairPart]?: (typeof AVATAR_PARTS)['hair'][number];
+  } & { [P in AvatarRange]?: number };
 
 export type AvatarRecipe = IllustratedAvatarRecipe | LineAvatarRecipe;
 export type AvatarFamily = AvatarRecipe['family'];
@@ -154,8 +229,22 @@ const PART_KEYS = Object.keys(AVATAR_PARTS) as AvatarPart[];
 export function isIllustratedAvatarRecipe(value: unknown): value is IllustratedAvatarRecipe {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const r = value as Record<string, unknown>;
-  if (Object.keys(r).length !== Object.keys(DEFAULT_ILLUSTRATED_RECIPE).length) return false;
+  const detailed = DETAIL_KEYS.filter((key) => Object.hasOwn(r, key)).length;
+  if (detailed !== 0 && detailed !== DETAIL_KEYS.length) return false;
+  if (Object.keys(r).length !== Object.keys(DEFAULT_ILLUSTRATED_RECIPE).length + detailed)
+    return false;
   return (
+    (detailed === 0 ||
+      ((Object.keys(AVATAR_HAIR_PARTS) as AvatarHairPart[]).every(
+        (key) =>
+          typeof r[key] === 'string' &&
+          (AVATAR_HAIR_PARTS[key] as readonly string[]).includes(r[key]),
+      ) &&
+        (Object.keys(AVATAR_RANGES) as AvatarRange[]).every((key) => {
+          const v = r[key];
+          const [min, max] = AVATAR_RANGES[key];
+          return typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
+        }))) &&
     r['schemaVersion'] === 1 &&
     r['family'] === 'illustrated' &&
     r['assetVersion'] === 1 &&
@@ -188,7 +277,25 @@ export function canonicalAvatarRecipe(recipe: IllustratedAvatarRecipe): Illustra
   };
   for (const key of PART_KEYS) canonical[key] = recipe[key];
   for (const key of AVATAR_COLORS) canonical[key] = recipe[key].toLowerCase();
+  if (recipe.bangs !== undefined) for (const key of DETAIL_KEYS) canonical[key] = recipe[key];
   return canonical as IllustratedAvatarRecipe;
+}
+
+export function detailedAvatarRecipe(recipe: IllustratedAvatarRecipe): IllustratedAvatarRecipe {
+  if (recipe.bangs !== undefined) return recipe;
+  const pick = <P extends AvatarHairPart>(part: P) =>
+    (AVATAR_HAIR_PARTS[part] as readonly string[]).includes(recipe.hair)
+      ? (recipe.hair as (typeof AVATAR_HAIR_PARTS)[P][number])
+      : HAIR_SPLIT[recipe.hair][part];
+  return {
+    ...recipe,
+    bangs: pick('bangs'),
+    sideHair: pick('sideHair'),
+    backHair: pick('backHair'),
+    spacing: 0,
+    height: 0,
+    hairLength: 0,
+  };
 }
 
 export const AVATAR_SWATCHES: Record<AvatarColor, readonly string[]> = {

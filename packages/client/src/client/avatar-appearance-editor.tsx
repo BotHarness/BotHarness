@@ -2,8 +2,12 @@ import { useMemo, useState, type ReactElement } from 'react';
 import {
   AVATAR_COLORS,
   AVATAR_FAMILIES,
+  AVATAR_HAIR_PARTS,
   AVATAR_PARTS,
   AVATAR_PRESETS,
+  AVATAR_RANGES,
+  detailedAvatarRecipe,
+  type IllustratedAvatarRecipe,
   AVATAR_SWATCHES,
   avatarSvg,
   seededAvatarRecipe,
@@ -37,14 +41,17 @@ interface FamilySpec {
 
 const FAMILIES: Record<AvatarFamily, FamilySpec> = {
   illustrated: {
-    parts: AVATAR_PARTS,
+    parts: { ...AVATAR_PARTS, ...AVATAR_HAIR_PARTS },
     colors: AVATAR_COLORS,
     swatches: AVATAR_SWATCHES,
-    ranges: {},
+    ranges: AVATAR_RANGES,
     presets: AVATAR_PRESETS,
     categories: [
       'presets',
-      ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop'),
+      'hair',
+      ...Object.keys(AVATAR_HAIR_PARTS),
+      ...Object.keys(AVATAR_PARTS).filter((part) => part !== 'backdrop' && part !== 'hair'),
+      'shape',
       'colors',
     ],
     option: (part, value) => `profile.avatar.option.${part}.${value}` as Key,
@@ -68,6 +75,28 @@ const FAMILIES: Record<AvatarFamily, FamilySpec> = {
 };
 
 type Fields = Record<string, string | number>;
+
+const DETAIL = new Set<string>([...Object.keys(AVATAR_HAIR_PARTS), ...Object.keys(AVATAR_RANGES)]);
+
+function withPart(recipe: AvatarRecipe, key: string, value: string | number): AvatarRecipe {
+  if (recipe.family !== 'illustrated')
+    return { ...(recipe as unknown as Fields), [key]: value } as unknown as AvatarRecipe;
+  if (DETAIL.has(key))
+    return {
+      ...(detailedAvatarRecipe(recipe) as unknown as Fields),
+      [key]: value,
+    } as unknown as AvatarRecipe;
+  const next = { ...recipe, [key]: value } as IllustratedAvatarRecipe;
+  if (key !== 'hair' || recipe.bangs === undefined) return next;
+  const { bangs: _b, sideHair: _s, backHair: _h, ...plain } = next;
+  const split = detailedAvatarRecipe(plain);
+  return {
+    ...split,
+    spacing: next.spacing ?? 0,
+    height: next.height ?? 0,
+    hairLength: next.hairLength ?? 0,
+  };
+}
 
 function shuffled(recipe: AvatarRecipe): AvatarRecipe {
   const spec = FAMILIES[recipe.family];
@@ -160,9 +189,12 @@ export function AvatarAppearanceEditor({
   };
   const state = normalizePersonaBotActivity(bot.aggregateState);
   const recipe = draft ?? bot.appearance?.recipe;
-  const fields = draft as unknown as Fields | undefined;
-  const set = (key: string, value: string | number) =>
-    update({ ...(draft as unknown as Fields), [key]: value } as unknown as AvatarRecipe);
+  const fields = (draft?.family === 'illustrated'
+    ? detailedAvatarRecipe(draft)
+    : draft) as unknown as Fields | undefined;
+  const set = (key: string, value: string | number) => {
+    if (draft) update(withPart(draft, key, value));
+  };
   return (
     <section className="bh-avatar-editor" aria-label={t('profile.avatar.design')}>
       <div className="bh-avatar-editor-preview" data-avatar-preview>
@@ -330,12 +362,7 @@ export function AvatarAppearanceEditor({
                   <OptionTile
                     key={value}
                     id={`${category}:${value}`}
-                    recipe={
-                      {
-                        ...(draft as unknown as Fields),
-                        [category]: value,
-                      } as unknown as AvatarRecipe
-                    }
+                    recipe={withPart(draft, category, value)}
                     selected={fields[category] === value}
                     label={t(spec.option(category, value))}
                     onSelect={() => set(category, value)}

@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  AVATAR_HAIR_PARTS,
   AVATAR_PARTS,
   AVATAR_PRESETS,
+  AVATAR_RANGES,
+  canonicalAvatarRecipe,
+  detailedAvatarRecipe,
   DEFAULT_ILLUSTRATED_RECIPE,
   illustratedAvatarSvg,
   isIllustratedAvatarRecipe,
@@ -85,6 +89,61 @@ describe('illustrated Avatar artwork', () => {
             `${recipe.hair}/${recipe.accessory} ${x},${y}`,
           ).toBe(true);
     }
+  });
+
+  it('splits hair into bangs, side and back hair with bounded geometry, all-or-none', () => {
+    const base = detailedAvatarRecipe(DEFAULT_ILLUSTRATED_RECIPE);
+    expect(isIllustratedAvatarRecipe(base)).toBe(true);
+    for (const part of Object.keys(AVATAR_HAIR_PARTS) as (keyof typeof AVATAR_HAIR_PARTS)[]) {
+      const rendered = new Set(
+        AVATAR_HAIR_PARTS[part].map((value) =>
+          illustratedAvatarSvg({
+            ...base,
+            bangs: 'none',
+            sideHair: 'none',
+            backHair: 'none',
+            [part]: value,
+          }),
+        ),
+      );
+      expect(rendered.size, part).toBe(AVATAR_HAIR_PARTS[part].length);
+    }
+    for (const [key, [min, max]] of Object.entries(AVATAR_RANGES)) {
+      expect(isIllustratedAvatarRecipe({ ...base, [key]: min })).toBe(true);
+      expect(isIllustratedAvatarRecipe({ ...base, [key]: max })).toBe(true);
+      expect(isIllustratedAvatarRecipe({ ...base, [key]: max + 1 })).toBe(false);
+      expect(isIllustratedAvatarRecipe({ ...base, [key]: 0.5 })).toBe(false);
+      expect(deriveAvatarAppearance({ ...base, [key]: min - 1 })).toBeUndefined();
+    }
+    const { bangs: _bangs, ...partial } = base;
+    expect(isIllustratedAvatarRecipe(partial)).toBe(false);
+    expect(isIllustratedAvatarRecipe({ ...base, backHair: 'crown' })).toBe(false);
+    expect(canonicalAvatarRecipe({ ...base, backHair: 'twintails' })).toMatchObject({
+      bangs: base.bangs,
+      backHair: 'twintails',
+      hairLength: 0,
+    });
+    const inside = (x: number, y: number) => {
+      const clamp = (v: number) => Math.min(Math.max(v, 6), 26);
+      return (x + 0.5 - clamp(x + 0.5)) ** 2 + (y + 0.5 - clamp(y + 0.5)) ** 2 <= 36;
+    };
+    for (const backHair of AVATAR_HAIR_PARTS.backHair)
+      for (const pose of AVATAR_PARTS.pose)
+        for (const extreme of [-1, 1]) {
+          const recipe = {
+            ...base,
+            pose,
+            backHair,
+            spacing: extreme,
+            height: extreme,
+            hairLength: extreme * 2,
+          };
+          const svg = illustratedAvatarSvg(recipe, { turns: [-14, 14] });
+          expect(deriveAvatarAppearance(recipe), `${backHair}/${pose}`).toBeDefined();
+          for (const [, x, y, w] of svg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)"/gu))
+            for (let i = 0; i < Number(w); i++)
+              expect(inside(Number(x) + i, Number(y)), `${backHair}/${pose}`).toBe(true);
+        }
   });
 
   it('derives a stable, valid default recipe from the name alone', () => {
