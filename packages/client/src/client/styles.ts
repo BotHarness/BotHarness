@@ -38,6 +38,7 @@ export const CSS =
   --bh-inbox-base: var(--dsw-alias-bg-base);
   --bh-inbox-label: var(--dsw-alias-label-primary);
   --bh-inbox-muted: var(--dsw-alias-label-secondary);
+  --bh-inbox-error: var(--dsw-alias-state-error-primary);
   /* @bh-inbox-reply-aliases:end */
   /* @bh-composer-aliases:start — match the native multiline input panel. */
   --bh-composer-radius-panel: 20px;
@@ -3662,8 +3663,8 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   padding: 2px 12px 10px;
 }
 .bh-inbox-group {
-  border-top: 1px solid var(--dsw-alias-border-l2);
-  padding: 5px 0;
+  border-top: 1px solid var(--bh-inbox-divider);
+  padding: 6px 0;
 }
 .bh-inbox-group-head,
 .bh-inbox-history > summary {
@@ -3671,66 +3672,108 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 28px;
+  min-height: 32px;
+  padding: 4px 8px;
   cursor: pointer;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--bh-inbox-muted);
   font-size: 12px;
 }
-.bh-inbox-group-head > span:first-child {
-  display: -webkit-box;
+.bh-inbox-group-name {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-inbox-group-head > span:last-child {
+  flex-shrink: 0;
+}
+.bh-inbox-group-chevron {
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+}
+.bh-inbox-group[open] > summary > .bh-inbox-group-chevron,
+.bh-inbox-history[open] > summary > .bh-inbox-group-chevron {
+  transform: none;
+}
+.bh-inbox-history > summary {
+  justify-content: flex-start;
 }
 .bh-inbox-history {
-  margin-left: 8px;
+  margin-top: 4px;
 }
 .bh-inbox-item {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
   width: 100%;
-  margin: 2px 0;
-  padding: 7px 8px;
+  margin: 0;
+  padding: 12px 10px;
   border: 0;
-  border-radius: 8px;
+  border-bottom: 1px solid var(--bh-inbox-divider);
+  border-radius: var(--bh-inbox-radius-control);
   background: transparent;
-  color: var(--dsw-alias-label-primary);
+  color: var(--bh-inbox-label);
   text-align: left;
   cursor: pointer;
 }
 .bh-inbox-item:hover:not(:disabled):not(.bh-inbox-item-info) {
-  background: var(--dsw-alias-interactive-bg-hover);
+  background: var(--bh-hover);
 }
-.bh-inbox-item-info {
-  cursor: default;
-}
+.bh-inbox-item-info,
 .bh-inbox-item:disabled {
   cursor: default;
-  opacity: 0.7;
 }
 .bh-inbox-item:focus-visible,
 .bh-inbox-group-head:focus-visible,
 .bh-inbox-history > summary:focus-visible {
-  outline: 2px solid var(--dsw-alias-label-primary);
+  outline: 2px solid var(--bh-accent);
   outline-offset: -2px;
-}
-.bh-inbox-item-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  width: 100%;
-  font-size: 11px;
 }
 .bh-inbox-item-summary {
   display: -webkit-box;
   overflow: hidden;
+  overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  font-size: 12px;
-  line-height: 18px;
+  -webkit-line-clamp: 3;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.bh-inbox-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  color: var(--bh-inbox-muted);
+  font-size: 11px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+.bh-inbox-item-author {
+  min-width: 0;
+}
+.bh-inbox-item-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 11px;
+  line-height: 16px;
+}
+.bh-inbox-item-state {
+  font-weight: 500;
+  color: var(--bh-inbox-muted);
+}
+.bh-inbox-item-state[data-state="needs-repair"] {
+  color: var(--bh-inbox-error);
+}
+.bh-inbox-item-state[data-state="processing"] {
+  color: var(--bh-accent);
+}
+.bh-inbox-item-time {
+  color: var(--bh-inbox-muted);
 }
 .bh-external-source-file {
   display: flex;
@@ -3870,10 +3913,6 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   .bh-external-message { gap: 8px; }
   .bh-external-avatar { flex-basis: 28px; height: 28px; font-size: 12px; }
   .bh-external-message-text { padding: 8px 10px; }
-}
-.bh-inbox-item-meta {
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
 }
 .bh-channel-sidebar-overlay-layer {
   position: absolute;

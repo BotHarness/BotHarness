@@ -1,0 +1,26 @@
+{
+  "bot": "Observed restart QA 1791184379688",
+  "source": {
+    "id": "996f3377-6803-42ab-aff3-2ae857e730f4",
+    "summary": "OBSERVED_REPORT: Research remains available.",
+    "assignmentSessionId": "botharness-3f3587a6-48d7-425d-9380-e180b5760e1b",
+    "assignmentReportState": "progress",
+    "assignmentTurn": 1,
+    "authorKind": "bot",
+    "sourceAvailable": true,
+    "state": "needs-repair",
+    "observedAt": "2026-10-05T07:13:06.713Z"
+  },
+  "turns": {
+    "starts": 2,
+    "ends": 2
+  },
+  "reportExposures": 1,
+  "assignmentTurns": {
+    "starts": 1,
+    "ends": 1
+  },
+  "noAutomaticReplay": true,
+  "nativeEndReasons": ["completed", "interrupted"],
+  "approvalExpired": true
+}
