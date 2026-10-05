@@ -278,6 +278,21 @@ export const PAGES = [
     },
   },
   {
+    slug: 'dev/guides/im-provider-integration',
+    order: 5,
+    en: {
+      source: 'docs/dev/guides/im-provider-integration.md',
+      title: 'IM Provider integration',
+      description: 'Verified Lark and Slack contracts and repeatable provider qualification',
+      lang: 'en',
+    },
+    zh: {
+      source: 'docs/dev/guides/im-provider-integration.zh.md',
+      title: 'IM Provider 接入规范',
+      description: '已验证的 Lark、Slack 契约与可复用的平台资格验证流程',
+    },
+  },
+  {
     slug: 'dev/guides/client-bridge',
     order: 1,
     zh: {

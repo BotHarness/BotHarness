@@ -1,0 +1,299 @@
+{
+  "issue": 845,
+  "runtimeCodeCommit": "665119a5",
+  "integratedCommit": "b26d1b89",
+  "latestMain": "5410207340ffefbb4bb6f2567c5b79adb9100299",
+  "screenshotBaseline": "224f9c0057c3e2caca41f1460c1c5deb63238e99",
+  "baselineNote": "The baseline tree equals merged af7b1d57; packages are unchanged between af7b1d57 and latest main 54102073 (Lark documentation only).",
+  "dshVersion": "0.2.0-rc.1",
+  "provider": {
+    "commit": "48e7a35792af5222cd40cfe1ba2607ac55a59df2",
+    "runtimeSha256": "15e60e507f8ff3b47ca011ca7f9471a0018f1686cf7e93700d3cc35cb6e43aaf",
+    "files": 393
+  },
+  "nativeQa": {
+    "channelName": "botharness-im-qa-802",
+    "botName": "BotHarness Slack QA",
+    "botUserId": "U0C6EQK4B8B"
+  },
+  "channelId": "group-slack-qa-845",
+  "assertions": {
+    "mentionOnlyProbeExcluded": true,
+    "pausedMessageExcludedBeforeAndAfterResume": true,
+    "firstCountMessageWaitedForSecond": true,
+    "countBatchSameHandlingCommit": true,
+    "localDiscussionAddedNoOutbox": true,
+    "existingInboxOnlyRouteDisabled": true,
+    "historyAndConfigSurvivedColdRestart": true
+  },
+  "sources": [
+    {
+      "tag": "MENTION",
+      "sourceEventId": "im-cd4f1ac85209a40e6715c8f85a26c0f73ec17234a80c451e17637d9cf3cf5074",
+      "nativeMessageId": "1791179271.084659",
+      "sender": {
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "nativeConversationId": "C0C6FPES0G5",
+      "committedDefaultRevision": 5,
+      "replyRoute": {
+        "messageId": "1791179271.084659",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791179271.084659",
+        "rootId": "1791179271.084659"
+      },
+      "placements": [
+        {
+          "channelId": "group-slack-qa-845",
+          "sourceEventId": "im-cd4f1ac85209a40e6715c8f85a26c0f73ec17234a80c451e17637d9cf3cf5074"
+        }
+      ],
+      "admission": {
+        "reason": "group-mention",
+        "mode": "all",
+        "count": 1,
+        "intervalMs": 0,
+        "handledAt": "2026-10-05T05:48:01.993Z"
+      },
+      "model": {
+        "turn": 25,
+        "channelReadSucceeded": true,
+        "bridgeReadSucceeded": true,
+        "exactSourceAndBodyMatched": true
+      }
+    },
+    {
+      "tag": "COUNT-A",
+      "sourceEventId": "im-7775a5f584348a5ce6897f86d572ab0c07507f2c3be8f272ea268fe2bdfaca1b",
+      "nativeMessageId": "1791179474.419669",
+      "sender": {
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "nativeConversationId": "C0C6FPES0G5",
+      "committedDefaultRevision": 5,
+      "replyRoute": {
+        "messageId": "1791179474.419669",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791179474.419669",
+        "rootId": "1791179474.419669"
+      },
+      "placements": [
+        {
+          "channelId": "group-slack-qa-845",
+          "sourceEventId": "im-7775a5f584348a5ce6897f86d572ab0c07507f2c3be8f272ea268fe2bdfaca1b"
+        }
+      ],
+      "admission": {
+        "reason": "group-ordinary",
+        "mode": "digest",
+        "count": 2,
+        "intervalMs": 60000,
+        "handledAt": "2026-10-05T05:51:47.819Z"
+      },
+      "model": {
+        "turn": 26,
+        "channelReadSucceeded": true,
+        "bridgeReadSucceeded": true,
+        "exactSourceAndBodyMatched": true
+      }
+    },
+    {
+      "tag": "COUNT-B",
+      "sourceEventId": "im-e97ffc76b9adf44dfd61dbf4eee52052a77cab8f512792d7f9017d2e174521ac",
+      "nativeMessageId": "1791179498.775739",
+      "sender": {
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "nativeConversationId": "C0C6FPES0G5",
+      "committedDefaultRevision": 5,
+      "replyRoute": {
+        "messageId": "1791179498.775739",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791179498.775739",
+        "rootId": "1791179498.775739"
+      },
+      "placements": [
+        {
+          "channelId": "group-slack-qa-845",
+          "sourceEventId": "im-e97ffc76b9adf44dfd61dbf4eee52052a77cab8f512792d7f9017d2e174521ac"
+        }
+      ],
+      "admission": {
+        "reason": "group-ordinary",
+        "mode": "digest",
+        "count": 2,
+        "intervalMs": 60000,
+        "handledAt": "2026-10-05T05:51:47.819Z"
+      },
+      "model": {
+        "turn": 26,
+        "channelReadSucceeded": true,
+        "bridgeReadSucceeded": true,
+        "exactSourceAndBodyMatched": true
+      }
+    },
+    {
+      "tag": "RESUME",
+      "sourceEventId": "im-cda18d1dbae7c298064fa585bb867a4957bf9a65bf17eec20ec58fe5c564fef0",
+      "nativeMessageId": "1791179779.093069",
+      "sender": {
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "nativeConversationId": "C0C6FPES0G5",
+      "committedDefaultRevision": 5,
+      "replyRoute": {
+        "messageId": "1791179779.093069",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791179779.093069",
+        "rootId": "1791179779.093069"
+      },
+      "placements": [
+        {
+          "channelId": "group-slack-qa-845",
+          "sourceEventId": "im-cda18d1dbae7c298064fa585bb867a4957bf9a65bf17eec20ec58fe5c564fef0"
+        }
+      ],
+      "admission": {
+        "reason": "group-ordinary",
+        "mode": "digest",
+        "count": 2,
+        "intervalMs": 5000,
+        "handledAt": "2026-10-05T05:56:29.000Z"
+      },
+      "model": {
+        "turn": 28,
+        "channelReadSucceeded": true,
+        "bridgeReadSucceeded": true,
+        "exactSourceAndBodyMatched": true
+      }
+    },
+    {
+      "tag": "RESTART",
+      "sourceEventId": "im-ddc3380540ff7001e9dc1a50bba81b4e1d8d835a4223030f9a8edfc0fcc620dd",
+      "nativeMessageId": "1791180784.292149",
+      "sender": {
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "nativeConversationId": "C0C6FPES0G5",
+      "committedDefaultRevision": 5,
+      "replyRoute": {
+        "messageId": "1791180784.292149",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791180784.292149",
+        "rootId": "1791180784.292149"
+      },
+      "placements": [
+        {
+          "channelId": "group-slack-qa-845",
+          "sourceEventId": "im-ddc3380540ff7001e9dc1a50bba81b4e1d8d835a4223030f9a8edfc0fcc620dd"
+        }
+      ],
+      "admission": {
+        "reason": "group-ordinary",
+        "mode": "digest",
+        "count": 2,
+        "intervalMs": 5000,
+        "handledAt": "2026-10-05T06:13:14.735Z"
+      },
+      "model": {
+        "turn": 29,
+        "channelReadSucceeded": true,
+        "bridgeReadSucceeded": true,
+        "exactSourceAndBodyMatched": true
+      }
+    },
+    {
+      "tag": "FINAL",
+      "sourceEventId": "im-9f87ab98e198228063b7e6d224394c27fe87ccf645f56ef094b68d337645181f",
+      "nativeMessageId": "1791181232.734269",
+      "sender": {
+        "id": "U064CFNDJGK",
+        "name": "DoodleBear"
+      },
+      "nativeConversationId": "C0C6FPES0G5",
+      "committedDefaultRevision": 5,
+      "replyRoute": {
+        "messageId": "1791181232.734269",
+        "conversationId": "C0C6FPES0G5",
+        "actorId": "U064CFNDJGK",
+        "threadId": "1791181232.734269",
+        "rootId": "1791181232.734269"
+      },
+      "placements": [
+        {
+          "channelId": "group-slack-qa-845",
+          "sourceEventId": "im-9f87ab98e198228063b7e6d224394c27fe87ccf645f56ef094b68d337645181f"
+        }
+      ],
+      "admission": {
+        "reason": "group-ordinary",
+        "mode": "digest",
+        "count": 2,
+        "intervalMs": 5000,
+        "handledAt": "2026-10-05T06:20:43.106Z"
+      },
+      "model": {
+        "turn": 30,
+        "channelReadSucceeded": true,
+        "bridgeReadSucceeded": true,
+        "exactSourceAndBodyMatched": true
+      }
+    }
+  ],
+  "ownThreadReply": {
+    "sourceEventId": "im-cd4f1ac85209a40e6715c8f85a26c0f73ec17234a80c451e17637d9cf3cf5074",
+    "state": "provider-accepted",
+    "text": "BH845-SHARED-OK",
+    "route": {
+      "messageId": "1791179271.084659",
+      "conversationId": "C0C6FPES0G5",
+      "actorId": "U064CFNDJGK",
+      "threadId": "1791179271.084659",
+      "rootId": "1791179271.084659"
+    },
+    "receipt": {
+      "version": 1,
+      "messageId": "1791179279.053029",
+      "conversationId": "C0C6FPES0G5"
+    },
+    "nativeClientScreenshot": "slack-thread-reply.jpg"
+  },
+  "regressionBoundary": "Independent two-member admissions, changed-delivery-ID deduplication, unconnected Channel isolation and borrowed-identity refusal are automated checked-Provider regressions; the real Slack run used one Bot App.",
+  "tests": {
+    "focusedBeforeIntegration": {
+      "passed": 93
+    },
+    "integratedSlack": {
+      "passed": 2
+    },
+    "fullRun": {
+      "passed": 2457,
+      "skipped": 9,
+      "failed": 1,
+      "failure": "Unchanged source-policy location test timed out at its existing 15000 ms limit."
+    },
+    "isolatedSourcePolicy": {
+      "passed": 10,
+      "assertionsAndTimeoutUnchanged": true
+    },
+    "lint": "passed",
+    "format": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "releaseLedgers": "passed",
+    "docsBuild": {
+      "passed": true,
+      "pages": 322
+    }
+  }
+}

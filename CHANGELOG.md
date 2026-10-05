@@ -353,6 +353,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed Slack Channel connectors and member reminders showing Lark-only labels or defaults ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
+
 - Assignment answers retain their original question until native Inbox acceptance; proven delivery preparation failures remain retryable, uncertain delivery stays visible for repair and older answers cannot clear newer questions ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
 
 - Human Inbox action buttons now open the same split detail view as the row; titles span the full first line above summaries and actions, and compact-entry dialogs have more room ([#812](https://github.com/BotHarness/BotHarness/issues/812)).
@@ -488,7 +490,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Documented the verified Lark/Slack IM integration boundary and repeatable qualification workflow for future providers ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
+
 - Added a Lark / Feishu beginner guide with compressed WebP captures of the actual console and connected Profile, a captioned step-by-step video, and qualified single-install, identity, group authorization and message-source checks ([#814](https://github.com/BotHarness/BotHarness/issues/814), [guide](docs/lark-connection.md)).
+
 - Added a verified [Assignment Report batch guide](docs/dev/guides/assignment-report-harvest.md), with native harvest evidence, retained source history, cold Host restart acceptance and Human source-navigation checks ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 
 - Added a verified [Assignment stop and recovery guide](docs/dev/guides/assignment-stop-recovery.md), including pending approvals, persistent stopped state and new work after Host restart ([#81](https://github.com/BotHarness/BotHarness/issues/81)).

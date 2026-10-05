@@ -1727,6 +1727,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
               policy: deps.channels.getGroupWakePolicy(channel.id, botSlug),
               ...(deps.externalMessaging
                 ? {
+                    externals: messagingDefaultsPlatform.options.map((platform) => ({
+                      platform,
+                      ...externalMemberWake(
+                        channel,
+                        botSlug,
+                        deps.sourcePolicy
+                          ?.list(botSlug)
+                          .find((p) => p.sourceClass === 'group-ordinary'),
+                        deps.externalMessaging!.defaults(platform),
+                      ),
+                    })),
                     external: {
                       platform: 'feishu' as const,
                       ...externalMemberWake(
