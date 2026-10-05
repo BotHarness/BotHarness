@@ -92,11 +92,27 @@ Slack private channels/DMs, edits/deletions, ordinary file shares, workspace-wid
 
 Discord is next after Slack. Its Gateway event/intents, guild/channel/thread permissions, identity/name mapping, message content availability, history limits and attachment handling must each be verified against official documentation and a real authorized QA App. A Slack `thread_ts` or Lark parent ID must not become an assumed Discord contract. Reusable checked Provider contracts should be contributed upstream when appropriate; a qualified pinned fork can continue independently of upstream merge timing.
 
+## Discord first-tracer checkpoint — 2026-10-05
+
+The independent mention/reply tracer is [#855](https://github.com/BotHarness/BotHarness/issues/855). Read-only inspection used BotHarness `751d88871ae9f3b25d8ef0381a3f1673330537b6` and [immutable Provider source](https://github.com/DoodleBears/dsh-im/tree/abaee436e707c7d9cc7e5cefaa7bd5227321ff55). **Discord remains unqualified**: no dedicated App, guild, channel/thread, installed runtime or real model reply was verified by this checkpoint.
+
+That Provider's Discord controller inherits the generic token controller without checked account, exclusive consumer or checked reply operations. Its standalone runtime requests Message Content intent and can create a native thread after a channel mention. Those behaviors are not the required BotHarness contract: the first tracer must retain the exact originating channel or existing thread and must not create a competing Session or another native thread.
+
+[Gateway documentation](https://docs.discord.com/developers/events/gateway#message-content-intent) exempts messages mentioning the App from the normal Message Content restriction. A mention-only tracer should therefore check whether it can use `GUILDS` and `GUILD_MESSAGES` without requesting privileged content access; ordinary collection/history availability remains a separate qualification. [Threads](https://docs.discord.com/developers/topics/threads) are native child channels, with `parent_id` pointing to the parent channel; that field is not a parent message ID. Sending in a thread requires `SEND_MESSAGES_IN_THREADS`, while channel sends use `SEND_MESSAGES`. Message references alone do not establish a thread. Keep Snowflake IDs as strings and independently check guild, parent/child ancestry, current access, source and native reply receipt. Never redirect a failed thread reply to its parent channel.
+
+The real QA gate requires a dedicated authorized App/Bot, guild text channel and existing public thread, plus a machine-local credential reference. Creating the App, installing it or expanding permissions each requires the applicable Human authorization. Follow #855 for source changes and E2E evidence; source inspection alone does not advance any row in the qualification ledger.
+
 ## Native reference and permission checks
 
 Recheck these official contracts when adding a capability: [Slack message.channels](https://docs.slack.dev/reference/events/message.channels/), [Slack history and threads](https://docs.slack.dev/messaging/retrieving-messages/), [Discord Gateway](https://docs.discord.com/developers/events/gateway) and [Discord threads](https://docs.discord.com/developers/topics/threads). They describe native behavior; the narrower checked BotHarness Provider contract still controls what is exposed.
 
 The Slack public-channel QA App has Bot scopes `app_mentions:read`, `chat:write`, `channels:read`, `channels:history`, `users:read`, `files:read` and `files:write`; Socket Mode uses a separate App-level `connections:write` token. `app_mention` and `message.channels` subscriptions are distinct from scopes, and installing added scopes is distinct from saving event subscriptions. Do not request file permissions for a text-only tracer or use Human credentials to bypass a Bot capability refusal. Lark group-history permission `im:message.group_msg` must be granted to the **application** identity and published; Human OAuth for the same scope does not grant the Bot access. Verify native membership and the actual API result after configuration, rather than inferring capability from a green UI switch.
+
+Implementation candidate `e6f0de2a989c28d20db92c0e7f43b20c6d3028b9` adds checked identity/Consumer/reply and explicit external-only Profile configuration; it is a local source candidate, published with live channel/thread E2E passed; Human QA pending. The current product pin remains unchanged. Proposed [ADR-0128](../../adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md) records the parent conversation / native child-channel mapping. No capability row is qualified by controlled tests.
+
+## Live first-tracer checkpoint — 2026-10-05
+
+The dedicated App/server channel and existing public-thread paths now passed real Human mention → canonical Inbox → model → own-identity native reply. Two external Sources/Admissions produced two verified original-location replies and no DM mirror. See [exact revisions, native receipts, screenshots and repeatable QA](../verification/discord-855-mention-reply.md). Human binding/source UI acceptance and the wider live refusal/lifecycle matrix remain pending; Discord is not yet fully qualified. The product Provider pin and other capability rows remain unchanged.
 
 ## External-only reports and native follow-up
 

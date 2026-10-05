@@ -17,6 +17,8 @@
 
 ### Added
 
+- 增加候选 checked Discord Provider 注册与既有 Inbox／来源展示契约，保留准确频道／公开 thread 路由；真实频道／thread 模型回复已通过，完整资格与 Human QA 尚待完成（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[ADR-0128](docs/adr/0128-discord-checked-replies-preserve-native-child-channel-routing.md)）。
+
 - PersonaBot 可显式发布不镜像到本地聊天的 Slack 报告，查询已保存原文及真实回执，并在原 Slack 话题回答符合收件策略的 Human 追问（[#863](https://github.com/BotHarness/BotHarness/issues/863)、[IM 接入指南](docs/dev/guides/im-provider-integration.md)）。
 
 - PersonaBot 可在真实普通回复投递验证后显式跟进或退出已授权 Slack 原生话题，复用数量／时间汇总和 Human 覆盖；迁移后的频道连接器仍保留 Profile 话题管理（[#854](https://github.com/BotHarness/BotHarness/issues/854)、[IM 接入指南](docs/dev/guides/im-provider-integration.md)）。
@@ -509,6 +511,8 @@
 ### Documentation
 
 - 记录 npm prerelease 的产物准备与明确发布路径，包括完整性校验、依赖顺序和部分发布恢复；不宣称已经公开发布（[#866](https://github.com/BotHarness/BotHarness/issues/866), [操作指南](docs/npm-prerelease.md)）。
+
+- 记录固定源码的 Discord @ 收件／回复预检查与尚缺的真实 App 验证；Discord 能力表继续保持未验证，运行行为不变（[#855](https://github.com/BotHarness/BotHarness/issues/855)，[integration guide](docs/dev/guides/im-provider-integration.md)）。
 
 - 整理已验证的 Lark／Slack IM 接入边界与后续平台可复用的资格验证流程 ([#845](https://github.com/BotHarness/BotHarness/issues/845)).
 

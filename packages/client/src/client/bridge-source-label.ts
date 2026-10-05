@@ -3,6 +3,7 @@ import type { BotHarnessTranslate } from './locale.js';
 export function externalPlatformLabel(platform: string, t: BotHarnessTranslate): string {
   if (platform === 'feishu') return t('im.platform.feishu');
   if (platform === 'slack') return 'Slack';
+  if (platform === 'discord') return 'Discord';
   return platform;
 }
 

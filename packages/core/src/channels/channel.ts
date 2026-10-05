@@ -25,7 +25,7 @@ export interface GroupMemberWakePolicy {
   inherited: boolean;
   policy: GroupWakePolicyView;
   external?: {
-    platform: 'feishu' | 'slack';
+    platform: 'feishu' | 'slack' | 'discord';
     policy: GroupWakePolicy;
     origin: 'channel' | 'bot' | 'platform';
     defaultRevision: number;
