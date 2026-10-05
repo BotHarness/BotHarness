@@ -1,12 +1,38 @@
 {
-  "zh": {
-    "id": "c340baa665634ed3840f833e173177a0",
-    "candidate": 3,
-    "state": "trained"
+  "idol": {
+    "zh": {
+      "id": "c340baa665634ed3840f833e173177a0",
+      "candidate": 3,
+      "state": "trained"
+    },
+    "en": {
+      "id": "abf1059ade97440eb27d5b294b968db3",
+      "candidate": 1,
+      "state": "trained"
+    }
   },
-  "en": {
-    "id": "abf1059ade97440eb27d5b294b968db3",
-    "candidate": 1,
-    "state": "trained"
+  "presenter": {
+    "zh": {
+      "id": "b94079be8f7c4cd7b21bc4227b6d05db",
+      "candidate": 3,
+      "state": "trained"
+    },
+    "en": {
+      "id": "0ea8c936dcb246a58a6406f8da6084a2",
+      "candidate": 0,
+      "state": "trained"
+    }
+  },
+  "builder": {
+    "zh": {
+      "id": "7db31f6634154aa68b1619d91e2ccb7f",
+      "candidate": 3,
+      "state": "trained"
+    },
+    "en": {
+      "id": "18fc1d0a3bbb4db5bff5001e56ef55fe",
+      "candidate": 3,
+      "state": "trained"
+    }
   }
 }
