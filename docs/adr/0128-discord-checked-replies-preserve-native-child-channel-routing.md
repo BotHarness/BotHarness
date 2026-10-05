@@ -1,6 +1,6 @@
 # ADR-0128: Discord checked replies preserve native child-channel routing
 
-- Status: Proposed; implementation candidate, live first tracer passed; full qualification and Human QA pending
+- Status: Proposed; development-source mention/reply implementation qualified by agent-operated native/model E2E; product Provider promotion and additional capabilities remain separate
 - Date: 2026-10-05
 - Issue: [#855](https://github.com/BotHarness/BotHarness/issues/855)
 
