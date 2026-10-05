@@ -1,3 +1,4 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -6,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createAttachmentStore } from '../src/attachments/store.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
 import type { MemoryService } from '../src/memory/service.js';
 import type { UsageProjection } from '../src/usage/usage.js';
@@ -45,12 +46,12 @@ function setup(
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
-  const registry = createPersonaBotRegistry({ rootDir: root });
   const modelOwner = mountOperationalDatabase({
     dshHome: root,
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
   modelOwners.push(modelOwner);
+  const registry = createTestRegistry({ rootDir: root, database: modelOwner });
   const modelPresets = createModelPresetStore({ rootDir: root, database: modelOwner });
   const states = createBotStateTracker();
   const attachments = createAttachmentStore({ rootDir: join(root, 'attachments') });
@@ -265,7 +266,7 @@ describe('bridge methods', () => {
       expect(write).not.toHaveBeenCalled();
       expect(changed).not.toHaveBeenCalled();
       expect(h.registry.get('ada')).toEqual(before);
-      expect(createPersonaBotRegistry({ rootDir: h.root }).get('ada')).toEqual(before);
+      expect(createTestRegistry({ rootDir: h.root }).get('ada')).toEqual(before);
     },
   );
 
@@ -374,7 +375,7 @@ describe('bridge methods', () => {
         },
       },
     });
-    const reopened = createPersonaBotRegistry({ rootDir: root }).get('ada');
+    const reopened = createTestRegistry({ rootDir: root }).get('ada');
     expect(reopened?.preset).toBe('standard');
     expect(reopened?.model).toBeUndefined();
     expect(reopened?.modelPlan?.revision).toBe(1);
@@ -557,7 +558,7 @@ describe('bridge methods', () => {
         ],
       }),
     ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
-    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.modelPlan).toMatchObject({
+    expect(createTestRegistry({ rootDir: root }).get('ada')?.modelPlan).toMatchObject({
       revision: 2,
       assignmentModels,
     });
@@ -793,7 +794,7 @@ describe('bridge methods', () => {
     ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
     expect(registry.get('ada')?.modelPlan?.revision).toBe(1);
 
-    const reopened = createPersonaBotRegistry({ rootDir: root });
+    const reopened = createTestRegistry({ rootDir: root });
     expect(reopened.get('ada')?.modelPlan).toMatchObject({ revision: 1, orchestrator: high });
     expect(reopened.get('bea')?.modelPlan).toMatchObject({
       revision: 2,
@@ -1256,9 +1257,7 @@ describe('bridge methods', () => {
         },
       },
     });
-    expect(
-      JSON.parse(readFileSync(join(root, 'ada', 'bot.json'), 'utf8')) as Record<string, unknown>,
-    ).toMatchObject({
+    expect(createTestRegistry({ rootDir: root }).get('ada')).toMatchObject({
       slug: 'ada',
       avatar: expect.stringMatching(/^data:image\/png;base64,/u),
       roles: ['研究'],
@@ -1308,7 +1307,8 @@ describe('bridge methods', () => {
 
     const created = methods.create({ slug: 'caller-choice', displayName: 'Ada' });
     expect(created.ok && created.value.bot.slug).toBe('bot-generated');
-    expect(existsSync(join(root, 'bot-generated', 'bot.json'))).toBe(true);
+    expect(createTestRegistry({ rootDir: root }).get('bot-generated')).toBeDefined();
+    expect(existsSync(join(root, 'bot-generated', 'bot.json'))).toBe(false);
     expect(existsSync(join(root, 'caller-choice', 'bot.json'))).toBe(false);
     expect(methods.create({ displayName: '同名 Ada' })).toEqual({
       ok: false,
@@ -2145,7 +2145,7 @@ describe('bridge methods', () => {
     expect(bytes.byteLength).toBeLessThanOrEqual(131_072);
     expect(bytes.readUInt32BE(16)).toBe(512);
     expect(bytes.readUInt32BE(20)).toBe(512);
-    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')).toEqual(saved);
+    expect(createTestRegistry({ rootDir: root }).get('ada')).toEqual(saved);
     expect(methods.list({})).toMatchObject({
       ok: true,
       value: { bots: [{ appearance: { recipe, revision: saved.appearance?.revision } }] },

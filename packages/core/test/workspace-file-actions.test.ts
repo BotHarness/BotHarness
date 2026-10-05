@@ -1,8 +1,9 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createBridgeMethods } from '../src/bridge/methods.js';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createChannelStore } from '../src/channels/store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
@@ -24,7 +25,7 @@ async function setup() {
     title: 'Project',
     status: async () => 'ok',
   };
-  const registry = createPersonaBotRegistry({ rootDir: join(root, 'bots') });
+  const registry = createTestRegistry({ rootDir: join(root, 'bots') });
   registry.create({ slug: 'ada', displayName: 'Ada' });
   registry.create({ slug: 'other', displayName: 'Other' });
   const ownership = createTestOwnership();

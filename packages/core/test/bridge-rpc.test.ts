@@ -1,3 +1,4 @@
+import { createTestRegistry } from './registry-fixture.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { createBridgeMethods, type BridgeMethods } from '../src/bridge/methods.js';
 import { BRIDGE_NAMESPACE, BRIDGE_SERVICE_KEY, registerBridge } from '../src/bridge/rpc.js';
-import { createPersonaBotRegistry } from '../src/bots/registry.js';
+
 import { createChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
@@ -29,7 +30,7 @@ afterEach(() => {
 function setup(sourcePolicy?: BotSourcePolicyStore) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-rpc-'));
   roots.push(root);
-  const registry = createPersonaBotRegistry({ rootDir: root });
+  const registry = createTestRegistry({ rootDir: root });
   const channels = createChannelStore({
     rootDir: join(root, 'channels'),
     now: () => new Date('2026-09-19T00:00:00.000Z'),
