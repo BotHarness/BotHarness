@@ -30,6 +30,12 @@ import type {
 } from '../messaging/outbound.js';
 import { MessagingError, type MessagingTarget } from '../messaging/provider.js';
 import { OperationalDatabaseError } from '../database/owner.js';
+import type {
+  MarketplaceClient,
+  MarketplaceEntry,
+  MarketplacePage,
+  MarketplaceResult,
+} from '../marketplace/client.js';
 import {
   AssignmentReplyTargetError,
   type HumanAssignmentContext,
@@ -398,6 +404,8 @@ export interface BridgeMethods {
   browserProfileSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
+  marketplaceSubmit(payload: unknown): Promise<BridgeResult<{ bot: MarketplaceEntry }>>;
 }
 
 export interface BridgeMethodsDeps {
@@ -430,6 +438,7 @@ export interface BridgeMethodsDeps {
   browserAccess?: { changed(slug: string): void };
   browserProfile?: { changed(slug: string): void };
   createBotId?: () => string;
+  marketplace?: MarketplaceClient;
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -674,6 +683,27 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       humanMembers: deps.channels.listHumanMembers(channel.id),
       ...(humanNickname === undefined ? {} : { humanNickname }),
     };
+  };
+  const marketplaceCall = async <T>(
+    operation: (client: MarketplaceClient) => Promise<MarketplaceResult<T>>,
+  ): Promise<BridgeResult<T>> => {
+    if (deps.marketplace === undefined) {
+      return {
+        ok: false,
+        error: { code: 'marketplace-unavailable', message: 'Bot Marketplace is unavailable' },
+      };
+    }
+    const result = await operation(deps.marketplace);
+    if (result.ok) return result;
+    deps.warn?.(
+      JSON.stringify({
+        module: 'marketplace',
+        initiator: 'client',
+        phase: 'request-refused',
+        reason: result.code,
+      }),
+    );
+    return { ok: false, error: { code: result.code, message: result.code } };
   };
   const messagingCall = async <T>(
     operation: (service: OutboundMessaging) => Promise<T>,
@@ -1377,6 +1407,20 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       });
       if (!result.ok) return createFailure(slug, result);
       return { ok: true, value: detailOf(result.record) };
+    },
+    marketplaceList(payload) {
+      const cursor = parseOptional(asObject(payload), 'cursor');
+      if (!cursor.ok) return Promise.resolve(invalidInput('invalid cursor'));
+      return marketplaceCall((client) =>
+        client.list(cursor.value === undefined ? {} : { cursor: cursor.value }),
+      );
+    },
+    marketplaceSubmit(payload) {
+      const url = asObject(payload)['url'];
+      if (typeof url !== 'string' || url.trim().length === 0) {
+        return Promise.resolve(invalidInput('url is required'));
+      }
+      return marketplaceCall((client) => client.submit(url.trim()));
     },
     update(payload) {
       const slug = asSlug(payload);

@@ -8,6 +8,7 @@ import type {
 import type { MessagingIdentity, MessagingIdentityInput } from '../messaging/identity.js';
 import type { ChannelBridgeInput, ChannelBridgeSnapshot } from '../messaging/channel-bridge.js';
 import type { UsageOverviewPeriod } from '../usage/overview.js';
+import type { MarketplaceEntry, MarketplacePage } from '../marketplace/client.js';
 import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
@@ -89,6 +90,7 @@ declare module '@deepseek-ai/dsh-typert-protocol/types' {
     'invalid-git-url': Record<string, never>;
     'git-clone-failed': Record<string, never>;
     'git-clone-timeout': Record<string, never>;
+    'marketplace-unavailable': Record<string, never>;
   }
 }
 
@@ -836,6 +838,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
   developerModeSet(enabled: boolean): { accepted: boolean } {
     return unwrap(this.methods.developerModeSet({ enabled }));
   }
+
+  async marketplaceList(cursor?: string): Promise<MarketplacePage> {
+    return unwrapAsync(this.methods.marketplaceList({ cursor }));
+  }
+
+  async marketplaceSubmit(url: string): Promise<{ bot: MarketplaceEntry }> {
+    return unwrapAsync(this.methods.marketplaceSubmit({ url }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -956,6 +966,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'browserProfileSet',
   'botAvatarSet',
   'botAppearanceSet',
+  'marketplaceList',
+  'marketplaceSubmit',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

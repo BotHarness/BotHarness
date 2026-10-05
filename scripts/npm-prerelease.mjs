@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -264,12 +264,20 @@ async function main() {
     if (!process.env.NPM_TOKEN) throw new Error('NPM_TOKEN is required for publication');
     env['npm_config_//registry.npmjs.org/:_authToken'] = process.env.NPM_TOKEN;
   }
-  const npm = (args) =>
-    execFileSync('npm', [...args, ...npmConfig], {
+  const npm = (args) => {
+    const result = spawnSync('npm', [...args, ...npmConfig], {
       cwd: directory,
       env,
+      encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
+    if (output) console.log(output.split('\n').slice(-40).join('\n'));
+    if (result.error) throw result.error;
+    if (result.status !== 0)
+      throw Object.assign(new Error(`npm ${args[0]} failed`), { status: result.status });
+    return result.stdout;
+  };
   for (const { artifact } of release.packages) {
     if (mode === 'publish' && existing.has(artifact.name)) {
       console.log(`Verified already published bytes: ${artifact.name}@${artifact.version}`);

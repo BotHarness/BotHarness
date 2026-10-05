@@ -1463,6 +1463,142 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   font-size: 12px;
 }
 
+/* Bot Marketplace is portaled with the native Modal; never depend on .bh-root. */
+.bh-market-modal {
+  width: min(640px, 100%);
+  max-height: 100%;
+}
+.bh-market {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.bh-market-submit {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-market-submit > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.bh-market-hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-market-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 24px 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+}
+.bh-market-list {
+  display: flex;
+  flex-direction: column;
+  max-height: min(52vh, 440px);
+  overflow-y: auto;
+  border-top: 1px solid var(--dsw-alias-separator-primary);
+}
+.bh-market-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--dsw-alias-separator-primary);
+}
+.bh-market-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.bh-market-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.bh-market-owner {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-weight: 400;
+}
+.bh-market-description {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+.bh-market-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-market-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.bh-market-confirm-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.bh-market-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+}
+.bh-market-facts > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+}
+.bh-market-facts dt {
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-market-facts dd {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family-mono, monospace);
+  overflow-wrap: anywhere;
+}
+.bh-market-facts a {
+  color: var(--dsw-alias-state-business-primary);
+}
+.bh-market-risk {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--dsw-alias-state-warning-secondary);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-market-risk strong {
+  color: var(--dsw-alias-state-warning-primary);
+  font-size: 13px;
+}
+
 /* Hidden Channel recovery is portaled under body; never depend on .bh-root. */
 .bh-hidden-manager {
   display: flex;
