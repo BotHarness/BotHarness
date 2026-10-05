@@ -17,10 +17,12 @@ Bot tools follow or inherit group rules. Human controls can follow, exclude ordi
 
 The Source Event and Bot Inbox remain canonical. Each Admission records its exact Thread and group policy revisions and effective wake/count/interval before acknowledgement. Policy changes never rewrite older admissions, backfill excluded messages, grant a new reply destination, or mark a provider message read. Scoped policies survive restart while process-local delivery qualification is re-established by the current Consumer. Revocation, archive, an inactive Consumer and stale grant/source revisions remain stronger gates than follow. Root mismatch fails closed.
 
-The first production tracer supports qualified Lark Thread events only. The Human Profile displays the latest 50 Inbox-anchored Threads with participation, actor and a configuration Modal; it does not fabricate Thread rows for group-only providers. The native DSH Tool registry and Typert/API Gateway remain Consumers of the owning application-defined Messaging Service.
+The first production tracer qualified Lark Thread events. The Slack extension reuses this policy authority with native `thread_ts` as Thread/root and no synthetic parent ID. A Slack root message can anchor a future topic; only an actual unmentioned child reply (`ts != thread_ts`) proves ordinary reply delivery. Lark retains its Thread/root/parent contract. The Human Profile displays the latest 50 Inbox-anchored Threads with participation, actor and a configuration Modal; it does not fabricate Thread rows for group-only providers. The native DSH Tool registry and Typert/API Gateway remain Consumers of the owning application-defined Messaging Service.
 
 ## Consequences
 
 Schema Generation 48 adds immutable Thread policy revisions and an optional Admission revision field. Existing groups retain mention-only collection and no Thread overrides. Runtime follows recover from existing authority; reverting to an older schema requires restoring a compatible database snapshot or a forward fix. Second-provider hierarchy and multi-route management remain separate tracers.
 
-References: [#614](https://github.com/BotHarness/BotHarness/issues/614), [#693](https://github.com/BotHarness/BotHarness/issues/693), [ADR-0109](0109-external-group-collection-is-separate-from-wake.md).
+The Slack extension adds no schema generation, independent Thread store or receiver. Group/member Attention and Human override precedence remain unchanged.
+
+References: [#614](https://github.com/BotHarness/BotHarness/issues/614), [#854](https://github.com/BotHarness/BotHarness/issues/854), [#693](https://github.com/BotHarness/BotHarness/issues/693), [ADR-0109](0109-external-group-collection-is-separate-from-wake.md).
