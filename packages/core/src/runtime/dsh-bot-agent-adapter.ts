@@ -1232,7 +1232,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'bridge_thread_policy_list',
           description:
-            'Inspect verified Lark Threads received in your own Inbox: participation, revision, delivery proof and Human overrides. A reply never follows automatically.',
+            'Inspect qualified Lark/Slack Threads received in your own Inbox: participation, revision, delivery proof and Human overrides. A reply never follows automatically.',
           parameters: {},
           output: {
             schema: { type: 'string' },
@@ -1250,7 +1250,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'bridge_thread_policy_set',
           description:
-            'Follow one Inbox-anchored Lark Thread, or inherit group collection to unfollow. Requires actual unmentioned reply delivery and current revision. Human overrides take precedence. wake inherit uses group ordinary attention; digest count/seconds apply only to new admissions. Never backfills or automatically replies.',
+            'Follow one Inbox-anchored Lark/Slack Thread, or inherit group collection to unfollow. Requires actual unmentioned reply delivery and current revision. Human overrides take precedence. wake inherit uses group ordinary attention; digest count/seconds apply only to new admissions. Never backfills or automatically replies.',
           parameters: {
             source_event_id: {
               type: 'string',

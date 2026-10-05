@@ -284,21 +284,6 @@ export function MessagingProfile({
                           }
                         />
                       ) : null}
-                      {grant.threadPolicies?.length ? (
-                        <ThreadReceptionSettings
-                          policies={grant.threadPolicies}
-                          busy={busy}
-                          t={t}
-                          save={async (sourceEventId, input) => {
-                            let saved = false;
-                            await operate(async () => {
-                              await actions.messagingThreadPolicy(slug, sourceEventId, input);
-                              saved = true;
-                            });
-                            return saved;
-                          }}
-                        />
-                      ) : null}
                       <Button
                         size="sm"
                         variant="primary"
@@ -324,6 +309,21 @@ export function MessagingProfile({
                         )}
                       </Button>
                     </>
+                  ) : null}
+                  {grant.threadPolicies?.length ? (
+                    <ThreadReceptionSettings
+                      policies={grant.threadPolicies}
+                      busy={busy}
+                      t={t}
+                      save={async (sourceEventId, input) => {
+                        let saved = false;
+                        await operate(async () => {
+                          await actions.messagingThreadPolicy(slug, sourceEventId, input);
+                          saved = true;
+                        });
+                        return saved;
+                      }}
+                    />
                   ) : null}
                   <label className="bh-im-field">
                     <span>{t('im.message')}</span>
