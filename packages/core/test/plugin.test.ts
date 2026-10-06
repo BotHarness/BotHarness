@@ -84,7 +84,7 @@ describe('plugin entry', () => {
     expect(stubs.skills.register).not.toHaveBeenCalled();
   });
 
-  it('sends plugin_started from the Host only while telemetry is on', async () => {
+  it('sends plugin_started and daily_usage from the Host only while telemetry is on', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response('{}', { status: 200 }));
     vi.stubGlobal('fetch', fetchImpl);
     try {
@@ -99,7 +99,9 @@ describe('plugin entry', () => {
         vi.stubEnv('DO_NOT_TRACK', '');
         for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
         const { ctx } = createStubContext();
+        const monitors = process.listenerCount('uncaughtExceptionMonitor');
         apply(ctx, config);
+        expect(process.listenerCount('uncaughtExceptionMonitor')).toBe(monitors);
         await ctx.fiber.dispose();
         expect(telemetryCalls()).toEqual([]);
         expect(existsSync(join(home, 'botharness', 'telemetry.json'))).toBe(false);
@@ -108,8 +110,11 @@ describe('plugin entry', () => {
       vi.stubEnv('DO_NOT_TRACK', '');
       vi.stubEnv('BOTHARNESS_TELEMETRY', '');
       const { ctx } = createStubContext();
+      const monitors = process.listenerCount('uncaughtExceptionMonitor');
       apply(ctx, { enabled: true, telemetry: true });
+      expect(process.listenerCount('uncaughtExceptionMonitor')).toBe(monitors + 1);
       await ctx.fiber.dispose();
+      expect(process.listenerCount('uncaughtExceptionMonitor')).toBe(monitors);
       await vi.waitFor(() => {
         expect(telemetryCalls()).toHaveLength(1);
       });
@@ -121,7 +126,7 @@ describe('plugin entry', () => {
           installId: string;
         }
       ).installId;
-      expect(body.batch.map((event) => event.event)).toEqual(['plugin_started']);
+      expect(body.batch.map((event) => event.event)).toEqual(['plugin_started', 'daily_usage']);
       expect(body.batch[0]!.distinct_id).toBe(installId);
       expect(Object.keys(body.batch[0]!.properties).sort()).toEqual([
         '$process_person_profile',
@@ -129,6 +134,13 @@ describe('plugin entry', () => {
         'dsh_version',
         'os',
         'plugin_version',
+        'source',
+      ]);
+      expect(Object.keys(body.batch[1]!.properties).sort()).toEqual([
+        '$process_person_profile',
+        'messages',
+        'persona_bots',
+        'sessions',
         'source',
       ]);
       expect(JSON.stringify(body)).not.toContain(home);
