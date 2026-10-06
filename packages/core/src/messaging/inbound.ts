@@ -278,6 +278,8 @@ export function createInboundMessaging(options: {
         JSON.stringify(previous.event.reply) !== JSON.stringify(event.reply) ||
         JSON.stringify(previous.event.attachments ?? []) !==
           JSON.stringify(event.attachments ?? []) ||
+        JSON.stringify(previous.event.contentParts ?? null) !==
+          JSON.stringify(event.contentParts ?? null) ||
         JSON.stringify(previous.event.voice ?? null) !== JSON.stringify(event.voice ?? null) ||
         JSON.stringify(previous.event.video ?? null) !== JSON.stringify(event.video ?? null) ||
         JSON.stringify(previous.event.quote ?? null) !== JSON.stringify(event.quote ?? null)

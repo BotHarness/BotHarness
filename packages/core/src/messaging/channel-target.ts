@@ -68,6 +68,16 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
     at: source.at,
     body,
     format: 'text',
+    ...(source.event.attachments?.some((item) => item.mediaType?.startsWith('image/'))
+      ? {
+          bridgeMedia: {
+            items: source.event.attachments
+              .filter((item) => item.mediaType?.startsWith('image/'))
+              .map((item) => ({ id: item.id, kind: 'image' as const, name: item.name })),
+            ...(source.event.contentParts ? { parts: source.event.contentParts } : {}),
+          },
+        }
+      : {}),
     author: { kind: 'bridged', source: senderName ?? source.event.actor.id },
     bridgeOrigin: {
       sourceEventId: source.id,

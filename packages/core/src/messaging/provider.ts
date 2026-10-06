@@ -22,6 +22,10 @@ export interface MessagingAttachment {
   mediaType?: string;
 }
 
+export type MessagingContentPart =
+  | { kind: 'text'; text: string }
+  | { kind: 'attachment'; id: string };
+
 export interface MessagingVoice {
   transcript: 'platform' | 'unavailable';
   itemId?: string;
@@ -61,6 +65,7 @@ export interface MessagingInboundEvent {
   at: string;
   text: string;
   attachments?: MessagingAttachment[];
+  contentParts?: MessagingContentPart[];
   voice?: MessagingVoice;
   video?: MessagingVideo;
   quote?: MessagingQuote;

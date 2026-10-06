@@ -49,6 +49,11 @@ function errorResponse(error: unknown): Response {
         headers: { 'cache-control': 'no-store' },
       },
     );
+  if (error instanceof MessagingError && error.code === 'media-format-unsupported')
+    return Response.json(
+      { error: { code: error.code, message: 'Image format cannot be previewed' } },
+      { status: 422, headers: { 'cache-control': 'no-store' } },
+    );
   if (error instanceof MessagingError)
     return Response.json(
       { error: { code: 'source-unavailable', message: 'Attachment source is unavailable' } },
@@ -75,6 +80,12 @@ export function createAttachmentHttp(
     sourceEventId: string;
     attachmentId: string;
     representation?: 'playback';
+    signal: AbortSignal;
+  }) => Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>,
+  channelMedia?: (input: {
+    channelId: string;
+    sourceEventId: string;
+    attachmentId: string;
     signal: AbortSignal;
   }) => Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>,
 ): (request: Request) => Promise<Response> {
@@ -104,6 +115,44 @@ export function createAttachmentHttp(
             headers: { 'cache-control': 'no-store' },
           },
         );
+      } catch (error) {
+        return errorResponse(error);
+      }
+    }
+    if (
+      request.method === 'GET' &&
+      url.searchParams.has('sourceEventId') &&
+      url.searchParams.has('channelId')
+    ) {
+      const channelId = url.searchParams.get('channelId');
+      const sourceEventId = url.searchParams.get('sourceEventId');
+      const attachmentId = url.searchParams.get('attachmentId');
+      if (
+        !channelId ||
+        !sourceEventId ||
+        !attachmentId ||
+        !channelMedia ||
+        [...url.searchParams.keys()].some(
+          (key) => !['channelId', 'sourceEventId', 'attachmentId'].includes(key),
+        )
+      )
+        return new Response('Channel media source is required', { status: 400 });
+      try {
+        const { ref, body } = await channelMedia({
+          channelId,
+          sourceEventId,
+          attachmentId,
+          signal: request.signal,
+        });
+        return new Response(body, {
+          headers: {
+            'content-type': ref.mime,
+            'content-length': String(ref.size),
+            'content-disposition': filenameDisposition(ref.name, true),
+            'x-content-type-options': 'nosniff',
+            'cache-control': 'no-store',
+          },
+        });
       } catch (error) {
         return errorResponse(error);
       }

@@ -157,7 +157,18 @@ const inboundSchema = z
           })
           .strict(),
       )
-      .max(1)
+      .max(32)
+      .optional(),
+    contentParts: z
+      .array(
+        z.discriminatedUnion('kind', [
+          z.object({ kind: z.literal('text'), text: z.string().max(16000) }).strict(),
+          z
+            .object({ kind: z.literal('attachment'), id: z.string().regex(/^[a-f0-9]{64}$/) })
+            .strict(),
+        ]),
+      )
+      .max(256)
       .optional(),
     voice: z
       .object({
@@ -448,10 +459,10 @@ export function createDshImProvider(
               (platform !== 'weixin' || info.capabilities.includes('reply-file-fence-checked'))
                 ? { sourceFiles: true }
                 : {}),
-              ...(platform === 'weixin' &&
+              ...((platform === 'weixin' || platform === 'feishu') &&
               host.fileVersion === 1 &&
               info.capabilities.includes('source-image-checked') &&
-              info.capabilities.includes('reply-image-fence-checked')
+              (platform === 'feishu' || info.capabilities.includes('reply-image-fence-checked'))
                 ? { sourceImages: true }
                 : {}),
               ...(platform === 'weixin' && info.capabilities.includes('source-quote-checked')
@@ -503,6 +514,22 @@ export function createDshImProvider(
                 const parsed = inboundSchema.parse(raw);
                 if (
                   parsed.channel !== platform ||
+                  ((parsed.contentParts ||
+                    (parsed.attachments?.length ?? 0) > 1 ||
+                    (platform === 'feishu' &&
+                      parsed.attachments?.some((item) => item.mediaType?.startsWith('image/')))) &&
+                    (platform !== 'feishu' ||
+                      !info.capabilities.includes('source-image-checked') ||
+                      !parsed.attachments?.every((item) =>
+                        item.mediaType?.startsWith('image/'),
+                      ))) ||
+                  new Set(parsed.attachments?.map((item) => item.id)).size !==
+                    (parsed.attachments?.length ?? 0) ||
+                  parsed.contentParts?.some(
+                    (part) =>
+                      part.kind === 'attachment' &&
+                      !parsed.attachments?.some((item) => item.id === part.id),
+                  ) ||
                   (parsed.quote &&
                     (platform !== 'weixin' ||
                       !info.capabilities.includes('source-quote-checked'))) ||
@@ -519,10 +546,24 @@ export function createDshImProvider(
                       parsed.attachments[0]?.mediaType !== 'video/unknown'))
                 )
                   throw new MessagingError('untrusted-source');
+                if (
+                  parsed.contentParts &&
+                  (parsed.contentParts
+                    .filter((part) => part.kind === 'text')
+                    .reduce((length, part) => length + part.text.length, 0) > 16000 ||
+                    parsed.attachments?.some(
+                      (item) =>
+                        !parsed.contentParts!.some(
+                          (part) => part.kind === 'attachment' && part.id === item.id,
+                        ),
+                    ))
+                )
+                  throw new MessagingError('untrusted-source');
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
-                const { attachments, voice, video, quote, ...base } = parsed;
+                const { attachments, voice, video, quote, contentParts, ...base } = parsed;
                 const event: MessagingInboundEvent = {
                   ...base,
+                  ...(contentParts ? { contentParts } : {}),
                   ...(quote === undefined
                     ? {}
                     : {
@@ -583,7 +624,9 @@ export function createDshImProvider(
                   event.attachments?.some(
                     (item) =>
                       item.messageId !==
-                      (platform === 'feishu' ? event.reply.parentId : event.messageId),
+                      (platform === 'feishu' && !item.mediaType?.startsWith('image/')
+                        ? event.reply.parentId
+                        : event.messageId),
                   )
                 )
                   throw new MessagingError('untrusted-source');
