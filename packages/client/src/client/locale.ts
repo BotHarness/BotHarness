@@ -612,7 +612,8 @@ export const zh = {
   'im.senderLabel': '发送人 ID',
   'im.platformLabel': '平台',
   'im.platform.weixin': '微信',
-  'im.receiveHintDM': '只接收扫码绑定者的微信私聊文本，进入此 Bot 的 Inbox，不占用本地 DM 历史。',
+  'im.receiveHintDM':
+    '接收扫码绑定者的微信私聊文字，以及已支持的文件、图片和语音转写，进入此 Bot 的 Inbox，不占用本地 DM 历史。',
   'im.receptionDM': '微信私聊接收已连接',
   'im.receiveEnableDM': '接收微信私聊',
   'im.receiveDisableDM': '关闭微信私聊收件',
@@ -1766,7 +1767,7 @@ export const zh = {
     'DeepSeekBot 默认发送匿名使用统计，帮助我们了解功能的使用情况并改进插件。',
   'telemetry.notice.collected.label': '收集什么',
   'telemetry.notice.collected':
-    '插件启动时的插件版本、DSH 版本、操作系统和架构，以及功能使用次数；只关联一个随机生成的安装 ID。',
+    '插件启动时的插件版本、DSH 版本、操作系统和架构，功能使用次数，以及后台出错时的错误类型和代码位置；只关联一个随机生成的安装 ID。',
   'telemetry.notice.never.label': '从不收集',
   'telemetry.notice.never': '名称、Persona 或 Memory 内容、对话内容、文件路径、凭据和 IP 地址。',
   'telemetry.notice.why.label': '为什么',
@@ -2446,7 +2447,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.platformLabel': 'Platform',
   'im.platform.weixin': 'WeChat',
   'im.receiveHintDM':
-    'Receive plain text from the QR-paired owner into this Bot’s Inbox, without adding local DM history.',
+    'Receive the QR-paired owner’s text and supported files, images and voice transcripts into this Bot’s Inbox, without adding local DM history.',
   'im.receptionDM': 'WeChat DM intake connected',
   'im.receiveEnableDM': 'Receive WeChat DMs',
   'im.receiveDisableDM': 'Disable WeChat DM intake',
@@ -3644,7 +3645,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
     'DeepSeekBot sends anonymous usage statistics by default, so we can see how features are used and improve the plugin.',
   'telemetry.notice.collected.label': 'What',
   'telemetry.notice.collected':
-    'Plugin version, DSH version, operating system and architecture when the plugin starts, plus feature usage counts, tied only to a randomly generated install ID.',
+    'Plugin version, DSH version, operating system and architecture when the plugin starts, feature usage counts, and the error type and code location when the Host fails, tied only to a randomly generated install ID.',
   'telemetry.notice.never.label': 'Never',
   'telemetry.notice.never':
     'Names, Persona or Memory content, conversation text, file paths, credentials or IP addresses.',

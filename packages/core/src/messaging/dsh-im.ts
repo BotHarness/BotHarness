@@ -281,11 +281,18 @@ export function createDshImProvider(
               ),
             },
           }
-        : platform === 'weixin' &&
+        : platform === 'feishu' &&
             target.kind === 'user' &&
-            typeof target.route.toUserId === 'string'
-          ? { receiveScope: { kind: 'dm' as const, conversationId: target.route.toUserId } }
-          : {}),
+            typeof target.route.openId === 'string' &&
+            /^ou_[A-Za-z0-9]+$/.test(target.route.openId) &&
+            typeof target.route.chatId === 'string' &&
+            /^oc_[A-Za-z0-9]+$/.test(target.route.chatId)
+          ? { receiveScope: { kind: 'dm' as const, conversationId: target.route.chatId } }
+          : platform === 'weixin' &&
+              target.kind === 'user' &&
+              typeof target.route.toUserId === 'string'
+            ? { receiveScope: { kind: 'dm' as const, conversationId: target.route.toUserId } }
+            : {}),
     }));
   return {
     id: `dsh-im/${platform}`,

@@ -140,7 +140,15 @@ For a first task, choose one specific directory, retain default permissions, and
 
 ## Anonymous usage statistics
 
-DeepSeekBot sends anonymous usage statistics from the DSH Host by default; Bot mode explains this once in a notice the first time it opens. Events carry the plugin version, DSH version, operating system and architecture, and are tied only to a random install ID stored in `$DSH_HOME/botharness/telemetry.json`. Names, Persona or Memory content, conversations, file paths, credentials and IP addresses are never sent. To turn it off, open **Bot settings** and switch off **Anonymous usage statistics**; it takes effect at once without a restart, queued events are dropped, and the choice is saved in the same `telemetry.json` so it survives restarts. Switching it back on resumes without a restart. Deployments can force it off with `telemetry: false` on the BotHarness core plugin (see Advanced parameters below) or by starting DSH with `DO_NOT_TRACK=1` or `BOTHARNESS_TELEMETRY=0`; the switch is then shown off and disabled with a note naming the setting. Details: [privacy](https://deepseekbot.botharness.ai/en/privacy) and [source](https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry).
+DeepSeekBot sends anonymous usage statistics from the DSH Host by default; Bot mode explains this once in a notice the first time it opens. Events are tied only to a random install ID stored in `$DSH_HOME/botharness/telemetry.json`:
+
+- `plugin_started`: plugin version, DSH version, operating system and architecture.
+- `bot_created`, `bot_archived`, `bot_deleted`, `marketplace_bot_installed` and `avatar_edited`: only that the action happened.
+- `connector_enabled`: only the connector type (`feishu`, `lark`, `slack`, `discord`, `weixin` or `other`).
+- `daily_usage`: at most once a day, the number of PersonaBots, the number of new Sessions and messages since the previous summary, and that window's length in whole hours. No event is sent per message.
+- `$exception`: when the Host hits an unhandled error in BotHarness code, the error type and its stack's functions and line numbers, with each file reduced to its package-relative name (such as `@botharness/core/dist/index.mjs`) or just its file name. Errors without a BotHarness frame are dropped. The report is saved on the device and sent on the next start; the error message is never included.
+
+Names, Persona or Memory content, conversations, prompts, tool arguments, repository URLs, connector accounts or workspaces, your file paths, credentials and IP addresses are never sent. To turn it off, open **Bot settings** and switch off **Anonymous usage statistics**; it takes effect at once without a restart, queued events are dropped, and the choice is saved in the same `telemetry.json` so it survives restarts. Switching it back on resumes without a restart. Deployments can force it off with `telemetry: false` on the BotHarness core plugin (see Advanced parameters below) or by starting DSH with `DO_NOT_TRACK=1` or `BOTHARNESS_TELEMETRY=0`; the switch is then shown off and disabled with a note naming the setting. Details: [privacy](https://deepseekbot.botharness.ai/en/privacy) and [source](https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry).
 
 ## Advanced parameters and optional capabilities
 

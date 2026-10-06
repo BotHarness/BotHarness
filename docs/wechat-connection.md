@@ -92,7 +92,7 @@ WeChat transcription is optional. When no transcript is supplied, the UI explici
 
 Disable DM intake to stop future receipt while retaining configuration and history. Revoke the target authorization or unbind the identity to remove its authority. Re-pairing changes the identity fingerprint and requires explicit reauthorization; stale source continuations must not be reused. Restart with the same Profile to retain local pairing, canonical source records and Outbox outcomes.
 
-If text does not arrive, check the connected account, enabled identity and owner-DM authorization. Messages from other contacts and groups, and native media outside text/file, are not supported by this slice. If a reply is refused because its original continuation expired or is absent, send a new text in the paired conversation; the Bot must not borrow another conversation. An unknown send outcome must not be blindly resent.
+If text does not arrive, check the connected account, enabled identity and owner-DM authorization. Messages from other contacts and groups remain unsupported. This candidate supports owner text, files, qualified images and platform voice transcripts; raw audio and video remain unavailable. If a reply is refused because its original continuation expired or is absent, send a new text in the paired conversation; the Bot must not borrow another conversation. An unknown send outcome must not be blindly resent.
 
 ## Verification and scope
 

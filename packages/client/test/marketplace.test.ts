@@ -361,6 +361,7 @@ describe('Bot Marketplace modal', () => {
           displayName: 'helper',
           gitUrl: 'https://github.com/alice/helper.git',
           roles: [],
+          origin: 'marketplace',
           description: 'helper description',
         });
         expect(onInstalled).toHaveBeenCalledOnce();
@@ -381,6 +382,7 @@ describe('Bot Marketplace modal', () => {
           displayName: 'helper',
           gitUrl: 'https://github.com/alice/helper.git',
           roles: [],
+          origin: 'marketplace',
         });
         expect(onInstalled).not.toHaveBeenCalled();
         expect(host.querySelector('[role="alert"]')?.textContent).toContain('克隆失败');
@@ -597,6 +599,7 @@ describe('Bot Marketplace modal', () => {
           displayName: 'Helper',
           gitUrl: 'https://github.com/alice/helper-bot.git',
           roles: ['writer', 'editor'],
+          origin: 'marketplace',
           description: 'helper-bot description',
         });
       },

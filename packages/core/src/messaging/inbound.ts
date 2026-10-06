@@ -1006,7 +1006,8 @@ export function createInboundMessaging(options: {
     async channelBridge(channelId, rawInput) {
       const input = channelBridgeInput.parse(rawInput);
       const value = grant(input.grantId);
-      if (value.platform === 'weixin') throw new MessagingError('capability-unavailable');
+      if (value.platform === 'weixin' || value.receiveScope?.kind === 'dm')
+        throw new MessagingError('capability-unavailable');
       const channel = database.read((db) => bridgeChannel(db, channelId, value.botSlug, true));
       const target = input.delivery === 'inbox' ? null : channelId;
       if (target === null && channel.type !== 'dm') throw new MessagingError('channel-unavailable');
