@@ -172,7 +172,7 @@ Negotiate `sourceVideos` separately and require both `source-video-checked` and 
 
 Source playback and processing use the existing checked Attachment path, bounded to 25 MiB with private CDN tickets and keys. Conservatively inspect MP4 bytes before offering native browser controls; avoid autoplay, retain captions, offer refusal/retry, and release requests/Blob URLs on close. A player, file inspection or model claim is not video understanding. Results are independently imported artifacts sent using the acting Bot's current identity and original Source route, with authority checked again after upload and before send. Provider acceptance is not receiving-side delivery proof.
 
-The installed local candidate passed real video intake, exact input-byte comparison, native playback and approved model processing into a three-second H.264 result. Recipient confirmation remains pending. See the illustrated [video guide](../../wechat-connection.md#9-receive-a-native-video-and-return-a-video-result). Broader Channel-history media rendering remains a separate slice.
+The installed local candidate passed real video intake, exact input-byte comparison, native playback and approved model processing into a three-second H.264 result. The Human confirmed native receipt, and the receiving-client screenshot shows the matching three-second result; receiver-side downloaded-byte equality is not claimed. See the illustrated [video guide](../../wechat-connection.md#9-receive-a-native-video-and-return-a-video-result). Broader Channel-history media rendering remains a separate slice.
 
 ## Discord nearby development slice — #981
 
