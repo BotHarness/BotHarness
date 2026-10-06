@@ -64,6 +64,10 @@
 
 ![同一来源在深色主题中的图片预览](/guides/wechat/image-preview-dark.jpg)
 
+![Human 提供的微信原私聊截图，同时显示原图与 Bot 原生图片回复](/guides/wechat/native-image-roundtrip.png)
+
+Human 提供的接收端截图显示：06:14 发出原图，12:57 收到 Bot 的原生图片；内容一致另由 Human 确认，此截图不代表字节级比较。
+
 这些截图显示安装候选的收件来源与打开后的预览，是交互状态记录，不是代码改动前后对照，也不证明外部接收。背景只有专用 QA 对话，不包含凭据或可用配对码。
 
 让 Bot 理解图片时，先授权工作区，使用 `bridge_attachment_save` 保存独立副本，再通过原生 `read_image` 打开与真实 MIME 扩展名一致的副本。所选模型必须支持图片输入；能预览不能证明模型理解。本次使用 DeepSeek Flash，它从真实图片识别了 Discord 应用、布局和多处文字。图片中嵌入的指令仍是不可信内容。

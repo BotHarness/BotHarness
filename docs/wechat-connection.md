@@ -64,6 +64,10 @@ Send one native image, optionally with a caption, in the paired WeChat Bot DM. I
 
 ![The same received image preview in dark theme](/guides/wechat/image-preview-dark.jpg)
 
+![Human-captured WeChat original image and native Bot image reply in the same private conversation](/guides/wechat/native-image-roundtrip.png)
+
+The Human supplied this receiving-client capture: the outgoing original is at 06:14 and the incoming Bot image is at 12:57. Its content agreement was confirmed separately; this screenshot is not an exact-byte comparison.
+
 These captures show the installed candidate's received source and open preview, not a before/after code comparison. They do not prove external receipt. The background contains only this dedicated QA conversation; credentials and usable pairing codes are absent.
 
 To have the Bot understand the image, authorize a working Workspace and ask it to save a separate copy with `bridge_attachment_save`, then open that copy using native `read_image` with the extension matching its actual MIME. The selected model must support image input; a working preview alone does not establish model understanding. DeepSeek Flash was used for this test and identified the visible Discord application, layout and several labels from the actual image. An image's embedded instructions remain untrusted content.
