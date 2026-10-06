@@ -22,6 +22,7 @@
 | [会话](/zh/docs/channel-sidebar/sessions)             | 在 DSH 中打开这个 Bot 的 Orchestrator 与 Assignment Session。 |
 | [Bot 收件箱](/zh/docs/channel-sidebar/bot-inbox)      | 检查 Bot 收到的来源消息与任务报告。                           |
 | [工作区授权](/zh/docs/channel-sidebar/workspaces)     | 查看并明确授权这个 Bot 可以使用的 Host 文件夹。               |
+| [定时任务](/zh/docs/channel-sidebar/schedules)        | 按频率唤醒这个 Bot、立即运行某个任务，并锁定以防 Bot 修改。   |
 
 | 本地群聊中的项目                                | 可以做什么                                     |
 | ----------------------------------------------- | ---------------------------------------------- |
