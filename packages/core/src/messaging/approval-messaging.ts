@@ -262,6 +262,7 @@ export function createApprovalMessaging(options: {
     const value = read(id);
     if (!value?.receipt || !safe(value)) return;
     busy.add(id);
+    let updateReason = 'none';
     try {
       const currentStatus = value.status;
       const context = resolve(value.route);
@@ -281,6 +282,11 @@ export function createApprovalMessaging(options: {
       if (latest) write({ ...latest, update: 'updated' });
       trace('native-settlement', 'update', 'updated', performance.now() - startedAt);
     } catch (error) {
+      updateReason =
+        (error instanceof MessagingError || error instanceof MessagingProviderError) &&
+        /^[a-z0-9-]{1,80}$/.test(error.code)
+          ? error.code
+          : 'provider-update-failed';
       const latest = read(id);
       if (latest)
         write({
@@ -296,6 +302,7 @@ export function createApprovalMessaging(options: {
         'update-finish',
         read(id)?.update ?? 'disposed',
         performance.now() - startedAt,
+        updateReason,
       );
       busy.delete(id);
       const latest = read(id);
