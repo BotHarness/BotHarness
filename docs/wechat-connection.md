@@ -78,7 +78,7 @@ If preview or reading is refused, retain the source and inspect the refusal. Ret
 
 ## 7. Read a native voice transcript and reply
 
-The #905 source-preview candidate uses local product `0.0.0-test.905` and managed Provider `4.32.0-botharness.7`; it is not a public npm release. In the paired WeChat Bot DM, send a **native voice message**, rather than first converting it to a separate text message in the client. When WeChat supplies `voice_item.text`, that platform transcript enters the existing canonical Inbox. The card and source Modal label it **WeChat voice · platform transcript** and show duration when supplied. Original message, voice-item and Source Event IDs stay in the collapsed details.
+The #905 source-preview candidate uses local product `0.0.0-test.905.1` and managed Provider `4.32.0-botharness.7`; it is not a public npm release. In the paired WeChat Bot DM, send a **native voice message**, rather than first converting it to a separate text message in the client. When WeChat supplies `voice_item.text`, that platform transcript enters the existing canonical Inbox. The card and source Modal label it **WeChat voice · platform transcript** and show duration when supplied. Original message, voice-item and Source Event IDs stay in the collapsed details.
 
 ![The real 5.2-second WeChat voice transcript in the source Modal, light theme](/guides/wechat/voice-source-light.jpg)
 

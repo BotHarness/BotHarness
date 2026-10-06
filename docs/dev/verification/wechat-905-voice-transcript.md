@@ -26,6 +26,8 @@ Private conversation/user identifiers, credentials, media keys, continuation tok
 
 ## Source UI
 
+After integrating main `1a8d88bd429a7f47eee73670714bd68b508ff626`, product `0.0.0-test.905.1` was installed into the same preserved Profile with one verified Host. The native exchange above happened on `0.0.0-test.905`; the final main-integrated build revalidated the retained Source and empty local DM, and captured both themes anew. This later read-back is not a second fresh external exchange.
+
 The same actual source is shown in the Inbox and source Modal with explicit platform-transcript provenance and duration. Native identifiers remain in collapsed details.
 
 ![Real native voice source, light theme](../../../apps/docs/public/guides/wechat/voice-source-light.jpg)
@@ -47,7 +49,7 @@ A fresh QA Bot/Session was created through the normal application lifecycle. The
 - Focused BotHarness messaging, Client and artifact coverage: 6 files / 142 passed. Includes platform/unavailable provenance, account and lease opt-in, original route, deduplication, conflicting metadata, revocation and no local DM placement.
 - Provider: 3,583 passed, zero failed/skipped, including malformed/oversized/multipart/partial voice refusal and private audio-key fences.
 - Lint, format check, typecheck, bilingual product/Skill ledgers, Host/Client build, product pack and docs build passed on the candidate worktree.
-- Full default-parallel run retained worker-start and test timeouts: 2,728 passed / 16 failed / 9 skipped. A bounded two-worker full run reached 2,746 passed / 1 failed / 9 skipped; its remaining `human-dm-steer.test.ts` case timed out at the existing 15-second limit. That unchanged file independently reran with one worker: 8 passed. Assertions and timeouts were not loosened. A clean full-suite result is not claimed.
+- Full default-parallel run retained worker-start and test timeouts: 2,728 passed / 16 failed / 9 skipped. A bounded two-worker full run reached 2,746 passed / 1 failed / 9 skipped; its remaining `human-dm-steer.test.ts` case timed out at the existing 15-second limit. That unchanged file independently reran with one worker: 8 passed. Assertions and timeouts were not loosened. After latest-main integration, a full one-worker run completed: **2,804 passed / 9 skipped, 337 passed files / 5 skipped files**. This successful run does not erase the earlier timeouts.
 - Missing native transcript is covered automatically as `unavailable`, with explicit UI/model provenance; the live success event contained a transcript. Real absence or raw-audio recognition is not claimed.
 
 ## Runnable Human review
