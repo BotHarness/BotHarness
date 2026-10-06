@@ -293,11 +293,11 @@ Historical: an immutable, content-addressed package of selected Memory files, in
 _Avoid_: export, backup, bot zip, image
 
 **PersonaBot Export**:
-An immutable, versioned transfer package that always contains one SoulSnapshot and may contain explicitly selected operational Export Facets. Its default is Soul only; it never carries credentials or live authority.
+Historical (retired by ADR-0134): an immutable, versioned transfer package that always contained one SoulSnapshot and could contain explicitly selected operational Export Facets. A single Bot is now shared as its Memory Git repository (ADR-0131), and a whole Profile moves through Profile Backup.
 _Avoid_: SoulSnapshot, database copy, live clone, registry version
 
 **Export Facet**:
-A dependency-closed, schema-versioned optional part of a PersonaBot Export, such as Source Events and Attachments, Inbox and attention facts, Triggers and Wake Policies, a Messaging Archive, disabled Service Grant declarations, or provider account references awaiting rebind.
+Historical (retired with PersonaBot Export): a dependency-closed, schema-versioned optional part of a PersonaBot Export, such as Source Events and Attachments, Inbox and attention facts, Triggers and Wake Policies, a Messaging Archive, disabled Service Grant declarations, or provider account references awaiting rebind.
 _Avoid_: arbitrary table dump, credential bundle, active permission
 
 **Messaging Archive**:
@@ -317,7 +317,7 @@ A public GitHub repository carrying the `botharness-bot` topic that the Bot Mark
 _Avoid_: submission, Listing, SoulSnapshot, mirror
 
 **Soul registry**:
-The hosted service that stores, versions, and serves SoulSnapshots — the marketplace backend, distinct from the Host's PersonaBot registry.
+Historical (ADR-0019/0020): the planned hosted service that would store, version, and serve SoulSnapshots. The Bot Marketplace (ADR-0131) replaces it.
 _Avoid_: hub, store, database
 
 **Listing**:
@@ -337,11 +337,11 @@ A named group of Listings meant to be imported together.
 _Avoid_: collection, bundle, pack, team
 
 **Export**:
-Materializing a PersonaBot Export. The default selects only the Soul plus chosen Memory in its SoulSnapshot; operational Export Facets require explicit selection.
+Historical (retired with PersonaBot Export): materializing a PersonaBot Export. Use Profile Backup for a whole Profile and the Memory Git repository for one Bot.
 _Avoid_: database dump, live clone, publish
 
 **Import**:
-Creating a new PersonaBot from a SoulSnapshot or PersonaBot Export; always a copy, with imported operational authorities disabled until explicitly rebound or reauthorized.
+Creating a new PersonaBot from a shared Memory Git repository (Git URL or Bot Marketplace install); always a copy, with imported operational authorities disabled until explicitly rebound or reauthorized.
 _Avoid_: install, clone, pull, restore
 
 **Publish**:

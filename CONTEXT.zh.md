@@ -291,11 +291,11 @@ _避免使用_：upload、provider URL、per-Bot inbox copy、database blob
 _避免使用_：export、backup、bot zip、image
 
 **PersonaBot Export**：
-不可变、带版本的 transfer package，始终包含一个 SoulSnapshot，并可包含显式选择的 operational Export Facet。默认仅包含 Soul；它绝不携带 credential 或 live authority。
+历史术语（ADR-0134 退役）：不可变、带版本的 transfer package，始终包含一个 SoulSnapshot，并可包含显式选择的 operational Export Facet。单个 Bot 现在通过它的 Memory Git 仓库分享（ADR-0131），整份 Profile 通过 Profile Backup 迁移。
 _避免使用_：SoulSnapshot、database copy、live clone、registry version
 
 **Export Facet**：
-PersonaBot Export 中 dependency-closed、带 schema version 的可选部分，例如 Source Event 与 Attachment、Inbox 与 attention facts、Trigger 与 Wake Policy、Messaging Archive、disabled Service Grant declaration，或等待 rebind 的 provider account reference。
+历史术语（随 PersonaBot Export 退役）：PersonaBot Export 中 dependency-closed、带 schema version 的可选部分，例如 Source Event 与 Attachment、Inbox 与 attention facts、Trigger 与 Wake Policy、Messaging Archive、disabled Service Grant declaration，或等待 rebind 的 provider account reference。
 _避免使用_：arbitrary table dump、credential bundle、active permission
 
 **Messaging Archive**：
@@ -315,7 +315,7 @@ _避免使用_：store、hub、Soul registry
 _避免使用_：submission、Listing、SoulSnapshot、mirror
 
 **Soul registry**：
-存储、版本化并提供 SoulSnapshot 的 hosted service——即 marketplace backend，与 Host 的 PersonaBot registry 不同。
+历史术语（ADR-0019/0020）：原计划存储、版本化并提供 SoulSnapshot 的 hosted service，已由 Bot Marketplace（ADR-0131）取代。
 _避免使用_：hub、store、database
 
 **Listing**：
@@ -335,11 +335,11 @@ _避免使用_：username、account id
 _避免使用_：collection、bundle、pack、team
 
 **Export**：
-生成 PersonaBot Export。默认仅在其 SoulSnapshot 中选择 Soul 加上指定 Memory；operational Export Facet 必须显式选择。
+历史术语（随 PersonaBot Export 退役）：生成 PersonaBot Export。整份 Profile 用 Profile Backup，单个 Bot 用 Memory Git 仓库。
 _避免使用_：database dump、live clone、publish
 
 **Import**：
-从 SoulSnapshot 或 PersonaBot Export 创建新的 PersonaBot；始终产生副本，导入的 operational authority 会保持 disabled，直到被显式 rebind 或 reauthorize。
+从分享的 Memory Git 仓库（Git URL 或 Bot Marketplace 安装）创建新的 PersonaBot；始终产生副本，导入的 operational authority 会保持 disabled，直到被显式 rebind 或 reauthorize。
 _避免使用_：install、clone、pull、restore
 
 **Publish**：
