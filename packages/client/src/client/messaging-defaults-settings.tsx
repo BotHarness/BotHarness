@@ -9,6 +9,8 @@ import type { HumanNameSettingsProps } from './human-name-settings.js';
 import { loadMessagingDefaults, saveMessagingDefaults } from './bridge.js';
 import { useMountedResource } from './mounted-resource.js';
 
+const platformLabels = { feishu: 'Lark / 飞书', slack: 'Slack', discord: 'Discord' } as const;
+
 export function MessagingDefaultsSettings({
   call,
   t,
@@ -23,18 +25,27 @@ export function MessagingDefaultsSettings({
         <select
           aria-label={t('defaults.platform')}
           value={selected}
-          onChange={(e) => setSelected(e.target.value === 'slack' ? 'slack' : 'feishu')}
+          onChange={(e) =>
+            setSelected(
+              e.target.value === 'discord'
+                ? 'discord'
+                : e.target.value === 'slack'
+                  ? 'slack'
+                  : 'feishu',
+            )
+          }
         >
           <option value="feishu">Lark / 飞书</option>
           <option value="slack">Slack</option>
+          <option value="discord">Discord</option>
         </select>
       </label>
-      {(['feishu', 'slack'] as const).map((platform) => (
+      {(['feishu', 'slack', 'discord'] as const).map((platform) => (
         <div
           key={platform}
           hidden={selected !== platform}
           role="region"
-          aria-label={platform === 'slack' ? 'Slack' : 'Lark / 飞书'}
+          aria-label={platformLabels[platform]}
         >
           <PlatformDefaultsSettings call={call} t={t} platform={platform} />
         </div>
@@ -156,7 +167,7 @@ function PlatformDefaultsSettings({
               </thead>
               <tbody>
                 <tr>
-                  <th scope="row">{platform === 'slack' ? 'Slack' : 'Lark / 飞书'}</th>
+                  <th scope="row">{platformLabels[platform]}</th>
                   <td>
                     <select
                       aria-label={t('defaults.collection')}
@@ -226,7 +237,7 @@ function PlatformDefaultsSettings({
             </thead>
             <tbody>
               <tr>
-                <th scope="row">{platform === 'slack' ? 'Slack' : 'Lark / 飞书'}</th>
+                <th scope="row">{platformLabels[platform]}</th>
                 <td>
                   <Switch
                     checked={draft.identityEnabled}

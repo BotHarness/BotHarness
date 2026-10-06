@@ -239,6 +239,8 @@ _图 5：这是已收件的真实话题消息。Source Event ID 是 BotHarness �
 
 审核通过的授权在 Host 重启后保留，范围仅限 **当前 Bot**，不包含其他 Bot、审批人管理、VPS、DSH API 或工作区权限。10 分钟过期时间针对待审申请，已批准授权不受这个计时器影响。普通聊天接收与管理授权分别配置。
 
+审核或刷新失败时，配对区域会在控件旁显示错误提示。请刷新并重新核对当前申请，再决定是否重试；错误不会授予权限。
+
 ### #1027：真实配对操作记录
 
 以下截图来自真实 Lark 私聊和源码预览的已登录 Web 操作，使用 DSH `0.2.0-rc.1` 与兼容的固定 Provider。在明确授权的短暂停机窗口中，本机隔离测试 Host 独占现有应用；验证后已恢复生产 Host 及两个 IM 连接。完整申请人 ID 保持折叠。
@@ -278,6 +280,18 @@ _图 5：这是已收件的真实话题消息。Source Event ID 是 BotHarness �
 [查看同一过期状态的深色截图](/guides/lark/pairing/after-expired-dark.jpg)。
 
 看不到申请时，检查私聊权限、应用发布、事件订阅、身份和配对接收状态。重新连接身份会重试接收器配置。此处使用的固定 Provider 会由后台监督器自动重连，单次断开应用不能保持测试独占。真实 QA 应使用专用测试应用，或在明确授权的服务停机窗口中完成，随后恢复生产 Host；不要让两个 Host 争用同一应用。
+
+### 配对刷新失败后的恢复
+
+这组补充截图来自合并最新主分支代码后的源码预览，使用全新隔离 Profile，没有连接外部 IM 应用。只停止该本机 Host，制造真实连接失败：点击 **刷新申请** 后，错误显示在配对控件旁，频道连接器与授权仍保持折叠。重启同一本机 Host，再次刷新后错误消失。这验证 Web 失败与恢复，和上面的真实 Lark 申请演示分别留档。
+
+![浅色界面中配对刷新错误显示在控件旁](/guides/lark/pairing/integrated-failed-refresh-light.jpg)
+
+[查看深色失败截图](/guides/lark/pairing/integrated-failed-refresh-dark.jpg)。
+
+![重启隔离 Host 后配对刷新恢复的浅色界面](/guides/lark/pairing/integrated-recovered-light.jpg)
+
+[查看深色恢复截图](/guides/lark/pairing/integrated-recovered-dark.jpg)。
 
 ## 常见问题
 

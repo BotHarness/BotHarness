@@ -239,11 +239,11 @@ PersonaBot Profile 的 IM 连接经现有 Typert/API Gateway 选择账号和已�
 
 生产适配需要 dsh-im 公开、版本化的 `describeBot`／`sendChecked` 契约，以在账号 transition 中验证平台身份并冻结已授权路由。这是待上游接受的小型扩展；已发布 `4.32.0` 不满足该契约，BotHarness 默认禁用这条出站 authority。隔离开发可通过 `dev-instance --im-provider` 安装 [ADR-0104](../adr/0104-isolated-im-profiles-pin-a-qualified-temporary-provider-fork.md) 指定的临时 fork 完整 SHA，并在启动前校验运行时代码 digest；这不代表上游已发布或生产启用。dsh-im 仍持有 SDK／连接／凭据与原设置入口；BotHarness 不读取其私有 JSON，不接管 standalone Session 路由。#12 通过公开 `consumeInbound` 独占接收显式授权群内的文字 @：Messaging 先提交 bridge-message Source Event 与独立 Bot Inbox Admission，commit 后确认，再沿既有 group-mention harvest／steer 唤醒 Orchestrator。来源不需要本地 Channel placement，模型从 Inbox 了解接收身份、发送人及 group／thread／root／parent；`bridge_read` 读本地已保存来源，`bridge_reply` 仅接受来源 ID 与正文，Host 推导本 Bot 的有效身份与原回复路由，复用 Outbox 后调用公开 `replyChecked`，不镜像到 Human DM。撤销、归档、consumer 丢失、旧 Grant revision 都不能授权未来收件或尚未开始的回复；重启不重发未知 Outbox。外部来源 turn 不扩展 Memory acceptance 的来源授权，也不自动写入 Memory。详见 [ADR-0106](../adr/0106-exclusive-im-intake-commits-bot-inbox-before-acknowledgement.md)。 #612 的 `bridge_context` 通过同一 Inbox 来源和 Bot 身份调用公开 `historyChecked`，区分群列表、附近 ±5 分钟 Chat 时间窗与可信 Thread 列表；Host 按 JSON 预算仅将完整返回内容 reconcile 到 canonical Source Event，并记录有界读取 metadata。普通历史不建立 Admission、不触发 wake；已经存在且实际返回的 Admission 沿用当前 turn 的成功／失败处理。Provider 返回的显示名仅补充同一 canonical 身份；发送人和 @ 人员 ID 保持身份依据。Inbox 沿用 harvest 的 Message／Source Event 引用格式，上下文返回可用的姓名和 @ 关联，缺失姓名时回退 ID。Human 来源详情显示读取记录与最近一页，不自行读取远端。
 
-### Lark 管理员配对（ADR-0135）
+### Lark 管理员配对（ADR-0136）
 
 [#1027](https://github.com/BotHarness/BotHarness/issues/1027) 的 application-defined 配对 owner 使用 Messaging 所属的 Operational Database，以当前 PersonaBot、外部身份 Binding、Provider 认证的真实用户及原始私聊路由固定授权范围。已绑定 Lark 身份在既有独占 Consumer fanout 上保留账号级控制入口：纯文本 `/pair` 先提交申请再确认，不创建普通 Source Event、Bot Inbox Admission、模型唤醒或 Memory 写入。普通消息仍需自己的接收授权；删除聊天路线不关闭配对入口，也不产生普通 DM 接收权限。Client 显示实际接收器是否就绪。
 
-首次能力只能由认证 Web Human 显式勾选并按当前申请 revision 审核；定位码不能兑换权限，首位申请者不会自动成为管理员。能力仅覆盖当前 Bot 的批准、拒绝、回答及保存规则资格，不扩展 VPS、原生 DSH API、其他 Bot 或审批人管理。每次使用重查当前 Binding、Bot、真实 actor、能力和状态；暂停期间不可用，永久撤销后重新配对必须重新审核。该切片交付配对与 Web 审核，IM 审批／提问控件仍由后续切片接入原生权威。参数、恢复及审计边界见 [ADR-0135](../adr/0135-lark-pairing-is-reviewed-bot-scoped-operational-authority.md)。
+首次能力只能由认证 Web Human 显式勾选并按当前申请 revision 审核；定位码不能兑换权限，首位申请者不会自动成为管理员。能力仅覆盖当前 Bot 的批准、拒绝、回答及保存规则资格，不扩展 VPS、原生 DSH API、其他 Bot 或审批人管理。每次使用重查当前 Binding、Bot、真实 actor、能力和状态；暂停期间不可用，永久撤销后重新配对必须重新审核。该切片交付配对与 Web 审核，IM 审批／提问控件仍由后续切片接入原生权威。参数、恢复及审计边界见 [ADR-0136](../adr/0136-lark-pairing-is-reviewed-bot-scoped-operational-authority.md)。
 
 ### Bot 之间的 Channel 协作（ADR-0065）
 
@@ -497,7 +497,7 @@ Purge Ledger 是应用定义的 Host 深模块权威，必须单调持久并位�
 
 ### Bot Marketplace（已接受设计，待实现）
 
-[ADR-0131](../adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md) 与 #18 让 Bot Marketplace 先作为 GitHub 索引目录上线：作者给公开仓库加 `botharness-bot` topic 即同意收录，也可在 Marketplace 贴链接立即抓取。独立的 Cloudflare Worker 与 D1 每日按 topic 切片发现、每小时用 GraphQL 批量刷新，README 进入 FTS5 索引；浏览用 keyset cursor，搜索只取前 200 条。harness 的 Marketplace modal 展示 README 详情；安装复用 #298 的 Git URL 创建路径，确认框显示最新提交并提示第三方仓库风险。贴链接与一键举报共用 ALTCHA 和限流。第一阶段不建账号、不计下载；Better Auth、上传 Bot、收藏与导入计数属于第二阶段，沿用 #18 的完整仓库发布契约。
+[ADR-0131](../adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md) 与 #18 让 Bot Marketplace 先作为 GitHub 索引目录上线：作者给公开仓库加 `botharness-bot` topic 即同意收录，也可在 Marketplace 贴链接立即抓取。独立的 Cloudflare Worker 与 D1 每日按 topic 切片发现、每小时用 GraphQL 批量刷新，README 进入 FTS5 索引；浏览用 keyset cursor，搜索只取前 200 条。harness 的 Marketplace modal 展示 README 详情；安装复用 #298 的 Git URL 创建路径，确认框显示最新提交并提示第三方仓库风险。贴链接与一键举报共用 ALTCHA 和限流。不建账号、不计下载。[ADR-0135](../adr/0135-a-bot-moves-between-people-as-a-zip-of-its-memory-files.md) 撤销了基于账号的第二阶段：把单个 Bot 交给别人或换设备，改为在 harness 里导出 Bot Zip（默认只含 Memory 文件和 `.botharness/bot.json`，整包导出时可选带 Git 历史），对方从创建菜单的「从 zip 导入」得到新的 PersonaBot。
 
 ## 7 · 关键边界
 

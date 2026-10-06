@@ -103,7 +103,7 @@ export const zh = {
   'defaults.count': '默认汇总条数',
   'defaults.seconds': '默认汇总秒数',
   'defaults.authorization':
-    '仅提供已资格验证的 Lark / 飞书和 Slack 群文字设置。全量收件仍需平台权限与实际投递能力；@Bot 继续沿用直接提醒策略。',
+    '支持 Lark / 飞书、Slack 与 Discord 群文字默认设置。全量收件仍需平台权限与实际投递能力；@Bot 继续沿用直接提醒策略。',
   'defaults.scope':
     '修改只影响仍在继承的配置及后续事件。不会绑定账号、扩大群授权、创建连接器、跟进话题或自动回复。',
   'defaults.revision': '当前全局版本：{revision}',
@@ -814,6 +814,12 @@ export const zh = {
   'im.voiceAudioPrepare': '准备播放',
   'im.voiceAudioRetry': '重新准备音频',
   'im.voiceAudioPreparing': '正在准备音频…',
+  'im.videoPlayer': '外部视频',
+  'im.videoLoading': '正在读取视频…',
+  'im.videoPrepare': '加载视频',
+  'im.videoRetry': '重试播放',
+  'im.videoHint': '按需读取原视频；能否播放取决于浏览器的编码支持，不代表模型能理解视频。',
+  'im.videoUnavailable': '视频暂不能播放，可下载原件；请检查权限、文件格式或浏览器编码支持。',
   'im.voiceAudioPlayer': '微信语音播放器',
   'im.voiceAudioHint': '支持的 SILK 语音转换为 24 kHz WAV，仅用于播放或处理，不进行语音识别。',
   'im.voiceAudioUnavailable':
@@ -1995,7 +2001,7 @@ export const en = {
   'defaults.count': 'Default digest count',
   'defaults.seconds': 'Default digest seconds',
   'defaults.authorization':
-    'Qualified Lark / Feishu and Slack group text only. Full intake still requires platform permission and observed delivery capability. @Bot keeps its direct-address policy.',
+    'Group text defaults for Lark / Feishu, Slack and Discord. Full intake still requires platform permission and observed delivery capability. @Bot keeps its direct-address policy.',
   'defaults.scope':
     'Changes affect inheriting configurations and future events only. They never bind accounts, expand group authorization, create bridges, follow topics or force replies.',
   'defaults.revision': 'Current global revision: {revision}',
@@ -2745,6 +2751,14 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.voiceAudioPrepare': 'Prepare playback',
   'im.voiceAudioRetry': 'Prepare audio again',
   'im.voiceAudioPreparing': 'Preparing audio…',
+  'im.videoPlayer': 'External video',
+  'im.videoLoading': 'Loading video…',
+  'im.videoPrepare': 'Load video',
+  'im.videoRetry': 'Retry playback',
+  'im.videoHint':
+    'Loads the original on demand. Playback depends on browser codecs and does not imply model video understanding.',
+  'im.videoUnavailable':
+    'Video playback is unavailable. Download the original and check authorization, format or browser codecs.',
   'im.voiceAudioPlayer': 'WeChat voice player',
   'im.voiceAudioHint':
     'Supported SILK is converted to 24 kHz WAV for playback or processing, without speech recognition.',

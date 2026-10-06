@@ -18,6 +18,7 @@ export function PairingSettings({
   requests,
   receivers = [],
   busy,
+  failed = false,
   refresh,
   review,
   t,
@@ -25,6 +26,7 @@ export function PairingSettings({
   requests: PairingRequest[];
   receivers?: { name: string; status: 'off' | 'connecting' | 'receiving' | 'unavailable' }[];
   busy: boolean;
+  failed?: boolean;
   refresh(): Promise<void>;
   review(input: PairingReviewInput): Promise<void>;
   t: BotHarnessTranslate;
@@ -38,6 +40,11 @@ export function PairingSettings({
         </Button>
       </div>
       <p className="bh-muted">{t('pairing.hint')}</p>
+      {failed ? (
+        <p className="bh-error" role="alert">
+          {t('pairing.error')}
+        </p>
+      ) : null}
       {receivers.map((receiver) => (
         <p key={receiver.name} role="status">
           {receiver.name} · {t(`pairing.receiver.${receiver.status}`)}

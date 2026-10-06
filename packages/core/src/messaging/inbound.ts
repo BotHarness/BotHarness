@@ -269,7 +269,8 @@ export function createInboundMessaging(options: {
         JSON.stringify(previous.event.reply) !== JSON.stringify(event.reply) ||
         JSON.stringify(previous.event.attachments ?? []) !==
           JSON.stringify(event.attachments ?? []) ||
-        JSON.stringify(previous.event.voice ?? null) !== JSON.stringify(event.voice ?? null)
+        JSON.stringify(previous.event.voice ?? null) !== JSON.stringify(event.voice ?? null) ||
+        JSON.stringify(previous.event.video ?? null) !== JSON.stringify(event.video ?? null)
       )
         throw new MessagingError('source-conflict');
       const mentions = previous.event.mentions.map((mention) => {

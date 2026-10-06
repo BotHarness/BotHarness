@@ -167,6 +167,22 @@ describe('campaign and link API', () => {
     );
   });
 
+  it('generates <platform>-<media> slugs, numbered when taken', async () => {
+    const { request, token } = await writer();
+    await request('/v1/campaigns', { method: 'POST', token, body: { slug: 'c1', name: 'C' } });
+    const slugs: string[] = [];
+    for (const body of [
+      { campaign: 'c1', platform: 'x', media: 'post' },
+      { campaign: 'c1', platform: 'x', media: 'post' },
+      { campaign: 'c1', platform: 'product_hunt', media: 'launch' },
+    ]) {
+      const response = await request('/v1/links', { method: 'POST', token, body });
+      expect(response.status).toBe(201);
+      slugs.push(((await response.json()) as { slug: string }).slug);
+    }
+    expect(slugs).toEqual(['x-post', 'x-post-2', 'product-hunt-launch']);
+  });
+
   it('serves the OpenAPI document', async () => {
     const { request } = createHarness();
     const response = await request('/openapi.json');

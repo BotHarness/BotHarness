@@ -31,7 +31,7 @@ Usage:
   bh-links list [--campaign <slug>] [--all]          alias of links list
   bh-links links list [--campaign <slug>] [--all]
   bh-links links get <slug>
-  bh-links links create <slug> --campaign <slug> --platform <label> --media <label>
+  bh-links links create [<slug>] --campaign <slug> --platform <label> --media <label>
                         [--path /docs/] [--language zh|en] [--note <text>]
   bh-links links update <slug> [--platform] [--media] [--path] [--language] [--note]
   bh-links links archive <slug>
@@ -42,7 +42,7 @@ Usage:
   bh-links campaigns update <slug> [--name <name>] [--description <text>]
   bh-links campaigns archive <slug>
   bh-links campaigns clicks <slug>
-  bh-links login [--token <bhl_…>] [--url <url>]    token from stdin when --token is omitted
+  bh-links login [--token <bhl_…>] [--url <url>]    token from stdin, or a hidden prompt, when --token is omitted
   bh-links config
 
 Options:
@@ -122,7 +122,7 @@ async function linksCommand(
     case 'create': {
       const link = await client.createLink(
         defined({
-          slug: required(slug, '<slug>'),
+          slug,
           campaign: required(values.campaign, '--campaign'),
           platform: required(values.platform, '--platform'),
           media: required(values.media, '--media'),

@@ -154,3 +154,94 @@ it('retains Lark revisions and existing Slack custom identities when upgrading t
     next.close();
   }
 });
+
+it('qualifies Discord on upgrade while preserving every earlier revision and custom identity', () => {
+  const home = createTempRoot('bh-discord-defaults-upgrade-');
+  const prior = mountOperationalDatabase({
+    dshHome: home,
+    schemaPlan: defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((m) => m.generation < 58),
+    ),
+  });
+  const priorPort = attachOperationalModule(prior, 'messaging');
+  const old = priorPort.transaction((db) => {
+    for (const platform of ['feishu', 'slack'] as const) {
+      for (const count of [8, 9]) {
+        const { revision, changedAt: _at, ...preferences } = messagingDefaults(db, platform);
+        commitMessagingDefaults(db, { ...preferences, expectedRevision: revision, count });
+      }
+    }
+    db.prepare(
+      'INSERT INTO messaging_bindings (id,bot_slug,provider_id,platform,account_ref,fingerprint,created_at,enabled,display_name,enabled_inherited) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    ).run(
+      'discord-old',
+      'ada',
+      'discord',
+      'discord',
+      'app',
+      'a'.repeat(64),
+      '2026-10-06T00:00:00Z',
+      0,
+      'QA',
+      0,
+    );
+    return db.prepare('SELECT * FROM messaging_default_revisions ORDER BY platform,revision').all();
+  });
+  prior.close();
+  let next = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  try {
+    expect(next.mode).toBe('ready');
+    const port = attachOperationalModule(next, 'messaging');
+    expect(
+      port.read((db) =>
+        db.prepare('SELECT * FROM messaging_default_revisions ORDER BY platform,revision').all(),
+      ),
+    ).toEqual(old);
+    expect(port.read((db) => readMessagingIdentity(db, 'discord-old'))).toMatchObject({
+      enabled: false,
+      enabledInheritance: 'custom',
+      revision: 1,
+    });
+    const saved = port.transaction((db) => {
+      const { revision, changedAt: _at, ...preferences } = messagingDefaults(db, 'discord');
+      return commitMessagingDefaults(db, {
+        ...preferences,
+        expectedRevision: revision,
+        collection: 'all',
+        count: 2,
+      });
+    });
+    expect(saved).toMatchObject({ platform: 'discord', revision: 1, count: 2 });
+    expect(
+      port.read((db) =>
+        db
+          .prepare(
+            "SELECT * FROM messaging_default_revisions WHERE platform != 'discord' ORDER BY platform,revision",
+          )
+          .all(),
+      ),
+    ).toEqual(old);
+    for (const statement of [
+      "UPDATE messaging_default_revisions SET body = '{}' WHERE platform = 'discord'",
+      "DELETE FROM messaging_default_revisions WHERE platform = 'slack'",
+    ]) {
+      expect(() => port.transaction((db) => db.prepare(statement).run())).toThrow(
+        expect.objectContaining({
+          cause: expect.objectContaining({ message: expect.stringContaining('immutable') }),
+        }),
+      );
+    }
+    expect(() =>
+      port.transaction((db) =>
+        db.prepare("INSERT INTO messaging_default_revisions VALUES ('weixin', 1, '{}')").run(),
+      ),
+    ).toThrow();
+    next.close();
+    next = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    expect(
+      attachOperationalModule(next, 'messaging').read((db) => messagingDefaults(db, 'discord')),
+    ).toEqual(saved);
+  } finally {
+    next.close();
+  }
+});

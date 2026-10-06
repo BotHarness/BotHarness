@@ -237,6 +237,8 @@ This source-preview slice adds **pairing**, the prerequisite for IM management. 
 
 An approved grant survives a Host restart and covers **this Bot only**. It grants no other-Bot, approver-management, VPS, DSH API or workspace access. The 10-minute timer applies to pending requests, not approved grants. Ordinary chatting and management authority are separate settings.
 
+If a review or refresh fails, the pairing section shows an error beside its controls. Refresh and recheck the current request before trying again; an error never grants authority.
+
 ### Real pairing walkthrough: #1027
 
 These captures come from a real Lark private message and the authenticated Web controls on the source preview, using DSH `0.2.0-rc.1` and the qualified Provider. The shared production application was exclusively received by the isolated test Host during an authorized service outage; the production Host and both IM connections were restored afterward. Full applicant IDs remain collapsed.
@@ -276,6 +278,18 @@ These captures come from a real Lark private message and the authenticated Web c
 [View the same expired state in dark mode](/guides/lark/pairing/after-expired-dark.jpg).
 
 If no request appears, check the private-message scope, publication, subscription, identity and receiver status. Reconnecting the identity retries receiver setup. With the qualified Provider used here, disconnecting an application is temporary because its supervisor can reconnect it. For exclusive QA, use a dedicated test application or an explicitly authorized service outage, then restore the production Host. Never leave two Hosts competing for one application.
+
+### Recover a failed pairing refresh
+
+These additional captures use the integrated source preview in a fresh isolated Profile with no external IM application connected. Stopping only that local Host produces a real transport failure: **Refresh requests** shows its error beside the pairing controls while the Channel Bridge card stays collapsed. Restarting the same local Host and refreshing clears the error. This tests Web failure/recovery; it is separate from the genuine Lark request walkthrough above.
+
+![Pairing refresh failure shown beside its controls, light](/guides/lark/pairing/integrated-failed-refresh-light.jpg)
+
+[Dark failure capture](/guides/lark/pairing/integrated-failed-refresh-dark.jpg).
+
+![Pairing refresh recovered after the isolated Host restarted, light](/guides/lark/pairing/integrated-recovered-light.jpg)
+
+[Dark recovery capture](/guides/lark/pairing/integrated-recovered-dark.jpg).
 
 ## Troubleshooting
 

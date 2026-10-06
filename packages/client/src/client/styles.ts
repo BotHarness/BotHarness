@@ -4027,6 +4027,7 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   margin-block: 8px;
 }
 .bh-external-source-audio { display: grid; gap: 8px; margin-block: 8px; }
+.bh-external-source-video video { display: block; max-width: 100%; max-height: 420px; }
 .bh-external-source-audio audio { display: block; width: 100%; max-width: 360px; }
 .bh-external-source-audio p { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; }
 .bh-external-source-image { display: block; max-width: 100%; max-height: 384px; object-fit: contain; margin-block: 8px; }

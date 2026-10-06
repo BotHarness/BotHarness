@@ -664,3 +664,75 @@ it.each(['report', 'reply'] as const)(
     }
   },
 );
+
+it('shows a rejected pairing review beside its controls and clears it after a successful refresh', async () => {
+  const snapshot: MessagingSnapshot = {
+    accounts: [],
+    grants: [],
+    intents: [],
+    pairings: [
+      {
+        id: 'stale-request',
+        reference: 'STALETEST',
+        botSlug: 'ada',
+        bindingId: 'binding',
+        accountName: 'QA Lark',
+        actorId: 'ou_test',
+        actorName: 'QA applicant',
+        conversationId: 'oc_test',
+        status: 'pending',
+        capabilities: [],
+        createdAt: '2026-10-06T00:00:00.000Z',
+        expiresAt: '2026-10-06T00:10:00.000Z',
+        revision: 1,
+        attempts: 1,
+      },
+    ],
+  };
+  const actions = {
+    pairingReview: vi.fn(async () => {
+      throw new Error('pairing-stale');
+    }),
+    messagingIdentity: vi.fn(),
+    messagingThreadPolicy: vi.fn(),
+    messagingGroupPolicy: vi.fn(),
+    messagingReceive: vi.fn(),
+    messagingChannelTarget: vi.fn(),
+    messagingSnapshot: vi.fn(async () => snapshot),
+    messagingTargets: vi.fn(async () => []),
+    messagingAuthorize: vi.fn(),
+    messagingRevoke: vi.fn(),
+    messagingSend: vi.fn(),
+  };
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () =>
+      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
+    );
+    const pairing = host.querySelector('.bh-im-pairing')!;
+    const button = (key: 'pairing.approve' | 'pairing.refresh') =>
+      [...pairing.querySelectorAll('button')].find(
+        (item) => item.textContent === zhTranslate(key),
+      )!;
+    await act(async () => pairing.querySelector<HTMLInputElement>('input')!.click());
+    await act(async () => button('pairing.approve').click());
+    expect(actions.pairingReview).toHaveBeenCalledExactlyOnceWith('ada', {
+      kind: 'approve',
+      id: 'stale-request',
+      expectedRevision: 1,
+      capabilities: ['approve'],
+    });
+    expect(pairing.querySelector('[role="alert"]')?.textContent).toBe(zhTranslate('pairing.error'));
+    expect(pairing.closest('details')).toBeNull();
+    expect(host.querySelector('[data-bh-lark-grant] [role="alert"]')).toBeNull();
+    expect(button('pairing.approve').disabled).toBe(false);
+    await act(async () => button('pairing.refresh').click());
+    expect(pairing.querySelector('[role="alert"]')).toBeNull();
+    expect(actions.pairingReview).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});

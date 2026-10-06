@@ -82,7 +82,9 @@ export const LinkSchema = z
 
 export const LinkCreateSchema = z
   .object({
-    slug: SlugSchema,
+    slug: SlugSchema.optional().openapi({
+      description: 'omit to generate <platform>-<media>, numbered -2, -3… when taken',
+    }),
     campaign: SlugSchema,
     platform: LabelSchema.openapi({ example: 'producthunt' }),
     media: LabelSchema.openapi({ example: 'launch' }),

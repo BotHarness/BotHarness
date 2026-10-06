@@ -58,6 +58,7 @@ export interface DshImOutboundService {
       sourceImages?: boolean;
       sourceVoiceTranscripts?: boolean;
       sourceVoiceAudio?: boolean;
+      sourceVideos?: boolean;
       ordinaryText?: boolean;
       onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
@@ -165,6 +166,14 @@ const inboundSchema = z
         encodeType: z.number().int().nonnegative().max(1000000).optional(),
         sampleRate: z.number().int().nonnegative().max(1000000).optional(),
         bitsPerSample: z.number().int().nonnegative().max(1000000).optional(),
+      })
+      .strict()
+      .optional(),
+    video: z
+      .object({
+        itemId: identifier.optional(),
+        reportedSizeBytes: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+        playLength: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
       })
       .strict()
       .optional(),
@@ -432,6 +441,12 @@ export function createDshImProvider(
               info.capabilities.includes('source-voice-audio-checked')
                 ? { sourceVoiceAudio: true }
                 : {}),
+              ...(platform === 'weixin' &&
+              host.fileVersion === 1 &&
+              info.capabilities.includes('source-video-checked') &&
+              info.capabilities.includes('reply-video-fence-checked')
+                ? { sourceVideos: true }
+                : {}),
               ...(host.echoVersion === 1 &&
               info.capabilities.includes('own-text-echo') &&
               input.onEcho
@@ -467,11 +482,17 @@ export function createDshImProvider(
                     !info.capabilities.includes('source-voice-transcript-checked')) ||
                   (parsed.voice &&
                     parsed.attachments?.length &&
-                    !info.capabilities.includes('source-voice-audio-checked'))
+                    !info.capabilities.includes('source-voice-audio-checked')) ||
+                  (parsed.video &&
+                    (platform !== 'weixin' ||
+                      !info.capabilities.includes('source-video-checked') ||
+                      !info.capabilities.includes('reply-video-fence-checked') ||
+                      parsed.attachments?.length !== 1 ||
+                      parsed.attachments[0]?.mediaType !== 'video/unknown'))
                 )
                   throw new MessagingError('untrusted-source');
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
-                const { attachments, voice, ...base } = parsed;
+                const { attachments, voice, video, ...base } = parsed;
                 const event: MessagingInboundEvent = {
                   ...base,
                   ...(voice === undefined
@@ -493,6 +514,13 @@ export function createDshImProvider(
                             ? {}
                             : { durationMs: voice.durationMs }),
                         },
+                      }),
+                  ...(video === undefined
+                    ? {}
+                    : {
+                        video: Object.fromEntries(
+                          Object.entries(video).filter(([, value]) => value !== undefined),
+                        ),
                       }),
                   ...(attachments === undefined
                     ? {}
@@ -683,7 +711,10 @@ export function createDshImProvider(
                   !info.capabilities.includes('reply-file-fence-checked')) ||
                 (platform === 'weixin' &&
                   input.file.mediaType?.startsWith('image/') &&
-                  !info.capabilities.includes('reply-image-fence-checked'))
+                  !info.capabilities.includes('reply-image-fence-checked')) ||
+                (platform === 'weixin' &&
+                  input.file.mediaType?.startsWith('video/') &&
+                  !info.capabilities.includes('reply-video-fence-checked'))
               )
                 throw new MessagingProviderError('capability-unavailable', 'not-started');
               const result = await host.replyFileChecked!(

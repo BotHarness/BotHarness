@@ -1533,8 +1533,31 @@ const BOT_SCHEDULE_MIGRATION: SchemaMigration = {
   },
 };
 
-const BOT_PAIRING_MIGRATION: SchemaMigration = {
+const DISCORD_PLATFORM_DEFAULTS_MIGRATION: SchemaMigration = {
   generation: 58,
+  module: 'messaging',
+  description:
+    'Qualify independent Discord defaults without rewriting earlier revisions or overrides',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_default_revisions_qualified (
+        platform TEXT NOT NULL CHECK (platform IN ('feishu', 'slack', 'discord')),
+        revision INTEGER NOT NULL CHECK (revision > 0), body TEXT NOT NULL,
+        PRIMARY KEY (platform, revision)
+      );
+      INSERT INTO messaging_default_revisions_qualified SELECT * FROM messaging_default_revisions;
+      DROP TABLE messaging_default_revisions;
+      ALTER TABLE messaging_default_revisions_qualified RENAME TO messaging_default_revisions;
+      CREATE TRIGGER messaging_defaults_no_update BEFORE UPDATE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+      CREATE TRIGGER messaging_defaults_no_delete BEFORE DELETE ON messaging_default_revisions
+        BEGIN SELECT RAISE(ABORT, 'Messaging defaults revisions are immutable'); END;
+    `);
+  },
+};
+
+const BOT_PAIRING_MIGRATION: SchemaMigration = {
+  generation: 59,
   module: 'messaging',
   description: 'Own current-Bot Human pairing and explicitly reviewed IM capabilities',
   migrate(database) {
@@ -1610,5 +1633,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   PERSONA_BOT_REGISTRY_MIGRATION,
   ROSTER_ARRANGEMENT_MIGRATION,
   BOT_SCHEDULE_MIGRATION,
+  DISCORD_PLATFORM_DEFAULTS_MIGRATION,
   BOT_PAIRING_MIGRATION,
 ]);
