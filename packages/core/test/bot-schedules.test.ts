@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createCore } from '../src/plugin.js';
 import {
   attachOperationalModule,
@@ -232,9 +233,10 @@ describe('Bot Schedule store', () => {
     );
     expect(hourly.nextRunAt).toBe('2026-10-06T02:00:30.000Z');
 
-    attachOperationalModule(owner, 'schedule-test').transaction((db) =>
-      db.prepare('UPDATE bot_schedules SET locked = 1 WHERE schedule_id = ?').run(schedule.id),
+    expect(() => store.update('ada', schedule.id, { locked: true }, 'personabot')).toThrow(
+      expect.objectContaining({ code: 'locked' }),
     );
+    expect(store.update('ada', schedule.id, { locked: true }, 'human').locked).toBe(true);
     expect(() => store.update('ada', schedule.id, { title: 'x' }, 'personabot')).toThrow(
       expect.objectContaining({ code: 'locked' }),
     );
@@ -244,8 +246,31 @@ describe('Bot Schedule store', () => {
     expect(store.update('ada', schedule.id, { title: 'Human edit' }, 'human').title).toBe(
       'Human edit',
     );
+    expect(store.update('ada', schedule.id, { locked: false }, 'human').locked).toBe(false);
+    expect(store.update('ada', schedule.id, { title: 'Bot edit' }, 'personabot').title).toBe(
+      'Bot edit',
+    );
     expect(store.remove('ada', schedule.id, 'human')).toBe(true);
     expect(store.remove('ada', schedule.id, 'human')).toBe(false);
+    expect(
+      store.create(
+        'ada',
+        { title: 'Kept', prompt: 'p', trigger: { kind: 'every', everySeconds: 60 }, locked: true },
+        'human',
+      ).locked,
+    ).toBe(true);
+    expect(() =>
+      store.create(
+        'ada',
+        {
+          title: 'Sneaky',
+          prompt: 'p',
+          trigger: { kind: 'every', everySeconds: 60 },
+          locked: true,
+        },
+        'personabot',
+      ),
+    ).toThrow(expect.objectContaining({ code: 'locked' }));
     expect(() => store.history('ada', schedule.id)).toThrow(
       expect.objectContaining({ code: 'not-found' }),
     );
@@ -291,6 +316,28 @@ describe('Bot Schedule firing', () => {
       await core.runtime.whenIdle();
 
       expect(runs).toHaveLength(1);
+      const botCreated = runs[0]?.schedules?.create({
+        title: 'Check X',
+        prompt: 'Check X',
+        trigger: { kind: 'every', everySeconds: 3600 },
+      });
+      expect(botCreated).toMatchObject({ botSlug: 'ada', creator: 'personabot' });
+      expect(runs[0]?.schedules?.list().map((row) => row.title)).toEqual([
+        'Hourly check',
+        'Check X',
+      ]);
+      const methods = createBridgeMethods({ ...core });
+      expect(
+        await methods.scheduleUpdate({ slug: 'ada', id: schedule.id, locked: 'yes' }),
+      ).toMatchObject({ ok: false });
+      expect(
+        await methods.scheduleUpdate({ slug: 'ada', id: schedule.id, locked: true }),
+      ).toMatchObject({ ok: true, value: { schedule: { locked: true } } });
+      expect(() => runs[0]?.schedules?.remove(schedule.id)).toThrow(
+        expect.objectContaining({ code: 'locked' }),
+      );
+      core.schedules.update('ada', schedule.id, { locked: false }, 'human');
+      expect(runs[0]?.schedules?.remove(botCreated!.id)).toBe(true);
       expect(runs[0]?.inbox).toContain('Bot Schedule "Hourly check"');
       expect(runs[0]?.inbox).toContain('"Check the build status"');
       const [firing] = core.schedules.history('ada', schedule.id);

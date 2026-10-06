@@ -75,6 +75,12 @@ import {
 } from './source-policy.js';
 import type { AssignmentReportPage } from './assignment-tail.js';
 import type {
+  BotSchedule,
+  BotScheduleChange,
+  BotScheduleInput,
+  BotScheduleStore,
+} from '../schedules/bot-schedules.js';
+import type {
   AssignmentPermissionSnapshot,
   WorkspaceGrant,
   WorkspaceGrantStore,
@@ -252,6 +258,12 @@ export interface OrchestratorAgentRun {
     resetImmediateDelivery(sourceClass: 'human-dm' | 'bot-dm' | 'group-mention'): BotSourcePolicy;
   };
   assignments: OrchestratorAssignmentAccess;
+  schedules?: {
+    list(): BotSchedule[];
+    create(input: BotScheduleInput): BotSchedule;
+    update(id: string, change: BotScheduleChange): BotSchedule;
+    remove(id: string): boolean;
+  };
   memory?: {
     switchBranch(branch: string): { from: string; to: string; head: string };
     continueFromCommit(sha: string, branch: string): { from: string; to: string; head: string };
@@ -452,6 +464,7 @@ export interface BotRuntimeOptions {
   externalMessaging?: OutboundMessaging;
   database: OperationalDatabaseOwner;
   sourcePolicy?: BotSourcePolicyStore;
+  schedules?: Pick<BotScheduleStore, 'list' | 'create' | 'update' | 'remove'>;
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
@@ -834,6 +847,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #registry: PersonaBotRegistry;
   readonly #channels: ChannelStore;
   readonly #sourcePolicy: BotSourcePolicyStore;
+  readonly #schedules: BotRuntimeOptions['schedules'];
   readonly #agents: BotAgentAdapter;
   readonly #memory: BotRuntimeOptions['memory'];
   readonly #attachments: AttachmentStore | undefined;
@@ -882,6 +896,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#channels = options.channels;
     this.#sourcePolicy =
       options.sourcePolicy ?? createBotSourcePolicyStore(this.#database, options.now);
+    this.#schedules = options.schedules;
     this.#agents = options.agents;
     this.#memory = options.memory;
     this.#attachments = options.attachments;
@@ -2927,6 +2942,25 @@ class BotRuntimeImplementation implements BotRuntime {
             });
           },
         },
+        ...(this.#schedules === undefined
+          ? {}
+          : {
+              schedules: ((store) => ({
+                list: () => store.list(bot.slug),
+                create: (input: BotScheduleInput) => {
+                  markSideEffect();
+                  return store.create(bot.slug, input, 'personabot');
+                },
+                update: (id: string, change: BotScheduleChange) => {
+                  markSideEffect();
+                  return store.update(bot.slug, id, change, 'personabot');
+                },
+                remove: (id: string) => {
+                  markSideEffect();
+                  return store.remove(bot.slug, id, 'personabot');
+                },
+              }))(this.#schedules),
+            }),
         ...(observeMemory
           ? {
               memory: {

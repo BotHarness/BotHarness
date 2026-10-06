@@ -6142,4 +6142,12 @@ button.bh-card-main:disabled {cursor:default;}
 .bh-session-workspace-group > .bh-card-list {margin:2px 0 6px;}
 .bh-card-detail > .bh-workspace-folder-detail {padding:0;}
 .bh-inbox-group {border-top:0;padding:2px 0;}
+.bh-card-action {display:inline-grid;place-items:center;width:26px;height:26px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;}
+.bh-card-action:hover:not(:disabled) {background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);}
+.bh-card-action:focus-visible {outline:2px solid var(--dsw-alias-label-primary);outline-offset:-2px;}
+.bh-card-action:disabled {cursor:default;}
+.bh-schedule-lock-toggle:not([data-locked]) {opacity:.55;}
+.bh-schedule-lock-toggle[data-locked] {color:var(--dsw-alias-label-primary);}
+.bh-schedule-lock {display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;}
+.bh-schedule-lock .bh-card-title {white-space:normal;}
 `;

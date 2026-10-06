@@ -22,6 +22,7 @@ import { LoadingSkeleton } from './loading-skeleton.js';
 import { Modal } from './modal.js';
 import { useMountedResource } from './mounted-resource.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
+import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 
 export const SCHEDULE_COST_WARNING_SECONDS = 15 * 60;
 const REFRESH_MS = 30_000;
@@ -35,6 +36,7 @@ export interface ScheduleForm {
   every: string;
   time: string;
   timeZone: string;
+  locked: boolean;
 }
 
 const createRequests = new Map<string, number>();
@@ -57,11 +59,19 @@ function browserTimeZone(): string {
 }
 
 export function emptyScheduleForm(timeZone = browserTimeZone()): ScheduleForm {
-  return { title: '', prompt: '', unit: 'hours', every: '1', time: '09:00', timeZone };
+  return {
+    title: '',
+    prompt: '',
+    unit: 'hours',
+    every: '1',
+    time: '09:00',
+    timeZone,
+    locked: false,
+  };
 }
 
 export function scheduleFormOf(schedule: BotScheduleView): ScheduleForm {
-  const base = { title: schedule.title, prompt: schedule.prompt };
+  const base = { title: schedule.title, prompt: schedule.prompt, locked: schedule.locked };
   const trigger = schedule.trigger;
   if (trigger.kind === 'daily')
     return { ...base, unit: 'daily', every: '1', time: trigger.time, timeZone: trigger.timeZone };
@@ -279,6 +289,20 @@ function ScheduleEditor({
             />
           </label>
         )}
+        <div className="bh-schedule-lock">
+          <span className="bh-card-icon" aria-hidden="true">
+            <ChannelSidebarIcon name={form.locked ? 'lock' : 'lock-open'} size={16} />
+          </span>
+          <span className="bh-card-body">
+            <span className="bh-card-title">{t('schedule.form.lock')}</span>
+            <span className="bh-card-meta">{t('schedule.form.lockHint')}</span>
+          </span>
+          <Switch
+            checked={form.locked}
+            label={t('schedule.form.lock')}
+            onChange={(locked) => set({ locked })}
+          />
+        </div>
         {costly ? (
           <p className="bh-schedule-warning" role="note">
             {t('schedule.form.cost')}
@@ -386,7 +410,12 @@ export function ScheduleDialog({
       .finally(() => setBusy(false));
   };
 
-  if (schedule === undefined) return <span ref={mount} hidden />;
+  if (schedule === undefined)
+    return (
+      <>
+        <span ref={mount} hidden />
+      </>
+    );
   if (schedule === null && scheduleId !== undefined)
     return (
       <>
@@ -419,11 +448,13 @@ export function ScheduleDialog({
                   title: form.title,
                   prompt: form.prompt,
                   trigger,
+                  ...(form.locked ? { locked: true } : {}),
                 })
               : actions.updateBotSchedule(botSlug, editing.id, {
                   title: form.title,
                   prompt: form.prompt,
                   trigger,
+                  ...(form.locked === editing.locked ? {} : { locked: form.locked }),
                 }),
           );
         }}
@@ -477,8 +508,10 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
     if (botSlug === undefined) return;
     void refresh(botSlug);
     const timer = setInterval(() => void refresh(botSlug), REFRESH_MS);
+    const unsubscribe = subscribeMessagingDefaults(() => void refresh(botSlug));
     return () => {
       clearInterval(timer);
+      unsubscribe();
       active.current = undefined;
     };
   }, [actions, botSlug]);
@@ -490,11 +523,14 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
     setEditor({ key: editorKey.current, scheduleId });
   };
 
-  const toggle = (schedule: BotScheduleView, enabled: boolean): void => {
+  const change = (
+    schedule: BotScheduleView,
+    patch: { enabled?: boolean; locked?: boolean },
+  ): void => {
     setToggling(schedule.id);
     setLoadError(undefined);
     void actions
-      .updateBotSchedule(botSlug, schedule.id, { enabled })
+      .updateBotSchedule(botSlug, schedule.id, patch)
       .then(() => refresh(botSlug))
       .catch((cause: unknown) => setLoadError(errorMessage(cause)))
       .finally(() => setToggling(undefined));
@@ -546,15 +582,6 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
                       size={12}
                     />
                   </span>
-                  {schedule.locked ? (
-                    <span
-                      className="bh-card-glyph"
-                      title={t('schedule.locked')}
-                      aria-label={t('schedule.locked')}
-                    >
-                      <ChannelSidebarIcon name="lock" size={12} />
-                    </span>
-                  ) : null}
                 </>
               }
               meta={
@@ -563,12 +590,34 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
                   : t('schedule.paused')
               }
               trailing={
-                <Switch
-                  checked={schedule.enabled}
-                  disabled={toggling !== undefined}
-                  label={t('schedule.enable', { title: schedule.title })}
-                  onChange={(enabled) => toggle(schedule, enabled)}
-                />
+                <>
+                  <button
+                    type="button"
+                    className="bh-card-action bh-schedule-lock-toggle"
+                    data-locked={schedule.locked ? 'true' : undefined}
+                    aria-pressed={schedule.locked}
+                    disabled={toggling !== undefined}
+                    title={
+                      schedule.locked
+                        ? t('schedule.locked')
+                        : t('schedule.lock', { title: schedule.title })
+                    }
+                    aria-label={
+                      schedule.locked
+                        ? t('schedule.unlock', { title: schedule.title })
+                        : t('schedule.lock', { title: schedule.title })
+                    }
+                    onClick={() => change(schedule, { locked: !schedule.locked })}
+                  >
+                    <ChannelSidebarIcon name={schedule.locked ? 'lock' : 'lock-open'} size={14} />
+                  </button>
+                  <Switch
+                    checked={schedule.enabled}
+                    disabled={toggling !== undefined}
+                    label={t('schedule.enable', { title: schedule.title })}
+                    onChange={(enabled) => change(schedule, { enabled })}
+                  />
+                </>
               }
             />
           ))}
