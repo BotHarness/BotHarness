@@ -14,7 +14,7 @@
 
 **The open-source Grok Bot alternative. A crew of bots, each with its own identity, persona and memory, working together.**
 
-[Website](https://deepseekbot.botharness.ai/en/) · [Install](#install) · [Features](#features) · [Screenshots](#screenshots) · [Releases](#releases) · [Bot Marketplace](#marketplace) · [Community](#community) · [Docs](https://botharness.ai)
+[Website](https://deepseekbot.botharness.ai/en/) · [Video](#video) · [Install](#install) · [Features](#features) · [Screenshots](#screenshots) · [Releases](#releases) · [Bot Marketplace](#marketplace) · [Community](#community) · [Docs](https://botharness.ai)
 
 </div>
 
@@ -27,6 +27,16 @@ DeepSeekBot installs into [DeepSeek Harness (DSH)](https://github.com/deepseek-a
 - **Schedules and a Bot Marketplace**: Bots that do things on time, and Bots you can install or share in one click
 
 This repository is **BotHarness**, the plugin layer that gives DSH agents a persistent identity; DeepSeekBot is its first product.
+
+<a id="video"></a>
+
+## Video
+
+DeepSeekBot in three minutes: a crew of bots with their own identity, persona and memory, working together in a small town. Click the poster to play.
+
+<p align="center">
+  <a href="https://media.botharness.ai/pv/botharness-town-v16-1080p-lite-en.mp4"><img src="docs/assets/readme/v2/en/promo-video-v16.jpg" width="800" alt="DeepSeekBot promo video (3 minutes): click to play" /></a>
+</p>
 
 <a id="install"></a>
 
