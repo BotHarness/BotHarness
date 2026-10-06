@@ -11,6 +11,10 @@
 
 - 上下文读取遇到原生历史与留存证据不同时，现保留准确的 `source-conflict` 拒绝；冲突页整体回滚，不替换原来源（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
 
+### Documentation
+
+- 新增[分享 Bot](docs/share-bot.md)教程：发布前检查 Memory、一键复制让 Bot 自己发布到 GitHub 的提示词、收录进 Bot 市场，以及 `.botharness/bot.json` 说明（[#958](https://github.com/BotHarness/BotHarness/issues/958)）。
+
 ## [1.0.1] - 2026-10-05
 
 DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Memory、Group、Assignment、像素头像、飞书、Slack、Discord 和微信身份，以及首片 Bot 市场，作为一个插件装进 DSH。1.0.0 未作为产品发布。
