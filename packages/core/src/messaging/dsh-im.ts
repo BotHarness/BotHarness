@@ -58,6 +58,8 @@ export interface DshImOutboundService {
       sourceImages?: boolean;
       sourceVoiceTranscripts?: boolean;
       sourceVoiceAudio?: boolean;
+      sourceVideos?: boolean;
+      sourceQuotes?: boolean;
       ordinaryText?: boolean;
       onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
@@ -176,6 +178,35 @@ const inboundSchema = z
         encodeType: z.number().int().nonnegative().max(1000000).optional(),
         sampleRate: z.number().int().nonnegative().max(1000000).optional(),
         bitsPerSample: z.number().int().nonnegative().max(1000000).optional(),
+      })
+      .strict()
+      .optional(),
+    video: z
+      .object({
+        itemId: identifier.optional(),
+        reportedSizeBytes: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+        playLength: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+      })
+      .strict()
+      .optional(),
+    quote: z
+      .object({
+        serverMessageId: identifier.optional(),
+        itemId: identifier.optional(),
+        text: z.string().max(16000).optional(),
+        summary: z.string().max(16000).optional(),
+        attachmentKind: z.enum(['image', 'audio', 'file', 'video']).optional(),
+        partial: z
+          .object({
+            start: z.string().max(16000),
+            end: z.string().max(16000),
+            startIndex: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+            endIndex: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+            digest: z.string().max(128),
+          })
+          .strict()
+          .refine((partial) => partial.endIndex >= partial.startIndex)
+          .optional(),
       })
       .strict()
       .optional(),
@@ -434,6 +465,9 @@ export function createDshImProvider(
               (platform === 'feishu' || info.capabilities.includes('reply-image-fence-checked'))
                 ? { sourceImages: true }
                 : {}),
+              ...(platform === 'weixin' && info.capabilities.includes('source-quote-checked')
+                ? { sourceQuotes: true }
+                : {}),
               ...(platform === 'weixin' &&
               info.capabilities.includes('source-voice-transcript-checked')
                 ? { sourceVoiceTranscripts: true }
@@ -442,6 +476,12 @@ export function createDshImProvider(
               host.fileVersion === 1 &&
               info.capabilities.includes('source-voice-audio-checked')
                 ? { sourceVoiceAudio: true }
+                : {}),
+              ...(platform === 'weixin' &&
+              host.fileVersion === 1 &&
+              info.capabilities.includes('source-video-checked') &&
+              info.capabilities.includes('reply-video-fence-checked')
+                ? { sourceVideos: true }
                 : {}),
               ...(host.echoVersion === 1 &&
               info.capabilities.includes('own-text-echo') &&
@@ -490,11 +530,20 @@ export function createDshImProvider(
                       part.kind === 'attachment' &&
                       !parsed.attachments?.some((item) => item.id === part.id),
                   ) ||
+                  (parsed.quote &&
+                    (platform !== 'weixin' ||
+                      !info.capabilities.includes('source-quote-checked'))) ||
                   (parsed.voice &&
                     !info.capabilities.includes('source-voice-transcript-checked')) ||
                   (parsed.voice &&
                     parsed.attachments?.length &&
-                    !info.capabilities.includes('source-voice-audio-checked'))
+                    !info.capabilities.includes('source-voice-audio-checked')) ||
+                  (parsed.video &&
+                    (platform !== 'weixin' ||
+                      !info.capabilities.includes('source-video-checked') ||
+                      !info.capabilities.includes('reply-video-fence-checked') ||
+                      parsed.attachments?.length !== 1 ||
+                      parsed.attachments[0]?.mediaType !== 'video/unknown'))
                 )
                   throw new MessagingError('untrusted-source');
                 if (
@@ -511,10 +560,17 @@ export function createDshImProvider(
                 )
                   throw new MessagingError('untrusted-source');
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
-                const { attachments, voice, contentParts, ...base } = parsed;
+                const { attachments, voice, video, quote, contentParts, ...base } = parsed;
                 const event: MessagingInboundEvent = {
                   ...base,
                   ...(contentParts ? { contentParts } : {}),
+                  ...(quote === undefined
+                    ? {}
+                    : {
+                        quote: Object.fromEntries(
+                          Object.entries(quote).filter(([, value]) => value !== undefined),
+                        ),
+                      }),
                   ...(voice === undefined
                     ? {}
                     : {
@@ -534,6 +590,13 @@ export function createDshImProvider(
                             ? {}
                             : { durationMs: voice.durationMs }),
                         },
+                      }),
+                  ...(video === undefined
+                    ? {}
+                    : {
+                        video: Object.fromEntries(
+                          Object.entries(video).filter(([, value]) => value !== undefined),
+                        ),
                       }),
                   ...(attachments === undefined
                     ? {}
@@ -726,7 +789,10 @@ export function createDshImProvider(
                   !info.capabilities.includes('reply-file-fence-checked')) ||
                 (platform === 'weixin' &&
                   input.file.mediaType?.startsWith('image/') &&
-                  !info.capabilities.includes('reply-image-fence-checked'))
+                  !info.capabilities.includes('reply-image-fence-checked')) ||
+                (platform === 'weixin' &&
+                  input.file.mediaType?.startsWith('video/') &&
+                  !info.capabilities.includes('reply-video-fence-checked'))
               )
                 throw new MessagingProviderError('capability-unavailable', 'not-started');
               const result = await host.replyFileChecked!(

@@ -62,6 +62,7 @@ export function bridgeChannel(
 }
 
 export function projectBridgeMessage(source: ExternalSource, body: string): ChannelMessage {
+  const senderName = source.event.actor.name?.trim() || undefined;
   return {
     id: source.id,
     at: source.at,
@@ -77,7 +78,7 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
           },
         }
       : {}),
-    author: { kind: 'bridged', source: source.event.actor.name ?? source.event.actor.id },
+    author: { kind: 'bridged', source: senderName ?? source.event.actor.id },
     bridgeOrigin: {
       sourceEventId: source.id,
       platform: source.platform,
@@ -85,6 +86,10 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
       conversationName: source.conversationName,
       messageId: source.event.messageId,
       senderId: source.event.actor.id,
+      ...(senderName ? { senderName } : {}),
+      ...(source.event.mentions.length
+        ? { mentions: source.event.mentions.map((mention) => ({ ...mention })) }
+        : {}),
       ...(source.event.reply.threadId ? { threadId: source.event.reply.threadId } : {}),
     },
   };

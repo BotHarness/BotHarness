@@ -3,6 +3,37 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
+  'pairing.title': 'IM 管理员配对',
+  'pairing.hint':
+    '在当前 Bot 的 Lark 私聊发送 /pair，再在此审核真实账号。申请 10 分钟后过期。配对不会授予 VPS、API 或其他 Bot 的权限。',
+  'pairing.empty': '尚无配对申请。先绑定已连接的 Lark 身份，并为应用启用私聊事件。',
+  'pairing.refresh': '刷新申请',
+  'pairing.actor': '申请人',
+  'pairing.account': '接收账号',
+  'pairing.reference': '申请编号',
+  'pairing.expires': '过期时间',
+  'pairing.approve': '批准所选能力',
+  'pairing.reject': '拒绝申请',
+  'pairing.revoke': '撤销权限',
+  'pairing.none': '未选择能力',
+  'pairing.approveCapability': '批准本次操作',
+  'pairing.rejectCapability': '拒绝操作',
+  'pairing.answerCapability': '回答正式提问',
+  'pairing.rulesCapability': '明确保存审批规则',
+  'pairing.pending': '等待审核',
+  'pairing.approved': '已授权',
+  'pairing.rejected': '已拒绝',
+  'pairing.revoked': '已撤销',
+  'pairing.unavailable': '身份或 Bot 已暂停',
+  'pairing.receiver.off': '配对接收已暂停',
+  'pairing.receiver.connecting': '配对接收正在连接…',
+  'pairing.receiver.receiving': '配对接收已就绪',
+  'pairing.receiver.unavailable': '配对接收不可用，请重新连接身份',
+  'pairing.expired': '已过期',
+  'pairing.unknownName': '平台未提供名称',
+  'pairing.scope': '仅限当前 Bot。聊天接收与管理授权分别配置。',
+  'pairing.error': '申请已变化或审核失败，请刷新后重新核对。',
+
   'defaults.externalWake': '{platform} 普通消息',
 
   'setup.test':
@@ -72,7 +103,7 @@ export const zh = {
   'defaults.count': '默认汇总条数',
   'defaults.seconds': '默认汇总秒数',
   'defaults.authorization':
-    '仅提供已资格验证的 Lark / 飞书和 Slack 群文字设置。全量收件仍需平台权限与实际投递能力；@Bot 继续沿用直接提醒策略。',
+    '支持 Lark / 飞书、Slack 与 Discord 群文字默认设置。全量收件仍需平台权限与实际投递能力；@Bot 继续沿用直接提醒策略。',
   'defaults.scope':
     '修改只影响仍在继承的配置及后续事件。不会绑定账号、扩大群授权、创建连接器、跟进话题或自动回复。',
   'defaults.revision': '当前全局版本：{revision}',
@@ -385,6 +416,9 @@ export const zh = {
   'roster.menu.createChannel': '创建频道',
   'roster.menu.createSection': '创建频道分组',
   'roster.menu.marketplace': 'Bot 市场',
+  'roster.menu.createBot.empty': '从零创建',
+  'roster.menu.createBot.git': '从 GitHub 导入',
+  'roster.menu.createBot.zip': '从 zip 导入',
   'market.title': 'Bot 市场',
   'market.description': '浏览公开 GitHub 仓库分享的 Bot，安装后会成为一个新的 PersonaBot。',
   'market.submit.label': 'GitHub 仓库地址',
@@ -477,8 +511,6 @@ export const zh = {
   'bot.create.description': '名称用于列表和 @；内部身份由系统生成。岗位和简介均可留空。',
   'bot.create.creating': '创建中',
   'bot.create.importing': '正在克隆仓库…',
-  'bot.create.source.label': '记忆来源',
-  'bot.create.source.empty': '从空白创建',
   'bot.create.persona.preset': '人格起点',
   'bot.create.persona.blank': '空白',
   'bot.create.persona.colleague': '同事',
@@ -510,7 +542,6 @@ export const zh = {
 # 互动边界
 与 Human 的关系、需要遵守的设定和希望避开的内容：[填写]。
 `,
-  'bot.create.source.git': '从 Git 仓库导入',
   'bot.create.gitUrl.label': 'Git 仓库地址',
   'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',
   'bot.create.gitUrl.hint':
@@ -532,6 +563,52 @@ export const zh = {
   'bot.create.error.gitUrl': '请输入有效的 HTTPS 或 SSH 仓库地址。',
   'bot.create.error.clone': '克隆失败。请检查仓库地址、网络和 Host 的 Git 凭证。',
   'bot.create.error.cloneTimeout': '克隆超时。请检查网络或改用较小的仓库重试。',
+  'bot.create.gitTitle': '从 GitHub 导入 PersonaBot',
+  'bot.create.gitInSection': '在「{name}」中从 GitHub 导入 PersonaBot',
+  'botZip.import.title': '从 zip 导入 PersonaBot',
+  'botZip.import.inSection': '在「{name}」中从 zip 导入 PersonaBot',
+  'botZip.import.description':
+    '选择别人分享给你的 Bot zip，或你在另一台设备上导出的 zip。导入会创建一个新的 Bot，名称、岗位和头像来自 zip 里的 .botharness/bot.json。',
+  'botZip.import.choose': '选择 zip 文件',
+  'botZip.import.change': '重新选择',
+  'botZip.import.none': '还没有选择文件',
+  'botZip.import.riskTitle': '这是第三方内容',
+  'botZip.import.risk':
+    'zip 里的文件会成为新 Bot 的 Memory，可能包含有害内容或会被 Bot 执行的指令。请只导入你信任的来源。',
+  'botZip.import.submit': '导入',
+  'botZip.import.importing': '正在导入…',
+  'botZip.import.failed': '导入失败：{error}',
+  'botZip.error.invalid': '这不是有效的 zip 文件，或文件已损坏。',
+  'botZip.error.unsafe': 'zip 里有不安全的路径（例如 ../ 或符号链接），已拒绝导入。',
+  'botZip.error.tooLarge': 'zip 太大了：文件和解压后的内容都不能超过 100 MB。',
+  'botZip.error.empty': 'zip 里没有文件。',
+  'botZip.export.title': '分享与导出',
+  'botZip.export.description':
+    '把这个 Bot 的 Memory 文件打包成 zip，发给别人，或在另一台设备上导入。Git 历史可选；会话、IM 绑定和凭证都不会放进去。',
+  'botZip.export.button': '导出 zip',
+  'botZip.export.confirmTitle': '导出 {name}',
+  'botZip.export.confirmBody':
+    '默认包含这个 Bot 当前的全部 Memory 文件（包括还没提交的修改）。取消勾选不想分享的文件或文件夹；.botharness/bot.json 和头像始终包含，被 .gitignore 忽略的文件不会出现在这里。',
+  'botZip.export.warningTitle': '分享前请先检查',
+  'botZip.export.warning':
+    'Memory 里可能记着密码、API Key，或聊天中提到的个人信息。发给别人之前，先确认这些文件里没有不该分享的内容。',
+  'botZip.export.submit': '导出',
+  'botZip.export.exporting': '正在打包…',
+  'botZip.export.failed': '导出失败：{error}',
+  'botZip.export.files': '要导出的文件',
+  'botZip.export.selected': '已选 {count} / {total} 个文件',
+  'botZip.export.selectAll': '全选',
+  'botZip.export.selectNone': '全不选',
+  'botZip.export.always': '始终包含',
+  'botZip.export.expand': '展开 {name}',
+  'botZip.export.collapse': '折叠 {name}',
+  'botZip.export.loading': '正在读取文件列表…',
+  'botZip.export.loadFailed': '读取文件列表失败：{error}',
+  'botZip.export.history': '包含 Git 历史',
+  'botZip.export.historyHint':
+    '带上所有分支、标签和提交记录，导入后可以在「记忆演化」里看到。历史里也有已经删掉的内容，分享前请确认。',
+  'botZip.export.historyPartial':
+    '取消勾选了文件时不能包含 Git 历史，否则别人仍能从历史里看到这些文件。',
   'main.author.human': '你',
   'main.author.system': '系统',
   'main.date.locale': 'zh-CN',
@@ -609,6 +686,7 @@ export const zh = {
   'im.channelTargetHint':
     '外部收件消息进入所选群组；成员可阅读，此绑定 Bot 按群策略收件。内部讨论不会发送到外部。',
   'im.origin': '外部来源',
+  'im.senderNameLabel': '发送人',
   'im.senderLabel': '发送人 ID',
   'bridgeMedia.image': '外部图片',
   'bridgeMedia.enlarge': '放大图片',
@@ -784,6 +862,19 @@ export const zh = {
   'im.voiceTranscriptUnavailableHint':
     '微信未提供这条语音的转写文本。有原始音频时可尝试播放或下载；播放不会识别内容，需要内容时请补发文字。',
   'im.voiceDuration': '{seconds} 秒',
+  'im.quoteNative': '微信提供的引用内容',
+  'im.quoteRetained': '从本地保留记录找到的引用',
+  'im.quoteUnavailable': '引用内容不可用',
+  'im.quoteUnavailableHint':
+    '微信未提供引用正文，或当前授权范围内没有可读取的原始记录。无法判断是否已删除。',
+  'im.quoteSummary': '微信引用摘要：{text}',
+  'im.quotePartial': '微信标记了局部引用；不代表原消息全文。',
+  'im.quoteAttachment': '引用包含 {kind}，此处不自动下载引用附件。',
+  'im.quoteDetails': '引用详情',
+  'im.quoteServerId': '引用的服务器消息 ID：{id}',
+  'im.quoteItemId': '引用内容条目 ID：{id}',
+  'im.contextRetainedExplanation':
+    '仅查询当前授权私聊中已保留的本地来源记录，不是微信远端历史或搜索。下方展示最近返回的一页。',
   'im.voiceItemId': '语音内容 ID：{id}',
   'im.voiceEncoding': '原生编码：{type}',
   'im.voiceSampleRate': '原生采样率：{rate} Hz',
@@ -791,6 +882,12 @@ export const zh = {
   'im.voiceAudioPrepare': '准备播放',
   'im.voiceAudioRetry': '重新准备音频',
   'im.voiceAudioPreparing': '正在准备音频…',
+  'im.videoPlayer': '外部视频',
+  'im.videoLoading': '正在读取视频…',
+  'im.videoPrepare': '加载视频',
+  'im.videoRetry': '重试播放',
+  'im.videoHint': '按需读取原视频；能否播放取决于浏览器的编码支持，不代表模型能理解视频。',
+  'im.videoUnavailable': '视频暂不能播放，可下载原件；请检查权限、文件格式或浏览器编码支持。',
   'im.voiceAudioPlayer': '微信语音播放器',
   'im.voiceAudioHint': '支持的 SILK 语音转换为 24 kHz WAV，仅用于播放或处理，不进行语音识别。',
   'im.voiceAudioUnavailable':
@@ -1864,6 +1961,39 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
+  'pairing.title': 'IM administrator pairing',
+  'pairing.hint':
+    'Send /pair in this Bot’s Lark DM, then review the real account here. Requests expire after 10 minutes. Pairing grants no VPS, API or other-Bot access.',
+  'pairing.empty':
+    'No pairing requests. Bind a connected Lark identity first and enable private-message events for the app.',
+  'pairing.refresh': 'Refresh requests',
+  'pairing.actor': 'Applicant',
+  'pairing.account': 'Receiving account',
+  'pairing.reference': 'Request reference',
+  'pairing.expires': 'Expires',
+  'pairing.approve': 'Approve selected capabilities',
+  'pairing.reject': 'Reject request',
+  'pairing.revoke': 'Revoke authority',
+  'pairing.none': 'No capabilities selected',
+  'pairing.approveCapability': 'Approve once',
+  'pairing.rejectCapability': 'Reject operations',
+  'pairing.answerCapability': 'Answer formal questions',
+  'pairing.rulesCapability': 'Explicitly save approval rules',
+  'pairing.pending': 'Awaiting review',
+  'pairing.approved': 'Authorized',
+  'pairing.rejected': 'Rejected',
+  'pairing.revoked': 'Revoked',
+  'pairing.unavailable': 'Identity or Bot paused',
+  'pairing.receiver.off': 'Pairing receiver paused',
+  'pairing.receiver.connecting': 'Connecting pairing receiver…',
+  'pairing.receiver.receiving': 'Pairing receiver ready',
+  'pairing.receiver.unavailable': 'Pairing receiver unavailable — reconnect the identity',
+  'pairing.expired': 'Expired',
+  'pairing.unknownName': 'Name not supplied by platform',
+  'pairing.scope':
+    'Current Bot only. Chat reception and management authority are configured separately.',
+  'pairing.error': 'The request changed or review failed. Refresh and check it again.',
+
   'defaults.externalWake': '{platform} ordinary messages',
 
   'setup.test':
@@ -1939,7 +2069,7 @@ export const en = {
   'defaults.count': 'Default digest count',
   'defaults.seconds': 'Default digest seconds',
   'defaults.authorization':
-    'Qualified Lark / Feishu and Slack group text only. Full intake still requires platform permission and observed delivery capability. @Bot keeps its direct-address policy.',
+    'Group text defaults for Lark / Feishu, Slack and Discord. Full intake still requires platform permission and observed delivery capability. @Bot keeps its direct-address policy.',
   'defaults.scope':
     'Changes affect inheriting configurations and future events only. They never bind accounts, expand group authorization, create bridges, follow topics or force replies.',
   'defaults.revision': 'Current global revision: {revision}',
@@ -2265,6 +2395,9 @@ export const en = {
   'roster.menu.createChannel': 'Create channel',
   'roster.menu.createSection': 'Create channel section',
   'roster.menu.marketplace': 'Bot Marketplace',
+  'roster.menu.createBot.empty': 'Start empty',
+  'roster.menu.createBot.git': 'Import from GitHub',
+  'roster.menu.createBot.zip': 'Import from zip',
   'market.title': 'Bot Marketplace',
   'market.description':
     'Browse Bots shared as public GitHub repositories. Installing one creates a new PersonaBot.',
@@ -2364,8 +2497,6 @@ export const en = {
     'The name is used in lists and @mentions; the internal identity is generated. Roles and description may stay empty.',
   'bot.create.creating': 'Creating',
   'bot.create.importing': 'Cloning repository…',
-  'bot.create.source.label': 'Memory source',
-  'bot.create.source.empty': 'Start empty',
   'bot.create.persona.preset': 'Persona starting point',
   'bot.create.persona.blank': 'Blank',
   'bot.create.persona.colleague': 'Colleague',
@@ -2399,7 +2530,6 @@ My tone, vocabulary and habits: [fill in]. Characteristic phrases: [fill in].
 # Interaction boundaries
 My relationship with the Human, established lore and topics to avoid: [fill in].
 `,
-  'bot.create.source.git': 'Import Git repository',
   'bot.create.gitUrl.label': 'Git repository URL',
   'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',
   'bot.create.gitUrl.hint':
@@ -2424,6 +2554,54 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
     'Clone failed. Check the URL, network, and Git credentials on the Host.',
   'bot.create.error.cloneTimeout':
     'Clone timed out. Check the network or retry with a smaller repository.',
+  'bot.create.gitTitle': 'Import a PersonaBot from GitHub',
+  'bot.create.gitInSection': 'Import a PersonaBot from GitHub into “{name}”',
+  'botZip.import.title': 'Import a PersonaBot from zip',
+  'botZip.import.inSection': 'Import a PersonaBot from zip into “{name}”',
+  'botZip.import.description':
+    'Choose a Bot zip someone shared with you, or one you exported on another device. Importing creates a new Bot; its name, roles and avatar come from .botharness/bot.json in the zip.',
+  'botZip.import.choose': 'Choose zip file',
+  'botZip.import.change': 'Choose another',
+  'botZip.import.none': 'No file chosen yet',
+  'botZip.import.riskTitle': 'This is third-party content',
+  'botZip.import.risk':
+    'The files in the zip become the new Bot’s Memory and may contain harmful content or instructions the Bot will follow. Only import from sources you trust.',
+  'botZip.import.submit': 'Import',
+  'botZip.import.importing': 'Importing…',
+  'botZip.import.failed': 'Import failed: {error}',
+  'botZip.error.invalid': 'This is not a valid zip file, or it is damaged.',
+  'botZip.error.unsafe':
+    'The zip has unsafe paths (such as ../ or symbolic links), so it was not imported.',
+  'botZip.error.tooLarge':
+    'The zip is too large: the file and its unpacked contents must each stay under 100 MB.',
+  'botZip.error.empty': 'The zip has no files.',
+  'botZip.export.title': 'Share and export',
+  'botZip.export.description':
+    'Pack this Bot’s Memory files into a zip to send to someone or import on another device. Git history is optional; Sessions, IM bindings and credentials are never included.',
+  'botZip.export.button': 'Export zip',
+  'botZip.export.confirmTitle': 'Export {name}',
+  'botZip.export.confirmBody':
+    'Every current Memory file of this Bot is included by default (uncommitted changes too). Untick files or folders you don’t want to share; .botharness/bot.json and the avatar are always included, and files ignored by .gitignore don’t show up here.',
+  'botZip.export.warningTitle': 'Check before you share',
+  'botZip.export.warning':
+    'Memory can hold passwords, API keys, or personal details mentioned in chats. Before you send it to anyone, make sure these files hold nothing you shouldn’t share.',
+  'botZip.export.submit': 'Export',
+  'botZip.export.exporting': 'Packing…',
+  'botZip.export.failed': 'Export failed: {error}',
+  'botZip.export.files': 'Files to export',
+  'botZip.export.selected': '{count} of {total} files selected',
+  'botZip.export.selectAll': 'Select all',
+  'botZip.export.selectNone': 'Select none',
+  'botZip.export.always': 'Always included',
+  'botZip.export.expand': 'Expand {name}',
+  'botZip.export.collapse': 'Collapse {name}',
+  'botZip.export.loading': 'Reading the file list…',
+  'botZip.export.loadFailed': 'Couldn’t read the file list: {error}',
+  'botZip.export.history': 'Include Git history',
+  'botZip.export.historyHint':
+    'Adds every branch, tag and commit, shown under Memory evolution after import. History also holds content that was deleted, so check before you share.',
+  'botZip.export.historyPartial':
+    'Git history can’t be included when files are unticked, because the history would still show those files.',
   'main.author.human': 'You',
   'main.author.system': 'System',
   'main.date.locale': 'en-US',
@@ -2502,6 +2680,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.channelTargetHint':
     'Collected external messages appear in the selected group. Members can read them; this bound Bot receives attention under its group policy. Internal discussion stays local.',
   'im.origin': 'External origin',
+  'im.senderNameLabel': 'Sender',
   'im.senderLabel': 'Sender ID',
   'bridgeMedia.image': 'External image',
   'bridgeMedia.enlarge': 'Enlarge image',
@@ -2690,6 +2869,20 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.voiceTranscriptUnavailableHint':
     'WeChat did not provide a transcript. You can try playback or download the original audio; speech recognition is not configured here. Please send text.',
   'im.voiceDuration': '{seconds} s',
+  'im.quoteNative': 'Quote supplied by WeChat',
+  'im.quoteRetained': 'Quote found in retained local records',
+  'im.quoteUnavailable': 'Quoted content unavailable',
+  'im.quoteUnavailableHint':
+    'WeChat did not supply the quoted body, or no readable original exists in the current authorized records. Deletion cannot be inferred.',
+  'im.quoteSummary': 'WeChat quote summary: {text}',
+  'im.quotePartial': 'WeChat marked a partial quote; this is not the full original message.',
+  'im.quoteAttachment':
+    'Quote contains {kind}; quoted attachments are not downloaded automatically.',
+  'im.quoteDetails': 'Quote details',
+  'im.quoteServerId': 'Quoted server message ID: {id}',
+  'im.quoteItemId': 'Quoted item ID: {id}',
+  'im.contextRetainedExplanation':
+    'Only locally retained sources in the currently authorized private conversation. This is not remote WeChat history or search. The latest returned page is shown below.',
   'im.voiceItemId': 'Voice item ID: {id}',
   'im.voiceEncoding': 'Native encoding: {type}',
   'im.voiceSampleRate': 'Native sample rate: {rate} Hz',
@@ -2697,6 +2890,14 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.voiceAudioPrepare': 'Prepare playback',
   'im.voiceAudioRetry': 'Prepare audio again',
   'im.voiceAudioPreparing': 'Preparing audio…',
+  'im.videoPlayer': 'External video',
+  'im.videoLoading': 'Loading video…',
+  'im.videoPrepare': 'Load video',
+  'im.videoRetry': 'Retry playback',
+  'im.videoHint':
+    'Loads the original on demand. Playback depends on browser codecs and does not imply model video understanding.',
+  'im.videoUnavailable':
+    'Video playback is unavailable. Download the original and check authorization, format or browser codecs.',
   'im.voiceAudioPlayer': 'WeChat voice player',
   'im.voiceAudioHint':
     'Supported SILK is converted to 24 kHz WAV for playback or processing, without speech recognition.',

@@ -224,6 +224,75 @@ _图 5：这是已收件的真实话题消息。Source Event ID 是 BotHarness �
 
 **不要以 Lark 消息旁的绿色 / 灰色已读圆圈判断 Bot 是否收件**。以本地 Inbox 来源记录和实际外部回复为准。
 
+## 7. 在 Lark 私聊申请管理员配对
+
+本次预览需使用 [#1027](https://github.com/BotHarness/BotHarness/issues/1027) 的 `codex/1027-lark-pairing` 版本，构建后通过 `scripts/dev-instance.mjs --im-provider` 启动隔离 Profile。上面的旧 #823 固定版本不含配对功能；不要让生产 Host 与预览实例同时接收同一应用。
+
+当前源码预览先交付 **配对**，为后续 IM 管理建立授权前提。在 Lark 中提交审批决定、回答原生正式提问会由后续功能交付；本页能力选项记录审核通过的人将来可以执行哪些操作。配对不会改变普通聊天的收件配置。
+
+1. 连接并绑定目标 Bot 的 Lark 身份。私聊需要开通 `im:message.p2p_msg:readonly`、订阅 `im.message.receive_v1` 并发布应用版本；只有 `im:message:readonly` 不能开启私聊事件。保留 `im:message:send_as_bot` 用于发送申请回执。
+2. 打开 **Bot 模式 → Bot 名称 → 查看详细 → IM 管理员配对**，确认显示 **配对接收已就绪**。应用账号在线不等于配对接收就绪；同一应用只由一个 Host 接收。
+3. 在应用机器人的 **私聊**里发送纯文本 `/pair`，不用输入 API Token 或复制用户 ID。申请人来自 Lark 提供的真实发送人；群里的命令不能授予管理权限。
+4. 在已登录的 Web 页面点击 **刷新申请**，核对接收账号、申请人与申请编号。需要时展开缩略的申请人 ID 查看完整平台标识；平台未提供名字时，页面会明确说明，不编造姓名。
+5. 在 10 分钟内明确勾选能力，点击 **批准所选能力**，或 **拒绝申请**。默认不勾选任何能力；第一个申请人也不会自动成为管理员。申请编号只用于定位申请，不能作为凭据兑换权限。
+6. 点击 **撤销权限**可立即取消授权，重启不会恢复。之后再发 `/pair` 会产生需要重新审核的新申请。暂停身份或 Bot 时，已有授权暂不可用；Web 仍可撤销这项授权。
+
+审核通过的授权在 Host 重启后保留，范围仅限 **当前 Bot**，不包含其他 Bot、审批人管理、VPS、DSH API 或工作区权限。10 分钟过期时间针对待审申请，已批准授权不受这个计时器影响。普通聊天接收与管理授权分别配置。
+
+审核或刷新失败时，配对区域会在控件旁显示错误提示。请刷新并重新核对当前申请，再决定是否重试；错误不会授予权限。
+
+### #1027：真实配对操作记录
+
+以下截图来自真实 Lark 私聊和源码预览的已登录 Web 操作，使用 DSH `0.2.0-rc.1` 与兼容的固定 Provider。在明确授权的短暂停机窗口中，本机隔离测试 Host 独占现有应用；验证后已恢复生产 Host 及两个 IM 连接。完整申请人 ID 保持折叠。
+
+**刷新并核对申请。** 第一条真实申请没有默认勾选的能力，**批准所选能力**按钮禁用。接收账号已就绪；Lark 未提供申请人的显示名称，页面明确说明。
+
+![真实 Lark 申请等待 Web 审核，默认没有能力](/guides/lark/pairing/after-pending-light.jpg)
+
+**只选择需要授予的能力。** 本例只勾选 **回答正式提问**。Web 批准后显示 **已授权**、这项能力与 **撤销权限**按钮。能力选项记录授权范围；当前配对预览还没有交付从 IM 回答正式提问的交互控件。
+
+![通过真实 Web 操作只授予回答能力](/guides/lark/pairing/after-approved-light.jpg)
+
+[查看同一已授权记录的深色截图](/guides/lark/pairing/after-approved-dark.jpg)。
+
+**重启同一 Host 核对持久化。** 真实冷启动后仍保留原授权记录，能力仍只有 `answer`，接收器自动恢复就绪；没有重新创建或批准申请。
+
+![真实 Host 重启后保留原授权](/guides/lark/pairing/after-restart-approved-dark.jpg)
+
+**再次申请前先撤销。** 点击 **撤销权限**后，真实记录变为 **已撤销**，能力清空，撤销按钮消失。
+
+![通过已登录 Web 撤销真实授权](/guides/lark/pairing/after-revoked-dark.jpg)
+
+**在同一个 Lark 私聊重新发送 `/pair`。** 新申请的编号不同，没有继承权限，批准按钮仍禁用；旧记录保持已撤销。需要再次授权时必须重新审核。本次演示没有批准新申请；这些配对命令在 Operational Database 中没有产生普通 IM Source Event 或 Inbox Admission。
+
+![撤销后真实重新申请，没有继承权限](/guides/lark/pairing/after-repair-dark.jpg)
+
+[查看恢复服务时的浅色截图](/guides/lark/pairing/after-repair-light.jpg)：自动测试窗口结束后，本机 Web 显示连接中断提示和最后观察到的申请状态；这张截图不能证明接收器仍在线。
+
+**验证结束后拒绝新申请。** 恢复生产服务后，本机继续关闭接收器；在已登录 Web 点击 **拒绝申请**，新记录变为 **已拒绝**。旧授权保持撤销，所有测试记录的能力均为空，没有遗留已授权或待审记录。
+
+![关闭本机接收后通过 Web 拒绝剩余测试申请](/guides/lark/pairing/after-rejected-dark.jpg)
+
+**审核窗口过期时**，批准控件消失。下面这条较早的真实申请未获批准便过期；截图时为让生产 Host 独占接收同一应用，本机接收器有意离线。
+
+![已登录 Web Profile 中的真实 Lark 过期配对申请](/guides/lark/pairing/after-expired-light.jpg)
+
+[查看同一过期状态的深色截图](/guides/lark/pairing/after-expired-dark.jpg)。
+
+看不到申请时，检查私聊权限、应用发布、事件订阅、身份和配对接收状态。重新连接身份会重试接收器配置。此处使用的固定 Provider 会由后台监督器自动重连，单次断开应用不能保持测试独占。真实 QA 应使用专用测试应用，或在明确授权的服务停机窗口中完成，随后恢复生产 Host；不要让两个 Host 争用同一应用。
+
+### 配对刷新失败后的恢复
+
+这组补充截图来自合并最新主分支代码后的源码预览，使用全新隔离 Profile，没有连接外部 IM 应用。只停止该本机 Host，制造真实连接失败：点击 **刷新申请** 后，错误显示在配对控件旁，频道连接器与授权仍保持折叠。重启同一本机 Host，再次刷新后错误消失。这验证 Web 失败与恢复，和上面的真实 Lark 申请演示分别留档。
+
+![浅色界面中配对刷新错误显示在控件旁](/guides/lark/pairing/integrated-failed-refresh-light.jpg)
+
+[查看深色失败截图](/guides/lark/pairing/integrated-failed-refresh-dark.jpg)。
+
+![重启隔离 Host 后配对刷新恢复的浅色界面](/guides/lark/pairing/integrated-recovered-light.jpg)
+
+[查看深色恢复截图](/guides/lark/pairing/integrated-recovered-dark.jpg)。
+
 ## 常见问题
 
 | 现象                          | 优先检查                                                                                                      |

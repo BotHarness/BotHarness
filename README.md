@@ -14,7 +14,7 @@
 
 **开源的 GrokBot 平替。一组有各自身份、人格和记忆的 bots，一起做事。**
 
-[官网](https://deepseekbot.botharness.ai) · [安装](#install) · [能力](#features) · [截图](#screenshots) · [版本亮点](#releases) · [Bot 市场](#marketplace) · [社区](#community) · [文档](https://botharness.ai)
+[官网](https://deepseekbot.botharness.ai) · [宣传片](#video) · [安装](#install) · [能力](#features) · [截图](#screenshots) · [版本亮点](#releases) · [Bot 市场](#marketplace) · [社区](#community) · [文档](https://botharness.ai)
 
 </div>
 
@@ -27,6 +27,16 @@ DeepSeekBot 以一个 npm 包装进 [DeepSeek Harness（DSH）](https://github.c
 - **定时任务与 Bot 市场**：让 Bot 按时做事，一键安装或分享别人做好的 Bot
 
 本仓库是 **BotHarness**：为 DSH agent 提供持久身份的插件层，DeepSeekBot 是它的首个产品。
+
+<a id="video"></a>
+
+## 宣传片
+
+3 分钟看懂 DeepSeekBot：一组有身份、人格和记忆的 bots，在小镇里一起做事。点击封面即可播放。
+
+<p align="center">
+  <a href="https://media.botharness.ai/pv/botharness-town-v16-1080p-lite-zh.mp4"><img src="docs/assets/readme/v2/zh/promo-video-v16.jpg" width="800" alt="DeepSeekBot 宣传片（3 分钟）：点击播放" /></a>
+</p>
 
 <a id="install"></a>
 
@@ -57,7 +67,7 @@ dsh web
 | **Bot 市场**                | 从 [Bot 市场](https://market.botharness.ai) 一键安装别人分享的 Bot，或把自己的 Bot 发布到 GitHub 分享出去。                |
 | **Assignments 委派**        | 授予 Workspace 后，Bot 可以委派独立的 Assignment，各自保留 Session 与报告；需要你回答或批准时，侧栏会显示待办数。          |
 | **自己的 IM 身份**          | 在飞书 / Lark、Slack、Discord 和微信里绑定 Bot 自己的身份，被 @ 时在原话题里回复；微信私聊还能收发文件和图片。             |
-| **更新提示**                | 安装或升级后显示这一版的更新内容；Bot 设置里能看到当前版本，一键检查 npm 上的新版本。                                      |
+| **更新提示**                | 安装或升级后显示这一版的更新内容；Bot 设置里能看到当前版本，检查 npm 上的新版本并一键安装、重启。                          |
 | **Computer 与 Browser use** | 操作共享桌面（需要 Docker）或受管浏览器，你能实时观看，也能暂停它的浏览器操作。源码版可选。                                |
 
 <a id="screenshots"></a>
@@ -124,13 +134,13 @@ PersonaBot 的 Memory 是一个普通 Git 工作树。笔记、人格、代码�
 
 [Bot 市场](https://market.botharness.ai) 收录公开 GitHub 仓库里分享的 Bot。在 Bot 模式的消息列表点 **+ → Bot 市场**，按话题或关键词浏览，点「安装」后会先显示来源仓库和最新提交，提醒这是第三方内容；确认后它的 Memory 仓库被克隆成你的一个新 PersonaBot。也可以把仓库地址贴进去，立即收录。
 
-想分享自己的 Bot：先检查它的 Memory 里没有不该公开的内容，再按 [分享 Bot 教程](docs/share-bot.zh.md) 让 Bot 自己发布到 GitHub，加上 `botharness-bot` 话题即可上架。DeepSeekBot 会在每个 Bot 的 Memory 里自动维护 `.botharness/bot.json`（名称、岗位、头像），所以市场里显示的和你侧栏里的一致。
+想分享自己的 Bot：先检查它的 Memory 里没有不该公开的内容，再按 [分享 Bot 教程](docs/share-bot.zh.md) 让 Bot 自己发布到 GitHub，加上 `botharness-bot` 话题即可上架。DeepSeekBot 会在每个 Bot 的 Memory 里自动维护 `.botharness/bot.json`（名称、岗位、头像），所以市场里显示的和你侧栏里的一致。不想公开的话，也可以在 Bot 资料页导出 zip 直接发给对方，见 [导出与导入 Bot](docs/bot-zip.zh.md)。
 
 <a id="updates"></a>
 
 ## 更新与更新日志
 
-首次安装后，以及每次升级后第一次打开 Bot 模式，DeepSeekBot 会弹出这一版（或你上次看过之后所有版本）的更新内容。**设置 → Bot 设置 → DeepSeekBot 版本** 显示当前版本，「检查更新」会查询 npm；有新版本时列出新内容和更新命令。完整记录见 [官网更新日志](https://deepseekbot.botharness.ai/changelog/) 和仓库里的 [CHANGELOG](CHANGELOG.zh.md)。
+首次安装后，以及每次升级后第一次打开 Bot 模式，DeepSeekBot 会弹出这一版（或你上次看过之后所有版本）的更新内容。**设置 → Bot 设置 → DeepSeekBot 版本** 显示当前版本，「检查更新」会查询 npm；有新版本时列出新内容，可以一键安装并重启 DSH，步骤见 [更新 DeepSeekBot](docs/update-deepseekbot.zh.md)。完整记录见 [官网更新日志](https://deepseekbot.botharness.ai/changelog/) 和仓库里的 [CHANGELOG](CHANGELOG.zh.md)。
 
 <a id="computer-and-browser-use"></a>
 
@@ -178,12 +188,13 @@ _复用 [Browser profile 验证](https://github.com/BotHarness/BotHarness/pull/6
 
 每个版本的核心变化，完整条目见 [CHANGELOG](CHANGELOG.zh.md) 和 [官网更新日志](https://deepseekbot.botharness.ai/changelog/)。
 
-| 版本                        | 核心内容                                                                                                                                                                                                               |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **下一版**（未发布）        | Bot **定时任务**：在侧栏手动新建，或让 Bot 自己建、改、删，锁定后 Bot 不能改；Channel 侧栏的会话、收件箱、工作区授权统一为**卡片样式**；每个 Bot 的 Memory 自动维护 `.botharness/bot.json`；微信私聊支持收发**图片**。 |
-| **1.0.2**（2026-10-06）     | 安装和升级后显示**更新内容**，Bot 设置里**检查 npm 新版本**；新增 [分享 Bot 教程](docs/share-bot.zh.md)；上下文读取保留准确的 `source-conflict` 拒绝。                                                                 |
-| **1.0.1**（2026-10-05）     | 首个 npm **正式版**：拥有各自身份的 PersonaBots、Git Memory、Group、Assignment、像素头像，飞书 / Lark、Slack、Discord 和微信身份（微信私聊可收发文件），以及首版 **Bot 市场**。1.0.0 未作为产品发布。                  |
-| 开发历史（截至 2026-09-20） | 首个版本之前的基础：PersonaBot 身份与文件记忆、Bot 模式的频道外壳与名册、从 Git 仓库创建 Bot、在 Host 上打开记忆文件，以及双语文档站。                                                                                 |
+| 版本                        | 核心内容                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **下一版**（未发布）        | 微信原始**语音**可准备后播放；Discord 的外部平台默认值可独立保存，由 Profile 设置继承。                                                                                                                                                                                                                                                                           |
+| **1.1.0**（2026-10-06）     | Bot **定时任务**（侧栏新建，或让 Bot 自己建、改、删，锁定后 Bot 不能改）；每个 Session 都带上 Bot 的 **Soul 与核心记忆**（`SOUL.md` + `MEMORY.md`，见 [教程](docs/soul-and-core-memory.zh.md)）；Bot 设置里**一键更新并重启**；Channel 侧栏统一为**卡片样式**；微信支持**语音转写**和**图片**；Memory 自动维护 `.botharness/bot.json`；可关闭的**匿名使用统计**。 |
+| **1.0.2**（2026-10-06）     | 安装和升级后显示**更新内容**，Bot 设置里**检查 npm 新版本**；新增 [分享 Bot 教程](docs/share-bot.zh.md)；上下文读取保留准确的 `source-conflict` 拒绝。                                                                                                                                                                                                            |
+| **1.0.1**（2026-10-05）     | 首个 npm **正式版**：拥有各自身份的 PersonaBots、Git Memory、Group、Assignment、像素头像，飞书 / Lark、Slack、Discord 和微信身份（微信私聊可收发文件），以及首版 **Bot 市场**。1.0.0 未作为产品发布。                                                                                                                                                             |
+| 开发历史（截至 2026-09-20） | 首个版本之前的基础：PersonaBot 身份与文件记忆、Bot 模式的频道外壳与名册、从 Git 仓库创建 Bot、在 Host 上打开记忆文件，以及双语文档站。                                                                                                                                                                                                                            |
 
 <a id="dsh"></a>
 

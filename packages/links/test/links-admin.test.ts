@@ -165,6 +165,27 @@ describe('admin pages', () => {
     expect(sqlite.prepare('SELECT COUNT(*) AS n FROM campaigns').get()).toEqual({ n: 0 });
   });
 
+  it('derives a campaign slug from its name and a link slug from platform and media', async () => {
+    const { post, page } = await signedIn();
+    const created = await post('/admin/campaigns', { slug: '', name: 'PH Launch 2026' });
+    expect(created.headers.get('location')).toBe(
+      '/admin/campaigns/ph-launch-2026?ok=Campaign+created.',
+    );
+    const link = await post('/admin/links', {
+      campaign: 'ph-launch-2026',
+      slug: '',
+      platform: 'x',
+      media: 'post',
+      path: '/',
+      language: 'zh',
+    });
+    expect(link.headers.get('location')).toContain(
+      'Created+https%3A%2F%2Fgo.botharness.ai%2Fx-post',
+    );
+    const detail = await (await page('/admin/campaigns/ph-launch-2026')).text();
+    expect(detail.indexOf('New link')).toBeLessThan(detail.indexOf('<h2>Links</h2>'));
+  });
+
   it('creates a campaign with two links, shows short URLs and click counts', async () => {
     const { post, page, request } = await signedIn();
     const created = await post('/admin/campaigns', { slug: 'ph-launch', name: 'PH launch' });
@@ -197,6 +218,20 @@ describe('admin pages', () => {
     expect(detail).toContain('data-copy="https://go.botharness.ai/ph-x-post"');
     expect(detail).toContain('data-copy="https://go.botharness.ai/ph-bili"');
     expect(detail).toContain('3 clicks across 2 links');
+    expect(detail).toContain('data-chart="daily"');
+    expect(detail).toContain('data-chart="links"');
+    expect(detail).toContain('<script type="module" src="/admin/assets/admin-charts.js">');
+    const data = JSON.parse(
+      /<script type="application\/json" id="chart-data">([\s\S]*?)<\/script>/.exec(detail)?.[1] ??
+        '{}',
+    ) as { days: string[]; links: { link: string; clicks: number }[] };
+    expect(data.days).toHaveLength(30);
+    expect(data.links).toEqual(
+      expect.arrayContaining([
+        { link: 'ph-x-post', clicks: 2 },
+        { link: 'ph-bili', clicks: 1 },
+      ]),
+    );
     expect(detail).toContain(
       'href="https://deepseekbot.botharness.ai/en/docs/overview/?utm_campaign=ph-launch&amp;utm_source=x&amp;utm_medium=post&amp;utm_content=ph-x-post"',
     );
@@ -251,7 +286,9 @@ describe('admin pages', () => {
     const html = await created.text();
     const token = /value="(bhl_[A-Za-z0-9_-]{43})"/.exec(html)?.[1];
     expect(token).toBeDefined();
-    expect(html).toContain('shown only once');
+    expect(html).toContain('only its hash is stored');
+    expect(html).toContain('<dialog open data-modal');
+    expect(html).toContain('bh-links login');
 
     const later = await (await page('/admin')).text();
     expect(later).not.toContain(token as string);

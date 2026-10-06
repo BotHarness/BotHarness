@@ -22,6 +22,8 @@ The first Bot Marketplace lists public GitHub repositories instead of hosting up
 
 ## Phase 2 — accounts and uploaded Bots
 
+> Superseded by [ADR-0135](0135-a-bot-moves-between-people-as-a-zip-of-its-memory-files.md) (2026-10-06): no accounts; one Bot moves between people as a Bot Zip.
+
 Better Auth (latest) adds Email OTP sign-up, Passkey sign-in and Google sign-in; signing in is required to upload, favorite and record imports, and requires accepting terms covering privacy of Memory content and liability for installing third-party Bots. Signed-in users can upload a Bot from their local harness — defaulting to the Bot's name and avatar, editable, with tags — for users who do not use GitHub. Imports through the Marketplace button produce completed-import receipts, shown alongside favorite counts; users can view their favorites. The hosted publication contract of #18 (full committed Memory Git repository, excluded internal refs, fresh local identity, read-only Git remote, withdrawal, author-confirmed license, honest metric naming) remains the target for this phase and is re-sliced from #17 after Phase 1 ships.
 
 ## Considered Options

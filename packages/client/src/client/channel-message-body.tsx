@@ -1,4 +1,5 @@
 import { BridgeImage } from './bridge-image.js';
+import { ExternalMessageText } from './external-message-text.js';
 import { MessageAttachment } from './message-attachment.js';
 import { useMemo, useRef, useState, type ReactElement } from 'react';
 
@@ -686,7 +687,11 @@ export function ChannelMessageBody({
           media.parts.map((part, index) =>
             part.kind === 'text' ? (
               <span key={index} className="bh-bubble-body">
-                {part.text}
+                <ExternalMessageText
+                  text={part.text}
+                  mentions={message.bridgeOrigin!.mentions ?? []}
+                  chip
+                />
               </span>
             ) : (
               renderImage(part.id, index)
@@ -694,7 +699,15 @@ export function ChannelMessageBody({
           )
         ) : (
           <>
-            {message.body ? <div className="bh-bubble-body">{message.body}</div> : null}
+            {message.body ? (
+              <div className="bh-bubble-body">
+                <ExternalMessageText
+                  text={message.body}
+                  mentions={message.bridgeOrigin!.mentions ?? []}
+                  chip
+                />
+              </div>
+            ) : null}
             {media.items.map((image, index) => renderImage(image.id, index))}
           </>
         )}
@@ -805,7 +818,17 @@ export function ChannelMessageBody({
             ) : run.channelRef !== undefined ? (
               renderChannelRef(run.channelRef, index)
             ) : (
-              <span key={index}>{run.text}</span>
+              <span key={index}>
+                {message.author.kind === 'bridged' ? (
+                  <ExternalMessageText
+                    chip
+                    text={run.text}
+                    mentions={message.bridgeOrigin?.mentions ?? []}
+                  />
+                ) : (
+                  run.text
+                )}
+              </span>
             ),
           )}
         </div>

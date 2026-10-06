@@ -136,6 +136,7 @@ function stubActions(): BridgeActions {
     messagingSource: vi.fn(async () => {
       throw new Error('unexpected source read');
     }),
+    pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: vi.fn(async () => ({ accounts: [], grants: [], intents: [] })),
     messagingTargets: vi.fn(async () => []),
@@ -361,6 +362,9 @@ function stubActions(): BridgeActions {
     })),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
+    importBotZip: vi.fn(async () => BOT),
+    botZipFiles: vi.fn(async () => ({ files: [], always: [] })),
+    exportBotZip: vi.fn(async () => undefined),
     createGroup: vi.fn(async () => undefined),
     renameChannel: vi.fn(async () => true),
     setHumanNickname: vi.fn(async () => true),
@@ -837,6 +841,16 @@ describe('bot sidebar rows', () => {
       'Bot 市场',
     ]);
     expect(menu.items[0]?.['disabled']).toBeUndefined();
+    expect(
+      (menu.items[0]?.['submenu'] as Array<Record<string, unknown>>).map((item) => [
+        item['id'],
+        item['label'],
+      ]),
+    ).toEqual([
+      ['bot:empty', '从零创建'],
+      ['bot:git', '从 GitHub 导入'],
+      ['bot:zip', '从 zip 导入'],
+    ]);
     expect(markup).toContain('还没有 PersonaBot');
     expect(markup).toContain('创建第一个 PersonaBot');
     expect(markup).toContain('散装渠道');

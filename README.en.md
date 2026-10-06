@@ -14,7 +14,7 @@
 
 **The open-source Grok Bot alternative. A crew of bots, each with its own identity, persona and memory, working together.**
 
-[Website](https://deepseekbot.botharness.ai/en/) · [Install](#install) · [Features](#features) · [Screenshots](#screenshots) · [Releases](#releases) · [Bot Marketplace](#marketplace) · [Community](#community) · [Docs](https://botharness.ai)
+[Website](https://deepseekbot.botharness.ai/en/) · [Video](#video) · [Install](#install) · [Features](#features) · [Screenshots](#screenshots) · [Releases](#releases) · [Bot Marketplace](#marketplace) · [Community](#community) · [Docs](https://botharness.ai)
 
 </div>
 
@@ -27,6 +27,16 @@ DeepSeekBot installs into [DeepSeek Harness (DSH)](https://github.com/deepseek-a
 - **Schedules and a Bot Marketplace**: Bots that do things on time, and Bots you can install or share in one click
 
 This repository is **BotHarness**, the plugin layer that gives DSH agents a persistent identity; DeepSeekBot is its first product.
+
+<a id="video"></a>
+
+## Video
+
+DeepSeekBot in three minutes: a crew of bots with their own identity, persona and memory, working together in a small town. Click the poster to play.
+
+<p align="center">
+  <a href="https://media.botharness.ai/pv/botharness-town-v16-1080p-lite-en.mp4"><img src="docs/assets/readme/v2/en/promo-video-v16.jpg" width="800" alt="DeepSeekBot promo video (3 minutes): click to play" /></a>
+</p>
 
 <a id="install"></a>
 
@@ -48,17 +58,17 @@ Open **Bot mode**, create a PersonaBot, DM it, then start a Group and invite mem
 
 ## Every Bot is a colleague
 
-| Feature                      | What you get                                                                                                                                                |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lasting identity**         | Each PersonaBot keeps its own name, role, Soul (SOUL.md) and pixel avatar across chats, Sessions and Workspaces.                                            |
-| **Git Memory you can see**   | A Bot's memory is a plain Git working tree. Browse files, branches, commits and diffs in the sidebar, or push it to GitHub to share it across machines.     |
-| **Groups**                   | Messages keep each Bot's identity, and you @ whoever you need. Each member picks every message, digest, mentions only or silent.                            |
-| **Schedules**                | Have a Bot do something every few minutes, every hour or every day. Add one in the sidebar or just ask the Bot; once you lock it, the Bot can only read it. |
-| **Bot Marketplace**          | Install a Bot someone shared on the [Bot Marketplace](https://market.botharness.ai) in one click, or publish your own Bot to GitHub.                        |
-| **Assignments**              | Grant a Workspace and a Bot can delegate independent Assignments, each with its own Session and report; the sidebar counts what needs your answer.          |
-| **Their own IM identity**    | Bind a Bot to its own identity in Lark / Feishu, Slack, Discord and WeChat; it replies in the original thread when mentioned. WeChat DMs carry files too.   |
-| **Update notes**             | After an install or update, Bot mode shows what changed; Bot settings show your version and check npm for a newer one.                                      |
-| **Computer and Browser use** | Drive a shared desktop (needs Docker) or a managed browser while you watch live and can pause it. Optional in source builds.                                |
+| Feature                      | What you get                                                                                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Lasting identity**         | Each PersonaBot keeps its own name, role, Soul (SOUL.md) and pixel avatar across chats, Sessions and Workspaces.                                             |
+| **Git Memory you can see**   | A Bot's memory is a plain Git working tree. Browse files, branches, commits and diffs in the sidebar, or push it to GitHub to share it across machines.      |
+| **Groups**                   | Messages keep each Bot's identity, and you @ whoever you need. Each member picks every message, digest, mentions only or silent.                             |
+| **Schedules**                | Have a Bot do something every few minutes, every hour or every day. Add one in the sidebar or just ask the Bot; once you lock it, the Bot can only read it.  |
+| **Bot Marketplace**          | Install a Bot someone shared on the [Bot Marketplace](https://market.botharness.ai) in one click, or publish your own Bot to GitHub.                         |
+| **Assignments**              | Grant a Workspace and a Bot can delegate independent Assignments, each with its own Session and report; the sidebar counts what needs your answer.           |
+| **Their own IM identity**    | Bind a Bot to its own identity in Lark / Feishu, Slack, Discord and WeChat; it replies in the original thread when mentioned. WeChat DMs carry files too.    |
+| **Update notes**             | After an install or update, Bot mode shows what changed; Bot settings show your version, check npm for a newer one, and install it and restart in one click. |
+| **Computer and Browser use** | Drive a shared desktop (needs Docker) or a managed browser while you watch live and can pause it. Optional in source builds.                                 |
 
 <a id="screenshots"></a>
 
@@ -124,13 +134,13 @@ Tell a Bot "every morning at 9, read the logs and send me a summary" and it crea
 
 The [Bot Marketplace](https://market.botharness.ai) lists Bots shared as public GitHub repositories. In Bot mode, click **+ → Bot Marketplace** next to Messages and browse by topic or keyword. Install first shows the source repository and its latest commit and reminds you it's third-party content; confirm and its Memory repository is cloned into a new PersonaBot. You can also paste a repository URL to list it right away.
 
-To share your own Bot, check its Memory for anything private, then follow the [Share a Bot guide](docs/share-bot.md) to have the Bot publish itself to GitHub and add the `botharness-bot` topic. DeepSeekBot keeps `.botharness/bot.json` (name, roles, avatar) up to date in every Bot's Memory, so the Marketplace shows the same Bot you see in your sidebar.
+To share your own Bot, check its Memory for anything private, then follow the [Share a Bot guide](docs/share-bot.md) to have the Bot publish itself to GitHub and add the `botharness-bot` topic. DeepSeekBot keeps `.botharness/bot.json` (name, roles, avatar) up to date in every Bot's Memory, so the Marketplace shows the same Bot you see in your sidebar. To hand a Bot over without publishing it, export a zip from the Bot profile instead; see [Export and import a Bot](docs/bot-zip.md).
 
 <a id="updates"></a>
 
 ## Updates and changelog
 
-After the first install, and the first time you open Bot mode after each update, DeepSeekBot shows what changed in this version (or in every version since the one you last saw). **Settings → Bot settings → DeepSeekBot version** shows your version; **Check for updates** asks npm and, when there's something newer, lists what's new and the update command. The full record is on the [website changelog](https://deepseekbot.botharness.ai/en/changelog/) and in [CHANGELOG.md](CHANGELOG.md).
+After the first install, and the first time you open Bot mode after each update, DeepSeekBot shows what changed in this version (or in every version since the one you last saw). **Settings → Bot settings → DeepSeekBot version** shows your version; **Check for updates** asks npm and, when there's something newer, lists what's new and installs it and restarts DSH in one click; see [Update DeepSeekBot](docs/update-deepseekbot.md). The full record is on the [website changelog](https://deepseekbot.botharness.ai/en/changelog/) and in [CHANGELOG.md](CHANGELOG.md).
 
 <a id="computer-and-browser-use"></a>
 
@@ -178,12 +188,13 @@ Every Bot's default avatar is generated from its name: the same name gives the s
 
 The core of each version; every entry is in [CHANGELOG.md](CHANGELOG.md) and on the [website changelog](https://deepseekbot.botharness.ai/en/changelog/).
 
-| Version                     | Highlights                                                                                                                                                                                                                                                                    |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Next** (unreleased)       | Bot **Schedules**: create them in the sidebar, or let a Bot create them itself and change or delete any you haven't locked; Sessions, Bot Inbox and Workspace Grants share one **card design**; each Bot's Memory keeps `.botharness/bot.json`; WeChat DMs handle **images**. |
-| **1.0.2** (2026-10-06)      | **What's new** after an install or update, and an **npm update check** in Bot settings; the [Share a Bot](docs/share-bot.md) guide; context reads keep precise `source-conflict` refusals.                                                                                    |
-| **1.0.1** (2026-10-05)      | First **stable** npm release: PersonaBots with their own identity, Git Memory, Groups, Assignments, pixel avatars, Lark / Feishu, Slack, Discord and WeChat identities (with files in WeChat DMs), and the first **Bot Marketplace**. 1.0.0 was not released as a product.    |
-| Development (to 2026-09-20) | The groundwork before the first release: PersonaBot identity and file Memory, the Bot mode channel shell and roster, creating a Bot from a Git repository, opening Memory files on the Host, and the bilingual docs site.                                                     |
+| Version                     | Highlights                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Next** (unreleased)       | WeChat original **voice** can be prepared for playback; Discord external-platform defaults can be saved on their own and are inherited by Profile settings.                                                                                                                                                                                                                                                                                                                                          |
+| **1.1.0** (2026-10-06)      | Bot **Schedules** (create them in the sidebar, or let a Bot create, change or delete any you haven't locked); every Session starts with the Bot's **Soul and Core Memory** (`SOUL.md` + `MEMORY.md`, see the [guide](docs/soul-and-core-memory.md)); **one-click update and restart** in Bot settings; one **card design** across the Channel sidebar; WeChat **voice transcripts** and **images**; each Bot's Memory keeps `.botharness/bot.json`; **anonymous usage statistics** you can turn off. |
+| **1.0.2** (2026-10-06)      | **What's new** after an install or update, and an **npm update check** in Bot settings; the [Share a Bot](docs/share-bot.md) guide; context reads keep precise `source-conflict` refusals.                                                                                                                                                                                                                                                                                                           |
+| **1.0.1** (2026-10-05)      | First **stable** npm release: PersonaBots with their own identity, Git Memory, Groups, Assignments, pixel avatars, Lark / Feishu, Slack, Discord and WeChat identities (with files in WeChat DMs), and the first **Bot Marketplace**. 1.0.0 was not released as a product.                                                                                                                                                                                                                           |
+| Development (to 2026-09-20) | The groundwork before the first release: PersonaBot identity and file Memory, the Bot mode channel shell and roster, creating a Bot from a Git repository, opening Memory files on the Host, and the bilingual docs site.                                                                                                                                                                                                                                                                            |
 
 <a id="dsh"></a>
 

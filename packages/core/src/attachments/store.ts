@@ -79,6 +79,14 @@ export function sniffAttachmentMime(b: Uint8Array): string {
     (ascii(0, 9) === '#!SILK_V3' || (b[0] === 2 && ascii(1, 10) === '#!SILK_V3'))
   )
     return 'audio/silk';
+  if (
+    b.length >= 16 &&
+    ascii(4, 8) === 'ftyp' &&
+    new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(0) >= 16 &&
+    new DataView(b.buffer, b.byteOffset, b.byteLength).getUint32(0) <= b.byteLength &&
+    ['isom', 'iso2', 'mp41', 'mp42', 'avc1'].includes(ascii(8, 12))
+  )
+    return 'video/mp4';
   if (b.length >= 5 && ascii(0, 5) === '%PDF-') return 'application/pdf';
   if (b.length === 0) return 'application/octet-stream';
   try {

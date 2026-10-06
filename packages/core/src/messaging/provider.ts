@@ -35,6 +35,22 @@ export interface MessagingVoice {
   bitsPerSample?: number;
 }
 
+export interface MessagingVideo {
+  itemId?: string;
+  reportedSizeBytes?: number;
+  playLength?: number;
+}
+
+export interface MessagingQuote {
+  serverMessageId?: string;
+  itemId?: string;
+  text?: string;
+  summary?: string;
+  attachmentKind?: 'image' | 'audio' | 'file' | 'video';
+  partial?: { start: string; end: string; startIndex: number; endIndex: number; digest: string };
+}
+export type MessagingContextScope = MessagingHistoryScope | 'retained' | 'retained-nearby';
+
 export interface MessagingInboundEvent {
   version: 1;
   channel: 'feishu' | 'slack' | 'discord' | 'weixin';
@@ -51,6 +67,8 @@ export interface MessagingInboundEvent {
   attachments?: MessagingAttachment[];
   contentParts?: MessagingContentPart[];
   voice?: MessagingVoice;
+  video?: MessagingVideo;
+  quote?: MessagingQuote;
   reply: MessagingReplyRoute;
   replay: { kind: 'provider-redelivery'; resumeCursor: false; gapPossible: true };
 }

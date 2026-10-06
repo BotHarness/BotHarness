@@ -1,0 +1,320 @@
+{
+  "issue": 1016,
+  "implementationCommit": "50be667493011d84c5d7109ba22f908c25aa17db",
+  "authorization": "Existing QA Bot, guild text channel and public thread only. Agent-operated real E2E authorized by Human; Message Content stayed OFF. Original policies and theme restored.",
+  "migration": {
+    "canonical": {
+      "messaging_bindings": {
+        "count": 1,
+        "sha256": "30023ba945eb40a6ef444c04a34e8e7ca51607c4ab53f4110f259738209cf267"
+      },
+      "messaging_grants": {
+        "count": 1,
+        "sha256": "46cb9b6eaf6d9150554740802c983d3bdb184cea5770317a89d64297a09ab7d6"
+      },
+      "source_events": {
+        "count": 31,
+        "sha256": "087d960dee35ba7b22b1863631be3dbb4d1f7a393b197924c5d3107cd6c10703"
+      },
+      "inbox_admissions": {
+        "count": 13,
+        "sha256": "5de02f071b82196dea1283bb6ee471efc03322b76f9d1e4fa3715e2028c1d0e2"
+      },
+      "messaging_outbox": {
+        "count": 9,
+        "sha256": "ad946fe23dd7b5e237b78e063c31631da2a5f8ee710404ff982ebc881f72f758"
+      },
+      "channel_placements": {
+        "count": 2,
+        "sha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+      }
+    },
+    "immutableRowsRetained": true,
+    "discord": {
+      "platform": "discord",
+      "collection": "mentions",
+      "wake": "digest",
+      "count": 5,
+      "intervalSeconds": 30,
+      "identityEnabled": true,
+      "revision": 0,
+      "changedAt": ""
+    }
+  },
+  "ui": {
+    "actualSaveAndReload": true,
+    "savedCount": 2,
+    "savedIntervalSeconds": 90,
+    "otherPlatformDirtyDraftPreserved": true,
+    "beforeImageSize": [1230, 876],
+    "afterImageSize": [1230, 820],
+    "note": "Actual browser captures. Each light/dark pair uses the same viewport and values; browser height changed between baseline and candidate."
+  },
+  "isolation": {
+    "otherPlatformsUnchanged": true,
+    "staleWriteRefused": true,
+    "currentRevision": 6,
+    "pausedMessageNotBackfilled": true
+  },
+  "group": {
+    "saved": {
+      "platform": "discord",
+      "collection": "mentions",
+      "wake": "silent",
+      "count": 2,
+      "intervalSeconds": 90,
+      "identityEnabled": true,
+      "revision": 2,
+      "changedAt": "2026-10-06T13:46:38.703Z"
+    },
+    "restored": {
+      "collection": "mentions",
+      "wake": "immediate",
+      "count": 5,
+      "intervalSeconds": 30,
+      "inheritance": "custom",
+      "revision": 7,
+      "changedAt": "2026-10-06T13:46:54.353Z",
+      "editor": {
+        "kind": "human"
+      },
+      "defaultRevision": 4
+    },
+    "liveInheritance": true,
+    "customPreserved": true
+  },
+  "paused": {
+    "native": {
+      "appFlags": 0,
+      "id": "1557026466758271026",
+      "mentions": ["1556613973846007899"],
+      "content": "<@1556613973846007899> DISCORD-1016-PAUSED: synthetic paused-identity sentinel cedar-82. No reply requested."
+    },
+    "canonicalUnchanged": true,
+    "noBackfillAfterResume": true
+  },
+  "custom": {
+    "turn": 11,
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "off"
+    },
+    "native": {
+      "requestId": "1557026924637716744",
+      "replyId": "1557026976412340276",
+      "replyTo": "1557026924637716744",
+      "thread": "1556622420222283798",
+      "text": "DISCORD-1016-CUSTOM-OK:cedar-82",
+      "ownBot": true
+    },
+    "sourceEventId": "im-28df017e2fde76391381381c5b19d3ea8d6b2d4c73febff9e9f5ba001126b03e",
+    "defaultRevision": 5,
+    "receptionRevision": 7,
+    "admission": {
+      "reason": "group-mention",
+      "state": "handled",
+      "externalDefaultRevision": 5
+    },
+    "tools": [
+      {
+        "name": "bridge_read",
+        "callId": "call_00_9fSE8Yh7DNu49OBBxnZK8863",
+        "arguments": "{\"source_event_id\": \"im-28df017e2fde76391381381c5b19d3ea8d6b2d4c73febff9e9f5ba001126b03e\"}",
+        "succeeded": true
+      },
+      {
+        "name": "bridge_reply",
+        "callId": "call_00_J2tKiOfJzJcL7JCWEZLl2507",
+        "arguments": "{\"source_event_id\": \"im-28df017e2fde76391381381c5b19d3ea8d6b2d4c73febff9e9f5ba001126b03e\", \"text\": \"DISCORD-1016-CUSTOM-OK:cedar-82\"}",
+        "succeeded": true
+      }
+    ],
+    "delta": {
+      "messaging_bindings": 0,
+      "messaging_grants": 0,
+      "source_events": 1,
+      "inbox_admissions": 1,
+      "messaging_outbox": 1,
+      "channel_placements": 0
+    }
+  },
+  "inherited": {
+    "turn": 12,
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "off"
+    },
+    "native": {
+      "requestId": "1557027428151468144",
+      "replyId": "1557027468903456802",
+      "replyTo": "1557027428151468144",
+      "thread": "1556622420222283798",
+      "text": "DISCORD-1016-INHERITED-OK:cedar-82",
+      "ownBot": true
+    },
+    "sourceEventId": "im-cd19b8b93b4d515721fb60dd2c0f0a22ff037704a47232ee6abeab7d50ed5b9a",
+    "defaultRevision": 6,
+    "receptionRevision": 8,
+    "admission": {
+      "reason": "group-mention",
+      "state": "handled",
+      "externalDefaultRevision": 6
+    },
+    "tools": [
+      {
+        "name": "bridge_read",
+        "callId": "call_00_iezkUTa2y0hdHMlwrbMz9010",
+        "arguments": "{\"source_event_id\": \"im-cd19b8b93b4d515721fb60dd2c0f0a22ff037704a47232ee6abeab7d50ed5b9a\"}",
+        "succeeded": true
+      },
+      {
+        "name": "bridge_reply",
+        "callId": "call_00_n4cq6uThWTKpGC6iA8F29521",
+        "arguments": "{\"source_event_id\": \"im-cd19b8b93b4d515721fb60dd2c0f0a22ff037704a47232ee6abeab7d50ed5b9a\", \"text\": \"DISCORD-1016-INHERITED-OK:cedar-82\"}",
+        "succeeded": true
+      }
+    ],
+    "delta": {
+      "messaging_bindings": 0,
+      "messaging_grants": 0,
+      "source_events": 1,
+      "inbox_admissions": 1,
+      "messaging_outbox": 1,
+      "channel_placements": 0
+    }
+  },
+  "integrated": {
+    "turn": 13,
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "off"
+    },
+    "native": {
+      "requestId": "1557030688593813585",
+      "replyId": "1557030745552195658",
+      "replyTo": "1557030688593813585",
+      "thread": "1556622420222283798",
+      "text": "DISCORD-1016-INTEGRATED-OK:cedar-82",
+      "ownBot": true
+    },
+    "sourceEventId": "im-6961c238b1c3dddf31432040d7ba33ab058a7a70e43ae644ded0ffa1af296ea6",
+    "defaultRevision": 11,
+    "receptionRevision": 11,
+    "admission": {
+      "reason": "group-mention",
+      "state": "handled",
+      "externalDefaultRevision": 11
+    },
+    "tools": [
+      {
+        "name": "bridge_read",
+        "callId": "call_00_GznDsTrDTl5x3yBIl0RM9695",
+        "arguments": "{\"source_event_id\": \"im-6961c238b1c3dddf31432040d7ba33ab058a7a70e43ae644ded0ffa1af296ea6\"}",
+        "succeeded": true
+      },
+      {
+        "name": "bridge_reply",
+        "callId": "call_00_0UhG4NPu3lsIwzgk62H99968",
+        "arguments": "{\"source_event_id\": \"im-6961c238b1c3dddf31432040d7ba33ab058a7a70e43ae644ded0ffa1af296ea6\", \"text\": \"DISCORD-1016-INTEGRATED-OK:cedar-82\"}",
+        "succeeded": true
+      }
+    ],
+    "delta": {
+      "messaging_bindings": 0,
+      "messaging_grants": 0,
+      "source_events": 1,
+      "inbox_admissions": 1,
+      "messaging_outbox": 1,
+      "channel_placements": 0
+    }
+  },
+  "ordinaryOff": {
+    "globalCollection": "all",
+    "groupCustomPreserved": true,
+    "nativeId": "1557029475277869087",
+    "nativeBodyLength": 0,
+    "mentions": 0,
+    "messageContent": false,
+    "ordinaryDelivery": "unverified",
+    "canonicalUnchanged": true
+  },
+  "restoration": {
+    "canonical": {
+      "messaging_bindings": {
+        "count": 1,
+        "sha256": "3eb558653dd994194097824ccaf80bd3a8c47c03fcadc4486d9d443d53c11c0c"
+      },
+      "messaging_grants": {
+        "count": 1,
+        "sha256": "ef6feb59a5c02782552b219f5699c2c833a342b6d73155c7025ffc99528e668f"
+      },
+      "source_events": {
+        "count": 34,
+        "sha256": "0c21f3725216f403500e08365fa71b06459f7afa4b29f56271ee6b3353bc9974"
+      },
+      "inbox_admissions": {
+        "count": 16,
+        "sha256": "0082e238382fb09fe767e60f0205515798c983543fb3a00237a610ec32413448"
+      },
+      "messaging_outbox": {
+        "count": 12,
+        "sha256": "d166213978396d0f5e544d96156de594232337cf8df841c699f3cbf9c7dc6176"
+      },
+      "channel_placements": {
+        "count": 2,
+        "sha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+      }
+    },
+    "messageContent": false,
+    "identityCustom": true,
+    "groupCustom": true,
+    "priorImmutableRowsPreserved": true,
+    "canPost": false
+  },
+  "coldBoot": {
+    "scopeRetained": true,
+    "canonicalUnchanged": true,
+    "workspaceWrite": false,
+    "defaults": {
+      "platform": "discord",
+      "collection": "mentions",
+      "wake": "digest",
+      "count": 5,
+      "intervalSeconds": 30,
+      "identityEnabled": true,
+      "revision": 12,
+      "changedAt": "2026-10-06T14:04:58.852Z"
+    },
+    "identity": {
+      "available": "available",
+      "inheritance": "custom"
+    },
+    "ordinaryDelivery": "unverified"
+  },
+  "workspaceWrite": false,
+  "runtime": {
+    "core": "50be667493011d84c5d7109ba22f908c25aa17db",
+    "provider": "345b63f75ad8acc5b7e42eaab5a4eefdbffed683",
+    "artifactSha256": "b5fa453a9b2b6e544cb1d20f20b64415728b1e2333440b1f9ca00e796aa9024e",
+    "pid": 91622,
+    "api": {
+      "status": 200,
+      "ok": true
+    },
+    "coreArtifactSha256": "973c95d7b27b1a8ccfc3a5e36d2372221e76a706778587f9a1ac64053f19b3b7",
+    "clientArtifactSha256": "ff9ca26d2e92df56eef69c561f0cfaef2fa1c6ab63ce0fe615dfb4bf752b096c"
+  },
+  "validation": {
+    "focusedTests": 24,
+    "fullTests": 2904,
+    "skippedTests": 9,
+    "lint": true,
+    "format": true,
+    "typecheck": true,
+    "build": true,
+    "changelog": true
+  }
+}

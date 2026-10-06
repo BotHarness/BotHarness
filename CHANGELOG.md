@@ -5,12 +5,25 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-WeChat original voice can be downloaded and prepared for playback.
+WeChat original voice can be prepared for playback, native quotes and retained local context can be read, native video can be played and returned through a checked media path, Discord defaults can be saved independently and inherited by Profile settings, and a Bot can be exported as a zip and imported as a new Bot elsewhere.
 
 ### Added
 
 - Added a candidate Lark image preview in original Channel bubbles, preserving native text/image order, visible-only loading, enlargement and current Channel/source authorization; forwards the image opt-in through the account consumer boundary; stopping reception retains acquired images while unbind/revocation refuses the affected path ([#1021](https://github.com/BotHarness/BotHarness/issues/1021), [guide](docs/lark-connection.md)).
+- PersonaBots can read native WeChat quoted text or resolve a missing quote from currently authorized retained private-conversation records; source details distinguish native, retained and unavailable content, and bounded local context reads support cursor continuation without claiming remote WeChat history ([#908](https://github.com/BotHarness/BotHarness/issues/908), [guide](docs/wechat-connection.md)).
+
+- Added Lark private `/pair` requests with authenticated Web review, explicit Bot-scoped capabilities and revocation that survives restart; pairing messages stay outside the Bot Inbox and Memory, while IM decision controls follow separately ([#1027](https://github.com/BotHarness/BotHarness/issues/1027), [guide](docs/lark-connection.md), [ADR-0136](docs/adr/0136-lark-pairing-is-reviewed-bot-scoped-operational-authority.md)).
+- Added a checked personal WeChat video path with on-demand source playback/download and own-identity native video replies, preserving private routing and current authorization; browser playback and tool access remain distinct from video-model understanding ([#907](https://github.com/BotHarness/BotHarness/issues/907), [guide](docs/wechat-connection.md)).
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
+- Discord now has independent external-platform defaults for group intake, ordinary wake thresholds and inherited identity availability. Profile custom choices remain independent; restoring inheritance uses the current Discord defaults. Existing Lark/Slack history and overrides are preserved on upgrade. ([#1016](https://github.com/BotHarness/BotHarness/issues/1016))
+- A Bot can now be handed to someone else as a zip. **Create PersonaBot** opens a submenu with **Start empty**, **Import from GitHub** and **Import from zip**. The Bot profile's **Share and export** section packs the Bot's Memory files, uncommitted changes included, with `.botharness/bot.json` and its avatar, after a reminder to check for secrets; Git history, Sessions, IM bindings and credentials stay out. Importing a zip shows the third-party content notice and creates a fresh Bot with one initial commit and the name, roles and avatar from the zip; unsafe paths, damaged archives and zips over 100 MB are refused and leave nothing behind ([#1062](https://github.com/BotHarness/BotHarness/issues/1062), [ADR-0135](docs/adr/0135-a-bot-moves-between-people-as-a-zip-of-its-memory-files.md)).
+- Exporting a Bot zip now lets you pick files. The export window lists every Memory file and folder, all ticked by default, with expand, collapse, **Select all** and **Select none**; unticked files stay out of the zip, while `.botharness/bot.json` and the avatar are always included ([#1063](https://github.com/BotHarness/BotHarness/issues/1063)).
+- Exporting a Bot zip can now **Include Git history**, carrying every branch, tag and commit; it is offered only when every file is ticked. Importing such a zip keeps those branches, tags and history and checks out the exported branch, with no remote and none of the source machine's Git config ([#1064](https://github.com/BotHarness/BotHarness/issues/1064)).
+- Added the [Export and import a Bot](docs/bot-zip.md) guide: what a Bot zip holds, choosing files and Git history on export, importing a zip, and the safety reminders before sharing and importing; the Share a Bot and Memory files guides link to it ([#1065](https://github.com/BotHarness/BotHarness/issues/1065)).
+
+### Fixed
+
+- Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ## [1.1.0] - 2026-10-06
 

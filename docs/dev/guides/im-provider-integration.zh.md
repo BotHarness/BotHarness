@@ -166,8 +166,24 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 
 原生 `voice_item.text` 可缺失。不得暗中用 ASR 补齐、从附带说明伪造转写、暴露媒体密钥，或在没有独立 checked 音频能力时提供播放器／下载。缺失转写必须明确呈现。未完成／生成中的消息及多项歧义消息不会由此候选收件。首次真实测试提供了平台转写和 7,377 毫秒时长，但沿用的 QA Session 保留上一轮不回复指令；该次仅证明收件，不能证明回复送达。新 QA Session 中的第二条原生语音提供 5,180 毫秒时长，真实 DeepSeek Flash 模型调用 `bridge_read` 与 `bridge_reply`，自身身份 Outbox 被平台接受，Human 确认在原微信私聊收到“蓝色灯塔37”。浅色／深色截图呈现同一来源。这证明 checked 平台转写路径，不是 BotHarness 自行识别音频。
 
+## 受检查的原生视频（#907）
+
+独立协商 `sourceVideos`，并同时要求 `source-video-checked` 与 `reply-video-fence-checked`。保留原生视频项 ID 与平台报告值，不猜测语义：此次收件的 `video_size` 等于解密字节数，官方发送实现却填写加密长度，因此使用 `reportedSizeBytes`；`playLength` 保留原值，不假设单位。不能为了重命名字段改写已有 canonical 证据。
+
+来源播放与处理沿用既有 checked Attachment 路径，原件上限 25 MiB，私有 CDN 票据和密钥留在 Provider。保守核对 MP4 字节后显示浏览器原生控件，不自动播放，保留正文，提供拒绝／重试，关闭时取消请求并释放 Blob URL。播放器、文件检查或模型自述不代表理解视频。结果单独导入 canonical 附件，由行动 Bot 使用当前身份与原 Source 路由回传，在上传后、发送前再次检查授权；Provider 接受不能代替接收端送达证据。
+
+本机安装候选已验证真实视频收件、输入字节完全一致、原生播放，以及经审批的模型文件处理，生成三秒 H.264 结果。Human 已确认原生视频送达，接收端截图呈现相同画面的三秒结果；未宣称接收端下载后的字节完全一致。详见带图[视频指南](../../wechat-connection.zh.md#9-接收原生视频并回传视频结果)。更广的 Channel 历史媒体渲染属于独立切片。
+
 ## Discord nearby 开发切片 — #981
 
 下一个隔离 Provider 候选在来源的原生频道或准确公开 thread 中实现 `bridge_context(nearby)`：读取前后五分钟；消息稀疏时，补足所请求的前后 Human 文本最小条数（默认 10／5）。锚点独立于两侧计数；密集窗口需要有界续页，已耗尽的稀疏历史允许少于最小条数，不等待未来消息。签名 cursor 保留固定查询快照，每次成功续页续期 30 分钟；每次读取均检查当前权限和授权。
 
 [#981](https://github.com/BotHarness/BotHarness/issues/981) 跟踪自动化和真实模型资格验证。代理执行的真实模型原生资格验证已在 Core `7edd33e0`／Provider `5ae8bb3b` 通过：三页（11／0／5 条文本）、16 条唯一 Human 文本、准确原 thread 原生回复，无历史 Admission，临时 Message Content 已完整恢复 OFF。最终冷重启保留六张 canonical 表全部字节相同。详见[有界证据报告](../verification/discord-981-nearby-context.zh.md)。产品 Provider pin 和 history／nearby／topic 组合行资格保持不变；不增加普通消息收件或 thread 订阅。
+
+## 原生引用与本地保留上下文（#908）
+
+独立协商 `sourceQuotes`／`source-quote-checked`。分开保留一层原生 `serverMessageId`、`itemId`、内嵌正文、显示摘要、附件类型和局部引用信息；数字 `svr_id` 在 JavaScript 精度丢失前按 JSON 原始字面量保存。去掉 continuation token、媒体密钥和嵌套引用。相同 canonical 原生消息的引用发生改变时，返回来源冲突。
+
+正文缺失时，只由 Messaging 解析：同一当前账号指纹／私聊的可读 canonical Source Event，或带真实服务器回执的已接受 Outbox。不能用 Provider standalone Session 历史、时间就近猜测、客户端确认、摘要或条目 ID 替代。Client／模型区分原生正文、本地解析与不可用；不可用不能证明远端已删除，引用也不是 Thread。
+
+`retained`／`retained-nearby` 沿用 `bridge_context`，明确返回 `coverage: retained-local-sources`，不修改远端 Provider history 契约。Keyset 分页固定首次 canonical 记录边界；进程内 opaque cursor 绑定 Bot、来源、Grant revision、身份指纹、范围与条数。每页重新核对自身身份、当前 Grant／lease 和 Provider 检查结果，在锚点 Source Event 记录有界读取审计，不创建新 Admission 或唤醒。记录／条数限制、过期／重启、字符预算恢复与本地覆盖缺口均应明确。它不是微信远端历史／搜索；原生引用变体以实际收件为证，合成回归不能证明当前客户端的线上字段形状。

@@ -1,0 +1,54 @@
+{
+  "issue": 1061,
+  "checkedAt": "2026-10-06T15:58:44.784Z",
+  "baselineCore": "a81ba50e953b20635ca38e0f182d18923f92a292",
+  "coreLive": "ebf32245cb629ce9bf26d7566f38f1abfc9bd931",
+  "provider": "345b63f75ad8acc5b7e42eaab5a4eefdbffed683",
+  "history": {
+    "oldMessages": 4,
+    "namedExternalMessages": 3,
+    "canonicalTablesUnchangedAcrossRestart": true,
+    "authorityUnchangedAcrossRestart": true
+  },
+  "fresh": {
+    "requestId": "1557058625653047328",
+    "replyId": "1557058680258822307",
+    "sourceEventId": "im-134588095b7ef910ec1c003555a0b284c40d0f289f1c330a90362429141a0b49",
+    "senderName": "DoodleBear",
+    "senderId": "552307579322236939",
+    "threadId": "1556622420222283798",
+    "sourceCount": 1,
+    "admissions": 1,
+    "placements": 1,
+    "intents": 1,
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "off"
+    },
+    "tools": [
+      {
+        "name": "bridge_read",
+        "isError": false
+      },
+      {
+        "name": "bridge_reply",
+        "isError": false
+      }
+    ],
+    "exactReplyReference": true
+  },
+  "restored": {
+    "temporaryBridgeCount": 0,
+    "originalIdentityAndGrantExactlyEqual": true,
+    "messageContent": false,
+    "canPost": false,
+    "theme": "system",
+    "retainedMessages": 5
+  },
+  "limits": [
+    "Names are retained Provider snapshots; older sources without a native name still use an ID fallback.",
+    "No new Discord permissions, native username lookup, identity matching by name or product Provider pin change.",
+    "Lark name parity is covered by production-shaped fixtures and Client rendering, not a fresh external Lark E2E."
+  ]
+}

@@ -141,11 +141,12 @@ it('preserves text/image/text order inside one bubble without rendering native t
           conversationName: 'QA',
           messageId: 'message',
           senderId: 'actor',
+          mentions: [{ id: 'external-user', key: '@_user_1', name: 'Jamie' }],
         },
         bridgeMedia: {
           items: [{ id, kind: 'image', name: 'image' }],
           parts: [
-            { kind: 'text', text: '**Before**' },
+            { kind: 'text', text: '**Before** @_user_1' },
             { kind: 'attachment', id },
             { kind: 'text', text: 'After' },
           ],
@@ -159,6 +160,12 @@ it('preserves text/image/text order inside one bubble without rendering native t
   );
   expect(container.innerHTML.indexOf('data-media-id')).toBeLessThan(
     container.innerHTML.indexOf('After'),
+  );
+  expect(container.querySelector('[data-external-mention-id="external-user"]')?.textContent).toBe(
+    '@Jamie',
+  );
+  expect(container.innerHTML.indexOf('@Jamie')).toBeLessThan(
+    container.innerHTML.indexOf('data-media-id'),
   );
   expect(fetchImage).not.toHaveBeenCalled();
 });

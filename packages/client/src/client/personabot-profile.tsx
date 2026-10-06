@@ -22,6 +22,7 @@ import type { BotHarnessTranslate } from './locale.js';
 import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
 import { ModelPresetProfile } from './model-preset-profile.js';
 import { StandingLimitsProfile } from './standing-limits-profile.js';
+import { BotZipExportSection } from './bot-zip.js';
 import { SourcePolicyTable } from './source-policy-table.js';
 import type { ProfileCardRegistry } from './profile-cards.js';
 import type { BotSummary, ChannelSummary } from './store.js';
@@ -426,6 +427,7 @@ export function ProfileView({
       )}
       <ModelPresetProfile key={bot.slug} slug={bot.slug} actions={actions} t={t} />
       <StandingLimitsProfile key={`standing-${bot.slug}`} bot={bot} actions={actions} t={t} />
+      <BotZipExportSection key={`zip-${bot.slug}`} bot={bot} actions={actions} t={t} />
       <MessagingProfile key={`im-${bot.slug}`} slug={bot.slug} actions={actions} t={t} />
       <ChannelBridgeTable
         channelId={channel.id}

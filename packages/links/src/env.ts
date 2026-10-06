@@ -10,6 +10,7 @@ export interface LinksEnv {
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUD?: string;
   ADMIN_DEV_EMAIL?: string;
+  ASSETS?: { fetch(request: Request): Promise<Response> };
 }
 
 export type Principal = { kind: 'bootstrap' } | { kind: 'token'; id: string; scope: Scope };

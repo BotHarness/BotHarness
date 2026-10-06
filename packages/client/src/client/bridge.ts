@@ -1,3 +1,5 @@
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
 import { parsePublicAttention } from './activity-attention.js';
 import {
   isAvatarAppearance,
@@ -1417,6 +1419,106 @@ export async function createPersonaBot(
   const bot = parseBotSummary(asRecord(value)?.['bot']);
   if (bot === undefined) throw new Error('invalid create response');
   return bot;
+}
+
+function botZipUrl(path: string, params: Record<string, string>): string {
+  const url = new URL(`./api/botharness/${path}`, document.baseURI);
+  url.search = new URLSearchParams(params).toString();
+  return url.href;
+}
+
+async function botZipError(response: Response): Promise<BridgeCallError> {
+  let code = response.status === 413 ? 'too-large' : 'unavailable';
+  let message = `Bot zip request failed (${response.status})`;
+  try {
+    const error = asRecord(asRecord(await response.json())?.['error']);
+    if (typeof error?.['code'] === 'string') code = error['code'];
+    if (typeof error?.['message'] === 'string') message = error['message'];
+  } catch {}
+  return new BridgeCallError(code, message);
+}
+
+function attachmentFileName(header: string | null, fallback: string): string {
+  const encoded = /filename\*=UTF-8''([^;]+)/iu.exec(header ?? '')?.[1];
+  if (encoded !== undefined) {
+    try {
+      return decodeURIComponent(encoded);
+    } catch {}
+  }
+  return fallback;
+}
+
+export async function importBotZip(file: File, signal?: AbortSignal): Promise<BotSummary> {
+  const response = await fetch(botZipUrl('bot-zip/import', { name: file.name }), {
+    method: 'POST',
+    headers: { 'content-type': 'application/zip' },
+    body: file,
+    credentials: 'same-origin',
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  const bot = parseBotSummary(asRecord(await response.json())?.['bot']);
+  if (bot === undefined) throw new Error('invalid Bot zip import response');
+  return bot;
+}
+
+export interface BotZipFileListing {
+  files: Array<{ path: string; size: number }>;
+  always: string[];
+}
+
+export async function loadBotZipFiles(
+  slug: string,
+  signal?: AbortSignal,
+): Promise<BotZipFileListing> {
+  const response = await fetch(botZipUrl('bot-zip/files', { slug }), {
+    credentials: 'same-origin',
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  const value = asRecord(await response.json());
+  const files: BotZipFileListing['files'] = [];
+  for (const item of Array.isArray(value?.['files']) ? value['files'] : []) {
+    const entry = asRecord(item);
+    if (typeof entry?.['path'] === 'string' && typeof entry['size'] === 'number') {
+      files.push({ path: entry['path'], size: entry['size'] });
+    }
+  }
+  const always = Array.isArray(value?.['always'])
+    ? value['always'].filter((path): path is string => typeof path === 'string')
+    : [];
+  return { files, always };
+}
+
+export interface BotZipExportChoice {
+  include?: readonly string[];
+  history?: boolean;
+}
+
+export async function downloadBotZip(
+  slug: string,
+  fallbackName: string,
+  choice: BotZipExportChoice = {},
+  signal?: AbortSignal,
+): Promise<{ blob: Blob; name: string }> {
+  const { include } = choice;
+  const query = include === undefined ? { slug, ...(choice.history ? { history: '1' } : {}) } : {};
+  const response = await fetch(botZipUrl('bot-zip', query), {
+    credentials: 'same-origin',
+    ...(include === undefined
+      ? {}
+      : {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ slug, include }),
+        }),
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  return {
+    blob: await response.blob(),
+    name: attachmentFileName(response.headers.get('content-disposition'), `${fallbackName}.zip`),
+  };
 }
 
 export async function loadMarketplacePage(
@@ -3235,6 +3337,23 @@ export async function manageChannelBridge(
 ): Promise<void> {
   await unwrap(call, 'channelBridge', { channelId, input });
 }
+export async function reviewPairing(
+  call: BridgeCall,
+  slug: string,
+  input: PairingReviewInput,
+): Promise<PairingRequest> {
+  const value = asRecord(await unwrap(call, 'pairingReview', { slug, input }));
+  const pairing = asRecord(value?.['pairing']);
+  if (
+    !pairing ||
+    pairing['botSlug'] !== slug ||
+    typeof pairing['id'] !== 'string' ||
+    !Array.isArray(pairing['capabilities']) ||
+    typeof pairing['revision'] !== 'number'
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid pairing review');
+  return pairing as unknown as PairingRequest;
+}
 export async function loadMessagingSnapshot(
   call: BridgeCall,
   slug: string,
@@ -3490,7 +3609,13 @@ export async function readMessagingSource(
         const read = asRecord(value);
         return (
           strings(read, ['at', 'sessionId', 'scope', 'outcome']) &&
-          ['group', 'nearby', 'thread'].includes(String(read?.['scope'])) &&
+          ['group', 'nearby', 'thread', 'retained', 'retained-nearby'].includes(
+            String(read?.['scope']),
+          ) &&
+          (read?.['coverage'] === undefined ||
+            ['provider-visible-human-text', 'retained-local-sources'].includes(
+              String(read['coverage']),
+            )) &&
           ['read', 'refused'].includes(String(read?.['outcome'])) &&
           typeof read?.['incomplete'] === 'boolean' &&
           Number.isInteger(read?.['omitted']) &&
