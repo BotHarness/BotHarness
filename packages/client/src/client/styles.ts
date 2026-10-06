@@ -1716,6 +1716,27 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   color: var(--dsw-alias-state-warning-primary);
   font-size: 13px;
 }
+.bh-bot-zip-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.bh-bot-zip-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-bot-zip-file-name[data-empty] {
+  color: var(--dsw-alias-label-tertiary);
+}
 
 /* Hidden Channel recovery is portaled under body; never depend on .bh-root. */
 .bh-hidden-manager {
