@@ -97,7 +97,7 @@ const STR = {
   hook2: { zh: '为 DeepSeek Harness 而生', en: 'built for DeepSeek Harness' },
   hookMem: { zh: '记忆就是 Git', en: 'Memory is Git' },
   hookIm: { zh: '住进飞书和 Slack', en: 'It lives in Lark and Slack' },
-  hookGroup: { zh: '在群里和你一起干活', en: 'It works with you in Groups' },
+  hookGroup: { zh: '在群里一起干活，头像跟着变', en: 'In Groups, avatars morph as they work' },
   hookMorph: { zh: '头像还会随工作变形', en: 'Its avatar morphs as it works' },
   hookCity: { zh: '一整座有记忆的 bots 小镇', en: 'A whole town of bots with memories' },
   openSource: { zh: '开源 · MIT · 基于 DeepSeek Harness 生态', en: 'Open source · MIT · Built on the DeepSeek Harness ecosystem' },
@@ -1151,7 +1151,7 @@ const BEATS = [
     [2950, NARRATOR, T('slack1')],
     [3150, NARRATOR, T('slack2')],
   ] },
-  { a: 3360, b: 3500, mode: 'gal', ui: 'group', crops: [[3360, 1470, 923, 2940], [3420, 1500, LANG === 'en' ? 745 : 640, LANG === 'en' ? 2400 : 1900]], hl: [[3420, 3460, 1196, 286, 1068, 161], [3460, 3498, 668, 516, 1068, LANG === 'en' ? 778 : 534]], lines: [
+  { a: 3360, b: 3500, mode: 'gal', ui: 'group', crops: [[3360, 1470, 923, 2940], [3400, 1470, 923, 2940], [3420, 1500, LANG === 'en' ? 745 : 640, LANG === 'en' ? 2400 : 1900]], hl: [[3420, 3460, 1196, 286, 1068, 161], [3460, 3498, 668, 516, 1068, LANG === 'en' ? 778 : 534]], lines: [
     [3370, NARRATOR, T('group1')],
   ] },
   { a: 3500, b: 3720, mode: 'gal', ui: 'groupClip', clip: { t0: 0.6, fit: true }, crops: [[3500, 1430, LANG === 'en' ? 1270 : 1360, LANG === 'en' ? 2540 : 2100]], hl: [], lines: [
@@ -1785,6 +1785,7 @@ function renderLegacy(f) {
   renderer.render(hud, hudCam);
   renderer.setScissorTest(false);
   renderMemStage(f, worldW);
+  renderGroupInsert(f);
 }
 
 // ===== master timeline =============================================================
@@ -1793,8 +1794,8 @@ function renderLegacy(f) {
 // then what memory gives you, sharing a Soul, morphs and roleplay, the face wall, ecosystem, town.
 // Legacy rates are set so each narration line (voiceover/script.json) fits under its picture.
 const SEGMENTS = [
-  { id: 'hook', len: 900 }, // HOOK_LEN
-  { id: 'bento', len: 360 }, // BENTO_LEN: the key features around the logo
+  { id: 'hook', len: 660 }, // HOOK_LEN
+  { id: 'bento', len: 240 }, // BENTO_LEN: the key features around the logo
   { id: 'legacy', len: 420, from: 200, rate: 400 / 420 }, // welcome, meet the cast
   { id: 'legacy', len: 620, from: 3360, rate: 140 / 620 }, // Group: like Grok Bot, message and delegate
   { id: 'legacy', len: 740, from: 3500, rate: 220 / 740 }, // Group clip: people, not sessions
@@ -1806,11 +1807,11 @@ const SEGMENTS = [
   { id: 'legacy', len: 300, from: 1420, rate: 140 / 300 }, // memory: a year together
   { id: 'legacy', len: 540, from: 1560, rate: 240 / 540 }, // memory: study and work, rewind
   { id: 'legacy', len: 240, from: 1800 }, // import from a repository
-  { id: 'market', len: 1440, rate: 2160 / 1440 },
-  { id: 'legacy', len: 960, from: 4440, rate: 1360 / 960 }, // morphs and roleplay
-  { id: 'wall', len: 270, rate: 480 / 270 },
+  { id: 'market', len: 1530, rate: 2160 / 1530 },
+  { id: 'legacy', len: 1080, from: 4440, rate: 1360 / 1080 }, // morphs and roleplay
+  { id: 'wall', len: 300, rate: 480 / 300 },
   { id: 'eco', len: 560, rate: 840 / 560 },
-  { id: 'city', len: 640, rate: 1080 / 640 },
+  { id: 'city', len: 760, rate: 1080 / 760 },
   { id: 'end', len: 300 + TOTAL - 10800 },
 ];
 let segStart = 0;
@@ -1889,6 +1890,12 @@ function updateSoulInTown(f) {
 }
 
 // ===== market module v4: follow the Soul up from the town, spread it, converge world lines ==
+const cursorTex = canvasTex(14, 20, (ctx) => {
+  const rows = ['K......', 'KK.....', 'KWK....', 'KWWK...', 'KWWWK..', 'KWWWWK.', 'KWWWWWK', 'KWWKKK.', 'KWK.K..', 'KK..KK.'];
+  rows.forEach((r, y) => [...r].forEach((ch, x) => ch !== '.' && rect(ctx, x * 2, y * 2, 2, 2, ch === 'K' ? INK : '#ffffff')));
+});
+const clickRingTex = canvasTex(40, 40, (ctx) => { for (let a = 0; a < 120; a++) rect(ctx, Math.round(20 + Math.cos((a / 120) * Math.PI * 2) * 18), Math.round(20 + Math.sin((a / 120) * Math.PI * 2) * 18), 2, 2, '#3d5afe'); });
+
 const marketHud = new THREE.Scene();
 const mk = {
   sky: canvasTex(320, 180),
@@ -1946,9 +1953,12 @@ mk.uiFrame = hudPlane(marketHud, frameTex(300, 126, 'DEEPSEEKBOT.BOTHARNESS.AI/M
 mk.uiImg = hudPlane(marketHud, null, 21);
 mk.uiHl = [0, 1, 2, 3].map(() => { const q = hudPlane(marketHud, null, 22); q.material.color.set(PAL.amber); return q; });
 // [from, to, ui, camera keys [t 0..1, centre x, centre y, width] in image px, highlight rect or null]
+// the card the hand picks: zh opens Yuki (Japanese README), en opens Xiaoman (Chinese README)
+const MARKET_PICK = LANG === 'en' ? [1440, 1293] : [2180, 1293];
+const MARKET_COPY = [2372, 970];
 const MARKET_UI = [
   // the site's Bot list: two cards at a time, row by row
-  [470, 730, 'siteMarket', [[0, 1100, 1160, 1450], [0.3, 1820, 1160, 1450], [0.62, 1100, 1700, 1450], [1, 1820, 1700, 1450]], null],
+  [470, 730, 'siteMarket', [[0, 1100, 1160, 1450], [0.22, 1820, 1160, 1450], [0.44, 1100, 1700, 1450], [0.62, 1820, 1700, 1450], [0.78, MARKET_PICK[0], MARKET_PICK[1], 1450], [0.9, MARKET_PICK[0], MARKET_PICK[1], 1450], [1, MARKET_PICK[0], MARKET_PICK[1], 640]], null],
   // the other language's README on purpose: zh shows Yuki's Japanese page, en shows Xiaoman's Chinese one
   [730, 990, 'siteDetail', [[0, 1250, 720, 1800], [0.45, 1250, 1100, 1800], [1, 2050, 1150, 1500]], [1892, 881, 562, 170]], // the repository URL to paste
 ];
@@ -1973,6 +1983,17 @@ function drawMarketUi(m) {
   ui.tex.repeat.set(cw / ui.w, ch / ui.h);
   ui.tex.offset.set(sx / ui.w, 1 - (sy + ch) / ui.h);
   setPlane(mk.uiImg, IA.x, IA.y, IA.w, IA.h, alpha);
+  // the hand: on the list it clicks the picked card before the push; on the detail it copies the URL
+  const toPanel = (ix, iy) => [IA.x + (ix - sx) * (IA.w / cw), IA.y + IA.h - (iy - sy) * (IA.w / cw)];
+  const target = key === 'siteMarket' ? MARKET_PICK : MARKET_COPY;
+  const [hx0, hy0] = key === 'siteMarket' ? [0.66, 0.84] : [0.62, 0.8];
+  if (u >= hx0 - 0.08 && (key !== 'siteMarket' || u < 0.93)) {
+    const [px, py] = toPanel(target[0], target[1]);
+    const t = ease(span(u, hx0 - 0.08, hx0));
+    setPlane(mk.cursor, lerp(300, px, t), lerp(56, py, t), 7, 10, alpha);
+    if (u >= hy0) { const r = span(u, hy0, hy0 + 0.06); setPlane(mk.clickRing, px, py, 8 + r * 22, 8 + r * 22, (1 - r) * alpha); }
+    if (key === 'siteDetail' && u >= hy0) { const s = POP[Math.min(5, Math.floor((m - (a + 10 + hy0 * (b - a - 30))) / 2))] ?? 1; setPlane(mk.toast, px, py + 16, 60 * s, 18 * s, alpha); }
+  }
   if (hl && m >= b - 80) {
     const k = IA.w / cw;
     const [hx, hy, hw, hh] = hl;
@@ -1982,6 +2003,9 @@ function drawMarketUi(m) {
     setPlane(mk.uiHl[2], x - 2, y - 2, 1, h + 4, on); setPlane(mk.uiHl[3], x + w + 1, y - 2, 1, h + 4, on);
   }
 }
+mk.cursor = hudPlane(marketHud, cursorTex, 30, 0, 1);
+mk.clickRing = hudPlane(marketHud, clickRingTex, 29, 0.5, 0.5);
+mk.toast = hudPlane(marketHud, canvasTex(120, 36, (ctx) => { box(ctx, 0, 0, 116, 32, '#1b1820', '#fff2a0'); const t = LANG === 'en' ? 'Copied!' : '已复制'; crispText(ctx, t, 58 - measureCJK(t, 18) / 2, 16, 18, '#fff2a0', 100); }), 31, 0.5, 0.5);
 mk.white = hudPlane(marketHud, null, 50);
 mk.white.material.color.set('#ffffff');
 
@@ -3019,7 +3043,7 @@ function renderVoxel(c, { narration = true } = {}) {
 // ===== hook: a paper puppet theater pitches the product in the first ten seconds =======
 // Hand-cut stickers on wooden sticks, shot like stop-motion: every pose holds for SM frames
 // and jiggles a little, the way a hand-held puppet never stays perfectly still.
-const HOOK_LEN = 900;
+const HOOK_LEN = 660;
 const SM = 4;
 const smStep = (h) => Math.floor(h / SM);
 const smT = (h) => smStep(h) * SM;
@@ -3238,62 +3262,45 @@ function renderHook(h) {
   if (!hk.built) buildHook();
   const t = smT(h);
   legacyRate = 1;
-  // beats follow the narration: each spoken line (voiceover/script.json 00a-00e) starts just after its sign drops
-  const brand = t >= 808;
-  const townUnder = false; // the bento that follows carries the logo out of the brand card
-  if (townUnder) renderLegacy(h - 700);
-  else { renderer.setClearColor('#1b1820'); renderer.clear(); }
+  // beats follow the narration: each spoken line (voiceover/script.json 00a-00d) starts just after its sign drops.
+  // The hook ends on closed curtains; the bento that follows carries the logo out of the dark.
+  renderer.setClearColor('#1b1820'); renderer.clear();
   hideOverlay();
   for (const o of hookHud.children) o.visible = false;
-  if (!brand) {
-    setPlane(hk.bg, 0, 0, 320, 180);
-    setPlane(hk.apron, 0, 0, 320, 40);
-    setPlane(hk.valance, 0, 180, 320, 24);
-    // curtains open at the start and close at the end
-    const open = ease(span(t, 0, 24)) * (1 - ease(span(t, 784, 808)));
-    setPlane(hk.curL, Math.round(-12 - open * 138), 0, 176, 180);
-    setPlane(hk.curR, Math.round(156 + open * 138), 0, 176, 180);
-    // title: "the open-source Grok Bot alternative, built for DeepSeek Harness" (0.4 s)
-    showSign(hk.signs.title, h, 8, 280, 158);
-    showPuppet(hk.mascot, h, 160, 46, 20, 272, { sway: 0.12 });
-    // memory is Git (4.9 s), then Lark and Slack (6.6 s), then a Group (8.7 s)
-    showSign(hk.signs.hookMem, h, 288, 376);
-    showSign(hk.signs.hookIm, h, 388, 500);
-    showSign(hk.signs.hookGroup, h, 512, 648);
-    if (t < 450) showPuppet(hk.mira, h, 104, 50, 288, 370, { sway: 0.05 });
-    else showPuppet(hk.mira, h, 124, 50, 520, 644);
-    if (showPuppet(hk.graphP, h, 210, 54, 292, 370)) drawGraph(t < 300 ? 0 : t < 318 ? 1 : t < 336 ? 2 : t < 354 ? 3 : 4);
-    if (t < 506) showPuppet(hk.nova, h, 100, 50, 388, 496, { sway: 0.05 });
-    else showPuppet(hk.nova, h, 248, 50, 536, 644);
-    showPuppet(hk.lark, h, 200, 52, 396, 496, { sway: 0.1 });
-    showPuppet(hk.slack, h, 250, 48, 404, 496, { sway: 0.1 });
-    showPuppet(hk.human, h, 64, 50, 512, 644);
-    showPuppet(hk.theo, h, 186, 50, 528, 644);
-    const bubbleOn = (b, tex, x, y, a, z) => { if (t >= a && t < z) { b.material.map = tex.tex; b.material.needsUpdate = true; const k = POP[Math.min(5, Math.floor((h - a) / 2))] * 0.75; setPlane(b, x, y, 64 * k, 40 * k); } };
-    bubbleOn(hk.bub[0], hk.bubbles.at, 226, 96, 420, 496);
-    bubbleOn(hk.bub[1], hk.bubbles.ok, 136, 96, 452, 496);
-    bubbleOn(hk.bub[0], hk.bubbles.dots, 80, 96, 552, 592);
-    bubbleOn(hk.bub[1], hk.bubbles.dots, 200, 98, 580, 644);
-    bubbleOn(hk.bub[0], hk.bubbles.ok, 250, 100, 608, 644);
-    // avatars morph as they work (11.2 s)
-    showSign(hk.signs.hookMorph, h, 660, 784);
-    if (showPuppet(hk.morph, h, 160, 38, 664, null, { sway: 0.04 }) && MORPH) {
-      const cells = t < 720 ? morphCells('theo', 'face', 'edit', span(t, 690, 710)) : morphCells('theo', 'edit', 'face', span(t, 730, 750));
-      paintCells(hk.morphSrc, cells, null);
-      stickerCanvas(hk.morphSrc.canvas, 80, 80, { into: hk.morphArt });
-    }
-  } else {
-    if (!townUnder) {
-      setPlane(hk.curL, -12, 0, 176, 180);
-      setPlane(hk.curR, 156, 0, 176, 180);
-      setPlane(hk.valance, 0, 180, 320, 24);
-    }
-    const a = step8(span(h, 808, 820));
-    setPlane(hk.dim, 0, 0, 320, 180, a);
-    setPlane(hk.logo, 160 - 32, 98, 64, 64, a);
-    setPlane(hk.title, 160, 94, 200, 70, a);
-    setPlane(hk.sub, 160, 50, 320, 20, a);
+  setPlane(hk.bg, 0, 0, 320, 180);
+  setPlane(hk.apron, 0, 0, 320, 40);
+  setPlane(hk.valance, 0, 180, 320, 24);
+  // curtains open at the start and close at the end
+  const open = ease(span(t, 0, 24)) * (1 - ease(span(t, 632, 656)));
+  setPlane(hk.curL, Math.round(-12 - open * 138), 0, 176, 180);
+  setPlane(hk.curR, Math.round(156 + open * 138), 0, 176, 180);
+  // title: DeepSeekBot, the open-source Grok Bot alternative (0.4 s)
+  showSign(hk.signs.title, h, 8, 212, 158);
+  showPuppet(hk.mascot, h, 160, 46, 20, 204, { sway: 0.12 });
+  // memory is Git (3.9 s), Lark and Slack (5.4 s), then a Group where avatars morph as they work (7.4 s)
+  showSign(hk.signs.hookMem, h, 220, 304);
+  showSign(hk.signs.hookIm, h, 312, 424);
+  showSign(hk.signs.hookGroup, h, 432, 628);
+  if (t < 380) showPuppet(hk.mira, h, 104, 50, 220, 298, { sway: 0.05 });
+  else showPuppet(hk.mira, h, 124, 50, 440, 624);
+  if (showPuppet(hk.graphP, h, 210, 54, 224, 298)) drawGraph(t < 232 ? 0 : t < 248 ? 1 : t < 264 ? 2 : t < 280 ? 3 : 4);
+  if (t < 428) showPuppet(hk.nova, h, 100, 50, 312, 420, { sway: 0.05 });
+  else showPuppet(hk.nova, h, 248, 50, 456, 624);
+  showPuppet(hk.lark, h, 200, 52, 320, 420, { sway: 0.1 });
+  showPuppet(hk.slack, h, 250, 48, 328, 420, { sway: 0.1 });
+  showPuppet(hk.human, h, 64, 50, 432, 624);
+  // Theo works in the Group, and his face morphs to the tool he is using, then back
+  if (showPuppet(hk.morph, h, 186, 50, 448, 624, { scale: 0.8 }) && MORPH) {
+    const cells = t < 540 ? morphCells('theo', 'face', 'edit', span(t, 488, 508)) : morphCells('theo', 'edit', 'face', span(t, 568, 588));
+    paintCells(hk.morphSrc, cells, null);
+    stickerCanvas(hk.morphSrc.canvas, 80, 80, { into: hk.morphArt });
   }
+  const bubbleOn = (b, tex, x, y, a, z) => { if (t >= a && t < z) { b.material.map = tex.tex; b.material.needsUpdate = true; const k = POP[Math.min(5, Math.floor((h - a) / 2))] * 0.75; setPlane(b, x, y, 64 * k, 40 * k); } };
+  bubbleOn(hk.bub[0], hk.bubbles.at, 226, 96, 344, 420);
+  bubbleOn(hk.bub[1], hk.bubbles.ok, 136, 96, 372, 420);
+  bubbleOn(hk.bub[0], hk.bubbles.dots, 80, 96, 472, 520);
+  bubbleOn(hk.bub[1], hk.bubbles.dots, 200, 98, 500, 624);
+  bubbleOn(hk.bub[0], hk.bubbles.ok, 250, 100, 548, 624);
   renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
   renderer.clearDepth();
   renderer.render(hookHud, hudCam);
@@ -3453,7 +3460,7 @@ function renderMemStage(f, worldW) {
 
 // ===== bento: the logo carries out of the brand card into a grid of the key features =========
 // Cream cards in the site's pixel style; the logo lands in the middle cell, the features pop in around it.
-const BENTO_LEN = 360;
+const BENTO_LEN = 240;
 const bentoHud = new THREE.Scene();
 const bt = { built: false };
 const BENTO = [
@@ -3528,37 +3535,37 @@ function buildBento() {
   }), 20, 0.5, 0.5);
   bt.logo = hudPlane(bentoHud, logoTex, 22, 0.5, 0.5);
   bt.word = hudPlane(bentoHud, canvasTex(200, 16, (ctx) => drawText(ctx, 'DEEPSEEKBOT', 100 - textWidth('DEEPSEEKBOT'), 1, '#ffffff', 2)), 23, 0.5, 0.5);
-  bt.dark = hudPlane(bentoHud, null, 30);
+  bt.dark = hudPlane(bentoHud, null, 18); // above the cards, below the logo that flies out of it
   bt.dark.material.color.set('#1b1820');
   bt.cellCenter = { x: c.x + c.w / 2, y: c.y + c.h / 2 };
 }
 function renderBento(b) {
   if (!bt.built) buildBento();
-  const out = span(b, 300, 336); // cards fold away, then the cream fades into the town
-  if (b >= 320) renderLegacy(140 + (b - 300));
+  const out = span(b, 196, 222); // cards fold away, then the cream fades into the town
+  if (b >= 210) renderLegacy(170 + (b - 210));
   else { renderer.setClearColor('#f5e6bf'); renderer.clear(); }
   hideOverlay();
   for (const o of bentoHud.children) o.visible = false;
-  const bgA = 1 - step8(span(b, 330, 360));
+  const bgA = 1 - step8(span(b, 222, 240));
   setPlane(bt.bg, 0, 0, 320, 180, bgA);
   // the logo flies from the brand card into the middle cell
-  const fly = ease(span(b, 6, 34));
+  const fly = ease(span(b, 12, 34));
   const cc = bt.cellCenter;
-  const lx = lerp(160, cc.x - 26, fly), ly = lerp(130, cc.y + 4, fly), ls = lerp(64, 30, fly);
+  const lx = lerp(160, cc.x - 26, fly), ly = lerp(96, cc.y + 4, fly), ls = lerp(64, 30, fly) * POP[Math.min(5, Math.floor(b / 2))];
   const centerIn = POP[Math.min(5, Math.max(0, Math.floor((b - 26) / 2)))] * (1 - ease(out));
   if (b >= 26 && centerIn > 0.01) setPlane(bt.center, cc.x, cc.y, (BENTO_CELL.w + 4) * centerIn, (BENTO_CELL.h + 4) * centerIn, bgA);
   if (out < 1) {
     setPlane(bt.logo, lx, ly, ls * (1 - ease(out)), ls * (1 - ease(out)), bgA);
     if (b >= 34) setPlane(bt.word, cc.x + 14, cc.y - 2, 100 * (1 - ease(out)), 8 * (1 - ease(out)), bgA);
   }
-  setPlane(bt.dark, 0, 0, 320, 180, 1 - step8(span(b, 0, 18)));
+  setPlane(bt.dark, 0, 0, 320, 180, 1 - step8(span(b, 10, 28)));
   // features pop in clockwise around the logo, then fold back into it
   BENTO_ORDER.forEach((cell, k) => {
     const card = bt.cards[k];
-    const at = 40 + k * 14;
+    const at = 30 + k * 8;
     if (b < at) return;
     const pop = POP[Math.min(5, Math.floor((b - at) / 2))];
-    const fold = ease(span(b, 296 + k * 3, 316 + k * 3));
+    const fold = ease(span(b, 192 + k * 2, 210 + k * 2));
     const r = bentoCell(cell);
     const x = lerp(r.x + r.w / 2, cc.x, fold), y = lerp(r.y + r.h / 2, cc.y, fold);
     const bob = Math.floor((b + k * 9) / 24) % 2;
@@ -3568,6 +3575,95 @@ function renderBento(b) {
   renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
   renderer.clearDepth();
   renderer.render(bentoHud, hudCam);
+}
+
+// ----- hybrid cuts: rebuilt UI motion woven into the real recordings ------------------------
+// A pixel arrow cursor shared by the rebuilt moments, with a click ring.
+// Group: the @ message is typed in a rebuilt composer, sent, and lands where the real chat shows it.
+const GROUP_MSG = {
+  zh: { chips: ['@Mira · 研究', '@Theo · 设计', '@Nova · 构建'], text: '下周评审前对齐一下：Mira 说观众需求，Theo 说布局，Nova 说搭建和验证。先翻一下你们的记忆笔记，再各回一句。' },
+  en: { chips: ['@Mira · Research', '@Theo · Design', '@Nova · Build'], text: "Quick alignment before next week's review: Mira on visitor needs, Theo on layout, Nova on build and checks. Look through your memory notes first, then reply once each." },
+}[LANG];
+const groupInsert = { scene: new THREE.Scene(), built: false };
+function buildGroupInsert() {
+  const g = groupInsert;
+  g.built = true;
+  g.canvas = canvasTex(600, 252);
+  g.card = hudPlane(g.scene, g.canvas, 1, 0.5, 0.5);
+  g.cursor = hudPlane(g.scene, cursorTex, 5, 0, 1);
+  g.ring = hudPlane(g.scene, clickRingTex, 4, 0.5, 0.5);
+  g.key = '';
+}
+function drawComposer(chars, sendLit) {
+  const g = groupInsert;
+  const key = `${chars}|${sendLit}`;
+  if (g.key === key) return;
+  g.key = key;
+  const { ctx } = g.canvas;
+  const W = 600, H = 252;
+  ctx.clearRect(0, 0, W, H);
+  // window chrome in the DSH light theme, scaled up so the typing reads
+  ctx.fillStyle = 'rgba(42,34,48,0.25)'; ctx.beginPath(); ctx.roundRect(8, 10, W - 12, H - 14, 26); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#d9d6de'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(4, 4, W - 14, H - 16, 24); ctx.fill(); ctx.stroke();
+  let x = 30, y = 46;
+  const chipsTotal = GROUP_MSG.chips.join('').length;
+  let left = chars;
+  for (const chip of GROUP_MSG.chips) {
+    if (left <= 0) break;
+    const shown = [...chip].slice(0, left).join('');
+    left -= [...chip].length;
+    const w = measureCJK(shown, 22) + 22;
+    if (x + w > W - 40) { x = 30; y += 44; }
+    ctx.fillStyle = '#e6ebff'; ctx.beginPath(); ctx.roundRect(x, y - 18, w, 36, 10); ctx.fill();
+    crispText(ctx, shown, x + 11, y, 22, '#3d5afe', 110);
+    x += w + 8;
+  }
+  if (left > 0) {
+    const words = [...GROUP_MSG.text].slice(0, left);
+    let line = '';
+    for (const ch of words) {
+      if (measureCJK(line + ch, 22) + x > W - 40) { crispText(ctx, line, x, y, 22, '#1b1820', 110); line = ''; x = 30; y += 40; }
+      line += ch;
+    }
+    crispText(ctx, line, x, y, 22, '#1b1820', 110);
+    if (Math.floor(chars / 3) % 2 === 0) rect(ctx, x + measureCJK(line, 22) + 2, y - 14, 3, 28, '#3d5afe');
+  }
+  // send button
+  ctx.fillStyle = sendLit ? '#3d5afe' : '#c9cbd6'; ctx.beginPath(); ctx.arc(W - 58, H - 52, 24, 0, Math.PI * 2); ctx.fill();
+  rect(ctx, W - 60, H - 64, 4, 24, '#ffffff'); rect(ctx, W - 66, H - 58, 16, 4, '#ffffff'); rect(ctx, W - 64, H - 62, 12, 4, '#ffffff');
+  g.canvas.tex.needsUpdate = true;
+  void chipsTotal;
+}
+// legacy frames 3360-3420 of the Group still: type 3362-3396, press send 3400, fly into the chat 3402-3420
+function renderGroupInsert(f) {
+  if (f < 3360 || f >= 3422) return;
+  const g = groupInsert;
+  if (!g.built) buildGroupInsert();
+  for (const o of g.scene.children) o.visible = false;
+  const total = GROUP_MSG.chips.join('').length + [...GROUP_MSG.text].length;
+  const chars = Math.floor(total * span(f, 3362, 3396));
+  drawComposer(chars, f >= 3398);
+  const fly = ease(span(f, 3402, 3420));
+  // where the real chat shows this message at the end of the push (group.jpg, crop at legacy 3420)
+  const crop = LANG === 'en' ? [1500, 745, 2400] : [1500, 640, 1900];
+  const IA = { x: 11, y: 51, w: 298, h: 115 };
+  const ch = crop[2] * IA.h / IA.w;
+  const k = IA.w / crop[2];
+  const msg = [1196, 286, 1068, 161];
+  const tx = IA.x + (msg[0] + msg[2] / 2 - (crop[0] - crop[2] / 2)) * k;
+  const ty = IA.y + IA.h - (msg[1] + msg[3] / 2 - (crop[1] - ch / 2)) * k;
+  const cx = lerp(160, tx, fly), cy = lerp(108, ty, fly);
+  const w = lerp(300, msg[2] * k, fly), h = lerp(126, msg[3] * k, fly);
+  setPlane(g.card, cx, cy, w, h, 1 - step8(span(f, 3414, 3421)));
+  // the hand: glides to send, clicks
+  if (f >= 3390 && f < 3404) {
+    const t = ease(span(f, 3390, 3398));
+    setPlane(g.cursor, lerp(250, 160 + 150 - 29, t), lerp(70, 108 - 63 + 26, t), 7, 10);
+    if (f >= 3398) { const r = span(f, 3398, 3404); setPlane(g.ring, 160 + 150 - 29, 108 - 63 + 26, 10 + r * 20, 10 + r * 20, 1 - r); }
+  }
+  renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
+  renderer.clearDepth();
+  renderer.render(g.scene, hudCam);
 }
 
 // ===== end card: open source line, then the title card that frame 0 starts on ==========
