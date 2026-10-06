@@ -584,7 +584,7 @@ export const zh = {
   'botZip.error.empty': 'zip 里没有文件。',
   'botZip.export.title': '分享与导出',
   'botZip.export.description':
-    '把这个 Bot 的 Memory 文件打包成 zip，发给别人，或在另一台设备上导入。只包含文件，不含 Git 历史、会话、IM 绑定和凭证。',
+    '把这个 Bot 的 Memory 文件打包成 zip，发给别人，或在另一台设备上导入。Git 历史可选；会话、IM 绑定和凭证都不会放进去。',
   'botZip.export.button': '导出 zip',
   'botZip.export.confirmTitle': '导出 {name}',
   'botZip.export.confirmBody':
@@ -604,6 +604,11 @@ export const zh = {
   'botZip.export.collapse': '折叠 {name}',
   'botZip.export.loading': '正在读取文件列表…',
   'botZip.export.loadFailed': '读取文件列表失败：{error}',
+  'botZip.export.history': '包含 Git 历史',
+  'botZip.export.historyHint':
+    '带上所有分支、标签和提交记录，导入后可以在「记忆演化」里看到。历史里也有已经删掉的内容，分享前请确认。',
+  'botZip.export.historyPartial':
+    '取消勾选了文件时不能包含 Git 历史，否则别人仍能从历史里看到这些文件。',
   'main.author.human': '你',
   'main.author.system': '系统',
   'main.date.locale': 'zh-CN',
@@ -2551,7 +2556,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'botZip.error.empty': 'The zip has no files.',
   'botZip.export.title': 'Share and export',
   'botZip.export.description':
-    'Pack this Bot’s Memory files into a zip to send to someone or import on another device. It holds files only: no Git history, Sessions, IM bindings or credentials.',
+    'Pack this Bot’s Memory files into a zip to send to someone or import on another device. Git history is optional; Sessions, IM bindings and credentials are never included.',
   'botZip.export.button': 'Export zip',
   'botZip.export.confirmTitle': 'Export {name}',
   'botZip.export.confirmBody':
@@ -2571,6 +2576,11 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'botZip.export.collapse': 'Collapse {name}',
   'botZip.export.loading': 'Reading the file list…',
   'botZip.export.loadFailed': 'Couldn’t read the file list: {error}',
+  'botZip.export.history': 'Include Git history',
+  'botZip.export.historyHint':
+    'Adds every branch, tag and commit, shown under Memory evolution after import. History also holds content that was deleted, so check before you share.',
+  'botZip.export.historyPartial':
+    'Git history can’t be included when files are unticked, because the history would still show those files.',
   'main.author.human': 'You',
   'main.author.system': 'System',
   'main.date.locale': 'en-US',

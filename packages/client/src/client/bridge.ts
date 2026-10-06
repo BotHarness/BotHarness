@@ -1443,13 +1443,20 @@ export async function loadBotZipFiles(
   return { files, always };
 }
 
+export interface BotZipExportChoice {
+  include?: readonly string[];
+  history?: boolean;
+}
+
 export async function downloadBotZip(
   slug: string,
   fallbackName: string,
-  include?: readonly string[],
+  choice: BotZipExportChoice = {},
   signal?: AbortSignal,
 ): Promise<{ blob: Blob; name: string }> {
-  const response = await fetch(botZipUrl('bot-zip', include === undefined ? { slug } : {}), {
+  const { include } = choice;
+  const query = include === undefined ? { slug, ...(choice.history ? { history: '1' } : {}) } : {};
+  const response = await fetch(botZipUrl('bot-zip', query), {
     credentials: 'same-origin',
     ...(include === undefined
       ? {}

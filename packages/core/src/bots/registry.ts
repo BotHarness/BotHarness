@@ -27,7 +27,7 @@ import {
 import { readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
 import type { MemoryCloneResult } from '../memory/clone.js';
-import { writeBotFiles } from './bot-zip.js';
+import { restoreBotHistory, writeBotFiles } from './bot-zip.js';
 import type { ZipEntry } from './zip-archive.js';
 import {
   DEFAULT_STANDING_LIMITS,
@@ -75,7 +75,10 @@ export interface PersonaBotRegistry {
     input: Omit<CreatePersonaBotInput, 'memoryDir'> & { gitUrl: string },
   ): Promise<CreatePersonaBotResult>;
   createFromFiles(
-    input: Omit<CreatePersonaBotInput, 'memoryDir' | 'persona'> & { files: readonly ZipEntry[] },
+    input: Omit<CreatePersonaBotInput, 'memoryDir' | 'persona'> & {
+      files: readonly ZipEntry[];
+      history?: Buffer;
+    },
   ): Promise<CreatePersonaBotResult>;
   get(slug: string): PersonaBotRecord | undefined;
   list(): PersonaBotRecord[];
@@ -459,10 +462,11 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       });
     },
     async createFromFiles(input) {
-      const { files, ...recordInput } = input;
+      const { files, history, ...recordInput } = input;
       return createFromStaging(recordInput, '.zip-import-', (staging) => {
         try {
           writeBotFiles(staging, files);
+          if (history !== undefined) restoreBotHistory(staging, history);
           return Promise.resolve(undefined);
         } catch {
           return Promise.resolve('invalid-zip' as const);

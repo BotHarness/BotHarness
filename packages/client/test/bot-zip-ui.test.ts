@@ -209,7 +209,7 @@ describe('Export zip', () => {
     expect(exportBotZip).not.toHaveBeenCalled();
 
     await act(async () => button(host, '导出').click());
-    expect(exportBotZip).toHaveBeenCalledWith('ada', 'Ada', undefined);
+    expect(exportBotZip).toHaveBeenCalledWith('ada', 'Ada', {});
     expect(host.querySelector('[role="dialog"]')).toBeNull();
   });
 
@@ -241,7 +241,9 @@ describe('Export zip', () => {
     expect(host.textContent).toContain('已选 4 / 6 个文件');
 
     await act(async () => button(host, '导出').click());
-    expect(exportBotZip).toHaveBeenCalledWith('ada', 'Ada', ['MEMORY.md', 'notes/recipes.md']);
+    expect(exportBotZip).toHaveBeenCalledWith('ada', 'Ada', {
+      include: ['MEMORY.md', 'notes/recipes.md'],
+    });
   });
 
   it('selects none and all, and refuses to export with nothing chosen', async () => {
@@ -258,7 +260,30 @@ describe('Export zip', () => {
     await act(async () => button(host, '全选').click());
     expect(host.textContent).toContain('已选 6 / 6 个文件');
     await act(async () => button(host, '导出').click());
-    expect(exportBotZip).toHaveBeenCalledWith('ada', 'Ada', undefined);
+    expect(exportBotZip).toHaveBeenCalledWith('ada', 'Ada', {});
+  });
+
+  it('offers Git history only when every file is ticked', async () => {
+    const { host, exportBotZip } = await openExport();
+    const history = (): HTMLInputElement =>
+      host.querySelector<HTMLInputElement>('.bh-bot-zip-history input')!;
+
+    expect(host.textContent).toContain('包含 Git 历史');
+    expect(history().checked).toBe(false);
+    expect(history().disabled).toBe(false);
+
+    await act(async () => history().click());
+    expect(history().checked).toBe(true);
+
+    await act(async () => checkbox(host, 'SOUL.md').click());
+    expect(history().disabled).toBe(true);
+    expect(history().checked).toBe(false);
+    expect(host.textContent).toContain('取消勾选了文件时不能包含 Git 历史');
+
+    await act(async () => checkbox(host, 'SOUL.md').click());
+    expect(history().disabled).toBe(false);
+    await act(async () => button(host, '导出').click());
+    expect(exportBotZip).toHaveBeenCalledWith('ada', 'Ada', { history: true });
   });
 
   it('shows the English tree copy', async () => {
