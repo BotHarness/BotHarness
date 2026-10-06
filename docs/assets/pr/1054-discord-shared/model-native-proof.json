@@ -1,0 +1,220 @@
+{
+  "issue": 1054,
+  "checkedAt": "2026-10-06T15:04:02.443Z",
+  "coreLive": "a81ba50e953b20635ca38e0f182d18923f92a292",
+  "runtimeUnchangedFrom": "ab63a528072771cdb29233137bdb48b210f93434",
+  "provider": "345b63f75ad8acc5b7e42eaab5a4eefdbffed683",
+  "artifactSha256": "b5fa453a9b2b6e544cb1d20f20b64415728b1e2333440b1f9ca00e796aa9024e",
+  "results": [
+    {
+      "name": "SHARED",
+      "turn": 14,
+      "requestId": "1557041250073444475",
+      "sourceEventId": "im-2feb5e8476caf15405b6cd2c921af3912d22ff2f13c88f06f7ffe74725c3fdef",
+      "replyId": "1557041292771594302",
+      "replyText": "DISCORD-1054-SHARED-OK:maple-54",
+      "sourceCount": 1,
+      "admissions": 1,
+      "placements": 1,
+      "paths": 2,
+      "intents": 1,
+      "ownAuthor": true,
+      "exactNativeThread": true,
+      "exactReplyReference": true,
+      "model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "reasoningEffort": "off"
+      },
+      "tools": [
+        {
+          "name": "bridge_read",
+          "callId": "call_00_Za813crJewlk0iGl7rFV9117"
+        },
+        {
+          "name": "bridge_reply",
+          "callId": "call_00_6I9TbknIdONA1gPq7V708442",
+          "state": "provider-accepted",
+          "receipt": {
+            "version": 1,
+            "messageId": "1557041292771594302",
+            "conversationId": "1556616665385668620"
+          }
+        }
+      ]
+    },
+    {
+      "name": "PAUSED",
+      "turn": 15,
+      "requestId": "1557043767570210877",
+      "sourceEventId": "im-de742b82798dd77bb7cc75501f40d129387b20bee77ae04ced59f1f273b230b1",
+      "replyId": "1557043807608897582",
+      "replyText": "DISCORD-1054-PAUSED-OK:maple-54",
+      "sourceCount": 1,
+      "admissions": 1,
+      "placements": 0,
+      "paths": 1,
+      "intents": 1,
+      "ownAuthor": true,
+      "exactNativeThread": true,
+      "exactReplyReference": true,
+      "model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "reasoningEffort": "off"
+      },
+      "tools": [
+        {
+          "name": "bridge_read",
+          "callId": "call_00_BpxBTh80klUDPCYtQs8E7392"
+        },
+        {
+          "name": "bridge_reply",
+          "callId": "call_00_iUJ1ItzsnnheEvZLhmUc4300",
+          "state": "provider-accepted",
+          "receipt": {
+            "version": 1,
+            "messageId": "1557043807608897582",
+            "conversationId": "1556616665385668620"
+          }
+        }
+      ]
+    },
+    {
+      "name": "RESUMED",
+      "turn": 16,
+      "requestId": "1557043983803224126",
+      "sourceEventId": "im-94c1fa7b2fa831f4a222f406b59a2a9f80771293ee93881d83656fa9bb991b14",
+      "replyId": "1557044027457802382",
+      "replyText": "DISCORD-1054-RESUMED-OK:maple-54",
+      "sourceCount": 1,
+      "admissions": 1,
+      "placements": 1,
+      "paths": 2,
+      "intents": 1,
+      "ownAuthor": true,
+      "exactNativeThread": true,
+      "exactReplyReference": true,
+      "model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "reasoningEffort": "off"
+      },
+      "tools": [
+        {
+          "name": "bridge_read",
+          "callId": "call_00_IauLwNMojwoqePxHnJ8i5819"
+        },
+        {
+          "name": "bridge_reply",
+          "callId": "call_00_5WyoDeHn20JXJqjTegmr3289",
+          "state": "provider-accepted",
+          "receipt": {
+            "version": 1,
+            "messageId": "1557044027457802382",
+            "conversationId": "1556616665385668620"
+          }
+        }
+      ]
+    },
+    {
+      "name": "COLD",
+      "turn": 18,
+      "requestId": "1557044637255081995",
+      "sourceEventId": "im-06a9641ab6ec93e66ba820e60a72bd6c12dff421577376389cd05dc46b61c889",
+      "replyId": "1557044674227740873",
+      "replyText": "DISCORD-1054-COLD-OK:maple-54",
+      "sourceCount": 1,
+      "admissions": 1,
+      "placements": 1,
+      "paths": 2,
+      "intents": 1,
+      "ownAuthor": true,
+      "exactNativeThread": true,
+      "exactReplyReference": true,
+      "model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "reasoningEffort": "off"
+      },
+      "tools": [
+        {
+          "name": "bridge_read",
+          "callId": "call_00_pcPysTCyx07ncNC8DC822517"
+        },
+        {
+          "name": "bridge_reply",
+          "callId": "call_00_r1Y3r6fihhgTuxqgSMMx6950",
+          "state": "provider-accepted",
+          "receipt": {
+            "version": 1,
+            "messageId": "1557044674227740873",
+            "conversationId": "1556616665385668620"
+          }
+        }
+      ]
+    },
+    {
+      "name": "RESTORED",
+      "turn": 19,
+      "requestId": "1557045298210152550",
+      "sourceEventId": "im-86114c47b6ff319af0bbcf704aa10c26936a236b5656ee9f4986fc27b1c5b77c",
+      "replyId": "1557045336218927187",
+      "replyText": "DISCORD-1054-RESTORED-OK:maple-54",
+      "sourceCount": 1,
+      "admissions": 1,
+      "placements": 0,
+      "paths": 1,
+      "intents": 1,
+      "ownAuthor": true,
+      "exactNativeThread": true,
+      "exactReplyReference": true,
+      "model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "reasoningEffort": "off"
+      },
+      "tools": [
+        {
+          "name": "bridge_read",
+          "callId": "call_00_XwEusmx9xkgY9aJBcR1U7215"
+        },
+        {
+          "name": "bridge_reply",
+          "callId": "call_00_hMBGjcG3kswkQBczweCb2586",
+          "state": "provider-accepted",
+          "receipt": {
+            "version": 1,
+            "messageId": "1557045336218927187",
+            "conversationId": "1556616665385668620"
+          }
+        }
+      ]
+    }
+  ],
+  "coldRestart": {
+    "canonicalTablesExactlyEqual": true,
+    "messagesExactlyEqual": true
+  },
+  "local": {
+    "id": "human-d5d2908b-aa88-4097-b661-776a50cf646f",
+    "modelTurn": 17,
+    "toolCalls": 0,
+    "outboxIntents": 0,
+    "nativeMessages": 0
+  },
+  "restored": {
+    "channelBridgeCount": 0,
+    "retainedMessages": 4,
+    "originalIdentityExactlyEqual": true,
+    "originalGrantAuthorityExactlyEqual": true,
+    "defaultsExactlyEqual": true,
+    "originalInboxRoute": true,
+    "canPost": false,
+    "messageContent": false,
+    "workspaceWrite": false,
+    "workspaceWriteRevision": 4,
+    "theme": "system",
+    "routeRepresentation": "Legacy Inbox reception migrated to an explicit Inbox route; original authority and scope unchanged."
+  }
+}

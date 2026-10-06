@@ -27,6 +27,10 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
+### Documentation
+
+- Documented development-source Discord shared Channel qualification for one bound member with Message Content OFF, including original-thread model replies, overlap deduplication and pause/restart/restoration evidence ([#1054](https://github.com/BotHarness/BotHarness/issues/1054), [verification](docs/dev/verification/discord-1054-shared-channel.md), [中文验证](docs/dev/verification/discord-1054-shared-channel.zh.md)).
+
 ## [1.1.0] - 2026-10-06
 
 PersonaBots can run Bot Schedules and manage them themselves, every Session starts with the Bot's Soul and Core Memory, the Channel sidebar sections share one card design, WeChat accepts voice transcripts and images, each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace, the plugin sends anonymous usage statistics that can be turned off, and Bot settings can install a DeepSeekBot update and restart DSH with one click.
