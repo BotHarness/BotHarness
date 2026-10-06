@@ -24,7 +24,7 @@ Core platform registration, Inbox/source DTO validation and the existing Client 
 
 ## Evidence boundary
 
-Provider candidate source: `e6f0de2a989c28d20db92c0e7f43b20c6d3028b9`, based on the current product-pinned Provider `48e7a35792af5222cd40cfe1ba2607ac55a59df2`. Controlled Provider and assembled-Core tests prove contract behavior, not a real Discord App or model reply. Real authorized App/guild/channel/thread, installed artifact hash, native read-back, screenshots/recording and Human QA remain required before acceptance or qualification. No merge, deployment or publication follows from this proposal.
+Initial Provider candidate source: `e6f0de2a989c28d20db92c0e7f43b20c6d3028b9`, based on the then product-pinned Provider `48e7a35792af5222cd40cfe1ba2607ac55a59df2`. Those controlled Provider and assembled-Core tests alone did not qualify real Discord behavior. Subsequent agent-operated native/model E2E, original-location receipts, runtime provenance and screenshots completed the narrow **development-source mention/reply qualification** in [#855](https://github.com/BotHarness/BotHarness/issues/855) / [#934](https://github.com/BotHarness/BotHarness/pull/934), under the Human's revised acceptance instruction; no manual Human QA gate remains for that slice. Additional capabilities, installed-product qualification and Provider promotion retain separate evidence and authorization. This ADR's formal status remains Proposed; merge, deployment and publication require their own authorization.
 
 ## Local Host checkpoint — 2026-10-05
 
@@ -34,7 +34,7 @@ The same isolated Profile also completed a real model DM probe at `2026-10-05T08
 
 ## Live external checkpoint
 
-The dedicated Discord App and QA guild passed both original text-channel and existing public-thread mention/model replies. See [native receipts, screenshots, exact revisions and remaining acceptance gates](../dev/verification/discord-855-mention-reply.md). This advances the first runnable slice; the decision remains proposed until Human QA.
+The dedicated Discord App and QA guild passed both original text-channel and existing public-thread mention/model replies, including the recovery and refusal cases recorded in [native receipts, screenshots and exact revisions](../dev/verification/discord-855-mention-reply.md). The first development-source mention/reply slice is qualified; broader capability acceptance and product Provider promotion remain separate. [#937 context-read verification](../dev/verification/discord-937-context-reads.md) records its independently completed cases and remaining native continuation/conflict checks.
 
 ## References
 
