@@ -373,6 +373,8 @@ describe('plugin entry', () => {
       'scheduleUpdate',
       'scheduleDelete',
       'scheduleHistory',
+      'scheduleRunNow',
+      'schedulePreview',
     ]);
   });
 

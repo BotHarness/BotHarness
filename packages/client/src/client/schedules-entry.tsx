@@ -27,7 +27,22 @@ import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 export const SCHEDULE_COST_WARNING_SECONDS = 15 * 60;
 const REFRESH_MS = 30_000;
 
-type CadenceUnit = 'minutes' | 'hours' | 'daily';
+type CadenceUnit = 'minutes' | 'hours' | 'daily' | 'weekly' | 'once' | 'cron';
+
+const WEEKDAYS = [
+  [1, 'schedule.weekday.1'],
+  [2, 'schedule.weekday.2'],
+  [3, 'schedule.weekday.3'],
+  [4, 'schedule.weekday.4'],
+  [5, 'schedule.weekday.5'],
+  [6, 'schedule.weekday.6'],
+  [7, 'schedule.weekday.7'],
+] as const;
+const PREVIEW_DELAY_MS = 250;
+const STARTED_MS = 4000;
+const TOOLTIP_DELAY_MS = 400;
+const TIME = /^\d{2}:\d{2}$/u;
+const DATE = /^\d{4}-\d{2}-\d{2}$/u;
 
 export interface ScheduleForm {
   title: string;
@@ -36,6 +51,9 @@ export interface ScheduleForm {
   every: string;
   time: string;
   timeZone: string;
+  weekdays: number[];
+  date: string;
+  expression: string;
   locked: boolean;
 }
 
@@ -58,7 +76,14 @@ function browserTimeZone(): string {
   }
 }
 
-export function emptyScheduleForm(timeZone = browserTimeZone()): ScheduleForm {
+function localDate(at: Date): string {
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+}
+
+export function emptyScheduleForm(
+  timeZone = browserTimeZone(),
+  now: Date = new Date(),
+): ScheduleForm {
   return {
     title: '',
     prompt: '',
@@ -66,37 +91,92 @@ export function emptyScheduleForm(timeZone = browserTimeZone()): ScheduleForm {
     every: '1',
     time: '09:00',
     timeZone,
+    weekdays: [1, 2, 3, 4, 5],
+    date: localDate(new Date(now.getTime() + 24 * 60 * 60 * 1000)),
+    expression: '0 9 * * 1-5',
     locked: false,
   };
 }
 
 export function scheduleFormOf(schedule: BotScheduleView): ScheduleForm {
-  const base = { title: schedule.title, prompt: schedule.prompt, locked: schedule.locked };
-  const trigger = schedule.trigger;
-  if (trigger.kind === 'daily')
-    return { ...base, unit: 'daily', every: '1', time: trigger.time, timeZone: trigger.timeZone };
-  const hours = trigger.everySeconds % 3600 === 0;
-  return {
-    ...base,
-    unit: hours ? 'hours' : 'minutes',
-    every: String(trigger.everySeconds / (hours ? 3600 : 60)),
-    time: '09:00',
-    timeZone: browserTimeZone(),
+  const base = {
+    ...emptyScheduleForm(),
+    title: schedule.title,
+    prompt: schedule.prompt,
+    locked: schedule.locked,
   };
+  const trigger = schedule.trigger;
+  switch (trigger.kind) {
+    case 'every': {
+      const hours = trigger.everySeconds % 3600 === 0;
+      return {
+        ...base,
+        unit: hours ? 'hours' : 'minutes',
+        every: String(trigger.everySeconds / (hours ? 3600 : 60)),
+      };
+    }
+    case 'daily':
+      return { ...base, unit: 'daily', time: trigger.time, timeZone: trigger.timeZone };
+    case 'weekly':
+      return {
+        ...base,
+        unit: 'weekly',
+        time: trigger.time,
+        timeZone: trigger.timeZone,
+        weekdays: [...trigger.weekdays],
+      };
+    case 'once':
+      return {
+        ...base,
+        unit: 'once',
+        date: trigger.date,
+        time: trigger.time,
+        timeZone: trigger.timeZone,
+      };
+    case 'cron':
+      return { ...base, unit: 'cron', expression: trigger.expression, timeZone: trigger.timeZone };
+  }
 }
 
 export function scheduleTriggerOf(form: ScheduleForm): BotScheduleTrigger | undefined {
-  if (form.unit === 'daily')
-    return /^\d{2}:\d{2}$/u.test(form.time) && form.timeZone.trim().length > 0
-      ? { kind: 'daily', time: form.time, timeZone: form.timeZone.trim() }
-      : undefined;
-  const every = Number(form.every);
-  if (!Number.isSafeInteger(every) || every < 1) return undefined;
-  return { kind: 'every', everySeconds: every * (form.unit === 'hours' ? 3600 : 60) };
+  const timeZone = form.timeZone.trim();
+  if (form.unit === 'minutes' || form.unit === 'hours') {
+    const every = Number(form.every);
+    if (!Number.isSafeInteger(every) || every < 1) return undefined;
+    return { kind: 'every', everySeconds: every * (form.unit === 'hours' ? 3600 : 60) };
+  }
+  if (timeZone.length === 0) return undefined;
+  if (form.unit === 'cron') {
+    const expression = form.expression.trim().replace(/\s+/gu, ' ');
+    return expression.length === 0 ? undefined : { kind: 'cron', expression, timeZone };
+  }
+  if (!TIME.test(form.time)) return undefined;
+  if (form.unit === 'daily') return { kind: 'daily', time: form.time, timeZone };
+  if (form.unit === 'weekly')
+    return form.weekdays.length === 0
+      ? undefined
+      : {
+          kind: 'weekly',
+          time: form.time,
+          timeZone,
+          weekdays: [...new Set(form.weekdays)].sort((a, b) => a - b),
+        };
+  return DATE.test(form.date)
+    ? { kind: 'once', date: form.date, time: form.time, timeZone }
+    : undefined;
 }
 
 export function scheduleCadenceLabel(trigger: BotScheduleTrigger, t: BotHarnessTranslate): string {
   if (trigger.kind === 'daily') return t('schedule.cadence.daily', { time: trigger.time });
+  if (trigger.kind === 'weekly')
+    return t('schedule.cadence.weekly', {
+      days: weekdayList(trigger.weekdays, t),
+      time: trigger.time,
+    });
+  if (trigger.kind === 'once')
+    return t('schedule.cadence.once', { time: `${trigger.date.slice(5)} ${trigger.time}` });
+  if (trigger.kind === 'cron')
+    return t('schedule.cadence.cron', { expression: trigger.expression });
   if (trigger.everySeconds % 3600 === 0) {
     const n = trigger.everySeconds / 3600;
     return n === 1 ? t('schedule.cadence.hour') : t('schedule.cadence.hours', { n });
@@ -105,8 +185,23 @@ export function scheduleCadenceLabel(trigger: BotScheduleTrigger, t: BotHarnessT
   return n === 1 ? t('schedule.cadence.minute') : t('schedule.cadence.minutes', { n });
 }
 
+function weekdayList(weekdays: number[], t: BotHarnessTranslate): string {
+  const days = [...weekdays].sort((a, b) => a - b).join(',');
+  if (days === '1,2,3,4,5') return t('schedule.weekdays.workdays');
+  if (days === '6,7') return t('schedule.weekdays.weekend');
+  if (days === '1,2,3,4,5,6,7') return t('schedule.weekdays.everyDay');
+  return WEEKDAYS.filter(([day]) => weekdays.includes(day))
+    .map(([, key]) => t(key))
+    .join(t('schedule.weekdays.separator'));
+}
+
 function pad(value: number): string {
   return String(value).padStart(2, '0');
+}
+
+export function formatSchedulePreview(iso: string): string {
+  const at = new Date(iso);
+  return `${localDate(at)} ${pad(at.getHours())}:${pad(at.getMinutes())}`;
 }
 
 export function formatScheduleTime(iso: string, now: Date = new Date()): string {
@@ -152,6 +247,61 @@ export function BotSchedulesHeaderAction({ botSlug, t }: ChannelSidebarEntryProp
   );
 }
 
+function SchedulePreview({
+  trigger,
+  preview,
+  t,
+}: {
+  trigger: BotScheduleTrigger | undefined;
+  preview: (trigger: BotScheduleTrigger) => Promise<string[]>;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const key = trigger === undefined ? '' : JSON.stringify(trigger);
+  const [result, setResult] = useState<{
+    key: string;
+    occurrences?: string[];
+    error?: string;
+  }>();
+  const mount = useMountedResource<HTMLDivElement>(() => {
+    if (trigger === undefined) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      void preview(trigger)
+        .then((occurrences) => {
+          if (live) setResult({ key, occurrences });
+        })
+        .catch((cause: unknown) => {
+          if (live) setResult({ key, error: errorMessage(cause) });
+        });
+    }, PREVIEW_DELAY_MS);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [key, preview]);
+  const current = result?.key === key ? result : undefined;
+  return (
+    <div ref={mount} className="bh-schedule-preview" aria-live="polite" data-schedule-preview="">
+      <span className="bh-schedule-preview-label">{t('schedule.preview')}</span>
+      {trigger === undefined ? (
+        <span className="bh-schedule-muted">{t('schedule.preview.incomplete')}</span>
+      ) : current === undefined ? (
+        <span className="bh-schedule-muted">{t('schedule.preview.loading')}</span>
+      ) : current.error !== undefined ? (
+        <span className="bh-schedule-error" role="alert">
+          {t('schedule.preview.invalid', { reason: current.error })}
+        </span>
+      ) : (
+        <ol>
+          {current.occurrences!.map((occurrence) => (
+            <li key={occurrence}>{formatSchedulePreview(occurrence)}</li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 function ScheduleEditor({
   open,
   initial,
@@ -163,6 +313,7 @@ function ScheduleEditor({
   onDelete,
   history,
   onOpenSession,
+  preview,
   t,
 }: {
   open: boolean;
@@ -175,6 +326,7 @@ function ScheduleEditor({
   onDelete: () => void;
   history: BotScheduleFiringView[] | undefined;
   onOpenSession: (sessionId: string) => void;
+  preview: (trigger: BotScheduleTrigger) => Promise<string[]>;
   t: BotHarnessTranslate;
 }): ReactElement {
   const id = useId();
@@ -252,28 +404,13 @@ function ScheduleEditor({
             { value: 'minutes', label: t('schedule.form.unit.minutes') },
             { value: 'hours', label: t('schedule.form.unit.hours') },
             { value: 'daily', label: t('schedule.form.unit.daily') },
+            { value: 'weekly', label: t('schedule.form.unit.weekly') },
+            { value: 'once', label: t('schedule.form.unit.once') },
+            { value: 'cron', label: t('schedule.form.unit.cron') },
           ]}
           onChange={(unit) => set({ unit })}
         />
-        {form.unit === 'daily' ? (
-          <div className="bh-schedule-row">
-            <label className="bh-schedule-field">
-              <span>{t('schedule.form.time')}</span>
-              <Input
-                type="time"
-                value={form.time}
-                onChange={(event) => set({ time: event.target.value })}
-              />
-            </label>
-            <label className="bh-schedule-field bh-schedule-zone">
-              <span>{t('schedule.form.timeZone')}</span>
-              <Input
-                value={form.timeZone}
-                onChange={(event) => set({ timeZone: event.target.value })}
-              />
-            </label>
-          </div>
-        ) : (
+        {form.unit === 'minutes' || form.unit === 'hours' ? (
           <label className="bh-schedule-field">
             <span>
               {form.unit === 'hours'
@@ -288,7 +425,83 @@ function ScheduleEditor({
               onChange={(event) => set({ every: event.target.value })}
             />
           </label>
+        ) : null}
+        {form.unit === 'weekly' ? (
+          <div
+            className="bh-schedule-weekdays"
+            role="group"
+            aria-label={t('schedule.form.weekdays')}
+          >
+            {WEEKDAYS.map(([day, key]) => {
+              const on = form.weekdays.includes(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  className="bh-schedule-weekday"
+                  aria-pressed={on}
+                  onClick={() =>
+                    set({
+                      weekdays: on
+                        ? form.weekdays.filter((value) => value !== day)
+                        : [...form.weekdays, day].sort((a, b) => a - b),
+                    })
+                  }
+                >
+                  {t(key)}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        {form.unit === 'cron' ? (
+          <label className="bh-schedule-field">
+            <span>{t('schedule.form.cron')}</span>
+            <Input
+              value={form.expression}
+              spellCheck={false}
+              placeholder="0 9 * * 1-5"
+              className="bh-schedule-cron"
+              onChange={(event) => set({ expression: event.target.value })}
+            />
+            <small className="bh-schedule-muted">{t('schedule.form.cronHint')}</small>
+          </label>
+        ) : null}
+        {form.unit === 'minutes' || form.unit === 'hours' ? null : (
+          <div className="bh-schedule-row">
+            {form.unit === 'once' ? (
+              <label className="bh-schedule-field">
+                <span>{t('schedule.form.date')}</span>
+                <Input
+                  type="date"
+                  value={form.date}
+                  onChange={(event) => set({ date: event.target.value })}
+                />
+              </label>
+            ) : null}
+            {form.unit === 'cron' ? null : (
+              <label className="bh-schedule-field">
+                <span>{t('schedule.form.time')}</span>
+                <Input
+                  type="time"
+                  value={form.time}
+                  onChange={(event) => set({ time: event.target.value })}
+                />
+              </label>
+            )}
+            <label className="bh-schedule-field bh-schedule-zone">
+              <span>{t('schedule.form.timeZone')}</span>
+              <Input
+                value={form.timeZone}
+                onChange={(event) => set({ timeZone: event.target.value })}
+              />
+            </label>
+          </div>
         )}
+        {form.unit === 'once' ? (
+          <p className="bh-schedule-muted">{t('schedule.form.onceHint')}</p>
+        ) : null}
+        <SchedulePreview trigger={trigger} preview={preview} t={t} />
         <div className="bh-schedule-lock">
           <span className="bh-card-icon" aria-hidden="true">
             <ChannelSidebarIcon name={form.locked ? 'lock' : 'lock-open'} size={16} />
@@ -465,6 +678,7 @@ export function ScheduleDialog({
           onClose();
           void actions.openSession(sessionId);
         }}
+        preview={actions.botSchedulePreview}
         t={t}
       />
     </>
@@ -476,6 +690,7 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
   const [loadError, setLoadError] = useState<string | undefined>();
   const [editor, setEditor] = useState<{ key: number; scheduleId: string | undefined }>();
   const [toggling, setToggling] = useState<string | undefined>();
+  const [started, setStarted] = useState<string | undefined>();
   const active = useRef<string | undefined>(undefined);
   const editorKey = useRef(0);
   const createRevision = useSyncExternalStore(
@@ -536,6 +751,23 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
       .finally(() => setToggling(undefined));
   };
 
+  const runNow = (schedule: BotScheduleView): void => {
+    setToggling(schedule.id);
+    setLoadError(undefined);
+    void actions
+      .runBotScheduleNow(botSlug, schedule.id)
+      .then(() => {
+        setStarted(schedule.id);
+        setTimeout(
+          () => setStarted((current) => (current === schedule.id ? undefined : current)),
+          STARTED_MS,
+        );
+        return refresh(botSlug);
+      })
+      .catch((cause: unknown) => setLoadError(errorMessage(cause)))
+      .finally(() => setToggling(undefined));
+  };
+
   return (
     <div ref={mount} className="bh-schedules" data-bot-schedules="">
       {schedules === undefined && loadError === undefined ? (
@@ -572,51 +804,91 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
                   {schedule.lastFiring === undefined ? null : (
                     <FiringTag firing={schedule.lastFiring} t={t} />
                   )}
-                  <span
-                    className="bh-card-glyph"
-                    title={t(`schedule.creator.${schedule.creator}`)}
-                    aria-label={t(`schedule.creator.${schedule.creator}`)}
+                  <Tooltip
+                    label={t(`schedule.creator.${schedule.creator}`)}
+                    side="top"
+                    portal
+                    delayMs={TOOLTIP_DELAY_MS}
                   >
-                    <ChannelSidebarIcon
-                      name={schedule.creator === 'human' ? 'user' : 'bot'}
-                      size={12}
-                    />
-                  </span>
+                    <span
+                      className="bh-card-glyph"
+                      tabIndex={0}
+                      aria-label={t(`schedule.creator.${schedule.creator}`)}
+                    >
+                      <ChannelSidebarIcon
+                        name={schedule.creator === 'human' ? 'user' : 'bot'}
+                        size={12}
+                      />
+                    </span>
+                  </Tooltip>
                 </>
               }
               meta={
-                schedule.enabled && schedule.nextRunAt !== undefined
-                  ? t('schedule.next', { time: formatScheduleTime(schedule.nextRunAt) })
-                  : t('schedule.paused')
+                started === schedule.id
+                  ? t('schedule.runNow.started')
+                  : schedule.enabled && schedule.nextRunAt !== undefined
+                    ? t('schedule.next', { time: formatScheduleTime(schedule.nextRunAt) })
+                    : schedule.trigger.kind === 'once' && schedule.lastFiring !== undefined
+                      ? t('schedule.done')
+                      : t('schedule.paused')
               }
               trailing={
                 <>
-                  <button
-                    type="button"
-                    className="bh-card-action bh-schedule-lock-toggle"
-                    data-locked={schedule.locked ? 'true' : undefined}
-                    aria-pressed={schedule.locked}
-                    disabled={toggling !== undefined}
-                    title={
-                      schedule.locked
-                        ? t('schedule.locked')
-                        : t('schedule.lock', { title: schedule.title })
-                    }
-                    aria-label={
-                      schedule.locked
-                        ? t('schedule.unlock', { title: schedule.title })
-                        : t('schedule.lock', { title: schedule.title })
-                    }
-                    onClick={() => change(schedule, { locked: !schedule.locked })}
+                  <Tooltip
+                    label={t('schedule.runNow.tooltip')}
+                    side="top"
+                    portal
+                    delayMs={TOOLTIP_DELAY_MS}
                   >
-                    <ChannelSidebarIcon name={schedule.locked ? 'lock' : 'lock-open'} size={14} />
-                  </button>
-                  <Switch
-                    checked={schedule.enabled}
-                    disabled={toggling !== undefined}
-                    label={t('schedule.enable', { title: schedule.title })}
-                    onChange={(enabled) => change(schedule, { enabled })}
-                  />
+                    <button
+                      type="button"
+                      className="bh-card-action bh-schedule-run-now"
+                      disabled={toggling !== undefined}
+                      aria-label={t('schedule.runNow', { title: schedule.title })}
+                      onClick={() => runNow(schedule)}
+                    >
+                      <ChannelSidebarIcon name="play" size={14} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip
+                    label={schedule.locked ? t('schedule.locked') : t('schedule.lock.tooltip')}
+                    side="top"
+                    portal
+                    delayMs={TOOLTIP_DELAY_MS}
+                  >
+                    <button
+                      type="button"
+                      className="bh-card-action bh-schedule-lock-toggle"
+                      data-locked={schedule.locked ? 'true' : undefined}
+                      aria-pressed={schedule.locked}
+                      disabled={toggling !== undefined}
+                      aria-label={
+                        schedule.locked
+                          ? t('schedule.unlock', { title: schedule.title })
+                          : t('schedule.lock', { title: schedule.title })
+                      }
+                      onClick={() => change(schedule, { locked: !schedule.locked })}
+                    >
+                      <ChannelSidebarIcon name={schedule.locked ? 'lock' : 'lock-open'} size={14} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip
+                    label={
+                      schedule.enabled ? t('schedule.toggle.pause') : t('schedule.toggle.resume')
+                    }
+                    side="top"
+                    portal
+                    delayMs={TOOLTIP_DELAY_MS}
+                  >
+                    <span className="bh-schedule-switch">
+                      <Switch
+                        checked={schedule.enabled}
+                        disabled={toggling !== undefined}
+                        label={t('schedule.enable', { title: schedule.title })}
+                        onChange={(enabled) => change(schedule, { enabled })}
+                      />
+                    </span>
+                  </Tooltip>
                 </>
               }
             />

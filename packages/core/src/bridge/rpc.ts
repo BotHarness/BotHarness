@@ -66,6 +66,7 @@ import type {
   BotScheduleChange,
   BotScheduleFiring,
   BotScheduleInput,
+  BotScheduleTrigger,
 } from '../schedules/bot-schedules.js';
 import type { BotSourcePolicy } from '../runtime/source-policy.js';
 import type { HumanAttentionCategory, HumanAttentionPage } from '../runtime/human-attention.js';
@@ -910,6 +911,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
   scheduleHistory(slug: string, id: string): { firings: BotScheduleFiring[] } {
     return unwrap(this.methods.scheduleHistory({ slug, id }));
   }
+
+  scheduleRunNow(slug: string, id: string): { firing: BotScheduleFiring } {
+    return unwrap(this.methods.scheduleRunNow({ slug, id }));
+  }
+
+  schedulePreview(trigger: BotScheduleTrigger): { occurrences: string[] } {
+    return unwrap(this.methods.schedulePreview({ trigger }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -1043,6 +1052,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'scheduleUpdate',
   'scheduleDelete',
   'scheduleHistory',
+  'scheduleRunNow',
+  'schedulePreview',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

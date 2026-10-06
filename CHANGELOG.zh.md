@@ -14,6 +14,7 @@ PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一�
 - PersonaBot 新增定时任务（Bot Schedule）：Channel 侧栏的「定时任务」分区可新建、编辑、暂停和删除按分钟、按小时或每天执行的任务；每次触发进入 Bot 收件箱并唤醒 Orchestrator，每个任务可查看最近 20 次触发及处理它的会话（[#960](https://github.com/BotHarness/BotHarness/issues/960)，[ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)）。
 - DeepSeekBot 现在会在创建 Bot 时，自动在它的 Memory 里写入 `.botharness/bot.json`，之后改名称、岗位或头像时同步更新；已有的 Bot 会在下次启动时补上。分享出去的 Bot 在 Bot 市场里显示的名称、岗位和头像，和侧栏里一致（[#966](https://github.com/BotHarness/BotHarness/issues/966)、[教程](docs/share-bot.md)）。
 - PersonaBot 可以自己管理定时任务：让 Bot「每小时检查一下 X」或「每天早上总结」，它会自己创建定时任务，侧栏里标为 Bot 创建；它也可以修改或删除你没有锁定的任务。你可以在任务行或编辑弹窗里锁定任务；每个 Bot 最多同时启用 20 个；Bot 改动后侧栏立即刷新；Orchestrator 中 DSH 自带的 `schedule_*` 工具会被拒绝，确保每个 Bot 只有一套定时任务（[#961](https://github.com/BotHarness/BotHarness/issues/961)）。
+- 定时任务新增每周（选择星期几）、单次（指定日期和时间，触发后自动停用）和 5 段 Cron 三种频率，均按任务自己的时区计算；编辑弹窗会预览接下来三次触发时间，Bot 的定时任务工具也支持这些频率；任务行上的「立即运行」会马上唤醒 Orchestrator，且不改变下一次计划时间。新增[定时任务使用指南](docs/channel-sidebar/schedules.md)，说明各种频率、立即运行、暂停与锁定（[#962](https://github.com/BotHarness/BotHarness/issues/962)）。
 
 ### Changed
 
@@ -22,6 +23,7 @@ PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一�
 
 ### Documentation
 
+- GitHub 与 npm 的 README 补充定时任务、Bot 市场和更新提示，新增依据本 Ledger 整理的「版本亮点」，并换成高清截图表格，所有头像均为 BotPixel 像素头像（[#984](https://github.com/BotHarness/BotHarness/issues/984)）。
 - 记录隔离 Discord nearby 上下文候选的准确原生来源范围、五分钟窗口、稀疏 Human 文本最小条数与有界续页；真实模型稀疏续页、canonical 留存、原 thread 回复和临时权限恢复已独立验证，产品提升仍另行管理（[#981](https://github.com/BotHarness/BotHarness/issues/981)，[指南](docs/dev/guides/im-provider-integration.md)）。
 - 补全 Discord 上下文开发来源验收文档，提供真实模型续页、准确的已编辑来源拒绝、整页回滚及消息正文权限恢复证据（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
 

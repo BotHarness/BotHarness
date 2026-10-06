@@ -184,8 +184,23 @@ export const PAGES = [
     },
   },
   {
-    slug: 'docs/channel-sidebar/groups',
+    slug: 'docs/channel-sidebar/schedules',
     order: 6,
+    en: {
+      source: 'docs/channel-sidebar/schedules.md',
+      title: 'Schedules',
+      description:
+        'Wake a Bot weekly, once, on cron or every few minutes, run a schedule now and lock it.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/schedules.zh.md',
+      title: '定时任务',
+      description: '按分钟、每天、每周、单次或 Cron 唤醒 Bot，立即运行，并锁定以防 Bot 修改。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/groups',
+    order: 7,
     en: {
       source: 'docs/channel-sidebar/groups.md',
       title: 'Members and group management',
@@ -200,7 +215,7 @@ export const PAGES = [
   },
   {
     slug: 'docs/channel-sidebar/display',
-    order: 7,
+    order: 8,
     en: {
       source: 'docs/channel-sidebar/display.md',
       title: 'Display and layout',
