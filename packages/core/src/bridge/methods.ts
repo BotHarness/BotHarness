@@ -41,7 +41,7 @@ import type {
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
 import type { ReleaseInfo, ReleaseService, ReleaseUpdate } from '../release/service.js';
-import type { TelemetryStatus } from '../telemetry/service.js';
+import type { TelemetryCapture, TelemetryStatus } from '../telemetry/service.js';
 import {
   AssignmentReplyTargetError,
   type HumanAssignmentContext,
@@ -471,7 +471,11 @@ export interface BridgeMethodsDeps {
   createBotId?: () => string;
   marketplace?: MarketplaceClient;
   release?: ReleaseService;
-  telemetry?: { status(): TelemetryStatus; setPreference(enabled: boolean): TelemetryStatus };
+  telemetry?: {
+    status(): TelemetryStatus;
+    setPreference(enabled: boolean): TelemetryStatus;
+    capture?: TelemetryCapture;
+  };
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -1482,6 +1486,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(description.value === undefined ? {} : { description: description.value }),
       });
       if (!result.ok) return createFailure(slug, result);
+      if (source['origin'] === 'marketplace') {
+        try {
+          deps.telemetry?.capture?.('marketplace_bot_installed');
+        } catch {}
+      }
       return { ok: true, value: detailOf(result.record) };
     },
     marketplaceList(payload) {

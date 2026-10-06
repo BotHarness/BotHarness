@@ -15,10 +15,28 @@ const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u;
 
 export type TelemetryValue = string | number | boolean;
 
+export type TelemetryCapture = (event: string, properties?: Record<string, TelemetryValue>) => void;
+
+export interface TelemetryStackFrame {
+  platform: 'node:javascript';
+  function: string;
+  filename: string;
+  abs_path: string;
+  lineno?: number;
+  colno?: number;
+  in_app: boolean;
+}
+
+export interface TelemetryExceptionEntry {
+  type: string;
+  mechanism: { type: 'onuncaughtexception' | 'onunhandledrejection'; handled: false };
+  stacktrace: { type: 'raw'; frames: TelemetryStackFrame[] };
+}
+
 export interface TelemetryBatchEvent {
   event: string;
   distinct_id: string;
-  properties: Record<string, TelemetryValue>;
+  properties: Record<string, TelemetryValue | TelemetryExceptionEntry[]>;
   timestamp: string;
 }
 
@@ -44,6 +62,7 @@ export interface TelemetryService {
   status(): TelemetryStatus;
   setPreference(enabled: boolean): TelemetryStatus;
   capture(event: string, properties?: Record<string, TelemetryValue>): void;
+  captureException(exception: TelemetryExceptionEntry, at?: Date): void;
   flush(): Promise<void>;
   close(): Promise<void>;
 }
@@ -84,45 +103,55 @@ export function telemetryDecision(
   return { enabled: true };
 }
 
-interface TelemetryFile {
-  installId?: string;
-  enabled?: false;
-}
-
-function readTelemetryFile(dataDir: string): TelemetryFile {
+function readTelemetryState(dataDir: string): Record<string, unknown> {
   try {
     const parsed: unknown = JSON.parse(readFileSync(join(dataDir, INSTALL_ID_FILE), 'utf8'));
-    if (typeof parsed !== 'object' || parsed === null) return {};
-    const record = parsed as Record<string, unknown>;
-    const id = record['installId'];
-    return {
-      ...(typeof id === 'string' && UUID.test(id) ? { installId: id } : {}),
-      ...(record['enabled'] === false ? { enabled: false } : {}),
-    };
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
   } catch {
     return {};
   }
 }
 
-function writeTelemetryFile(dataDir: string, file: TelemetryFile): void {
+function updateTelemetryFile(dataDir: string, patch: Record<string, unknown>): void {
+  const next: Record<string, unknown> = { ...readTelemetryState(dataDir), ...patch };
+  for (const [key, value] of Object.entries(next)) if (value === undefined) delete next[key];
   mkdirSync(dataDir, { recursive: true });
-  writeFileSync(join(dataDir, INSTALL_ID_FILE), `${JSON.stringify(file)}\n`, { mode: 0o600 });
+  writeFileSync(join(dataDir, INSTALL_ID_FILE), `${JSON.stringify(next)}\n`, { mode: 0o600 });
 }
 
 export function readInstallId(dataDir: string): string | undefined {
-  return readTelemetryFile(dataDir).installId;
+  const id = readTelemetryState(dataDir)['installId'];
+  return typeof id === 'string' && UUID.test(id) ? id : undefined;
+}
+
+export function readDailyUsageAt(dataDir: string): Date | undefined {
+  const value = readTelemetryState(dataDir)['dailyUsageAt'];
+  if (typeof value !== 'string') return undefined;
+  const at = new Date(value);
+  return Number.isNaN(at.getTime()) ? undefined : at;
+}
+
+export function writeDailyUsageAt(dataDir: string, at: Date): void {
+  if (readInstallId(dataDir) === undefined) return;
+  try {
+    updateTelemetryFile(dataDir, { dailyUsageAt: at.toISOString() });
+  } catch {
+    return;
+  }
 }
 
 export function readTelemetryPreference(dataDir: string): boolean {
-  return readTelemetryFile(dataDir).enabled !== false;
+  return readTelemetryState(dataDir)['enabled'] !== false;
 }
 
 export function ensureInstallId(dataDir: string, createId: () => string = randomUUID): string {
-  const file = readTelemetryFile(dataDir);
-  if (file.installId !== undefined) return file.installId;
+  const existing = readInstallId(dataDir);
+  if (existing !== undefined) return existing;
   const id = createId();
   try {
-    writeTelemetryFile(dataDir, { ...file, installId: id });
+    updateTelemetryFile(dataDir, { installId: id });
   } catch {
     return id;
   }
@@ -130,11 +159,7 @@ export function ensureInstallId(dataDir: string, createId: () => string = random
 }
 
 export function writeTelemetryPreference(dataDir: string, enabled: boolean): void {
-  const { installId } = readTelemetryFile(dataDir);
-  writeTelemetryFile(dataDir, {
-    ...(installId === undefined ? {} : { installId }),
-    ...(enabled ? {} : { enabled: false }),
-  });
+  updateTelemetryFile(dataDir, { enabled: enabled ? undefined : false });
 }
 
 export function telemetryVersion(value: string | undefined): string {
@@ -251,6 +276,33 @@ export function createTelemetryService(options: TelemetryServiceOptions): Teleme
     await inflight;
   };
 
+  const enqueue = (
+    event: string,
+    properties: TelemetryBatchEvent['properties'],
+    at: Date = now(),
+  ): void => {
+    if (!enabled || closed) return;
+    try {
+      queue.push({
+        event: {
+          event,
+          distinct_id: distinctId(),
+          properties: {
+            ...properties,
+            source: TELEMETRY_SOURCE,
+            $process_person_profile: false,
+          },
+          timestamp: at.toISOString(),
+        },
+        retried: false,
+      });
+      if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
+      schedule();
+    } catch {
+      return;
+    }
+  };
+
   return {
     get enabled() {
       return enabled;
@@ -273,26 +325,10 @@ export function createTelemetryService(options: TelemetryServiceOptions): Teleme
       return status();
     },
     capture(event, properties = {}) {
-      if (!enabled || closed) return;
-      try {
-        queue.push({
-          event: {
-            event,
-            distinct_id: distinctId(),
-            properties: {
-              ...properties,
-              source: TELEMETRY_SOURCE,
-              $process_person_profile: false,
-            },
-            timestamp: now().toISOString(),
-          },
-          retried: false,
-        });
-        if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
-        schedule();
-      } catch {
-        return;
-      }
+      enqueue(event, properties);
+    },
+    captureException(exception, at) {
+      enqueue('$exception', { $exception_list: [exception], $exception_level: 'error' }, at);
     },
     flush,
     async close() {

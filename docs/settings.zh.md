@@ -140,7 +140,15 @@ Profile 向下展开 **提醒策略**，在对应来源行点击修改，选择�
 
 ## 匿名使用统计
 
-DeepSeekBot 默认由 DSH 后台发送匿名使用统计；首次打开 Bot 模式时会弹出一次说明。事件包含插件版本、DSH 版本、操作系统和架构，只关联一个保存在 `$DSH_HOME/botharness/telemetry.json` 的随机安装 ID；名称、Persona 或 Memory 内容、对话、文件路径、凭据和 IP 地址从不发送。要关闭，打开 **Bot 设置**，关掉 **匿名使用统计** 开关即可：立即生效、无需重启，尚未发送的事件会被丢弃，选择保存在同一个 `telemetry.json` 里，重启后仍然有效；重新打开同样无需重启。部署方也可以在 BotHarness core 插件上设置 `telemetry: false`（见下方高级参数），或用 `DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0` 启动 DSH 强制关闭，此时开关显示为关闭且不可操作，并注明是哪项设置关闭了它。详见[隐私说明](https://deepseekbot.botharness.ai/privacy)和[源码](https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry)。
+DeepSeekBot 默认由 DSH 后台发送匿名使用统计；首次打开 Bot 模式时会弹出一次说明。事件只关联一个保存在 `$DSH_HOME/botharness/telemetry.json` 的随机安装 ID：
+
+- `plugin_started`：插件版本、DSH 版本、操作系统和架构。
+- `bot_created`、`bot_archived`、`bot_deleted`、`marketplace_bot_installed`、`avatar_edited`：只记录发生了这个操作。
+- `connector_enabled`：只记录连接器类型（`feishu`、`lark`、`slack`、`discord`、`weixin` 或 `other`）。
+- `daily_usage`：每天最多一次，记录 PersonaBot 数量、自上次汇总以来新增的会话数和消息数，以及这段统计时长（整小时数）；不会按单条消息发送事件。
+- `$exception`：BotHarness 代码在后台出现未处理的错误时，记录错误类型和调用栈中的函数名与行号，文件只保留包内相对路径（如 `@botharness/core/dist/index.mjs`）或文件名；调用栈中没有 BotHarness 代码的错误会被丢弃。报告先保存在本机，下次启动时发送；从不包含错误信息正文。
+
+名称、Persona 或 Memory 内容、对话、提示词、工具参数、仓库地址、连接器账号或工作区、你的文件路径、凭据和 IP 地址从不发送。要关闭，打开 **Bot 设置**，关掉 **匿名使用统计** 开关即可：立即生效、无需重启，尚未发送的事件会被丢弃，选择保存在同一个 `telemetry.json` 里，重启后仍然有效；重新打开同样无需重启。部署方也可以在 BotHarness core 插件上设置 `telemetry: false`（见下方高级参数），或用 `DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0` 启动 DSH 强制关闭，此时开关显示为关闭且不可操作，并注明是哪项设置关闭了它。详见[隐私说明](https://deepseekbot.botharness.ai/privacy)和[源码](https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry)。
 
 ## 高级参数与可选能力
 

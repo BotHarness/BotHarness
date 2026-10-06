@@ -276,6 +276,7 @@ export interface CreatePersonaBotInput {
   roles: string[];
   description?: string;
   gitUrl?: string;
+  origin?: 'marketplace';
 }
 
 export interface BotSourcePolicyView {
