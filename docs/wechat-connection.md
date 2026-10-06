@@ -138,13 +138,15 @@ Reads return at most 20 records per page and obey a JSON budget (1,000–24,000 
 
 WeChat send receipts remain client acknowledgements. They cannot be used to resolve a server-message-ID-only quote of a Bot reply. Embedded native quoted text can still be shown; without that text or a genuine retained server ID, the quote remains unavailable.
 
-The #908 live test received an item-ID-only quote: WeChat supplied neither the quoted body nor a server message ID. BotHarness kept the quote explicitly unavailable. The Bot read the original canonical Source Event through two retained-context pages and one nearby query, then sent `BH908-QUOTE-OK 紫色风铃42` to the same authorized private conversation. The Provider accepted the send; recipient confirmation is still pending. Embedded-body and server-ID resolution variants are covered by regressions, not claimed as live-tested client variants.
+The #908 live test received an item-ID-only quote: WeChat supplied neither the quoted body nor a server message ID. BotHarness kept the quote explicitly unavailable. The Bot read the original canonical Source Event through two retained-context pages and one nearby query, then sent `BH908-QUOTE-OK 紫色风铃42` to the same authorized private conversation. The Provider accepted the send, and the Human confirmed receipt with a native WeChat screenshot. Embedded-body and server-ID resolution variants are covered by regressions, not claimed as live-tested client variants.
 
 ![Real item-ID-only quote shown as unavailable, light theme](/guides/wechat/quote-after-light.jpg)
 
 ![The same source and quote in dark theme](/guides/wechat/quote-after-dark.jpg)
 
 ![Read audit and the original retained message, with its test password](/guides/wechat/quote-context-light.jpg)
+
+![Human-confirmed reply in the original quoted-message conversation](/guides/wechat/native-quote-reply.png)
 
 ## Pause or reconnect
 

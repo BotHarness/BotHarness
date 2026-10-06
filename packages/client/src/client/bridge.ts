@@ -3466,7 +3466,7 @@ export async function readMessagingSource(
             String(read?.['scope']),
           ) &&
           (read?.['coverage'] === undefined ||
-            ['remote-provider-page', 'retained-local-sources'].includes(
+            ['provider-visible-human-text', 'retained-local-sources'].includes(
               String(read['coverage']),
             )) &&
           ['read', 'refused'].includes(String(read?.['outcome'])) &&

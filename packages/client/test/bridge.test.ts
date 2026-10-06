@@ -2374,6 +2374,13 @@ it('reads retained WeChat context audits through the actual Client bridge before
     ],
   };
   await expect(read(source)).resolves.toEqual(source);
+  const providerSource = {
+    ...EXTERNAL_SOURCE,
+    contextReads: [
+      { ...source.contextReads[0], scope: 'group', coverage: 'provider-visible-human-text' },
+    ],
+  };
+  await expect(read(providerSource)).resolves.toEqual(providerSource);
   for (const patch of [
     { scope: 'invented-history' },
     { coverage: 'remote-wechat-history' },
