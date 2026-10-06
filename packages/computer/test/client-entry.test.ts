@@ -34,6 +34,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
     IconFullscreenOutlineRegular: glyph,
     Menu: glyph,
     Button: control,
+    Tag: (props: { children?: unknown }) => createElement('span', null, props.children as never),
     Pill: control,
     StateDot: dot,
     Switch: toggle,
@@ -163,12 +164,16 @@ describe('Computer entry states', () => {
     const html = view({ runtimeAvailable: false });
     expect(html).toContain('未检测到容器运行时');
     expect(html).toContain('colima');
+    expect(html).toContain('bh-card-row');
+    expect(html).toContain('需要设置');
   });
 
   it('offers start with the shared-computer note when ready', () => {
     const html = view();
     expect(html).toContain('启动');
     expect(html).toContain('共享');
+    expect(html).toContain('Docker Computer');
+    expect(html).toContain('未启动');
   });
 
   it('hides bare exit-code reports behind the shared note in the start view', () => {
@@ -191,6 +196,7 @@ describe('Computer entry states', () => {
     expect(html).toContain('atlas 的屏幕');
     expect(html).toContain('连接中');
     expect(html).toContain('pointer-events:none');
+    expect(html).toContain('运行中');
   });
 
   it('shows pull progress with the runtime line and elapsed time', () => {
@@ -211,6 +217,7 @@ describe('Computer entry states', () => {
     expect(html).toContain('授权并启动');
     expect(html).toContain('本次会话内不再询问');
     expect(html).toContain('拉取镜像');
+    expect(html).toContain('待授权');
   });
 });
 

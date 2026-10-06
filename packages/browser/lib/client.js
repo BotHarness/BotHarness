@@ -795,6 +795,355 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
+		//#region packages/client/src/client/channel-sidebar-icon.tsx
+		/**
+		* Vendored Channel sidebar glyphs from lucide-react@1.46.0 (ISC, ADR-0032).
+		*
+		* Source: the matching lucide `dist/esm/icons/*.mjs` glyph data. Vendored at the
+		* stock 2-unit stroke without adding a `lucide-react` runtime dependency.
+		*
+		* ISC License
+		*
+		* Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT).
+		* All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+		*
+		* Permission to use, copy, modify, and/or distribute this software for any
+		* purpose with or without fee is hereby granted, provided that the above
+		* copyright notice and this permission notice appear in all copies.
+		*
+		* THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+		* REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+		* AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+		* INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+		* LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+		* OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+		* PERFORMANCE OF THIS SOFTWARE.
+		*/
+		const glyphs = {
+			"alarm-clock": [
+				["circle", {
+					cx: "12",
+					cy: "13",
+					r: "8"
+				}],
+				["path", { d: "M12 9v4l2 2" }],
+				["path", { d: "M5 3 2 6" }],
+				["path", { d: "m22 6-3-3" }],
+				["path", { d: "M6.38 18.7 4 21" }],
+				["path", { d: "M17.64 18.67 20 21" }]
+			],
+			user: [["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" }], ["circle", {
+				cx: "12",
+				cy: "7",
+				r: "4"
+			}]],
+			bot: [
+				["path", { d: "M12 8V4H8" }],
+				["rect", {
+					width: "16",
+					height: "12",
+					x: "4",
+					y: "8",
+					rx: "2"
+				}],
+				["path", { d: "M2 14h2" }],
+				["path", { d: "M20 14h2" }],
+				["path", { d: "M15 13v2" }],
+				["path", { d: "M9 13v2" }]
+			],
+			"list-checks": [
+				["path", { d: "M13 5h8" }],
+				["path", { d: "M13 12h8" }],
+				["path", { d: "M13 19h8" }],
+				["path", { d: "m3 17 2 2 4-4" }],
+				["path", { d: "m3 7 2 2 4-4" }]
+			],
+			palette: [
+				["path", { d: "M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" }],
+				["circle", {
+					cx: "13.5",
+					cy: "6.5",
+					r: ".5",
+					fill: "currentColor"
+				}],
+				["circle", {
+					cx: "17.5",
+					cy: "10.5",
+					r: ".5",
+					fill: "currentColor"
+				}],
+				["circle", {
+					cx: "6.5",
+					cy: "12.5",
+					r: ".5",
+					fill: "currentColor"
+				}],
+				["circle", {
+					cx: "8.5",
+					cy: "7.5",
+					r: ".5",
+					fill: "currentColor"
+				}]
+			],
+			"image-up": [
+				["path", { d: "M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10l-3.1-3.1a2 2 0 0 0-2.814.014L6 21" }],
+				["path", { d: "m14 19.5 3-3 3 3" }],
+				["path", { d: "M17 22v-5.5" }],
+				["circle", {
+					cx: "9",
+					cy: "9",
+					r: "2"
+				}]
+			],
+			lock: [["rect", {
+				width: "18",
+				height: "11",
+				x: "3",
+				y: "11",
+				rx: "2",
+				ry: "2"
+			}], ["path", { d: "M7 11V7a5 5 0 0 1 10 0v4" }]],
+			play: [["path", { d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" }]],
+			"lock-open": [["rect", {
+				width: "18",
+				height: "11",
+				x: "3",
+				y: "11",
+				rx: "2",
+				ry: "2"
+			}], ["path", { d: "M7 11V7a5 5 0 0 1 9.9-1" }]],
+			eye: [["path", { d: "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" }], ["circle", {
+				cx: "12",
+				cy: "12",
+				r: "3"
+			}]],
+			"eye-off": [
+				["path", { d: "M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" }],
+				["path", { d: "M14.084 14.158a3 3 0 0 1-4.242-4.242" }],
+				["path", { d: "M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" }],
+				["path", { d: "m2 2 20 20" }]
+			],
+			files: [
+				["path", { d: "M15 2h-4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" }],
+				["path", { d: "M16.706 2.706A2.4 2.4 0 0 0 15 2v5a1 1 0 0 0 1 1h5a2.4 2.4 0 0 0-.706-1.706z" }],
+				["path", { d: "M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1" }]
+			],
+			"git-branch": [
+				["path", { d: "M15 6a9 9 0 0 0-9 9V3" }],
+				["circle", {
+					cx: "18",
+					cy: "6",
+					r: "3"
+				}],
+				["circle", {
+					cx: "6",
+					cy: "18",
+					r: "3"
+				}]
+			],
+			"messages-square": [["path", { d: "M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" }], ["path", { d: "M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1" }]],
+			inbox: [["polyline", { points: "22 12 16 12 14 15 10 15 8 12 2 12" }], ["path", { d: "M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" }]],
+			"folder-key": [
+				["path", { d: "M13 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v1.36" }],
+				["path", { d: "M19 12v6" }],
+				["path", { d: "M19 14h2" }],
+				["circle", {
+					cx: "19",
+					cy: "20",
+					r: "2"
+				}]
+			],
+			users: [
+				["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
+				["path", { d: "M16 3.128a4 4 0 0 1 0 7.744" }],
+				["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87" }],
+				["circle", {
+					cx: "9",
+					cy: "7",
+					r: "4"
+				}]
+			],
+			"settings-2": [
+				["path", { d: "M14 17H5" }],
+				["path", { d: "M19 7h-9" }],
+				["circle", {
+					cx: "17",
+					cy: "17",
+					r: "3"
+				}],
+				["circle", {
+					cx: "7",
+					cy: "7",
+					r: "3"
+				}]
+			],
+			settings: [["path", { d: "M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" }], ["circle", {
+				cx: "12",
+				cy: "12",
+				r: "3"
+			}]],
+			monitor: [
+				["rect", {
+					width: "20",
+					height: "14",
+					x: "2",
+					y: "3",
+					rx: "2"
+				}],
+				["line", {
+					x1: "8",
+					x2: "16",
+					y1: "21",
+					y2: "21"
+				}],
+				["line", {
+					x1: "12",
+					x2: "12",
+					y1: "17",
+					y2: "21"
+				}]
+			],
+			globe: [
+				["circle", {
+					cx: "12",
+					cy: "12",
+					r: "10"
+				}],
+				["path", { d: "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" }],
+				["path", { d: "M2 12h20" }]
+			],
+			"panels-top-left": [
+				["rect", {
+					width: "18",
+					height: "18",
+					x: "3",
+					y: "3",
+					rx: "2"
+				}],
+				["path", { d: "M3 9h18" }],
+				["path", { d: "M9 21V9" }]
+			],
+			"grip-vertical": [
+				["circle", {
+					cx: "9",
+					cy: "12",
+					r: "1"
+				}],
+				["circle", {
+					cx: "9",
+					cy: "5",
+					r: "1"
+				}],
+				["circle", {
+					cx: "9",
+					cy: "19",
+					r: "1"
+				}],
+				["circle", {
+					cx: "15",
+					cy: "12",
+					r: "1"
+				}],
+				["circle", {
+					cx: "15",
+					cy: "5",
+					r: "1"
+				}],
+				["circle", {
+					cx: "15",
+					cy: "19",
+					r: "1"
+				}]
+			],
+			check: [["path", { d: "M20 6 9 17l-5-5" }]]
+		};
+		function ChannelSidebarIcon({ name = "panels-top-left", size = 16 }) {
+			const nodes = Object.hasOwn(glyphs, name) ? glyphs[name] : glyphs["panels-top-left"];
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
+				width: size,
+				height: size,
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 2,
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": "true",
+				children: nodes.map(([tag, attributes], index) => (0, react.createElement)(tag, {
+					...attributes,
+					key: index
+				}))
+			});
+		}
+		//#endregion
+		//#region packages/client/src/client/sidebar-card.tsx
+		function SidebarCardList({ label, className, children }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("ul", {
+				className: className === void 0 ? "bh-card-list" : "bh-card-list " + className,
+				"aria-label": label,
+				children
+			});
+		}
+		function SidebarCardRow({ icon, iconLabel, title, titleClassName, hint, chips, meta, trailing, detail, onClick, disabled, muted, mainClassName, dialog, expanded, controls, state }) {
+			const body = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				className: "bh-card-icon",
+				role: iconLabel === void 0 ? void 0 : "img",
+				"aria-label": iconLabel,
+				title: iconLabel,
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ChannelSidebarIcon, {
+					name: icon,
+					size: 16
+				})
+			}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+				className: "bh-card-body",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: titleClassName === void 0 ? "bh-card-title" : "bh-card-title " + titleClassName,
+						children: title
+					}),
+					chips === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: "bh-card-chips",
+						children: chips
+					}),
+					meta === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: "bh-card-meta",
+						children: meta
+					})
+				]
+			})] });
+			const className = mainClassName === void 0 ? "bh-card-main" : "bh-card-main " + mainClassName;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", {
+				className: "bh-card-row",
+				"data-muted": muted === true ? "true" : void 0,
+				"data-state": state,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: "bh-card-line",
+					children: [onClick === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className,
+						title: hint,
+						children: body
+					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						className,
+						title: hint,
+						disabled,
+						"aria-haspopup": dialog === true ? "dialog" : void 0,
+						"aria-expanded": expanded,
+						"aria-controls": controls,
+						onClick,
+						children: body
+					}), trailing === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: "bh-card-trailing",
+						children: trailing
+					})]
+				}), detail === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					id: controls,
+					className: "bh-card-detail",
+					children: detail
+				})]
+			});
+		}
+		//#endregion
 		//#region packages/browser/src/client/locale.ts
 		const LOCALE_NS = "botharness-browser";
 		const zh = {
@@ -863,6 +1212,19 @@ window.__ModuleLoader__.load({
 			"entry.view.opening": "正在打开…",
 			"entry.view.noFrame": "暂无画面",
 			"entry.view.noTabs": "暂无标签页",
+			"entry.view.tabs": "标签页",
+			"entry.chip.running": "运行中",
+			"entry.chip.stopped": "未运行",
+			"entry.chip.paused": "已暂停",
+			"entry.chip.disconnected": "未连接",
+			"entry.chip.connecting": "连接中",
+			"entry.chip.confirm": "待允许",
+			"entry.chip.controlled": "可操作",
+			"entry.chip.unpaired": "未配对",
+			"entry.chip.offline": "已断开",
+			"entry.chip.connected": "已连接",
+			"entry.chip.notShared": "未借用",
+			"entry.chip.readOnly": "只读",
 			"entry.error": "浏览器操作失败"
 		};
 		const en = {
@@ -931,6 +1293,19 @@ window.__ModuleLoader__.load({
 			"entry.view.opening": "Opening…",
 			"entry.view.noFrame": "No frame yet",
 			"entry.view.noTabs": "No tabs yet",
+			"entry.view.tabs": "Tabs",
+			"entry.chip.running": "Running",
+			"entry.chip.stopped": "Stopped",
+			"entry.chip.paused": "Paused",
+			"entry.chip.disconnected": "Not connected",
+			"entry.chip.connecting": "Connecting",
+			"entry.chip.confirm": "Needs approval",
+			"entry.chip.controlled": "Controllable",
+			"entry.chip.unpaired": "Not paired",
+			"entry.chip.offline": "Disconnected",
+			"entry.chip.connected": "Connected",
+			"entry.chip.notShared": "Not shared",
+			"entry.chip.readOnly": "Read-only",
 			"entry.error": "Browser action failed"
 		};
 		//#endregion
@@ -1215,47 +1590,71 @@ window.__ModuleLoader__.load({
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				ref: resource,
 				className: "bh-browser-body bh-browser-borrow",
-				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("settings.profile-control") }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.profile.scope") }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
-						className: "bh-browser-daily-install",
-						href: "https://github.com/BotHarness/BotHarness/blob/main/docs/daily-browser.md#chrome-profile-control",
-						target: "_blank",
-						rel: "noreferrer",
-						children: t("entry.profile.install")
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
-						role: "status",
-						children: [view?.paired ? t(view.connected ? "entry.profile.connected" : "entry.profile.disconnected") : t("entry.view.noTabs"), view?.connected ? ` · ${view.tabs}` : ""]
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-						size: "sm",
-						disabled: busy,
-						onClick: () => invoke(view?.paired ? "forget" : "pair"),
-						children: t(view?.paired ? "entry.profile.forget" : "entry.profile.pair")
-					}),
-					view?.connected ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-						size: "sm",
-						disabled: !enabled || busy,
-						onClick: () => invoke("pause"),
-						children: t(paused ? "entry.view.resume" : "entry.view.pause")
-					}) : null,
-					view?.paired || pair === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.profile.instructions") }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
-							"aria-label": t("entry.borrow.code"),
-							value: pair.code,
-							readOnly: true
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: location.origin })
-					] }),
-					error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						role: "alert",
-						className: "bh-browser-error",
-						children: error
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardList, {
+					className: "bh-browser-cards",
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardRow, {
+						icon: "globe",
+						title: t("settings.profile-control"),
+						chips: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [view?.paired !== true ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "neutral",
+							children: t("entry.chip.unpaired")
+						}) : view.connected ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "success",
+							children: t("entry.chip.connected")
+						}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "warning",
+							children: t("entry.chip.offline")
+						}), paused ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "warning",
+							children: t("entry.chip.paused")
+						}) : null] }),
+						meta: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.profile.scope") }), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+							role: "status",
+							children: [view?.paired ? t(view.connected ? "entry.profile.connected" : "entry.profile.disconnected") : t("entry.view.noTabs"), view?.connected ? ` · ${view.tabs}` : ""]
+						})] }),
+						detail: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: "bh-browser-card-detail",
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
+									className: "bh-browser-daily-install",
+									href: "https://github.com/BotHarness/BotHarness/blob/main/docs/daily-browser.md#chrome-profile-control",
+									target: "_blank",
+									rel: "noreferrer",
+									children: t("entry.profile.install")
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+									className: "bh-browser-actions",
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+										size: "sm",
+										variant: "outline",
+										disabled: busy,
+										onClick: () => invoke(view?.paired ? "forget" : "pair"),
+										children: t(view?.paired ? "entry.profile.forget" : "entry.profile.pair")
+									}), view?.connected ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+										size: "sm",
+										variant: "outline",
+										disabled: !enabled || busy,
+										onClick: () => invoke("pause"),
+										children: t(paused ? "entry.view.resume" : "entry.view.pause")
+									}) : null]
+								}),
+								view?.paired || pair === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.profile.instructions") }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+										"aria-label": t("entry.borrow.code"),
+										value: pair.code,
+										readOnly: true
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: location.origin })
+								] })
+							]
+						})
 					})
-				]
+				}), error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					role: "alert",
+					className: "bh-browser-error",
+					children: error
+				})]
 			});
 		}
 		//#endregion
@@ -1294,50 +1693,84 @@ window.__ModuleLoader__.load({
 				ref: resource,
 				className: "bh-browser-body bh-browser-borrow",
 				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("settings.daily-control") }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
-						className: "bh-browser-daily-install",
-						href: "https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm",
-						target: "_blank",
-						rel: "noreferrer",
-						children: t("entry.daily.install")
-					}),
-					view === null || view.state === "error" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-						size: "sm",
-						disabled: !enabled || busy,
-						onClick: () => invoke("connect"),
-						children: t("entry.daily.connect")
-					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							role: "status",
-							children: t(view.state === "connecting" ? "entry.daily.select" : view.state === "confirm" ? "entry.daily.confirm" : "entry.daily.controlled")
-						}),
-						view.url === "" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
-							className: "bh-browser-borrow-title",
-							children: view.title || view.url
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: "bh-browser-borrow-url",
-							children: view.url
-						})] }),
-						view.state === "confirm" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-							size: "sm",
-							disabled: !enabled || busy,
-							onClick: () => invoke("grant"),
-							children: t("entry.daily.allow")
-						}) : null,
-						view.state === "controlled" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-							size: "sm",
-							disabled: busy,
-							onClick: () => invoke("pause"),
-							children: t(paused ? "entry.view.resume" : "entry.view.pause")
-						}) : null,
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-							size: "sm",
-							disabled: busy,
-							onClick: () => invoke("return"),
-							children: t(view.state === "connecting" ? "entry.borrow.cancel" : "entry.borrow.return")
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardList, {
+						className: "bh-browser-cards",
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardRow, {
+							icon: "globe",
+							title: t("settings.daily-control"),
+							chips: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [view === null || view.state === "error" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+								tone: "neutral",
+								children: t("entry.chip.disconnected")
+							}) : view.state === "connecting" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+								tone: "info",
+								children: t("entry.chip.connecting")
+							}) : view.state === "confirm" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+								tone: "warning",
+								children: t("entry.chip.confirm")
+							}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+								tone: "success",
+								children: t("entry.chip.controlled")
+							}), paused && view?.state === "controlled" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+								tone: "warning",
+								children: t("entry.chip.paused")
+							}) : null] }),
+							meta: view === null || view.state === "error" ? void 0 : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								role: "status",
+								children: t(view.state === "connecting" ? "entry.daily.select" : view.state === "confirm" ? "entry.daily.confirm" : "entry.daily.controlled")
+							}),
+							detail: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: "bh-browser-card-detail",
+								children: [
+									view === null || view.state === "error" || view.url === "" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+										className: "bh-browser-borrow-title",
+										children: view.title || view.url
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: "bh-browser-borrow-url",
+										children: view.url
+									})] }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("a", {
+										className: "bh-browser-daily-install",
+										href: "https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm",
+										target: "_blank",
+										rel: "noreferrer",
+										children: t("entry.daily.install")
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+										className: "bh-browser-actions",
+										children: view === null || view.state === "error" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+											size: "sm",
+											variant: "outline",
+											disabled: !enabled || busy,
+											onClick: () => invoke("connect"),
+											children: t("entry.daily.connect")
+										}) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+											view.state === "confirm" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+												size: "sm",
+												variant: "outline",
+												disabled: !enabled || busy,
+												onClick: () => invoke("grant"),
+												children: t("entry.daily.allow")
+											}) : null,
+											view.state === "controlled" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+												size: "sm",
+												variant: "outline",
+												disabled: busy,
+												onClick: () => invoke("pause"),
+												children: t(paused ? "entry.view.resume" : "entry.view.pause")
+											}) : null,
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+												size: "sm",
+												variant: "outline",
+												disabled: busy,
+												onClick: () => invoke("return"),
+												children: t(view.state === "connecting" ? "entry.borrow.cancel" : "entry.borrow.return")
+											})
+										] })
+									})
+								]
+							})
 						})
-					] }),
+					}),
 					view?.error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						role: "alert",
 						className: "bh-browser-error",
@@ -1394,49 +1827,63 @@ window.__ModuleLoader__.load({
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				ref: resource,
 				className: "bh-browser-body bh-browser-borrow",
-				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: t("settings.extension") }),
-					tab == null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.borrow.none") }) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.borrow.readOnly") }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
-							className: "bh-browser-borrow-title",
-							children: tab.title || tab.url
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardList, {
+					className: "bh-browser-cards",
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardRow, {
+						icon: "globe",
+						title: t("settings.extension"),
+						chips: tab == null ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "neutral",
+							children: t("entry.chip.notShared")
+						}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "info",
+							children: t("entry.chip.readOnly")
 						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							className: "bh-browser-borrow-url",
-							children: tab.url
+						meta: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t(tab == null ? "entry.borrow.none" : "entry.borrow.readOnly") }),
+						detail: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							className: "bh-browser-card-detail",
+							children: [
+								tab == null ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+									className: "bh-browser-borrow-title",
+									children: tab.title || tab.url
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									className: "bh-browser-borrow-url",
+									children: tab.url
+								})] }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+									size: "sm",
+									variant: "outline",
+									disabled: !enabled || busy,
+									onClick: () => invoke(tab == null ? "pair" : "return"),
+									children: t(tab == null ? "entry.borrow.pair" : "entry.borrow.return")
+								}),
+								tab != null || pair === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.borrow.instructions") }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
+										"aria-label": t("entry.borrow.code"),
+										value: pair.code,
+										readOnly: true
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: location.origin }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+										size: "sm",
+										variant: "outline",
+										onClick: () => {
+											sequence.current += 1;
+											setPair(void 0);
+											invoke("return");
+										},
+										children: t("entry.borrow.cancel")
+									})
+								] })
+							]
 						})
-					] }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-						size: "sm",
-						disabled: !enabled || busy,
-						onClick: () => invoke(tab == null ? "pair" : "return"),
-						children: t(tab == null ? "entry.borrow.pair" : "entry.borrow.return")
-					}),
-					tab != null || pair === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.borrow.instructions") }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
-							"aria-label": t("entry.borrow.code"),
-							value: pair.code,
-							readOnly: true
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: location.origin }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-							size: "sm",
-							onClick: () => {
-								sequence.current += 1;
-								setPair(void 0);
-								invoke("return");
-							},
-							children: t("entry.borrow.cancel")
-						})
-					] }),
-					error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						role: "alert",
-						className: "bh-browser-error",
-						children: error
 					})
-				]
+				}), error === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					role: "alert",
+					className: "bh-browser-error",
+					children: error
+				})]
 			});
 		}
 		//#endregion
@@ -1496,16 +1943,18 @@ window.__ModuleLoader__.load({
 .bh-browser-profiles > button:hover, .bh-browser-profiles > button[data-active] {
   background: var(--bh-browser-hover);
 }
-.bh-browser-tab {
-  display: grid; width: 100%; min-width: 0; gap: 2px; padding: 6px;
-  border: 0; border-radius: var(--bh-browser-radius); background: transparent;
-  color: var(--bh-browser-label); text-align: left; font: inherit; cursor: pointer;
-}
-.bh-browser-tab:hover, .bh-browser-tab[aria-pressed="true"] { background: var(--bh-browser-hover); }
-.bh-browser-tab:focus-visible { outline: 1px solid var(--bh-browser-label); outline-offset: -1px; }
+.bh-browser-local { display: grid; gap: 8px; font-size: 12.5px; }
+.bh-browser-card-detail { display: grid; gap: 8px; justify-items: start; font-size: 12px; }
+.bh-browser-card-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; color: var(--bh-browser-secondary); }
+.bh-browser-card-field > span:first-child { flex: none; }
+.bh-browser-cards .bh-card-meta [role="status"] { color: inherit; }
+.bh-browser-note { color: var(--bh-browser-secondary); }
+.bh-browser-frame { display: block; width: 100%; border: 1px solid var(--bh-browser-stroke); border-radius: var(--bh-browser-radius); }
+.bh-browser-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bh-browser-tab[aria-pressed="true"] { background: var(--bh-browser-hover); }
 .bh-browser-tab[aria-current="true"] .bh-browser-tab-title { font-weight: 600; }
-.bh-browser-tab-title, .bh-browser-tab-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bh-browser-tab-url { color: var(--bh-browser-secondary); }
+.bh-browser-tab .bh-browser-tab-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-browser-tabs .bh-card-main { padding: 7px 10px; }
 .bh-browser-error { color: var(--bh-browser-error); overflow-wrap: anywhere; }
 `;
 		//#endregion
@@ -1730,15 +2179,6 @@ window.__ModuleLoader__.load({
 				}) : null]
 			});
 		}
-		const buttonStyle = {
-			padding: "4px 10px",
-			borderRadius: 6,
-			border: "1px solid currentColor",
-			background: "transparent",
-			color: "inherit",
-			cursor: "pointer",
-			fontSize: 12
-		};
 		function BrowserBody({ botSlug, t }) {
 			const [store] = (0, react.useState)(() => createObservationStore(botSlug));
 			const [infoStore] = (0, react.useState)(() => createBotInfoStore(botSlug));
@@ -1932,60 +2372,85 @@ window.__ModuleLoader__.load({
 			}, botSlug);
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				ref: interactionResource,
-				className: "bh-browser-body",
-				style: {
-					display: "grid",
-					gap: 8,
-					fontSize: 12.5
-				},
+				className: "bh-browser-body bh-browser-local",
 				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						style: {
-							display: "flex",
-							alignItems: "center",
-							gap: 8
-						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							style: { opacity: .8 },
-							children: t("entry.profile.label")
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProfileCombobox, {
-							value: currentProfile,
-							profiles: [...info.profiles, ...observation?.profiles ?? []],
-							disabled: busy || cleanupRequired || botSlug === void 0,
-							invalid: profileInvalid,
-							errorId,
-							onSelect: saveProfile,
-							t
-						})]
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardList, {
+						className: "bh-browser-cards",
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardRow, {
+							icon: "globe",
+							title: t(observation?.target === "container" ? "settings.container" : "settings.local"),
+							chips: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [observation?.running === true ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+								tone: "success",
+								children: t("entry.chip.running")
+							}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+								tone: "neutral",
+								children: t("entry.chip.stopped")
+							}), paused ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+								tone: "warning",
+								children: t("entry.chip.paused")
+							}) : null] }),
+							detail: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								className: "bh-browser-card-detail",
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: "bh-browser-card-field",
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.profile.label") }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ProfileCombobox, {
+											value: currentProfile,
+											profiles: [...info.profiles, ...observation?.profiles ?? []],
+											disabled: busy || cleanupRequired || botSlug === void 0,
+											invalid: profileInvalid,
+											errorId,
+											onSelect: saveProfile,
+											t
+										})]
+									}),
+									viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: "bh-browser-card-field",
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: t("entry.view.follow") }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
+											checked: follow,
+											onChange: onFollow,
+											label: t("entry.view.follow"),
+											disabled: botSlug === void 0
+										})]
+									}) : null,
+									/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+										className: "bh-browser-actions",
+										children: [
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+												size: "sm",
+												variant: "primary",
+												disabled: busy || cleanupRequired,
+												onClick: () => invoke(OPEN_ENDPOINT, follow || preview === void 0 ? {} : { tab: preview }),
+												children: t(busy ? "entry.view.opening" : "entry.view.open")
+											}),
+											/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+												size: "sm",
+												variant: "outline",
+												disabled: busy || cleanupRequired,
+												onClick: onPause,
+												children: t(paused ? "entry.view.resume" : "entry.view.pause")
+											}),
+											(observation?.running === true || cleanupRequired) && viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+												size: "sm",
+												variant: "outline",
+												disabled: busy,
+												onClick: () => invoke(STOP_ENDPOINT),
+												children: t("entry.view.stop")
+											}) : null
+										]
+									})
+								]
+							})
+						})
 					}),
-					viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						style: {
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "space-between",
-							gap: 8
-						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							style: { opacity: .8 },
-							children: t("entry.view.follow")
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
-							checked: follow,
-							onChange: onFollow,
-							label: t("entry.view.follow"),
-							disabled: botSlug === void 0
-						})]
-					}), observation?.frame === null || observation?.frame === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: { opacity: .6 },
+					viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(react_jsx_runtime.Fragment, { children: observation?.frame === null || observation?.frame === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className: "bh-browser-note",
 						children: t("entry.view.noFrame")
 					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("img", {
+						className: "bh-browser-frame",
 						src: observation.frame,
-						alt: t("entry.label"),
-						style: {
-							width: "100%",
-							borderRadius: 6,
-							border: "1px solid currentColor"
-						}
-					})] }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RemoteViewer, {
+						alt: t("entry.label")
+					}) }) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RemoteViewer, {
 						t: viewerTranslate,
 						title: t("entry.view.container"),
 						src: viewerUrl,
@@ -2009,66 +2474,49 @@ window.__ModuleLoader__.load({
 							setViewer(next ? viewerUrl : void 0);
 							if (!next) disableInteraction();
 						},
-						extraControls: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							style: buttonStyle,
+						extraControls: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+							size: "sm",
+							variant: "outline",
 							disabled: busy,
 							onClick: onPause,
 							children: t(paused ? "entry.view.resume" : "entry.view.pause")
 						})
 					}, scope),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						style: {
-							display: "flex",
-							gap: 8,
-							flexWrap: "wrap"
-						},
-						children: [
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								style: buttonStyle,
-								disabled: busy || cleanupRequired,
-								onClick: onPause,
-								children: t(paused ? "entry.view.resume" : "entry.view.pause")
-							}),
-							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								style: buttonStyle,
-								disabled: busy || cleanupRequired,
-								onClick: () => invoke(OPEN_ENDPOINT, follow || preview === void 0 ? {} : { tab: preview }),
-								children: t(busy ? "entry.view.opening" : "entry.view.open")
-							}),
-							(observation?.running === true || cleanupRequired) && viewerUrl === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								style: buttonStyle,
-								disabled: busy,
-								onClick: () => invoke(STOP_ENDPOINT),
-								children: t("entry.view.stop")
-							}) : null
-						]
-					}),
 					tabs.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: { opacity: .6 },
+						className: "bh-browser-note",
 						children: t("entry.view.noTabs")
-					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: {
-							display: "grid",
-							gap: 2
-						},
-						children: orderedTabs.map((tab) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
-							type: "button",
-							className: "bh-browser-tab",
-							"aria-current": tab.current ? true : void 0,
-							"aria-pressed": tab.targetId === focused,
-							title: tab.url,
-							onClick: () => onSelectTab(tab.targetId),
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-								className: "bh-browser-tab-title",
-								children: tab.title === "" ? tab.url : tab.title
-							}), tab.title === "" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-								className: "bh-browser-tab-url",
-								children: tab.url
-							})]
+					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("ul", {
+						className: "bh-card-list bh-browser-tabs",
+						"aria-label": t("entry.view.tabs"),
+						children: orderedTabs.map((tab) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", {
+							className: "bh-card-row",
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: "bh-card-line",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: "bh-card-main bh-browser-tab",
+									"aria-current": tab.current ? true : void 0,
+									"aria-pressed": tab.targetId === focused,
+									title: tab.url,
+									onClick: () => onSelectTab(tab.targetId),
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+										className: "bh-card-icon",
+										children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ChannelSidebarIcon, {
+											name: "panels-top-left",
+											size: 16
+										})
+									}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+										className: "bh-card-body",
+										children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: "bh-card-title bh-browser-tab-title",
+											children: tab.title === "" ? tab.url : tab.title
+										}), tab.title === "" ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+											className: "bh-card-meta bh-browser-tab-url",
+											children: tab.url
+										})]
+									})]
+								})
+							})
 						}, tab.targetId))
 					}),
 					visibleError !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
