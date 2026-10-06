@@ -17,6 +17,7 @@ import type {
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
 import type { ReleaseInfo, ReleaseUpdate } from '../release/service.js';
+import type { TelemetryStatus } from '../telemetry/service.js';
 import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
@@ -896,6 +897,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.releaseUpdate());
   }
 
+  telemetryStatus(): TelemetryStatus {
+    return unwrap(this.methods.telemetryStatus());
+  }
+
+  telemetrySet(enabled: boolean): TelemetryStatus {
+    return unwrap(this.methods.telemetrySet({ enabled }));
+  }
+
   scheduleList(slug: string): { schedules: BotSchedule[] } {
     return unwrap(this.methods.scheduleList({ slug }));
   }
@@ -1052,6 +1061,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'marketplaceReport',
   'releaseInfo',
   'releaseUpdate',
+  'telemetryStatus',
+  'telemetrySet',
   'scheduleList',
   'scheduleCreate',
   'scheduleUpdate',

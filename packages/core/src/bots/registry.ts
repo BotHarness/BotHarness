@@ -34,6 +34,7 @@ import {
   seedStandingFiles,
   type StandingLimits,
 } from '../memory/soul.js';
+import type { TelemetryCapture } from '../telemetry/service.js';
 import type {
   AssignmentModelOption,
   ModelPreset,
@@ -57,6 +58,7 @@ export interface PersonaBotRegistryOptions {
   initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
   cloneMemory?: (destination: string, url: string) => Promise<MemoryCloneResult>;
   onPurge?: (slug: string, removeFiles: () => void) => void;
+  capture?: TelemetryCapture;
   syncDescriptor?: (
     memoryDir: string,
     record: PersonaBotRecord,
@@ -125,6 +127,13 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
   const defaultMemoryDir = (slug: string): string => join(botDir(slug), 'memory');
 
   const port = attachOperationalModule(options.database, 'bot-registry');
+  const capture = (event: string): void => {
+    try {
+      options.capture?.(event);
+    } catch {
+      return;
+    }
+  };
   const recordSnapshot = (record: PersonaBotRecord): PersonaBotRecord => {
     const result: PersonaBotRecord = {
       slug: record.slug,
@@ -371,7 +380,9 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
   return {
     rootDir,
     create(input) {
-      return create(input, true);
+      const result = create(input, true);
+      if (result.ok) capture('bot_created');
+      return result;
     },
     async createFromGit(input) {
       if (!isValidSlug(input.slug)) return { ok: false, reason: 'invalid-slug' };
@@ -403,6 +414,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         const result = create(recordInput, false);
         created = result.ok;
         if (!result.ok) return result;
+        capture('bot_created');
         const presentation = readSharedPresentation(defaultMemoryDir(input.slug));
         if (presentation === undefined) {
           syncDescriptor(result.record, true);
@@ -451,10 +463,12 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         if (options.onPurge === undefined) removeFiles();
         else options.onPurge(slug, removeFiles);
         erase(slug);
+        if (record !== undefined) capture('bot_deleted');
         return exists;
       }
       if (!exists) return false;
       erase(slug);
+      if (record !== undefined) capture('bot_deleted');
       return true;
     },
     memoryDirFor(slug) {
@@ -466,6 +480,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       const record = read(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const previousName = record.displayName;
+      const previousAvatar = record.avatar;
       const previousProfile = JSON.stringify([record.roles, record.tag, record.avatar]);
       if (patch.displayName !== undefined) {
         const displayName = patch.displayName.trim();
@@ -499,6 +514,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       }
       write(record);
       if (record.displayName !== previousName) options.onDisplayNameChanged?.();
+      if (patch.avatar !== undefined && record.avatar !== previousAvatar) capture('avatar_edited');
       if (
         record.displayName !== previousName ||
         JSON.stringify([record.roles, record.tag, record.avatar]) !== previousProfile
@@ -514,14 +530,17 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       const updated = { ...record, ...derived };
       write(updated);
       syncDescriptor(updated);
+      capture('avatar_edited');
       return { ok: true, record: updated };
     },
     setPaused(slug, paused) {
       const record = read(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
+      const archiving = paused && record.paused !== true;
       if (paused) record.paused = true;
       else delete record.paused;
       write(record);
+      if (archiving) capture('bot_archived');
       return { ok: true, record };
     },
     setComputerAccess(slug, enabled) {

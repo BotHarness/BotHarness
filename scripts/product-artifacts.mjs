@@ -9,16 +9,16 @@ import { pnpmCommand } from './dev-package-manager.mjs';
 
 export const productImProvider = Object.freeze({
   name: '@botharness/im-provider',
-  version: '4.32.0-botharness.6',
+  version: '4.32.0-botharness.7',
   sourceManifestSha256: '501e62d558eceb2b42ad9cd03fc0910e09581fd6531ec68e074fe5a16225ed1e',
   sourceLockSha256: 'c7f16baaa5bb1ab3bbb607b59a10327f0af010c61e1ea1ab4a72d7d08af9ffe9',
   upstream: Object.freeze({
     package: '@xmanrui/dsh-im',
     packageVersion: '4.32.0',
-    source: '47c4313a5853061409fd008b0cc6e776d306fc42',
+    source: '6f8cc9b2713a03b1340e604461900a474adacfa3',
     dsh: '0.2.0-rc.1',
     runtimeFiles: 395,
-    runtimeSha256: '7265220704b635a966e3391f3a640957c271166c17cc4040025d8e1349806dd6',
+    runtimeSha256: 'e16e51b87c1133ce351dd7c3ec11bacc6a90f73f3c7cf3cddcb1f2da2f511ec7',
   }),
 });
 

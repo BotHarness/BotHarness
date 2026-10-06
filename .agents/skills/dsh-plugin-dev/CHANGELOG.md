@@ -10,6 +10,8 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
+- Recorded the distinction between edited application role files and frozen instructions in a persisted QA Session in the [local development guide](../dsh-dev/SKILL.md), verified from real DSH 0.2.0 RC1 model events; platform vocabulary and Skill behavior remain unchanged ([#905](https://github.com/BotHarness/BotHarness/issues/905)).
+
 - Updated the downstream Discord verification guide with the real deleted-source classification defect, fresh patched-model source/permission refusals, exact restoration, native App/Bot and wrong-guild boundaries, and development-source mention/reply qualification; DSH vocabulary and Skill behavior are unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](../../../docs/dev/verification/discord-855-mention-reply.md)).
 
 - Linked the downstream illustrated Channel sidebar feature guides, verified with public DeepSeekBot on DSH 0.2.0 RC1; platform vocabulary and Skill behavior remain unchanged ([#893](https://github.com/BotHarness/BotHarness/issues/893), [guide](../../../docs/channel-sidebar/index.md)).

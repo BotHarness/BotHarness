@@ -325,7 +325,9 @@ function BotInboxItemRow({
         .replace(/^Memory changed since your last turn:\s*/u, '')
         .replace(/^Working Memory changes since your last turn:\s*/u, '')
         .replace(/^\?\? /u, '')
-    : item.summary;
+    : item.externalOrigin?.voice?.transcript === 'unavailable'
+      ? t('im.voiceTranscriptUnavailableHint')
+      : item.summary;
   const author =
     item.externalOrigin !== undefined
       ? `${externalPlatformLabel(item.externalOrigin.platform, t)} · ${externalSenderLabel(item.externalOrigin, t)}`
@@ -400,6 +402,15 @@ function BotInboxItemRow({
       {...(memoryChange ? {} : { onClick: () => void open() })}
       chips={
         <>
+          {item.externalOrigin?.voice ? (
+            <Tag tone={item.externalOrigin.voice.transcript === 'platform' ? 'info' : 'warning'}>
+              {t(
+                item.externalOrigin.voice.transcript === 'platform'
+                  ? 'im.voiceTranscriptPlatform'
+                  : 'im.voiceTranscriptUnavailable',
+              )}
+            </Tag>
+          ) : null}
           <Tag tone={INBOX_STATE_TONE[item.state]}>{t(`inbox.state.${item.state}`)}</Tag>
           {item.assignmentReportState === undefined ? null : (
             <Tag tone="outline">{t(`inbox.report.${item.assignmentReportState}`)}</Tag>
