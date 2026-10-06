@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Bot mode now tells you what changed and when a newer DeepSeekBot is available, and context reads keep accurate refusals when native history conflicts with retained evidence.
+Nothing yet since 1.0.2.
+
+## [1.0.2] - 2026-10-06
+
+Bot mode shows what changed after an install or update and checks npm for newer releases, context reads keep precise `source-conflict` refusals, and a Share a Bot guide explains publishing a Bot to the Bot Marketplace.
 
 ### Added
 
