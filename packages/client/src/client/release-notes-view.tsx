@@ -1,6 +1,12 @@
 import { useMemo, useState, useSyncExternalStore, type ReactElement } from 'react';
 
-import { Button, MarkdownText, type MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  MarkdownText,
+  Tag,
+  type MarkdownLabels,
+  type TagTone,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 
 import type { ReleaseNote } from '../../../core/src/release/notes.js';
@@ -9,18 +15,16 @@ import { Modal } from './modal.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { ReleaseNotesController, ReleaseNotesSnapshot } from './release-notes.js';
 
-const SECTION_KEYS: Record<string, BotHarnessKey> = {
-  Added: 'releaseNotes.section.added',
-  Changed: 'releaseNotes.section.changed',
-  Fixed: 'releaseNotes.section.fixed',
-  Documentation: 'releaseNotes.section.documentation',
-  'Breaking Changes': 'releaseNotes.section.breaking',
-  Deprecated: 'releaseNotes.section.deprecated',
-  Removed: 'releaseNotes.section.removed',
-  Security: 'releaseNotes.section.security',
+const SECTIONS: Record<string, { key: BotHarnessKey; tone: TagTone }> = {
+  'Breaking Changes': { key: 'releaseNotes.section.breaking', tone: 'danger' },
+  Security: { key: 'releaseNotes.section.security', tone: 'danger' },
+  Added: { key: 'releaseNotes.section.added', tone: 'success' },
+  Changed: { key: 'releaseNotes.section.changed', tone: 'info' },
+  Fixed: { key: 'releaseNotes.section.fixed', tone: 'warning' },
+  Documentation: { key: 'releaseNotes.section.documentation', tone: 'neutral' },
+  Deprecated: { key: 'releaseNotes.section.deprecated', tone: 'warning' },
+  Removed: { key: 'releaseNotes.section.removed', tone: 'neutral' },
 };
-
-const OPEN_RELEASE_LIMIT = 8;
 
 export const RELEASE_UPDATE_PROFILE = 'web';
 
@@ -34,9 +38,11 @@ function useReleaseNotes(controller: ReleaseNotesController): ReleaseNotesSnapsh
 
 export function ReleaseNotesList({
   releases,
+  badge,
   t,
 }: {
   releases: readonly ReleaseNote[];
+  badge: string;
   t: BotHarnessTranslate;
 }): ReactElement {
   const language = t('releaseNotes.language') === 'en' ? 'en' : 'zh';
@@ -49,59 +55,68 @@ export function ReleaseNotesList({
   );
   return (
     <div className="bh-release-notes" data-release-notes>
-      {releases.map((release) => {
-        const open =
-          release.sections.reduce((total, section) => total + section.entries.length, 0) <=
-          OPEN_RELEASE_LIMIT;
+      {releases.map((release, index) => {
+        const entries = release.sections.flatMap((section) =>
+          section.entries.map((entry) => ({ section: section.name, entry })),
+        );
         return (
-          <section
+          <details
             key={release.version}
             className="bh-release-note"
             data-release-version={release.version}
+            open={index === 0}
           >
-            <h3 className="bh-release-note-title">
-              <span>v{release.version}</span>
+            <summary className="bh-release-note-head">
+              <span className="bh-release-note-version">v{release.version}</span>
               <time dateTime={release.date}>{release.date}</time>
-            </h3>
-            <div className="bh-release-note-summary">
-              <MarkdownText text={release.summary[language]} labels={labels} />
-            </div>
-            {release.sections.map((section) => (
-              <details key={section.name} className="bh-release-note-section" open={open}>
-                <summary>
-                  {t('releaseNotes.sectionCount', {
-                    section:
-                      SECTION_KEYS[section.name] === undefined
-                        ? section.name
-                        : t(SECTION_KEYS[section.name]!),
-                    count: section.entries.length,
-                  })}
-                </summary>
-                <ul>
-                  {section.entries.map((entry, index) => (
-                    <li key={index}>
-                      <MarkdownText text={entry[language]} labels={labels} />
+              {index === 0 ? <Tag tone="info">{badge}</Tag> : null}
+              <span className="bh-release-note-rule" aria-hidden="true" />
+              <span className="bh-release-note-count">
+                {t('releaseNotes.entryCount', { count: entries.length })}
+              </span>
+            </summary>
+            <div className="bh-release-note-body">
+              <div className="bh-release-note-summary">
+                <MarkdownText text={release.summary[language]} labels={labels} />
+              </div>
+              <ul className="bh-release-note-entries">
+                {entries.map(({ section, entry }, entryIndex) => {
+                  const known = SECTIONS[section];
+                  return (
+                    <li key={entryIndex} data-release-section={section}>
+                      <Tag tone={known?.tone ?? 'outline'} className="bh-release-note-chip">
+                        {known === undefined ? section : t(known.key)}
+                      </Tag>
+                      <div className="bh-release-note-text">
+                        <MarkdownText text={entry[language]} labels={labels} />
+                      </div>
                     </li>
-                  ))}
-                </ul>
-              </details>
-            ))}
-          </section>
+                  );
+                })}
+              </ul>
+            </div>
+          </details>
         );
       })}
     </div>
   );
 }
 
+function openSite(t: BotHarnessTranslate): void {
+  window.open(t('releaseNotes.siteUrl'), '_blank', 'noopener,noreferrer');
+}
+
 export function ReleaseNotesDialog({
   releases,
   title,
+  badge,
   description,
   onClose,
   t,
 }: {
   releases: readonly ReleaseNote[] | undefined;
   title: string;
+  badge: string;
   description?: string | undefined;
   onClose: () => void;
   t: BotHarnessTranslate;
@@ -116,21 +131,22 @@ export function ReleaseNotesDialog({
       className="bh-release-dialog"
       footer={
         <>
-          <a
-            className="bh-release-site-link"
-            href={t('releaseNotes.siteUrl')}
-            target="_blank"
-            rel="noreferrer"
+          <Button
+            variant="outline"
+            className="bh-release-site-button"
+            onClick={() => {
+              openSite(t);
+            }}
           >
             {t('releaseNotes.site')}
-          </a>
+          </Button>
           <Button variant="primary" onClick={onClose}>
             {t('releaseNotes.done')}
           </Button>
         </>
       }
     >
-      {releases === undefined ? null : <ReleaseNotesList releases={releases} t={t} />}
+      {releases === undefined ? null : <ReleaseNotesList releases={releases} badge={badge} t={t} />}
     </Modal>
   );
 }
@@ -153,6 +169,7 @@ export function ReleaseNotesAnnouncement({
       <ReleaseNotesDialog
         releases={snapshot.announcement}
         title={t('releaseNotes.announce.title', { version })}
+        badge={t('releaseNotes.current')}
         description={t(
           snapshot.firstRun
             ? 'releaseNotes.announce.firstRun'
@@ -207,14 +224,15 @@ export function ReleaseSettings({ releaseNotes, t }: ReleaseSettingsProps): Reac
           </div>
         </div>
         <div className="bh-release-actions">
-          <a
-            className="bh-settings-selector bh-release-site"
-            href={t('releaseNotes.siteUrl')}
-            target="_blank"
-            rel="noreferrer"
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              openSite(t);
+            }}
           >
             {t('release.changelog')}
-          </a>
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -270,6 +288,7 @@ export function ReleaseSettings({ releaseNotes, t }: ReleaseSettingsProps): Reac
         title={t('release.update.dialog', {
           latest: update.status === 'available' ? update.latest : '',
         })}
+        badge={t('releaseNotes.latest')}
         onClose={() => {
           releaseNotes.view(undefined);
         }}

@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: (props: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) =>
     createElement('button', { disabled: props.disabled, onClick: props.onClick }, props.children),
+  Tag: (props: { tone?: string; children?: ReactNode }) =>
+    createElement('span', { 'data-tone': props.tone }, props.children),
   MarkdownText: (props: { text: string }) =>
     createElement('div', { 'data-markdown': '' }, props.text),
   Modal: (props: {
@@ -201,13 +203,25 @@ describe('release notes views', () => {
       const dialog = view.host.querySelector('[role="dialog"]');
       expect(dialog?.querySelector('h1')?.textContent).toBe('DeepSeekBot 1.0.1 更新内容');
       expect(dialog?.textContent).toContain('摘要 1.0.1');
-      expect(dialog?.querySelector('summary')?.textContent).toBe('新增（12）');
+      expect(dialog?.querySelector('summary')?.textContent).toBe('v1.0.12026-10-06当前版本12 项');
       expect(dialog?.querySelector('p')?.textContent).toBe(
         '欢迎使用 DeepSeekBot，这是当前版本带来的内容。',
       );
-      expect(dialog?.querySelector('details')?.hasAttribute('open')).toBe(false);
-      const site = dialog?.querySelector('a');
-      expect(site?.getAttribute('href')).toBe('https://deepseekbot.botharness.ai/changelog/');
+      expect(dialog?.querySelector('details')?.hasAttribute('open')).toBe(true);
+      const chips = dialog?.querySelectorAll('[data-release-section="Added"] [data-tone]');
+      expect(chips?.length).toBe(12);
+      expect(chips?.[0]?.getAttribute('data-tone')).toBe('success');
+      expect(chips?.[0]?.textContent).toBe('新增');
+      const open = vi.spyOn(window, 'open').mockReturnValue(null);
+      [...(dialog?.querySelectorAll('button') ?? [])]
+        .find((button) => button.textContent === '去官网查看')
+        ?.click();
+      expect(open).toHaveBeenCalledWith(
+        'https://deepseekbot.botharness.ai/changelog/',
+        '_blank',
+        'noopener,noreferrer',
+      );
+      open.mockRestore();
       const done = [...(dialog?.querySelectorAll('button') ?? [])].find(
         (button) => button.textContent === '知道了',
       );
@@ -227,7 +241,7 @@ describe('release notes views', () => {
         status: 'available',
         current: '1.0.1',
         latest: '1.1.0',
-        releases: [note('1.1.0')],
+        releases: [note('1.1.0'), note('1.0.2')],
       }),
       memoryStorage({ [RELEASE_NOTES_SEEN_KEY]: '1.0.1' }),
     );
@@ -251,7 +265,10 @@ describe('release notes views', () => {
       const dialog = view.host.querySelector('[role="dialog"]');
       expect(dialog?.querySelector('h1')?.textContent).toBe('DeepSeekBot 1.1.0 更新内容');
       expect(dialog?.textContent).toContain('新增 1.1.0 #0');
-      expect(dialog?.querySelector('details')?.hasAttribute('open')).toBe(true);
+      expect(dialog?.querySelector('summary')?.textContent).toContain('最新');
+      const versions = dialog?.querySelectorAll('details');
+      expect(versions?.[0]?.hasAttribute('open')).toBe(true);
+      expect(versions?.[1]?.hasAttribute('open')).toBe(false);
     } finally {
       view.unmount();
     }
