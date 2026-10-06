@@ -35,7 +35,7 @@ export interface DshImOutboundService {
   replyFileChecked?(
     botId: string,
     route: MessagingReplyRoute,
-    file: { id: string; name: string; bytes: Uint8Array },
+    file: { id: string; name: string; bytes: Uint8Array; mediaType?: string },
     options: { expectedFingerprint: string; signal: AbortSignal; beforeSend?: () => boolean },
   ): Promise<{ sent: true }>;
 
@@ -55,6 +55,7 @@ export interface DshImOutboundService {
       expectedFingerprint: string;
       signal: AbortSignal;
       sourceFiles?: boolean;
+      sourceImages?: boolean;
       ordinaryText?: boolean;
       onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
@@ -385,6 +386,12 @@ export function createDshImProvider(
               (platform !== 'weixin' || info.capabilities.includes('reply-file-fence-checked'))
                 ? { sourceFiles: true }
                 : {}),
+              ...(platform === 'weixin' &&
+              host.fileVersion === 1 &&
+              info.capabilities.includes('source-image-checked') &&
+              info.capabilities.includes('reply-image-fence-checked')
+                ? { sourceImages: true }
+                : {}),
               ...(host.echoVersion === 1 &&
               info.capabilities.includes('own-text-echo') &&
               input.onEcho
@@ -604,13 +611,19 @@ export function createDshImProvider(
               if (
                 info.account.fingerprint !== input.fingerprint ||
                 !info.capabilities.includes('reply-file-checked') ||
-                (platform === 'weixin' && !info.capabilities.includes('reply-file-fence-checked'))
+                (platform === 'weixin' &&
+                  !info.capabilities.includes('reply-file-fence-checked')) ||
+                (platform === 'weixin' &&
+                  input.file.mediaType?.startsWith('image/') &&
+                  !info.capabilities.includes('reply-image-fence-checked'))
               )
                 throw new MessagingProviderError('capability-unavailable', 'not-started');
               const result = await host.replyFileChecked!(
                 input.accountRef,
                 input.route,
-                input.file,
+                platform === 'weixin'
+                  ? input.file
+                  : { id: input.file.id, name: input.file.name, bytes: input.file.bytes },
                 {
                   expectedFingerprint: input.fingerprint,
                   signal: input.signal,

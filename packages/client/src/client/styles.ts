@@ -4008,6 +4008,7 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   min-width: 0;
   margin-block: 8px;
 }
+.bh-external-source-image { display: block; max-width: 100%; max-height: 384px; object-fit: contain; margin-block: 8px; }
 .bh-external-source-file > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .bh-external-source-file > button { flex-shrink: 0; }
  .bh-external-source-modal {

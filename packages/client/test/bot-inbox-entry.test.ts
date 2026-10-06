@@ -7,7 +7,12 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   const Tag = ({ children }: PropsWithChildren) => createElement('span', null, children);
   return {
-    Button: stub,
+    Button: ({
+      children,
+      onClick,
+      disabled,
+    }: PropsWithChildren<{ onClick?(): void; disabled?: boolean }>) =>
+      createElement('button', { onClick, disabled }, children),
     Input: stub,
     Tag,
     Modal: ({ children, onClose }: PropsWithChildren<{ onClose(): void }>) =>
@@ -458,5 +463,170 @@ it('clears previous source content and ignores older requests after reopening', 
     await act(async () => root.unmount());
     container.remove();
     store.setBotInbox(previous);
+  }
+});
+
+it('loads checked images into their message bubble on open, retries refusals and preserves captions', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const previous = store.getSnapshot().botInbox;
+  store.setBotInbox({
+    status: 'ready',
+    items: [
+      {
+        ...item,
+        sourceKind: 'bridge-message',
+        externalOrigin: {
+          platform: 'weixin',
+          accountName: 'WeChat Bot',
+          conversationName: 'Owner',
+          conversationId: 'owner',
+          senderId: 'owner',
+        },
+      },
+    ],
+  });
+  const source: ExternalSource = {
+    id: item.id,
+    body: '[Image]',
+    platform: 'weixin',
+    accountName: 'WeChat Bot',
+    conversationName: 'Owner',
+    at: item.createdAt,
+    grantId: 'grant',
+    grantRevision: 1,
+    event: {
+      version: 1,
+      channel: 'weixin',
+      botId: 'bot',
+      fingerprint: 'a'.repeat(64),
+      eventId: 'ev',
+      messageId: 'remote',
+      actor: { kind: 'user', id: 'owner' },
+      conversation: { kind: 'dm', id: 'owner' },
+      mentions: [],
+      mentionedAccount: false,
+      at: item.createdAt,
+      reply: { messageId: 'remote', conversationId: 'owner', actorId: 'owner' },
+      replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
+      attachments: [
+        {
+          id: 'image-one',
+          messageId: 'remote',
+          name: 'image',
+          resourceKey: 'safe-key',
+          mediaType: 'image/unknown',
+        },
+      ],
+    },
+  };
+  const entry = createChannelSidebarBuiltins(zhTranslate).find((e) => e.id === 'bot-inbox')!;
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const fetchImage = vi
+    .fn()
+    .mockResolvedValueOnce({ ok: false })
+    .mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['image-bytes'], { type: 'image/png' }),
+    });
+  vi.stubGlobal('fetch', fetchImage);
+  const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
+  const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
+  const create = vi.fn(() => 'blob:checked-preview');
+  const revoke = vi.fn();
+  Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: create });
+  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revoke });
+  const click = async (label: string) =>
+    act(async () => {
+      [...container.querySelectorAll<HTMLButtonElement>('button')]
+        .find((b) => b.textContent === label)!
+        .click();
+    });
+  const open = async () =>
+    act(async () => container.querySelector<HTMLButtonElement>('.bh-inbox-item')!.click());
+  try {
+    await act(async () =>
+      root.render(
+        createElement(ChannelSidebarEntrySection, {
+          entry,
+          expanded: true,
+          onToggle: () => undefined,
+          entryProps: {
+            scope: 'personabot',
+            channelId: 'dm-ada',
+            botSlug: 'ada',
+            actions: { messagingSource: async () => source } as unknown as BridgeActions,
+            t: zhTranslate,
+          },
+        }),
+      ),
+    );
+    expect(fetchImage).not.toHaveBeenCalled();
+    await open();
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.querySelector('.bh-external-message-text')?.textContent).not.toContain(
+      '[Image]',
+    );
+    expect(create).not.toHaveBeenCalled();
+    await click('重新加载图片');
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.querySelector('.bh-external-message-text img')?.getAttribute('src')).toBe(
+      'blob:checked-preview',
+    );
+    expect(container.querySelector('.bh-external-message-text')?.textContent).not.toContain(
+      '[Image]',
+    );
+    expect(container.querySelector('.bh-external-source-file img')).toBeNull();
+    expect(fetchImage.mock.calls[1]?.[0]).toBe(
+      '/api/botharness/attachment?slug=ada&sourceEventId=source-1&attachmentId=image-one',
+    );
+    expect(fetchImage.mock.calls[1]?.[1].credentials).toBe('same-origin');
+    await click('Close source');
+    expect(revoke).toHaveBeenCalledWith('blob:checked-preview');
+    fetchImage.mockResolvedValueOnce({
+      ok: true,
+      blob: async () => new Blob(['<svg/>'], { type: 'image/svg+xml' }),
+    });
+    await open();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(create).toHaveBeenCalledTimes(1);
+    fetchImage.mockImplementationOnce(
+      (_url, request) =>
+        new Promise((_resolve, reject) =>
+          request.signal.addEventListener('abort', () => reject(new Error('aborted'))),
+        ),
+    );
+    await click('重新加载图片');
+    const signal: AbortSignal = fetchImage.mock.calls.at(-1)?.[1].signal;
+    expect(signal.aborted).toBe(false);
+    await click('Close source');
+    expect(signal.aborted).toBe(true);
+    source.body = 'Please inspect this layout';
+    await open();
+    expect(container.querySelector('.bh-external-message-text img')).not.toBeNull();
+    expect(container.querySelector('.bh-external-message-text')?.textContent).toContain(
+      'Please inspect this layout',
+    );
+    await click('Close source');
+    source.body = '[Image]';
+    source.event.attachments = [];
+    const imageCalls = fetchImage.mock.calls.length;
+    await open();
+    expect(container.querySelector('.bh-external-message-text')?.textContent).toBe('[Image]');
+    expect(container.querySelector('.bh-external-message-text img')).toBeNull();
+    expect(fetchImage).toHaveBeenCalledTimes(imageCalls);
+    await act(async () => root.unmount());
+    expect(revoke).toHaveBeenCalledTimes(2);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    store.setBotInbox(previous);
+    vi.unstubAllGlobals();
+    if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate);
+    else Reflect.deleteProperty(URL, 'createObjectURL');
+    if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke);
+    else Reflect.deleteProperty(URL, 'revokeObjectURL');
   }
 });

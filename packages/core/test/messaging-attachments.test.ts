@@ -50,6 +50,7 @@ const event: MessagingInboundEvent = {
 async function fixture(
   onRun?: (run: OrchestratorAgentRun) => Promise<void>,
   platform: 'feishu' | 'slack' | 'weixin' = 'feishu',
+  image = false,
 ) {
   const { parentId: _parentId, ...slackReply } = event.reply;
   const platformEvent: MessagingInboundEvent =
@@ -64,7 +65,13 @@ async function fixture(
         ? {
             ...event,
             channel: platform,
-            attachments: [{ ...attachment, messageId: event.messageId }],
+            attachments: [
+              {
+                ...attachment,
+                messageId: event.messageId,
+                ...(image ? { name: 'image', mediaType: 'image/unknown' } : {}),
+              },
+            ],
             conversation: { kind: 'dm', id: 'team' },
             mentions: [],
             mentionedAccount: false,
@@ -141,12 +148,14 @@ async function fixture(
         'source-file-checked',
         'reply-file-checked',
         ...(platform === 'weixin' ? ['reply-file-fence-checked'] : []),
+        ...(image ? ['source-image-checked', 'reply-image-fence-checked'] : []),
       ],
     }),
     sendChecked: async () => ({ sent: true }),
     replyChecked: async () => ({ sent: true }),
     consumeInbound: async (_id, input) => {
       expect(input.sourceFiles).toBe(true);
+      expect(input.sourceImages).toBe(image ? true : undefined);
       receive = input;
       return () => {};
     },
@@ -456,4 +465,24 @@ it('WeChat preserves large-file metadata for inspection without treating it as a
   );
   expect(fx.download).not.toHaveBeenCalled();
   expect(fx.core.channels.list()).toEqual([]);
+});
+
+it('WeChat image input is capability-opted-in and native result MIME comes from canonical bytes', async () => {
+  const fx = await fixture(undefined, 'weixin', true);
+  const sourceId = await fx.source();
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4S8AAAAASUVORK5CYII=',
+    'base64',
+  );
+  const result = await fx.core.attachments.upload({
+    name: 'result.png',
+    data: (async function* () {
+      yield png;
+    })(),
+  });
+  expect(await fx.core.externalMessaging.replyFile('ada', sourceId, result)).toMatchObject({
+    state: 'provider-accepted',
+  });
+  expect(fx.reply.mock.calls[0]?.[2]).toMatchObject({ mediaType: 'image/png' });
+  expect(Buffer.from(fx.reply.mock.calls[0]![2].bytes)).toEqual(png);
 });

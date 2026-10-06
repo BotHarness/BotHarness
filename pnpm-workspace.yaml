@@ -311,3 +311,6 @@ minimumReleaseAgeExclude:
   - '@botharness/pixel-avatar@0.1.0'
   - '@botharness/pixel-morph@0.1.0'
   - '@botharness/pixel-morph@0.2.0'
+
+patchedDependencies:
+  '@deepseek-ai/dsh-tool-fs@0.2.0-rc.1': patches/@deepseek-ai__dsh-tool-fs@0.2.0-rc.1.patch
