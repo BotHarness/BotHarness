@@ -185,7 +185,12 @@ function launch(options) {
     tmpdir(),
     `dsh-${basename(options.home).replace(/[^a-zA-Z0-9-]/gu, '-')}-${options.port}.log`,
   );
-  const env = { ...process.env, DSH_HOME: options.home, ...devSecretEnvironment() };
+  const env = {
+    BOTHARNESS_TELEMETRY: '0',
+    ...process.env,
+    DSH_HOME: options.home,
+    ...devSecretEnvironment(),
+  };
   const runtime = options.runtime ?? options.worktree;
   const [command, cli] = dshCommand(runtime);
 

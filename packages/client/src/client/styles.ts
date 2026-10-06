@@ -4875,6 +4875,9 @@ button.bh-bot-nav > svg {
 }
 .bh-assignment-limit-controls > :first-child { width: 76px; }
 .bh-assignment-limit-error { color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
+.bh-telemetry-row .bh-settings-row-desc a { color: var(--dsw-alias-state-business-primary); text-decoration: none; }
+.bh-telemetry-row .bh-settings-row-desc a:hover { text-decoration: underline; }
+.bh-telemetry-row-error { color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
 .bh-settings-selector {
   display: inline-flex;
   align-items: center;
@@ -5962,6 +5965,37 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-statistics-content > header h3 {font-size:var(--bh-overview-font);margin:0;}
 .bh-release-dialog {
   width: min(680px, calc(100vw - 32px));
+}
+.bh-telemetry-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.bh-telemetry-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  min-width: 0;
+}
+.bh-telemetry-notice-row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.bh-telemetry-notice-row > dt {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 22px;
+}
+.bh-telemetry-notice-row > dd {
+  margin: 0;
+  min-width: 0;
+}
+@media (max-width: 520px) {
+  .bh-telemetry-notice-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
 }
 .bh-release-notes {
   display: flex;
