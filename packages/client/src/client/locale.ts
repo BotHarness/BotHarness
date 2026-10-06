@@ -1761,7 +1761,29 @@ export const zh = {
   'release.update.cli': '在终端运行以下命令更新，完成后重启 DSH：',
   'release.update.copy': '复制',
   'release.update.copied': '已复制',
-  'release.update.desktop': '桌面版：打开「插件 → 添加插件」，输入 {spec} 安装，然后重启 DSH。',
+  'release.update.desktop':
+    '桌面版：DSH 的插件页暂时不能升级已安装的插件。请在终端运行上面的命令，把 web 换成桌面版使用的 Profile 名（DSH 数据目录 profiles/ 下的文件夹名），然后重启 DSH。',
+  'release.status.restart': '当前运行 {version}，已安装 {installed}，重启 DSH 后生效',
+  'release.install.action': '立即更新',
+  'release.install.running': '正在更新…',
+  'release.install.hint': '直接在这里安装新版本，装完重启 DSH 即可生效。',
+  'release.install.progress': '正在通过 DSH 插件管理下载并安装，请不要关闭 DSH…',
+  'release.install.failed.unavailable': '当前 DSH 不支持在这里直接更新，请用下面的方式更新。',
+  'release.install.failed.network': '无法从 npm 下载新版本，请检查网络后重试，或用下面的方式更新。',
+  'release.install.failed.incompatible': '新版本与当前 DSH 版本不兼容，请先升级 DSH 再更新。',
+  'release.install.failed.buildBlocked':
+    '安装需要批准依赖的构建脚本，请在 DSH 的插件页处理，或用下面的方式更新。',
+  'release.install.failed.generic': '更新失败，请用下面的方式更新。',
+  'release.install.log': '完整日志：{path}',
+  'release.restart.title': '已更新到 {installed}，重启 DSH 后生效',
+  'release.restart.web':
+    'Web：在运行 dsh web 的终端按 Ctrl+C 停止，再运行一次 dsh web，然后刷新页面。',
+  'release.restart.desktop': '桌面版：完全退出 DSH 后重新打开。',
+  'release.restart.action': '立即重启',
+  'release.restart.running': '正在重启…',
+  'release.restart.hint': '重启会中断正在运行的任务，页面会自动重新连接。',
+  'release.restart.progress': '正在重启 DSH，页面会在几秒后自动重新连接…',
+  'release.restart.failed': '没能自动重启，请按下面的方式手动重启。',
   'telemetry.notice.title': '关于匿名使用统计',
   'telemetry.notice.description':
     'DeepSeekBot 默认发送匿名使用统计，帮助我们了解功能的使用情况并改进插件。',
@@ -3639,7 +3661,33 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'release.update.copy': 'Copy',
   'release.update.copied': 'Copied',
   'release.update.desktop':
-    'Desktop app: open Plugins → Add plugin, install {spec}, then restart DSH.',
+    'Desktop app: the DSH Plugins page cannot upgrade an installed plugin yet. Run the command above with web replaced by the Desktop profile name (the folder under profiles/ in the DSH data directory), then restart DSH.',
+  'release.status.restart':
+    'Running {version}; {installed} is installed and loads after a DSH restart',
+  'release.install.action': 'Update now',
+  'release.install.running': 'Updating…',
+  'release.install.hint': 'Install the new version from here, then restart DSH to load it.',
+  'release.install.progress':
+    'Downloading and installing through the DSH Plugin Manager. Keep DSH running…',
+  'release.install.failed.unavailable':
+    'This DSH cannot update the plugin from here. Use one of the options below.',
+  'release.install.failed.network':
+    'Could not download the new version from npm. Check your network and retry, or use an option below.',
+  'release.install.failed.incompatible':
+    'The new version does not support this DSH version. Update DSH first.',
+  'release.install.failed.buildBlocked':
+    'The install needs dependency build scripts approved. Approve them on the DSH Plugins page, or use an option below.',
+  'release.install.failed.generic': 'The update failed. Use one of the options below.',
+  'release.install.log': 'Full log: {path}',
+  'release.restart.title': 'Updated to {installed}. Restart DSH to finish',
+  'release.restart.web':
+    'Web: press Ctrl+C in the terminal running dsh web, run dsh web again, then reload this page.',
+  'release.restart.desktop': 'Desktop app: quit DSH completely and open it again.',
+  'release.restart.action': 'Restart now',
+  'release.restart.running': 'Restarting…',
+  'release.restart.hint': 'Restarting stops running tasks. This page reconnects on its own.',
+  'release.restart.progress': 'Restarting DSH. This page reconnects in a few seconds…',
+  'release.restart.failed': 'DSH could not restart itself. Restart it by hand as shown below.',
   'telemetry.notice.title': 'Anonymous usage statistics',
   'telemetry.notice.description':
     'DeepSeekBot sends anonymous usage statistics by default, so we can see how features are used and improve the plugin.',

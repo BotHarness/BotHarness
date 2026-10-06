@@ -40,7 +40,13 @@ import type {
   MarketplaceTopic,
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
-import type { ReleaseInfo, ReleaseService, ReleaseUpdate } from '../release/service.js';
+import type {
+  ReleaseInfo,
+  ReleaseInstall,
+  ReleaseRestart,
+  ReleaseService,
+  ReleaseUpdate,
+} from '../release/service.js';
 import type { TelemetryCapture, TelemetryStatus } from '../telemetry/service.js';
 import {
   AssignmentReplyTargetError,
@@ -427,6 +433,8 @@ export interface BridgeMethods {
   marketplaceReport(payload: unknown): Promise<BridgeResult<{ received: true }>>;
   releaseInfo(payload: unknown): BridgeResult<ReleaseInfo>;
   releaseUpdate(): Promise<BridgeResult<ReleaseUpdate>>;
+  releaseInstall(payload: unknown): Promise<BridgeResult<ReleaseInstall>>;
+  releaseRestart(payload: unknown): Promise<BridgeResult<ReleaseRestart>>;
   telemetryStatus(): BridgeResult<TelemetryStatus>;
   telemetrySet(payload: unknown): BridgeResult<TelemetryStatus>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
@@ -1521,6 +1529,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     async releaseUpdate() {
       if (deps.release === undefined) return releaseUnavailable();
       return { ok: true, value: await deps.release.update() };
+    },
+    async releaseInstall(payload) {
+      if (deps.release === undefined) return releaseUnavailable();
+      const version = asObject(payload)['version'];
+      if (typeof version !== 'string') return invalidInput('version is required');
+      return { ok: true, value: await deps.release.install(version) };
+    },
+    async releaseRestart() {
+      if (deps.release === undefined) return releaseUnavailable();
+      return { ok: true, value: await deps.release.restart() };
     },
     telemetryStatus() {
       return {

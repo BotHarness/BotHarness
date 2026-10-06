@@ -200,6 +200,8 @@ describe('bridge typert service', () => {
       'marketplaceReport',
       'releaseInfo',
       'releaseUpdate',
+      'releaseInstall',
+      'releaseRestart',
       'telemetryStatus',
       'telemetrySet',
       'scheduleList',
@@ -250,6 +252,8 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.marketplaceReport)).toEqual(['id', 'altcha', 'reason']);
     expect(parameterNames(service.releaseInfo)).toEqual(['since']);
     expect(parameterNames(service.releaseUpdate)).toEqual([]);
+    expect(parameterNames(service.releaseInstall)).toEqual(['version']);
+    expect(parameterNames(service.releaseRestart)).toEqual([]);
     expect(parameterNames(service.telemetryStatus)).toEqual([]);
     expect(parameterNames(service.telemetrySet)).toEqual(['enabled']);
     expect(parameterNames(service.scheduleList)).toEqual(['slug']);

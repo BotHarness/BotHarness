@@ -6109,13 +6109,16 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-release-update-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 .bh-release-update-title {
+  margin-right: auto;
   font-size: 14px;
   font-weight: 600;
   color: var(--dsw-alias-label-primary);
+}
+.bh-release-restart-hint {
+  margin-right: auto;
 }
 .bh-release-command {
   display: flex;
@@ -6133,6 +6136,25 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
   font-family: var(--dsw-font-family-mono, monospace);
   font-size: 12px;
   white-space: nowrap;
+}
+.bh-release-install-error {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 13px;
+}
+.bh-release-install-diagnostic {
+  max-height: 120px;
+  margin: 0;
+  overflow: auto;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--dsw-font-family-mono, monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
 }
 .bh-schedules {display:flex;flex-direction:column;gap:8px;min-width:0;}
 .bh-schedule-muted,

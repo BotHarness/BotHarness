@@ -460,6 +460,8 @@ describe('plugin entry', () => {
       'marketplaceReport',
       'releaseInfo',
       'releaseUpdate',
+      'releaseInstall',
+      'releaseRestart',
       'telemetryStatus',
       'telemetrySet',
       'scheduleList',

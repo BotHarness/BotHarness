@@ -16,7 +16,12 @@ import type {
   MarketplaceTopic,
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
-import type { ReleaseInfo, ReleaseUpdate } from '../release/service.js';
+import type {
+  ReleaseInfo,
+  ReleaseInstall,
+  ReleaseRestart,
+  ReleaseUpdate,
+} from '../release/service.js';
 import type { TelemetryStatus } from '../telemetry/service.js';
 import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
@@ -893,6 +898,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.releaseUpdate());
   }
 
+  async releaseInstall(version: string): Promise<ReleaseInstall> {
+    return unwrapAsync(this.methods.releaseInstall({ version }));
+  }
+
+  async releaseRestart(): Promise<ReleaseRestart> {
+    return unwrapAsync(this.methods.releaseRestart({}));
+  }
+
   telemetryStatus(): TelemetryStatus {
     return unwrap(this.methods.telemetryStatus());
   }
@@ -1056,6 +1069,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'marketplaceReport',
   'releaseInfo',
   'releaseUpdate',
+  'releaseInstall',
+  'releaseRestart',
   'telemetryStatus',
   'telemetrySet',
   'scheduleList',

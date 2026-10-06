@@ -7,8 +7,14 @@ import {
   parseReleaseNotes,
   selectReleaseNotes,
 } from '../src/release/notes.js';
-import { createReleaseService, installedRelease } from '../src/release/service.js';
+import {
+  createReleaseService,
+  installedRelease,
+  type ReleaseInstaller,
+  type ReleaseInstallerResult,
+} from '../src/release/service.js';
 import { compareVersions, isReleaseVersion } from '../src/release/version.js';
+import type { ReleaseRestarter } from '../src/release/restart.js';
 
 const english = `# DeepSeekBot Changelog
 
@@ -221,6 +227,181 @@ describe('release service', () => {
     clock = 6 * 60 * 1000;
     await unavailable.update();
     expect(offline).toHaveBeenCalledTimes(2);
+  });
+
+  const newerRelease = vi.fn(async (input: string | URL | Request) =>
+    String(input).endsWith('/dist-tags')
+      ? jsonResponse({ latest: '1.1.0' })
+      : new Response('', { status: 404 }),
+  );
+
+  function installer(
+    result: ReleaseInstallerResult | Error,
+    bundles: { name: string; installed: boolean; version?: string }[] = [
+      { name: 'deepseekbot', installed: true },
+    ],
+  ) {
+    return {
+      listBundles: vi.fn(async () => bundles),
+      installBundle: vi.fn(async () => {
+        if (result instanceof Error) throw result;
+        return result;
+      }),
+    };
+  }
+
+  function installable(
+    manager: ReleaseInstaller | undefined,
+    version = '1.0.1',
+    restarter?: ReleaseRestarter,
+  ) {
+    return createReleaseService({
+      version: () => version,
+      ledgers,
+      fetchImpl: newerRelease as typeof fetch,
+      registries: ['https://registry.test'],
+      noteSources: [],
+      installer: () => manager,
+      restarter: () => restarter,
+    });
+  }
+
+  it('restarts DSH only when an installed update is waiting and the launcher allows it', async () => {
+    const restarter = { restart: vi.fn() };
+    const fresh = installer({ application: 'restart-required' });
+    expect(await installable(fresh, '1.0.1', restarter).restart()).toEqual({
+      status: 'failed',
+      reason: 'not-pending',
+    });
+    expect(await installable(fresh).restart()).toEqual({ status: 'failed', reason: 'unavailable' });
+    expect(restarter.restart).not.toHaveBeenCalled();
+
+    const service = installable(fresh, '1.0.1', restarter);
+    expect(await service.install('1.1.0')).toMatchObject({ restartable: true });
+    expect(await service.update()).toMatchObject({ restartable: true });
+    expect(await service.restart()).toEqual({ status: 'restarting' });
+    expect(restarter.restart).toHaveBeenCalledTimes(1);
+
+    const staged = installer({ application: 'restart-required' }, [
+      { name: 'deepseekbot', installed: true, version: '1.1.0' },
+    ]);
+    expect(await installable(staged, '1.0.1', restarter).restart()).toEqual({
+      status: 'restarting',
+    });
+  });
+
+  it('offers one-click install only when the Plugin Manager holds the deepseekbot bundle', async () => {
+    expect(
+      await installable(installer({ application: 'restart-required' })).update(),
+    ).toMatchObject({ status: 'available', latest: '1.1.0', installable: true });
+    expect(await installable(undefined).update()).toMatchObject({ installable: false });
+    expect(
+      await installable(
+        installer({ application: 'restart-required' }, [{ name: 'other', installed: true }]),
+      ).update(),
+    ).toMatchObject({ installable: false });
+  });
+
+  it('installs the newer release through the Plugin Manager and then asks for a restart', async () => {
+    const manager = installer({ application: 'restart-required' });
+    const service = installable(manager);
+    expect(await service.install('1.1.0')).toEqual({
+      status: 'installed',
+      current: '1.0.1',
+      installed: '1.1.0',
+      restartable: false,
+    });
+    expect(manager.installBundle).toHaveBeenCalledWith('deepseekbot@1.1.0');
+    expect(await service.update()).toEqual({
+      status: 'restart-required',
+      current: '1.0.1',
+      installed: '1.1.0',
+      restartable: false,
+    });
+  });
+
+  it('asks for a restart when the profile already holds a newer deepseekbot than the running one', async () => {
+    const manager = installer({ application: 'restart-required' }, [
+      { name: 'deepseekbot', installed: true, version: '1.1.0' },
+    ]);
+    expect(await installable(manager).update()).toEqual({
+      status: 'restart-required',
+      current: '1.0.1',
+      installed: '1.1.0',
+      restartable: false,
+    });
+    expect(await installable(manager, '1.1.0').update()).toMatchObject({ status: 'current' });
+  });
+
+  it('refuses versions that are not newer and builds without the Plugin Manager', async () => {
+    const manager = installer({ application: 'restart-required' });
+    expect(await installable(manager).install('1.0.1')).toEqual({
+      status: 'failed',
+      reason: 'invalid-version',
+    });
+    expect(await installable(manager).install('latest')).toMatchObject({
+      reason: 'invalid-version',
+    });
+    expect(await installable(undefined).install('1.1.0')).toEqual({
+      status: 'failed',
+      reason: 'unavailable',
+    });
+    expect(await installable(manager, '0.0.0').install('1.1.0')).toMatchObject({
+      reason: 'unavailable',
+    });
+    expect(manager.installBundle).not.toHaveBeenCalled();
+  });
+
+  it('maps Plugin Manager failures to a reason with the diagnostic and log', async () => {
+    const outcome = (result: ReleaseInstallerResult | Error) =>
+      installable(installer(result)).install('1.1.0');
+    expect(
+      await outcome({
+        application: 'failed',
+        error: { code: 'operation-error', diagnostic: 'ERR_PNPM_FETCH' },
+        packageResult: { kind: 'network', output: 'fetch failed', logPath: '/logs/1.log' },
+      }),
+    ).toEqual({
+      status: 'failed',
+      reason: 'network',
+      diagnostic: 'ERR_PNPM_FETCH',
+      logPath: '/logs/1.log',
+    });
+    expect(
+      await outcome({ application: 'failed', error: { code: 'incompatible-version' } }),
+    ).toEqual({ status: 'failed', reason: 'incompatible' });
+    expect(
+      await outcome({
+        application: 'failed',
+        error: { code: 'operation-error' },
+        packageResult: { kind: 'build-blocked', output: 'blocked' },
+      }),
+    ).toMatchObject({ reason: 'build-blocked', diagnostic: 'blocked' });
+    expect(await outcome(new Error('lock timeout'))).toMatchObject({
+      reason: 'failed',
+      diagnostic: 'Error: lock timeout',
+    });
+  });
+
+  it('joins a second install request while one is running', async () => {
+    let finish: (value: ReleaseInstallerResult) => void = () => undefined;
+    const manager = {
+      listBundles: vi.fn(async () => [{ name: 'deepseekbot', installed: true }]),
+      installBundle: vi.fn(
+        () =>
+          new Promise<ReleaseInstallerResult>((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    };
+    const service = installable(manager);
+    const first = service.install('1.1.0');
+    const second = service.install('1.1.0');
+    await vi.waitFor(() => {
+      expect(manager.installBundle).toHaveBeenCalledTimes(1);
+    });
+    finish({ application: 'restart-required' });
+    expect(await first).toEqual(await second);
   });
 
   it('reads the installed version and ledgers next to the module', () => {

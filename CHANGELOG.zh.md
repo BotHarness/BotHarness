@@ -5,7 +5,7 @@
 
 ## [Unreleased]
 
-PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一为卡片样式；每个 Bot 的 Memory 会保存供 Bot 市场使用的 `.botharness/bot.json`；插件会发送可关闭的匿名使用统计。
+PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一为卡片样式；每个 Bot 的 Memory 会保存供 Bot 市场使用的 `.botharness/bot.json`；插件会发送可关闭的匿名使用统计；Bot 设置可一键安装 DeepSeekBot 更新并重启 DSH。
 
 ### Added
 
@@ -18,6 +18,7 @@ PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一�
 - DeepSeekBot 由 DSH 后台发送匿名使用统计，只关联一个随机安装 ID：`plugin_started`（插件和 DSH 版本、操作系统、架构），`bot_created`、`bot_archived`、`bot_deleted`、`marketplace_bot_installed`、`connector_enabled`（只含连接器类型）、`avatar_edited`，每天一次的 `daily_usage` 汇总（PersonaBot、会话和消息数量及统计时长），以及 BotHarness 后台未处理错误的 `$exception` 报告（错误类型和只保留包内文件名的调用栈，从不含错误信息或文件路径）；Bot 模式会弹出一次说明，并链接隐私说明和源码。可在 Bot 设置中关掉「匿名使用统计」开关，立即生效、无需重启，并会被记住；在 core 插件配置中设置 `telemetry: false`，或设置 `DO_NOT_TRACK=1`、`BOTHARNESS_TELEMETRY=0`，会强制关闭并锁定该开关（[#951](https://github.com/BotHarness/BotHarness/issues/951)，[#952](https://github.com/BotHarness/BotHarness/issues/952)，[ADR-0132](docs/adr/0132-anonymous-posthog-telemetry-and-campaign-short-links.md)，[教程](docs/settings.md)）。
 - PersonaBot 可以自己管理定时任务：让 Bot「每小时检查一下 X」或「每天早上总结」，它会自己创建定时任务，侧栏里标为 Bot 创建；它也可以修改或删除你没有锁定的任务。你可以在任务行或编辑弹窗里锁定任务；每个 Bot 最多同时启用 20 个；Bot 改动后侧栏立即刷新；Orchestrator 中 DSH 自带的 `schedule_*` 工具会被拒绝，确保每个 Bot 只有一套定时任务（[#961](https://github.com/BotHarness/BotHarness/issues/961)）。
 - 定时任务新增每周（选择星期几）、单次（指定日期和时间，触发后自动停用）和 5 段 Cron 三种频率，均按任务自己的时区计算；编辑弹窗会预览接下来三次触发时间，Bot 的定时任务工具也支持这些频率；任务行上的「立即运行」会马上唤醒 Orchestrator，且不改变下一次计划时间。新增[定时任务使用指南](docs/channel-sidebar/schedules.md)，说明各种频率、立即运行、暂停与锁定（[#962](https://github.com/BotHarness/BotHarness/issues/962)）。
+- Bot 设置可以通过 DSH 的插件管理一键安装新版本 DeepSeekBot。Web 版装完点「立即重启」，`dsh web` 会在同一个终端里重启，页面自动重新连接；DSH Desktop 会提示退出后重新打开。插件管理不可用或安装失败时，会显示原因和手动更新命令。新增[更新 DeepSeekBot](docs/update-deepseekbot.md)教程，说明每一步（[#986](https://github.com/BotHarness/BotHarness/issues/986)）。
 
 ### Changed
 
