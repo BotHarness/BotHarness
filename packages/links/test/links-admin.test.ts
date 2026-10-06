@@ -251,7 +251,7 @@ describe('admin pages', () => {
     const html = await created.text();
     const token = /value="(bhl_[A-Za-z0-9_-]{43})"/.exec(html)?.[1];
     expect(token).toBeDefined();
-    expect(html).toContain('shown only once');
+    expect(html).toContain('only its hash is stored');
     expect(html).toContain('<dialog open data-modal');
     expect(html).toContain('bh-links login');
 
