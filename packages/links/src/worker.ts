@@ -1,8 +1,10 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { bearerAuth } from 'hono/bearer-auth';
 import { HTTPException } from 'hono/http-exception';
-import type { D1Database } from './d1.js';
-import { isPreviewer, SHORT_ORIGIN, sendLinkClicked, siteRoot, targetUrl } from './redirect.js';
+import { admin } from './admin.js';
+import type { AppEnv } from './env.js';
+import * as operations from './operations.js';
+import { isPreviewer, sendLinkClicked, siteRoot, targetUrl } from './redirect.js';
 import {
   CampaignClicksSchema,
   CampaignCreateSchema,
@@ -17,31 +19,12 @@ import {
   RESERVED_SLUGS,
   TokenCreateSchema,
   TokenSchema,
-  type Link,
-  type Scope,
 } from './schemas.js';
-import { createStore, isUniqueViolation, type LinkRecord, type Store } from './store.js';
-import {
-  displayPrefix,
-  generateToken,
-  hashToken,
-  MIN_BOOTSTRAP_LENGTH,
-  sameSecret,
-  TOKEN_PATTERN,
-} from './tokens.js';
+import { createStore } from './store.js';
+import { hashToken, MIN_BOOTSTRAP_LENGTH, sameSecret, TOKEN_PATTERN } from './tokens.js';
 
-export interface LinksEnv {
-  LINKS_DB: D1Database;
-  LINKS_BOOTSTRAP_TOKEN?: string;
-  POSTHOG_HOST?: string;
-  POSTHOG_KEY?: string;
-}
+export type { LinksEnv, Principal } from './env.js';
 
-export type Principal = { kind: 'bootstrap' } | { kind: 'token'; id: string; scope: Scope };
-
-type AppEnv = { Bindings: LinksEnv; Variables: { principal: Principal; store: Store } };
-
-const DAY_MS = 86_400_000;
 const TOUCH_INTERVAL_MS = 3_600_000;
 
 const security = [{ bearerAuth: [] }];
@@ -145,26 +128,6 @@ app.use('/v1/*', async (c, next) => {
   await next();
 });
 
-function present(link: LinkRecord): Link {
-  return {
-    id: link.id,
-    slug: link.slug,
-    campaign: link.campaign,
-    platform: link.platform,
-    media: link.media,
-    path: link.path,
-    language: link.language,
-    note: link.note,
-    shortUrl: `${SHORT_ORIGIN}/${link.slug}`,
-    target: targetUrl(link),
-    clicks: link.clicks,
-    lastClickedAt: link.lastClickedAt,
-    createdAt: link.createdAt,
-    updatedAt: link.updatedAt,
-    archivedAt: link.archivedAt,
-  };
-}
-
 app.openapi(
   createRoute({
     method: 'post',
@@ -180,23 +143,7 @@ app.openapi(
     },
   }),
   async (c) => {
-    const body = c.req.valid('json');
-    const token = generateToken();
-    const at = new Date();
-    const created = await c.var.store.createToken(
-      {
-        name: body.name,
-        prefix: displayPrefix(token),
-        hash: await hashToken(token),
-        scope: body.scope,
-        expiresAt:
-          body.expiresInDays === null
-            ? null
-            : new Date(at.getTime() + body.expiresInDays * DAY_MS).toISOString(),
-      },
-      at.toISOString(),
-    );
-    return c.json({ ...created, token }, 201);
+    return c.json(await operations.createToken(c.var.store, c.req.valid('json')), 201);
   },
 );
 
@@ -227,8 +174,8 @@ app.openapi(
     },
   }),
   async (c) => {
-    const revoked = await c.var.store.revokeToken(c.req.valid('param').id, now());
-    return revoked ? c.json(revoked, 200) : c.json(error('token-not-found'), 404);
+    const result = await operations.revokeToken(c.var.store, c.req.valid('param').id);
+    return result.ok ? c.json(result.value, 200) : c.json(error(result.code), result.status);
   },
 );
 
@@ -248,19 +195,8 @@ app.openapi(
     },
   }),
   async (c) => {
-    const body = c.req.valid('json');
-    try {
-      const created = await c.var.store.createCampaign(
-        body.slug,
-        body.name,
-        body.description ?? null,
-        now(),
-      );
-      return c.json(created, 201);
-    } catch (err) {
-      if (isUniqueViolation(err)) return c.json(error('campaign-slug-taken'), 409);
-      throw err;
-    }
+    const result = await operations.createCampaign(c.var.store, c.req.valid('json'));
+    return result.ok ? c.json(result.value, 201) : c.json(error(result.code), result.status);
   },
 );
 
@@ -322,12 +258,12 @@ app.openapi(
     },
   }),
   async (c) => {
-    const updated = await c.var.store.updateCampaign(
+    const result = await operations.updateCampaign(
+      c.var.store,
       c.req.valid('param').slug,
       c.req.valid('json'),
-      now(),
     );
-    return updated ? c.json(updated, 200) : c.json(error('campaign-not-found'), 404);
+    return result.ok ? c.json(result.value, 200) : c.json(error(result.code), result.status);
   },
 );
 
@@ -346,8 +282,8 @@ app.openapi(
     },
   }),
   async (c) => {
-    const archived = await c.var.store.archiveCampaign(c.req.valid('param').slug, now());
-    return archived ? c.json(archived, 200) : c.json(error('campaign-not-found'), 404);
+    const result = await operations.archiveCampaign(c.var.store, c.req.valid('param').slug);
+    return result.ok ? c.json(result.value, 200) : c.json(error(result.code), result.status);
   },
 );
 
@@ -366,24 +302,8 @@ app.openapi(
     },
   }),
   async (c) => {
-    const slug = c.req.valid('param').slug;
-    if (!(await c.var.store.campaign(slug))) return c.json(error('campaign-not-found'), 404);
-    const links = await c.var.store.links(slug, true);
-    return c.json(
-      {
-        campaign: slug,
-        total: links.reduce((sum, link) => sum + link.clicks, 0),
-        links: links.map((link) => ({
-          slug: link.slug,
-          platform: link.platform,
-          media: link.media,
-          clicks: link.clicks,
-          lastClickedAt: link.lastClickedAt,
-          archivedAt: link.archivedAt,
-        })),
-      },
-      200,
-    );
+    const result = await operations.campaignClicks(c.var.store, c.req.valid('param').slug);
+    return result.ok ? c.json(result.value, 200) : c.json(error(result.code), result.status);
   },
 );
 
@@ -404,30 +324,8 @@ app.openapi(
     },
   }),
   async (c) => {
-    const body = c.req.valid('json');
-    const campaign = await c.var.store.campaign(body.campaign);
-    if (!campaign) return c.json(error('campaign-not-found'), 404);
-    if (campaign.archivedAt) return c.json(error('campaign-archived'), 409);
-    try {
-      await c.var.store.createLink(
-        {
-          slug: body.slug,
-          campaignId: campaign.id,
-          platform: body.platform,
-          media: body.media,
-          path: body.path,
-          language: body.language,
-          note: body.note ?? null,
-        },
-        now(),
-      );
-    } catch (err) {
-      if (isUniqueViolation(err)) return c.json(error('link-slug-taken'), 409);
-      throw err;
-    }
-    const created = await c.var.store.link(body.slug);
-    if (!created) throw new Error('created link not found');
-    return c.json(present(created), 201);
+    const result = await operations.createLink(c.var.store, c.req.valid('json'));
+    return result.ok ? c.json(result.value, 201) : c.json(error(result.code), result.status);
   },
 );
 
@@ -449,7 +347,7 @@ app.openapi(
   async (c) => {
     const query = c.req.valid('query');
     const links = await c.var.store.links(query.campaign, query.includeArchived === 'true');
-    return c.json({ links: links.map((link) => present(link)) }, 200);
+    return c.json({ links: links.map(operations.presentLink) }, 200);
   },
 );
 
@@ -468,8 +366,8 @@ app.openapi(
     },
   }),
   async (c) => {
-    const found = await c.var.store.link(c.req.valid('param').slug);
-    return found ? c.json(present(found), 200) : c.json(error('link-not-found'), 404);
+    const result = await operations.readLink(c.var.store, c.req.valid('param').slug);
+    return result.ok ? c.json(result.value, 200) : c.json(error(result.code), result.status);
   },
 );
 
@@ -492,12 +390,12 @@ app.openapi(
     },
   }),
   async (c) => {
-    const slug = c.req.valid('param').slug;
-    if (!(await c.var.store.updateLink(slug, c.req.valid('json'), now()))) {
-      return c.json(error('link-not-found'), 404);
-    }
-    const updated = await c.var.store.link(slug);
-    return updated ? c.json(present(updated), 200) : c.json(error('link-not-found'), 404);
+    const result = await operations.updateLink(
+      c.var.store,
+      c.req.valid('param').slug,
+      c.req.valid('json'),
+    );
+    return result.ok ? c.json(result.value, 200) : c.json(error(result.code), result.status);
   },
 );
 
@@ -516,10 +414,8 @@ app.openapi(
     },
   }),
   async (c) => {
-    const slug = c.req.valid('param').slug;
-    if (!(await c.var.store.archiveLink(slug, now()))) return c.json(error('link-not-found'), 404);
-    const archived = await c.var.store.link(slug);
-    return archived ? c.json(present(archived), 200) : c.json(error('link-not-found'), 404);
+    const result = await operations.archiveLink(c.var.store, c.req.valid('param').slug);
+    return result.ok ? c.json(result.value, 200) : c.json(error(result.code), result.status);
   },
 );
 
@@ -544,20 +440,12 @@ app.openapi(
     },
   }),
   async (c) => {
-    const found = await c.var.store.link(c.req.valid('param').slug);
-    if (!found) return c.json(error('link-not-found'), 404);
-    const since = new Date(Date.now() - (c.req.valid('query').days - 1) * DAY_MS)
-      .toISOString()
-      .slice(0, 10);
-    return c.json(
-      {
-        link: found.slug,
-        total: found.clicks,
-        lastClickedAt: found.lastClickedAt,
-        daily: await c.var.store.dailyClicks(found.id, since),
-      },
-      200,
+    const result = await operations.linkClicks(
+      c.var.store,
+      c.req.valid('param').slug,
+      c.req.valid('query').days,
     );
+    return result.ok ? c.json(result.value, 200) : c.json(error(result.code), result.status);
   },
 );
 
@@ -571,6 +459,8 @@ app.doc('/openapi.json', {
   },
   servers: [{ url: 'https://go.botharness.ai' }],
 });
+
+app.route('/admin', admin);
 
 app.get('/', (c) => c.redirect(siteRoot(), 302));
 

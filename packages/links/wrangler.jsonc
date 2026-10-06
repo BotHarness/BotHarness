@@ -9,6 +9,9 @@
   "vars": {
     "POSTHOG_HOST": "https://us.i.posthog.com",
     "POSTHOG_KEY": "phc_CxrCyBuRHVSs996eyHXAeyJbyE8rJXgREbEYsfxUkR3J",
+    // fill from Zero Trust: team domain (<team>.cloudflareaccess.com) and the Access application AUD tag
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
   },
   "d1_databases": [
     {
