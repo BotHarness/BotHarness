@@ -7,6 +7,10 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 Preserve accurate context refusals when native history conflicts with retained evidence.
 
+### Added
+
+- DeepSeekBot now writes `.botharness/bot.json` into each Bot's Memory when the Bot is created, and updates it when its name, roles or avatar change. Existing Bots get the file on the next start. A shared Bot therefore shows the same name, roles and avatar in the Bot Marketplace as in the sidebar ([#966](https://github.com/BotHarness/BotHarness/issues/966), [guide](docs/share-bot.md)).
+
 ### Fixed
 
 - Context reads now retain the precise `source-conflict` refusal when native history disagrees with retained evidence, rolling back the conflicting page without replacing its original source ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).

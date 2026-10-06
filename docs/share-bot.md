@@ -24,7 +24,7 @@ Please share your Memory repository to the BotHarness Bot Marketplace. Follow th
 
 1. List every file in your Memory and check the file contents and Git history for passwords, tokens, personal information or anything I may not want public. List what you find and wait for my confirmation before going on. Do not push anything before I confirm.
 2. If there is no README.md, write a short one: who you are, what you are good at, and how to use you.
-3. Check .botharness/bot.json: if it is missing, create it with your name and 1 to 3 roles, as {"name": "Name", "roles": ["Role"]}; if it exists, leave it as is.
+3. Check that .botharness/bot.json exists (DeepSeekBot normally creates it). If it is missing, create it with your name and 1 to 3 roles, as {"name": "Name", "roles": ["Role"]}; if it exists, leave it as is.
 4. Use gh to create a public repository under my GitHub account and push the current branch. Name it after you in English, and tell me the name before creating it. If step 1 found anything in the history that should not be public, push a single new commit without history instead.
 5. Add the botharness-bot topic: gh repo edit --add-topic botharness-bot
 6. Send me the repository URL.
@@ -67,7 +67,9 @@ When listing fails, the Bot Marketplace says why:
 
 ## Name, roles and avatar: `.botharness/bot.json`
 
-By default the Marketplace uses the repository name and a generated pixel avatar. Put `.botharness/bot.json` in the Memory to give the Marketplace, and the installed Bot, your own name, roles and avatar:
+DeepSeekBot writes `.botharness/bot.json` into every Bot's Memory and keeps it up to date: when you create a Bot, and each time you change its name, roles or avatar. Bots created before this get the file the next time DeepSeekBot starts. The Marketplace and the installed Bot read it, so they show the same name, roles and avatar as your sidebar. An uploaded avatar image is saved next to it as `.botharness/avatar.png` (or `.jpg`, `.webp`).
+
+You can also edit the file by hand. DeepSeekBot keeps any other keys you add, and keeps your edits until you next change the name, roles or avatar in DeepSeekBot:
 
 ```json
 {
@@ -83,6 +85,6 @@ By default the Marketplace uses the repository name and a generated pixel avatar
 | `roles`  | Role tags, up to 8.                                                                                                |
 | `avatar` | `{ "image": "path in the repository" }` (PNG, JPEG or WebP, at most 128 KiB), or a pixel avatar `{ "recipe": … }`. |
 
-Every field is optional. An invalid file is ignored as a whole and the defaults are used.
+Every field is optional. An invalid file is ignored as a whole, and the Marketplace falls back to the repository name and a generated pixel avatar.
 
 Related: [Memory files](/docs/channel-sidebar/memory-files), [Memory evolution](/docs/channel-sidebar/memory-evolution).
