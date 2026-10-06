@@ -5,9 +5,9 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Nothing yet since 1.1.0.
+Nothing yet since 1.0.2.
 
-## [1.1.0] - 2026-10-06
+## [1.0.2] - 2026-10-06
 
 Bot mode shows what changed after an install or update and checks npm for newer releases, context reads keep precise `source-conflict` refusals, and a Share a Bot guide explains publishing a Bot to the Bot Marketplace.
 
