@@ -72,6 +72,12 @@ export function sniffAttachmentMime(b: Uint8Array): string {
   if (b.length >= 3 && b[0] === 255 && b[1] === 216 && b[2] === 255) return 'image/jpeg';
   if (b.length >= 6 && ['GIF87a', 'GIF89a'].includes(ascii(0, 6))) return 'image/gif';
   if (b.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
+  if (b.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WAVE') return 'audio/wav';
+  if (
+    b.length >= 10 &&
+    (ascii(0, 9) === '#!SILK_V3' || (b[0] === 2 && ascii(1, 10) === '#!SILK_V3'))
+  )
+    return 'audio/silk';
   if (b.length >= 5 && ascii(0, 5) === '%PDF-') return 'application/pdf';
   if (b.length === 0) return 'application/octet-stream';
   try {

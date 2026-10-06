@@ -8,6 +8,7 @@ import type { MessagingInboundEvent } from '../src/messaging/provider.js';
 import type { OrchestratorAgentRun } from '../src/runtime/bot-runtime.js';
 import { createAttachmentStore } from '../src/attachments/store.js';
 import { createTempRoot } from './helpers.js';
+import { encode } from 'silk-wasm';
 
 const cores: BotHarnessCore[] = [];
 afterEach(async () => {
@@ -51,6 +52,7 @@ async function fixture(
   onRun?: (run: OrchestratorAgentRun) => Promise<void>,
   platform: 'feishu' | 'slack' | 'weixin' = 'feishu',
   image = false,
+  voice = false,
 ) {
   const { parentId: _parentId, ...slackReply } = event.reply;
   const platformEvent: MessagingInboundEvent =
@@ -70,8 +72,10 @@ async function fixture(
                 ...attachment,
                 messageId: event.messageId,
                 ...(image ? { name: 'image', mediaType: 'image/unknown' } : {}),
+                ...(voice ? { name: 'voice.silk', mediaType: 'audio/unknown' } : {}),
               },
             ],
+            ...(voice ? { voice: { transcript: 'unavailable' as const, encodeType: 6 } } : {}),
             conversation: { kind: 'dm', id: 'team' },
             mentions: [],
             mentionedAccount: false,
@@ -149,6 +153,7 @@ async function fixture(
         'reply-file-checked',
         ...(platform === 'weixin' ? ['reply-file-fence-checked'] : []),
         ...(image ? ['source-image-checked', 'reply-image-fence-checked'] : []),
+        ...(voice ? ['source-voice-transcript-checked', 'source-voice-audio-checked'] : []),
       ],
     }),
     sendChecked: async () => ({ sent: true }),
@@ -156,6 +161,7 @@ async function fixture(
     consumeInbound: async (_id, input) => {
       expect(input.sourceFiles).toBe(true);
       expect(input.sourceImages).toBe(image ? true : undefined);
+      expect(input.sourceVoiceAudio).toBe(voice ? true : undefined);
       receive = input;
       return () => {};
     },
@@ -485,4 +491,89 @@ it('WeChat image input is capability-opted-in and native result MIME comes from 
   });
   expect(fx.reply.mock.calls[0]?.[2]).toMatchObject({ mediaType: 'image/png' });
   expect(Buffer.from(fx.reply.mock.calls[0]![2].bytes)).toEqual(png);
+});
+
+it('WeChat raw audio and playback preserve separate file identities and the original source authority', async () => {
+  const fx = await fixture(undefined, 'weixin', false, true);
+  const silk = (await encode(Buffer.alloc(48000), 24000)).data;
+  fx.download.mockImplementation(async function* () {
+    yield Buffer.from(silk);
+  });
+  const id = await fx.source();
+  const raw = await fx.core.externalMessaging.acquireFile('ada', id, attachment.id);
+  expect(raw.mime).toBe('audio/silk');
+  expect(readFileSync(fx.core.attachments.fileTarget(raw.fileId!).path)).toEqual(Buffer.from(silk));
+  const playback = await fx.core.externalMessaging.prepareAudio('ada', id, attachment.id);
+  expect(playback.mime).toBe('audio/wav');
+  expect(playback.fileId).not.toBe(raw.fileId);
+  const wav = readFileSync(fx.core.attachments.fileTarget(playback.fileId!).path);
+  expect(wav.readUInt32LE(24)).toBe(24000);
+  expect(wav.readUInt16LE(22)).toBe(1);
+  expect(fx.download).toHaveBeenCalledTimes(1);
+  await fx.restart();
+  const cached = await fx.core.externalMessaging.prepareAudio('ada', id, attachment.id);
+  expect(cached.fileId).toBe(playback.fileId);
+  expect(fx.download).toHaveBeenCalledTimes(1);
+  fx.core.registry.create({ slug: 'other', displayName: 'Other' });
+  await expect(
+    fx.core.externalMessaging.prepareAudio('other', id, attachment.id),
+  ).rejects.toThrow();
+  fx.core.externalMessaging.revoke('ada', fx.grant.id);
+  await expect(fx.core.externalMessaging.prepareAudio('ada', id, attachment.id)).rejects.toThrow();
+  expect(fx.reply).not.toHaveBeenCalled();
+});
+
+it('unsupported native codec preserves original download and does not pretend to provide playable audio', async () => {
+  const fx = await fixture(undefined, 'weixin', false, true);
+  const id = await fx.source({
+    ...fx.platformEvent,
+    voice: { transcript: 'unavailable', encodeType: 5 },
+  });
+  await expect(
+    fx.core.externalMessaging.prepareAudio('ada', id, attachment.id),
+  ).rejects.toMatchObject({ code: 'audio-codec-unsupported' });
+  const raw = await fx.core.externalMessaging.acquireFile('ada', id, attachment.id);
+  expect(readFileSync(fx.core.attachments.fileTarget(raw.fileId!).path, 'utf8')).toBe(
+    'original bytes',
+  );
+  expect(fx.reply).not.toHaveBeenCalled();
+});
+
+it('the Orchestrator saves decoded audio as an independent writable working copy through the existing tool seam', async () => {
+  let destinationGrant = '';
+  let savedPath = '';
+  const fx = await fixture(
+    async (run) => {
+      const sourceId = fx.core.attention
+        .list({ botSlug: 'ada' })
+        .items.find((item) => item.sourceKind === 'bridge-message')!.id;
+      const saved = await run.externalMessaging!.saveFile({
+        sourceEventId: sourceId,
+        attachmentId: attachment.id,
+        grantId: destinationGrant,
+        destinationPath: 'voice.wav',
+        representation: 'playback',
+      });
+      savedPath = saved.path;
+      const working = readFileSync(saved.path);
+      expect(working.subarray(8, 12).toString()).toBe('WAVE');
+      expect(working.readUInt32LE(24)).toBe(24000);
+      expect(saved.source.mime).toBe('audio/wav');
+    },
+    'weixin',
+    false,
+    true,
+  );
+  const raw = Buffer.from((await encode(Buffer.alloc(48000), 24000)).data);
+  fx.download.mockImplementation(async function* () {
+    yield raw;
+  });
+  const grant = await fx.core.grants.create('ada', 'project');
+  destinationGrant = grant.id;
+  fx.core.grants.setOrchestratorWrite('ada', grant.id, true);
+  const sourceId = await fx.source();
+  expect(savedPath).toBe(join(fx.project, 'voice.wav'));
+  const original = await fx.core.externalMessaging.acquireFile('ada', sourceId, attachment.id);
+  expect(readFileSync(fx.core.attachments.fileTarget(original.fileId!).path)).toEqual(raw);
+  expect(fx.reply).not.toHaveBeenCalled();
 });

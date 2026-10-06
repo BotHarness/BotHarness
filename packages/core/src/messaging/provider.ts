@@ -26,6 +26,9 @@ export interface MessagingVoice {
   transcript: 'platform' | 'unavailable';
   itemId?: string;
   durationMs?: number;
+  encodeType?: number;
+  sampleRate?: number;
+  bitsPerSample?: number;
 }
 
 export interface MessagingInboundEvent {

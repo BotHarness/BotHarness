@@ -1385,7 +1385,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'bridge_attachment_save',
           description:
-            'Save a trusted external Inbox attachment as an independent working copy in an explicitly writable Workspace Grant. Downloads bounded bytes only on first access. Use the returned path with native file tools and approved Shell; preserves the received original.',
+            'Save a trusted external Inbox attachment as an independent working copy in an explicitly writable Workspace Grant. Downloads bounded bytes only on first access. Optional representation=playback produces a bounded WAV from supported WeChat SILK without speech recognition. Use the returned path with native file tools and approved Shell; preserves the received original.',
           parameters: {
             source_event_id: {
               type: 'string',
@@ -1397,6 +1397,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               required: true,
               description:
                 'Attachment id returned by bridge_read; never a URL or provider resource key.',
+            },
+            representation: {
+              type: 'string',
+              enum: ['playback'],
+              description:
+                'Optional: prepare supported WeChat voice as WAV. Omit to save the unchanged original. This does not transcribe or understand speech.',
             },
             grant_id: {
               type: 'string',
@@ -1422,6 +1428,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               await active.run.externalMessaging.saveFile({
                 sourceEventId: args.source_event_id,
                 attachmentId: args.attachment_id,
+                ...(args.representation === 'playback' ? { representation: 'playback' } : {}),
                 grantId: args.grant_id,
                 destinationPath: args.destination_path,
               }),

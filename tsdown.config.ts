@@ -69,6 +69,7 @@ export default defineConfig([
     clean: true,
     external: [
       '@resvg/resvg-js',
+      'silk-wasm',
       '@deepseek-ai/dsh-agent',
       '@deepseek-ai/dsh-llm',
       '@deepseek-ai/dsh-session',

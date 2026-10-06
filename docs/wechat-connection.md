@@ -88,6 +88,16 @@ This voice's platform text was “语音测试暗号是蓝色灯塔37，请只�
 
 WeChat transcription is optional. When no transcript is supplied, the UI explicitly says **WeChat voice · no transcript** and asks for text. BotHarness does not run ASR, infer audio content, or offer a raw-audio player/download in this slice. The missing-transcript state has automated coverage; the real successful test did include platform text. Native transcription can change number formatting or words, so verify the displayed text before acting on it. Partial/generating and ambiguous multi-item messages are outside this candidate.
 
+## 8. Download original voice or prepare playback
+
+The #906 candidate retains platform text and original audio separately. Open the native voice Source Modal. When the Provider has readable audio, **Download original voice** retrieves the unchanged original. Native codec, sample rate and bit depth appear in collapsed message details only when WeChat actually supplies them; missing fields are not inferred.
+
+Choose **Prepare playback** to create a separate WAV for supported SILK input and reveal an audio player. The converted file is mono, 24 kHz, 16-bit PCM; these are output properties, not the native recording's inferred sample rate. Closing the Modal cancels preparation and releases playback resources; reopening requires selecting playback again. Unsupported codec, failed decoding or processing-limit refusal leaves original download available. Original downloads have the existing 25 MiB bound. Playback preparation limits input to 1 MiB, packet count to 6,000, decoding time to 10 seconds and PCM output to 12 MiB.
+
+With a writable Workspace Grant, the Bot can use `bridge_attachment_save` with `representation: playback` to save an independent `voice.wav` working copy, then process that file using authorized native tools. Omit that field to save the unchanged original. Normal native Tool approval still applies, and another Bot's identity is never borrowed. After actual processing, `bridge_reply` can send text to the original DM. Saving, playing or inspecting a file is not speech understanding: this connection adds no ASR, automatic audio-model input or native voice reply. Without platform text or a separately configured and verified audio-understanding route, ask for text.
+
+Automated coverage includes real SILK encoding/decoding, preservation of original bytes, cached restart, cancellation, codec refusal and authorization revocation. Fresh installed-product WeChat audio/player qualification remains in progress in [#906](https://github.com/BotHarness/BotHarness/issues/906); #905 transcript success does not substitute for it.
+
 ## Pause or reconnect
 
 Disable DM intake to stop future receipt while retaining configuration and history. Revoke the target authorization or unbind the identity to remove its authority. Re-pairing changes the identity fingerprint and requires explicit reauthorization; stale source continuations must not be reused. Restart with the same Profile to retain local pairing, canonical source records and Outbox outcomes.

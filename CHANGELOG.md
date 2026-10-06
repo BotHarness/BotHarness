@@ -9,6 +9,8 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 
 ### Added
 
+- Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
+
 - Added a candidate personal WeChat voice source path using platform-provided transcripts and explicit missing-transcript states in the Bot Inbox, without adding ASR or audio playback; a real native voice → model → original-DM reply was confirmed by the Human ([#905](https://github.com/BotHarness/BotHarness/issues/905)).
 
 - Added a source-preview WeChat image path with automatic image preview inside the original Inbox message bubble, native model image input and own-identity native image replies, with the original-DM image receipt confirmed by the Human ([#904](https://github.com/BotHarness/BotHarness/issues/904), [connection guide](docs/wechat-connection.md)).
