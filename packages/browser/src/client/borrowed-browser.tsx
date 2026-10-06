@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type ReactElement } from 'react';
-import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/sidebar-card.js';
 import type { BrowserTranslate } from './locale.js';
 
 export interface BorrowedTabView {
@@ -67,40 +68,56 @@ export function BorrowedBrowser({
   };
   return (
     <div ref={resource} className="bh-browser-body bh-browser-borrow">
-      <strong>{t('settings.extension')}</strong>
-      {tab == null ? (
-        <span>{t('entry.borrow.none')}</span>
-      ) : (
-        <>
-          <span>{t('entry.borrow.readOnly')}</span>
-          <strong className="bh-browser-borrow-title">{tab.title || tab.url}</strong>
-          <span className="bh-browser-borrow-url">{tab.url}</span>
-        </>
-      )}
-      <Button
-        size="sm"
-        disabled={!enabled || busy}
-        onClick={() => invoke(tab == null ? 'pair' : 'return')}
-      >
-        {t(tab == null ? 'entry.borrow.pair' : 'entry.borrow.return')}
-      </Button>
-      {tab != null || pair === undefined ? null : (
-        <>
-          <span>{t('entry.borrow.instructions')}</span>
-          <Input aria-label={t('entry.borrow.code')} value={pair.code} readOnly />
-          <span>{location.origin}</span>
-          <Button
-            size="sm"
-            onClick={() => {
-              sequence.current += 1;
-              setPair(undefined);
-              invoke('return');
-            }}
-          >
-            {t('entry.borrow.cancel')}
-          </Button>
-        </>
-      )}
+      <SidebarCardList className="bh-browser-cards">
+        <SidebarCardRow
+          icon="globe"
+          title={t('settings.extension')}
+          chips={
+            tab == null ? (
+              <Tag tone="neutral">{t('entry.chip.notShared')}</Tag>
+            ) : (
+              <Tag tone="info">{t('entry.chip.readOnly')}</Tag>
+            )
+          }
+          meta={<span>{t(tab == null ? 'entry.borrow.none' : 'entry.borrow.readOnly')}</span>}
+          detail={
+            <div className="bh-browser-card-detail">
+              {tab == null ? null : (
+                <>
+                  <strong className="bh-browser-borrow-title">{tab.title || tab.url}</strong>
+                  <span className="bh-browser-borrow-url">{tab.url}</span>
+                </>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!enabled || busy}
+                onClick={() => invoke(tab == null ? 'pair' : 'return')}
+              >
+                {t(tab == null ? 'entry.borrow.pair' : 'entry.borrow.return')}
+              </Button>
+              {tab != null || pair === undefined ? null : (
+                <>
+                  <span>{t('entry.borrow.instructions')}</span>
+                  <Input aria-label={t('entry.borrow.code')} value={pair.code} readOnly />
+                  <span>{location.origin}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      sequence.current += 1;
+                      setPair(undefined);
+                      invoke('return');
+                    }}
+                  >
+                    {t('entry.borrow.cancel')}
+                  </Button>
+                </>
+              )}
+            </div>
+          }
+        />
+      </SidebarCardList>
       {error === undefined ? null : (
         <div role="alert" className="bh-browser-error">
           {error}

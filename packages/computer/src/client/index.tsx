@@ -11,6 +11,7 @@ import {
   type CSSProperties,
   type ComponentType,
   type ReactElement,
+  type ReactNode,
 } from 'react';
 import { isExitReport } from './viewer-state.js';
 import { reportViewerEvent, viewerEventText } from './viewer-events.js';
@@ -22,7 +23,8 @@ import {
   type ComputerKey,
   type ComputerTranslate,
 } from './locale.js';
-import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/sidebar-card.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 
@@ -159,12 +161,6 @@ const buttonStyle: CSSProperties = {
   color: 'inherit',
   cursor: 'pointer',
   fontSize: 12,
-};
-const primaryButtonStyle: CSSProperties = {
-  ...buttonStyle,
-  border: `1px solid ${BH.buttonPrimaryFill}`,
-  background: BH.buttonPrimaryFill,
-  color: BH.labelPrimaryForeground,
 };
 const terminalStyle: CSSProperties = {
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -330,45 +326,59 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
     onCancel,
   } = props;
 
+  const title = t('rows.target.container');
+  const card = (
+    chip: ReactElement,
+    rest: { meta?: ReactNode; detail?: ReactNode },
+  ): ReactElement => (
+    <SidebarCardList className="bh-computer-cards">
+      <SidebarCardRow icon="monitor" title={title} chips={chip} {...rest} />
+    </SidebarCardList>
+  );
+
   if (!runtimeAvailable) {
-    return <div style={noteStyle}>{t(SETUP_GUIDANCE_KEY)}</div>;
+    return card(<Tag tone="warning">{t('entry.chip.setup')}</Tag>, {
+      detail: <div style={noteStyle}>{t(SETUP_GUIDANCE_KEY)}</div>,
+    });
   }
 
   if (confirming) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-        <div style={{ opacity: 0.8 }}>{t('entry.authorizeIntro')}</div>
-        <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.6, opacity: 0.85 }}>
-          {AUTHORIZATION_POINTS.map((point) => (
-            <li key={point}>{t(point)}</li>
-          ))}
-        </ul>
-        {storage === undefined ? null : (
-          <div style={{ opacity: 0.85 }}>
-            {t('entry.authorize.storage', { target: storage.target })}
-            {storage.ignoredReason === undefined ? '' : `（${storage.ignoredReason}）`}
+    return card(<Tag tone="warning">{t('entry.chip.authorize')}</Tag>, {
+      detail: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+          <div style={{ opacity: 0.8 }}>{t('entry.authorizeIntro')}</div>
+          <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.6, opacity: 0.85 }}>
+            {AUTHORIZATION_POINTS.map((point) => (
+              <li key={point}>{t(point)}</li>
+            ))}
+          </ul>
+          {storage === undefined ? null : (
+            <div style={{ opacity: 0.85 }}>
+              {t('entry.authorize.storage', { target: storage.target })}
+              {storage.ignoredReason === undefined ? '' : `（${storage.ignoredReason}）`}
+            </div>
+          )}
+          {storage?.migrationHint === undefined ? null : (
+            <div style={{ opacity: 0.85 }}>{storage.migrationHint}</div>
+          )}
+          {storage?.kind === 'bind' ? (
+            <div style={{ opacity: 0.85 }}>{t('entry.authorize.storageBindRisk')}</div>
+          ) : null}
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', opacity: 0.85 }}>
+            <input type="checkbox" onChange={(event) => onApprove(event.target.checked)} />
+            {t('entry.remember')}
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button size="sm" variant="outline" onClick={onCancel}>
+              {t('entry.cancel')}
+            </Button>
+            <Button size="sm" variant="primary" onClick={onConfirmStart}>
+              {t('entry.authorize')}
+            </Button>
           </div>
-        )}
-        {storage?.migrationHint === undefined ? null : (
-          <div style={{ opacity: 0.85 }}>{storage.migrationHint}</div>
-        )}
-        {storage?.kind === 'bind' ? (
-          <div style={{ opacity: 0.85 }}>{t('entry.authorize.storageBindRisk')}</div>
-        ) : null}
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center', opacity: 0.85 }}>
-          <input type="checkbox" onChange={(event) => onApprove(event.target.checked)} />
-          {t('entry.remember')}
-        </label>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" style={buttonStyle} onClick={onCancel}>
-            {t('entry.cancel')}
-          </button>
-          <button type="button" style={primaryButtonStyle} onClick={onConfirmStart}>
-            {t('entry.authorize')}
-          </button>
         </div>
-      </div>
-    );
+      ),
+    });
   }
 
   const inProgress =
@@ -380,71 +390,89 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
 
   if (state === 'running') {
     return (
-      <RunningCard
-        t={t}
-        botSlug={botSlug}
-        busy={busy}
-        stopping={phase === 'stopping'}
-        {...(resolution === undefined ? {} : { resolution })}
-        onStop={onStop}
-      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {card(<Tag tone="success">{t('entry.chip.running')}</Tag>, {
+          meta: t('entry.screen.title', { name: botSlug ?? 'PersonaBot' }),
+        })}
+        <RunningCard
+          t={t}
+          botSlug={botSlug}
+          busy={busy}
+          stopping={phase === 'stopping'}
+          {...(resolution === undefined ? {} : { resolution })}
+          onStop={onStop}
+        />
+      </div>
     );
   }
 
   if (inProgress) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-        <div>{t(PHASE_LABEL[phase] ?? 'entry.phase.working')}…</div>
-        <div
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            height: 6,
-            borderRadius: 3,
-            background: BH.borderL4,
-          }}
-        >
-          <div
-            style={
-              progress?.percent === undefined
-                ? {
-                    position: 'absolute',
-                    inset: 0,
-                    background: BH.businessPrimary,
-                  }
-                : {
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: `${String(progress.percent)}%`,
-                    background: BH.businessPrimary,
-                  }
-            }
-          />
-        </div>
-        <div style={terminalStyle}>{progress?.text ?? detail ?? t('entry.wait')}</div>
-        <div style={{ opacity: 0.5 }}>
+    return card(<Tag tone="info">{t(PHASE_LABEL[phase] ?? 'entry.phase.working')}</Tag>, {
+      meta: (
+        <span>
           {t('entry.elapsed', { seconds: elapsed })}
           {progress?.updatedAt === undefined
             ? ''
             : ` · ${t('entry.updated', {
                 seconds: Math.max(0, Math.round((nowTs - progress.updatedAt) / 1000)),
               })}`}
+        </span>
+      ),
+      detail: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+          <div
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              height: 6,
+              borderRadius: 3,
+              background: BH.borderL4,
+            }}
+          >
+            <div
+              style={
+                progress?.percent === undefined
+                  ? {
+                      position: 'absolute',
+                      inset: 0,
+                      background: BH.businessPrimary,
+                    }
+                  : {
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: `${String(progress.percent)}%`,
+                      background: BH.businessPrimary,
+                    }
+              }
+            />
+          </div>
+          <div style={terminalStyle}>{progress?.text ?? detail ?? t('entry.wait')}</div>
         </div>
-      </div>
-    );
+      ),
+    });
   }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-      <div style={noteStyle}>
-        {error ?? (isExitReport(detail) ? undefined : detail) ?? t(SHARED_NOTE_KEY)}
-      </div>
-      <button type="button" style={primaryButtonStyle} disabled={busy} onClick={onStart}>
-        {busy ? t('entry.starting') : t('entry.start')}
-      </button>
-    </div>
+  const failed = error !== undefined || state === 'failed';
+  return card(
+    failed ? (
+      <Tag tone="danger">{t('entry.chip.failed')}</Tag>
+    ) : (
+      <Tag tone="neutral">{t('entry.chip.stopped')}</Tag>
+    ),
+    {
+      meta: (
+        <span style={{ whiteSpace: 'pre-wrap' }}>
+          {error ?? (isExitReport(detail) ? undefined : detail) ?? t(SHARED_NOTE_KEY)}
+        </span>
+      ),
+      detail: (
+        <Button size="sm" variant="primary" disabled={busy} onClick={onStart}>
+          {busy ? t('entry.starting') : t('entry.start')}
+        </Button>
+      ),
+    },
   );
 }
 

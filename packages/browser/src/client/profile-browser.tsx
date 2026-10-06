@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type ReactElement } from 'react';
-import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/sidebar-card.js';
 import type { BrowserTranslate } from './locale.js';
 
 import type { ProfileView } from '../profile-control.js';
@@ -65,37 +66,74 @@ export function ProfileBrowserControl({
   };
   return (
     <div ref={resource} className="bh-browser-body bh-browser-borrow">
-      <strong>{t('settings.profile-control')}</strong>
-      <span>{t('entry.profile.scope')}</span>
-      <a
-        className="bh-browser-daily-install"
-        href="https://github.com/BotHarness/BotHarness/blob/main/docs/daily-browser.md#chrome-profile-control"
-        target="_blank"
-        rel="noreferrer"
-      >
-        {t('entry.profile.install')}
-      </a>
-      <span role="status">
-        {view?.paired
-          ? t(view.connected ? 'entry.profile.connected' : 'entry.profile.disconnected')
-          : t('entry.view.noTabs')}
-        {view?.connected ? ` · ${view.tabs}` : ''}
-      </span>
-      <Button size="sm" disabled={busy} onClick={() => invoke(view?.paired ? 'forget' : 'pair')}>
-        {t(view?.paired ? 'entry.profile.forget' : 'entry.profile.pair')}
-      </Button>
-      {view?.connected ? (
-        <Button size="sm" disabled={!enabled || busy} onClick={() => invoke('pause')}>
-          {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
-        </Button>
-      ) : null}
-      {view?.paired || pair === undefined ? null : (
-        <>
-          <span>{t('entry.profile.instructions')}</span>
-          <Input aria-label={t('entry.borrow.code')} value={pair.code} readOnly />
-          <span>{location.origin}</span>
-        </>
-      )}
+      <SidebarCardList className="bh-browser-cards">
+        <SidebarCardRow
+          icon="globe"
+          title={t('settings.profile-control')}
+          chips={
+            <>
+              {view?.paired !== true ? (
+                <Tag tone="neutral">{t('entry.chip.unpaired')}</Tag>
+              ) : view.connected ? (
+                <Tag tone="success">{t('entry.chip.connected')}</Tag>
+              ) : (
+                <Tag tone="warning">{t('entry.chip.offline')}</Tag>
+              )}
+              {paused ? <Tag tone="warning">{t('entry.chip.paused')}</Tag> : null}
+            </>
+          }
+          meta={
+            <>
+              <span>{t('entry.profile.scope')}</span>
+              <span role="status">
+                {view?.paired
+                  ? t(view.connected ? 'entry.profile.connected' : 'entry.profile.disconnected')
+                  : t('entry.view.noTabs')}
+                {view?.connected ? ` · ${view.tabs}` : ''}
+              </span>
+            </>
+          }
+          detail={
+            <div className="bh-browser-card-detail">
+              <a
+                className="bh-browser-daily-install"
+                href="https://github.com/BotHarness/BotHarness/blob/main/docs/daily-browser.md#chrome-profile-control"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t('entry.profile.install')}
+              </a>
+              <div className="bh-browser-actions">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => invoke(view?.paired ? 'forget' : 'pair')}
+                >
+                  {t(view?.paired ? 'entry.profile.forget' : 'entry.profile.pair')}
+                </Button>
+                {view?.connected ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!enabled || busy}
+                    onClick={() => invoke('pause')}
+                  >
+                    {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
+                  </Button>
+                ) : null}
+              </div>
+              {view?.paired || pair === undefined ? null : (
+                <>
+                  <span>{t('entry.profile.instructions')}</span>
+                  <Input aria-label={t('entry.borrow.code')} value={pair.code} readOnly />
+                  <span>{location.origin}</span>
+                </>
+              )}
+            </div>
+          }
+        />
+      </SidebarCardList>
       {error === undefined ? null : (
         <div role="alert" className="bh-browser-error">
           {error}

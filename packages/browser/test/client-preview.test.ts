@@ -13,6 +13,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
   return {
     Button: control,
     Pill: control,
+    Tag: (p: { children: ReactNode }) => createElement('span', null, p.children),
     StateDot: () => null,
     IconFullscreenOutlineRegular: () => null,
     Modal: (p: { children: ReactNode; title: string; onClose(): void }) =>
@@ -187,6 +188,10 @@ describe('Browser current work versus Human preview', () => {
     expect(rows[0]?.textContent).toContain('Work');
     expect(rows[0]?.textContent).toContain('http://fixture/work');
     expect(rows[1]?.textContent).toContain('http://fixture/home');
+    expect(host.querySelectorAll('.bh-browser-tabs .bh-card-row')).toHaveLength(rows.length);
+    expect(host.querySelector('.bh-browser-cards .bh-card-title')?.textContent).toBe(
+      'Local Browser',
+    );
   });
   it('locks the visible tab when Follow is turned off and resumes current work when re-enabled', async () => {
     await click('[role="switch"]');
