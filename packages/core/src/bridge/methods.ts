@@ -2451,7 +2451,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         typeof source['title'] !== 'string' ||
         typeof source['prompt'] !== 'string' ||
         trigger === undefined ||
-        (source['enabled'] !== undefined && typeof source['enabled'] !== 'boolean')
+        (source['enabled'] !== undefined && typeof source['enabled'] !== 'boolean') ||
+        (source['locked'] !== undefined && typeof source['locked'] !== 'boolean')
       )
         return invalidInput('title, prompt and an every or daily trigger are required');
       try {
@@ -2467,6 +2468,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 ...(source['enabled'] === undefined
                   ? {}
                   : { enabled: source['enabled'] as boolean }),
+                ...(source['locked'] === undefined ? {} : { locked: source['locked'] as boolean }),
               },
               'human',
             ),
@@ -2497,6 +2499,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         if (typeof source['enabled'] !== 'boolean')
           return invalidInput('enabled must be a boolean');
         change.enabled = source['enabled'];
+      }
+      if (source['locked'] !== undefined) {
+        if (typeof source['locked'] !== 'boolean') return invalidInput('locked must be a boolean');
+        change.locked = source['locked'];
       }
       if (source['trigger'] !== undefined) {
         const trigger = parseScheduleTrigger(source['trigger']);

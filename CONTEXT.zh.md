@@ -7,7 +7,7 @@
 ### PersonaBot（持久机器人身份）
 
 **PersonaBot**：
-由 Host 拥有的一等 bot 实体：一种带 Git-backed Memory Repository、跨越 Session、Chat 与 Workspace，并可同时持有多个 Session 的持久身份。Persona 是 Memory 中的 optional 内容，而不是身份本身。
+由 Host 拥有的一等 bot 实体：一种带 Git-backed Memory Repository、跨越 Session、Chat 与 Workspace，并可同时持有多个 Session 的持久身份。它的 Soul 是 Memory 中的 optional 内容，而不是身份本身。
 _避免使用_：bot（单独使用）、agent、assistant、robot
 
 **Archived PersonaBot**：
@@ -36,11 +36,11 @@ _避免使用_：Bot tag、permission role、category
 
 **Bot description**：
 由 Human 可选填写的简短自我介绍，用来说明 PersonaBot 是谁、负责什么或擅长什么。
-_避免使用_：Persona、role badge、system prompt
+_避免使用_：Soul、role badge、system prompt
 
-**Persona**：
-用于描述人物特征、表达风格或长期指令的约定式 Memory 内容；它在 Session 首次组装 system prompt 时被冻结为快照并随该 Session 保持。它不是特殊文件类型，也没有专属写保护；获得授权的 Agent 与 Human 都可以创建、修改、改名或删除它，但对它的修改只对新 Session 生效，不会改写正在运行的 Session。
-_避免使用_：system prompt、character sheet、profile
+**Soul**：
+「Bot 灵魂」。PersonaBot 的人格、语气与长期守则，保存在 Memory Repository 根目录的 `SOUL.md`；它与 Core Memory 一起在 Session 首次组装 system prompt 时冻结为快照并注入。它没有写保护，获得授权的 Agent 与 Human 都可以修改；修改只在新 Session 或下一次 compaction 时生效，不会改写正在运行的 prompt 前缀。
+_避免使用_：Persona、PERSONA.md、system prompt、character sheet、profile
 
 **Bot state**：
 一个 PersonaBot 当前的呈现状态，由其拥有的 Orchestrator 与 Assignment Session activity 投影而来。Orchestrator 活跃时优先呈现，只有在等待 Assignment 时才呈现后者；多个 Assignment 的 tool kind 相同则使用对应效果，不同则回退到通用 `working`，而 waiting 与 blocked attention 使用独立 indicator，不成为可配置 priority。
@@ -52,11 +52,11 @@ _避免使用_：profile picture、skin
 
 **Avatar Family**：
 形象家族：一类 Avatar 外形，其中相互兼容的外形选项可由 Human 组合。各家族以自身视觉语言表达同一 Bot state；某个外形选项只有在明确兼容时才跨家族共享。
-_避免使用_：Persona、Bot type、mode、skin
+_避免使用_：Soul、Bot type、mode、skin
 
 **Avatar Appearance**：
-保存外形：PersonaBot 保存的视觉选择：Avatar Family、兼容部件、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Persona 和当前 Bot state。
-_避免使用_：Persona、pose、mood、skin
+保存外形：PersonaBot 保存的视觉选择：Avatar Family、兼容部件、颜色和可编辑几何。各 Binding 使用同一组选择，暂时的动作或形变结束后恢复；它们独立于 Soul 和当前 Bot state。
+_避免使用_：Soul、pose、mood、skin
 
 **Model Preset**：
 模型预设。Human 创建的可复用、仅对当前部署有效的 PersonaBot 模型方案：一个 Orchestrator provider、model 和 reasoning effort，以及 Assignment 可选的模型与 effort 集合和默认值。应用时将方案复制给 PersonaBot；之后修改预设不会更新已应用的副本。
@@ -64,7 +64,7 @@ _避免使用_：DSH Agent preset、SoulSnapshot
 
 **PersonaBot Model Plan**：
 PersonaBot 模型方案。某个 PersonaBot 持有的模型预设快照或 Human 自定义选择，决定其 Orchestrator 路由与后续 Assignment 的模型选择。它属于运行配置，不属于 Soul 或 Memory。
-_避免使用_：Persona、DSH Agent preset、model usage
+_避免使用_：Soul、DSH Agent preset、model usage
 
 ### 支撑与执行
 
@@ -252,6 +252,10 @@ _避免使用_：knowledge base、vector store、RAG、database、context
 PersonaBot 拥有的普通 Git 仓库，在创建 PersonaBot 时自动生成，并作为其 Orchestrator Session 的 working directory。分支、合并与文件历史由 Git 管理；archive、export、restore 和 purge 仍是显式操作。
 _避免使用_：optional attachment、Session memory、generated index、project Workspace
 
+**Core Memory**：
+「Bot 核心记忆」。PersonaBot 常驻的记忆，保存在 Memory Repository 根目录的 `MEMORY.md`：以一条一行的索引为主，告诉它自己记得什么，外加少量关键事实。它与 Soul 来自同一份冻结快照并注入每个 Session 的 system prompt，受 Human 为每个 PersonaBot 设置的字符上限约束；具体怎么组织，由 Human 与 PersonaBot 在沟通中沉淀。
+_避免使用_：memory tree、pinned memory、generated index、USER.md
+
 **Topic file**：
 Memory Repository 中专门记录某一主题（例如 customer、process 或 decision）的文件。这是一种组织约定，不限制仓库中的文件类型。
 _避免使用_：note、document、page、record
@@ -280,22 +284,18 @@ _避免使用_：accepted commit、auto-save、Git author、普通 Inbox 观察
 随 Source Event 接收、由 Host 管理的真实文件，其身份独立于当前字节内容和发送者最初上传的源文件。引用它的消息展示外部编辑后的当前内容；独立上传的文件彼此独立，只有 PersonaBot 显式保存在自己的 Memory 或 Workspace 中时才拥有单独副本。
 _避免使用_：upload、provider URL、per-Bot inbox copy、database blob
 
-### Soul（身份内容）与分享
-
-**Soul**：
-PersonaBot 可选择固化为 SoulSnapshot 的 Memory 内容；存在 Persona 内容时也包含在内。
-_避免使用_：character、profile、data
+### 分享
 
 **SoulSnapshot**：
-Soul 的不可变 content-addressed package：包含 `bot.md` manifest、setup instructions 与选定的 Memory 文件；它是 registry 存储、列出与导入的单元，不要求存在 Persona 文件。
+历史术语：由选定 Memory 文件（存在 Soul 时也包含在内）、`bot.md` manifest 与 setup instructions 组成的不可变 content-addressed package，原计划作为 registry 存储、列出与导入的单元。分享单元已由完整 Memory 仓库分享（ADR-0131）取代。
 _避免使用_：export、backup、bot zip、image
 
 **PersonaBot Export**：
-不可变、带版本的 transfer package，始终包含一个 SoulSnapshot，并可包含显式选择的 operational Export Facet。默认仅包含 Soul；它绝不携带 credential 或 live authority。
+历史术语（ADR-0134 退役）：不可变、带版本的 transfer package，始终包含一个 SoulSnapshot，并可包含显式选择的 operational Export Facet。单个 Bot 现在通过它的 Memory Git 仓库分享（ADR-0131），整份 Profile 通过 Profile Backup 迁移。
 _避免使用_：SoulSnapshot、database copy、live clone、registry version
 
 **Export Facet**：
-PersonaBot Export 中 dependency-closed、带 schema version 的可选部分，例如 Source Event 与 Attachment、Inbox 与 attention facts、Trigger 与 Wake Policy、Messaging Archive、disabled Service Grant declaration，或等待 rebind 的 provider account reference。
+历史术语（随 PersonaBot Export 退役）：PersonaBot Export 中 dependency-closed、带 schema version 的可选部分，例如 Source Event 与 Attachment、Inbox 与 attention facts、Trigger 与 Wake Policy、Messaging Archive、disabled Service Grant declaration，或等待 rebind 的 provider account reference。
 _避免使用_：arbitrary table dump、credential bundle、active permission
 
 **Messaging Archive**：
@@ -315,7 +315,7 @@ _避免使用_：store、hub、Soul registry
 _避免使用_：submission、Listing、SoulSnapshot、mirror
 
 **Soul registry**：
-存储、版本化并提供 SoulSnapshot 的 hosted service——即 marketplace backend，与 Host 的 PersonaBot registry 不同。
+历史术语（ADR-0019/0020）：原计划存储、版本化并提供 SoulSnapshot 的 hosted service，已由 Bot Marketplace（ADR-0131）取代。
 _避免使用_：hub、store、database
 
 **Listing**：
@@ -335,11 +335,11 @@ _避免使用_：username、account id
 _避免使用_：collection、bundle、pack、team
 
 **Export**：
-生成 PersonaBot Export。默认仅在其 SoulSnapshot 中选择 Persona 加上指定 Memory；operational Export Facet 必须显式选择。
+历史术语（随 PersonaBot Export 退役）：生成 PersonaBot Export。整份 Profile 用 Profile Backup，单个 Bot 用 Memory Git 仓库。
 _避免使用_：database dump、live clone、publish
 
 **Import**：
-从 SoulSnapshot 或 PersonaBot Export 创建新的 PersonaBot；始终产生副本，导入的 operational authority 会保持 disabled，直到被显式 rebind 或 reauthorize。
+从分享的 Memory Git 仓库（Git URL 或 Bot Marketplace 安装）创建新的 PersonaBot；始终产生副本，导入的 operational authority 会保持 disabled，直到被显式 rebind 或 reauthorize。
 _避免使用_：install、clone、pull、restore
 
 **Publish**：

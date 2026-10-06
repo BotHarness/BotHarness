@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, type PropsWithChildren } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
+}));
 import { AvatarAppearanceEditor } from '../src/client/avatar-appearance-editor.js';
 import { parseBotSummaries } from '../src/client/bridge.js';
 import {
@@ -14,6 +18,61 @@ import { LINE_PARTS, LINE_PRESETS, seededLineRecipe } from '../../core/src/bots/
 import { zhTranslate } from '../src/client/locale.js';
 
 describe('Profile Avatar Appearance editing', () => {
+  it('offers pixel design and image upload as two choices and marks the one in use', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const upload = vi.fn();
+    const remove = vi.fn();
+    const render = (bot: Parameters<typeof AvatarAppearanceEditor>[0]['bot']) =>
+      act(() =>
+        root.render(
+          createElement(AvatarAppearanceEditor, {
+            bot,
+            channelId: 'dm-ada',
+            onSave: vi.fn(async () => true),
+            onUpload: upload,
+            onRemoveImage: remove,
+            t: zhTranslate,
+          }),
+        ),
+      );
+    const base = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      workspaces: [],
+      createdAt: '',
+      aggregateState: 'idle',
+    };
+    try {
+      await render(base);
+      const rows = () => [...container.querySelectorAll('.bh-avatar-methods > .bh-card-row')];
+      expect(container.querySelector('.bh-profile-section-title')?.textContent).toBe('头像');
+      expect(rows().map((row) => row.querySelector('.bh-card-title')?.textContent)).toEqual([
+        '设计像素头像',
+        '上传图片',
+      ]);
+      expect(rows().map((row) => row.getAttribute('data-state'))).toEqual(['current', null]);
+      expect(container.querySelector('[data-avatar-remove]')).toBeNull();
+      await act(() => container.querySelector<HTMLButtonElement>('[data-avatar-upload]')!.click());
+      expect(upload).toHaveBeenCalledTimes(1);
+
+      await render({ ...base, avatar: '/saved.png' });
+      expect(rows().map((row) => row.getAttribute('data-state'))).toEqual([null, 'current']);
+      await act(() => container.querySelector<HTMLButtonElement>('[data-avatar-remove]')!.click());
+      expect(remove).toHaveBeenCalledTimes(1);
+
+      await act(() => container.querySelector<HTMLButtonElement>('[data-avatar-edit]')!.click());
+      expect(container.querySelector('.bh-avatar-methods')).toBeNull();
+      expect(container.querySelector('[data-avatar-save]')).not.toBeNull();
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
+  });
+
   it('keeps a failed-save draft editable and leaves the committed image untouched', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');

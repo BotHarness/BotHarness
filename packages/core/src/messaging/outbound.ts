@@ -74,7 +74,7 @@ async function replyFileBytes(
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    return { name: downloaded.ref.name, bytes };
+    return { name: downloaded.ref.name, bytes, mediaType: downloaded.ref.mime };
   } catch (error) {
     if (error instanceof MessagingProviderError) throw error;
     throw new MessagingProviderError('file-unavailable', 'not-started');

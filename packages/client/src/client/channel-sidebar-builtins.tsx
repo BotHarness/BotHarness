@@ -1,5 +1,5 @@
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
-import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   Button,
@@ -259,12 +259,23 @@ function BotInboxItemRow({
   const [fileError, setFileError] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const fileRequest = useRef<AbortController>();
-  const download = async (attachmentId: string, name: string): Promise<void> => {
-    if (fileBusy !== undefined) return;
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const previewUrls = useRef(new Set<string>());
+  const previewLifecycle = useCallback((node: HTMLDivElement | null) => {
+    if (node !== null) return;
+    ++externalRequest.current;
+    fileRequest.current?.abort();
+    for (const url of previewUrls.current) URL.revokeObjectURL(url);
+    previewUrls.current.clear();
+  }, []);
+  const download = async (attachmentId: string, name: string, preview = false): Promise<void> => {
+    if (fileRequest.current !== undefined) return;
     const controller = new AbortController();
     fileRequest.current = controller;
     setFileBusy(attachmentId);
     setFileError(false);
+    if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: false }));
     try {
       const response = await fetch(
         '/api/botharness/attachment?' +
@@ -281,7 +292,14 @@ function BotInboxItemRow({
       if (!response.ok) throw new Error('Download unavailable');
       const blob = await response.blob();
       controller.signal.throwIfAborted();
+      if (preview && !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(blob.type))
+        throw new Error('Unsupported image');
       const url = URL.createObjectURL(blob);
+      if (preview) {
+        previewUrls.current.add(url);
+        setImagePreviews((value) => ({ ...value, [attachmentId]: url }));
+        return;
+      }
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download = name;
@@ -290,7 +308,10 @@ function BotInboxItemRow({
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      if (!controller.signal.aborted) setFileError(true);
+      if (!controller.signal.aborted) {
+        if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: true }));
+        else setFileError(true);
+      }
     } finally {
       if (fileRequest.current === controller) {
         fileRequest.current = undefined;
@@ -329,13 +350,25 @@ function BotInboxItemRow({
     }
     if (item.externalOrigin !== undefined) {
       const request = ++externalRequest.current;
+      fileRequest.current?.abort();
+      fileRequest.current = undefined;
+      setFileBusy(undefined);
+      for (const url of previewUrls.current) URL.revokeObjectURL(url);
+      previewUrls.current.clear();
+      setImagePreviews({});
+      setImageErrors({});
       setExternal(undefined);
       setExternalOpen(true);
       setExternalError(false);
       setFileError(false);
       try {
         const source = await actions.messagingSource(item.botSlug, item.id);
-        if (request === externalRequest.current) setExternal(source);
+        if (request !== externalRequest.current) return;
+        setExternal(source);
+        for (const file of source.event.attachments ?? []) {
+          if (request !== externalRequest.current) return;
+          if (file.mediaType?.startsWith('image/')) await download(file.id, file.name, true);
+        }
       } catch {
         if (request === externalRequest.current) setExternalError(true);
       }
@@ -349,6 +382,8 @@ function BotInboxItemRow({
     await actions.openChannel(item.sourceChannelId);
     await actions.openAround(item.sourceChannelId, item.sourceMessageId);
   };
+  const imageAttachments =
+    external?.event.attachments?.filter((file) => file.mediaType?.startsWith('image/')) ?? [];
   const unavailable = !memoryChange && !item.sourceAvailable;
   const row = (
     <SidebarCardRow
@@ -407,48 +442,86 @@ function BotInboxItemRow({
           onClose={() => {
             ++externalRequest.current;
             fileRequest.current?.abort();
+            fileRequest.current = undefined;
+            setFileBusy(undefined);
+            setImagePreviews({});
+            setImageErrors({});
             setExternalOpen(false);
           }}
           title={t('im.sourceTitle')}
           className="bh-external-source-modal"
           closeLabel={t('common.close')}
         >
-          {externalError ? (
-            <p role="alert">{t('im.sourceError')}</p>
-          ) : external === undefined ? (
-            <p>{t('im.sourceLoading')}</p>
-          ) : (
-            <ExternalSourceContent source={external} t={t}>
-              {external.event.attachments?.map((file) => (
-                <div className="bh-external-source-file" key={file.id}>
-                  <span>
-                    {file.name}
-                    {file.sizeBytes !== undefined || file.mediaType ? (
-                      <small>
-                        {' '}
-                        ·{' '}
-                        {[
-                          file.mediaType,
-                          file.sizeBytes === undefined
-                            ? undefined
-                            : `${new Intl.NumberFormat().format(file.sizeBytes)} B`,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </small>
-                    ) : null}
-                  </span>
-                  <Button
-                    disabled={fileBusy !== undefined}
-                    onClick={() => void download(file.id, file.name)}
-                  >
-                    {fileBusy === file.id ? t('im.fileDownloading') : t('im.fileDownload')}
-                  </Button>
-                </div>
-              ))}
-              {fileError ? <p role="alert">{t('im.fileError')}</p> : null}
-            </ExternalSourceContent>
-          )}
+          <div ref={previewLifecycle}>
+            {externalError ? (
+              <p role="alert">{t('im.sourceError')}</p>
+            ) : external === undefined ? (
+              <p>{t('im.sourceLoading')}</p>
+            ) : (
+              <ExternalSourceContent
+                source={external}
+                t={t}
+                messageMedia={
+                  imageAttachments.length
+                    ? imageAttachments.map((file) => (
+                        <div className="bh-external-source-attachment" key={file.id}>
+                          {imagePreviews[file.id] ? (
+                            <img
+                              className="bh-external-source-image"
+                              src={imagePreviews[file.id]}
+                              alt={file.name}
+                            />
+                          ) : imageErrors[file.id] ? (
+                            <>
+                              <p role="alert">{t('im.fileError')}</p>
+                              <Button
+                                disabled={fileBusy !== undefined}
+                                onClick={() => void download(file.id, file.name, true)}
+                              >
+                                {t('im.imageRetry')}
+                              </Button>
+                            </>
+                          ) : (
+                            <span role="status">{t('im.fileDownloading')}</span>
+                          )}
+                        </div>
+                      ))
+                    : undefined
+                }
+              >
+                {external.event.attachments?.map((file) => (
+                  <div className="bh-external-source-attachment" key={file.id}>
+                    <div className="bh-external-source-file">
+                      <span>
+                        {file.name}
+                        {file.sizeBytes !== undefined || file.mediaType ? (
+                          <small>
+                            {' '}
+                            ·{' '}
+                            {[
+                              file.mediaType,
+                              file.sizeBytes === undefined
+                                ? undefined
+                                : `${new Intl.NumberFormat().format(file.sizeBytes)} B`,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </small>
+                        ) : null}
+                      </span>
+                      <Button
+                        disabled={fileBusy !== undefined}
+                        onClick={() => void download(file.id, file.name)}
+                      >
+                        {fileBusy === file.id ? t('im.fileDownloading') : t('im.fileDownload')}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {fileError ? <p role="alert">{t('im.fileError')}</p> : null}
+              </ExternalSourceContent>
+            )}
+          </div>
         </Modal>
       ) : null}
     </>

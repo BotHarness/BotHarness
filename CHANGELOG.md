@@ -5,16 +5,20 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-PersonaBots can run recurring Bot Schedules, the Channel sidebar sections share one card design, and each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace.
+PersonaBots can run recurring Bot Schedules and manage them themselves, the Channel sidebar sections share one card design, and each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace.
 
 ### Added
 
+- Added a source-preview WeChat image path with automatic image preview inside the original Inbox message bubble, native model image input and own-identity native image replies, with the original-DM image receipt confirmed by the Human ([#904](https://github.com/BotHarness/BotHarness/issues/904), [connection guide](docs/wechat-connection.md)).
+
 - PersonaBots gain Bot Schedules: the Channel sidebar's Schedules section lets the Human create, edit, pause and delete minute, hourly or daily tasks; each firing lands in the Bot Inbox and wakes the Orchestrator, and every schedule shows its last 20 firings with links to the handling session ([#960](https://github.com/BotHarness/BotHarness/issues/960), [ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)).
 - DeepSeekBot now writes `.botharness/bot.json` into each Bot's Memory when the Bot is created, and updates it when its name, roles or avatar change. Existing Bots get the file on the next start. A shared Bot therefore shows the same name, roles and avatar in the Bot Marketplace as in the sidebar ([#966](https://github.com/BotHarness/BotHarness/issues/966), [guide](docs/share-bot.md)).
+- PersonaBots can manage their own Bot Schedules: ask a Bot to do something every hour or every day and it creates the schedule itself, marked as Bot-created in the sidebar; it can also change or delete any schedule the Human has not locked. The Human locks a schedule from its row or editor, at most 20 schedules can be enabled per Bot, the sidebar updates as soon as the Bot changes a schedule, and DSH's own `schedule_*` tools are refused in the Orchestrator so a Bot keeps one schedule list ([#961](https://github.com/BotHarness/BotHarness/issues/961)).
 
 ### Changed
 
 - The Channel sidebar's Sessions, Bot Inbox and Workspace Grants sections now use the same card rows as Schedules, with an icon, status chips and a meta line on every row; a Bot Inbox item from a Bot Schedule now opens that schedule ([#972](https://github.com/BotHarness/BotHarness/issues/972)).
+- The Bot Profile avatar area is now one Avatar section with two side-by-side choices, Design a pixel avatar and Upload an image, and marks the one in use; the duplicate Change avatar button is gone and the divider under the profile header has whitespace around it ([#985](https://github.com/BotHarness/BotHarness/issues/985)).
 
 ### Documentation
 
