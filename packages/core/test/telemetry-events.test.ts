@@ -68,7 +68,13 @@ function recorder(decision: TelemetryDecision = { enabled: true }) {
     events.push(...structuredClone(batch.batch));
   });
   const dataDir = tempDir();
-  const telemetry = createTelemetryService({ decision, dataDir, send, flushDelayMs: 60_000 });
+  const telemetry = createTelemetryService({
+    decision,
+    dataDir,
+    send,
+    flushDelayMs: 60_000,
+    createId: () => '11111111-1111-4111-8111-111111111111',
+  });
   cleanup.push(() => void telemetry.close());
   return {
     telemetry,
