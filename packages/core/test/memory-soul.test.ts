@@ -11,6 +11,7 @@ import {
   migrateLegacySouls,
   renderStandingPrompt,
   seedStandingFiles,
+  standingUsage,
 } from '../src/memory/soul.js';
 import { createTempRoot } from './helpers.js';
 
@@ -70,6 +71,21 @@ describe('renderStandingPrompt', () => {
 
     writeFileSync(join(root, 'SOUL.md'), 'current\n');
     expect(renderStandingPrompt(root)).toBe('## Soul (SOUL.md) [0% — 7/5,000 chars]\n\ncurrent');
+  });
+});
+
+describe('standingUsage', () => {
+  it('reports present standing files with their limits', () => {
+    const root = createTempRoot();
+    expect(standingUsage(root)).toEqual([]);
+
+    writeFileSync(join(root, 'PERSONA.md'), '我是小助手。\n');
+    writeFileSync(join(root, 'MEMORY.md'), 'abcdef');
+
+    expect(standingUsage(root, { soul: 5000, coreMemory: 4 })).toEqual([
+      { path: 'PERSONA.md', role: 'soul', chars: 6, limit: 5000 },
+      { path: 'MEMORY.md', role: 'coreMemory', chars: 6, limit: 4 },
+    ]);
   });
 });
 

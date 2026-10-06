@@ -40,7 +40,13 @@ import type {
   MarketplaceTopic,
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
-import type { ReleaseInfo, ReleaseService, ReleaseUpdate } from '../release/service.js';
+import type {
+  ReleaseInfo,
+  ReleaseInstall,
+  ReleaseRestart,
+  ReleaseService,
+  ReleaseUpdate,
+} from '../release/service.js';
 import type { TelemetryCapture, TelemetryStatus } from '../telemetry/service.js';
 import {
   AssignmentReplyTargetError,
@@ -119,6 +125,13 @@ import type { ModelPlanState, ModelRouteReadiness } from '../models/readiness.js
 import { MemoryFileError, type MemoryFileTarget } from '../memory/file-actions.js';
 import { MemoryPathError } from '../memory/jail.js';
 import {
+  DEFAULT_STANDING_LIMITS,
+  isStandingLimits,
+  MAX_STANDING_LIMIT,
+  MIN_STANDING_LIMIT,
+  type StandingLimits,
+} from '../memory/soul.js';
+import {
   WorkspaceGrantError,
   type WorkspaceGrant,
   type WorkspaceGrantStore,
@@ -196,6 +209,7 @@ export interface PersonaBotSummary {
   avatar?: string;
   appearance?: AvatarAppearance | RetainedAvatarAppearance;
   paused?: boolean;
+  standingLimits: StandingLimits;
   aggregateState: AggregatedState;
   workspaces: string[];
   createdAt: string;
@@ -417,6 +431,7 @@ export interface BridgeMethods {
   computerAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   browserAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   browserProfileSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  standingLimitsSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAppearanceSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   marketplaceList(payload: unknown): Promise<BridgeResult<MarketplacePage>>;
@@ -427,6 +442,8 @@ export interface BridgeMethods {
   marketplaceReport(payload: unknown): Promise<BridgeResult<{ received: true }>>;
   releaseInfo(payload: unknown): BridgeResult<ReleaseInfo>;
   releaseUpdate(): Promise<BridgeResult<ReleaseUpdate>>;
+  releaseInstall(payload: unknown): Promise<BridgeResult<ReleaseInstall>>;
+  releaseRestart(payload: unknown): Promise<BridgeResult<ReleaseRestart>>;
   telemetryStatus(): BridgeResult<TelemetryStatus>;
   telemetrySet(payload: unknown): BridgeResult<TelemetryStatus>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
@@ -728,6 +745,7 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
     workspaces: [...record.workspaces],
     createdAt: record.createdAt,
     roles: record.roles ?? (record.tag === undefined ? [] : [record.tag]),
+    standingLimits: { ...(record.standingLimits ?? DEFAULT_STANDING_LIMITS) },
     ...(record.appearance === undefined ? {} : { appearance: record.appearance }),
     ...(record.description === undefined ? {} : { description: record.description }),
     ...(record.avatar === undefined
@@ -1522,6 +1540,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (deps.release === undefined) return releaseUnavailable();
       return { ok: true, value: await deps.release.update() };
     },
+    async releaseInstall(payload) {
+      if (deps.release === undefined) return releaseUnavailable();
+      const version = asObject(payload)['version'];
+      if (typeof version !== 'string') return invalidInput('version is required');
+      return { ok: true, value: await deps.release.install(version) };
+    },
+    async releaseRestart() {
+      if (deps.release === undefined) return releaseUnavailable();
+      return { ok: true, value: await deps.release.restart() };
+    },
     telemetryStatus() {
       return {
         ok: true,
@@ -1670,6 +1698,19 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const result = deps.registry.setBrowserProfile(slug, normalized);
       if (!result.ok) return unknownBot(slug);
       deps.browserProfile?.changed(slug);
+      return { ok: true, value: detailOf(result.record) };
+    },
+    standingLimitsSet(payload) {
+      const slug = asSlug(payload);
+      const object = asObject(payload);
+      const limits = { soul: object['soul'], coreMemory: object['coreMemory'] };
+      if (slug === undefined || !isStandingLimits(limits)) {
+        return invalidInput(
+          `slug, soul and coreMemory are required; limits are whole numbers from ${MIN_STANDING_LIMIT} to ${MAX_STANDING_LIMIT}`,
+        );
+      }
+      const result = deps.registry.setStandingLimits(slug, limits);
+      if (!result.ok) return unknownBot(slug);
       return { ok: true, value: detailOf(result.record) };
     },
     botAppearanceSet(payload) {

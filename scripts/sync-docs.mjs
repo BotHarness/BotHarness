@@ -358,6 +358,20 @@ export const PAGES = [
     },
   },
   {
+    slug: 'docs/update-deepseekbot',
+    order: 27,
+    en: {
+      source: 'docs/update-deepseekbot.md',
+      title: 'Update DeepSeekBot',
+      description: 'Install a new DeepSeekBot release from Bot settings and restart DSH.',
+    },
+    zh: {
+      source: 'docs/update-deepseekbot.zh.md',
+      title: '更新 DeepSeekBot',
+      description: '在 Bot 设置里安装新版本 DeepSeekBot，并重启 DSH。',
+    },
+  },
+  {
     slug: 'dev/index',
     order: 0,
     en: {

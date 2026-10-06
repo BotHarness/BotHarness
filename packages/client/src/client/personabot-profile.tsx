@@ -21,6 +21,7 @@ import { Modal } from './modal.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
 import { ModelPresetProfile } from './model-preset-profile.js';
+import { StandingLimitsProfile } from './standing-limits-profile.js';
 import { SourcePolicyTable } from './source-policy-table.js';
 import type { ProfileCardRegistry } from './profile-cards.js';
 import type { BotSummary, ChannelSummary } from './store.js';
@@ -424,6 +425,7 @@ export function ProfileView({
         </section>
       )}
       <ModelPresetProfile key={bot.slug} slug={bot.slug} actions={actions} t={t} />
+      <StandingLimitsProfile key={`standing-${bot.slug}`} bot={bot} actions={actions} t={t} />
       <MessagingProfile key={`im-${bot.slug}`} slug={bot.slug} actions={actions} t={t} />
       <ChannelBridgeTable
         channelId={channel.id}

@@ -13,7 +13,12 @@ import type { ReleaseNote } from '../../../core/src/release/notes.js';
 import type { BotHarnessKey, BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { useMountedResource } from './mounted-resource.js';
-import type { ReleaseNotesController, ReleaseNotesSnapshot } from './release-notes.js';
+import type {
+  ReleaseInstallState,
+  ReleaseRestartState,
+  ReleaseNotesController,
+  ReleaseNotesSnapshot,
+} from './release-notes.js';
 
 const SECTIONS: Record<string, { key: BotHarnessKey; tone: TagTone }> = {
   'Breaking Changes': { key: 'releaseNotes.section.breaking', tone: 'danger' },
@@ -195,11 +200,100 @@ function statusText(snapshot: ReleaseNotesSnapshot, t: BotHarnessTranslate): str
       return t('release.status.available', { version, latest: update.latest });
     case 'current':
       return t('release.status.current', { version });
+    case 'restart-required':
+      return t('release.status.restart', { version, installed: update.installed });
     case 'unavailable':
       return t('release.status.unavailable', { version });
     default:
       return t('release.status.checking', { version });
   }
+}
+
+const INSTALL_FAILURE_KEYS: Record<
+  Extract<ReleaseInstallState, { status: 'failed' }>['reason'],
+  BotHarnessKey
+> = {
+  unavailable: 'release.install.failed.unavailable',
+  'invalid-version': 'release.install.failed.generic',
+  network: 'release.install.failed.network',
+  incompatible: 'release.install.failed.incompatible',
+  'build-blocked': 'release.install.failed.buildBlocked',
+  failed: 'release.install.failed.generic',
+};
+
+function ManualUpdate({ latest, t }: { latest: string; t: BotHarnessTranslate }): ReactElement {
+  const [copied, setCopied] = useState(false);
+  const command = releaseUpdateCommand(latest);
+  return (
+    <>
+      <div className="bh-settings-row-desc">{t('release.update.cli')}</div>
+      <div className="bh-release-command">
+        <code>{command}</code>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            void navigator.clipboard?.writeText(command).then(() => {
+              setCopied(true);
+            });
+          }}
+        >
+          {t(copied ? 'release.update.copied' : 'release.update.copy')}
+        </Button>
+      </div>
+      <div className="bh-settings-row-desc">{t('release.update.desktop')}</div>
+    </>
+  );
+}
+
+function runsInDesktop(): boolean {
+  return 'dshDesktop' in globalThis;
+}
+
+function RestartGuide({
+  restartable,
+  state,
+  onRestart,
+  t,
+}: {
+  restartable: boolean;
+  state: ReleaseRestartState;
+  onRestart: () => void;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  if (runsInDesktop()) {
+    return <div className="bh-settings-row-desc">{t('release.restart.desktop')}</div>;
+  }
+  if (!restartable || state.status === 'failed') {
+    return (
+      <>
+        {state.status === 'failed' ? (
+          <div className="bh-release-install-error" role="alert" data-release-restart-error>
+            {t('release.restart.failed')}
+          </div>
+        ) : null}
+        <div className="bh-settings-row-desc">{t('release.restart.web')}</div>
+        <div className="bh-settings-row-desc">{t('release.restart.desktop')}</div>
+      </>
+    );
+  }
+  const restarting = state.status === 'restarting';
+  return (
+    <div className="bh-release-update-head">
+      <span className="bh-settings-row-desc bh-release-restart-hint">
+        {t(restarting ? 'release.restart.progress' : 'release.restart.hint')}
+      </span>
+      <Button
+        size="sm"
+        variant="primary"
+        disabled={restarting}
+        data-release-restart-action
+        onClick={onRestart}
+      >
+        {t(restarting ? 'release.restart.running' : 'release.restart.action')}
+      </Button>
+    </div>
+  );
 }
 
 export type ReleaseSettingsProps = PropsRuntime<'botharness.settings.item'> &
@@ -208,12 +302,12 @@ export type ReleaseSettingsProps = PropsRuntime<'botharness.settings.item'> &
 
 export function ReleaseSettings({ releaseNotes, t }: ReleaseSettingsProps): ReactElement {
   const snapshot = useReleaseNotes(releaseNotes);
-  const [copied, setCopied] = useState(false);
   const mount = useMountedResource<HTMLDivElement>(() => {
     void releaseNotes.start().then(() => releaseNotes.checkUpdate());
   }, [releaseNotes]);
   const update = snapshot.update;
-  const command = update.status === 'available' ? releaseUpdateCommand(update.latest) : undefined;
+  const install = snapshot.install;
+  const installing = install.status === 'installing';
   return (
     <div className="bh-release-settings" ref={mount} data-release-settings>
       <div className="bh-settings-row bh-release-row">
@@ -236,7 +330,12 @@ export function ReleaseSettings({ releaseNotes, t }: ReleaseSettingsProps): Reac
           <Button
             size="sm"
             variant="outline"
-            disabled={update.status === 'checking' || update.status === 'development'}
+            disabled={
+              installing ||
+              update.status === 'checking' ||
+              update.status === 'development' ||
+              update.status === 'restart-required'
+            }
             onClick={() => {
               void releaseNotes.checkUpdate(true);
             }}
@@ -245,7 +344,7 @@ export function ReleaseSettings({ releaseNotes, t }: ReleaseSettingsProps): Reac
           </Button>
         </div>
       </div>
-      {update.status === 'available' && command !== undefined ? (
+      {update.status === 'available' ? (
         <div className="bh-release-update" data-release-update={update.latest}>
           <div className="bh-release-update-head">
             <span className="bh-release-update-title">
@@ -262,25 +361,58 @@ export function ReleaseSettings({ releaseNotes, t }: ReleaseSettingsProps): Reac
                 {t('release.update.notes')}
               </Button>
             ) : null}
+            {update.installable ? (
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={installing}
+                data-release-install
+                onClick={() => {
+                  void releaseNotes.install(update.latest);
+                }}
+              >
+                {t(installing ? 'release.install.running' : 'release.install.action')}
+              </Button>
+            ) : null}
           </div>
-          <div className="bh-settings-row-desc">{t('release.update.cli')}</div>
-          <div className="bh-release-command">
-            <code>{command}</code>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                void navigator.clipboard?.writeText(command).then(() => {
-                  setCopied(true);
-                });
-              }}
-            >
-              {t(copied ? 'release.update.copied' : 'release.update.copy')}
-            </Button>
+          {update.installable && install.status !== 'failed' ? (
+            <div className="bh-settings-row-desc">
+              {t(installing ? 'release.install.progress' : 'release.install.hint')}
+            </div>
+          ) : null}
+          {install.status === 'failed' ? (
+            <div className="bh-release-install-error" role="alert" data-release-install-error>
+              <div>{t(INSTALL_FAILURE_KEYS[install.reason])}</div>
+              {install.diagnostic === undefined ? null : (
+                <pre className="bh-release-install-diagnostic">{install.diagnostic}</pre>
+              )}
+              {install.logPath === undefined ? null : (
+                <div className="bh-settings-row-desc">
+                  {t('release.install.log', { path: install.logPath })}
+                </div>
+              )}
+            </div>
+          ) : null}
+          {!update.installable || install.status === 'failed' ? (
+            <ManualUpdate latest={update.latest} t={t} />
+          ) : null}
+        </div>
+      ) : null}
+      {update.status === 'restart-required' ? (
+        <div className="bh-release-update" data-release-restart={update.installed}>
+          <div className="bh-release-update-head">
+            <span className="bh-release-update-title">
+              {t('release.restart.title', { installed: update.installed })}
+            </span>
           </div>
-          <div className="bh-settings-row-desc">
-            {t('release.update.desktop', { spec: `deepseekbot@${update.latest}` })}
-          </div>
+          <RestartGuide
+            restartable={update.restartable}
+            state={snapshot.restart}
+            onRestart={() => {
+              void releaseNotes.restart();
+            }}
+            t={t}
+          />
         </div>
       ) : null}
       <ReleaseNotesDialog

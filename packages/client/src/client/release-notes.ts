@@ -1,14 +1,48 @@
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store';
 
 import { parseReleaseNotes, type ReleaseNote } from '../../../core/src/release/notes.js';
-import type { ReleaseInfo, ReleaseUpdate } from '../../../core/src/release/service.js';
+import type {
+  ReleaseInfo,
+  ReleaseInstall,
+  ReleaseInstallFailure,
+  ReleaseRestart,
+  ReleaseUpdate,
+} from '../../../core/src/release/service.js';
 import { compareVersions, isReleaseVersion } from '../../../core/src/release/version.js';
 import type { BridgeCall } from './bridge.js';
 import type { ConfigStorage } from './roster-config.js';
 
 export const RELEASE_NOTES_SEEN_KEY = 'botharness.releaseNotes.seenVersion';
 
+const RESTART_POLL_MS = 2_000;
+const RESTART_POLL_LIMIT = 90;
+
+export interface ReleaseRestartWatch {
+  wait(ms: number): Promise<void>;
+  reload(): void;
+}
+
+const DEFAULT_RESTART_WATCH: ReleaseRestartWatch = {
+  wait: (ms) =>
+    new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    }),
+  reload: () => {
+    globalThis.location?.reload();
+  },
+};
+
 export type ReleaseUpdateState = { status: 'idle' } | { status: 'checking' } | ReleaseUpdate;
+
+export type ReleaseInstallState =
+  | { status: 'idle' }
+  | { status: 'installing'; version: string }
+  | Extract<ReleaseInstall, { status: 'failed' }>;
+
+export type ReleaseRestartState =
+  | { status: 'idle' }
+  | { status: 'restarting' }
+  | { status: 'failed' };
 
 export interface ReleaseNotesSnapshot {
   version: string | undefined;
@@ -16,7 +50,18 @@ export interface ReleaseNotesSnapshot {
   firstRun: boolean;
   viewing: ReleaseNote[] | undefined;
   update: ReleaseUpdateState;
+  install: ReleaseInstallState;
+  restart: ReleaseRestartState;
 }
+
+const INSTALL_FAILURES: readonly ReleaseInstallFailure[] = [
+  'unavailable',
+  'invalid-version',
+  'network',
+  'incompatible',
+  'build-blocked',
+  'failed',
+];
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -46,12 +91,57 @@ export function parseReleaseUpdate(value: unknown): ReleaseUpdate | undefined {
     case 'available': {
       const releases = parseReleaseNotes(source['releases']);
       return typeof latest === 'string' && releases !== undefined
-        ? { status: 'available', current, latest, releases }
+        ? {
+            status: 'available',
+            current,
+            latest,
+            releases,
+            installable: source['installable'] === true,
+          }
+        : undefined;
+    }
+    case 'restart-required': {
+      const installed = source['installed'];
+      return typeof installed === 'string'
+        ? {
+            status: 'restart-required',
+            current,
+            installed,
+            restartable: source['restartable'] === true,
+          }
         : undefined;
     }
     default:
       return undefined;
   }
+}
+
+export function parseReleaseInstall(value: unknown): ReleaseInstall | undefined {
+  const source = record(value);
+  if (source?.['status'] === 'installed') {
+    const { current, installed } = source;
+    return typeof current === 'string' && typeof installed === 'string'
+      ? { status: 'installed', current, installed, restartable: source['restartable'] === true }
+      : undefined;
+  }
+  const reason = INSTALL_FAILURES.find((candidate) => candidate === source?.['reason']);
+  if (source?.['status'] !== 'failed' || reason === undefined) return undefined;
+  const { diagnostic, logPath } = source;
+  return {
+    status: 'failed',
+    reason,
+    ...(typeof diagnostic === 'string' ? { diagnostic } : {}),
+    ...(typeof logPath === 'string' ? { logPath } : {}),
+  };
+}
+
+export function parseReleaseRestart(value: unknown): ReleaseRestart | undefined {
+  const source = record(value);
+  if (source?.['status'] === 'restarting') return { status: 'restarting' };
+  const reason = source?.['reason'];
+  return source?.['status'] === 'failed' && (reason === 'unavailable' || reason === 'not-pending')
+    ? { status: 'failed', reason }
+    : undefined;
 }
 
 function readSeen(storage: ConfigStorage | undefined): string | undefined {
@@ -68,17 +158,25 @@ export class ReleaseNotesController {
 
   private readonly call: BridgeCall;
   private readonly storage: ConfigStorage | undefined;
+  private readonly watch: ReleaseRestartWatch;
   private started: Promise<void> | undefined;
 
-  constructor(call: BridgeCall, storage: ConfigStorage | undefined) {
+  constructor(
+    call: BridgeCall,
+    storage: ConfigStorage | undefined,
+    watch: ReleaseRestartWatch = DEFAULT_RESTART_WATCH,
+  ) {
     this.call = call;
     this.storage = storage;
+    this.watch = watch;
     this.source = createSnapshotStore<ReleaseNotesSnapshot>({
       version: undefined,
       announcement: undefined,
       firstRun: false,
       viewing: undefined,
       update: { status: 'idle' },
+      install: { status: 'idle' },
+      restart: { status: 'idle' },
     });
   }
 
@@ -125,6 +223,76 @@ export class ReleaseNotesController {
     }
     this.source.update((draft) => {
       draft.update = update ?? { status: 'unavailable', current: draft.version ?? '' };
+    });
+  }
+
+  async install(version: string): Promise<void> {
+    if (this.source.getSnapshot().install.status === 'installing') return;
+    this.source.update((draft) => {
+      draft.install = { status: 'installing', version };
+    });
+    let outcome: ReleaseInstall | undefined;
+    try {
+      const result = await this.call('releaseInstall', { version });
+      outcome = result.ok ? parseReleaseInstall(result.value) : undefined;
+    } catch {
+      outcome = undefined;
+    }
+    this.source.update((draft) => {
+      if (outcome?.status === 'installed') {
+        draft.install = { status: 'idle' };
+        draft.update = {
+          status: 'restart-required',
+          current: outcome.current,
+          installed: outcome.installed,
+          restartable: outcome.restartable,
+        };
+        return;
+      }
+      draft.install = outcome ?? { status: 'failed', reason: 'failed' };
+    });
+  }
+
+  async restart(): Promise<void> {
+    if (this.source.getSnapshot().restart.status === 'restarting') return;
+    this.source.update((draft) => {
+      draft.restart = { status: 'restarting' };
+    });
+    const update = this.source.getSnapshot().update;
+    const running = update.status === 'restart-required' ? update.current : undefined;
+    let outcome: ReleaseRestart | undefined;
+    try {
+      const result = await this.call('releaseRestart', {});
+      outcome = result.ok ? parseReleaseRestart(result.value) : undefined;
+    } catch {
+      outcome = { status: 'restarting' };
+    }
+    if (outcome?.status !== 'restarting') {
+      this.source.update((draft) => {
+        draft.restart = { status: 'failed' };
+      });
+      return;
+    }
+    await this.awaitRestart(running);
+  }
+
+  private async awaitRestart(running: string | undefined): Promise<void> {
+    for (let attempt = 0; attempt < RESTART_POLL_LIMIT; attempt += 1) {
+      await this.watch.wait(RESTART_POLL_MS);
+      let version: string | undefined;
+      try {
+        const result = await this.call('releaseInfo', {});
+        version = result.ok ? parseReleaseInfo(result.value)?.version : undefined;
+      } catch {
+        version = undefined;
+      }
+      if (version !== undefined && version !== running) {
+        this.watch.reload();
+        return;
+      }
+    }
+    this.source.update((draft) => {
+      draft.restart = { status: 'failed' };
     });
   }
 
