@@ -77,20 +77,35 @@ const ARCHITECTURE_DIAGRAMS_EN = [
   { name: '01-system-context', caption: 'System context' },
   { name: '02-modules', caption: 'Deep modules and ownership' },
   { name: '03-boot', caption: 'Host boot, migration, and recovery' },
-  { name: '04-create-bot', caption: 'Messaging transaction and external side effects' },
+  {
+    name: '04-create-bot',
+    caption: 'Messaging transaction and external side effects',
+  },
   { name: '05-im-binding', caption: 'Orchestrator and Work control plane' },
   { name: '06-state', caption: 'Persistence, export, and restore boundaries' },
 ];
 
 const DSH_CONTEXT_DIAGRAMS_ZH = [
-  { name: '07-dsh-runtime-composition', caption: 'Runtime composition 与 lifecycle ownership' },
-  { name: '08-dsh-session-facts', caption: 'Durable fact、live notification 与 derived view' },
+  {
+    name: '07-dsh-runtime-composition',
+    caption: 'Runtime composition 与 lifecycle ownership',
+  },
+  {
+    name: '08-dsh-session-facts',
+    caption: 'Durable fact、live notification 与 derived view',
+  },
   { name: '09-dsh-host-client', caption: 'Host/client boundary' },
 ];
 
 const DSH_CONTEXT_DIAGRAMS_EN = [
-  { name: '07-dsh-runtime-composition', caption: 'Runtime composition and lifecycle ownership' },
-  { name: '08-dsh-session-facts', caption: 'Durable facts, live notifications, and derived views' },
+  {
+    name: '07-dsh-runtime-composition',
+    caption: 'Runtime composition and lifecycle ownership',
+  },
+  {
+    name: '08-dsh-session-facts',
+    caption: 'Durable facts, live notifications, and derived views',
+  },
   { name: '09-dsh-host-client', caption: 'Host/client boundary' },
 ];
 
@@ -355,6 +370,21 @@ export const PAGES = [
       source: 'docs/share-bot.zh.md',
       title: '分享 Bot',
       description: '把 Bot 的 Memory 发布到 GitHub，并收录进 Bot 市场。',
+    },
+  },
+  {
+    slug: 'docs/soul-and-core-memory',
+    order: 27,
+    en: {
+      source: 'docs/soul-and-core-memory.md',
+      title: 'Bot Soul and Core Memory',
+      description:
+        'How SOUL.md and MEMORY.md start every Session, their size limits, and when edits apply.',
+    },
+    zh: {
+      source: 'docs/soul-and-core-memory.zh.md',
+      title: 'Bot 灵魂与核心记忆',
+      description: 'SOUL.md 与 MEMORY.md 如何进入每个 Session、字数上限，以及修改何时生效。',
     },
   },
   {
@@ -645,8 +675,12 @@ function renderPage(variant, order, untranslated) {
   const { body } = stripFrontmatter(raw);
   const title = variant.configuredTitle ? variant.title : titleFrom(body, variant.title);
   return (
-    frontmatter({ title, description: variant.description, order, untranslated }) +
-    prepare(body, variant.diagrams, variant.lang)
+    frontmatter({
+      title,
+      description: variant.description,
+      order,
+      untranslated,
+    }) + prepare(body, variant.diagrams, variant.lang)
   );
 }
 
@@ -674,7 +708,9 @@ function syncPages() {
 const TOOL_COPY_ZH = {
   memory_read: {
     description: '读取当前 Session 所属 PersonaBot Memory 中的一份 Markdown 文件。',
-    parameters: { path: 'Memory 根目录下的相对 .md 路径，例如 customers/acme.md' },
+    parameters: {
+      path: 'Memory 根目录下的相对 .md 路径，例如 customers/acme.md',
+    },
   },
   memory_search: {
     description: '在当前 Session 所属 PersonaBot Memory 中执行不区分大小写的子字符串搜索。',
