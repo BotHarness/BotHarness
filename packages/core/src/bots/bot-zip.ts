@@ -45,10 +45,43 @@ export function listBotFiles(memoryDir: string): string[] {
   return [...files].sort();
 }
 
-export function exportBotZip(memoryDir: string): Buffer {
+export interface BotFileListing {
+  files: Array<{ path: string; size: number }>;
+  always: string[];
+}
+
+export function alwaysIncludedFiles(memoryDir: string, files: readonly string[]): string[] {
+  if (!files.includes(BOT_DESCRIPTOR_PATH)) return [];
+  const always = [BOT_DESCRIPTOR_PATH];
+  try {
+    const avatar = parseBotDescriptor(
+      readFileSync(join(memoryDir, BOT_DESCRIPTOR_PATH), 'utf8'),
+    )?.avatar;
+    if (avatar !== undefined && 'image' in avatar && files.includes(avatar.image)) {
+      always.push(avatar.image);
+    }
+  } catch {}
+  return always;
+}
+
+export function listBotZipFiles(memoryDir: string): BotFileListing {
+  const paths = listBotFiles(memoryDir);
+  const files: BotFileListing['files'] = [];
+  for (const path of paths) {
+    try {
+      files.push({ path, size: lstatSync(join(memoryDir, path)).size });
+    } catch {}
+  }
+  return { files, always: alwaysIncludedFiles(memoryDir, paths) };
+}
+
+export function exportBotZip(memoryDir: string, include?: ReadonlySet<string>): Buffer {
   const entries: ZipEntryInput[] = [];
   let total = 0;
-  const files = listBotFiles(memoryDir);
+  const listed = listBotFiles(memoryDir);
+  const always = new Set(alwaysIncludedFiles(memoryDir, listed));
+  const files =
+    include === undefined ? listed : listed.filter((path) => include.has(path) || always.has(path));
   if (files.length > BOT_ZIP_MAX_ENTRIES) {
     throw new ZipArchiveError('too-large', 'This Bot has too many files to export');
   }

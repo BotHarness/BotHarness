@@ -149,6 +149,84 @@ describe('Bot Zip export', () => {
   });
 });
 
+describe('Bot Zip file selection', () => {
+  it('lists the files with sizes and marks bot.json and the avatar as always included', async () => {
+    const root = tempRoot();
+    const registry = registryAt(root);
+    registry.create({ slug: 'ada', displayName: 'Ada', persona: '# Ada\n', avatar: PNG_URL });
+    const memoryDir = registry.memoryDirFor('ada')!;
+    mkdirSync(join(memoryDir, 'people'));
+    writeFileSync(join(memoryDir, 'people', 'alex.md'), 'Alex\n');
+
+    const response = await httpFor(registry)(
+      new Request('http://host/api/botharness/bot-zip/files?slug=ada'),
+    );
+    expect(response.status).toBe(200);
+    const listing = (await response.json()) as {
+      files: Array<{ path: string; size: number }>;
+      always: string[];
+    };
+    expect(listing.always).toEqual(['.botharness/bot.json', '.botharness/avatar.png']);
+    expect(listing.files).toContainEqual({ path: 'people/alex.md', size: 5 });
+    expect(listing.files.some((file) => file.path.startsWith('.git/'))).toBe(false);
+  });
+
+  it('exports exactly the selected files plus bot.json and the avatar', async () => {
+    const root = tempRoot();
+    const registry = registryAt(root);
+    registry.create({ slug: 'ada', displayName: 'Ada', persona: '# Ada\n', avatar: PNG_URL });
+    const memoryDir = registry.memoryDirFor('ada')!;
+    mkdirSync(join(memoryDir, 'people'));
+    writeFileSync(join(memoryDir, 'people', 'alex.md'), 'Alex\n');
+    writeFileSync(join(memoryDir, 'people', 'sam.md'), 'Sam\n');
+    writeFileSync(join(memoryDir, 'diary.md'), 'private\n');
+    writeFileSync(join(root, 'outside.md'), 'outside\n');
+
+    const response = await httpFor(registry)(
+      new Request('http://host/api/botharness/bot-zip', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          slug: 'ada',
+          include: ['SOUL.md', 'people/alex.md', '.git/config', '../../outside.md', 'missing.md'],
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const entries = readZip(Buffer.from(await response.arrayBuffer()), LIMITS);
+    expect(entries.map((entry) => entry.path).sort()).toEqual([
+      '.botharness/avatar.png',
+      '.botharness/bot.json',
+      'SOUL.md',
+      'people/alex.md',
+    ]);
+    expect(entries.find((entry) => entry.path === 'people/alex.md')?.data.toString()).toBe(
+      'Alex\n',
+    );
+  });
+
+  it('refuses a malformed selection', async () => {
+    const root = tempRoot();
+    const registry = registryAt(root);
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    const http = httpFor(registry);
+    const post = (body: string, type = 'application/json') =>
+      http(
+        new Request('http://host/api/botharness/bot-zip', {
+          method: 'POST',
+          headers: { 'content-type': type },
+          body,
+        }),
+      );
+    expect((await post('{not json')).status).toBe(400);
+    expect((await post(JSON.stringify({ slug: 'ada', include: [1] }))).status).toBe(400);
+    expect((await post(JSON.stringify({ slug: 'ada', include: [] }), 'text/plain')).status).toBe(
+      415,
+    );
+    expect((await post(JSON.stringify({ slug: 'nobody', include: [] }))).status).toBe(404);
+  });
+});
+
 describe('Bot Zip import', () => {
   it('reads a re-zipped folder, skipping macOS metadata and Git internals', () => {
     const contents = readBotZip(

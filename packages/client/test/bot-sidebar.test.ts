@@ -363,6 +363,7 @@ function stubActions(): BridgeActions {
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
     importBotZip: vi.fn(async () => BOT),
+    botZipFiles: vi.fn(async () => ({ files: [], always: [] })),
     exportBotZip: vi.fn(async () => undefined),
     createGroup: vi.fn(async () => undefined),
     renameChannel: vi.fn(async () => true),

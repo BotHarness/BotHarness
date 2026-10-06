@@ -2,12 +2,14 @@ import { randomUUID } from 'node:crypto';
 
 import { safeAttachmentName } from '../attachments/store.js';
 import { syncBotDescriptor } from './bot-descriptor-sync.js';
-import { BOT_ZIP_MAX_BYTES, exportBotZip, readBotZip } from './bot-zip.js';
+import { BOT_ZIP_MAX_BYTES, exportBotZip, listBotZipFiles, readBotZip } from './bot-zip.js';
 import type { PersonaBotRegistry } from './registry.js';
 import { ZipArchiveError } from './zip-archive.js';
 
 export const BOT_ZIP_EXPORT_PATH = '/api/botharness/bot-zip';
 export const BOT_ZIP_IMPORT_PATH = '/api/botharness/bot-zip/import';
+export const BOT_ZIP_FILES_PATH = '/api/botharness/bot-zip/files';
+const MAX_SELECTION_BYTES = 8 * 1024 * 1024;
 
 type DetailResult =
   | { ok: true; value: unknown }
@@ -36,7 +38,7 @@ function disposition(name: string): string {
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(safe).replace(/['()*]/gu, (char) => '%' + char.charCodeAt(0).toString(16))}`;
 }
 
-async function readBody(request: Request): Promise<Buffer | undefined> {
+async function readBody(request: Request, limit = BOT_ZIP_MAX_BYTES): Promise<Buffer | undefined> {
   if (request.body === null) return Buffer.alloc(0);
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -46,7 +48,7 @@ async function readBody(request: Request): Promise<Buffer | undefined> {
       const next = await reader.read();
       if (next.done) break;
       total += next.value.byteLength;
-      if (total > BOT_ZIP_MAX_BYTES) {
+      if (total > limit) {
         await reader.cancel();
         return undefined;
       }
@@ -68,35 +70,86 @@ function fileStem(name: string | null): string | undefined {
 }
 
 export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Promise<Response> {
-  const exportZip = (request: Request): Response => {
-    const slug = new URL(request.url).searchParams.get('slug');
+  const botOf = (
+    slug: string | null,
+  ):
+    | { record: NonNullable<ReturnType<PersonaBotRegistry['get']>>; memoryDir: string }
+    | Response => {
     if (!slug) return failure(400, 'invalid-input', 'slug is required');
     const record = deps.registry.get(slug);
     const memoryDir = deps.registry.memoryDirFor(slug);
     if (record === undefined || memoryDir === undefined) {
       return failure(404, 'unknown-bot', `Unknown PersonaBot: ${slug}`);
     }
-    const startedAt = performance.now();
     try {
       syncBotDescriptor(memoryDir, record);
     } catch {}
+    return { record, memoryDir };
+  };
+
+  const listFiles = (request: Request): Response => {
+    const bot = botOf(new URL(request.url).searchParams.get('slug'));
+    if (bot instanceof Response) return bot;
     try {
-      const archive = exportBotZip(memoryDir);
+      return Response.json(listBotZipFiles(bot.memoryDir), { headers: NO_STORE });
+    } catch {
+      return failure(500, 'memory-unavailable', 'The Bot files could not be read');
+    }
+  };
+
+  const readSelection = async (
+    request: Request,
+  ): Promise<{ slug: string | null; include?: Set<string> } | Response> => {
+    if (request.method === 'GET') return { slug: new URL(request.url).searchParams.get('slug') };
+    const type = request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
+    if (type !== 'application/json') {
+      return failure(415, 'invalid-input', 'content type must be application/json');
+    }
+    const body = await readBody(request, MAX_SELECTION_BYTES);
+    if (body === undefined) return failure(413, 'too-large', 'The selection is too large');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(body.toString('utf8'));
+    } catch {
+      return failure(400, 'invalid-input', 'invalid JSON');
+    }
+    const source =
+      typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
+    const slug = source['slug'];
+    const include = source['include'];
+    if (
+      typeof slug !== 'string' ||
+      !Array.isArray(include) ||
+      !include.every((path) => typeof path === 'string')
+    ) {
+      return failure(400, 'invalid-input', 'slug and include are required');
+    }
+    return { slug, include: new Set(include as string[]) };
+  };
+
+  const exportZip = async (request: Request): Promise<Response> => {
+    const selection = await readSelection(request);
+    if (selection instanceof Response) return selection;
+    const bot = botOf(selection.slug);
+    if (bot instanceof Response) return bot;
+    const startedAt = performance.now();
+    try {
+      const archive = exportBotZip(bot.memoryDir, selection.include);
       deps.log?.(
-        `bot-zip-export slug=${slug} bytes=${archive.length} durationMs=${Math.round(performance.now() - startedAt)}`,
+        `bot-zip-export slug=${bot.record.slug} selected=${selection.include === undefined ? 'all' : selection.include.size} bytes=${archive.length} durationMs=${Math.round(performance.now() - startedAt)}`,
       );
       return new Response(new Uint8Array(archive), {
         headers: {
           ...NO_STORE,
           'content-type': 'application/zip',
           'content-length': String(archive.length),
-          'content-disposition': disposition(record.displayName),
+          'content-disposition': disposition(bot.record.displayName),
           'x-content-type-options': 'nosniff',
         },
       });
     } catch (error) {
       if (error instanceof ZipArchiveError) return zipFailure(error);
-      deps.log?.(`bot-zip-export-failed slug=${slug}`);
+      deps.log?.(`bot-zip-export-failed slug=${bot.record.slug}`);
       return failure(500, 'memory-unavailable', 'The Bot files could not be read');
     }
   };
@@ -151,8 +204,12 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
   };
 
   return async (request) => {
-    if (request.method === 'GET') return exportZip(request);
-    if (request.method === 'POST') return importZip(request);
+    const path = new URL(request.url).pathname;
+    if (path.endsWith('/bot-zip/files') && request.method === 'GET') return listFiles(request);
+    if (path.endsWith('/bot-zip/import') && request.method === 'POST') return importZip(request);
+    if (path.endsWith('/bot-zip') && (request.method === 'GET' || request.method === 'POST')) {
+      return exportZip(request);
+    }
     return new Response(null, { status: 405, headers: { allow: 'GET, POST' } });
   };
 }

@@ -1741,6 +1741,113 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-bot-zip-file-name[data-empty] {
   color: var(--dsw-alias-label-tertiary);
 }
+.bh-bot-zip-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-bot-zip-picker-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+.bh-bot-zip-picker-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.bh-bot-zip-picker-count {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-bot-zip-picker-loading {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+}
+.bh-bot-zip-tree,
+.bh-bot-zip-tree-group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bh-bot-zip-tree {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 4px 0;
+}
+.bh-bot-zip-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding-right: 10px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+.bh-bot-zip-tree-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-bot-zip-tree-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+span.bh-bot-zip-tree-toggle {
+  cursor: default;
+}
+.bh-bot-zip-tree-label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  cursor: pointer;
+}
+.bh-bot-zip-tree-label input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--dsw-alias-state-business-primary);
+}
+.bh-bot-zip-tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-bot-zip-tree-always {
+  flex: none;
+  border-radius: 4px;
+  padding: 0 6px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 18px;
+}
+.bh-bot-zip-tree-size {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Hidden Channel recovery is portaled under body; never depend on .bh-root. */
 .bh-hidden-manager {
