@@ -34,7 +34,7 @@ The same actual source is shown in the Inbox and source Modal with explicit plat
 
 ![Same source, dark theme](../../../apps/docs/public/guides/wechat/voice-source-dark.jpg)
 
-The Human controls the external WeChat client. Its original voice/reply screenshot remains pending; Human receipt confirmation and local source screenshots are separate evidence.
+The Human controls the external WeChat client and supplied an original screenshot showing both native voices and the actual “蓝色灯塔37” reply below the second 5-second voice at 16:59. At the Human’s explicit request, the unmodified image is attached only to the issue PR, not copied into the guide or repository. Human receipt confirmation, the external reply image and local source screenshots remain separate evidence.
 
 Before capture was attempted with the prior accepted #904 artifact on the preserved QA Profile. Its launcher could not qualify the API (`HTTP 200`, `gateway/internal`) and stopped the failed Host. No comparable baseline image was obtained. After proving there was no remaining task Host, listener or writer, the #905 candidate was restored with one verified Host. This is a concrete baseline-capture limitation, not an invented before state.
 
