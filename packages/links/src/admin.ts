@@ -2,6 +2,7 @@ import { Hono, type Context } from 'hono';
 import { csrf } from 'hono/csrf';
 import { html, raw } from 'hono/html';
 import type { HtmlEscapedString } from 'hono/utils/html';
+import { dailyClicksChart, linkClicksChart, type ChartSvg } from './charts.js';
 import { accessAuth, devBypassEmail } from './access.js';
 import type { AppEnv } from './env.js';
 import * as operations from './operations.js';
@@ -21,6 +22,7 @@ type Markup = HtmlEscapedString | Promise<HtmlEscapedString>;
 type AdminContext = Context<AppEnv>;
 
 const RECENT_DAYS = 7;
+const CHART_DAYS = 30;
 const PLATFORMS = ['bilibili', 'x', 'youtube', 'producthunt', 'xiaohongshu', 'zhihu', 'wechat'];
 const MEDIA = ['video', 'post', 'launch', 'article', 'thread', 'comment'];
 const LOCAL_ORIGIN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/;
@@ -65,6 +67,8 @@ dialog{width:min(560px,calc(100vw - 32px));border:1px solid var(--line);border-r
 dialog::backdrop{background:rgb(0 0 0 / .45)}
 dialog h2{margin-bottom:6px}dialog h3{font-size:14px;margin:16px 0 6px}dialog p{margin:0 0 10px}
 dialog .actions{display:flex;justify-content:flex-end;margin-top:18px}
+.chart{width:100%;max-width:960px;--ts-chart-1:#2f5bd3;--ts-chart-2:#e8833a;--ts-chart-3:#1f9d74;--ts-chart-4:#8b5cf6;--ts-chart-5:#d9468f;--ts-chart-6:#0e9fbf}
+@media (prefers-color-scheme:dark){.chart{--ts-chart-1:#7d9cf0;--ts-chart-2:#f2a065;--ts-chart-3:#47cd89;--ts-chart-4:#a78bfa;--ts-chart-5:#f472b6;--ts-chart-6:#38bdf8}}
 details summary{cursor:pointer;color:var(--accent)}
 details form{margin-top:8px}
 a{color:var(--accent)}
@@ -121,6 +125,34 @@ function bars(daily: { day: string; clicks: number }[]) {
       )}</span
     >
     <span class="small muted">${counts.reduce((sum, count) => sum + count, 0)}</span>`;
+}
+
+function clickCharts(links: Link[], daily: { day: string; clicks: number }[][]) {
+  const days = Array.from({ length: CHART_DAYS }, (_, index) =>
+    operations.sinceDay(CHART_DAYS - index),
+  );
+  const byDayPlatform = new Map<string, number>();
+  links.forEach((link, index) => {
+    for (const entry of daily[index] ?? []) {
+      const key = `${entry.day}\u0000${link.platform}`;
+      byDayPlatform.set(key, (byDayPlatform.get(key) ?? 0) + entry.clicks);
+    }
+  });
+  const rows = [...byDayPlatform].map(([key, clicks]) => {
+    const [day = '', platform = ''] = key.split('\u0000');
+    return { day, platform, clicks };
+  });
+  rows.sort((a, b) => a.day.localeCompare(b.day) || a.platform.localeCompare(b.platform));
+  return {
+    daily: dailyClicksChart(days, rows),
+    links: linkClicksChart(links.map((link) => ({ link: link.slug, clicks: link.clicks }))),
+  };
+}
+
+function chartFigure(chart: ChartSvg) {
+  return html`<div class="chart" style="aspect-ratio:${chart.width}/${chart.height}">
+    ${raw(chart.svg)}
+  </div>`;
 }
 
 function options(values: string[], selected?: string) {
@@ -347,10 +379,11 @@ async function campaignPage(c: AdminContext, slug: string) {
   if (!campaign) return c.html(layout(c, 'Not found', html`<p>No campaign “${slug}”.</p>`), 404);
   const records = await store.links(slug, true);
   const daily = await Promise.all(
-    records.map((link) => store.dailyClicks(link.id, operations.sinceDay(RECENT_DAYS))),
+    records.map((link) => store.dailyClicks(link.id, operations.sinceDay(CHART_DAYS))),
   );
   const links = records.map(operations.presentLink);
   const total = links.reduce((sum, link) => sum + link.clicks, 0);
+  const charts = total > 0 ? clickCharts(links, daily) : null;
   const archived = Boolean(campaign.archivedAt);
   const linkRow = (link: Link, index: number) => html`<tr>
     <td>
@@ -436,6 +469,16 @@ async function campaignPage(c: AdminContext, slug: string) {
                   same path under /en.
                 </p>
               </section>`
+        }
+        ${
+          charts
+            ? html`<section>
+                <h2>Clicks per day, last ${CHART_DAYS} days</h2>
+                ${chartFigure(charts.daily)}
+                <h2 style="margin-top:16px">Clicks by link</h2>
+                ${chartFigure(charts.links)}
+              </section>`
+            : ''
         }
         <section>
           <h2>Links</h2>

@@ -218,6 +218,8 @@ describe('admin pages', () => {
     expect(detail).toContain('data-copy="https://go.botharness.ai/ph-x-post"');
     expect(detail).toContain('data-copy="https://go.botharness.ai/ph-bili"');
     expect(detail).toContain('3 clicks across 2 links');
+    expect(detail).toContain('aria-label="Clicks per day by platform"');
+    expect(detail).toContain('aria-label="Total clicks by link"');
     expect(detail).toContain(
       'href="https://deepseekbot.botharness.ai/en/docs/overview/?utm_campaign=ph-launch&amp;utm_source=x&amp;utm_medium=post&amp;utm_content=ph-x-post"',
     );
