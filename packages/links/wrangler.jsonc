@@ -10,8 +10,8 @@
     "POSTHOG_HOST": "https://us.i.posthog.com",
     "POSTHOG_KEY": "phc_CxrCyBuRHVSs996eyHXAeyJbyE8rJXgREbEYsfxUkR3J",
     // fill from Zero Trust: team domain (<team>.cloudflareaccess.com) and the Access application AUD tag
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": "",
+    "ACCESS_TEAM_DOMAIN": "late-truth-4da8.cloudflareaccess.com",
+    "ACCESS_AUD": "86b7f89e43c013ca318db4825f20cb40b3f65fd4c9e5d35cbd0e127000657d45",
   },
   "d1_databases": [
     {
