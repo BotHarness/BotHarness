@@ -25,6 +25,7 @@ import { registerBridge } from './bridge/rpc.js';
 import { createMarketplaceClient } from './marketplace/client.js';
 import { createReleaseService, installedRelease } from './release/service.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
+import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
 import { createModelRouteReadiness } from './models/readiness.js';
@@ -283,6 +284,15 @@ export function createCore(
         usage.purgeBot(slug, removeFiles);
       },
       cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
+      syncDescriptor: (memoryDir, record, sync) => {
+        try {
+          syncBotDescriptor(memoryDir, record, sync);
+        } catch (error) {
+          options.warn?.(
+            `bot-descriptor-sync-failed slug=${record.slug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+          );
+        }
+      },
       initializeMemory: (memoryDir) => {
         const repository = ensureMemoryRepository({ memoryDir });
         return repository.ok
@@ -311,6 +321,7 @@ export function createCore(
     operationalDatabase.close();
     throw error;
   }
+  if (operationalDatabase.mode === 'ready') backfillBotDescriptors(registry, options.warn);
   const states = createBotStateTracker();
   let runtime: BotRuntime | undefined;
   const attachments = createAttachmentStore({
