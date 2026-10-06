@@ -148,7 +148,10 @@ export function createAttachmentHttp(
           headers: {
             'content-type': ref.mime,
             'content-length': String(ref.size),
-            'content-disposition': filenameDisposition(ref.name, true),
+            'content-disposition': filenameDisposition(
+              ref.name,
+              ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(ref.mime),
+            ),
             'x-content-type-options': 'nosniff',
             'cache-control': 'no-store',
           },

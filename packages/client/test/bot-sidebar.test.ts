@@ -232,6 +232,8 @@ function stubActions(): BridgeActions {
       relativePath: 'attachment',
       kind: 'file' as const,
     })),
+    channelMediaApplications: vi.fn(async () => ({ available: false, applications: [] })),
+    channelMediaOpen: vi.fn(async () => {}),
     messageAttachmentApplications: vi.fn(async () => ({ available: false, applications: [] })),
     messageAttachmentOpen: vi.fn(async () => undefined),
     messageAttachmentDownload: vi.fn(async () => undefined),

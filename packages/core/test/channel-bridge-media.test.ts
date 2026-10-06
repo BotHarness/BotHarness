@@ -33,7 +33,7 @@ afterEach(async () => {
   }
 });
 
-async function fixture(inboxOnly = false, twoPaths = false) {
+async function fixture(inboxOnly = false, twoPaths = false, file = false) {
   const home = createTempRoot('bh-channel-media-');
   let consumer: Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1] | undefined;
   const run = vi.fn(async () => {});
@@ -52,7 +52,7 @@ async function fixture(inboxOnly = false, twoPaths = false) {
   cores.push(core);
   core.registry.create({ slug: 'ada', displayName: 'Ada' });
   const download = vi.fn(async function* () {
-    yield png;
+    yield file ? Buffer.from('BH1022 original 中文 file bytes\n') : png;
   });
   const service: DshImOutboundService = {
     contractVersion: 1,
@@ -82,6 +82,7 @@ async function fixture(inboxOnly = false, twoPaths = false) {
         'exclusive-text-consumer',
         'reply-text-checked',
         'source-file-checked',
+        'source-file-direct-checked',
         'reply-file-checked',
         'source-image-checked',
       ],
@@ -157,12 +158,25 @@ async function fixture(inboxOnly = false, twoPaths = false) {
     mentionedAccount: true,
     at: new Date(Date.now() + 100).toISOString(),
     text: 'Before\nAfter',
-    attachments: [image],
-    contentParts: [
-      { kind: 'text', text: 'Before\n' },
-      { kind: 'attachment', id: image.id },
-      { kind: 'text', text: 'After' },
-    ],
+    attachments: file
+      ? [
+          {
+            id: image.id,
+            messageId: image.messageId,
+            resourceKey: image.resourceKey,
+            name: '验收.txt',
+          },
+        ]
+      : [image],
+    ...(file
+      ? {}
+      : {
+          contentParts: [
+            { kind: 'text', text: 'Before\n' },
+            { kind: 'attachment', id: image.id },
+            { kind: 'text', text: 'After' },
+          ],
+        }),
     reply: { messageId: image.messageId, conversationId: 'team', actorId: 'human' },
     replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
   };
@@ -435,4 +449,67 @@ it('unsupported sniffed content returns 422 and an over-limit checked Provider r
       )
     ).status,
   ).toBe(413);
+});
+
+it('file cards keep unknown metadata, acquire explicitly, use canonical native opening targets and survive restart/stop', async () => {
+  const fx = await fixture(false, false, true);
+  expect(fx.core.channels.readMessages(fx.channelId)[0]?.bridgeMedia).toEqual({
+    items: [{ id: image.id, kind: 'file', name: '验收.txt' }],
+  });
+  expect(fx.download).not.toHaveBeenCalled();
+  const before = fx.counts();
+  const runs = fx.run.mock.calls.length;
+  const methods = createBridgeMethods({ ...fx.core });
+  const target = await methods.channelMediaTarget({
+    channelId: fx.channelId,
+    sourceEventId: fx.sourceEventId,
+    attachmentId: image.id,
+  });
+  expect(target.ok).toBe(true);
+  expect(fx.download).toHaveBeenCalledTimes(1);
+  const http = createAttachmentHttp(fx.core.attachments, fx.core.channels, undefined, (input) =>
+    fx.core.externalMessaging.readChannelMedia(input),
+  );
+  const url =
+    'http://localhost/api/botharness/attachment?' +
+    new URLSearchParams({
+      channelId: fx.channelId,
+      sourceEventId: fx.sourceEventId,
+      attachmentId: image.id,
+    });
+  const response = await http(new Request(url));
+  expect(response.headers.get('content-disposition')).toMatch(/^attachment;/);
+  expect(Buffer.from(await response.arrayBuffer()).toString()).toBe(
+    'BH1022 original 中文 file bytes\n',
+  );
+  expect(fx.counts()).toEqual(before);
+  expect(fx.run).toHaveBeenCalledTimes(runs);
+  await fx.restart();
+  await fx.stop();
+  const cached = await fx.read();
+  await cached.body.cancel();
+  expect(fx.download).toHaveBeenCalledTimes(1);
+  fx.core.externalMessaging.revoke('ada', fx.grant.id);
+  await expect(
+    fx.core.externalMessaging.channelMediaTarget({
+      channelId: fx.channelId,
+      sourceEventId: fx.sourceEventId,
+      attachmentId: image.id,
+      signal: new AbortController().signal,
+    }),
+  ).rejects.toThrow('source-unavailable');
+  expect((await http(new Request(url))).status).toBe(403);
+});
+
+it('a stopped path cannot acquire an unseen file, and file purge never reacquires originals', async () => {
+  const fx = await fixture(false, false, true);
+  await fx.stop();
+  await expect(fx.read()).rejects.toThrow('source-unavailable');
+  expect(fx.download).not.toHaveBeenCalled();
+  const second = await fixture(false, false, true);
+  const first = await second.read();
+  await first.body.cancel();
+  rmSync(second.core.attachments.fileTarget(first.ref.fileId!).path);
+  await expect(second.read()).rejects.toThrow('unavailable');
+  expect(second.download).toHaveBeenCalledTimes(1);
 });

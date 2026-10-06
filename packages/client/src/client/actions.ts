@@ -364,6 +364,17 @@ export interface BridgeActions {
   dismissFailedMessage(channelId: string, messageId: string): boolean;
   openSession(sessionId: string): void;
   refreshSessions(slug: string): Promise<void>;
+  channelMediaApplications(
+    channelId: string,
+    sourceEventId: string,
+    attachmentId: string,
+  ): Promise<HostFileOptions>;
+  channelMediaOpen(
+    channelId: string,
+    sourceEventId: string,
+    attachmentId: string,
+    choice: HostFileOpen,
+  ): Promise<void>;
   messageAttachmentTarget(
     channelId: string,
     messageId: string,
@@ -1627,6 +1638,35 @@ export function createActions(
           hasNewer: page.hasNewer,
         },
       });
+    },
+    async channelMediaApplications(channelId, sourceEventId, attachmentId) {
+      const target = await loadMessageAttachmentTarget(
+        call,
+        channelId,
+        sourceEventId,
+        attachmentId,
+        true,
+      );
+      return (
+        folderAccess?.nativeFiles?.applications(target) ?? { available: false, applications: [] }
+      );
+    },
+    async channelMediaOpen(channelId, sourceEventId, attachmentId, choice) {
+      if (openingFile) throw new Error('A Host file open is already in progress');
+      openingFile = true;
+      try {
+        const target = await loadMessageAttachmentTarget(
+          call,
+          channelId,
+          sourceEventId,
+          attachmentId,
+          true,
+        );
+        if (!folderAccess?.nativeFiles) throw new Error('DSH Host opening is unavailable');
+        await folderAccess.nativeFiles.open(target, choice);
+      } finally {
+        openingFile = false;
+      }
     },
     messageAttachmentTarget: (channelId, messageId, fileId) =>
       loadMessageAttachmentTarget(call, channelId, messageId, fileId),

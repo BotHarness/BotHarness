@@ -403,6 +403,7 @@ describe('plugin entry', () => {
       'assignments',
       'assignment',
       'workspaceOptions',
+      'channelMediaTarget',
       'messageAttachmentTarget',
       'workspaceFileTarget',
       'grants',

@@ -9,6 +9,8 @@
 
 ### Added
 
+- 新增候选 Lark 文件卡片，明确操作才下载原件，支持取消／重试和既有安全打开降级，保留当前 Channel／来源授权并如实显示未知元数据（[#1022](https://github.com/BotHarness/BotHarness/issues/1022), [教程](docs/lark-connection.md)）。
+
 - 新增候选 Lark 图片预览，在原 Channel 气泡保留原生图文顺序，按可见区域加载、点击放大并复查当前 Channel／来源授权，图片接收开关贯通到账号接收器；停止接收保留已取得图片，解绑／撤销则拒绝受影响路径（[#1021](https://github.com/BotHarness/BotHarness/issues/1021), [教程](docs/lark-connection.md)）。
 - PersonaBot 可读取微信原生引用正文，或从当前授权私聊的本地保留记录解析缺失引用；来源详情区分原生、本地解析与不可用，本地上下文支持有界 cursor 续页，不宣称微信远端历史能力（[#908](https://github.com/BotHarness/BotHarness/issues/908)，[指南](docs/wechat-connection.md)）。
 

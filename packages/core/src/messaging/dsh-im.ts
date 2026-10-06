@@ -621,12 +621,14 @@ export function createDshImProvider(
                   event.reply.messageId !== event.messageId ||
                   event.reply.conversationId !== event.conversation.id ||
                   event.reply.actorId !== event.actor.id ||
-                  event.attachments?.some(
-                    (item) =>
-                      item.messageId !==
-                      (platform === 'feishu' && !item.mediaType?.startsWith('image/')
-                        ? event.reply.parentId
-                        : event.messageId),
+                  event.attachments?.some((item) =>
+                    platform === 'feishu' && !item.mediaType?.startsWith('image/')
+                      ? item.messageId !== event.reply.parentId &&
+                        !(
+                          item.messageId === event.messageId &&
+                          info.capabilities.includes('source-file-direct-checked')
+                        )
+                      : item.messageId !== event.messageId,
                   )
                 )
                   throw new MessagingError('untrusted-source');

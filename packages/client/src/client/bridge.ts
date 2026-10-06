@@ -1076,12 +1076,19 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       const item = asRecord(raw);
       if (
         !item ||
-        item['kind'] !== 'image' ||
+        !['image', 'file'].includes(String(item['kind'])) ||
         typeof item['id'] !== 'string' ||
         !/^[a-f0-9]{64}$/.test(item['id']) ||
         typeof item['name'] !== 'string' ||
         ids.has(item['id']) ||
-        Object.keys(item).some((key) => !['id', 'kind', 'name'].includes(key))
+        (item['mediaType'] !== undefined &&
+          (typeof item['mediaType'] !== 'string' ||
+            !/^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/.test(item['mediaType']))) ||
+        (item['sizeBytes'] !== undefined &&
+          (!Number.isSafeInteger(item['sizeBytes']) || Number(item['sizeBytes']) < 0)) ||
+        Object.keys(item).some(
+          (key) => !['id', 'kind', 'name', 'mediaType', 'sizeBytes'].includes(key),
+        )
       )
         return;
       ids.add(item['id']);
@@ -3463,9 +3470,16 @@ export async function loadMessageAttachmentTarget(
   channelId: string,
   messageId: string,
   fileId: string,
+  media = false,
 ): Promise<HostFileTarget> {
   const response = asRecord(
-    await unwrap(call, 'messageAttachmentTarget', { channelId, messageId, fileId }),
+    await unwrap(
+      call,
+      media ? 'channelMediaTarget' : 'messageAttachmentTarget',
+      media
+        ? { channelId, sourceEventId: messageId, attachmentId: fileId }
+        : { channelId, messageId, fileId },
+    ),
   );
   const target = asRecord(response?.['target']);
   if (

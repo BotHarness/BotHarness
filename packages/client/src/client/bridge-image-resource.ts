@@ -3,7 +3,10 @@ import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 const MAX_BYTES = 25 * 1024 * 1024;
 let active = 0;
 const waiting: (() => void)[] = [];
-async function boundedImage<T>(signal: AbortSignal, task: () => Promise<T>): Promise<T> {
+export async function boundedBridgeMedia<T>(
+  signal: AbortSignal,
+  task: () => Promise<T>,
+): Promise<T> {
   if (active >= 3)
     await new Promise<void>((resolve, reject) => {
       const abort = () => {
@@ -65,7 +68,7 @@ export function createBridgeImageResource(
     const failure = (value: NonNullable<BridgeImageState['failure']>) => {
       if (!request.signal.aborted) update({ failure: value });
     };
-    void boundedImage(request.signal, async () => {
+    void boundedBridgeMedia(request.signal, async () => {
       const response = await fetch(
         '/api/botharness/attachment?' +
           new URLSearchParams({ channelId, sourceEventId, attachmentId }),

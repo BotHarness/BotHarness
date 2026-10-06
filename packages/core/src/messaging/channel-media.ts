@@ -26,7 +26,11 @@ function authority(db: DatabaseSync, input: MediaRequest, active: (slug: string)
     .get(input.channelId, input.sourceEventId) as { payload_json: string } | undefined;
   const source = row && (JSON.parse(row.payload_json) as { external?: ExternalSource }).external;
   const attachment = source?.event.attachments?.find((item) => item.id === input.attachmentId);
-  if (!source || !attachment || !attachment.mediaType?.startsWith('image/'))
+  if (
+    !source ||
+    !attachment ||
+    (!attachment.mediaType?.startsWith('image/') && source.platform !== 'feishu')
+  )
     throw new MessagingError('source-unavailable');
   const rows = db
     .prepare(`SELECT g.body, p.route_id FROM messaging_source_paths p
@@ -106,7 +110,7 @@ export function createChannelMediaAccess(options: {
       queue.shift()?.();
     }
   };
-  return async (input: MediaRequest) => {
+  const access = async (input: MediaRequest) => {
     const controller = new AbortController();
     const signal = AbortSignal.any([input.signal, controller.signal, AbortSignal.timeout(30_000)]);
     const current = () => {
@@ -214,7 +218,10 @@ export function createChannelMediaAccess(options: {
         await downloaded.body.cancel();
         throw new ChannelAttachmentError('Attachment exceeds limit', 'too-large');
       }
-      if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(downloaded.ref.mime)) {
+      if (
+        initial.attachment.mediaType?.startsWith('image/') &&
+        !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(downloaded.ref.mime)
+      ) {
         await downloaded.body.cancel();
         throw new MessagingError('media-format-unsupported');
       }
@@ -268,6 +275,26 @@ export function createChannelMediaAccess(options: {
       throw error;
     }
   };
+  return Object.assign(access, {
+    async target(input: MediaRequest) {
+      const result = await access(input);
+      await result.body.cancel();
+      const latest = options.database.read((db) => authority(db, input, options.active));
+      input.signal.throwIfAborted();
+      const candidate = latest.candidates.find((item) => {
+        const id = sourceMediaUploadId(
+          item.grant.providerId,
+          item.grant.fingerprint,
+          latest.source.event.conversation.id,
+          latest.attachment.id,
+        );
+        return options.attachments.acquired(id)?.fileId === result.ref.fileId;
+      });
+      if (!candidate) throw new MessagingError('source-unavailable');
+      options.provider(candidate.grant.providerId).assertCurrent();
+      return options.attachments.fileTarget(result.ref.fileId!);
+    },
+  });
 }
 
 function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
