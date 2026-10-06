@@ -6441,5 +6441,7 @@ button.bh-card-main:disabled {cursor:default;}
 
 .bh-bridge-file { flex-direction: column; align-items: stretch; }
 .bh-bridge-file .bh-message-file { width: 100%; }
+.bh-bridge-file .bh-message-file-copy { flex-direction: column; align-items: flex-start; gap: 2px; }
+.bh-bridge-file .bh-message-file-name { max-width: 100%; }
 .bh-bridge-file-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 8px 8px; }
 `;
