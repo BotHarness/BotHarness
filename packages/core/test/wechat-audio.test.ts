@@ -52,3 +52,21 @@ it('cancels a running decoder and refuses an already cancelled request', async (
     'closed preview',
   );
 });
+
+it('accepts observed WeChat encodeType 4 only with validated SILK packets, retaining native fields', async () => {
+  const bytes = await original();
+  const native = { ...voice, encodeType: 4, sampleRate: 16000, bitsPerSample: 16 };
+  const wav = Buffer.from(await decodeWeChatVoice(bytes, native, signal()));
+  expect(wav.subarray(0, 4).toString()).toBe('RIFF');
+  expect(wav.readUInt32LE(24)).toBe(24000);
+  expect(wav.readUInt32LE(40)).toBeGreaterThan(0);
+  expect(native).toEqual({
+    transcript: 'unavailable',
+    encodeType: 4,
+    sampleRate: 16000,
+    bitsPerSample: 16,
+  });
+  await expect(decodeWeChatVoice(Buffer.from('not SILK'), native, signal())).rejects.toMatchObject({
+    code: 'audio-codec-unsupported',
+  });
+});

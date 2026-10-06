@@ -69,7 +69,7 @@ export async function decodeWeChatVoice(
   signal.throwIfAborted();
   if (!bytes.length || bytes.length > MAX_VOICE_INPUT_BYTES)
     throw new MessagingError('audio-too-large');
-  if (voice.encodeType !== undefined && voice.encodeType !== 6)
+  if (voice.encodeType !== undefined && ![4, 6].includes(voice.encodeType))
     throw new MessagingError('audio-codec-unsupported');
   silkFrames(bytes);
   const moduleUrl = pathToFileURL(createRequire(import.meta.url).resolve('silk-wasm')).href;
