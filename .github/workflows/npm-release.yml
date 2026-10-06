@@ -17,6 +17,9 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    permissions:
+      contents: read
+      actions: read
     outputs:
       version: ${{ steps.version.outputs.version }}
       plan_sha256: ${{ steps.plan.outputs.sha256 }}
@@ -41,7 +44,21 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build
+      - name: Reuse the verify run that already passed on this commit
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 40); do
+            state=$(gh run list -R "$GITHUB_REPOSITORY" --workflow verify.yml --commit "$GITHUB_SHA" --event push --json status,conclusion --jq 'if any(.[]; .conclusion == "success") then "success" elif any(.[]; .status != "completed") then "pending" else "absent" end')
+            echo "verify on $GITHUB_SHA: $state"
+            [ "$state" = pending ] || break
+            sleep 20
+          done
+          echo "passed=$([ "$state" = success ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.ci.outputs.passed != 'true'
+        run: pnpm lint && pnpm format:check && pnpm typecheck && pnpm test
+      - run: pnpm build
       - name: Read the reviewed Provider pin
         id: provider
         run: node --input-type=module -e 'import {appendFileSync} from "node:fs"; import {productImProvider} from "./scripts/product-artifacts.mjs"; appendFileSync(process.env.GITHUB_OUTPUT,"sha="+productImProvider.upstream.source+"\n")'
