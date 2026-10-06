@@ -30,4 +30,6 @@
 | 二进制或过大的文件 | 此处没有文本预览；使用文件菜单，或请 Bot 用工具检查。     |
 | 加载、更新失败     | 查看错误并点击 **重试**；更新失败时，旧预览可能仍然保留。 |
 
+想把这些文件打包发给别人或搬到另一台电脑，见[导出与导入 Bot](/zh/docs/bot-zip)。
+
 接着查看[记忆演化](/zh/docs/channel-sidebar/memory-evolution)，或返回[侧栏总览](/zh/docs/channel-sidebar)。
