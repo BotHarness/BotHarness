@@ -14,7 +14,7 @@ WeChat original voice can be prepared for playback, and Discord defaults can be 
 
 ### Documentation
 
-- Documented development-source Discord shared Channel qualification for one bound member with Message Content OFF, including original-thread model replies, overlap deduplication and pause/restart/restoration evidence ([#1054](https://github.com/BotHarness/BotHarness/issues/1054), [verification](docs/dev/verification/discord-1054-shared-channel.md)).
+- Documented development-source Discord shared Channel qualification for one bound member with Message Content OFF, including original-thread model replies, overlap deduplication and pause/restart/restoration evidence ([#1054](https://github.com/BotHarness/BotHarness/issues/1054), [verification](docs/dev/verification/discord-1054-shared-channel.md), [中文验证](docs/dev/verification/discord-1054-shared-channel.zh.md)).
 
 ## [1.1.0] - 2026-10-06
 

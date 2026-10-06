@@ -14,7 +14,7 @@
 
 ### Documentation
 
-- 记录开发来源 Discord 共享 Channel 在一个绑定成员、Message Content OFF 下的资格验证，包含原 thread 模型回复、重叠去重及暂停／重启／恢复证据（[#1054](https://github.com/BotHarness/BotHarness/issues/1054)，[verification](docs/dev/verification/discord-1054-shared-channel.md)）。
+- 记录开发来源 Discord 共享 Channel 在一个绑定成员、Message Content OFF 下的资格验证，包含原 thread 模型回复、重叠去重及暂停／重启／恢复证据（[#1054](https://github.com/BotHarness/BotHarness/issues/1054)，[英文验证](docs/dev/verification/discord-1054-shared-channel.md)、[中文验证](docs/dev/verification/discord-1054-shared-channel.zh.md)）。
 
 ## [1.1.0] - 2026-10-06
 
