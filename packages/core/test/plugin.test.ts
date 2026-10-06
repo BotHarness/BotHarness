@@ -345,6 +345,7 @@ describe('plugin entry', () => {
       'messagingThreadPolicy',
       'messagingSource',
       'messagingIdentity',
+      'pairingReview',
       'messagingSnapshot',
       'messagingTargets',
       'messagingAuthorize',

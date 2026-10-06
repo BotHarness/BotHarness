@@ -225,7 +225,15 @@ it('Lark exact private chat uses canonical Inbox without mentions and replies th
     db.read((database) => database.prepare('SELECT * FROM channel_placements').all()),
   ).toHaveLength(0);
   await core.externalMessaging.revoke('ada', grant.id);
-  await expect(consumer!.onEvent(source, { signal: consumer!.signal })).rejects.toThrow();
+  await consumer!.onEvent(source, { signal: consumer!.signal });
+  expect(
+    db.read((database) =>
+      database.prepare("SELECT * FROM source_events WHERE source_kind = 'bridge-message'").all(),
+    ),
+  ).toHaveLength(1);
+  expect(
+    db.read((database) => database.prepare('SELECT * FROM inbox_admissions').all()),
+  ).toHaveLength(1);
   expect(replies).toHaveLength(1);
   expect(core.externalMessaging.history('ada')[0]?.receipt).toMatchObject({
     messageId: 'dsh-feishu-qa-client',

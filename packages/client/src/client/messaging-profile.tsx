@@ -1,3 +1,4 @@
+import { PairingSettings } from './pairing-settings.js';
 import { externalPlatformLabel } from './bridge-source-label.js';
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 import { Modal } from './modal.js';
@@ -26,6 +27,7 @@ export function MessagingProfile({
   slug: string;
   actions: Pick<
     BridgeActions,
+    | 'pairingReview'
     | 'messagingIdentity'
     | 'messagingGroupPolicy'
     | 'messagingThreadPolicy'
@@ -156,6 +158,18 @@ export function MessagingProfile({
         t={t}
         refresh={refresh}
         loadTargets={actions.messagingTargets}
+      />
+      <PairingSettings
+        requests={snapshot?.pairings ?? []}
+        receivers={snapshot?.pairingReceivers ?? []}
+        busy={busy}
+        refresh={() => operate(async () => undefined)}
+        review={(input) =>
+          operate(async () => {
+            await actions.pairingReview(slug, input);
+          })
+        }
+        t={t}
       />
       <ExternalIdentityTable
         snapshot={snapshot}

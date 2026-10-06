@@ -2335,6 +2335,16 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
  .bh-im-group-policy { display: grid; gap: 8px; padding-block: 12px; border-block: 1px solid var(--dsw-alias-border-l2); }
 .bh-im-threads { display: grid; gap: 8px; padding-block: 12px; }
 .bh-im-threads p { margin: 0; color: var(--dsw-alias-label-secondary); }
+.bh-im-pairing { display: flex; flex-direction: column; gap: 12px; padding-block: 16px; }
+.bh-im-pairing p { margin: 0; }
+.bh-im-pairing-request { padding: 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--bh-memory-radius-row); display: flex; flex-direction: column; gap: 12px; overflow-wrap: anywhere; }
+.bh-im-pairing-request dl { margin: 0; display: grid; gap: 6px; }
+.bh-im-pairing-request dl > div { display: grid; grid-template-columns: minmax(90px, 25%) minmax(0, 1fr); gap: 12px; }
+.bh-im-pairing-request dt { color: var(--dsw-alias-label-secondary); }
+.bh-im-pairing-request dd { margin: 0; }
+.bh-im-pairing-capabilities { display: flex; flex-wrap: wrap; gap: 12px; border: none; padding: 0; margin: 0; }
+.bh-im-pairing-capabilities legend { margin-bottom: 8px; }
+.bh-im-pairing-capabilities label { display: flex; align-items: center; gap: 6px; }
 .bh-im-threads td { overflow-wrap: anywhere; }
 .bh-identity-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .bh-identity-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }

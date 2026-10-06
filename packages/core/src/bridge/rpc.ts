@@ -1,3 +1,4 @@
+import type { PairingRequest, PairingReviewInput } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import type { AllBotPreview, AllBotMention } from '../channels/all-bot-mention.js';
 import type {
@@ -197,6 +198,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
   messagingSource(slug: string, sourceEventId: string): Promise<{ source: ExternalSource }> {
     return unwrapAsync(this.methods.messagingSource({ slug, sourceEventId }));
+  }
+  pairingReview(slug: string, input: PairingReviewInput): Promise<{ pairing: PairingRequest }> {
+    return unwrapAsync(this.methods.pairingReview({ slug, input }));
   }
   messagingIdentity(
     slug: string,
@@ -958,6 +962,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingThreadPolicy',
   'messagingSource',
   'messagingIdentity',
+  'pairingReview',
   'messagingSnapshot',
   'messagingTargets',
   'messagingAuthorize',

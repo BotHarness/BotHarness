@@ -222,6 +222,29 @@ Confirm each result:
 
 _In the Bot DM sidebar, expand Bot Inbox → group; if the message is already handled, expand the processed/ignored section too. Click the message to open its Modal, then expand Source details and Message details. This example retains real topic and message identifiers; a platform ID appears if the sender name cannot be resolved._
 
+## 7. Request reviewed IM authority in a Lark DM
+
+For this preview, use the `codex/1027-lark-pairing` revision from [#1027](https://github.com/BotHarness/BotHarness/issues/1027), build it and launch an isolated Profile with `scripts/dev-instance.mjs --im-provider`. The older #823 pinned example above does not contain pairing. Never connect the same application on both a production Host and this preview.
+
+This source-preview slice adds **pairing**, the prerequisite for IM management. Sending approval decisions or answers to native questions from Lark is delivered separately; the capability checkboxes here record which operations the reviewed person may perform once those controls are available. Pairing does not change ordinary chat intake.
+
+1. Connect and bind the intended Bot's Lark identity. For private messages, enable `im:message.p2p_msg:readonly`, subscribe to `im.message.receive_v1` and publish the application version. `im:message:readonly` alone does not enable private-message events. Retain `im:message:send_as_bot` for the acknowledgment.
+2. Open **Bot mode → Bot name → View details → IM administrator pairing**. Confirm **Pairing receiver ready**. An online application account alone is insufficient. Run only one receiving Host for this application.
+3. In the application bot's **private conversation**, send the plain text `/pair`. No API token or copied user ID is required. The request records the sender supplied by Lark; a group command cannot grant management authority.
+4. In the authenticated Web page, click **Refresh requests**. Check the receiving account, applicant and request reference. Expand the abbreviated applicant identifier to inspect the full platform ID if needed. If Lark supplies no display name, the page says so; it does not invent one.
+5. Within 10 minutes, explicitly select capabilities and click **Approve selected capabilities**, or **Reject request**. Nothing is selected by default. The first applicant receives no automatic privilege. The reference identifies a request; it cannot be redeemed as a credential.
+6. Use **Revoke authority** to remove the grant. Revocation takes effect immediately; restarting does not restore it. A later `/pair` creates a fresh request requiring review. Pausing the identity or Bot makes its grants unusable while paused; an existing grant can still be revoked from Web.
+
+An approved grant survives a Host restart and covers **this Bot only**. It grants no other-Bot, approver-management, VPS, DSH API or workspace access. The 10-minute timer applies to pending requests, not approved grants. Ordinary chatting and management authority are separate settings.
+
+![Real expired Lark pairing request in the authenticated Web Profile](/guides/lark/pairing/after-expired-light.jpg)
+
+_This actual local QA capture shows a request from a real Lark DM after its review window expired. The full applicant ID remains collapsed. The receiver is deliberately offline while the production Host receives the shared application. Expired requests have no approval controls; this screenshot does not demonstrate a completed grant or a live IM approval action._
+
+[View the same state in dark mode](/guides/lark/pairing/after-expired-dark.jpg).
+
+If no request appears, check the private-message scope, publication, subscription, identity and receiver status. Reconnecting the identity retries receiver setup. With the qualified Provider used here, disconnecting an application is temporary because its supervisor can reconnect it. For exclusive QA, use a dedicated test application or an explicitly authorized service outage, then restore the production Host. Never leave two Hosts competing for one application.
+
 ## Troubleshooting
 
 | Symptom                                              | Check first                                                                                                                                                                        |

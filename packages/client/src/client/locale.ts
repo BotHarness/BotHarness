@@ -3,6 +3,37 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
+  'pairing.title': 'IM 管理员配对',
+  'pairing.hint':
+    '在当前 Bot 的 Lark 私聊发送 /pair，再在此审核真实账号。申请 10 分钟后过期。配对不会授予 VPS、API 或其他 Bot 的权限。',
+  'pairing.empty': '尚无配对申请。先绑定已连接的 Lark 身份，并为应用启用私聊事件。',
+  'pairing.refresh': '刷新申请',
+  'pairing.actor': '申请人',
+  'pairing.account': '接收账号',
+  'pairing.reference': '申请编号',
+  'pairing.expires': '过期时间',
+  'pairing.approve': '批准所选能力',
+  'pairing.reject': '拒绝申请',
+  'pairing.revoke': '撤销权限',
+  'pairing.none': '未选择能力',
+  'pairing.approveCapability': '批准本次操作',
+  'pairing.rejectCapability': '拒绝操作',
+  'pairing.answerCapability': '回答正式提问',
+  'pairing.rulesCapability': '明确保存审批规则',
+  'pairing.pending': '等待审核',
+  'pairing.approved': '已授权',
+  'pairing.rejected': '已拒绝',
+  'pairing.revoked': '已撤销',
+  'pairing.unavailable': '身份或 Bot 已暂停',
+  'pairing.receiver.off': '配对接收已暂停',
+  'pairing.receiver.connecting': '配对接收正在连接…',
+  'pairing.receiver.receiving': '配对接收已就绪',
+  'pairing.receiver.unavailable': '配对接收不可用，请重新连接身份',
+  'pairing.expired': '已过期',
+  'pairing.unknownName': '平台未提供名称',
+  'pairing.scope': '仅限当前 Bot。聊天接收与管理授权分别配置。',
+  'pairing.error': '申请已变化或审核失败，请刷新后重新核对。',
+
   'defaults.externalWake': '{platform} 普通消息',
 
   'setup.test':
@@ -1856,6 +1887,39 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
+  'pairing.title': 'IM administrator pairing',
+  'pairing.hint':
+    'Send /pair in this Bot’s Lark DM, then review the real account here. Requests expire after 10 minutes. Pairing grants no VPS, API or other-Bot access.',
+  'pairing.empty':
+    'No pairing requests. Bind a connected Lark identity first and enable private-message events for the app.',
+  'pairing.refresh': 'Refresh requests',
+  'pairing.actor': 'Applicant',
+  'pairing.account': 'Receiving account',
+  'pairing.reference': 'Request reference',
+  'pairing.expires': 'Expires',
+  'pairing.approve': 'Approve selected capabilities',
+  'pairing.reject': 'Reject request',
+  'pairing.revoke': 'Revoke authority',
+  'pairing.none': 'No capabilities selected',
+  'pairing.approveCapability': 'Approve once',
+  'pairing.rejectCapability': 'Reject operations',
+  'pairing.answerCapability': 'Answer formal questions',
+  'pairing.rulesCapability': 'Explicitly save approval rules',
+  'pairing.pending': 'Awaiting review',
+  'pairing.approved': 'Authorized',
+  'pairing.rejected': 'Rejected',
+  'pairing.revoked': 'Revoked',
+  'pairing.unavailable': 'Identity or Bot paused',
+  'pairing.receiver.off': 'Pairing receiver paused',
+  'pairing.receiver.connecting': 'Connecting pairing receiver…',
+  'pairing.receiver.receiving': 'Pairing receiver ready',
+  'pairing.receiver.unavailable': 'Pairing receiver unavailable — reconnect the identity',
+  'pairing.expired': 'Expired',
+  'pairing.unknownName': 'Name not supplied by platform',
+  'pairing.scope':
+    'Current Bot only. Chat reception and management authority are configured separately.',
+  'pairing.error': 'The request changed or review failed. Refresh and check it again.',
+
   'defaults.externalWake': '{platform} ordinary messages',
 
   'setup.test':

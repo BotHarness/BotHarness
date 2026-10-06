@@ -1,3 +1,5 @@
+import type { BotPairing } from './pairing.js';
+import { readMessagingIdentity } from './identity.js';
 import {
   currentReceptionPaths,
   recordReceptionPath,
@@ -165,6 +167,7 @@ export interface InboundMessaging {
     signal?: AbortSignal,
   ): Promise<ExternalContextResult>;
   ensureReplyConsumer(botSlug: string, grantId: string, signal: AbortSignal): Promise<void>;
+  pairingReception(bindingId: string): 'off' | 'connecting' | 'receiving' | 'unavailable';
   reconcileBinding(bindingId: string): Promise<void>;
   revoke(grantId: string): void;
   close(): void;
@@ -172,6 +175,7 @@ export interface InboundMessaging {
 
 export function createInboundMessaging(options: {
   database: OperationalDatabaseModulePort;
+  pairing?: BotPairing;
   bindingAvailable?(id: string): boolean;
   sourcePolicy: BotSourcePolicyStore;
   isBotActive(slug: string): boolean;
@@ -978,6 +982,182 @@ export function createInboundMessaging(options: {
     const { contextReads: _reads, receptionPaths: _paths, ...shared } = retained;
     return { ...shared, body: row.body, localChannelId: channelId };
   };
+  const controls = new Map<
+    string,
+    {
+      controller: AbortController;
+      token: object;
+      ready: Promise<void>;
+      dispose?: (() => void) | undefined;
+    }
+  >();
+  const controlRetries = new Map<string, ReturnType<typeof setTimeout>>();
+  const stopControl = (id: string) => {
+    clearTimeout(controlRetries.get(id));
+    controlRetries.delete(id);
+    const value = controls.get(id);
+    if (!value) return;
+    value.controller.abort();
+    value.dispose?.();
+    controls.delete(id);
+  };
+  const startControl = async (id: string, attempt = 0) => {
+    if (!options.pairing || closed) return;
+    const identity = database.read((db) => readMessagingIdentity(db, id));
+    if (
+      identity.platform !== 'feishu' ||
+      !identity.enabled ||
+      identity.revokedAt ||
+      !options.isBotActive(identity.botSlug)
+    )
+      return;
+    const entry = providers.get(identity.providerId);
+    if (!entry?.consume || !entry.provider.reply || !entry.provider.inspectAccount) return;
+    const prior = controls.get(id);
+    if (prior?.token === entry.token) return prior.ready;
+    stopControl(id);
+    const controller = new AbortController();
+    const lease = {
+      controller,
+      token: entry.token,
+      ready: Promise.resolve(),
+      dispose: undefined as (() => void) | undefined,
+    };
+    controls.set(id, lease);
+    lease.ready = (async () => {
+      try {
+        const account = await bounded(entry.provider.inspectAccount!(identity.accountRef));
+        controller.signal.throwIfAborted();
+        if (account.fingerprint !== identity.fingerprint)
+          throw new MessagingError('rebind-required');
+        if (!account.connected) throw new MessagingError('provider-unavailable');
+        lease.dispose = await bounded(
+          entry.consume!({
+            accountRef: identity.accountRef,
+            fingerprint: identity.fingerprint,
+            signal: controller.signal,
+            onEvent: async () => ({ accepted: true }),
+          }),
+        );
+        if (controller.signal.aborted || controls.get(id) !== lease) lease.dispose();
+      } catch (error) {
+        if (controls.get(id) !== lease) return;
+        stopControl(id);
+        const reason = error instanceof MessagingError ? error.code : 'consumer-unavailable';
+        const delay = [250, 1000, 3000][attempt];
+        if (
+          reason === 'provider-unavailable' &&
+          delay !== undefined &&
+          !closed &&
+          providers.get(identity.providerId) === entry
+        ) {
+          const timer = setTimeout(() => {
+            controlRetries.delete(id);
+            if (!closed && providers.get(identity.providerId) === entry)
+              void startControl(id, attempt + 1);
+          }, delay);
+          timer.unref();
+          controlRetries.set(id, timer);
+        }
+        options.warn?.(
+          JSON.stringify({
+            event: 'bot-pairing',
+            phase: 'receiver-unavailable',
+            initiator: 'identity-lifecycle',
+            reason,
+            retryAttempt: attempt,
+          }),
+        );
+      }
+    })();
+    return lease.ready;
+  };
+  const controlIntake = async (
+    provider: MessagingProvider,
+    event: MessagingInboundEvent,
+    signal: AbortSignal,
+  ) => {
+    if (
+      !options.pairing ||
+      provider.id !== 'dsh-im/feishu' ||
+      event.channel !== 'feishu' ||
+      !/^\/pair(?:\s|$)/.test(event.text.trim())
+    )
+      return false;
+    signal.throwIfAborted();
+    const row = database.read((db) =>
+      db
+        .prepare(
+          'SELECT id FROM messaging_bindings WHERE provider_id = ? AND account_ref = ? AND fingerprint = ? AND revoked_at IS NULL',
+        )
+        .get(provider.id, event.botId, event.fingerprint),
+    ) as { id: string } | undefined;
+    if (!row) return true;
+    const lease = controls.get(row.id);
+    if (!lease || lease.controller.signal.aborted) return true;
+    if (
+      event.conversation.kind !== 'dm' ||
+      event.text.trim() !== '/pair' ||
+      event.attachments?.length
+    )
+      return true;
+    let text: string;
+    try {
+      const request = options.pairing.request(row.id, event);
+      text =
+        request.status === 'approved'
+          ? 'This account is already paired with this Bot. / 此账号已与当前 Bot 配对。'
+          : request.status === 'expired'
+            ? 'This pairing request expired. Send a new /pair message to request review. / 配对申请已过期，请重新发送 /pair 申请审核。'
+            : `Pairing request ${request.reference} is waiting for Web administrator review. It expires in 10 minutes and grants no permission until approved. / 配对申请 ${request.reference} 等待 Web 管理员审核，10 分钟后过期；审核前没有管理权限。`;
+    } catch (error) {
+      if (
+        !(error instanceof MessagingError) ||
+        !['pairing-rate-limited', 'pairing-capacity'].includes(error.code)
+      )
+        throw error;
+      return true;
+    }
+    setImmediate(() => {
+      if (
+        closed ||
+        signal.aborted ||
+        lease.controller.signal.aborted ||
+        controls.get(row.id) !== lease
+      )
+        return;
+      void bounded(
+        provider.reply!({
+          accountRef: event.botId,
+          fingerprint: event.fingerprint,
+          route: event.reply,
+          text,
+          signal: AbortSignal.any([signal, lease.controller.signal]),
+          beforeSend: () => {
+            try {
+              const current = database.read((db) => assertMessagingIdentity(db, row.id));
+              return (
+                current.fingerprint === event.fingerprint &&
+                current.accountRef === event.botId &&
+                options.isBotActive(current.botSlug)
+              );
+            } catch {
+              return false;
+            }
+          },
+        }),
+      ).catch(() =>
+        options.warn?.(
+          JSON.stringify({
+            event: 'bot-pairing',
+            phase: 'reply-unconfirmed',
+            initiator: 'control-intake',
+          }),
+        ),
+      );
+    });
+    return true;
+  };
   const service: InboundMessaging = {
     readShared,
     register(provider) {
@@ -986,9 +1166,23 @@ export function createInboundMessaging(options: {
         provider,
         token,
         ...(provider.consume
-          ? { consume: fanoutMessagingConsumer(provider.consume.bind(provider)) }
+          ? {
+              consume: fanoutMessagingConsumer(provider.consume.bind(provider), (event, signal) =>
+                controlIntake(provider, event, signal),
+              ),
+            }
           : {}),
       });
+      if (options.pairing) {
+        const bindings = database.read((db) =>
+          db
+            .prepare(
+              'SELECT id FROM messaging_bindings WHERE provider_id = ? AND revoked_at IS NULL',
+            )
+            .all(provider.id),
+        ) as { id: string }[];
+        for (const { id } of bindings) void startControl(id);
+      }
       const rows = database.read((db) =>
         db.prepare('SELECT body FROM messaging_grants WHERE revoked_at IS NULL').all(),
       ) as { body: string }[];
@@ -999,6 +1193,7 @@ export function createInboundMessaging(options: {
       return () => {
         if (providers.get(provider.id)?.token !== token) return;
         providers.delete(provider.id);
+        for (const [id, control] of controls) if (control.token === token) stopControl(id);
         for (const [id, lease] of leases) if (lease.token === token) stop(id);
         for (const [id, retry] of retries) if (retry.token === token) stop(id);
       };
@@ -1811,7 +2006,22 @@ export function createInboundMessaging(options: {
       signal.throwIfAborted();
       if (!valid(value, false)) throw new MessagingError('consumer-unavailable');
     },
+    pairingReception(bindingId) {
+      const identity = database.read((db) => readMessagingIdentity(db, bindingId));
+      if (
+        identity.platform !== 'feishu' ||
+        !identity.enabled ||
+        identity.revokedAt ||
+        !options.isBotActive(identity.botSlug)
+      )
+        return 'off';
+      const lease = controls.get(bindingId);
+      if (!lease || lease.controller.signal.aborted) return 'unavailable';
+      return lease.dispose ? 'receiving' : 'connecting';
+    },
     async reconcileBinding(bindingId) {
+      stopControl(bindingId);
+      await startControl(bindingId);
       const rows = database.read((db) =>
         db.prepare('SELECT body FROM messaging_grants WHERE binding_id = ?').all(bindingId),
       ) as { body: string }[];
@@ -1822,6 +2032,7 @@ export function createInboundMessaging(options: {
     revoke: stop,
     close() {
       closed = true;
+      for (const id of new Set([...controls.keys(), ...controlRetries.keys()])) stopControl(id);
       for (const id of new Set([...leases.keys(), ...retries.keys()])) stop(id);
       providers.clear();
     },

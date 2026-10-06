@@ -9,6 +9,7 @@ WeChat original voice can be downloaded and prepared for playback.
 
 ### Added
 
+- Added Lark private `/pair` requests with authenticated Web review, explicit Bot-scoped capabilities and revocation that survives restart; pairing messages stay outside the Bot Inbox and Memory, while IM decision controls follow separately ([#1027](https://github.com/BotHarness/BotHarness/issues/1027), [guide](docs/lark-connection.md), [ADR-0135](docs/adr/0135-lark-pairing-is-reviewed-bot-scoped-operational-authority.md)).
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
 
 ## [1.1.0] - 2026-10-06

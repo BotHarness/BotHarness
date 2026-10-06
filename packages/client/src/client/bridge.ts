@@ -1,3 +1,5 @@
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
 import { parsePublicAttention } from './activity-attention.js';
 import {
   isAvatarAppearance,
@@ -3187,6 +3189,23 @@ export async function manageChannelBridge(
   input: ChannelBridgeInput,
 ): Promise<void> {
   await unwrap(call, 'channelBridge', { channelId, input });
+}
+export async function reviewPairing(
+  call: BridgeCall,
+  slug: string,
+  input: PairingReviewInput,
+): Promise<PairingRequest> {
+  const value = asRecord(await unwrap(call, 'pairingReview', { slug, input }));
+  const pairing = asRecord(value?.['pairing']);
+  if (
+    !pairing ||
+    pairing['botSlug'] !== slug ||
+    typeof pairing['id'] !== 'string' ||
+    !Array.isArray(pairing['capabilities']) ||
+    typeof pairing['revision'] !== 'number'
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid pairing review');
+  return pairing as unknown as PairingRequest;
 }
 export async function loadMessagingSnapshot(
   call: BridgeCall,

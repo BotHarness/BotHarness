@@ -81,6 +81,7 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     | 'messagingThreadPolicy'
     | 'messagingReceive'
     | 'messagingChannelTarget'
+    | 'pairingReview'
     | 'messagingIdentity'
     | 'messagingSnapshot'
     | 'messagingTargets'
@@ -92,6 +93,7 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     messagingGroupPolicy: async () => undefined,
     messagingChannelTarget: async () => undefined,
     messagingReceive: async () => undefined,
+    pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
     messagingTargets: async () => [target],
@@ -228,6 +230,7 @@ it('changes group intake only after the Human toggles it and can stop it when th
     messagingChannelTarget,
     messagingReceive,
     messagingSend,
+    pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
     messagingTargets: async () => [],
@@ -328,6 +331,7 @@ it.each(['test', 'slack'])(
       messagingThreadPolicy: async () => undefined,
       messagingReceive: async () => undefined,
       messagingChannelTarget: async () => undefined,
+      pairingReview: vi.fn(),
       messagingIdentity: vi.fn(),
       messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
         accounts: [],
@@ -451,6 +455,7 @@ it('keeps native Thread management available after a grant migrates to Channel B
     messagingChannelTarget: vi.fn(),
     messagingReceive: vi.fn(),
     messagingSend: vi.fn(),
+    pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
     messagingTargets: async () => [],
@@ -572,6 +577,7 @@ it.each(['report', 'reply'] as const)(
     const messagingSend = vi.fn();
     const text = 'Morning report '.repeat(20);
     const actions = {
+      pairingReview: vi.fn(),
       messagingIdentity: vi.fn(),
       messagingGroupPolicy: vi.fn(),
       messagingThreadPolicy: vi.fn(),

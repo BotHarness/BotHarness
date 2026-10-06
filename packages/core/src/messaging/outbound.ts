@@ -1,3 +1,4 @@
+import { createBotPairing, type BotPairing, type PairingRequest } from './pairing.js';
 import {
   assertMessagingIdentity,
   readMessagingIdentity,
@@ -164,6 +165,8 @@ export interface MessagingSnapshot {
     }[];
   };
   identities?: MessagingIdentityView[];
+  pairings?: PairingRequest[];
+  pairingReceivers?: { name: string; status: 'off' | 'connecting' | 'receiving' | 'unavailable' }[];
   channelTargets?: { id: string; name: string }[];
   accounts: (MessagingAccount & { providerId: string })[];
   grants: (MessagingGrant & {
@@ -179,6 +182,7 @@ export interface MessagingSnapshot {
 }
 
 export interface OutboundMessaging {
+  pairing: BotPairing;
   inbound: InboundMessaging;
   defaults<Platform extends string = 'feishu'>(platform?: Platform): MessagingDefaults<Platform>;
   setDefaults(input: MessagingDefaultsInput): Promise<MessagingDefaults>;
@@ -450,7 +454,9 @@ export function createOutboundMessaging(options: {
     }
     return { ...entry, inspected, identityRevision: identity.revision };
   };
+  const pairing = createBotPairing(database, options.isBotActive, options.now);
   const inbound = createInboundMessaging({
+    pairing,
     database,
     bindingAvailable(id) {
       try {
@@ -529,6 +535,7 @@ export function createOutboundMessaging(options: {
   };
   const service: OutboundMessaging = {
     inbound,
+    pairing,
     defaults<Platform extends string = 'feishu'>(platform?: Platform) {
       return database.read((db) => messagingDefaults(db, platform));
     },
@@ -597,6 +604,7 @@ export function createOutboundMessaging(options: {
           },
           ['bindings'],
         );
+        await bounded(inbound.reconcileBinding(bound.id));
         if (bound.enabled) connectorEnabled(bound.platform);
         return bound;
       }
@@ -1255,6 +1263,18 @@ export function createOutboundMessaging(options: {
       return {
         accounts,
         identities,
+        pairings: pairing.list(botSlug),
+        pairingReceivers: identities
+          .filter((i) => i.platform === 'feishu' && !i.revokedAt)
+          .map((i) => ({
+            name: i.name,
+            status:
+              i.availability === 'available'
+                ? inbound.pairingReception(i.id)
+                : i.availability === 'paused'
+                  ? 'off'
+                  : 'unavailable',
+          })),
         grants,
         channelTargets,
         intents,
