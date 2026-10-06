@@ -64,7 +64,6 @@ describe("built release and Development status surfaces", () => {
       expect(built("changelog/development/index.md")).toContain(
         "Added durable PersonaBot identity",
       );
-      // The homepage lists the three newest dated entries, so Development has scrolled off it.
       expect(built("index.html")).toContain('href="/changelog/v110"');
       expect(built("zh/index.html")).toContain('href="/zh/changelog/v110"');
 
