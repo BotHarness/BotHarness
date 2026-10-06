@@ -27,7 +27,13 @@ import {
 import { readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
 import type { MemoryCloneResult } from '../memory/clone.js';
-import { migrateLegacySoul, seedStandingFiles } from '../memory/soul.js';
+import {
+  DEFAULT_STANDING_LIMITS,
+  isStandingLimits,
+  migrateLegacySoul,
+  seedStandingFiles,
+  type StandingLimits,
+} from '../memory/soul.js';
 import type {
   AssignmentModelOption,
   ModelPreset,
@@ -75,6 +81,7 @@ export interface PersonaBotRegistry {
   setComputerAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserProfile(slug: string, profile: string): UpdatePersonaBotResult;
+  setStandingLimits(slug: string, limits: StandingLimits): UpdatePersonaBotResult;
   applyModelPreset(slug: string, preset: ModelPreset): UpdatePersonaBotResult;
   migrateLegacyModel(
     slug: string,
@@ -141,6 +148,11 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     ] as const) {
       if (record[key] !== undefined) Object.assign(result, { [key]: record[key] });
     }
+    if (record.standingLimits !== undefined)
+      result.standingLimits = {
+        soul: record.standingLimits.soul,
+        coreMemory: record.standingLimits.coreMemory,
+      };
     const route = (value: ModelRoute): ModelRoute => ({
       provider: value.provider,
       model: value.model,
@@ -534,6 +546,19 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       const trimmed = profile.trim();
       if (trimmed === '') delete record.browserProfile;
       else record.browserProfile = trimmed;
+      write(record);
+      return { ok: true, record };
+    },
+    setStandingLimits(slug, limits) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (!isStandingLimits(limits)) return { ok: false, reason: 'invalid-input' };
+      if (
+        limits.soul === DEFAULT_STANDING_LIMITS.soul &&
+        limits.coreMemory === DEFAULT_STANDING_LIMITS.coreMemory
+      )
+        delete record.standingLimits;
+      else record.standingLimits = { soul: limits.soul, coreMemory: limits.coreMemory };
       write(record);
       return { ok: true, record };
     },

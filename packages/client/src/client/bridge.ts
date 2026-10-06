@@ -76,6 +76,7 @@ import type {
   ChannelMessage,
   ChannelSummary,
   OwnedSessionSummary,
+  StandingLimitsView,
   UserQuestionAnswerItem,
 } from './store.js';
 import {
@@ -574,7 +575,27 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
         ? { appearanceUnsupported: true as const }
         : {}),
     ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
+    ...(parseStandingLimits(record['standingLimits']) ?? {}),
   };
+}
+
+function parseStandingLimits(value: unknown): { standingLimits: StandingLimitsView } | undefined {
+  const limits = asRecord(value);
+  const soul = limits?.['soul'];
+  const coreMemory = limits?.['coreMemory'];
+  if (typeof soul !== 'number' || typeof coreMemory !== 'number') return undefined;
+  return { standingLimits: { soul, coreMemory } };
+}
+
+export async function setStandingLimits(
+  call: BridgeCall,
+  slug: string,
+  limits: StandingLimitsView,
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'standingLimitsSet', { slug, ...limits }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('Invalid PersonaBot result');
+  return bot;
 }
 
 export function parseBotSummaries(value: unknown): BotSummary[] {
@@ -2561,10 +2582,34 @@ export interface GroupProfileActivity {
   authors: GroupProfileAuthorActivity[];
 }
 
+export interface MemoryStandingUsage {
+  path: string;
+  role: 'soul' | 'coreMemory';
+  chars: number;
+  limit: number;
+}
+
 export interface MemorySnapshot {
   head: string | null;
   files: string[];
   provisional: boolean;
+  standing: MemoryStandingUsage[];
+}
+
+function parseStandingUsage(value: unknown): MemoryStandingUsage[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry): MemoryStandingUsage[] => {
+    const row = asRecord(entry);
+    if (
+      row === undefined ||
+      typeof row['path'] !== 'string' ||
+      (row['role'] !== 'soul' && row['role'] !== 'coreMemory') ||
+      typeof row['chars'] !== 'number' ||
+      typeof row['limit'] !== 'number'
+    )
+      return [];
+    return [{ path: row['path'], role: row['role'], chars: row['chars'], limit: row['limit'] }];
+  });
 }
 
 function parseMemoryCommit(value: unknown): MemoryAcceptedCommit {
@@ -2599,7 +2644,12 @@ export async function loadMemorySnapshot(
     typeof snapshot['provisional'] !== 'boolean'
   )
     throw new Error('invalid Memory snapshot');
-  return snapshot as unknown as MemorySnapshot;
+  return {
+    head: snapshot['head'],
+    files: snapshot['files'] as string[],
+    provisional: snapshot['provisional'],
+    standing: parseStandingUsage(snapshot['standing']),
+  };
 }
 
 export async function loadWorkspaceFileTarget(

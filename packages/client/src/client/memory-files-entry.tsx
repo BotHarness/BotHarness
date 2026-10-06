@@ -91,6 +91,7 @@ function MemoryFilesForScope({
       ) : (
         <MemoryFileTree
           paths={snapshot.files}
+          standing={snapshot.standing}
           actions={actions}
           botSlug={botSlug}
           selectedPath={selectedMemoryFilePath}

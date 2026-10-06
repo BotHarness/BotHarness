@@ -25,7 +25,12 @@ import { LOCAL_HUMAN_ID } from '../channels/channel.js';
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
-import { STANDING_FILES } from './soul.js';
+import {
+  DEFAULT_STANDING_LIMITS,
+  STANDING_FILES,
+  standingUsage,
+  type StandingUsage,
+} from './soul.js';
 import { toMemoryRelativePath, resolveMemoryPath } from './jail.js';
 import { createMemoryRecovery, type MemoryRecoveryCheckpoint } from './recovery.js';
 
@@ -75,6 +80,7 @@ export interface MemoryAcceptedSnapshot {
   head: string | null;
   files: string[];
   provisional: boolean;
+  standing: StandingUsage[];
 }
 
 export interface MemoryChangeDelta {
@@ -1258,6 +1264,10 @@ export function createMemoryAcceptance(options: {
         head: head(root),
         files: listCurrentFiles(root),
         provisional: repairing,
+        standing: standingUsage(
+          root,
+          registry.get(botSlug)?.standingLimits ?? DEFAULT_STANDING_LIMITS,
+        ),
       };
     },
     readAccepted(botSlug, path) {

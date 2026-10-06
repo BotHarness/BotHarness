@@ -13,7 +13,7 @@ import { ensureMemoryRepository } from './repository.js';
 import { resolveMemoryPath, toMemoryRelativePath, toMemoryWritePath } from './jail.js';
 import { searchMemoryFiles, type MemorySearchFile, type MemorySearchHit } from './search.js';
 import { listMemoryFiles, readMemoryDocument } from './files.js';
-import { renderStandingPrompt } from './soul.js';
+import { renderStandingPrompt, type StandingLimits } from './soul.js';
 
 export class MemoryWriteError extends Error {
   constructor(message: string) {
@@ -59,7 +59,7 @@ export interface MemoryStore {
   read(path: string): MemoryEntry | undefined;
   write(input: MemoryWriteInput): Promise<MemoryWriteResult>;
   search(query: string): Promise<MemorySearchHit[]>;
-  standingPrompt(): string;
+  standingPrompt(limits?: StandingLimits): string;
   history(limit?: number): MemoryCommit[];
 }
 
@@ -165,8 +165,8 @@ export function createMemoryStore(options: MemoryStoreOptions): MemoryStore {
     async search(query) {
       return searchMemoryFiles(root, listSearchFiles(root), query);
     },
-    standingPrompt() {
-      return renderStandingPrompt(root);
+    standingPrompt(limits) {
+      return renderStandingPrompt(root, limits);
     },
     history(limit) {
       return git.log(limit);

@@ -15,6 +15,23 @@ export interface StandingLimits {
 }
 
 export const DEFAULT_STANDING_LIMITS: StandingLimits = { soul: 5000, coreMemory: 3000 };
+export const MIN_STANDING_LIMIT = 500;
+export const MAX_STANDING_LIMIT = 50_000;
+
+export function isStandingLimit(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= MIN_STANDING_LIMIT &&
+    value <= MAX_STANDING_LIMIT
+  );
+}
+
+export function isStandingLimits(value: unknown): value is StandingLimits {
+  if (typeof value !== 'object' || value === null) return false;
+  const limits = value as Record<string, unknown>;
+  return isStandingLimit(limits['soul']) && isStandingLimit(limits['coreMemory']);
+}
 
 export const CORE_MEMORY_TEMPLATE = `# Core Memory
 
@@ -37,6 +54,43 @@ export function readSoulBody(root: string): { file: string; body: string } | und
 
 function formatCount(value: number): string {
   return value.toLocaleString('en-US');
+}
+
+export interface StandingUsage {
+  path: string;
+  role: 'soul' | 'coreMemory';
+  chars: number;
+  limit: number;
+}
+
+function characterCount(body: string): number {
+  return [...body.trimEnd()].length;
+}
+
+export function standingUsage(
+  root: string,
+  limits: StandingLimits = DEFAULT_STANDING_LIMITS,
+): StandingUsage[] {
+  const usage: StandingUsage[] = [];
+  const soul = readSoulBody(root);
+  if (soul !== undefined) {
+    usage.push({
+      path: soul.file,
+      role: 'soul',
+      chars: characterCount(soul.body),
+      limit: limits.soul,
+    });
+  }
+  const coreMemory = readBody(root, CORE_MEMORY_FILE);
+  if (coreMemory !== undefined) {
+    usage.push({
+      path: CORE_MEMORY_FILE,
+      role: 'coreMemory',
+      chars: characterCount(coreMemory),
+      limit: limits.coreMemory,
+    });
+  }
+  return usage;
 }
 
 function renderSection(title: string, file: string, body: string, limit: number): string {

@@ -132,6 +132,7 @@ import {
   applyModelPreset,
   customizeModelPlan,
   setModelPlanAssignments,
+  setStandingLimits,
   type ModelCatalogEntryView,
   type ModelPresetView,
   type ModelPlanView,
@@ -204,6 +205,7 @@ import {
 } from './roster-order.js';
 import type {
   BotSummary,
+  StandingLimitsView,
   ChannelAttachmentRef,
   ChannelMessage,
   ChannelSummary,
@@ -280,6 +282,7 @@ export interface BridgeActions {
   ): Promise<ModelPresetView>;
   applyModelPreset(slug: string, presetId: string): Promise<ModelPlanView>;
   customizeModelPlan(slug: string, orchestrator: ModelRouteView): Promise<ModelPlanView>;
+  setStandingLimits(slug: string, limits: StandingLimitsView): Promise<BotSummary>;
   setModelPlanAssignments(
     slug: string,
     expectedRevision: number,
@@ -981,6 +984,7 @@ export function createActions(
       updateModelPreset(call, id, expectedRevision, name, orchestrator, assignmentDefault),
     applyModelPreset: (slug, presetId) => applyModelPreset(call, slug, presetId),
     customizeModelPlan: (slug, orchestrator) => customizeModelPlan(call, slug, orchestrator),
+    setStandingLimits: (slug, limits) => setStandingLimits(call, slug, limits),
     setModelPlanAssignments: (slug, expectedRevision, assignmentDefault, assignmentModels) =>
       setModelPlanAssignments(call, slug, expectedRevision, assignmentDefault, assignmentModels),
     listHostFolders(path, signal) {

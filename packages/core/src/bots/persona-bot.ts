@@ -1,3 +1,4 @@
+import { isStandingLimits, type StandingLimits } from '../memory/soul.js';
 import { isPersonaBotModelPlan, type PersonaBotModelPlan } from '../models/presets.js';
 import { createHash } from 'node:crypto';
 import {
@@ -27,6 +28,8 @@ export interface PersonaBotRecord {
   computerAccess?: boolean;
   browserAccess?: boolean;
   browserProfile?: string;
+
+  standingLimits?: StandingLimits;
 }
 
 export interface CreatePersonaBotInput {
@@ -139,6 +142,8 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
     if (optional !== undefined && typeof optional !== 'string') return false;
   }
   if (record['modelPlan'] !== undefined && !isPersonaBotModelPlan(record['modelPlan']))
+    return false;
+  if (record['standingLimits'] !== undefined && !isStandingLimits(record['standingLimits']))
     return false;
   return true;
 }
