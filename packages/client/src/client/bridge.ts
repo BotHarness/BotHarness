@@ -1415,13 +1415,49 @@ export async function importBotZip(file: File, signal?: AbortSignal): Promise<Bo
   return bot;
 }
 
+export interface BotZipFileListing {
+  files: Array<{ path: string; size: number }>;
+  always: string[];
+}
+
+export async function loadBotZipFiles(
+  slug: string,
+  signal?: AbortSignal,
+): Promise<BotZipFileListing> {
+  const response = await fetch(botZipUrl('bot-zip/files', { slug }), {
+    credentials: 'same-origin',
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  const value = asRecord(await response.json());
+  const files: BotZipFileListing['files'] = [];
+  for (const item of Array.isArray(value?.['files']) ? value['files'] : []) {
+    const entry = asRecord(item);
+    if (typeof entry?.['path'] === 'string' && typeof entry['size'] === 'number') {
+      files.push({ path: entry['path'], size: entry['size'] });
+    }
+  }
+  const always = Array.isArray(value?.['always'])
+    ? value['always'].filter((path): path is string => typeof path === 'string')
+    : [];
+  return { files, always };
+}
+
 export async function downloadBotZip(
   slug: string,
   fallbackName: string,
+  include?: readonly string[],
   signal?: AbortSignal,
 ): Promise<{ blob: Blob; name: string }> {
-  const response = await fetch(botZipUrl('bot-zip', { slug }), {
+  const response = await fetch(botZipUrl('bot-zip', include === undefined ? { slug } : {}), {
     credentials: 'same-origin',
+    ...(include === undefined
+      ? {}
+      : {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ slug, include }),
+        }),
     ...(signal === undefined ? {} : { signal }),
   });
   if (!response.ok) throw await botZipError(response);

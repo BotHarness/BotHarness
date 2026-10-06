@@ -14,7 +14,12 @@ import { installOrchestratorFileTools } from './workspaces/orchestrator-file-too
 import { nativeExecutionRoot } from './workspaces/grant-native-tools.js';
 import { createAttachmentStore, type AttachmentStore } from './attachments/store.js';
 import { createMemoryFileHttp, MEMORY_FILE_DOWNLOAD_PATH } from './memory/file-http.js';
-import { BOT_ZIP_EXPORT_PATH, BOT_ZIP_IMPORT_PATH, createBotZipHttp } from './bots/bot-zip-http.js';
+import {
+  BOT_ZIP_EXPORT_PATH,
+  BOT_ZIP_FILES_PATH,
+  BOT_ZIP_IMPORT_PATH,
+  createBotZipHttp,
+} from './bots/bot-zip-http.js';
 import {
   createAttachmentHttp,
   CHANNEL_ATTACHMENT_PATH,
@@ -1212,11 +1217,21 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       () =>
         connection.fetch.register({
           path: BOT_ZIP_EXPORT_PATH,
-          methods: ['GET'],
+          methods: ['GET', 'POST'],
           requestBody: 'buffered',
           fetch: botZipHttp,
         }),
       'botharness: Bot Zip export',
+    );
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_ZIP_FILES_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: botZipHttp,
+        }),
+      'botharness: Bot Zip file list',
     );
     connectionCtx.effect(
       () =>

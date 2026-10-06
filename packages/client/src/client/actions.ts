@@ -73,6 +73,8 @@ import {
   createPersonaBot,
   downloadBotZip,
   importBotZip,
+  loadBotZipFiles,
+  type BotZipFileListing,
   createRosterSection,
   errorMessage,
   loadWorkspaceOptions,
@@ -484,7 +486,8 @@ export interface BridgeActions {
   ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   importBotZip(file: File, sectionId?: string): Promise<BotSummary>;
-  exportBotZip(slug: string, displayName: string): Promise<void>;
+  botZipFiles(slug: string): Promise<BotZipFileListing>;
+  exportBotZip(slug: string, displayName: string, include?: readonly string[]): Promise<void>;
   marketplaceList(query?: MarketplaceQuery): Promise<MarketplacePage>;
   marketplaceChallenge(): Promise<AltchaChallenge>;
   marketplaceSubmit(url: string, altcha: string): Promise<MarketplaceEntry>;
@@ -1968,8 +1971,11 @@ export function createActions(
     async importBotZip(file, sectionId) {
       return openCreatedBot(await importBotZip(file), sectionId);
     },
-    async exportBotZip(slug, displayName) {
-      const { blob, name } = await downloadBotZip(slug, displayName);
+    botZipFiles(slug) {
+      return loadBotZipFiles(slug);
+    },
+    async exportBotZip(slug, displayName, include) {
+      const { blob, name } = await downloadBotZip(slug, displayName, include);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
