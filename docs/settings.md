@@ -55,15 +55,16 @@ These are native DSH settings. Initial values below were observed in a clean RC1
 
 ![Bot appearance, sorting, developer mode, and task concurrency](/guides/settings/settings-bot-global-zh.webp)
 
-| Field                         | Default / options                                       | Save and effect                                                                                                                |
-| ----------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Bot icon                      | DeepSeekBot mascot; simple, generated, or generic robot | Click to save. Changes the app/sidebar settings marker, not each Bot's avatar.                                                 |
-| Motion                        | System; reduced or full                                 | Selection saves immediately. The preview reports effective motion.                                                             |
-| Bot list sorting              | Recently updated; manual                                | Default sorting; drag rows for manual order. Pinned areas/sections may have their own sort choice.                             |
-| Developer mode                | Off                                                     | Shows workspace grant history and advanced options; grants no file access.                                                     |
-| Auto-accept Group invitations | On                                                      | Join invited BotHarness Groups without waking the Bot. When off, the invited Bot decides. Does not configure an IM connection. |
-| Assignment concurrency limit  | 3; integer 1–32                                         | Enter and Save. Shared across Bots; limits executing tasks, not historical sessions. Lowering it does not stop running tasks.  |
-| My default name               | Empty → Human; maximum 128 characters                   | Save name for chat, mentions, and Bot context. Restore default or save empty to return to Human.                               |
+| Field                         | Default / options                                       | Save and effect                                                                                                                                            |
+| ----------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bot icon                      | DeepSeekBot mascot; simple, generated, or generic robot | Click to save. Changes the app/sidebar settings marker, not each Bot's avatar.                                                                             |
+| Motion                        | System; reduced or full                                 | Selection saves immediately. The preview reports effective motion.                                                                                         |
+| Bot list sorting              | Recently updated; manual                                | Default sorting; drag rows for manual order. Pinned areas/sections may have their own sort choice.                                                         |
+| Developer mode                | Off                                                     | Shows workspace grant history and advanced options; grants no file access.                                                                                 |
+| Auto-accept Group invitations | On                                                      | Join invited BotHarness Groups without waking the Bot. When off, the invited Bot decides. Does not configure an IM connection.                             |
+| Assignment concurrency limit  | 3; integer 1–32                                         | Enter and Save. Shared across Bots; limits executing tasks, not historical sessions. Lowering it does not stop running tasks.                              |
+| DeepSeekBot version           | Shows the running version                               | Check for updates queries npm; Update now installs a new release, and on the web Restart now loads it. See [Update DeepSeekBot](/docs/update-deepseekbot). |
+| My default name               | Empty → Human; maximum 128 characters                   | Save name for chat, mentions, and Bot context. Restore default or save empty to return to Human.                                                           |
 
 The lower “External platform defaults” area belongs to IM intake/identity settings; see [Lark / Feishu](/docs/lark-connection) and [Slack](/docs/slack-connection).
 

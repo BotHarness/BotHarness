@@ -15,6 +15,7 @@ import { Modal } from './modal.js';
 import { useMountedResource } from './mounted-resource.js';
 import type {
   ReleaseInstallState,
+  ReleaseRestartState,
   ReleaseNotesController,
   ReleaseNotesSnapshot,
 } from './release-notes.js';
@@ -240,10 +241,58 @@ function ManualUpdate({ latest, t }: { latest: string; t: BotHarnessTranslate })
           {t(copied ? 'release.update.copied' : 'release.update.copy')}
         </Button>
       </div>
-      <div className="bh-settings-row-desc">
-        {t('release.update.desktop', { spec: `deepseekbot@${latest}` })}
-      </div>
+      <div className="bh-settings-row-desc">{t('release.update.desktop')}</div>
     </>
+  );
+}
+
+function runsInDesktop(): boolean {
+  return 'dshDesktop' in globalThis;
+}
+
+function RestartGuide({
+  restartable,
+  state,
+  onRestart,
+  t,
+}: {
+  restartable: boolean;
+  state: ReleaseRestartState;
+  onRestart: () => void;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  if (runsInDesktop()) {
+    return <div className="bh-settings-row-desc">{t('release.restart.desktop')}</div>;
+  }
+  if (!restartable || state.status === 'failed') {
+    return (
+      <>
+        {state.status === 'failed' ? (
+          <div className="bh-release-install-error" role="alert" data-release-restart-error>
+            {t('release.restart.failed')}
+          </div>
+        ) : null}
+        <div className="bh-settings-row-desc">{t('release.restart.web')}</div>
+        <div className="bh-settings-row-desc">{t('release.restart.desktop')}</div>
+      </>
+    );
+  }
+  const restarting = state.status === 'restarting';
+  return (
+    <div className="bh-release-update-head">
+      <span className="bh-settings-row-desc bh-release-restart-hint">
+        {t(restarting ? 'release.restart.progress' : 'release.restart.hint')}
+      </span>
+      <Button
+        size="sm"
+        variant="primary"
+        disabled={restarting}
+        data-release-restart-action
+        onClick={onRestart}
+      >
+        {t(restarting ? 'release.restart.running' : 'release.restart.action')}
+      </Button>
+    </div>
   );
 }
 
@@ -356,8 +405,14 @@ export function ReleaseSettings({ releaseNotes, t }: ReleaseSettingsProps): Reac
               {t('release.restart.title', { installed: update.installed })}
             </span>
           </div>
-          <div className="bh-settings-row-desc">{t('release.restart.web')}</div>
-          <div className="bh-settings-row-desc">{t('release.restart.desktop')}</div>
+          <RestartGuide
+            restartable={update.restartable}
+            state={snapshot.restart}
+            onRestart={() => {
+              void releaseNotes.restart();
+            }}
+            t={t}
+          />
         </div>
       ) : null}
       <ReleaseNotesDialog

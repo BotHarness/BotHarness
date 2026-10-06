@@ -74,6 +74,7 @@ function bridge(
   releases: (since: string | undefined) => ReleaseNote[],
   update: unknown = { status: 'current', current: version, latest: version },
   install: unknown = { status: 'failed', reason: 'unavailable' },
+  restart: unknown = { status: 'failed', reason: 'unavailable' },
 ) {
   return vi.fn<BridgeCall>(async (endpoint, payload) => {
     if (endpoint === 'releaseInfo') {
@@ -82,6 +83,7 @@ function bridge(
     }
     if (endpoint === 'releaseUpdate') return { ok: true, value: update };
     if (endpoint === 'releaseInstall') return { ok: true, value: install };
+    if (endpoint === 'releaseRestart') return { ok: true, value: restart };
     throw new Error(`unexpected ${endpoint}`);
   });
 }
@@ -207,6 +209,7 @@ describe('ReleaseNotesController install', () => {
       status: 'installed',
       current: '1.0.1',
       installed: '1.1.0',
+      restartable: true,
     });
     const controller = new ReleaseNotesController(call, memoryStorage());
     await controller.start();
@@ -219,7 +222,56 @@ describe('ReleaseNotesController install', () => {
       status: 'restart-required',
       current: '1.0.1',
       installed: '1.1.0',
+      restartable: true,
     });
+  });
+
+  it('restarts DSH and reloads the page once the new Host answers', async () => {
+    let hostVersion = '1.0.1';
+    let down = false;
+    const call = vi.fn<BridgeCall>(async (endpoint) => {
+      if (down) throw new Error('disconnected');
+      if (endpoint === 'releaseInfo')
+        return { ok: true, value: { version: hostVersion, releases: [] } };
+      if (endpoint === 'releaseUpdate') {
+        return {
+          ok: true,
+          value: {
+            status: 'restart-required',
+            current: '1.0.1',
+            installed: '1.1.0',
+            restartable: true,
+          },
+        };
+      }
+      if (endpoint === 'releaseRestart') return { ok: true, value: { status: 'restarting' } };
+      throw new Error(`unexpected ${endpoint}`);
+    });
+    const reload = vi.fn();
+    let polls = 0;
+    const controller = new ReleaseNotesController(call, memoryStorage(), {
+      wait: async () => {
+        polls += 1;
+        down = polls === 1;
+        if (polls === 3) hostVersion = '1.1.0';
+      },
+      reload,
+    });
+    await controller.start();
+    await controller.checkUpdate();
+    await controller.restart();
+    expect(controller.source.getSnapshot().restart).toEqual({ status: 'restarting' });
+    expect(polls).toBe(3);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks the restart failed when the Host refuses it', async () => {
+    const controller = new ReleaseNotesController(
+      bridge('1.0.1', () => [], undefined, undefined, { status: 'failed', reason: 'unavailable' }),
+      memoryStorage(),
+    );
+    await controller.restart();
+    expect(controller.source.getSnapshot().restart).toEqual({ status: 'failed' });
   });
 
   it('keeps the update offer and records why an install failed', async () => {
@@ -345,7 +397,8 @@ describe('release notes views', () => {
         '1.0.1',
         () => [],
         { status: 'available', current: '1.0.1', latest: '1.1.0', releases: [], installable: true },
-        { status: 'installed', current: '1.0.1', installed: '1.1.0' },
+        { status: 'installed', current: '1.0.1', installed: '1.1.0', restartable: true },
+        { status: 'failed', reason: 'unavailable' },
       ),
       memoryStorage({ [RELEASE_NOTES_SEEN_KEY]: '1.0.1' }),
     );
@@ -368,8 +421,46 @@ describe('release notes views', () => {
       expect(view.host.textContent).toContain('已更新到 1.1.0，重启 DSH 后生效');
       expect(view.host.textContent).toContain('当前运行 1.0.1，已安装 1.1.0，重启 DSH 后生效');
       expect(buttonNamed(view.host, '检查更新')?.disabled).toBe(true);
+      expect(view.host.textContent).toContain('重启会中断正在运行的任务');
+      await act(async () => {
+        buttonNamed(view.host, '立即重启')?.click();
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(view.host.querySelector('[data-release-restart-error]')?.textContent).toBe(
+        '没能自动重启，请按下面的方式手动重启。',
+      );
+      expect(view.host.textContent).toContain('在运行 dsh web 的终端按 Ctrl+C');
     } finally {
       view.unmount();
+    }
+  });
+
+  it('shows only the Desktop restart step inside DSH Desktop', async () => {
+    Object.assign(globalThis, { dshDesktop: {} });
+    const controller = new ReleaseNotesController(
+      bridge('1.0.1', () => [], {
+        status: 'restart-required',
+        current: '1.0.1',
+        installed: '1.1.0',
+        restartable: true,
+      }),
+      memoryStorage({ [RELEASE_NOTES_SEEN_KEY]: '1.0.1' }),
+    );
+    const view = await render(
+      createElement(ReleaseSettings, { releaseNotes: controller, t } as never),
+    );
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(view.host.textContent).toContain('桌面版：完全退出 DSH 后重新打开。');
+      expect(buttonNamed(view.host, '立即重启')).toBeUndefined();
+      expect(view.host.textContent).not.toContain('dsh web');
+    } finally {
+      view.unmount();
+      delete (globalThis as { dshDesktop?: unknown }).dshDesktop;
     }
   });
 

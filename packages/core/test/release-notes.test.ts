@@ -14,6 +14,7 @@ import {
   type ReleaseInstallerResult,
 } from '../src/release/service.js';
 import { compareVersions, isReleaseVersion } from '../src/release/version.js';
+import type { ReleaseRestarter } from '../src/release/restart.js';
 
 const english = `# DeepSeekBot Changelog
 
@@ -249,7 +250,11 @@ describe('release service', () => {
     };
   }
 
-  function installable(manager: ReleaseInstaller | undefined, version = '1.0.1') {
+  function installable(
+    manager: ReleaseInstaller | undefined,
+    version = '1.0.1',
+    restarter?: ReleaseRestarter,
+  ) {
     return createReleaseService({
       version: () => version,
       ledgers,
@@ -257,8 +262,33 @@ describe('release service', () => {
       registries: ['https://registry.test'],
       noteSources: [],
       installer: () => manager,
+      restarter: () => restarter,
     });
   }
+
+  it('restarts DSH only when an installed update is waiting and the launcher allows it', async () => {
+    const restarter = { restart: vi.fn() };
+    const fresh = installer({ application: 'restart-required' });
+    expect(await installable(fresh, '1.0.1', restarter).restart()).toEqual({
+      status: 'failed',
+      reason: 'not-pending',
+    });
+    expect(await installable(fresh).restart()).toEqual({ status: 'failed', reason: 'unavailable' });
+    expect(restarter.restart).not.toHaveBeenCalled();
+
+    const service = installable(fresh, '1.0.1', restarter);
+    expect(await service.install('1.1.0')).toMatchObject({ restartable: true });
+    expect(await service.update()).toMatchObject({ restartable: true });
+    expect(await service.restart()).toEqual({ status: 'restarting' });
+    expect(restarter.restart).toHaveBeenCalledTimes(1);
+
+    const staged = installer({ application: 'restart-required' }, [
+      { name: 'deepseekbot', installed: true, version: '1.1.0' },
+    ]);
+    expect(await installable(staged, '1.0.1', restarter).restart()).toEqual({
+      status: 'restarting',
+    });
+  });
 
   it('offers one-click install only when the Plugin Manager holds the deepseekbot bundle', async () => {
     expect(
@@ -279,12 +309,14 @@ describe('release service', () => {
       status: 'installed',
       current: '1.0.1',
       installed: '1.1.0',
+      restartable: false,
     });
     expect(manager.installBundle).toHaveBeenCalledWith('deepseekbot@1.1.0');
     expect(await service.update()).toEqual({
       status: 'restart-required',
       current: '1.0.1',
       installed: '1.1.0',
+      restartable: false,
     });
   });
 
@@ -296,6 +328,7 @@ describe('release service', () => {
       status: 'restart-required',
       current: '1.0.1',
       installed: '1.1.0',
+      restartable: false,
     });
     expect(await installable(manager, '1.1.0').update()).toMatchObject({ status: 'current' });
   });

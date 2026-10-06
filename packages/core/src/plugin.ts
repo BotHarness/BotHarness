@@ -28,6 +28,7 @@ import {
   installedRelease,
   type ReleaseInstaller,
 } from './release/service.js';
+import { createProcessRestarter, type ReleaseRestarter } from './release/restart.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
@@ -931,6 +932,17 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       };
     }, 'botharness: release installer');
   });
+  const releaseRestarter: { current: ReleaseRestarter | undefined } = { current: undefined };
+  ctx.inject(['appExit'], (exitCtx) => {
+    exitCtx.effect(() => {
+      releaseRestarter.current = createProcessRestarter({
+        exit: (exitCtx as unknown as { appExit: (code: number) => void }).appExit,
+      });
+      return () => {
+        releaseRestarter.current = undefined;
+      };
+    }, 'botharness: release restarter');
+  });
   registerBridge(
     ctx,
     createBridgeMethods({
@@ -972,6 +984,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         version: () => runningRelease.version,
         ledgers: () => runningRelease.ledgers,
         installer: () => releaseInstaller.current,
+        restarter: () => releaseRestarter.current,
       }),
       developerMode: {
         set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),

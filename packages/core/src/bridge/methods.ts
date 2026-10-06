@@ -43,6 +43,7 @@ import type { AltchaChallenge } from '../marketplace/altcha.js';
 import type {
   ReleaseInfo,
   ReleaseInstall,
+  ReleaseRestart,
   ReleaseService,
   ReleaseUpdate,
 } from '../release/service.js';
@@ -432,6 +433,7 @@ export interface BridgeMethods {
   releaseInfo(payload: unknown): BridgeResult<ReleaseInfo>;
   releaseUpdate(): Promise<BridgeResult<ReleaseUpdate>>;
   releaseInstall(payload: unknown): Promise<BridgeResult<ReleaseInstall>>;
+  releaseRestart(payload: unknown): Promise<BridgeResult<ReleaseRestart>>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
   scheduleCreate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
   scheduleUpdate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
@@ -1513,6 +1515,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const version = asObject(payload)['version'];
       if (typeof version !== 'string') return invalidInput('version is required');
       return { ok: true, value: await deps.release.install(version) };
+    },
+    async releaseRestart() {
+      if (deps.release === undefined) return releaseUnavailable();
+      return { ok: true, value: await deps.release.restart() };
     },
     marketplaceDetail(payload) {
       const id = asObject(payload)['id'];

@@ -1754,7 +1754,8 @@ export const zh = {
   'release.update.cli': '在终端运行以下命令更新，完成后重启 DSH：',
   'release.update.copy': '复制',
   'release.update.copied': '已复制',
-  'release.update.desktop': '桌面版：打开「插件 → 添加插件」，输入 {spec} 安装，然后重启 DSH。',
+  'release.update.desktop':
+    '桌面版：DSH 的插件页暂时不能升级已安装的插件。请在终端运行上面的命令，把 web 换成桌面版使用的 Profile 名（DSH 数据目录 profiles/ 下的文件夹名），然后重启 DSH。',
   'release.status.restart': '当前运行 {version}，已安装 {installed}，重启 DSH 后生效',
   'release.install.action': '立即更新',
   'release.install.running': '正在更新…',
@@ -1771,6 +1772,11 @@ export const zh = {
   'release.restart.web':
     'Web：在运行 dsh web 的终端按 Ctrl+C 停止，再运行一次 dsh web，然后刷新页面。',
   'release.restart.desktop': '桌面版：完全退出 DSH 后重新打开。',
+  'release.restart.action': '立即重启',
+  'release.restart.running': '正在重启…',
+  'release.restart.hint': '重启会中断正在运行的任务，页面会自动重新连接。',
+  'release.restart.progress': '正在重启 DSH，页面会在几秒后自动重新连接…',
+  'release.restart.failed': '没能自动重启，请按下面的方式手动重启。',
 } as const satisfies Record<string, string>;
 
 export type BotHarnessKey = keyof typeof zh;
@@ -3613,7 +3619,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'release.update.copy': 'Copy',
   'release.update.copied': 'Copied',
   'release.update.desktop':
-    'Desktop app: open Plugins → Add plugin, install {spec}, then restart DSH.',
+    'Desktop app: the DSH Plugins page cannot upgrade an installed plugin yet. Run the command above with web replaced by the Desktop profile name (the folder under profiles/ in the DSH data directory), then restart DSH.',
   'release.status.restart':
     'Running {version}; {installed} is installed and loads after a DSH restart',
   'release.install.action': 'Update now',
@@ -3635,6 +3641,11 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'release.restart.web':
     'Web: press Ctrl+C in the terminal running dsh web, run dsh web again, then reload this page.',
   'release.restart.desktop': 'Desktop app: quit DSH completely and open it again.',
+  'release.restart.action': 'Restart now',
+  'release.restart.running': 'Restarting…',
+  'release.restart.hint': 'Restarting stops running tasks. This page reconnects on its own.',
+  'release.restart.progress': 'Restarting DSH. This page reconnects in a few seconds…',
+  'release.restart.failed': 'DSH could not restart itself. Restart it by hand as shown below.',
 } satisfies Record<BotHarnessKey, string>;
 
 export type BotHarnessTranslate = TranslateNS<typeof LOCALE_NS>;

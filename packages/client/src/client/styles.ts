@@ -6083,6 +6083,9 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
   font-weight: 600;
   color: var(--dsw-alias-label-primary);
 }
+.bh-release-restart-hint {
+  margin-right: auto;
+}
 .bh-release-command {
   display: flex;
   align-items: center;

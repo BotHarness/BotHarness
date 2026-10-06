@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 
 import { pairReleaseLedgers, selectReleaseNotes, type ReleaseNote } from './notes.js';
+import type { ReleaseRestarter } from './restart.js';
 import { compareVersions, isReleaseVersion } from './version.js';
 
 export const RELEASE_PACKAGE = 'deepseekbot';
@@ -41,7 +42,7 @@ export type ReleaseUpdate =
       releases: ReleaseNote[];
       installable: boolean;
     }
-  | { status: 'restart-required'; current: string; installed: string };
+  | { status: 'restart-required'; current: string; installed: string; restartable: boolean };
 
 export type ReleaseInstallFailure =
   | 'unavailable'
@@ -52,13 +53,17 @@ export type ReleaseInstallFailure =
   | 'failed';
 
 export type ReleaseInstall =
-  | { status: 'installed'; current: string; installed: string }
+  | { status: 'installed'; current: string; installed: string; restartable: boolean }
   | {
       status: 'failed';
       reason: ReleaseInstallFailure;
       diagnostic?: string;
       logPath?: string;
     };
+
+export type ReleaseRestart =
+  | { status: 'restarting' }
+  | { status: 'failed'; reason: 'unavailable' | 'not-pending' };
 
 type CheckResult =
   | Exclude<ReleaseUpdate, { status: 'available' } | { status: 'restart-required' }>
@@ -84,6 +89,7 @@ export interface ReleaseService {
   info(since?: string): ReleaseInfo;
   update(): Promise<ReleaseUpdate>;
   install(version: string): Promise<ReleaseInstall>;
+  restart(): Promise<ReleaseRestart>;
 }
 
 export interface ReleaseServiceOptions {
@@ -95,6 +101,7 @@ export interface ReleaseServiceOptions {
   noteSources?: readonly ((version: string) => string)[];
   timeoutMs?: number;
   installer?: () => ReleaseInstaller | undefined;
+  restarter?: () => ReleaseRestarter | undefined;
 }
 
 function readFirst(candidates: readonly URL[]): string | undefined {
@@ -213,7 +220,12 @@ export function createReleaseService(options: ReleaseServiceOptions): ReleaseSer
       return failureOf(result);
     }
     installed = version;
-    return { status: 'installed', current, installed: version };
+    return {
+      status: 'installed',
+      current,
+      installed: version,
+      restartable: options.restarter?.() !== undefined,
+    };
   };
 
   const installedNotes = (): ReleaseNote[] => {
@@ -305,7 +317,12 @@ export function createReleaseService(options: ReleaseServiceOptions): ReleaseSer
       const bundle = await profileBundle();
       const pendingVersion = installed ?? newerInProfile(current, bundle?.version);
       if (pendingVersion !== undefined) {
-        return { status: 'restart-required', current, installed: pendingVersion };
+        return {
+          status: 'restart-required',
+          current,
+          installed: pendingVersion,
+          restartable: options.restarter?.() !== undefined,
+        };
       }
       const result = await checked();
       if (result.status !== 'available') return result;
@@ -316,6 +333,15 @@ export function createReleaseService(options: ReleaseServiceOptions): ReleaseSer
         installing = undefined;
       });
       return installing;
+    },
+    async restart() {
+      const restarter = options.restarter?.();
+      if (restarter === undefined) return { status: 'failed', reason: 'unavailable' };
+      const pendingVersion =
+        installed ?? newerInProfile(options.version(), (await profileBundle())?.version);
+      if (pendingVersion === undefined) return { status: 'failed', reason: 'not-pending' };
+      restarter.restart();
+      return { status: 'restarting' };
     },
   };
 }

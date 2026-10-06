@@ -369,6 +369,7 @@ describe('plugin entry', () => {
       'releaseInfo',
       'releaseUpdate',
       'releaseInstall',
+      'releaseRestart',
       'scheduleList',
       'scheduleCreate',
       'scheduleUpdate',
