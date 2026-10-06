@@ -223,7 +223,7 @@ export function createBotPairing(
         if (input.kind === 'approve') {
           const approved = db
             .prepare(
-              "SELECT count(*) AS n FROM messaging_pairings WHERE bot_slug = ? AND status = 'approved'",
+              "SELECT count(*) AS n FROM messaging_pairings AS p JOIN messaging_bindings AS b ON b.id = p.binding_id WHERE p.bot_slug = ? AND p.status = 'approved' AND b.revoked_at IS NULL",
             )
             .get(botSlug) as { n: number };
           if (approved.n >= pairingDefaults.maxApprovedPerBot)

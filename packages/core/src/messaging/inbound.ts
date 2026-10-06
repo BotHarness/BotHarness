@@ -987,12 +987,13 @@ export function createInboundMessaging(options: {
     {
       controller: AbortController;
       token: object;
+      startedAt: number;
       ready: Promise<void>;
       dispose?: (() => void) | undefined;
     }
   >();
   const controlRetries = new Map<string, ReturnType<typeof setTimeout>>();
-  const stopControl = (id: string) => {
+  const stopControl = (id: string, reason = 'identity-reconciled') => {
     clearTimeout(controlRetries.get(id));
     controlRetries.delete(id);
     const value = controls.get(id);
@@ -1000,6 +1001,16 @@ export function createInboundMessaging(options: {
     value.controller.abort();
     value.dispose?.();
     controls.delete(id);
+    options.warn?.(
+      JSON.stringify({
+        event: 'bot-pairing',
+        phase: 'receiver-released',
+        initiator: 'account-lifecycle',
+        externalResource: 'checked-account-consumer',
+        reason,
+        durationMs: Math.max(0, Math.round(performance.now() - value.startedAt)),
+      }),
+    );
   };
   const startControl = async (id: string, attempt = 0) => {
     if (!options.pairing || closed) return;
@@ -1015,11 +1026,12 @@ export function createInboundMessaging(options: {
     if (!entry?.consume || !entry.provider.reply || !entry.provider.inspectAccount) return;
     const prior = controls.get(id);
     if (prior?.token === entry.token) return prior.ready;
-    stopControl(id);
+    stopControl(id, 'provider-replaced');
     const controller = new AbortController();
     const lease = {
       controller,
       token: entry.token,
+      startedAt: performance.now(),
       ready: Promise.resolve(),
       dispose: undefined as (() => void) | undefined,
     };
@@ -1040,9 +1052,19 @@ export function createInboundMessaging(options: {
           }),
         );
         if (controller.signal.aborted || controls.get(id) !== lease) lease.dispose();
+        else
+          options.warn?.(
+            JSON.stringify({
+              event: 'bot-pairing',
+              phase: 'receiver-ready',
+              initiator: 'account-lifecycle',
+              externalResource: 'checked-account-consumer',
+              durationMs: Math.max(0, Math.round(performance.now() - lease.startedAt)),
+            }),
+          );
       } catch (error) {
         if (controls.get(id) !== lease) return;
-        stopControl(id);
+        stopControl(id, 'receiver-acquisition-failed');
         const reason = error instanceof MessagingError ? error.code : 'consumer-unavailable';
         const delay = [250, 1000, 3000][attempt];
         if (
@@ -1063,7 +1085,9 @@ export function createInboundMessaging(options: {
           JSON.stringify({
             event: 'bot-pairing',
             phase: 'receiver-unavailable',
-            initiator: 'identity-lifecycle',
+            initiator: 'account-lifecycle',
+            externalResource: 'checked-account-consumer',
+            durationMs: Math.max(0, Math.round(performance.now() - lease.startedAt)),
             reason,
             retryAttempt: attempt,
           }),
@@ -1193,7 +1217,8 @@ export function createInboundMessaging(options: {
       return () => {
         if (providers.get(provider.id)?.token !== token) return;
         providers.delete(provider.id);
-        for (const [id, control] of controls) if (control.token === token) stopControl(id);
+        for (const [id, control] of controls)
+          if (control.token === token) stopControl(id, 'provider-disposed');
         for (const [id, lease] of leases) if (lease.token === token) stop(id);
         for (const [id, retry] of retries) if (retry.token === token) stop(id);
       };
@@ -2032,7 +2057,8 @@ export function createInboundMessaging(options: {
     revoke: stop,
     close() {
       closed = true;
-      for (const id of new Set([...controls.keys(), ...controlRetries.keys()])) stopControl(id);
+      for (const id of new Set([...controls.keys(), ...controlRetries.keys()]))
+        stopControl(id, 'host-shutdown');
       for (const id of new Set([...leases.keys(), ...retries.keys()])) stop(id);
       providers.clear();
     },

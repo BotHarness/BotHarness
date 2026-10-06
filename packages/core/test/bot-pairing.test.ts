@@ -1,4 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import { Context } from '@deepseek-ai/cordis';
+import { createBridgeMethods } from '../src/bridge/methods.js';
+import { registerBridge } from '../src/bridge/rpc.js';
 import { setImmediate as tick } from 'node:timers/promises';
 import {
   mountOperationalDatabase,
@@ -199,7 +202,11 @@ it('one checked account consumer handles unknown DM pairing ahead of normal Inbo
       receipt: { version: 1 as const, messageId: 'reply', conversationId: route.conversationId },
     };
   });
-  const core = createCore({ dshHome: createTempRoot('bh-pairing-intake-') });
+  const warnings: string[] = [];
+  const core = createCore({
+    dshHome: createTempRoot('bh-pairing-intake-'),
+    warn: (message) => warnings.push(message),
+  });
   cores.push(core);
   expect(core.registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
   const transport: DshImOutboundService = {
@@ -263,6 +270,37 @@ it('one checked account consumer handles unknown DM pairing ahead of normal Inbo
   expect(db.read((db) => db.prepare('SELECT * FROM inbox_admissions').all())).toEqual([]);
   expect(core.externalMessaging.pairing.list('ada')).toHaveLength(2);
   expect(reply).toHaveBeenCalledTimes(2);
+  const methods = createBridgeMethods({ ...core });
+  const bridge = registerBridge(new Context(), methods);
+  const pending = core.externalMessaging.pairing.list('ada').find((p) => p.actorId === 'ou_alice')!;
+  const review = {
+    kind: 'approve' as const,
+    id: pending.id,
+    expectedRevision: pending.revision,
+    capabilities: ['answer' as const],
+  };
+  expect(
+    await methods.pairingReview({ slug: 'ada', input: { ...review, approvedBy: 'chat-text' } }),
+  ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+  await expect(bridge.pairingReview('another-bot', review)).rejects.toMatchObject({
+    code: 'pairing-unavailable',
+  });
+  const approved = await bridge.pairingReview('ada', review);
+  expect(core.externalMessaging.pairing.assert('ada', identity.id, 'ou_alice', 'answer').id).toBe(
+    approved.pairing.id,
+  );
+  await expect(bridge.pairingReview('ada', review)).rejects.toMatchObject({
+    code: 'pairing-stale',
+  });
+  await bridge.pairingReview('ada', {
+    kind: 'revoke',
+    id: pending.id,
+    expectedRevision: approved.pairing.revision,
+  });
+  expect(() =>
+    core.externalMessaging.pairing.assert('ada', identity.id, 'ou_alice', 'answer'),
+  ).toThrow('pairing-unauthorized');
+
   await expect(
     receiver!.onEvent({ ...event(), fingerprint: 'b'.repeat(64) }, { signal: receiver!.signal }),
   ).rejects.toThrow('untrusted-source');
@@ -272,6 +310,25 @@ it('one checked account consumer handles unknown DM pairing ahead of normal Inbo
     expectedRevision: identity.revision,
   });
   expect(receiver!.signal.aborted).toBe(true);
+  const lifecycle = warnings
+    .filter((message) => message.includes('"event":"bot-pairing"'))
+    .map((message) => JSON.parse(message));
+  expect(lifecycle).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        phase: 'receiver-ready',
+        initiator: 'account-lifecycle',
+        durationMs: expect.any(Number),
+      }),
+      expect.objectContaining({
+        phase: 'receiver-released',
+        reason: 'identity-reconciled',
+        durationMs: expect.any(Number),
+      }),
+    ]),
+  );
+  expect(warnings.join('')).not.toContain('ou_alice');
+  expect(warnings.join('')).not.toContain(fingerprint);
 });
 
 it('a paused identity fails closed but still allows Web revocation, and resuming cannot resurrect the grant', () => {
@@ -309,4 +366,47 @@ it('a paused identity fails closed but still allows Web revocation, and resuming
   );
   const fresh = f.pairing.request('binding', event('ou_alice', 'new-after-pause'));
   expect(fresh.capabilities).toEqual([]);
+});
+
+it('an unbound identity cannot exhaust the replacement identity approved-capacity budget', () => {
+  const f = fixture();
+  for (let n = 0; n < pairingDefaults.maxApprovedPerBot; n++) {
+    const request = f.pairing.request('binding', event(`ou_user${n}`, `approve-${n}`));
+    f.pairing.review('ada', {
+      kind: 'approve',
+      id: request.id,
+      expectedRevision: 1,
+      capabilities: ['answer'],
+    });
+  }
+  const overflow = f.pairing.request('binding', event('ou_overflow', 'over-capacity'));
+  expect(() =>
+    f.pairing.review('ada', {
+      kind: 'approve',
+      id: overflow.id,
+      expectedRevision: 1,
+      capabilities: ['answer'],
+    }),
+  ).toThrow('pairing-capacity');
+  f.db.transaction((db) => {
+    db.prepare('UPDATE messaging_bindings SET revoked_at = ? WHERE id = ?').run(
+      new Date().toISOString(),
+      'binding',
+    );
+    db.prepare(
+      'INSERT INTO messaging_bindings (id, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name) SELECT ?, bot_slug, provider_id, platform, account_ref, fingerprint, created_at, display_name FROM messaging_bindings WHERE id = ?',
+    ).run('replacement', 'binding');
+  });
+  expect(() => f.pairing.assert('ada', 'binding', 'ou_user0', 'answer')).toThrow(
+    'pairing-unauthorized',
+  );
+  const request = f.pairing.request('replacement', event('ou_user0', 'replacement-request'));
+  expect(request.capabilities).toEqual([]);
+  f.pairing.review('ada', {
+    kind: 'approve',
+    id: request.id,
+    expectedRevision: 1,
+    capabilities: ['answer'],
+  });
+  expect(f.pairing.assert('ada', 'replacement', 'ou_user0', 'answer').id).toBe(request.id);
 });

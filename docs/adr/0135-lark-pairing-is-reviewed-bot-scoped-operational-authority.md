@@ -27,10 +27,10 @@ Revocation is a revision-checked durable transition that clears capabilities imm
 
 - A pending request expires after 10 minutes. This expiry applies to the application, not to an already reviewed grant.
 - A user can make five distinct attempts for one pending request. Redelivery of the same Provider message ID does not spend another attempt or create another grant; at most five message IDs are retained on that request.
-- The Profile accepts at most 200 pending requests, each Bot at most 25 pending requests and 100 approved pairings. Expired requests free pending capacity when a new request is processed.
+- The Profile accepts at most 200 pending requests, each Bot at most 25 pending requests and 100 approved pairings on non-revoked Bindings. An unbound identity’s unusable grants do not consume its replacement’s capacity. Expired requests free pending capacity when a new request is processed.
 - The Web shows all pending/approved records and the latest 20 terminal records. Its bounded history is a projection; it is not another authority store.
 - The random 10-character locator identifies a request. It cannot redeem access and is not a bearer secret. Review records time, revision and the authenticated Web origin.
-- Operational state contains platform IDs and bounded redelivery evidence. It is private Profile data, never exported to the Bot's public Memory repository. Lifecycle diagnostics contain stable phases and refusal reasons, never credentials or message text.
+- Operational state contains platform IDs and bounded redelivery evidence. It is private Profile data, never exported to the Bot's public Memory repository. Lifecycle diagnostics record successful receiver acquisition/release, elapsed duration and cancellation/refusal reasons, never credentials or message text.
 
 ## Alternatives
 
