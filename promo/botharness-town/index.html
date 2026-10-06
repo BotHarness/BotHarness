@@ -1288,8 +1288,9 @@ const titleLogo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.
 titleLogo.renderOrder = 41;
 hud.add(titleLogo);
 const titleText = hudSprite(canvasTex(200, 70, (ctx) => {
-  drawText(ctx, 'BOTHARNESS', 100 - Math.floor((textWidth('BOTHARNESS') * 3) / 2), 2, '#fff2a0', 3);
-  drawText(ctx, 'DEEPSEEKBOT', 100 - Math.floor(textWidth('DEEPSEEKBOT') / 2), 24, '#ffffff');
+  // the product name leads; BotHarness is the platform underneath
+  drawText(ctx, 'DEEPSEEKBOT', 100 - Math.floor((textWidth('DEEPSEEKBOT') * 3) / 2), 2, '#fff2a0', 3);
+  drawText(ctx, 'BY BOTHARNESS', 100 - Math.floor(textWidth('BY BOTHARNESS') / 2), 24, '#ffffff');
 }), 42, 0.5, 1);
 const endText = hudSprite(canvasTex(600, 120, (ctx) => {
   const fit = (text, px, max) => Math.min(px, Math.floor((max / measureCJK(text, px)) * px));
