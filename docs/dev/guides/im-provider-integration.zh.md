@@ -166,6 +166,14 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 
 原生 `voice_item.text` 可缺失。不得暗中用 ASR 补齐、从附带说明伪造转写、暴露媒体密钥，或在没有独立 checked 音频能力时提供播放器／下载。缺失转写必须明确呈现。未完成／生成中的消息及多项歧义消息不会由此候选收件。首次真实测试提供了平台转写和 7,377 毫秒时长，但沿用的 QA Session 保留上一轮不回复指令；该次仅证明收件，不能证明回复送达。新 QA Session 中的第二条原生语音提供 5,180 毫秒时长，真实 DeepSeek Flash 模型调用 `bridge_read` 与 `bridge_reply`，自身身份 Outbox 被平台接受，Human 确认在原微信私聊收到“蓝色灯塔37”。浅色／深色截图呈现同一来源。这证明 checked 平台转写路径，不是 BotHarness 自行识别音频。
 
+## 受检查的原生视频（#907）
+
+独立协商 `sourceVideos`，并同时要求 `source-video-checked` 与 `reply-video-fence-checked`。保留原生视频项 ID 与平台报告值，不猜测语义：此次收件的 `video_size` 等于解密字节数，官方发送实现却填写加密长度，因此使用 `reportedSizeBytes`；`playLength` 保留原值，不假设单位。不能为了重命名字段改写已有 canonical 证据。
+
+来源播放与处理沿用既有 checked Attachment 路径，原件上限 25 MiB，私有 CDN 票据和密钥留在 Provider。保守核对 MP4 字节后显示浏览器原生控件，不自动播放，保留正文，提供拒绝／重试，关闭时取消请求并释放 Blob URL。播放器、文件检查或模型自述不代表理解视频。结果单独导入 canonical 附件，由行动 Bot 使用当前身份与原 Source 路由回传，在上传后、发送前再次检查授权；Provider 接受不能代替接收端送达证据。
+
+本机安装候选已验证真实视频收件、输入字节完全一致、原生播放，以及经审批的模型文件处理，生成三秒 H.264 结果。接收端确认仍待完成。详见带图[视频指南](../../wechat-connection.zh.md#9-接收原生视频并回传视频结果)。更广的 Channel 历史媒体渲染属于独立切片。
+
 ## Discord nearby 开发切片 — #981
 
 下一个隔离 Provider 候选在来源的原生频道或准确公开 thread 中实现 `bridge_context(nearby)`：读取前后五分钟；消息稀疏时，补足所请求的前后 Human 文本最小条数（默认 10／5）。锚点独立于两侧计数；密集窗口需要有界续页，已耗尽的稀疏历史允许少于最小条数，不等待未来消息。签名 cursor 保留固定查询快照，每次成功续页续期 30 分钟；每次读取均检查当前权限和授权。
