@@ -20,5 +20,8 @@ export function externalSenderLabel(
   origin: { platform: string; senderId: string; senderName?: string },
   t: BotHarnessTranslate,
 ): string {
-  return origin.senderName ?? (origin.platform === 'weixin' ? t('im.weixinUser') : origin.senderId);
+  return (
+    origin.senderName?.trim() ||
+    (origin.platform === 'weixin' ? t('im.weixinUser') : origin.senderId)
+  );
 }

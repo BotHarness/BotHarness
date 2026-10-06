@@ -640,6 +640,7 @@ export const zh = {
   'im.channelTargetHint':
     '外部收件消息进入所选群组；成员可阅读，此绑定 Bot 按群策略收件。内部讨论不会发送到外部。',
   'im.origin': '外部来源',
+  'im.senderNameLabel': '发送人',
   'im.senderLabel': '发送人 ID',
   'im.platformLabel': '平台',
   'im.platform.weixin': '微信',
@@ -2564,6 +2565,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.channelTargetHint':
     'Collected external messages appear in the selected group. Members can read them; this bound Bot receives attention under its group policy. Internal discussion stays local.',
   'im.origin': 'External origin',
+  'im.senderNameLabel': 'Sender',
   'im.senderLabel': 'Sender ID',
   'im.platformLabel': 'Platform',
   'im.platform.weixin': 'WeChat',

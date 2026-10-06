@@ -1,0 +1,67 @@
+{
+  "issue": 1061,
+  "checkedAt": "2026-10-06T16:25:35.879Z",
+  "baselineCore": "9c8a13d045555c91e2cb41dcfb52bd5376c5b345",
+  "coreLive": "3d148ddef54a55023c20bc17da6a0fb65656a325",
+  "provider": "345b63f75ad8acc5b7e42eaab5a4eefdbffed683",
+  "history": {
+    "oldMessages": 5,
+    "namedExternalMessages": 4,
+    "nativeMentionChips": 4,
+    "originalBodiesUnchanged": true,
+    "canonicalTablesUnchangedAcrossRestart": true,
+    "authorityUnchangedAcrossRestart": true
+  },
+  "fresh": {
+    "requestId": "1557065929056198768",
+    "replyId": "1557065966045626412",
+    "sourceEventId": "im-419804a4c0bdb79585f4895dda93ee883be46b6943bbe48d72ab27c57ea6fadb",
+    "senderName": "DoodleBear",
+    "mentionName": "BotHarness QA",
+    "mentionId": "1556613973846007899",
+    "mentionOccurrences": 2,
+    "originalBodyExactlyEqual": true,
+    "senderId": "552307579322236939",
+    "threadId": "1556622420222283798",
+    "sourceCount": 1,
+    "admissions": 1,
+    "placements": 1,
+    "intents": 1,
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "off"
+    },
+    "tools": [
+      {
+        "name": "bridge_read",
+        "isError": false
+      },
+      {
+        "name": "bridge_reply",
+        "isError": false
+      }
+    ],
+    "exactReplyReference": true
+  },
+  "restored": {
+    "temporaryBridgeCount": 0,
+    "originalIdentityAndGrantExactlyEqual": true,
+    "messageContent": false,
+    "canPost": false,
+    "theme": "system",
+    "retainedMessages": 6
+  },
+  "limits": [
+    "Names are retained Provider snapshots; unknown native mention names remain literal original text. Native mention chips are inert external references, never local bot membership or wake authority.",
+    "No new Discord permissions, native username lookup, identity matching by name or product Provider pin change.",
+    "Lark name parity is covered by production-shaped fixtures and Client rendering, not a fresh external Lark E2E."
+  ],
+  "finalRuntime": "c4d763e861a4b436b72e64943642943782697087",
+  "finalColdRestart": {
+    "canonicalAndAuthorityExactlyEqual": true,
+    "retainedMessages": 6,
+    "temporaryBridges": 0
+  },
+  "copyValidation": "Projection body equals original native content and existing copy action receives message.body; automated browser clipboard read returned empty, so no fresh OS clipboard proof is claimed."
+}
