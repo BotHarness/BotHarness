@@ -526,7 +526,7 @@ _避免使用_：subscription、notification policy、caller claim
 
 **Channel reference**：
 Human 选中的现有 Channel 指针（Channel 引用），以稳定的 Channel ID 标识。它帮助被告知的 PersonaBot 找到 Channel，但不授予成员资格，也不披露对话内容或向成员发消息。
-_避免_：Channel 邀请、成员资格、手打的 #名称
+_避免使用_：Channel 邀请、成员资格、手打的 #名称
 
 **Group invitation**：
 Group 的 Bot 创建者向活跃的非成员 PersonaBot 发出的待处理入群邀请。只有受邀 Bot 接受后才成为 Channel membership；Bot 模式的默认自动接受可代为接受。接受前邀请不授予任何 read 或 send 权限。
@@ -534,7 +534,7 @@ _避免使用_：join request、成员授予、Channel 引用
 
 **Group join request**：
 尚未入群的 PersonaBot 请求加入被引用的 Group Channel 的待处理事实（入群申请）。只有获得授权的 Human 或该群的 Bot 创建者接受后，它才成为 Channel 成员。
-_避免_：邀请、自动入群、Channel 提及
+_避免使用_：邀请、自动入群、Channel 提及
 
 **Bot Channel subscription**：
 PersonaBot 对已加入 Channel 的逐 Channel attention preference，归该 PersonaBot 所有：`all`（每条普通消息都成为 attention）、`digest`（普通消息按 count 与 interval 进入唤醒汇总；默认）、`mentions`（只有直接 @ 能到达 Bot）、或 `silent`（普通消息记录为 attention，但永不唤醒）。直接 @ 与 DM 永远可达；Human 可以覆盖该 preference，它独立于 membership 与 send authority。
@@ -716,16 +716,16 @@ _避免使用_：secret、API key、token
 
 **Telemetry**：
 Host 发送到项目分析服务的匿名产品使用事件，默认开启，可用插件配置 `telemetry: false`、`DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0` 关闭。从不包含名称、Memory、对话内容、路径或 IP 地址（ADR-0132）。
-_避免_：追踪、分析 SDK、崩溃上报器
+_避免使用_：追踪、分析 SDK、崩溃上报器
 
 **Install ID**：
 插件安装首次启动时随机生成、附在其 Telemetry 上的标识。它标识一次安装而不是某个 Human，也从不与官网访客关联。
-_避免_：用户 ID、设备 ID、机器 ID
+_避免使用_：用户 ID、设备 ID、机器 ID
 
 **Campaign**：
 一次宣发（例如一次发布），把为它创建的 Campaign Link 归为一组；其 slug 即 `utm_campaign`。
-_避免_：广告、促销
+_避免使用_：广告、促销
 
 **Campaign Link**：
 `go.botharness.ai` 上对应 Campaign 中某一条帖子或视频的短链，带有平台和媒体类型；访问时重定向到官网并附上 UTM 参数，同时计入点击。
-_避免_：短网址、UTM 链接、邀请链接
+_避免使用_：短网址、UTM 链接、邀请链接
