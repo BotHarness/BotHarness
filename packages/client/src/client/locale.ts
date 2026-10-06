@@ -1479,6 +1479,7 @@ export const zh = {
   'entry.schedules': '定时任务',
   'inbox.schedule': '定时任务',
   'schedule.loading': '正在读取定时任务…',
+  'schedule.missing': '这个定时任务已被删除。',
   'schedule.add': '新建定时任务',
   'schedule.edit': '编辑定时任务',
   'schedule.close': '关闭',
@@ -1526,6 +1527,8 @@ export const zh = {
   'grant.safeDefault':
     'Bot 可读取有效授权文件夹。开启文件夹的写入权限后，也可直接处理其中的文件；命令执行仍需单独审批。',
   'grant.orchestratorWrite': '允许 Bot 写入此文件夹',
+  'grant.chip.write': '可写',
+  'grant.chip.read': '只读',
   'grant.memory': 'Memory Repository',
   'grant.internal': '内部 · 可读写',
   'grant.readAccess': '项目文件夹',
@@ -3263,6 +3266,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'entry.schedules': 'Schedules',
   'inbox.schedule': 'Schedule',
   'schedule.loading': 'Loading schedules…',
+  'schedule.missing': 'This schedule no longer exists.',
   'schedule.add': 'New schedule',
   'schedule.edit': 'Edit schedule',
   'schedule.close': 'Close',
@@ -3311,6 +3315,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'grant.safeDefault':
     'The Bot can read authorized folders. Enable write access to let it process files there; commands still require separate approval.',
   'grant.orchestratorWrite': 'Allow Bot to write in this folder',
+  'grant.chip.write': 'Writable',
+  'grant.chip.read': 'Read-only',
   'grant.memory': 'Memory Repository',
   'grant.internal': 'Internal · read/write',
   'grant.readAccess': 'Project folder',
