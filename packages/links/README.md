@@ -11,6 +11,7 @@
 | Active link in an active Campaign                      | `https://deepseekbot.botharness.ai<target>?utm_campaign=<campaign>&utm_source=<platform>&utm_medium=<media>&utm_content=<link>` | yes     |
 | Unknown slug, reserved slug, archived link or Campaign | `https://deepseekbot.botharness.ai/` without UTMs                                                                               | no      |
 | `HEAD` request                                         | same as `GET`                                                                                                                   | no      |
+| Link previewer or crawler `User-Agent`                 | same as `GET`, with UTMs                                                                                                        | no      |
 | `GET /`                                                | `https://deepseekbot.botharness.ai/`                                                                                            | no      |
 
 - **Language.** A link stores the Chinese (default) site path and a `language`. `zh` opens the path as is; `en` opens it under `/en`: path `/docs/overview/` with `en` goes to `/en/docs/overview/`, path `/` with `en` goes to `/en/`. Paths that already start with `/en` are refused so the prefix is never doubled.
@@ -22,6 +23,8 @@
 ## Click capture
 
 Counting and the PostHog event run in `waitUntil` after the response, so a D1 write failure or a PostHog outage never blocks or breaks the redirect. D1 keeps a total and a per-UTC-day counter per link; no IP address, user agent or referrer is stored.
+
+Link previewers and crawlers (Twitterbot, facebookexternalhit, Slackbot, Discordbot, TelegramBot, WhatsApp, LinkedInBot, Googlebot, bingbot, Applebot, Embedly, redditbot, Bytespider and any `User-Agent` with a `bot` word, `bot/`, `crawler`, `spider` or `preview`) get the same redirect with UTMs but are neither counted nor sent as `link_clicked`. In-app browsers such as WeChat (`MicroMessenger`) count as people. The `User-Agent` is only matched in memory; it is never stored or sent.
 
 The event goes to `POST {POSTHOG_HOST}/i/v0/e/`:
 
@@ -73,7 +76,14 @@ Every `/v1` route needs `Authorization: Bearer <token>`. `GET` routes need a `re
 - Only the SHA-256 hash is stored. The plaintext appears once, in the `POST /v1/tokens` response.
 - `read` tokens can call every `GET` route. `write` tokens can do everything, including token management.
 - `expiresInDays` defaults to 90; `null` creates a token that never expires. Expired and revoked tokens get `401`. `lastUsedAt` is updated at most once an hour.
-- **Bootstrap.** Until the admin page (#954) exists, the `LINKS_BOOTSTRAP_TOKEN` secret works as a bearer token for `/v1/tokens` routes only (create, list, revoke), and gets `403 bootstrap-token-only-manages-tokens` elsewhere. It must be at least 32 characters and is compared in constant time. Use it to create the first `write` PAT, and keep it for revoking a leaked token; remove it with `wrangler secret delete LINKS_BOOTSTRAP_TOKEN` once the admin page replaces it.
+- **Bootstrap.** Until the admin page (#954) exists, the `LINKS_BOOTSTRAP_TOKEN` secret works as a bearer token for `/v1/tokens` routes only (create, list, revoke), and gets `403 bootstrap-token-only-manages-tokens` elsewhere. It must be at least 32 characters and is compared in constant time. Use it to create the first `write` PAT, and keep it for revoking a leaked token; delete it with `wrangler secret delete LINKS_BOOTSTRAP_TOKEN` as soon as the admin page (#954) ships.
+
+## Known limits
+
+- Campaign and link slugs, and a link's Campaign, cannot change after creation; create a new link instead.
+- Archiving cannot be undone through the API (there is no restore route).
+- List routes return everything in one response, without pagination; fine for the expected tens to hundreds of links.
+- Previewer filtering is a `User-Agent` match, so a previewer that pretends to be a browser is still counted.
 
 ## Configuration
 

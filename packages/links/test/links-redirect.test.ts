@@ -129,6 +129,50 @@ describe('campaign link redirect', () => {
     expect(sqlite.prepare('SELECT SUM(clicks) AS total FROM links').get()).toEqual({ total: 0 });
   });
 
+  it('redirects link previewers and crawlers with UTMs without counting them', async () => {
+    stubPostHog();
+    const { request, sqlite } = await seeded();
+    const previewers = [
+      'Twitterbot/1.0',
+      'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+      'Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)',
+      'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)',
+      'TelegramBot (like TwitterBot)',
+      'WhatsApp/2.23.20.0',
+      'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)',
+      'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+      'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+      'Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 (KHTML, like Gecko) Applebot/0.1',
+      'Mozilla/5.0 (compatible; Embedly/0.2; +http://support.embed.ly/)',
+      'Mozilla/5.0 (compatible; redditbot/1.0; +http://www.reddit.com/feedback)',
+      'Mozilla/5.0 (compatible; Bytespider; spider-feedback@bytedance.com)',
+      'Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)',
+      'some-crawler/1.0',
+      'LinkPreview/1.0',
+    ];
+    for (const userAgent of previewers) {
+      const response = await request('/bili-video', { userAgent });
+      expect(response.status, userAgent).toBe(302);
+      expect(response.headers.get('location'), userAgent).toContain('utm_content=bili-video');
+    }
+    expect(captured).toHaveLength(0);
+    expect(sqlite.prepare('SELECT SUM(clicks) AS total FROM links').get()).toEqual({ total: 0 });
+
+    const people = [
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.47(0x18002f2c) NetType/WIFI Language/zh_CN',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+      'Mozilla/5.0 (Linux; Android 10; CUBOT_X30) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36',
+    ];
+    for (const userAgent of people) await request('/bili-video', { userAgent });
+    expect(captured).toHaveLength(people.length);
+    expect(sqlite.prepare('SELECT SUM(clicks) AS total FROM links').get()).toEqual({
+      total: people.length,
+    });
+    for (const event of captured) expect(await event.text()).not.toMatch(/Mozilla|user.?agent/i);
+    expect(JSON.stringify(sqlite.prepare('SELECT * FROM links').all())).not.toMatch(/Mozilla/);
+  });
+
   it('does not count HEAD requests', async () => {
     stubPostHog();
     const { request, sqlite } = await seeded();

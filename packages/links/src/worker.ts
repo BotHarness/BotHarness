@@ -2,7 +2,7 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { bearerAuth } from 'hono/bearer-auth';
 import { HTTPException } from 'hono/http-exception';
 import type { D1Database } from './d1.js';
-import { SHORT_ORIGIN, sendLinkClicked, siteRoot, targetUrl } from './redirect.js';
+import { isPreviewer, SHORT_ORIGIN, sendLinkClicked, siteRoot, targetUrl } from './redirect.js';
 import {
   CampaignClicksSchema,
   CampaignCreateSchema,
@@ -591,7 +591,7 @@ app.openapi(
     if (!found || found.archivedAt || found.campaignArchivedAt) {
       return c.redirect(siteRoot(), 302);
     }
-    if (c.req.method === 'GET') {
+    if (c.req.method === 'GET' && !isPreviewer(c.req.header('user-agent'))) {
       const at = now();
       c.executionCtx.waitUntil(
         Promise.all([

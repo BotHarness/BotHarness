@@ -3,6 +3,13 @@ import type { Language } from './schemas.js';
 export const SITE_ORIGIN = 'https://deepseekbot.botharness.ai';
 export const SHORT_ORIGIN = 'https://go.botharness.ai';
 
+const PREVIEWER =
+  /twitterbot|facebookexternalhit|facebookcatalog|slackbot|slack-imgproxy|discordbot|telegrambot|whatsapp|linkedinbot|googlebot|bingbot|applebot|embedly|redditbot|bytespider|pinterestbot|skypeuripreview|vkshare|\bbot\b|bot\/|crawler|spider|preview/i;
+
+export function isPreviewer(userAgent: string | undefined): boolean {
+  return userAgent !== undefined && PREVIEWER.test(userAgent);
+}
+
 export interface TargetLink {
   slug: string;
   campaign: string;
