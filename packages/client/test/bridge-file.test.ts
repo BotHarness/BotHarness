@@ -83,7 +83,11 @@ it('does not acquire on render, keeps unknown metadata honest, and downloads onl
   expect(fetcher.mock.calls[0]?.[0]).toContain('channelId=channel');
   expect(fetcher.mock.calls[0]?.[0]).not.toContain('slug=');
   expect(click).toHaveBeenCalledTimes(1);
-  expect(container.textContent).toContain('14 字节');
+  expect(container.textContent).toContain('text/plain · 14 字节');
+  fetcher.mockResolvedValueOnce(new Response(null, { status: 403 }));
+  await act(async () => container.querySelector<HTMLButtonElement>('button')!.click());
+  expect(container.textContent).toContain('text/plain · 14 字节');
+  expect(container.textContent).toContain('文件来源当前不可访问');
 });
 it('shows refused/retry states and uses the existing unsupported-open fallback without automatic opening', async () => {
   const fetcher = vi

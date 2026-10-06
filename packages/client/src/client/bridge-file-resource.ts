@@ -3,6 +3,7 @@ import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 export interface BridgeFileState {
   busy?: boolean;
   size?: number;
+  mediaType?: string;
   failure?: 'unavailable' | 'tooLarge' | 'failed';
 }
 export function createBridgeFileResource(
@@ -42,7 +43,7 @@ export function createBridgeFileResource(
       if (controller) return;
       const request = new AbortController();
       controller = request;
-      update({ busy: true });
+      update({ ...state, busy: true, failure: undefined });
       try {
         await boundedBridgeMedia(request.signal, async () => {
           const response = await fetch(
@@ -54,6 +55,8 @@ export function createBridgeFileResource(
           if (!response.ok) {
             await response.body?.cancel();
             update({
+              size: state.size,
+              mediaType: state.mediaType,
               failure:
                 response.status === 403
                   ? 'unavailable'
@@ -66,7 +69,7 @@ export function createBridgeFileResource(
           const max = 25 * 1024 * 1024;
           if (Number(response.headers.get('content-length')) > max) {
             await response.body?.cancel();
-            update({ failure: 'tooLarge' });
+            update({ size: state.size, mediaType: state.mediaType, failure: 'tooLarge' });
             return;
           }
           if (!response.body) throw new Error('Missing original file');
@@ -81,7 +84,7 @@ export function createBridgeFileResource(
               size += next.value.byteLength;
               if (size > max) {
                 await reader.cancel();
-                update({ failure: 'tooLarge' });
+                update({ size: state.size, mediaType: state.mediaType, failure: 'tooLarge' });
                 return;
               }
               chunks.push(new Uint8Array(next.value));
@@ -91,17 +94,14 @@ export function createBridgeFileResource(
             reader.releaseLock();
           }
           request.signal.throwIfAborted();
-          await action(
-            new Blob(chunks, {
-              type: response.headers.get('content-type') ?? 'application/octet-stream',
-            }),
-            request.signal,
-          );
+          const mediaType = response.headers.get('content-type') ?? 'application/octet-stream';
+          await action(new Blob(chunks, { type: mediaType }), request.signal);
           request.signal.throwIfAborted();
-          update({ size });
+          update({ size, mediaType });
         });
       } catch {
-        if (!request.signal.aborted) update({ failure: 'failed' });
+        if (!request.signal.aborted)
+          update({ size: state.size, mediaType: state.mediaType, failure: 'failed' });
       } finally {
         if (controller === request) controller = undefined;
       }

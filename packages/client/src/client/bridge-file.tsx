@@ -76,7 +76,7 @@ export function BridgeFile({
             {item.name}
           </span>
           <span className="bh-message-file-size">
-            {item.mediaType ?? t('bridgeFile.unknownType')} ·{' '}
+            {state.mediaType ?? item.mediaType ?? t('bridgeFile.unknownType')} ·{' '}
             {size === undefined
               ? t('bridgeFile.unknownSize')
               : t('bridgeFile.bytes', { size: String(size) })}
