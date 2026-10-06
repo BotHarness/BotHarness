@@ -24,7 +24,7 @@ let DEBUG_FRAMES = true;
 
 const VIEW_W = 320;
 const VIEW_H = 180;
-const PIXEL_RATIO = 4;
+const PIXEL_RATIO = 6; // 320x180 art pixels -> 1920x1080 output
 const TILE = 16;
 const FPS = 60;
 const BAR = 120; // 120 BPM in 4/4: one bar is 120 frames
@@ -320,6 +320,8 @@ const UI = {
   group: { url: `./ui/${LANG}/group.jpg`, w: 2940, h: 1846, title: 'GROUP' },
   larkTopic: { url: `./ui/${LANG}/lark-topic.jpg`, w: 2880, h: 1920, title: 'LARK TOPIC' },
   slackThread: { url: './ui/slack-thread.png', w: 1230, h: 876, title: 'SLACK THREAD' },
+  market: { url: `./ui/${LANG}/market.jpg`, w: 1280, h: 1616, title: 'BOT MARKETPLACE' },
+  marketDetail: { url: `./ui/${LANG}/market-detail.jpg`, w: 1280, h: LANG === 'en' ? 1250 : 1166, title: 'BOT MARKETPLACE' },
 };
 for (const u of Object.values(UI)) u.tex = load(u.url, { pixel: false });
 // recorded product clips (real UI, real model turns), played by frame: the clip time is derived from the film frame
@@ -927,20 +929,22 @@ for (const c of CAST) {
   c.hand = sprite(canvasTex(7, 8, (ctx) => { box(ctx, 0, 0, 7, 7, c.skin); rect(ctx, 1, 1, 2, 1, '#ffffff'); rect(ctx, 2, 6, 3, 2, INK); }));
   c.prop = sprite(PROPS.sword);
 }
+// the Human is a stick figure: frame 0 stands, 1/2 walk, 3 raises an arm
 function humanTex(frame) {
   return canvasTex(16, 26, (ctx) => {
-    const legL = frame === 1 ? 1 : 0;
-    const legR = frame === 2 ? 1 : 0;
-    rect(ctx, 4, 20 - legL, 3, 6 + legL, '#3d4a66'); rect(ctx, 9, 20 - legR, 3, 6 + legR, '#3d4a66');
-    rect(ctx, 4, 25, 3, 1, INK); rect(ctx, 9, 25, 3, 1, INK);
-    box(ctx, 3, 12, 10, 10, '#d9824a');
-    rect(ctx, 4, 13, 2, 7, '#ef9d63');
-    if (frame === 3) { rect(ctx, 13, 2, 2, 11, '#d9824a'); rect(ctx, 13, 0, 2, 2, '#ffd7b8'); }
-    else { rect(ctx, 1, 13, 2, 7, '#d9824a'); rect(ctx, 13, 13, 2, 7, '#d9824a'); rect(ctx, 1, 20, 2, 1, '#ffd7b8'); rect(ctx, 13, 20, 2, 1, '#ffd7b8'); }
-    box(ctx, 4, 4, 8, 9, '#ffd7b8');
-    rect(ctx, 6, 8, 1, 2, INK); rect(ctx, 9, 8, 1, 2, INK);
-    rect(ctx, 0, 4, 16, 2, INK); rect(ctx, 1, 4, 14, 1, '#e8c170');
-    box(ctx, 4, 0, 8, 5, '#e8c170'); rect(ctx, 4, 3, 8, 1, '#c0392b');
+    const line = (x0, y0, x1, y1) => {
+      const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+      for (let i = 0; i <= n; i++) rect(ctx, Math.round(lerp(x0, x1, i / n)) - 1, Math.round(lerp(y0, y1, i / n)), 2, 1, INK);
+    };
+    disc(ctx, 8, 5, 4, INK);
+    disc(ctx, 8, 5, 3, '#ffffff');
+    rect(ctx, 6, 4, 1, 2, INK); rect(ctx, 9, 4, 1, 2, INK);
+    line(8, 10, 8, 18);
+    line(8, 12, 3, frame === 3 ? 16 : 17);
+    if (frame === 3) line(8, 12, 14, 4); else line(8, 12, 13, 17);
+    const stride = frame === 1 ? 2 : frame === 2 ? -2 : 0;
+    line(8, 18, 4 + stride, 25);
+    line(8, 18, 12 + stride, 25);
   });
 }
 const humanFrames = [0, 1, 2, 3].map(humanTex);
@@ -1085,7 +1089,7 @@ const BUBBLES = [
 const CAMERA = [
   [0, 0, 190, 2], [120, 0, 190, 2], [330, -20, 110, 1.3], [600, -20, 110, 1.3],
   [700, LECTERN.x - 40, 26, 2], [740, LECTERN.x - 44, 24, 1.4], [1800, LECTERN.x - 44, 24, 1.4],
-  [1860, MARKET.x + 10, -40, 2], [2160, MARKET.x + 10, -40, 2],
+  [1860, MARKET.x + 10, -70, 1.6], [2160, MARKET.x + 10, -70, 1.6], // low enough that the Git crate clears the dialog box
   [2161, TOWER.x, 90, 1.6], [2520, TOWER.x, 90, 1.6], [2560, TOWER.x - 34, 84, 1.5], [2940, TOWER.x - 34, 84, 1.5], [2980, TOWER.x, 84, 1.5], [3360, TOWER.x, 84, 1.5],
   [3361, 0, 16, 1.5], [3720, 0, 16, 1.5], [3760, 34, 34, 1.5], [4080, 34, 34, 1.5], [4120, 0, 40, 1.5], [4440, 0, 40, 1.5], [4460, 0, 16, 1.5], [4860, 0, 16, 1.5],
   [4861, -120, -430, 1.6], [5100, -10, -430, 1.6], [5560, 10, -430, 1.6], [5700, 40, -432, 1.4], [6000, 40, -432, 1.4],
@@ -1144,10 +1148,10 @@ const BEATS = [
     [2950, NARRATOR, T('slack1')],
     [3150, NARRATOR, T('slack2')],
   ] },
-  { a: 3360, b: 3500, mode: 'gal', ui: 'group', crops: [[3360, 1470, 923, 2940], [3420, 1500, LANG === 'en' ? 860 : 700, 1900]], hl: [[3420, 3460, 1196, 286, 1068, 161], [3460, 3498, 668, 516, 1068, LANG === 'en' ? 778 : 534]], lines: [
+  { a: 3360, b: 3500, mode: 'gal', ui: 'group', crops: [[3360, 1470, 923, 2940], [3420, 1500, LANG === 'en' ? 745 : 640, LANG === 'en' ? 2400 : 1900]], hl: [[3420, 3460, 1196, 286, 1068, 161], [3460, 3498, 668, 516, 1068, LANG === 'en' ? 778 : 534]], lines: [
     [3370, NARRATOR, T('group1')],
   ] },
-  { a: 3500, b: 3720, mode: 'gal', ui: 'groupClip', clip: { t0: 0.6, fit: true }, crops: [[3500, 1330, 1050, 2660], [3560, 900, 880, 1700]], hl: [[3520, 3716, 24, 508, 512, 410]], lines: [
+  { a: 3500, b: 3720, mode: 'gal', ui: 'groupClip', clip: { t0: 0.6, fit: true }, crops: [[3500, 1430, LANG === 'en' ? 1270 : 1360, LANG === 'en' ? 2540 : 2100]], hl: [], lines: [
     [3510, NARRATOR, T('group2')],
   ] },
   { a: 3720, b: 4080, mode: 'split', ui: 'larkTopic', crops: [[3720, 1980, 880, 1800], [3880, 2510, LANG === 'en' ? 1130 : 1050, 1050]], hl: [[3740, 3870, 2200, LANG === 'en' ? 705 : 576, 660, LANG === 'en' ? 200 : 170], [3900, 4070, 2200, LANG === 'en' ? 936 : 778, 660, 640]], lines: [
@@ -1932,6 +1936,38 @@ const ringTex = canvasTex(40, 40, (ctx) => { for (let a = 0; a < 80; a++) rect(c
 mk.ring = hudPlane(marketHud, ringTex, 9, 0.5, 0.5);
 mk.ring2 = hudPlane(marketHud, ringTex, 9, 0.5, 0.5);
 mk.mergeTag = hudPlane(marketHud, canvasTex(40, 9, (ctx) => { box(ctx, 0, 0, 40, 9, '#2da44e', INK); drawText(ctx, 'MERGE', 20 - Math.floor(textWidth('MERGE') / 2), 2, '#ffffff'); }), 12, 0.5, 0);
+// the real Bot Marketplace (captured from main), shown as a window that scrolls like a phone screen
+mk.uiFrame = hudPlane(marketHud, frameTex(300, 126, 'BOT MARKETPLACE'), 20);
+mk.uiImg = hudPlane(marketHud, null, 21);
+mk.uiHl = [0, 1, 2, 3].map(() => { const q = hudPlane(marketHud, null, 22); q.material.color.set(PAL.amber); return q; });
+const MARKET_UI = [
+  // [from, to, ui, scroll start, scroll end, highlight rect in image px or null]
+  [470, 730, 'market', 0, 1, null],
+  [730, 990, 'marketDetail', 0, 1, LANG === 'en' ? [1100, 1130, 131, 72] : [1119, 1046, 112, 71]],
+];
+function drawMarketUi(m) {
+  const beat = MARKET_UI.find(([a, b]) => m >= a && m < b);
+  if (!beat) return;
+  const [a, b, key, s0, s1, hl] = beat;
+  const ui = UI[key];
+  const alpha = step8(Math.min(span(m, a, a + 12), key === 'market' ? 1 : 1 - span(m, b - 12, b)));
+  const IA = { x: 11, y: 51, w: 298, h: 115 };
+  const sh = ui.w * IA.h / IA.w;
+  const sy = lerp(s0, s1, ease(span(m, a + 20, b - 30))) * (ui.h - sh);
+  setPlane(mk.uiFrame, 10, 50, 300, 126, alpha);
+  if (mk.uiImg.material.map !== ui.tex) { mk.uiImg.material.map = ui.tex; mk.uiImg.material.needsUpdate = true; }
+  ui.tex.repeat.set(1, sh / ui.h);
+  ui.tex.offset.set(0, 1 - (sy + sh) / ui.h);
+  setPlane(mk.uiImg, IA.x, IA.y, IA.w, IA.h, alpha);
+  if (hl && m >= b - 70) {
+    const k = IA.w / ui.w;
+    const [hx, hy, hw, hh] = hl;
+    const x = IA.x + hx * k, y = IA.y + IA.h - (hy - sy + hh) * k, w = hw * k, h = hh * k;
+    const on = (Math.floor(m / 6) % 2) ? 1 : 0.6;
+    setPlane(mk.uiHl[0], x - 2, y - 2, w + 4, 1, on); setPlane(mk.uiHl[1], x - 2, y + h + 1, w + 4, 1, on);
+    setPlane(mk.uiHl[2], x - 2, y - 2, 1, h + 4, on); setPlane(mk.uiHl[3], x + w + 1, y - 2, 1, h + 4, on);
+  }
+}
 mk.white = hudPlane(marketHud, null, 50);
 mk.white.material.color.set('#ffffff');
 
@@ -2146,6 +2182,7 @@ function renderMarket(m) {
       });
     }
   }
+  drawMarketUi(m);
   if (within(m, 2100, 2160)) setPlane(mk.white, 0, 0, 320, 180, step8(span(m, 2100, 2160)));
   narrate(m, [
     [20, NARRATOR, T('publish1')],
