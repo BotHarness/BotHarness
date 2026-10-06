@@ -927,7 +927,9 @@ export function createOutboundMessaging(options: {
       const current = database.read((db) => humanBridgeChannel(db, channelId));
       const grants = snapshots.flatMap((snapshot, index) =>
         current.members.includes(channel.members[index]!)
-          ? snapshot.grants.filter((grant) => grant.platform !== 'weixin')
+          ? snapshot.grants.filter(
+              (grant) => grant.platform !== 'weixin' && grant.receiveScope?.kind !== 'dm',
+            )
           : [],
       );
       const source = (g: MessagingSnapshot['grants'][number]) => ({
