@@ -1,0 +1,354 @@
+<!doctype html>
+<!--
+  PROTOTYPE (throwaway) — avatar hair attachment, bloub-style animated bot.
+
+  Plan: three structurally different ways to attach hair/fringe to the
+  radial-profile bot engine, on one page, switchable via ?variant=A|B|C
+  with the floating bottom bar (← / → keys too).
+
+    A  Outline fringe  — solid scalloped cap generated from the live outline;
+                         laid out as a 2x2 shape matrix ("does it hug
+                         every shape?").
+    B  Silhouette hair — hair fused INTO r(theta); one big avatar, slider
+                         editor ("does the morph stay clean?").
+    C  Layered roster  — stroke locks + back mane as separate z-layers with
+                         swing; a mock bot roster ("does it read small?").
+
+  Question: what does each attachment LOOK like — which feels right for
+  user-customizable bot personas?
+  Run: open this file (double-click / `open index.html`). No build, no deps.
+  Not production. Do not import from here.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE — bot avatar hair</title>
+    <style>
+      :root {
+        --paper: #f2f0eb;
+        --ink: #16161a;
+        --muted: #6b6b73;
+        --line: #dcd9d1;
+        --accent: #e8483f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          14px/1.5 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+      }
+      .badge {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 60;
+        background: var(--accent);
+        color: #fff;
+        font:
+          600 11px/1 ui-monospace,
+          monospace;
+        letter-spacing: 0.08em;
+        padding: 6px 10px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+      header.vh {
+        padding: 28px 32px 4px;
+        max-width: 1100px;
+      }
+      header.vh h1 {
+        margin: 0 0 4px;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+      }
+      header.vh p {
+        margin: 0 0 8px;
+        color: var(--muted);
+        max-width: 64ch;
+      }
+      header.vh .look {
+        font-size: 12px;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .avatar {
+        display: block;
+        background: transparent;
+        touch-action: none;
+      }
+      .avatar-wrap {
+        position: relative;
+      }
+
+      /* controls */
+      .ctl {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ctl label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .ctl .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .ctl .row > span.val {
+        font:
+          11px ui-monospace,
+          monospace;
+        color: var(--muted);
+        min-width: 34px;
+        text-align: right;
+      }
+      .ctl .row > input[type='range'] {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+        accent-color: var(--ink);
+      }
+      .ctl input[type='color'] {
+        width: 40px;
+        height: 26px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: none;
+      }
+      .ctl select {
+        font: inherit;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+      }
+      .btns {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .btns button {
+        font: inherit;
+        font-size: 13px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .btns button:hover {
+        border-color: var(--ink);
+      }
+      .btns button.on {
+        background: var(--ink);
+        color: #fff;
+        border-color: var(--ink);
+      }
+      .panel-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 4px 0 0;
+      }
+      pre.state {
+        font:
+          11px/1.45 ui-monospace,
+          SFMono-Regular,
+          monospace;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin: 0;
+        overflow: auto;
+        max-height: 320px;
+        white-space: pre;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      /* — variant A: 2x2 matrix + slim right rail — */
+      .a-main {
+        display: grid;
+        grid-template-columns: 1fr 240px;
+        gap: 20px;
+        padding: 12px 32px 120px;
+        max-width: 1100px;
+      }
+      .a-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .a-cell {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 10px;
+        text-align: center;
+      }
+      .a-cell figcaption {
+        font:
+          600 12px ui-monospace,
+          monospace;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .a-cell .avatar {
+        margin: 0 auto;
+      }
+
+      /* — variant B: hero + editor rail — */
+      .b-main {
+        display: grid;
+        grid-template-columns: minmax(340px, 1fr) 300px;
+        gap: 24px;
+        padding: 12px 32px 120px;
+        max-width: 1100px;
+      }
+      .b-hero {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        min-height: 460px;
+      }
+      .b-rail {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* — variant C: roster — */
+      .c-main {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 24px;
+        padding: 12px 32px 120px;
+        max-width: 1100px;
+      }
+      .c-left {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .c-hero {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px;
+        text-align: center;
+      }
+      .c-hero .hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .c-roster {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .c-row {
+        display: grid;
+        grid-template-columns: 64px 1fr auto;
+        gap: 14px;
+        align-items: center;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 8px 14px;
+      }
+      .c-row .who {
+        font-weight: 650;
+      }
+      .c-row .who small {
+        display: block;
+        font-weight: 400;
+        color: var(--muted);
+        font:
+          11px ui-monospace,
+          monospace;
+      }
+      .c-row .chip {
+        font:
+          11px ui-monospace,
+          monospace;
+        color: var(--muted);
+      }
+
+      /* floating switcher (shared) */
+      .switcher {
+        position: fixed;
+        left: 50%;
+        bottom: 18px;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        z-index: 70;
+        background: #111;
+        color: #fff;
+        border-radius: 999px;
+        padding: 6px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+      }
+      .switcher button {
+        border: 0;
+        background: transparent;
+        color: #fff;
+        font-size: 16px;
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        cursor: pointer;
+      }
+      .switcher button:hover {
+        background: #2e2e34;
+      }
+      .switcher .label {
+        min-width: 220px;
+        text-align: center;
+        font:
+          600 13px ui-monospace,
+          monospace;
+        padding: 0 8px;
+      }
+      .switcher .label .k {
+        color: #ff8f88;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="badge">throwaway prototype</div>
+    <div id="stage"></div>
+    <div id="switcher"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
