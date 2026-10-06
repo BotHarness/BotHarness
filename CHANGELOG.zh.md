@@ -5,7 +5,11 @@
 
 ## [Unreleased]
 
-1.1.0 之后暂无变更。
+微信原始语音可下载，并可按需准备播放。
+
+### Added
+
+- 微信原生语音可下载原文件，支持的 SILK 音频可显式准备播放或保存独立 WAV 工作副本；解码有大小、时间限制并校验当前来源授权，语音识别和原生语音回复仍是独立能力（[#906](https://github.com/BotHarness/BotHarness/issues/906)、[指南](docs/wechat-connection.md)）。
 
 ## [1.1.0] - 2026-10-06
 

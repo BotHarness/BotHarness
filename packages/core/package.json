@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "@botharness/pixel-avatar": "0.1.0",
-    "@resvg/resvg-js": "2.6.2"
+    "@resvg/resvg-js": "2.6.2",
+    "silk-wasm": "3.7.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",

@@ -237,6 +237,7 @@ export interface OrchestratorAgentRun {
       attachmentId: string;
       grantId: string;
       destinationPath: string;
+      representation?: 'playback';
     }): ReturnType<typeof saveAttachmentFile>;
     replyFile(sourceEventId: string, fileId: string): ReturnType<OutboundMessaging['replyFile']>;
   };
@@ -2846,11 +2847,11 @@ class BotRuntimeImplementation implements BotRuntime {
                   const destinationGrant = this.#grants.requireActive(bot.slug, input.grantId);
                   if (destinationGrant.orchestratorWrite !== true)
                     throw new Error('Destination requires Orchestrator write authorization');
-                  const ref = await this.#externalMessaging!.acquireFile(
-                    bot.slug,
-                    input.sourceEventId,
-                    input.attachmentId,
-                  );
+                  const ref = await (
+                    input.representation === 'playback'
+                      ? this.#externalMessaging!.prepareAudio
+                      : this.#externalMessaging!.acquireFile
+                  )(bot.slug, input.sourceEventId, input.attachmentId);
                   return saveAttachmentFile(input, {
                     botSlug: bot.slug,
                     grants: this.#grants,

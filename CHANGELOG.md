@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Nothing yet since 1.1.0.
+WeChat original voice can be downloaded and prepared for playback.
+
+### Added
+
+- Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
 
 ## [1.1.0] - 2026-10-06
 

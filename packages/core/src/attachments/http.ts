@@ -28,6 +28,27 @@ function filenameDisposition(name: string, inline: boolean): string {
 }
 
 function errorResponse(error: unknown): Response {
+  if (
+    error instanceof MessagingError &&
+    [
+      'audio-codec-unsupported',
+      'audio-decode-failed',
+      'audio-decode-timeout',
+      'audio-too-large',
+    ].includes(error.code)
+  )
+    return Response.json(
+      {
+        error: {
+          code: error.code,
+          message: 'Audio playback is unavailable; the original can still be downloaded.',
+        },
+      },
+      {
+        status: error.code === 'audio-too-large' ? 413 : 422,
+        headers: { 'cache-control': 'no-store' },
+      },
+    );
   if (error instanceof MessagingError)
     return Response.json(
       { error: { code: 'source-unavailable', message: 'Attachment source is unavailable' } },
@@ -53,6 +74,7 @@ export function createAttachmentHttp(
     slug: string;
     sourceEventId: string;
     attachmentId: string;
+    representation?: 'playback';
     signal: AbortSignal;
   }) => Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>,
 ): (request: Request) => Promise<Response> {
@@ -95,8 +117,10 @@ export function createAttachmentHttp(
         !sourceEventId ||
         !attachmentId ||
         externalFile === undefined ||
+        (url.searchParams.has('representation') &&
+          url.searchParams.get('representation') !== 'playback') ||
         [...url.searchParams.keys()].some(
-          (key) => !['slug', 'sourceEventId', 'attachmentId'].includes(key),
+          (key) => !['slug', 'sourceEventId', 'attachmentId', 'representation'].includes(key),
         )
       )
         return new Response('External attachment source is required', { status: 400 });
@@ -105,6 +129,9 @@ export function createAttachmentHttp(
           slug,
           sourceEventId,
           attachmentId,
+          ...(url.searchParams.get('representation') === 'playback'
+            ? { representation: 'playback' }
+            : {}),
           signal: request.signal,
         });
         return new Response(body, {

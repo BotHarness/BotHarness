@@ -1161,12 +1161,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       'botharness: current Memory file download',
     );
     const attachmentHttp = createAttachmentHttp(core.attachments, core.channels, async (input) => {
-      const ref = await core.externalMessaging.acquireFile(
-        input.slug,
-        input.sourceEventId,
-        input.attachmentId,
-        input.signal,
-      );
+      const ref = await (
+        input.representation === 'playback'
+          ? core.externalMessaging.prepareAudio
+          : core.externalMessaging.acquireFile
+      )(input.slug, input.sourceEventId, input.attachmentId, input.signal);
       const signal = AbortSignal.any([
         input.signal,
         core.externalMessaging.inbound.sourceSignal(input.slug, input.sourceEventId),
