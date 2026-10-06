@@ -416,6 +416,9 @@ export const zh = {
   'roster.menu.createChannel': '创建频道',
   'roster.menu.createSection': '创建频道分组',
   'roster.menu.marketplace': 'Bot 市场',
+  'roster.menu.createBot.empty': '从零创建',
+  'roster.menu.createBot.git': '从 GitHub 导入',
+  'roster.menu.createBot.zip': '从 zip 导入',
   'market.title': 'Bot 市场',
   'market.description': '浏览公开 GitHub 仓库分享的 Bot，安装后会成为一个新的 PersonaBot。',
   'market.submit.label': 'GitHub 仓库地址',
@@ -508,8 +511,6 @@ export const zh = {
   'bot.create.description': '名称用于列表和 @；内部身份由系统生成。岗位和简介均可留空。',
   'bot.create.creating': '创建中',
   'bot.create.importing': '正在克隆仓库…',
-  'bot.create.source.label': '记忆来源',
-  'bot.create.source.empty': '从空白创建',
   'bot.create.persona.preset': '人格起点',
   'bot.create.persona.blank': '空白',
   'bot.create.persona.colleague': '同事',
@@ -541,7 +542,6 @@ export const zh = {
 # 互动边界
 与 Human 的关系、需要遵守的设定和希望避开的内容：[填写]。
 `,
-  'bot.create.source.git': '从 Git 仓库导入',
   'bot.create.gitUrl.label': 'Git 仓库地址',
   'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',
   'bot.create.gitUrl.hint':
@@ -563,6 +563,38 @@ export const zh = {
   'bot.create.error.gitUrl': '请输入有效的 HTTPS 或 SSH 仓库地址。',
   'bot.create.error.clone': '克隆失败。请检查仓库地址、网络和 Host 的 Git 凭证。',
   'bot.create.error.cloneTimeout': '克隆超时。请检查网络或改用较小的仓库重试。',
+  'bot.create.gitTitle': '从 GitHub 导入 PersonaBot',
+  'bot.create.gitInSection': '在「{name}」中从 GitHub 导入 PersonaBot',
+  'botZip.import.title': '从 zip 导入 PersonaBot',
+  'botZip.import.inSection': '在「{name}」中从 zip 导入 PersonaBot',
+  'botZip.import.description':
+    '选择别人分享给你的 Bot zip，或你在另一台设备上导出的 zip。导入会创建一个新的 Bot，名称、岗位和头像来自 zip 里的 .botharness/bot.json。',
+  'botZip.import.choose': '选择 zip 文件',
+  'botZip.import.change': '重新选择',
+  'botZip.import.none': '还没有选择文件',
+  'botZip.import.riskTitle': '这是第三方内容',
+  'botZip.import.risk':
+    'zip 里的文件会成为新 Bot 的 Memory，可能包含有害内容或会被 Bot 执行的指令。请只导入你信任的来源。',
+  'botZip.import.submit': '导入',
+  'botZip.import.importing': '正在导入…',
+  'botZip.import.failed': '导入失败：{error}',
+  'botZip.error.invalid': '这不是有效的 zip 文件，或文件已损坏。',
+  'botZip.error.unsafe': 'zip 里有不安全的路径（例如 ../ 或符号链接），已拒绝导入。',
+  'botZip.error.tooLarge': 'zip 太大了：文件和解压后的内容都不能超过 100 MB。',
+  'botZip.error.empty': 'zip 里没有文件。',
+  'botZip.export.title': '分享与导出',
+  'botZip.export.description':
+    '把这个 Bot 的 Memory 文件打包成 zip，发给别人，或在另一台设备上导入。只包含文件，不含 Git 历史、会话、IM 绑定和凭证。',
+  'botZip.export.button': '导出 zip',
+  'botZip.export.confirmTitle': '导出 {name}',
+  'botZip.export.confirmBody':
+    'zip 会包含这个 Bot 当前的全部 Memory 文件（包括还没提交的修改）、.botharness/bot.json 和头像。被 .gitignore 忽略的文件不会放进去。',
+  'botZip.export.warningTitle': '分享前请先检查',
+  'botZip.export.warning':
+    'Memory 里可能记着密码、API Key，或聊天中提到的个人信息。发给别人之前，先确认这些文件里没有不该分享的内容。',
+  'botZip.export.submit': '导出',
+  'botZip.export.exporting': '正在打包…',
+  'botZip.export.failed': '导出失败：{error}',
   'main.author.human': '你',
   'main.author.system': '系统',
   'main.date.locale': 'zh-CN',
@@ -2328,6 +2360,9 @@ export const en = {
   'roster.menu.createChannel': 'Create channel',
   'roster.menu.createSection': 'Create channel section',
   'roster.menu.marketplace': 'Bot Marketplace',
+  'roster.menu.createBot.empty': 'Start empty',
+  'roster.menu.createBot.git': 'Import from GitHub',
+  'roster.menu.createBot.zip': 'Import from zip',
   'market.title': 'Bot Marketplace',
   'market.description':
     'Browse Bots shared as public GitHub repositories. Installing one creates a new PersonaBot.',
@@ -2427,8 +2462,6 @@ export const en = {
     'The name is used in lists and @mentions; the internal identity is generated. Roles and description may stay empty.',
   'bot.create.creating': 'Creating',
   'bot.create.importing': 'Cloning repository…',
-  'bot.create.source.label': 'Memory source',
-  'bot.create.source.empty': 'Start empty',
   'bot.create.persona.preset': 'Persona starting point',
   'bot.create.persona.blank': 'Blank',
   'bot.create.persona.colleague': 'Colleague',
@@ -2462,7 +2495,6 @@ My tone, vocabulary and habits: [fill in]. Characteristic phrases: [fill in].
 # Interaction boundaries
 My relationship with the Human, established lore and topics to avoid: [fill in].
 `,
-  'bot.create.source.git': 'Import Git repository',
   'bot.create.gitUrl.label': 'Git repository URL',
   'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',
   'bot.create.gitUrl.hint':
@@ -2487,6 +2519,40 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
     'Clone failed. Check the URL, network, and Git credentials on the Host.',
   'bot.create.error.cloneTimeout':
     'Clone timed out. Check the network or retry with a smaller repository.',
+  'bot.create.gitTitle': 'Import a PersonaBot from GitHub',
+  'bot.create.gitInSection': 'Import a PersonaBot from GitHub into “{name}”',
+  'botZip.import.title': 'Import a PersonaBot from zip',
+  'botZip.import.inSection': 'Import a PersonaBot from zip into “{name}”',
+  'botZip.import.description':
+    'Choose a Bot zip someone shared with you, or one you exported on another device. Importing creates a new Bot; its name, roles and avatar come from .botharness/bot.json in the zip.',
+  'botZip.import.choose': 'Choose zip file',
+  'botZip.import.change': 'Choose another',
+  'botZip.import.none': 'No file chosen yet',
+  'botZip.import.riskTitle': 'This is third-party content',
+  'botZip.import.risk':
+    'The files in the zip become the new Bot’s Memory and may contain harmful content or instructions the Bot will follow. Only import from sources you trust.',
+  'botZip.import.submit': 'Import',
+  'botZip.import.importing': 'Importing…',
+  'botZip.import.failed': 'Import failed: {error}',
+  'botZip.error.invalid': 'This is not a valid zip file, or it is damaged.',
+  'botZip.error.unsafe':
+    'The zip has unsafe paths (such as ../ or symbolic links), so it was not imported.',
+  'botZip.error.tooLarge':
+    'The zip is too large: the file and its unpacked contents must each stay under 100 MB.',
+  'botZip.error.empty': 'The zip has no files.',
+  'botZip.export.title': 'Share and export',
+  'botZip.export.description':
+    'Pack this Bot’s Memory files into a zip to send to someone or import on another device. It holds files only: no Git history, Sessions, IM bindings or credentials.',
+  'botZip.export.button': 'Export zip',
+  'botZip.export.confirmTitle': 'Export {name}',
+  'botZip.export.confirmBody':
+    'The zip holds all of this Bot’s current Memory files (uncommitted changes included), .botharness/bot.json and its avatar. Files ignored by .gitignore are left out.',
+  'botZip.export.warningTitle': 'Check before you share',
+  'botZip.export.warning':
+    'Memory can hold passwords, API keys, or personal details mentioned in chats. Before you send it to anyone, make sure these files hold nothing you shouldn’t share.',
+  'botZip.export.submit': 'Export',
+  'botZip.export.exporting': 'Packing…',
+  'botZip.export.failed': 'Export failed: {error}',
   'main.author.human': 'You',
   'main.author.system': 'System',
   'main.date.locale': 'en-US',

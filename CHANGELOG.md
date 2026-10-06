@@ -5,7 +5,7 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-WeChat original voice can be prepared for playback, native video can be played and returned through a checked media path, and Discord defaults can be saved independently and inherited by Profile settings.
+WeChat original voice can be prepared for playback, native video can be played and returned through a checked media path, Discord defaults can be saved independently and inherited by Profile settings, and a Bot can be exported as a zip and imported as a new Bot elsewhere.
 
 ### Added
 
@@ -13,6 +13,7 @@ WeChat original voice can be prepared for playback, native video can be played a
 - Added a checked personal WeChat video path with on-demand source playback/download and own-identity native video replies, preserving private routing and current authorization; browser playback and tool access remain distinct from video-model understanding ([#907](https://github.com/BotHarness/BotHarness/issues/907), [guide](docs/wechat-connection.md)).
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
 - Discord now has independent external-platform defaults for group intake, ordinary wake thresholds and inherited identity availability. Profile custom choices remain independent; restoring inheritance uses the current Discord defaults. Existing Lark/Slack history and overrides are preserved on upgrade. ([#1016](https://github.com/BotHarness/BotHarness/issues/1016))
+- A Bot can now be handed to someone else as a zip. **Create PersonaBot** opens a submenu with **Start empty**, **Import from GitHub** and **Import from zip**. The Bot profile's **Share and export** section packs the Bot's Memory files, uncommitted changes included, with `.botharness/bot.json` and its avatar, after a reminder to check for secrets; Git history, Sessions, IM bindings and credentials stay out. Importing a zip shows the third-party content notice and creates a fresh Bot with one initial commit and the name, roles and avatar from the zip; unsafe paths, damaged archives and zips over 100 MB are refused and leave nothing behind ([#1062](https://github.com/BotHarness/BotHarness/issues/1062), [ADR-0135](docs/adr/0135-a-bot-moves-between-people-as-a-zip-of-its-memory-files.md)).
 
 ### Fixed
 

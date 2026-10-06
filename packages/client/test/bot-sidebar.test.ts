@@ -362,6 +362,8 @@ function stubActions(): BridgeActions {
     })),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
+    importBotZip: vi.fn(async () => BOT),
+    exportBotZip: vi.fn(async () => undefined),
     createGroup: vi.fn(async () => undefined),
     renameChannel: vi.fn(async () => true),
     setHumanNickname: vi.fn(async () => true),
@@ -838,6 +840,16 @@ describe('bot sidebar rows', () => {
       'Bot 市场',
     ]);
     expect(menu.items[0]?.['disabled']).toBeUndefined();
+    expect(
+      (menu.items[0]?.['submenu'] as Array<Record<string, unknown>>).map((item) => [
+        item['id'],
+        item['label'],
+      ]),
+    ).toEqual([
+      ['bot:empty', '从零创建'],
+      ['bot:git', '从 GitHub 导入'],
+      ['bot:zip', '从 zip 导入'],
+    ]);
     expect(markup).toContain('还没有 PersonaBot');
     expect(markup).toContain('创建第一个 PersonaBot');
     expect(markup).toContain('散装渠道');

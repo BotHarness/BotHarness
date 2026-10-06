@@ -715,6 +715,11 @@ function createFailure(
           message: 'Git clone timed out. Retry or check Host network access.',
         },
       };
+    case 'invalid-zip':
+      return {
+        ok: false,
+        error: { code: 'invalid-zip', message: 'The zip file could not be unpacked.' },
+      };
     case 'memory-unavailable':
       return {
         ok: false,

@@ -14,6 +14,7 @@ import { installOrchestratorFileTools } from './workspaces/orchestrator-file-too
 import { nativeExecutionRoot } from './workspaces/grant-native-tools.js';
 import { createAttachmentStore, type AttachmentStore } from './attachments/store.js';
 import { createMemoryFileHttp, MEMORY_FILE_DOWNLOAD_PATH } from './memory/file-http.js';
+import { BOT_ZIP_EXPORT_PATH, BOT_ZIP_IMPORT_PATH, createBotZipHttp } from './bots/bot-zip-http.js';
 import {
   createAttachmentHttp,
   CHANNEL_ATTACHMENT_PATH,
@@ -1010,89 +1011,87 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       };
     }, 'botharness: release restarter');
   });
-  registerBridge(
-    ctx,
-    createBridgeMethods({
-      warn: (message) => ctx.logger.warn(message),
-      registry: core.registry,
-      modelPresets: core.modelPresets,
-      modelCatalog,
-      modelReadiness,
-      states: core.states,
-      runningSessionIds: () =>
-        new Set(
-          ctx.agents
-            .list()
-            .filter((agent) => agent.status === 'running')
-            .map((agent) => agent.id),
-        ),
-      channels: core.channels,
-      attachments: core.attachments,
-      ownership: core.ownership,
-      memory: core.memory,
-      ...(core.usage === undefined ? {} : { usage: core.usage }),
-      roster: core.roster,
-      runtime: core.runtime,
-      attention: core.attention,
-      sourcePolicy: core.sourcePolicy,
-      schedules: core.schedules,
-      humanAttention: core.humanAttention,
-      humanAttentionDecisions: core.humanAttentionDecisions,
-      grants: core.grants,
-      externalMessaging: core.externalMessaging,
-      toolApproval,
-      userQuestions,
-      toolRules: core.toolRules,
-      assignmentAccess: core.assignmentAccess,
-      marketplace: createMarketplaceClient({
-        baseUrl: config.marketplaceUrl ?? DEFAULT_MARKETPLACE_URL,
-      }),
-      release: createReleaseService({
-        version: () => runningRelease.version,
-        ledgers: () => runningRelease.ledgers,
-        installer: () => releaseInstaller.current,
-        restarter: () => releaseRestarter.current,
-      }),
-      telemetry,
-      developerMode: {
-        set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
-      },
-      computerAccess: {
-        changed: (slug: string) => {
-          const provider = ctx.get('botharnessComputerTools') as unknown as
-            | { reconcileBot?: (slug: string) => Promise<void> }
-            | undefined;
-          const pending = provider?.reconcileBot?.(slug);
-          void pending?.catch((error: unknown) => {
-            ctx.logger.warn(
-              `botharness: Computer tool reconcile failed for ${slug}: ${String(error)}`,
-            );
-          });
-        },
-      },
-      browserAccess: {
-        changed: (slug: string) => {
-          const provider = ctx.get('botharnessBrowserTools') as unknown as
-            | { reconcileBot?: (slug: string) => Promise<void> }
-            | undefined;
-          const pending = provider?.reconcileBot?.(slug);
-          void pending?.catch((error: unknown) => {
-            ctx.logger.warn(
-              `botharness: Browser tool reconcile failed for ${slug}: ${String(error)}`,
-            );
-          });
-        },
-      },
-      browserProfile: {
-        changed: (slug: string) => {
-          const provider = ctx.get('botharnessBrowserTools') as unknown as
-            | { resetBot?: (slug: string) => void }
-            | undefined;
-          provider?.resetBot?.(slug);
-        },
-      },
+  const bridgeMethods = createBridgeMethods({
+    warn: (message) => ctx.logger.warn(message),
+    registry: core.registry,
+    modelPresets: core.modelPresets,
+    modelCatalog,
+    modelReadiness,
+    states: core.states,
+    runningSessionIds: () =>
+      new Set(
+        ctx.agents
+          .list()
+          .filter((agent) => agent.status === 'running')
+          .map((agent) => agent.id),
+      ),
+    channels: core.channels,
+    attachments: core.attachments,
+    ownership: core.ownership,
+    memory: core.memory,
+    ...(core.usage === undefined ? {} : { usage: core.usage }),
+    roster: core.roster,
+    runtime: core.runtime,
+    attention: core.attention,
+    sourcePolicy: core.sourcePolicy,
+    schedules: core.schedules,
+    humanAttention: core.humanAttention,
+    humanAttentionDecisions: core.humanAttentionDecisions,
+    grants: core.grants,
+    externalMessaging: core.externalMessaging,
+    toolApproval,
+    userQuestions,
+    toolRules: core.toolRules,
+    assignmentAccess: core.assignmentAccess,
+    marketplace: createMarketplaceClient({
+      baseUrl: config.marketplaceUrl ?? DEFAULT_MARKETPLACE_URL,
     }),
-  );
+    release: createReleaseService({
+      version: () => runningRelease.version,
+      ledgers: () => runningRelease.ledgers,
+      installer: () => releaseInstaller.current,
+      restarter: () => releaseRestarter.current,
+    }),
+    telemetry,
+    developerMode: {
+      set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
+    },
+    computerAccess: {
+      changed: (slug: string) => {
+        const provider = ctx.get('botharnessComputerTools') as unknown as
+          | { reconcileBot?: (slug: string) => Promise<void> }
+          | undefined;
+        const pending = provider?.reconcileBot?.(slug);
+        void pending?.catch((error: unknown) => {
+          ctx.logger.warn(
+            `botharness: Computer tool reconcile failed for ${slug}: ${String(error)}`,
+          );
+        });
+      },
+    },
+    browserAccess: {
+      changed: (slug: string) => {
+        const provider = ctx.get('botharnessBrowserTools') as unknown as
+          | { reconcileBot?: (slug: string) => Promise<void> }
+          | undefined;
+        const pending = provider?.reconcileBot?.(slug);
+        void pending?.catch((error: unknown) => {
+          ctx.logger.warn(
+            `botharness: Browser tool reconcile failed for ${slug}: ${String(error)}`,
+          );
+        });
+      },
+    },
+    browserProfile: {
+      changed: (slug: string) => {
+        const provider = ctx.get('botharnessBrowserTools') as unknown as
+          | { resetBot?: (slug: string) => void }
+          | undefined;
+        provider?.resetBot?.(slug);
+      },
+    },
+  });
+  registerBridge(ctx, bridgeMethods);
 
   ctx.inject(['skills'], (skillsCtx) => {
     const skills = (
@@ -1203,6 +1202,31 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           fetch: botAvatarHttp,
         }),
       'botharness: PersonaBot avatar',
+    );
+    const botZipHttp = createBotZipHttp({
+      registry: core.registry,
+      detail: (slug) => bridgeMethods.get({ slug }),
+      log: (message) => ctx.logger.info(message),
+    });
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_ZIP_EXPORT_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: botZipHttp,
+        }),
+      'botharness: Bot Zip export',
+    );
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_ZIP_IMPORT_PATH,
+          methods: ['POST'],
+          requestBody: 'streaming',
+          fetch: botZipHttp,
+        }),
+      'botharness: Bot Zip import',
     );
   });
   const toolDetails = createToolDetailIndex({

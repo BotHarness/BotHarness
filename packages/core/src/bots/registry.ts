@@ -27,6 +27,8 @@ import {
 import { readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
 import type { MemoryCloneResult } from '../memory/clone.js';
+import { writeBotFiles } from './bot-zip.js';
+import type { ZipEntry } from './zip-archive.js';
 import {
   DEFAULT_STANDING_LIMITS,
   isStandingLimits,
@@ -71,6 +73,9 @@ export interface PersonaBotRegistry {
   create(input: CreatePersonaBotInput): CreatePersonaBotResult;
   createFromGit(
     input: Omit<CreatePersonaBotInput, 'memoryDir'> & { gitUrl: string },
+  ): Promise<CreatePersonaBotResult>;
+  createFromFiles(
+    input: Omit<CreatePersonaBotInput, 'memoryDir' | 'persona'> & { files: readonly ZipEntry[] },
   ): Promise<CreatePersonaBotResult>;
   get(slug: string): PersonaBotRecord | undefined;
   list(): PersonaBotRecord[];
@@ -377,6 +382,67 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     return { ok: true, record };
   };
 
+  const createFromStaging = async (
+    input: Omit<CreatePersonaBotInput, 'memoryDir'>,
+    prefix: string,
+    populate: (
+      staging: string,
+    ) => Promise<Extract<CreatePersonaBotResult, { ok: false }>['reason'] | undefined>,
+  ): Promise<CreatePersonaBotResult> => {
+    if (!isValidSlug(input.slug)) return { ok: false, reason: 'invalid-slug' };
+    if (read(input.slug) !== undefined || existsSync(botDir(input.slug))) {
+      return { ok: false, reason: 'duplicate' };
+    }
+
+    let staging: string | undefined;
+    let ownsBotDir = false;
+    let created = false;
+    try {
+      mkdirSync(rootDir, { recursive: true });
+      staging = mkdtempSync(join(rootDir, prefix));
+      const failure = await populate(staging);
+      if (failure !== undefined) return { ok: false, reason: failure };
+      if (read(input.slug) !== undefined || existsSync(botDir(input.slug)))
+        return { ok: false, reason: 'duplicate' };
+
+      mkdirSync(botDir(input.slug));
+      ownsBotDir = true;
+      renameSync(staging, defaultMemoryDir(input.slug));
+      staging = undefined;
+      try {
+        migrateLegacySoul(defaultMemoryDir(input.slug));
+      } catch {}
+      const result = create(input, false);
+      created = result.ok;
+      if (!result.ok) return result;
+      capture('bot_created');
+      const presentation = readSharedPresentation(defaultMemoryDir(input.slug));
+      if (presentation === undefined) {
+        syncDescriptor(result.record, true);
+        return result;
+      }
+      const presented = { ...result.record, ...presentation };
+      try {
+        write(presented);
+      } catch {
+        syncDescriptor(result.record, true);
+        return result;
+      }
+      syncDescriptor(presented, true);
+      return { ok: true, record: presented };
+    } catch {
+      return { ok: false, reason: 'memory-unavailable' };
+    } finally {
+      if (staging !== undefined) rmSync(staging, { recursive: true, force: true });
+      if (ownsBotDir && !created && options.database.mode === 'ready') {
+        try {
+          if (read(input.slug) === undefined)
+            rmSync(botDir(input.slug), { recursive: true, force: true });
+        } catch {}
+      }
+    }
+  };
+
   return {
     rootDir,
     create(input) {
@@ -385,61 +451,23 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       return result;
     },
     async createFromGit(input) {
-      if (!isValidSlug(input.slug)) return { ok: false, reason: 'invalid-slug' };
-      if (read(input.slug) !== undefined || existsSync(botDir(input.slug))) {
-        return { ok: false, reason: 'duplicate' };
-      }
-      if (options.cloneMemory === undefined) return { ok: false, reason: 'memory-unavailable' };
-
-      let staging: string | undefined;
-      let ownsBotDir = false;
-      let created = false;
-      try {
-        mkdirSync(rootDir, { recursive: true });
-        staging = mkdtempSync(join(rootDir, '.git-import-'));
-        const cloned = await options.cloneMemory(staging, input.gitUrl);
-        if (!cloned.ok) return { ok: false, reason: cloned.code };
-        if (read(input.slug) !== undefined || existsSync(botDir(input.slug)))
-          return { ok: false, reason: 'duplicate' };
-
-        mkdirSync(botDir(input.slug));
-        ownsBotDir = true;
-        renameSync(staging, defaultMemoryDir(input.slug));
-        staging = undefined;
+      const { gitUrl, ...recordInput } = input;
+      return createFromStaging(recordInput, '.git-import-', async (staging) => {
+        if (options.cloneMemory === undefined) return 'memory-unavailable';
+        const cloned = await options.cloneMemory(staging, gitUrl);
+        return cloned.ok ? undefined : cloned.code;
+      });
+    },
+    async createFromFiles(input) {
+      const { files, ...recordInput } = input;
+      return createFromStaging(recordInput, '.zip-import-', (staging) => {
         try {
-          migrateLegacySoul(defaultMemoryDir(input.slug));
-        } catch {}
-        const { gitUrl, ...recordInput } = input;
-        void gitUrl;
-        const result = create(recordInput, false);
-        created = result.ok;
-        if (!result.ok) return result;
-        capture('bot_created');
-        const presentation = readSharedPresentation(defaultMemoryDir(input.slug));
-        if (presentation === undefined) {
-          syncDescriptor(result.record, true);
-          return result;
-        }
-        const presented = { ...result.record, ...presentation };
-        try {
-          write(presented);
+          writeBotFiles(staging, files);
+          return Promise.resolve(undefined);
         } catch {
-          syncDescriptor(result.record, true);
-          return result;
+          return Promise.resolve('invalid-zip' as const);
         }
-        syncDescriptor(presented, true);
-        return { ok: true, record: presented };
-      } catch {
-        return { ok: false, reason: 'memory-unavailable' };
-      } finally {
-        if (staging !== undefined) rmSync(staging, { recursive: true, force: true });
-        if (ownsBotDir && !created && options.database.mode === 'ready') {
-          try {
-            if (read(input.slug) === undefined)
-              rmSync(botDir(input.slug), { recursive: true, force: true });
-          } catch {}
-        }
-      }
+      });
     },
     get(slug) {
       return read(slug);

@@ -65,8 +65,7 @@ describe('PersonaBot creation form', () => {
 
     expect(markup).toContain('创建 PersonaBot');
     expect(markup).toContain('名称用于列表和 @；内部身份由系统生成');
-    expect(markup).toContain('从空白创建');
-    expect(markup).toContain('从 Git 仓库导入');
+    expect(markup).not.toContain('Git 仓库地址');
     expect(markup).toContain('岗位 / 职位（可选）');
     expect(markup).toContain('简介（可选）');
     expect(markup).toContain('placeholder="例如：小研"');
@@ -93,6 +92,21 @@ describe('PersonaBot creation form', () => {
     );
 
     expect(markup).toContain('在「工作流」中创建 PersonaBot');
+  });
+
+  it('asks only for the repository when opened from Import from GitHub', () => {
+    const markup = renderToStaticMarkup(
+      createElement(CreatePersonaBotModal, {
+        actions: { createBot: vi.fn() } as unknown as BridgeActions,
+        source: 'git',
+        onCancel: vi.fn(),
+        onCreated: vi.fn(),
+      }),
+    );
+
+    expect(markup).toContain('从 GitHub 导入 PersonaBot');
+    expect(markup).toContain('Git 仓库地址');
+    expect(markup).not.toContain('人格起点');
   });
 
   it('normalizes, de-duplicates, and drops blank role badges', () => {
@@ -125,6 +139,7 @@ describe('PersonaBot creation form', () => {
 
 async function withForm(
   test: (host: HTMLDivElement, create: ReturnType<typeof vi.fn>) => Promise<void>,
+  source: 'empty' | 'git' = 'empty',
 ) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const host = document.createElement('div');
@@ -136,6 +151,7 @@ async function withForm(
       root.render(
         createElement(CreatePersonaBotModal, {
           actions: { createBot: create } as unknown as BridgeActions,
+          source,
           onCancel: vi.fn(),
           onCreated: vi.fn(),
         }),
@@ -198,26 +214,21 @@ describe('editable creation starting points', () => {
     });
   });
 
-  it('does not seed imported memory, and keeps the local draft when returning from Git import', async () => {
+  it('does not seed imported memory when importing from GitHub', async () => {
     await withForm(async (host, create) => {
-      await typeText(host, 'input[placeholder="例如：小研"]', 'Imported');
-      await typeText(host, 'textarea', '# Keep my draft');
-      await choose(host, '记忆来源', 'git');
       expect(host.querySelector('textarea')).toBeNull();
+      await typeText(host, 'input[placeholder="例如：小研"]', 'Imported');
       await typeText(
         host,
         'input[placeholder="https://github.com/owner/repo.git"]',
         'https://github.com/owner/repo.git',
       );
-      await choose(host, '记忆来源', 'empty');
-      expect(host.querySelector('textarea')!.value).toBe('# Keep my draft');
-      await choose(host, '记忆来源', 'git');
       await submit(host);
       expect(create).toHaveBeenCalledWith(
         { displayName: 'Imported', roles: [], gitUrl: 'https://github.com/owner/repo.git' },
         undefined,
       );
-    });
+    }, 'git');
   });
 
   it('allows the blank starting point to stay blank', async () => {
