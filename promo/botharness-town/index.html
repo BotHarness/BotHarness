@@ -1201,6 +1201,9 @@ const pointer = hudSprite(canvasTex(7, 10, (ctx) => {
   const rows = ['K......', 'KK.....', 'KWK....', 'KWWK...', 'KWWWK..', 'KWWWWK.', 'KWWWWWK', 'KWWKKK.', 'KWK.K..', 'KK..KK.'];
   rows.forEach((r, y) => [...r].forEach((ch, x) => ch !== '.' && rect(ctx, x, y, 1, 1, ch === 'K' ? INK : '#ffffff')));
 }), 13, 0, 1);
+const pointerRing = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: canvasTex(40, 40, (ctx) => { for (let a = 0; a < 120; a++) rect(ctx, Math.round(20 + Math.cos((a / 120) * Math.PI * 2) * 18), Math.round(20 + Math.sin((a / 120) * Math.PI * 2) * 18), 2, 2, '#3d5afe'); }).tex, transparent: true, depthTest: false, depthWrite: false }));
+pointerRing.renderOrder = 13;
+hud.add(pointerRing);
 const frameCache = new Map();
 function frameTex(w, h, title) {
   const key = `${w}x${h}:${title}`;
@@ -1631,6 +1634,8 @@ function renderLegacy(f) {
   panelFrame.visible = panelImage.visible = !!showPanel;
   for (const h of hlLines) h.visible = false;
   pointer.visible = false;
+  pointerRing.visible = false;
+  panelMap = null;
   if (showPanel) {
     const P = { ...L.panel };
     const slide = L.panelIn !== undefined ? 1 - L.panelIn : 0;
@@ -1673,6 +1678,7 @@ function renderLegacy(f) {
     panelImage.scale.set(drawW, drawH, 1);
     panelImage.material.opacity = 1;
     const toPanel = (sx, sy) => [IA.x + ((sx - x0) / cw) * IA.w, IA.y + IA.h - ((sy - y0) / ch) * IA.h];
+    panelMap = { toPanel, IA };
     for (const [h0, h1, hx, hy, hw, hh] of beat.hl ?? []) {
       if (!within(f, h0, h1)) continue;
       const on = (f - h0) % 40 < 30;
@@ -1691,6 +1697,9 @@ function renderLegacy(f) {
       const pt = ease(span(f, h0, h0 + 24));
       pointer.visible = true;
       pointer.position.set(Math.round(lerp(IA.x + IA.w - 8, r - 6, pt)), Math.round(lerp(IA.y + 12, b2 + 4, pt)), 0);
+      // the hand clicks when it arrives: a ring opens where it pressed
+      const rk = span(f, h0 + 24, h0 + 34);
+      if (rk > 0 && rk < 1) { pointerRing.visible = true; pointerRing.position.set(r - 6, b2 + 4, 0); pointerRing.scale.set(8 + rk * 20, 8 + rk * 20, 1); pointerRing.material.opacity = 1 - rk; }
       break;
     }
   }
@@ -1786,6 +1795,7 @@ function renderLegacy(f) {
   renderer.setScissorTest(false);
   renderMemStage(f, worldW);
   renderGroupInsert(f);
+  renderPanelInserts(f);
 }
 
 // ===== master timeline =============================================================
@@ -3664,6 +3674,67 @@ function renderGroupInsert(f) {
   renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
   renderer.clearDepth();
   renderer.render(g.scene, hudCam);
+}
+
+// Rebuilt moments over the real panels: a card flies into the spot the real screenshot shows it.
+// panelMap is set by renderLegacy each frame a UI panel is on screen (image px -> panel coordinates).
+let panelMap = null;
+const panelInsert = { scene: new THREE.Scene(), built: false };
+function chipTex(w, h, paint) { return canvasTex(w * 2, h * 2, (ctx) => paint(ctx, w * 2, h * 2)); }
+function buildPanelInsert() {
+  const p = panelInsert;
+  p.built = true;
+  // a Lark notification: someone mentioned Nova in a topic
+  p.lark = hudPlane(p.scene, chipTex(120, 30, (ctx, W, H) => {
+    ctx.fillStyle = 'rgba(42,34,48,0.25)'; ctx.beginPath(); ctx.roundRect(4, 6, W - 6, H - 8, 12); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#d9d6de'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(1, 1, W - 8, H - 10, 12); ctx.fill(); ctx.stroke();
+    const c = document.createElement('canvas'); c.width = c.height = 12; drawLogo(c.getContext('2d'), 'lark', 0, 0, 1); ctx.imageSmoothingEnabled = false; ctx.drawImage(c, 12, 10, 30, 30);
+    crispText(ctx, LANG === 'en' ? 'Lark · topic' : '飞书 · 话题', 52, 18, 13, '#7a7f8c', 90);
+    crispText(ctx, LANG === 'en' ? 'Alex mentioned @Nova' : 'Alex 在话题里 @ 了 Nova', 52, 38, 15, '#1b1820', 90);
+  }), 1, 0.5, 0.5);
+  const fileChip = (name, tint) => chipTex(84, 24, (ctx, W, H) => {
+    ctx.fillStyle = 'rgba(42,34,48,0.25)'; ctx.beginPath(); ctx.roundRect(4, 6, W - 6, H - 8, 10); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#d9d6de'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(1, 1, W - 8, H - 10, 10); ctx.fill(); ctx.stroke();
+    box(ctx, 10, 8, 24, 24, tint, INK); for (let k = 0; k < 4; k++) rect(ctx, 20, 10 + k * 5, 4, 3, INK);
+    crispText(ctx, name, 42, 20, 15, '#1b1820', 90);
+  });
+  p.zipIn = hudPlane(p.scene, fileChip('input.zip', '#f2c14e'), 2, 0.5, 0.5);
+  p.zipOut = hudPlane(p.scene, fileChip('result.zip', '#5cb85c'), 3, 0.5, 0.5);
+  p.memFile = hudPlane(p.scene, fileChip('review-demo.md', '#9ad8f0'), 4, 0.5, 0.5);
+}
+// fly a card from a hud rect into an image rect of the current panel
+function flyInto(mesh, f, f0, f1, from, imgRect, fadeAt) {
+  if (!panelMap || f < f0 || f >= fadeAt + 8) return;
+  const [ax, ay] = panelMap.toPanel(imgRect[0], imgRect[1]);
+  const [bx, by] = panelMap.toPanel(imgRect[0] + imgRect[2], imgRect[1] + imgRect[3]);
+  const to = [(ax + bx) / 2, (ay + by) / 2, Math.abs(bx - ax), Math.abs(ay - by)];
+  const t = ease(span(f, f1 - 16, f1));
+  const pop = POP[Math.min(5, Math.floor((f - f0) / 1.5))];
+  // land on the target's centre at a size that fits inside it, keeping the card's own shape
+  const fit = Math.min(1, to[2] / from[2], to[3] / from[3]);
+  const w = lerp(from[2] * pop, from[2] * fit, t), h = lerp(from[3] * pop, from[3] * fit, t);
+  setPlane(mesh, lerp(from[0], to[0], t), lerp(from[1], to[1], t), w, h, 1 - step8(span(f, fadeAt, fadeAt + 8)));
+}
+function renderPanelInserts(f) {
+  const lark = f >= 3720 && f < 3780;
+  const slack = f >= 4080 && f < 4300;
+  const mem = f >= 940 && f < 990;
+  if (!lark && !slack && !mem) return;
+  const p = panelInsert;
+  if (!p.built) buildPanelInsert();
+  for (const o of p.scene.children) o.visible = false;
+  // Lark: the notification slides in, holds, then lands on the real @ message (3720-3762)
+  if (lark) flyInto(p.lark, f, 3722, 3762, [214, 120, 120, 30], LANG === 'en' ? [2200, 705, 660, 200] : [2200, 576, 660, 170], 3758);
+  // Slack: the ZIP drops into the thread (4082-4104); the result comes back where the bot replies (4256-4278)
+  if (slack) {
+    flyInto(p.zipIn, f, 4082, 4104, [214, 130, 84, 24], [887, 160, 338, 310], 4102);
+    flyInto(p.zipOut, f, 4256, 4278, [214, 130, 84, 24], [887, 570, 338, 110], 4276);
+  }
+  // memory: the note Mira just wrote drops into the New memory list (942-966)
+  if (mem) flyInto(p.memFile, f, 942, 966, [60, 120, 84, 24], [973, 122, 295, 111], 964);
+  renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
+  renderer.clearDepth();
+  renderer.render(p.scene, hudCam);
 }
 
 // ===== end card: open source line, then the title card that frame 0 starts on ==========
