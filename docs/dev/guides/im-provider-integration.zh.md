@@ -179,3 +179,11 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 下一个隔离 Provider 候选在来源的原生频道或准确公开 thread 中实现 `bridge_context(nearby)`：读取前后五分钟；消息稀疏时，补足所请求的前后 Human 文本最小条数（默认 10／5）。锚点独立于两侧计数；密集窗口需要有界续页，已耗尽的稀疏历史允许少于最小条数，不等待未来消息。签名 cursor 保留固定查询快照，每次成功续页续期 30 分钟；每次读取均检查当前权限和授权。
 
 [#981](https://github.com/BotHarness/BotHarness/issues/981) 跟踪自动化和真实模型资格验证。代理执行的真实模型原生资格验证已在 Core `7edd33e0`／Provider `5ae8bb3b` 通过：三页（11／0／5 条文本）、16 条唯一 Human 文本、准确原 thread 原生回复，无历史 Admission，临时 Message Content 已完整恢复 OFF。最终冷重启保留六张 canonical 表全部字节相同。详见[有界证据报告](../verification/discord-981-nearby-context.zh.md)。产品 Provider pin 和 history／nearby／topic 组合行资格保持不变；不增加普通消息收件或 thread 订阅。
+
+## 原生引用与本地保留上下文（#908）
+
+独立协商 `sourceQuotes`／`source-quote-checked`。分开保留一层原生 `serverMessageId`、`itemId`、内嵌正文、显示摘要、附件类型和局部引用信息；数字 `svr_id` 在 JavaScript 精度丢失前按 JSON 原始字面量保存。去掉 continuation token、媒体密钥和嵌套引用。相同 canonical 原生消息的引用发生改变时，返回来源冲突。
+
+正文缺失时，只由 Messaging 解析：同一当前账号指纹／私聊的可读 canonical Source Event，或带真实服务器回执的已接受 Outbox。不能用 Provider standalone Session 历史、时间就近猜测、客户端确认、摘要或条目 ID 替代。Client／模型区分原生正文、本地解析与不可用；不可用不能证明远端已删除，引用也不是 Thread。
+
+`retained`／`retained-nearby` 沿用 `bridge_context`，明确返回 `coverage: retained-local-sources`，不修改远端 Provider history 契约。Keyset 分页固定首次 canonical 记录边界；进程内 opaque cursor 绑定 Bot、来源、Grant revision、身份指纹、范围与条数。每页重新核对自身身份、当前 Grant／lease 和 Provider 检查结果，在锚点 Source Event 记录有界读取审计，不创建新 Admission 或唤醒。记录／条数限制、过期／重启、字符预算恢复与本地覆盖缺口均应明确。它不是微信远端历史／搜索；原生引用变体以实际收件为证，合成回归不能证明当前客户端的线上字段形状。

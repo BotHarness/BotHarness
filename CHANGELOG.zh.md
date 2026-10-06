@@ -5,9 +5,11 @@
 
 ## [Unreleased]
 
-微信原始语音可准备播放，原生视频可通过受检查的媒体链路播放与回传；Discord 默认设置可独立保存并由 Profile 继承；Bot 可以导出为 zip，在别处导入成新的 Bot。
+微信原始语音可准备播放，可读取原生引用与本地保留上下文，原生视频可通过受检查的媒体链路播放与回传；Discord 默认设置可独立保存并由 Profile 继承；Bot 可以导出为 zip，在别处导入成新的 Bot。
 
 ### Added
+
+- PersonaBot 可读取微信原生引用正文，或从当前授权私聊的本地保留记录解析缺失引用；来源详情区分原生、本地解析与不可用，本地上下文支持有界 cursor 续页，不宣称微信远端历史能力（[#908](https://github.com/BotHarness/BotHarness/issues/908)，[指南](docs/wechat-connection.md)）。
 
 - 新增 Lark 私聊 `/pair` 申请、认证 Web 审核、显式选择当前 Bot 的能力及重启后保留的撤销记录；配对消息不进入 Bot Inbox 或 Memory，IM 决策控件由后续切片接入（[#1027](https://github.com/BotHarness/BotHarness/issues/1027)、[guide](docs/lark-connection.md)、[ADR-0136](docs/adr/0136-lark-pairing-is-reviewed-bot-scoped-operational-authority.md)）。
 - 新增个人微信受控视频链路，可按需播放／下载来源视频，并用 Bot 自己的身份发送原生视频回复，保留私密路由与当前授权；浏览器播放和工具读取不代表模型已理解视频（[#907](https://github.com/BotHarness/BotHarness/issues/907)，[指南](docs/wechat-connection.md)）。

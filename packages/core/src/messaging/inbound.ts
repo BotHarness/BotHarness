@@ -6,6 +6,12 @@ import {
   pendingReceptionPaths,
   type ReceptionPath,
 } from './reception-paths.js';
+import {
+  retainedContextPage,
+  resolveRetainedQuote,
+  type QuoteResolution,
+  type RetainedCursor,
+} from './retained-context.js';
 import { fanoutMessagingConsumer } from './consumer-fanout.js';
 import {
   commitThreadReceptionPolicy,
@@ -42,7 +48,7 @@ import {
   MessagingError,
   type MessagingInboundEvent,
   type MessagingProvider,
-  type MessagingHistoryScope,
+  type MessagingContextScope,
   type MessagingReplyRoute,
 } from './provider.js';
 
@@ -67,15 +73,16 @@ function ordinaryThreadReply(event: MessagingInboundEvent): boolean {
 export interface ExternalContextRead {
   at: string;
   sessionId: string;
-  scope: MessagingHistoryScope;
+  scope: MessagingContextScope;
   outcome: 'read' | 'refused';
   sourceEventIds: string[];
   omitted: number;
   incomplete: boolean;
   reason?: string;
+  coverage?: ExternalContextResult['coverage'];
 }
 export interface ExternalContextResult {
-  scope: MessagingHistoryScope;
+  scope: MessagingContextScope;
   messages: {
     sourceEventId: string;
     messageId: string;
@@ -88,13 +95,13 @@ export interface ExternalContextResult {
   }[];
   omitted: number;
   incomplete: boolean;
-  coverage: 'provider-visible-human-text';
+  coverage: 'provider-visible-human-text' | 'retained-local-sources';
   nextCursor?: string;
   window?: { start: number; end: number };
   requiredCharacters?: number;
 }
 export interface ExternalContextQuery {
-  scope: MessagingHistoryScope;
+  scope: MessagingContextScope;
   cursor?: string;
   maxCharacters?: number;
   beforeCount?: number;
@@ -118,6 +125,7 @@ export interface ExternalSource {
   report?: RelatedReport;
   contextReads?: ExternalContextRead[];
   contextMessages?: ExternalContextResult['messages'];
+  quote?: QuoteResolution;
 }
 
 export interface InboxSourceShare {
@@ -232,7 +240,7 @@ export function createInboundMessaging(options: {
       botSlug: string;
       sourceEventId: string;
       revision: number;
-      scope: MessagingHistoryScope;
+      scope: MessagingContextScope;
       providerCursor?: string | undefined;
       offset: number;
       digest: string;
@@ -240,6 +248,7 @@ export function createInboundMessaging(options: {
       counts: string;
     }
   >();
+  const retainedCursors = new Map<string, RetainedCursor>();
   const sourceId = (value: MessagingGrant, event: MessagingInboundEvent) =>
     'im-' +
     createHash('sha256')
@@ -270,7 +279,8 @@ export function createInboundMessaging(options: {
         JSON.stringify(previous.event.attachments ?? []) !==
           JSON.stringify(event.attachments ?? []) ||
         JSON.stringify(previous.event.voice ?? null) !== JSON.stringify(event.voice ?? null) ||
-        JSON.stringify(previous.event.video ?? null) !== JSON.stringify(event.video ?? null)
+        JSON.stringify(previous.event.video ?? null) !== JSON.stringify(event.video ?? null) ||
+        JSON.stringify(previous.event.quote ?? null) !== JSON.stringify(event.quote ?? null)
       )
         throw new MessagingError('source-conflict');
       const mentions = previous.event.mentions.map((mention) => {
@@ -886,7 +896,12 @@ export function createInboundMessaging(options: {
       );
     }
   };
-  const read = (botSlug: string, id: string): ExternalSource => {
+  const read = (
+    botSlug: string,
+    id: string,
+    includeQuote = true,
+    includeContext = true,
+  ): ExternalSource => {
     const row = database.read((db) =>
       db
         .prepare(`SELECT e.payload_json, e.body FROM source_events e
@@ -909,9 +924,10 @@ export function createInboundMessaging(options: {
       database.read((db) => bridgeChannel(db, retained.localChannelId!, botSlug));
     const ownsContext = grant(retained.grantId).botSlug === botSlug;
     const { contextReads, ...sharedSource } = retained;
-    const latest = ownsContext
-      ? contextReads?.filter((item) => item.outcome === 'read').at(-1)
-      : undefined;
+    const latest =
+      ownsContext && includeContext
+        ? contextReads?.filter((item) => item.outcome === 'read').at(-1)
+        : undefined;
     const contextMessages: ExternalContextResult['messages'] = [];
     for (const sourceEventId of latest?.sourceEventIds ?? []) {
       const context = database.read((db) =>
@@ -920,6 +936,14 @@ export function createInboundMessaging(options: {
           .get(sourceEventId),
       ) as { body: string; payload_json: string } | undefined;
       if (!context) continue;
+      if (latest?.coverage === 'retained-local-sources') {
+        try {
+          read(botSlug, sourceEventId, false, false);
+        } catch (error) {
+          if (!(error instanceof MessagingError)) throw error;
+          continue;
+        }
+      }
       const item = (JSON.parse(context.payload_json) as { external: ExternalSource }).external;
       contextMessages.push({
         sourceEventId,
@@ -932,11 +956,30 @@ export function createInboundMessaging(options: {
         ...(item.event.reply.threadId ? { threadId: item.event.reply.threadId } : {}),
       });
     }
-    const report = database.read((db) =>
-      relatedReport(db, grant(retained.grantId), retained.event.reply),
-    );
+    const value = grant(retained.grantId);
+    const quote =
+      includeQuote && retained.event.quote
+        ? database.read((db) =>
+            resolveRetainedQuote(
+              db,
+              value,
+              retained,
+              (candidate) => {
+                try {
+                  return read(botSlug, candidate, false, false);
+                } catch (error) {
+                  if (!(error instanceof MessagingError)) throw error;
+                  return undefined;
+                }
+              },
+              valid(value),
+            ),
+          )
+        : undefined;
+    const report = database.read((db) => relatedReport(db, value, retained.event.reply));
     return {
       ...(report ? { report } : {}),
+      ...(quote ? { quote } : {}),
       ...(contextMessages.length === 0 ? {} : { contextMessages }),
       ...sharedSource,
       ...(ownsContext && contextReads ? { contextReads } : {}),
@@ -1795,7 +1838,7 @@ export function createInboundMessaging(options: {
       return result;
     },
     async context(botSlug, sourceEventId, sessionId, query, callerSignal) {
-      if (!['group', 'nearby', 'thread'].includes(query.scope))
+      if (!['group', 'nearby', 'thread', 'retained', 'retained-nearby'].includes(query.scope))
         throw new MessagingError('invalid-history-query');
       const maxCharacters = query.maxCharacters ?? 12000;
       if (!Number.isInteger(maxCharacters) || maxCharacters < 1000 || maxCharacters > 24000)
@@ -1803,14 +1846,16 @@ export function createInboundMessaging(options: {
       const beforeCount = query.beforeCount ?? 10;
       const afterCount = query.afterCount ?? 5;
       if (
-        (query.scope !== 'nearby' &&
+        (!['nearby', 'retained-nearby'].includes(query.scope) &&
           (query.beforeCount !== undefined || query.afterCount !== undefined)) ||
         ![beforeCount, afterCount].every(
           (count) => Number.isInteger(count) && count >= 0 && count <= 20,
         )
       )
         throw new MessagingError('invalid-history-query');
-      const counts = query.scope === 'nearby' ? `${beforeCount}:${afterCount}` : '';
+      const counts = ['nearby', 'retained-nearby'].includes(query.scope)
+        ? `${beforeCount}:${afterCount}`
+        : '';
       const source = read(botSlug, sourceEventId);
       const value = grant(source.grantId);
       const entry = providers.get(value.providerId);
@@ -1872,6 +1917,55 @@ export function createInboundMessaging(options: {
       };
       try {
         signal.throwIfAborted();
+        if (query.scope === 'retained' || query.scope === 'retained-nearby') {
+          if (source.platform !== 'weixin')
+            throw new MessagingError('history-capability-unavailable');
+          if (!entry) throw new MessagingError('provider-unavailable');
+          const inspected = await cancellable(
+            entry.provider.inspect(value.accountRef, value.targetRef),
+          );
+          signal.throwIfAborted();
+          assertCurrent();
+          if (
+            inspected.account.fingerprint !== value.fingerprint ||
+            inspected.target.digest !== value.targetDigest ||
+            inspected.target.receiveScope?.conversationId !== source.event.conversation.id
+          )
+            throw new MessagingError('rebind-required');
+          const result = database.read((db) =>
+            retainedContextPage(db, {
+              botSlug,
+              source,
+              value,
+              query,
+              maxCharacters,
+              beforeCount,
+              afterCount,
+              cursors: retainedCursors,
+              read: (id) => {
+                try {
+                  return read(botSlug, id, false, false);
+                } catch (error) {
+                  if (!(error instanceof MessagingError)) throw error;
+                  return undefined;
+                }
+              },
+            }),
+          );
+          signal.throwIfAborted();
+          assertCurrent();
+          audit({
+            at,
+            sessionId,
+            scope: query.scope,
+            outcome: 'read',
+            sourceEventIds: result.messages.map((item) => item.sourceEventId),
+            omitted: result.omitted,
+            incomplete: result.incomplete,
+            coverage: result.coverage,
+          });
+          return result;
+        }
         if (!entry?.provider.history) throw new MessagingError('history-capability-unavailable');
         if (query.scope === 'thread' && !source.event.reply.threadId)
           throw new MessagingError('thread-unavailable');

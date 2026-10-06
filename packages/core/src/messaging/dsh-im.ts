@@ -59,6 +59,7 @@ export interface DshImOutboundService {
       sourceVoiceTranscripts?: boolean;
       sourceVoiceAudio?: boolean;
       sourceVideos?: boolean;
+      sourceQuotes?: boolean;
       ordinaryText?: boolean;
       onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
@@ -174,6 +175,27 @@ const inboundSchema = z
         itemId: identifier.optional(),
         reportedSizeBytes: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
         playLength: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+      })
+      .strict()
+      .optional(),
+    quote: z
+      .object({
+        serverMessageId: identifier.optional(),
+        itemId: identifier.optional(),
+        text: z.string().max(16000).optional(),
+        summary: z.string().max(16000).optional(),
+        attachmentKind: z.enum(['image', 'audio', 'file', 'video']).optional(),
+        partial: z
+          .object({
+            start: z.string().max(16000),
+            end: z.string().max(16000),
+            startIndex: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+            endIndex: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+            digest: z.string().max(128),
+          })
+          .strict()
+          .refine((partial) => partial.endIndex >= partial.startIndex)
+          .optional(),
       })
       .strict()
       .optional(),
@@ -432,6 +454,9 @@ export function createDshImProvider(
               info.capabilities.includes('reply-image-fence-checked')
                 ? { sourceImages: true }
                 : {}),
+              ...(platform === 'weixin' && info.capabilities.includes('source-quote-checked')
+                ? { sourceQuotes: true }
+                : {}),
               ...(platform === 'weixin' &&
               info.capabilities.includes('source-voice-transcript-checked')
                 ? { sourceVoiceTranscripts: true }
@@ -478,6 +503,9 @@ export function createDshImProvider(
                 const parsed = inboundSchema.parse(raw);
                 if (
                   parsed.channel !== platform ||
+                  (parsed.quote &&
+                    (platform !== 'weixin' ||
+                      !info.capabilities.includes('source-quote-checked'))) ||
                   (parsed.voice &&
                     !info.capabilities.includes('source-voice-transcript-checked')) ||
                   (parsed.voice &&
@@ -492,9 +520,16 @@ export function createDshImProvider(
                 )
                   throw new MessagingError('untrusted-source');
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
-                const { attachments, voice, video, ...base } = parsed;
+                const { attachments, voice, video, quote, ...base } = parsed;
                 const event: MessagingInboundEvent = {
                   ...base,
+                  ...(quote === undefined
+                    ? {}
+                    : {
+                        quote: Object.fromEntries(
+                          Object.entries(quote).filter(([, value]) => value !== undefined),
+                        ),
+                      }),
                   ...(voice === undefined
                     ? {}
                     : {

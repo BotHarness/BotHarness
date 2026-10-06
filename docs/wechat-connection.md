@@ -126,6 +126,28 @@ In the real QA run, the Bot saved the original into an explicitly authorized iso
 
 Inspect the returned video in the original WeChat conversation and independently verify its actual contents. Tool processing, a working browser player, or Provider acceptance alone is not model video understanding, recipient delivery, a read receipt or byte equality. Unsupported formats retain original-download or refusal paths; this slice does not add arbitrary video transcoding or automatic video-model input.
 
+## 10. Quote a message and read retained context
+
+In WeChat, use **Quote** on a message in the paired-owner private conversation, then write your follow-up. Open that source from the PersonaBot's Inbox in BotHarness. The quoted block distinguishes **Quote supplied by WeChat**, **Quote found in retained local records**, and **Quoted content unavailable**. Expand **Quote details** to inspect native IDs and any resolved Source Event.
+
+WeChat can provide embedded quoted text, a display summary, an item ID, a server message ID, or partial-quote metadata. A summary is not promoted to the original body; item IDs stay separate from server message IDs. When WeChat omits the body, BotHarness resolves a genuine server message ID only from readable canonical records in the same currently authorized account/private conversation. An unknown, unretained or inaccessible reference stays unavailable; this does not prove that the original was deleted. Quoted attachments are not automatically fetched. A quote never creates a Thread.
+
+Ask the Bot to read **retained local context** when needed. `bridge_context` uses `retained` for the latest retained sources (newest first), or `retained-nearby` for up to 10 preceding / 5 following retained sources around the anchor, excluding the anchor; the Bot may request 0–20 on either side. Every result keeps the native Message ID and canonical Source Event ID. These records cover only what this Bot can currently read locally, not remote WeChat history or search; the nearby counts do not promise a five-minute remote window.
+
+Reads return at most 20 records per page and obey a JSON budget (1,000–24,000 characters, default 12,000). Follow `nextCursor` with the same source, scope and counts. The cursor fixes the initial record boundary, so later arrivals are excluded; it expires after 30 minutes or a Host restart. A changed Grant/identity or revoked authorization refuses continuation. If a single record exceeds the budget, `requiredCharacters` indicates the budget needed. Reading context creates no new Inbox delivery, wake, subscription, local DM or external send. The source panel shows the Bot's read audit and latest page.
+
+WeChat send receipts remain client acknowledgements. They cannot be used to resolve a server-message-ID-only quote of a Bot reply. Embedded native quoted text can still be shown; without that text or a genuine retained server ID, the quote remains unavailable.
+
+The #908 live test received an item-ID-only quote: WeChat supplied neither the quoted body nor a server message ID. BotHarness kept the quote explicitly unavailable. The Bot read the original canonical Source Event through two retained-context pages and one nearby query, then sent `BH908-QUOTE-OK 紫色风铃42` to the same authorized private conversation. The Provider accepted the send, and the Human confirmed receipt with a native WeChat screenshot. Embedded-body and server-ID resolution variants are covered by regressions, not claimed as live-tested client variants.
+
+![Real item-ID-only quote shown as unavailable, light theme](/guides/wechat/quote-after-light.jpg)
+
+![The same source and quote in dark theme](/guides/wechat/quote-after-dark.jpg)
+
+![Read audit and the original retained message, with its test password](/guides/wechat/quote-context-light.jpg)
+
+![Human-confirmed reply in the original quoted-message conversation](/guides/wechat/native-quote-reply.png)
+
 ## Pause or reconnect
 
 Disable DM intake to stop future receipt while retaining configuration and history. Revoke the target authorization or unbind the identity to remove its authority. Re-pairing changes the identity fingerprint and requires explicit reauthorization; stale source continuations must not be reused. Restart with the same Profile to retain local pairing, canonical source records and Outbox outcomes.

@@ -4239,6 +4239,16 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   color: var(--dsw-alias-label-tertiary);
   font-size: 11px;
 }
+.bh-external-quote {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-interactive-bg-hover);
+  border-radius: var(--dsw-radius-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bh-external-quote p { margin: 6px 0; }
 .bh-external-message-text {
   width: fit-content;
   max-width: 100%;

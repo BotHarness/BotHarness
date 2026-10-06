@@ -849,6 +849,19 @@ export const zh = {
   'im.voiceTranscriptUnavailableHint':
     '微信未提供这条语音的转写文本。有原始音频时可尝试播放或下载；播放不会识别内容，需要内容时请补发文字。',
   'im.voiceDuration': '{seconds} 秒',
+  'im.quoteNative': '微信提供的引用内容',
+  'im.quoteRetained': '从本地保留记录找到的引用',
+  'im.quoteUnavailable': '引用内容不可用',
+  'im.quoteUnavailableHint':
+    '微信未提供引用正文，或当前授权范围内没有可读取的原始记录。无法判断是否已删除。',
+  'im.quoteSummary': '微信引用摘要：{text}',
+  'im.quotePartial': '微信标记了局部引用；不代表原消息全文。',
+  'im.quoteAttachment': '引用包含 {kind}，此处不自动下载引用附件。',
+  'im.quoteDetails': '引用详情',
+  'im.quoteServerId': '引用的服务器消息 ID：{id}',
+  'im.quoteItemId': '引用内容条目 ID：{id}',
+  'im.contextRetainedExplanation':
+    '仅查询当前授权私聊中已保留的本地来源记录，不是微信远端历史或搜索。下方展示最近返回的一页。',
   'im.voiceItemId': '语音内容 ID：{id}',
   'im.voiceEncoding': '原生编码：{type}',
   'im.voiceSampleRate': '原生采样率：{rate} Hz',
@@ -2830,6 +2843,20 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.voiceTranscriptUnavailableHint':
     'WeChat did not provide a transcript. You can try playback or download the original audio; speech recognition is not configured here. Please send text.',
   'im.voiceDuration': '{seconds} s',
+  'im.quoteNative': 'Quote supplied by WeChat',
+  'im.quoteRetained': 'Quote found in retained local records',
+  'im.quoteUnavailable': 'Quoted content unavailable',
+  'im.quoteUnavailableHint':
+    'WeChat did not supply the quoted body, or no readable original exists in the current authorized records. Deletion cannot be inferred.',
+  'im.quoteSummary': 'WeChat quote summary: {text}',
+  'im.quotePartial': 'WeChat marked a partial quote; this is not the full original message.',
+  'im.quoteAttachment':
+    'Quote contains {kind}; quoted attachments are not downloaded automatically.',
+  'im.quoteDetails': 'Quote details',
+  'im.quoteServerId': 'Quoted server message ID: {id}',
+  'im.quoteItemId': 'Quoted item ID: {id}',
+  'im.contextRetainedExplanation':
+    'Only locally retained sources in the currently authorized private conversation. This is not remote WeChat history or search. The latest returned page is shown below.',
   'im.voiceItemId': 'Voice item ID: {id}',
   'im.voiceEncoding': 'Native encoding: {type}',
   'im.voiceSampleRate': 'Native sample rate: {rate} Hz',
