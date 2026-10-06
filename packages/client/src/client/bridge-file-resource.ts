@@ -1,10 +1,10 @@
 import { boundedBridgeMedia } from './bridge-image-resource.js';
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 export interface BridgeFileState {
-  busy?: boolean;
-  size?: number;
-  mediaType?: string;
-  failure?: 'unavailable' | 'tooLarge' | 'failed';
+  busy?: boolean | undefined;
+  size?: number | undefined;
+  mediaType?: string | undefined;
+  failure?: 'unavailable' | 'tooLarge' | 'failed' | undefined;
 }
 export function createBridgeFileResource(
   channelId: string,
