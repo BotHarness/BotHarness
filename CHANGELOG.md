@@ -24,6 +24,10 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 
 - Documented final development-source Discord context acceptance with real model continuation, precise edited-source refusal, whole-page rollback and restored Message Content permissions ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
 
+### Fixed
+
+- Lark user targets with an explicit private chat ID can receive unmentioned private messages into the same PersonaBot Inbox and reply through its bound identity; targets without that locator remain send-only ([#996](https://github.com/BotHarness/BotHarness/issues/996)).
+
 ## [1.0.2] - 2026-10-06
 
 Bot mode shows what changed after an install or update and checks npm for newer releases, context reads keep precise `source-conflict` refusals, and a Share a Bot guide explains publishing a Bot to the Bot Marketplace.
