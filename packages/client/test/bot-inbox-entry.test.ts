@@ -466,7 +466,7 @@ it('clears previous source content and ignores older requests after reopening', 
   }
 });
 
-it('previews checked images, retries a refused download, and aborts/revokes on close or unmount', async () => {
+it('loads checked images into their message bubble on open, retries refusals and preserves captions', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const previous = store.getSnapshot().botInbox;
   store.setBotInbox({
@@ -562,26 +562,34 @@ it('previews checked images, retries a refused download, and aborts/revokes on c
         }),
       ),
     );
+    expect(fetchImage).not.toHaveBeenCalled();
     await open();
-    await click('查看图片');
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.querySelector('.bh-external-message-text')?.textContent).not.toContain(
+      '[Image]',
+    );
     expect(create).not.toHaveBeenCalled();
-    await click('查看图片');
+    await click('重新加载图片');
     expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.querySelector('img')?.getAttribute('src')).toBe('blob:checked-preview');
+    expect(container.querySelector('.bh-external-message-text img')?.getAttribute('src')).toBe(
+      'blob:checked-preview',
+    );
+    expect(container.querySelector('.bh-external-message-text')?.textContent).not.toContain(
+      '[Image]',
+    );
+    expect(container.querySelector('.bh-external-source-file img')).toBeNull();
     expect(fetchImage.mock.calls[1]?.[0]).toBe(
       '/api/botharness/attachment?slug=ada&sourceEventId=source-1&attachmentId=image-one',
     );
     expect(fetchImage.mock.calls[1]?.[1].credentials).toBe('same-origin');
     await click('Close source');
     expect(revoke).toHaveBeenCalledWith('blob:checked-preview');
-    await open();
-    expect(container.querySelector('img')).toBeNull();
     fetchImage.mockResolvedValueOnce({
       ok: true,
       blob: async () => new Blob(['<svg/>'], { type: 'image/svg+xml' }),
     });
-    await click('查看图片');
+    await open();
+    expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
     expect(create).toHaveBeenCalledTimes(1);
     fetchImage.mockImplementationOnce(
@@ -590,13 +598,25 @@ it('previews checked images, retries a refused download, and aborts/revokes on c
           request.signal.addEventListener('abort', () => reject(new Error('aborted'))),
         ),
     );
-    await click('查看图片');
+    await click('重新加载图片');
     const signal: AbortSignal = fetchImage.mock.calls.at(-1)?.[1].signal;
     expect(signal.aborted).toBe(false);
     await click('Close source');
     expect(signal.aborted).toBe(true);
+    source.body = 'Please inspect this layout';
     await open();
-    await click('查看图片');
+    expect(container.querySelector('.bh-external-message-text img')).not.toBeNull();
+    expect(container.querySelector('.bh-external-message-text')?.textContent).toContain(
+      'Please inspect this layout',
+    );
+    await click('Close source');
+    source.body = '[Image]';
+    source.event.attachments = [];
+    const imageCalls = fetchImage.mock.calls.length;
+    await open();
+    expect(container.querySelector('.bh-external-message-text')?.textContent).toBe('[Image]');
+    expect(container.querySelector('.bh-external-message-text img')).toBeNull();
+    expect(fetchImage).toHaveBeenCalledTimes(imageCalls);
     await act(async () => root.unmount());
     expect(revoke).toHaveBeenCalledTimes(2);
   } finally {

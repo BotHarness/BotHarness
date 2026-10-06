@@ -236,19 +236,22 @@ function BotInboxItemRow({
   const [fileError, setFileError] = useState(false);
   const fileRequest = useRef<AbortController>();
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const previewUrls = useRef(new Set<string>());
   const previewLifecycle = useCallback((node: HTMLDivElement | null) => {
     if (node !== null) return;
+    ++externalRequest.current;
     fileRequest.current?.abort();
     for (const url of previewUrls.current) URL.revokeObjectURL(url);
     previewUrls.current.clear();
   }, []);
   const download = async (attachmentId: string, name: string, preview = false): Promise<void> => {
-    if (fileBusy !== undefined) return;
+    if (fileRequest.current !== undefined) return;
     const controller = new AbortController();
     fileRequest.current = controller;
     setFileBusy(attachmentId);
     setFileError(false);
+    if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: false }));
     try {
       const response = await fetch(
         '/api/botharness/attachment?' +
@@ -281,7 +284,10 @@ function BotInboxItemRow({
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      if (!controller.signal.aborted) setFileError(true);
+      if (!controller.signal.aborted) {
+        if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: true }));
+        else setFileError(true);
+      }
     } finally {
       if (fileRequest.current === controller) {
         fileRequest.current = undefined;
@@ -314,13 +320,25 @@ function BotInboxItemRow({
     if (!item.sourceAvailable) return;
     if (item.externalOrigin !== undefined) {
       const request = ++externalRequest.current;
+      fileRequest.current?.abort();
+      fileRequest.current = undefined;
+      setFileBusy(undefined);
+      for (const url of previewUrls.current) URL.revokeObjectURL(url);
+      previewUrls.current.clear();
+      setImagePreviews({});
+      setImageErrors({});
       setExternal(undefined);
       setExternalOpen(true);
       setExternalError(false);
       setFileError(false);
       try {
         const source = await actions.messagingSource(item.botSlug, item.id);
-        if (request === externalRequest.current) setExternal(source);
+        if (request !== externalRequest.current) return;
+        setExternal(source);
+        for (const file of source.event.attachments ?? []) {
+          if (request !== externalRequest.current) return;
+          if (file.mediaType?.startsWith('image/')) await download(file.id, file.name, true);
+        }
       } catch {
         if (request === externalRequest.current) setExternalError(true);
       }
@@ -334,6 +352,8 @@ function BotInboxItemRow({
     await actions.openChannel(item.sourceChannelId);
     await actions.openAround(item.sourceChannelId, item.sourceMessageId);
   };
+  const imageAttachments =
+    external?.event.attachments?.filter((file) => file.mediaType?.startsWith('image/')) ?? [];
   const content = (
     <>
       <span className="bh-inbox-item-summary">{summary || t('inbox.system')}</span>
@@ -382,7 +402,10 @@ function BotInboxItemRow({
           onClose={() => {
             ++externalRequest.current;
             fileRequest.current?.abort();
+            fileRequest.current = undefined;
+            setFileBusy(undefined);
             setImagePreviews({});
+            setImageErrors({});
             setExternalOpen(false);
           }}
           title={t('im.sourceTitle')}
@@ -395,7 +418,37 @@ function BotInboxItemRow({
             ) : external === undefined ? (
               <p>{t('im.sourceLoading')}</p>
             ) : (
-              <ExternalSourceContent source={external} t={t}>
+              <ExternalSourceContent
+                source={external}
+                t={t}
+                messageMedia={
+                  imageAttachments.length
+                    ? imageAttachments.map((file) => (
+                        <div className="bh-external-source-attachment" key={file.id}>
+                          {imagePreviews[file.id] ? (
+                            <img
+                              className="bh-external-source-image"
+                              src={imagePreviews[file.id]}
+                              alt={file.name}
+                            />
+                          ) : imageErrors[file.id] ? (
+                            <>
+                              <p role="alert">{t('im.fileError')}</p>
+                              <Button
+                                disabled={fileBusy !== undefined}
+                                onClick={() => void download(file.id, file.name, true)}
+                              >
+                                {t('im.imageRetry')}
+                              </Button>
+                            </>
+                          ) : (
+                            <span role="status">{t('im.fileDownloading')}</span>
+                          )}
+                        </div>
+                      ))
+                    : undefined
+                }
+              >
                 {external.event.attachments?.map((file) => (
                   <div className="bh-external-source-attachment" key={file.id}>
                     <div className="bh-external-source-file">
@@ -416,14 +469,6 @@ function BotInboxItemRow({
                           </small>
                         ) : null}
                       </span>
-                      {file.mediaType?.startsWith('image/') && !imagePreviews[file.id] ? (
-                        <Button
-                          disabled={fileBusy !== undefined}
-                          onClick={() => void download(file.id, file.name, true)}
-                        >
-                          {fileBusy === file.id ? t('im.fileDownloading') : t('im.imagePreview')}
-                        </Button>
-                      ) : null}
                       <Button
                         disabled={fileBusy !== undefined}
                         onClick={() => void download(file.id, file.name)}
@@ -431,13 +476,6 @@ function BotInboxItemRow({
                         {fileBusy === file.id ? t('im.fileDownloading') : t('im.fileDownload')}
                       </Button>
                     </div>
-                    {imagePreviews[file.id] ? (
-                      <img
-                        className="bh-external-source-image"
-                        src={imagePreviews[file.id]}
-                        alt={file.name}
-                      />
-                    ) : null}
                   </div>
                 ))}
                 {fileError ? <p role="alert">{t('im.fileError')}</p> : null}

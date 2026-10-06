@@ -765,7 +765,7 @@ export const zh = {
   'im.reception.connecting': '正在连接群收件',
   'im.reception.receiving': '群消息接收已连接',
   'im.reception.unavailable': '群收件不可用；请检查连接后重新开启',
-  'im.imagePreview': '查看图片',
+  'im.imageRetry': '重新加载图片',
   'im.fileDownload': '下载文件',
   'im.fileDownloading': '正在下载…',
   'im.fileError': '文件无法下载，请检查消息来源和连接权限后重试。',
@@ -2450,7 +2450,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.reception.connecting': 'Connecting group reception',
   'im.reception.receiving': 'Group reception connected',
   'im.reception.unavailable': 'Group reception unavailable; check the connection and enable again',
-  'im.imagePreview': 'View image',
+  'im.imageRetry': 'Retry image',
   'im.fileDownload': 'Download file',
   'im.fileDownloading': 'Downloading…',
   'im.fileError':

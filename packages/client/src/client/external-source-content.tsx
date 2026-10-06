@@ -46,9 +46,11 @@ function messageText(text: string, mentions: readonly Mention[]): ReactNode {
 function MessageCard({
   message,
   t,
+  media,
 }: {
   message: MessageView;
   t: BotHarnessTranslate;
+  media?: ReactNode;
 }): ReactElement {
   const name = message.senderLabel ?? message.senderName ?? message.senderId;
   const date = new Date(message.at);
@@ -73,7 +75,10 @@ function MessageCard({
           </time>
         </header>
         <div className="bh-external-message-text">
-          {messageText(message.text, message.mentions ?? [])}
+          {media}
+          {media && message.text.trim() === '[Image]'
+            ? null
+            : messageText(message.text, message.mentions ?? [])}
         </div>
         <details className="bh-external-details">
           <summary>{t('im.messageDetails')}</summary>
@@ -90,6 +95,9 @@ function MessageCard({
                 : message.senderId}
             </p>
             <p>{message.at}</p>
+            {media && !message.mentions?.length ? (
+              <p className="bh-external-raw-text">{message.text}</p>
+            ) : null}
             {message.mentions?.length ? (
               <>
                 <p>
@@ -113,10 +121,12 @@ export function ExternalSourceContent({
   source,
   t,
   children,
+  messageMedia,
 }: {
   source: ExternalSource;
   t: BotHarnessTranslate;
   children?: ReactNode;
+  messageMedia?: ReactNode;
 }): ReactElement {
   const platform = externalPlatformLabel(source.platform, t);
   const hasThread = Boolean(source.event.reply.threadId ?? source.event.reply.rootId);
@@ -223,6 +233,7 @@ export function ExternalSourceContent({
             mentions: source.event.mentions,
           }}
           t={t}
+          media={messageMedia}
         />
         {children}
       </section>
