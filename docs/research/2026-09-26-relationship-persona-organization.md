@@ -2,13 +2,13 @@
 
 ## 0. 元信息
 
-| 项       | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 问题     | 多主体场景（一个 PersonaBot 服务不同 Human：DM、多人 group channel、Bot-to-Bot DM）下，persona/memory 应如何按 relationship 组织，使得 (a) 按关系得体呈现、(b) 无单个 markdown 文件无界膨胀、(c) 跨 actor 偏好冲突（如 A 要简洁、B 要详细）干净解决？既定拆分（接受、不重议）：PERSONA.md 只放 actor-independent voice/conduct（per session 前缀冻结）；per-actor 偏好放该 actor 自己的 topic file，对该 actor 优先。                                                                                                                                                                                                                    |
-| 调研日期 | 2026-09-26                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 项       | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 问题     | 多主体场景（一个 PersonaBot 服务不同 Human：DM、多人 group channel、Bot-to-Bot DM）下，persona/memory 应如何按 relationship 组织，使得 (a) 按关系得体呈现、(b) 无单个 markdown 文件无界膨胀、(c) 跨 actor 偏好冲突（如 A 要简洁、B 要详细）干净解决？既定拆分（接受、不重议）：PERSONA.md 只放 actor-independent voice/conduct（per session 前缀冻结）；per-actor 偏好放该 actor 自己的 topic file，对该 actor 优先。                                |
+| 调研日期 | 2026-09-26                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | 一手来源 | Letta 官方文档站 `docs.letta.com`（v1 SDK memory-blocks / shared-memory / conversations / multi-user / multi-agent 页面、Agent SDK shared-memory 概念页）；Hermes 官方文档站 `hermes-agent.nousresearch.com`（Personality & SOUL.md 页）；BotHarness 本地 `CONTEXT.md`、`docs/research/2026-09-21-letta-memory-persona-git.md`、`docs/research/2026-09-23-hermes-agent-memory-architecture.md`。无第三方二手来源。所有 URL 访问日期 **2026-09-26**。 |
-| 方法边界 | 只用一手来源；Letta 侧覆盖「v1 legacy blocks 时代」与「MemFS/shared-repo 现行时代」两个版本并注明归属。Hermes 侧只做 09-23 文件之外的增量（SOUL vs USER vs MEMORY 三分与单用户假设），不重复双文件快照/容量墙/Provider 结论。**唯写本文件**，未改动其他仓库文件、未碰代码/issues/git 状态。凡一手来源确认不了的说法标「未验证」；§3 为评估性判断、非事实陈述。                                                                                                                                                                                                                                    |
-| 对照基线 | `CONTEXT.md` 的 Channel（`dm` / `group chat`）、DM、Bot-to-Bot DM、Channel membership、Customer profile（one-file-per-customer）、Topic file 词条；既定拆分（PERSONA.md 前缀冻结 + per-actor topic file 优先）。                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 方法边界 | 只用一手来源；Letta 侧覆盖「v1 legacy blocks 时代」与「MemFS/shared-repo 现行时代」两个版本并注明归属。Hermes 侧只做 09-23 文件之外的增量（SOUL vs USER vs MEMORY 三分与单用户假设），不重复双文件快照/容量墙/Provider 结论。**唯写本文件**，未改动其他仓库文件、未碰代码/issues/git 状态。凡一手来源确认不了的说法标「未验证」；§3 为评估性判断、非事实陈述。                                                                                       |
+| 对照基线 | `CONTEXT.md` 的 Channel（`dm` / `group chat`）、DM、Bot-to-Bot DM、Channel membership、Customer profile（one-file-per-customer）、Topic file 词条；既定拆分（PERSONA.md 前缀冻结 + per-actor topic file 优先）。                                                                                                                                                                                                                                     |
 
 **一句话结论**：Letta 与 Hermes 都**没有** one-agent-serving-many-humans 的 relationship-scoped persona 原语——Letta 的多用户答案是 one-agent-per-user（Identities）加跨 agent 共享块/仓，Hermes 的答案是 one-profile-per-bot 加单一 SOUL/USER；Letta conversations 甚至是反例：同一 agent 的全 conversations 共享同一套 memory blocks，跨 relationship 的偏好冲突在平台内无解。这支撑既定拆分：per-actor 偏好必须由**调用方按 relationship 选择**（actor 自己的 topic file + 对该 actor 优先），而不是指望平台级 relationship scope；group channel 的多人同场冲突与 Bot-to-Bot DM 的双向适配是两边都没回答、留给我们的开放问题。
 
@@ -54,10 +54,10 @@ Group 实体经 manager 编排多 agents（manager 类型：round-robin / superv
 
 ### 1.7 Shared memory repositories（现行时代）：org 拥有的 Git 仓，与个人 MemFS 并列
 
-| Memory | Ownership | Use |
-| --- | --- | --- |
-| MemFS | One agent | 存该 agent 的 identity、skills、长期记忆 |
-| Shared memory repository | Your organization | 多 agents 间共享知识与工作文件 |
+| Memory                   | Ownership         | Use                                      |
+| ------------------------ | ----------------- | ---------------------------------------- |
+| MemFS                    | One agent         | 存该 agent 的 identity、skills、长期记忆 |
+| Shared memory repository | Your organization | 多 agents 间共享知识与工作文件           |
 
 仓库 attach 到需要的 agents；agent system prompt 列出仓库路径与顶层文件；Letta Code 把仓库 clone 到 agent MemFS 旁（`$MEMORY_DIR/../<repository-name>/`）；agent 用普通文件 + Git 工具读写，**必须 commit + push**，其他 agents 再 pull；`skills/<skill-name>/SKILL.md` 可随仓提供 skills，detach 即停止加载；仅云 agent 可用。([Shared memory 概念页](https://docs.letta.com/concepts/shared-memory/index.md)；Agent SDK 侧见 [Memory](https://docs.letta.com/agent-sdk/memory))
 
@@ -105,22 +105,22 @@ Personality 页确认三分工与 prompt 栈顺序：SOUL.md（agent 身份，sy
 
 ## 5. 一手来源与访问日期（均为 2026-09-26，除注明外）
 
-| 来源 | 支撑内容 |
-| --- | --- |
-| <https://docs.letta.com/v1-sdk/memory/memory-blocks/> | persona/human 默认描述、XML-like prepend、chars limit、agent 共享块 |
-| <https://docs.letta.com/v1-sdk/memory/shared-memory/> | legacy 声明（迁 MemFS）、共享块多挂/即时可见 |
-| <https://docs.letta.com/guides/agents/multi-agent-shared-memory> | 共享块 quickstart、User Profile (Multi-Agent) 模式、只读块、并发表与 owner 建议 |
-| <https://docs.letta.com/guides/agents/conversations> | 多 conversations 共享同一 memory blocks + 混合消息池；different user sessions 用途 |
-| <https://docs.letta.com/concepts/conversations> | 同 agent 同身份同长期记忆 |
-| <https://docs.letta.com/guides/agents/multi-user> | each user ↔ specific agent；identifier_key / identity_ids / tags |
-| <https://docs.letta.com/api/resources/agents> | Identity schema（org/user/other、properties） |
-| <https://docs.letta.com/api/resources/agents/subresources/identities> | attach/detach Identity |
-| <https://docs.letta.com/guides/agents/multi-agent> | 跨 agent 消息工具、supervisor-worker 群播、共享块协作 |
-| <https://docs.letta.com/concepts/shared-memory/index.md> | MemFS（one agent）vs shared repo（org）归属表；clone 路径；commit+push/pull；skills 随仓 |
-| <https://docs.letta.com/agent-sdk/memory> | Agent SDK 共享仓 sot |
-| <https://docs.letta.com/platform/desktop-app/index.md> | channels 并列 sidebar、multi-user threads（无记忆范围记载） |
-| <https://www.letta.com/blog/memory-blocks> | persona/human 起源（MemGPT 双块）、共享块模式 |
-| <https://hermes-agent.nousresearch.com/docs/user-guide/features/personality> | SOUL slot #1、per-instance 身份、三分 prompt 栈、/personality 覆盖 |
-| `CONTEXT.md`（本地） | Channel/DM/Bot-to-Bot DM/Channel membership/Customer profile/Topic file 词条 |
-| `docs/research/2026-09-21-letta-memory-persona-git.md`（本地，2026-09-21） | MemFS/Persona/Memory 归属、Git commit 语义基线（本文件不再重复） |
-| `docs/research/2026-09-23-hermes-agent-memory-architecture.md`（本地，2026-09-23） | MEMORY/USER 双文件、profile=Bot 隔离、单 USER.md（本文件引用不重复） |
+| 来源                                                                               | 支撑内容                                                                                 |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| <https://docs.letta.com/v1-sdk/memory/memory-blocks/>                              | persona/human 默认描述、XML-like prepend、chars limit、agent 共享块                      |
+| <https://docs.letta.com/v1-sdk/memory/shared-memory/>                              | legacy 声明（迁 MemFS）、共享块多挂/即时可见                                             |
+| <https://docs.letta.com/guides/agents/multi-agent-shared-memory>                   | 共享块 quickstart、User Profile (Multi-Agent) 模式、只读块、并发表与 owner 建议          |
+| <https://docs.letta.com/guides/agents/conversations>                               | 多 conversations 共享同一 memory blocks + 混合消息池；different user sessions 用途       |
+| <https://docs.letta.com/concepts/conversations>                                    | 同 agent 同身份同长期记忆                                                                |
+| <https://docs.letta.com/guides/agents/multi-user>                                  | each user ↔ specific agent；identifier_key / identity_ids / tags                         |
+| <https://docs.letta.com/api/resources/agents>                                      | Identity schema（org/user/other、properties）                                            |
+| <https://docs.letta.com/api/resources/agents/subresources/identities>              | attach/detach Identity                                                                   |
+| <https://docs.letta.com/guides/agents/multi-agent>                                 | 跨 agent 消息工具、supervisor-worker 群播、共享块协作                                    |
+| <https://docs.letta.com/concepts/shared-memory/index.md>                           | MemFS（one agent）vs shared repo（org）归属表；clone 路径；commit+push/pull；skills 随仓 |
+| <https://docs.letta.com/agent-sdk/memory>                                          | Agent SDK 共享仓 sot                                                                     |
+| <https://docs.letta.com/platform/desktop-app/index.md>                             | channels 并列 sidebar、multi-user threads（无记忆范围记载）                              |
+| <https://www.letta.com/blog/memory-blocks>                                         | persona/human 起源（MemGPT 双块）、共享块模式                                            |
+| <https://hermes-agent.nousresearch.com/docs/user-guide/features/personality>       | SOUL slot #1、per-instance 身份、三分 prompt 栈、/personality 覆盖                       |
+| `CONTEXT.md`（本地）                                                               | Channel/DM/Bot-to-Bot DM/Channel membership/Customer profile/Topic file 词条             |
+| `docs/research/2026-09-21-letta-memory-persona-git.md`（本地，2026-09-21）         | MemFS/Persona/Memory 归属、Git commit 语义基线（本文件不再重复）                         |
+| `docs/research/2026-09-23-hermes-agent-memory-architecture.md`（本地，2026-09-23） | MEMORY/USER 双文件、profile=Bot 隔离、单 USER.md（本文件引用不重复）                     |

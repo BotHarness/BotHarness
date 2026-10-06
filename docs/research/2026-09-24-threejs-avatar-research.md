@@ -2,10 +2,10 @@
 
 ## 0. 元信息
 
-| 项       | 内容                                                                                                                                                                                                                                                                                                                                                                                              |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 问题     | 把 `prototype/avatar-hair` 这个 2D SVG 头像原型用 three.js 重做一版，是否更方便、更自由？（逐项对照：真遮挡/光照/旋转、头发技术栈、现成头像管线与许可、本仓库落地成本、自由度得失、工作量与路线 → 结论 + 首个 tracer bullet）                                                                                                   |
-| 日期     | 文件名沿用 2026-09-24 序列；所有 URL 实际访问日期 **2026-09-29**                                                                                                                                                                                                                                                                                                                                       |
+| 项       | 内容                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 问题     | 把 `prototype/avatar-hair` 这个 2D SVG 头像原型用 three.js 重做一版，是否更方便、更自由？（逐项对照：真遮挡/光照/旋转、头发技术栈、现成头像管线与许可、本仓库落地成本、自由度得失、工作量与路线 → 结论 + 首个 tracer bullet）                                                                                                                                                                                                                                                                                                               |
+| 日期     | 文件名沿用 2026-09-24 序列；所有 URL 实际访问日期 **2026-09-29**                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | 调研方法 | 一手来源优先：three.js 官方文档（threejs.org/docs）与 GitHub 源码（mrdoob/three.js，raw 抓取 + GitHub code search 带对照组）、@pixiv/three-vrm 官方 README/typedoc API 参考、vrm-c VRM 1.0 规范原文（raw 抓取）、Ready Player Me 官方 Docs、MDN。仓库内事实（依赖、工具链、原型代码结构）用 `grep`/读源码核对。**直接抓取被拒、经检索工具快照获得**的页面标「快照」（docs.readyplayer.me、vroid.pixiv.help）；由本轮分析得出而非文档陈述的标「分析」；无法确认的标「**未验证**」。CDN 文件体积为本机 `curl` 实测（2026-09-29，未测 gzip）。 |
 
 **一句话结论**：分维度回答——**「立体的自由」更方便也更自由**：我们手写的球面投影、背面剔除、terminator 淡出、painter 分层（`app.js:295–1106`）在 three.js 里全部变成默认行为（depth buffer + 灯光 + 物体旋转），头发物理（spring bone）、描边（OutlineEffect/OutlinePass）、现成头像管线（VRoid→VRM→three-vrm、RPM）都有一手维护的 API；**「平面的自由」反而变少**：像素级参数剪影 `r(θ)`、crisp 矢量输出、DOM 可检视、零依赖零构建、与 BotHarness 现有 UI/diff 流程的贴合都要付代价（three.js CDN 裸模块实测 ≈720KB，blobatar 是 ~4.4KB gz——ADR-0032 基线）。**结论 = hybrid，不是替换**：2D/blobatar 仍是产品默认；three.js 不做「移植」，做**并列 spike**（`prototype/avatar-three/`，import map + CDN，仍无构建），用一个 tracer bullet 实测观感与 4-up 性能后再决定 3D 是否升级为正式渲染层。**不建议**直接上 VRoid/VRM 成品管线（风格与 BotHarness 观感不匹配，见 §3、§6）。
@@ -55,14 +55,14 @@
 
 ### 2.8 头发技术栈逐项
 
-| 路线 | three.js 现状（一手） | 对我们意味着什么 |
-| --- | --- | --- |
-| Hair cards（发片） | 无官方生成器，但就是普通 mesh + 贴图；业界口径（本仓库头发调研）：cards/shells 是游戏主流——[Frostbite SIGGRAPH 2019](https://advances.realtimerendering.com/s2019/hair_presentation_final.pdf) | 我们 4 个 patch 的**直接 3D 化**：patchStrands 的经线条带 → 卡片网格，心智模型不变 |
-| 曲线发丝 | 官方 [`TubeGeometry`](https://threejs.org/docs/#api/en/geometries/TubeGeometry) + [`CatmullRomCurve3`](https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3)（docs 索引 Extras/Geometries 均在列） | 单根发丝可做，曲线参数化与我们 accent/lock 的二次贝塞尔采样（`app.js:879-945`）同构；**量大时成本未验证** |
-| Shell/fur 层 | 三.js core/examples **无**：`gh search code "fur repo:mrdoob/three.js path:examples/jsm"` 零命中（对照组 `MeshToonMaterial` 查询有命中，方法自证有效） | 要自写（`onBeforeCompile` 或 TSL）——不是免费能力 |
-| Kajiya-Kay / Marschner | 三.js 仓库 **零命中**：`gh search code "Marschner repo:mrdoob/three.js"`、`"Kajiya-Kay repo:mrdoob/three.js"` 均空（同一对照组有效；检索入口 [GitHub code search](https://github.com/search?q=repo%3Amrdoob%2Fthree.js+Marschner&type=code)，需登录） | **没有「维护中的 three.js 官方头发个各向异性模型」**；要光泽发就得自己写 shader 或用第三方（第三方未调研=未验证） |
-| 各向异性（PBR） | [`MeshPhysicalMaterial`](https://threejs.org/docs/#api/en/materials/MeshPhysicalMaterial) 有 `anisotropy`/`anisotropyMap`/`anisotropyRotation`（源码 [src/materials/MeshPhysicalMaterial.js](https://github.com/mrdoob/three.js/blob/dev/src/materials/MeshPhysicalMaterial.js) 约 70-90 行） | 这是**微表面 PBR 各向异性高光，不等于 Kajiya-Kay 头发模型**（分析）——别指望开一个开关就有二次元发丝 |
-| 二次元整体渲染 | three-vrm 的 **MToon** 材质（`@pixiv/three-vrm-materials-mtoon`，官方 README 明示含 outline 宽度模式 `MToonMaterialOutlineWidthMode`，并给 WebGPU 用 `MToonNodeMaterial`，需 three r167+）——[README](https://github.com/pixiv/three-vrm/tree/dev/packages/three-vrm-materials-mtoon) | 「动漫头像」这一档有**可直接用的官方维护实现**，比自己调 MeshToonMaterial 更接近成品 |
+| 路线                   | three.js 现状（一手）                                                                                                                                                                                                                                                                         | 对我们意味着什么                                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Hair cards（发片）     | 无官方生成器，但就是普通 mesh + 贴图；业界口径（本仓库头发调研）：cards/shells 是游戏主流——[Frostbite SIGGRAPH 2019](https://advances.realtimerendering.com/s2019/hair_presentation_final.pdf)                                                                                                | 我们 4 个 patch 的**直接 3D 化**：patchStrands 的经线条带 → 卡片网格，心智模型不变                                |
+| 曲线发丝               | 官方 [`TubeGeometry`](https://threejs.org/docs/#api/en/geometries/TubeGeometry) + [`CatmullRomCurve3`](https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3)（docs 索引 Extras/Geometries 均在列）                                                                                 | 单根发丝可做，曲线参数化与我们 accent/lock 的二次贝塞尔采样（`app.js:879-945`）同构；**量大时成本未验证**         |
+| Shell/fur 层           | 三.js core/examples **无**：`gh search code "fur repo:mrdoob/three.js path:examples/jsm"` 零命中（对照组 `MeshToonMaterial` 查询有命中，方法自证有效）                                                                                                                                        | 要自写（`onBeforeCompile` 或 TSL）——不是免费能力                                                                  |
+| Kajiya-Kay / Marschner | 三.js 仓库 **零命中**：`gh search code "Marschner repo:mrdoob/three.js"`、`"Kajiya-Kay repo:mrdoob/three.js"` 均空（同一对照组有效；检索入口 [GitHub code search](https://github.com/search?q=repo%3Amrdoob%2Fthree.js+Marschner&type=code)，需登录）                                         | **没有「维护中的 three.js 官方头发个各向异性模型」**；要光泽发就得自己写 shader 或用第三方（第三方未调研=未验证） |
+| 各向异性（PBR）        | [`MeshPhysicalMaterial`](https://threejs.org/docs/#api/en/materials/MeshPhysicalMaterial) 有 `anisotropy`/`anisotropyMap`/`anisotropyRotation`（源码 [src/materials/MeshPhysicalMaterial.js](https://github.com/mrdoob/three.js/blob/dev/src/materials/MeshPhysicalMaterial.js) 约 70-90 行） | 这是**微表面 PBR 各向异性高光，不等于 Kajiya-Kay 头发模型**（分析）——别指望开一个开关就有二次元发丝               |
+| 二次元整体渲染         | three-vrm 的 **MToon** 材质（`@pixiv/three-vrm-materials-mtoon`，官方 README 明示含 outline 宽度模式 `MToonMaterialOutlineWidthMode`，并给 WebGPU 用 `MToonNodeMaterial`，需 three r167+）——[README](https://github.com/pixiv/three-vrm/tree/dev/packages/three-vrm-materials-mtoon)          | 「动漫头像」这一档有**可直接用的官方维护实现**，比自己调 MeshToonMaterial 更接近成品                              |
 
 ## 3. 现成头像管线与许可（requirement b）
 
@@ -86,14 +86,14 @@
 
 ### 3.3 许可与维护性小结
 
-| 资产 | 许可（一手） |
-| --- | --- |
-| three.js | MIT，`Copyright © 2010-2026 three.js authors`（[LICENSE](https://github.com/mrdoob/three.js/blob/dev/LICENSE)） |
-| @pixiv/three-vrm | MIT（[README](https://github.com/pixiv/three-vrm/blob/dev/README.md) LICENSE 节） |
-| Visage | MIT（[README](https://github.com/readyplayerme/visage) 徽章+LICENSE 链接） |
-| RPM avatar | CC 4.0 非商用；商用需注册（[docs](https://docs.readyplayer.me/ready-player-me/support/terms-of-use)，快照） |
-| VRM 模型 | **按模型内嵌** `licenseUrl`（[meta.md](https://github.com/vrm-c/vrm-specification/blob/master/specification/VRMC_vrm-1.0/meta.md)） |
-| 本仓库现有 2D 头像 | blobatar MIT（ADR-0032；见 `docs/research/2026-09-19-avatar-and-icon-references.md`） |
+| 资产               | 许可（一手）                                                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| three.js           | MIT，`Copyright © 2010-2026 three.js authors`（[LICENSE](https://github.com/mrdoob/three.js/blob/dev/LICENSE)）                     |
+| @pixiv/three-vrm   | MIT（[README](https://github.com/pixiv/three-vrm/blob/dev/README.md) LICENSE 节）                                                   |
+| Visage             | MIT（[README](https://github.com/readyplayerme/visage) 徽章+LICENSE 链接）                                                          |
+| RPM avatar         | CC 4.0 非商用；商用需注册（[docs](https://docs.readyplayer.me/ready-player-me/support/terms-of-use)，快照）                         |
+| VRM 模型           | **按模型内嵌** `licenseUrl`（[meta.md](https://github.com/vrm-c/vrm-specification/blob/master/specification/VRMC_vrm-1.0/meta.md)） |
+| 本仓库现有 2D 头像 | blobatar MIT（ADR-0032；见 `docs/research/2026-09-19-avatar-and-icon-references.md`）                                               |
 
 ## 4. 本仓库/原型的落地契合（requirement c）
 
