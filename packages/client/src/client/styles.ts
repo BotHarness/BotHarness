@@ -12,6 +12,10 @@ export const CSS =
   --bh-hover: var(--dsw-alias-interactive-bg-hover);
   --bh-selected: var(--dsw-specific-sidebar-nav-item-active);
   /* @bh-brand-aliases:end */
+  /* @bh-bridge-media-aliases:start — reuse the pinned native focus and muted labels. */
+  --bh-bridge-media-focus: var(--dsw-alias-state-business-primary);
+  --bh-bridge-media-muted: var(--dsw-alias-label-secondary);
+  /* @bh-bridge-media-aliases:end */
   /* @bh-memory-graph-aliases:start — the pinned DSH theme has no radius
      variables; these match its measured 4/6/10px native controls. */
   --bh-memory-radius-chip: 4px;
@@ -3285,6 +3289,12 @@ button.bh-profile-heat-cell:focus-visible {
 button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
 .bh-message-file:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .bh-message-attachments { display: grid; gap: 6px; margin-top: 6px; }
+.bh-bridge-media-content { white-space: pre-wrap; }
+.bh-bridge-image { max-width: min(100%, 360px); }
+.bh-bridge-image-button { display: block; padding: 0; border: 0; background: transparent; cursor: zoom-in; border-radius: 12px; }
+.bh-bridge-image-button:focus-visible { outline: 2px solid var(--bh-bridge-media-focus); outline-offset: 2px; }
+.bh-bridge-image-state { display: flex; align-items: center; gap: 8px; min-height: 96px; color: var(--bh-bridge-media-muted); }
+.bh-bridge-image-expanded { display: block; max-width: 100%; max-height: 75vh; margin: auto; object-fit: contain; }
 .bh-message-image-link { display: block; max-width: min(100%, 360px); }
 .bh-message-image { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; }
 .bh-message-file { display: inline-flex; align-items: center; gap: 8px; min-width: 0; width: fit-content; max-width: min(100%, 320px); min-height: 42px; padding: 5px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit; text-decoration: none; }

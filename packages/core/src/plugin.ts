@@ -1164,19 +1164,24 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         }),
       'botharness: current Memory file download',
     );
-    const attachmentHttp = createAttachmentHttp(core.attachments, core.channels, async (input) => {
-      const ref = await (
-        input.representation === 'playback'
-          ? core.externalMessaging.prepareAudio
-          : core.externalMessaging.acquireFile
-      )(input.slug, input.sourceEventId, input.attachmentId, input.signal);
-      const signal = AbortSignal.any([
-        input.signal,
-        core.externalMessaging.inbound.sourceSignal(input.slug, input.sourceEventId),
-      ]);
-      const downloaded = await core.attachments.download(ref.fileId!, ref.name, signal);
-      return downloaded;
-    });
+    const attachmentHttp = createAttachmentHttp(
+      core.attachments,
+      core.channels,
+      async (input) => {
+        const ref = await (
+          input.representation === 'playback'
+            ? core.externalMessaging.prepareAudio
+            : core.externalMessaging.acquireFile
+        )(input.slug, input.sourceEventId, input.attachmentId, input.signal);
+        const signal = AbortSignal.any([
+          input.signal,
+          core.externalMessaging.inbound.sourceSignal(input.slug, input.sourceEventId),
+        ]);
+        const downloaded = await core.attachments.download(ref.fileId!, ref.name, signal);
+        return downloaded;
+      },
+      (input) => core.externalMessaging.readChannelMedia(input),
+    );
     connectionCtx.effect(
       () =>
         connection.fetch.register({

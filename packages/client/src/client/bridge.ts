@@ -1060,6 +1060,52 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       return undefined;
     bridgeOrigin = origin as NonNullable<ChannelMessage['bridgeOrigin']>;
   }
+  let bridgeMedia: ChannelMessage['bridgeMedia'];
+  if (record['bridgeMedia'] !== undefined) {
+    const media = asRecord(record['bridgeMedia']);
+    if (
+      !bridgeOrigin ||
+      !media ||
+      Object.keys(media).some((key) => !['items', 'parts'].includes(key)) ||
+      !Array.isArray(media['items']) ||
+      media['items'].length > 32
+    )
+      return;
+    const ids = new Set<string>();
+    for (const raw of media['items']) {
+      const item = asRecord(raw);
+      if (
+        !item ||
+        item['kind'] !== 'image' ||
+        typeof item['id'] !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(item['id']) ||
+        typeof item['name'] !== 'string' ||
+        ids.has(item['id']) ||
+        Object.keys(item).some((key) => !['id', 'kind', 'name'].includes(key))
+      )
+        return;
+      ids.add(item['id']);
+    }
+    if (media['parts'] !== undefined) {
+      if (!Array.isArray(media['parts']) || media['parts'].length > 256) return;
+      for (const raw of media['parts']) {
+        const part = asRecord(raw);
+        if (
+          !part ||
+          Object.keys(part).some(
+            (key) => !(part['kind'] === 'text' ? ['kind', 'text'] : ['kind', 'id']).includes(key),
+          ) ||
+          (part['kind'] === 'text'
+            ? typeof part['text'] !== 'string' || part['text'].length > 16000
+            : part['kind'] !== 'attachment' ||
+              typeof part['id'] !== 'string' ||
+              !ids.has(part['id']))
+        )
+          return;
+      }
+    }
+    bridgeMedia = media as NonNullable<ChannelMessage['bridgeMedia']>;
+  }
   const format = record['format'];
   if (format !== undefined && format !== 'markdown' && format !== 'text') return undefined;
   const replyTo = record['replyTo'];
@@ -1273,6 +1319,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),
     ...(bridgeOrigin === undefined ? {} : { bridgeOrigin }),
+    ...(bridgeMedia === undefined ? {} : { bridgeMedia }),
     ...(replyTo === undefined ? {} : { replyTo }),
     ...(replyToPreview === undefined ? {} : { replyToPreview }),
   };

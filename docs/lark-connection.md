@@ -341,3 +341,13 @@ _The exact [BH-LARK-SETUP] source ends in f708a3f1; its Inbox admission was hand
 ![Temporary connection and local credentials removed](/guides/lark/26-new-app-cleaned.webp)
 
 _Close/reopen and same-Profile restart retained configuration/history; select the persisted account after reload. Disable, grant revocation, unbind and account removal returned relevant steps to pending. Native Remove integration then stopped reception and deleted local configuration/credentials. The external application remains; external credential reset is an administrator action._
+
+## Images in Channel history
+
+In the image-capable #1021 candidate, an authorized Lark image or supported image-bearing post appears inside its original Channel bubble. The source name above it still opens source details. Images load when visible; select an image to enlarge it, and use **Retry** after a failed load. Text and multiple images stay in their native order in one message.
+
+This requires a Channel Bridge with a history destination. Inbox-only reception does not place images in Channel history. Keep the application's existing message permissions: a mentions-only group source still requires a real Bot mention in a supported native post. This feature does not enable ordinary group-message access.
+
+Stopping the Bridge keeps already acquired images readable but stops new image acquisition. Unbinding its identity or revoking source authorization makes that path unavailable, including cached images. A separately valid source path remains independent. Refresh and restart retain authorized acquired images; purged or missing originals are not downloaded again. Previews support PNG, JPEG, GIF and WebP up to 25 MiB. An unsupported format or oversized image shows an explicit state.
+
+Human image viewing does not make the Bot understand images or change its attention, model context or permissions. Real platform acceptance and screenshots for this candidate are tracked in [#1021](https://github.com/BotHarness/BotHarness/issues/1021); they are not implied by the older onboarding evidence above.
