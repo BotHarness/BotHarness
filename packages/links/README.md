@@ -76,7 +76,36 @@ Every `/v1` route needs `Authorization: Bearer <token>`. `GET` routes need a `re
 - Only the SHA-256 hash is stored. The plaintext appears once, in the `POST /v1/tokens` response.
 - `read` tokens can call every `GET` route. `write` tokens can do everything, including token management.
 - `expiresInDays` defaults to 90; `null` creates a token that never expires. Expired and revoked tokens get `401`. `lastUsedAt` is updated at most once an hour.
-- **Bootstrap.** Until the admin page (#954) exists, the `LINKS_BOOTSTRAP_TOKEN` secret works as a bearer token for `/v1/tokens` routes only (create, list, revoke), and gets `403 bootstrap-token-only-manages-tokens` elsewhere. It must be at least 32 characters and is compared in constant time. Use it to create the first `write` PAT, and keep it for revoking a leaked token; delete it with `wrangler secret delete LINKS_BOOTSTRAP_TOKEN` as soon as the admin page (#954) ships.
+- **Bootstrap.** The `LINKS_BOOTSTRAP_TOKEN` secret works as a bearer token for `/v1/tokens` routes only (create, list, revoke), and gets `403 bootstrap-token-only-manages-tokens` elsewhere. It must be at least 32 characters and is compared in constant time. It exists only to get started before the admin page is reachable. Delete it with `npx wrangler secret delete LINKS_BOOTSTRAP_TOKEN` after the first successful admin login; from then on tokens are created and revoked on the admin page.
+
+## Admin page (`/admin`)
+
+A server-rendered page (Hono `html` templates, no frontend build) for Humans, behind Cloudflare Access. It calls the same operations as `/v1` (`src/operations.ts`), so validation and rules are identical.
+
+- `/admin`: Campaigns with link and click totals (archived ones on request), a New campaign form, the Personal Access Token list (prefix, scope, expiry, last use, status) with Revoke, and a Create token form. A new token is shown once, with a Copy button, on the response to the create form (`Cache-Control: no-store`); afterwards only its prefix is visible.
+- `/admin/campaigns/{slug}`: the Campaign's links with the short URL and a Copy button, platform, media, target, total clicks, the last 7 UTC days as small bars, last click, inline Edit and Archive; a New link form; and the Campaign's name, description and Archive.
+- Form posts redirect back with a message (`303`). Cross-site posts are refused with `403` by Hono's `csrf` middleware (`Sec-Fetch-Site: same-origin` or an `Origin` of `https://go.botharness.ai`). Pages send `Cache-Control: no-store`, `X-Frame-Options: DENY` and a CSP that allows only the page's own `/admin/admin.js` (copy buttons and confirmations).
+
+### Access verification
+
+Cloudflare Access puts a signed JWT in the `Cf-Access-Jwt-Assertion` header of every request it lets through. The Worker verifies it with Hono's JWT helper (`Jwt.verifyWithJwks`, RS256 only) against `https://<ACCESS_TEAM_DOMAIN>/cdn-cgi/access/certs`, which it caches for an hour per isolate and refetches once when a token does not verify against keys older than a minute (key rotation). The issuer must be `https://<ACCESS_TEAM_DOMAIN>`, the audience must contain `ACCESS_AUD`, `exp`/`nbf`/`iat` must hold and the payload must carry an `email`, which the page shows as the signed-in user. No header gives `401`, an invalid token `403`, and missing `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD` `503`. PATs and the bootstrap secret are never accepted here, and the `/v1` API never accepts an Access JWT.
+
+Local development has no Access. Set `ADMIN_DEV_EMAIL=you@example.com` in `.dev.vars` to open the page as that e-mail. The bypass is honored only while `ACCESS_AUD` is empty, so it cannot apply to a deployment where Access is configured; never set it in `wrangler.jsonc` or as a production secret.
+
+### Cloudflare Access setup
+
+1. In the Cloudflare dashboard open **Zero Trust**. Its **Settings** page shows the **team domain**, `<team>.cloudflareaccess.com`.
+2. **Access → Applications → Add an application → Self-hosted**. Name it `BotHarness links admin`, session duration 24 hours, and add the public hostname `go.botharness.ai` with path `admin*` (this covers `/admin` and `/admin/...`; leave the redirect `/<slug>`, `/v1` and `/openapi.json` unprotected).
+3. Add a policy: action **Allow**, include **Emails** with the maintainers' addresses (or an **Emails ending in** rule for the team domain). Use the default identity provider (one-time PIN by e-mail) or the team's GitHub/Google login.
+4. Save, then open the application's **Overview** (or **Basic information**) and copy the **Application Audience (AUD) Tag**.
+5. Put both values in `wrangler.jsonc` and deploy:
+
+   ```jsonc
+   "ACCESS_TEAM_DOMAIN": "<team>.cloudflareaccess.com",
+   "ACCESS_AUD": "<application AUD tag>",
+   ```
+
+6. Open `https://go.botharness.ai/admin`, sign in, create a write token, and delete the bootstrap secret (`npx wrangler secret delete LINKS_BOOTSTRAP_TOKEN`).
 
 ## Known limits
 
@@ -87,12 +116,15 @@ Every `/v1` route needs `Authorization: Bearer <token>`. `GET` routes need a `re
 
 ## Configuration
 
-| Name                    | Kind   | Use                                                                                |
-| ----------------------- | ------ | ---------------------------------------------------------------------------------- |
-| `LINKS_DB`              | D1     | Campaigns, links, daily click counters and token hashes (`migrations/`)            |
-| `LINKS_BOOTSTRAP_TOKEN` | secret | Bootstrap bearer for `/v1/tokens`; unset or shorter than 32 characters disables it |
-| `POSTHOG_HOST`          | var    | Capture host, default `https://us.i.posthog.com`; empty disables the event         |
-| `POSTHOG_KEY`           | var    | PostHog project API key (public by design); empty disables the event               |
+| Name                    | Kind             | Use                                                                                            |
+| ----------------------- | ---------------- | ---------------------------------------------------------------------------------------------- |
+| `LINKS_DB`              | D1               | Campaigns, links, daily click counters and token hashes (`migrations/`)                        |
+| `LINKS_BOOTSTRAP_TOKEN` | secret           | Bootstrap bearer for `/v1/tokens`; unset or shorter than 32 characters disables it             |
+| `POSTHOG_HOST`          | var              | Capture host, default `https://us.i.posthog.com`; empty disables the event                     |
+| `POSTHOG_KEY`           | var              | PostHog project API key (public by design); empty disables the event                           |
+| `ACCESS_TEAM_DOMAIN`    | var              | Zero Trust team domain, `<team>.cloudflareaccess.com`; the admin page answers `503` without it |
+| `ACCESS_AUD`            | var              | Audience tag of the Access application protecting `/admin*`                                    |
+| `ADMIN_DEV_EMAIL`       | `.dev.vars` only | Local admin without Access; ignored whenever `ACCESS_AUD` is set                               |
 
 The event goes straight to PostHog US rather than through `t.botharness.ai`: a server-side call is not affected by ad blockers, and a Worker fetching another Worker's custom domain on the same zone is not routed through that Worker without extra configuration.
 
@@ -108,7 +140,7 @@ curl -s -X POST http://127.0.0.1:8787/v1/tokens \
   -H 'content-type: application/json' -d '{"name":"local","scope":"write"}'
 ```
 
-Add `POSTHOG_HOST=http://127.0.0.1:<port>` to `.dev.vars` to capture events locally instead of sending them to PostHog. Tests run with the workspace `pnpm test` against an in-memory SQLite D1.
+Add `ADMIN_DEV_EMAIL=you@example.com` to `.dev.vars` and open `http://127.0.0.1:8787/admin` for the admin page. Add `POSTHOG_HOST=http://127.0.0.1:<port>` to `.dev.vars` to capture events locally instead of sending them to PostHog. Tests run with the workspace `pnpm test` against an in-memory SQLite D1.
 
 ## Deploy
 
@@ -129,4 +161,5 @@ The D1 database `botharness-links` (APAC) was created on 2026-10-06 and its `dat
    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put LINKS_BOOTSTRAP_TOKEN
    ```
 
-3. Create the first `write` PAT with the bootstrap secret, then a Campaign and a link with the PAT, and open `https://go.botharness.ai/<slug>`. Check that the site's `$pageview` in PostHog carries the four UTMs and that `link_clicked` arrives with the site script blocked.
+3. Set up Cloudflare Access for `/admin*` and fill `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` (see [Cloudflare Access setup](#cloudflare-access-setup)), then deploy again.
+4. Sign in at `https://go.botharness.ai/admin`, create a Campaign with two links and a `write` PAT, and delete the bootstrap secret. Use the PAT against the API (for example `curl -H "authorization: Bearer $PAT" https://go.botharness.ai/v1/campaigns`), then create a link with it, and open `https://go.botharness.ai/<slug>`. Check that the site's `$pageview` in PostHog carries the four UTMs and that `link_clicked` arrives with the site script blocked.

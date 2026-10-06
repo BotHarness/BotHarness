@@ -112,7 +112,7 @@ describe('campaign link redirect', () => {
   it('sends unknown, archived and reserved slugs to the site root without UTMs or counting', async () => {
     stubPostHog();
     const { request, token, sqlite } = await seeded();
-    for (const path of ['/nope', '/admin', '/Not_Valid']) {
+    for (const path of ['/nope', '/health', '/Not_Valid']) {
       const response = await request(path);
       expect(response.status).toBe(302);
       expect(response.headers.get('location')).toBe('https://deepseekbot.botharness.ai/');

@@ -61,18 +61,28 @@ export function createHarness(overrides: Partial<LinksEnv> = {}) {
   };
   const request = async (
     path: string,
-    init: { method?: string; token?: string; body?: unknown; userAgent?: string } = {},
+    init: {
+      method?: string;
+      token?: string;
+      body?: unknown;
+      userAgent?: string;
+      headers?: Record<string, string>;
+    } = {},
   ) => {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...init.headers };
     if (init.token !== undefined) headers.authorization = `Bearer ${init.token}`;
-    if (init.body !== undefined) headers['content-type'] = 'application/json';
+    if (init.body !== undefined && headers['content-type'] === undefined) {
+      headers['content-type'] = 'application/json';
+    }
     if (init.userAgent !== undefined) headers['user-agent'] = init.userAgent;
     const response = await app.request(
       `${ORIGIN}${path}`,
       {
         method: init.method ?? 'GET',
         headers,
-        ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+        ...(init.body === undefined
+          ? {}
+          : { body: typeof init.body === 'string' ? init.body : JSON.stringify(init.body) }),
       },
       env,
       executionCtx,
