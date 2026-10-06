@@ -1,0 +1,26 @@
+{
+  "verifiedAt": "2026-10-06T06:30:45.258721+00:00",
+  "profile": "fresh rebuilt QA authority",
+  "botharnessCommit": "634bdb9809a89658ca23fbc6ce4fd3533917cee1",
+  "providerCommit": "1541d2972c72fcdc09f1fbcb26eedc48c15cf909",
+  "providerRuntimeFiles": 395,
+  "providerRuntimeSHA256": "6efccd475a1dee29722aaf78829ae1feb6c6c6bcb4d88329d47f0db9116b8bc1",
+  "nativeAppFlags": 0,
+  "messageContent": false,
+  "presenceMembers": false,
+  "nativeEditedQAMessageRestoredToOriginalBody": true,
+  "restorationBodyVerifiedBy": "native Discord browser; OFF HTTP censors ordinary body",
+  "sameCanonicalRowsAfterNativeRestoration": true,
+  "finalCounts": {
+    "messaging_bindings": 1,
+    "messaging_grants": 1,
+    "source_events": 21,
+    "inbox_admissions": 4,
+    "messaging_outbox": 3,
+    "channel_placements": 2
+  },
+  "screenshots": ["rebuilt-final-message-content-off-native.jpg"],
+  "scope": "bounded group/existing-public-thread Human-text pages; nearby/window/topic row remains unqualified",
+  "productProviderPinPromoted": false,
+  "releasedOrDeployed": false
+}

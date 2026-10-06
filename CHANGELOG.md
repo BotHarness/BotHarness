@@ -16,6 +16,10 @@ PersonaBots can run recurring Bot Schedules, the Channel sidebar sections share 
 
 - The Channel sidebar's Sessions, Bot Inbox and Workspace Grants sections now use the same card rows as Schedules, with an icon, status chips and a meta line on every row; a Bot Inbox item from a Bot Schedule now opens that schedule ([#972](https://github.com/BotHarness/BotHarness/issues/972)).
 
+### Documentation
+
+- Documented final development-source Discord context acceptance with real model continuation, precise edited-source refusal, whole-page rollback and restored Message Content permissions ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
+
 ## [1.0.2] - 2026-10-06
 
 Bot mode shows what changed after an install or update and checks npm for newer releases, context reads keep precise `source-conflict` refusals, and a Share a Bot guide explains publishing a Bot to the Bot Marketplace.

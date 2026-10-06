@@ -1,0 +1,41 @@
+{
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceEventId": "im-74d8248487f013cb9e032668816d04767b0d7d53688f176d2ebf9138363a6c16",
+  "contextCallId": "call_00_1Wal9Sb34tLJxDnA6L5W6784",
+  "actualError": "Error: source-conflict",
+  "refusalAudit": {
+    "scope": "thread",
+    "outcome": "refused",
+    "sourceEventIds": [],
+    "reason": "source-conflict",
+    "incomplete": true
+  },
+  "editedNativeMessageId": "1556904676014952499",
+  "retainedOldSourceUnchanged": true,
+  "allPreviouslyRetainedSourcesUnchanged": true,
+  "rollbackSentinelNativeMessageId": "1556915425214857247",
+  "rollbackSentinelWasNotRetained": true,
+  "wholePageRolledBack": true,
+  "canonicalCountDelta": {
+    "messaging_bindings": 0,
+    "messaging_grants": 0,
+    "source_events": 1,
+    "inbox_admissions": 1,
+    "messaging_outbox": 1,
+    "channel_placements": 0
+  },
+  "sameBindingGrantPlacements": true,
+  "reply": {
+    "callId": "call_00_9tpZqLKhIUeueo0dRSs88500",
+    "state": "provider-accepted",
+    "nativeMessageId": "1556915612968820827",
+    "referenceMessageId": "1556915554885832747",
+    "nativeThreadId": "1556622420222283798",
+    "text": "DISCORD-937-REBUILT-CONFLICT:source-conflict"
+  },
+  "screenshots": ["rebuilt-source-conflict-native.jpg"]
+}

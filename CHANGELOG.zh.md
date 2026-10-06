@@ -16,6 +16,10 @@ PersonaBot 可设置定时任务，Channel 侧栏各分区统一为卡片样式�
 
 - Channel 侧栏的会话、Bot 收件箱和工作区授权改用与定时任务相同的卡片行：每行带图标、状态 chip 和说明行；来自定时任务的收件箱条目现在可以点开对应的定时任务（[#972](https://github.com/BotHarness/BotHarness/issues/972)）。
 
+### Documentation
+
+- 补全 Discord 上下文开发来源验收文档，提供真实模型续页、准确的已编辑来源拒绝、整页回滚及消息正文权限恢复证据（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
+
 ## [1.0.2] - 2026-10-06
 
 Bot 模式会在安装和升级后显示更新内容并检查 npm 上的新版本；上下文读取保留准确的 `source-conflict` 拒绝；新增分享 Bot 教程，说明如何把 Bot 发布到 Bot 市场。
