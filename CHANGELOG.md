@@ -12,6 +12,10 @@ WeChat original voice can be prepared for playback, and Discord defaults can be 
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
 - Discord now has independent external-platform defaults for group intake, ordinary wake thresholds and inherited identity availability. Profile custom choices remain independent; restoring inheritance uses the current Discord defaults. Existing Lark/Slack history and overrides are preserved on upgrade. ([#1016](https://github.com/BotHarness/BotHarness/issues/1016))
 
+### Fixed
+
+- Shared Channel messages now show the external sender’s retained name, including existing Discord history; source details keep the sender ID separately, and unnamed events retain the ID fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
+
 ## [1.1.0] - 2026-10-06
 
 PersonaBots can run Bot Schedules and manage them themselves, every Session starts with the Bot's Soul and Core Memory, the Channel sidebar sections share one card design, WeChat accepts voice transcripts and images, each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace, the plugin sends anonymous usage statistics that can be turned off, and Bot settings can install a DeepSeekBot update and restart DSH with one click.

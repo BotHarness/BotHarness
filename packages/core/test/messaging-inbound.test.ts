@@ -1081,6 +1081,7 @@ it('places one canonical external Source Event in a shared Channel, wakes only t
             messageId: 'om-1',
             sourceEventId: sourceId,
             senderId: 'ou-human',
+            senderName: 'Human sender',
             threadId: 'omt-topic',
           },
         });
@@ -1141,6 +1142,11 @@ it('places one canonical external Source Event in a shared Channel, wakes only t
   await fx.receive();
   await fx.idle();
   expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
+  expect(fx.core.channels.readMessages(channelId)[0]?.bridgeOrigin).toMatchObject({
+    senderName: 'Human sender',
+    senderId: 'ou-human',
+    sourceEventId: sourceId!,
+  });
   expect(fx.runs.map((run) => run.bot.slug)).toEqual(['ada', 'bea']);
   expect(fx.replies).toHaveLength(1);
   expect(fx.query("SELECT * FROM inbox_admissions WHERE reason = 'group-mention'")).toHaveLength(1);

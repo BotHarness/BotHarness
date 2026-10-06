@@ -220,6 +220,7 @@ export interface ChannelMessage {
     conversationName: string;
     messageId: string;
     senderId: string;
+    senderName?: string;
     threadId?: string;
   };
   external?: ChannelMessageExternal;
@@ -702,6 +703,11 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     ]) {
       if (typeof origin[key] !== 'string' || origin[key].length === 0) return false;
     }
+    if (
+      origin['senderName'] !== undefined &&
+      (typeof origin['senderName'] !== 'string' || origin['senderName'].trim().length === 0)
+    )
+      return false;
     if (
       origin['threadId'] !== undefined &&
       (typeof origin['threadId'] !== 'string' || origin['threadId'].length === 0)

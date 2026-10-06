@@ -45,7 +45,7 @@ it('opens only the selected source details, restores compact presentation on clo
       ),
     );
     const button = container.querySelector('button')!;
-    expect(button.textContent).toBe('【Lark/飞书 QA <group>】');
+    expect(button.textContent).toBe('sender · 【Lark/飞书 QA <group>】');
     expect(button.getAttribute('aria-haspopup')).toBe('dialog');
     expect(container.querySelector('[role=dialog]')).toBeNull();
     await act(async () => button.click());
@@ -63,9 +63,60 @@ it('opens only the selected source details, restores compact presentation on clo
     expect(dialog.querySelector('group')).toBeNull();
     await act(async () => dialog.querySelector('button')!.click());
     expect(container.querySelector('[role=dialog]')).toBeNull();
-    expect(container.textContent).toBe('【Lark/飞书 QA <group>】');
+    expect(container.textContent).toBe('sender · 【Lark/飞书 QA <group>】');
   } finally {
     await act(async () => root.unmount());
     container.remove();
   }
 });
+
+it.each(['discord', 'feishu'])(
+  'shows %s sender names while keeping IDs in source details',
+  async (platform) => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(
+          createElement(BridgeSourceAuthor, {
+            origin: {
+              platform,
+              conversationName: 'QA',
+              conversationId: 'conversation',
+              sourceEventId: 'canonical-source',
+              senderId: '552307579322236939',
+              senderName: 'DoodleBear <img>',
+              messageId: 'message',
+            },
+            t: zhTranslate,
+          }),
+        ),
+      );
+      const author = container.querySelector('button')!;
+      expect(author.textContent).toBe(
+        `DoodleBear <img> · 【${platform === 'discord' ? 'Discord' : 'Lark/飞书'} QA】`,
+      );
+      expect(author.getAttribute('aria-label')).toContain('DoodleBear <img>');
+      expect(container.querySelector('img')).toBeNull();
+      await act(async () => author.click());
+      const dialog = container.querySelector('[role=dialog]')!;
+      expect([...dialog.querySelectorAll('dd')].map((entry) => entry.textContent)).toEqual([
+        platform === 'discord' ? 'Discord' : 'Lark/飞书',
+        'QA',
+        'conversation',
+        'DoodleBear <img>',
+        '552307579322236939',
+        'message',
+        'canonical-source',
+      ]);
+      expect(dialog.querySelector('img')).toBeNull();
+      await act(async () => dialog.querySelector('button')!.click());
+      expect(container.querySelector('[role=dialog]')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  },
+);
