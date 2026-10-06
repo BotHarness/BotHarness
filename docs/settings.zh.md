@@ -67,7 +67,7 @@
 | 我的默认名字        | 留空，显示 Human；最长 128 字符                    | 填写后点「保存名字」，用于聊天、提及及 Bot 上下文。点「恢复默认」或保存空值恢复 Human。                                       |
 | 匿名使用统计        | 开                                                 | 切换即保存，立即生效、无需重启；被插件配置或环境变量关闭时锁定为关。见[匿名使用统计](#匿名使用统计)。                         |
 
-下方「外部平台默认行为」属于 IM 收件与身份设置，参见 [Lark / 飞书](/zh/docs/lark-connection) 和 [Slack](/zh/docs/slack-connection)。
+下方「外部平台默认行为」属于 IM 收件与身份设置，参见 [Lark / 飞书](/zh/docs/lark-connection)、[Slack](/zh/docs/slack-connection) 与 Discord。各平台的默认值和版本独立保存。Profile 身份及群收件策略可以继承默认值或保留自定义选项；恢复继承时使用该平台的当前默认值。Discord 普通消息收件仍需 Message Content Intent 和实际投递验证，修改默认值不会授予这些能力。
 
 ## 创建 Bot 与编辑 Profile
 

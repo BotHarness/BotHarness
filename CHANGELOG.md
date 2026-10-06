@@ -5,11 +5,12 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-WeChat original voice can be downloaded and prepared for playback.
+WeChat original voice can be prepared for playback, and Discord defaults can be saved independently and inherited by Profile settings.
 
 ### Added
 
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
+- Discord now has independent external-platform defaults for group intake, ordinary wake thresholds and inherited identity availability. Profile custom choices remain independent; restoring inheritance uses the current Discord defaults. Existing Lark/Slack history and overrides are preserved on upgrade. ([#1016](https://github.com/BotHarness/BotHarness/issues/1016))
 
 ## [1.1.0] - 2026-10-06
 

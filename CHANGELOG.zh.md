@@ -5,11 +5,12 @@
 
 ## [Unreleased]
 
-微信原始语音可下载，并可按需准备播放。
+微信原始语音支持准备后播放，Discord 默认值支持独立保存并由 Profile 设置继承。
 
 ### Added
 
 - 微信原生语音可下载原文件，支持的 SILK 音频可显式准备播放或保存独立 WAV 工作副本；解码有大小、时间限制并校验当前来源授权，语音识别和原生语音回复仍是独立能力（[#906](https://github.com/BotHarness/BotHarness/issues/906)、[指南](docs/wechat-connection.md)）。
+- Discord 支持独立的外部平台默认设置，涵盖群收件、普通消息唤醒阈值与继承身份的启停。Profile 自定义选项保持独立，恢复继承使用当前 Discord 默认值；升级保留已有 Lark/Slack 历史和覆盖项（[#1016](https://github.com/BotHarness/BotHarness/issues/1016)）。
 
 ## [1.1.0] - 2026-10-06
 
