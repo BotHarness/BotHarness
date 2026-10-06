@@ -154,6 +154,7 @@ export interface SessionFailureCard {
 
 export interface ChannelMessage {
   bridgeOrigin?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeOrigin'];
+  bridgeMedia?: import('../../../core/src/channels/channel.js').ChannelMessage['bridgeMedia'];
   id: string;
   at: string;
   author: ChannelAuthor;

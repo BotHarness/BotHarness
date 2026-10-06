@@ -42,6 +42,7 @@ export interface AttachmentStore {
     load(): Promise<AsyncIterable<Uint8Array>>;
   }): Promise<ChannelAttachmentRef>;
   current(ref: ChannelAttachmentRef): ChannelAttachmentRef;
+  acquired(uploadId: string): ChannelAttachmentRef | undefined;
   fileTarget(fileId: string): { path: string; relativePath: string; kind: 'file' };
   has(ref: ChannelAttachmentRef): boolean;
   download(
@@ -183,6 +184,7 @@ export function createAttachmentStore(options: {
     maxBytes,
     upload: (input) => real.upload(input),
     acquire: (input) => real.acquire(input),
+    acquired: (id) => real.acquired(id),
     fileTarget: (id) => real.target(id),
     current(ref) {
       return ref.fileId === undefined

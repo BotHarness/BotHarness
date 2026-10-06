@@ -1,3 +1,4 @@
+import { BridgeImage } from './bridge-image.js';
 import { MessageAttachment } from './message-attachment.js';
 import { useMemo, useRef, useState, type ReactElement } from 'react';
 
@@ -662,6 +663,42 @@ export function ChannelMessageBody({
         workspacePickerRequest={workspacePickerRequest}
         t={t}
       />
+    );
+  }
+  if (message.bridgeMedia && message.bridgeOrigin && channelId) {
+    const media = message.bridgeMedia;
+    const renderImage = (id: string, index: number) => {
+      const item = media.items.find((image) => image.id === id);
+      return item ? (
+        <BridgeImage
+          key={index}
+          channelId={channelId}
+          sourceEventId={message.bridgeOrigin!.sourceEventId}
+          attachmentId={id}
+          name={item.name}
+          t={t}
+        />
+      ) : null;
+    };
+    return (
+      <div className="bh-bubble-content bh-bridge-media-content">
+        {media.parts ? (
+          media.parts.map((part, index) =>
+            part.kind === 'text' ? (
+              <span key={index} className="bh-bubble-body">
+                {part.text}
+              </span>
+            ) : (
+              renderImage(part.id, index)
+            ),
+          )
+        ) : (
+          <>
+            {message.body ? <div className="bh-bubble-body">{message.body}</div> : null}
+            {media.items.map((image, index) => renderImage(image.id, index))}
+          </>
+        )}
+      </div>
     );
   }
   const leading = format === 'markdown' ? leadingBotMentions(message) : undefined;
