@@ -40,6 +40,7 @@ import type {
   MarketplaceTopic,
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
+import type { ReleaseInfo, ReleaseService, ReleaseUpdate } from '../release/service.js';
 import {
   AssignmentReplyTargetError,
   type HumanAssignmentContext,
@@ -414,6 +415,8 @@ export interface BridgeMethods {
   marketplaceDetail(payload: unknown): Promise<BridgeResult<MarketplaceDetail>>;
   marketplaceChallenge(): Promise<BridgeResult<AltchaChallenge>>;
   marketplaceReport(payload: unknown): Promise<BridgeResult<{ received: true }>>;
+  releaseInfo(payload: unknown): BridgeResult<ReleaseInfo>;
+  releaseUpdate(): Promise<BridgeResult<ReleaseUpdate>>;
 }
 
 export interface BridgeMethodsDeps {
@@ -447,6 +450,7 @@ export interface BridgeMethodsDeps {
   browserProfile?: { changed(slug: string): void };
   createBotId?: () => string;
   marketplace?: MarketplaceClient;
+  release?: ReleaseService;
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -486,6 +490,13 @@ const parseRoles = (source: Record<string, unknown>): ParsedField<string[]> =>
   parseStringArray(source, 'roles');
 const parseWorkspaces = (source: Record<string, unknown>): ParsedField<string[]> =>
   parseStringArray(source, 'workspaces');
+
+function releaseUnavailable(): BridgeResult<never> {
+  return {
+    ok: false,
+    error: { code: 'release-unavailable', message: 'Release information is unavailable' },
+  };
+}
 
 function invalidInput(message: string): BridgeResult<never> {
   return { ok: false, error: { code: 'invalid-input', message } };
@@ -1434,6 +1445,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     marketplaceTopics() {
       return marketplaceCall((client) => client.topics());
+    },
+    releaseInfo(payload) {
+      if (deps.release === undefined) return releaseUnavailable();
+      const since = asObject(payload)['since'];
+      if (since !== undefined && typeof since !== 'string') return invalidInput('invalid since');
+      return { ok: true, value: deps.release.info(since) };
+    },
+    async releaseUpdate() {
+      if (deps.release === undefined) return releaseUnavailable();
+      return { ok: true, value: await deps.release.update() };
     },
     marketplaceDetail(payload) {
       const id = asObject(payload)['id'];

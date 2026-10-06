@@ -22,6 +22,8 @@ import { openBotSettings } from './bot-settings-open.js';
 import { MessagingDefaultsSettings } from './messaging-defaults-settings.js';
 import { HumanNameSettings } from './human-name-settings.js';
 import { BotSettingsSection } from './bot-settings-section.js';
+import { ReleaseNotesController } from './release-notes.js';
+import { ReleaseSettings } from './release-notes-view.js';
 import './bot-settings-slot.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
@@ -120,6 +122,7 @@ export function apply(ctx: ClientContext): void {
     },
   });
   const prefs = new BotModePrefs(storage);
+  const releaseNotes = new ReleaseNotesController(call, storage);
   const lastView =
     typeof window === 'undefined'
       ? undefined
@@ -269,6 +272,18 @@ export function apply(ctx: ClientContext): void {
       settingsCtx.slots.register(
         {
           name: 'botharness.settings.item',
+          id: 'release',
+          order: -20,
+          locale: LOCALE_NS,
+          inject: () => ({ releaseNotes }),
+        },
+        ReleaseSettings,
+      ),
+    );
+    settingsCtx.slots.inject('botharness.settings.item', () =>
+      settingsCtx.slots.register(
+        {
+          name: 'botharness.settings.item',
           id: 'human-name',
           order: -10,
           locale: LOCALE_NS,
@@ -343,7 +358,14 @@ export function apply(ctx: ClientContext): void {
         name: 'main',
         key: PANEL_ID,
         locale: LOCALE_NS,
-        inject: () => ({ actions, channelSidebar, profileCards, nativeChatT, nativeSessions }),
+        inject: () => ({
+          actions,
+          channelSidebar,
+          profileCards,
+          nativeChatT,
+          nativeSessions,
+          releaseNotes,
+        }),
       },
       BotPanel,
     );

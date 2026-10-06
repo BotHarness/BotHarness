@@ -494,6 +494,10 @@ _Avoid_: message, retry attempt, delivery notification
 A Human-resolved Outbox state whose provider request started but whose success or failure cannot be proven after available reconciliation; it is not safe for the PersonaBot to retry or declare success on its own.
 _Avoid_: failure, timeout, retryable error, success
 
+**Bot Schedule**:
+A PersonaBot-owned durable Host rule that admits a `schedule` Source Event into its Bot Inbox at planned times. The Human and the PersonaBot both manage it; a Human lock makes it read-only to the PersonaBot. It is keyed to the PersonaBot, never to a Session.
+_Avoid_: cron job, DSH Schedule, timer, heartbeat, scheduled Assignment
+
 **Wake Policy**:
 The deterministic Host policy that decides whether an admitted event wakes a PersonaBot now, joins a digest, or causes no automatic wake.
 _Avoid_: model decision, delivery mechanism, scheduler
@@ -713,3 +717,21 @@ _Avoid_: whitelist, permissions, ACL
 **Credential reference**:
 A pointer to a Feishu App Secret held by the DSH credentials service; the secret itself never reaches config, repo, or logs.
 _Avoid_: secret, API key, token
+
+### Telemetry and campaigns
+
+**Telemetry**:
+Anonymous product usage events the Host sends to the project's analytics service, on by default and turned off by plugin config `telemetry: false`, `DO_NOT_TRACK=1` or `BOTHARNESS_TELEMETRY=0`. It never carries names, Memory, conversation content, paths or IP addresses (ADR-0132).
+_Avoid_: tracking, analytics SDK, crash reporter
+
+**Install ID**:
+A random identifier generated on a plugin installation's first start and attached to its Telemetry. It identifies the installation, never a Human, and is never linked to a site visitor.
+_Avoid_: user ID, device ID, machine ID
+
+**Campaign**:
+One marketing push, such as a launch, that groups the Campaign Links created for it; its slug becomes `utm_campaign`.
+_Avoid_: ad, promotion
+
+**Campaign Link**:
+A short link on `go.botharness.ai` for one post or video in a Campaign, carrying its platform and media type; resolving it redirects to the product site with UTM parameters and counts the click.
+_Avoid_: short URL, UTM link, referral link

@@ -71,6 +71,8 @@ import {
   type ClientState,
 } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
+import type { ReleaseNotesController } from './release-notes.js';
+import { ReleaseNotesAnnouncement } from './release-notes-view.js';
 
 export function committedMessageIds(messages: readonly ChannelMessage[]): Set<string> {
   return new Set(
@@ -1627,6 +1629,7 @@ export function BotPanel({
   channelSidebar,
   profileCards,
   nativeChatT,
+  releaseNotes,
   t,
 }: {
   actions: BridgeActions;
@@ -1634,6 +1637,7 @@ export function BotPanel({
   nativeSessions?: NativeSessionCatalog | undefined;
   profileCards?: ProfileCardRegistry | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
+  releaseNotes?: ReleaseNotesController | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   const modeMount = useMountedResource<HTMLSpanElement>(() => {
@@ -1645,6 +1649,9 @@ export function BotPanel({
   return (
     <>
       <span ref={modeMount} hidden aria-hidden="true" />
+      {releaseNotes === undefined ? null : (
+        <ReleaseNotesAnnouncement controller={releaseNotes} t={t} />
+      )}
       <BotMain
         actions={actions}
         nativeSessions={nativeSessions}

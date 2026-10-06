@@ -1,22 +1,21 @@
-# Preparing the first npm prerelease
+# Releasing DeepSeekBot to npm
 
-This is the operator path for #866, following the packaged qualification in
-[#823](https://github.com/BotHarness/BotHarness/issues/823) and the real Lark onboarding
-in [#824](https://github.com/BotHarness/BotHarness/issues/824). Preparation produces
-reviewable artifacts; it does not publish a release or deploy the website.
+This is the operator path for publishing DeepSeekBot to npm. It grew out of #866, the
+packaged qualification in [#823](https://github.com/BotHarness/BotHarness/issues/823) and the
+real Lark onboarding in [#824](https://github.com/BotHarness/BotHarness/issues/824); it does not
+deploy the website.
 
-## Proposed first release
+## Packages
 
-Review `0.1.0-alpha.1` under npm dist-tag `next`. The version is a proposal until
-Human release approval. Publish these precompiled packages in this order:
+A release publishes these precompiled packages in this order:
 
-1. `@botharness/im-provider@4.32.0-botharness.4` — independent Provider version;
-2. `@botharness/core@0.1.0-alpha.1`;
-3. `@botharness/ui@0.1.0-alpha.1`;
-4. `deepseekbot@0.1.0-alpha.1` — one product Bundle with exact dependencies.
+1. `@botharness/im-provider` — independent Provider version (for example `4.32.0-botharness.5`);
+2. `@botharness/core@<version>`;
+3. `@botharness/ui@<version>`;
+4. `deepseekbot@<version>` — one product Bundle with exact dependencies.
 
 Computer and Browser are optional separate Bundles and are not published by this
-first product workflow. Keep the qualified Provider source pinned; merged upstream
+product workflow. Keep the qualified Provider source pinned; merged upstream
 PRs do not qualify an upstream replacement. DSH support remains `0.2.0-rc.1`.
 
 The source packages stay private/0.0.0. The existing product packer creates public
@@ -24,118 +23,81 @@ release manifests and precompiled entries in a separate staging directory. It
 keeps MIT licenses, Provider attribution and `PROVENANCE.json`. No installed
 account, credential, Binding or Service Grant is shipped in a package.
 
-## Stable releases
+## Releasing a version
 
-`0.1.0-alpha.1` is published. The same workflows now also release a stable SemVer such
-as `1.0.0`: the plan records dist-tag `latest` for a stable version and `next` for an
-alpha, beta or RC version, and the publisher requires the literal confirmation
-`publish <version> to <tag>` (for example `publish 1.0.0 to latest`). After a stable
-publication it also moves `next` on Core, Client and the product to the same version,
-so `deepseekbot@next` never lags behind `deepseekbot`. The Provider keeps its own
-independent version and is skipped when its exact bytes already exist.
+`deepseekbot@1.0.1` is the current stable release. A release is triggered by pushing a
+SemVer tag on main; nothing publishes from a branch, a PR or a manual dispatch.
 
-## Prepare without credentials
+1. Archive `Unreleased` in the bilingual Release Ledger under the new version
+   ([release rules](agents/changelog.md)) and merge that PR.
+2. Tag the merged commit on main and push the tag, for example
+   `git tag v1.0.2 <main-sha> && git push origin v1.0.2`. A stable version goes to npm dist-tag
+   `latest`; an `-alpha`, `-beta` or `-rc` version goes to `next`.
+3. The **npm release** workflow checks that the tag is on main, runs lint, typecheck, tests and
+   build, downloads the pinned Provider source, packs the four tarballs and dry-runs them without
+   a token. The run summary shows `release-plan.json` and its SHA-256.
+4. The publish job waits on the `npm-release` GitHub Environment. A required reviewer approves it
+   in the run page (**Review deployments → Approve**); this is the Human publication approval.
+5. The publish job verifies the same artifacts and plan digest, then publishes Provider, Core,
+   Client and the product in order, waiting up to 40 minutes per package for npm to show the
+   exact integrity. After a stable release it moves `next` on Core, Client and the product.
 
-Use the **npm prerelease preparation** workflow manually from main. Enter the
-agreed prerelease version. It checks/builds the exact revision, downloads the
-immutable Provider source, verifies input digests and generates four tarballs.
-PR runs for release-related changes prepare a unique `0.1.0-alpha.1-preview.<PR>.<run>`
-version so they do not collide with immutable public packages; they cannot be used
-as a publication source.
+Because the tag fixes the source, merges to main during a release do not affect it. The tag is
+the release record; delete and recreate it only if the publish job never started.
 
-Download `npm-prerelease-<version>` and review `release-plan.json`, `artifacts.json`
-and the four tarballs. Record preparation run ID, current-main source SHA, version
-and the plan SHA-256 printed in the run summary. The plan binds source/DSH/Provider
-revisions, publication order and the inventory digest; the inventory binds each
-tarball's SHA-512. The verifier checks packed manifests, exact internal dependencies,
-entrypoints, native Bundle Patch, Provider provenance and registry dependencies.
-All four packages pass `npm publish --dry-run --ignore-scripts` without a token.
-A local dirty preparation is labelled and cannot be published.
+## One-time setup
+
+- **Environment:** in repository **Settings → Environments**, create `npm-release`, add the
+  release owners as required reviewers, and limit deployments to tags matching `v*`.
+- **Trusted Publishing:** on npmjs.com, open each of `@botharness/im-provider`,
+  `@botharness/core`, `@botharness/ui` and `deepseekbot`, go to **Settings → Trusted
+  Publisher**, choose GitHub Actions, and enter organization `BotHarness`, repository
+  `BotHarness`, workflow `npm-release.yml` and environment `npm-release`. npm then accepts the
+  workflow's OIDC identity and attaches provenance; no publish token is stored.
+- **`NPM_TOKEN` (optional):** npm's OIDC login covers `npm publish` only. Keep an `NPM_TOKEN`
+  secret with dist-tag rights if `next` should move automatically after stable releases;
+  without it the job prints the `npm dist-tag add` commands to run by hand. With the token
+  present and Trusted Publishing not yet configured, the token publishes as before.
+
+Keep token values in GitHub secret settings; never copy them into source, artifacts, commands,
+logs or issue comments.
+
+## Pull request dry runs
+
+PRs that touch release code run **npm prerelease preparation** with a unique
+`0.1.0-alpha.1-preview.<PR>.<run>` version. It builds and dry-runs the package set and uploads
+the artifacts for review; it cannot publish.
 
 For a local rehearsal after installing the lockfile and building:
 
 ```sh
-node scripts/npm-prerelease.mjs prepare --version 0.1.0-alpha.1 \
+node scripts/npm-prerelease.mjs prepare --version 1.0.2 \
   --provider-source /path/to/qualified-provider --output /path/to/fresh-artifacts
 node scripts/npm-prerelease.mjs verify --artifacts /path/to/fresh-artifacts
 ```
 
-Use a fresh output directory. The Provider needs its lockfile dependencies installed
-with scripts disabled; staging rebuilds the managed Host/Client entrypoints. Never
-use an unrelated live Provider checkout or restart a shared receiver for packaging.
+Use a fresh output directory. The Provider needs its lockfile dependencies installed with
+scripts disabled; staging rebuilds the managed Host/Client entrypoints.
 
-## Review before publication
+## Interrupted releases
 
-Review the prepared artifacts and first-release scope, compatibility/upgrade risks,
-release notes and any outstanding evidence limitations. #824's final added target
-selector still lacks a final narrow/light/English recheck; earlier runtime captures
-and automated checks do not replace that acceptance. Confirm the release version
-and Human publication approval before dispatching the publisher.
+npm publication is not atomic across packages. Preflight checks every existing version and
+direct runtime dependency before the first publish. An existing version is skipped, in the dry
+run and the publish, only when its exact integrity matches the prepared tarball; different
+bytes at that version stop the run. To finish an interrupted release, re-run the failed publish
+job of the same workflow run: it reuses the same artifacts, so already published packages are
+skipped and the rest are published. Do not re-tag an interrupted release: a new build of the
+same version can differ in bytes, and npm never allows overwriting a version. If a version is
+unusable, release the next patch version instead.
 
-BotUI's repository secret is not automatically shared with BotHarness. Supply
-`NPM_TOKEN` to **BotHarness/BotHarness** through repository or explicitly authorized
-organization-secret access. It must have publication rights to all four package
-names, including the unscoped `deepseekbot`, and any required noninteractive 2FA
-permission. The workflow cannot prove those rights from the secret's existence.
-Keep token values in GitHub secret settings; never copy them into source, artifacts,
-commands, logs or issue comments. Do not retrieve BotUI's local token file.
+The product is last so a dependency failure cannot leave a published product requiring missing
+internal versions. Before announcing, check every version, integrity and dist-tag on npm.
 
-## Explicit publication and verification
-
-After Human approval, dispatch **publish reviewed npm prerelease** from main with
-the successful manual preparation run, source SHA, exact version, reviewed plan
-SHA-256 and the literal confirmation `publish <version> to <tag>` (`latest` for a stable version, `next` for a prerelease). The source must
-still be current main for a new publication; if main advanced, prepare and review a new run.
-For an already started release, the explicit partial-recovery exception below retains the
-original approved source and bytes instead of rebuilding an immutable version.
-
-The publisher checks the run's workflow identity, event, branch, conclusion and SHA,
-downloads its artifacts, then verifies/dry-runs them without publish credentials.
-Only the final publishing step receives `NPM_TOKEN`. There is no rebuild and no
-push/tag/merge-triggered publish. Dependencies publish before the product, with
-public access and the planned dist-tag. Registry integrity is read back after
-each send. A network or permission failure stops the run rather than blindly
-repeating an ambiguous publication.
-
-Before declaring the prerelease usable, independently verify all four versions,
-integrities and `next` tags on npm. Install the published product in a fresh isolated
-DSH Profile through native `dsh plugin --profile <name> add deepseekbot@<version>`;
-verify one Provider and the real Client, disconnected initial state, usable model,
-and the authorized Lark receipt/reply path. This **public-registry install** is still
-a future verification; earlier local tarball substitutions do not prove it.
-
-Record the public artifact/qualification and release announcement in the bilingual
-Release Ledger following [the release rules](agents/changelog.md). Keep `Unreleased`
-until a concrete release is approved; tag/GitHub Release publication is separately
-authorized, and prerelease ledger evidence must point to its real tag and downloadable
-artifact. This workflow does not create a tag/GitHub Release or deploy the website.
-
-## Partial publication and recovery
-
-When main advances after a release has partly published, dispatch the same publisher from
-current main with `resume_partial=true` and the original approved preparation run, source,
-version, plan digest and confirmation. This requires a successful manual-main preparation
-whose source is an ancestor of current main, a clean original plan, and at least one already
-published Core, Client or product package with exactly matching SHA-512. An independently
-reused Provider alone does not establish a partial product release. Every existing version
-must match; unavailable registry evidence or any byte conflict refuses recovery before the
-publish credential is supplied. The workflow checks out the original reviewed source and
-uses its verifier/publisher without rebuilding. Keep new main features for a later version.
-
-npm publication is not atomic across packages. Preflight checks every existing
-version and direct runtime dependency before the first publish. If interrupted,
-inspect the registry before retrying with the same reviewed artifacts. An existing
-version is skipped only when its exact integrity matches. Different bytes at that
-version stop the entire run; choose a new reviewed version instead of overwriting.
-The product is last so dependency publication failure cannot leave a newly published
-product requiring missing internal versions. Verify tags separately before announcing;
-a skipped matching version is not silently retagged or downgraded.
-
-Code rollback uses the previously qualified product composition and approved Profile
-backup procedure; a package revert cannot retract external sends or downgrade a
-canonical database generation. Never delete account credentials/history to repair
-installation. Remove conflicting standalone Provider/Core/Client Bundle layers before
-enabling the product and stop the exact owning Host before switching artifacts.
+Code rollback uses the previously qualified product composition and approved Profile backup
+procedure; a package revert cannot retract external sends or downgrade a canonical database
+generation. Never delete account credentials/history to repair installation. Remove
+conflicting standalone Provider/Core/Client Bundle layers before enabling the product and stop
+the exact owning Host before switching artifacts.
 
 References: [DSH Bundle publication](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish),
 [npm publish](https://docs.npmjs.com/cli/v11/commands/npm-publish/),

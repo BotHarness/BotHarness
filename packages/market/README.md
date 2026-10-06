@@ -14,6 +14,55 @@ The Bot Marketplace Worker ([ADR-0131](../../docs/adr/0131-bot-marketplace-start
 | `POST /v1/bots/{id}/reports` `{ "altcha": "<solution>", "reason"?: "…" }`                                            | `202 { received: true }`. Same challenge refusals, `rate-limited` (20 per source per hour), `invalid-report` (reason over 500 characters), `bot-not-found`. Reports from `REPORT_THRESHOLD` (default 3) distinct sources hide the entry as `hidden_reported`; a second report from one source does not count                                                                                                                                  |
 | `POST /v1/admin/blocklist` `Authorization: Bearer <ADMIN_TOKEN>` `{ "id" \| "url", "action": "block" \| "restore" }` | `200 { bot: { id, fullName, visibility } }`. `block` keeps the repository out through paste and discovery (a URL not yet indexed is looked up and blocked); `restore` clears its reports and re-checks it on GitHub. `401 unauthorized`, `400 invalid-admin-request`, `404 bot-not-found`                                                                                                                                                     |
 
+## Public read API (v1)
+
+The product site ([deepseekbot.botharness.ai](https://deepseekbot.botharness.ai) `/market` and `/en/market`, repository `BotHarness/deepseekbot-site`) reads the same `/v1` routes the Host uses. They need no authentication. The `v1` contract only grows: new fields may be added, existing fields keep their names and types, and a breaking change gets a new `/v2` path.
+
+| Route                                             | Response                                              |
+| ------------------------------------------------- | ----------------------------------------------------- |
+| `GET /v1/bots?sort=updated\|stars&limit=&cursor=` | `MarketplacePage`, browse order                       |
+| `GET /v1/bots?q=<search>&topic=&limit=&cursor=`   | `MarketplacePage`, relevance order, first 200 matches |
+| `GET /v1/topics`                                  | `{ topics: { topic: string; count: number }[] }`      |
+| `GET /v1/bots/{id}`                               | `MarketplaceDetail`, or `404 bot-not-found`           |
+
+```ts
+interface MarketplaceEntry {
+  id: string; // GitHub node ID, stable across renames
+  owner: string;
+  name: string;
+  fullName: string; // "owner/name"
+  displayName: string | null; // from .botharness/bot.json
+  roles: string[]; // from .botharness/bot.json
+  description: string | null;
+  topics: string[]; // without botharness-bot
+  stars: number;
+  pushedAt: string; // ISO 8601
+  htmlUrl: string;
+  cloneUrl: string;
+  defaultBranch: string;
+  headCommit: { sha: string; committedAt: string } | null;
+}
+
+interface MarketplacePage {
+  bots: MarketplaceEntry[];
+  nextCursor?: string; // opaque; pass back unchanged with the same sort, q and topic
+}
+
+interface MarketplaceDetail {
+  bot: MarketplaceEntry;
+  readme: string | null; // prepared Markdown (see GET /v1/bots/{id} above)
+  commitSha: string | null;
+}
+
+interface MarketplaceError {
+  error: { code: string }; // invalid-sort, invalid-query, invalid-cursor, invalid-limit, bot-not-found
+}
+```
+
+- **CORS**: responses carry `Access-Control-Allow-Origin` only for `https://deepseekbot.botharness.ai` and the site's Vite dev and preview origins (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:4173`, `http://127.0.0.1:4173`), with `Vary: Origin`. `OPTIONS` preflight answers `204` with `GET`, the `accept` header and a one-day max age for those origins and no grant for any other.
+- **Caching**: `200` responses send `Cache-Control: public, max-age=60`; errors send `no-store`. Hidden (`hidden_missing`, `hidden_reported`) and blocked entries are never listed, searched or served as detail, so they disappear from the site within a minute.
+- Paste, report, challenge and admin routes are not part of this contract and get no CORS grant.
+
 ## Abuse protection
 
 Paste and report need a solved [ALTCHA](https://altcha.org/) proof-of-work challenge; the Client solves it with WebCrypto and the Host forwards it, so nothing depends on a CAPTCHA service. A solution is valid once and for 5 minutes. A source is `sha256(ALTCHA_HMAC_KEY + "\n" + CF-Connecting-IP)`; raw IP addresses are never stored, and request events older than an hour are pruned.
@@ -27,6 +76,8 @@ Paste and report need a solved [ALTCHA](https://altcha.org/) proof-of-work chall
 Set the secrets with `wrangler secret put ALTCHA_HMAC_KEY` and `wrangler secret put ADMIN_TOKEN`, and locally in `packages/market/.dev.vars`.
 
 ## Sharing presentation: `.botharness/bot.json`
+
+For Bot authors, the user guide is [Share a Bot](https://deepseekbot.botharness.ai/en/docs/share-bot).
 
 An optional descriptor in the Bot repository. Every field is optional; an invalid file (bad JSON, a wrong type, more than 8 roles, a name over 60 characters, an image path that is absolute, has `..` or a scheme, or is not `.png`/`.jpg`/`.jpeg`/`.webp`) is ignored as a whole and the defaults stay (repository name, no roles, generated avatar).
 

@@ -1,0 +1,17 @@
+{
+  "name": "@botharness/ingest",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Telemetry ingest Worker: first-party proxy from t.botharness.ai to PostHog US (ADR-0132)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.13.9"
+  },
+  "devDependencies": {
+    "wrangler": "^4.95.0"
+  }
+}

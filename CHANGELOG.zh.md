@@ -5,31 +5,25 @@
 
 ## [Unreleased]
 
-增加首片 Bot 市场、保留确定的 IM 回复拒绝，并将 DeepSeekBot 用户指南迁移到产品站。
+Bot 模式现在会告诉你更新了什么以及是否有更新的 DeepSeekBot；原生历史与留存证据冲突时，上下文读取保留准确的拒绝原因。
 
 ### Added
 
-- 增加源码预览微信图片链路，支持 Inbox checked 预览、原生模型图片输入与本身份原生图片回复，Human 已确认原私聊收到内容一致的图片（[#904](https://github.com/BotHarness/BotHarness/issues/904)，[连接指南](docs/wechat-connection.md)）。
+- 增加源码预览微信图片链路，支持 Inbox 原消息气泡内自动加载的 checked 图片预览、原生模型图片输入与本身份原生图片回复，Human 已确认原私聊收到内容一致的图片（[#904](https://github.com/BotHarness/BotHarness/issues/904)，[连接指南](docs/wechat-connection.md)）。
 
-- 侧栏 **+** 菜单新增 Bot 市场：贴入带 `botharness-bot` 话题的公开 GitHub 仓库即可收录，可浏览已收录的 Bot，并在显示最新提交与第三方风险提示的确认后安装为新的 PersonaBot（[#916](https://github.com/BotHarness/BotHarness/issues/916)，[ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)）。
-- 给仓库加上 `botharness-bot` 话题后，无需贴链接，下一次每日定时发现就会把它收录进 Bot 市场；已收录条目每小时刷新，移除话题、归档、删除或改为私有会隐藏条目，仓库改名或转移仍保留同一条目（[#917](https://github.com/BotHarness/BotHarness/issues/917)）。
-- Bot 市场支持按最近更新或 Star 数排序，可按相关度搜索名称、描述、话题和 README（支持中文），并可点话题标签筛选（[#918](https://github.com/BotHarness/BotHarness/issues/918)）。
-- 在 Bot 市场点开条目会显示详情：README 按 GitHub 的样子渲染（相对路径的图片和链接按收录时的提交解析，脚本、事件属性和不安全链接会被移除），并显示 Star、更新时间、话题、GitHub 链接和安装按钮（[#919](https://github.com/BotHarness/BotHarness/issues/919)）。
-- Bot 作者可以在仓库提交 `.botharness/bot.json`，共享显示名称、角色标签和头像（生成头像配方，或仓库里的 PNG、JPEG、WebP 图片）；Bot 市场会显示该名称和标签，安装时从克隆下来的仓库应用头像。无效的描述文件会被忽略（[#920](https://github.com/BotHarness/BotHarness/issues/920)）。
-- 在 Bot 市场贴入仓库或举报 Bot 时，会先在本机完成一次自托管的工作量证明验证（ALTCHA，不依赖第三方验证码），近期请求越多验证越慢，并按来源和仓库限流。每个条目都有**举报**按钮，可选填理由；足够多不同来源的举报会先把条目隐藏，等管理员复核恢复，被屏蔽的仓库不会再进入市场。原始 IP 地址不会被保存（[#921](https://github.com/BotHarness/BotHarness/issues/921)）。
+- 首次安装后进入 Bot 模式会显示当前版本的更新日志，升级后会显示上次查看以来的所有版本；Bot 设置显示当前版本，可从 npm 检查新版本并查看其更新内容和更新命令，也可打开官网更新日志（[#947](https://github.com/BotHarness/BotHarness/issues/947)）。
 
 ### Fixed
 
-- 将 checked IM 的来源不存在与回复权限拒绝保留为明确失败，避免误记为结果未知；真正未知的发送与历史已记录结果保持原状（[#855](https://github.com/BotHarness/BotHarness/issues/855)）。
+- 上下文读取遇到原生历史与留存证据不同时，现保留准确的 `source-conflict` 拒绝；冲突页整体回滚，不替换原来源（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
 
 ### Documentation
 
-- 通过真实原生 App／Bot 身份与错误服务器拒绝、新消息恢复和截图，完成开发源码 Discord @ 收件／回复首片资格验证；其他能力与产品 Provider 固定版本仍独立管理（[#855](https://github.com/BotHarness/BotHarness/issues/855), [验证](docs/dev/verification/discord-855-mention-reply.md)）。
-- 把 DeepSeekBot 使用教程迁到官网（英文 [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/)，中文 [/docs](https://deepseekbot.botharness.ai/docs/overview/)）；botharness.ai 上原来的每个教程地址都会跳到新站的同一篇，开发者文档仍留在 botharness.ai（[#914](https://github.com/BotHarness/BotHarness/pull/914)）。
+- 新增[分享 Bot](docs/share-bot.md)教程：发布前检查 Memory、一键复制让 Bot 自己发布到 GitHub 的提示词、收录进 Bot 市场，以及 `.botharness/bot.json` 说明（[#958](https://github.com/BotHarness/BotHarness/issues/958)）。
 
-## [1.0.0] - 2026-10-05
+## [1.0.1] - 2026-10-05
 
-DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Memory、Group、Assignment、像素头像，以及飞书、Slack、Discord 和微信身份，作为一个插件装进 DSH。
+DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Memory、Group、Assignment、像素头像、飞书、Slack、Discord 和微信身份，以及首片 Bot 市场，作为一个插件装进 DSH。1.0.0 未作为产品发布。
 
 ### Breaking Changes
 
@@ -298,6 +292,13 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 - 将 DM 与 group Channel composer 重构为响应式 floating island，支持多行输入，并提供可访问、仅消费投影的 PersonaBot activity region（[#129](https://github.com/BotHarness/BotHarness/issues/129)）。
 - 为独立的 DeepSeekBot 与 DSH Skill release train 新增确定性、只读的 GitHub Release draft 准备流程（[指南](docs/agents/changelog.md#preparing-a-github-release-draft)、[#103](https://github.com/BotHarness/BotHarness/issues/103)）。
 - 新增 Computer 导出与迁移指南，覆盖跨机器单文件迁移、必须随迁移保留的文件所遵循的持久 `~/workspace` 约定，以及体积/耗时预期（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
+- 侧栏 **+** 菜单新增 Bot 市场：贴入带 `botharness-bot` 话题的公开 GitHub 仓库即可收录，可浏览已收录的 Bot，并在显示最新提交与第三方风险提示的确认后安装为新的 PersonaBot（[#916](https://github.com/BotHarness/BotHarness/issues/916)，[ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)）。
+- 给仓库加上 `botharness-bot` 话题后，无需贴链接，下一次每日定时发现就会把它收录进 Bot 市场；已收录条目每小时刷新，移除话题、归档、删除或改为私有会隐藏条目，仓库改名或转移仍保留同一条目（[#917](https://github.com/BotHarness/BotHarness/issues/917)）。
+- Bot 市场支持按最近更新或 Star 数排序，可按相关度搜索名称、描述、话题和 README（支持中文），并可点话题标签筛选（[#918](https://github.com/BotHarness/BotHarness/issues/918)）。
+- 在 Bot 市场点开条目会显示详情：README 按 GitHub 的样子渲染（相对路径的图片和链接按收录时的提交解析，脚本、事件属性和不安全链接会被移除），并显示 Star、更新时间、话题、GitHub 链接和安装按钮（[#919](https://github.com/BotHarness/BotHarness/issues/919)）。
+- Bot 作者可以在仓库提交 `.botharness/bot.json`，共享显示名称、角色标签和头像（生成头像配方，或仓库里的 PNG、JPEG、WebP 图片）；Bot 市场会显示该名称和标签，安装时从克隆下来的仓库应用头像。无效的描述文件会被忽略（[#920](https://github.com/BotHarness/BotHarness/issues/920)）。
+- 在 Bot 市场贴入仓库或举报 Bot 时，会先在本机完成一次自托管的工作量证明验证（ALTCHA，不依赖第三方验证码），近期请求越多验证越慢，并按来源和仓库限流。每个条目都有**举报**按钮，可选填理由；足够多不同来源的举报会先把条目隐藏，等管理员复核恢复，被屏蔽的仓库不会再进入市场。原始 IP 地址不会被保存（[#921](https://github.com/BotHarness/BotHarness/issues/921)）。
+- Bot 市场 Worker 提供有文档、带版本号的公开只读 API（`/v1/bots`、`/v1/bots/{id}`、`/v1/topics`）供产品官网使用，CORS 只放行 deepseekbot.botharness.ai 和它的本地开发地址，成功响应公开缓存一分钟（[#922](https://github.com/BotHarness/BotHarness/issues/922)）。
 
 ### Changed
 
@@ -561,6 +562,7 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 - 修复 Computer 的 Chromium 在停止→启动后丢失标签页：桌面启动时自动打开浏览器并恢复上次会话，标签页在重启后与导出→导入后一样回来（[#150](https://github.com/BotHarness/BotHarness/issues/150)）。
 
 - 修正 Channel 附件发送说明，明确现有有界读取与本地结果导入工具，让 PersonaBot 能沿用文件操作流程而不再引用不存在的工具（[#677](https://github.com/BotHarness/BotHarness/issues/677)）。
+- 将 checked IM 的来源不存在与回复权限拒绝保留为明确失败，避免误记为结果未知；真正未知的发送与历史已记录结果保持原状（[#855](https://github.com/BotHarness/BotHarness/issues/855)）。
 
 ### Documentation
 
@@ -631,6 +633,8 @@ DeepSeekBot 首个 npm 正式版本：拥有各自身份的 PersonaBots、Git Me
 - 记录规划中的 PersonaBot DM 导航，并将 application-defined Work 概念统一更名为 Assignment、Assignment Session、Assignment Agent 与 Assignment Directory；这是一项设计语言更新，不代表 UI 或 runtime 已经实现（[#109](https://github.com/BotHarness/BotHarness/pull/109)）。
 - 发布双语 Development status 页面，将 DeepSeekBot 与 DSH Skill 的 release train 和 Changelog 明确分开（[#105](https://github.com/BotHarness/BotHarness/issues/105)）。
 - 将 Memory 明确为 optional Git-backed Cordis Service，使 DM → Orchestrator → Assignment 主链不依赖 Persona 或 Memory（[ADR-0047](docs/adr/0047-memory-is-an-optional-git-backed-service.md)、[#74](https://github.com/BotHarness/BotHarness/issues/74)）。
+- 通过真实原生 App／Bot 身份与错误服务器拒绝、新消息恢复和截图，完成开发源码 Discord @ 收件／回复首片资格验证；其他能力与产品 Provider 固定版本仍独立管理（[#855](https://github.com/BotHarness/BotHarness/issues/855), [验证](docs/dev/verification/discord-855-mention-reply.md)）。
+- 把 DeepSeekBot 使用教程迁到官网（英文 [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/)，中文 [/docs](https://deepseekbot.botharness.ai/docs/overview/)）；botharness.ai 上原来的每个教程地址都会跳到新站的同一篇，开发者文档仍留在 botharness.ai（[#914](https://github.com/BotHarness/BotHarness/pull/914)）。
 
 ## [Development] - 2026-09-20
 

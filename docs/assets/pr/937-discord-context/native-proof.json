@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-05T21:26:10.885Z",
+  "nativeHttpStatus": 200,
+  "nativeOrdinaryHumanMessageExists": true,
+  "nativeMessageContentEmpty": true,
+  "noNativeBotMention": true,
+  "appMessageContentFlagsOff": true,
+  "existingMentionAndBotTextStillVisible": true,
+  "allCanonicalRecordsExactlyUnchanged": true,
+  "noNewAdmissionOrIntent": true,
+  "counts": {
+    "admissions": 41,
+    "intents": 36
+  },
+  "limitation": "Ordinary history content is censored despite successful native HTTP; not an empty conversation."
+}
