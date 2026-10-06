@@ -118,7 +118,7 @@ export function ImportBotZipModal({
         </div>
         {cause === undefined ? null : (
           <div className="bh-modal-error" role="alert">
-            {t('create.failed', { error: botZipError(cause, t) })}
+            {t('botZip.import.failed', { error: botZipError(cause, t) })}
           </div>
         )}
       </div>

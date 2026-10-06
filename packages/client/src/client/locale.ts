@@ -546,6 +546,7 @@ export const zh = {
     'zip 里的文件会成为新 Bot 的 Memory，可能包含有害内容或会被 Bot 执行的指令。请只导入你信任的来源。',
   'botZip.import.submit': '导入',
   'botZip.import.importing': '正在导入…',
+  'botZip.import.failed': '导入失败：{error}',
   'botZip.error.invalid': '这不是有效的 zip 文件，或文件已损坏。',
   'botZip.error.unsafe': 'zip 里有不安全的路径（例如 ../ 或符号链接），已拒绝导入。',
   'botZip.error.tooLarge': 'zip 太大了：文件和解压后的内容都不能超过 100 MB。',
@@ -2467,6 +2468,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
     'The files in the zip become the new Bot’s Memory and may contain harmful content or instructions the Bot will follow. Only import from sources you trust.',
   'botZip.import.submit': 'Import',
   'botZip.import.importing': 'Importing…',
+  'botZip.import.failed': 'Import failed: {error}',
   'botZip.error.invalid': 'This is not a valid zip file, or it is damaged.',
   'botZip.error.unsafe':
     'The zip has unsafe paths (such as ../ or symbolic links), so it was not imported.',

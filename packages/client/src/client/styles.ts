@@ -1716,6 +1716,10 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   color: var(--dsw-alias-state-warning-primary);
   font-size: 13px;
 }
+.bh-bot-zip-export {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
 .bh-bot-zip-file {
   display: flex;
   align-items: center;
