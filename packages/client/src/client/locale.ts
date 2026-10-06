@@ -612,7 +612,8 @@ export const zh = {
   'im.senderLabel': '发送人 ID',
   'im.platformLabel': '平台',
   'im.platform.weixin': '微信',
-  'im.receiveHintDM': '只接收扫码绑定者的微信私聊文本，进入此 Bot 的 Inbox，不占用本地 DM 历史。',
+  'im.receiveHintDM':
+    '接收扫码绑定者的微信私聊文字，以及已支持的文件、图片和语音转写，进入此 Bot 的 Inbox，不占用本地 DM 历史。',
   'im.receptionDM': '微信私聊接收已连接',
   'im.receiveEnableDM': '接收微信私聊',
   'im.receiveDisableDM': '关闭微信私聊收件',
@@ -770,6 +771,12 @@ export const zh = {
   'im.fileDownloading': '正在下载…',
   'im.fileError': '文件无法下载，请检查消息来源和连接权限后重试。',
   'im.sourceTitle': '外部消息',
+  'im.voiceTranscriptPlatform': '微信语音 · 平台转写',
+  'im.voiceTranscriptUnavailable': '微信语音 · 未提供转写',
+  'im.voiceTranscriptUnavailableHint':
+    '微信未提供这条语音的转写文本。当前无法从音频识别内容，请补发文字。',
+  'im.voiceDuration': '{seconds} 秒',
+  'im.voiceItemId': '语音内容 ID：{id}',
   'im.messageDetails': '消息详情',
   'im.originDetails': '来源详情',
   'im.threadLabel': '话题',
@@ -1397,6 +1404,24 @@ export const zh = {
   'memory.repairing': '正在修复…',
   'memory.repairDone': '已恢复。备份位置：',
   'memory.empty': '还没有记忆文件',
+  'standing.badge': '常驻',
+  'standing.usage': '{chars}/{limit}',
+  'standing.usageTitle': '已用 {percent}%：{chars}/{limit} 字符',
+  'standing.soulTitle': 'Soul：每个新 Session 开始时都会放进 system prompt，代表 Bot 是谁。',
+  'standing.coreMemoryTitle':
+    'Core Memory：每个新 Session 开始时都会放进 system prompt，让 Bot 一开始就知道自己记得什么。',
+  'standingLimits.title': '常驻记忆上限',
+  'standingLimits.description':
+    'SOUL.md 和 MEMORY.md 会在每个新 Session 开始时放进 system prompt。超过上限的部分会被截断，并提醒 Bot 精简；文件本身不会被改动。新上限从下一个 Session 或下一次压缩开始生效。',
+  'standingLimits.soul': 'Soul',
+  'standingLimits.coreMemory': 'Core Memory',
+  'standingLimits.unit': '字符',
+  'standingLimits.size': '约 {chinese} 个汉字，或约 {words} 个英文单词',
+  'standingLimits.range': '请输入 {min} 到 {max} 之间的整数',
+  'standingLimits.save': '保存上限',
+  'standingLimits.saving': '保存中…',
+  'standingLimits.saved': '已保存，下一个 Session 生效',
+  'standingLimits.reset': '恢复默认',
   'memory.binaryPreview': '二进制文件或过大的文件可由 Bot 使用原生工具读取；此处不提供文本预览。',
   'memory.fileMissing': '文件已不存在；刷新记忆文件列表。',
   'memory.save': '保存',
@@ -1754,7 +1779,29 @@ export const zh = {
   'release.update.cli': '在终端运行以下命令更新，完成后重启 DSH：',
   'release.update.copy': '复制',
   'release.update.copied': '已复制',
-  'release.update.desktop': '桌面版：打开「插件 → 添加插件」，输入 {spec} 安装，然后重启 DSH。',
+  'release.update.desktop':
+    '桌面版：DSH 的插件页暂时不能升级已安装的插件。请在终端运行上面的命令，把 web 换成桌面版使用的 Profile 名（DSH 数据目录 profiles/ 下的文件夹名），然后重启 DSH。',
+  'release.status.restart': '当前运行 {version}，已安装 {installed}，重启 DSH 后生效',
+  'release.install.action': '立即更新',
+  'release.install.running': '正在更新…',
+  'release.install.hint': '直接在这里安装新版本，装完重启 DSH 即可生效。',
+  'release.install.progress': '正在通过 DSH 插件管理下载并安装，请不要关闭 DSH…',
+  'release.install.failed.unavailable': '当前 DSH 不支持在这里直接更新，请用下面的方式更新。',
+  'release.install.failed.network': '无法从 npm 下载新版本，请检查网络后重试，或用下面的方式更新。',
+  'release.install.failed.incompatible': '新版本与当前 DSH 版本不兼容，请先升级 DSH 再更新。',
+  'release.install.failed.buildBlocked':
+    '安装需要批准依赖的构建脚本，请在 DSH 的插件页处理，或用下面的方式更新。',
+  'release.install.failed.generic': '更新失败，请用下面的方式更新。',
+  'release.install.log': '完整日志：{path}',
+  'release.restart.title': '已更新到 {installed}，重启 DSH 后生效',
+  'release.restart.web':
+    'Web：在运行 dsh web 的终端按 Ctrl+C 停止，再运行一次 dsh web，然后刷新页面。',
+  'release.restart.desktop': '桌面版：完全退出 DSH 后重新打开。',
+  'release.restart.action': '立即重启',
+  'release.restart.running': '正在重启…',
+  'release.restart.hint': '重启会中断正在运行的任务，页面会自动重新连接。',
+  'release.restart.progress': '正在重启 DSH，页面会在几秒后自动重新连接…',
+  'release.restart.failed': '没能自动重启，请按下面的方式手动重启。',
   'telemetry.notice.title': '关于匿名使用统计',
   'telemetry.notice.description':
     'DeepSeekBot 默认发送匿名使用统计，帮助我们了解功能的使用情况并改进插件。',
@@ -2440,7 +2487,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.platformLabel': 'Platform',
   'im.platform.weixin': 'WeChat',
   'im.receiveHintDM':
-    'Receive plain text from the QR-paired owner into this Bot’s Inbox, without adding local DM history.',
+    'Receive the QR-paired owner’s text and supported files, images and voice transcripts into this Bot’s Inbox, without adding local DM history.',
   'im.receptionDM': 'WeChat DM intake connected',
   'im.receiveEnableDM': 'Receive WeChat DMs',
   'im.receiveDisableDM': 'Disable WeChat DM intake',
@@ -2611,6 +2658,12 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.fileError':
     'Unable to download the file. Check source availability and connection permissions before retrying.',
   'im.sourceTitle': 'External message',
+  'im.voiceTranscriptPlatform': 'WeChat voice · platform transcript',
+  'im.voiceTranscriptUnavailable': 'WeChat voice · no transcript',
+  'im.voiceTranscriptUnavailableHint':
+    'WeChat did not provide a transcript for this voice message. Audio recognition is unavailable here; please send the text.',
+  'im.voiceDuration': '{seconds} s',
+  'im.voiceItemId': 'Voice item ID: {id}',
   'im.messageDetails': 'Message details',
   'im.originDetails': 'Origin details',
   'im.threadLabel': 'Topic',
@@ -3254,6 +3307,25 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'memory.repairing': 'Repairing...',
   'memory.repairDone': 'Restored. Backup location:',
   'memory.empty': 'No memory files yet',
+  'standing.badge': 'Standing',
+  'standing.usage': '{chars}/{limit}',
+  'standing.usageTitle': '{percent}% used: {chars}/{limit} chars',
+  'standing.soulTitle':
+    'Soul: part of the system prompt at the start of every new Session; it says who the Bot is.',
+  'standing.coreMemoryTitle':
+    'Core Memory: part of the system prompt at the start of every new Session, so the Bot starts knowing what it remembers.',
+  'standingLimits.title': 'Standing memory limits',
+  'standingLimits.description':
+    'SOUL.md and MEMORY.md go into the system prompt at the start of every new Session. Text over a limit is cut off with a note asking the Bot to consolidate; the file itself is not changed. A new limit applies from the next Session or the next compaction.',
+  'standingLimits.soul': 'Soul',
+  'standingLimits.coreMemory': 'Core Memory',
+  'standingLimits.unit': 'chars',
+  'standingLimits.size': 'About {chinese} Chinese characters, or about {words} English words',
+  'standingLimits.range': 'Enter a whole number from {min} to {max}',
+  'standingLimits.save': 'Save limits',
+  'standingLimits.saving': 'Saving…',
+  'standingLimits.saved': 'Saved. Applies from the next Session',
+  'standingLimits.reset': 'Restore defaults',
   'memory.binaryPreview':
     'The Bot can read binary or oversized files with native tools. Text preview is unavailable here.',
   'memory.fileMissing': 'The file is no longer present. Refresh the Memory files list.',
@@ -3626,7 +3698,33 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'release.update.copy': 'Copy',
   'release.update.copied': 'Copied',
   'release.update.desktop':
-    'Desktop app: open Plugins → Add plugin, install {spec}, then restart DSH.',
+    'Desktop app: the DSH Plugins page cannot upgrade an installed plugin yet. Run the command above with web replaced by the Desktop profile name (the folder under profiles/ in the DSH data directory), then restart DSH.',
+  'release.status.restart':
+    'Running {version}; {installed} is installed and loads after a DSH restart',
+  'release.install.action': 'Update now',
+  'release.install.running': 'Updating…',
+  'release.install.hint': 'Install the new version from here, then restart DSH to load it.',
+  'release.install.progress':
+    'Downloading and installing through the DSH Plugin Manager. Keep DSH running…',
+  'release.install.failed.unavailable':
+    'This DSH cannot update the plugin from here. Use one of the options below.',
+  'release.install.failed.network':
+    'Could not download the new version from npm. Check your network and retry, or use an option below.',
+  'release.install.failed.incompatible':
+    'The new version does not support this DSH version. Update DSH first.',
+  'release.install.failed.buildBlocked':
+    'The install needs dependency build scripts approved. Approve them on the DSH Plugins page, or use an option below.',
+  'release.install.failed.generic': 'The update failed. Use one of the options below.',
+  'release.install.log': 'Full log: {path}',
+  'release.restart.title': 'Updated to {installed}. Restart DSH to finish',
+  'release.restart.web':
+    'Web: press Ctrl+C in the terminal running dsh web, run dsh web again, then reload this page.',
+  'release.restart.desktop': 'Desktop app: quit DSH completely and open it again.',
+  'release.restart.action': 'Restart now',
+  'release.restart.running': 'Restarting…',
+  'release.restart.hint': 'Restarting stops running tasks. This page reconnects on its own.',
+  'release.restart.progress': 'Restarting DSH. This page reconnects in a few seconds…',
+  'release.restart.failed': 'DSH could not restart itself. Restart it by hand as shown below.',
   'telemetry.notice.title': 'Anonymous usage statistics',
   'telemetry.notice.description':
     'DeepSeekBot sends anonymous usage statistics by default, so we can see how features are used and improve the plugin.',

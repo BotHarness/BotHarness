@@ -1,5 +1,6 @@
 import { externalPlatformLabel, externalSenderLabel } from './bridge-source-label.js';
 import type { ReactElement, ReactNode } from 'react';
+import { Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { BotHarnessTranslate } from './locale.js';
 
@@ -23,6 +24,7 @@ interface MessageView {
   at: string;
   text: string;
   mentions?: readonly Mention[];
+  voice?: ExternalSource['event']['voice'];
 }
 
 function messageText(text: string, mentions: readonly Mention[]): ReactNode {
@@ -74,11 +76,33 @@ function MessageCard({
             {time}
           </time>
         </header>
+        {message.voice ? (
+          <div className="bh-external-message-head">
+            <Tag tone={message.voice.transcript === 'platform' ? 'info' : 'warning'}>
+              {t(
+                message.voice.transcript === 'platform'
+                  ? 'im.voiceTranscriptPlatform'
+                  : 'im.voiceTranscriptUnavailable',
+              )}
+            </Tag>
+            {message.voice.durationMs === undefined ? null : (
+              <span>
+                {t('im.voiceDuration', {
+                  seconds: new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(
+                    message.voice.durationMs / 1000,
+                  ),
+                })}
+              </span>
+            )}
+          </div>
+        ) : null}
         <div className="bh-external-message-text">
           {media}
           {media && message.text.trim() === '[Image]'
             ? null
-            : messageText(message.text, message.mentions ?? [])}
+            : message.voice?.transcript === 'unavailable'
+              ? t('im.voiceTranscriptUnavailableHint')
+              : messageText(message.text, message.mentions ?? [])}
         </div>
         <details className="bh-external-details">
           <summary>{t('im.messageDetails')}</summary>
@@ -95,6 +119,9 @@ function MessageCard({
                 : message.senderId}
             </p>
             <p>{message.at}</p>
+            {message.voice?.itemId ? (
+              <p>{t('im.voiceItemId', { id: message.voice.itemId })}</p>
+            ) : null}
             {media && !message.mentions?.length ? (
               <p className="bh-external-raw-text">{message.text}</p>
             ) : null}
@@ -231,6 +258,7 @@ export function ExternalSourceContent({
             at: source.at,
             text: source.body,
             mentions: source.event.mentions,
+            ...(source.event.voice ? { voice: source.event.voice } : {}),
           }}
           t={t}
           media={messageMedia}

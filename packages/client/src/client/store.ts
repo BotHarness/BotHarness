@@ -13,6 +13,11 @@ export type ClientMode = 'dsh' | 'bot';
 
 export type ClientStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+export interface StandingLimitsView {
+  soul: number;
+  coreMemory: number;
+}
+
 export interface BotSummary {
   slug: string;
   displayName: string;
@@ -22,6 +27,7 @@ export interface BotSummary {
   appearance?: AvatarAppearance;
   appearanceUnsupported?: true;
   paused?: boolean;
+  standingLimits?: StandingLimitsView;
   aggregateState: string;
   activity?: PersonaBotToolActivity;
   attention?: PersonaBotAttention;
@@ -348,6 +354,7 @@ export interface BotAttentionItem {
     conversationId: string;
     senderId: string;
     senderName?: string;
+    voice?: { transcript: 'platform' | 'unavailable'; itemId?: string; durationMs?: number };
   };
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';

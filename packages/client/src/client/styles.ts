@@ -4875,6 +4875,15 @@ button.bh-bot-nav > svg {
 }
 .bh-assignment-limit-controls > :first-child { width: 76px; }
 .bh-assignment-limit-error { color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
+.bh-standing-limits > .bh-settings-row-desc { margin: 0 0 12px; }
+.bh-standing-limits-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.bh-standing-limit-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bh-standing-limit-label { display: flex; align-items: baseline; gap: 6px; color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 500; }
+.bh-standing-limit-label code { color: var(--dsw-alias-label-tertiary); font-size: 12px; font-weight: 400; }
+.bh-standing-limit-input { display: flex; align-items: center; gap: 8px; }
+.bh-standing-limit-input > :first-child { width: 120px; }
+.bh-standing-limit-unit { color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+.bh-standing-limits-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .bh-telemetry-row .bh-settings-row-desc a { color: var(--dsw-alias-state-business-primary); text-decoration: none; }
 .bh-telemetry-row .bh-settings-row-desc a:hover { text-decoration: underline; }
 .bh-telemetry-row-error { color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
@@ -5354,6 +5363,11 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-tree-row.bh-memory-row-selected { background: var(--bh-selected); }
 .bh-memory-tree-chevron-space { flex: none; width: 14px; }
 .bh-memory-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-memory-tree-row:has(.bh-memory-standing) > .bh-memory-tree-name { flex: none; }
+.bh-memory-standing { display: inline-flex; align-items: center; gap: 4px; min-width: 0; margin-left: auto; flex: 0 1 auto; color: var(--dsw-alias-label-tertiary); font-size: 11px; font-variant-numeric: tabular-nums; }
+.bh-memory-standing > :first-child { flex: none; }
+.bh-memory-standing-usage { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-memory-standing-over .bh-memory-standing-usage { color: var(--dsw-alias-state-error-primary); }
 .bh-memory-file-tree button:focus-visible, .bh-memory-working-list button:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: -2px; }
 .bh-memory-commit-view { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 12px; color: var(--dsw-alias-label-primary); }
 .bh-memory-commit-header { display: flex; align-items: center; gap: 10px; min-height: 52px; margin: 0 -12px 10px; padding: 8px 12px; border-bottom: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-specific-sidebar-fill); }
@@ -6109,13 +6123,16 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-release-update-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
 }
 .bh-release-update-title {
+  margin-right: auto;
   font-size: 14px;
   font-weight: 600;
   color: var(--dsw-alias-label-primary);
+}
+.bh-release-restart-hint {
+  margin-right: auto;
 }
 .bh-release-command {
   display: flex;
@@ -6133,6 +6150,25 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
   font-family: var(--dsw-font-family-mono, monospace);
   font-size: 12px;
   white-space: nowrap;
+}
+.bh-release-install-error {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 13px;
+}
+.bh-release-install-diagnostic {
+  max-height: 120px;
+  margin: 0;
+  overflow: auto;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--dsw-font-family-mono, monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
 }
 .bh-schedules {display:flex;flex-direction:column;gap:8px;min-width:0;}
 .bh-schedule-muted,

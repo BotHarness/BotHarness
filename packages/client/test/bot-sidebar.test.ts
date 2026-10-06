@@ -167,6 +167,9 @@ function stubActions(): BridgeActions {
     applyModelPreset: vi.fn(async () => {
       throw new Error('unexpected Model Preset application');
     }),
+    setStandingLimits: vi.fn(async () => {
+      throw new Error('unused');
+    }),
     customizeModelPlan: vi.fn(async () => {
       throw new Error('unexpected Model Plan customization');
     }),
@@ -242,7 +245,12 @@ function stubActions(): BridgeActions {
     memoryFileApplications: vi.fn(),
     memoryFileOpen: vi.fn(),
     memoryFileDownload: vi.fn(),
-    memorySnapshot: vi.fn(async () => ({ head: null, files: [], provisional: false })),
+    memorySnapshot: vi.fn(async () => ({
+      head: null,
+      files: [],
+      provisional: false,
+      standing: [],
+    })),
     memoryFile: vi.fn(async () => undefined),
     memoryHistory: vi.fn(async () => []),
     memoryDiff: vi.fn(async () => ''),

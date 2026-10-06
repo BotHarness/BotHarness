@@ -1153,6 +1153,7 @@ describe('bridge methods', () => {
             aggregateState: 'working',
             workspaces: ['/tmp/ada'],
             createdAt: expect.any(String),
+            standingLimits: { soul: 5000, coreMemory: 3000 },
           },
         ],
       },
@@ -1176,6 +1177,7 @@ describe('bridge methods', () => {
             aggregateState: 'idle',
             workspaces: [],
             createdAt: expect.any(String),
+            standingLimits: { soul: 5000, coreMemory: 3000 },
           },
         ],
       },
@@ -1251,6 +1253,7 @@ describe('bridge methods', () => {
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
+          standingLimits: { soul: 5000, coreMemory: 3000 },
           model: 'deepseek-chat',
           preset: 'standard',
           sessions: {},
@@ -1362,6 +1365,7 @@ describe('bridge methods', () => {
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
+          standingLimits: { soul: 5000, coreMemory: 3000 },
           model: 'deepseek-chat',
           preset: 'standard',
           sessions: {},
@@ -1371,6 +1375,45 @@ describe('bridge methods', () => {
     expect(readFileSync(join(root, 'ada', 'memory', 'SOUL.md'), 'utf8')).toBe(
       '# Ada\n\nOriginal.\n',
     );
+  });
+
+  it('stores per-Bot standing limits and returns to the defaults', () => {
+    const { root, methods } = setup();
+    methods.create({ slug: 'ada', displayName: 'Ada' });
+
+    const updated = methods.standingLimitsSet({ slug: 'ada', soul: 8000, coreMemory: 1200 });
+
+    expect(updated.ok && updated.value.bot.standingLimits).toEqual({
+      soul: 8000,
+      coreMemory: 1200,
+    });
+    expect(createTestRegistry({ rootDir: root }).get('ada')?.standingLimits).toEqual({
+      soul: 8000,
+      coreMemory: 1200,
+    });
+
+    methods.standingLimitsSet({ slug: 'ada', soul: 5000, coreMemory: 3000 });
+    expect(createTestRegistry({ rootDir: root }).get('ada')?.standingLimits).toBeUndefined();
+  });
+
+  it('rejects standing limits outside the allowed range', () => {
+    const { methods } = setup();
+    methods.create({ slug: 'ada', displayName: 'Ada' });
+
+    for (const payload of [
+      { slug: 'ada', soul: 499, coreMemory: 3000 },
+      { slug: 'ada', soul: 5000, coreMemory: 50_001 },
+      { slug: 'ada', soul: 5000.5, coreMemory: 3000 },
+      { slug: 'ada', soul: '5000', coreMemory: 3000 },
+    ]) {
+      expect(methods.standingLimitsSet(payload)).toMatchObject({
+        ok: false,
+        error: { code: 'invalid-input' },
+      });
+    }
+    expect(
+      methods.standingLimitsSet({ slug: 'missing', soul: 5000, coreMemory: 3000 }),
+    ).toMatchObject({ ok: false, error: { code: 'not-found' } });
   });
 
   it('rejects unknown or malformed updates', () => {

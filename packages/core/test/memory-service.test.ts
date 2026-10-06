@@ -105,6 +105,28 @@ describe('createMemoryService', () => {
     expect(service.personaForSession(undefined)).toBe('');
   });
 
+  it('applies the Bot standing limits at the next snapshot, never to a running Session', () => {
+    const { registry, service } = setup();
+    const memoryDir = registry.memoryDirFor('research');
+    if (memoryDir === undefined) throw new Error('memory dir missing');
+    writeFileSync(join(memoryDir, 'MEMORY.md'), `${'记'.repeat(600)}\n`);
+
+    const frozen = service.personaForSession('session-research');
+    expect(frozen).toContain('## Core Memory (MEMORY.md) [20% — 600/3,000 chars]');
+
+    registry.setStandingLimits('research', { soul: 5000, coreMemory: 500 });
+    expect(service.personaForSession('session-research')).toBe(frozen);
+
+    expect(service.refreshPersonaAfterCompaction('research', 'session-research')).toEqual({
+      refreshed: true,
+    });
+    const refreshed = service.personaForSession('session-research');
+    expect(refreshed).toContain('## Core Memory (MEMORY.md) [120% — 600/500 chars]');
+    expect(refreshed).toContain(
+      '[Truncated: MEMORY.md has 600 characters, over its 500-character limit.',
+    );
+  });
+
   it('honours a custom memory dir and keeps one store per dir', async () => {
     const root = createTempRoot();
     const memoryDir = join(root, 'custom-memory');

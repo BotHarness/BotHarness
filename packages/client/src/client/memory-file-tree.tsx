@@ -2,12 +2,14 @@ import { useState, type KeyboardEvent, type ReactElement } from 'react';
 import {
   FileTypeIcon,
   IconEllipsisOutlineRegular,
+  Tag,
   Tooltip,
   IconChevronDownOutlineRegular,
   IconFolderCloseRegular,
   IconFolderOpenRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import { useMemoryFileMenu, type MemoryFileCommands } from './memory-file-actions.js';
+import type { MemoryStandingUsage } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { memoryFileTree, type MemoryFileNode } from './memory-file-tree-model.js';
 
@@ -23,8 +25,35 @@ function withSelectedAncestors(
   return next;
 }
 
+function StandingBadge({
+  usage,
+  t,
+}: {
+  usage: MemoryStandingUsage;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const over = usage.chars > usage.limit;
+  const counts = {
+    percent: Math.round((usage.chars / usage.limit) * 100),
+    chars: usage.chars.toLocaleString('en-US'),
+    limit: usage.limit.toLocaleString('en-US'),
+  };
+  return (
+    <span
+      className={over ? 'bh-memory-standing bh-memory-standing-over' : 'bh-memory-standing'}
+      title={t(usage.role === 'soul' ? 'standing.soulTitle' : 'standing.coreMemoryTitle')}
+    >
+      <Tag tone="neutral">{t('standing.badge')}</Tag>
+      <span className="bh-memory-standing-usage" title={t('standing.usageTitle', counts)}>
+        {t('standing.usage', counts)}
+      </span>
+    </span>
+  );
+}
+
 export function MemoryFileTree({
   paths,
+  standing = [],
   actions,
   botSlug,
   selectedPath,
@@ -32,6 +61,7 @@ export function MemoryFileTree({
   t,
 }: {
   paths: readonly string[];
+  standing?: readonly MemoryStandingUsage[];
   actions?: MemoryFileCommands;
   botSlug?: string | undefined;
   selectedPath: string | undefined;
@@ -100,6 +130,7 @@ export function MemoryFileTree({
         </button>
       </Tooltip>
     );
+  const usageByPath = new Map(standing.map((usage) => [usage.path, usage]));
   const render = (nodes: readonly MemoryFileNode[]): ReactElement[] =>
     nodes.map((node) => {
       if (node.kind === 'file') {
@@ -126,6 +157,9 @@ export function MemoryFileTree({
               <span className="bh-memory-tree-chevron-space" aria-hidden="true" />
               <FileTypeIcon path={node.path} size={16} />
               <span className="bh-memory-tree-name">{node.name}</span>
+              {usageByPath.has(node.path) ? (
+                <StandingBadge usage={usageByPath.get(node.path)!} t={t} />
+              ) : null}
             </button>
             {more(node.path)}
           </div>
@@ -173,7 +207,12 @@ export function MemoryFileTree({
       aria-label={t('entry.memoryFiles')}
       onKeyDown={onTreeKeyDown}
     >
-      {render(memoryFileTree(paths))}
+      {render(
+        memoryFileTree(
+          paths,
+          standing.map((usage) => usage.path),
+        ),
+      )}
       {menu.menu}
       {menu.feedback}
     </div>
