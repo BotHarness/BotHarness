@@ -1,0 +1,55 @@
+{
+  "scope": "Rebuilt Profile, not restoration of deleted original canonical state",
+  "codeHead": "634bdb9809a89658ca23fbc6ce4fd3533917cee1",
+  "providerMerge": "1541d2972c72fcdc09f1fbcb26eedc48c15cf909",
+  "providerRuntimeSha256": "6efccd475a1dee29722aaf78829ae1feb6c6c6bcb4d88329d47f0db9116b8bc1",
+  "nativeModelRoute": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "modelReply": "DISCORD-937-REBUILT-MODEL-OK",
+  "modelTool": {
+    "name": "channel_send",
+    "callId": "call_00_zjKw7iItd4dDsEiWU3421490",
+    "matchedToolCallId": "call_00_zjKw7iItd4dDsEiWU3421490",
+    "isError": false
+  },
+  "dmReplyCommitted": true,
+  "restart": {
+    "canonicalRowsExactlyUnchanged": true,
+    "tables": {
+      "messaging_bindings": {
+        "count": 1,
+        "sha256": "30023ba945eb40a6ef444c04a34e8e7ca51607c4ab53f4110f259738209cf267"
+      },
+      "messaging_grants": {
+        "count": 1,
+        "sha256": "46cb9b6eaf6d9150554740802c983d3bdb184cea5770317a89d64297a09ab7d6"
+      },
+      "source_events": {
+        "count": 2,
+        "sha256": "2c1c1934472e3e229e6f66fbacdaa3aa3e9cce310a6eda4e6043c5ada15528d2"
+      },
+      "inbox_admissions": {
+        "count": 1,
+        "sha256": "a92f7ec970ff09c35fbd70e1a98f2e4fc0ef47307f611ec180f07bf2b5c180f4"
+      },
+      "messaging_outbox": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "channel_placements": {
+        "count": 2,
+        "sha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+      }
+    },
+    "accountConnected": true,
+    "identityAvailable": true,
+    "originalChannelReceiving": true,
+    "grantCount": 1,
+    "collection": "mentions"
+  },
+  "messageContent": "OFF, not changed during reconstruction",
+  "remainingAtCheckpoint": "Native Discord chat login; fresh model thread continuation and source-conflict acceptance"
+}

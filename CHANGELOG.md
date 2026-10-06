@@ -12,6 +12,10 @@ PersonaBots can run recurring Bot Schedules from the Channel sidebar, and each B
 - PersonaBots gain Bot Schedules: the Channel sidebar's Schedules section lets the Human create, edit, pause and delete minute, hourly or daily tasks; each firing lands in the Bot Inbox and wakes the Orchestrator, and every schedule shows its last 20 firings with links to the handling session ([#960](https://github.com/BotHarness/BotHarness/issues/960), [ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)).
 - DeepSeekBot now writes `.botharness/bot.json` into each Bot's Memory when the Bot is created, and updates it when its name, roles or avatar change. Existing Bots get the file on the next start. A shared Bot therefore shows the same name, roles and avatar in the Bot Marketplace as in the sidebar ([#966](https://github.com/BotHarness/BotHarness/issues/966), [guide](docs/share-bot.md)).
 
+### Documentation
+
+- Documented final development-source Discord context acceptance with real model continuation, precise edited-source refusal, whole-page rollback and restored Message Content permissions ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
+
 ## [1.0.2] - 2026-10-06
 
 Bot mode shows what changed after an install or update and checks npm for newer releases, context reads keep precise `source-conflict` refusals, and a Share a Bot guide explains publishing a Bot to the Bot Marketplace.
