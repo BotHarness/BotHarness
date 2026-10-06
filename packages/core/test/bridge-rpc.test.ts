@@ -85,6 +85,7 @@ describe('bridge typert service', () => {
       'messagingThreadPolicy',
       'messagingSource',
       'messagingIdentity',
+      'pairingReview',
       'messagingSnapshot',
       'messagingTargets',
       'messagingAuthorize',

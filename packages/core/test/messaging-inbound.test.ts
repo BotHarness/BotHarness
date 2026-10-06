@@ -1912,7 +1912,22 @@ it('deleting a Channel Bridge retains history and Bot identity, removes intake w
   expect(snapshot.grants[0]).not.toHaveProperty('receiveTargetChannelId');
   expect((await fx.core.externalMessaging.channelBridges(channelId)).sources).toHaveLength(1);
   await fx.restart();
-  expect(fx.subscriptions).toBe(0);
+  expect(fx.subscriptions).toBe(1);
+  await expect(
+    fx.receive(
+      event({
+        messageId: 'after-route-removal',
+        reply: { ...event().reply, messageId: 'after-route-removal' },
+      }),
+    ),
+  ).resolves.toEqual({ accepted: true });
+  expect(
+    attachOperationalModule(fx.core.operationalDatabase, 'messaging').read((db) =>
+      db
+        .prepare("SELECT count(*) AS n FROM source_events WHERE source_kind = 'bridge-message'")
+        .get(),
+    ),
+  ).toMatchObject({ n: 1 });
   expect(fx.core.channels.readMessages(channelId)).toHaveLength(1);
 });
 it.each(['pause', 'delete'] as const)(

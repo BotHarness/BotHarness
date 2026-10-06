@@ -4,7 +4,10 @@ type Consume = NonNullable<MessagingProvider['consume']>;
 type Input = Parameters<Consume>[0];
 type Subscriber = { input: Input; dispose(): void };
 
-export function fanoutMessagingConsumer(consume: Consume): Consume {
+export function fanoutMessagingConsumer(
+  consume: Consume,
+  control?: (event: Parameters<Input['onEvent']>[0], signal: AbortSignal) => Promise<boolean>,
+): Consume {
   const accounts = new Map<
     string,
     {
@@ -55,10 +58,14 @@ export function fanoutMessagingConsumer(consume: Consume): Consume {
             accountRef: input.accountRef,
             fingerprint: input.fingerprint,
             signal: controller.signal,
-            onEvent: (event, signal) =>
-              dispatch(event, signal, (subscriber, event, current) =>
-                subscriber.input.onEvent(event, current),
-              ),
+            onEvent: async (event, signal) => {
+              const current = AbortSignal.any([signal, controller.signal]);
+              current.throwIfAborted();
+              if (await control?.(event, current)) return { accepted: true };
+              return dispatch(event, current, (subscriber, event, signal) =>
+                subscriber.input.onEvent(event, signal),
+              );
+            },
             onEcho: (event, signal) =>
               dispatch(
                 event,

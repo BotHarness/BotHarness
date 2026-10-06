@@ -222,6 +222,75 @@ Confirm each result:
 
 _In the Bot DM sidebar, expand Bot Inbox → group; if the message is already handled, expand the processed/ignored section too. Click the message to open its Modal, then expand Source details and Message details. This example retains real topic and message identifiers; a platform ID appears if the sender name cannot be resolved._
 
+## 7. Request reviewed IM authority in a Lark DM
+
+For this preview, use the `codex/1027-lark-pairing` revision from [#1027](https://github.com/BotHarness/BotHarness/issues/1027), build it and launch an isolated Profile with `scripts/dev-instance.mjs --im-provider`. The older #823 pinned example above does not contain pairing. Never connect the same application on both a production Host and this preview.
+
+This source-preview slice adds **pairing**, the prerequisite for IM management. Sending approval decisions or answers to native questions from Lark is delivered separately; the capability checkboxes here record which operations the reviewed person may perform once those controls are available. Pairing does not change ordinary chat intake.
+
+1. Connect and bind the intended Bot's Lark identity. For private messages, enable `im:message.p2p_msg:readonly`, subscribe to `im.message.receive_v1` and publish the application version. `im:message:readonly` alone does not enable private-message events. Retain `im:message:send_as_bot` for the acknowledgment.
+2. Open **Bot mode → Bot name → View details → IM administrator pairing**. Confirm **Pairing receiver ready**. An online application account alone is insufficient. Run only one receiving Host for this application.
+3. In the application bot's **private conversation**, send the plain text `/pair`. No API token or copied user ID is required. The request records the sender supplied by Lark; a group command cannot grant management authority.
+4. In the authenticated Web page, click **Refresh requests**. Check the receiving account, applicant and request reference. Expand the abbreviated applicant identifier to inspect the full platform ID if needed. If Lark supplies no display name, the page says so; it does not invent one.
+5. Within 10 minutes, explicitly select capabilities and click **Approve selected capabilities**, or **Reject request**. Nothing is selected by default. The first applicant receives no automatic privilege. The reference identifies a request; it cannot be redeemed as a credential.
+6. Use **Revoke authority** to remove the grant. Revocation takes effect immediately; restarting does not restore it. A later `/pair` creates a fresh request requiring review. Pausing the identity or Bot makes its grants unusable while paused; an existing grant can still be revoked from Web.
+
+An approved grant survives a Host restart and covers **this Bot only**. It grants no other-Bot, approver-management, VPS, DSH API or workspace access. The 10-minute timer applies to pending requests, not approved grants. Ordinary chatting and management authority are separate settings.
+
+If a review or refresh fails, the pairing section shows an error beside its controls. Refresh and recheck the current request before trying again; an error never grants authority.
+
+### Real pairing walkthrough: #1027
+
+These captures come from a real Lark private message and the authenticated Web controls on the source preview, using DSH `0.2.0-rc.1` and the qualified Provider. The shared production application was exclusively received by the isolated test Host during an authorized service outage; the production Host and both IM connections were restored afterward. Full applicant IDs remain collapsed.
+
+**Refresh the incoming request.** The first genuine request has no selected capabilities, and **Approve selected capabilities** is disabled. The receiving account is ready; Lark did not supply an applicant display name, so the page states that explicitly.
+
+![Real Lark request awaiting Web review, with no default capabilities](/guides/lark/pairing/after-pending-light.jpg)
+
+**Select only the capability you intend to grant.** This example selected **Answer formal questions**. After Web approval, the record shows **Authorized** with that one capability and a **Revoke authority** control. Selecting a capability records authority; this pairing preview does not yet provide an IM question-answer control.
+
+![Actual Web approval of only the answer capability](/guides/lark/pairing/after-approved-light.jpg)
+
+[View the same approved record in dark mode](/guides/lark/pairing/after-approved-dark.jpg).
+
+**Restart the same Host to check persistence.** A cold restart retained the approved record and exactly the `answer` capability. The receiver automatically returned to ready. This check did not recreate or approve the request.
+
+![Approved authority retained after a real Host restart](/guides/lark/pairing/after-restart-approved-dark.jpg)
+
+**Revoke before requesting access again.** Clicking **Revoke authority** changed the real record to **Revoked**, cleared its capabilities and removed the revoke control.
+
+![Real authority revoked through authenticated Web controls](/guides/lark/pairing/after-revoked-dark.jpg)
+
+**Send a new `/pair` from the same Lark private conversation.** The new request has a different reference, no capabilities and a disabled approve button; the old request remains revoked. Review it explicitly if access is needed again. In this walkthrough it was left unapproved. The Operational Database recorded no ordinary IM Source Event or Inbox Admission for these pairing commands.
+
+![Fresh real request after revocation, with no inherited authority](/guides/lark/pairing/after-repair-dark.jpg)
+
+[View the light-mode restoration capture](/guides/lark/pairing/after-repair-light.jpg): after the automatic test window ended, the local Web page showed a disconnected-state notice and its last observed request. That capture does not prove the receiver remains online.
+
+**Reject the remaining test request after verification.** Production reception was restored while the local receiver stayed disabled. In authenticated Web, **Reject request** changed the fresh record to **Rejected**. The earlier grant stayed revoked; all test records have empty capabilities, with no approved or pending records left.
+
+![Remaining real test request rejected from Web with local reception disabled](/guides/lark/pairing/after-rejected-dark.jpg)
+
+**If the review window expires**, approval controls disappear. This earlier real request expired without approval; its receiver was deliberately offline while production received the shared application.
+
+![Real expired Lark pairing request in the authenticated Web Profile](/guides/lark/pairing/after-expired-light.jpg)
+
+[View the same expired state in dark mode](/guides/lark/pairing/after-expired-dark.jpg).
+
+If no request appears, check the private-message scope, publication, subscription, identity and receiver status. Reconnecting the identity retries receiver setup. With the qualified Provider used here, disconnecting an application is temporary because its supervisor can reconnect it. For exclusive QA, use a dedicated test application or an explicitly authorized service outage, then restore the production Host. Never leave two Hosts competing for one application.
+
+### Recover a failed pairing refresh
+
+These additional captures use the integrated source preview in a fresh isolated Profile with no external IM application connected. Stopping only that local Host produces a real transport failure: **Refresh requests** shows its error beside the pairing controls while the Channel Bridge card stays collapsed. Restarting the same local Host and refreshing clears the error. This tests Web failure/recovery; it is separate from the genuine Lark request walkthrough above.
+
+![Pairing refresh failure shown beside its controls, light](/guides/lark/pairing/integrated-failed-refresh-light.jpg)
+
+[Dark failure capture](/guides/lark/pairing/integrated-failed-refresh-dark.jpg).
+
+![Pairing refresh recovered after the isolated Host restarted, light](/guides/lark/pairing/integrated-recovered-light.jpg)
+
+[Dark recovery capture](/guides/lark/pairing/integrated-recovered-dark.jpg).
+
 ## Troubleshooting
 
 | Symptom                                              | Check first                                                                                                                                                                        |

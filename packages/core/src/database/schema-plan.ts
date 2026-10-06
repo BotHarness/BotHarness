@@ -1556,6 +1556,26 @@ const DISCORD_PLATFORM_DEFAULTS_MIGRATION: SchemaMigration = {
   },
 };
 
+const BOT_PAIRING_MIGRATION: SchemaMigration = {
+  generation: 59,
+  module: 'messaging',
+  description: 'Own current-Bot Human pairing and explicitly reviewed IM capabilities',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_pairings (
+        id TEXT PRIMARY KEY, bot_slug TEXT NOT NULL,
+        binding_id TEXT NOT NULL REFERENCES messaging_bindings(id),
+        actor_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected', 'revoked', 'expired')),
+        body TEXT NOT NULL CHECK (json_valid(body))
+      );
+      CREATE UNIQUE INDEX messaging_pairings_current
+        ON messaging_pairings(binding_id, actor_id) WHERE status IN ('pending', 'approved');
+      CREATE INDEX messaging_pairings_bot ON messaging_pairings(bot_slug);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1614,4 +1634,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ROSTER_ARRANGEMENT_MIGRATION,
   BOT_SCHEDULE_MIGRATION,
   DISCORD_PLATFORM_DEFAULTS_MIGRATION,
+  BOT_PAIRING_MIGRATION,
 ]);
