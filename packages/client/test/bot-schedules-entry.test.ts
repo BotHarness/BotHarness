@@ -76,7 +76,8 @@ describe('Bot Schedule form helpers', () => {
   });
 
   it('round-trips a stored schedule into the editor form', () => {
-    expect(scheduleFormOf(schedule)).toMatchObject({ unit: 'hours', every: '2' });
+    expect(scheduleFormOf(schedule)).toMatchObject({ unit: 'hours', every: '2', locked: false });
+    expect(scheduleFormOf({ ...schedule, locked: true }).locked).toBe(true);
     expect(
       scheduleFormOf({ ...schedule, trigger: { kind: 'every', everySeconds: 900 } }),
     ).toMatchObject({ unit: 'minutes', every: '15' });
@@ -115,6 +116,7 @@ describe('Bot Schedules sidebar entry', () => {
     const actions = {
       botSchedules: vi.fn(async () => [schedule]),
       botScheduleHistory: vi.fn(async () => []),
+      updateBotSchedule: vi.fn(async () => ({ ...schedule, locked: true })),
     } as unknown as BridgeActions;
     const host = document.createElement('div');
     document.body.append(host);
@@ -137,6 +139,10 @@ describe('Bot Schedules sidebar entry', () => {
     expect(text).toContain('已处理');
     expect(host.querySelector('[aria-label="由你创建"]')).not.toBeNull();
     expect(host.querySelector('[aria-label="启用「每日早报」"]')).not.toBeNull();
+    const lock = host.querySelector<HTMLButtonElement>('button.bh-schedule-lock-toggle');
+    expect(lock?.getAttribute('aria-pressed')).toBe('false');
+    await act(async () => lock?.click());
+    expect(actions.updateBotSchedule).toHaveBeenCalledWith('ada', 'sch-1', { locked: true });
     await act(async () => root.unmount());
     host.remove();
   });

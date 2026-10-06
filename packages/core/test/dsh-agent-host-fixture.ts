@@ -42,6 +42,7 @@ export interface FakeAgentHostHooks {
 interface FakeScope {
   tools: ToolDefinition[];
   restrictions: Array<{ allow?: readonly string[]; deny?: readonly string[] }>;
+  guards: Array<(execution: { name: string }) => string | undefined>;
   sections: Array<{ name: string; text: string }>;
   listeners: Map<string, (...args: unknown[]) => unknown>;
 }
@@ -100,7 +101,13 @@ export class FakeAgentHost implements DshAgentHost {
     cwd: string | undefined,
     setup: CreateAgentOptions['setup'] | ResumeAgentOptions['setup'],
   ): Promise<AgentHandle> {
-    const scope: FakeScope = { tools: [], restrictions: [], sections: [], listeners: new Map() };
+    const scope: FakeScope = {
+      tools: [],
+      restrictions: [],
+      guards: [],
+      sections: [],
+      listeners: new Map(),
+    };
     const messages: Message[] = [];
     const events: FakeEvent[] = [];
     const session: FakeSession = {
@@ -173,6 +180,10 @@ export class FakeAgentHost implements DshAgentHost {
                 'bash',
               ].map((name) => ({ name })),
         presentAs: (_mode: 'native') => () => undefined,
+        guard: (guard: (execution: { name: string }) => string | undefined) => {
+          scope.guards.push(guard);
+          return () => void scope.guards.splice(scope.guards.indexOf(guard), 1);
+        },
         restrict: (filter: { allow?: readonly string[]; deny?: readonly string[] }) => {
           scope.restrictions.push(filter);
           return () => void scope.restrictions.splice(scope.restrictions.indexOf(filter), 1);

@@ -54,6 +54,7 @@ export interface BotScheduleInput {
   prompt: string;
   trigger: BotScheduleTrigger;
   enabled?: boolean;
+  locked?: boolean;
 }
 
 export interface BotScheduleChange {
@@ -61,6 +62,7 @@ export interface BotScheduleChange {
   prompt?: string;
   trigger?: BotScheduleTrigger;
   enabled?: boolean;
+  locked?: boolean;
 }
 
 export type BotScheduleErrorCode = 'not-found' | 'invalid-input' | 'limit-reached' | 'locked';
@@ -481,18 +483,22 @@ export function createBotScheduleStore(options: BotScheduleStoreOptions): BotSch
       const at = now();
       const record = buildRecord(id, title, prompt, input.trigger, at.getTime());
       const enabled = input.enabled ?? true;
+      if (creator === 'personabot' && input.locked !== undefined)
+        throw new BotScheduleError('locked', 'Only the Human can lock or unlock a Bot Schedule');
+      const locked = input.locked === true;
       const created = write((db) => {
         if (enabled) requireCapacity(db, botSlug);
         db.prepare(`
           INSERT INTO bot_schedules
             (schedule_id, bot_slug, record_json, enabled, creator, locked, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           id,
           botSlug,
           JSON.stringify(record),
           enabled ? 1 : 0,
           creator,
+          locked ? 1 : 0,
           at.toISOString(),
           at.toISOString(),
         );
@@ -508,6 +514,8 @@ export function createBotScheduleStore(options: BotScheduleStoreOptions): BotSch
         const row = readRow(db, botSlug, id);
         if (actor === 'personabot' && row.locked === 1)
           throw new BotScheduleError('locked', `Bot Schedule ${id} is locked by the Human`);
+        if (actor === 'personabot' && change.locked !== undefined)
+          throw new BotScheduleError('locked', 'Only the Human can lock or unlock a Bot Schedule');
         const record = parseRecord(row);
         const title =
           change.title === undefined ? record.title : normalizeText(change.title, 'title', 120);
@@ -517,14 +525,15 @@ export function createBotScheduleStore(options: BotScheduleStoreOptions): BotSch
             : normalizeText(change.prompt, 'prompt', 4000);
         const trigger = change.trigger ?? triggerOf(record);
         const enabled = change.enabled ?? row.enabled === 1;
+        const locked = change.locked ?? row.locked === 1;
         if (enabled && row.enabled === 0) requireCapacity(db, botSlug, id);
         const restart = (enabled && row.enabled === 0) || !sameTrigger(trigger, triggerOf(record));
         const next: StoredRecord = restart
           ? buildRecord(id, title, prompt, trigger, at.getTime())
           : { ...record, title, prompt };
         db.prepare(
-          'UPDATE bot_schedules SET record_json = ?, enabled = ?, updated_at = ? WHERE schedule_id = ?',
-        ).run(JSON.stringify(next), enabled ? 1 : 0, at.toISOString(), id);
+          'UPDATE bot_schedules SET record_json = ?, enabled = ?, locked = ?, updated_at = ? WHERE schedule_id = ?',
+        ).run(JSON.stringify(next), enabled ? 1 : 0, locked ? 1 : 0, at.toISOString(), id);
         return view(db, readRow(db, botSlug, id));
       });
       mutated(botSlug);
