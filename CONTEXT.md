@@ -309,12 +309,16 @@ An inactive imported reference describing a provider account or authority the Hu
 _Avoid_: credential, Service Grant, automatic reconnect
 
 **Bot Marketplace**:
-The hosted catalog the harness opens to browse, search and install shareable Bots. Phase 1 lists only Indexed Repositories; uploaded Bots join in a later phase (ADR-0131).
+The hosted catalog the harness opens to browse, search and install shareable Bots. It lists only Indexed Repositories; there are no accounts or uploaded Bots (ADR-0131, ADR-0135).
 _Avoid_: store, hub, Soul registry
 
 **Indexed Repository**:
 A public GitHub repository carrying the `botharness-bot` topic that the Bot Marketplace lists by reference and refreshes on a schedule. Installing it creates a fresh PersonaBot from its Git URL; it is not a SoulSnapshot, Listing or Version.
 _Avoid_: submission, Listing, SoulSnapshot, mirror
+
+**Bot Zip**:
+A `.zip` of one PersonaBot's Memory files, with its `.botharness/bot.json` descriptor and avatar, that a Human exports and hands to someone else; importing it creates a fresh PersonaBot. It holds files only unless the whole Bot is exported with Git history. It never holds identity, Sessions, bindings or credentials (ADR-0135).
+_Avoid_: PersonaBot Export, SoulSnapshot, backup
 
 **Soul registry**:
 Historical (ADR-0019/0020): the planned hosted service that would store, version, and serve SoulSnapshots. The Bot Marketplace (ADR-0131) replaces it.

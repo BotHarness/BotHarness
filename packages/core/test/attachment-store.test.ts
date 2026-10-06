@@ -130,3 +130,18 @@ describe('profile attachment storage', () => {
     expect(store.has(ref)).toBe(true);
   });
 });
+
+it('recognizes a bounded MP4 ftyp header without labelling other ISO containers or forged extensions as playable video', () => {
+  const bytes = Buffer.from(
+    '000000186674797069736f6d0000020069736f6d6d703432000000086d646174',
+    'hex',
+  );
+  expect(sniffAttachmentMime(bytes)).toBe('video/mp4');
+  const heic = Buffer.from(bytes);
+  heic.write('heic', 8);
+  expect(sniffAttachmentMime(heic)).not.toBe('video/mp4');
+  const oversized = Buffer.from(bytes);
+  oversized.writeUInt32BE(1000000, 0);
+  expect(sniffAttachmentMime(oversized)).not.toBe('video/mp4');
+  expect(sniffAttachmentMime(Buffer.from('not an actual video.mp4'))).not.toBe('video/mp4');
+});

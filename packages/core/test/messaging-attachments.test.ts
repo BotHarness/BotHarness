@@ -53,6 +53,7 @@ async function fixture(
   platform: 'feishu' | 'slack' | 'weixin' | 'discord' = 'feishu',
   image = false,
   voice = false,
+  video = false,
 ) {
   const { parentId: _parentId, ...slackReply } = event.reply;
   const platformEvent: MessagingInboundEvent =
@@ -73,9 +74,13 @@ async function fixture(
                 messageId: event.messageId,
                 ...(image ? { name: 'image', mediaType: 'image/unknown' } : {}),
                 ...(voice ? { name: 'voice.silk', mediaType: 'audio/unknown' } : {}),
+                ...(video ? { name: 'video.mp4', mediaType: 'video/unknown' } : {}),
               },
             ],
             ...(voice ? { voice: { transcript: 'unavailable' as const, encodeType: 6 } } : {}),
+            ...(video
+              ? { video: { playLength: 7000, reportedSizeBytes: 48, itemId: 'video-item' } }
+              : {}),
             conversation: { kind: 'dm', id: 'team' },
             mentions: [],
             mentionedAccount: false,
@@ -161,6 +166,7 @@ async function fixture(
         ...(platform === 'weixin' ? ['reply-file-fence-checked'] : []),
         ...(image ? ['source-image-checked', 'reply-image-fence-checked'] : []),
         ...(voice ? ['source-voice-transcript-checked', 'source-voice-audio-checked'] : []),
+        ...(video ? ['source-video-checked', 'reply-video-fence-checked'] : []),
       ],
     }),
     sendChecked: async () => ({ sent: true }),
@@ -169,6 +175,7 @@ async function fixture(
       expect(input.sourceFiles).toBe(true);
       expect(input.sourceImages).toBe(image ? true : undefined);
       expect(input.sourceVoiceAudio).toBe(voice ? true : undefined);
+      expect(input.sourceVideos).toBe(video ? true : undefined);
       receive = input;
       return () => {};
     },
@@ -583,4 +590,69 @@ it('the Orchestrator saves decoded audio as an independent writable working copy
   const original = await fx.core.externalMessaging.acquireFile('ada', sourceId, attachment.id);
   expect(readFileSync(fx.core.attachments.fileTarget(original.fileId!).path)).toEqual(raw);
   expect(fx.reply).not.toHaveBeenCalled();
+});
+
+it('WeChat video retains native metadata, acquires actual MP4 bytes, refuses changed-source metadata and fences native send capability', async () => {
+  const fx = await fixture(undefined, 'weixin', false, false, true);
+  const bytes = Buffer.from(
+    '000000186674797069736f6d0000020069736f6d6d703432000000086d646174',
+    'hex',
+  );
+  fx.download.mockImplementation(async function* () {
+    yield bytes;
+  });
+  const id = await fx.source();
+  expect(fx.core.externalMessaging.inbound.read('ada', id).event.video).toEqual(
+    fx.platformEvent.video,
+  );
+  const original = await fx.core.externalMessaging.acquireFile('ada', id, attachment.id);
+  expect(original.mime).toBe('video/mp4');
+  expect(original.size).toBe(bytes.length);
+  const result = await fx.core.attachments.upload({
+    name: 'result.mp4',
+    data: (async function* () {
+      yield bytes;
+    })(),
+  });
+  expect((await fx.core.externalMessaging.replyFile('ada', id, result)).state).toBe(
+    'provider-accepted',
+  );
+  expect(fx.reply.mock.calls[0]?.[1]).toEqual(fx.platformEvent.reply);
+  const describe = fx.service.describeBot;
+  fx.service.describeBot = async (account) => {
+    const value = await describe(account);
+    return {
+      ...value,
+      capabilities: value.capabilities.filter(
+        (capability) => capability !== 'reply-video-fence-checked',
+      ),
+    };
+  };
+  const alternate = await fx.core.attachments.upload({
+    name: 'alternate.mp4',
+    data: (async function* () {
+      yield Buffer.concat([bytes, Buffer.from('different')]);
+    })(),
+  });
+  expect(
+    (
+      await fx.core.externalMessaging.send(
+        'ada',
+        fx.grant.id,
+        'video-capability-refused',
+        'File reply: alternate.mp4',
+        id,
+        alternate,
+      )
+    ).state,
+  ).not.toBe('provider-accepted');
+  expect(fx.reply).toHaveBeenCalledTimes(1);
+  fx.service.describeBot = describe;
+  await expect(
+    fx.source({ ...fx.platformEvent, video: { ...fx.platformEvent.video, playLength: 8000 } }),
+  ).rejects.toThrow('source-conflict');
+  fx.core.externalMessaging.revoke('ada', fx.grant.id);
+  await expect(fx.core.externalMessaging.acquireFile('ada', id, attachment.id)).rejects.toThrow(
+    'source-unavailable',
+  );
 });

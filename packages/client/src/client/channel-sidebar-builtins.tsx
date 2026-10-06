@@ -262,6 +262,8 @@ function BotInboxItemRow({
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
   const [audioErrors, setAudioErrors] = useState<Record<string, boolean>>({});
   const [audioPreviews, setAudioPreviews] = useState<Record<string, string>>({});
+  const [videoPreviews, setVideoPreviews] = useState<Record<string, string>>({});
+  const [videoErrors, setVideoErrors] = useState<Record<string, boolean>>({});
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const previewUrls = useRef(new Set<string>());
   const previewLifecycle = useCallback((node: HTMLDivElement | null) => {
@@ -274,14 +276,15 @@ function BotInboxItemRow({
   const download = async (
     attachmentId: string,
     name: string,
-    preview: boolean | 'audio' = false,
+    preview: boolean | 'audio' | 'video' = false,
   ): Promise<void> => {
     if (fileRequest.current !== undefined) return;
     const controller = new AbortController();
     fileRequest.current = controller;
     setFileBusy(attachmentId);
     setFileError(false);
-    if (preview === 'audio') setAudioErrors((value) => ({ ...value, [attachmentId]: false }));
+    if (preview === 'video') setVideoErrors((value) => ({ ...value, [attachmentId]: false }));
+    else if (preview === 'audio') setAudioErrors((value) => ({ ...value, [attachmentId]: false }));
     else if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: false }));
     try {
       const response = await fetch(
@@ -300,6 +303,7 @@ function BotInboxItemRow({
       if (!response.ok) throw new Error('Download unavailable');
       const blob = await response.blob();
       controller.signal.throwIfAborted();
+      if (preview === 'video' && blob.type !== 'video/mp4') throw new Error('Unsupported video');
       if (preview === 'audio' && blob.type !== 'audio/wav') throw new Error('Unsupported audio');
       if (
         preview === true &&
@@ -309,7 +313,9 @@ function BotInboxItemRow({
       const url = URL.createObjectURL(blob);
       if (preview) {
         previewUrls.current.add(url);
-        if (preview === 'audio') setAudioPreviews((value) => ({ ...value, [attachmentId]: url }));
+        if (preview === 'video') setVideoPreviews((value) => ({ ...value, [attachmentId]: url }));
+        else if (preview === 'audio')
+          setAudioPreviews((value) => ({ ...value, [attachmentId]: url }));
         else setImagePreviews((value) => ({ ...value, [attachmentId]: url }));
         return;
       }
@@ -322,7 +328,9 @@ function BotInboxItemRow({
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       if (!controller.signal.aborted) {
-        if (preview === 'audio') setAudioErrors((value) => ({ ...value, [attachmentId]: true }));
+        if (preview === 'video') setVideoErrors((value) => ({ ...value, [attachmentId]: true }));
+        else if (preview === 'audio')
+          setAudioErrors((value) => ({ ...value, [attachmentId]: true }));
         else if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: true }));
         else setFileError(true);
       }
@@ -374,6 +382,8 @@ function BotInboxItemRow({
       setImagePreviews({});
       setAudioPreviews({});
       setAudioErrors({});
+      setVideoPreviews({});
+      setVideoErrors({});
       setImageErrors({});
       setExternal(undefined);
       setExternalOpen(true);
@@ -386,6 +396,8 @@ function BotInboxItemRow({
         for (const file of source.event.attachments ?? []) {
           if (request !== externalRequest.current) return;
           if (file.mediaType?.startsWith('image/')) await download(file.id, file.name, true);
+          else if (source.event.video && file.mediaType?.startsWith('video/'))
+            await download(file.id, file.name, 'video');
         }
       } catch {
         if (request === externalRequest.current) setExternalError(true);
@@ -402,6 +414,9 @@ function BotInboxItemRow({
   };
   const imageAttachments =
     external?.event.attachments?.filter((file) => file.mediaType?.startsWith('image/')) ?? [];
+  const videoAttachments = external?.event.video
+    ? (external.event.attachments?.filter((file) => file.mediaType?.startsWith('video/')) ?? [])
+    : [];
   const unavailable = !memoryChange && !item.sourceAvailable;
   const row = (
     <SidebarCardRow
@@ -476,6 +491,8 @@ function BotInboxItemRow({
             setImagePreviews({});
             setAudioPreviews({});
             setAudioErrors({});
+            setVideoPreviews({});
+            setVideoErrors({});
             setImageErrors({});
             setExternalOpen(false);
           }}
@@ -493,8 +510,9 @@ function BotInboxItemRow({
                 source={external}
                 t={t}
                 messageMedia={
-                  imageAttachments.length
-                    ? imageAttachments.map((file) => (
+                  imageAttachments.length || videoAttachments.length ? (
+                    <>
+                      {imageAttachments.map((file) => (
                         <div className="bh-external-source-attachment" key={file.id}>
                           {imagePreviews[file.id] ? (
                             <img
@@ -516,8 +534,39 @@ function BotInboxItemRow({
                             <span role="status">{t('im.fileDownloading')}</span>
                           )}
                         </div>
-                      ))
-                    : undefined
+                      ))}
+                      {videoAttachments.map((file) => (
+                        <div className="bh-external-source-video" key={file.id}>
+                          {videoPreviews[file.id] ? (
+                            <video
+                              controls
+                              preload="metadata"
+                              playsInline
+                              src={videoPreviews[file.id]}
+                              aria-label={t('im.videoPlayer')}
+                              onError={() =>
+                                setVideoErrors((value) => ({ ...value, [file.id]: true }))
+                              }
+                            />
+                          ) : null}
+                          {videoErrors[file.id] ? (
+                            <Button
+                              variant="primary"
+                              disabled={fileBusy !== undefined}
+                              onClick={() => void download(file.id, file.name, 'video')}
+                            >
+                              {fileBusy === file.id ? t('im.videoLoading') : t('im.videoRetry')}
+                            </Button>
+                          ) : !videoPreviews[file.id] && !videoErrors[file.id] ? (
+                            <span role="status">{t('im.videoLoading')}</span>
+                          ) : null}
+                          {videoErrors[file.id] ? (
+                            <p role="alert">{t('im.videoUnavailable')}</p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </>
+                  ) : undefined
                 }
               >
                 {external.event.attachments?.map((file) => (
