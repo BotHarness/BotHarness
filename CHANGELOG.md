@@ -9,7 +9,7 @@ WeChat original voice can be downloaded and prepared for playback.
 
 ### Added
 
-- Added a candidate Lark image preview in original Channel bubbles, preserving native text/image order, visible-only loading, enlargement and current Channel/source authorization; stopping reception retains acquired images while unbind/revocation refuses the affected path ([#1021](https://github.com/BotHarness/BotHarness/issues/1021), [guide](docs/lark-connection.md)).
+- Added a candidate Lark image preview in original Channel bubbles, preserving native text/image order, visible-only loading, enlargement and current Channel/source authorization; forwards the image opt-in through the account consumer boundary; stopping reception retains acquired images while unbind/revocation refuses the affected path ([#1021](https://github.com/BotHarness/BotHarness/issues/1021), [guide](docs/lark-connection.md)).
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
 
 ## [1.1.0] - 2026-10-06
