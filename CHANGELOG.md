@@ -23,6 +23,7 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 
 ### Documentation
 
+- The GitHub and npm READMEs cover Bot Schedules, the Bot Marketplace and update notes, add a Release highlights section drawn from this ledger, and replace the screenshots with a high-resolution gallery in which every avatar is a BotPixel pixel avatar ([#984](https://github.com/BotHarness/BotHarness/issues/984)).
 - Documented final development-source Discord context acceptance with real model continuation, precise edited-source refusal, whole-page rollback and restored Message Content permissions ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
 
 ## [1.0.2] - 2026-10-06

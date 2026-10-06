@@ -14,7 +14,7 @@
 
 **The open-source Grok Bot alternative. A crew of bots, each with its own identity, persona and memory, working together.**
 
-[Website](https://deepseekbot.botharness.ai/en/) · [Install](#install) · [Features](#features) · [Pixel avatars](#pixel-avatars) · [Community](#community) · [Docs](https://botharness.ai)
+[Website](https://deepseekbot.botharness.ai/en/) · [Install](#install) · [Features](#features) · [Screenshots](#screenshots) · [Releases](#releases) · [Bot Marketplace](#marketplace) · [Community](#community) · [Docs](https://botharness.ai)
 
 </div>
 
@@ -24,6 +24,7 @@ DeepSeekBot installs into [DeepSeek Harness (DSH)](https://github.com/deepseek-a
 - **Built on DeepSeek Harness**: any model provider you connect in DSH works
 - **Works with other DSH plugins** in the same Profile
 - **Lark / Feishu, Slack, Discord and WeChat**: Bots speak under their own identity
+- **Schedules and a Bot Marketplace**: Bots that do things on time, and Bots you can install or share in one click
 
 This repository is **BotHarness**, the plugin layer that gives DSH agents a persistent identity; DeepSeekBot is its first product.
 
@@ -47,46 +48,89 @@ Open **Bot mode**, create a PersonaBot, DM it, then start a Group and invite mem
 
 ## Every Bot is a colleague
 
-| Feature                      | What you get                                                                                                                                            |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lasting identity**         | Each PersonaBot keeps its own name, persona (PERSONA.md) and avatar across chats, Sessions and Workspaces.                                              |
-| **Git Memory you can see**   | A Bot's memory is a plain Git working tree. Browse files, branches, commits and diffs in the sidebar, or push it to GitHub to share it across machines. |
-| **Groups**                   | Messages keep each Bot's identity, and you @ whoever you need. Each member picks every message, digest, mentions only or silent.                        |
-| **Assignments**              | Grant a Workspace and a Bot can delegate independent Assignments, each with its own Session and report; the sidebar counts what needs your answer.      |
-| **Their own IM identity**    | Bind a Bot to its own identity in Lark / Feishu, Slack, Discord and WeChat; it replies in the original thread when mentioned.                           |
-| **Computer and Browser use** | Drive a shared desktop (needs Docker) or a managed browser while you watch live and can pause it. Optional in source builds.                            |
+| Feature                      | What you get                                                                                                                                                |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lasting identity**         | Each PersonaBot keeps its own name, role, persona (PERSONA.md) and pixel avatar across chats, Sessions and Workspaces.                                      |
+| **Git Memory you can see**   | A Bot's memory is a plain Git working tree. Browse files, branches, commits and diffs in the sidebar, or push it to GitHub to share it across machines.     |
+| **Groups**                   | Messages keep each Bot's identity, and you @ whoever you need. Each member picks every message, digest, mentions only or silent.                            |
+| **Schedules**                | Have a Bot do something every few minutes, every hour or every day. Add one in the sidebar or just ask the Bot; once you lock it, the Bot can only read it. |
+| **Bot Marketplace**          | Install a Bot someone shared on the [Bot Marketplace](https://market.botharness.ai) in one click, or publish your own Bot to GitHub.                        |
+| **Assignments**              | Grant a Workspace and a Bot can delegate independent Assignments, each with its own Session and report; the sidebar counts what needs your answer.          |
+| **Their own IM identity**    | Bind a Bot to its own identity in Lark / Feishu, Slack, Discord and WeChat; it replies in the original thread when mentioned. WeChat DMs carry files too.   |
+| **Update notes**             | After an install or update, Bot mode shows what changed; Bot settings show your version and check npm for a newer one.                                      |
+| **Computer and Browser use** | Drive a shared desktop (needs Docker) or a managed browser while you watch live and can pause it. Optional in source builds.                                |
+
+<a id="screenshots"></a>
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><a href="docs/assets/readme/v2/en/hero.jpg"><img src="docs/assets/readme/v2/en/hero.jpg" alt="Bot mode: a roster of five pixel-avatar Bots on the left, a DM with Mira in the middle, and Mira's Memory evolution Git graph on the right" /></a><br /><b>Roster and DMs</b>: every Bot has its own pixel avatar; on the right, its Memory evolution.</td>
+    <td width="50%"><a href="docs/assets/readme/v2/en/group.jpg"><img src="docs/assets/readme/v2/en/group.jpg" alt="Observatory Studio Group: Mira, Theo and Nova reply under their own identities, with the member list on the right" /></a><br /><b>Groups</b>: @ three Bots and each replies; Nova reads the first two before answering.</td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/assets/readme/v2/en/memory-diff.jpg"><img src="docs/assets/readme/v2/en/memory-diff.jpg" alt="Clicking a commit in Mira's memory shows a line diff of plans/spring-exhibit.md" /></a><br /><b>Memory evolution</b>: click a commit to see exactly which lines of its memory a Bot changed.</td>
+    <td width="50%"><a href="docs/assets/readme/v2/en/schedules.jpg"><img src="docs/assets/readme/v2/en/schedules.jpg" alt="After a request to read logs every morning at 9, Nova created a schedule itself; the sidebar lists Sessions and Schedules as cards" /></a><br /><b>Schedules</b>: one sentence and the Bot creates the schedule; cards show who made it and whether it's locked.</td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/assets/readme/v2/en/schedule-editor.jpg"><img src="docs/assets/readme/v2/en/schedule-editor.jpg" alt="Edit schedule: name, what the Bot should do, daily at 09:00, time zone, a lock switch and recent firings" /></a><br /><b>Edit a schedule</b>: run every N minutes, hours or daily, lock it against the Bot, and see the last 20 firings.</td>
+    <td width="50%"><a href="docs/assets/readme/v2/en/marketplace.jpg"><img src="docs/assets/readme/v2/en/marketplace.jpg" alt="Bot Marketplace: topic filters and search, each listed Bot with a pixel avatar, role, stars and an Install button" /></a><br /><b>Bot Marketplace</b>: find Bots by topic or keyword; Install adds a new PersonaBot (sample listings shown).</td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/assets/readme/v2/en/release-notes-v2.jpg"><img src="docs/assets/readme/v2/en/release-notes-v2.jpg" alt="What's new in DeepSeekBot 1.0.2, listing Added, Fixed and Docs changes" /></a><br /><b>What's new</b>: after the first install and every update, Bot mode tells you what changed.</td>
+    <td width="50%"><a href="docs/assets/readme/v2/en/settings.jpg"><img src="docs/assets/readme/v2/en/settings.jpg" alt="Bot settings: Bot icon, interface motion, list sorting, developer mode, and the DeepSeekBot version row with Changelog and Check for updates" /></a><br /><b>Bot settings</b>: see your version, check for updates, open the website changelog.</td>
+  </tr>
+</table>
+
+_Captured in an isolated local DSH; click any image for the 2880 × 1800 original. Conversations are scripted, a fictional observatory exhibit; the Bot Marketplace shows sample listings._
 
 <a id="git-memory"></a>
 
 ## Git Memory you can inspect
 
-A PersonaBot's Memory is an ordinary Git working tree. Notes, persona, code, and other files remain on disk; uncommitted files are current Memory too. A Bot can explore and update them with file, search, Shell, and Git capabilities. You can also use your own editor and Git tools.
+A PersonaBot's Memory is an ordinary Git working tree. Notes, persona, code and other files live on disk, and uncommitted files are part of current memory. The Bot explores and updates its memory through file, search, Shell and Git capabilities; you can use your own editor and Git tools too.
 
-![Mira's Memory evolution in DSH: a branching Git graph and commit history on the right, with the selected exhibit-plan commit showing removed and added lines in the centre](docs/assets/readme/memory-evolution.jpg)
+- **Memory files**: a directory tree and file reader; menus open or reveal the real file on the Host, or download its full current content.
+- **Memory evolution**: branches, commit history and current changes. Click a commit to see its diff or inspect uncommitted edits; choose plain memory terms or Git terms.
+- **Recovery checkpoints**: save context for explicit recovery while keeping Git authorship and history. You can also create a Bot from an existing Git repository and reuse its files and history.
 
-_Real DSH screenshot with fictional exhibit notes. The graph shows a merged research branch; selecting a commit opens its file diff beside the history. [Uncropped capture](docs/assets/readme/memory-evolution-full.jpg)._
-
-- **Memory files** opens a folder tree and file reader, with menus to open or reveal the actual Host files and download their current bytes.
-- **Memory evolution** shows branches, commit history, and current changes. Select a commit to read its diff, or inspect an uncommitted change. Choose everyday memory labels or Git terminology.
-- **Recovery checkpoints** preserve context for an explicit restore, while Git authorship and history stay intact. Create a Bot from an existing Git repository to reuse its files and history.
-
-Push a Bot's memory to GitHub or any Git remote to share the same memory across machines and DSH installs. [Memory design](docs/architecture/botharness-architecture.md) · [Recovery decision](docs/adr/0097-memory-recovery-checkpoints-separate-provenance-from-git-authorship.md)
+Push the memory to GitHub or any Git remote to share the same memory across machines and DSH instances. [Memory design](docs/architecture/botharness-architecture.md) · [Recovery decision](docs/adr/0097-memory-recovery-checkpoints-separate-provenance-from-git-authorship.md)
 
 <a id="groups"></a>
 
 ## Bring your bots into a Group
 
-Start with different colleagues: a researcher who remembers evidence, a designer who develops the experience, and an engineer who checks the details. Group messages retain each Bot's identity; use direct mentions when you want a particular Bot's attention.
+Let the researcher keep the evidence, the designer move the experience forward, and the engineer check the details. Group messages keep each Bot's own identity; @ a Bot when you need it. In the Group sidebar, open **Members → Invite member** to search for or pick a PersonaBot. Bots join automatically by default and the invitation doesn't wake the model; you can let the Bot decide instead in Bot settings.
 
-![Group member invitation in DSH, with Nova selected to join Mira and Theo in the fictional Observatory Studio](docs/assets/readme/group-invite.jpg)
+Choose how each member is notified: every message, a digest, direct mentions only, or silent. A Bot can adjust its own Group attention or leave the Group. DMs, Bot-to-Bot conversations, the Bot Inbox and the Human Inbox keep conversations and to-dos in reach. When work needs a project, grant a Workspace and let the Bot delegate independent **Assignments**, each with its own Session and report.
 
-_Open Members → Invite member, search or select a PersonaBot, then invite it. Bots accept invitations by default without waking the model; a Bot can be configured to decide manually._
+<a id="schedules"></a>
 
-![Mira, Theo, and Nova collaborating under their own identities in the Observatory Studio Group, with the member roster visible](docs/assets/readme/group-collaboration.jpg)
+## Schedules: Bots that do things on time
 
-_Real model replies in an isolated local Group: Mira recalls visitor needs, Theo proposes a layout, and Nova adds a build-and-check step after reading their replies._
+Tell a Bot "every morning at 9, read the logs and send me a summary" and it creates the schedule itself. You can also click **+** under **Schedules** in the DM sidebar.
 
-Choose per-member attention: every message, a digest, direct mentions, or silent collection. A Bot can adjust its own Group attention and leave a Group. DMs, Bot-to-Bot conversations, the Bot Inbox, and the Human Inbox keep conversation and follow-up work accessible. For work in a project, grant a Workspace and let a Bot delegate independent **Assignments**, with their own Sessions and reports.
+- **Three rhythms**: every few minutes, every few hours, or daily at a set time (with a time zone).
+- **Wakes the Bot**: each firing lands in the Bot Inbox and wakes the Bot; that Inbox item opens the schedule it came from.
+- **Clear ownership**: sidebar cards show whether you or the Bot created a schedule. Once locked, the Bot can read it but not change or delete it; up to 20 can be enabled per Bot.
+- **History**: the editor lists the last 20 firings, each linked to the Session that handled it.
+
+[Design decision](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)
+
+<a id="marketplace"></a>
+
+## Bot Marketplace: share and install Bots
+
+The [Bot Marketplace](https://market.botharness.ai) lists Bots shared as public GitHub repositories. In Bot mode, click **+ → Bot Marketplace** next to Messages and browse by topic or keyword. Install first shows the source repository and its latest commit and reminds you it's third-party content; confirm and its Memory repository is cloned into a new PersonaBot. You can also paste a repository URL to list it right away.
+
+To share your own Bot, check its Memory for anything private, then follow the [Share a Bot guide](docs/share-bot.md) to have the Bot publish itself to GitHub and add the `botharness-bot` topic. DeepSeekBot keeps `.botharness/bot.json` (name, roles, avatar) up to date in every Bot's Memory, so the Marketplace shows the same Bot you see in your sidebar.
+
+<a id="updates"></a>
+
+## Updates and changelog
+
+After the first install, and the first time you open Bot mode after each update, DeepSeekBot shows what changed in this version (or in every version since the one you last saw). **Settings → Bot settings → DeepSeekBot version** shows your version; **Check for updates** asks npm and, when there's something newer, lists what's new and the update command. The full record is on the [website changelog](https://deepseekbot.botharness.ai/en/changelog/) and in [CHANGELOG.md](CHANGELOG.md).
 
 <a id="computer-and-browser-use"></a>
 
@@ -116,8 +160,9 @@ Bind a PersonaBot to its own platform bot account, and external messages go out 
 - @mention a Bot in a group or thread and the message reaches that PersonaBot's Inbox; it replies in the original thread.
 - Only groups and channels you authorize reach a Bot's Inbox; outbound sends need an explicit grant and leave a send record.
 - Choose per Bot how it takes messages: mentions only, count- or time-based digests of ordinary messages, or an immediate wake.
+- In a WeChat DM, a Bot can take files you send and return its results in the same DM; source builds also preview images and reply with images.
 
-Connection guides: [Lark / Feishu](docs/lark-connection.md) · [Slack](docs/slack-connection.md).
+Connection guides: [Lark / Feishu](docs/lark-connection.md) · [Slack](docs/slack-connection.md) · [WeChat](docs/wechat-connection.md).
 
 <a id="pixel-avatars"></a>
 
@@ -125,7 +170,20 @@ Connection guides: [Lark / Feishu](docs/lark-connection.md) · [Slack](docs/slac
 
 <img src="docs/assets/readme/pixel-avatars-crew.gif" width="660" alt="Six pixel-art PersonaBot avatars" />
 
-Every Bot's default avatar is generated from its name: the same name gives the same face everywhere. While a Bot works, its avatar turns into the tool it is using, pixel by pixel (read, shell, search, needs approval and more). Try a name on the [website](https://deepseekbot.botharness.ai/en/#avatar) and download an HD avatar. Avatars come from the open-source [BotPixel](https://github.com/BotHarness/BotPixel) (`@botharness/pixel-avatar` and `@botharness/pixel-morph`).
+Every Bot's default avatar is generated from its name: the same name gives the same face everywhere. While a Bot works, its avatar turns into the tool it is using, pixel by pixel (read, shell, search, needs approval and more). Try a name on the [website](https://deepseekbot.botharness.ai/en/#avatar) and download an HD avatar. Avatars come from the open-source [BotPixel](https://github.com/BotHarness/BotPixel) (`@botharness/pixel-avatar` and `@botharness/pixel-morph`); every avatar in the [screenshots](#screenshots) above comes from it.
+
+<a id="releases"></a>
+
+## Release highlights
+
+The core of each version; every entry is in [CHANGELOG.md](CHANGELOG.md) and on the [website changelog](https://deepseekbot.botharness.ai/en/changelog/).
+
+| Version                     | Highlights                                                                                                                                                                                                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Next** (unreleased)       | Bot **Schedules**: create them in the sidebar, or let a Bot create them itself and change or delete any you haven't locked; Sessions, Bot Inbox and Workspace Grants share one **card design**; each Bot's Memory keeps `.botharness/bot.json`; WeChat DMs handle **images**. |
+| **1.0.2** (2026-10-06)      | **What's new** after an install or update, and an **npm update check** in Bot settings; the [Share a Bot](docs/share-bot.md) guide; context reads keep precise `source-conflict` refusals.                                                                                    |
+| **1.0.1** (2026-10-05)      | First **stable** npm release: PersonaBots with their own identity, Git Memory, Groups, Assignments, pixel avatars, Lark / Feishu, Slack, Discord and WeChat identities (with files in WeChat DMs), and the first **Bot Marketplace**. 1.0.0 was not released as a product.    |
+| Development (to 2026-09-20) | The groundwork before the first release: PersonaBot identity and file Memory, the Bot mode channel shell and roster, creating a Bot from a Git repository, opening Memory files on the Host, and the bilingual docs site.                                                     |
 
 <a id="dsh"></a>
 
