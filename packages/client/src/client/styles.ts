@@ -1842,6 +1842,38 @@ span.bh-bot-zip-tree-toggle {
   font-size: 11px;
   line-height: 18px;
 }
+.bh-bot-zip-history {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+.bh-bot-zip-history[data-disabled] {
+  cursor: default;
+}
+.bh-bot-zip-history input {
+  flex: none;
+  margin: 3px 0 0;
+  accent-color: var(--dsw-alias-state-business-primary);
+}
+.bh-bot-zip-history-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-bot-zip-history-text strong {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.bh-bot-zip-history[data-disabled] .bh-bot-zip-history-text strong {
+  color: var(--dsw-alias-label-tertiary);
+}
 .bh-bot-zip-tree-size {
   flex: none;
   color: var(--dsw-alias-label-tertiary);

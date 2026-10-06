@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import {
@@ -17,12 +18,14 @@ import {
 
 export const BOT_ZIP_MAX_BYTES = 100 * 1024 * 1024;
 export const BOT_ZIP_MAX_ENTRIES = 20_000;
+export const BOT_ZIP_HISTORY_PATH = '.botharness/git-history.bundle';
 
 const IGNORED_NAMES = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini']);
 
 function excludedPath(path: string): boolean {
   const parts = path.split('/');
   return (
+    path === BOT_ZIP_HISTORY_PATH ||
     parts[0] === '__MACOSX' ||
     parts.some((part) => part === '.git') ||
     IGNORED_NAMES.has(parts.at(-1) ?? '')
@@ -75,7 +78,43 @@ export function listBotZipFiles(memoryDir: string): BotFileListing {
   return { files, always: alwaysIncludedFiles(memoryDir, paths) };
 }
 
-export function exportBotZip(memoryDir: string, include?: ReadonlySet<string>): Buffer {
+function git(cwd: string, args: string[]): string {
+  return execFileSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+  });
+}
+
+function withTempFile<T>(use: (file: string) => T): T {
+  const folder = mkdtempSync(join(tmpdir(), 'botharness-bundle-'));
+  try {
+    return use(join(folder, 'history.bundle'));
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+}
+
+export function bundleBotHistory(memoryDir: string): Buffer {
+  return withTempFile((file) => {
+    try {
+      git(memoryDir, ['bundle', 'create', '--quiet', file, 'HEAD', '--branches', '--tags']);
+      return readFileSync(file);
+    } catch {
+      throw new ZipArchiveError('invalid-zip', 'The Git history could not be packed');
+    }
+  });
+}
+
+export interface BotZipExportOptions {
+  include?: ReadonlySet<string>;
+  history?: boolean;
+}
+
+export function exportBotZip(memoryDir: string, options: BotZipExportOptions = {}): Buffer {
+  const { include } = options;
   const entries: ZipEntryInput[] = [];
   let total = 0;
   const listed = listBotFiles(memoryDir);
@@ -94,12 +133,21 @@ export function exportBotZip(memoryDir: string, include?: ReadonlySet<string>): 
     }
     entries.push({ path, data: readFileSync(target), modifiedAt: stat.mtime });
   }
+  if (options.history === true && include === undefined) {
+    const bundle = bundleBotHistory(memoryDir);
+    total += bundle.length;
+    if (total > BOT_ZIP_MAX_BYTES) {
+      throw new ZipArchiveError('too-large', 'This Bot is too large to export');
+    }
+    entries.push({ path: BOT_ZIP_HISTORY_PATH, data: bundle });
+  }
   return writeZip(entries);
 }
 
 export interface BotZipContents {
   files: ZipEntry[];
   descriptor?: BotDescriptor;
+  history?: Buffer;
 }
 
 function stripSharedRoot(files: ZipEntry[]): ZipEntry[] {
@@ -113,18 +161,25 @@ export function readBotZip(archive: Buffer): BotZipContents {
   if (archive.length > BOT_ZIP_MAX_BYTES) {
     throw new ZipArchiveError('too-large', 'The zip file is too large');
   }
-  const entries = readZip(archive, {
+  const kept = readZip(archive, {
     maxEntries: BOT_ZIP_MAX_ENTRIES,
     maxTotalBytes: BOT_ZIP_MAX_BYTES,
-  }).filter((entry) => !excludedPath(entry.path));
-  if (entries.length === 0) throw new ZipArchiveError('empty', 'The zip file has no files');
-  const files = stripSharedRoot(entries);
+  }).filter((entry) => entry.path === BOT_ZIP_HISTORY_PATH || !excludedPath(entry.path));
+  if (kept.length === 0) throw new ZipArchiveError('empty', 'The zip file has no files');
+  const unpacked = stripSharedRoot(kept);
+  const history = unpacked.find((entry) => entry.path === BOT_ZIP_HISTORY_PATH)?.data;
+  const files = unpacked.filter((entry) => !excludedPath(entry.path));
+  if (files.length === 0) throw new ZipArchiveError('empty', 'The zip file has no files');
   const descriptorFile = files.find((file) => file.path === BOT_DESCRIPTOR_PATH);
   const descriptor =
     descriptorFile === undefined
       ? undefined
       : parseBotDescriptor(descriptorFile.data.toString('utf8'));
-  return { files, ...(descriptor === undefined ? {} : { descriptor }) };
+  return {
+    files,
+    ...(descriptor === undefined ? {} : { descriptor }),
+    ...(history === undefined ? {} : { history }),
+  };
 }
 
 export function writeBotFiles(root: string, files: readonly ZipEntry[]): void {
@@ -137,4 +192,52 @@ export function writeBotFiles(root: string, files: readonly ZipEntry[]): void {
       throw new ZipArchiveError('invalid-zip', `Cannot unpack ${file.path}`);
     }
   }
+}
+
+const HISTORY_REF = /^(?:refs\/heads\/|refs\/tags\/)[^\0]+$/u;
+
+function preferredBranch(heads: ReadonlyArray<{ sha: string; ref: string }>): string | undefined {
+  const head = heads.find((entry) => entry.ref === 'HEAD')?.sha;
+  const branches = heads.filter((entry) => entry.ref.startsWith('refs/heads/'));
+  const matching = branches.filter((entry) => entry.sha === head).map((entry) => entry.ref);
+  for (const name of ['refs/heads/main', 'refs/heads/master']) {
+    if (matching.includes(name)) return name;
+  }
+  return matching.sort()[0] ?? branches.map((entry) => entry.ref).sort()[0];
+}
+
+export function restoreBotHistory(root: string, bundle: Buffer): void {
+  withTempFile((file) => {
+    try {
+      writeFileSync(file, bundle);
+      git(root, ['init', '--quiet', '-b', 'main']);
+      git(root, ['bundle', 'verify', '--quiet', file]);
+      const heads = git(root, ['bundle', 'list-heads', file])
+        .split('\n')
+        .map((line) => {
+          const [sha = '', ref = ''] = line.trim().split(/\s+/u, 2);
+          return { sha, ref };
+        })
+        .filter((entry) => /^[0-9a-f]{40,64}$/u.test(entry.sha));
+      const refs = heads.filter((entry) => HISTORY_REF.test(entry.ref));
+      const branch = preferredBranch(heads);
+      if (branch === undefined) throw new Error('no branch');
+      git(root, [
+        '-c',
+        'transfer.fsckObjects=true',
+        'fetch',
+        '--quiet',
+        '--no-tags',
+        '--no-write-fetch-head',
+        '--update-head-ok',
+        file,
+        ...refs.map((entry) => `${entry.ref}:${entry.ref}`),
+      ]);
+      git(root, ['symbolic-ref', 'HEAD', branch]);
+      git(root, ['reset', '--quiet']);
+    } catch {
+      rmSync(join(root, '.git'), { recursive: true, force: true });
+      throw new ZipArchiveError('invalid-zip', 'The Git history in this zip could not be restored');
+    }
+  });
 }

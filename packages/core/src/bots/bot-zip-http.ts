@@ -99,8 +99,11 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
 
   const readSelection = async (
     request: Request,
-  ): Promise<{ slug: string | null; include?: Set<string> } | Response> => {
-    if (request.method === 'GET') return { slug: new URL(request.url).searchParams.get('slug') };
+  ): Promise<{ slug: string | null; include?: Set<string>; history: boolean } | Response> => {
+    if (request.method === 'GET') {
+      const params = new URL(request.url).searchParams;
+      return { slug: params.get('slug'), history: params.get('history') === '1' };
+    }
     const type = request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
     if (type !== 'application/json') {
       return failure(415, 'invalid-input', 'content type must be application/json');
@@ -117,14 +120,19 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
       typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
     const slug = source['slug'];
     const include = source['include'];
+    const history = source['history'] ?? false;
     if (
       typeof slug !== 'string' ||
       !Array.isArray(include) ||
-      !include.every((path) => typeof path === 'string')
+      !include.every((path) => typeof path === 'string') ||
+      typeof history !== 'boolean'
     ) {
       return failure(400, 'invalid-input', 'slug and include are required');
     }
-    return { slug, include: new Set(include as string[]) };
+    if (history) {
+      return failure(400, 'invalid-input', 'Git history can only be exported with every file');
+    }
+    return { slug, include: new Set(include as string[]), history: false };
   };
 
   const exportZip = async (request: Request): Promise<Response> => {
@@ -134,9 +142,12 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
     if (bot instanceof Response) return bot;
     const startedAt = performance.now();
     try {
-      const archive = exportBotZip(bot.memoryDir, selection.include);
+      const archive = exportBotZip(bot.memoryDir, {
+        ...(selection.include === undefined ? {} : { include: selection.include }),
+        history: selection.history,
+      });
       deps.log?.(
-        `bot-zip-export slug=${bot.record.slug} selected=${selection.include === undefined ? 'all' : selection.include.size} bytes=${archive.length} durationMs=${Math.round(performance.now() - startedAt)}`,
+        `bot-zip-export slug=${bot.record.slug} selected=${selection.include === undefined ? 'all' : selection.include.size} history=${selection.history} bytes=${archive.length} durationMs=${Math.round(performance.now() - startedAt)}`,
       );
       return new Response(new Uint8Array(archive), {
         headers: {
@@ -183,6 +194,7 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
       slug,
       displayName,
       files: contents.files,
+      ...(contents.history === undefined ? {} : { history: contents.history }),
       ...(contents.descriptor?.roles === undefined ? {} : { roles: contents.descriptor.roles }),
     });
     if (!result.ok) {
@@ -196,7 +208,7 @@ export function createBotZipHttp(deps: BotZipHttpDeps): (request: Request) => Pr
       );
     }
     deps.log?.(
-      `bot-zip-import slug=${slug} files=${contents.files.length} durationMs=${Math.round(performance.now() - startedAt)}`,
+      `bot-zip-import slug=${slug} files=${contents.files.length} history=${contents.history !== undefined} durationMs=${Math.round(performance.now() - startedAt)}`,
     );
     const detail = deps.detail(slug);
     if (!detail.ok) return failure(500, detail.error.code, detail.error.message);

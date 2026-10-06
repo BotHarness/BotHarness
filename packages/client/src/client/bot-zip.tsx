@@ -392,16 +392,18 @@ function BotZipExportModal({
   const { listing, error: loadError } = load;
   const [exporting, setExporting] = useState(false);
   const [cause, setCause] = useState<unknown>();
+  const [history, setHistory] = useState(false);
 
   const choosable = listing === undefined ? 0 : listing.files.length - new Set(listing.always).size;
   const ready = listing !== undefined && (choosable === 0 || selected.size > 0);
+  const whole = listing !== undefined && selected.size === choosable;
+  const choice = whole ? (history ? { history: true } : {}) : { include: [...selected].sort() };
 
   const submit = (): void => {
     if (exporting || !ready) return;
     setExporting(true);
     setCause(undefined);
-    const include = selected.size === choosable ? undefined : [...selected].sort();
-    void actions.exportBotZip(bot.slug, bot.displayName, include).then(
+    void actions.exportBotZip(bot.slug, bot.displayName, choice).then(
       () => {
         setExporting(false);
         onClose();
@@ -444,6 +446,22 @@ function BotZipExportModal({
           <div className="bh-bot-zip-picker-loading" role="status">
             {t('botZip.export.loading')}
           </div>
+        )}
+        {listing === undefined ? null : (
+          <label className="bh-bot-zip-history" data-disabled={!whole || undefined}>
+            <input
+              type="checkbox"
+              checked={whole && history}
+              disabled={!whole || exporting}
+              onChange={(event) => setHistory(event.currentTarget.checked)}
+            />
+            <span className="bh-bot-zip-history-text">
+              <strong>{t('botZip.export.history')}</strong>
+              <span>
+                {whole ? t('botZip.export.historyHint') : t('botZip.export.historyPartial')}
+              </span>
+            </span>
+          </label>
         )}
         <div className="bh-market-risk" role="note">
           <strong>{t('botZip.export.warningTitle')}</strong>

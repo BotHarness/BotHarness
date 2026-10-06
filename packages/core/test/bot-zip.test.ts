@@ -14,7 +14,12 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { syncBotDescriptor } from '../src/bots/bot-descriptor-sync.js';
-import { BOT_ZIP_MAX_BYTES, exportBotZip, readBotZip } from '../src/bots/bot-zip.js';
+import {
+  BOT_ZIP_HISTORY_PATH,
+  BOT_ZIP_MAX_BYTES,
+  exportBotZip,
+  readBotZip,
+} from '../src/bots/bot-zip.js';
 import { createBotZipHttp } from '../src/bots/bot-zip-http.js';
 import { readZip, writeZip, ZipArchiveError } from '../src/bots/zip-archive.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
@@ -349,5 +354,104 @@ describe('Bot Zip import', () => {
     );
     expect(response.status).toBe(200);
     expect(registry.get('zip-bot-1')?.displayName).toBe('小研');
+  });
+});
+
+describe('Bot Zip with Git history', () => {
+  function botWithHistory(root: string) {
+    const registry = registryAt(root);
+    registry.create({ slug: 'ada', displayName: 'Ada', persona: '# Ada\n' });
+    const memoryDir = registry.memoryDirFor('ada')!;
+    writeFileSync(join(memoryDir, 'MEMORY.md'), '- first\n');
+    git(memoryDir, 'commit', '-qam', 'Remember the first thing');
+    git(memoryDir, 'tag', 'v1');
+    git(memoryDir, 'switch', '-qc', 'draft');
+    writeFileSync(join(memoryDir, 'draft.md'), 'draft\n');
+    git(memoryDir, 'add', 'draft.md');
+    git(memoryDir, 'commit', '-qm', 'Draft an idea');
+    git(memoryDir, 'switch', '-q', 'main');
+    git(memoryDir, 'update-ref', 'refs/botharness/recovery/1', 'HEAD');
+    git(memoryDir, 'remote', 'add', 'origin', 'https://example.com/secret-token@ada.git');
+    git(memoryDir, 'config', 'credential.helper', 'store');
+    writeFileSync(join(memoryDir, 'SOUL.md'), '# Ada, uncommitted\n');
+    return { registry, memoryDir };
+  }
+
+  it('carries branches, tags and commits, and the import has no remote or source config', async () => {
+    const root = tempRoot();
+    const { registry, memoryDir } = botWithHistory(root);
+    const http = httpFor(registry);
+
+    const exported = await http(
+      new Request('http://host/api/botharness/bot-zip?slug=ada&history=1'),
+    );
+    expect(exported.status).toBe(200);
+    const archive = new Uint8Array(await exported.arrayBuffer());
+    const paths = readZip(Buffer.from(archive), LIMITS).map((entry) => entry.path);
+    expect(paths).toContain(BOT_ZIP_HISTORY_PATH);
+    expect(paths.some((path) => path === '.git' || path.startsWith('.git/'))).toBe(false);
+
+    const imported = await http(importRequest(archive));
+    expect(imported.status).toBe(200);
+    const copyDir = registry.memoryDirFor('zip-bot-1')!;
+    expect(git(copyDir, 'symbolic-ref', '--short', 'HEAD').trim()).toBe('main');
+    expect(git(copyDir, 'for-each-ref', '--format=%(refname)').trim().split('\n').sort()).toEqual([
+      'refs/heads/draft',
+      'refs/heads/main',
+      'refs/tags/v1',
+    ]);
+    for (const ref of ['main', 'draft', 'v1']) {
+      expect(git(copyDir, 'rev-parse', ref)).toBe(git(memoryDir, 'rev-parse', ref));
+    }
+    expect(git(copyDir, 'log', '--format=%s', 'main')).toBe(
+      git(memoryDir, 'log', '--format=%s', 'main'),
+    );
+    expect(git(copyDir, 'remote').trim()).toBe('');
+    expect(readFileSync(join(copyDir, '.git', 'config'), 'utf8')).not.toMatch(
+      /credential|example\.com/u,
+    );
+    expect(existsSync(join(copyDir, BOT_ZIP_HISTORY_PATH))).toBe(false);
+    expect(existsSync(join(copyDir, 'draft.md'))).toBe(false);
+    expect(readFileSync(join(copyDir, 'SOUL.md'), 'utf8')).toBe('# Ada, uncommitted\n');
+    expect(git(copyDir, 'status', '--porcelain').trim()).toBe('M SOUL.md');
+  });
+
+  it('never adds history to a partial export', async () => {
+    const root = tempRoot();
+    const { registry, memoryDir } = botWithHistory(root);
+    const partial = readZip(
+      exportBotZip(memoryDir, { include: new Set(['SOUL.md']), history: true }),
+      LIMITS,
+    ).map((entry) => entry.path);
+    expect(partial).not.toContain(BOT_ZIP_HISTORY_PATH);
+
+    const response = await httpFor(registry)(
+      new Request('http://host/api/botharness/bot-zip', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ slug: 'ada', include: ['SOUL.md'], history: true }),
+      }),
+    );
+    expect(response.status).toBe(400);
+
+    writeFileSync(join(memoryDir, BOT_ZIP_HISTORY_PATH), 'stray\n');
+    const plain = readZip(exportBotZip(memoryDir), LIMITS).map((entry) => entry.path);
+    expect(plain).not.toContain(BOT_ZIP_HISTORY_PATH);
+  });
+
+  it('refuses a zip whose history is damaged and creates nothing', async () => {
+    const root = tempRoot();
+    const registry = registryAt(root);
+    const archive = writeZip([
+      { path: 'SOUL.md', data: Buffer.from('# Soul\n') },
+      { path: BOT_ZIP_HISTORY_PATH, data: Buffer.from('# v2 git bundle\nnot really\n') },
+    ]);
+    const response = await httpFor(registry)(importRequest(archive));
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe('invalid-zip');
+    expect(registry.list()).toEqual([]);
+    expect(
+      readdirSync(join(root, 'bots')).filter((name) => !name.startsWith('botharness')),
+    ).toEqual([]);
   });
 });
