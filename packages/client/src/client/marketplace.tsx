@@ -545,6 +545,7 @@ export function MarketplaceModal({
         displayName: marketplaceName(selected),
         gitUrl: selected.cloneUrl,
         roles: selected.roles,
+        origin: 'marketplace',
         ...(selected.description === null ? {} : { description: selected.description }),
       })
       .then(

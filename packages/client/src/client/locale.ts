@@ -1777,6 +1777,35 @@ export const zh = {
   'release.restart.hint': '重启会中断正在运行的任务，页面会自动重新连接。',
   'release.restart.progress': '正在重启 DSH，页面会在几秒后自动重新连接…',
   'release.restart.failed': '没能自动重启，请按下面的方式手动重启。',
+  'telemetry.notice.title': '关于匿名使用统计',
+  'telemetry.notice.description':
+    'DeepSeekBot 默认发送匿名使用统计，帮助我们了解功能的使用情况并改进插件。',
+  'telemetry.notice.collected.label': '收集什么',
+  'telemetry.notice.collected':
+    '插件启动时的插件版本、DSH 版本、操作系统和架构，功能使用次数，以及后台出错时的错误类型和代码位置；只关联一个随机生成的安装 ID。',
+  'telemetry.notice.never.label': '从不收集',
+  'telemetry.notice.never': '名称、Persona 或 Memory 内容、对话内容、文件路径、凭据和 IP 地址。',
+  'telemetry.notice.why.label': '为什么',
+  'telemetry.notice.why':
+    '了解哪些功能真正被使用，决定接下来改进什么。数据只由 DSH 后台发送，不经浏览器。',
+  'telemetry.notice.optOut.label': '如何关闭',
+  'telemetry.notice.optOut':
+    '在「Bot 设置 → 匿名使用统计」中随时关闭，立即生效、无需重启。也可在 BotHarness core 插件配置中设置 `telemetry: false`，或设置环境变量 `DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0`。',
+  'telemetry.notice.settings': '打开 Bot 设置',
+  'telemetry.notice.privacy': '隐私说明',
+  'telemetry.notice.privacyUrl': 'https://deepseekbot.botharness.ai/privacy',
+  'telemetry.notice.source': '查看源码',
+  'telemetry.notice.sourceUrl':
+    'https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry',
+  'telemetry.notice.done': '知道了',
+  'telemetry.notice.close': '关闭',
+  'telemetry.row.title': '匿名使用统计',
+  'telemetry.row.description': '发送插件版本、系统和功能使用次数等匿名数据，帮助改进 DeepSeekBot。',
+  'telemetry.row.privacy': '隐私说明',
+  'telemetry.row.lockedConfig': '已由 core 插件配置 telemetry: false 关闭，需在插件配置中修改。',
+  'telemetry.row.lockedDoNotTrack': '已由环境变量 DO_NOT_TRACK=1 关闭。',
+  'telemetry.row.lockedEnv': '已由环境变量 BOTHARNESS_TELEMETRY=0 关闭。',
+  'telemetry.row.error': '保存失败，请重试。',
 } as const satisfies Record<string, string>;
 
 export type BotHarnessKey = keyof typeof zh;
@@ -3646,6 +3675,38 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'release.restart.hint': 'Restarting stops running tasks. This page reconnects on its own.',
   'release.restart.progress': 'Restarting DSH. This page reconnects in a few seconds…',
   'release.restart.failed': 'DSH could not restart itself. Restart it by hand as shown below.',
+  'telemetry.notice.title': 'Anonymous usage statistics',
+  'telemetry.notice.description':
+    'DeepSeekBot sends anonymous usage statistics by default, so we can see how features are used and improve the plugin.',
+  'telemetry.notice.collected.label': 'What',
+  'telemetry.notice.collected':
+    'Plugin version, DSH version, operating system and architecture when the plugin starts, feature usage counts, and the error type and code location when the Host fails, tied only to a randomly generated install ID.',
+  'telemetry.notice.never.label': 'Never',
+  'telemetry.notice.never':
+    'Names, Persona or Memory content, conversation text, file paths, credentials or IP addresses.',
+  'telemetry.notice.why.label': 'Why',
+  'telemetry.notice.why':
+    'To learn which features are actually used and decide what to improve next. Only the DSH Host sends data, never the browser.',
+  'telemetry.notice.optOut.label': 'Turn off',
+  'telemetry.notice.optOut':
+    'Switch it off any time in Bot settings → Anonymous usage statistics; it takes effect at once, without a restart. You can also set `telemetry: false` in the BotHarness core plugin config, or the environment variable `DO_NOT_TRACK=1` or `BOTHARNESS_TELEMETRY=0`.',
+  'telemetry.notice.settings': 'Open Bot settings',
+  'telemetry.notice.privacy': 'Privacy',
+  'telemetry.notice.privacyUrl': 'https://deepseekbot.botharness.ai/en/privacy',
+  'telemetry.notice.source': 'View source',
+  'telemetry.notice.sourceUrl':
+    'https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry',
+  'telemetry.notice.done': 'Got it',
+  'telemetry.notice.close': 'Close',
+  'telemetry.row.title': 'Anonymous usage statistics',
+  'telemetry.row.description':
+    'Send anonymous data such as plugin version, system and feature usage counts to help improve DeepSeekBot.',
+  'telemetry.row.privacy': 'Privacy',
+  'telemetry.row.lockedConfig':
+    'Turned off by telemetry: false in the core plugin config; change it there.',
+  'telemetry.row.lockedDoNotTrack': 'Turned off by the environment variable DO_NOT_TRACK=1.',
+  'telemetry.row.lockedEnv': 'Turned off by the environment variable BOTHARNESS_TELEMETRY=0.',
+  'telemetry.row.error': 'Could not save. Try again.',
 } satisfies Record<BotHarnessKey, string>;
 
 export type BotHarnessTranslate = TranslateNS<typeof LOCALE_NS>;

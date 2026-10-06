@@ -47,6 +47,7 @@ import type {
   ReleaseService,
   ReleaseUpdate,
 } from '../release/service.js';
+import type { TelemetryCapture, TelemetryStatus } from '../telemetry/service.js';
 import {
   AssignmentReplyTargetError,
   type HumanAssignmentContext,
@@ -434,6 +435,8 @@ export interface BridgeMethods {
   releaseUpdate(): Promise<BridgeResult<ReleaseUpdate>>;
   releaseInstall(payload: unknown): Promise<BridgeResult<ReleaseInstall>>;
   releaseRestart(payload: unknown): Promise<BridgeResult<ReleaseRestart>>;
+  telemetryStatus(): BridgeResult<TelemetryStatus>;
+  telemetrySet(payload: unknown): BridgeResult<TelemetryStatus>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
   scheduleCreate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
   scheduleUpdate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
@@ -476,6 +479,11 @@ export interface BridgeMethodsDeps {
   createBotId?: () => string;
   marketplace?: MarketplaceClient;
   release?: ReleaseService;
+  telemetry?: {
+    status(): TelemetryStatus;
+    setPreference(enabled: boolean): TelemetryStatus;
+    capture?: TelemetryCapture;
+  };
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -520,6 +528,13 @@ function releaseUnavailable(): BridgeResult<never> {
   return {
     ok: false,
     error: { code: 'release-unavailable', message: 'Release information is unavailable' },
+  };
+}
+
+function telemetryUnavailable(): BridgeResult<never> {
+  return {
+    ok: false,
+    error: { code: 'telemetry-unavailable', message: 'Usage statistics are unavailable' },
   };
 }
 
@@ -1479,6 +1494,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(description.value === undefined ? {} : { description: description.value }),
       });
       if (!result.ok) return createFailure(slug, result);
+      if (source['origin'] === 'marketplace') {
+        try {
+          deps.telemetry?.capture?.('marketplace_bot_installed');
+        } catch {}
+      }
       return { ok: true, value: detailOf(result.record) };
     },
     marketplaceList(payload) {
@@ -1519,6 +1539,28 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     async releaseRestart() {
       if (deps.release === undefined) return releaseUnavailable();
       return { ok: true, value: await deps.release.restart() };
+    },
+    telemetryStatus() {
+      return {
+        ok: true,
+        value: deps.telemetry?.status() ?? { enabled: false, preference: false },
+      };
+    },
+    telemetrySet(payload) {
+      const enabled = asObject(payload)['enabled'];
+      if (typeof enabled !== 'boolean') return invalidInput('enabled is required');
+      if (deps.telemetry === undefined) return telemetryUnavailable();
+      try {
+        return { ok: true, value: deps.telemetry.setPreference(enabled) };
+      } catch {
+        return {
+          ok: false,
+          error: {
+            code: 'telemetry-persist-failed',
+            message: 'The usage statistics choice could not be saved',
+          },
+        };
+      }
     },
     marketplaceDetail(payload) {
       const id = asObject(payload)['id'];

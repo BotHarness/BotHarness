@@ -6,6 +6,7 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./apps/docs/src', import.meta.url)) } },
   test: {
     testTimeout: 15_000,
+    env: { DO_NOT_TRACK: '1' },
     include: [
       'packages/*/test/**/*.test.ts',
       'apps/docs/test/**/*.test.ts',

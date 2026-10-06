@@ -65,6 +65,7 @@
 | Assignment 并发上限 | 3；整数 1–32                                       | 输入后点「保存」。所有 Bot 共用的同时执行任务上限，不限制历史会话；降低上限不会中止正在执行的任务。                           |
 | DeepSeekBot 版本    | 显示运行中的版本                                   | 「检查更新」查询 npm；有新版本时可「立即更新」，Web 版装完可「立即重启」。见[更新 DeepSeekBot](/zh/docs/update-deepseekbot)。 |
 | 我的默认名字        | 留空，显示 Human；最长 128 字符                    | 填写后点「保存名字」，用于聊天、提及及 Bot 上下文。点「恢复默认」或保存空值恢复 Human。                                       |
+| 匿名使用统计        | 开                                                 | 切换即保存，立即生效、无需重启；被插件配置或环境变量关闭时锁定为关。见[匿名使用统计](#匿名使用统计)。                         |
 
 下方「外部平台默认行为」属于 IM 收件与身份设置，参见 [Lark / 飞书](/zh/docs/lark-connection) 和 [Slack](/zh/docs/slack-connection)。
 
@@ -138,8 +139,20 @@ Profile 向下展开 **提醒策略**，在对应来源行点击修改，选择�
 
 第一次使用建议先添加一个明确任务目录，保持默认任务权限，然后实际发起任务验证。模型选择、目录授权与任务权限分别配置。
 
+## 匿名使用统计
+
+DeepSeekBot 默认由 DSH 后台发送匿名使用统计；首次打开 Bot 模式时会弹出一次说明。事件只关联一个保存在 `$DSH_HOME/botharness/telemetry.json` 的随机安装 ID：
+
+- `plugin_started`：插件版本、DSH 版本、操作系统和架构。
+- `bot_created`、`bot_archived`、`bot_deleted`、`marketplace_bot_installed`、`avatar_edited`：只记录发生了这个操作。
+- `connector_enabled`：只记录连接器类型（`feishu`、`lark`、`slack`、`discord`、`weixin` 或 `other`）。
+- `daily_usage`：每天最多一次，记录 PersonaBot 数量、自上次汇总以来新增的会话数和消息数，以及这段统计时长（整小时数）；不会按单条消息发送事件。
+- `$exception`：BotHarness 代码在后台出现未处理的错误时，记录错误类型和调用栈中的函数名与行号，文件只保留包内相对路径（如 `@botharness/core/dist/index.mjs`）或文件名；调用栈中没有 BotHarness 代码的错误会被丢弃。报告先保存在本机，下次启动时发送；从不包含错误信息正文。
+
+名称、Persona 或 Memory 内容、对话、提示词、工具参数、仓库地址、连接器账号或工作区、你的文件路径、凭据和 IP 地址从不发送。要关闭，打开 **Bot 设置**，关掉 **匿名使用统计** 开关即可：立即生效、无需重启，尚未发送的事件会被丢弃，选择保存在同一个 `telemetry.json` 里，重启后仍然有效；重新打开同样无需重启。部署方也可以在 BotHarness core 插件上设置 `telemetry: false`（见下方高级参数），或用 `DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0` 启动 DSH 强制关闭，此时开关显示为关闭且不可操作，并注明是哪项设置关闭了它。详见[隐私说明](https://deepseekbot.botharness.ai/privacy)和[源码](https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry)。
+
 ## 高级参数与可选能力
 
-公共 npm 包的产品组合是 Core、Client 和已验证的 IM Provider。Browser / Computer 等开发能力不因为上述安装步骤就自动可用；只在实际部署了相应插件时出现。Core 的 `enabled`（启用）、`agentPreset`（会话工具预设，默认 standard）、`activityDetailConsumers`（允许读取活动详情的受信任 Host 插件名单，默认空）见代码生成的 [Core 配置参考](/zh/dev/reference/config)。可选 Browser 的目标、驱动、路径、无窗口模式和空闲停止参数见 [Browser 配置定义](https://github.com/BotHarness/BotHarness/blob/main/packages/browser/src/index.ts)；Computer 的目标、桌面资源、导出目录和操作授权参数见 [Computer 配置定义](https://github.com/BotHarness/BotHarness/blob/main/packages/computer/src/index.ts)。操作教程见 [分享日常浏览器标签页](/zh/docs/daily-browser) 与 [Computer 导出与迁移](/zh/docs/computer-export)。
+公共 npm 包的产品组合是 Core、Client 和已验证的 IM Provider。Browser / Computer 等开发能力不因为上述安装步骤就自动可用；只在实际部署了相应插件时出现。Core 的 `enabled`（启用）、`agentPreset`（会话工具预设，默认 standard）、`activityDetailConsumers`（允许读取活动详情的受信任 Host 插件名单，默认空）、`telemetry`（匿名使用统计，默认开启）见代码生成的 [Core 配置参考](/zh/dev/reference/config)。可选 Browser 的目标、驱动、路径、无窗口模式和空闲停止参数见 [Browser 配置定义](https://github.com/BotHarness/BotHarness/blob/main/packages/browser/src/index.ts)；Computer 的目标、桌面资源、导出目录和操作授权参数见 [Computer 配置定义](https://github.com/BotHarness/BotHarness/blob/main/packages/computer/src/index.ts)。操作教程见 [分享日常浏览器标签页](/zh/docs/daily-browser) 与 [Computer 导出与迁移](/zh/docs/computer-export)。
 
 高级修改时先核对实际安装版本，再从 **设置 → 内置插件** 查看对应插件的详情 / 参数；没有表单的部署参数按 [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/develop/basic/publish) 在 Profile / Patch 层配置。当前网站开发参考可能比 npm 发布版更新，不能把开发参考中的可选能力当作这个安装包已经提供。

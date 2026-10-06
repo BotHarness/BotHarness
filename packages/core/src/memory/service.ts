@@ -92,7 +92,7 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     if (recorded !== undefined) return recorded.body;
     const store = storeForSession(sessionId);
     if (store === undefined) return '';
-    const body = store.persona() ?? '';
+    const body = store.standingPrompt();
     const at = (options.now ?? (() => new Date()))().toISOString();
     return ownership.recordPersonaSnapshot(sessionId, body, at).body;
   };
@@ -105,7 +105,7 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     if (owner === undefined || owner.botSlug !== botSlug) return { refreshed: false };
     const store = storeForSession(sessionId);
     if (store === undefined) return { refreshed: false };
-    const current = store.persona() ?? '';
+    const current = store.standingPrompt();
     if (ownership.personaSnapshot(sessionId)?.body === current) return { refreshed: false };
     ownership.refreshPersonaSnapshot(
       sessionId,
