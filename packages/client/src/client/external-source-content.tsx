@@ -119,6 +119,15 @@ function MessageCard({
                 : message.senderId}
             </p>
             <p>{message.at}</p>
+            {message.voice?.encodeType === undefined ? null : (
+              <p>{t('im.voiceEncoding', { type: String(message.voice.encodeType) })}</p>
+            )}
+            {message.voice?.sampleRate === undefined ? null : (
+              <p>{t('im.voiceSampleRate', { rate: String(message.voice.sampleRate) })}</p>
+            )}
+            {message.voice?.bitsPerSample === undefined ? null : (
+              <p>{t('im.voiceBitsPerSample', { bits: String(message.voice.bitsPerSample) })}</p>
+            )}
             {message.voice?.itemId ? (
               <p>{t('im.voiceItemId', { id: message.voice.itemId })}</p>
             ) : null}

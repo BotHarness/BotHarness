@@ -46,14 +46,8 @@
     "savedCount": 2,
     "savedIntervalSeconds": 90,
     "otherPlatformDirtyDraftPreserved": true,
-    "beforeImageSize": [
-      1230,
-      876
-    ],
-    "afterImageSize": [
-      1230,
-      820
-    ],
+    "beforeImageSize": [1230, 876],
+    "afterImageSize": [1230, 820],
     "note": "Actual browser captures. Each light/dark pair uses the same viewport and values; browser height changed between baseline and candidate."
   },
   "isolation": {
@@ -93,9 +87,7 @@
     "native": {
       "appFlags": 0,
       "id": "1557026466758271026",
-      "mentions": [
-        "1556613973846007899"
-      ],
+      "mentions": ["1556613973846007899"],
       "content": "<@1556613973846007899> DISCORD-1016-PAUSED: synthetic paused-identity sentinel cedar-82. No reply requested."
     },
     "canonicalUnchanged": true,

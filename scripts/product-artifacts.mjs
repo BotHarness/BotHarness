@@ -9,16 +9,16 @@ import { pnpmCommand } from './dev-package-manager.mjs';
 
 export const productImProvider = Object.freeze({
   name: '@botharness/im-provider',
-  version: '4.32.0-botharness.7',
+  version: '4.32.0-botharness.8',
   sourceManifestSha256: '501e62d558eceb2b42ad9cd03fc0910e09581fd6531ec68e074fe5a16225ed1e',
   sourceLockSha256: 'c7f16baaa5bb1ab3bbb607b59a10327f0af010c61e1ea1ab4a72d7d08af9ffe9',
   upstream: Object.freeze({
     package: '@xmanrui/dsh-im',
     packageVersion: '4.32.0',
-    source: '6f8cc9b2713a03b1340e604461900a474adacfa3',
+    source: 'bcfe981b7894ffade2d575cdd2433585b9640cd1',
     dsh: '0.2.0-rc.1',
     runtimeFiles: 395,
-    runtimeSha256: 'e16e51b87c1133ce351dd7c3ec11bacc6a90f73f3c7cf3cddcb1f2da2f511ec7',
+    runtimeSha256: 'a2f6309740c919d795f997451a8605fb1332242a3d9ed3f5bb23996f716bbe97',
   }),
 });
 
@@ -102,21 +102,7 @@ function copyAvailable(source, target, paths) {
   }
 }
 
-export function stageProvider(source, target, repoRoot) {
-  const input = verifyProviderSource(source);
-  mkdirSync(target, { recursive: true });
-  copyAvailable(source, target, [
-    'assets',
-    'lib',
-    'locale',
-    'plugin-src',
-    'src',
-    'LICENSE',
-    'README.md',
-    'README.en.md',
-    'THIRD_PARTY_NOTICES.md',
-  ]);
-  const original = JSON.parse(readFileSync(join(source, 'package.json'), 'utf8'));
+export function providerManifest(original) {
   const {
     scripts: _scripts,
     devDependencies: _dev,
@@ -124,12 +110,12 @@ export function stageProvider(source, target, repoRoot) {
     bin: _bin,
     ...manifest
   } = original;
-  writeJson(join(target, 'package.json'), {
+  return {
     ...manifest,
     name: productImProvider.name,
     version: productImProvider.version,
     description: 'BotHarness-qualified IM Provider, maintained from dsh-im',
-    repository: { type: 'git', url: 'git+https://github.com/DoodleBears/dsh-im.git' },
+    repository: { type: 'git', url: 'git+https://github.com/BotHarness/BotHarness.git' },
     bugs: { url: 'https://github.com/BotHarness/BotHarness/issues' },
     homepage: 'https://botharness.ai/docs/lark-connection/',
     files: [
@@ -151,7 +137,27 @@ export function stageProvider(source, target, repoRoot) {
       compatibility: { dsh: productImProvider.upstream.dsh, profiles: ['web'] },
     },
     botharness: { managedByProduct: true, upstreamSource: productImProvider.upstream.source },
-  });
+  };
+}
+
+export function stageProvider(source, target, repoRoot) {
+  const input = verifyProviderSource(source);
+  mkdirSync(target, { recursive: true });
+  copyAvailable(source, target, [
+    'assets',
+    'lib',
+    'locale',
+    'plugin-src',
+    'src',
+    'LICENSE',
+    'README.md',
+    'README.en.md',
+    'THIRD_PARTY_NOTICES.md',
+  ]);
+  writeJson(
+    join(target, 'package.json'),
+    providerManifest(JSON.parse(readFileSync(join(source, 'package.json'), 'utf8'))),
+  );
   writeFileSync(
     join(target, 'cordis.patch.yml'),
     `- insert:\n    - id: xmanrui-dsh-im\n      name: '${productImProvider.name}'\n`,

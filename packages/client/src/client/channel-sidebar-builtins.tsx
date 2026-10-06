@@ -260,6 +260,8 @@ function BotInboxItemRow({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const fileRequest = useRef<AbortController>();
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  const [audioErrors, setAudioErrors] = useState<Record<string, boolean>>({});
+  const [audioPreviews, setAudioPreviews] = useState<Record<string, string>>({});
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const previewUrls = useRef(new Set<string>());
   const previewLifecycle = useCallback((node: HTMLDivElement | null) => {
@@ -269,13 +271,18 @@ function BotInboxItemRow({
     for (const url of previewUrls.current) URL.revokeObjectURL(url);
     previewUrls.current.clear();
   }, []);
-  const download = async (attachmentId: string, name: string, preview = false): Promise<void> => {
+  const download = async (
+    attachmentId: string,
+    name: string,
+    preview: boolean | 'audio' = false,
+  ): Promise<void> => {
     if (fileRequest.current !== undefined) return;
     const controller = new AbortController();
     fileRequest.current = controller;
     setFileBusy(attachmentId);
     setFileError(false);
-    if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: false }));
+    if (preview === 'audio') setAudioErrors((value) => ({ ...value, [attachmentId]: false }));
+    else if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: false }));
     try {
       const response = await fetch(
         '/api/botharness/attachment?' +
@@ -283,6 +290,7 @@ function BotInboxItemRow({
             slug: item.botSlug,
             sourceEventId: item.id,
             attachmentId,
+            ...(preview === 'audio' ? { representation: 'playback' } : {}),
           }),
         {
           credentials: 'same-origin',
@@ -292,12 +300,17 @@ function BotInboxItemRow({
       if (!response.ok) throw new Error('Download unavailable');
       const blob = await response.blob();
       controller.signal.throwIfAborted();
-      if (preview && !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(blob.type))
+      if (preview === 'audio' && blob.type !== 'audio/wav') throw new Error('Unsupported audio');
+      if (
+        preview === true &&
+        !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(blob.type)
+      )
         throw new Error('Unsupported image');
       const url = URL.createObjectURL(blob);
       if (preview) {
         previewUrls.current.add(url);
-        setImagePreviews((value) => ({ ...value, [attachmentId]: url }));
+        if (preview === 'audio') setAudioPreviews((value) => ({ ...value, [attachmentId]: url }));
+        else setImagePreviews((value) => ({ ...value, [attachmentId]: url }));
         return;
       }
       const anchor = document.createElement('a');
@@ -309,7 +322,8 @@ function BotInboxItemRow({
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       if (!controller.signal.aborted) {
-        if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: true }));
+        if (preview === 'audio') setAudioErrors((value) => ({ ...value, [attachmentId]: true }));
+        else if (preview) setImageErrors((value) => ({ ...value, [attachmentId]: true }));
         else setFileError(true);
       }
     } finally {
@@ -358,6 +372,8 @@ function BotInboxItemRow({
       for (const url of previewUrls.current) URL.revokeObjectURL(url);
       previewUrls.current.clear();
       setImagePreviews({});
+      setAudioPreviews({});
+      setAudioErrors({});
       setImageErrors({});
       setExternal(undefined);
       setExternalOpen(true);
@@ -455,7 +471,11 @@ function BotInboxItemRow({
             fileRequest.current?.abort();
             fileRequest.current = undefined;
             setFileBusy(undefined);
+            for (const url of previewUrls.current) URL.revokeObjectURL(url);
+            previewUrls.current.clear();
             setImagePreviews({});
+            setAudioPreviews({});
+            setAudioErrors({});
             setImageErrors({});
             setExternalOpen(false);
           }}
@@ -502,6 +522,38 @@ function BotInboxItemRow({
               >
                 {external.event.attachments?.map((file) => (
                   <div className="bh-external-source-attachment" key={file.id}>
+                    {external.event.voice && file.mediaType?.startsWith('audio/') ? (
+                      <div className="bh-external-source-audio">
+                        {audioPreviews[file.id] ? (
+                          <audio
+                            controls
+                            preload="metadata"
+                            src={audioPreviews[file.id]}
+                            aria-label={t('im.voiceAudioPlayer')}
+                            onError={() =>
+                              setAudioErrors((value) => ({ ...value, [file.id]: true }))
+                            }
+                          />
+                        ) : null}
+                        {!audioPreviews[file.id] || audioErrors[file.id] ? (
+                          <Button
+                            variant="primary"
+                            disabled={fileBusy !== undefined}
+                            onClick={() => void download(file.id, 'voice.wav', 'audio')}
+                          >
+                            {fileBusy === file.id
+                              ? t('im.voiceAudioPreparing')
+                              : audioPreviews[file.id]
+                                ? t('im.voiceAudioRetry')
+                                : t('im.voiceAudioPrepare')}
+                          </Button>
+                        ) : null}
+                        <p>{t('im.voiceAudioHint')}</p>
+                        {audioErrors[file.id] ? (
+                          <p role="alert">{t('im.voiceAudioUnavailable')}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className="bh-external-source-file">
                       <span>
                         {file.name}
@@ -524,7 +576,11 @@ function BotInboxItemRow({
                         disabled={fileBusy !== undefined}
                         onClick={() => void download(file.id, file.name)}
                       >
-                        {fileBusy === file.id ? t('im.fileDownloading') : t('im.fileDownload')}
+                        {fileBusy === file.id
+                          ? t('im.fileDownloading')
+                          : t(
+                              external.event.voice ? 'im.voiceDownloadOriginal' : 'im.fileDownload',
+                            )}
                       </Button>
                     </div>
                   </div>

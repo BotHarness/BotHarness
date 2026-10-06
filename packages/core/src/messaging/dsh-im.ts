@@ -57,6 +57,7 @@ export interface DshImOutboundService {
       sourceFiles?: boolean;
       sourceImages?: boolean;
       sourceVoiceTranscripts?: boolean;
+      sourceVoiceAudio?: boolean;
       ordinaryText?: boolean;
       onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
@@ -161,6 +162,9 @@ const inboundSchema = z
         transcript: z.enum(['platform', 'unavailable']),
         itemId: identifier.optional(),
         durationMs: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+        encodeType: z.number().int().nonnegative().max(1000000).optional(),
+        sampleRate: z.number().int().nonnegative().max(1000000).optional(),
+        bitsPerSample: z.number().int().nonnegative().max(1000000).optional(),
       })
       .strict()
       .optional(),
@@ -185,9 +189,17 @@ const inboundSchema = z
       .strict(),
   })
   .strict()
-  .refine((event) => !event.voice || (event.channel === 'weixin' && !event.attachments?.length), {
-    message: 'Invalid voice source',
-  });
+  .refine(
+    (event) =>
+      !event.voice ||
+      (event.channel === 'weixin' &&
+        (!event.attachments?.length ||
+          (event.attachments.length === 1 &&
+            event.attachments[0]?.mediaType?.startsWith('audio/')))),
+    {
+      message: 'Invalid voice source',
+    },
+  );
 
 function providerFailure(error: unknown): MessagingProviderError {
   if (error instanceof MessagingProviderError) return error;
@@ -415,6 +427,11 @@ export function createDshImProvider(
               info.capabilities.includes('source-voice-transcript-checked')
                 ? { sourceVoiceTranscripts: true }
                 : {}),
+              ...(platform === 'weixin' &&
+              host.fileVersion === 1 &&
+              info.capabilities.includes('source-voice-audio-checked')
+                ? { sourceVoiceAudio: true }
+                : {}),
               ...(host.echoVersion === 1 &&
               info.capabilities.includes('own-text-echo') &&
               input.onEcho
@@ -446,7 +463,11 @@ export function createDshImProvider(
                 const parsed = inboundSchema.parse(raw);
                 if (
                   parsed.channel !== platform ||
-                  (parsed.voice && !info.capabilities.includes('source-voice-transcript-checked'))
+                  (parsed.voice &&
+                    !info.capabilities.includes('source-voice-transcript-checked')) ||
+                  (parsed.voice &&
+                    parsed.attachments?.length &&
+                    !info.capabilities.includes('source-voice-audio-checked'))
                 )
                   throw new MessagingError('untrusted-source');
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
@@ -458,6 +479,15 @@ export function createDshImProvider(
                     : {
                         voice: {
                           transcript: voice.transcript,
+                          ...(voice.encodeType === undefined
+                            ? {}
+                            : { encodeType: voice.encodeType }),
+                          ...(voice.sampleRate === undefined
+                            ? {}
+                            : { sampleRate: voice.sampleRate }),
+                          ...(voice.bitsPerSample === undefined
+                            ? {}
+                            : { bitsPerSample: voice.bitsPerSample }),
                           ...(voice.itemId === undefined ? {} : { itemId: voice.itemId }),
                           ...(voice.durationMs === undefined
                             ? {}

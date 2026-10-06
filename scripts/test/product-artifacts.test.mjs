@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { productManifest, productImProvider } from '../product-artifacts.mjs';
+import { productManifest, productImProvider, providerManifest } from '../product-artifacts.mjs';
 import {
   packagedProfileManifest,
   packagedWorkspaceSettings,
@@ -180,7 +180,7 @@ describe('release composition', () => {
     expect(() => verifyProductComposition(entries)).toThrow('conflicts');
   });
   it('keeps product provenance independent when the development Provider selection changes', () => {
-    expect(productImProvider.upstream.source).toBe('6f8cc9b2713a03b1340e604461900a474adacfa3');
+    expect(productImProvider.upstream.source).toBe('bcfe981b7894ffade2d575cdd2433585b9640cd1');
     expect(productImProvider.upstream.dsh).toBe('0.2.0-rc.1');
   });
 
@@ -193,10 +193,23 @@ describe('release composition', () => {
     expect(release.dependencies).toEqual({
       '@botharness/core': '0.0.0-test.823',
       '@botharness/ui': '0.0.0-test.823',
-      '@botharness/im-provider': '4.32.0-botharness.7',
+      '@botharness/im-provider': '4.32.0-botharness.8',
     });
     expect(release.dsh.bundle.patch).toBe('./cordis.im.patch.yml');
     expect(source.private).toBe(true);
+  });
+
+  it('names the publishing repository in every manifest so npm accepts its provenance', () => {
+    const provider = providerManifest({
+      name: '@xmanrui/dsh-im',
+      repository: { type: 'git', url: 'git+https://github.com/DoodleBears/dsh-im.git' },
+      scripts: { build: 'x' },
+    });
+    const release = productManifest({}, '0.0.0-test.823');
+    for (const manifest of [provider, release]) {
+      expect(manifest.repository.url).toBe('git+https://github.com/BotHarness/BotHarness.git');
+    }
+    expect(provider.scripts).toBeUndefined();
   });
 
   it.each(['latest', '01.0.0', '', '1.0', 'v1.0.0'])(
