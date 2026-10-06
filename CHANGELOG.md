@@ -9,6 +9,8 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 
 ### Added
 
+- Added a candidate personal WeChat voice source path using platform-provided transcripts and explicit missing-transcript states in the Bot Inbox, without adding ASR or audio playback; a real native voice → model → original-DM reply was confirmed by the Human ([#905](https://github.com/BotHarness/BotHarness/issues/905)).
+
 - Added a source-preview WeChat image path with automatic image preview inside the original Inbox message bubble, native model image input and own-identity native image replies, with the original-DM image receipt confirmed by the Human ([#904](https://github.com/BotHarness/BotHarness/issues/904), [connection guide](docs/wechat-connection.md)).
 
 - PersonaBots gain Bot Schedules: the Channel sidebar's Schedules section lets the Human create, edit, pause and delete minute, hourly or daily tasks; each firing lands in the Bot Inbox and wakes the Orchestrator, and every schedule shows its last 20 firings with links to the handling session ([#960](https://github.com/BotHarness/BotHarness/issues/960), [ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)).

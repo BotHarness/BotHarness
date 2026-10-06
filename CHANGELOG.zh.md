@@ -9,6 +9,8 @@ PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一�
 
 ### Added
 
+- 增加个人微信语音来源候选链路，使用平台提供的转写，在 Bot Inbox 区分有转写与缺少转写；不增加 ASR 或音频播放，真实原生语音 → 模型 → 原私聊回复已由 Human 确认（[#905](https://github.com/BotHarness/BotHarness/issues/905)）。
+
 - 增加源码预览微信图片链路，支持 Inbox 原消息气泡内自动加载的 checked 图片预览、原生模型图片输入与本身份原生图片回复，Human 已确认原私聊收到内容一致的图片（[#904](https://github.com/BotHarness/BotHarness/issues/904)，[连接指南](docs/wechat-connection.md)）。
 
 - PersonaBot 新增定时任务（Bot Schedule）：Channel 侧栏的「定时任务」分区可新建、编辑、暂停和删除按分钟、按小时或每天执行的任务；每次触发进入 Bot 收件箱并唤醒 Orchestrator，每个任务可查看最近 20 次触发及处理它的会话（[#960](https://github.com/BotHarness/BotHarness/issues/960)，[ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)）。

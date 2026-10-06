@@ -612,7 +612,8 @@ export const zh = {
   'im.senderLabel': '发送人 ID',
   'im.platformLabel': '平台',
   'im.platform.weixin': '微信',
-  'im.receiveHintDM': '只接收扫码绑定者的微信私聊文本，进入此 Bot 的 Inbox，不占用本地 DM 历史。',
+  'im.receiveHintDM':
+    '接收扫码绑定者的微信私聊文字，以及已支持的文件、图片和语音转写，进入此 Bot 的 Inbox，不占用本地 DM 历史。',
   'im.receptionDM': '微信私聊接收已连接',
   'im.receiveEnableDM': '接收微信私聊',
   'im.receiveDisableDM': '关闭微信私聊收件',
@@ -770,6 +771,12 @@ export const zh = {
   'im.fileDownloading': '正在下载…',
   'im.fileError': '文件无法下载，请检查消息来源和连接权限后重试。',
   'im.sourceTitle': '外部消息',
+  'im.voiceTranscriptPlatform': '微信语音 · 平台转写',
+  'im.voiceTranscriptUnavailable': '微信语音 · 未提供转写',
+  'im.voiceTranscriptUnavailableHint':
+    '微信未提供这条语音的转写文本。当前无法从音频识别内容，请补发文字。',
+  'im.voiceDuration': '{seconds} 秒',
+  'im.voiceItemId': '语音内容 ID：{id}',
   'im.messageDetails': '消息详情',
   'im.originDetails': '来源详情',
   'im.threadLabel': '话题',
@@ -2440,7 +2447,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.platformLabel': 'Platform',
   'im.platform.weixin': 'WeChat',
   'im.receiveHintDM':
-    'Receive plain text from the QR-paired owner into this Bot’s Inbox, without adding local DM history.',
+    'Receive the QR-paired owner’s text and supported files, images and voice transcripts into this Bot’s Inbox, without adding local DM history.',
   'im.receptionDM': 'WeChat DM intake connected',
   'im.receiveEnableDM': 'Receive WeChat DMs',
   'im.receiveDisableDM': 'Disable WeChat DM intake',
@@ -2611,6 +2618,12 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.fileError':
     'Unable to download the file. Check source availability and connection permissions before retrying.',
   'im.sourceTitle': 'External message',
+  'im.voiceTranscriptPlatform': 'WeChat voice · platform transcript',
+  'im.voiceTranscriptUnavailable': 'WeChat voice · no transcript',
+  'im.voiceTranscriptUnavailableHint':
+    'WeChat did not provide a transcript for this voice message. Audio recognition is unavailable here; please send the text.',
+  'im.voiceDuration': '{seconds} s',
+  'im.voiceItemId': 'Voice item ID: {id}',
   'im.messageDetails': 'Message details',
   'im.originDetails': 'Origin details',
   'im.threadLabel': 'Topic',
