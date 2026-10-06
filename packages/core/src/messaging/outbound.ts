@@ -1461,6 +1461,20 @@ export function createOutboundMessaging(options: {
                   route: inbound.read(botSlug, sourceEventId).event.reply,
                   file: { id: id.id, ...result },
                   signal: controller.signal,
+                  beforeSend: () => {
+                    try {
+                      active(botSlug);
+                      current(acceptedGrant.providerId, entry.token);
+                      enabledBinding(acceptedGrant.bindingId, acceptedIdentity);
+                      const latest = grant(botSlug, grantId);
+                      if (latest.revokedAt || latest.revision !== acceptedGrant.revision)
+                        return false;
+                      sourceForReply(botSlug, sourceEventId, latest);
+                      return !controller.signal.aborted;
+                    } catch {
+                      return false;
+                    }
+                  },
                 });
               })()
             : sourceEventId !== undefined

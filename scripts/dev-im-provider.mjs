@@ -5,11 +5,11 @@ import { join } from 'node:path';
 export const qualifiedImProvider = Object.freeze({
   package: '@xmanrui/dsh-im',
   packageVersion: '4.32.0',
-  source: '589e5507d47ab21de5b39c776a598452744a5368',
-  spec: 'github:DoodleBears/dsh-im#589e5507d47ab21de5b39c776a598452744a5368',
+  source: '8852e87f29813fc8626c039e49e278c2383c47aa',
+  spec: 'github:DoodleBears/dsh-im#8852e87f29813fc8626c039e49e278c2383c47aa',
   dsh: '0.2.0-rc.1',
-  runtimeFiles: 394,
-  runtimeSha256: 'e1242db609f7f2a133494cd903c672b156d6ed5e337dff0986c26d1a7a79ea69',
+  runtimeFiles: 395,
+  runtimeSha256: '3b7314c4b211811751d612c1fd0168cf94f1c0ddc985d3de7524ce1976610be3',
 });
 
 export function withQualifiedImProvider(manifest) {

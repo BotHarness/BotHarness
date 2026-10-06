@@ -1,3 +1,4 @@
+import { BOT_DESCRIPTOR_PATH, parseBotDescriptor } from '../../core/src/marketplace/descriptor.js';
 import type { D1Database } from './d1.js';
 import {
   BOT_TOPIC,
@@ -24,6 +25,8 @@ export interface RepositoryRow {
   visibility: Visibility;
   readme: string | null;
   readme_pushed_at: string | null;
+  display_name: string | null;
+  roles: string;
 }
 
 export const MAX_README_LENGTH = 200_000;
@@ -56,13 +59,27 @@ export function createRepositoryStore(deps: {
       .bind(nodeId)
       .first<RepositoryRow>();
 
-  const refreshReadme = async (row: RepositoryRow): Promise<void> => {
+  const refreshPresentation = async (row: RepositoryRow): Promise<void> => {
     if (row.visibility !== 'listed' || row.readme_pushed_at === row.pushed_at) return;
-    const readme = await github.readme({ owner: row.owner, name: row.name });
-    if (!readme.ok) return;
+    const locator = { owner: row.owner, name: row.name };
+    const [readme, descriptorFile] = await Promise.all([
+      github.readme(locator),
+      github.file(locator, BOT_DESCRIPTOR_PATH),
+    ]);
+    if (!readme.ok || !descriptorFile.ok) return;
+    const descriptor =
+      descriptorFile.value === null ? undefined : parseBotDescriptor(descriptorFile.value);
     await db
-      .prepare('UPDATE indexed_repositories SET readme = ?, readme_pushed_at = ? WHERE node_id = ?')
-      .bind(readme.value?.slice(0, MAX_README_LENGTH) ?? null, row.pushed_at, row.node_id)
+      .prepare(
+        'UPDATE indexed_repositories SET readme = ?, readme_pushed_at = ?, display_name = ?, roles = ? WHERE node_id = ?',
+      )
+      .bind(
+        readme.value?.slice(0, MAX_README_LENGTH) ?? null,
+        row.pushed_at,
+        descriptor?.name ?? null,
+        JSON.stringify(descriptor?.roles ?? []),
+        row.node_id,
+      )
       .run();
   };
 
@@ -119,7 +136,7 @@ export function createRepositoryStore(deps: {
         )
         .run();
       const row = await find(repository.nodeId);
-      if (row !== null) await refreshReadme(row);
+      if (row !== null) await refreshPresentation(row);
       return row === null ? null : await find(repository.nodeId);
     },
 

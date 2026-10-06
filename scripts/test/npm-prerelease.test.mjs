@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  awaitPublished,
   checkPackage,
   existingArtifact,
   distTagFor,
@@ -163,5 +164,22 @@ describe('reviewed npm prerelease', () => {
     expect(() =>
       existingArtifact(artifact, { ...artifact, dist: { integrity: 'different' } }),
     ).toThrow('different bytes');
+  });
+  it('waits for a slow registry readback before confirming publication', async () => {
+    const artifact = { name: 'deepseekbot', version: '1.0.0', integrity: 'sha512-test' };
+    const published = { ...artifact, dist: { integrity: artifact.integrity } };
+    const reads = [undefined, undefined, published];
+    const read = async () => reads.shift();
+    const sleep = async () => {};
+    await expect(awaitPublished(artifact, { read, sleep, attempts: 5 })).resolves.toBe(3);
+    await expect(
+      awaitPublished(artifact, { read: async () => undefined, sleep, attempts: 2 }),
+    ).resolves.toBe(0);
+    await expect(
+      awaitPublished(artifact, {
+        read: async () => ({ ...artifact, dist: { integrity: 'different' } }),
+        sleep,
+      }),
+    ).rejects.toThrow('different bytes');
   });
 });

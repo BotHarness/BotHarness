@@ -1,8 +1,12 @@
+import { parseChallenge, type AltchaChallenge } from './altcha.js';
+
 export interface MarketplaceEntry {
   id: string;
   owner: string;
   name: string;
   fullName: string;
+  displayName: string | null;
+  roles: string[];
   description: string | null;
   topics: string[];
   stars: number;
@@ -32,12 +36,24 @@ export interface MarketplaceTopic {
   count: number;
 }
 
+export interface MarketplaceDetail {
+  bot: MarketplaceEntry;
+  readme: string | null;
+  commitSha: string | null;
+}
+
 export type MarketplaceResult<T> = { ok: true; value: T } | { ok: false; code: string };
 
 export interface MarketplaceClient {
   list(query: MarketplaceQuery): Promise<MarketplaceResult<MarketplacePage>>;
   topics(): Promise<MarketplaceResult<MarketplaceTopic[]>>;
-  submit(url: string): Promise<MarketplaceResult<{ bot: MarketplaceEntry }>>;
+  detail(id: string): Promise<MarketplaceResult<MarketplaceDetail>>;
+  challenge(): Promise<MarketplaceResult<AltchaChallenge>>;
+  submit(url: string, altcha: string): Promise<MarketplaceResult<{ bot: MarketplaceEntry }>>;
+  report(
+    id: string,
+    options: { altcha: string; reason?: string },
+  ): Promise<MarketplaceResult<{ received: true }>>;
 }
 
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -68,11 +84,17 @@ function parseEntry(value: unknown): MarketplaceEntry | undefined {
   const head = record(source['headCommit']);
   if (description !== null && typeof description !== 'string') return undefined;
   if (typeof stars !== 'number' || !Array.isArray(topics)) return undefined;
+  const displayName = source['displayName'];
+  const roles = source['roles'];
   return {
     id: source['id'] as string,
     owner: source['owner'] as string,
     name: source['name'] as string,
     fullName: source['fullName'] as string,
+    displayName: typeof displayName === 'string' && displayName.length > 0 ? displayName : null,
+    roles: Array.isArray(roles)
+      ? roles.filter((role): role is string => typeof role === 'string')
+      : [],
     description,
     topics: topics.filter((topic): topic is string => typeof topic === 'string'),
     stars,
@@ -96,6 +118,16 @@ export function parseMarketplacePage(value: unknown): MarketplacePage | undefine
   if (!bots.every((bot): bot is MarketplaceEntry => bot !== undefined)) return undefined;
   const nextCursor = source['nextCursor'];
   return typeof nextCursor === 'string' ? { bots, nextCursor } : { bots };
+}
+
+export function parseMarketplaceDetail(value: unknown): MarketplaceDetail | undefined {
+  const source = record(value);
+  const bot = parseEntry(source?.['bot']);
+  const readme = source?.['readme'];
+  const commitSha = source?.['commitSha'];
+  if (bot === undefined || (readme !== null && typeof readme !== 'string')) return undefined;
+  if (commitSha !== null && typeof commitSha !== 'string') return undefined;
+  return { bot, readme, commitSha };
 }
 
 export function parseMarketplaceTopics(value: unknown): MarketplaceTopic[] | undefined {
@@ -123,6 +155,10 @@ function listPath(query: MarketplaceQuery): string {
 export function parseMarketplaceSubmission(value: unknown): { bot: MarketplaceEntry } | undefined {
   const bot = parseEntry(record(value)?.['bot']);
   return bot === undefined ? undefined : { bot };
+}
+
+function parseReceipt(value: unknown): { received: true } | undefined {
+  return record(value)?.['received'] === true ? { received: true } : undefined;
 }
 
 export function createMarketplaceClient(options: {
@@ -171,21 +207,43 @@ export function createMarketplaceClient(options: {
         { method: 'GET', headers: { accept: 'application/json' } },
         parseMarketplacePage,
       ),
+    detail: (id) =>
+      request(
+        `/v1/bots/${encodeURIComponent(id)}`,
+        { method: 'GET', headers: { accept: 'application/json' } },
+        parseMarketplaceDetail,
+      ),
     topics: () =>
       request(
         '/v1/topics',
         { method: 'GET', headers: { accept: 'application/json' } },
         parseMarketplaceTopics,
       ),
-    submit: (url) =>
+    challenge: () =>
+      request(
+        '/v1/challenge',
+        { method: 'GET', headers: { accept: 'application/json' } },
+        parseChallenge,
+      ),
+    submit: (url, altcha) =>
       request(
         '/v1/submissions',
         {
           method: 'POST',
           headers: { accept: 'application/json', 'content-type': 'application/json' },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, altcha }),
         },
         parseMarketplaceSubmission,
+      ),
+    report: (id, options) =>
+      request(
+        `/v1/bots/${encodeURIComponent(id)}/reports`,
+        {
+          method: 'POST',
+          headers: { accept: 'application/json', 'content-type': 'application/json' },
+          body: JSON.stringify(options),
+        },
+        parseReceipt,
       ),
   };
 }

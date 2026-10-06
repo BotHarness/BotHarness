@@ -29,3 +29,11 @@ Candidate fork source: `589e5507d47ab21de5b39c776a598452744a5368`; runtime SHA-2
 ## Consequences
 
 Platform fields remain adapted at the Provider boundary. WeChat's private continuation is not a model reply route, and client acknowledgement cannot impersonate Slack/Lark native receipt semantics. Other contacts, files and context are future independently qualified slices. The integration guide records screenshots and provenance during implementation; the final bilingual user guide must describe only verified installation and runtime behavior.
+
+## File extension (#903)
+
+The paired-owner file slice negotiates `sourceFiles` through the existing same-Host Consumer. One native type-4 file plus optional text becomes the same canonical Source Event and Inbox Admission. Source-scoped opaque resource keys, exact native IDs, filename, optional declared size and generic MIME are public; the CDN ticket/AES key stays beside the private continuation in the existing bounded state. A file read requires the current identity/lease and exact retained metadata, uses the trusted CDN, and limits actual ciphertext and decrypted bytes to 25 MiB plus AES padding. An oversized declaration may be displayed without acquiring bytes. This does not add remote history, source reread, a second transcript, or a WeChat-specific execution store.
+
+A model saves the original through the existing workspace write grant, processes it with native tools, then explicitly imports/selects a result artifact. Checked reply uses its own identity and original source continuation. The additive `reply-file-fence-checked` capability requires the application's synchronous current-authorization callback; it runs again after upload immediately before the final native file send. This closes the upload/revocation gap without changing legacy file contracts on other platforms. Credential or lease replacement and source expiry also refuse. Ambiguous final results remain unknown and are not blindly retried. Client acceptance does not prove native delivery/read.
+
+Implementation verification and fresh external file E2E are recorded independently on [#903](https://github.com/BotHarness/BotHarness/issues/903); the text evidence above does not qualify files.

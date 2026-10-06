@@ -24,14 +24,17 @@ import type {
 } from '../../../core/src/messaging/identity.js';
 import type { OverviewMemory } from '../../../core/src/memory/overview.js';
 import {
+  parseMarketplaceDetail,
   parseMarketplacePage,
   parseMarketplaceSubmission,
   parseMarketplaceTopics,
+  type MarketplaceDetail,
   type MarketplaceEntry,
   type MarketplacePage,
   type MarketplaceQuery,
   type MarketplaceTopic,
 } from '../../../core/src/marketplace/client.js';
+import { parseChallenge, type AltchaChallenge } from '../../../core/src/marketplace/altcha.js';
 import type { OverviewUsage } from '../../../core/src/bridge/methods.js';
 import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
@@ -1233,19 +1236,50 @@ export async function loadMarketplacePage(
   return page;
 }
 
+export async function loadMarketplaceDetail(
+  call: BridgeCall,
+  id: string,
+): Promise<MarketplaceDetail> {
+  const detail = parseMarketplaceDetail(await unwrap(call, 'marketplaceDetail', { id }));
+  if (detail === undefined) throw new Error('invalid marketplaceDetail response');
+  return detail;
+}
+
 export async function loadMarketplaceTopics(call: BridgeCall): Promise<MarketplaceTopic[]> {
   const topics = parseMarketplaceTopics({ topics: await unwrap(call, 'marketplaceTopics', {}) });
   if (topics === undefined) throw new Error('invalid marketplaceTopics response');
   return topics;
 }
 
+export async function loadMarketplaceChallenge(call: BridgeCall): Promise<AltchaChallenge> {
+  const challenge = parseChallenge(await unwrap(call, 'marketplaceChallenge', {}));
+  if (challenge === undefined) throw new Error('invalid marketplaceChallenge response');
+  return challenge;
+}
+
 export async function submitMarketplaceRepository(
   call: BridgeCall,
   url: string,
+  altcha: string,
 ): Promise<MarketplaceEntry> {
-  const result = parseMarketplaceSubmission(await unwrap(call, 'marketplaceSubmit', { url }));
+  const result = parseMarketplaceSubmission(
+    await unwrap(call, 'marketplaceSubmit', { url, altcha }),
+  );
   if (result === undefined) throw new Error('invalid marketplaceSubmit response');
   return result.bot;
+}
+
+export async function reportMarketplaceBot(
+  call: BridgeCall,
+  id: string,
+  altcha: string,
+  reason?: string,
+): Promise<void> {
+  await unwrap(call, 'marketplaceReport', {
+    id,
+    altcha,
+    ...(reason === undefined ? {} : { reason }),
+  });
 }
 
 export async function loadChannels(
@@ -3152,7 +3186,7 @@ export async function readMessagingSource(
             (asRecord(file)?.['sizeBytes'] === undefined ||
               (Number.isSafeInteger(asRecord(file)?.['sizeBytes']) &&
                 Number(asRecord(file)?.['sizeBytes']) > 0 &&
-                Number(asRecord(file)?.['sizeBytes']) <= 25 * 1024 * 1024)) &&
+                Number(asRecord(file)?.['sizeBytes']) <= Number.MAX_SAFE_INTEGER)) &&
             (asRecord(file)?.['mediaType'] === undefined ||
               typeof asRecord(file)?.['mediaType'] === 'string'),
         ))) ||

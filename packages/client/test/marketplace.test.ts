@@ -8,6 +8,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     createElement('button', { disabled: props.disabled, onClick: props.onClick }, props.children),
   Input: (props: Record<string, unknown>) => createElement('input', props),
   Tag: (props: { children?: ReactNode }) => createElement('span', null, props.children),
+  MarkdownText: (props: { text: string }) =>
+    createElement('div', { 'data-markdown': '' }, props.text),
   SegmentedControl: (props: {
     value: string;
     disabled?: boolean;
@@ -53,11 +55,13 @@ vi.mock('../src/client/avatar.js', () => ({
 }));
 
 import type {
+  MarketplaceDetail,
   MarketplaceEntry,
   MarketplacePage,
   MarketplaceQuery,
   MarketplaceTopic,
 } from '../../core/src/marketplace/client.js';
+import { createChallenge } from '../../core/src/marketplace/altcha.js';
 import type { BridgeActions } from '../src/client/actions.js';
 import { BridgeCallError } from '../src/client/bridge.js';
 import { MarketplaceModal, SEARCH_DEBOUNCE_MS } from '../src/client/marketplace.js';
@@ -68,6 +72,8 @@ function entry(name: string, overrides: Partial<MarketplaceEntry> = {}): Marketp
     owner: 'alice',
     name,
     fullName: `alice/${name}`,
+    displayName: null,
+    roles: [],
     description: `${name} description`,
     topics: ['writing'],
     stars: 7,
@@ -86,7 +92,9 @@ function entry(name: string, overrides: Partial<MarketplaceEntry> = {}): Marketp
 interface Harness {
   host: HTMLDivElement;
   list: ReturnType<typeof vi.fn<(query?: MarketplaceQuery) => Promise<MarketplacePage>>>;
-  submit: ReturnType<typeof vi.fn<(url: string) => Promise<MarketplaceEntry>>>;
+  submit: ReturnType<typeof vi.fn<(url: string, altcha: string) => Promise<MarketplaceEntry>>>;
+  challenge: ReturnType<typeof vi.fn<() => ReturnType<typeof createChallenge>>>;
+  report: ReturnType<typeof vi.fn<(id: string, altcha: string, reason?: string) => Promise<void>>>;
   createBot: ReturnType<typeof vi.fn<() => Promise<unknown>>>;
   onInstalled: ReturnType<typeof vi.fn<() => void>>;
 }
@@ -97,6 +105,10 @@ async function withMarketplace(
   submit: (url: string) => Promise<MarketplaceEntry> = async () => entry('pasted'),
   createBot: () => Promise<unknown> = async () => undefined,
   topics: () => Promise<MarketplaceTopic[]> = async () => [],
+  detail: (id: string) => Promise<MarketplaceDetail> = async () => {
+    throw new Error('unused');
+  },
+  report: (id: string, altcha: string, reason?: string) => Promise<void> = async () => undefined,
 ) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const host = document.createElement('div');
@@ -106,6 +118,10 @@ async function withMarketplace(
     host,
     list: vi.fn(pages),
     submit: vi.fn(submit),
+    challenge: vi.fn(() =>
+      createChallenge({ key: 'client-test', tier: 'default', now: new Date(), number: 3 }),
+    ),
+    report: vi.fn(report),
     createBot: vi.fn(createBot),
     onInstalled: vi.fn(),
   };
@@ -116,7 +132,10 @@ async function withMarketplace(
           actions: {
             marketplaceList: harness.list,
             marketplaceSubmit: harness.submit,
+            marketplaceChallenge: harness.challenge,
+            marketplaceReport: harness.report,
             marketplaceTopics: topics,
+            marketplaceDetail: detail,
             createBot: harness.createBot,
           } as unknown as BridgeActions,
           t: (await import('../src/client/locale.js')).zhTranslate,
@@ -141,6 +160,24 @@ function button(host: HTMLElement, label: string): HTMLButtonElement {
 async function click(host: HTMLElement, label: string, index = 0) {
   const matches = [...host.querySelectorAll('button')].filter((item) => item.textContent === label);
   await act(async () => matches[index]?.click());
+}
+
+async function until(check: () => boolean) {
+  for (let attempt = 0; attempt < 100 && !check(); attempt += 1) {
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
+  }
+  expect(check()).toBe(true);
+}
+
+async function typeReason(host: HTMLElement, value: string) {
+  const textarea = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+      textarea,
+      value,
+    );
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 }
 
 async function typeUrl(host: HTMLElement, value: string) {
@@ -186,8 +223,12 @@ describe('Bot Marketplace modal', () => {
 
         await typeUrl(host, ' https://github.com/alice/pasted ');
         await click(host, '收录');
+        expect(button(host, '正在验证…').disabled).toBe(true);
+        await until(() => submit.mock.calls.length > 0);
 
-        expect(submit).toHaveBeenCalledWith('https://github.com/alice/pasted');
+        expect(submit).toHaveBeenCalledWith('https://github.com/alice/pasted', expect.any(String));
+        expect(JSON.parse(atob(submit.mock.calls[0]![1]))).toMatchObject({ number: 3 });
+        await until(() => host.textContent?.includes('已收录 alice/pasted') === true);
         expect(host.textContent).toContain('已收录 alice/pasted');
         expect(host.querySelector('[data-market-bot]')?.getAttribute('data-market-bot')).toBe(
           'alice/pasted',
@@ -202,11 +243,82 @@ describe('Bot Marketplace modal', () => {
       async ({ host }) => {
         await typeUrl(host, 'https://github.com/alice/plain');
         await click(host, '收录');
+        await until(() => host.querySelector('[role="alert"]') !== null);
 
         expect(host.querySelector('[role="alert"]')?.textContent).toContain('botharness-bot 话题');
       },
       async () => {
         throw new BridgeCallError('repository-missing-topic', 'repository-missing-topic');
+      },
+    );
+  });
+
+  it('explains a rate limit on paste', async () => {
+    await withMarketplace(
+      async () => ({ bots: [] }),
+      async ({ host }) => {
+        await typeUrl(host, 'https://github.com/alice/plain');
+        await click(host, '收录');
+        await until(() => host.querySelector('[role="alert"]') !== null);
+
+        expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+          '这个仓库刚刚收录过，5 分钟后才能再次收录。',
+        );
+        expect(button(host, '收录').disabled).toBe(false);
+      },
+      async () => {
+        throw new BridgeCallError('repository-rate-limited', 'repository-rate-limited');
+      },
+    );
+  });
+
+  it('reports a Bot from its detail view with an optional reason', async () => {
+    const detail = async () => ({ bot: entry('spammy'), readme: null, commitSha: null });
+    let fail = true;
+    await withMarketplace(
+      async () => ({ bots: [entry('spammy')] }),
+      async ({ host, report }) => {
+        await act(async () =>
+          host.querySelector<HTMLButtonElement>('[aria-label="查看 alice/spammy 详情"]')!.click(),
+        );
+        await click(host, '举报');
+        expect(host.querySelector('[data-market-report="open"]')?.textContent).toContain(
+          '不需要账号',
+        );
+
+        await typeReason(host, '  垃圾内容  ');
+        await click(host, '提交举报');
+        await until(() => host.querySelector('[role="alert"]') !== null);
+        expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+          '人机验证没有通过或已过期，请重试。',
+        );
+        expect(host.querySelector('textarea')?.value).toBe('  垃圾内容  ');
+
+        await click(host, '提交举报');
+        await until(() => host.querySelector('[data-market-report="done"]') !== null);
+
+        expect(report).toHaveBeenLastCalledWith('R_spammy', expect.any(String), '垃圾内容');
+        expect(host.textContent).toContain('已收到举报');
+        expect([...host.querySelectorAll('button')].map((item) => item.textContent)).not.toContain(
+          '举报',
+        );
+        await click(host, '返回');
+        await act(async () =>
+          host.querySelector<HTMLButtonElement>('[aria-label="查看 alice/spammy 详情"]')!.click(),
+        );
+        await click(host, '举报');
+        await click(host, '取消');
+        expect(host.querySelector('[data-market-report]')).toBeNull();
+      },
+      undefined,
+      undefined,
+      undefined,
+      detail,
+      async () => {
+        if (fail) {
+          fail = false;
+          throw new BridgeCallError('challenge-replayed', 'challenge-replayed');
+        }
       },
     );
   });
@@ -388,6 +500,105 @@ describe('Bot Marketplace modal', () => {
       undefined,
       async () => {
         throw new BridgeCallError('marketplace-unavailable', 'down');
+      },
+    );
+  });
+
+  it('opens a detail view with the README and installs from it', async () => {
+    const detail = vi.fn(async (id: string) => ({
+      bot: entry('helper', { stars: 9 }),
+      readme: '# Helper\n\nReads your notes.',
+      commitSha: id === 'R_helper' ? '0123456789abcdef0123456789abcdef01234567' : null,
+    }));
+    await withMarketplace(
+      async () => ({ bots: [entry('helper')] }),
+      async ({ host, createBot }) => {
+        await act(async () =>
+          host.querySelector<HTMLButtonElement>('[aria-label="查看 alice/helper 详情"]')!.click(),
+        );
+
+        expect(detail).toHaveBeenCalledWith('R_helper');
+        expect(host.querySelector('h1')?.textContent).toBe('helper');
+        expect(host.querySelector('[data-markdown]')?.textContent).toBe(
+          '# Helper\n\nReads your notes.',
+        );
+        expect(host.textContent).toContain('★ 9');
+        expect(
+          [...host.querySelectorAll('a')].find((link) => link.textContent === '在 GitHub 查看')
+            ?.href,
+        ).toBe('https://github.com/alice/helper');
+
+        await click(host, '安装');
+        expect(host.querySelector('[data-market-commit]')?.textContent).toBe(
+          '0123456 · 2026-09-30',
+        );
+        await click(host, '返回');
+        expect(host.querySelector('[data-markdown]')).not.toBeNull();
+
+        await click(host, '安装');
+        await click(host, '确认安装');
+        expect(createBot).toHaveBeenCalledWith(
+          expect.objectContaining({ gitUrl: 'https://github.com/alice/helper.git' }),
+        );
+      },
+      undefined,
+      undefined,
+      undefined,
+      detail,
+    );
+  });
+
+  it('shows a missing README and retries a failed detail load', async () => {
+    let attempts = 0;
+    await withMarketplace(
+      async () => ({ bots: [entry('helper')] }),
+      async ({ host }) => {
+        await act(async () =>
+          host.querySelector<HTMLButtonElement>('[aria-label="查看 alice/helper 详情"]')!.click(),
+        );
+        expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+          'README 加载失败：Bot 市场暂时无法访问',
+        );
+
+        await click(host, '重试');
+
+        expect(host.textContent).toContain('这个仓库没有 README。');
+        await click(host, '返回');
+        expect(host.querySelector('[data-market-bot="alice/helper"]')).not.toBeNull();
+      },
+      undefined,
+      undefined,
+      undefined,
+      async () => {
+        attempts += 1;
+        if (attempts === 1) throw new BridgeCallError('marketplace-unavailable', 'down');
+        return { bot: entry('helper'), readme: null, commitSha: null };
+      },
+    );
+  });
+
+  it('shows the shared name and role badges and installs with them', async () => {
+    await withMarketplace(
+      async () => ({
+        bots: [entry('helper-bot', { displayName: 'Helper', roles: ['writer', 'editor'] })],
+      }),
+      async ({ host, createBot }) => {
+        const row = host.querySelector('[data-market-bot="alice/helper-bot"]')!;
+        expect(row.textContent).toContain('Helper');
+        expect(row.textContent).toContain('alice/helper-bot');
+        expect(row.textContent).toContain('writer');
+        expect(row.textContent).toContain('editor');
+
+        await click(host, '安装');
+        expect(host.querySelector('h1')?.textContent).toBe('安装 Helper');
+        await click(host, '确认安装');
+
+        expect(createBot).toHaveBeenCalledWith({
+          displayName: 'Helper',
+          gitUrl: 'https://github.com/alice/helper-bot.git',
+          roles: ['writer', 'editor'],
+          description: 'helper-bot description',
+        });
       },
     );
   });

@@ -114,8 +114,17 @@ function stubActions(): BridgeActions {
     }),
     marketplaceList: vi.fn(async () => ({ bots: [] })),
     marketplaceTopics: vi.fn(async () => []),
+    marketplaceDetail: vi.fn(async () => {
+      throw new Error('unused');
+    }),
     marketplaceSubmit: vi.fn(async () => {
       throw new Error('unexpected Marketplace submission');
+    }),
+    marketplaceChallenge: vi.fn(async () => {
+      throw new Error('unused');
+    }),
+    marketplaceReport: vi.fn(async () => {
+      throw new Error('unused');
     }),
     groupWakePolicies: vi.fn(async () => []),
     channelBridges: vi.fn(async (channelId) => ({ channelId, bridges: [], sources: [] })),

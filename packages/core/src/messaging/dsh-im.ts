@@ -36,7 +36,7 @@ export interface DshImOutboundService {
     botId: string,
     route: MessagingReplyRoute,
     file: { id: string; name: string; bytes: Uint8Array },
-    options: { expectedFingerprint: string; signal: AbortSignal },
+    options: { expectedFingerprint: string; signal: AbortSignal; beforeSend?: () => boolean },
   ): Promise<{ sent: true }>;
 
   listBots(): Promise<{ botId: string; channel: string }[]>;
@@ -143,12 +143,7 @@ const inboundSchema = z
             messageId: identifier,
             resourceKey: identifier,
             name: identifier,
-            sizeBytes: z
-              .number()
-              .int()
-              .positive()
-              .max(25 * 1024 * 1024)
-              .optional(),
+            sizeBytes: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
             mediaType: z
               .string()
               .regex(/^[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+$/)
@@ -386,7 +381,8 @@ export function createDshImProvider(
                 : {}),
               ...(host.fileVersion === 1 &&
               info.capabilities.includes('source-file-checked') &&
-              info.capabilities.includes('reply-file-checked')
+              info.capabilities.includes('reply-file-checked') &&
+              (platform !== 'weixin' || info.capabilities.includes('reply-file-fence-checked'))
                 ? { sourceFiles: true }
                 : {}),
               ...(host.echoVersion === 1 &&
@@ -607,7 +603,8 @@ export function createDshImProvider(
               const info = await host.describeBot(input.accountRef);
               if (
                 info.account.fingerprint !== input.fingerprint ||
-                !info.capabilities.includes('reply-file-checked')
+                !info.capabilities.includes('reply-file-checked') ||
+                (platform === 'weixin' && !info.capabilities.includes('reply-file-fence-checked'))
               )
                 throw new MessagingProviderError('capability-unavailable', 'not-started');
               const result = await host.replyFileChecked!(
@@ -617,6 +614,7 @@ export function createDshImProvider(
                 {
                   expectedFingerprint: input.fingerprint,
                   signal: input.signal,
+                  ...(input.beforeSend === undefined ? {} : { beforeSend: input.beforeSend }),
                 },
               );
               if (result.sent !== true)

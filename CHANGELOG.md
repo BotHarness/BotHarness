@@ -5,28 +5,15 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Add the first Bot Marketplace, preserve definite IM reply refusals, and move DeepSeekBot user guides to the product site.
-
-### Added
-
-- Added a Bot Marketplace to the sidebar **+** menu: paste a public GitHub repository carrying the `botharness-bot` topic to list it, browse listed Bots, and install one as a new PersonaBot after a confirmation that shows the latest commit and a third-party risk notice ([#916](https://github.com/BotHarness/BotHarness/issues/916), [ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)).
-- Repositories that add the `botharness-bot` topic now appear in the Bot Marketplace after the daily discovery without a paste, and listed entries refresh hourly; removing the topic, archiving, deleting or making a repository private hides it, and renames keep the same entry ([#917](https://github.com/BotHarness/BotHarness/issues/917)).
-- The Bot Marketplace can sort by recent update or stars, search names, descriptions, topics and READMEs (Chinese included) with relevance ranking, and filter by topic chips ([#918](https://github.com/BotHarness/BotHarness/issues/918)).
+Preserve accurate context refusals when native history conflicts with retained evidence.
 
 ### Fixed
 
 - Context reads now retain the precise `source-conflict` refusal when native history disagrees with retained evidence, rolling back the conflicting page without replacing its original source ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
 
-- Preserve definite checked IM source-not-found and reply-permission refusals as failed replies instead of unknown outcomes; genuinely unknown sends and previously recorded outcomes remain unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855)).
+## [1.0.1] - 2026-10-05
 
-### Documentation
-
-- Qualified the development-source Discord mention/reply tracer with real native App/Bot identity and wrong-guild refusal, fresh recovery and screenshots; other capabilities and the product Provider pin remain separate ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
-- Moved the DeepSeekBot user guides to [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/) (Chinese at [/docs](https://deepseekbot.botharness.ai/docs/overview/)); every former botharness.ai guide URL redirects to the same guide there, and developer docs stay on botharness.ai ([#914](https://github.com/BotHarness/BotHarness/pull/914)).
-
-## [1.0.0] - 2026-10-05
-
-First stable DeepSeekBot release on npm: PersonaBots with their own identity, Git Memory, Groups, Assignments, pixel avatars, and Lark, Slack, Discord and WeChat identities, installed into DSH as one plugin.
+First stable DeepSeekBot release on npm: PersonaBots with their own identity, Git Memory, Groups, Assignments, pixel avatars, Lark, Slack, Discord and WeChat identities, and the first Bot Marketplace, installed into DSH as one plugin. Version 1.0.0 was not released as a product.
 
 ### Breaking Changes
 
@@ -41,6 +28,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 - Custom `BotAgentAdapter` implementations must return `{ outputLimit, contacts, nextCursor? }` from Orchestrator `channels.contacts(input?)`, with stable IDs under `botId` instead of `slug`; the `list_bot_contacts` Tool now returns that bounded page, so consumers must follow continuation ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
 
 ### Added
+
+- Added paired-owner WeChat file intake and original-DM file replies through the existing attachment and Bot Inbox workflow, with bounded private downloads and an authorization check after upload ([#903](https://github.com/BotHarness/BotHarness/issues/903), [connection guide](docs/wechat-connection.md)).
 
 - Added a personal WeChat paired-owner text path into the existing Bot Inbox and own-identity reply, with explicit DM authorization and private source continuations; source and locally installed product exchanges are verified and Human QA approved ([#878](https://github.com/BotHarness/BotHarness/issues/878), [ADR-0129](docs/adr/0129-wechat-owner-dms-use-private-source-continuations.md), [connection guide](docs/wechat-connection.md)).
 
@@ -293,6 +282,13 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 - Reworked the DM and group Channel composer as a responsive floating island with multiline input and an accessible, projection-only PersonaBot activity region ([#129](https://github.com/BotHarness/BotHarness/issues/129)).
 - Added deterministic, read-only GitHub Release draft preparation for the independent DeepSeekBot and DSH Skill release trains ([guide](docs/agents/changelog.md#preparing-a-github-release-draft), [#103](https://github.com/BotHarness/BotHarness/issues/103)).
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
+- Added a Bot Marketplace to the sidebar **+** menu: paste a public GitHub repository carrying the `botharness-bot` topic to list it, browse listed Bots, and install one as a new PersonaBot after a confirmation that shows the latest commit and a third-party risk notice ([#916](https://github.com/BotHarness/BotHarness/issues/916), [ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)).
+- Repositories that add the `botharness-bot` topic now appear in the Bot Marketplace after the daily discovery without a paste, and listed entries refresh hourly; removing the topic, archiving, deleting or making a repository private hides it, and renames keep the same entry ([#917](https://github.com/BotHarness/BotHarness/issues/917)).
+- The Bot Marketplace can sort by recent update or stars, search names, descriptions, topics and READMEs (Chinese included) with relevance ranking, and filter by topic chips ([#918](https://github.com/BotHarness/BotHarness/issues/918)).
+- Opening a Bot Marketplace entry shows its README rendered like GitHub (relative images and links resolve at the listed commit; scripts, event handlers and unsafe URLs are removed), with stars, update date, topics, a GitHub link and Install ([#919](https://github.com/BotHarness/BotHarness/issues/919)).
+- Bot authors can commit `.botharness/bot.json` to share a display name, role badges and an avatar (a generated-avatar recipe or a committed PNG, JPEG or WebP image); the Bot Marketplace shows the name and badges, and installing applies the avatar from the cloned repository. Invalid descriptors are ignored ([#920](https://github.com/BotHarness/BotHarness/issues/920)).
+- Pasting a repository or reporting a Bot in the Bot Marketplace now passes a self-hosted proof-of-work check (ALTCHA, no third-party CAPTCHA) whose cost rises with recent volume, with per-source and per-repository rate limits. Each entry has a **Report** button with an optional reason; reports from enough distinct sources hide the entry until an administrator restores it, and blocked repositories stay out of the catalog. Raw IP addresses are never stored ([#921](https://github.com/BotHarness/BotHarness/issues/921)).
+- The Bot Marketplace Worker documents a public, versioned read API (`/v1/bots`, `/v1/bots/{id}`, `/v1/topics`) for the product site, with CORS limited to deepseekbot.botharness.ai and its local dev origins and one-minute public caching ([#922](https://github.com/BotHarness/BotHarness/issues/922)).
 
 ### Changed
 
@@ -556,6 +552,7 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 - Fixed the Computer's Chromium losing its open tabs across stop → start: the desktop now launches Chromium on boot and restores the previous session, so tabs survive a restart the same way they survive export → import ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
 
 - Corrected Channel attachment send guidance to name the registered bounded-read and local-result import tools, so PersonaBots can follow the existing file workflow without a nonexistent tool reference ([#677](https://github.com/BotHarness/BotHarness/issues/677)).
+- Preserve definite checked IM source-not-found and reply-permission refusals as failed replies instead of unknown outcomes; genuinely unknown sends and previously recorded outcomes remain unchanged ([#855](https://github.com/BotHarness/BotHarness/issues/855)).
 
 ### Documentation
 
@@ -626,6 +623,8 @@ First stable DeepSeekBot release on npm: PersonaBots with their own identity, Gi
 - Documented the planned PersonaBot DM navigation and renamed the application-defined Work concepts to Assignment, Assignment Session, Assignment Agent, and Assignment Directory; this records design language and does not claim the UI or runtime is implemented ([#109](https://github.com/BotHarness/BotHarness/pull/109)).
 - Published a bilingual Development status page that keeps the DeepSeekBot and DSH Skill release trains separate from the Changelog ([#105](https://github.com/BotHarness/BotHarness/issues/105)).
 - Documented Memory as an optional Git-backed Cordis Service, keeping the DM → Orchestrator → Assignment path independent of Persona and Memory ([ADR-0047](docs/adr/0047-memory-is-an-optional-git-backed-service.md), [#74](https://github.com/BotHarness/BotHarness/issues/74)).
+- Qualified the development-source Discord mention/reply tracer with real native App/Bot identity and wrong-guild refusal, fresh recovery and screenshots; other capabilities and the product Provider pin remain separate ([#855](https://github.com/BotHarness/BotHarness/issues/855), [verification](docs/dev/verification/discord-855-mention-reply.md)).
+- Moved the DeepSeekBot user guides to [deepseekbot.botharness.ai/en/docs](https://deepseekbot.botharness.ai/en/docs/overview/) (Chinese at [/docs](https://deepseekbot.botharness.ai/docs/overview/)); every former botharness.ai guide URL redirects to the same guide there, and developer docs stay on botharness.ai ([#914](https://github.com/BotHarness/BotHarness/pull/914)).
 
 ## [Development] - 2026-09-20
 
