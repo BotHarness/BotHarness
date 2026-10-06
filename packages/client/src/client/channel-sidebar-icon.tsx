@@ -25,6 +25,30 @@
 import { createElement, type ReactElement } from 'react';
 
 const glyphs: Record<string, readonly [string, Record<string, string | number>][]> = {
+  'alarm-clock': [
+    ['circle', { cx: '12', cy: '13', r: '8' }],
+    ['path', { d: 'M12 9v4l2 2' }],
+    ['path', { d: 'M5 3 2 6' }],
+    ['path', { d: 'm22 6-3-3' }],
+    ['path', { d: 'M6.38 18.7 4 21' }],
+    ['path', { d: 'M17.64 18.67 20 21' }],
+  ],
+  user: [
+    ['path', { d: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2' }],
+    ['circle', { cx: '12', cy: '7', r: '4' }],
+  ],
+  bot: [
+    ['path', { d: 'M12 8V4H8' }],
+    ['rect', { width: '16', height: '12', x: '4', y: '8', rx: '2' }],
+    ['path', { d: 'M2 14h2' }],
+    ['path', { d: 'M20 14h2' }],
+    ['path', { d: 'M15 13v2' }],
+    ['path', { d: 'M9 13v2' }],
+  ],
+  lock: [
+    ['rect', { width: '18', height: '11', x: '3', y: '11', rx: '2', ry: '2' }],
+    ['path', { d: 'M7 11V7a5 5 0 0 1 10 0v4' }],
+  ],
   eye: [
     [
       'path',

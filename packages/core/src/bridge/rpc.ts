@@ -61,6 +61,12 @@ import type { TopOrderEntry } from '../roster/spec.js';
 import type { ChannelTimelinePage, TimelineDirection } from '../channels/timeline.js';
 import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
 import type { BotAttentionPage, BotAttentionState } from '../runtime/attention.js';
+import type {
+  BotSchedule,
+  BotScheduleChange,
+  BotScheduleFiring,
+  BotScheduleInput,
+} from '../schedules/bot-schedules.js';
 import type { BotSourcePolicy } from '../runtime/source-policy.js';
 import type { HumanAttentionCategory, HumanAttentionPage } from '../runtime/human-attention.js';
 import type {
@@ -884,6 +890,26 @@ export class BotharnessBridgeService extends TypertRemoteService {
   async releaseUpdate(): Promise<ReleaseUpdate> {
     return unwrapAsync(this.methods.releaseUpdate());
   }
+
+  scheduleList(slug: string): { schedules: BotSchedule[] } {
+    return unwrap(this.methods.scheduleList({ slug }));
+  }
+
+  scheduleCreate(slug: string, input: BotScheduleInput): { schedule: BotSchedule } {
+    return unwrap(this.methods.scheduleCreate({ ...input, slug }));
+  }
+
+  scheduleUpdate(slug: string, id: string, change: BotScheduleChange): { schedule: BotSchedule } {
+    return unwrap(this.methods.scheduleUpdate({ ...change, slug, id }));
+  }
+
+  scheduleDelete(slug: string, id: string): { removed: boolean } {
+    return unwrap(this.methods.scheduleDelete({ slug, id }));
+  }
+
+  scheduleHistory(slug: string, id: string): { firings: BotScheduleFiring[] } {
+    return unwrap(this.methods.scheduleHistory({ slug, id }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -1012,6 +1038,11 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'marketplaceReport',
   'releaseInfo',
   'releaseUpdate',
+  'scheduleList',
+  'scheduleCreate',
+  'scheduleUpdate',
+  'scheduleDelete',
+  'scheduleHistory',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

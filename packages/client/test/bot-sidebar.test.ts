@@ -290,6 +290,15 @@ function stubActions(): BridgeActions {
       throw new Error('not configured');
     }),
     botSourcePolicies: vi.fn(async () => []),
+    botSchedules: vi.fn(async () => []),
+    createBotSchedule: vi.fn(async () => {
+      throw new Error('unexpected Bot Schedule create');
+    }),
+    updateBotSchedule: vi.fn(async () => {
+      throw new Error('unexpected Bot Schedule update');
+    }),
+    deleteBotSchedule: vi.fn(async () => undefined),
+    botScheduleHistory: vi.fn(async () => []),
     setBotSourcePolicy: vi.fn(async () => undefined),
     resetBotSourcePolicy: vi.fn(async () => undefined),
     memoryRepair: vi.fn(async () => {

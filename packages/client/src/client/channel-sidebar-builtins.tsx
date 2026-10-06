@@ -26,6 +26,7 @@ import { ExternalSourceContent } from './external-source-content.js';
 import { externalPlatformLabel, externalSenderLabel } from './bridge-source-label.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
+import { BotSchedulesEntry, BotSchedulesHeaderAction } from './schedules-entry.js';
 import { SessionsEntry, type NativeSessionCatalog } from './sessions-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotAttentionItem, ChannelSummary } from './store.js';
@@ -288,13 +289,15 @@ function BotInboxItemRow({
         ? t('inbox.memoryChange')
         : item.sourceKind === 'assignment-report'
           ? t('inbox.assignment')
-          : item.authorKind === 'human'
-            ? t('main.author.human')
-            : item.authorKind === 'bot'
-              ? (bots.find((bot) => bot.slug === item.authorBotSlug)?.displayName ??
-                item.authorBotSlug ??
-                t('inbox.bot'))
-              : t('inbox.system');
+          : item.sourceKind === 'schedule'
+            ? t('inbox.schedule')
+            : item.authorKind === 'human'
+              ? t('main.author.human')
+              : item.authorKind === 'bot'
+                ? (bots.find((bot) => bot.slug === item.authorBotSlug)?.displayName ??
+                  item.authorBotSlug ??
+                  t('inbox.bot'))
+                : t('inbox.system');
   const open = async (): Promise<void> => {
     if (!item.sourceAvailable) return;
     if (item.externalOrigin !== undefined) {
@@ -597,6 +600,15 @@ export function createChannelSidebarBuiltins(
         state.botInbox.status === 'loading' ||
         state.botInbox.status === 'error' ||
         state.botInbox.items.length > 0,
+    },
+    {
+      id: 'schedules',
+      icon: 'alarm-clock',
+      label: t('entry.schedules'),
+      order: 16,
+      scope: 'personabot',
+      component: BotSchedulesEntry,
+      headerAction: BotSchedulesHeaderAction,
     },
     {
       id: 'workspace-grants',

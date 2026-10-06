@@ -5,11 +5,13 @@
 
 ## [Unreleased]
 
-Bot 模式现在会告诉你更新了什么以及是否有更新的 DeepSeekBot；原生历史与留存证据冲突时，上下文读取保留准确的拒绝原因。
+Bot 模式现在会告诉你更新了什么以及是否有更新的 DeepSeekBot，PersonaBot 可设置定时任务；原生历史与留存证据冲突时，上下文读取保留准确的拒绝原因。
 
 ### Added
 
 - 首次安装后进入 Bot 模式会显示当前版本的更新日志，升级后会显示上次查看以来的所有版本；Bot 设置显示当前版本，可从 npm 检查新版本并查看其更新内容和更新命令，也可打开官网更新日志（[#947](https://github.com/BotHarness/BotHarness/issues/947)）。
+
+- PersonaBot 新增定时任务（Bot Schedule）：Channel 侧栏的「定时任务」分区可新建、编辑、暂停和删除按分钟、按小时或每天执行的任务；每次触发进入 Bot 收件箱并唤醒 Orchestrator，每个任务可查看最近 20 次触发及处理它的会话（[#960](https://github.com/BotHarness/BotHarness/issues/960)，[ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)）。
 
 ### Fixed
 
