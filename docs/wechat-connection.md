@@ -108,13 +108,21 @@ The browser player reached the actual end without a media error; closing removed
 
 ## 9. Receive a native video and return a video result
 
-The #907 local candidate uses product `0.0.0-test.907.3` and managed Provider `4.32.0-botharness.9`; it is not a public npm release. Real native-video receipt and result delivery are still awaiting Human verification. Automated contract tests and an installed local candidate do not establish those external results.
+The #907 local candidate uses product `0.0.0-test.907.4` and managed Provider `4.32.0-botharness.9`; it is not a public npm release. Real native-video intake, checked download, browser playback and model file processing have been verified. The Provider accepted the resulting native-video reply in the original DM; receiving-side confirmation and independent result-download verification remain pending.
 
 Send one **native video** in the paired WeChat Bot DM, rather than attaching it as an ordinary document. Intake retains an opaque attachment reference and the native video item's available metadata in the canonical Source Event. The reported `video_size` is retained as `reportedSizeBytes`. Its meaning can differ between incoming and outgoing messages: the tested incoming value matched the decrypted MP4 length, while the official sending implementation supplies encrypted length. It is not treated as a guaranteed decrypted or encrypted size; checked downloaded bytes determine actual file size. The optional `play_length` is retained without assuming its time unit. Missing dimensions, duration, thumbnail and codec are not invented. Private CDN locations, encryption keys and conversation continuation tokens remain outside model-readable source data.
 
 Open the video source in **Bot Inbox**. The original video is retrieved and shown directly in the message bubble through the existing current-identity/current-authorization checked attachment path, up to 25 MiB. The player is offered for conservatively recognized MP4 bytes; actual playback depends on browser codec support. It does not auto-play. A video-only message no longer repeats `[Video]`; captions remain visible. A failed preview offers **Retry playback** and retains **Download file**. Closing the Modal cancels the request and releases the playback resource. This candidate adds playback to the source Modal; it does not add media rendering to Channel message history or mirror Inbox-only traffic into a local DM.
 
+![Actual video source displayed directly in the message bubble, light theme](/guides/wechat/video-source-light.png)
+
+![The same video source in dark theme](/guides/wechat/video-source-dark.png)
+
+These captures use the installed candidate after integration with main `fe177d46`. The five-second H.264 fixture arrived through real WeChat intake; its checked 239,132 bytes exactly match the sent fixture. Native browser playback reached the end without a media error, and reopening reset the player without autoplay. These UI captures do not prove external result delivery.
+
 For actual processing, authorize a writable Workspace for that PersonaBot. The Bot saves an independent copy using `bridge_attachment_save`, then processes that selected file with native tools and normal approval. Import the completed MP4 with `channel_attachment_import` and reply to the same Source Event using `bridge_reply_file`. A checked WeChat Provider sends the matching MP4 as a native video using that Bot's own bound identity. Video upload and the final send recheck the current authorization. Each Source Event has one reply intent: do not acknowledge first if a video result is required.
+
+In the real QA run, the Bot saved the original into an explicitly authorized isolated Workspace and, after once-only native Tool approvals, produced the first three seconds using ffmpeg. Independent inspection confirmed a 204,644-byte, three-second H.264 result and an unchanged input. The Bot imported that result and sent it using its own identity; the Provider accepted the reply. This is file processing, not semantic video understanding.
 
 Inspect the returned video in the original WeChat conversation and independently verify its actual contents. Tool processing, a working browser player, or Provider acceptance alone is not model video understanding, recipient delivery, a read receipt or byte equality. Unsupported formats retain original-download or refusal paths; this slice does not add arbitrary video transcoding or automatic video-model input.
 
