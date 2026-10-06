@@ -13,7 +13,7 @@ export const zh = {
   'approvalIm.save': '保存目的地',
   'approvalIm.test': '发送测试卡片',
   'approvalIm.once':
-    '卡片仅提供允许一次和拒绝。收到通知或点击按钮不会新增权限；当前切片仍会等待该操作的审批。',
+    '卡片仅提供允许一次和拒绝。收到通知或点击按钮不会新增权限；该操作会等待审批决定。',
   'approvalIm.error': '目的地已变化或操作失败，请刷新后核对。',
   'approvalIm.testLabel': '通知测试',
   'approvalIm.request': '审批请求',
@@ -1941,7 +1941,7 @@ export const en = {
   'approvalIm.save': 'Save destination',
   'approvalIm.test': 'Send test card',
   'approvalIm.once':
-    'Cards offer Allow once and Reject. Receiving or clicking a card grants no new authority. This slice still waits for the operation’s approval.',
+    'Cards offer Allow once and Reject. Receiving or clicking a card grants no new authority. The operation waits for an approval decision.',
   'approvalIm.error': 'The destination changed or the operation failed. Refresh and check it.',
   'approvalIm.testLabel': 'Notification test',
   'approvalIm.request': 'Approval request',
