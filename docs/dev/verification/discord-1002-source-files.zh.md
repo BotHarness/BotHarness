@@ -39,3 +39,19 @@ canonical 对比仅新增一个 Source Event、一次 Admission、一个 provide
 ![真实模型原文件与结果](../../assets/pr/1002-discord-files/after-file-model-native.jpg)
 
 [安全的实际 Tool／原生／字节／canonical／重启证据](../../assets/pr/1002-discord-files/file-model-native-proof.json) 记录真实调用 ID、独立文件身份、原生来源／回复／附件 ID、hash 与权限清理，不包含签名 URL 或凭据。代理 E2E 验收完成；merge、产品 Provider 提升、发布及部署另行授权。
+
+## 最新 Provider 集成
+
+Provider 主线随后合并了独立 Lark 私聊定位修复（#9）。候选完整保留该源码／测试并重新生成 Host 产物；集成 Provider `7a2f01ff18bd6a185796ed950352f751fd445149` 的构建、包验证与 **3,607 项测试**通过。实际加载产物 SHA-256 为 `38c08d20f48157525aa4247621f51c5e674f9aec6d388f5c1764bc153b6336f6`。
+
+在 Core 运行输入 `82d14bbe3c6aff34ed9bf3b058880deaa562f489` 上，通过浏览器再次发送独立文件／直接提及，Turn 8 的同样七个实际工具均成功。原生 Human 触发 `1556952778536919162` 带一个原附件；自己 Bot 的结果 `1556952872799969311` 在相同既有 thread 引用该新触发，并附 `discord-1002-integrated-result.txt`。独立下载再次匹配同样的 41 字节预期输入／输出与哈希。新原件 `file:2fcd64b4-9af7-48a3-8334-b699986ec7ec` 与导入结果 `file:9b467bb9-da5f-4010-93d4-35ccb8edd4f7` 身份不同；Intent `4b9217cb-a966-4d74-832f-0aeac82180a9` 为 provider-accepted。
+
+该独立用例只增加 1 Source／1 Admission／1 Outbox，全部既有行、Binding、外部 Grant 与 placements 保持不变；累计为 1／1／27／9／7／2。同一已授权合成目录的写权限已再次撤销；撤销和冷重启保持六张表完全一致，写权限仍为 false，Message Content 全程 OFF。原件与第一次结果未改动。
+
+![集成 Provider 的真实文件结果](../../assets/pr/1002-discord-files/after-integrated-file-model-native.jpg)
+
+[脱敏集成工具／原生／字节／canonical／重启证据](../../assets/pr/1002-discord-files/integrated-file-model-native-proof.json) 精确对应第二次实际 Core／Provider 输入；第一份证据继续保留第一次独立通过的用例。
+
+## Core 主线集成
+
+Core 集成 `9584e20bf8517149da14bb4a0428c49392b2399a` 保留最新主线 `1f9f6458f7e92654c5b88d87036ad70352a7e8c8` 的既有改动。真实文件证据精确对应上文两次运行输入。集成检查定位了遥测测试的随机 UUID 偶然包含短测试名 `ada` 的误报；测试 recorder 固定匿名 ID，继续检查全部事件内容。运行代码未因此改变。最终 PR 的 CI 与构建结果单独列出，不替代实际工具／原生文件证据。

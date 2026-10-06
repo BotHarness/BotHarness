@@ -39,3 +39,19 @@ The dedicated synthetic-file Workspace write Grant was enabled under explicit Hu
 ![Real model original file and result](../../assets/pr/1002-discord-files/after-file-model-native.jpg)
 
 [Sanitized actual Tool/native/byte/canonical/restart proof](../../assets/pr/1002-discord-files/file-model-native-proof.json) includes actual call IDs, distinct file identities, native source/reply/attachment IDs, hashes and authority cleanup without signed URLs or credentials. Agent E2E acceptance is complete; merge, product Provider promotion, publication and deployment remain separate actions.
+
+## Latest Provider integration
+
+Provider main subsequently merged the independent Lark private-chat locator (#9). The candidate preserves that source/test change and regenerates its Host artifact; integrated Provider `7a2f01ff18bd6a185796ed950352f751fd445149` passes build, package verification and **3,607 tests**. The new loaded artifact SHA-256 is `38c08d20f48157525aa4247621f51c5e674f9aec6d388f5c1764bc153b6336f6`.
+
+A separate fresh browser file/direct mention on Core runtime input `82d14bbe3c6aff34ed9bf3b058880deaa562f489` ran the same seven actual successful tools in Turn 8. Native Human trigger `1556952778536919162` has one original attachment; own-Bot result `1556952872799969311` references that exact trigger in the same existing thread and attaches `discord-1002-integrated-result.txt`. Independent downloads again match the same 41-byte golden input/output and hashes. New original `file:2fcd64b4-9af7-48a3-8334-b699986ec7ec` and imported result `file:9b467bb9-da5f-4010-93d4-35ccb8edd4f7` remain distinct. Intent `4b9217cb-a966-4d74-832f-0aeac82180a9` is provider-accepted.
+
+This fresh case independently adds 1 Source / 1 Admission / 1 Outbox, while preserving every earlier row and the Binding, external Grant and placements. Settled counts become 1 / 1 / 27 / 9 / 7 / 2. The same authorized synthetic-directory write permission was revoked again; all six tables remain identical through revocation and cold restart, write stays false and Message Content remains OFF. Original files and the first result remain untouched.
+
+![Integrated Provider real file result](../../assets/pr/1002-discord-files/after-integrated-file-model-native.jpg)
+
+[Sanitized integrated Tool/native/byte/canonical/restart proof](../../assets/pr/1002-discord-files/integrated-file-model-native-proof.json) binds this second real case to its actual Core/Provider inputs; the first proof remains the earlier independently accepted case.
+
+## Core main integration
+
+Core integration `9584e20bf8517149da14bb4a0428c49392b2399a` preserves current main `1f9f6458f7e92654c5b88d87036ad70352a7e8c8`. Real file proofs retain the two actual runtime inputs above. Integration checks found a telemetry-test false positive when a random UUID happened to contain the short fixture name `ada`; the test recorder now uses a fixed anonymous ID while retaining all event-content privacy assertions. No runtime code changes for this test correction. Final PR CI/build results are reported independently and do not replace actual Tool/native-file evidence.
