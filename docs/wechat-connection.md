@@ -96,7 +96,15 @@ Choose **Prepare playback** to create a separate WAV for supported SILK input an
 
 With a writable Workspace Grant, the Bot can use `bridge_attachment_save` with `representation: playback` to save an independent `voice.wav` working copy, then process that file using authorized native tools. Omit that field to save the unchanged original. Normal native Tool approval still applies, and another Bot's identity is never borrowed. After actual processing, `bridge_reply` can send text to the original DM. Saving, playing or inspecting a file is not speech understanding: this connection adds no ASR, automatic audio-model input or native voice reply. Without platform text or a separately configured and verified audio-understanding route, ask for text.
 
-Automated coverage includes real SILK encoding/decoding, preservation of original bytes, cached restart, cancellation, codec refusal and authorization revocation. Fresh installed-product intake, unchanged-original download, separate WAV preparation and browser playback have been exercised in [#906](https://github.com/BotHarness/BotHarness/issues/906). Native Bot file processing and original-DM reply qualification remain in progress; #905 transcript success does not substitute for them.
+The installed #906 candidate has completed a fresh paired-owner test: native voice → Bot Inbox → unchanged original through the checked download endpoint → separate WAV → authorized Workspace copy → approved native Python file inspection → `BH906-AUDIO-OK` in the original WeChat DM, confirmed by the receiving Human. The Bot inspected the actual file as mono, 16-bit, 24 kHz PCM with 179,040 frames (7.46 seconds) and wrote a JSON result. The Workspace copy and checked WAV have identical bytes. This proves audio file processing, not speech understanding. The voice also carried a platform transcript; transcript-free intake and refusal paths have automated coverage, not a separate real receiving-side test.
+
+![Reopened voice source: choose Prepare playback; the original remains separately downloadable](/guides/wechat/voice-audio-prepare.jpg)
+
+![The same real voice prepared as a WAV player in light mode](/guides/wechat/voice-audio-player-light.jpg)
+
+![The same real voice player in dark mode](/guides/wechat/voice-audio-player-dark.jpg)
+
+The browser player reached the actual end without a media error; closing removed the player and reopening required explicit preparation again. Original-byte download was independently verified through the authenticated endpoint; the browser automation did not report a completed file-download event, so a browser-saved original file is not claimed. Automated coverage also includes real SILK encoding/decoding, unchanged original bytes, cached restart, cancellation, codec refusal and authorization revocation. #905 transcript success does not substitute for these raw-audio checks.
 
 ## Pause or reconnect
 
