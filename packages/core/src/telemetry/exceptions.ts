@@ -223,6 +223,7 @@ export function installExceptionCapture(options: {
   home?: string;
   ownRoots?: readonly string[];
   now?: () => Date;
+  enabled?: () => boolean;
 }): () => void {
   const proc = options.proc ?? process;
   const now = options.now ?? (() => new Date());
@@ -232,6 +233,7 @@ export function installExceptionCapture(options: {
   };
   const record = (error: unknown, mechanism: Mechanism): void => {
     try {
+      if (options.enabled?.() === false) return;
       const exception = sanitizeException(error, mechanism, sanitize);
       if (exception !== undefined) recordPendingException(options.dataDir, exception, now());
     } catch {

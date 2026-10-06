@@ -28,8 +28,13 @@ import {
 } from '../src/telemetry/exceptions.js';
 import {
   createTelemetryService,
+  ensureInstallId,
   INSTALL_ID_FILE,
+  readDailyUsageAt,
+  readTelemetryPreference,
   telemetryDecision,
+  writeDailyUsageAt,
+  writeTelemetryPreference,
   type TelemetryBatchEvent,
   type TelemetryDecision,
   type TelemetrySender,
@@ -638,5 +643,89 @@ describe('$exception', () => {
     await r.events();
     expect(r.send).not.toHaveBeenCalled();
     expect(existsSync(join(r.dataDir, PENDING_EXCEPTIONS_FILE))).toBe(false);
+  });
+});
+
+describe('the Human telemetry preference', () => {
+  const OWN = { home: '/Users/someone', ownRoots: ['/opt/BotHarness/packages/core'] };
+
+  function ownFailure(): Error {
+    const error = new Error('failed');
+    error.stack = `Error: failed\n    at run (/opt/BotHarness/packages/core/dist/index.mjs:1:1)`;
+    return error;
+  }
+
+  it('pauses every #952 event while switched off and resumes when switched on', async () => {
+    vi.useFakeTimers();
+    try {
+      let now = new Date('2026-10-06T08:00:00.000Z');
+      const r = recorder();
+      const registry = registryWith(r.capture);
+      const proc = new EventEmitter();
+      const counts = vi.fn(() => ({ personaBots: 1, sessions: 0, messages: 0 }));
+      r.telemetry.setPreference(false);
+      const stopUsage = startDailyUsage({
+        telemetry: r.telemetry,
+        dataDir: r.dataDir,
+        now: () => now,
+        intervalMs: 1_000,
+        counts,
+      });
+      const uninstall = installExceptionCapture({
+        dataDir: r.dataDir,
+        proc: proc as unknown as ExceptionCaptureProcess,
+        enabled: () => r.telemetry.enabled,
+        ...OWN,
+      });
+
+      registry.create({ slug: 'ada', displayName: DISPLAY_NAME });
+      proc.emit('uncaughtExceptionMonitor', ownFailure(), 'uncaughtException');
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(counts).not.toHaveBeenCalled();
+      expect(existsSync(join(r.dataDir, PENDING_EXCEPTIONS_FILE))).toBe(false);
+      expect(deliverPendingExceptions(r.telemetry, r.dataDir)).toBe(0);
+      expect(await r.events()).toEqual([]);
+
+      r.telemetry.setPreference(true);
+      registry.setPaused('ada', true);
+      proc.emit('uncaughtExceptionMonitor', ownFailure(), 'uncaughtException');
+      now = new Date('2026-10-06T08:00:01.000Z');
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(counts).toHaveBeenCalledOnce();
+      expect(deliverPendingExceptions(r.telemetry, r.dataDir)).toBe(1);
+      uninstall();
+      stopUsage();
+      expect((await r.events()).map((event) => event.event)).toEqual([
+        'bot_archived',
+        'daily_usage',
+        '$exception',
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps installId, the preference and dailyUsageAt across each other’s writes', () => {
+    const dataDir = tempDir();
+    const id = ensureInstallId(dataDir, () => '00000000-0000-4000-8000-000000000001');
+    writeDailyUsageAt(dataDir, new Date('2026-10-06T08:00:00.000Z'));
+    writeTelemetryPreference(dataDir, false);
+    const read = () => JSON.parse(readFileSync(join(dataDir, INSTALL_ID_FILE), 'utf8')) as unknown;
+    expect(read()).toEqual({
+      installId: id,
+      dailyUsageAt: '2026-10-06T08:00:00.000Z',
+      enabled: false,
+    });
+    writeDailyUsageAt(dataDir, new Date('2026-10-07T08:00:00.000Z'));
+    expect(read()).toEqual({
+      installId: id,
+      dailyUsageAt: '2026-10-07T08:00:00.000Z',
+      enabled: false,
+    });
+    writeTelemetryPreference(dataDir, true);
+    expect(read()).toEqual({ installId: id, dailyUsageAt: '2026-10-07T08:00:00.000Z' });
+    expect(readTelemetryPreference(dataDir)).toBe(true);
+    expect(readDailyUsageAt(dataDir)?.toISOString()).toBe('2026-10-07T08:00:00.000Z');
+    expect(ensureInstallId(dataDir)).toBe(id);
   });
 });

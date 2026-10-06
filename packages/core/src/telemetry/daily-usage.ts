@@ -67,9 +67,9 @@ export function startDailyUsage(options: {
   intervalMs?: number;
   log?: (message: string) => void;
 }): () => void {
-  if (!options.telemetry.enabled) return () => undefined;
   const now = options.now ?? (() => new Date());
   const tick = (): void => {
+    if (!options.telemetry.enabled) return;
     try {
       const at = now();
       const last = readDailyUsageAt(options.dataDir);

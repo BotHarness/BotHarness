@@ -613,9 +613,9 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     }),
   );
   deliverPendingExceptions(telemetry, telemetryDir);
-  if (telemetry.enabled)
+  if (telemetryState.lockedBy === undefined)
     ctx.effect(
-      () => installExceptionCapture({ dataDir: telemetryDir }),
+      () => installExceptionCapture({ dataDir: telemetryDir, enabled: () => telemetry.enabled }),
       'botharness: telemetry exceptions',
     );
   let publishDraft: (event: ChannelDraftEvent) => void = () => undefined;
@@ -709,7 +709,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
-  if (core.operationalDatabase.mode === 'ready') {
+  if (core.operationalDatabase.mode === 'ready' && telemetryState.lockedBy === undefined) {
     const usageDatabase = attachOperationalModule(core.operationalDatabase, 'telemetry');
     ctx.effect(
       () =>
