@@ -298,7 +298,17 @@ describe('Bot Schedule firing', () => {
       expect(core.schedules.list('ada')[0]?.lastFiring?.state).toBe('handled');
       expect(
         core.attention.list({ botSlug: 'ada' }).items.find((item) => item.reason === 'schedule'),
-      ).toMatchObject({ sourceKind: 'schedule', state: 'handled', summary: 'Hourly check' });
+      ).toMatchObject({
+        sourceKind: 'schedule',
+        state: 'handled',
+        summary: 'Hourly check',
+        scheduleId: schedule.id,
+        sourceAvailable: true,
+      });
+      core.schedules.remove('ada', schedule.id, 'human');
+      expect(
+        core.attention.list({ botSlug: 'ada' }).items.find((item) => item.reason === 'schedule'),
+      ).toMatchObject({ scheduleId: schedule.id, sourceAvailable: false });
     } finally {
       core.schedules.close();
       await core.runtime.close();

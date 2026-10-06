@@ -26,12 +26,34 @@ import { ExternalSourceContent } from './external-source-content.js';
 import { externalPlatformLabel, externalSenderLabel } from './bridge-source-label.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
-import { BotSchedulesEntry, BotSchedulesHeaderAction } from './schedules-entry.js';
+import { BotSchedulesEntry, BotSchedulesHeaderAction, ScheduleDialog } from './schedules-entry.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import { SessionsEntry, type NativeSessionCatalog } from './sessions-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotAttentionItem, ChannelSummary } from './store.js';
 
 const inactiveSubscribe = (): (() => void) => () => {};
+
+const INBOX_STATE_TONE = {
+  pending: 'warning',
+  processing: 'info',
+  observed: 'info',
+  deferred: 'neutral',
+  'needs-repair': 'danger',
+  handled: 'success',
+  ignored: 'quiet',
+} as const;
+
+function inboxIcon(item: BotAttentionItem): string {
+  if (item.sourceKind === 'schedule') return 'alarm-clock';
+  if (item.sourceKind === 'memory-change') return 'git-branch';
+  if (item.sourceKind === 'assignment-report' || item.assignmentSessionId !== undefined)
+    return 'list-checks';
+  if (item.externalOrigin !== undefined) return 'globe';
+  if (item.authorKind === 'human') return 'user';
+  if (item.authorKind === 'bot') return 'bot';
+  return 'inbox';
+}
 
 function GroupManagementEntry(props: ChannelSidebarEntryProps): ReactElement {
   const group = useClientState().conversation.channel;
@@ -235,6 +257,7 @@ function BotInboxItemRow({
   const [externalError, setExternalError] = useState(false);
   const [fileBusy, setFileBusy] = useState<string>();
   const [fileError, setFileError] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const fileRequest = useRef<AbortController>();
   const download = async (attachmentId: string, name: string): Promise<void> => {
     if (fileBusy !== undefined) return;
@@ -300,6 +323,10 @@ function BotInboxItemRow({
                 : t('inbox.system');
   const open = async (): Promise<void> => {
     if (!item.sourceAvailable) return;
+    if (item.scheduleId !== undefined) {
+      setScheduleOpen(true);
+      return;
+    }
     if (item.externalOrigin !== undefined) {
       const request = ++externalRequest.current;
       setExternal(undefined);
@@ -322,48 +349,58 @@ function BotInboxItemRow({
     await actions.openChannel(item.sourceChannelId);
     await actions.openAround(item.sourceChannelId, item.sourceMessageId);
   };
-  const content = (
-    <>
-      <span className="bh-inbox-item-summary">{summary || t('inbox.system')}</span>
-      <span className="bh-inbox-item-meta">
-        <span className="bh-inbox-item-author" title={author}>
-          {author}
-        </span>
-        {item.assignmentReportState === undefined ? null : (
-          <span>{t(`inbox.report.${item.assignmentReportState}`)}</span>
-        )}
-      </span>
-      {item.externalOrigin === undefined ? null : (
-        <span className="bh-inbox-item-meta bh-inbox-item-origin">
-          {item.externalOrigin.accountName} · {item.externalOrigin.conversationName}
-        </span>
-      )}
-      <span className="bh-inbox-item-footer">
-        <span className="bh-inbox-item-state" data-state={item.state}>
-          {t(`inbox.state.${item.state}`)}
-        </span>
-        <span className="bh-inbox-item-time">
-          {formatRelativeTime(Date.parse(item.createdAt), Date.now(), t)}
-        </span>
-      </span>
-      {!memoryChange && !item.sourceAvailable ? (
-        <span className="bh-inbox-item-meta">{t('inbox.sourceUnavailable')}</span>
-      ) : null}
-    </>
+  const unavailable = !memoryChange && !item.sourceAvailable;
+  const row = (
+    <SidebarCardRow
+      icon={inboxIcon(item)}
+      iconLabel={author}
+      title={summary || t('inbox.system')}
+      titleClassName="bh-inbox-item-summary"
+      hint={summary}
+      mainClassName={memoryChange ? 'bh-inbox-item bh-inbox-item-info' : 'bh-inbox-item'}
+      state={item.state}
+      muted={unavailable}
+      disabled={!item.sourceAvailable}
+      dialog={item.scheduleId !== undefined || item.externalOrigin !== undefined}
+      {...(memoryChange ? {} : { onClick: () => void open() })}
+      chips={
+        <>
+          <Tag tone={INBOX_STATE_TONE[item.state]}>{t(`inbox.state.${item.state}`)}</Tag>
+          {item.assignmentReportState === undefined ? null : (
+            <Tag tone="outline">{t(`inbox.report.${item.assignmentReportState}`)}</Tag>
+          )}
+        </>
+      }
+      meta={
+        <>
+          <span className="bh-inbox-item-author" title={author}>
+            {author}
+          </span>
+          {item.externalOrigin === undefined ? null : (
+            <span className="bh-inbox-item-origin">
+              {item.externalOrigin.accountName} · {item.externalOrigin.conversationName}
+            </span>
+          )}
+          <span className="bh-inbox-item-time">
+            {formatRelativeTime(Date.parse(item.createdAt), Date.now(), t)}
+          </span>
+          {unavailable ? <span>{t('inbox.sourceUnavailable')}</span> : null}
+        </>
+      }
+    />
   );
-  if (memoryChange) return <div className="bh-inbox-item bh-inbox-item-info">{content}</div>;
   return (
     <>
-      <button
-        type="button"
-        className="bh-inbox-item"
-        data-state={item.state}
-        title={summary}
-        disabled={!item.sourceAvailable}
-        onClick={() => void open()}
-      >
-        {content}
-      </button>
+      {row}
+      {scheduleOpen && item.scheduleId !== undefined ? (
+        <ScheduleDialog
+          botSlug={item.botSlug}
+          scheduleId={item.scheduleId}
+          actions={actions}
+          t={t}
+          onClose={() => setScheduleOpen(false)}
+        />
+      ) : null}
       {externalOpen ? (
         <Modal
           open
@@ -456,18 +493,24 @@ function BotInboxGroup({
         </span>
         <Tag tone="neutral">{items.length}</Tag>
       </summary>
-      {active.map((item) => (
-        <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
-      ))}
+      {active.length === 0 ? null : (
+        <SidebarCardList label={name}>
+          {active.map((item) => (
+            <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
+          ))}
+        </SidebarCardList>
+      )}
       {history.length > 0 ? (
         <details className="bh-inbox-history">
           <summary>
             <IconChevronDownOutlineRegular className="bh-inbox-group-chevron" size={14} />
             <span>{t('inbox.handledHistory', { count: history.length })}</span>
           </summary>
-          {history.map((item) => (
-            <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
-          ))}
+          <SidebarCardList label={t('inbox.handledHistory', { count: history.length })}>
+            {history.map((item) => (
+              <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
+            ))}
+          </SidebarCardList>
         </details>
       ) : null}
     </details>

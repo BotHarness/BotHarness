@@ -5,12 +5,16 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-PersonaBots can run recurring Bot Schedules from the Channel sidebar, and each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace.
+PersonaBots can run recurring Bot Schedules, the Channel sidebar sections share one card design, and each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace.
 
 ### Added
 
 - PersonaBots gain Bot Schedules: the Channel sidebar's Schedules section lets the Human create, edit, pause and delete minute, hourly or daily tasks; each firing lands in the Bot Inbox and wakes the Orchestrator, and every schedule shows its last 20 firings with links to the handling session ([#960](https://github.com/BotHarness/BotHarness/issues/960), [ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)).
 - DeepSeekBot now writes `.botharness/bot.json` into each Bot's Memory when the Bot is created, and updates it when its name, roles or avatar change. Existing Bots get the file on the next start. A shared Bot therefore shows the same name, roles and avatar in the Bot Marketplace as in the sidebar ([#966](https://github.com/BotHarness/BotHarness/issues/966), [guide](docs/share-bot.md)).
+
+### Changed
+
+- The Channel sidebar's Sessions, Bot Inbox and Workspace Grants sections now use the same card rows as Schedules, with an icon, status chips and a meta line on every row; a Bot Inbox item from a Bot Schedule now opens that schedule ([#972](https://github.com/BotHarness/BotHarness/issues/972)).
 
 ### Documentation
 

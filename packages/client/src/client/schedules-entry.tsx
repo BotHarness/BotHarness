@@ -21,6 +21,7 @@ import type { BotHarnessTranslate } from './locale.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import { Modal } from './modal.js';
 import { useMountedResource } from './mounted-resource.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 
 export const SCHEDULE_COST_WARNING_SECONDS = 15 * 60;
 const REFRESH_MS = 30_000;
@@ -326,15 +327,123 @@ function ScheduleEditor({
   );
 }
 
-export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryProps): ReactElement {
-  const [schedules, setSchedules] = useState<BotScheduleView[] | undefined>();
-  const [loadError, setLoadError] = useState<string | undefined>();
-  const [editor, setEditor] = useState<
-    { key: number; schedule: BotScheduleView | undefined } | undefined
-  >();
+export function ScheduleDialog({
+  botSlug,
+  scheduleId,
+  actions,
+  t,
+  onClose,
+  onChanged,
+}: {
+  botSlug: string;
+  scheduleId: string | undefined;
+  actions: ChannelSidebarEntryProps['actions'];
+  t: BotHarnessTranslate;
+  onClose: () => void;
+  onChanged?: () => void;
+}): ReactElement {
+  const [schedule, setSchedule] = useState<BotScheduleView | null | undefined>(
+    scheduleId === undefined ? null : undefined,
+  );
   const [history, setHistory] = useState<BotScheduleFiringView[] | undefined>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const mount = useMountedResource<HTMLSpanElement>(() => {
+    if (scheduleId === undefined) return;
+    let live = true;
+    void actions
+      .botSchedules(botSlug)
+      .then((rows) => {
+        if (live) setSchedule(rows.find((row) => row.id === scheduleId) ?? null);
+      })
+      .catch((cause: unknown) => {
+        if (!live) return;
+        setSchedule(null);
+        setError(errorMessage(cause));
+      });
+    void actions
+      .botScheduleHistory(botSlug, scheduleId)
+      .then((rows) => {
+        if (live) setHistory(rows);
+      })
+      .catch(() => {
+        if (live) setHistory([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [actions, botSlug, scheduleId]);
+
+  const run = (action: () => Promise<unknown>): void => {
+    setBusy(true);
+    setError(undefined);
+    void action()
+      .then(() => {
+        onChanged?.();
+        onClose();
+      })
+      .catch((cause: unknown) => setError(errorMessage(cause)))
+      .finally(() => setBusy(false));
+  };
+
+  if (schedule === undefined) return <span ref={mount} hidden />;
+  if (schedule === null && scheduleId !== undefined)
+    return (
+      <>
+        <span ref={mount} hidden />
+        <Modal open onClose={onClose} title={t('schedule.edit')} closeLabel={t('schedule.close')}>
+          <p className="bh-schedule-muted" role="status">
+            {error ?? t('schedule.missing')}
+          </p>
+        </Modal>
+      </>
+    );
+  const editing = schedule ?? undefined;
+  return (
+    <>
+      <span ref={mount} hidden />
+      <ScheduleEditor
+        open
+        initial={editing === undefined ? emptyScheduleForm() : scheduleFormOf(editing)}
+        editing={editing}
+        busy={busy}
+        error={error}
+        history={history}
+        onClose={onClose}
+        onSave={(form) => {
+          const trigger = scheduleTriggerOf(form);
+          if (trigger === undefined) return;
+          run(() =>
+            editing === undefined
+              ? actions.createBotSchedule(botSlug, {
+                  title: form.title,
+                  prompt: form.prompt,
+                  trigger,
+                })
+              : actions.updateBotSchedule(botSlug, editing.id, {
+                  title: form.title,
+                  prompt: form.prompt,
+                  trigger,
+                }),
+          );
+        }}
+        onDelete={() => {
+          if (editing !== undefined) run(() => actions.deleteBotSchedule(botSlug, editing.id));
+        }}
+        onOpenSession={(sessionId) => {
+          onClose();
+          void actions.openSession(sessionId);
+        }}
+        t={t}
+      />
+    </>
+  );
+}
+
+export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryProps): ReactElement {
+  const [schedules, setSchedules] = useState<BotScheduleView[] | undefined>();
+  const [loadError, setLoadError] = useState<string | undefined>();
+  const [editor, setEditor] = useState<{ key: number; scheduleId: string | undefined }>();
   const [toggling, setToggling] = useState<string | undefined>();
   const active = useRef<string | undefined>(undefined);
   const editorKey = useRef(0);
@@ -347,8 +456,7 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
   if (seenCreate.current !== createRevision) {
     seenCreate.current = createRevision;
     editorKey.current += 1;
-    setEditor({ key: editorKey.current, schedule: undefined });
-    setError(undefined);
+    setEditor({ key: editorKey.current, scheduleId: undefined });
   }
 
   const refresh = async (slug: string): Promise<void> => {
@@ -377,46 +485,9 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
 
   if (botSlug === undefined) return <div ref={mount} />;
 
-  const openEditor = (schedule: BotScheduleView): void => {
+  const openEditor = (scheduleId: string): void => {
     editorKey.current += 1;
-    setEditor({ key: editorKey.current, schedule });
-    setError(undefined);
-    setHistory(undefined);
-    void actions
-      .botScheduleHistory(botSlug, schedule.id)
-      .then((rows) => {
-        if (active.current === botSlug) setHistory(rows);
-      })
-      .catch(() => {
-        if (active.current === botSlug) setHistory([]);
-      });
-  };
-
-  const run = (action: () => Promise<unknown>): void => {
-    setBusy(true);
-    setError(undefined);
-    void action()
-      .then(async () => {
-        setEditor(undefined);
-        await refresh(botSlug);
-      })
-      .catch((cause: unknown) => setError(errorMessage(cause)))
-      .finally(() => setBusy(false));
-  };
-
-  const save = (form: ScheduleForm): void => {
-    const trigger = scheduleTriggerOf(form);
-    if (trigger === undefined) return;
-    const editing = editor?.schedule;
-    run(() =>
-      editing === undefined
-        ? actions.createBotSchedule(botSlug, { title: form.title, prompt: form.prompt, trigger })
-        : actions.updateBotSchedule(botSlug, editing.id, {
-            title: form.title,
-            prompt: form.prompt,
-            trigger,
-          }),
-    );
+    setEditor({ key: editorKey.current, scheduleId });
   };
 
   const toggle = (schedule: BotScheduleView, enabled: boolean): void => {
@@ -448,86 +519,70 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
         </div>
       ) : null}
       {schedules === undefined || schedules.length === 0 ? null : (
-        <ul className="bh-schedule-list">
+        <SidebarCardList label={t('entry.schedules')}>
           {schedules.map((schedule) => (
-            <li key={schedule.id} className="bh-schedule-item" data-enabled={schedule.enabled}>
-              <button
-                type="button"
-                className="bh-schedule-main"
-                aria-haspopup="dialog"
-                onClick={() => openEditor(schedule)}
-              >
-                <span className="bh-schedule-icon">
-                  <ChannelSidebarIcon name="alarm-clock" size={16} />
-                </span>
-                <span className="bh-schedule-body">
-                  <span className="bh-schedule-title">{schedule.title}</span>
-                  <span className="bh-schedule-chips">
-                    <Tag tone={schedule.enabled ? 'info' : 'outline'}>
-                      {scheduleCadenceLabel(schedule.trigger, t)}
-                    </Tag>
-                    {schedule.lastFiring === undefined ? null : (
-                      <FiringTag firing={schedule.lastFiring} t={t} />
-                    )}
+            <SidebarCardRow
+              key={schedule.id}
+              icon="alarm-clock"
+              title={schedule.title}
+              muted={!schedule.enabled}
+              dialog
+              onClick={() => openEditor(schedule.id)}
+              chips={
+                <>
+                  <Tag tone={schedule.enabled ? 'info' : 'outline'}>
+                    {scheduleCadenceLabel(schedule.trigger, t)}
+                  </Tag>
+                  {schedule.lastFiring === undefined ? null : (
+                    <FiringTag firing={schedule.lastFiring} t={t} />
+                  )}
+                  <span
+                    className="bh-card-glyph"
+                    title={t(`schedule.creator.${schedule.creator}`)}
+                    aria-label={t(`schedule.creator.${schedule.creator}`)}
+                  >
+                    <ChannelSidebarIcon
+                      name={schedule.creator === 'human' ? 'user' : 'bot'}
+                      size={12}
+                    />
+                  </span>
+                  {schedule.locked ? (
                     <span
-                      className="bh-schedule-creator"
-                      title={t(`schedule.creator.${schedule.creator}`)}
-                      aria-label={t(`schedule.creator.${schedule.creator}`)}
+                      className="bh-card-glyph"
+                      title={t('schedule.locked')}
+                      aria-label={t('schedule.locked')}
                     >
-                      <ChannelSidebarIcon
-                        name={schedule.creator === 'human' ? 'user' : 'bot'}
-                        size={12}
-                      />
+                      <ChannelSidebarIcon name="lock" size={12} />
                     </span>
-                    {schedule.locked ? (
-                      <span
-                        className="bh-schedule-creator"
-                        title={t('schedule.locked')}
-                        aria-label={t('schedule.locked')}
-                      >
-                        <ChannelSidebarIcon name="lock" size={12} />
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="bh-schedule-next">
-                    {schedule.enabled && schedule.nextRunAt !== undefined
-                      ? t('schedule.next', { time: formatScheduleTime(schedule.nextRunAt) })
-                      : t('schedule.paused')}
-                  </span>
-                </span>
-              </button>
-              <Switch
-                checked={schedule.enabled}
-                disabled={toggling !== undefined}
-                label={t('schedule.enable', { title: schedule.title })}
-                onChange={(enabled) => toggle(schedule, enabled)}
-              />
-            </li>
+                  ) : null}
+                </>
+              }
+              meta={
+                schedule.enabled && schedule.nextRunAt !== undefined
+                  ? t('schedule.next', { time: formatScheduleTime(schedule.nextRunAt) })
+                  : t('schedule.paused')
+              }
+              trailing={
+                <Switch
+                  checked={schedule.enabled}
+                  disabled={toggling !== undefined}
+                  label={t('schedule.enable', { title: schedule.title })}
+                  onChange={(enabled) => toggle(schedule, enabled)}
+                />
+              }
+            />
           ))}
-        </ul>
+        </SidebarCardList>
       )}
       {editor === undefined ? null : (
-        <ScheduleEditor
+        <ScheduleDialog
           key={editor.key}
-          open
-          initial={
-            editor.schedule === undefined ? emptyScheduleForm() : scheduleFormOf(editor.schedule)
-          }
-          editing={editor.schedule}
-          busy={busy}
-          error={error}
-          history={history}
-          onClose={() => setEditor(undefined)}
-          onSave={save}
-          onDelete={() => {
-            const editing = editor.schedule;
-            if (editing !== undefined) run(() => actions.deleteBotSchedule(botSlug, editing.id));
-          }}
-          onOpenSession={(sessionId) => {
-            setEditor(undefined);
-            void actions.openSession(sessionId);
-          }}
+          botSlug={botSlug}
+          scheduleId={editor.scheduleId}
+          actions={actions}
           t={t}
+          onClose={() => setEditor(undefined)}
+          onChanged={() => void refresh(botSlug)}
         />
       )}
     </div>
