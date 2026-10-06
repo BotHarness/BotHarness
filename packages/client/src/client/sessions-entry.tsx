@@ -18,6 +18,16 @@ import {
   updateSessionViewPreference,
 } from './session-view-prefs.js';
 import { useMountedResource } from './mounted-resource.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
+
+const STATUS_TONE = {
+  running: 'success',
+  stopping: 'warning',
+  attention: 'danger',
+  stopped: 'quiet',
+  idle: 'outline',
+  unavailable: 'quiet',
+} as const;
 
 export interface NativeSessionCatalog {
   refresh?(): Promise<void>;
@@ -80,39 +90,43 @@ function SessionsPanel({
     idle: t('sessions.status.idle'),
     unavailable: t('sessions.status.unavailable'),
   } as const;
-  const renderRow = (row: PersonaBotSessionRow, showWorkspace: boolean): ReactElement => (
-    <button
-      key={row.sessionId}
-      type="button"
-      className="bh-session-row"
-      title={row.cwd}
-      disabled={native.byId[row.sessionId] === undefined}
-      onClick={() => actions.openSession(row.sessionId)}
-    >
-      <div className="bh-session-title">{row.title}</div>
-      <div className="bh-session-meta">
-        <Tag tone="neutral">
-          {row.role === 'orchestrator'
-            ? t('sessions.role.orchestrator')
-            : t('sessions.role.assignment')}
-        </Tag>
-        {row.assignmentAccessMode === 'danger-full-access' ? (
-          <span title={t('sessions.access.dangerDetails')}>
-            <Tag tone="warning">{t('sessions.access.danger')}</Tag>
-          </span>
-        ) : null}
-        <span className={'bh-session-status bh-session-status-' + row.status}>
-          {statusLabel[row.status]}
-        </span>
-      </div>
-      <div className="bh-session-meta">
-        {showWorkspace ? (
-          <span>{workspaceName(row.cwd) ?? t('sessions.workspace.unknown')}</span>
-        ) : null}
-        <span>{formatRelativeTime(row.updatedAt, Date.now(), t)}</span>
-      </div>
-    </button>
-  );
+  const renderRow = (row: PersonaBotSessionRow, showWorkspace: boolean): ReactElement => {
+    const role =
+      row.role === 'orchestrator' ? t('sessions.role.orchestrator') : t('sessions.role.assignment');
+    return (
+      <SidebarCardRow
+        key={row.sessionId}
+        icon={row.role === 'orchestrator' ? 'bot' : 'list-checks'}
+        iconLabel={role}
+        title={row.title}
+        hint={row.cwd}
+        mainClassName="bh-session-row"
+        state={row.status}
+        muted={native.byId[row.sessionId] === undefined}
+        disabled={native.byId[row.sessionId] === undefined}
+        onClick={() => void actions.openSession(row.sessionId)}
+        chips={
+          <>
+            <Tag tone="neutral">{role}</Tag>
+            <Tag tone={STATUS_TONE[row.status]}>{statusLabel[row.status]}</Tag>
+            {row.assignmentAccessMode === 'danger-full-access' ? (
+              <span title={t('sessions.access.dangerDetails')}>
+                <Tag tone="warning">{t('sessions.access.danger')}</Tag>
+              </span>
+            ) : null}
+          </>
+        }
+        meta={
+          <>
+            {showWorkspace ? (
+              <span>{workspaceName(row.cwd) ?? t('sessions.workspace.unknown')}</span>
+            ) : null}
+            <span>{formatRelativeTime(row.updatedAt, Date.now(), t)}</span>
+          </>
+        }
+      />
+    );
+  };
 
   return (
     <div className="bh-sessions" ref={mount}>
@@ -125,36 +139,42 @@ function SessionsPanel({
       {owned.status === 'ready' && rows.length === 0 ? (
         <div className="bh-note">{t('sessions.empty')}</div>
       ) : null}
-      {preference.layout === 'flat'
-        ? rows.map((row) => renderRow(row, true))
-        : groups.map((group) => {
-            const expanded = !preference.collapsedWorkspaces.includes(group.key);
-            return (
-              <section key={group.key} className="bh-session-workspace-group">
-                <button
-                  type="button"
-                  className="bh-session-workspace-heading"
-                  title={group.path}
-                  aria-expanded={expanded}
-                  onClick={() => toggleWorkspace(group.key)}
-                >
-                  <IconChevronDownOutlineRegular
-                    size={14}
-                    className={expanded ? '' : 'bh-session-workspace-chevron-collapsed'}
-                  />
-                  <span className="bh-session-workspace-name">
-                    {group.name ?? t('sessions.workspace.unknown')}
-                  </span>
-                  <span className="bh-session-workspace-count">{group.rows.length}</span>
-                </button>
-                {expanded ? (
-                  <div className="bh-session-workspace-rows">
-                    {group.rows.map((row) => renderRow(row, false))}
-                  </div>
-                ) : null}
-              </section>
-            );
-          })}
+      {preference.layout === 'flat' ? (
+        rows.length === 0 ? null : (
+          <SidebarCardList label={t('entry.sessions')}>
+            {rows.map((row) => renderRow(row, true))}
+          </SidebarCardList>
+        )
+      ) : (
+        groups.map((group) => {
+          const expanded = !preference.collapsedWorkspaces.includes(group.key);
+          return (
+            <section key={group.key} className="bh-session-workspace-group">
+              <button
+                type="button"
+                className="bh-session-workspace-heading"
+                title={group.path}
+                aria-expanded={expanded}
+                onClick={() => toggleWorkspace(group.key)}
+              >
+                <IconChevronDownOutlineRegular
+                  size={14}
+                  className={expanded ? '' : 'bh-session-workspace-chevron-collapsed'}
+                />
+                <span className="bh-session-workspace-name">
+                  {group.name ?? t('sessions.workspace.unknown')}
+                </span>
+                <span className="bh-session-workspace-count">{group.rows.length}</span>
+              </button>
+              {expanded ? (
+                <SidebarCardList label={group.name ?? t('sessions.workspace.unknown')}>
+                  {group.rows.map((row) => renderRow(row, false))}
+                </SidebarCardList>
+              ) : null}
+            </section>
+          );
+        })
+      )}
     </div>
   );
 }

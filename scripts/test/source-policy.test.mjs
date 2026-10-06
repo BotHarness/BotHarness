@@ -139,21 +139,18 @@ describe('source policy', () => {
     const directory = mkdtempSync(join(root, 'scripts', 'source-policy-probe-'));
     const path = join(directory, 'violation.ts');
     const relativePath = relative(root, path).replaceAll('\\', '/');
-    const check = () =>
-      spawnSync(process.execPath, ['scripts/check-source-policy.mjs'], {
+    try {
+      writeFileSync(
+        path,
+        "import { useEffect as effect } from 'react';\neffect(() => {}); // forbidden\n",
+      );
+      const result = spawnSync(process.execPath, ['scripts/check-source-policy.mjs'], {
         cwd: root,
         encoding: 'utf8',
       });
-    try {
-      writeFileSync(path, 'const value = 1; // forbidden\n');
-      const comment = check();
-      expect(comment.status).toBe(1);
-      expect(comment.stderr).toContain(`${relativePath}:1:18 comment`);
-
-      writeFileSync(path, "import { useEffect as effect } from 'react';\neffect(() => {});\n");
-      const effect = check();
-      expect(effect.status).toBe(1);
-      expect(effect.stderr).toContain(`${relativePath}:2:1 useEffect`);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`${relativePath}:2:19 comment`);
+      expect(result.stderr).toContain(`${relativePath}:2:1 useEffect`);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

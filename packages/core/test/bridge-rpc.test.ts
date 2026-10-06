@@ -207,6 +207,8 @@ describe('bridge typert service', () => {
       'scheduleUpdate',
       'scheduleDelete',
       'scheduleHistory',
+      'scheduleRunNow',
+      'schedulePreview',
     ]);
   });
 
@@ -255,6 +257,8 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.scheduleUpdate)).toEqual(['slug', 'id', 'change']);
     expect(parameterNames(service.scheduleDelete)).toEqual(['slug', 'id']);
     expect(parameterNames(service.scheduleHistory)).toEqual(['slug', 'id']);
+    expect(parameterNames(service.scheduleRunNow)).toEqual(['slug', 'id']);
+    expect(parameterNames(service.schedulePreview)).toEqual(['trigger']);
     expect(parameterNames(service.messagingDefaults)).toEqual(['platform']);
     expect(parameterNames(service.channels)).toEqual([]);
     expect(parameterNames(service.channelDm)).toEqual(['slug', 'displayName']);

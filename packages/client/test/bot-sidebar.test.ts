@@ -299,6 +299,10 @@ function stubActions(): BridgeActions {
     }),
     deleteBotSchedule: vi.fn(async () => undefined),
     botScheduleHistory: vi.fn(async () => []),
+    runBotScheduleNow: vi.fn(async () => {
+      throw new Error('unused');
+    }),
+    botSchedulePreview: vi.fn(async () => []),
     setBotSourcePolicy: vi.fn(async () => undefined),
     resetBotSourcePolicy: vi.fn(async () => undefined),
     memoryRepair: vi.fn(async () => {

@@ -128,3 +128,9 @@ Pinned DSH MCP `createMcpToolDefinition` retains `structuredContent` in the cano
 ### Checked external replies with reception disabled
 
 A connected third-party IM account can still refuse a checked reply if its runtime remains in a standalone consumer mode. Verify the pinned Provider contract and the actual responder account: mocked reply qualification alone does not exercise exclusive consumer acquisition. Keep reply connection ownership separate from receive scope; use the existing consumer fanout and lifecycle cancellation without enabling Inbox admission or a standalone Session runner merely to make the reply succeed. #637 validates this boundary with an independent responder identity.
+
+## Native `read_image` and scoped filesystem injection (DSH 0.2.0-rc.1)
+
+A successful external image download and a model route declaring image input do not prove the native image Tool can read it. In an Orchestrator with an isolated filesystem Provider, the pinned `@deepseek-ai/dsh-tool-fs` attachment subplugin declares only `attachments`; its later `ctx.fs` access fails with `cannot get property "fs" without inject`. Reproduce through the real Cordis Tool Registry using `packages/core/test/orchestrator-file-tools.test.ts`, not a mocked Tool implementation.
+
+The task-qualified package patch declares both `attachments` and `fs` for that subplugin. It reuses the existing Provider, native image-capability checks, canonical Attachment service and per-call Grant gate; it adds no authority or parallel image Tool. The regression must return an ImageBlock on an authorized path, refuse after Grant revocation without another filesystem read, and remove the registration on awaited disposal. Build and reinstall the packaged product, restart the exact isolated Host, then require fresh native `read_image` and model visual evidence; a Client preview or a green unit test alone is insufficient ([#904](https://github.com/BotHarness/BotHarness/issues/904)).

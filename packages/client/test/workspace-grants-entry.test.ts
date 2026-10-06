@@ -30,6 +30,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
       onChange: (event: { currentTarget: { checked: boolean } }) =>
         onChange(event.currentTarget.checked),
     }),
+  Tag: ({ children }: { children: ReactNode }) => createElement('span', null, children),
   Modal: () => null,
   Input: () => null,
   IconChevronDownOutlineRegular: () => null,
@@ -85,9 +86,9 @@ describe('Workspace Grant sidebar', () => {
           }),
         ),
       );
-      const expand = Array.from(container.querySelectorAll('button')).find(
-        (button) => button.textContent === 'write project',
-      )!;
+      const expand = Array.from(
+        container.querySelectorAll<HTMLButtonElement>('button.bh-workspace-folder-toggle'),
+      ).find((button) => button.querySelector('.bh-card-title')?.textContent === 'write project')!;
       act(() => expand.click());
       const toggle = () =>
         container.querySelector('input[aria-label*="write project"]') as HTMLInputElement;

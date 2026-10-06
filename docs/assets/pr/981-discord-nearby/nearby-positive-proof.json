@@ -1,0 +1,154 @@
+{
+  "case": "real-model-source-bound-nearby-pagination",
+  "coreRuntime": "7edd33e03876c7638fa781deb968fe565851d193",
+  "provider": "5ae8bb3b1b0bb4067bf240e0dfb6fbe38d582c32",
+  "providerArtifactSha256": "a59c18c5323cc2852f43f88187237fcc6e997e520520fb18bc0c47151816221b",
+  "dsh": "0.2.0-rc.1",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "anchorSourceEventId": "im-4a471cc84cafd83936e5f4ac3b572fba24504198d3ace92d0778d275af492746",
+  "triggerSourceEventId": "im-eb7bd50a12a05ee92307ac84880e6301886ad42285981019212fcf00e8bf0ed9",
+  "query": {
+    "scope": "nearby",
+    "beforeCount": 10,
+    "afterCount": 5,
+    "maxCharacters": 24000
+  },
+  "pages": [
+    {
+      "callId": "call_00_CWtd6xJ7BpAITlstBnRD9378",
+      "messageIds": [
+        "1556913434828996670",
+        "1556904676014952499",
+        "1556881937732341791",
+        "1556879026285584508",
+        "1556879024528162897",
+        "1556879022623952938",
+        "1556879021030252545",
+        "1556790378139484201",
+        "1556790314738393141",
+        "1556708788331872428",
+        "1556690103903195231"
+      ],
+      "sourceEventIds": [
+        "im-4a471cc84cafd83936e5f4ac3b572fba24504198d3ace92d0778d275af492746",
+        "im-457ffcd0a467c0bd86db111adad1e941b4d3c0bb35639e53d46537f79920d6ae",
+        "im-e7b7fe066e3b9779eb2f3876724d5f7e8aec16b4316a87aed4c26c6977da5e24",
+        "im-ea2094ae3c8ed7502a25ad702a8c47f16066cb03f2f1da98117922cd515fd2ca",
+        "im-f8b00696b153e075248497c46eaaf6e79a2ea9284d130f2a2f9012eb89ac1c85",
+        "im-a53ca1cc0696448677f726bd8f481c2924056fee513d6ffbd5199fa30c2c3ebb",
+        "im-598bfdb4b118178b789fc13c2fc06238c8b7519c7405711f37b2b3d90c36811f",
+        "im-f16e3c0642d2b2dd3e7a0e515a6a41106c88f7bc46cf695ed58189a2d5995e79",
+        "im-593a59fa623d2dfa2e1a65e29060d1c9bfe68c2d65a12cbb1f0281436d4d1cd5",
+        "im-0c454fc319bf1d387adbe00fc7892b5c2fc8c6b26aabde391d2941b7b734b4eb",
+        "im-9310691ae523a90c4b97b441525c39a670ba2fbce66e570eab303b131aff1564"
+      ],
+      "omitted": 8,
+      "incomplete": true,
+      "coverage": "provider-visible-human-text",
+      "window": {
+        "start": 1791267188,
+        "end": 1791267789
+      },
+      "hasNextCursor": true,
+      "cursorSha256": "d2f99d8f3afa47719b53ed7ca18b608da18b2ab7662d4186fe3d7d53edc23a82"
+    },
+    {
+      "callId": "call_00_ldNyI4Njux6eyhj1wTOs8164",
+      "messageIds": [],
+      "sourceEventIds": [],
+      "omitted": 3,
+      "incomplete": true,
+      "coverage": "provider-visible-human-text",
+      "window": {
+        "start": 1791267188,
+        "end": 1791267789
+      },
+      "hasNextCursor": true,
+      "cursorSha256": "68c38c0bd5e9bf9c5e2fda9eb1510e92e8d7a2cdcef8db144332fe75ecca65ba"
+    },
+    {
+      "callId": "call_00_j90Cd0JRmXkZKfrr6YNo7564",
+      "messageIds": [
+        "1556934836273287291",
+        "1556927953433268255",
+        "1556915554885832747",
+        "1556915425214857247",
+        "1556914965519142915"
+      ],
+      "sourceEventIds": [
+        "im-eb7bd50a12a05ee92307ac84880e6301886ad42285981019212fcf00e8bf0ed9",
+        "im-43b65df04c7080004c459845179a622ff61563b8948bc8aa71011d1e2c7a48a9",
+        "im-74d8248487f013cb9e032668816d04767b0d7d53688f176d2ebf9138363a6c16",
+        "im-3b656f6dca6f77fd8b18a9904d105fd489200e8bde8214bff86a3124f3a3b9e5",
+        "im-77987665f287f282186bd1be27a1325d491437d62c3a91cd20fc78d4dc90181b"
+      ],
+      "omitted": 0,
+      "incomplete": false,
+      "coverage": "provider-visible-human-text",
+      "window": {
+        "start": 1791267188,
+        "end": 1791267789
+      },
+      "hasNextCursor": false,
+      "cursorSha256": null
+    }
+  ],
+  "continuationsReuseExactReturnedCursor": true,
+  "uniqueHumanTexts": 16,
+  "nearestNativeBeforeMessageIds": [
+    "1556904676014952499",
+    "1556881937732341791",
+    "1556879026285584508",
+    "1556879024528162897",
+    "1556879022623952938",
+    "1556879021030252545",
+    "1556790378139484201",
+    "1556790314738393141",
+    "1556708788331872428",
+    "1556690103903195231"
+  ],
+  "nearestNativeAfterMessageIds": [
+    "1556914965519142915",
+    "1556915425214857247",
+    "1556915554885832747",
+    "1556927953433268255",
+    "1556934836273287291"
+  ],
+  "allReturnedBodiesAndIdentitiesMatchNative": true,
+  "nativeThreadId": "1556622420222283798",
+  "nativeParentId": "1556616665385668620",
+  "reply": {
+    "callId": "call_00_Rq1kOAAnfrkmJMYQQMC45342",
+    "state": "provider-accepted",
+    "nativeMessageId": "1556935049557966871",
+    "reference": "1556934836273287291",
+    "text": "DISCORD-981-NEARBY-ON:pages=3;unique=16;complete=true;ids=1556913434828996670,1556904676014952499,1556881937732341791,1556879026285584508,1556879024528162897,1556879022623952938,1556879021030252545,1556790378139484201,1556790314738393141,1556708788331872428,1556690103903195231,1556934836273287291,1556927953433268255,1556915554885832747,1556915425214857247,1556914965519142915"
+  },
+  "canonicalDelta": {
+    "messaging_bindings": 0,
+    "messaging_grants": 0,
+    "source_events": 2,
+    "inbox_admissions": 1,
+    "messaging_outbox": 1,
+    "channel_placements": 0
+  },
+  "historicalAdmissionsAdded": 0,
+  "priorSourceMutation": "only three read-audit appends on the bound anchor; prior canonical bodies and all other prior source rows unchanged",
+  "bindingGrantAndPlacementsUnchanged": true,
+  "permissionRestoreAndColdRestartPreserveAllSixTables": true,
+  "nativeAppFlagsDuring": 524288,
+  "nativeAppFlagsRestored": 0,
+  "settledTableCounts": {
+    "messaging_bindings": 1,
+    "messaging_grants": 1,
+    "source_events": 25,
+    "inbox_admissions": 7,
+    "messaging_outbox": 5,
+    "channel_placements": 2
+  },
+  "productProviderPromotion": false
+}

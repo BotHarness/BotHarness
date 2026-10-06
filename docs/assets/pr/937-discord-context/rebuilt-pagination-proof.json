@@ -1,0 +1,69 @@
+{
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "sourceEventId": "im-77987665f287f282186bd1be27a1325d491437d62c3a91cd20fc78d4dc90181b",
+  "pages": [
+    {
+      "callId": "call_00_QTOz7iRcX9CC0r1iy4v04967",
+      "humanMessageCount": 13,
+      "nativeMessageIds": [
+        "1556914965519142915",
+        "1556913434828996670",
+        "1556904676014952499",
+        "1556881937732341791",
+        "1556879026285584508",
+        "1556879024528162897",
+        "1556879022623952938",
+        "1556879021030252545",
+        "1556790378139484201",
+        "1556790314738393141",
+        "1556708788331872428",
+        "1556690103903195231",
+        "1556666369397760204"
+      ],
+      "incomplete": true,
+      "omitted": 7,
+      "hasNextCursor": true
+    },
+    {
+      "callId": "call_00_Q1aVmJo9JOC7hedVgGfZ6688",
+      "humanMessageCount": 5,
+      "nativeMessageIds": [
+        "1556635008402456688",
+        "1556634479207129131",
+        "1556634131452928041",
+        "1556622609456828550",
+        "1556622424739545179"
+      ],
+      "incomplete": true,
+      "omitted": 2,
+      "hasNextCursor": false
+    }
+  ],
+  "exactReturnedCursorReused": true,
+  "cursorSHA256": "8bcfca6773f87219af5291b1575ccca85b3d5aeb25ef129d4e1e5df594ab7dd8",
+  "disjointPages": true,
+  "botWebhookMessagesExcluded": true,
+  "reply": {
+    "callId": "call_00_oBGr3vYiC1SLGvS1Pzif4775",
+    "state": "provider-accepted",
+    "nativeMessageId": "1556915056065904731",
+    "nativeThreadId": "1556622420222283798",
+    "referenceMessageId": "1556914965519142915",
+    "text": "DISCORD-937-REBUILT-PAGES-OK:13:5"
+  },
+  "canonicalCountDelta": {
+    "messaging_bindings": 0,
+    "messaging_grants": 0,
+    "source_events": 17,
+    "inbox_admissions": 1,
+    "messaging_outbox": 1,
+    "channel_placements": 0
+  },
+  "contextReadAuditOutcomes": ["read", "read"],
+  "sameBindingGrantPlacements": true,
+  "screenshots": ["rebuilt-pagination-native.jpg"]
+}

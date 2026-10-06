@@ -226,17 +226,18 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-profile-popover')).toBeNull();
       expect(container.querySelector('.bh-profile-view')).not.toBeNull();
       const sections = container.querySelectorAll('.bh-profile-view > .bh-profile-section');
-      expect(sections.length).toBe(7);
-      expect(sections[0]?.getAttribute('aria-label')).toBe('活动概览');
-      expect(sections[1]?.getAttribute('aria-label')).toBe('模型预设');
-      expect(sections[2]?.getAttribute('aria-label')).toBe('连接 Lark / 飞书');
-      expect(sections[3]?.getAttribute('aria-label')).toBe('外部身份');
-      expect(sections[4]?.getAttribute('aria-label')).toBe('频道连接器与授权');
-      expect(sections[5]?.getAttribute('aria-label')).toBe('频道连接器');
-      expect(sections[6]?.getAttribute('aria-label')).toBe('提醒策略');
-      expect(sections[1]?.querySelector('summary')?.textContent).toContain('节省成本');
-      expect(sections[1]?.querySelector('summary')?.textContent).toContain('修订 3');
-      const policyDetails = sections[6]?.querySelector<HTMLDetailsElement>(
+      expect(sections.length).toBe(8);
+      expect(sections[0]?.getAttribute('aria-label')).toBe('头像');
+      expect(sections[1]?.getAttribute('aria-label')).toBe('活动概览');
+      expect(sections[2]?.getAttribute('aria-label')).toBe('模型预设');
+      expect(sections[3]?.getAttribute('aria-label')).toBe('连接 Lark / 飞书');
+      expect(sections[4]?.getAttribute('aria-label')).toBe('外部身份');
+      expect(sections[5]?.getAttribute('aria-label')).toBe('频道连接器与授权');
+      expect(sections[6]?.getAttribute('aria-label')).toBe('频道连接器');
+      expect(sections[7]?.getAttribute('aria-label')).toBe('提醒策略');
+      expect(sections[2]?.querySelector('summary')?.textContent).toContain('节省成本');
+      expect(sections[2]?.querySelector('summary')?.textContent).toContain('修订 3');
+      const policyDetails = sections[7]?.querySelector<HTMLDetailsElement>(
         '.bh-profile-policy-details',
       );
       expect(policyDetails?.open).toBe(false);
@@ -300,7 +301,13 @@ describe('PersonaBot Profile surface', () => {
       });
       expect(container.querySelector('.bh-profile-heat-tip')).toBeNull();
 
-      await act(async () => click(container, '.bh-profile-avatar-actions button:last-child'));
+      const avatarMethods = sections[0]?.querySelectorAll('.bh-avatar-methods > .bh-card-row');
+      expect(avatarMethods?.length).toBe(2);
+      expect(avatarMethods?.[0]?.textContent).toContain('设计像素头像');
+      expect(avatarMethods?.[1]?.textContent).toContain('上传图片');
+      expect(avatarMethods?.[1]?.getAttribute('data-state')).toBe('current');
+      expect(avatarMethods?.[1]?.textContent).toContain('使用中');
+      await act(async () => click(container, '[data-avatar-remove]'));
       expect(setBotAvatar).toHaveBeenCalledWith('dm-ada', null);
       expect(container.querySelector('.bh-profile-avatar-input')).not.toBeNull();
 

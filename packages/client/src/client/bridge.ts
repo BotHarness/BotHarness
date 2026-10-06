@@ -28,6 +28,7 @@ import type {
   BotScheduleChange,
   BotScheduleFiring,
   BotScheduleInput,
+  BotScheduleTrigger,
 } from '../../../core/src/schedules/bot-schedules.js';
 import {
   parseMarketplaceDetail,
@@ -368,12 +369,17 @@ export type {
 
 function isScheduleTrigger(value: unknown): boolean {
   const trigger = asRecord(value);
-  return (
-    (trigger?.['kind'] === 'every' && Number.isSafeInteger(trigger['everySeconds'])) ||
-    (trigger?.['kind'] === 'daily' &&
-      typeof trigger['time'] === 'string' &&
-      typeof trigger['timeZone'] === 'string')
-  );
+  if (trigger?.['kind'] === 'every') return Number.isSafeInteger(trigger['everySeconds']);
+  if (typeof trigger?.['timeZone'] !== 'string') return false;
+  if (trigger['kind'] === 'cron') return typeof trigger['expression'] === 'string';
+  if (typeof trigger['time'] !== 'string') return false;
+  if (trigger['kind'] === 'daily') return true;
+  if (trigger['kind'] === 'weekly')
+    return (
+      Array.isArray(trigger['weekdays']) &&
+      trigger['weekdays'].every((day) => Number.isSafeInteger(day))
+    );
+  return trigger['kind'] === 'once' && typeof trigger['date'] === 'string';
 }
 
 function parseScheduleFiring(value: unknown): BotScheduleFiring {
@@ -447,6 +453,26 @@ export async function loadBotScheduleHistory(
   const raw = asRecord(await unwrap(call, 'scheduleHistory', { slug, id }))?.['firings'];
   if (!Array.isArray(raw)) throw new Error('invalid Bot Schedule history');
   return raw.map(parseScheduleFiring);
+}
+
+export async function runBotScheduleNow(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+): Promise<BotScheduleFiring> {
+  return parseScheduleFiring(
+    asRecord(await unwrap(call, 'scheduleRunNow', { slug, id }))?.['firing'],
+  );
+}
+
+export async function previewBotSchedule(
+  call: BridgeCall,
+  trigger: BotScheduleTrigger,
+): Promise<string[]> {
+  const raw = asRecord(await unwrap(call, 'schedulePreview', { trigger }))?.['occurrences'];
+  if (!Array.isArray(raw) || !raw.every((value) => typeof value === 'string'))
+    throw new Error('invalid Bot Schedule preview');
+  return raw as string[];
 }
 
 export async function setBotSourcePolicy(
@@ -2141,6 +2167,7 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
     'assignmentSessionId',
     'assignmentPurpose',
     'authorBotSlug',
+    'scheduleId',
   ])
     if (row[key] !== undefined && typeof row[key] !== 'string') return undefined;
   if (

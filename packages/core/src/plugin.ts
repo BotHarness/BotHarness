@@ -427,7 +427,7 @@ export function createCore(
       );
     refreshDurableAttention();
     operationalDatabase.subscribe(({ topics }) => {
-      if (topics.some((topic) => topic === 'bindings' || topic === 'grants'))
+      if (topics.some((topic) => ['bindings', 'grants', 'bot-schedules'].includes(topic)))
         live?.publishRosterCommitted();
       if (
         topics.some((topic) =>
@@ -493,7 +493,17 @@ export function createCore(
     for (const contribute of [...botAgentSetups]) contribute(agentCtx, agent, info);
   };
 
+  const schedules = createBotScheduleStore({
+    database: attachOperationalModule(operationalDatabase, 'bot-schedules'),
+    isBotActive: (slug) => {
+      const bot = registry.get(slug);
+      return operationalDatabase.mode === 'ready' && bot !== undefined && bot.paused !== true;
+    },
+    onAdmitted: (slug) => runtime?.admitScheduleFiring?.(slug),
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
   runtime = createBotRuntime({
+    schedules,
     assignmentConcurrencyLimit: () => assignmentLimits.at(-1)?.read() ?? 3,
     beginAssignmentWait: (slug, sessionId) => states.beginAssignmentWait(slug, sessionId),
     database: operationalDatabase,
@@ -519,15 +529,6 @@ export function createCore(
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   if (operationalDatabase.mode === 'ready') runtime.reconcileMemoryChangesOnStartup?.();
-  const schedules = createBotScheduleStore({
-    database: attachOperationalModule(operationalDatabase, 'bot-schedules'),
-    isBotActive: (slug) => {
-      const bot = registry.get(slug);
-      return operationalDatabase.mode === 'ready' && bot !== undefined && bot.paused !== true;
-    },
-    onAdmitted: (slug) => runtime?.admitScheduleFiring?.(slug),
-    ...(options.warn === undefined ? {} : { warn: options.warn }),
-  });
   if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     rootDir,

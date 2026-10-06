@@ -26,6 +26,7 @@ import type { BotScheduleView } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
 import {
   BotSchedulesEntry,
+  ScheduleDialog,
   emptyScheduleForm,
   formatScheduleTime,
   scheduleCadenceLabel,
@@ -74,8 +75,35 @@ describe('Bot Schedule form helpers', () => {
     expect(scheduleTriggerOf({ ...form, unit: 'daily', time: '8' })).toBeUndefined();
   });
 
+  it('turns weekly, once and cron forms into triggers', () => {
+    const form = emptyScheduleForm('Asia/Shanghai', new Date(2026, 9, 6, 8, 0));
+    expect(form.date).toBe('2026-10-07');
+    expect(scheduleTriggerOf({ ...form, unit: 'weekly', weekdays: [5, 1, 5] })).toEqual({
+      kind: 'weekly',
+      time: '09:00',
+      timeZone: 'Asia/Shanghai',
+      weekdays: [1, 5],
+    });
+    expect(scheduleTriggerOf({ ...form, unit: 'weekly', weekdays: [] })).toBeUndefined();
+    expect(scheduleTriggerOf({ ...form, unit: 'once', time: '18:30' })).toEqual({
+      kind: 'once',
+      date: '2026-10-07',
+      time: '18:30',
+      timeZone: 'Asia/Shanghai',
+    });
+    expect(scheduleTriggerOf({ ...form, unit: 'once', date: '' })).toBeUndefined();
+    expect(scheduleTriggerOf({ ...form, unit: 'cron', expression: ' 0  9 * * 1-5 ' })).toEqual({
+      kind: 'cron',
+      expression: '0 9 * * 1-5',
+      timeZone: 'Asia/Shanghai',
+    });
+    expect(scheduleTriggerOf({ ...form, unit: 'cron', expression: ' ' })).toBeUndefined();
+    expect(scheduleTriggerOf({ ...form, unit: 'cron', timeZone: '' })).toBeUndefined();
+  });
+
   it('round-trips a stored schedule into the editor form', () => {
-    expect(scheduleFormOf(schedule)).toMatchObject({ unit: 'hours', every: '2' });
+    expect(scheduleFormOf(schedule)).toMatchObject({ unit: 'hours', every: '2', locked: false });
+    expect(scheduleFormOf({ ...schedule, locked: true }).locked).toBe(true);
     expect(
       scheduleFormOf({ ...schedule, trigger: { kind: 'every', everySeconds: 900 } }),
     ).toMatchObject({ unit: 'minutes', every: '15' });
@@ -85,6 +113,24 @@ describe('Bot Schedule form helpers', () => {
         trigger: { kind: 'daily', time: '09:15', timeZone: 'Asia/Tokyo' },
       }),
     ).toMatchObject({ unit: 'daily', time: '09:15', timeZone: 'Asia/Tokyo' });
+    expect(
+      scheduleFormOf({
+        ...schedule,
+        trigger: { kind: 'weekly', time: '10:00', timeZone: 'UTC', weekdays: [2, 4] },
+      }),
+    ).toMatchObject({ unit: 'weekly', time: '10:00', weekdays: [2, 4] });
+    expect(
+      scheduleFormOf({
+        ...schedule,
+        trigger: { kind: 'once', date: '2026-12-31', time: '23:00', timeZone: 'UTC' },
+      }),
+    ).toMatchObject({ unit: 'once', date: '2026-12-31', time: '23:00' });
+    expect(
+      scheduleFormOf({
+        ...schedule,
+        trigger: { kind: 'cron', expression: '*/30 * * * *', timeZone: 'UTC' },
+      }),
+    ).toMatchObject({ unit: 'cron', expression: '*/30 * * * *' });
   });
 
   it('labels cadences', () => {
@@ -99,6 +145,26 @@ describe('Bot Schedule form helpers', () => {
     expect(
       scheduleCadenceLabel({ kind: 'daily', time: '09:00', timeZone: 'UTC' }, zhTranslate),
     ).toBe('每天 09:00');
+    const weekly = (weekdays: number[]) =>
+      scheduleCadenceLabel(
+        { kind: 'weekly', time: '09:00', timeZone: 'UTC', weekdays },
+        zhTranslate,
+      );
+    expect(weekly([1, 2, 3, 4, 5])).toBe('工作日 09:00');
+    expect(weekly([6, 7])).toBe('周末 09:00');
+    expect(weekly([1, 3])).toBe('周一、周三 09:00');
+    expect(
+      scheduleCadenceLabel(
+        { kind: 'once', date: '2026-11-01', time: '09:00', timeZone: 'UTC' },
+        zhTranslate,
+      ),
+    ).toBe('单次 11-01 09:00');
+    expect(
+      scheduleCadenceLabel(
+        { kind: 'cron', expression: '0 9 * * 1-5', timeZone: 'UTC' },
+        zhTranslate,
+      ),
+    ).toBe('Cron 0 9 * * 1-5');
   });
 
   it('shows the date only when the next run is not today', () => {
@@ -114,6 +180,8 @@ describe('Bot Schedules sidebar entry', () => {
     const actions = {
       botSchedules: vi.fn(async () => [schedule]),
       botScheduleHistory: vi.fn(async () => []),
+      updateBotSchedule: vi.fn(async () => ({ ...schedule, locked: true })),
+      runBotScheduleNow: vi.fn(async () => ({ ...schedule.lastFiring, trigger: 'manual' })),
     } as unknown as BridgeActions;
     const host = document.createElement('div');
     document.body.append(host);
@@ -136,7 +204,70 @@ describe('Bot Schedules sidebar entry', () => {
     expect(text).toContain('已处理');
     expect(host.querySelector('[aria-label="由你创建"]')).not.toBeNull();
     expect(host.querySelector('[aria-label="启用「每日早报」"]')).not.toBeNull();
+    const lock = host.querySelector<HTMLButtonElement>('button.bh-schedule-lock-toggle');
+    expect(lock?.getAttribute('aria-pressed')).toBe('false');
+    await act(async () => lock?.click());
+    expect(actions.updateBotSchedule).toHaveBeenCalledWith('ada', 'sch-1', { locked: true });
+    const runNow = host.querySelector<HTMLButtonElement>('button.bh-schedule-run-now');
+    expect(runNow?.getAttribute('aria-label')).toBe('立即运行「每日早报」');
+    await act(async () => runNow?.click());
+    expect(actions.runBotScheduleNow).toHaveBeenCalledWith('ada', 'sch-1');
+    expect(host.textContent).toContain('已触发，Bot 马上处理');
     await act(async () => root.unmount());
     host.remove();
+  });
+});
+
+describe('Bot Schedule dialog opened from the Bot Inbox', () => {
+  async function render(
+    rows: BotScheduleView[],
+  ): Promise<{ host: HTMLElement; done(): Promise<void> }> {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const actions = {
+      botSchedules: vi.fn(async () => rows),
+      botScheduleHistory: vi.fn(async () => (rows.length === 0 ? [] : [schedule.lastFiring])),
+      botSchedulePreview: vi.fn(async () => [
+        '2026-10-06T09:00:00.000Z',
+        '2026-10-06T11:00:00.000Z',
+        '2026-10-06T13:00:00.000Z',
+      ]),
+    } as unknown as BridgeActions;
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        createElement(ScheduleDialog, {
+          botSlug: 'ada',
+          scheduleId: 'sch-1',
+          actions,
+          t: zhTranslate,
+          onClose: () => undefined,
+        }),
+      );
+    });
+    return {
+      host,
+      done: async () => {
+        await act(async () => root.unmount());
+        host.remove();
+      },
+    };
+  }
+
+  it('loads the schedule with its firing history and previews the next runs', async () => {
+    const { host, done } = await render([schedule]);
+    expect(host.textContent).toContain('最近触发');
+    expect(host.textContent).toContain('已处理');
+    expect(host.querySelector('[data-schedule-preview]')?.textContent).toContain('正在计算');
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 300)));
+    expect(host.querySelectorAll('[data-schedule-preview] li')).toHaveLength(3);
+    await done();
+  });
+
+  it('says when the schedule was deleted', async () => {
+    const { host, done } = await render([]);
+    expect(host.textContent).toContain('这个定时任务已被删除。');
+    await done();
   });
 });

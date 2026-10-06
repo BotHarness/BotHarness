@@ -4,8 +4,11 @@ import type { DatabaseSync } from 'node:sqlite';
 import {
   ScheduleId,
   ScheduleInputError,
+  createAtScheduleRecord,
+  createCronScheduleRecord,
   createDailyScheduleRecord,
   createEveryScheduleRecord,
+  createWeeklyScheduleRecord,
   resolveRecurringOccurrence,
 } from '@deepseek-ai/dsh-schedule';
 
@@ -17,7 +20,12 @@ const MAX_TIMER_MS = 60 * 60 * 1000;
 
 export type BotScheduleTrigger =
   | { kind: 'every'; everySeconds: number }
-  | { kind: 'daily'; time: string; timeZone: string };
+  | { kind: 'daily'; time: string; timeZone: string }
+  | { kind: 'weekly'; time: string; timeZone: string; weekdays: number[] }
+  | { kind: 'once'; date: string; time: string; timeZone: string }
+  | { kind: 'cron'; expression: string; timeZone: string };
+
+export const BOT_SCHEDULE_PREVIEW_COUNT = 3;
 
 export type BotScheduleCreator = 'human' | 'personabot';
 
@@ -54,6 +62,7 @@ export interface BotScheduleInput {
   prompt: string;
   trigger: BotScheduleTrigger;
   enabled?: boolean;
+  locked?: boolean;
 }
 
 export interface BotScheduleChange {
@@ -61,9 +70,15 @@ export interface BotScheduleChange {
   prompt?: string;
   trigger?: BotScheduleTrigger;
   enabled?: boolean;
+  locked?: boolean;
 }
 
-export type BotScheduleErrorCode = 'not-found' | 'invalid-input' | 'limit-reached' | 'locked';
+export type BotScheduleErrorCode =
+  | 'not-found'
+  | 'invalid-input'
+  | 'limit-reached'
+  | 'locked'
+  | 'inactive';
 
 export class BotScheduleError extends Error {
   readonly code: BotScheduleErrorCode;
@@ -86,29 +101,25 @@ export interface BotScheduleStore {
   ): BotSchedule;
   remove(botSlug: string, id: string, actor: BotScheduleCreator): boolean;
   history(botSlug: string, id: string): BotScheduleFiring[];
+  runNow(botSlug: string, id: string): BotScheduleFiring;
   tick(): void;
   start(): void;
   close(): void;
 }
 
+interface StoredBase {
+  id: string;
+  title: string;
+  prompt: string;
+  scheduledAt: string;
+}
+
 type StoredRecord =
-  | {
-      id: string;
-      kind: 'every';
-      title: string;
-      prompt: string;
-      everySeconds: number;
-      scheduledAt: string;
-    }
-  | {
-      id: string;
-      kind: 'daily';
-      title: string;
-      prompt: string;
-      time: string;
-      timeZone: string;
-      scheduledAt: string;
-    };
+  | (StoredBase & { kind: 'every'; everySeconds: number })
+  | (StoredBase & { kind: 'daily'; time: string; timeZone: string })
+  | (StoredBase & { kind: 'weekly'; time: string; timeZone: string; weekdays: number[] })
+  | (StoredBase & { kind: 'at'; local: { date: string; time: string; timeZone: string } })
+  | (StoredBase & { kind: 'cron'; expression: string; timeZone: string });
 
 interface ScheduleRow {
   schedule_id: string;
@@ -153,9 +164,27 @@ function parseRecord(row: ScheduleRow): StoredRecord {
 }
 
 function triggerOf(record: StoredRecord): BotScheduleTrigger {
-  return record.kind === 'every'
-    ? { kind: 'every', everySeconds: record.everySeconds }
-    : { kind: 'daily', time: record.time.slice(0, 5), timeZone: record.timeZone };
+  switch (record.kind) {
+    case 'every':
+      return { kind: 'every', everySeconds: record.everySeconds };
+    case 'daily':
+      return { kind: 'daily', time: record.time.slice(0, 5), timeZone: record.timeZone };
+    case 'weekly':
+      return {
+        kind: 'weekly',
+        time: record.time.slice(0, 5),
+        timeZone: record.timeZone,
+        weekdays: [...record.weekdays],
+      };
+    case 'at':
+      return { kind: 'once', ...record.local };
+    case 'cron':
+      return { kind: 'cron', expression: record.expression, timeZone: record.timeZone };
+  }
+}
+
+function localTime(time: string): string {
+  return /^\d{2}:\d{2}$/u.test(time) ? `${time}:00` : time;
 }
 
 function firingState(row: FiringRow): BotScheduleFiringState {
@@ -203,20 +232,59 @@ function buildRecord(
   trigger: BotScheduleTrigger,
   now: number,
 ): StoredRecord {
+  const scheduleId = ScheduleId(id);
   try {
-    if (trigger.kind === 'every')
-      return {
-        ...createEveryScheduleRecord(ScheduleId(id), prompt, trigger.everySeconds, now, title),
-      };
-    const time = /^\d{2}:\d{2}$/u.test(trigger.time) ? `${trigger.time}:00` : trigger.time;
-    const record = createDailyScheduleRecord(
-      ScheduleId(id),
-      prompt,
-      { time, time_zone: trigger.timeZone },
-      now,
-      title,
-    );
-    return { ...record, kind: 'daily' };
+    switch (trigger.kind) {
+      case 'every':
+        return {
+          ...createEveryScheduleRecord(scheduleId, prompt, trigger.everySeconds, now, title),
+        };
+      case 'daily':
+        return {
+          ...createDailyScheduleRecord(
+            scheduleId,
+            prompt,
+            { time: localTime(trigger.time), time_zone: trigger.timeZone },
+            now,
+            title,
+          ),
+        };
+      case 'weekly': {
+        const record = createWeeklyScheduleRecord(
+          scheduleId,
+          prompt,
+          {
+            time: localTime(trigger.time),
+            time_zone: trigger.timeZone,
+            weekdays: [...trigger.weekdays],
+          },
+          now,
+          title,
+        );
+        return { ...record, weekdays: [...record.weekdays] };
+      }
+      case 'once':
+        return {
+          ...createAtScheduleRecord(
+            scheduleId,
+            prompt,
+            { date: trigger.date, time: localTime(trigger.time), time_zone: trigger.timeZone },
+            now,
+            title,
+          ),
+          local: { date: trigger.date, time: trigger.time.slice(0, 5), timeZone: trigger.timeZone },
+        };
+      case 'cron':
+        return {
+          ...createCronScheduleRecord(
+            scheduleId,
+            prompt,
+            { expression: trigger.expression, time_zone: trigger.timeZone },
+            now,
+            title,
+          ),
+        };
+    }
   } catch (error) {
     if (error instanceof ScheduleInputError)
       throw new BotScheduleError('invalid-input', error.message);
@@ -225,9 +293,29 @@ function buildRecord(
 }
 
 function sameTrigger(left: BotScheduleTrigger, right: BotScheduleTrigger): boolean {
-  return left.kind === 'every'
-    ? right.kind === 'every' && left.everySeconds === right.everySeconds
-    : right.kind === 'daily' && left.time === right.time && left.timeZone === right.timeZone;
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function nextOccurrence(record: StoredRecord, at: number): string | undefined {
+  if (record.kind === 'at') return undefined;
+  return resolveRecurringOccurrence(record as Parameters<typeof resolveRecurringOccurrence>[0], at)
+    .nextScheduledAt;
+}
+
+export function previewBotScheduleTrigger(
+  trigger: BotScheduleTrigger,
+  now: Date = new Date(),
+  count = BOT_SCHEDULE_PREVIEW_COUNT,
+): string[] {
+  let record = buildRecord('preview', 'preview', 'preview', trigger, now.getTime());
+  const occurrences = [record.scheduledAt];
+  while (occurrences.length < count) {
+    const next = nextOccurrence(record, Date.parse(record.scheduledAt));
+    if (next === undefined) break;
+    occurrences.push(next);
+    record = { ...record, scheduledAt: next };
+  }
+  return occurrences;
 }
 
 export function createBotScheduleStore(options: BotScheduleStoreOptions): BotScheduleStore {
@@ -410,10 +498,13 @@ export function createBotScheduleStore(options: BotScheduleStoreOptions): BotSch
           .all(at.toISOString()) as unknown as ScheduleRow[];
         for (const row of due) {
           const record = parseRecord(row);
-          const occurrence = resolveRecurringOccurrence(
-            record as Parameters<typeof resolveRecurringOccurrence>[0],
-            at.getTime(),
-          );
+          const occurrence =
+            record.kind === 'at'
+              ? { occurrenceAt: record.scheduledAt, nextScheduledAt: undefined }
+              : resolveRecurringOccurrence(
+                  record as Parameters<typeof resolveRecurringOccurrence>[0],
+                  at.getTime(),
+                );
           const nextRecord: StoredRecord = {
             ...record,
             scheduledAt: occurrence.nextScheduledAt ?? record.scheduledAt,
@@ -481,18 +572,22 @@ export function createBotScheduleStore(options: BotScheduleStoreOptions): BotSch
       const at = now();
       const record = buildRecord(id, title, prompt, input.trigger, at.getTime());
       const enabled = input.enabled ?? true;
+      if (creator === 'personabot' && input.locked !== undefined)
+        throw new BotScheduleError('locked', 'Only the Human can lock or unlock a Bot Schedule');
+      const locked = input.locked === true;
       const created = write((db) => {
         if (enabled) requireCapacity(db, botSlug);
         db.prepare(`
           INSERT INTO bot_schedules
             (schedule_id, bot_slug, record_json, enabled, creator, locked, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           id,
           botSlug,
           JSON.stringify(record),
           enabled ? 1 : 0,
           creator,
+          locked ? 1 : 0,
           at.toISOString(),
           at.toISOString(),
         );
@@ -508,6 +603,8 @@ export function createBotScheduleStore(options: BotScheduleStoreOptions): BotSch
         const row = readRow(db, botSlug, id);
         if (actor === 'personabot' && row.locked === 1)
           throw new BotScheduleError('locked', `Bot Schedule ${id} is locked by the Human`);
+        if (actor === 'personabot' && change.locked !== undefined)
+          throw new BotScheduleError('locked', 'Only the Human can lock or unlock a Bot Schedule');
         const record = parseRecord(row);
         const title =
           change.title === undefined ? record.title : normalizeText(change.title, 'title', 120);
@@ -517,14 +614,15 @@ export function createBotScheduleStore(options: BotScheduleStoreOptions): BotSch
             : normalizeText(change.prompt, 'prompt', 4000);
         const trigger = change.trigger ?? triggerOf(record);
         const enabled = change.enabled ?? row.enabled === 1;
+        const locked = change.locked ?? row.locked === 1;
         if (enabled && row.enabled === 0) requireCapacity(db, botSlug, id);
         const restart = (enabled && row.enabled === 0) || !sameTrigger(trigger, triggerOf(record));
         const next: StoredRecord = restart
           ? buildRecord(id, title, prompt, trigger, at.getTime())
           : { ...record, title, prompt };
         db.prepare(
-          'UPDATE bot_schedules SET record_json = ?, enabled = ?, updated_at = ? WHERE schedule_id = ?',
-        ).run(JSON.stringify(next), enabled ? 1 : 0, at.toISOString(), id);
+          'UPDATE bot_schedules SET record_json = ?, enabled = ?, locked = ?, updated_at = ? WHERE schedule_id = ?',
+        ).run(JSON.stringify(next), enabled ? 1 : 0, locked ? 1 : 0, at.toISOString(), id);
         return view(db, readRow(db, botSlug, id));
       });
       mutated(botSlug);
@@ -559,6 +657,26 @@ export function createBotScheduleStore(options: BotScheduleStoreOptions): BotSch
             .all(id, BOT_SCHEDULE_HISTORY_LIMIT) as unknown as FiringRow[]
         ).map(firingView);
       });
+    },
+
+    runNow(botSlug, id) {
+      if (!options.isBotActive(botSlug))
+        throw new BotScheduleError('inactive', 'The PersonaBot is paused or unavailable');
+      const at = now().toISOString();
+      const result = write((db) => {
+        const row = readRow(db, botSlug, id);
+        const admitted = admitFiring(db, row, parseRecord(row), 'manual', at, at);
+        const firing = db
+          .prepare(
+            `SELECT ${FIRING_COLUMNS} ${FIRING_JOIN} WHERE f.schedule_id = ?
+              ORDER BY f.rowid DESC LIMIT 1`,
+          )
+          .get(id) as unknown as FiringRow;
+        return { admitted, firing: firingView(firing) };
+      });
+      options.onChanged?.(botSlug);
+      if (!result.admitted.coalesced) options.onAdmitted(botSlug, result.admitted.sourceEventId);
+      return result.firing;
     },
 
     tick,
