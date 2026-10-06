@@ -5,6 +5,8 @@ Date: 2026-09-20
 
 # PersonaBot Export wraps Soul and selected operational facets
 
+> Retired by [ADR-0134](0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md): with SoulSnapshot superseded by Memory Git repository sharing (ADR-0131) and whole-Profile moves owned by Profile Backup (ADR-0042), there is no per-Bot export package. "Soul" below means the old shareable-Memory concept, not today's `SOUL.md`.
+
 A **PersonaBot Export** is an immutable, schema-versioned transfer package that always contains one SoulSnapshot and may contain explicitly selected operational **Export Facets**. Its default selection is Persona plus Human-selected Memory only. SoulSnapshot remains the content-addressed sharing and registry unit; the outer package exists for backup, handoff, and clone workflows that need more than identity content without redefining a Soul.
 
 Optional facets may include selected Source Events and Source Revisions, content-addressed Attachments, Channel placements, Inbox Admissions and Attention Decisions, Inbox Triggers and Wake Policies, a Messaging Archive, non-secret provider account references, and Service Grant declarations. Each facet has its own schema version, selection manifest, redactions, provenance, and dependency closure. Selecting an Inbox, Channel, Attention, or Outbox fact automatically includes every required Source Event, Revision, Attachment metadata record, and provenance ancestor. A Human may replace sensitive content with a typed **Redaction Tombstone** that preserves resolvable identity, hashes, dependencies, and omission reason; dangling references and silent content loss are invalid. Per-Channel NDJSON is a derived view inside a Messaging Archive, never a second authority.

@@ -7,7 +7,7 @@ A DeepSeek Harness plugin layer that gives LLM agents a persistent product ident
 ### PersonaBots
 
 **PersonaBot**:
-A first-class bot entity owned by the Host: a durable identity with a Git-backed Memory Repository that spans Sessions, Chats, and Workspaces and can hold several Sessions at once. Persona is optional content within Memory, not the identity itself.
+A first-class bot entity owned by the Host: a durable identity with a Git-backed Memory Repository that spans Sessions, Chats, and Workspaces and can hold several Sessions at once. Its Soul is optional content within Memory, not the identity itself.
 _Avoid_: bot (bare), agent, assistant, robot
 
 **Archived PersonaBot**:
@@ -36,11 +36,11 @@ _Avoid_: Bot tag, permission role, category
 
 **Bot description**:
 An optional, brief Human-authored self-introduction that explains who a PersonaBot is, what it does, or what it is good at.
-_Avoid_: Persona, role badge, system prompt
+_Avoid_: Soul, role badge, system prompt
 
-**Persona**:
-Conventional Memory content that describes character, voice, or standing instructions, delivered to a Session's system prompt from a snapshot frozen at that Session's first prompt assembly. It has no special file type or write protection: an authorized Agent or Human may create, revise, rename, or remove it; an edit reaches new Sessions, not one already running.
-_Avoid_: system prompt, character sheet, profile
+**Soul**:
+A PersonaBot's character, voice, and standing instructions, kept in the root `SOUL.md` of its Memory Repository and delivered to each Session's system prompt from a snapshot frozen at that Session's first prompt assembly, together with its Core Memory. It has no write protection: an authorized Agent or Human may revise it; an edit reaches new Sessions or the next compaction, not a running prefix.
+_Avoid_: Persona, PERSONA.md, system prompt, character sheet, profile
 
 **Bot state**:
 The current presentation of one PersonaBot, projected from its owned Orchestrator and Assignment Session activity. Active Orchestrator work is shown unless it is waiting on Assignments; concurrent Assignment tool kinds collapse to one matching effect or generic `working`, while waiting and blocked attention remain independent indicators rather than configurable priorities.
@@ -52,11 +52,11 @@ _Avoid_: profile picture, skin
 
 **Avatar Family**:
 A category of Avatar forms with compatible appearance choices that a Human can combine. Each family expresses the same Bot state in its own visual language; an appearance choice is shared across families only when it is explicitly compatible.
-_Avoid_: Persona, Bot type, mode, skin
+_Avoid_: Soul, Bot type, mode, skin
 
 **Avatar Appearance**:
 A PersonaBot's saved visual choices: its Avatar Family, compatible parts, colors and editable geometry. The same choices apply across Bindings and return after temporary motion or deformation; they are independent of Persona and current Bot state.
-_Avoid_: Persona, pose, mood, skin
+_Avoid_: Soul, pose, mood, skin
 
 **Model Preset**:
 A reusable, deployment-local Human-authored model plan for PersonaBots: one Orchestrator provider, model, and reasoning effort, plus allowed Assignment models and efforts with a default. Applying it copies the plan to a PersonaBot; later preset edits do not update that copy.
@@ -64,7 +64,7 @@ _Avoid_: DSH Agent preset, SoulSnapshot
 
 **PersonaBot Model Plan**:
 The PersonaBot-local snapshot of a Model Preset or Human custom choices that governs its Orchestrator route and future Assignment model selections. It is operational configuration, not Soul or Memory.
-_Avoid_: Persona, DSH Agent preset, model usage
+_Avoid_: Soul, DSH Agent preset, model usage
 
 ### Support and execution
 
@@ -254,6 +254,10 @@ _Avoid_: knowledge base, vector store, RAG, database, context
 A PersonaBot-owned ordinary Git repository, created automatically with the PersonaBot and used as its Orchestrator Session's working directory. Git controls branches, merges, and file history; archive, export, restore, and purge remain explicit PersonaBot operations.
 _Avoid_: optional attachment, Session memory, generated index, project Workspace
 
+**Core Memory**:
+A PersonaBot's always-present memory, kept in the root `MEMORY.md` of its Memory Repository: mostly a one-line-per-entry index of what it remembers, plus a few key facts. It enters each Session's system prompt from the same frozen snapshot as the Soul, within a Human-set per-PersonaBot character limit; how it is organized emerges between the Human and the PersonaBot.
+_Avoid_: memory tree, pinned memory, generated index, USER.md
+
 **Topic file**:
 A Memory file devoted to one subject — a customer, a process, a decision — inside a Memory Repository. It is a convention, not a restriction on repository file types.
 _Avoid_: note, document, page, record
@@ -282,22 +286,18 @@ _Avoid_: accepted commit, auto-save, Git author, ordinary Inbox observation
 A Host-managed real file received with a Source Event, with identity independent of its current bytes and the sender's upload-source file. Referencing messages show its current contents after external edits; independent uploads remain independent, and a PersonaBot owns a Memory or Workspace copy only after explicitly preserving it.
 _Avoid_: upload, provider URL, per-Bot inbox copy, database blob
 
-### Soul and sharing
-
-**Soul**:
-The selected Memory content of a PersonaBot that may freeze into a SoulSnapshot, including Persona content when present.
-_Avoid_: character, profile, data
+### Sharing
 
 **SoulSnapshot**:
-An immutable, content-addressed package of a Soul: the `bot.md` manifest, setup instructions, and selected Memory files; the unit the registry stores, lists, and imports. No Persona file is required.
+Historical: an immutable, content-addressed package of selected Memory files, including the Soul when present, with a `bot.md` manifest and setup instructions; the unit the registry was to store, list, and import. Full Memory repository sharing (ADR-0131) supersedes it as the sharing unit.
 _Avoid_: export, backup, bot zip, image
 
 **PersonaBot Export**:
-An immutable, versioned transfer package that always contains one SoulSnapshot and may contain explicitly selected operational Export Facets. Its default is Soul only; it never carries credentials or live authority.
+Historical (retired by ADR-0134): an immutable, versioned transfer package that always contained one SoulSnapshot and could contain explicitly selected operational Export Facets. A single Bot is now shared as its Memory Git repository (ADR-0131), and a whole Profile moves through Profile Backup.
 _Avoid_: SoulSnapshot, database copy, live clone, registry version
 
 **Export Facet**:
-A dependency-closed, schema-versioned optional part of a PersonaBot Export, such as Source Events and Attachments, Inbox and attention facts, Triggers and Wake Policies, a Messaging Archive, disabled Service Grant declarations, or provider account references awaiting rebind.
+Historical (retired with PersonaBot Export): a dependency-closed, schema-versioned optional part of a PersonaBot Export, such as Source Events and Attachments, Inbox and attention facts, Triggers and Wake Policies, a Messaging Archive, disabled Service Grant declarations, or provider account references awaiting rebind.
 _Avoid_: arbitrary table dump, credential bundle, active permission
 
 **Messaging Archive**:
@@ -317,7 +317,7 @@ A public GitHub repository carrying the `botharness-bot` topic that the Bot Mark
 _Avoid_: submission, Listing, SoulSnapshot, mirror
 
 **Soul registry**:
-The hosted service that stores, versions, and serves SoulSnapshots — the marketplace backend, distinct from the Host's PersonaBot registry.
+Historical (ADR-0019/0020): the planned hosted service that would store, version, and serve SoulSnapshots. The Bot Marketplace (ADR-0131) replaces it.
 _Avoid_: hub, store, database
 
 **Listing**:
@@ -337,11 +337,11 @@ A named group of Listings meant to be imported together.
 _Avoid_: collection, bundle, pack, team
 
 **Export**:
-Materializing a PersonaBot Export. The default selects only the Persona plus chosen Memory in its SoulSnapshot; operational Export Facets require explicit selection.
+Historical (retired with PersonaBot Export): materializing a PersonaBot Export. Use Profile Backup for a whole Profile and the Memory Git repository for one Bot.
 _Avoid_: database dump, live clone, publish
 
 **Import**:
-Creating a new PersonaBot from a SoulSnapshot or PersonaBot Export; always a copy, with imported operational authorities disabled until explicitly rebound or reauthorized.
+Creating a new PersonaBot from a shared Memory Git repository (Git URL or Bot Marketplace install); always a copy, with imported operational authorities disabled until explicitly rebound or reauthorized.
 _Avoid_: install, clone, pull, restore
 
 **Publish**:
