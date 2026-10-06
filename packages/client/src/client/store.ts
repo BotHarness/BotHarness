@@ -348,6 +348,7 @@ export interface BotAttentionItem {
     conversationId: string;
     senderId: string;
     senderName?: string;
+    voice?: { transcript: 'platform' | 'unavailable'; itemId?: string; durationMs?: number };
   };
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';

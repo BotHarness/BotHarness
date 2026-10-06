@@ -40,6 +40,7 @@ export interface BotAttentionItem {
     conversationId: string;
     senderId: string;
     senderName?: string;
+    voice?: NonNullable<ExternalSource['event']['voice']>;
   };
   summary: string;
 }
@@ -194,6 +195,7 @@ export function createBotAttentionQuery(
                   conversationName: external.conversationName,
                   conversationId: external.event.conversation.id,
                   senderId: external.event.actor.id,
+                  ...(external.event.voice ? { voice: external.event.voice } : {}),
                   ...(external.event.actor.name ? { senderName: external.event.actor.name } : {}),
                 },
               }),

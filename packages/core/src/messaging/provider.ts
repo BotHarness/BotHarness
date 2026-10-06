@@ -22,6 +22,12 @@ export interface MessagingAttachment {
   mediaType?: string;
 }
 
+export interface MessagingVoice {
+  transcript: 'platform' | 'unavailable';
+  itemId?: string;
+  durationMs?: number;
+}
+
 export interface MessagingInboundEvent {
   version: 1;
   channel: 'feishu' | 'slack' | 'discord' | 'weixin';
@@ -36,6 +42,7 @@ export interface MessagingInboundEvent {
   at: string;
   text: string;
   attachments?: MessagingAttachment[];
+  voice?: MessagingVoice;
   reply: MessagingReplyRoute;
   replay: { kind: 'provider-redelivery'; resumeCursor: false; gapPossible: true };
 }

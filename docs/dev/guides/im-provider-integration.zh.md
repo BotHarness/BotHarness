@@ -155,3 +155,9 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 微信图片候选独立协商 `sourceImages`；文件收件开关不自动收图片。原生 type-2 图片的 AES 密钥与 CDN 票据留在私有状态；公开元数据不猜扩展名、明文字节数或具体 MIME。先对有界解密字节判断格式，再形成 canonical Attachment 或预览；不能把原生密文的 `mid_size` 当作明文大小。能预览不等于模型已收到图片输入：需要实际调用模型的 DSH 图像能力、原生 `read_image` 和新一轮盲内容识别。模型不支持时应明确拒绝，显式切换模型后再验证恢复。
 
 结果单独导入 canonical 附件。仅微信 checked Provider 接收由实际字节确定的额外 MIME，并选择原生图片发送；其他平台保持已有文件参数形状。CDN 上传后、最终发送前再次检查授权。回归覆盖无效字节／MIME、元数据伪造、独立 opt-in／lease、上传期间撤销、预览拒绝／恢复／资源释放。本机安装产品已通过真实 DeepSeek Flash 图像输入验证：原生 `read_image` 返回 JPEG，模型独立识别实际应用、布局与多处文字。固定官方工具遗漏 scoped `fs` 依赖的问题已通过真实 Cordis Tool Runtime 复现，并用受版本控制的包补丁修复；安装产品随后在同一路径成功读取。独立导入的未修改图片回传同一来源，Human 已确认原微信收到内容一致的原生图片。详见带图[图片指南](../../wechat-connection.zh.md#6-查看图片并回传图片结果)。接收端独立字节核对、最终 PR Human QA 和公开部署仍独立管理。
+
+## 平台原生语音转写
+
+微信 #905 候选增加默认关闭的 `source-voice-transcript-checked` 能力和 `sourceVoiceTranscripts` Consumer 选项。单个已完成的原生语音项沿用现有 Source Event 和 Inbox；Provider 必须保留扫码者、账号指纹、原生消息 ID 与原私聊续接能力。`voice.transcript` 标记 `platform` 或 `unavailable`，可选原生语音项 ID 和时长作为来源信息保留。Client 和模型必须区分平台转写与 Bot 生成内容；同一来源的语音元数据发生变化属于冲突，不能覆盖已提交证据。
+
+原生 `voice_item.text` 可缺失。不得暗中用 ASR 补齐、从附带说明伪造转写、暴露媒体密钥，或在没有独立 checked 音频能力时提供播放器／下载。缺失转写必须明确呈现。未完成／生成中的消息及多项歧义消息不会由此候选收件。首次真实测试提供了平台转写和 7,377 毫秒时长，但沿用的 QA Session 保留上一轮不回复指令；该次仅证明收件，不能证明回复送达。新 QA Session 中的第二条原生语音提供 5,180 毫秒时长，真实 DeepSeek Flash 模型调用 `bridge_read` 与 `bridge_reply`，自身身份 Outbox 被平台接受，Human 确认在原微信私聊收到“蓝色灯塔37”。浅色／深色截图呈现同一来源。这证明 checked 平台转写路径，不是 BotHarness 自行识别音频。

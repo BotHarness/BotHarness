@@ -1,6 +1,6 @@
 # Connect a Bot to personal WeChat
 
-The integration accepts text and one file per direct message from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. The #904 preview also supports native images as described in section 6. Group messages, other contacts, voice, video, history/search and scheduled or proactive messages are separate slices. Enterprise WeChat is a separate integration.
+The integration accepts text and one file per direct message from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. The #904 preview also supports native images as described in section 6. Section 7 describes the #905 platform-provided voice transcript candidate. Group messages, other contacts, raw audio, video, history/search and scheduled or proactive messages are separate slices. Enterprise WeChat is a separate integration.
 
 ## Before you start
 
@@ -54,7 +54,7 @@ Download the returned file in WeChat and inspect its contents independently. A l
 
 ## 6. View an image and return an image result
 
-The #904 source-preview candidate uses product `0.0.0-test.904.1` and managed Provider `4.32.0-botharness.6`; this is not a public npm release. The original image/model/native-reply path was exercised in candidate `0.0.0-test.904`; the current candidate additionally has fresh PNG intake, checked download and Human-confirmed inline display. Installed-product intake, checked preview, actual DeepSeek Flash image input and original-DM native image sending have been exercised. The provider accepted the JPEG reply and the Human confirmed that the original WeChat conversation received the native image with matching content. Independent receiver-side byte equality and final PR Human QA are not claimed. The earlier text/file evidence does not prove image delivery.
+The #904 source-preview candidate uses product `0.0.0-test.904.1` and managed Provider `4.32.0-botharness.6`; this is not a public npm release. The original image/model/native-reply path was exercised in candidate `0.0.0-test.904`; the current candidate additionally has fresh PNG intake, checked download and Human-confirmed inline display. Installed-product intake, checked preview, actual DeepSeek Flash image input and original-DM native image sending have been exercised. The provider accepted the JPEG reply and the Human confirmed that the original WeChat conversation received the native image with matching content. The Human approved and merged the #904 PR; independent receiver-side byte equality is not claimed. The earlier text/file evidence does not prove image delivery.
 
 Send one native image, optionally with a caption, in the paired WeChat Bot DM. In **Bot Inbox**, open the source details. The image automatically loads inside the original message bubble, replacing a pure `[Image]` placeholder while preserving any caption. The unopened Inbox list does not download images; opening details uses the same checked attachment path, up to 25 MiB. If loading fails, choose **Retry image** inside the bubble; the attachment download control remains available. Metadata initially says `image/unknown` when WeChat supplies no format; checked decrypted bytes determine the actual MIME. The preview permits PNG, JPEG, GIF and WebP. It never exposes a private CDN link or AES key.
 
@@ -74,7 +74,19 @@ To have the Bot understand the image, authorize a working Workspace and ask it t
 
 To return an image, select a completed image file with `channel_attachment_import` and use `bridge_reply_file` for the same Source Event. It is sent as a native WeChat image when its canonical MIME and bytes agree; it is not renamed into a generic document. Each source still has one reply intent, so do not send an acknowledgement first when an image result is required. Approve only the native Tool calls needed for the task. Check the result in the original WeChat conversation yourself.
 
-If preview or reading is refused, retain the source and inspect the refusal. Retry only after correcting the cause; a current-authorization check still applies to downloads and again after image upload, immediately before send. Closing the source dialog releases the preview. Voice, video, groups and proactive messages remain separate slices.
+If preview or reading is refused, retain the source and inspect the refusal. Retry only after correcting the cause; a current-authorization check still applies to downloads and again after image upload, immediately before send. Closing the source dialog releases the preview. Raw audio, video, groups and proactive messages remain separate slices.
+
+## 7. Read a native voice transcript and reply
+
+The #905 source-preview candidate uses local product `0.0.0-test.905` and managed Provider `4.32.0-botharness.7`; it is not a public npm release. In the paired WeChat Bot DM, send a **native voice message**, rather than first converting it to a separate text message in the client. When WeChat supplies `voice_item.text`, that platform transcript enters the existing canonical Inbox. The card and source Modal label it **WeChat voice · platform transcript** and show duration when supplied. Original message, voice-item and Source Event IDs stay in the collapsed details.
+
+![The real 5.2-second WeChat voice transcript in the source Modal, light theme](/guides/wechat/voice-source-light.jpg)
+
+![The same native voice source and platform-transcript label, dark theme](/guides/wechat/voice-source-dark.jpg)
+
+This voice's platform text was “语音测试暗号是蓝色灯塔37，请只回复暗号”. The real DeepSeek Flash model read its source with `bridge_read` and used its own bound identity to reply “蓝色灯塔37” through `bridge_reply`; the Human confirmed receipt in the original WeChat DM. No local DM message was created. These source screenshots prove the installed UI; external receipt was separately confirmed by the Human.
+
+WeChat transcription is optional. When no transcript is supplied, the UI explicitly says **WeChat voice · no transcript** and asks for text. BotHarness does not run ASR, infer audio content, or offer a raw-audio player/download in this slice. The missing-transcript state has automated coverage; the real successful test did include platform text. Native transcription can change number formatting or words, so verify the displayed text before acting on it. Partial/generating and ambiguous multi-item messages are outside this candidate.
 
 ## Pause or reconnect
 
