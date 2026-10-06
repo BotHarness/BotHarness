@@ -23,7 +23,11 @@ import { createBridgeMethods } from './bridge/methods.js';
 import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createMarketplaceClient } from './marketplace/client.js';
-import { createReleaseService, installedRelease } from './release/service.js';
+import {
+  createReleaseService,
+  installedRelease,
+  type ReleaseInstaller,
+} from './release/service.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
@@ -113,6 +117,12 @@ import { createUsageProjection, type UsageProjection } from './usage/usage.js';
 import { installBotSubagentModelTools } from './runtime/subagent-model-tools.js';
 
 export const name = 'botharness-core';
+
+const installedPackage = installedRelease(import.meta.url);
+const runningRelease = {
+  version: installedPackage.version(),
+  ledgers: installedPackage.ledgers(),
+};
 
 export const inject = ['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel', 'llm'];
 
@@ -910,6 +920,17 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   const dshSessions = (ctx as unknown as { sessions: DshSessionStore }).sessions;
 
   const developerModeTarget: { gate?: DeveloperModeSkillGate } = {};
+  const releaseInstaller: { current: ReleaseInstaller | undefined } = { current: undefined };
+  ctx.inject(['pluginManager'], (managerCtx) => {
+    managerCtx.effect(() => {
+      releaseInstaller.current = (
+        managerCtx as unknown as { pluginManager: ReleaseInstaller }
+      ).pluginManager;
+      return () => {
+        releaseInstaller.current = undefined;
+      };
+    }, 'botharness: release installer');
+  });
   registerBridge(
     ctx,
     createBridgeMethods({
@@ -947,7 +968,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       marketplace: createMarketplaceClient({
         baseUrl: config.marketplaceUrl ?? DEFAULT_MARKETPLACE_URL,
       }),
-      release: createReleaseService(installedRelease(import.meta.url)),
+      release: createReleaseService({
+        version: () => runningRelease.version,
+        ledgers: () => runningRelease.ledgers,
+        installer: () => releaseInstaller.current,
+      }),
       developerMode: {
         set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
       },

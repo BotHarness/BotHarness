@@ -368,6 +368,7 @@ describe('plugin entry', () => {
       'marketplaceReport',
       'releaseInfo',
       'releaseUpdate',
+      'releaseInstall',
       'scheduleList',
       'scheduleCreate',
       'scheduleUpdate',

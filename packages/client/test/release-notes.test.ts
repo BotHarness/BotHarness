@@ -73,6 +73,7 @@ function bridge(
   version: string,
   releases: (since: string | undefined) => ReleaseNote[],
   update: unknown = { status: 'current', current: version, latest: version },
+  install: unknown = { status: 'failed', reason: 'unavailable' },
 ) {
   return vi.fn<BridgeCall>(async (endpoint, payload) => {
     if (endpoint === 'releaseInfo') {
@@ -80,6 +81,7 @@ function bridge(
       return { ok: true, value: { version, releases: releases(since) } };
     }
     if (endpoint === 'releaseUpdate') return { ok: true, value: update };
+    if (endpoint === 'releaseInstall') return { ok: true, value: install };
     throw new Error(`unexpected ${endpoint}`);
   });
 }
@@ -191,6 +193,66 @@ describe('ReleaseNotesController', () => {
   });
 });
 
+describe('ReleaseNotesController install', () => {
+  const available = {
+    status: 'available',
+    current: '1.0.1',
+    latest: '1.1.0',
+    releases: [],
+    installable: true,
+  };
+
+  it('switches to a pending restart after the Plugin Manager installs the update', async () => {
+    const call = bridge('1.0.1', () => [], available, {
+      status: 'installed',
+      current: '1.0.1',
+      installed: '1.1.0',
+    });
+    const controller = new ReleaseNotesController(call, memoryStorage());
+    await controller.start();
+    await controller.checkUpdate();
+    expect(controller.source.getSnapshot().update).toMatchObject({ installable: true });
+    await controller.install('1.1.0');
+    expect(call).toHaveBeenCalledWith('releaseInstall', { version: '1.1.0' });
+    expect(controller.source.getSnapshot().install).toEqual({ status: 'idle' });
+    expect(controller.source.getSnapshot().update).toEqual({
+      status: 'restart-required',
+      current: '1.0.1',
+      installed: '1.1.0',
+    });
+  });
+
+  it('keeps the update offer and records why an install failed', async () => {
+    const controller = new ReleaseNotesController(
+      bridge('1.0.1', () => [], available, {
+        status: 'failed',
+        reason: 'network',
+        diagnostic: 'ERR_PNPM_FETCH',
+        logPath: '/logs/1.log',
+      }),
+      memoryStorage(),
+    );
+    await controller.start();
+    await controller.checkUpdate();
+    await controller.install('1.1.0');
+    expect(controller.source.getSnapshot().update).toMatchObject({ status: 'available' });
+    expect(controller.source.getSnapshot().install).toEqual({
+      status: 'failed',
+      reason: 'network',
+      diagnostic: 'ERR_PNPM_FETCH',
+      logPath: '/logs/1.log',
+    });
+
+    const malformed = new ReleaseNotesController(
+      bridge('1.0.1', () => [], available, { status: 'weird' }),
+      memoryStorage(),
+    );
+    await malformed.start();
+    await malformed.install('1.1.0');
+    expect(malformed.source.getSnapshot().install).toEqual({ status: 'failed', reason: 'failed' });
+  });
+});
+
 describe('release notes views', () => {
   it('pops the changelog when Bot mode opens and closes it for good on Got it', async () => {
     const storage = memoryStorage();
@@ -269,6 +331,76 @@ describe('release notes views', () => {
       const versions = dialog?.querySelectorAll('details');
       expect(versions?.[0]?.hasAttribute('open')).toBe(true);
       expect(versions?.[1]?.hasAttribute('open')).toBe(false);
+    } finally {
+      view.unmount();
+    }
+  });
+  function buttonNamed(host: HTMLElement, name: string): HTMLButtonElement | undefined {
+    return [...host.querySelectorAll('button')].find((button) => button.textContent === name);
+  }
+
+  it('updates from Settings in one click and then asks for a DSH restart', async () => {
+    const controller = new ReleaseNotesController(
+      bridge(
+        '1.0.1',
+        () => [],
+        { status: 'available', current: '1.0.1', latest: '1.1.0', releases: [], installable: true },
+        { status: 'installed', current: '1.0.1', installed: '1.1.0' },
+      ),
+      memoryStorage({ [RELEASE_NOTES_SEEN_KEY]: '1.0.1' }),
+    );
+    const view = await render(
+      createElement(ReleaseSettings, { releaseNotes: controller, t } as never),
+    );
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(view.host.querySelector('code')).toBeNull();
+      expect(view.host.textContent).toContain('直接在这里安装新版本');
+      await act(async () => {
+        buttonNamed(view.host, '立即更新')?.click();
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(buttonNamed(view.host, '立即更新')).toBeUndefined();
+      expect(view.host.textContent).toContain('已更新到 1.1.0，重启 DSH 后生效');
+      expect(view.host.textContent).toContain('当前运行 1.0.1，已安装 1.1.0，重启 DSH 后生效');
+      expect(buttonNamed(view.host, '检查更新')?.disabled).toBe(true);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it('shows why the install failed and falls back to the manual command', async () => {
+    const controller = new ReleaseNotesController(
+      bridge(
+        '1.0.1',
+        () => [],
+        { status: 'available', current: '1.0.1', latest: '1.1.0', releases: [], installable: true },
+        { status: 'failed', reason: 'incompatible' },
+      ),
+      memoryStorage({ [RELEASE_NOTES_SEEN_KEY]: '1.0.1' }),
+    );
+    const view = await render(
+      createElement(ReleaseSettings, { releaseNotes: controller, t } as never),
+    );
+    try {
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        buttonNamed(view.host, '立即更新')?.click();
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(view.host.querySelector('[role="alert"]')?.textContent).toContain(
+        '新版本与当前 DSH 版本不兼容',
+      );
+      expect(view.host.querySelector('code')?.textContent).toBe(releaseUpdateCommand('1.1.0'));
+      expect(buttonNamed(view.host, '立即更新')?.disabled).toBe(false);
     } finally {
       view.unmount();
     }

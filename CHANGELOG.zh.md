@@ -5,7 +5,7 @@
 
 ## [Unreleased]
 
-PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一为卡片样式；每个 Bot 的 Memory 会保存供 Bot 市场使用的 `.botharness/bot.json`。
+PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一为卡片样式；每个 Bot 的 Memory 会保存供 Bot 市场使用的 `.botharness/bot.json`；Bot 设置可一键安装 DeepSeekBot 更新。
 
 ### Added
 
@@ -15,6 +15,7 @@ PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一�
 - DeepSeekBot 现在会在创建 Bot 时，自动在它的 Memory 里写入 `.botharness/bot.json`，之后改名称、岗位或头像时同步更新；已有的 Bot 会在下次启动时补上。分享出去的 Bot 在 Bot 市场里显示的名称、岗位和头像，和侧栏里一致（[#966](https://github.com/BotHarness/BotHarness/issues/966)、[教程](docs/share-bot.md)）。
 - PersonaBot 可以自己管理定时任务：让 Bot「每小时检查一下 X」或「每天早上总结」，它会自己创建定时任务，侧栏里标为 Bot 创建；它也可以修改或删除你没有锁定的任务。你可以在任务行或编辑弹窗里锁定任务；每个 Bot 最多同时启用 20 个；Bot 改动后侧栏立即刷新；Orchestrator 中 DSH 自带的 `schedule_*` 工具会被拒绝，确保每个 Bot 只有一套定时任务（[#961](https://github.com/BotHarness/BotHarness/issues/961)）。
 - 定时任务新增每周（选择星期几）、单次（指定日期和时间，触发后自动停用）和 5 段 Cron 三种频率，均按任务自己的时区计算；编辑弹窗会预览接下来三次触发时间，Bot 的定时任务工具也支持这些频率；任务行上的「立即运行」会马上唤醒 Orchestrator，且不改变下一次计划时间。新增[定时任务使用指南](docs/channel-sidebar/schedules.md)，说明各种频率、立即运行、暂停与锁定（[#962](https://github.com/BotHarness/BotHarness/issues/962)）。
+- Bot 设置可以通过 DSH 的插件管理一键安装新版本 DeepSeekBot，装完提示重启 DSH 生效；插件管理不可用或安装失败时，会显示原因和手动更新命令（[#986](https://github.com/BotHarness/BotHarness/issues/986)）。
 
 ### Changed
 

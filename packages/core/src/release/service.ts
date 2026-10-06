@@ -17,6 +17,8 @@ export const DEFAULT_RELEASE_NOTE_SOURCES = [
 const CHECK_CACHE_MS = 6 * 60 * 60 * 1000;
 const FAILURE_CACHE_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 8_000;
+const DIAGNOSTIC_CHARS = 2_000;
+const NETWORK_FAILURES = new Set(['network', 'timeout', 'not-found', 'no-matching-version']);
 
 export interface ReleaseLedgers {
   english: string;
@@ -32,11 +34,56 @@ export type ReleaseUpdate =
   | { status: 'development'; current: string }
   | { status: 'unavailable'; current: string }
   | { status: 'current'; current: string; latest: string }
-  | { status: 'available'; current: string; latest: string; releases: ReleaseNote[] };
+  | {
+      status: 'available';
+      current: string;
+      latest: string;
+      releases: ReleaseNote[];
+      installable: boolean;
+    }
+  | { status: 'restart-required'; current: string; installed: string };
+
+export type ReleaseInstallFailure =
+  | 'unavailable'
+  | 'invalid-version'
+  | 'network'
+  | 'incompatible'
+  | 'build-blocked'
+  | 'failed';
+
+export type ReleaseInstall =
+  | { status: 'installed'; current: string; installed: string }
+  | {
+      status: 'failed';
+      reason: ReleaseInstallFailure;
+      diagnostic?: string;
+      logPath?: string;
+    };
+
+type CheckResult =
+  | Exclude<ReleaseUpdate, { status: 'available' } | { status: 'restart-required' }>
+  | {
+      status: 'available';
+      current: string;
+      latest: string;
+      releases: ReleaseNote[];
+    };
+
+export interface ReleaseInstallerResult {
+  application: string;
+  error?: { code: string; diagnostic?: string };
+  packageResult?: { kind?: string; output?: string; logPath?: string };
+}
+
+export interface ReleaseInstaller {
+  listBundles(): Promise<readonly { name: string; installed: boolean; version?: string }[]>;
+  installBundle(spec: string): Promise<ReleaseInstallerResult>;
+}
 
 export interface ReleaseService {
   info(since?: string): ReleaseInfo;
   update(): Promise<ReleaseUpdate>;
+  install(version: string): Promise<ReleaseInstall>;
 }
 
 export interface ReleaseServiceOptions {
@@ -47,6 +94,7 @@ export interface ReleaseServiceOptions {
   registries?: readonly string[];
   noteSources?: readonly ((version: string) => string)[];
   timeoutMs?: number;
+  installer?: () => ReleaseInstaller | undefined;
 }
 
 function readFirst(candidates: readonly URL[]): string | undefined {
@@ -89,6 +137,26 @@ function newestTag(tags: unknown, current: string): string | undefined {
   return candidates.sort(compareVersions).at(-1);
 }
 
+function failureOf(result: ReleaseInstallerResult): ReleaseInstall {
+  const kind = result.packageResult?.kind;
+  const reason: ReleaseInstallFailure =
+    result.error?.code === 'incompatible-version'
+      ? 'incompatible'
+      : kind === 'build-blocked'
+        ? 'build-blocked'
+        : kind !== undefined && NETWORK_FAILURES.has(kind)
+          ? 'network'
+          : 'failed';
+  const diagnostic = (result.error?.diagnostic ?? result.packageResult?.output ?? '').trim();
+  const logPath = result.packageResult?.logPath;
+  return {
+    status: 'failed',
+    reason,
+    ...(diagnostic.length === 0 ? {} : { diagnostic: diagnostic.slice(-DIAGNOSTIC_CHARS) }),
+    ...(logPath === undefined ? {} : { logPath }),
+  };
+}
+
 export function createReleaseService(options: ReleaseServiceOptions): ReleaseService {
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? Date.now;
@@ -96,8 +164,57 @@ export function createReleaseService(options: ReleaseServiceOptions): ReleaseSer
   const noteSources = options.noteSources ?? DEFAULT_RELEASE_NOTE_SOURCES;
   const timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
   let notes: ReleaseNote[] | undefined;
-  let cached: { at: number; result: ReleaseUpdate } | undefined;
-  let pending: Promise<ReleaseUpdate> | undefined;
+  let cached: { at: number; result: CheckResult } | undefined;
+  let pending: Promise<CheckResult> | undefined;
+  let installed: string | undefined;
+  let installing: Promise<ReleaseInstall> | undefined;
+
+  const profileBundle = async (): Promise<
+    { installer: ReleaseInstaller; version: string | undefined } | undefined
+  > => {
+    const installer = options.installer?.();
+    if (installer === undefined || !isReleaseVersion(options.version())) return undefined;
+    try {
+      const bundle = (await installer.listBundles()).find(
+        (candidate) => candidate.name === RELEASE_PACKAGE && candidate.installed,
+      );
+      return bundle === undefined ? undefined : { installer, version: bundle.version };
+    } catch {
+      return undefined;
+    }
+  };
+
+  const newerInProfile = (current: string, version: string | undefined): string | undefined =>
+    version !== undefined && isReleaseVersion(version) && compareVersions(version, current) > 0
+      ? version
+      : undefined;
+
+  const runInstall = async (version: string): Promise<ReleaseInstall> => {
+    const current = options.version();
+    if (!isReleaseVersion(version) || compareVersions(version, current) <= 0) {
+      return { status: 'failed', reason: 'invalid-version' };
+    }
+    const installer = (await profileBundle())?.installer;
+    if (installer === undefined) return { status: 'failed', reason: 'unavailable' };
+    let result: ReleaseInstallerResult;
+    try {
+      result = await installer.installBundle(`${RELEASE_PACKAGE}@${version}`);
+    } catch (error) {
+      return {
+        status: 'failed',
+        reason: 'failed',
+        diagnostic: String(error).slice(-DIAGNOSTIC_CHARS),
+      };
+    }
+    if (
+      result.error !== undefined ||
+      (result.application !== 'restart-required' && result.application !== 'applied')
+    ) {
+      return failureOf(result);
+    }
+    installed = version;
+    return { status: 'installed', current, installed: version };
+  };
 
   const installedNotes = (): ReleaseNote[] => {
     if (notes !== undefined) return notes;
@@ -145,13 +262,30 @@ export function createReleaseService(options: ReleaseServiceOptions): ReleaseSer
     return [];
   };
 
-  const check = async (): Promise<ReleaseUpdate> => {
+  const check = async (): Promise<CheckResult> => {
     const current = options.version();
     if (!isReleaseVersion(current)) return { status: 'development', current };
     const latest = await latestVersion(current);
     if (latest === undefined) return { status: 'unavailable', current };
     if (compareVersions(latest, current) <= 0) return { status: 'current', current, latest };
     return { status: 'available', current, latest, releases: await newerNotes(current, latest) };
+  };
+
+  const checked = (): Promise<CheckResult> => {
+    if (cached !== undefined) {
+      const age = now() - cached.at;
+      const limit = cached.result.status === 'unavailable' ? FAILURE_CACHE_MS : CHECK_CACHE_MS;
+      if (age < limit) return Promise.resolve(cached.result);
+    }
+    pending ??= check()
+      .then((result) => {
+        cached = { at: now(), result };
+        return result;
+      })
+      .finally(() => {
+        pending = undefined;
+      });
+    return pending;
   };
 
   return {
@@ -166,21 +300,22 @@ export function createReleaseService(options: ReleaseServiceOptions): ReleaseSer
             : selectReleaseNotes(installedNotes(), { after: since, through: version }),
       };
     },
-    update() {
-      if (cached !== undefined) {
-        const age = now() - cached.at;
-        const limit = cached.result.status === 'unavailable' ? FAILURE_CACHE_MS : CHECK_CACHE_MS;
-        if (age < limit) return Promise.resolve(cached.result);
+    async update() {
+      const current = options.version();
+      const bundle = await profileBundle();
+      const pendingVersion = installed ?? newerInProfile(current, bundle?.version);
+      if (pendingVersion !== undefined) {
+        return { status: 'restart-required', current, installed: pendingVersion };
       }
-      pending ??= check()
-        .then((result) => {
-          cached = { at: now(), result };
-          return result;
-        })
-        .finally(() => {
-          pending = undefined;
-        });
-      return pending;
+      const result = await checked();
+      if (result.status !== 'available') return result;
+      return { ...result, installable: bundle !== undefined };
+    },
+    install(version) {
+      installing ??= runInstall(version).finally(() => {
+        installing = undefined;
+      });
+      return installing;
     },
   };
 }
