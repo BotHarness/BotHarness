@@ -77,6 +77,8 @@ Set the secrets with `wrangler secret put ALTCHA_HMAC_KEY` and `wrangler secret 
 
 ## Sharing presentation: `.botharness/bot.json`
 
+For Bot authors, the user guide is [Share a Bot](https://deepseekbot.botharness.ai/en/docs/share-bot).
+
 An optional descriptor in the Bot repository. Every field is optional; an invalid file (bad JSON, a wrong type, more than 8 roles, a name over 60 characters, an image path that is absolute, has `..` or a scheme, or is not `.png`/`.jpg`/`.jpeg`/`.webp`) is ignored as a whole and the defaults stay (repository name, no roles, generated avatar).
 
 ```json

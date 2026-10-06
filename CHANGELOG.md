@@ -11,6 +11,10 @@ Preserve accurate context refusals when native history conflicts with retained e
 
 - Context reads now retain the precise `source-conflict` refusal when native history disagrees with retained evidence, rolling back the conflicting page without replacing its original source ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
 
+### Documentation
+
+- Added the [Share a Bot](docs/share-bot.md) guide: check Memory before publishing, a copy-paste prompt that has the Bot publish itself to GitHub, listing in the Bot Marketplace, and the `.botharness/bot.json` reference ([#958](https://github.com/BotHarness/BotHarness/issues/958)).
+
 ## [1.0.1] - 2026-10-05
 
 First stable DeepSeekBot release on npm: PersonaBots with their own identity, Git Memory, Groups, Assignments, pixel avatars, Lark, Slack, Discord and WeChat identities, and the first Bot Marketplace, installed into DSH as one plugin. Version 1.0.0 was not released as a product.
