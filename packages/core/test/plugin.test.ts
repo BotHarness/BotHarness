@@ -368,6 +368,11 @@ describe('plugin entry', () => {
       'marketplaceReport',
       'releaseInfo',
       'releaseUpdate',
+      'scheduleList',
+      'scheduleCreate',
+      'scheduleUpdate',
+      'scheduleDelete',
+      'scheduleHistory',
     ]);
   });
 

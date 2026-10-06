@@ -24,7 +24,7 @@
 
 1. 列出 Memory 里的所有文件，并检查文件内容和 Git 历史里有没有密码、token、私人信息或我不想公开的内容。把发现的问题列给我，等我确认后再继续，确认前不要推送任何东西。
 2. 如果还没有 README.md，写一份简短的介绍：你是谁、擅长什么、适合怎么用。
-3. 检查 .botharness/bot.json：没有就创建，写上你的名称和 1 到 3 个岗位，格式是 {"name": "名称", "roles": ["岗位"]}；已经有了就保持不变。
+3. 确认 .botharness/bot.json 存在（DeepSeekBot 通常已经自动生成）。没有就创建，写上你的名称和 1 到 3 个岗位，格式是 {"name": "名称", "roles": ["岗位"]}；已经有了就保持不变。
 4. 用 gh 在我的 GitHub 账号下创建一个公开仓库并推送当前分支。仓库名用你的名称的英文或拼音，先告诉我你打算用的名字。如果第 1 步发现历史里有不该公开的内容，就只推送一个不带历史的新提交。
 5. 给仓库加上 botharness-bot 话题：gh repo edit --add-topic botharness-bot
 6. 把仓库地址发给我。
@@ -67,7 +67,9 @@ gh repo edit --add-topic botharness-bot
 
 ## 设置名称、岗位和头像：`.botharness/bot.json`
 
-Bot 市场默认用仓库名作名称、用自动生成的像素头像。在 Memory 里放一个 `.botharness/bot.json`，可以让市场和安装后的 Bot 用你设定的名称、岗位和头像：
+DeepSeekBot 会自动在每个 Bot 的 Memory 里生成 `.botharness/bot.json`，并保持更新：创建 Bot 时写入，之后每次改名称、岗位或头像都会同步。之前创建的 Bot 会在 DeepSeekBot 下次启动时补上这个文件。市场和安装后的 Bot 都读它，所以显示的名称、岗位和头像和你侧栏里的一致。上传的头像图片会存为旁边的 `.botharness/avatar.png`（或 `.jpg`、`.webp`）。
+
+也可以手动编辑这个文件。你加的其他字段会保留；手动改的内容会一直保留，直到你下次在 DeepSeekBot 里改名称、岗位或头像：
 
 ```json
 {
@@ -83,6 +85,6 @@ Bot 市场默认用仓库名作名称、用自动生成的像素头像。在 Mem
 | `roles`  | 岗位标签，最多 8 个。                                                                                           |
 | `avatar` | 头像：`{ "image": "仓库里的图片路径" }`，PNG、JPEG 或 WebP，最大 128 KiB；或者 `{ "recipe": … }` 像素头像配方。 |
 
-所有字段都可以省略。文件格式不对时整个文件会被忽略，市场改用默认的名称和头像。
+所有字段都可以省略。文件格式不对时整个文件会被忽略，市场改用仓库名和自动生成的像素头像。
 
 相关：[记忆文件](/zh/docs/channel-sidebar/memory-files)、[记忆演化](/zh/docs/channel-sidebar/memory-evolution)。

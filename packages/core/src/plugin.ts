@@ -25,6 +25,7 @@ import { registerBridge } from './bridge/rpc.js';
 import { createMarketplaceClient } from './marketplace/client.js';
 import { createReleaseService, installedRelease } from './release/service.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
+import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
 import { createModelCatalog } from './models/catalog.js';
 import { createModelRouteReadiness } from './models/readiness.js';
@@ -58,6 +59,7 @@ import {
 } from './runtime/bot-runtime.js';
 import { createBotAttentionQuery, type BotAttentionQuery } from './runtime/attention.js';
 import { createBotSourcePolicyStore, type BotSourcePolicyStore } from './runtime/source-policy.js';
+import { createBotScheduleStore, type BotScheduleStore } from './schedules/bot-schedules.js';
 import {
   createHumanAttentionQuery,
   createHumanAttentionDecisions,
@@ -200,6 +202,7 @@ export interface BotHarnessCore {
   runtime: BotRuntime;
   attention: BotAttentionQuery;
   sourcePolicy: BotSourcePolicyStore;
+  schedules: BotScheduleStore;
   humanAttention: HumanAttentionQuery;
   humanAttentionDecisions: HumanAttentionDecisions;
   grants: WorkspaceGrantStore;
@@ -281,6 +284,15 @@ export function createCore(
         usage.purgeBot(slug, removeFiles);
       },
       cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
+      syncDescriptor: (memoryDir, record, sync) => {
+        try {
+          syncBotDescriptor(memoryDir, record, sync);
+        } catch (error) {
+          options.warn?.(
+            `bot-descriptor-sync-failed slug=${record.slug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+          );
+        }
+      },
       initializeMemory: (memoryDir) => {
         const repository = ensureMemoryRepository({ memoryDir });
         return repository.ok
@@ -309,6 +321,7 @@ export function createCore(
     operationalDatabase.close();
     throw error;
   }
+  if (operationalDatabase.mode === 'ready') backfillBotDescriptors(registry, options.warn);
   const states = createBotStateTracker();
   let runtime: BotRuntime | undefined;
   const attachments = createAttachmentStore({
@@ -493,6 +506,16 @@ export function createCore(
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   if (operationalDatabase.mode === 'ready') runtime.reconcileMemoryChangesOnStartup?.();
+  const schedules = createBotScheduleStore({
+    database: attachOperationalModule(operationalDatabase, 'bot-schedules'),
+    isBotActive: (slug) => {
+      const bot = registry.get(slug);
+      return operationalDatabase.mode === 'ready' && bot !== undefined && bot.paused !== true;
+    },
+    onAdmitted: (slug) => runtime?.admitScheduleFiring?.(slug),
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
+  if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     rootDir,
     operationalDatabase,
@@ -528,6 +551,7 @@ export function createCore(
     channels,
     attention,
     sourcePolicy,
+    schedules,
     humanAttention,
     humanAttentionDecisions,
     attachments,
@@ -641,6 +665,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     return () => controller.abort();
   }, 'botharness: retained attachment migration');
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
+  ctx.effect(() => () => core.schedules.close(), 'botharness: bot schedules');
   ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
   ctx.provide('botharness', core);
   ctx.effect(() => () => core.externalMessaging.close(), 'botharness: external messaging');
@@ -909,6 +934,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       runtime: core.runtime,
       attention: core.attention,
       sourcePolicy: core.sourcePolicy,
+      schedules: core.schedules,
       humanAttention: core.humanAttention,
       humanAttentionDecisions: core.humanAttentionDecisions,
       grants: core.grants,

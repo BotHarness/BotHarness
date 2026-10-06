@@ -137,6 +137,14 @@ import type {
   BotAttentionState,
 } from '../runtime/attention.js';
 import type { BotSourcePolicy, BotSourcePolicyStore } from '../runtime/source-policy.js';
+import {
+  BotScheduleError,
+  type BotSchedule,
+  type BotScheduleChange,
+  type BotScheduleFiring,
+  type BotScheduleStore,
+  type BotScheduleTrigger,
+} from '../schedules/bot-schedules.js';
 import type {
   HumanAttentionQuery,
   HumanAttentionDecisions,
@@ -417,6 +425,11 @@ export interface BridgeMethods {
   marketplaceReport(payload: unknown): Promise<BridgeResult<{ received: true }>>;
   releaseInfo(payload: unknown): BridgeResult<ReleaseInfo>;
   releaseUpdate(): Promise<BridgeResult<ReleaseUpdate>>;
+  scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
+  scheduleCreate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
+  scheduleUpdate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
+  scheduleDelete(payload: unknown): BridgeResult<{ removed: boolean }>;
+  scheduleHistory(payload: unknown): BridgeResult<{ firings: BotScheduleFiring[] }>;
 }
 
 export interface BridgeMethodsDeps {
@@ -436,6 +449,7 @@ export interface BridgeMethodsDeps {
   runtime?: BotRuntime;
   attention?: BotAttentionQuery;
   sourcePolicy?: BotSourcePolicyStore;
+  schedules?: BotScheduleStore;
   humanAttention?: HumanAttentionQuery;
   humanAttentionDecisions?: HumanAttentionDecisions;
   grants?: WorkspaceGrantStore;
@@ -500,6 +514,25 @@ function releaseUnavailable(): BridgeResult<never> {
 
 function invalidInput(message: string): BridgeResult<never> {
   return { ok: false, error: { code: 'invalid-input', message } };
+}
+
+function parseScheduleTrigger(value: unknown): BotScheduleTrigger | undefined {
+  const source = asObject(value);
+  if (source['kind'] === 'every' && Number.isSafeInteger(source['everySeconds']))
+    return { kind: 'every', everySeconds: source['everySeconds'] as number };
+  if (
+    source['kind'] === 'daily' &&
+    typeof source['time'] === 'string' &&
+    typeof source['timeZone'] === 'string'
+  )
+    return { kind: 'daily', time: source['time'], timeZone: source['timeZone'] };
+  return undefined;
+}
+
+function scheduleFailure(error: unknown): BridgeResult<never> {
+  if (error instanceof BotScheduleError)
+    return { ok: false, error: { code: error.code, message: error.message } };
+  return invalidInput(String(error));
 }
 
 function unknownBot(slug: string): BridgeResult<never> {
@@ -2394,6 +2427,112 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         };
       } catch (error) {
         return invalidInput(String(error));
+      }
+    },
+    scheduleList(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.schedules === undefined) return invalidInput('Bot Schedules are unavailable');
+      try {
+        return { ok: true, value: { schedules: deps.schedules.list(slug) } };
+      } catch (error) {
+        return scheduleFailure(error);
+      }
+    },
+    scheduleCreate(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.schedules === undefined) return invalidInput('Bot Schedules are unavailable');
+      const trigger = parseScheduleTrigger(source['trigger']);
+      if (
+        typeof source['title'] !== 'string' ||
+        typeof source['prompt'] !== 'string' ||
+        trigger === undefined ||
+        (source['enabled'] !== undefined && typeof source['enabled'] !== 'boolean')
+      )
+        return invalidInput('title, prompt and an every or daily trigger are required');
+      try {
+        return {
+          ok: true,
+          value: {
+            schedule: deps.schedules.create(
+              slug,
+              {
+                title: source['title'],
+                prompt: source['prompt'],
+                trigger,
+                ...(source['enabled'] === undefined
+                  ? {}
+                  : { enabled: source['enabled'] as boolean }),
+              },
+              'human',
+            ),
+          },
+        };
+      } catch (error) {
+        return scheduleFailure(error);
+      }
+    },
+    scheduleUpdate(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const id = source['id'];
+      if (slug === undefined || typeof id !== 'string')
+        return invalidInput('slug and id are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.schedules === undefined) return invalidInput('Bot Schedules are unavailable');
+      const change: BotScheduleChange = {};
+      if (source['title'] !== undefined) {
+        if (typeof source['title'] !== 'string') return invalidInput('title must be a string');
+        change.title = source['title'];
+      }
+      if (source['prompt'] !== undefined) {
+        if (typeof source['prompt'] !== 'string') return invalidInput('prompt must be a string');
+        change.prompt = source['prompt'];
+      }
+      if (source['enabled'] !== undefined) {
+        if (typeof source['enabled'] !== 'boolean')
+          return invalidInput('enabled must be a boolean');
+        change.enabled = source['enabled'];
+      }
+      if (source['trigger'] !== undefined) {
+        const trigger = parseScheduleTrigger(source['trigger']);
+        if (trigger === undefined) return invalidInput('trigger must be every or daily');
+        change.trigger = trigger;
+      }
+      try {
+        return { ok: true, value: { schedule: deps.schedules.update(slug, id, change, 'human') } };
+      } catch (error) {
+        return scheduleFailure(error);
+      }
+    },
+    scheduleDelete(payload) {
+      const slug = asSlug(payload);
+      const id = asObject(payload)['id'];
+      if (slug === undefined || typeof id !== 'string')
+        return invalidInput('slug and id are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.schedules === undefined) return invalidInput('Bot Schedules are unavailable');
+      try {
+        return { ok: true, value: { removed: deps.schedules.remove(slug, id, 'human') } };
+      } catch (error) {
+        return scheduleFailure(error);
+      }
+    },
+    scheduleHistory(payload) {
+      const slug = asSlug(payload);
+      const id = asObject(payload)['id'];
+      if (slug === undefined || typeof id !== 'string')
+        return invalidInput('slug and id are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.schedules === undefined) return invalidInput('Bot Schedules are unavailable');
+      try {
+        return { ok: true, value: { firings: deps.schedules.history(slug, id) } };
+      } catch (error) {
+        return scheduleFailure(error);
       }
     },
     botSourcePolicies(payload) {

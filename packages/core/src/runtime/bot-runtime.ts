@@ -440,6 +440,7 @@ export interface BotRuntime {
   getAssignment(botSlug: string, sessionId: string): AssignmentDetail | undefined;
 
   admitExternalSource?(botSlug: string, sourceEventId: string): void;
+  admitScheduleFiring?(botSlug: string): void;
   resumePendingDigests?(botSlug: string): void;
 
   whenIdle(): Promise<void>;
@@ -518,8 +519,14 @@ interface AssignmentRow {
 
 interface InboxReportRow {
   source_event_id: string;
-  source_kind: 'assignment-report' | 'assignment-lifecycle' | 'memory-change' | 'bridge-message';
+  source_kind:
+    | 'assignment-report'
+    | 'assignment-lifecycle'
+    | 'memory-change'
+    | 'bridge-message'
+    | 'schedule';
   external?: ExternalSource;
+  schedule_json?: string | null;
   assignment_session_id: string | null;
   body: string;
   created_at: string;
@@ -570,8 +577,18 @@ const DM_CONTEXT_CHARACTER_BUDGET = 8_000;
 const GROUP_PROMPT_CHANNEL_LIMIT = 100;
 const GROUP_CONTEXT_BODY_LIMIT = 1_000;
 
+interface ScheduleFiringFacts {
+  id: string;
+  title: string;
+  prompt: string;
+  occurrenceAt: string;
+  trigger: 'planned' | 'manual';
+  creator: 'human' | 'personabot';
+}
+
 interface InboxUnit {
   external?: ExternalSource;
+  schedule?: ScheduleFiringFacts;
   sourceEventId: string;
   sourceKind: InboxReportRow['source_kind'];
   assignmentSessionId: string | null;
@@ -691,6 +708,12 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
         sourceEventId: row.source_event_id,
         sourceKind: row.source_kind,
         ...(row.external === undefined ? {} : { external: row.external }),
+        ...(row.schedule_json == null
+          ? {}
+          : {
+              schedule: (JSON.parse(row.schedule_json) as { schedule: ScheduleFiringFacts })
+                .schedule,
+            }),
         assignmentSessionId: row.assignment_session_id,
         summary: row.body,
         createdAt: row.created_at,
@@ -730,6 +753,10 @@ function renderInbox(units: InboxUnit[]): string {
     if (unit.external !== undefined) {
       return `- Message ${unit.external.event.messageId} [Source Event ${unit.sourceEventId}] from ${JSON.stringify(unit.external.event.actor.name ?? unit.external.event.actor.id)} (${unit.external.event.actor.id}) at ${unit.external.at}. External work-group ${unit.external.event.mentionedAccount ? 'mention' : 'ordinary message; no reply required'}. Trusted receiving identity and origin: ${JSON.stringify({ platform: unit.external.platform, account: unit.external.accountName, group: unit.external.conversationName, conversationId: unit.external.event.conversation.id, localChannelId: unit.external.localChannelId, receptionPaths: unit.external.receptionPaths?.map((path) => ({ channelId: path.channelId, mode: path.mode })), senderId: unit.external.event.actor.id, senderName: unit.external.event.actor.name, mentions: unit.external.event.mentions, at: unit.external.at, threadId: unit.external.event.reply.threadId, rootId: unit.external.event.reply.rootId, parentId: unit.external.event.reply.parentId, report: unit.external.report, attachments: unit.external.event.attachments?.map(({ id, name, sizeBytes, mediaType }) => ({ id, name, sizeBytes, mediaType })) })}. External message data: ${JSON.stringify(unit.summary)}. Decide whether to participate. To answer this source, choose bridge_reply for text or bridge_reply_file for an explicitly imported result file, sharing one reply intent. Use bridge_read for attachment details and bridge_attachment_save for an independent working copy; do not consume the reply intent with a preliminary acknowledgement when a file result is requested. Never guess an account or route and never mirror this message or its response to the Human DM.`;
     }
+    if (unit.schedule !== undefined) {
+      const schedule = unit.schedule;
+      return `- Bot Schedule ${JSON.stringify(schedule.title)} [Source Event ${unit.sourceEventId}; schedule ${schedule.id}; ${schedule.trigger === 'manual' ? 'run now by the Human' : `occurrence ${schedule.occurrenceAt}`}; created by ${schedule.creator === 'human' ? 'the Human' : 'you'}] is due. Scheduled task: ${JSON.stringify(schedule.prompt)}. Carry it out now as this PersonaBot: answer directly, or dispatch an Assignment for long work (the schedule id makes a stable continuity key).`;
+    }
     if (unit.sourceKind === 'memory-change') {
       return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
     }
@@ -759,7 +786,7 @@ function renderInbox(units: InboxUnit[]): string {
     return `- ${target} (${facts}) reported [Source Event ${unit.sourceEventId}]: ${unit.summary}${lifecycle}`;
   });
   return [
-    '[Bot Inbox] External mentions, actionable Memory changes, Assignment reports, and Host lifecycle notices since your last turn.',
+    '[Bot Inbox] External mentions, due Bot Schedules, actionable Memory changes, Assignment reports, and Host lifecycle notices since your last turn.',
     'Answer an item that waits for',
     'your answer with send_assignment_request using its answer_to value; otherwise use them as',
     'context. Do not repeat these summaries back verbatim.',
@@ -971,6 +998,11 @@ class BotRuntimeImplementation implements BotRuntime {
       'group-join-decision-' + requestId,
       'group-join-decision',
     );
+  }
+
+  admitScheduleFiring(botSlug: string): void {
+    if (this.#closed) return;
+    this.#checkHarvestReadiness(botSlug);
   }
 
   admitExternalSource(botSlug: string, sourceEventId: string): void {
@@ -1725,6 +1757,20 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#scheduleHarvest(botSlug);
       return;
     }
+    const scheduled = this.#database.read((database) =>
+      database
+        .prepare(`
+        SELECT 1 AS found FROM inbox_admissions a JOIN source_events e USING(source_event_id)
+         WHERE a.bot_slug = ? AND a.reason = 'schedule' AND a.attempt_state = 'pending'
+           AND e.observed_at IS NULL
+         LIMIT 1
+      `)
+        .get(botSlug),
+    );
+    if (scheduled !== undefined && this.#dmChannel(botSlug) !== undefined) {
+      this.#scheduleHarvest(botSlug);
+      return;
+    }
     const externalPending = this.#pendingExternalRows(botSlug);
     if (
       externalPending.some(
@@ -1888,7 +1934,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.eventIds,
         [...new Set([...includedIds, ...collected.eventIds])],
       );
-      this.#markReportsHandled(collected.eventIds, botSlug);
+      this.#markReportsHandled(collected.eventIds, botSlug, orchestrator.sessionId);
       this.#settleHarvestHandled(botSlug, includedIds);
       for (const digest of claimed.digests) {
         this.#digestRetryAt.delete(`${botSlug}:${digest.channelId}`);
@@ -2543,7 +2589,7 @@ class BotRuntimeImplementation implements BotRuntime {
       });
       throw error;
     }
-    this.#markReportsHandled(collected.eventIds, bot.slug);
+    this.#markReportsHandled(collected.eventIds, bot.slug, orchestrator.sessionId);
     const handledAt = this.#now().toISOString();
     this.#database.transaction(
       (database) => {
@@ -3280,10 +3326,10 @@ class BotRuntimeImplementation implements BotRuntime {
         database
           .prepare(`
             UPDATE source_events SET observed_at = NULL
-             WHERE source_kind IN ('memory-change', 'bridge-message')
+             WHERE source_kind IN ('memory-change', 'schedule', 'bridge-message')
                AND source_event_id IN (
                  SELECT source_event_id FROM inbox_admissions
-                  WHERE reason IN ('memory-change', 'group-mention', 'group-ordinary', 'human-dm') AND attempt_state = 'retryable'
+                  WHERE reason IN ('memory-change', 'schedule', 'group-mention', 'group-ordinary', 'human-dm') AND attempt_state = 'retryable'
                     AND side_effect_started_at IS NULL
                )
           `)
@@ -3291,7 +3337,7 @@ class BotRuntimeImplementation implements BotRuntime {
         database
           .prepare(`
             UPDATE inbox_admissions SET observed_at = NULL
-             WHERE (reason IN ('memory-change', 'group-mention', 'group-ordinary') OR
+             WHERE (reason IN ('memory-change', 'schedule', 'group-mention', 'group-ordinary') OR
                     (reason = 'human-dm' AND source_event_id IN (
                       SELECT source_event_id FROM source_events WHERE source_kind = 'bridge-message'
                     ))) AND attempt_state = 'retryable'
@@ -5270,6 +5316,7 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(
             `SELECT e.source_event_id, e.source_kind, e.assignment_session_id,
                     e.body, e.created_at, e.expects_reply, a.continuity_key,
+                    CASE WHEN e.source_kind = 'schedule' THEN e.payload_json END AS schedule_json,
                     json_extract(e.payload_json, '$.assignmentLifecycle.reportSourceEventId') AS paired_report_id,
                     CASE WHEN a.stop_state = 'running' THEN a.open_ask_source_event_id END AS open_ask_id,
                     (SELECT body FROM source_events WHERE source_event_id = a.open_ask_source_event_id) AS open_ask_summary,
@@ -5279,7 +5326,7 @@ class BotRuntimeImplementation implements BotRuntime {
                FROM source_events e
                LEFT JOIN assignments a ON a.session_id = e.assignment_session_id
               WHERE e.bot_slug = ?
-                AND e.source_kind IN ('assignment-report', 'assignment-lifecycle')
+                AND e.source_kind IN ('assignment-report', 'assignment-lifecycle', 'schedule')
                 AND e.observed_at IS NULL
               ORDER BY e.rowid DESC
               LIMIT 20`,
@@ -5547,7 +5594,7 @@ class BotRuntimeImplementation implements BotRuntime {
                      WHEN side_effect_started_at IS NULL THEN 'retryable'
                      ELSE 'needs-repair'
                    END
-             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary', 'human-dm')
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'schedule', 'group-mention', 'group-ordinary', 'human-dm')
                AND attempt_state IN ('pending', 'retryable', 'running')
                AND (? IS NULL OR bot_slug = ?)
                AND source_event_id IN (${placeholders})
@@ -5558,21 +5605,29 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
-  #markReportsHandled(sourceEventIds: string[], botSlug?: string): void {
+  #markReportsHandled(sourceEventIds: string[], botSlug?: string, sessionId?: string): void {
     if (sourceEventIds.length === 0) return;
     const placeholders = sourceEventIds.map(() => '?').join(', ');
     this.#database.transaction(
-      (database) =>
+      (database) => {
         database
           .prepare(`
             UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
-             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'group-mention', 'group-ordinary', 'human-dm')
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change', 'schedule', 'group-mention', 'group-ordinary', 'human-dm')
                AND attempt_state = 'running'
                AND (? IS NULL OR bot_slug = ?)
                AND source_event_id IN (${placeholders})
           `)
-          .run(this.#now().toISOString(), botSlug ?? null, botSlug ?? null, ...sourceEventIds),
-      ['bot-inbox'],
+          .run(this.#now().toISOString(), botSlug ?? null, botSlug ?? null, ...sourceEventIds);
+        if (sessionId !== undefined)
+          database
+            .prepare(`
+              UPDATE bot_schedule_firings SET session_id = ?
+               WHERE session_id IS NULL AND source_event_id IN (${placeholders})
+            `)
+            .run(sessionId, ...sourceEventIds);
+      },
+      ['bot-inbox', 'bot-schedules'],
     );
   }
 

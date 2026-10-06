@@ -51,6 +51,11 @@ export interface PersonaBotRegistryOptions {
   initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
   cloneMemory?: (destination: string, url: string) => Promise<MemoryCloneResult>;
   onPurge?: (slug: string, removeFiles: () => void) => void;
+  syncDescriptor?: (
+    memoryDir: string,
+    record: PersonaBotRecord,
+    options: { onlyIfMissing: boolean },
+  ) => void;
 }
 
 export interface PersonaBotRegistry {
@@ -300,58 +305,69 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     return [...new Set(roles.map((role) => role.trim()).filter((role) => role.length > 0))];
   };
 
+  const syncDescriptor = (record: PersonaBotRecord, onlyIfMissing = false): void => {
+    try {
+      options.syncDescriptor?.(memoryDirOf(record), record, { onlyIfMissing });
+    } catch {}
+  };
+
+  const create = (input: CreatePersonaBotInput, sync: boolean): CreatePersonaBotResult => {
+    if (!isValidSlug(input.slug)) return { ok: false, reason: 'invalid-slug' };
+    if (read(input.slug) !== undefined) return { ok: false, reason: 'duplicate' };
+
+    const memoryDir = input.memoryDir?.trim();
+    if (memoryDir !== undefined && memoryDir.length > 0 && !isAbsolute(memoryDir)) {
+      return { ok: false, reason: 'invalid-memory-dir' };
+    }
+
+    const displayName = input.displayName.trim();
+    const roles = normalizeRoles(input.roles);
+    const description = input.description?.trim();
+    const avatar = input.avatar?.trim();
+    if (avatar !== undefined && avatar.length > 0 && !isPersonaBotAvatar(avatar)) {
+      return { ok: false, reason: 'invalid-input' };
+    }
+    const model = input.model?.trim();
+    const preset = input.preset?.trim();
+    const record: PersonaBotRecord = {
+      slug: input.slug,
+      displayName: displayName.length > 0 ? displayName : input.slug,
+      workspaces: input.workspaces ?? [],
+      createdAt: now().toISOString(),
+      ...(roles.length > 0 ? { roles } : {}),
+      ...(description ? { description } : {}),
+      ...(avatar ? { avatar } : {}),
+      ...(model ? { model } : {}),
+      ...(preset ? { preset } : {}),
+      ...(memoryDir ? { memoryDir } : {}),
+    };
+    const targetMemoryDir = memoryDirOf(record);
+    const newBotDirectory = !existsSync(botDir(record.slug));
+    mkdirSync(targetMemoryDir, { recursive: true });
+    const initialized = options.initializeMemory?.(targetMemoryDir) ?? { ok: true };
+    if (!initialized.ok) {
+      if (newBotDirectory && !memoryDir) {
+        rmSync(botDir(record.slug), { recursive: true, force: true });
+      }
+      return {
+        ok: false,
+        reason: initialized.code === 'git-not-found' ? 'git-not-found' : 'memory-unavailable',
+        ...(initialized.message === undefined ? {} : { detail: initialized.message }),
+      };
+    }
+    write(record);
+    const persona = input.persona;
+    if (persona !== undefined && persona.trim().length > 0) {
+      ensurePersonaFile(targetMemoryDir, persona);
+    }
+    if (sync) syncDescriptor(record);
+    return { ok: true, record };
+  };
+
   return {
     rootDir,
     create(input) {
-      if (!isValidSlug(input.slug)) return { ok: false, reason: 'invalid-slug' };
-      if (read(input.slug) !== undefined) return { ok: false, reason: 'duplicate' };
-
-      const memoryDir = input.memoryDir?.trim();
-      if (memoryDir !== undefined && memoryDir.length > 0 && !isAbsolute(memoryDir)) {
-        return { ok: false, reason: 'invalid-memory-dir' };
-      }
-
-      const displayName = input.displayName.trim();
-      const roles = normalizeRoles(input.roles);
-      const description = input.description?.trim();
-      const avatar = input.avatar?.trim();
-      if (avatar !== undefined && avatar.length > 0 && !isPersonaBotAvatar(avatar)) {
-        return { ok: false, reason: 'invalid-input' };
-      }
-      const model = input.model?.trim();
-      const preset = input.preset?.trim();
-      const record: PersonaBotRecord = {
-        slug: input.slug,
-        displayName: displayName.length > 0 ? displayName : input.slug,
-        workspaces: input.workspaces ?? [],
-        createdAt: now().toISOString(),
-        ...(roles.length > 0 ? { roles } : {}),
-        ...(description ? { description } : {}),
-        ...(avatar ? { avatar } : {}),
-        ...(model ? { model } : {}),
-        ...(preset ? { preset } : {}),
-        ...(memoryDir ? { memoryDir } : {}),
-      };
-      const targetMemoryDir = memoryDirOf(record);
-      const newBotDirectory = !existsSync(botDir(record.slug));
-      mkdirSync(targetMemoryDir, { recursive: true });
-      const initialized = options.initializeMemory?.(targetMemoryDir) ?? { ok: true };
-      if (!initialized.ok) {
-        if (newBotDirectory && !memoryDir) {
-          rmSync(botDir(record.slug), { recursive: true, force: true });
-        }
-        return {
-          ok: false,
-          reason: initialized.code === 'git-not-found' ? 'git-not-found' : 'memory-unavailable',
-          ...(initialized.message === undefined ? {} : { detail: initialized.message }),
-        };
-      }
-      write(record);
-      const persona = input.persona;
-      if (persona !== undefined && persona.trim().length > 0) {
-        ensurePersonaFile(targetMemoryDir, persona);
-      }
-      return { ok: true, record };
+      return create(input, true);
     },
     async createFromGit(input) {
       if (!isValidSlug(input.slug)) return { ok: false, reason: 'invalid-slug' };
@@ -377,17 +393,22 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         staging = undefined;
         const { gitUrl, ...recordInput } = input;
         void gitUrl;
-        const result = this.create(recordInput);
+        const result = create(recordInput, false);
         created = result.ok;
         if (!result.ok) return result;
         const presentation = readSharedPresentation(defaultMemoryDir(input.slug));
-        if (presentation === undefined) return result;
+        if (presentation === undefined) {
+          syncDescriptor(result.record, true);
+          return result;
+        }
         const presented = { ...result.record, ...presentation };
         try {
           write(presented);
         } catch {
+          syncDescriptor(result.record, true);
           return result;
         }
+        syncDescriptor(presented, true);
         return { ok: true, record: presented };
       } catch {
         return { ok: false, reason: 'memory-unavailable' };
@@ -438,6 +459,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       const record = read(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       const previousName = record.displayName;
+      const previousProfile = JSON.stringify([record.roles, record.tag, record.avatar]);
       if (patch.displayName !== undefined) {
         const displayName = patch.displayName.trim();
         if (displayName.length === 0) return { ok: false, reason: 'invalid-input' };
@@ -470,6 +492,11 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       }
       write(record);
       if (record.displayName !== previousName) options.onDisplayNameChanged?.();
+      if (
+        record.displayName !== previousName ||
+        JSON.stringify([record.roles, record.tag, record.avatar]) !== previousProfile
+      )
+        syncDescriptor(record);
       return { ok: true, record };
     },
     setAppearance(slug, recipe) {
@@ -479,6 +506,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       if (derived === undefined) return { ok: false, reason: 'invalid-input' };
       const updated = { ...record, ...derived };
       write(updated);
+      syncDescriptor(updated);
       return { ok: true, record: updated };
     },
     setPaused(slug, paused) {
