@@ -95,7 +95,7 @@ Slack 显式跟进复用来源锚定的话题策略。Root 消息可作为未来
 
 Slack 私有频道／DM、修改／撤回、普通附件消息、workspace 全局搜索和缺口补收不属于目前公开频道验收范围。已确认范围不包含同步外部撤回；后续读取可报告来源已消失。dsh-im 声称支持某平台不等于 BotHarness 已资格验证。
 
-Discord 共享 Channel [#1054](https://github.com/BotHarness/BotHarness/issues/1054) 验证一个绑定成员、原公开 thread 提及、重叠 Inbox／Channel 去重、暂停／恢复不补录和冷重启，Message Content 保持 OFF。[实际模型／原生证据与恢复](../verification/discord-1054-shared-channel.zh.md) 区分真实结果与额外成员／重复投递 fixture；不提升普通共享收件资格，也不更新产品 Provider pin。
+Discord 共享 Channel [#1054](https://github.com/BotHarness/BotHarness/issues/1054) 验证一个绑定成员、原公开 thread 提及、重叠 Inbox／Channel 去重、暂停／恢复不补录和冷重启，Message Content 保持 OFF。[实际模型／原生证据与恢复](https://github.com/BotHarness/BotHarness/blob/main/docs/dev/verification/discord-1054-shared-channel.zh.md) 区分真实结果与额外成员／重复投递 fixture；不提升普通共享收件资格，也不更新产品 Provider pin。
 
 ## 下一平台可复用的验收流程
 

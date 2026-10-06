@@ -93,7 +93,7 @@ These are **development source qualifications**, not a claim that every publishe
 
 Slack private channels/DMs, edits/deletions, ordinary file shares, workspace-wide search and gap backfill are not covered by the public-channel tracers. Remote withdrawal synchronization is deliberately outside the confirmed scope; a later read can report a missing source. Generic platform support in dsh-im is not BotHarness qualification.
 
-Discord shared-Channel qualification [#1054](https://github.com/BotHarness/BotHarness/issues/1054) covers one bound member, original public-thread mentions, overlapping Inbox/Channel deduplication, pause/resume without backfill and cold restart, with Message Content OFF. [Actual model/native evidence and restoration](../verification/discord-1054-shared-channel.md) distinguish native results from additional-member and duplicate-delivery fixtures; this does not qualify ordinary shared intake or update the product Provider pin.
+Discord shared-Channel qualification [#1054](https://github.com/BotHarness/BotHarness/issues/1054) covers one bound member, original public-thread mentions, overlapping Inbox/Channel deduplication, pause/resume without backfill and cold restart, with Message Content OFF. [Actual model/native evidence and restoration](https://github.com/BotHarness/BotHarness/blob/main/docs/dev/verification/discord-1054-shared-channel.md) distinguish native results from additional-member and duplicate-delivery fixtures; this does not qualify ordinary shared intake or update the product Provider pin.
 
 ## Repeatable acceptance for the next provider
 
