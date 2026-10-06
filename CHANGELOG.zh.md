@@ -5,16 +5,20 @@
 
 ## [Unreleased]
 
-PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一为卡片样式；每个 Bot 的 Memory 会保存供 Bot 市场使用的 `.botharness/bot.json`；插件会发送可关闭的匿名使用统计；Bot 设置可一键安装 DeepSeekBot 更新并重启 DSH。
+微信原始语音可下载，并可按需准备播放。
 
 ### Added
 
 - 微信原生语音可下载原文件，支持的 SILK 音频可显式准备播放或保存独立 WAV 工作副本；解码有大小、时间限制并校验当前来源授权，语音识别和原生语音回复仍是独立能力（[#906](https://github.com/BotHarness/BotHarness/issues/906)、[指南](docs/wechat-connection.md)）。
 
+## [1.1.0] - 2026-10-06
+
+PersonaBot 可设置并自行管理定时任务，每个会话都会带上 Bot 的 Soul 与核心记忆，Channel 侧栏各分区统一为卡片样式，微信支持语音转写和图片；每个 Bot 的 Memory 会保存供 Bot 市场使用的 `.botharness/bot.json`；插件会发送可关闭的匿名使用统计；Bot 设置可一键安装 DeepSeekBot 更新并重启 DSH。
+
+### Added
+
 - 增加个人微信语音来源候选链路，使用平台提供的转写，在 Bot Inbox 区分有转写与缺少转写；不增加 ASR 或音频播放，真实原生语音 → 模型 → 原私聊回复已由 Human 确认（[#905](https://github.com/BotHarness/BotHarness/issues/905)）。
-
 - 增加源码预览微信图片链路，支持 Inbox 原消息气泡内自动加载的 checked 图片预览、原生模型图片输入与本身份原生图片回复，Human 已确认原私聊收到内容一致的图片（[#904](https://github.com/BotHarness/BotHarness/issues/904)，[连接指南](docs/wechat-connection.md)）。
-
 - PersonaBot 新增定时任务（Bot Schedule）：Channel 侧栏的「定时任务」分区可新建、编辑、暂停和删除按分钟、按小时或每天执行的任务；每次触发进入 Bot 收件箱并唤醒 Orchestrator，每个任务可查看最近 20 次触发及处理它的会话（[#960](https://github.com/BotHarness/BotHarness/issues/960)，[ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)）。
 - DeepSeekBot 现在会在创建 Bot 时，自动在它的 Memory 里写入 `.botharness/bot.json`，之后改名称、岗位或头像时同步更新；已有的 Bot 会在下次启动时补上。分享出去的 Bot 在 Bot 市场里显示的名称、岗位和头像，和侧栏里一致（[#966](https://github.com/BotHarness/BotHarness/issues/966)、[教程](docs/share-bot.md)）。
 - DeepSeekBot 由 DSH 后台发送匿名使用统计，只关联一个随机安装 ID：`plugin_started`（插件和 DSH 版本、操作系统、架构），`bot_created`、`bot_archived`、`bot_deleted`、`marketplace_bot_installed`、`connector_enabled`（只含连接器类型）、`avatar_edited`，每天一次的 `daily_usage` 汇总（PersonaBot、会话和消息数量及统计时长），以及 BotHarness 后台未处理错误的 `$exception` 报告（错误类型和只保留包内文件名的调用栈，从不含错误信息或文件路径）；Bot 模式会弹出一次说明，并链接隐私说明和源码。可在 Bot 设置中关掉「匿名使用统计」开关，立即生效、无需重启，并会被记住；在 core 插件配置中设置 `telemetry: false`，或设置 `DO_NOT_TRACK=1`、`BOTHARNESS_TELEMETRY=0`，会强制关闭并锁定该开关（[#951](https://github.com/BotHarness/BotHarness/issues/951)，[#952](https://github.com/BotHarness/BotHarness/issues/952)，[ADR-0132](docs/adr/0132-anonymous-posthog-telemetry-and-campaign-short-links.md)，[教程](docs/settings.md)）。
@@ -30,15 +34,17 @@ PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一�
 - PersonaBot 的人格文件改名为 `SOUL.md`（Soul），每个 Session 开始时还会带上 Core Memory `MEMORY.md`，新对话一开始就知道 Bot 记得什么。两者在整个 Session 内冻结，并带字符用量标注（默认上限 5,000 和 3,000 字符）；新建的 Bot 会附带一份简短的 `MEMORY.md` 模板，已有的 `PERSONA.md` 会在下次启动时改名为 `SOUL.md`（[#988](https://github.com/BotHarness/BotHarness/issues/988)，[ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)）。
 - 每个 Bot 的资料页新增「常驻记忆上限」，可分别设置 `SOUL.md` 和 `MEMORY.md` 的字符上限，并显示约合多少汉字和英文单词，从下一个 Session 开始生效。Memory 面板把这两个文件置顶，带「常驻」标记和当前用量，超限时标红；Memory 搜索现在也能搜到它们（[#989](https://github.com/BotHarness/BotHarness/issues/989)，[ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)）。
 
-### Documentation
-
-- GitHub 与 npm 的 README 补充定时任务、Bot 市场和更新提示，新增依据本 Ledger 整理的「版本亮点」，并换成高清截图表格，所有头像均为 BotPixel 像素头像（[#984](https://github.com/BotHarness/BotHarness/issues/984)）。
-- 记录隔离 Discord nearby 上下文候选的准确原生来源范围、五分钟窗口、稀疏 Human 文本最小条数与有界续页；真实模型稀疏续页、canonical 留存、原 thread 回复和临时权限恢复已独立验证，产品提升仍另行管理（[#981](https://github.com/BotHarness/BotHarness/issues/981)，[指南](docs/dev/guides/im-provider-integration.md)）。
-- 补全 Discord 上下文开发来源验收文档，提供真实模型续页、准确的已编辑来源拒绝、整页回滚及消息正文权限恢复证据（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
-
 ### Fixed
 
 - 带明确私聊 Chat ID 的 Lark 用户目标可以将未 @ 的私聊消息送进同一个 PersonaBot Inbox，并以绑定身份回复；未提供该标识的目标仍只支持发送（[#996](https://github.com/BotHarness/BotHarness/issues/996)）。
+
+### Documentation
+
+- 记录开发来源 Discord 文件候选的真实模型保存／处理／导入／原 thread 结果、独立原件不变／输出字节证据及临时工作区写权限清理（[#1002](https://github.com/BotHarness/BotHarness/issues/1002)，[verification](docs/dev/verification/discord-1002-source-files.md)）。
+- 新增教程 [Bot 灵魂与核心记忆](docs/soul-and-core-memory.md)：说明 `SOUL.md` 与 `MEMORY.md` 为什么在每个 Session 开始时冻结注入、两个文件分别代表什么、为什么没有 `USER.md`、字符上限及中英文的大致篇幅和 token 量、如何修改上限、超限时的样子、修改何时生效，以及如何和 Bot 一起塑造 `MEMORY.md`（[#990](https://github.com/BotHarness/BotHarness/issues/990)，[ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)）。
+- GitHub 与 npm 的 README 补充定时任务、Bot 市场和更新提示，新增依据本 Ledger 整理的「版本亮点」，并换成高清截图表格，所有头像均为 BotPixel 像素头像（[#984](https://github.com/BotHarness/BotHarness/issues/984)）。
+- 记录隔离 Discord nearby 上下文候选的准确原生来源范围、五分钟窗口、稀疏 Human 文本最小条数与有界续页；真实模型稀疏续页、canonical 留存、原 thread 回复和临时权限恢复已独立验证，产品提升仍另行管理（[#981](https://github.com/BotHarness/BotHarness/issues/981)，[指南](docs/dev/guides/im-provider-integration.md)）。
+- 补全 Discord 上下文开发来源验收文档，提供真实模型续页、准确的已编辑来源拒绝、整页回滚及消息正文权限恢复证据（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
 
 ## [1.0.2] - 2026-10-06
 

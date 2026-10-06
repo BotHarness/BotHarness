@@ -102,21 +102,7 @@ function copyAvailable(source, target, paths) {
   }
 }
 
-export function stageProvider(source, target, repoRoot) {
-  const input = verifyProviderSource(source);
-  mkdirSync(target, { recursive: true });
-  copyAvailable(source, target, [
-    'assets',
-    'lib',
-    'locale',
-    'plugin-src',
-    'src',
-    'LICENSE',
-    'README.md',
-    'README.en.md',
-    'THIRD_PARTY_NOTICES.md',
-  ]);
-  const original = JSON.parse(readFileSync(join(source, 'package.json'), 'utf8'));
+export function providerManifest(original) {
   const {
     scripts: _scripts,
     devDependencies: _dev,
@@ -124,12 +110,12 @@ export function stageProvider(source, target, repoRoot) {
     bin: _bin,
     ...manifest
   } = original;
-  writeJson(join(target, 'package.json'), {
+  return {
     ...manifest,
     name: productImProvider.name,
     version: productImProvider.version,
     description: 'BotHarness-qualified IM Provider, maintained from dsh-im',
-    repository: { type: 'git', url: 'git+https://github.com/DoodleBears/dsh-im.git' },
+    repository: { type: 'git', url: 'git+https://github.com/BotHarness/BotHarness.git' },
     bugs: { url: 'https://github.com/BotHarness/BotHarness/issues' },
     homepage: 'https://botharness.ai/docs/lark-connection/',
     files: [
@@ -151,7 +137,27 @@ export function stageProvider(source, target, repoRoot) {
       compatibility: { dsh: productImProvider.upstream.dsh, profiles: ['web'] },
     },
     botharness: { managedByProduct: true, upstreamSource: productImProvider.upstream.source },
-  });
+  };
+}
+
+export function stageProvider(source, target, repoRoot) {
+  const input = verifyProviderSource(source);
+  mkdirSync(target, { recursive: true });
+  copyAvailable(source, target, [
+    'assets',
+    'lib',
+    'locale',
+    'plugin-src',
+    'src',
+    'LICENSE',
+    'README.md',
+    'README.en.md',
+    'THIRD_PARTY_NOTICES.md',
+  ]);
+  writeJson(
+    join(target, 'package.json'),
+    providerManifest(JSON.parse(readFileSync(join(source, 'package.json'), 'utf8'))),
+  );
   writeFileSync(
     join(target, 'cordis.patch.yml'),
     `- insert:\n    - id: xmanrui-dsh-im\n      name: '${productImProvider.name}'\n`,

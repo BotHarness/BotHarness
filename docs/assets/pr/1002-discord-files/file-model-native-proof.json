@@ -1,0 +1,163 @@
+{
+  "issue": 1002,
+  "status": "agent-operated-real-file-accepted",
+  "coreRuntimeInput": "ed3b385e1c2447184defcf96cd7679edbb75d3cd",
+  "providerInput": "71be2edbe69bcf8cb160af2a812565134383551e",
+  "providerLoadedArtifactSha256": "341bd577f5510f7f529f9912416c840cf801e7de479df17e93590c21fedee1c1",
+  "dshVersion": "0.2.0-rc.1",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "turn": 7,
+  "tools": [
+    {
+      "callId": "call_00_geRb2HRxacr3xCyVS9H57754",
+      "name": "bridge_read",
+      "actualResultSucceeded": true
+    },
+    {
+      "callId": "call_00_ANiVyBZXLX0oA9kPk7s78457",
+      "name": "bridge_attachment_save",
+      "actualResultSucceeded": true
+    },
+    {
+      "callId": "call_00_2ddZMQxs5nhWnlHVBiNF2971",
+      "name": "read",
+      "actualResultSucceeded": true
+    },
+    {
+      "callId": "call_00_ogdsMC28juD0EWfbboeE8557",
+      "name": "write",
+      "actualResultSucceeded": true
+    },
+    {
+      "callId": "call_00_jbx5Ir6cremuuHD8GZSa8825",
+      "name": "read",
+      "actualResultSucceeded": true
+    },
+    {
+      "callId": "call_00_KDu4b9D99ngvxAqVxvJz4589",
+      "name": "channel_attachment_import",
+      "actualResultSucceeded": true
+    },
+    {
+      "callId": "call_00_DzDi7cl34MorVSV0ymtz4315",
+      "name": "bridge_reply_file",
+      "actualResultSucceeded": true
+    }
+  ],
+  "sourceEventId": "im-2f0f979e6a57b4d870a2f23774c3fff6d6bdc27696d55ac4a4a770f60a40df22",
+  "sourceAttachmentId": "fa1c16e7215ad5abd4f4d5d3278d673ac15a6dbd6f1f9231586fcffaa8da9ce2",
+  "originalFile": {
+    "fileId": "file:610e8996-b4a4-45e3-8025-351d6ce52035",
+    "name": "discord-1002-input.txt",
+    "mime": "text/plain",
+    "size": 41
+  },
+  "independentResult": {
+    "fileId": "file:bf447d7f-db7a-4441-b6a8-c506fcdc9acf",
+    "name": "discord-1002-result.txt",
+    "mime": "text/plain",
+    "size": 41
+  },
+  "replyIntent": {
+    "id": "4481052f-5d56-4514-832f-7eb96f7dff58",
+    "state": "provider-accepted",
+    "fileId": "file:bf447d7f-db7a-4441-b6a8-c506fcdc9acf"
+  },
+  "native": {
+    "threadId": "1556622420222283798",
+    "triggerId": "1556949377308954655",
+    "replyId": "1556949481541472256",
+    "replyReference": "1556949377308954655",
+    "ownBot": true,
+    "messageContent": false,
+    "appFlags": 0,
+    "files": [
+      {
+        "kind": "input",
+        "messageId": "1556949377308954655",
+        "authorId": "552307579322236939",
+        "attachmentId": "1556949376553844786",
+        "name": "discord-1002-input.txt",
+        "declaredBytes": 41,
+        "actualBytes": 41,
+        "sha256": "ad8c254acefa4370f2f733b7bad0bc05982fc7aa82b6eb7b4877933bc1048285",
+        "expectedSha256": "ad8c254acefa4370f2f733b7bad0bc05982fc7aa82b6eb7b4877933bc1048285",
+        "expectedBytesMatch": true
+      },
+      {
+        "kind": "result",
+        "messageId": "1556949481541472256",
+        "authorId": "1556613973846007899",
+        "attachmentId": "1556949481277362216",
+        "name": "discord-1002-result.txt",
+        "declaredBytes": 41,
+        "actualBytes": 41,
+        "sha256": "3b84ec649ef4be88bf9619adcfa7f1597c25f82ace7a5b28b09218620f631328",
+        "expectedSha256": "3b84ec649ef4be88bf9619adcfa7f1597c25f82ace7a5b28b09218620f631328",
+        "expectedBytesMatch": true
+      }
+    ]
+  },
+  "canonical": {
+    "messaging_bindings": {
+      "before": 1,
+      "after": 1,
+      "added": 0,
+      "priorRowsByteIdentical": true,
+      "beforeSha256": "30023ba945eb40a6ef444c04a34e8e7ca51607c4ab53f4110f259738209cf267",
+      "afterSha256": "30023ba945eb40a6ef444c04a34e8e7ca51607c4ab53f4110f259738209cf267"
+    },
+    "messaging_grants": {
+      "before": 1,
+      "after": 1,
+      "added": 0,
+      "priorRowsByteIdentical": true,
+      "beforeSha256": "46cb9b6eaf6d9150554740802c983d3bdb184cea5770317a89d64297a09ab7d6",
+      "afterSha256": "46cb9b6eaf6d9150554740802c983d3bdb184cea5770317a89d64297a09ab7d6"
+    },
+    "source_events": {
+      "before": 25,
+      "after": 26,
+      "added": 1,
+      "priorRowsByteIdentical": true,
+      "beforeSha256": "0029cad17e18ad690a4318d1f4fb41c22caeea7543ea7b8530a8649651c1612e",
+      "afterSha256": "853ccaced7dc492214dc30ca0eee983c1d151757308102ec43a0c51ac5ba8aff"
+    },
+    "inbox_admissions": {
+      "before": 7,
+      "after": 8,
+      "added": 1,
+      "priorRowsByteIdentical": true,
+      "beforeSha256": "6b9c625d572b34d0ff2b6ce987ab04d05ac28a0022ef976623b37c79cadb62d9",
+      "afterSha256": "92a006ac3d6f4e86a12c3d340a9f680a4660b13f20ddfdca4dc29343f197ef44"
+    },
+    "messaging_outbox": {
+      "before": 5,
+      "after": 6,
+      "added": 1,
+      "priorRowsByteIdentical": true,
+      "beforeSha256": "bef03b2c4d80da927ac1ea1a447ad72e15c44397d63bf0e31f0d9647f6e48d0c",
+      "afterSha256": "9bc42e173b9f459864a21ef16987398ed4aa7bc3e6e043c85272560f330bde39"
+    },
+    "channel_placements": {
+      "before": 2,
+      "after": 2,
+      "added": 0,
+      "priorRowsByteIdentical": true,
+      "beforeSha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73",
+      "afterSha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+    }
+  },
+  "originalCanonicalAndWorkingBytesUnchanged": true,
+  "independentResultAndNativeBytesMatchExpected": true,
+  "oneActualReplyFileCall": true,
+  "noTextReplyOrDMPostTool": true,
+  "allSixTablesByteIdenticalAfterWriteRevocationAndColdRestart": true,
+  "qaWorkspaceWriteRevokedAndStillRevokedAfterRestart": true,
+  "messageContentStayedOff": true,
+  "limits": "One small hosted text file in an existing public thread; unsupported/permission/size/cancellation/unknown cases have automated coverage, not a complete fresh native matrix; product pin/publication unchanged."
+}

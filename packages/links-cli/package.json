@@ -1,0 +1,40 @@
+{
+  "name": "@botharness/links",
+  "version": "0.1.0",
+  "description": "bh-links: manage go.botharness.ai Campaign short links and their click counts from the command line",
+  "keywords": [
+    "botharness",
+    "campaign",
+    "cli",
+    "short-links",
+    "utm"
+  ],
+  "homepage": "https://github.com/BotHarness/BotHarness/tree/main/packages/links-cli#readme",
+  "bugs": {
+    "url": "https://github.com/BotHarness/BotHarness/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BotHarness/BotHarness.git",
+    "directory": "packages/links-cli"
+  },
+  "bin": {
+    "bh-links": "./dist/bh-links.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@botharness/links-worker": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

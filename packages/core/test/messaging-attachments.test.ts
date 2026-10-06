@@ -50,13 +50,13 @@ const event: MessagingInboundEvent = {
 };
 async function fixture(
   onRun?: (run: OrchestratorAgentRun) => Promise<void>,
-  platform: 'feishu' | 'slack' | 'weixin' = 'feishu',
+  platform: 'feishu' | 'slack' | 'weixin' | 'discord' = 'feishu',
   image = false,
   voice = false,
 ) {
   const { parentId: _parentId, ...slackReply } = event.reply;
   const platformEvent: MessagingInboundEvent =
-    platform === 'slack'
+    platform === 'slack' || platform === 'discord'
       ? {
           ...event,
           channel: platform,
@@ -130,11 +130,18 @@ async function fixture(
     listTargets: async () => [
       {
         targetId: 'team',
-        kind: platform === 'weixin' ? 'user' : platform === 'slack' ? 'conversation' : 'group',
+        kind:
+          platform === 'weixin'
+            ? 'user'
+            : platform === 'slack'
+              ? 'conversation'
+              : platform === 'discord'
+                ? 'channel'
+                : 'group',
         route:
           platform === 'weixin'
             ? { toUserId: 'team' }
-            : platform === 'slack'
+            : platform === 'slack' || platform === 'discord'
               ? { channelId: 'team' }
               : { chatId: 'team' },
       },
@@ -214,7 +221,7 @@ async function fixture(
   };
 }
 
-it.each(['feishu', 'slack', 'weixin'] as const)(
+it.each(['feishu', 'slack', 'weixin', 'discord'] as const)(
   '%s trusted source reaches writable native files and a selected same-topic file reply without creating a Channel',
   async (platform) => {
     let grantId = '';

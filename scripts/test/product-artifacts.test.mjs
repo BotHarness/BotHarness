@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { productManifest, productImProvider } from '../product-artifacts.mjs';
+import { productManifest, productImProvider, providerManifest } from '../product-artifacts.mjs';
 import {
   packagedProfileManifest,
   packagedWorkspaceSettings,
@@ -197,6 +197,19 @@ describe('release composition', () => {
     });
     expect(release.dsh.bundle.patch).toBe('./cordis.im.patch.yml');
     expect(source.private).toBe(true);
+  });
+
+  it('names the publishing repository in every manifest so npm accepts its provenance', () => {
+    const provider = providerManifest({
+      name: '@xmanrui/dsh-im',
+      repository: { type: 'git', url: 'git+https://github.com/DoodleBears/dsh-im.git' },
+      scripts: { build: 'x' },
+    });
+    const release = productManifest({}, '0.0.0-test.823');
+    for (const manifest of [provider, release]) {
+      expect(manifest.repository.url).toBe('git+https://github.com/BotHarness/BotHarness.git');
+    }
+    expect(provider.scripts).toBeUndefined();
   });
 
   it.each(['latest', '01.0.0', '', '1.0', 'v1.0.0'])(

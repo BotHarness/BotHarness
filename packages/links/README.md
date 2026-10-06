@@ -1,4 +1,4 @@
-# @botharness/links
+# @botharness/links-worker
 
 `go.botharness.ai`: the Campaign short link Worker ([ADR-0132](../../docs/adr/0132-anonymous-posthog-telemetry-and-campaign-short-links.md), [#953](https://github.com/BotHarness/BotHarness/issues/953)). A **Campaign** owns many **Campaign Links** (see `CONTEXT.md`). Resolving a link redirects to the product site with UTM parameters, counts the click in D1 and sends a server-side `link_clicked` event to PostHog. It is a Hono app built with `@hono/zod-openapi`; the API is defined once and published as `/openapi.json`.
 
@@ -78,6 +78,34 @@ Every `/v1` route needs `Authorization: Bearer <token>`. `GET` routes need a `re
 - `expiresInDays` defaults to 90; `null` creates a token that never expires. Expired and revoked tokens get `401`. `lastUsedAt` is updated at most once an hour.
 - **Bootstrap.** The `LINKS_BOOTSTRAP_TOKEN` secret works as a bearer token for `/v1/tokens` routes only (create, list, revoke), and gets `403 bootstrap-token-only-manages-tokens` elsewhere. It must be at least 32 characters and is compared in constant time. It exists only to get started before the admin page is reachable. Delete it with `npx wrangler secret delete LINKS_BOOTSTRAP_TOKEN` after the first successful admin login; from then on tokens are created and revoked on the admin page.
 
+## MCP (`/mcp`)
+
+The Worker serves a Streamable HTTP MCP server at `POST /mcp` ([#955](https://github.com/BotHarness/BotHarness/issues/955)) for agents such as Claude Code. It is stateless and answers with JSON (a fresh `McpServer` and the SDK's `WebStandardStreamableHTTPServerTransport` per request); `GET` and `DELETE` get `405`.
+
+- **Auth.** `Authorization: Bearer <PAT>` with the same token check as `/v1`; a missing, unknown, expired or revoked token gets `401` with `WWW-Authenticate: Bearer`. The bootstrap secret does not work here.
+- **Tools.** Read tools work with a `read` or `write` token; the others need `write` and answer a `read` token with a tool error `{ "status": 403, "error": { "code": "insufficient-scope" } }`. Tools take the same zod schemas as `/v1` and call the same `src/operations.ts`, so validation and errors match the API (`{ status, error: { code } }` as a tool error).
+
+| Tool                                                                         | Scope | Same as                             |
+| ---------------------------------------------------------------------------- | ----- | ----------------------------------- |
+| `campaigns_list` `{ includeArchived? }`                                      | read  | `GET /v1/campaigns`                 |
+| `campaign_create` `{ slug, name, description? }`                             | write | `POST /v1/campaigns`                |
+| `campaign_update` `{ slug, name?, description? }`                            | write | `PATCH /v1/campaigns/{slug}`        |
+| `campaign_archive` `{ slug }`                                                | write | `POST /v1/campaigns/{slug}/archive` |
+| `campaign_clicks` `{ slug }`                                                 | read  | `GET /v1/campaigns/{slug}/clicks`   |
+| `links_list` `{ campaign?, includeArchived? }`                               | read  | `GET /v1/links`                     |
+| `link_create` `{ slug, campaign, platform, media, path?, language?, note? }` | write | `POST /v1/links`                    |
+| `link_update` `{ slug, platform?, media?, path?, language?, note? }`         | write | `PATCH /v1/links/{slug}`            |
+| `link_archive` `{ slug }`                                                    | write | `POST /v1/links/{slug}/archive`     |
+| `link_clicks` `{ slug, days? }`                                              | read  | `GET /v1/links/{slug}/clicks`       |
+
+Link results carry `shortUrl` (`https://go.botharness.ai/<slug>`) and `target`, the site URL with the four UTMs. Add the server to Claude Code with a PAT from the admin page:
+
+```bash
+claude mcp add --transport http botharness-links https://go.botharness.ai/mcp --header "Authorization: Bearer $BH_LINKS_TOKEN"
+```
+
+claude.ai web connectors need OAuth, which is the second phase (ADR-0132). For the command line, use [`bh-links`](../links-cli/README.md).
+
 ## Admin page (`/admin`)
 
 A server-rendered page (Hono `html` templates, no frontend build) for Humans, behind Cloudflare Access. It calls the same operations as `/v1` (`src/operations.ts`), so validation and rules are identical.
@@ -152,7 +180,7 @@ The D1 database `botharness-links` (APAC) was created on 2026-10-06 and its `dat
 
    ```bash
    npx wrangler d1 migrations apply LINKS_DB --remote
-   pnpm --filter @botharness/links run deploy
+   pnpm --filter @botharness/links-worker run deploy
    ```
 
 2. Set the bootstrap secret and keep the generated value in the team password manager:

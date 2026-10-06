@@ -292,3 +292,188 @@ it.each([
     expect(replyCalls).toBe(1);
   },
 );
+
+it.each([undefined, '555555555555555555'])(
+  'Discord opted-in ordinary text uses existing proof gate, count harvest and checked source reply (thread=%s)',
+  async (threadId) => {
+    const fingerprint = 'd'.repeat(64);
+    let consumer: Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1] | undefined;
+    let runs = 0;
+    const replies: MessagingReplyRoute[] = [];
+    let core: BotHarnessCore;
+    core = createCore({
+      dshHome: createTempRoot('botharness-discord-ordinary-'),
+      agents: {
+        async runOrchestrator(run) {
+          runs++;
+          expect(run.inbox).toContain('ordinary message; no reply required');
+          const source = core.attention
+            .list({ botSlug: 'ada' })
+            .items.find(
+              (item) =>
+                item.sourceKind === 'bridge-message' &&
+                run.externalMessaging!.read(item.id).event.messageId === second.messageId,
+            )!;
+          expect(
+            await run.externalMessaging!.reply(source.id, 'DISCORD-ORDINARY-OK'),
+          ).toMatchObject({ state: 'provider-accepted' });
+        },
+        async runAssignment() {},
+        requestAssignment() {
+          return { delivery: 'steer' };
+        },
+        async stopAssignment() {},
+        async close() {},
+      },
+    });
+    cores.push(core);
+    core.registry.create({ slug: 'ada', displayName: 'Ada' });
+    const service: DshImOutboundService = {
+      contractVersion: 1,
+      replyContextVersion: 1,
+      replyReceiptVersion: 1,
+      replyFenceVersion: 1,
+      listBots: async () => [{ botId: 'discord-ordinary', channel: 'discord' }],
+      listTargets: async () => [
+        {
+          targetId: 'qa',
+          name: 'Discord QA',
+          kind: 'channel',
+          route: { channelId: '444444444444444444' },
+        },
+      ],
+      describeBot: async (botId) => ({
+        version: 1,
+        botId,
+        channel: 'discord',
+        connected: true,
+        account: { fingerprint },
+        capabilities: [
+          'proactive-text-checked',
+          'exclusive-text-consumer',
+          'ordinary-text-consumer',
+          'reply-text-checked',
+          'reply-context-checked',
+          'reply-receipt-checked',
+          'reply-fence-checked',
+        ],
+      }),
+      sendChecked: async () => {
+        throw new Error('no proactive fallback');
+      },
+      consumeInbound: async (_id, input) => {
+        expect(input.ordinaryText).toBe(true);
+        consumer = input;
+        return () => {};
+      },
+      qualifyReplyChecked: async (_id, route) => route,
+      replyChecked: async (_id, route, _text, options) => {
+        expect(options.beforeSend?.()).toBe(true);
+        replies.push(route);
+        return {
+          sent: true,
+          receipt: {
+            version: 1,
+            messageId: '999999999999999999',
+            conversationId: route.conversationId,
+          },
+        };
+      },
+    };
+    core.externalMessaging.register(createDshImProvider(service, 'discord')!);
+    const target = (await core.externalMessaging.targets('dsh-im/discord', 'discord-ordinary'))[0]!;
+    const grant = await core.externalMessaging.authorize({
+      botSlug: 'ada',
+      providerId: 'dsh-im/discord',
+      accountRef: 'discord-ordinary',
+      targetRef: target.ref,
+      fingerprint,
+      targetDigest: target.digest,
+    });
+    await core.externalMessaging.inbound.setEnabled('ada', grant.id, true);
+    const policy = { collection: 'all', wake: 'digest', count: 2, intervalSeconds: 60 } as const;
+    await expect(
+      core.externalMessaging.inbound.setPolicy('ada', grant.id, policy, { kind: 'human' }),
+    ).rejects.toThrow('ordinary-delivery-unverified');
+    const event = (messageId: string): MessagingInboundEvent => ({
+      version: 1,
+      channel: 'discord',
+      botId: 'discord-ordinary',
+      fingerprint,
+      eventId: 'gateway:ordinary:' + messageId,
+      messageId,
+      actor: { kind: 'user', id: '666666666666666666', name: 'QA Human' },
+      conversation: { kind: 'group', id: '444444444444444444' },
+      mentions: [],
+      mentionedAccount: false,
+      at: new Date().toISOString(),
+      text: 'Ordinary ' + messageId,
+      reply: {
+        messageId,
+        conversationId: '444444444444444444',
+        actorId: '666666666666666666',
+        ...(threadId ? { threadId } : {}),
+      },
+      replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
+    });
+    const receive = (value: MessagingInboundEvent) =>
+      consumer!.onEvent(value, { signal: consumer!.signal });
+    const idle = async () => {
+      await tick();
+      await core.runtime.whenIdle();
+      await tick();
+    };
+    const db = attachOperationalModule(core.operationalDatabase, 'test');
+    const query = (sql: string) => db.read((database) => database.prepare(sql).all());
+    await receive(event('700000000000000000'));
+    await idle();
+    expect(query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+      0,
+    );
+    expect((await core.externalMessaging.snapshot('ada')).grants[0]).toMatchObject({
+      ordinaryDelivery: 'verified',
+      groupPolicy: { collection: 'mentions' },
+    });
+    await core.externalMessaging.inbound.setPolicy('ada', grant.id, policy, { kind: 'human' });
+    const first = event('777777777777777777');
+    const second = event('777777777777777778');
+    await receive(first);
+    await idle();
+    expect(runs).toBe(0);
+    await receive(second);
+    await idle();
+    expect(runs).toBe(1);
+    await receive({ ...first, eventId: 'gateway:redelivery' });
+    await idle();
+    expect(runs).toBe(1);
+    expect(replies).toHaveLength(1);
+    expect(replies).toEqual([second.reply]);
+    expect(query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+      2,
+    );
+    expect(
+      query(
+        "SELECT reason, wake_count, attempt_state FROM inbox_admissions WHERE reason = 'group-ordinary'",
+      ),
+    ).toEqual([
+      { reason: 'group-ordinary', wake_count: 2, attempt_state: 'handled' },
+      { reason: 'group-ordinary', wake_count: 2, attempt_state: 'handled' },
+    ]);
+    expect(query('SELECT * FROM messaging_outbox')).toHaveLength(1);
+    expect(query('SELECT * FROM channel_placements')).toHaveLength(0);
+    await core.externalMessaging.inbound.setPolicy(
+      'ada',
+      grant.id,
+      { ...policy, collection: 'mentions' },
+      { kind: 'human' },
+    );
+    await receive(event('777777777777777779'));
+    await idle();
+    expect(runs).toBe(1);
+    expect(query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
+      2,
+    );
+    await core.externalMessaging.revoke('ada', grant.id);
+    await expect(receive(event('777777777777777780'))).rejects.toThrow();
+  },
+);

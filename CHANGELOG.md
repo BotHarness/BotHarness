@@ -5,16 +5,20 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-PersonaBots can run recurring Bot Schedules and manage them themselves, the Channel sidebar sections share one card design, each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace, the plugin sends anonymous usage statistics that can be turned off, and Bot settings can install a DeepSeekBot update and restart DSH with one click.
+WeChat original voice can be downloaded and prepared for playback.
 
 ### Added
 
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
 
+## [1.1.0] - 2026-10-06
+
+PersonaBots can run Bot Schedules and manage them themselves, every Session starts with the Bot's Soul and Core Memory, the Channel sidebar sections share one card design, WeChat accepts voice transcripts and images, each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace, the plugin sends anonymous usage statistics that can be turned off, and Bot settings can install a DeepSeekBot update and restart DSH with one click.
+
+### Added
+
 - Added a candidate personal WeChat voice source path using platform-provided transcripts and explicit missing-transcript states in the Bot Inbox, without adding ASR or audio playback; a real native voice → model → original-DM reply was confirmed by the Human ([#905](https://github.com/BotHarness/BotHarness/issues/905)).
-
 - Added a source-preview WeChat image path with automatic image preview inside the original Inbox message bubble, native model image input and own-identity native image replies, with the original-DM image receipt confirmed by the Human ([#904](https://github.com/BotHarness/BotHarness/issues/904), [connection guide](docs/wechat-connection.md)).
-
 - PersonaBots gain Bot Schedules: the Channel sidebar's Schedules section lets the Human create, edit, pause and delete minute, hourly or daily tasks; each firing lands in the Bot Inbox and wakes the Orchestrator, and every schedule shows its last 20 firings with links to the handling session ([#960](https://github.com/BotHarness/BotHarness/issues/960), [ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)).
 - DeepSeekBot now writes `.botharness/bot.json` into each Bot's Memory when the Bot is created, and updates it when its name, roles or avatar change. Existing Bots get the file on the next start. A shared Bot therefore shows the same name, roles and avatar in the Bot Marketplace as in the sidebar ([#966](https://github.com/BotHarness/BotHarness/issues/966), [guide](docs/share-bot.md)).
 - DeepSeekBot sends anonymous usage statistics from the DSH Host, tied only to a random install ID: `plugin_started` (plugin and DSH version, OS, architecture), `bot_created`, `bot_archived`, `bot_deleted`, `marketplace_bot_installed`, `connector_enabled` (connector type only), `avatar_edited`, one `daily_usage` summary (counts of PersonaBots, Sessions and messages, and the window in hours), and unhandled BotHarness errors in the Host as `$exception` reports with the error type and a stack reduced to package-relative file names, never the message or a file path; Bot mode explains this once in a notice linking the privacy page and source. Turn it off with the **Anonymous usage statistics** switch in Bot settings, which applies at once without a restart and is remembered; `telemetry: false` in the core plugin config, `DO_NOT_TRACK=1` or `BOTHARNESS_TELEMETRY=0` force it off and lock the switch ([#951](https://github.com/BotHarness/BotHarness/issues/951), [#952](https://github.com/BotHarness/BotHarness/issues/952), [ADR-0132](docs/adr/0132-anonymous-posthog-telemetry-and-campaign-short-links.md), [guide](docs/settings.md)).
@@ -30,15 +34,17 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 - A PersonaBot's persona file is now `SOUL.md`, its Soul, and every Session also starts with its Core Memory, `MEMORY.md`, so a new conversation already knows what the Bot remembers. Both are frozen for the Session with a character usage header (5,000 and 3,000 by default), new Bots get a short `MEMORY.md` template, and an existing `PERSONA.md` is renamed to `SOUL.md` on the next start ([#988](https://github.com/BotHarness/BotHarness/issues/988), [ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)).
 - Each Bot's profile has a Standing memory limits section for the `SOUL.md` and `MEMORY.md` character limits, with their approximate size in Chinese characters and English words, applied from the next Session. The Memory panel pins both files at the top with a Standing badge and their current usage, highlighted when over the limit, and Memory search now covers them ([#989](https://github.com/BotHarness/BotHarness/issues/989), [ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)).
 
-### Documentation
-
-- The GitHub and npm READMEs cover Bot Schedules, the Bot Marketplace and update notes, add a Release highlights section drawn from this ledger, and replace the screenshots with a high-resolution gallery in which every avatar is a BotPixel pixel avatar ([#984](https://github.com/BotHarness/BotHarness/issues/984)).
-- Documented the isolated Discord nearby context candidate: exact native source container, five-minute window, sparse Human-text minima and bounded continuation; real-model sparse pagination, canonical retention, original-thread reply and temporary permission restoration are verified independently of product promotion ([#981](https://github.com/BotHarness/BotHarness/issues/981), [guide](docs/dev/guides/im-provider-integration.md)).
-- Documented final development-source Discord context acceptance with real model continuation, precise edited-source refusal, whole-page rollback and restored Message Content permissions ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
-
 ### Fixed
 
 - Lark user targets with an explicit private chat ID can receive unmentioned private messages into the same PersonaBot Inbox and reply through its bound identity; targets without that locator remain send-only ([#996](https://github.com/BotHarness/BotHarness/issues/996)).
+
+### Documentation
+
+- Documented the development-source Discord file candidate with actual model save/process/import/original-thread result, independent unchanged-input/output byte proof and temporary Workspace write cleanup ([#1002](https://github.com/BotHarness/BotHarness/issues/1002), [verification](docs/dev/verification/discord-1002-source-files.md)).
+- New guide [Bot Soul and Core Memory](docs/soul-and-core-memory.md): why `SOUL.md` and `MEMORY.md` start every Session frozen, what each file is for and why there is no `USER.md`, the character limits with their approximate size and token cost in Chinese and English, how to change them, what an over-limit file looks like, when edits take effect, and how to shape `MEMORY.md` together with the Bot ([#990](https://github.com/BotHarness/BotHarness/issues/990), [ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)).
+- The GitHub and npm READMEs cover Bot Schedules, the Bot Marketplace and update notes, add a Release highlights section drawn from this ledger, and replace the screenshots with a high-resolution gallery in which every avatar is a BotPixel pixel avatar ([#984](https://github.com/BotHarness/BotHarness/issues/984)).
+- Documented the isolated Discord nearby context candidate: exact native source container, five-minute window, sparse Human-text minima and bounded continuation; real-model sparse pagination, canonical retention, original-thread reply and temporary permission restoration are verified independently of product promotion ([#981](https://github.com/BotHarness/BotHarness/issues/981), [guide](docs/dev/guides/im-provider-integration.md)).
+- Documented final development-source Discord context acceptance with real model continuation, precise edited-source refusal, whole-page rollback and restored Message Content permissions ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
 
 ## [1.0.2] - 2026-10-06
 
