@@ -6055,6 +6055,37 @@ button:has(.bh-panel-glyph):is(:hover, :focus-within) ~ .bh-panel-activity[data-
 .bh-release-dialog {
   width: min(680px, calc(100vw - 32px));
 }
+.bh-telemetry-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.bh-telemetry-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  min-width: 0;
+}
+.bh-telemetry-notice-row {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+.bh-telemetry-notice-row > dt {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 22px;
+}
+.bh-telemetry-notice-row > dd {
+  margin: 0;
+  min-width: 0;
+}
+@media (max-width: 520px) {
+  .bh-telemetry-notice-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+}
 .bh-release-notes {
   display: flex;
   flex-direction: column;

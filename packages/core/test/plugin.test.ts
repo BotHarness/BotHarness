@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Context } from '@deepseek-ai/cordis';
@@ -82,6 +82,59 @@ describe('plugin entry', () => {
     expect(stubs.tools.register).not.toHaveBeenCalled();
     expect(stubs.systemPrompt.section).not.toHaveBeenCalled();
     expect(stubs.skills.register).not.toHaveBeenCalled();
+  });
+
+  it('sends plugin_started from the Host only while telemetry is on', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchImpl);
+    try {
+      const telemetryCalls = () =>
+        fetchImpl.mock.calls.filter(([url]) => String(url) === 'https://t.botharness.ai/batch/');
+      const home = process.env['DSH_HOME']!;
+      for (const [config, env] of [
+        [{ enabled: true, telemetry: false }, {}],
+        [{ enabled: true }, { DO_NOT_TRACK: '1' }],
+        [{ enabled: true }, { DO_NOT_TRACK: '', BOTHARNESS_TELEMETRY: '0' }],
+      ] as const) {
+        vi.stubEnv('DO_NOT_TRACK', '');
+        for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+        const { ctx } = createStubContext();
+        apply(ctx, config);
+        await ctx.fiber.dispose();
+        expect(telemetryCalls()).toEqual([]);
+        expect(existsSync(join(home, 'botharness', 'telemetry.json'))).toBe(false);
+      }
+
+      vi.stubEnv('DO_NOT_TRACK', '');
+      vi.stubEnv('BOTHARNESS_TELEMETRY', '');
+      const { ctx } = createStubContext();
+      apply(ctx, { enabled: true, telemetry: true });
+      await ctx.fiber.dispose();
+      await vi.waitFor(() => {
+        expect(telemetryCalls()).toHaveLength(1);
+      });
+      const body = JSON.parse(String(telemetryCalls()[0]![1]?.body)) as {
+        batch: { event: string; distinct_id: string; properties: Record<string, unknown> }[];
+      };
+      const installId = (
+        JSON.parse(readFileSync(join(home, 'botharness', 'telemetry.json'), 'utf8')) as {
+          installId: string;
+        }
+      ).installId;
+      expect(body.batch.map((event) => event.event)).toEqual(['plugin_started']);
+      expect(body.batch[0]!.distinct_id).toBe(installId);
+      expect(Object.keys(body.batch[0]!.properties).sort()).toEqual([
+        '$process_person_profile',
+        'arch',
+        'dsh_version',
+        'os',
+        'plugin_version',
+        'source',
+      ]);
+      expect(JSON.stringify(body)).not.toContain(home);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('provides the core without model-visible memory tools', () => {
@@ -368,6 +421,7 @@ describe('plugin entry', () => {
       'marketplaceReport',
       'releaseInfo',
       'releaseUpdate',
+      'telemetryStatus',
       'scheduleList',
       'scheduleCreate',
       'scheduleUpdate',

@@ -41,6 +41,7 @@ import type {
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
 import type { ReleaseInfo, ReleaseService, ReleaseUpdate } from '../release/service.js';
+import type { TelemetryStatus } from '../telemetry/service.js';
 import {
   AssignmentReplyTargetError,
   type HumanAssignmentContext,
@@ -425,6 +426,7 @@ export interface BridgeMethods {
   marketplaceReport(payload: unknown): Promise<BridgeResult<{ received: true }>>;
   releaseInfo(payload: unknown): BridgeResult<ReleaseInfo>;
   releaseUpdate(): Promise<BridgeResult<ReleaseUpdate>>;
+  telemetryStatus(): BridgeResult<TelemetryStatus>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
   scheduleCreate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
   scheduleUpdate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
@@ -465,6 +467,7 @@ export interface BridgeMethodsDeps {
   createBotId?: () => string;
   marketplace?: MarketplaceClient;
   release?: ReleaseService;
+  telemetry?: { status(): TelemetryStatus };
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -1488,6 +1491,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     async releaseUpdate() {
       if (deps.release === undefined) return releaseUnavailable();
       return { ok: true, value: await deps.release.update() };
+    },
+    telemetryStatus() {
+      return { ok: true, value: deps.telemetry?.status() ?? { enabled: false } };
     },
     marketplaceDetail(payload) {
       const id = asObject(payload)['id'];

@@ -24,6 +24,7 @@ import { HumanNameSettings } from './human-name-settings.js';
 import { BotSettingsSection } from './bot-settings-section.js';
 import { ReleaseNotesController } from './release-notes.js';
 import { ReleaseSettings } from './release-notes-view.js';
+import { TelemetryNoticeController } from './telemetry-notice.js';
 import './bot-settings-slot.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
@@ -123,6 +124,7 @@ export function apply(ctx: ClientContext): void {
   });
   const prefs = new BotModePrefs(storage);
   const releaseNotes = new ReleaseNotesController(call, storage);
+  const telemetryNotice = new TelemetryNoticeController(call, storage);
   const lastView =
     typeof window === 'undefined'
       ? undefined
@@ -365,6 +367,7 @@ export function apply(ctx: ClientContext): void {
           nativeChatT,
           nativeSessions,
           releaseNotes,
+          telemetryNotice,
         }),
       },
       BotPanel,

@@ -24,6 +24,12 @@ import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createMarketplaceClient } from './marketplace/client.js';
 import { createReleaseService, installedRelease } from './release/service.js';
+import {
+  createTelemetryService,
+  installedDshVersion,
+  pluginStartedProperties,
+  telemetryDecision,
+} from './telemetry/service.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
@@ -149,6 +155,7 @@ export interface BotHarnessConfig {
   agentPreset?: string;
   activityDetailConsumers?: string[];
   marketplaceUrl?: string;
+  telemetry?: boolean;
 }
 
 export const DEFAULT_AGENT_PRESET = 'standard';
@@ -157,6 +164,7 @@ export const DEFAULT_MARKETPLACE_URL = 'https://market.botharness.ai';
 export const DEFAULT_CONFIG: BotHarnessConfig = {
   enabled: true,
   agentPreset: DEFAULT_AGENT_PRESET,
+  telemetry: true,
 };
 
 export const Config = Schema.object({
@@ -170,6 +178,11 @@ export const Config = Schema.object({
   marketplaceUrl: Schema.string()
     .default(DEFAULT_MARKETPLACE_URL)
     .description('Bot Marketplace 服务地址'),
+  telemetry: Schema.boolean()
+    .default(true)
+    .description(
+      '发送匿名使用统计（Anonymous usage telemetry）；DO_NOT_TRACK=1 或 BOTHARNESS_TELEMETRY=0 也会关闭',
+    ),
 });
 
 export interface BotHarnessCore {
@@ -564,6 +577,28 @@ export function createCore(
 export function apply(ctx: Context, config: BotHarnessConfig): void {
   if (!config.enabled) return;
   const dshHome = resolveDshHome();
+  const release = installedRelease(import.meta.url);
+  const telemetryChoice = telemetryDecision(config.telemetry);
+  const telemetry = createTelemetryService({
+    decision: telemetryChoice,
+    dataDir: join(dshHome, 'botharness'),
+    log: (message) => ctx.logger.info(message),
+  });
+  ctx.logger.info(
+    telemetryChoice.enabled
+      ? 'telemetry phase=enabled'
+      : `telemetry phase=disabled reason=${telemetryChoice.reason}`,
+  );
+  ctx.effect(() => () => void telemetry.close(), 'botharness: telemetry');
+  telemetry.capture(
+    'plugin_started',
+    pluginStartedProperties({
+      pluginVersion: release.version(),
+      dshVersion: installedDshVersion(),
+      os: process.platform,
+      arch: process.arch,
+    }),
+  );
   let publishDraft: (event: ChannelDraftEvent) => void = () => undefined;
   const modelCatalog = createModelCatalog(ctx.llm);
   const modelReadiness = createModelRouteReadiness(
@@ -946,7 +981,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       marketplace: createMarketplaceClient({
         baseUrl: config.marketplaceUrl ?? DEFAULT_MARKETPLACE_URL,
       }),
-      release: createReleaseService(installedRelease(import.meta.url)),
+      release: createReleaseService(release),
+      telemetry,
       developerMode: {
         set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
       },

@@ -5,12 +5,13 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-PersonaBots can run recurring Bot Schedules from the Channel sidebar, and each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace.
+PersonaBots can run recurring Bot Schedules from the Channel sidebar, and each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace, and the plugin sends anonymous usage statistics that can be turned off.
 
 ### Added
 
 - PersonaBots gain Bot Schedules: the Channel sidebar's Schedules section lets the Human create, edit, pause and delete minute, hourly or daily tasks; each firing lands in the Bot Inbox and wakes the Orchestrator, and every schedule shows its last 20 firings with links to the handling session ([#960](https://github.com/BotHarness/BotHarness/issues/960), [ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)).
 - DeepSeekBot now writes `.botharness/bot.json` into each Bot's Memory when the Bot is created, and updates it when its name, roles or avatar change. Existing Bots get the file on the next start. A shared Bot therefore shows the same name, roles and avatar in the Bot Marketplace as in the sidebar ([#966](https://github.com/BotHarness/BotHarness/issues/966), [guide](docs/share-bot.md)).
+- DeepSeekBot sends anonymous usage statistics from the DSH Host, starting with one `plugin_started` event (plugin and DSH version, OS, architecture) tied only to a random install ID; Bot mode explains this once in a notice linking the privacy page and source. Turn it off with `telemetry: false` in the core plugin config, `DO_NOT_TRACK=1` or `BOTHARNESS_TELEMETRY=0` ([#951](https://github.com/BotHarness/BotHarness/issues/951), [ADR-0132](docs/adr/0132-anonymous-posthog-telemetry-and-campaign-short-links.md), [guide](docs/settings.md)).
 
 ## [1.0.2] - 2026-10-06
 
