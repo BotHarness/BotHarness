@@ -9,6 +9,8 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 
 ### Added
 
+- Added a candidate personal WeChat voice source path using platform-provided transcripts and explicit missing-transcript states in the Bot Inbox, without adding ASR or audio playback; a real native voice → model → original-DM reply was confirmed by the Human ([#905](https://github.com/BotHarness/BotHarness/issues/905)).
+
 - Added a source-preview WeChat image path with automatic image preview inside the original Inbox message bubble, native model image input and own-identity native image replies, with the original-DM image receipt confirmed by the Human ([#904](https://github.com/BotHarness/BotHarness/issues/904), [connection guide](docs/wechat-connection.md)).
 
 - PersonaBots gain Bot Schedules: the Channel sidebar's Schedules section lets the Human create, edit, pause and delete minute, hourly or daily tasks; each firing lands in the Bot Inbox and wakes the Orchestrator, and every schedule shows its last 20 firings with links to the handling session ([#960](https://github.com/BotHarness/BotHarness/issues/960), [ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)).
@@ -30,6 +32,10 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 - The GitHub and npm READMEs cover Bot Schedules, the Bot Marketplace and update notes, add a Release highlights section drawn from this ledger, and replace the screenshots with a high-resolution gallery in which every avatar is a BotPixel pixel avatar ([#984](https://github.com/BotHarness/BotHarness/issues/984)).
 - Documented the isolated Discord nearby context candidate: exact native source container, five-minute window, sparse Human-text minima and bounded continuation; real-model sparse pagination, canonical retention, original-thread reply and temporary permission restoration are verified independently of product promotion ([#981](https://github.com/BotHarness/BotHarness/issues/981), [guide](docs/dev/guides/im-provider-integration.md)).
 - Documented final development-source Discord context acceptance with real model continuation, precise edited-source refusal, whole-page rollback and restored Message Content permissions ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
+
+### Fixed
+
+- Lark user targets with an explicit private chat ID can receive unmentioned private messages into the same PersonaBot Inbox and reply through its bound identity; targets without that locator remain send-only ([#996](https://github.com/BotHarness/BotHarness/issues/996)).
 
 ## [1.0.2] - 2026-10-06
 

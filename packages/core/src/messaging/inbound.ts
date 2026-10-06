@@ -263,7 +263,9 @@ export function createInboundMessaging(options: {
         existing.body !== event.text ||
         previous.event.actor.id !== event.actor.id ||
         JSON.stringify(previous.event.reply) !== JSON.stringify(event.reply) ||
-        JSON.stringify(previous.event.attachments ?? []) !== JSON.stringify(event.attachments ?? [])
+        JSON.stringify(previous.event.attachments ?? []) !==
+          JSON.stringify(event.attachments ?? []) ||
+        JSON.stringify(previous.event.voice ?? null) !== JSON.stringify(event.voice ?? null)
       )
         throw new MessagingError('source-conflict');
       const mentions = previous.event.mentions.map((mention) => {
@@ -1004,7 +1006,8 @@ export function createInboundMessaging(options: {
     async channelBridge(channelId, rawInput) {
       const input = channelBridgeInput.parse(rawInput);
       const value = grant(input.grantId);
-      if (value.platform === 'weixin') throw new MessagingError('capability-unavailable');
+      if (value.platform === 'weixin' || value.receiveScope?.kind === 'dm')
+        throw new MessagingError('capability-unavailable');
       const channel = database.read((db) => bridgeChannel(db, channelId, value.botSlug, true));
       const target = input.delivery === 'inbox' ? null : channelId;
       if (target === null && channel.type !== 'dm') throw new MessagingError('channel-unavailable');

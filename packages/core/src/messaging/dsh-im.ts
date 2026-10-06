@@ -56,6 +56,7 @@ export interface DshImOutboundService {
       signal: AbortSignal;
       sourceFiles?: boolean;
       sourceImages?: boolean;
+      sourceVoiceTranscripts?: boolean;
       ordinaryText?: boolean;
       onEcho?(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
       onEvent(event: unknown, context: { signal: AbortSignal }): Promise<{ accepted: true }>;
@@ -155,6 +156,14 @@ const inboundSchema = z
       )
       .max(1)
       .optional(),
+    voice: z
+      .object({
+        transcript: z.enum(['platform', 'unavailable']),
+        itemId: identifier.optional(),
+        durationMs: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
+      })
+      .strict()
+      .optional(),
     at: z.iso.datetime(),
     text: z.string().min(1).max(16000),
     reply: z
@@ -175,7 +184,10 @@ const inboundSchema = z
       })
       .strict(),
   })
-  .strict();
+  .strict()
+  .refine((event) => !event.voice || (event.channel === 'weixin' && !event.attachments?.length), {
+    message: 'Invalid voice source',
+  });
 
 function providerFailure(error: unknown): MessagingProviderError {
   if (error instanceof MessagingProviderError) return error;
@@ -269,11 +281,18 @@ export function createDshImProvider(
               ),
             },
           }
-        : platform === 'weixin' &&
+        : platform === 'feishu' &&
             target.kind === 'user' &&
-            typeof target.route.toUserId === 'string'
-          ? { receiveScope: { kind: 'dm' as const, conversationId: target.route.toUserId } }
-          : {}),
+            typeof target.route.openId === 'string' &&
+            /^ou_[A-Za-z0-9]+$/.test(target.route.openId) &&
+            typeof target.route.chatId === 'string' &&
+            /^oc_[A-Za-z0-9]+$/.test(target.route.chatId)
+          ? { receiveScope: { kind: 'dm' as const, conversationId: target.route.chatId } }
+          : platform === 'weixin' &&
+              target.kind === 'user' &&
+              typeof target.route.toUserId === 'string'
+            ? { receiveScope: { kind: 'dm' as const, conversationId: target.route.toUserId } }
+            : {}),
     }));
   return {
     id: `dsh-im/${platform}`,
@@ -392,6 +411,10 @@ export function createDshImProvider(
               info.capabilities.includes('reply-image-fence-checked')
                 ? { sourceImages: true }
                 : {}),
+              ...(platform === 'weixin' &&
+              info.capabilities.includes('source-voice-transcript-checked')
+                ? { sourceVoiceTranscripts: true }
+                : {}),
               ...(host.echoVersion === 1 &&
               info.capabilities.includes('own-text-echo') &&
               input.onEcho
@@ -421,11 +444,26 @@ export function createDshImProvider(
                 : {}),
               onEvent: async (raw, context) => {
                 const parsed = inboundSchema.parse(raw);
-                if (parsed.channel !== platform) throw new MessagingError('untrusted-source');
+                if (
+                  parsed.channel !== platform ||
+                  (parsed.voice && !info.capabilities.includes('source-voice-transcript-checked'))
+                )
+                  throw new MessagingError('untrusted-source');
                 const { threadId, rootId, parentId, ...required } = parsed.reply;
-                const { attachments, ...base } = parsed;
+                const { attachments, voice, ...base } = parsed;
                 const event: MessagingInboundEvent = {
                   ...base,
+                  ...(voice === undefined
+                    ? {}
+                    : {
+                        voice: {
+                          transcript: voice.transcript,
+                          ...(voice.itemId === undefined ? {} : { itemId: voice.itemId }),
+                          ...(voice.durationMs === undefined
+                            ? {}
+                            : { durationMs: voice.durationMs }),
+                        },
+                      }),
                   ...(attachments === undefined
                     ? {}
                     : {

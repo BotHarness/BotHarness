@@ -1,0 +1,132 @@
+# @botharness/links
+
+`go.botharness.ai`: the Campaign short link Worker ([ADR-0132](../../docs/adr/0132-anonymous-posthog-telemetry-and-campaign-short-links.md), [#953](https://github.com/BotHarness/BotHarness/issues/953)). A **Campaign** owns many **Campaign Links** (see `CONTEXT.md`). Resolving a link redirects to the product site with UTM parameters, counts the click in D1 and sends a server-side `link_clicked` event to PostHog. It is a Hono app built with `@hono/zod-openapi`; the API is defined once and published as `/openapi.json`.
+
+## Redirect
+
+`GET /{slug}` answers `302` with `Cache-Control: no-store`:
+
+| Case                                                   | Location                                                                                                                        | Counted |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| Active link in an active Campaign                      | `https://deepseekbot.botharness.ai<target>?utm_campaign=<campaign>&utm_source=<platform>&utm_medium=<media>&utm_content=<link>` | yes     |
+| Unknown slug, reserved slug, archived link or Campaign | `https://deepseekbot.botharness.ai/` without UTMs                                                                               | no      |
+| `HEAD` request                                         | same as `GET`                                                                                                                   | no      |
+| Link previewer or crawler `User-Agent`                 | same as `GET`, with UTMs                                                                                                        | no      |
+| `GET /`                                                | `https://deepseekbot.botharness.ai/`                                                                                            | no      |
+
+- **Language.** A link stores the Chinese (default) site path and a `language`. `zh` opens the path as is; `en` opens it under `/en`: path `/docs/overview/` with `en` goes to `/en/docs/overview/`, path `/` with `en` goes to `/en/`. Paths that already start with `/en` are refused so the prefix is never doubled.
+- **Not an open redirect.** The origin is fixed in code. A path must start with a single `/` and use only `A-Z a-z 0-9 - . _ ~ / %` (no query, fragment, `..` segment or `//` prefix), and the built URL is checked to stay on `deepseekbot.botharness.ai`.
+- **Slugs** of Campaigns and links: lowercase letters, digits and hyphens, 1–64 characters, not starting or ending with a hyphen, unique, fixed after creation. `v1`, `v2`, `mcp`, `admin`, `api`, `health` and `openapi` are reserved. Request slugs are matched case-insensitively.
+- **Platform** and **media** are free labels (lowercase letters, digits, `-`, `_`, 1–32 characters) so new channels need no deploy. Suggested values: platforms `bilibili`, `x`, `youtube`, `producthunt`, `xiaohongshu`, `zhihu`, `wechat`, `github`, `hackernews`, `reddit`; media `video`, `post`, `launch`, `article`, `thread`, `comment`.
+- **Archived** links and Campaigns keep their rows and counts but no longer carry UTMs, so an old post still lands on the site without crediting a closed Campaign.
+
+## Click capture
+
+Counting and the PostHog event run in `waitUntil` after the response, so a D1 write failure or a PostHog outage never blocks or breaks the redirect. D1 keeps a total and a per-UTC-day counter per link; no IP address, user agent or referrer is stored.
+
+Link previewers and crawlers (Twitterbot, facebookexternalhit, Slackbot, Discordbot, TelegramBot, WhatsApp, LinkedInBot, Googlebot, bingbot, Applebot, Embedly, redditbot, Bytespider and any `User-Agent` with a `bot` word, `bot/`, `crawler`, `spider` or `preview`) get the same redirect with UTMs but are neither counted nor sent as `link_clicked`. In-app browsers such as WeChat (`MicroMessenger`) count as people. The `User-Agent` is only matched in memory; it is never stored or sent.
+
+The event goes to `POST {POSTHOG_HOST}/i/v0/e/`:
+
+```json
+{
+  "api_key": "<POSTHOG_KEY>",
+  "event": "link_clicked",
+  "distinct_id": "<random UUID per click>",
+  "properties": {
+    "source": "links",
+    "campaign": "ph-launch",
+    "link": "ph-x-post",
+    "platform": "x",
+    "media": "post",
+    "language": "en",
+    "$process_person_profile": false,
+    "$geoip_disable": true
+  }
+}
+```
+
+`$process_person_profile: false` keeps clicks out of person profiles; `$geoip_disable` stops PostHog from geolocating the Worker's own egress address. The click is recorded even when the visitor blocks the site's script; the site's pageview then carries the same UTMs for funnels.
+
+## API (`/v1`)
+
+Every `/v1` route needs `Authorization: Bearer <token>`. `GET` routes need a `read` or `write` token; every other route needs `write`. Errors are `{ "error": { "code": "…" } }` (`unauthorized` 401, `insufficient-scope` 403, `invalid-request` 400 with `issues`, `*-not-found` 404, `*-slug-taken` and `campaign-archived` 409). The full contract is `GET /openapi.json`.
+
+| Route                                                                                      | Result                                                                                                           |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `POST /v1/campaigns` `{ slug, name, description? }`                                        | `201` Campaign                                                                                                   |
+| `GET /v1/campaigns?includeArchived=true`                                                   | `{ campaigns }`, newest first, active only unless `includeArchived`                                              |
+| `GET /v1/campaigns/{slug}`                                                                 | Campaign                                                                                                         |
+| `PATCH /v1/campaigns/{slug}` `{ name?, description? }`                                     | Campaign                                                                                                         |
+| `POST /v1/campaigns/{slug}/archive`                                                        | Campaign with `archivedAt`                                                                                       |
+| `GET /v1/campaigns/{slug}/clicks`                                                          | `{ campaign, total, links: [{ slug, platform, media, clicks, lastClickedAt, archivedAt }] }`                     |
+| `POST /v1/links` `{ slug, campaign, platform, media, path = "/", language = "zh", note? }` | `201` Link with `shortUrl` and the full `target` URL; `409 campaign-archived` for an archived Campaign           |
+| `GET /v1/links?campaign=&includeArchived=true`                                             | `{ links }`, newest first                                                                                        |
+| `GET /v1/links/{slug}`                                                                     | Link                                                                                                             |
+| `PATCH /v1/links/{slug}` `{ platform?, media?, path?, language?, note? }`                  | Link                                                                                                             |
+| `POST /v1/links/{slug}/archive`                                                            | Link with `archivedAt`                                                                                           |
+| `GET /v1/links/{slug}/clicks?days=30`                                                      | `{ link, total, lastClickedAt, daily: [{ day, clicks }] }`, days with clicks in the last `days` (1–366) UTC days |
+| `POST /v1/tokens` `{ name, scope: "read" \| "write", expiresInDays = 90 \| null }`         | `201` token metadata plus `token`, the plaintext shown only in this response                                     |
+| `GET /v1/tokens`                                                                           | `{ tokens }` with `id`, `name`, `prefix`, `scope`, `createdAt`, `expiresAt`, `revokedAt`, `lastUsedAt`           |
+| `POST /v1/tokens/{id}/revoke`                                                              | The revoked token                                                                                                |
+
+## Personal Access Tokens
+
+- A token is `bhl_` followed by 43 base64url characters (32 random bytes). The first 12 characters are stored as `prefix` so a leaked token can be recognized in the list and in secret scanners.
+- Only the SHA-256 hash is stored. The plaintext appears once, in the `POST /v1/tokens` response.
+- `read` tokens can call every `GET` route. `write` tokens can do everything, including token management.
+- `expiresInDays` defaults to 90; `null` creates a token that never expires. Expired and revoked tokens get `401`. `lastUsedAt` is updated at most once an hour.
+- **Bootstrap.** Until the admin page (#954) exists, the `LINKS_BOOTSTRAP_TOKEN` secret works as a bearer token for `/v1/tokens` routes only (create, list, revoke), and gets `403 bootstrap-token-only-manages-tokens` elsewhere. It must be at least 32 characters and is compared in constant time. Use it to create the first `write` PAT, and keep it for revoking a leaked token; delete it with `wrangler secret delete LINKS_BOOTSTRAP_TOKEN` as soon as the admin page (#954) ships.
+
+## Known limits
+
+- Campaign and link slugs, and a link's Campaign, cannot change after creation; create a new link instead.
+- Archiving cannot be undone through the API (there is no restore route).
+- List routes return everything in one response, without pagination; fine for the expected tens to hundreds of links.
+- Previewer filtering is a `User-Agent` match, so a previewer that pretends to be a browser is still counted.
+
+## Configuration
+
+| Name                    | Kind   | Use                                                                                |
+| ----------------------- | ------ | ---------------------------------------------------------------------------------- |
+| `LINKS_DB`              | D1     | Campaigns, links, daily click counters and token hashes (`migrations/`)            |
+| `LINKS_BOOTSTRAP_TOKEN` | secret | Bootstrap bearer for `/v1/tokens`; unset or shorter than 32 characters disables it |
+| `POSTHOG_HOST`          | var    | Capture host, default `https://us.i.posthog.com`; empty disables the event         |
+| `POSTHOG_KEY`           | var    | PostHog project API key (public by design); empty disables the event               |
+
+The event goes straight to PostHog US rather than through `t.botharness.ai`: a server-side call is not affected by ad blockers, and a Worker fetching another Worker's custom domain on the same zone is not routed through that Worker without extra configuration.
+
+## Local development
+
+```bash
+cd packages/links
+printf 'LINKS_BOOTSTRAP_TOKEN=%s\n' "$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))")" > .dev.vars
+pnpm db:migrate:local
+pnpm dev
+curl -s -X POST http://127.0.0.1:8787/v1/tokens \
+  -H "authorization: Bearer $(grep LINKS_BOOTSTRAP_TOKEN .dev.vars | cut -d= -f2)" \
+  -H 'content-type: application/json' -d '{"name":"local","scope":"write"}'
+```
+
+Add `POSTHOG_HOST=http://127.0.0.1:<port>` to `.dev.vars` to capture events locally instead of sending them to PostHog. Tests run with the workspace `pnpm test` against an in-memory SQLite D1.
+
+## Deploy
+
+Production deployment is a separate, explicitly authorized step. With `wrangler login` on the botharness.ai account, from `packages/links`:
+
+The D1 database `botharness-links` (APAC) was created on 2026-10-06 and its `database_id` is in `wrangler.jsonc`. To recreate it elsewhere, run `npx wrangler d1 create botharness-links` and put the printed `database_id` into `wrangler.jsonc`.
+
+1. Apply the schema and deploy; the `routes` entry attaches the custom domain `go.botharness.ai` (the `botharness.ai` zone is on the same account):
+
+   ```bash
+   npx wrangler d1 migrations apply LINKS_DB --remote
+   pnpm --filter @botharness/links run deploy
+   ```
+
+2. Set the bootstrap secret and keep the generated value in the team password manager:
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put LINKS_BOOTSTRAP_TOKEN
+   ```
+
+3. Create the first `write` PAT with the bootstrap secret, then a Campaign and a link with the PAT, and open `https://go.botharness.ai/<slug>`. Check that the site's `$pageview` in PostHog carries the four UTMs and that `link_clicked` arrives with the site script blocked.
