@@ -677,6 +677,9 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       wrangler:
         specifier: ^4.95.0
         version: 4.132.0(@types/node@22.20.3)

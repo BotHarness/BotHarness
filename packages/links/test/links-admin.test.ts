@@ -218,8 +218,20 @@ describe('admin pages', () => {
     expect(detail).toContain('data-copy="https://go.botharness.ai/ph-x-post"');
     expect(detail).toContain('data-copy="https://go.botharness.ai/ph-bili"');
     expect(detail).toContain('3 clicks across 2 links');
-    expect(detail).toContain('aria-label="Clicks per day by platform"');
-    expect(detail).toContain('aria-label="Total clicks by link"');
+    expect(detail).toContain('data-chart="daily"');
+    expect(detail).toContain('data-chart="links"');
+    expect(detail).toContain('<script type="module" src="/admin/assets/admin-charts.js">');
+    const data = JSON.parse(
+      /<script type="application\/json" id="chart-data">([\s\S]*?)<\/script>/.exec(detail)?.[1] ??
+        '{}',
+    ) as { days: string[]; links: { link: string; clicks: number }[] };
+    expect(data.days).toHaveLength(30);
+    expect(data.links).toEqual(
+      expect.arrayContaining([
+        { link: 'ph-x-post', clicks: 2 },
+        { link: 'ph-bili', clicks: 1 },
+      ]),
+    );
     expect(detail).toContain(
       'href="https://deepseekbot.botharness.ai/en/docs/overview/?utm_campaign=ph-launch&amp;utm_source=x&amp;utm_medium=post&amp;utm_content=ph-x-post"',
     );

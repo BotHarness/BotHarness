@@ -1,4 +1,4 @@
-import { barX, barY, createChartRuntime, defineChart, renderChartSvg } from '@tanstack/charts';
+import { barX, barY, defineChart } from '@tanstack/charts';
 import { colorLegend, colorLegendItems } from '@tanstack/charts/legend';
 import { scaleBand } from '@tanstack/charts/scales/band';
 import { scaleLinear } from '@tanstack/charts/scales/linear';
@@ -14,35 +14,20 @@ export interface LinkTotal {
   clicks: number;
 }
 
-export interface ChartSvg {
-  svg: string;
-  width: number;
-  height: number;
+export interface ChartData {
+  days: string[];
+  daily: DailyClicks[];
+  links: LinkTotal[];
 }
 
-const WIDTH = 960;
-const LINK_ROW_HEIGHT = 30;
+export const DAILY_HEIGHT = 260;
+export const LINK_ROW_HEIGHT = 30;
 
-function render(
-  definition: Parameters<ReturnType<typeof createChartRuntime>['render']>[0],
-  height: number,
-  ariaLabel: string,
-  idPrefix: string,
-): ChartSvg {
-  const runtime = createChartRuntime();
-  try {
-    const scene = runtime.render(definition, { width: WIDTH, height });
-    return { svg: renderChartSvg(scene, { ariaLabel, idPrefix }), width: WIDTH, height };
-  } finally {
-    runtime.destroy();
-  }
-}
-
-export function dailyClicksChart(days: readonly string[], rows: readonly DailyClicks[]): ChartSvg {
+export function dailyClicksDefinition({ days, daily }: Pick<ChartData, 'days' | 'daily'>) {
   const labelled = days.filter((_, index) => index % 5 === 0 || index === days.length - 1);
-  const definition = defineChart({
+  return defineChart({
     marks: [
-      barY(rows, {
+      barY(daily, {
         x: 'day',
         y: 'clicks',
         color: 'platform',
@@ -64,12 +49,15 @@ export function dailyClicksChart(days: readonly string[], rows: readonly DailyCl
       }),
     },
   });
-  return render(definition, 240, 'Clicks per day by platform', 'daily');
 }
 
-export function linkClicksChart(links: readonly LinkTotal[]): ChartSvg {
-  const sorted = [...links].sort((a, b) => b.clicks - a.clicks || a.link.localeCompare(b.link));
-  const definition = defineChart({
+export function sortedLinkTotals(links: readonly LinkTotal[]): LinkTotal[] {
+  return [...links].sort((a, b) => b.clicks - a.clicks || a.link.localeCompare(b.link));
+}
+
+export function linkClicksDefinition(links: readonly LinkTotal[]) {
+  const sorted = sortedLinkTotals(links);
+  return defineChart({
     marks: [barX(sorted, { x: 'clicks', y: 'link', radius: { end: 2 } })],
     scales: {
       x: { scale: scaleLinear, nice: true, grid: true },
@@ -80,5 +68,8 @@ export function linkClicksChart(links: readonly LinkTotal[]): ChartSvg {
       },
     },
   });
-  return render(definition, 40 + sorted.length * LINK_ROW_HEIGHT, 'Total clicks by link', 'links');
+}
+
+export function linkChartHeight(links: readonly LinkTotal[]): number {
+  return 40 + links.length * LINK_ROW_HEIGHT;
 }
