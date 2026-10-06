@@ -477,3 +477,166 @@ it.each([undefined, '555555555555555555'])(
     await expect(receive(event('777777777777777780'))).rejects.toThrow();
   },
 );
+
+it('Discord shared placement deduplicates the existing Inbox path and preserves native child authority across connector pause', async () => {
+  const fingerprint = 'e'.repeat(64);
+  let consumer: Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1] | undefined;
+  const replies: MessagingReplyRoute[] = [];
+  const core = createCore({ dshHome: createTempRoot('botharness-discord-shared-') });
+  cores.push(core);
+  for (const slug of ['ada', 'bea'])
+    expect(core.registry.create({ slug, displayName: slug }).ok).toBe(true);
+  const transport: DshImOutboundService = {
+    contractVersion: 1,
+    replyContextVersion: 1,
+    replyReceiptVersion: 1,
+    replyFenceVersion: 1,
+    listBots: async () => [{ botId: 'discord-shared', channel: 'discord' }],
+    listTargets: async () => [
+      {
+        targetId: 'qa',
+        name: 'Discord parent',
+        kind: 'channel',
+        route: { channelId: '444444444444444444' },
+      },
+    ],
+    describeBot: async (botId) => ({
+      version: 1,
+      botId,
+      channel: 'discord',
+      connected: true,
+      account: { fingerprint, name: 'Own Discord identity' },
+      capabilities: [
+        'proactive-text-checked',
+        'exclusive-text-consumer',
+        'reply-text-checked',
+        'reply-context-checked',
+        'reply-receipt-checked',
+        'reply-fence-checked',
+      ],
+    }),
+    sendChecked: vi.fn(async () => ({ sent: true as const })),
+    consumeInbound: async (_account, input) => {
+      expect(input.ordinaryText).toBeUndefined();
+      consumer = input;
+      return () => {};
+    },
+    qualifyReplyChecked: async (_account, route) => route,
+    replyChecked: async (account, route, _text, options) => {
+      expect(account).toBe('discord-shared');
+      expect(options.beforeSend?.()).toBe(true);
+      replies.push(route);
+      return {
+        sent: true,
+        receipt: {
+          version: 1,
+          messageId: '700000000000000000',
+          conversationId: route.threadId ?? route.conversationId,
+        },
+      };
+    },
+  };
+  const provider = createDshImProvider(transport, 'discord')!;
+  core.externalMessaging.register(provider);
+  const target = (await core.externalMessaging.targets(provider.id, 'discord-shared'))[0]!;
+  const grant = await core.externalMessaging.authorize({
+    botSlug: 'ada',
+    providerId: provider.id,
+    accountRef: 'discord-shared',
+    targetRef: target.ref,
+    fingerprint,
+    targetDigest: target.digest,
+  });
+  const shared = core.channels.createGroup({ name: 'Shared Discord', members: ['ada', 'bea'] });
+  const other = core.channels.createGroup({ name: 'Untargeted', members: ['ada'] });
+  await core.externalMessaging.inbound.channelBridge(shared.id, {
+    kind: 'add',
+    grantId: grant.id,
+    expectedGrantRevision: grant.revision,
+    name: 'Discord source',
+    enabled: true,
+    collection: 'mentions',
+  });
+  const event = (id: string): MessagingInboundEvent => ({
+    version: 1,
+    channel: 'discord',
+    botId: 'discord-shared',
+    fingerprint,
+    eventId: 'discord:' + id,
+    messageId: id,
+    actor: { kind: 'user', id: '666666666666666666', name: 'QA Human' },
+    conversation: { kind: 'group', id: '444444444444444444' },
+    mentionedAccount: true,
+    mentions: [{ id: '333333333333333333', key: '<@333333333333333333>' }],
+    at: new Date().toISOString(),
+    text: 'Shared Discord ' + id,
+    reply: {
+      conversationId: '444444444444444444',
+      messageId: id,
+      actorId: '666666666666666666',
+      threadId: '555555555555555555',
+    },
+    replay: { kind: 'provider-redelivery', resumeCursor: false, gapPossible: true },
+  });
+  const receive = (source: MessagingInboundEvent) =>
+    consumer!.onEvent(source, { signal: consumer!.signal });
+  const first = event('600000000000000001');
+  await receive(first);
+  await receive({ ...first, eventId: 'discord:redelivery' });
+  const messages = core.channels.readMessages(shared.id);
+  expect(messages).toHaveLength(1);
+  expect(core.channels.readMessages(other.id)).toHaveLength(0);
+  const sourceId = messages[0]!.id;
+  const database = attachOperationalModule(core.operationalDatabase, 'test');
+  const admissions = () =>
+    database.read((db) =>
+      db
+        .prepare(
+          'SELECT bot_slug FROM inbox_admissions WHERE source_event_id = ? ORDER BY bot_slug',
+        )
+        .all(sourceId),
+    );
+  expect(admissions()).toEqual([{ bot_slug: 'ada' }]);
+  expect(() => core.externalMessaging.inbound.read('bea', sourceId)).toThrow('source-unavailable');
+  expect(core.externalMessaging.inbound.readShared('bea', sourceId)).toMatchObject({
+    event: { reply: first.reply },
+  });
+  await expect(core.externalMessaging.reply('bea', sourceId, 'Borrow identity')).rejects.toThrow(
+    'own-reply-grant-unavailable',
+  );
+  await core.externalMessaging.reply('ada', sourceId, 'Own reply');
+  expect(replies).toEqual([first.reply]);
+  let row = (await core.externalMessaging.channelBridges(shared.id)).bridges[0]!;
+  expect(row).toMatchObject({ platform: 'discord', ordinaryDelivery: 'unverified', enabled: true });
+  const change = async (enabled: boolean) => {
+    await core.externalMessaging.inbound.channelBridge(shared.id, {
+      kind: 'update',
+      routeId: row.routeId,
+      grantId: row.grantId,
+      expectedGrantRevision: row.grantRevision,
+      expectedRevision: row.revision,
+      name: row.name,
+      enabled,
+      collection: 'mentions',
+    });
+    row = (await core.externalMessaging.channelBridges(shared.id)).bridges[0]!;
+  };
+  await change(false);
+  const paused = event('600000000000000002');
+  await receive(paused);
+  expect(core.channels.readMessages(shared.id)).toHaveLength(1);
+  await expect(
+    core.externalMessaging.snapshot('ada').then((s) => s.grants[0]!.canPost),
+  ).resolves.toBe(false);
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await change(true);
+  expect(Date.parse(row.intakeAfter!)).toBeGreaterThan(Date.parse(paused.at));
+  await receive({ ...paused, eventId: 'discord:late-paused' });
+  expect(core.channels.readMessages(shared.id)).toHaveLength(1);
+  await receive(event('600000000000000003'));
+  expect(core.channels.readMessages(shared.id)).toHaveLength(2);
+  await expect(receive({ ...first, channel: 'slack' })).rejects.toThrow('untrusted-source');
+  expect(core.channels.readMessages(other.id)).toHaveLength(0);
+  expect(replies).toHaveLength(1);
+  expect(transport.sendChecked).not.toHaveBeenCalled();
+});
