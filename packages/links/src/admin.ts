@@ -203,8 +203,8 @@ async function dashboard(c: AdminContext, created?: Token & { token: string }) {
               <h2 id="token-title">Token “${created.name}” created</h2>
               <p class="muted small">
                 Scope ${created.scope}, expires
-                ${created.expiresAt ? date(created.expiresAt) : 'never'}. Copy it now: it is
-                shown only once and only its hash is stored.
+                ${created.expiresAt ? date(created.expiresAt) : 'never'}. Copy it now: it is shown
+                only once and only its hash is stored.
               </p>
               <div class="command">
                 <input class="secret" readonly value="${created.token}" aria-label="New token" />
@@ -212,8 +212,8 @@ async function dashboard(c: AdminContext, created?: Token & { token: string }) {
               </div>
               <h3>Save it for bh-links</h3>
               <p class="small muted">
-                Run this and paste the token at the prompt. It is checked against the API and
-                saved to <code>~/.config/botharness/links.json</code> with mode 0600.
+                Run this and paste the token at the prompt. It is checked against the API and saved
+                to <code>~/.config/botharness/links.json</code> with mode 0600.
               </p>
               <div class="command">
                 <code><span class="prompt">$ </span>bh-links login</code>
