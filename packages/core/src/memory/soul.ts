@@ -73,6 +73,21 @@ function git(root: string, args: string[]): string {
   });
 }
 
+function configured(root: string, key: string): boolean {
+  try {
+    return git(root, ['config', '--get', key]).trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function identityFallback(root: string): string[] {
+  return [
+    ...(configured(root, 'user.name') ? [] : ['-c', 'user.name=BotHarness']),
+    ...(configured(root, 'user.email') ? [] : ['-c', 'user.email=bot@botharness.local']),
+  ];
+}
+
 export type SoulMigrationResult = 'unchanged' | 'renamed' | 'committed' | 'blocked';
 
 export function migrateLegacySoul(root: string): SoulMigrationResult {
@@ -91,6 +106,7 @@ export function migrateLegacySoul(root: string): SoulMigrationResult {
   }
   git(root, ['mv', '--', LEGACY_SOUL_FILE, SOUL_FILE]);
   git(root, [
+    ...identityFallback(root),
     'commit',
     '--no-gpg-sign',
     '-m',
