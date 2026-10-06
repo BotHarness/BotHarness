@@ -6148,6 +6148,7 @@ button.bh-card-main:disabled {cursor:default;}
 .bh-card-action:focus-visible {outline:2px solid var(--dsw-alias-label-primary);outline-offset:-2px;}
 .bh-card-action:disabled {cursor:default;}
 .bh-schedule-lock-toggle:not([data-locked]) {opacity:.55;}
+.bh-schedule-switch {display:inline-flex;}
 .bh-schedule-weekdays {display:flex;gap:4px;flex-wrap:wrap;}
 .bh-schedule-weekday {flex:1;min-width:40px;padding:6px 0;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;}
 .bh-schedule-weekday:hover {background:var(--dsw-alias-interactive-bg-hover);}

@@ -40,6 +40,7 @@ const WEEKDAYS = [
 ] as const;
 const PREVIEW_DELAY_MS = 250;
 const STARTED_MS = 4000;
+const TOOLTIP_DELAY_MS = 400;
 const TIME = /^\d{2}:\d{2}$/u;
 const DATE = /^\d{4}-\d{2}-\d{2}$/u;
 
@@ -803,16 +804,23 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
                   {schedule.lastFiring === undefined ? null : (
                     <FiringTag firing={schedule.lastFiring} t={t} />
                   )}
-                  <span
-                    className="bh-card-glyph"
-                    title={t(`schedule.creator.${schedule.creator}`)}
-                    aria-label={t(`schedule.creator.${schedule.creator}`)}
+                  <Tooltip
+                    label={t(`schedule.creator.${schedule.creator}`)}
+                    side="top"
+                    portal
+                    delayMs={TOOLTIP_DELAY_MS}
                   >
-                    <ChannelSidebarIcon
-                      name={schedule.creator === 'human' ? 'user' : 'bot'}
-                      size={12}
-                    />
-                  </span>
+                    <span
+                      className="bh-card-glyph"
+                      tabIndex={0}
+                      aria-label={t(`schedule.creator.${schedule.creator}`)}
+                    >
+                      <ChannelSidebarIcon
+                        name={schedule.creator === 'human' ? 'user' : 'bot'}
+                        size={12}
+                      />
+                    </span>
+                  </Tooltip>
                 </>
               }
               meta={
@@ -826,42 +834,61 @@ export function BotSchedulesEntry({ botSlug, actions, t }: ChannelSidebarEntryPr
               }
               trailing={
                 <>
-                  <button
-                    type="button"
-                    className="bh-card-action bh-schedule-run-now"
-                    disabled={toggling !== undefined}
-                    title={t('schedule.runNow', { title: schedule.title })}
-                    aria-label={t('schedule.runNow', { title: schedule.title })}
-                    onClick={() => runNow(schedule)}
+                  <Tooltip
+                    label={t('schedule.runNow.tooltip')}
+                    side="top"
+                    portal
+                    delayMs={TOOLTIP_DELAY_MS}
                   >
-                    <ChannelSidebarIcon name="play" size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="bh-card-action bh-schedule-lock-toggle"
-                    data-locked={schedule.locked ? 'true' : undefined}
-                    aria-pressed={schedule.locked}
-                    disabled={toggling !== undefined}
-                    title={
-                      schedule.locked
-                        ? t('schedule.locked')
-                        : t('schedule.lock', { title: schedule.title })
-                    }
-                    aria-label={
-                      schedule.locked
-                        ? t('schedule.unlock', { title: schedule.title })
-                        : t('schedule.lock', { title: schedule.title })
-                    }
-                    onClick={() => change(schedule, { locked: !schedule.locked })}
+                    <button
+                      type="button"
+                      className="bh-card-action bh-schedule-run-now"
+                      disabled={toggling !== undefined}
+                      aria-label={t('schedule.runNow', { title: schedule.title })}
+                      onClick={() => runNow(schedule)}
+                    >
+                      <ChannelSidebarIcon name="play" size={14} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip
+                    label={schedule.locked ? t('schedule.locked') : t('schedule.lock.tooltip')}
+                    side="top"
+                    portal
+                    delayMs={TOOLTIP_DELAY_MS}
                   >
-                    <ChannelSidebarIcon name={schedule.locked ? 'lock' : 'lock-open'} size={14} />
-                  </button>
-                  <Switch
-                    checked={schedule.enabled}
-                    disabled={toggling !== undefined}
-                    label={t('schedule.enable', { title: schedule.title })}
-                    onChange={(enabled) => change(schedule, { enabled })}
-                  />
+                    <button
+                      type="button"
+                      className="bh-card-action bh-schedule-lock-toggle"
+                      data-locked={schedule.locked ? 'true' : undefined}
+                      aria-pressed={schedule.locked}
+                      disabled={toggling !== undefined}
+                      aria-label={
+                        schedule.locked
+                          ? t('schedule.unlock', { title: schedule.title })
+                          : t('schedule.lock', { title: schedule.title })
+                      }
+                      onClick={() => change(schedule, { locked: !schedule.locked })}
+                    >
+                      <ChannelSidebarIcon name={schedule.locked ? 'lock' : 'lock-open'} size={14} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip
+                    label={
+                      schedule.enabled ? t('schedule.toggle.pause') : t('schedule.toggle.resume')
+                    }
+                    side="top"
+                    portal
+                    delayMs={TOOLTIP_DELAY_MS}
+                  >
+                    <span className="bh-schedule-switch">
+                      <Switch
+                        checked={schedule.enabled}
+                        disabled={toggling !== undefined}
+                        label={t('schedule.enable', { title: schedule.title })}
+                        onChange={(enabled) => change(schedule, { enabled })}
+                      />
+                    </span>
+                  </Tooltip>
                 </>
               }
             />
