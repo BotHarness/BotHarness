@@ -35,7 +35,7 @@ export function MemoryCommitView({
     setSending(true);
     setError(undefined);
     try {
-      const path = detail?.files.find((file) => file.path.endsWith('.md'))?.path ?? 'PERSONA.md';
+      const path = detail?.files.find((file) => file.path.endsWith('.md'))?.path ?? 'SOUL.md';
       const sent = await actions.send(
         t('memory.continuePrompt', {
           sha,

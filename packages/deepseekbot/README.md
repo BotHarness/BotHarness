@@ -39,7 +39,7 @@ Open **Bot mode**, create a PersonaBot, DM it, then start a Group and invite mem
 
 ## Every Bot is a colleague
 
-- **Lasting identity:** each PersonaBot keeps its own name, persona (PERSONA.md) and avatar across chats, Sessions and Workspaces.
+- **Lasting identity:** each PersonaBot keeps its own name, Soul (SOUL.md) and avatar across chats, Sessions and Workspaces.
 - **Git Memory you can see:** a Bot's memory is a plain Git working tree. Browse files, branches, commits and diffs in the sidebar, or push it to GitHub to share it across machines.
 - **Groups:** messages keep each Bot's identity, and you @ whoever you need.
 - **Assignments:** grant a Workspace and a Bot can delegate independent Assignments, each with its own Session and report.

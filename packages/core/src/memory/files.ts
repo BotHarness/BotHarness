@@ -22,11 +22,7 @@ export function listMemoryFiles(root: string): string[] {
       const relativePath = relativeDir === '' ? entry.name : `${relativeDir}/${entry.name}`;
       if (entry.isDirectory()) {
         walk(relativePath);
-      } else if (
-        entry.isFile() &&
-        entry.name.endsWith('.md') &&
-        !(relativeDir === '' && (entry.name === 'MEMORY.md' || entry.name === 'PERSONA.md'))
-      ) {
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
         files.push(relativePath);
       }
     }

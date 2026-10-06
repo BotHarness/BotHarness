@@ -50,7 +50,7 @@ Open **Bot mode**, create a PersonaBot, DM it, then start a Group and invite mem
 
 | Feature                      | What you get                                                                                                                                                |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lasting identity**         | Each PersonaBot keeps its own name, role, persona (PERSONA.md) and pixel avatar across chats, Sessions and Workspaces.                                      |
+| **Lasting identity**         | Each PersonaBot keeps its own name, role, Soul (SOUL.md) and pixel avatar across chats, Sessions and Workspaces.                                            |
 | **Git Memory you can see**   | A Bot's memory is a plain Git working tree. Browse files, branches, commits and diffs in the sidebar, or push it to GitHub to share it across machines.     |
 | **Groups**                   | Messages keep each Bot's identity, and you @ whoever you need. Each member picks every message, digest, mentions only or silent.                            |
 | **Schedules**                | Have a Bot do something every few minutes, every hour or every day. Add one in the sidebar or just ask the Bot; once you lock it, the Bot can only read it. |

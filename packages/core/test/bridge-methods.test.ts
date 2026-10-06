@@ -1263,7 +1263,7 @@ describe('bridge methods', () => {
       roles: ['研究'],
       description: '数学与计算',
     });
-    expect(readFileSync(join(root, 'ada', 'memory', 'PERSONA.md'), 'utf8')).toBe(
+    expect(readFileSync(join(root, 'ada', 'memory', 'SOUL.md'), 'utf8')).toBe(
       '# Ada\n\nBe kind.\n',
     );
   });
@@ -1286,7 +1286,7 @@ describe('bridge methods', () => {
 
     expect(methods.create({ displayName: 'Plain' }).ok).toBe(true);
     expect(existsSync(join(root, 'plain', 'memory'))).toBe(true);
-    expect(existsSync(join(root, 'plain', 'memory', 'PERSONA.md'))).toBe(false);
+    expect(existsSync(join(root, 'plain', 'memory', 'SOUL.md'))).toBe(false);
   });
 
   it('owns ID generation and reports malformed Human-facing fields', () => {
@@ -1368,7 +1368,7 @@ describe('bridge methods', () => {
         },
       },
     });
-    expect(readFileSync(join(root, 'ada', 'memory', 'PERSONA.md'), 'utf8')).toBe(
+    expect(readFileSync(join(root, 'ada', 'memory', 'SOUL.md'), 'utf8')).toBe(
       '# Ada\n\nOriginal.\n',
     );
   });

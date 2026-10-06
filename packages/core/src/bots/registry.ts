@@ -7,7 +7,6 @@ import {
   realpathSync,
   renameSync,
   rmSync,
-  writeFileSync,
   type Dirent,
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
@@ -28,6 +27,7 @@ import {
 import { readSharedPresentation } from './shared-presentation.js';
 import { isValidSlug } from './slug.js';
 import type { MemoryCloneResult } from '../memory/clone.js';
+import { migrateLegacySoul, seedStandingFiles } from '../memory/soul.js';
 import type {
   AssignmentModelOption,
   ModelPreset,
@@ -275,15 +275,6 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
   const memoryDirOf = (record: PersonaBotRecord): string =>
     record.memoryDir ?? defaultMemoryDir(record.slug);
 
-  const ensurePersonaFile = (memoryDir: string, body: string): void => {
-    mkdirSync(memoryDir, { recursive: true });
-    try {
-      writeFileSync(join(memoryDir, 'PERSONA.md'), body, { encoding: 'utf8', flag: 'wx' });
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-    }
-  };
-
   const applyOptionalText = (
     record: PersonaBotRecord,
     key: 'tag' | 'description' | 'avatar' | 'model' | 'preset',
@@ -344,8 +335,13 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     const targetMemoryDir = memoryDirOf(record);
     const newBotDirectory = !existsSync(botDir(record.slug));
     mkdirSync(targetMemoryDir, { recursive: true });
+    const seeded = seedStandingFiles(targetMemoryDir, {
+      ...(input.persona === undefined ? {} : { soul: input.persona }),
+      coreMemoryTemplate: sync,
+    });
     const initialized = options.initializeMemory?.(targetMemoryDir) ?? { ok: true };
     if (!initialized.ok) {
+      for (const file of seeded) rmSync(join(targetMemoryDir, file), { force: true });
       if (newBotDirectory && !memoryDir) {
         rmSync(botDir(record.slug), { recursive: true, force: true });
       }
@@ -356,10 +352,6 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       };
     }
     write(record);
-    const persona = input.persona;
-    if (persona !== undefined && persona.trim().length > 0) {
-      ensurePersonaFile(targetMemoryDir, persona);
-    }
     if (sync) syncDescriptor(record);
     return { ok: true, record };
   };
@@ -391,6 +383,9 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         ownsBotDir = true;
         renameSync(staging, defaultMemoryDir(input.slug));
         staging = undefined;
+        try {
+          migrateLegacySoul(defaultMemoryDir(input.slug));
+        } catch {}
         const { gitUrl, ...recordInput } = input;
         void gitUrl;
         const result = create(recordInput, false);

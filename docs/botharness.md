@@ -39,7 +39,7 @@
 目录约定：
 
 - `$DSH_HOME/botharness/bots/<personabot-id>/bot.json`：机器元数据（Host-owned PersonaBot ID；当前 JSON 键为 `slug`、`displayName`、`roles[]`、description、avatar、模型/preset、workspaces、bindings、`capabilities.tools.allow`）。
-- `PERSONA.md` / `MEMORY.md` / 主题文件随**用户配置的记忆目录**走（默认在 `bots/<personabot-id>/memory/`）。
+- `SOUL.md` / `MEMORY.md` / 主题文件随**用户配置的记忆目录**走（默认在 `bots/<personabot-id>/memory/`）。
 
 ### 2.1 持久化地图（ADR-0034/0041/0042）
 
@@ -74,8 +74,8 @@
 
 ```text
 <memory-dir>/                  # 用户可配；默认 $DSH_HOME/botharness/bots/<personabot-id>/memory/
-├── PERSONA.md                 # 人格（人属；Agent 禁写，ADR-0014）
-├── MEMORY.md                  # 生成的索引（树 + 摘要），不手改
+├── SOUL.md                    # Soul：性格、语气与常驻指令；Session 冻结注入（ADR-0134）
+├── MEMORY.md                  # Core Memory：常驻索引与关键事实；Session 冻结注入（ADR-0134）
 ├── customers/                 # 客户档案（北极星场景）
 │   └── acme.md                # 时间线 + 关键事实 + 待办 + 关联附件（front-matter）
 ├── topics/ journal/ ...
@@ -122,7 +122,7 @@
 - **头像与活动（ADR-0046/0049）**：默认头像由 Host-owned PersonaBot ID 确定性生成 Blobatar；同一个 Avatar module 在 DM Channel、Pin Grid、消息与 composer activity row 中消费 PersonaBot Activity Projection。Blobatar 可在 thinking/working 时运动；自定义图片保持静止，由外层 Activity Frame 表达状态；群 Channel 使用字形或最多三个头像与 `+N` 的 facepile。DSH 字形缺口仍以 vendored Lucide（ISC）首方组件补齐，并随包附 `THIRD_PARTY_NOTICES.md`。
 - **实时同步（v1.1，ADR-0034）**：`botharness` 命名空间加 `mode: 'stream'` remote 方法（Host AsyncIterable、客户端 `connection.rpc.open`），先推 roster 变更、后推 channel 消息，IM 式；`domain/changed` 是进程内事件且不可转发（api-remotes 白名单静态），客户端不得依赖；现有 unary 方法面不变。
 - **排序偏好设置行（#68，ADR-0034）**：Settings → General 加一行 `settings.general.item`（与对话显示/忙碌发送/主题同模式），暴露与 sidebar `...` 菜单相同的 `ui-bot-mode` 排序偏好——一个 policy store、两个入口；该设置行**不迁移任何既有 sidebar UI**，只是新增入口。General 行槽位在 dev 中不可靠时退到 cookbook 标准的 `settings.plugin.item` 卡片（记录为 fallback）。
-- **创建与 onboarding**：最小表单收名称、0～多个可选岗位徽章与可选简介；Host 自动生成 PersonaBot ID，默认写入占位 `PERSONA.md`。名称是列表与 `@` picker 的可见标签，mention token 保留内部 ID，同名由头像与徽章消歧。Builder 对话创建后续按需进入；`bot_create` 由工具白名单控制（ADR-0029/0046）。
+- **创建与 onboarding**：最小表单收名称、0～多个可选岗位徽章与可选简介；Host 自动生成 PersonaBot ID，填写人格时写入 `SOUL.md`，并写入 `MEMORY.md` 模板（ADR-0134）。名称是列表与 `@` picker 的可见标签，mention token 保留内部 ID，同名由头像与徽章消歧。Builder 对话创建后续按需进入；`bot_create` 由工具白名单控制（ADR-0029/0046）。
 - **落地节奏**：#77 与 #79 可并行；#80 依赖两者；#81 再实现 Assignment。#75 的 Inbox/Assignment UI design 可与 sidebar #55 并行；#78 的 Feishu contract research 可并行，但阻塞 #48 adapter implementation。
 - **已知约束**：DSH AgentHandle、cold/idle wake、inject/steer/followup、SessionPersistence export 和 continuable Subagent 都是 developer-preview seam；在 #77 完成真实版本验证前不得把文档假设当 production guarantee。
 - **Task 不存在**（ADR-0017）。

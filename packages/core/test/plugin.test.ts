@@ -448,7 +448,9 @@ describe('plugin entry', () => {
 
       const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
       const persona = sections.find((section) => section?.name === 'botharness:persona');
-      expect(persona?.text({ agent: { session: { id: 'orchestrator-local' } } })).toBe('');
+      const standing = persona?.text({ agent: { session: { id: 'orchestrator-local' } } });
+      expect(standing).toContain('## Core Memory (MEMORY.md)');
+      expect(standing).not.toContain('## Soul');
       expect(core?.memory.storeForSession('unowned-session')).toBeUndefined();
     } finally {
       vi.unstubAllEnvs();
@@ -480,19 +482,22 @@ describe('plugin entry', () => {
 
       const memoryDir = core?.registry.memoryDirFor('local-bot');
       if (memoryDir === undefined) throw new Error('memory dir missing');
-      writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v1\n');
+      writeFileSync(join(memoryDir, 'SOUL.md'), '# Persona v1\n');
 
       const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
       const persona = sections.find((section) => section?.name === 'botharness:persona');
       const running = { agent: { session: { id: 'orchestrator-local' } } };
-      expect(persona?.text(running)).toBe('# Persona v1\n');
+      const frozen = persona?.text(running);
+      expect(frozen).toContain('## Soul (SOUL.md)');
+      expect(frozen).toContain('# Persona v1');
 
-      writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v2\n');
+      writeFileSync(join(memoryDir, 'SOUL.md'), '# Persona v2\n');
+      writeFileSync(join(memoryDir, 'MEMORY.md'), '- grew mid-Session\n');
 
-      expect(persona?.text(running)).toBe('# Persona v1\n');
-      expect(persona?.text({ agent: { session: { id: 'orchestrator-new' } } })).toBe(
-        '# Persona v2\n',
-      );
+      expect(persona?.text(running)).toBe(frozen);
+      const fresh = persona?.text({ agent: { session: { id: 'orchestrator-new' } } });
+      expect(fresh).toContain('# Persona v2');
+      expect(fresh).toContain('- grew mid-Session');
     } finally {
       vi.unstubAllEnvs();
     }

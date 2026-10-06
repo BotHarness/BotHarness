@@ -49,6 +49,7 @@ import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
 import { ensureMemoryRepository } from './memory/repository.js';
 import { cloneMemoryRepository } from './memory/clone.js';
+import { migrateLegacySouls } from './memory/soul.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import {
@@ -321,7 +322,10 @@ export function createCore(
     operationalDatabase.close();
     throw error;
   }
-  if (operationalDatabase.mode === 'ready') backfillBotDescriptors(registry, options.warn);
+  if (operationalDatabase.mode === 'ready') {
+    backfillBotDescriptors(registry, options.warn);
+    migrateLegacySouls(registry, options.warn);
+  }
   const states = createBotStateTracker();
   let runtime: BotRuntime | undefined;
   const attachments = createAttachmentStore({
