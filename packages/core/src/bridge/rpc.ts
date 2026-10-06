@@ -199,6 +199,24 @@ export class BotharnessBridgeService extends TypertRemoteService {
   messagingSource(slug: string, sourceEventId: string): Promise<{ source: ExternalSource }> {
     return unwrapAsync(this.methods.messagingSource({ slug, sourceEventId }));
   }
+  approvalRoute(
+    slug: string,
+    pairingId: string | null,
+    expectedRevision: number,
+  ): Promise<{ updated: true }> {
+    return unwrapAsync(this.methods.approvalRoute({ slug, pairingId, expectedRevision }));
+  }
+  approvalTest(
+    slug: string,
+  ): Promise<{ delivery: import('../messaging/approval-messaging.js').ApprovalDelivery }> {
+    return unwrapAsync(this.methods.approvalTest({ slug }));
+  }
+  approvalRetry(
+    slug: string,
+    id: string,
+  ): Promise<{ delivery: import('../messaging/approval-messaging.js').ApprovalDelivery }> {
+    return unwrapAsync(this.methods.approvalRetry({ slug, id }));
+  }
   pairingReview(slug: string, input: PairingReviewInput): Promise<{ pairing: PairingRequest }> {
     return unwrapAsync(this.methods.pairingReview({ slug, input }));
   }
@@ -962,6 +980,9 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'messagingThreadPolicy',
   'messagingSource',
   'messagingIdentity',
+  'approvalRoute',
+  'approvalTest',
+  'approvalRetry',
   'pairingReview',
   'messagingSnapshot',
   'messagingTargets',

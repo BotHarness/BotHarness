@@ -103,6 +103,38 @@ export interface MessagingOwnEcho {
   at: string;
 }
 
+export interface MessagingApprovalCard {
+  requestId: string;
+  title: string;
+  detail: string;
+  status:
+    | 'pending'
+    | 'allowed-once'
+    | 'rejected'
+    | 'expired'
+    | 'executed'
+    | 'execution-failed'
+    | 'execution-unknown'
+    | 'test';
+}
+
+export interface MessagingApprovalAction {
+  version: 1;
+  channel: 'feishu';
+  botId: string;
+  fingerprint: string;
+  actorId: string;
+  conversationId: string;
+  messageId: string;
+  requestId: string;
+  action: 'allowed-once' | 'rejected';
+}
+
+export interface MessagingApprovalAck {
+  accepted: true;
+  status: 'queued' | 'refused';
+}
+
 export interface MessagingProvider {
   id: string;
   accounts(): Promise<MessagingAccount[]>;
@@ -121,7 +153,17 @@ export interface MessagingProvider {
     signal: AbortSignal;
     onEvent(event: MessagingInboundEvent, signal: AbortSignal): Promise<{ accepted: true }>;
     onEcho?(event: MessagingOwnEcho, signal: AbortSignal): Promise<{ accepted: true }>;
+    onAction?(event: MessagingApprovalAction, signal: AbortSignal): Promise<MessagingApprovalAck>;
   }): Promise<() => void>;
+  approvalCard?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute | MessagingReceipt;
+    card: MessagingApprovalCard;
+    signal: AbortSignal;
+    beforeSend(): boolean;
+    update?: boolean;
+  }): Promise<{ sent?: true; updated?: true; receipt?: MessagingReceipt }>;
   qualifyReply?(input: {
     accountRef: string;
     fingerprint: string;

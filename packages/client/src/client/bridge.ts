@@ -1,3 +1,4 @@
+import { parseToolApprovalActor } from '../../../core/src/workspaces/tool-approval-actor.js';
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
 import { parsePublicAttention } from './activity-attention.js';
@@ -1079,9 +1080,13 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       replyTo !== decision['requestMessageId']
     )
       return undefined;
+    const actor =
+      decision['actor'] === undefined ? undefined : parseToolApprovalActor(decision['actor']);
+    if (decision['actor'] !== undefined && !actor) return undefined;
     toolApprovalDecision = {
       requestMessageId: decision['requestMessageId'],
       outcome: decision['outcome'],
+      ...(actor ? { actor } : {}),
     };
   }
   let userQuestionResolution: ChannelMessage['userQuestionResolution'];
@@ -3190,6 +3195,25 @@ export async function manageChannelBridge(
 ): Promise<void> {
   await unwrap(call, 'channelBridge', { channelId, input });
 }
+export async function setApprovalRoute(
+  call: BridgeCall,
+  slug: string,
+  pairingId: string | null,
+  expectedRevision: number,
+): Promise<void> {
+  await unwrap(call, 'approvalRoute', { slug, pairingId, expectedRevision });
+}
+export async function testApprovalRoute(call: BridgeCall, slug: string): Promise<void> {
+  await unwrap(call, 'approvalTest', { slug });
+}
+export async function retryApprovalNotification(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+): Promise<void> {
+  await unwrap(call, 'approvalRetry', { slug, id });
+}
+
 export async function reviewPairing(
   call: BridgeCall,
   slug: string,

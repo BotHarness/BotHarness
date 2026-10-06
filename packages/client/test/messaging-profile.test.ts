@@ -81,6 +81,10 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     | 'messagingThreadPolicy'
     | 'messagingReceive'
     | 'messagingChannelTarget'
+    | 'openSession'
+    | 'approvalRoute'
+    | 'approvalTest'
+    | 'approvalRetry'
     | 'pairingReview'
     | 'messagingIdentity'
     | 'messagingSnapshot'
@@ -93,6 +97,10 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     messagingGroupPolicy: async () => undefined,
     messagingChannelTarget: async () => undefined,
     messagingReceive: async () => undefined,
+    openSession: vi.fn(),
+    approvalRoute: vi.fn(async () => {}),
+    approvalTest: vi.fn(async () => {}),
+    approvalRetry: vi.fn(async () => {}),
     pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
@@ -230,6 +238,10 @@ it('changes group intake only after the Human toggles it and can stop it when th
     messagingChannelTarget,
     messagingReceive,
     messagingSend,
+    openSession: vi.fn(),
+    approvalRoute: vi.fn(async () => {}),
+    approvalTest: vi.fn(async () => {}),
+    approvalRetry: vi.fn(async () => {}),
     pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
@@ -331,6 +343,10 @@ it.each(['test', 'slack'])(
       messagingThreadPolicy: async () => undefined,
       messagingReceive: async () => undefined,
       messagingChannelTarget: async () => undefined,
+      openSession: vi.fn(),
+      approvalRoute: vi.fn(async () => {}),
+      approvalTest: vi.fn(async () => {}),
+      approvalRetry: vi.fn(async () => {}),
       pairingReview: vi.fn(),
       messagingIdentity: vi.fn(),
       messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
@@ -455,6 +471,10 @@ it('keeps native Thread management available after a grant migrates to Channel B
     messagingChannelTarget: vi.fn(),
     messagingReceive: vi.fn(),
     messagingSend: vi.fn(),
+    openSession: vi.fn(),
+    approvalRoute: vi.fn(async () => {}),
+    approvalTest: vi.fn(async () => {}),
+    approvalRetry: vi.fn(async () => {}),
     pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
@@ -577,6 +597,10 @@ it.each(['report', 'reply'] as const)(
     const messagingSend = vi.fn();
     const text = 'Morning report '.repeat(20);
     const actions = {
+      openSession: vi.fn(),
+      approvalRoute: vi.fn(async () => {}),
+      approvalTest: vi.fn(async () => {}),
+      approvalRetry: vi.fn(async () => {}),
       pairingReview: vi.fn(),
       messagingIdentity: vi.fn(),
       messagingGroupPolicy: vi.fn(),
@@ -690,6 +714,10 @@ it('shows a rejected pairing review beside its controls and clears it after a su
     ],
   };
   const actions = {
+    openSession: vi.fn(),
+    approvalRoute: vi.fn(async () => {}),
+    approvalTest: vi.fn(async () => {}),
+    approvalRetry: vi.fn(async () => {}),
     pairingReview: vi.fn(async () => {
       throw new Error('pairing-stale');
     }),

@@ -1,3 +1,4 @@
+import { ApprovalSettings } from './approval-settings.js';
 import { PairingSettings } from './pairing-settings.js';
 import { externalPlatformLabel } from './bridge-source-label.js';
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
@@ -27,6 +28,10 @@ export function MessagingProfile({
   slug: string;
   actions: Pick<
     BridgeActions,
+    | 'openSession'
+    | 'approvalRoute'
+    | 'approvalTest'
+    | 'approvalRetry'
     | 'pairingReview'
     | 'messagingIdentity'
     | 'messagingGroupPolicy'
@@ -52,6 +57,7 @@ export function MessagingProfile({
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [pairingFailed, setPairingFailed] = useState(false);
+  const [approvalFailed, setApprovalFailed] = useState(false);
   const generation = useRef(0);
   const mounted = useRef(false);
   const refreshRequest = useRef(0);
@@ -84,19 +90,21 @@ export function MessagingProfile({
   }, [actions, slug]);
   const operate = async (
     operation: () => Promise<void>,
-    scope: 'bridge' | 'pairing' = 'bridge',
+    scope: 'bridge' | 'pairing' | 'approval' = 'bridge',
   ) => {
     if (busy) return;
     const version = generation.current;
     setBusy(true);
     setFailed(false);
     setPairingFailed(false);
+    setApprovalFailed(false);
     try {
       await operation();
       await refresh();
     } catch {
       if (mounted.current && version === generation.current) {
-        if (scope === 'pairing') setPairingFailed(true);
+        if (scope === 'approval') setApprovalFailed(true);
+        else if (scope === 'pairing') setPairingFailed(true);
         else setFailed(true);
       }
     } finally {
@@ -179,6 +187,20 @@ export function MessagingProfile({
           }, 'pairing')
         }
         t={t}
+      />
+      <ApprovalSettings
+        key={`approval-${snapshot?.approvals?.routeRevision ?? 0}`}
+        {...(snapshot?.approvals ? { snapshot: snapshot.approvals } : {})}
+        busy={busy}
+        failed={approvalFailed}
+        t={t}
+        save={(pairingId, revision) =>
+          operate(() => actions.approvalRoute(slug, pairingId, revision), 'approval')
+        }
+        test={() => operate(() => actions.approvalTest(slug), 'approval')}
+        retry={(id) => operate(() => actions.approvalRetry(slug, id), 'approval')}
+        refresh={() => operate(async () => undefined, 'approval')}
+        openSession={actions.openSession}
       />
       <ExternalIdentityTable
         snapshot={snapshot}

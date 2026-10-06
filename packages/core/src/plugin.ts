@@ -793,6 +793,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       warn: (message) => ctx.logger.warn(message),
     },
   );
+  ctx.effect(
+    () => core.externalMessaging.approvals.attach(toolApproval, core.channels),
+    'botharness: approved IM tool controls',
+  );
   userQuestions = new ChannelUserQuestions(
     core.channels,
     core.ownership,
@@ -1247,6 +1251,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     'session/event',
     (session, event) => {
       activity.handleSessionEvent(session.id, event);
+      try {
+        core.externalMessaging.approvals.result(session.id, event);
+      } catch {
+        ctx.logger.warn('approval-result-publication-failed');
+      }
       core.usage?.handleSessionEvent(session.id, event);
       handleCompactionEvent(
         {
