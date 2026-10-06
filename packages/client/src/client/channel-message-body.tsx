@@ -772,6 +772,7 @@ export function ChannelMessageBody({
               <span key={index}>
                 {message.author.kind === 'bridged' ? (
                   <ExternalMessageText
+                    chip
                     text={run.text}
                     mentions={message.bridgeOrigin?.mentions ?? []}
                   />

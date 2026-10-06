@@ -4,9 +4,11 @@ import type { MessagingInboundEvent } from '../../../core/src/messaging/provider
 export function ExternalMessageText({
   text,
   mentions,
+  chip = false,
 }: {
   text: string;
   mentions: readonly MessagingInboundEvent['mentions'][number][];
+  chip?: boolean;
 }): ReactElement {
   const named = mentions.filter((mention) => mention.key && mention.name?.trim());
   if (!named.length) return <>{text}</>;
@@ -23,7 +25,7 @@ export function ExternalMessageText({
         const mention = named.find((entry) => entry.key === part);
         return mention ? (
           <span
-            className="bh-inline-mention bh-inline-mention-sent bh-external-mention"
+            className={`bh-external-mention${chip ? ' bh-inline-mention bh-inline-mention-sent' : ''}`}
             data-external-mention-id={mention.id}
             title={mention.id}
             key={index}
