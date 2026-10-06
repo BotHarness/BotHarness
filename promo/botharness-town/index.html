@@ -1794,6 +1794,7 @@ function renderLegacy(f) {
 // Legacy rates are set so each narration line (voiceover/script.json) fits under its picture.
 const SEGMENTS = [
   { id: 'hook', len: 900 }, // HOOK_LEN
+  { id: 'bento', len: 360 }, // BENTO_LEN: the key features around the logo
   { id: 'legacy', len: 420, from: 200, rate: 400 / 420 }, // welcome, meet the cast
   { id: 'legacy', len: 620, from: 3360, rate: 140 / 620 }, // Group: like Grok Bot, message and delegate
   { id: 'legacy', len: 740, from: 3500, rate: 220 / 740 }, // Group clip: people, not sessions
@@ -1805,11 +1806,11 @@ const SEGMENTS = [
   { id: 'legacy', len: 300, from: 1420, rate: 140 / 300 }, // memory: a year together
   { id: 'legacy', len: 540, from: 1560, rate: 240 / 540 }, // memory: study and work, rewind
   { id: 'legacy', len: 240, from: 1800 }, // import from a repository
-  { id: 'market', len: 1530, rate: 2160 / 1530 },
-  { id: 'legacy', len: 1080, from: 4440, rate: 1360 / 1080 }, // morphs and roleplay
-  { id: 'wall', len: 300, rate: 480 / 300 },
+  { id: 'market', len: 1440, rate: 2160 / 1440 },
+  { id: 'legacy', len: 960, from: 4440, rate: 1360 / 960 }, // morphs and roleplay
+  { id: 'wall', len: 270, rate: 480 / 270 },
   { id: 'eco', len: 560, rate: 840 / 560 },
-  { id: 'city', len: 760, rate: 1080 / 760 },
+  { id: 'city', len: 640, rate: 1080 / 640 },
   { id: 'end', len: 300 + TOTAL - 10800 },
 ];
 let segStart = 0;
@@ -3239,7 +3240,7 @@ function renderHook(h) {
   legacyRate = 1;
   // beats follow the narration: each spoken line (voiceover/script.json 00a-00e) starts just after its sign drops
   const brand = t >= 808;
-  const townUnder = h >= 840; // the town the story opens on, revealed as the brand card fades
+  const townUnder = false; // the bento that follows carries the logo out of the brand card
   if (townUnder) renderLegacy(h - 700);
   else { renderer.setClearColor('#1b1820'); renderer.clear(); }
   hideOverlay();
@@ -3287,7 +3288,7 @@ function renderHook(h) {
       setPlane(hk.curR, 156, 0, 176, 180);
       setPlane(hk.valance, 0, 180, 320, 24);
     }
-    const a = h < 864 ? step8(span(h, 808, 820)) : 1 - step8(span(h, 864, HOOK_LEN));
+    const a = step8(span(h, 808, 820));
     setPlane(hk.dim, 0, 0, 320, 180, a);
     setPlane(hk.logo, 160 - 32, 98, 64, 64, a);
     setPlane(hk.title, 160, 94, 200, 70, a);
@@ -3450,6 +3451,125 @@ function renderMemStage(f, worldW) {
   drawStage(0, w);
 }
 
+// ===== bento: the logo carries out of the brand card into a grid of the key features =========
+// Cream cards in the site's pixel style; the logo lands in the middle cell, the features pop in around it.
+const BENTO_LEN = 360;
+const bentoHud = new THREE.Scene();
+const bt = { built: false };
+const BENTO = [
+  { key: 'mem', zh: ['记忆就是 Git', '每次成长都有记录'], en: ['Memory is Git', 'every lesson is kept'] },
+  { key: 'im', zh: ['住进聊天软件', '飞书 · Slack · Discord · 微信'], en: ['Lives in your chats', 'Lark · Slack · Discord · WeChat'] },
+  { key: 'group', zh: ['群聊协作', '人和 Bot 一起，艾特谁谁接话'], en: ['Group chats', 'people and bots, @ to wake one'] },
+  { key: 'morph', zh: ['会变形的头像', '一眼看出它在忙什么'], en: ['Morphing avatars', 'see what it is working on'] },
+  { key: 'market', zh: ['Bot 市场', '分享你的 Bot，安装别人的'], en: ['Bot Marketplace', 'share yours, install others'] },
+  { key: 'rp', zh: ['角色扮演', '陪你闯一回冒险'], en: ['Roleplay', 'adventures it remembers'] },
+  { key: 'oss', zh: ['开源 · MIT', '代码和记忆都在你手里'], en: ['Open source', 'MIT: your code, your memory'] },
+  { key: 'dsh', zh: ['DSH 插件', '基于 DeepSeek Harness'], en: ['A DSH plugin', 'built on DeepSeek Harness'] },
+];
+// 3 x 3 cells in art pixels; the middle one is the logo
+const BENTO_CELL = { x0: 8, y0: 8, w: 98, h: 52, gap: 5 };
+const bentoCell = (i) => {
+  const col = i % 3, row = Math.floor(i / 3);
+  return { x: BENTO_CELL.x0 + col * (BENTO_CELL.w + BENTO_CELL.gap), y: 180 - BENTO_CELL.y0 - (row + 1) * BENTO_CELL.h - row * BENTO_CELL.gap, w: BENTO_CELL.w, h: BENTO_CELL.h };
+};
+const BENTO_ORDER = [0, 1, 2, 5, 8, 7, 6, 3]; // clockwise around the middle cell (4)
+function bentoIcon(ctx, key, x, y) {
+  // icons are drawn at 2x into the card canvas, inside a 72 x 72 box at (x, y)
+  const img = (src, dx, dy, s) => { ctx.imageSmoothingEnabled = false; ctx.drawImage(src, dx, dy, s, s); };
+  if (key === 'mem') {
+    rect(ctx, x + 18, y + 8, 4, 56, '#5a5070');
+    [56, 40, 24, 8].forEach((yy, i) => { disc(ctx, x + 20, y + yy + 2, 7, INK); disc(ctx, x + 20, y + yy + 2, 5, i === 3 ? PAL.amber : '#5cb85c'); });
+    rect(ctx, x + 22, y + 41, 26, 3, '#4f7fcf'); rect(ctx, x + 46, y + 20, 3, 23, '#4f7fcf'); disc(ctx, x + 48, y + 18, 7, INK); disc(ctx, x + 48, y + 18, 5, '#4f7fcf');
+  } else if (key === 'im') {
+    ['lark', 'slack', 'discord', 'wechat'].forEach((id, i) => { const c = document.createElement('canvas'); c.width = c.height = 12; drawLogo(c.getContext('2d'), id, 0, 0, 1); const dx = x + (i % 2) * 38, dy = y + Math.floor(i / 2) * 38; box(ctx, dx, dy, 34, 34, '#ffffff', INK); img(c, dx + 5, dy + 5, 24); });
+  } else if (key === 'group') {
+    CAST.forEach((c, i) => img(c.tex.front.tex.image, x - 6 + i * 26, y + 24 + (i % 2) * -8, 40));
+    box(ctx, x + 30, y, 40, 20, '#ffffff', INK); for (let k = 0; k < 3; k++) disc(ctx, x + 40 + k * 10, y + 10, 3, INK);
+  } else if (key === 'morph') {
+    const t = canvasTex(32, 32); paintCells(t, MORPH ? MORPH.theo.symbols.edit : [], null);
+    img(CAST[1].tex.front.tex.image, x - 4, y + 8, 56); img(t.canvas, x + 34, y + 8, 56);
+    rect(ctx, x + 50, y + 34, 6, 4, INK);
+  } else if (key === 'market') {
+    img(crateTex.canvas, x + 2, y + 10, 66);
+  } else if (key === 'rp') {
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(PROPS.sword.canvas, x + 4, y + 2, 24, 64);
+    img(CAST[2].tex.front.tex.image, x + 24, y + 14, 50);
+  } else if (key === 'oss') {
+    ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'].forEach((row, yy) => [...row].forEach((b, xx) => b === '1' && rect(ctx, x + 8 + xx * 8, y + 10 + yy * 8, 8, 8, '#e2565f')));
+  } else if (key === 'dsh') {
+    box(ctx, x, y + 14, 72, 44, '#1b1820', INK); drawText(ctx, 'DSH', x + 36 - textWidth('DSH') * 2, y + 26, '#fff2a0', 4);
+  }
+}
+function buildBento() {
+  bt.built = true;
+  bt.bg = hudPlane(bentoHud, canvasTex(320, 180, (ctx) => {
+    rect(ctx, 0, 0, 320, 180, '#f5e6bf');
+    for (let i = 0; i < 500; i++) rect(ctx, Math.floor(hash(i, 4, 77) * 320), Math.floor(hash(i, 5, 77) * 180), 1, 1, hash(i, 6, 77) < 0.5 ? '#ecd9a8' : '#fbf0d2');
+  }), 1);
+  bt.cards = BENTO.map((b, i) => {
+    const [title, sub] = b[LANG];
+    const card = canvasTex(BENTO_CELL.w * 2 + 8, BENTO_CELL.h * 2 + 8, (ctx) => {
+      const W = BENTO_CELL.w * 2, H = BENTO_CELL.h * 2;
+      rect(ctx, 6, 6, W, H, '#7a4a24'); // offset shadow like the site's cards
+      rect(ctx, 0, 0, W, H, '#3b2a1a'); rect(ctx, 4, 4, W - 8, H - 8, '#fdf1d0');
+      // icon top-left, title beside it, the detail line across the card
+      ctx.save(); ctx.translate(12, 10); ctx.scale(0.7, 0.7); bentoIcon(ctx, b.key, 0, 0); ctx.restore();
+      const px = Math.min(22, Math.floor((W - 84) / measureCJK(title, 22) * 22));
+      crispText(ctx, title, 72, 34, px, '#2a1d12', 110);
+      const ps = Math.min(15, Math.floor((W - 24) / measureCJK(sub, 15) * 15));
+      crispText(ctx, sub, 12, 80, ps, '#6a4a2a', 60);
+    });
+    return hudPlane(bentoHud, card, 10 + i, 0.5, 0.5);
+  });
+  const c = bentoCell(4);
+  bt.center = hudPlane(bentoHud, canvasTex(BENTO_CELL.w * 2 + 8, BENTO_CELL.h * 2 + 8, (ctx) => {
+    const W = BENTO_CELL.w * 2, H = BENTO_CELL.h * 2;
+    rect(ctx, 6, 6, W, H, '#1c2a6b'); rect(ctx, 0, 0, W, H, '#3b2a1a'); rect(ctx, 4, 4, W - 8, H - 8, '#3d5afe');
+  }), 20, 0.5, 0.5);
+  bt.logo = hudPlane(bentoHud, logoTex, 22, 0.5, 0.5);
+  bt.word = hudPlane(bentoHud, canvasTex(200, 16, (ctx) => drawText(ctx, 'DEEPSEEKBOT', 100 - textWidth('DEEPSEEKBOT'), 1, '#ffffff', 2)), 23, 0.5, 0.5);
+  bt.dark = hudPlane(bentoHud, null, 30);
+  bt.dark.material.color.set('#1b1820');
+  bt.cellCenter = { x: c.x + c.w / 2, y: c.y + c.h / 2 };
+}
+function renderBento(b) {
+  if (!bt.built) buildBento();
+  const out = span(b, 300, 336); // cards fold away, then the cream fades into the town
+  if (b >= 320) renderLegacy(140 + (b - 300));
+  else { renderer.setClearColor('#f5e6bf'); renderer.clear(); }
+  hideOverlay();
+  for (const o of bentoHud.children) o.visible = false;
+  const bgA = 1 - step8(span(b, 330, 360));
+  setPlane(bt.bg, 0, 0, 320, 180, bgA);
+  // the logo flies from the brand card into the middle cell
+  const fly = ease(span(b, 6, 34));
+  const cc = bt.cellCenter;
+  const lx = lerp(160, cc.x - 26, fly), ly = lerp(130, cc.y + 4, fly), ls = lerp(64, 30, fly);
+  const centerIn = POP[Math.min(5, Math.max(0, Math.floor((b - 26) / 2)))] * (1 - ease(out));
+  if (b >= 26 && centerIn > 0.01) setPlane(bt.center, cc.x, cc.y, (BENTO_CELL.w + 4) * centerIn, (BENTO_CELL.h + 4) * centerIn, bgA);
+  if (out < 1) {
+    setPlane(bt.logo, lx, ly, ls * (1 - ease(out)), ls * (1 - ease(out)), bgA);
+    if (b >= 34) setPlane(bt.word, cc.x + 14, cc.y - 2, 100 * (1 - ease(out)), 8 * (1 - ease(out)), bgA);
+  }
+  setPlane(bt.dark, 0, 0, 320, 180, 1 - step8(span(b, 0, 18)));
+  // features pop in clockwise around the logo, then fold back into it
+  BENTO_ORDER.forEach((cell, k) => {
+    const card = bt.cards[k];
+    const at = 40 + k * 14;
+    if (b < at) return;
+    const pop = POP[Math.min(5, Math.floor((b - at) / 2))];
+    const fold = ease(span(b, 296 + k * 3, 316 + k * 3));
+    const r = bentoCell(cell);
+    const x = lerp(r.x + r.w / 2, cc.x, fold), y = lerp(r.y + r.h / 2, cc.y, fold);
+    const bob = Math.floor((b + k * 9) / 24) % 2;
+    const s = pop * (1 - fold);
+    if (s > 0.01) setPlane(card, x, y + bob, (r.w + 4) * s, (r.h + 4) * s, bgA);
+  });
+  renderer.setViewport(0, 0, VIEW_W * PIXEL_RATIO, VIEW_H * PIXEL_RATIO);
+  renderer.clearDepth();
+  renderer.render(bentoHud, hudCam);
+}
+
 // ===== end card: open source line, then the title card that frame 0 starts on ==========
 function renderEnd(e) {
   renderer.setClearColor('#1b1820');
@@ -3483,6 +3603,7 @@ function renderFrame(F) {
   legacyRate = 1;
   if (sg.id === 'legacy') { legacyRate = sg.rate ?? 1; renderLegacy(sg.from + t); }
   else if (sg.id === 'hook') renderHook(local);
+  else if (sg.id === 'bento') renderBento(local);
   else if (sg.id === 'market') renderMarket(t);
   else if (sg.id === 'wall') renderWall(t);
   else if (sg.id === 'eco') renderEco(t);
