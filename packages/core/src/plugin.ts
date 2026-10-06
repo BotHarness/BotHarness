@@ -23,6 +23,7 @@ import { createBridgeMethods } from './bridge/methods.js';
 import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createMarketplaceClient } from './marketplace/client.js';
+import { createReleaseService, installedRelease } from './release/service.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
@@ -930,6 +931,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       marketplace: createMarketplaceClient({
         baseUrl: config.marketplaceUrl ?? DEFAULT_MARKETPLACE_URL,
       }),
+      release: createReleaseService(installedRelease(import.meta.url)),
       developerMode: {
         set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
       },
