@@ -2102,6 +2102,7 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
     'assignmentSessionId',
     'assignmentPurpose',
     'authorBotSlug',
+    'scheduleId',
   ])
     if (row[key] !== undefined && typeof row[key] !== 'string') return undefined;
   if (

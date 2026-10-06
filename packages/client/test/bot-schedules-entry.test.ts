@@ -26,6 +26,7 @@ import type { BotScheduleView } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
 import {
   BotSchedulesEntry,
+  ScheduleDialog,
   emptyScheduleForm,
   formatScheduleTime,
   scheduleCadenceLabel,
@@ -138,5 +139,51 @@ describe('Bot Schedules sidebar entry', () => {
     expect(host.querySelector('[aria-label="启用「每日早报」"]')).not.toBeNull();
     await act(async () => root.unmount());
     host.remove();
+  });
+});
+
+describe('Bot Schedule dialog opened from the Bot Inbox', () => {
+  async function render(
+    rows: BotScheduleView[],
+  ): Promise<{ host: HTMLElement; done(): Promise<void> }> {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const actions = {
+      botSchedules: vi.fn(async () => rows),
+      botScheduleHistory: vi.fn(async () => (rows.length === 0 ? [] : [schedule.lastFiring])),
+    } as unknown as BridgeActions;
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        createElement(ScheduleDialog, {
+          botSlug: 'ada',
+          scheduleId: 'sch-1',
+          actions,
+          t: zhTranslate,
+          onClose: () => undefined,
+        }),
+      );
+    });
+    return {
+      host,
+      done: async () => {
+        await act(async () => root.unmount());
+        host.remove();
+      },
+    };
+  }
+
+  it('loads the schedule with its firing history', async () => {
+    const { host, done } = await render([schedule]);
+    expect(host.textContent).toContain('最近触发');
+    expect(host.textContent).toContain('已处理');
+    await done();
+  });
+
+  it('says when the schedule was deleted', async () => {
+    const { host, done } = await render([]);
+    expect(host.textContent).toContain('这个定时任务已被删除。');
+    await done();
   });
 });

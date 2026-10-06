@@ -340,6 +340,7 @@ export interface BotAttentionItem {
   assignmentSessionId?: string;
   assignmentPurpose?: string;
   assignmentReportState?: 'progress' | 'completed' | 'blocked' | 'waiting-human' | 'failed';
+  scheduleId?: string;
   externalOrigin?: {
     platform: string;
     accountName: string;

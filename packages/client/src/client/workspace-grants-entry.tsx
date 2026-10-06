@@ -14,6 +14,7 @@ import {
   IconFolderOpenOutlineRegular,
   Input,
   Switch,
+  Tag,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
@@ -30,6 +31,7 @@ import { WorkspaceFileActionButton } from './workspace-file-actions.js';
 import { Modal } from './modal.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import { useMountedResource } from './mounted-resource.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import {
   publishWorkspaceGrantChange,
   subscribeWorkspaceGrantChanges,
@@ -113,6 +115,8 @@ function approvalRulePath(rule: ToolApprovalRuleView): string {
 function FolderRow({
   name,
   path,
+  icon = 'folder-key',
+  chips,
   remove,
   removeLabel,
   disabled,
@@ -121,6 +125,8 @@ function FolderRow({
 }: {
   name: string;
   path: string;
+  icon?: string;
+  chips?: ReactNode;
   remove?: () => void;
   removeLabel?: string;
   disabled?: boolean;
@@ -130,49 +136,52 @@ function FolderRow({
   const [expanded, setExpanded] = useState(false);
   const detailId = useId();
   return (
-    <div className="bh-workspace-folder-row">
-      <div className="bh-workspace-folder-main">
-        <button
-          type="button"
-          className="bh-workspace-folder-toggle"
-          aria-expanded={expanded}
-          aria-controls={detailId}
-          onClick={() => setExpanded((value) => !value)}
-        >
+    <SidebarCardRow
+      icon={icon}
+      title={name}
+      hint={name}
+      mainClassName="bh-workspace-folder-toggle"
+      expanded={expanded}
+      controls={detailId}
+      onClick={() => setExpanded((value) => !value)}
+      {...(chips === undefined ? {} : { chips })}
+      trailing={
+        <>
+          {remove === undefined ? null : (
+            <button
+              type="button"
+              className="bh-workspace-folder-remove"
+              aria-label={removeLabel}
+              title={removeLabel}
+              disabled={disabled}
+              onClick={remove}
+            >
+              <IconCloseOutlineRegular size={16} />
+            </button>
+          )}
           <IconChevronDownOutlineRegular
             size={14}
             className={
               expanded ? 'bh-workspace-folder-chevron bh-expanded' : 'bh-workspace-folder-chevron'
             }
           />
-          <span className="bh-workspace-folder-name" title={name}>
-            {name}
-          </span>
-        </button>
-        {remove === undefined ? null : (
-          <button
-            type="button"
-            className="bh-workspace-folder-remove"
-            aria-label={removeLabel}
-            title={removeLabel}
-            disabled={disabled}
-            onClick={remove}
-          >
-            <IconCloseOutlineRegular size={16} />
-          </button>
-        )}
-      </div>
-      {expanded ? (
-        <div id={detailId} className="bh-workspace-folder-detail">
-          {pathAction ?? (
-            <div className="bh-workspace-folder-path" title={path}>
-              {path}
-            </div>
-          )}
-          {detail}
-        </div>
-      ) : null}
-    </div>
+        </>
+      }
+      {...(expanded
+        ? {
+            detail: (
+              <div className="bh-workspace-folder-detail">
+                {pathAction ?? (
+                  <div className="bh-workspace-folder-path" title={path}>
+                    {path}
+                  </div>
+                )}
+                {detail}
+              </div>
+            ),
+          }
+        : {})}
+    />
   );
 }
 
@@ -481,8 +490,9 @@ export function WorkspaceGrantsEntry({
           {error}
         </div>
       )}
-      <div className="bh-workspace-folder-table">
+      <SidebarCardList className="bh-workspace-folder-table" label={t('entry.workspaceGrants')}>
         <FolderRow
+          icon="git-branch"
           name={t('grant.memory')}
           path={memoryDir ?? ''}
           pathAction={
@@ -503,6 +513,13 @@ export function WorkspaceGrantsEntry({
             key={grant.id}
             name={grant.workspaceTitle}
             path={grant.workspacePath}
+            chips={
+              grant.orchestratorWrite === true ? (
+                <Tag tone="success">{t('grant.chip.write')}</Tag>
+              ) : (
+                <Tag tone="outline">{t('grant.chip.read')}</Tag>
+              )
+            }
             pathAction={
               <WorkspaceFileActionButton
                 actions={actions}
@@ -550,7 +567,7 @@ export function WorkspaceGrantsEntry({
             }
           />
         ))}
-      </div>
+      </SidebarCardList>
       <Button variant="outline" disabled={busy !== undefined} onClick={openFolderBrowser}>
         {t('grant.addFolder')}
       </Button>
@@ -595,7 +612,7 @@ export function WorkspaceGrantsEntry({
       {!developerMode || available.length === 0 ? null : (
         <details className="bh-workspace-folder-secondary">
           <summary>{t('grant.registeredFolders')}</summary>
-          <div className="bh-workspace-folder-table">
+          <SidebarCardList className="bh-workspace-folder-table">
             {available.map((workspace) => (
               <FolderRow
                 key={workspace.id}
@@ -616,7 +633,7 @@ export function WorkspaceGrantsEntry({
                 }
               />
             ))}
-          </div>
+          </SidebarCardList>
         </details>
       )}
       {!developerMode || revoked.length === 0 ? null : (
@@ -624,34 +641,38 @@ export function WorkspaceGrantsEntry({
           <summary>
             {t('grant.history')} ({revoked.length})
           </summary>
-          <div className="bh-workspace-folder-table">
+          <SidebarCardList className="bh-workspace-folder-table">
             {revoked.map((grant) => (
               <FolderRow key={grant.id} name={grant.workspaceTitle} path={grant.workspacePath} />
             ))}
-          </div>
+          </SidebarCardList>
         </details>
       )}
-      <div className="bh-assignment-access-row">
-        <div>
-          <div className="bh-grant-request-title">{t('access.title')}</div>
-          <div className="bh-note">{t('access.description')}</div>
-        </div>
-        <Switch
-          checked={access?.mode === 'danger-full-access'}
-          disabled={loading || busy !== undefined}
-          onChange={(checked) => {
-            if (checked) {
-              setConfirmDanger(true);
-            } else {
-              setConfirmDanger(false);
-              mutate('safe-access', () =>
-                actions.setAssignmentAccess(botSlug, 'workspace-write', false),
-              );
-            }
-          }}
-          label={t('access.title')}
+      <SidebarCardList className="bh-assignment-access-card">
+        <SidebarCardRow
+          icon="lock"
+          title={t('access.title')}
+          meta={t('access.description')}
+          state={access?.mode}
+          trailing={
+            <Switch
+              checked={access?.mode === 'danger-full-access'}
+              disabled={loading || busy !== undefined}
+              onChange={(checked) => {
+                if (checked) {
+                  setConfirmDanger(true);
+                } else {
+                  setConfirmDanger(false);
+                  mutate('safe-access', () =>
+                    actions.setAssignmentAccess(botSlug, 'workspace-write', false),
+                  );
+                }
+              }}
+              label={t('access.title')}
+            />
+          }
         />
-      </div>
+      </SidebarCardList>
       {access?.mode === 'danger-full-access' ? (
         <div className="bh-access-warning" role="status">
           {t('access.activeWarning')}
