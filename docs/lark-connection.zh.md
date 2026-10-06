@@ -365,3 +365,7 @@ Computer／Browser 的首次授权覆盖原生会话，因此通知不提供审�
 ![已审核的测试私聊收到原生工具审批通知](/guides/lark/approvals/route-sent-dark.jpg)
 
 2026-10-07 的隔离测试中，真实 Lark 平台接受了测试卡片和原生工具审批卡片。截图记录的是**投递已接受、决定仍待处理**，并不代表 IM 已批准或工具已执行。限定窗口随后到期，测试配对已撤销，生产 Discord/Lark 接收已恢复。允许一次与拒绝按钮仍待真人验证。
+
+![真实恢复状态：自动通知已关闭，旧请求已失效](/guides/lark/approvals/recovery-dark.jpg)
+
+[查看浅色恢复截图](/guides/lark/approvals/recovery-light.jpg)。测试授权撤销后，本机 Host 在禁用 IM Provider 的状态下重启：目的地为「关闭自动通知」，旧请求「已失效」，本机身份暂不可用。这张截图不证明生产连接状态；恢复后的生产 Discord／Lark 连接已另行核验。新测试不能使用旧卡片。

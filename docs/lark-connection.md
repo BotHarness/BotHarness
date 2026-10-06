@@ -363,3 +363,7 @@ Computer and Browser first-use authorization covers a native Session, so its not
 ![A reviewed test DM receives a native approval notification](/guides/lark/approvals/route-sent-dark.jpg)
 
 In the isolated 2026-10-07 test, the actual Lark platform accepted both the test card and a native tool approval card. The screenshot records **delivery accepted / decision pending**; no IM decision or tool execution is implied. The bounded test window then expired, the test pairing was revoked, and the production Discord/Lark receiver was restored. Allow once and Reject button qualification remains pending Human QA.
+
+![Actual recovery: notifications off and the old request expired](/guides/lark/approvals/recovery-dark.jpg)
+
+[Light theme recovery screenshot](/guides/lark/approvals/recovery-light.jpg). After the test authority was revoked and the local Host restarted with its IM Provider disabled, the destination is **Off**, the old request is **Expired**, and the local identity is unavailable. This screen does not prove production availability; production Discord/Lark connections were verified separately after restoration. Do not use the old card for a new test.
