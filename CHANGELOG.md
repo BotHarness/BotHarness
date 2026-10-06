@@ -11,8 +11,6 @@ Bot mode now tells you what changed and when a newer DeepSeekBot is available, a
 
 - Bot mode shows the changelog of the installed version after the first install and every release since the last one you saw after an update, and Bot settings show the installed version, check npm for a newer release with its notes and the update command, and link the website changelog ([#947](https://github.com/BotHarness/BotHarness/issues/947)).
 
-### Added
-
 - DeepSeekBot now writes `.botharness/bot.json` into each Bot's Memory when the Bot is created, and updates it when its name, roles or avatar change. Existing Bots get the file on the next start. A shared Bot therefore shows the same name, roles and avatar in the Bot Marketplace as in the sidebar ([#966](https://github.com/BotHarness/BotHarness/issues/966), [guide](docs/share-bot.md)).
 
 ### Fixed
