@@ -22,7 +22,7 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 
 ### Documentation
 
-- Documented the isolated Discord nearby context candidate: exact native source container, five-minute window, sparse Human-text minima and bounded continuation; real native qualification remains tracked separately ([#981](https://github.com/BotHarness/BotHarness/issues/981), [guide](docs/dev/guides/im-provider-integration.md)).
+- Documented the isolated Discord nearby context candidate: exact native source container, five-minute window, sparse Human-text minima and bounded continuation; real-model sparse pagination, canonical retention, original-thread reply and temporary permission restoration are verified independently of product promotion ([#981](https://github.com/BotHarness/BotHarness/issues/981), [guide](docs/dev/guides/im-provider-integration.md)).
 - Documented final development-source Discord context acceptance with real model continuation, precise edited-source refusal, whole-page rollback and restored Message Content permissions ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
 
 ## [1.0.2] - 2026-10-06
