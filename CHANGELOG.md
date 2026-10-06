@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Nothing yet since 1.0.1.
+Preserve accurate context refusals when native history conflicts with retained evidence.
+
+### Fixed
+
+- Context reads now retain the precise `source-conflict` refusal when native history disagrees with retained evidence, rolling back the conflicting page without replacing its original source ([#937](https://github.com/BotHarness/BotHarness/issues/937), [verification](docs/dev/verification/discord-937-context-reads.md)).
 
 ## [1.0.1] - 2026-10-05
 

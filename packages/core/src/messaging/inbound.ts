@@ -1609,7 +1609,7 @@ export function createInboundMessaging(options: {
           throw new MessagingError('source-unavailable');
       };
       const audit = (record: ExternalContextRead) =>
-        database.transaction(
+        transaction(
           (db) => {
             assertCurrent();
             const row = db
@@ -1746,7 +1746,7 @@ export function createInboundMessaging(options: {
           });
           result.nextCursor = key;
         }
-        database.transaction(
+        transaction(
           (db) => {
             signal.throwIfAborted();
             assertCurrent();

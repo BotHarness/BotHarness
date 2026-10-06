@@ -5,7 +5,11 @@
 
 ## [Unreleased]
 
-1.0.1 之后暂无变更。
+原生历史与留存证据冲突时，保留准确的上下文拒绝原因。
+
+### Fixed
+
+- 上下文读取遇到原生历史与留存证据不同时，现保留准确的 `source-conflict` 拒绝；冲突页整体回滚，不替换原来源（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
 
 ## [1.0.1] - 2026-10-05
 

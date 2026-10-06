@@ -58,6 +58,7 @@ it.each([
     let consumer: Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1] | undefined;
     let runs = 0;
     let replyCalls = 0;
+    let historyCalls = 0;
     let outcome: unknown;
     let core: BotHarnessCore;
     const replies: { account: string; route: MessagingReplyRoute; text: string }[] = [];
@@ -70,6 +71,10 @@ it.each([
             .list({ botSlug: 'ada' })
             .items.find((item) => item.sourceKind === 'bridge-message');
           expect(source).toBeDefined();
+          const context = await run.externalMessaging!.context(source!.id, {
+            scope: threadId ? 'thread' : 'group',
+          });
+          expect(context.messages.map((message) => message.text)).toEqual(['cobalt-37']);
           outcome = await run.externalMessaging!.reply(source!.id, 'DISCORD-QA-OK');
         },
         async runAssignment() {},
@@ -109,6 +114,8 @@ it.each([
           'reply-context-checked',
           'reply-receipt-checked',
           'reply-fence-checked',
+          'history-text-checked',
+          'thread-history-text-checked',
         ],
       }),
       sendChecked: vi.fn(async (): Promise<{ sent: true }> => ({ sent: true })),
@@ -117,6 +124,31 @@ it.each([
         expect(options.sourceFiles).toBeUndefined();
         consumer = options;
         return () => {};
+      },
+      historyChecked: async (account, route, query, options) => {
+        historyCalls++;
+        expect(account).toBe('discord-qa');
+        expect(options.expectedFingerprint).toBe(fingerprint);
+        expect(route).toEqual(source.reply);
+        expect(query.limit).toBe(20);
+        return {
+          version: 1,
+          scope: query.scope,
+          events: [
+            {
+              ...source,
+              eventId: 'history:qa:700000000000000000',
+              messageId: '700000000000000000',
+              mentionedAccount: false,
+              mentions: [],
+              text: 'cobalt-37',
+              reply: { ...source.reply, messageId: '700000000000000000' },
+            },
+          ],
+          omitted: 0,
+          hasMore: false,
+          coverage: 'provider-visible-human-text',
+        };
       },
       qualifyReplyChecked: async (_account, route) => route,
       replyChecked: async (account, route, text, options) => {
@@ -184,6 +216,7 @@ it.each([
     await tick();
     expect(runs).toBe(1);
     expect(replyCalls).toBe(1);
+    expect(historyCalls).toBe(1);
     expect(outcome).toMatchObject({ state, ...(reason ? { reason } : {}) });
     expect(replies).toEqual(
       refusal ? [] : [{ account: 'discord-qa', route: source.reply, text: 'DISCORD-QA-OK' }],
@@ -202,14 +235,30 @@ it.each([
       db.read((database) =>
         database.prepare("SELECT * FROM source_events WHERE source_kind = 'bridge-message'").all(),
       ),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     expect(
       db.read((database) => database.prepare('SELECT * FROM inbox_admissions').all()),
     ).toHaveLength(1);
     expect(
       db.read((database) => database.prepare('SELECT * FROM channel_placements').all()),
     ).toHaveLength(0);
+    await expect(
+      core.externalMessaging.inbound.context(
+        'other-bot',
+        core.attention.list({ botSlug: 'ada' }).items[0]!.id,
+        'borrow-context',
+        { scope: 'group' },
+      ),
+    ).rejects.toThrow();
+    expect(historyCalls).toBe(1);
+    const anchor = core.attention.list({ botSlug: 'ada' }).items[0]!.id;
     await core.externalMessaging.revoke('ada', grant.id);
+    await expect(
+      core.externalMessaging.inbound.context('ada', anchor, 'revoked-context', {
+        scope: 'group',
+      }),
+    ).rejects.toThrow('source-unavailable');
+    expect(historyCalls).toBe(1);
     await expect(consumer!.onEvent(source, { signal: consumer!.signal })).rejects.toThrow();
     expect(replies).toHaveLength(refusal ? 0 : 1);
     expect(replyCalls).toBe(1);
