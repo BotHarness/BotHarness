@@ -465,7 +465,7 @@ describe('Bot main Sessions pane', () => {
           {
             id: 'source',
             at: channel.createdAt,
-            author: { kind: 'bridged', source: 'sender-private-id' },
+            author: { kind: 'bridged', source: 'Alex' },
             body: 'original external text',
             format: 'text',
             bridgeOrigin: {
@@ -475,6 +475,7 @@ describe('Bot main Sessions pane', () => {
               conversationName: 'QA group',
               messageId: 'external-message-id',
               senderId: 'sender-private-id',
+              senderName: 'Alex',
             },
           },
         ],
@@ -486,7 +487,7 @@ describe('Bot main Sessions pane', () => {
         }),
       );
       expect(markup).toMatch(
-        /aria-haspopup="dialog"[^>]*>【Lark\/飞书 QA group】<\/button>.*class="bh-bubble"/,
+        /aria-haspopup="dialog"[^>]*>Alex · 【Lark\/飞书 QA group】<\/button>.*class="bh-bubble"/,
       );
       expect(markup).toContain('original external text');
       expect(markup).not.toContain('sender-private-id');
