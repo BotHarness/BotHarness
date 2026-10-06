@@ -25,6 +25,7 @@ interface MessageView {
   text: string;
   mentions?: readonly Mention[];
   voice?: ExternalSource['event']['voice'];
+  video?: ExternalSource['event']['video'];
 }
 
 function messageText(text: string, mentions: readonly Mention[]): ReactNode {
@@ -98,7 +99,9 @@ function MessageCard({
         ) : null}
         <div className="bh-external-message-text">
           {media}
-          {media && message.text.trim() === '[Image]'
+          {media &&
+          (message.text.trim() === '[Image]' ||
+            (message.video && message.text.trim() === '[Video]'))
             ? null
             : message.voice?.transcript === 'unavailable'
               ? t('im.voiceTranscriptUnavailableHint')
@@ -268,6 +271,7 @@ export function ExternalSourceContent({
             text: source.body,
             mentions: source.event.mentions,
             ...(source.event.voice ? { voice: source.event.voice } : {}),
+            ...(source.event.video ? { video: source.event.video } : {}),
           }}
           t={t}
           media={messageMedia}

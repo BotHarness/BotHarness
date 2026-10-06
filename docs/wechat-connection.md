@@ -1,6 +1,6 @@
 # Connect a Bot to personal WeChat
 
-The integration accepts text and one file per direct message from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. The #904 preview also supports native images as described in section 6. Section 7 describes platform-provided voice transcripts; section 8 describes the #906 original-audio candidate. Group messages, other contacts, video, history/search and scheduled or proactive messages are separate slices. Enterprise WeChat is a separate integration.
+The integration accepts text and one file per direct message from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. The #904 preview also supports native images as described in section 6. Section 7 describes platform-provided voice transcripts; section 8 describes the #906 original-audio candidate. Section 9 describes the #907 native-video candidate. Group messages, other contacts, history/search and scheduled or proactive messages are separate slices. Enterprise WeChat is a separate integration.
 
 ## Before you start
 
@@ -106,11 +106,23 @@ The installed #906 candidate has completed a fresh paired-owner test: native voi
 
 The browser player reached the actual end without a media error; closing removed the player and reopening required explicit preparation again. Original-byte download was independently verified through the authenticated endpoint; the browser automation did not report a completed file-download event, so a browser-saved original file is not claimed. Automated coverage also includes real SILK encoding/decoding, unchanged original bytes, cached restart, cancellation, codec refusal and authorization revocation. #905 transcript success does not substitute for these raw-audio checks.
 
+## 9. Receive a native video and return a video result
+
+The #907 local candidate uses product `0.0.0-test.907.3` and managed Provider `4.32.0-botharness.9`; it is not a public npm release. Real native-video receipt and result delivery are still awaiting Human verification. Automated contract tests and an installed local candidate do not establish those external results.
+
+Send one **native video** in the paired WeChat Bot DM, rather than attaching it as an ordinary document. Intake retains an opaque attachment reference and the native video item's available metadata in the canonical Source Event. The reported `video_size` is retained as `reportedSizeBytes`. Its meaning can differ between incoming and outgoing messages: the tested incoming value matched the decrypted MP4 length, while the official sending implementation supplies encrypted length. It is not treated as a guaranteed decrypted or encrypted size; checked downloaded bytes determine actual file size. The optional `play_length` is retained without assuming its time unit. Missing dimensions, duration, thumbnail and codec are not invented. Private CDN locations, encryption keys and conversation continuation tokens remain outside model-readable source data.
+
+Open the video source in **Bot Inbox**. The original video is retrieved and shown directly in the message bubble through the existing current-identity/current-authorization checked attachment path, up to 25 MiB. The player is offered for conservatively recognized MP4 bytes; actual playback depends on browser codec support. It does not auto-play. A video-only message no longer repeats `[Video]`; captions remain visible. A failed preview offers **Retry playback** and retains **Download file**. Closing the Modal cancels the request and releases the playback resource. This candidate adds playback to the source Modal; it does not add media rendering to Channel message history or mirror Inbox-only traffic into a local DM.
+
+For actual processing, authorize a writable Workspace for that PersonaBot. The Bot saves an independent copy using `bridge_attachment_save`, then processes that selected file with native tools and normal approval. Import the completed MP4 with `channel_attachment_import` and reply to the same Source Event using `bridge_reply_file`. A checked WeChat Provider sends the matching MP4 as a native video using that Bot's own bound identity. Video upload and the final send recheck the current authorization. Each Source Event has one reply intent: do not acknowledge first if a video result is required.
+
+Inspect the returned video in the original WeChat conversation and independently verify its actual contents. Tool processing, a working browser player, or Provider acceptance alone is not model video understanding, recipient delivery, a read receipt or byte equality. Unsupported formats retain original-download or refusal paths; this slice does not add arbitrary video transcoding or automatic video-model input.
+
 ## Pause or reconnect
 
 Disable DM intake to stop future receipt while retaining configuration and history. Revoke the target authorization or unbind the identity to remove its authority. Re-pairing changes the identity fingerprint and requires explicit reauthorization; stale source continuations must not be reused. Restart with the same Profile to retain local pairing, canonical source records and Outbox outcomes.
 
-If text does not arrive, check the connected account, enabled identity and owner-DM authorization. Messages from other contacts and groups remain unsupported. This candidate supports owner text, files, qualified images and platform voice transcripts; section 8 describes the separately qualified original-audio candidate. Video remains unavailable. If a reply is refused because its original continuation expired or is absent, send a new text in the paired conversation; the Bot must not borrow another conversation. An unknown send outcome must not be blindly resent.
+If text does not arrive, check the connected account, enabled identity and owner-DM authorization. Messages from other contacts and groups remain unsupported. This candidate supports owner text, files, qualified images and platform voice transcripts; section 8 describes the separately qualified original-audio candidate. Section 9 describes the separately qualified native-video candidate; its external E2E remains pending. If a reply is refused because its original continuation expired or is absent, send a new text in the paired conversation; the Bot must not borrow another conversation. An unknown send outcome must not be blindly resent.
 
 ## Verification and scope
 

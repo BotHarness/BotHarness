@@ -5,10 +5,11 @@
 
 ## [Unreleased]
 
-微信原始语音可下载，并可按需准备播放。
+微信原始语音可下载并按需准备播放，原生视频新增受控媒体链路。
 
 ### Added
 
+- 新增个人微信受控视频链路，可按需播放／下载来源视频，并用 Bot 自己的身份发送原生视频回复，保留私密路由与当前授权；浏览器播放和工具读取不代表模型已理解视频（[#907](https://github.com/BotHarness/BotHarness/issues/907)，[指南](docs/wechat-connection.md)）。
 - 微信原生语音可下载原文件，支持的 SILK 音频可显式准备播放或保存独立 WAV 工作副本；解码有大小、时间限制并校验当前来源授权，语音识别和原生语音回复仍是独立能力（[#906](https://github.com/BotHarness/BotHarness/issues/906)、[指南](docs/wechat-connection.md)）。
 
 ## [1.1.0] - 2026-10-06

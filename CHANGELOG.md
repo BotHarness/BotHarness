@@ -5,10 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-WeChat original voice can be downloaded and prepared for playback.
+WeChat original voice can be downloaded and prepared for playback, and native video has a checked media path.
 
 ### Added
 
+- Added a checked personal WeChat video path with on-demand source playback/download and own-identity native video replies, preserving private routing and current authorization; browser playback and tool access remain distinct from video-model understanding ([#907](https://github.com/BotHarness/BotHarness/issues/907), [guide](docs/wechat-connection.md)).
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
 
 ## [1.1.0] - 2026-10-06

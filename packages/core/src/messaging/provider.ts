@@ -31,6 +31,12 @@ export interface MessagingVoice {
   bitsPerSample?: number;
 }
 
+export interface MessagingVideo {
+  itemId?: string;
+  reportedSizeBytes?: number;
+  playLength?: number;
+}
+
 export interface MessagingInboundEvent {
   version: 1;
   channel: 'feishu' | 'slack' | 'discord' | 'weixin';
@@ -46,6 +52,7 @@ export interface MessagingInboundEvent {
   text: string;
   attachments?: MessagingAttachment[];
   voice?: MessagingVoice;
+  video?: MessagingVideo;
   reply: MessagingReplyRoute;
   replay: { kind: 'provider-redelivery'; resumeCursor: false; gapPossible: true };
 }
