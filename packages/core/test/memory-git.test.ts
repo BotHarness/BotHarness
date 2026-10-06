@@ -74,8 +74,9 @@ describe('memory git repository', () => {
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
     const before = commitCount(root);
 
-    await expect(store.write({ path: 'MEMORY.md', body: 'x', summary: 'hack' })).rejects.toThrow();
-    await expect(store.write({ path: 'PERSONA.md', body: 'x', summary: 'hack' })).rejects.toThrow();
+    await expect(
+      store.write({ path: '../escape.md', body: 'x', summary: 'hack' }),
+    ).rejects.toThrow();
     await expect(store.write({ path: 'a.md', body: 'x', summary: '  ' })).rejects.toThrow();
 
     expect(commitCount(root)).toBe(before);

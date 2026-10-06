@@ -1134,7 +1134,7 @@ describe('DSH Bot Agent adapter', () => {
     expect(orchestratorPrompt).toContain('must not be delegated');
     expect(orchestratorPrompt).toContain('Memory Repository');
     expect(orchestratorPrompt).toContain('frozen for this Session');
-    expect(orchestratorPrompt).toContain('PERSONA.md');
+    expect(orchestratorPrompt).toContain('SOUL.md');
     const assignmentPrompt = host.scopes.get('assignment-1')?.sections[0]?.text ?? '';
     expect(assignmentPrompt).toContain('Assignment');
     expect(assignmentPrompt).toContain('Never access another workspace or the PersonaBot');

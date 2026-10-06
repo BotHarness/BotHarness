@@ -24,6 +24,15 @@ import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createMarketplaceClient } from './marketplace/client.js';
 import { createReleaseService, installedRelease } from './release/service.js';
+import {
+  createTelemetryService,
+  installedDshVersion,
+  pluginStartedProperties,
+  telemetryDecision,
+  type TelemetryCapture,
+} from './telemetry/service.js';
+import { readDailyUsageCounts, startDailyUsage } from './telemetry/daily-usage.js';
+import { deliverPendingExceptions, installExceptionCapture } from './telemetry/exceptions.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { backfillBotDescriptors, syncBotDescriptor } from './bots/bot-descriptor-sync.js';
 import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
@@ -49,6 +58,7 @@ import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
 import { ensureMemoryRepository } from './memory/repository.js';
 import { cloneMemoryRepository } from './memory/clone.js';
+import { migrateLegacySouls } from './memory/soul.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import {
@@ -149,6 +159,7 @@ export interface BotHarnessConfig {
   agentPreset?: string;
   activityDetailConsumers?: string[];
   marketplaceUrl?: string;
+  telemetry?: boolean;
 }
 
 export const DEFAULT_AGENT_PRESET = 'standard';
@@ -157,6 +168,7 @@ export const DEFAULT_MARKETPLACE_URL = 'https://market.botharness.ai';
 export const DEFAULT_CONFIG: BotHarnessConfig = {
   enabled: true,
   agentPreset: DEFAULT_AGENT_PRESET,
+  telemetry: true,
 };
 
 export const Config = Schema.object({
@@ -170,6 +182,11 @@ export const Config = Schema.object({
   marketplaceUrl: Schema.string()
     .default(DEFAULT_MARKETPLACE_URL)
     .description('Bot Marketplace 服务地址'),
+  telemetry: Schema.boolean()
+    .default(true)
+    .description(
+      '发送匿名使用统计（Anonymous usage telemetry）；DO_NOT_TRACK=1 或 BOTHARNESS_TELEMETRY=0 也会关闭',
+    ),
 });
 
 export interface BotHarnessCore {
@@ -250,6 +267,7 @@ export function createCore(
     onOutputCommitted?: (event: PersonaBotOutputCommitted) => void;
     activeQuestionMessageIds?: () => readonly string[];
     activeToolApprovalMessageIds?: () => readonly string[];
+    capture?: TelemetryCapture;
   } = {},
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
@@ -284,6 +302,7 @@ export function createCore(
         usage.purgeBot(slug, removeFiles);
       },
       cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
+      ...(options.capture === undefined ? {} : { capture: options.capture }),
       syncDescriptor: (memoryDir, record, sync) => {
         try {
           syncBotDescriptor(memoryDir, record, sync);
@@ -321,7 +340,10 @@ export function createCore(
     operationalDatabase.close();
     throw error;
   }
-  if (operationalDatabase.mode === 'ready') backfillBotDescriptors(registry, options.warn);
+  if (operationalDatabase.mode === 'ready') {
+    backfillBotDescriptors(registry, options.warn);
+    migrateLegacySouls(registry, options.warn);
+  }
   const states = createBotStateTracker();
   let runtime: BotRuntime | undefined;
   const attachments = createAttachmentStore({
@@ -333,6 +355,7 @@ export function createCore(
   const externalMessaging = createOutboundMessaging({
     onDefaultsChanged: () => live?.publishRosterCommitted(),
     onReceptionChanged: () => live?.publishRosterCommitted(),
+    ...(options.capture === undefined ? {} : { capture: options.capture }),
     attachments,
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     sourcePolicy,
@@ -565,6 +588,36 @@ export function createCore(
 export function apply(ctx: Context, config: BotHarnessConfig): void {
   if (!config.enabled) return;
   const dshHome = resolveDshHome();
+  const release = installedRelease(import.meta.url);
+  const telemetryChoice = telemetryDecision(config.telemetry);
+  const telemetryDir = join(dshHome, 'botharness');
+  const telemetry = createTelemetryService({
+    decision: telemetryChoice,
+    dataDir: telemetryDir,
+    log: (message) => ctx.logger.info(message),
+  });
+  const telemetryState = telemetry.status();
+  ctx.logger.info(
+    telemetryState.enabled
+      ? 'telemetry phase=enabled'
+      : `telemetry phase=disabled reason=${telemetryState.lockedBy ?? 'preference'}`,
+  );
+  ctx.effect(() => () => void telemetry.close(), 'botharness: telemetry');
+  telemetry.capture(
+    'plugin_started',
+    pluginStartedProperties({
+      pluginVersion: release.version(),
+      dshVersion: installedDshVersion(),
+      os: process.platform,
+      arch: process.arch,
+    }),
+  );
+  deliverPendingExceptions(telemetry, telemetryDir);
+  if (telemetryState.lockedBy === undefined)
+    ctx.effect(
+      () => installExceptionCapture({ dataDir: telemetryDir, enabled: () => telemetry.enabled }),
+      'botharness: telemetry exceptions',
+    );
   let publishDraft: (event: ChannelDraftEvent) => void = () => undefined;
   const modelCatalog = createModelCatalog(ctx.llm);
   const modelReadiness = createModelRouteReadiness(
@@ -620,6 +673,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       emitPersonaBotOutputCommitted(ctx, event, (message) => ctx.logger.warn(message)),
     activeQuestionMessageIds: () => userQuestions?.activeMessageIds() ?? [],
     activeToolApprovalMessageIds: () => toolApproval?.activeMessageIds() ?? [],
+    capture: (event, properties) => telemetry.capture(event, properties),
     warn: (message) => ctx.logger.warn(message),
     agents: agentAdapter,
     saveReportSpill: async ({ sessionId, content }) => {
@@ -655,6 +709,19 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
+  if (core.operationalDatabase.mode === 'ready' && telemetryState.lockedBy === undefined) {
+    const usageDatabase = attachOperationalModule(core.operationalDatabase, 'telemetry');
+    ctx.effect(
+      () =>
+        startDailyUsage({
+          telemetry,
+          dataDir: telemetryDir,
+          counts: (since, until) => readDailyUsageCounts(usageDatabase, since, until),
+          log: (message) => ctx.logger.info(message),
+        }),
+      'botharness: telemetry daily usage',
+    );
+  }
   ctx.effect(() => () => core.roster.detach(), 'botharness: roster');
   ctx.effect(() => {
     const controller = new AbortController();
@@ -947,7 +1014,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       marketplace: createMarketplaceClient({
         baseUrl: config.marketplaceUrl ?? DEFAULT_MARKETPLACE_URL,
       }),
-      release: createReleaseService(installedRelease(import.meta.url)),
+      release: createReleaseService(release),
+      telemetry,
       developerMode: {
         set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
       },

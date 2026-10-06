@@ -21,9 +21,11 @@ import { installBotNavIcon } from './bot-icon-nav.js';
 import { openBotSettings } from './bot-settings-open.js';
 import { MessagingDefaultsSettings } from './messaging-defaults-settings.js';
 import { HumanNameSettings } from './human-name-settings.js';
+import { TelemetrySettings } from './telemetry-settings.js';
 import { BotSettingsSection } from './bot-settings-section.js';
 import { ReleaseNotesController } from './release-notes.js';
 import { ReleaseSettings } from './release-notes-view.js';
+import { TelemetryNoticeController } from './telemetry-notice.js';
 import './bot-settings-slot.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
@@ -123,6 +125,9 @@ export function apply(ctx: ClientContext): void {
   });
   const prefs = new BotModePrefs(storage);
   const releaseNotes = new ReleaseNotesController(call, storage);
+  const telemetryNotice = new TelemetryNoticeController(call, storage, () => {
+    openBotSettings(() => [t('settings.nav')]);
+  });
   const lastView =
     typeof window === 'undefined'
       ? undefined
@@ -304,6 +309,18 @@ export function apply(ctx: ClientContext): void {
         MessagingDefaultsSettings,
       ),
     );
+    settingsCtx.slots.inject('botharness.settings.item', () =>
+      settingsCtx.slots.register(
+        {
+          name: 'botharness.settings.item',
+          id: 'telemetry',
+          order: 20,
+          locale: LOCALE_NS,
+          inject: () => ({ call }),
+        },
+        TelemetrySettings,
+      ),
+    );
     settingsCtx.slots.inject('settings.section', () =>
       settingsCtx.slots.register(
         {
@@ -365,6 +382,7 @@ export function apply(ctx: ClientContext): void {
           nativeChatT,
           nativeSessions,
           releaseNotes,
+          telemetryNotice,
         }),
       },
       BotPanel,

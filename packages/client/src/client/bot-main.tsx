@@ -73,6 +73,8 @@ import {
 import { useMountedResource } from './mounted-resource.js';
 import type { ReleaseNotesController } from './release-notes.js';
 import { ReleaseNotesAnnouncement } from './release-notes-view.js';
+import type { TelemetryNoticeController } from './telemetry-notice.js';
+import { TelemetryNotice } from './telemetry-notice-view.js';
 
 export function committedMessageIds(messages: readonly ChannelMessage[]): Set<string> {
   return new Set(
@@ -1630,6 +1632,7 @@ export function BotPanel({
   profileCards,
   nativeChatT,
   releaseNotes,
+  telemetryNotice,
   t,
 }: {
   actions: BridgeActions;
@@ -1638,6 +1641,7 @@ export function BotPanel({
   profileCards?: ProfileCardRegistry | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
   releaseNotes?: ReleaseNotesController | undefined;
+  telemetryNotice?: TelemetryNoticeController | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   const modeMount = useMountedResource<HTMLSpanElement>(() => {
@@ -1651,6 +1655,9 @@ export function BotPanel({
       <span ref={modeMount} hidden aria-hidden="true" />
       {releaseNotes === undefined ? null : (
         <ReleaseNotesAnnouncement controller={releaseNotes} t={t} />
+      )}
+      {telemetryNotice === undefined ? null : (
+        <TelemetryNotice controller={telemetryNotice} releaseNotes={releaseNotes} t={t} />
       )}
       <BotMain
         actions={actions}

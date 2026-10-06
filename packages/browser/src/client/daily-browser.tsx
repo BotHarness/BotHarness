@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type ReactElement } from 'react';
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/sidebar-card.js';
 import type { DailyView } from '../daily.js';
 import type { BrowserTranslate } from './locale.js';
 
@@ -49,51 +50,104 @@ export function DailyBrowserControl({
   };
   return (
     <div ref={resource} className="bh-browser-body bh-browser-borrow">
-      <strong>{t('settings.daily-control')}</strong>
-      <a
-        className="bh-browser-daily-install"
-        href="https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm"
-        target="_blank"
-        rel="noreferrer"
-      >
-        {t('entry.daily.install')}
-      </a>
-      {view === null || view.state === 'error' ? (
-        <Button size="sm" disabled={!enabled || busy} onClick={() => invoke('connect')}>
-          {t('entry.daily.connect')}
-        </Button>
-      ) : (
-        <>
-          <span role="status">
-            {t(
-              view.state === 'connecting'
-                ? 'entry.daily.select'
-                : view.state === 'confirm'
-                  ? 'entry.daily.confirm'
-                  : 'entry.daily.controlled',
-            )}
-          </span>
-          {view.url === '' ? null : (
+      <SidebarCardList className="bh-browser-cards">
+        <SidebarCardRow
+          icon="globe"
+          title={t('settings.daily-control')}
+          chips={
             <>
-              <strong className="bh-browser-borrow-title">{view.title || view.url}</strong>
-              <span className="bh-browser-borrow-url">{view.url}</span>
+              {view === null || view.state === 'error' ? (
+                <Tag tone="neutral">{t('entry.chip.disconnected')}</Tag>
+              ) : view.state === 'connecting' ? (
+                <Tag tone="info">{t('entry.chip.connecting')}</Tag>
+              ) : view.state === 'confirm' ? (
+                <Tag tone="warning">{t('entry.chip.confirm')}</Tag>
+              ) : (
+                <Tag tone="success">{t('entry.chip.controlled')}</Tag>
+              )}
+              {paused && view?.state === 'controlled' ? (
+                <Tag tone="warning">{t('entry.chip.paused')}</Tag>
+              ) : null}
             </>
-          )}
-          {view.state === 'confirm' ? (
-            <Button size="sm" disabled={!enabled || busy} onClick={() => invoke('grant')}>
-              {t('entry.daily.allow')}
-            </Button>
-          ) : null}
-          {view.state === 'controlled' ? (
-            <Button size="sm" disabled={busy} onClick={() => invoke('pause')}>
-              {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
-            </Button>
-          ) : null}
-          <Button size="sm" disabled={busy} onClick={() => invoke('return')}>
-            {t(view.state === 'connecting' ? 'entry.borrow.cancel' : 'entry.borrow.return')}
-          </Button>
-        </>
-      )}
+          }
+          meta={
+            view === null || view.state === 'error' ? undefined : (
+              <span role="status">
+                {t(
+                  view.state === 'connecting'
+                    ? 'entry.daily.select'
+                    : view.state === 'confirm'
+                      ? 'entry.daily.confirm'
+                      : 'entry.daily.controlled',
+                )}
+              </span>
+            )
+          }
+          detail={
+            <div className="bh-browser-card-detail">
+              {view === null || view.state === 'error' || view.url === '' ? null : (
+                <>
+                  <strong className="bh-browser-borrow-title">{view.title || view.url}</strong>
+                  <span className="bh-browser-borrow-url">{view.url}</span>
+                </>
+              )}
+              <a
+                className="bh-browser-daily-install"
+                href="https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t('entry.daily.install')}
+              </a>
+              <div className="bh-browser-actions">
+                {view === null || view.state === 'error' ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!enabled || busy}
+                    onClick={() => invoke('connect')}
+                  >
+                    {t('entry.daily.connect')}
+                  </Button>
+                ) : (
+                  <>
+                    {view.state === 'confirm' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!enabled || busy}
+                        onClick={() => invoke('grant')}
+                      >
+                        {t('entry.daily.allow')}
+                      </Button>
+                    ) : null}
+                    {view.state === 'controlled' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => invoke('pause')}
+                      >
+                        {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
+                      </Button>
+                    ) : null}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => invoke('return')}
+                    >
+                      {t(
+                        view.state === 'connecting' ? 'entry.borrow.cancel' : 'entry.borrow.return',
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          }
+        />
+      </SidebarCardList>
       {view?.error === undefined ? null : (
         <div role="alert" className="bh-browser-error">
           {view.error}

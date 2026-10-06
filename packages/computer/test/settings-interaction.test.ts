@@ -9,6 +9,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   IconFolderOpenOutlineRegular: () => null,
   Menu: ({ anchor }: { anchor: unknown }) => anchor,
   Switch: () => null,
+  Tag: ({ children }: { children: string }) => createElement('span', null, children),
   Button: ({ children, ...props }: { children: string }) =>
     createElement('button', props, children),
 }));
