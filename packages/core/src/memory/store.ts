@@ -13,6 +13,7 @@ import { ensureMemoryRepository } from './repository.js';
 import { resolveMemoryPath, toMemoryRelativePath, toMemoryWritePath } from './jail.js';
 import { searchMemoryFiles, type MemorySearchFile, type MemorySearchHit } from './search.js';
 import { listMemoryFiles, readMemoryDocument } from './files.js';
+import { renderStandingPrompt } from './soul.js';
 
 export class MemoryWriteError extends Error {
   constructor(message: string) {
@@ -58,11 +59,9 @@ export interface MemoryStore {
   read(path: string): MemoryEntry | undefined;
   write(input: MemoryWriteInput): Promise<MemoryWriteResult>;
   search(query: string): Promise<MemorySearchHit[]>;
-  persona(): string | undefined;
+  standingPrompt(): string;
   history(limit?: number): MemoryCommit[];
 }
-
-const PROTECTED_WRITES = new Set(['memory.md', 'persona.md']);
 
 function toEntry(relativePath: string, parsed: ParsedMemoryFile): MemoryEntry {
   const { document } = parsed;
@@ -143,9 +142,6 @@ export function createMemoryStore(options: MemoryStoreOptions): MemoryStore {
           throw new MemoryWriteError('memory write requires a non-empty summary');
         }
         const relativePath = toMemoryWritePath(input.path);
-        if (PROTECTED_WRITES.has(relativePath.toLowerCase())) {
-          throw new MemoryWriteError(`memory write refused: ${relativePath} is not agent-writable`);
-        }
         const target = resolveMemoryPath(root, relativePath);
         const document: MemoryDocument = {
           summary,
@@ -169,8 +165,8 @@ export function createMemoryStore(options: MemoryStoreOptions): MemoryStore {
     async search(query) {
       return searchMemoryFiles(root, listSearchFiles(root), query);
     },
-    persona() {
-      return readMemoryDocument(root, 'PERSONA.md')?.body;
+    standingPrompt() {
+      return renderStandingPrompt(root);
     },
     history(limit) {
       return git.log(limit);

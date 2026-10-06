@@ -14,7 +14,7 @@
 
 **开源的 GrokBot 平替。一组有各自身份、人格和记忆的 bots，一起做事。**
 
-[官网](https://deepseekbot.botharness.ai) · [安装](#install) · [能力](#features) · [像素头像](#pixel-avatars) · [社区](#community) · [文档](https://botharness.ai)
+[官网](https://deepseekbot.botharness.ai) · [安装](#install) · [能力](#features) · [截图](#screenshots) · [版本亮点](#releases) · [Bot 市场](#marketplace) · [社区](#community) · [文档](https://botharness.ai)
 
 </div>
 
@@ -24,6 +24,7 @@ DeepSeekBot 以一个 npm 包装进 [DeepSeek Harness（DSH）](https://github.c
 - **基于 DeepSeek Harness**，你在 DSH 里接入的任何模型 provider 都能用
 - **兼容其他 DSH 插件**，可以和它们装在同一个 Profile
 - **连接飞书 / Lark、Slack、Discord 和微信**，Bot 用自己的身份发言
+- **定时任务与 Bot 市场**：让 Bot 按时做事，一键安装或分享别人做好的 Bot
 
 本仓库是 **BotHarness**：为 DSH agent 提供持久身份的插件层，DeepSeekBot 是它的首个产品。
 
@@ -47,24 +48,48 @@ dsh web
 
 ## 每个 Bot 都是一位同事
 
-| 能力                        | 说明                                                                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **持久身份**                | 每个 PersonaBot 有自己的名字、人格（PERSONA.md）和头像，跨对话、Session 与 Workspace 延续。                                     |
-| **看得见的 Git Memory**     | Bot 的记忆是一个普通 Git 工作树。在侧栏浏览文件、分支、commit 历史与 diff，也能推到 GitHub，在多台机器之间共享同一份记忆。      |
-| **Group 协作**              | 消息保留各自身份，需要谁就 @ 谁。每个成员可以选择每条提醒、摘要、仅提及或静默。                                                 |
-| **Assignments 委派**        | 授予 Workspace 后，Bot 可以委派独立的 Assignment，各自保留 Session 与报告；需要你回答或批准时，侧栏会显示待办数。               |
-| **自己的 IM 身份**          | 在飞书 / Lark、Slack、Discord 和微信里绑定 Bot 自己的身份，被 @ 时在原话题里回复。只有你授权过的群和频道才会进入 Bot 的 Inbox。 |
-| **Computer 与 Browser use** | 操作共享桌面（需要 Docker）或受管浏览器，你能实时观看，也能暂停它的浏览器操作。源码版可选。                                     |
+| 能力                        | 说明                                                                                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **持久身份**                | 每个 PersonaBot 有自己的名字、岗位、Soul（SOUL.md）和像素头像，跨对话、Session 与 Workspace 延续。                         |
+| **看得见的 Git Memory**     | Bot 的记忆是一个普通 Git 工作树。在侧栏浏览文件、分支、commit 历史与 diff，也能推到 GitHub，在多台机器之间共享同一份记忆。 |
+| **Group 协作**              | 消息保留各自身份，需要谁就 @ 谁。每个成员可以选择每条提醒、摘要、仅提及或静默。                                            |
+| **定时任务**                | 让 Bot 每隔几分钟、每小时或每天做一件事。你可以在侧栏新建，也可以直接让 Bot 自己建；锁定后 Bot 只能看、不能改。            |
+| **Bot 市场**                | 从 [Bot 市场](https://market.botharness.ai) 一键安装别人分享的 Bot，或把自己的 Bot 发布到 GitHub 分享出去。                |
+| **Assignments 委派**        | 授予 Workspace 后，Bot 可以委派独立的 Assignment，各自保留 Session 与报告；需要你回答或批准时，侧栏会显示待办数。          |
+| **自己的 IM 身份**          | 在飞书 / Lark、Slack、Discord 和微信里绑定 Bot 自己的身份，被 @ 时在原话题里回复；微信私聊还能收发文件和图片。             |
+| **更新提示**                | 安装或升级后显示这一版的更新内容；Bot 设置里能看到当前版本，一键检查 npm 上的新版本。                                      |
+| **Computer 与 Browser use** | 操作共享桌面（需要 Docker）或受管浏览器，你能实时观看，也能暂停它的浏览器操作。源码版可选。                                |
+
+<a id="screenshots"></a>
+
+## 截图
+
+<table>
+  <tr>
+    <td width="50%"><a href="docs/assets/readme/v2/zh/hero.jpg"><img src="docs/assets/readme/v2/zh/hero.jpg" alt="Bot 模式：左侧是五个像素头像的 Bot 名册，中间是与 Mira 的私聊，右侧是 Mira 的记忆演化 Git graph" /></a><br /><b>Bot 名册与私聊</b>：每个 Bot 有自己的像素头像；右侧是它的记忆演化。</td>
+    <td width="50%"><a href="docs/assets/readme/v2/zh/group.jpg"><img src="docs/assets/readme/v2/zh/group.jpg" alt="天文台工作室 Group：Mira、Theo 和 Nova 以各自身份回复，右侧是成员列表" /></a><br /><b>Group 协作</b>：@ 三个 Bot，它们各自回复，Nova 读完前两位再接话。</td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/assets/readme/v2/zh/memory-diff.jpg"><img src="docs/assets/readme/v2/zh/memory-diff.jpg" alt="点击 Mira 记忆中的一个 commit，中间显示 plans/spring-exhibit.md 的逐行 diff" /></a><br /><b>记忆演化</b>：点一个 commit，就能看到 Bot 改了记忆里的哪几行。</td>
+    <td width="50%"><a href="docs/assets/readme/v2/zh/schedules.jpg"><img src="docs/assets/readme/v2/zh/schedules.jpg" alt="Nova 收到“每天 9 点读日志”的请求后自己创建了定时任务，右侧侧栏用卡片列出会话和定时任务" /></a><br /><b>定时任务</b>：一句话让 Bot 自己建任务；侧栏卡片标出是谁建的、是否锁定。</td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/assets/readme/v2/zh/schedule-editor.jpg"><img src="docs/assets/readme/v2/zh/schedule-editor.jpg" alt="编辑定时任务：名称、要做的事、每天 09:00、时区、锁定开关和最近执行记录" /></a><br /><b>编辑定时任务</b>：按分钟、小时或每天执行，锁定后 Bot 不能改，还能看最近 20 次执行。</td>
+    <td width="50%"><a href="docs/assets/readme/v2/zh/marketplace.jpg"><img src="docs/assets/readme/v2/zh/marketplace.jpg" alt="Bot 市场：按话题筛选、搜索，列表中每个 Bot 都有像素头像、岗位、Star 数和安装按钮" /></a><br /><b>Bot 市场</b>：按话题和关键词找 Bot，点「安装」就多一个 PersonaBot（图中为示例数据）。</td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/assets/readme/v2/zh/release-notes.jpg"><img src="docs/assets/readme/v2/zh/release-notes.jpg" alt="DeepSeekBot 1.0.2 更新内容弹窗，按新增、修复、文档列出变化" /></a><br /><b>更新内容</b>：首次安装和每次升级后，Bot 模式会告诉你这一版改了什么。</td>
+    <td width="50%"><a href="docs/assets/readme/v2/zh/settings.jpg"><img src="docs/assets/readme/v2/zh/settings.jpg" alt="Bot 设置：Bot 图标、界面动效、排序、开发者模式，以及 DeepSeekBot 版本行的更新日志和检查更新按钮" /></a><br /><b>Bot 设置</b>：查看当前版本，检查更新，打开官网更新日志。</td>
+  </tr>
+</table>
+
+_截图来自隔离的本地 DSH，点开可看 2880 × 1800 原图。对话由脚本生成，是虚构的天文台展览示例；Bot 市场中的条目为示例数据。_
 
 <a id="git-memory"></a>
 
 ## 看得见的 Git Memory
 
 PersonaBot 的 Memory 是一个普通 Git 工作树。笔记、人格、代码和其他文件留在磁盘上，尚未提交的文件也是当前记忆。Bot 可以通过文件、搜索、Shell 和 Git 能力探索与更新记忆；你也可以使用自己的编辑器和 Git 工具。
-
-![DSH 中 Mira 的记忆演化：右侧显示分支 Git graph 与提交历史，中央选中的展览方案 commit 展示逐行删改 diff](docs/assets/readme/memory-evolution.jpg)
-
-_真实 DSH 截图，内容为虚构的展览笔记。graph 展示研究分支的合并；点击 commit，即可在历史旁查看文件 diff。[未裁切原图](docs/assets/readme/memory-evolution-full.jpg)。_
 
 - **Memory files**：目录树与文件阅读器，菜单可以打开或定位 Host 上的真实文件，也能下载当前完整内容。
 - **Memory evolution**：分支、commit 历史与当前改动。点击 commit 查看 diff，或检查尚未提交的修改；可选择易读的记忆术语或 Git 术语。
@@ -76,17 +101,36 @@ _真实 DSH 截图，内容为虚构的展览笔记。graph 展示研究分支�
 
 ## 把不同的 bots 带进 Group
 
-让研究员记住依据，让设计师推进体验，让工程师检查细节。Group 中的消息保留每个 Bot 自己的身份；需要某个 Bot 参与时，直接 @ 它。
-
-![DSH 的 Group 邀请成员弹窗：选中 Nova，加入已有 Mira 和 Theo 的虚构 Observatory Studio 团队](docs/assets/readme/group-invite.jpg)
-
-_打开 Members → Invite member，搜索或选择 PersonaBot，再发出邀请。Bot 默认自动加入，邀请本身不唤醒模型；也可以为 Bot 配置手动决策。_
-
-![Mira、Theo 和 Nova 以各自身份在 Observatory Studio Group 协作，右侧同时显示成员列表](docs/assets/readme/group-collaboration.jpg)
-
-_隔离本地 Group 中的真实模型回复：Mira 回顾访客需求，Theo 提出布局，Nova 阅读前两位的回复后补充实现与检查步骤。_
+让研究员记住依据，让设计师推进体验，让工程师检查细节。Group 中的消息保留每个 Bot 自己的身份；需要某个 Bot 参与时，直接 @ 它。在 Group 侧栏的「成员 → 邀请成员」里搜索或选择 PersonaBot；Bot 默认自动加入，邀请本身不唤醒模型，也可以在 Bot 设置里改成由 Bot 自己决定。
 
 可为每个成员选择收件提醒方式：每条消息、摘要、仅直接提及，或静默收件。Bot 可以调整自己的 Group 提醒偏好，也可以离开 Group。私聊、Bot 间对话、Bot Inbox 与 Human Inbox 保留对话和待办入口。需要在项目中执行工作时，授予 Workspace，让 Bot 委派独立 **Assignments**，各自保留 Session 与报告。
+
+<a id="schedules"></a>
+
+## 定时任务：让 Bot 按时做事
+
+对 Bot 说「每天早上 9 点读一下日志，给我发个摘要」，它会自己建一个定时任务。你也可以在私聊侧栏的「定时任务」里点 **+** 手动新建。
+
+- **三种节奏**：每隔几分钟、每隔几小时，或每天固定时间（可选时区）。
+- **按时唤醒**：每次执行都会进入 Bot 收件箱并唤醒 Bot；收件箱里的这一项能直接跳回对应的定时任务。
+- **谁建的一目了然**：侧栏卡片标出是你建的还是 Bot 建的。锁定之后 Bot 只能看、不能改或删；每个 Bot 最多同时启用 20 个。
+- **执行记录**：编辑窗口列出最近 20 次执行，并链接到处理它的会话。
+
+[设计决策](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)
+
+<a id="marketplace"></a>
+
+## Bot 市场：分享和安装 Bot
+
+[Bot 市场](https://market.botharness.ai) 收录公开 GitHub 仓库里分享的 Bot。在 Bot 模式的消息列表点 **+ → Bot 市场**，按话题或关键词浏览，点「安装」后会先显示来源仓库和最新提交，提醒这是第三方内容；确认后它的 Memory 仓库被克隆成你的一个新 PersonaBot。也可以把仓库地址贴进去，立即收录。
+
+想分享自己的 Bot：先检查它的 Memory 里没有不该公开的内容，再按 [分享 Bot 教程](docs/share-bot.zh.md) 让 Bot 自己发布到 GitHub，加上 `botharness-bot` 话题即可上架。DeepSeekBot 会在每个 Bot 的 Memory 里自动维护 `.botharness/bot.json`（名称、岗位、头像），所以市场里显示的和你侧栏里的一致。
+
+<a id="updates"></a>
+
+## 更新与更新日志
+
+首次安装后，以及每次升级后第一次打开 Bot 模式，DeepSeekBot 会弹出这一版（或你上次看过之后所有版本）的更新内容。**设置 → Bot 设置 → DeepSeekBot 版本** 显示当前版本，「检查更新」会查询 npm；有新版本时列出新内容和更新命令。完整记录见 [官网更新日志](https://deepseekbot.botharness.ai/changelog/) 和仓库里的 [CHANGELOG](CHANGELOG.zh.md)。
 
 <a id="computer-and-browser-use"></a>
 
@@ -116,8 +160,9 @@ _复用 [Browser profile 验证](https://github.com/BotHarness/BotHarness/pull/6
 - 在群聊或话题里 @Bot，消息进入该 PersonaBot 的 Inbox，由它在原话题回复。
 - 只有你授权过的群和频道才会进入 Bot 的 Inbox；出站发送需要显式授权，并留有发送记录。
 - 可以按 Bot 设置收件方式：只响应提及、按数量或时间汇总普通消息，或立即唤醒。
+- 微信私聊里，Bot 能接收你发来的文件并在原私聊回传处理结果；源码版还支持图片预览和图片回复。
 
-连接指南：[飞书 / Lark](docs/lark-connection.zh.md) · [Slack](docs/slack-connection.zh.md)。
+连接指南：[飞书 / Lark](docs/lark-connection.zh.md) · [Slack](docs/slack-connection.zh.md) · [微信](docs/wechat-connection.zh.md)。
 
 <a id="pixel-avatars"></a>
 
@@ -125,7 +170,20 @@ _复用 [Browser profile 验证](https://github.com/BotHarness/BotHarness/pull/6
 
 <img src="docs/assets/readme/pixel-avatars-crew.gif" width="660" alt="六个像素风 PersonaBot 头像" />
 
-每个 Bot 的默认头像都由名字生成：同一个名字，在哪里都是同一张脸。Bot 工作时，头像会一颗像素一颗像素地变成它正在用的工具（读文件、终端、搜索、等你批准……）。到[官网](https://deepseekbot.botharness.ai/#avatar)输入名字试试，还能下载高清头像。头像来自开源的 [BotPixel](https://github.com/BotHarness/BotPixel)（`@botharness/pixel-avatar` 与 `@botharness/pixel-morph`）。
+每个 Bot 的默认头像都由名字生成：同一个名字，在哪里都是同一张脸。Bot 工作时，头像会一颗像素一颗像素地变成它正在用的工具（读文件、终端、搜索、等你批准……）。到[官网](https://deepseekbot.botharness.ai/#avatar)输入名字试试，还能下载高清头像。头像来自开源的 [BotPixel](https://github.com/BotHarness/BotPixel)（`@botharness/pixel-avatar` 与 `@botharness/pixel-morph`），上面[截图](#screenshots)里的所有头像都是它生成的。
+
+<a id="releases"></a>
+
+## 版本亮点
+
+每个版本的核心变化，完整条目见 [CHANGELOG](CHANGELOG.zh.md) 和 [官网更新日志](https://deepseekbot.botharness.ai/changelog/)。
+
+| 版本                        | 核心内容                                                                                                                                                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **下一版**（未发布）        | Bot **定时任务**：在侧栏手动新建，或让 Bot 自己建、改、删，锁定后 Bot 不能改；Channel 侧栏的会话、收件箱、工作区授权统一为**卡片样式**；每个 Bot 的 Memory 自动维护 `.botharness/bot.json`；微信私聊支持收发**图片**。 |
+| **1.0.2**（2026-10-06）     | 安装和升级后显示**更新内容**，Bot 设置里**检查 npm 新版本**；新增 [分享 Bot 教程](docs/share-bot.zh.md)；上下文读取保留准确的 `source-conflict` 拒绝。                                                                 |
+| **1.0.1**（2026-10-05）     | 首个 npm **正式版**：拥有各自身份的 PersonaBots、Git Memory、Group、Assignment、像素头像，飞书 / Lark、Slack、Discord 和微信身份（微信私聊可收发文件），以及首版 **Bot 市场**。1.0.0 未作为产品发布。                  |
+| 开发历史（截至 2026-09-20） | 首个版本之前的基础：PersonaBot 身份与文件记忆、Bot 模式的频道外壳与名册、从 Git 仓库创建 Bot、在 Host 上打开记忆文件，以及双语文档站。                                                                                 |
 
 <a id="dsh"></a>
 
@@ -133,7 +191,7 @@ _复用 [Browser profile 验证](https://github.com/BotHarness/BotHarness/pull/6
 
 DeepSeekBot 直接用 DSH 自己的 Session 管理和 Harness：你在 DSH 里接入的任何 LLM 模型 provider，Bot 都能用；也可以和其他 DSH 插件装在一起。个别插件可能还不兼容，遇到了欢迎提 [Issue](https://github.com/BotHarness/BotHarness/issues) 或 PR。
 
-[双语 Release Ledger](CHANGELOG.md) 记录每个版本的变化；[Issues](https://github.com/BotHarness/BotHarness/issues) 与 [Projects](https://github.com/BotHarness/BotHarness/projects) 跟踪后续工作。
+[双语 Release Ledger](CHANGELOG.zh.md) 记录每个版本的变化（摘要见[版本亮点](#releases)）；[Issues](https://github.com/BotHarness/BotHarness/issues) 与 [Projects](https://github.com/BotHarness/BotHarness/projects) 跟踪后续工作。
 
 <a id="try-it"></a>
 

@@ -293,8 +293,15 @@ export function ProfileView({
           type="button"
           className="bh-profile-avatar-button"
           aria-label={t('profile.avatar.change')}
-          disabled={avatarBusy}
-          onClick={() => avatarInputRef.current?.click()}
+          onClick={(event) => {
+            const section = event.currentTarget
+              .closest('.bh-profile-view')
+              ?.querySelector<HTMLElement>('.bh-avatar-section');
+            section?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            section?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({
+              preventScroll: true,
+            });
+          }}
         >
           <PersonaBotAvatar
             t={t}
@@ -355,26 +362,6 @@ export function ProfileView({
           )}
           <RoleBadges roles={bot.roles} />
           <Description text={bot.description} />
-          <div className="bh-profile-avatar-actions">
-            <button
-              type="button"
-              className="bh-profile-action"
-              disabled={avatarBusy}
-              onClick={() => avatarInputRef.current?.click()}
-            >
-              {t('profile.avatar.change')}
-            </button>
-            {bot.avatar === undefined ? null : (
-              <button
-                type="button"
-                className="bh-profile-action"
-                disabled={avatarBusy}
-                onClick={() => void removeAvatar()}
-              >
-                {t('profile.avatar.remove')}
-              </button>
-            )}
-          </div>
           <input
             ref={avatarInputRef}
             className="bh-profile-avatar-input"
@@ -398,6 +385,9 @@ export function ProfileView({
         bot={bot}
         channelId={channel.id}
         onSave={actions.setBotAppearance}
+        onUpload={() => avatarInputRef.current?.click()}
+        onRemoveImage={() => void removeAvatar()}
+        imageBusy={avatarBusy}
         t={t}
       />
       {visibleCards.length === 0 ? null : (

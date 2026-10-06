@@ -1,10 +1,12 @@
 ---
 Status: Accepted
 Date: 2026-09-22
-Amended by: ADR-0092 (Memory change Inbox events)
+Amended by: ADR-0092 (Memory change Inbox events), ADR-0134 (Soul and Core Memory snapshot)
 ---
 
 # The system prompt prefix is append-only
+
+> Amended in part by [ADR-0134](0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md): `SOUL.md` (renamed from `PERSONA.md`) and `MEMORY.md` now enter the prompt from one Session-frozen snapshot. Rule 4's "no `MEMORY.md`" no longer holds; the append-only prefix rule does.
 
 A Session's system prompt is a byte-identical prefix for the Session's whole life. Only static role, rule, and persona text enters it; nothing re-derived from Memory content, repository listings, or Human edits is assembled into it per request. New information reaches the model at the bottom of the conversation — a new user or tool message — because replacing the head of a long context invalidates the provider's cached prefix and re-prices every subsequent turn.
 

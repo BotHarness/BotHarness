@@ -1134,7 +1134,7 @@ describe('DSH Bot Agent adapter', () => {
     expect(orchestratorPrompt).toContain('must not be delegated');
     expect(orchestratorPrompt).toContain('Memory Repository');
     expect(orchestratorPrompt).toContain('frozen for this Session');
-    expect(orchestratorPrompt).toContain('PERSONA.md');
+    expect(orchestratorPrompt).toContain('SOUL.md');
     const assignmentPrompt = host.scopes.get('assignment-1')?.sections[0]?.text ?? '';
     expect(assignmentPrompt).toContain('Assignment');
     expect(assignmentPrompt).toContain('Never access another workspace or the PersonaBot');
@@ -1744,6 +1744,19 @@ describe('Bot Schedule Tools', () => {
               {} as ToolRunContext,
             ),
           );
+          for (const cadence of [
+            { daily_time: '09:00', weekdays: [1, 3], time_zone: 'Asia/Shanghai' },
+            { once_at: '2026-11-01 09:00', time_zone: 'America/New_York' },
+            { cron: '0 9 * * 1-5', time_zone: 'Asia/Shanghai' },
+            { weekdays: [1] },
+            { once_at: 'tomorrow' },
+          ])
+            calls.push(
+              tool('bot_schedule_create').execute(
+                { title: 'Cadence', prompt: 'x', ...cadence },
+                {} as ToolRunContext,
+              ),
+            );
           calls.push(
             tool('bot_schedule_update').execute(
               { id: 'sch-1', enabled: false },
@@ -1826,11 +1839,25 @@ describe('Bot Schedule Tools', () => {
         { trigger: { kind: 'every', everySeconds: 3600 } },
         { trigger: { kind: 'daily', time: '09:00', timeZone: 'Asia/Shanghai' } },
         { error: { code: 'invalid-input' } },
+        {
+          trigger: { kind: 'weekly', time: '09:00', timeZone: 'Asia/Shanghai', weekdays: [1, 3] },
+        },
+        {
+          trigger: {
+            kind: 'once',
+            date: '2026-11-01',
+            time: '09:00',
+            timeZone: 'America/New_York',
+          },
+        },
+        { trigger: { kind: 'cron', expression: '0 9 * * 1-5', timeZone: 'Asia/Shanghai' } },
+        { error: { code: 'invalid-input', message: 'weekdays needs daily_time' } },
+        { error: { code: 'invalid-input' } },
         { enabled: false },
         { error: { code: 'locked', message: 'Bot Schedule locked-1 is locked by the Human' } },
         { id: 'sch-1', deleted: true },
       ]);
-      expect(created).toHaveLength(2);
+      expect(created).toHaveLength(5);
       expect(updated).toEqual([{ enabled: false }]);
       expect(denial).toContain('bot_schedule_create');
       expect(allowed).toBeUndefined();

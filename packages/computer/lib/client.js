@@ -833,6 +833,10 @@ window.__ModuleLoader__.load({
 			"local.description": "直接操作运行 DSH 的 Mac。首次检查会安装桌面操作组件；请在这台电脑上完成登录。",
 			"local.check": "检查权限",
 			"local.checking": "正在检查…",
+			"local.chip.granted": "已授权",
+			"local.chip.checking": "检查中",
+			"local.chip.unchecked": "未检查",
+			"local.chip.failed": "需要处理",
 			"entry.label": "电脑",
 			"entry.screen.title": "{name} 的屏幕",
 			"entry.shared": "这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。",
@@ -844,6 +848,11 @@ window.__ModuleLoader__.load({
 			"entry.access.failureHint": "授权失败",
 			"entry.start": "启动",
 			"entry.starting": "启动中…",
+			"entry.chip.setup": "需要设置",
+			"entry.chip.authorize": "待授权",
+			"entry.chip.running": "运行中",
+			"entry.chip.stopped": "未启动",
+			"entry.chip.failed": "出错",
 			"entry.stop": "停止",
 			"entry.stopping": "停止中…",
 			"entry.reconnect": "重新连接",
@@ -929,6 +938,10 @@ window.__ModuleLoader__.load({
 			"local.description": "Uses the Mac running DSH. The first check installs the required desktop helper. Complete logins on this computer.",
 			"local.check": "Check permissions",
 			"local.checking": "Checking…",
+			"local.chip.granted": "Granted",
+			"local.chip.checking": "Checking",
+			"local.chip.unchecked": "Not checked",
+			"local.chip.failed": "Needs attention",
 			"entry.label": "Computer",
 			"entry.screen.title": "{name}'s screen",
 			"entry.shared": "This Computer is shared by every PersonaBot in the profile: each keeps its own window and they share logins and files.",
@@ -940,6 +953,11 @@ window.__ModuleLoader__.load({
 			"entry.access.failureHint": "Access failed",
 			"entry.start": "Start",
 			"entry.starting": "Starting…",
+			"entry.chip.setup": "Needs setup",
+			"entry.chip.authorize": "Needs approval",
+			"entry.chip.running": "Running",
+			"entry.chip.stopped": "Stopped",
+			"entry.chip.failed": "Error",
 			"entry.stop": "Stop",
 			"entry.stopping": "Stopping…",
 			"entry.reconnect": "Reconnect",
@@ -1023,6 +1041,355 @@ window.__ModuleLoader__.load({
 			importing: "entry.phase.importing"
 		};
 		//#endregion
+		//#region packages/client/src/client/channel-sidebar-icon.tsx
+		/**
+		* Vendored Channel sidebar glyphs from lucide-react@1.46.0 (ISC, ADR-0032).
+		*
+		* Source: the matching lucide `dist/esm/icons/*.mjs` glyph data. Vendored at the
+		* stock 2-unit stroke without adding a `lucide-react` runtime dependency.
+		*
+		* ISC License
+		*
+		* Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT).
+		* All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+		*
+		* Permission to use, copy, modify, and/or distribute this software for any
+		* purpose with or without fee is hereby granted, provided that the above
+		* copyright notice and this permission notice appear in all copies.
+		*
+		* THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+		* REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+		* AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+		* INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+		* LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+		* OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+		* PERFORMANCE OF THIS SOFTWARE.
+		*/
+		const glyphs = {
+			"alarm-clock": [
+				["circle", {
+					cx: "12",
+					cy: "13",
+					r: "8"
+				}],
+				["path", { d: "M12 9v4l2 2" }],
+				["path", { d: "M5 3 2 6" }],
+				["path", { d: "m22 6-3-3" }],
+				["path", { d: "M6.38 18.7 4 21" }],
+				["path", { d: "M17.64 18.67 20 21" }]
+			],
+			user: [["path", { d: "M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" }], ["circle", {
+				cx: "12",
+				cy: "7",
+				r: "4"
+			}]],
+			bot: [
+				["path", { d: "M12 8V4H8" }],
+				["rect", {
+					width: "16",
+					height: "12",
+					x: "4",
+					y: "8",
+					rx: "2"
+				}],
+				["path", { d: "M2 14h2" }],
+				["path", { d: "M20 14h2" }],
+				["path", { d: "M15 13v2" }],
+				["path", { d: "M9 13v2" }]
+			],
+			"list-checks": [
+				["path", { d: "M13 5h8" }],
+				["path", { d: "M13 12h8" }],
+				["path", { d: "M13 19h8" }],
+				["path", { d: "m3 17 2 2 4-4" }],
+				["path", { d: "m3 7 2 2 4-4" }]
+			],
+			palette: [
+				["path", { d: "M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" }],
+				["circle", {
+					cx: "13.5",
+					cy: "6.5",
+					r: ".5",
+					fill: "currentColor"
+				}],
+				["circle", {
+					cx: "17.5",
+					cy: "10.5",
+					r: ".5",
+					fill: "currentColor"
+				}],
+				["circle", {
+					cx: "6.5",
+					cy: "12.5",
+					r: ".5",
+					fill: "currentColor"
+				}],
+				["circle", {
+					cx: "8.5",
+					cy: "7.5",
+					r: ".5",
+					fill: "currentColor"
+				}]
+			],
+			"image-up": [
+				["path", { d: "M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10l-3.1-3.1a2 2 0 0 0-2.814.014L6 21" }],
+				["path", { d: "m14 19.5 3-3 3 3" }],
+				["path", { d: "M17 22v-5.5" }],
+				["circle", {
+					cx: "9",
+					cy: "9",
+					r: "2"
+				}]
+			],
+			lock: [["rect", {
+				width: "18",
+				height: "11",
+				x: "3",
+				y: "11",
+				rx: "2",
+				ry: "2"
+			}], ["path", { d: "M7 11V7a5 5 0 0 1 10 0v4" }]],
+			play: [["path", { d: "M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" }]],
+			"lock-open": [["rect", {
+				width: "18",
+				height: "11",
+				x: "3",
+				y: "11",
+				rx: "2",
+				ry: "2"
+			}], ["path", { d: "M7 11V7a5 5 0 0 1 9.9-1" }]],
+			eye: [["path", { d: "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" }], ["circle", {
+				cx: "12",
+				cy: "12",
+				r: "3"
+			}]],
+			"eye-off": [
+				["path", { d: "M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" }],
+				["path", { d: "M14.084 14.158a3 3 0 0 1-4.242-4.242" }],
+				["path", { d: "M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" }],
+				["path", { d: "m2 2 20 20" }]
+			],
+			files: [
+				["path", { d: "M15 2h-4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" }],
+				["path", { d: "M16.706 2.706A2.4 2.4 0 0 0 15 2v5a1 1 0 0 0 1 1h5a2.4 2.4 0 0 0-.706-1.706z" }],
+				["path", { d: "M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1" }]
+			],
+			"git-branch": [
+				["path", { d: "M15 6a9 9 0 0 0-9 9V3" }],
+				["circle", {
+					cx: "18",
+					cy: "6",
+					r: "3"
+				}],
+				["circle", {
+					cx: "6",
+					cy: "18",
+					r: "3"
+				}]
+			],
+			"messages-square": [["path", { d: "M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" }], ["path", { d: "M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1" }]],
+			inbox: [["polyline", { points: "22 12 16 12 14 15 10 15 8 12 2 12" }], ["path", { d: "M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" }]],
+			"folder-key": [
+				["path", { d: "M13 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v1.36" }],
+				["path", { d: "M19 12v6" }],
+				["path", { d: "M19 14h2" }],
+				["circle", {
+					cx: "19",
+					cy: "20",
+					r: "2"
+				}]
+			],
+			users: [
+				["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }],
+				["path", { d: "M16 3.128a4 4 0 0 1 0 7.744" }],
+				["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87" }],
+				["circle", {
+					cx: "9",
+					cy: "7",
+					r: "4"
+				}]
+			],
+			"settings-2": [
+				["path", { d: "M14 17H5" }],
+				["path", { d: "M19 7h-9" }],
+				["circle", {
+					cx: "17",
+					cy: "17",
+					r: "3"
+				}],
+				["circle", {
+					cx: "7",
+					cy: "7",
+					r: "3"
+				}]
+			],
+			settings: [["path", { d: "M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" }], ["circle", {
+				cx: "12",
+				cy: "12",
+				r: "3"
+			}]],
+			monitor: [
+				["rect", {
+					width: "20",
+					height: "14",
+					x: "2",
+					y: "3",
+					rx: "2"
+				}],
+				["line", {
+					x1: "8",
+					x2: "16",
+					y1: "21",
+					y2: "21"
+				}],
+				["line", {
+					x1: "12",
+					x2: "12",
+					y1: "17",
+					y2: "21"
+				}]
+			],
+			globe: [
+				["circle", {
+					cx: "12",
+					cy: "12",
+					r: "10"
+				}],
+				["path", { d: "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" }],
+				["path", { d: "M2 12h20" }]
+			],
+			"panels-top-left": [
+				["rect", {
+					width: "18",
+					height: "18",
+					x: "3",
+					y: "3",
+					rx: "2"
+				}],
+				["path", { d: "M3 9h18" }],
+				["path", { d: "M9 21V9" }]
+			],
+			"grip-vertical": [
+				["circle", {
+					cx: "9",
+					cy: "12",
+					r: "1"
+				}],
+				["circle", {
+					cx: "9",
+					cy: "5",
+					r: "1"
+				}],
+				["circle", {
+					cx: "9",
+					cy: "19",
+					r: "1"
+				}],
+				["circle", {
+					cx: "15",
+					cy: "12",
+					r: "1"
+				}],
+				["circle", {
+					cx: "15",
+					cy: "5",
+					r: "1"
+				}],
+				["circle", {
+					cx: "15",
+					cy: "19",
+					r: "1"
+				}]
+			],
+			check: [["path", { d: "M20 6 9 17l-5-5" }]]
+		};
+		function ChannelSidebarIcon({ name = "panels-top-left", size = 16 }) {
+			const nodes = Object.hasOwn(glyphs, name) ? glyphs[name] : glyphs["panels-top-left"];
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("svg", {
+				width: size,
+				height: size,
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 2,
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": "true",
+				children: nodes.map(([tag, attributes], index) => (0, react.createElement)(tag, {
+					...attributes,
+					key: index
+				}))
+			});
+		}
+		//#endregion
+		//#region packages/client/src/client/sidebar-card.tsx
+		function SidebarCardList({ label, className, children }) {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("ul", {
+				className: className === void 0 ? "bh-card-list" : "bh-card-list " + className,
+				"aria-label": label,
+				children
+			});
+		}
+		function SidebarCardRow({ icon, iconLabel, title, titleClassName, hint, chips, meta, trailing, detail, onClick, disabled, muted, mainClassName, dialog, expanded, controls, state }) {
+			const body = /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+				className: "bh-card-icon",
+				role: iconLabel === void 0 ? void 0 : "img",
+				"aria-label": iconLabel,
+				title: iconLabel,
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ChannelSidebarIcon, {
+					name: icon,
+					size: 16
+				})
+			}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", {
+				className: "bh-card-body",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: titleClassName === void 0 ? "bh-card-title" : "bh-card-title " + titleClassName,
+						children: title
+					}),
+					chips === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: "bh-card-chips",
+						children: chips
+					}),
+					meta === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: "bh-card-meta",
+						children: meta
+					})
+				]
+			})] });
+			const className = mainClassName === void 0 ? "bh-card-main" : "bh-card-main " + mainClassName;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("li", {
+				className: "bh-card-row",
+				"data-muted": muted === true ? "true" : void 0,
+				"data-state": state,
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					className: "bh-card-line",
+					children: [onClick === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						className,
+						title: hint,
+						children: body
+					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						className,
+						title: hint,
+						disabled,
+						"aria-haspopup": dialog === true ? "dialog" : void 0,
+						"aria-expanded": expanded,
+						"aria-controls": controls,
+						onClick,
+						children: body
+					}), trailing === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						className: "bh-card-trailing",
+						children: trailing
+					})]
+				}), detail === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					id: controls,
+					className: "bh-card-detail",
+					children: detail
+				})]
+			});
+		}
+		//#endregion
 		//#region packages/computer/src/settings.ts
 		const COMPUTER_SETTINGS_NAMESPACE = "botharness-computer";
 		const COMPUTER_EXPORT_DIR_FIELD = "exportDir";
@@ -1100,37 +1467,53 @@ window.__ModuleLoader__.load({
 					await refresh();
 				}).catch((error) => setError(String(error))).finally(() => setBusy(false));
 			};
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+			const granted = payload?.status?.state === "running";
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				ref: resource,
-				style: {
-					display: "flex",
-					flexDirection: "column",
-					gap: 8
-				},
-				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: t(payload?.status?.state === "running" ? "local.granted" : preparing ? "local.checking" : "local.title") }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: {
-							color: LOCAL_COMPUTER_COLORS.secondary,
-							fontSize: 12
-						},
-						children: t("local.description")
-					}),
-					failure === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						role: "alert",
-						style: {
-							color: LOCAL_COMPUTER_COLORS.error,
-							fontSize: 12
-						},
-						children: failure
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-						size: "sm",
-						disabled: preparing || payload?.probe?.available === false,
-						onClick: check,
-						children: t(preparing ? "local.checking" : "local.check")
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardList, {
+					className: "bh-computer-cards",
+					children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardRow, {
+						icon: "monitor",
+						title: t("local.title"),
+						chips: granted ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "success",
+							children: t("local.chip.granted")
+						}) : preparing ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "info",
+							children: t("local.chip.checking")
+						}) : failure === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "neutral",
+							children: t("local.chip.unchecked")
+						}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+							tone: "danger",
+							children: t("local.chip.failed")
+						}),
+						meta: t(granted ? "local.granted" : "local.description"),
+						detail: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: {
+								display: "grid",
+								gap: 8,
+								justifyItems: "start"
+							},
+							children: [failure === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								role: "alert",
+								style: {
+									color: LOCAL_COMPUTER_COLORS.error,
+									fontSize: 12,
+									lineHeight: "16px",
+									overflowWrap: "anywhere"
+								},
+								children: failure
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+								size: "sm",
+								variant: "outline",
+								disabled: preparing || payload?.probe?.available === false,
+								onClick: check,
+								children: t(preparing ? "local.checking" : "local.check")
+							})]
+						})
 					})
-				]
+				})
 			});
 		}
 		//#endregion
@@ -1936,12 +2319,6 @@ window.__ModuleLoader__.load({
 			cursor: "pointer",
 			fontSize: 12
 		};
-		const primaryButtonStyle = {
-			...buttonStyle,
-			border: `1px solid ${BH.buttonPrimaryFill}`,
-			background: BH.buttonPrimaryFill,
-			color: BH.labelPrimaryForeground
-		};
 		const terminalStyle = {
 			fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
 			fontSize: 11,
@@ -2028,11 +2405,27 @@ window.__ModuleLoader__.load({
 		}
 		function ComputerEntryView(props) {
 			const { t, state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, storage, resolution, onStart, onConfirmStart, onStop, onApprove, onCancel } = props;
-			if (!runtimeAvailable) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+			const title = t("rows.target.container");
+			const card = (chip, rest) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardList, {
+				className: "bh-computer-cards",
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(SidebarCardRow, {
+					icon: "monitor",
+					title,
+					chips: chip,
+					...rest
+				})
+			});
+			if (!runtimeAvailable) return card(/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+				tone: "warning",
+				children: t("entry.chip.setup")
+			}), { detail: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: noteStyle,
 				children: t(SETUP_GUIDANCE_KEY)
-			});
-			if (confirming) return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+			}) });
+			if (confirming) return card(/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+				tone: "warning",
+				children: t("entry.chip.authorize")
+			}), { detail: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
 					display: "flex",
 					flexDirection: "column",
@@ -2082,39 +2475,52 @@ window.__ModuleLoader__.load({
 							display: "flex",
 							gap: 8
 						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							style: buttonStyle,
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+							size: "sm",
+							variant: "outline",
 							onClick: onCancel,
 							children: t("entry.cancel")
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							style: primaryButtonStyle,
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+							size: "sm",
+							variant: "primary",
 							onClick: onConfirmStart,
 							children: t("entry.authorize")
 						})]
 					})
 				]
-			});
+			}) });
 			const inProgress = phase === "pulling" || phase === "starting" || phase === "stopping" || phase === "exporting" || phase === "importing";
-			if (state === "running") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RunningCard, {
-				t,
-				botSlug,
-				busy,
-				stopping: phase === "stopping",
-				...resolution === void 0 ? {} : { resolution },
-				onStop
-			});
-			if (inProgress) return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+			if (state === "running") return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
 					display: "flex",
 					flexDirection: "column",
-					gap: 8,
-					fontSize: 12
+					gap: 8
 				},
-				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [t(PHASE_LABEL[phase] ?? "entry.phase.working"), "…"] }),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				children: [card(/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+					tone: "success",
+					children: t("entry.chip.running")
+				}), { meta: t("entry.screen.title", { name: botSlug ?? "PersonaBot" }) }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RunningCard, {
+					t,
+					botSlug,
+					busy,
+					stopping: phase === "stopping",
+					...resolution === void 0 ? {} : { resolution },
+					onStop
+				})]
+			});
+			if (inProgress) return card(/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+				tone: "info",
+				children: t(PHASE_LABEL[phase] ?? "entry.phase.working")
+			}), {
+				meta: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [t("entry.elapsed", { seconds: elapsed }), progress?.updatedAt === void 0 ? "" : ` · ${t("entry.updated", { seconds: Math.max(0, Math.round((nowTs - progress.updatedAt) / 1e3)) })}`] }),
+				detail: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: {
+						display: "flex",
+						flexDirection: "column",
+						gap: 8,
+						fontSize: 12
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: {
 							position: "relative",
 							overflow: "hidden",
@@ -2134,34 +2540,30 @@ window.__ModuleLoader__.load({
 							width: `${String(progress.percent)}%`,
 							background: BH.businessPrimary
 						} })
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: terminalStyle,
 						children: progress?.text ?? detail ?? t("entry.wait")
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						style: { opacity: .5 },
-						children: [t("entry.elapsed", { seconds: elapsed }), progress?.updatedAt === void 0 ? "" : ` · ${t("entry.updated", { seconds: Math.max(0, Math.round((nowTs - progress.updatedAt) / 1e3)) })}`]
-					})
-				]
+					})]
+				})
 			});
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-				style: {
-					display: "flex",
-					flexDirection: "column",
-					gap: 8,
-					fontSize: 12
-				},
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-					style: noteStyle,
+			return card(error !== void 0 || state === "failed" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+				tone: "danger",
+				children: t("entry.chip.failed")
+			}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tag, {
+				tone: "neutral",
+				children: t("entry.chip.stopped")
+			}), {
+				meta: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					style: { whiteSpace: "pre-wrap" },
 					children: error ?? (isExitReport(detail) ? void 0 : detail) ?? t(SHARED_NOTE_KEY)
-				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-					type: "button",
-					style: primaryButtonStyle,
+				}),
+				detail: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+					size: "sm",
+					variant: "primary",
 					disabled: busy,
 					onClick: onStart,
 					children: busy ? t("entry.starting") : t("entry.start")
-				})]
+				})
 			});
 		}
 		function createComputerEntry(t) {

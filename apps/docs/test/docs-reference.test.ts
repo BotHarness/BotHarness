@@ -42,6 +42,14 @@ describe("generated developer reference", () => {
         description: "Bot Marketplace 服务地址",
         source: "packages/core/src/plugin.ts",
       },
+      {
+        name: "telemetry",
+        type: "boolean",
+        default: true,
+        description:
+          "发送匿名使用统计（Anonymous usage telemetry）；DO_NOT_TRACK=1 或 BOTHARNESS_TELEMETRY=0 也会关闭",
+        source: "packages/core/src/plugin.ts",
+      },
     ]);
   });
 

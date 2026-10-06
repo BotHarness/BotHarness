@@ -9,7 +9,9 @@ import {
   type ComponentType,
   type ReactElement,
 } from 'react';
-import { Switch, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Switch, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+import { ChannelSidebarIcon } from '../../../client/src/client/channel-sidebar-icon.js';
+import { SidebarCardList, SidebarCardRow } from '../../../client/src/client/sidebar-card.js';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
 import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
@@ -347,16 +349,6 @@ function BrowserHeaderAction({
   );
 }
 
-const buttonStyle = {
-  padding: '4px 10px',
-  borderRadius: 6,
-  border: '1px solid currentColor',
-  background: 'transparent',
-  color: 'inherit',
-  cursor: 'pointer',
-  fontSize: 12,
-} as const;
-
 function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const [store] = useState(() => createObservationStore(botSlug));
   const [infoStore] = useState(() => createBotInfoStore(botSlug));
@@ -585,49 +577,86 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     );
 
   return (
-    <div
-      ref={interactionResource}
-      className="bh-browser-body"
-      style={{ display: 'grid', gap: 8, fontSize: 12.5 }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ opacity: 0.8 }}>{t('entry.profile.label')}</span>
-        <ProfileCombobox
-          value={currentProfile}
-          profiles={[...info.profiles, ...(observation?.profiles ?? [])]}
-          disabled={busy || cleanupRequired || botSlug === undefined}
-          invalid={profileInvalid}
-          errorId={errorId}
-          onSelect={saveProfile}
-          t={t}
+    <div ref={interactionResource} className="bh-browser-body bh-browser-local">
+      <SidebarCardList className="bh-browser-cards">
+        <SidebarCardRow
+          icon="globe"
+          title={t(observation?.target === 'container' ? 'settings.container' : 'settings.local')}
+          chips={
+            <>
+              {observation?.running === true ? (
+                <Tag tone="success">{t('entry.chip.running')}</Tag>
+              ) : (
+                <Tag tone="neutral">{t('entry.chip.stopped')}</Tag>
+              )}
+              {paused ? <Tag tone="warning">{t('entry.chip.paused')}</Tag> : null}
+            </>
+          }
+          detail={
+            <div className="bh-browser-card-detail">
+              <div className="bh-browser-card-field">
+                <span>{t('entry.profile.label')}</span>
+                <ProfileCombobox
+                  value={currentProfile}
+                  profiles={[...info.profiles, ...(observation?.profiles ?? [])]}
+                  disabled={busy || cleanupRequired || botSlug === undefined}
+                  invalid={profileInvalid}
+                  errorId={errorId}
+                  onSelect={saveProfile}
+                  t={t}
+                />
+              </div>
+              {viewerUrl === undefined ? (
+                <div className="bh-browser-card-field">
+                  <span>{t('entry.view.follow')}</span>
+                  <Switch
+                    checked={follow}
+                    onChange={onFollow}
+                    label={t('entry.view.follow')}
+                    disabled={botSlug === undefined}
+                  />
+                </div>
+              ) : null}
+              <div className="bh-browser-actions">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={busy || cleanupRequired}
+                  onClick={() =>
+                    invoke(OPEN_ENDPOINT, follow || preview === undefined ? {} : { tab: preview })
+                  }
+                >
+                  {t(busy ? 'entry.view.opening' : 'entry.view.open')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy || cleanupRequired}
+                  onClick={onPause}
+                >
+                  {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
+                </Button>
+                {(observation?.running === true || cleanupRequired) && viewerUrl === undefined ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => invoke(STOP_ENDPOINT)}
+                  >
+                    {t('entry.view.stop')}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          }
         />
-      </div>
+      </SidebarCardList>
       {viewerUrl === undefined ? (
         <>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <span style={{ opacity: 0.8 }}>{t('entry.view.follow')}</span>
-            <Switch
-              checked={follow}
-              onChange={onFollow}
-              label={t('entry.view.follow')}
-              disabled={botSlug === undefined}
-            />
-          </div>
           {observation?.frame === null || observation?.frame === undefined ? (
-            <div style={{ opacity: 0.6 }}>{t('entry.view.noFrame')}</div>
+            <div className="bh-browser-note">{t('entry.view.noFrame')}</div>
           ) : (
-            <img
-              src={observation.frame}
-              alt={t('entry.label')}
-              style={{ width: '100%', borderRadius: 6, border: '1px solid currentColor' }}
-            />
+            <img className="bh-browser-frame" src={observation.frame} alt={t('entry.label')} />
           )}
         </>
       ) : (
@@ -656,61 +685,43 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
             if (!next) disableInteraction();
           }}
           extraControls={
-            <button type="button" style={buttonStyle} disabled={busy} onClick={onPause}>
+            <Button size="sm" variant="outline" disabled={busy} onClick={onPause}>
               {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
-            </button>
+            </Button>
           }
         />
       )}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          style={buttonStyle}
-          disabled={busy || cleanupRequired}
-          onClick={onPause}
-        >
-          {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
-        </button>
-        <button
-          type="button"
-          style={buttonStyle}
-          disabled={busy || cleanupRequired}
-          onClick={() =>
-            invoke(OPEN_ENDPOINT, follow || preview === undefined ? {} : { tab: preview })
-          }
-        >
-          {t(busy ? 'entry.view.opening' : 'entry.view.open')}
-        </button>
-        {(observation?.running === true || cleanupRequired) && viewerUrl === undefined ? (
-          <button
-            type="button"
-            style={buttonStyle}
-            disabled={busy}
-            onClick={() => invoke(STOP_ENDPOINT)}
-          >
-            {t('entry.view.stop')}
-          </button>
-        ) : null}
-      </div>
       {tabs.length === 0 ? (
-        <div style={{ opacity: 0.6 }}>{t('entry.view.noTabs')}</div>
+        <div className="bh-browser-note">{t('entry.view.noTabs')}</div>
       ) : (
-        <div style={{ display: 'grid', gap: 2 }}>
+        <ul className="bh-card-list bh-browser-tabs" aria-label={t('entry.view.tabs')}>
           {orderedTabs.map((tab) => (
-            <button
-              key={tab.targetId}
-              type="button"
-              className="bh-browser-tab"
-              aria-current={tab.current ? true : undefined}
-              aria-pressed={tab.targetId === focused}
-              title={tab.url}
-              onClick={() => onSelectTab(tab.targetId)}
-            >
-              <span className="bh-browser-tab-title">{tab.title === '' ? tab.url : tab.title}</span>
-              {tab.title === '' ? null : <span className="bh-browser-tab-url">{tab.url}</span>}
-            </button>
+            <li key={tab.targetId} className="bh-card-row">
+              <div className="bh-card-line">
+                <button
+                  type="button"
+                  className="bh-card-main bh-browser-tab"
+                  aria-current={tab.current ? true : undefined}
+                  aria-pressed={tab.targetId === focused}
+                  title={tab.url}
+                  onClick={() => onSelectTab(tab.targetId)}
+                >
+                  <span className="bh-card-icon">
+                    <ChannelSidebarIcon name="panels-top-left" size={16} />
+                  </span>
+                  <span className="bh-card-body">
+                    <span className="bh-card-title bh-browser-tab-title">
+                      {tab.title === '' ? tab.url : tab.title}
+                    </span>
+                    {tab.title === '' ? null : (
+                      <span className="bh-card-meta bh-browser-tab-url">{tab.url}</span>
+                    )}
+                  </span>
+                </button>
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
       {visibleError !== undefined ? (
         <div id={errorId} role="alert" className="bh-browser-error">

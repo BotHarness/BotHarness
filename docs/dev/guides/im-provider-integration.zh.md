@@ -108,7 +108,7 @@ Slack 后接入 Discord。其 Gateway 事件／intents、guild／channel／threa
 
 ## Discord 有界上下文候选 — 2026-10-06
 
-[#937](https://github.com/BotHarness/BotHarness/issues/937) 在独立开发 Provider 候选中增加显式、受校验的 `bridge_context` group／已有公开 thread Human 文本页。真实模型频道与 thread 读取／回复、原生 cursor 检查及恢复 Message Content 后的拒绝均已通过；最终模型续页与修复后冲突实测仍待完成，组合的 history/nearby/topic 行保持未取得资格。历史读取需要原生 App Message Content 正文可见性及 `VIEW_CHANNEL`／`READ_MESSAGE_HISTORY`，并继续检查原 Binding/Grant；不启用普通实时收件。已编辑的留存来源拒绝读取冲突，不覆盖证据。参见[准确检查点、截图和剩余验收](../verification/discord-937-context-reads.zh.md)；产品 Provider pin 不变。
+[#937](https://github.com/BotHarness/BotHarness/issues/937) 在独立开发 Provider 候选中增加显式、受校验的 `bridge_context` group／已有公开 thread Human 文本页。真实模型频道与 thread 读取／回复、原生 cursor 检查及恢复 Message Content 后的拒绝均已通过；重建 Profile 后的最终模型续页（13 + 5 条不重复 Human 消息）、精确原生编辑冲突及整页回滚也已通过，组合的 history/nearby/topic 行保持未取得资格。历史读取需要原生 App Message Content 正文可见性及 `VIEW_CHANNEL`／`READ_MESSAGE_HISTORY`，并继续检查原 Binding/Grant；不启用普通实时收件。已编辑的留存来源拒绝读取冲突，不覆盖证据。参见[最终验收、截图及不可变运行版本](../verification/discord-937-context-reads.zh.md)；产品 Provider pin 不变。
 
 ## 原生参考与权限检查
 
@@ -161,3 +161,9 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 微信 #905 候选增加默认关闭的 `source-voice-transcript-checked` 能力和 `sourceVoiceTranscripts` Consumer 选项。单个已完成的原生语音项沿用现有 Source Event 和 Inbox；Provider 必须保留扫码者、账号指纹、原生消息 ID 与原私聊续接能力。`voice.transcript` 标记 `platform` 或 `unavailable`，可选原生语音项 ID 和时长作为来源信息保留。Client 和模型必须区分平台转写与 Bot 生成内容；同一来源的语音元数据发生变化属于冲突，不能覆盖已提交证据。
 
 原生 `voice_item.text` 可缺失。不得暗中用 ASR 补齐、从附带说明伪造转写、暴露媒体密钥，或在没有独立 checked 音频能力时提供播放器／下载。缺失转写必须明确呈现。未完成／生成中的消息及多项歧义消息不会由此候选收件。首次真实测试提供了平台转写和 7,377 毫秒时长，但沿用的 QA Session 保留上一轮不回复指令；该次仅证明收件，不能证明回复送达。新 QA Session 中的第二条原生语音提供 5,180 毫秒时长，真实 DeepSeek Flash 模型调用 `bridge_read` 与 `bridge_reply`，自身身份 Outbox 被平台接受，Human 确认在原微信私聊收到“蓝色灯塔37”。浅色／深色截图呈现同一来源。这证明 checked 平台转写路径，不是 BotHarness 自行识别音频。
+
+## Discord nearby 开发切片 — #981
+
+下一个隔离 Provider 候选在来源的原生频道或准确公开 thread 中实现 `bridge_context(nearby)`：读取前后五分钟；消息稀疏时，补足所请求的前后 Human 文本最小条数（默认 10／5）。锚点独立于两侧计数；密集窗口需要有界续页，已耗尽的稀疏历史允许少于最小条数，不等待未来消息。签名 cursor 保留固定查询快照，每次成功续页续期 30 分钟；每次读取均检查当前权限和授权。
+
+[#981](https://github.com/BotHarness/BotHarness/issues/981) 跟踪自动化和真实模型资格验证。代理执行的真实模型原生资格验证已在 Core `7edd33e0`／Provider `5ae8bb3b` 通过：三页（11／0／5 条文本）、16 条唯一 Human 文本、准确原 thread 原生回复，无历史 Admission，临时 Message Content 已完整恢复 OFF。最终冷重启保留六张 canonical 表全部字节相同。详见[有界证据报告](../verification/discord-981-nearby-context.zh.md)。产品 Provider pin 和 history／nearby／topic 组合行资格保持不变；不增加普通消息收件或 thread 订阅。

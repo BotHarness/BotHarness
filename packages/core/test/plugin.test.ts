@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Context } from '@deepseek-ai/cordis';
@@ -82,6 +82,85 @@ describe('plugin entry', () => {
     expect(stubs.tools.register).not.toHaveBeenCalled();
     expect(stubs.systemPrompt.section).not.toHaveBeenCalled();
     expect(stubs.skills.register).not.toHaveBeenCalled();
+  });
+
+  it('sends plugin_started from the Host only while telemetry is on', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchImpl);
+    try {
+      const telemetryCalls = () =>
+        fetchImpl.mock.calls.filter(([url]) => String(url) === 'https://t.botharness.ai/batch/');
+      const home = process.env['DSH_HOME']!;
+      for (const [config, env] of [
+        [{ enabled: true, telemetry: false }, {}],
+        [{ enabled: true }, { DO_NOT_TRACK: '1' }],
+        [{ enabled: true }, { DO_NOT_TRACK: '', BOTHARNESS_TELEMETRY: '0' }],
+      ] as const) {
+        vi.stubEnv('DO_NOT_TRACK', '');
+        for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+        const { ctx } = createStubContext();
+        apply(ctx, config);
+        await ctx.fiber.dispose();
+        expect(telemetryCalls()).toEqual([]);
+        expect(existsSync(join(home, 'botharness', 'telemetry.json'))).toBe(false);
+      }
+
+      vi.stubEnv('DO_NOT_TRACK', '');
+      vi.stubEnv('BOTHARNESS_TELEMETRY', '');
+      const { ctx } = createStubContext();
+      apply(ctx, { enabled: true, telemetry: true });
+      await ctx.fiber.dispose();
+      await vi.waitFor(() => {
+        expect(telemetryCalls()).toHaveLength(1);
+      });
+      const body = JSON.parse(String(telemetryCalls()[0]![1]?.body)) as {
+        batch: { event: string; distinct_id: string; properties: Record<string, unknown> }[];
+      };
+      const installId = (
+        JSON.parse(readFileSync(join(home, 'botharness', 'telemetry.json'), 'utf8')) as {
+          installId: string;
+        }
+      ).installId;
+      expect(body.batch.map((event) => event.event)).toEqual(['plugin_started']);
+      expect(body.batch[0]!.distinct_id).toBe(installId);
+      expect(Object.keys(body.batch[0]!.properties).sort()).toEqual([
+        '$process_person_profile',
+        'arch',
+        'dsh_version',
+        'os',
+        'plugin_version',
+        'source',
+      ]);
+      expect(JSON.stringify(body)).not.toContain(home);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps a Human preference saved in Bot settings off across a Host restart', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchImpl);
+    try {
+      vi.stubEnv('DO_NOT_TRACK', '');
+      vi.stubEnv('BOTHARNESS_TELEMETRY', '');
+      const dir = join(process.env['DSH_HOME']!, 'botharness');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'telemetry.json'), JSON.stringify({ enabled: false }));
+      const { ctx } = createStubContext();
+      apply(ctx, { enabled: true });
+      const bridge = ctx.get('botharnessBridge') as unknown as {
+        telemetryStatus(): { enabled: boolean; preference: boolean };
+      };
+      expect(bridge.telemetryStatus()).toEqual({ enabled: false, preference: false });
+      await ctx.fiber.dispose();
+      expect(fetchImpl).not.toHaveBeenCalledWith(
+        'https://t.botharness.ai/batch/',
+        expect.anything(),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('provides the core without model-visible memory tools', () => {
@@ -368,11 +447,15 @@ describe('plugin entry', () => {
       'marketplaceReport',
       'releaseInfo',
       'releaseUpdate',
+      'telemetryStatus',
+      'telemetrySet',
       'scheduleList',
       'scheduleCreate',
       'scheduleUpdate',
       'scheduleDelete',
       'scheduleHistory',
+      'scheduleRunNow',
+      'schedulePreview',
     ]);
   });
 
@@ -446,7 +529,9 @@ describe('plugin entry', () => {
 
       const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
       const persona = sections.find((section) => section?.name === 'botharness:persona');
-      expect(persona?.text({ agent: { session: { id: 'orchestrator-local' } } })).toBe('');
+      const standing = persona?.text({ agent: { session: { id: 'orchestrator-local' } } });
+      expect(standing).toContain('## Core Memory (MEMORY.md)');
+      expect(standing).not.toContain('## Soul');
       expect(core?.memory.storeForSession('unowned-session')).toBeUndefined();
     } finally {
       vi.unstubAllEnvs();
@@ -478,19 +563,22 @@ describe('plugin entry', () => {
 
       const memoryDir = core?.registry.memoryDirFor('local-bot');
       if (memoryDir === undefined) throw new Error('memory dir missing');
-      writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v1\n');
+      writeFileSync(join(memoryDir, 'SOUL.md'), '# Persona v1\n');
 
       const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
       const persona = sections.find((section) => section?.name === 'botharness:persona');
       const running = { agent: { session: { id: 'orchestrator-local' } } };
-      expect(persona?.text(running)).toBe('# Persona v1\n');
+      const frozen = persona?.text(running);
+      expect(frozen).toContain('## Soul (SOUL.md)');
+      expect(frozen).toContain('# Persona v1');
 
-      writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v2\n');
+      writeFileSync(join(memoryDir, 'SOUL.md'), '# Persona v2\n');
+      writeFileSync(join(memoryDir, 'MEMORY.md'), '- grew mid-Session\n');
 
-      expect(persona?.text(running)).toBe('# Persona v1\n');
-      expect(persona?.text({ agent: { session: { id: 'orchestrator-new' } } })).toBe(
-        '# Persona v2\n',
-      );
+      expect(persona?.text(running)).toBe(frozen);
+      const fresh = persona?.text({ agent: { session: { id: 'orchestrator-new' } } });
+      expect(fresh).toContain('# Persona v2');
+      expect(fresh).toContain('- grew mid-Session');
     } finally {
       vi.unstubAllEnvs();
     }

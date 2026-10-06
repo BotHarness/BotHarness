@@ -41,6 +41,7 @@ import type {
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
 import type { ReleaseInfo, ReleaseService, ReleaseUpdate } from '../release/service.js';
+import type { TelemetryStatus } from '../telemetry/service.js';
 import {
   AssignmentReplyTargetError,
   type HumanAssignmentContext,
@@ -144,6 +145,7 @@ import {
   type BotScheduleFiring,
   type BotScheduleStore,
   type BotScheduleTrigger,
+  previewBotScheduleTrigger,
 } from '../schedules/bot-schedules.js';
 import type {
   HumanAttentionQuery,
@@ -425,11 +427,15 @@ export interface BridgeMethods {
   marketplaceReport(payload: unknown): Promise<BridgeResult<{ received: true }>>;
   releaseInfo(payload: unknown): BridgeResult<ReleaseInfo>;
   releaseUpdate(): Promise<BridgeResult<ReleaseUpdate>>;
+  telemetryStatus(): BridgeResult<TelemetryStatus>;
+  telemetrySet(payload: unknown): BridgeResult<TelemetryStatus>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
   scheduleCreate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
   scheduleUpdate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
   scheduleDelete(payload: unknown): BridgeResult<{ removed: boolean }>;
   scheduleHistory(payload: unknown): BridgeResult<{ firings: BotScheduleFiring[] }>;
+  scheduleRunNow(payload: unknown): BridgeResult<{ firing: BotScheduleFiring }>;
+  schedulePreview(payload: unknown): BridgeResult<{ occurrences: string[] }>;
 }
 
 export interface BridgeMethodsDeps {
@@ -465,6 +471,7 @@ export interface BridgeMethodsDeps {
   createBotId?: () => string;
   marketplace?: MarketplaceClient;
   release?: ReleaseService;
+  telemetry?: { status(): TelemetryStatus; setPreference(enabled: boolean): TelemetryStatus };
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -512,20 +519,37 @@ function releaseUnavailable(): BridgeResult<never> {
   };
 }
 
+function telemetryUnavailable(): BridgeResult<never> {
+  return {
+    ok: false,
+    error: { code: 'telemetry-unavailable', message: 'Usage statistics are unavailable' },
+  };
+}
+
 function invalidInput(message: string): BridgeResult<never> {
   return { ok: false, error: { code: 'invalid-input', message } };
 }
 
 function parseScheduleTrigger(value: unknown): BotScheduleTrigger | undefined {
   const source = asObject(value);
+  const time = source['time'];
+  const timeZone = source['timeZone'];
   if (source['kind'] === 'every' && Number.isSafeInteger(source['everySeconds']))
     return { kind: 'every', everySeconds: source['everySeconds'] as number };
+  if (typeof timeZone !== 'string') return undefined;
+  if (source['kind'] === 'cron' && typeof source['expression'] === 'string')
+    return { kind: 'cron', expression: source['expression'], timeZone };
+  if (typeof time !== 'string') return undefined;
+  if (source['kind'] === 'daily') return { kind: 'daily', time, timeZone };
+  const weekdays = source['weekdays'];
   if (
-    source['kind'] === 'daily' &&
-    typeof source['time'] === 'string' &&
-    typeof source['timeZone'] === 'string'
+    source['kind'] === 'weekly' &&
+    Array.isArray(weekdays) &&
+    weekdays.every((day) => Number.isSafeInteger(day))
   )
-    return { kind: 'daily', time: source['time'], timeZone: source['timeZone'] };
+    return { kind: 'weekly', time, timeZone, weekdays: weekdays as number[] };
+  if (source['kind'] === 'once' && typeof source['date'] === 'string')
+    return { kind: 'once', date: source['date'], time, timeZone };
   return undefined;
 }
 
@@ -1488,6 +1512,28 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     async releaseUpdate() {
       if (deps.release === undefined) return releaseUnavailable();
       return { ok: true, value: await deps.release.update() };
+    },
+    telemetryStatus() {
+      return {
+        ok: true,
+        value: deps.telemetry?.status() ?? { enabled: false, preference: false },
+      };
+    },
+    telemetrySet(payload) {
+      const enabled = asObject(payload)['enabled'];
+      if (typeof enabled !== 'boolean') return invalidInput('enabled is required');
+      if (deps.telemetry === undefined) return telemetryUnavailable();
+      try {
+        return { ok: true, value: deps.telemetry.setPreference(enabled) };
+      } catch {
+        return {
+          ok: false,
+          error: {
+            code: 'telemetry-persist-failed',
+            message: 'The usage statistics choice could not be saved',
+          },
+        };
+      }
     },
     marketplaceDetail(payload) {
       const id = asObject(payload)['id'];
@@ -2454,7 +2500,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         (source['enabled'] !== undefined && typeof source['enabled'] !== 'boolean') ||
         (source['locked'] !== undefined && typeof source['locked'] !== 'boolean')
       )
-        return invalidInput('title, prompt and an every or daily trigger are required');
+        return invalidInput('title, prompt and a valid trigger are required');
       try {
         return {
           ok: true,
@@ -2506,7 +2552,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       if (source['trigger'] !== undefined) {
         const trigger = parseScheduleTrigger(source['trigger']);
-        if (trigger === undefined) return invalidInput('trigger must be every or daily');
+        if (trigger === undefined)
+          return invalidInput('trigger must be every, daily, weekly, once or cron');
         change.trigger = trigger;
       }
       try {
@@ -2537,6 +2584,29 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (deps.schedules === undefined) return invalidInput('Bot Schedules are unavailable');
       try {
         return { ok: true, value: { firings: deps.schedules.history(slug, id) } };
+      } catch (error) {
+        return scheduleFailure(error);
+      }
+    },
+    scheduleRunNow(payload) {
+      const slug = asSlug(payload);
+      const id = asObject(payload)['id'];
+      if (slug === undefined || typeof id !== 'string')
+        return invalidInput('slug and id are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.schedules === undefined) return invalidInput('Bot Schedules are unavailable');
+      try {
+        return { ok: true, value: { firing: deps.schedules.runNow(slug, id) } };
+      } catch (error) {
+        return scheduleFailure(error);
+      }
+    },
+    schedulePreview(payload) {
+      const trigger = parseScheduleTrigger(asObject(payload)['trigger']);
+      if (trigger === undefined)
+        return invalidInput('trigger must be every, daily, weekly, once or cron');
+      try {
+        return { ok: true, value: { occurrences: previewBotScheduleTrigger(trigger) } };
       } catch (error) {
         return scheduleFailure(error);
       }
