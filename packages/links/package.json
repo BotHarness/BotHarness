@@ -1,5 +1,5 @@
 {
-  "name": "@botharness/links",
+  "name": "@botharness/links-worker",
   "version": "0.0.0",
   "private": true,
   "description": "Campaign short link Worker: go.botharness.ai redirects with UTM parameters and counts clicks (ADR-0132)",
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.6.3",
+    "@modelcontextprotocol/sdk": "^1.30.1",
     "hono": "^4.13.9",
     "zod": "^4.6.5"
   },
