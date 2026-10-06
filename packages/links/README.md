@@ -17,6 +17,7 @@
 - **Language.** A link stores the Chinese (default) site path and a `language`. `zh` opens the path as is; `en` opens it under `/en`: path `/docs/overview/` with `en` goes to `/en/docs/overview/`, path `/` with `en` goes to `/en/`. Paths that already start with `/en` are refused so the prefix is never doubled.
 - **Not an open redirect.** The origin is fixed in code. A path must start with a single `/` and use only `A-Z a-z 0-9 - . _ ~ / %` (no query, fragment, `..` segment or `//` prefix), and the built URL is checked to stay on `deepseekbot.botharness.ai`.
 - **Slugs** of Campaigns and links: lowercase letters, digits and hyphens, 1–64 characters, not starting or ending with a hyphen, unique, fixed after creation. `v1`, `v2`, `mcp`, `admin`, `api`, `health` and `openapi` are reserved. Request slugs are matched case-insensitively.
+- **Generated slugs.** A link created without a `slug` gets `<platform>-<media>` (`_` becomes `-`), or the first free `-2`, `-3`… up to `-100` when that is taken, so `utm_content` stays readable. The admin page prefills a Campaign's slug from its name.
 - **Platform** and **media** are free labels (lowercase letters, digits, `-`, `_`, 1–32 characters) so new channels need no deploy. Suggested values: platforms `bilibili`, `x`, `youtube`, `producthunt`, `xiaohongshu`, `zhihu`, `wechat`, `github`, `hackernews`, `reddit`; media `video`, `post`, `launch`, `article`, `thread`, `comment`.
 - **Archived** links and Campaigns keep their rows and counts but no longer carry UTMs, so an old post still lands on the site without crediting a closed Campaign.
 
@@ -52,23 +53,23 @@ The event goes to `POST {POSTHOG_HOST}/i/v0/e/`:
 
 Every `/v1` route needs `Authorization: Bearer <token>`. `GET` routes need a `read` or `write` token; every other route needs `write`. Errors are `{ "error": { "code": "…" } }` (`unauthorized` 401, `insufficient-scope` 403, `invalid-request` 400 with `issues`, `*-not-found` 404, `*-slug-taken` and `campaign-archived` 409). The full contract is `GET /openapi.json`.
 
-| Route                                                                                      | Result                                                                                                           |
-| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `POST /v1/campaigns` `{ slug, name, description? }`                                        | `201` Campaign                                                                                                   |
-| `GET /v1/campaigns?includeArchived=true`                                                   | `{ campaigns }`, newest first, active only unless `includeArchived`                                              |
-| `GET /v1/campaigns/{slug}`                                                                 | Campaign                                                                                                         |
-| `PATCH /v1/campaigns/{slug}` `{ name?, description? }`                                     | Campaign                                                                                                         |
-| `POST /v1/campaigns/{slug}/archive`                                                        | Campaign with `archivedAt`                                                                                       |
-| `GET /v1/campaigns/{slug}/clicks`                                                          | `{ campaign, total, links: [{ slug, platform, media, clicks, lastClickedAt, archivedAt }] }`                     |
-| `POST /v1/links` `{ slug, campaign, platform, media, path = "/", language = "zh", note? }` | `201` Link with `shortUrl` and the full `target` URL; `409 campaign-archived` for an archived Campaign           |
-| `GET /v1/links?campaign=&includeArchived=true`                                             | `{ links }`, newest first                                                                                        |
-| `GET /v1/links/{slug}`                                                                     | Link                                                                                                             |
-| `PATCH /v1/links/{slug}` `{ platform?, media?, path?, language?, note? }`                  | Link                                                                                                             |
-| `POST /v1/links/{slug}/archive`                                                            | Link with `archivedAt`                                                                                           |
-| `GET /v1/links/{slug}/clicks?days=30`                                                      | `{ link, total, lastClickedAt, daily: [{ day, clicks }] }`, days with clicks in the last `days` (1–366) UTC days |
-| `POST /v1/tokens` `{ name, scope: "read" \| "write", expiresInDays = 90 \| null }`         | `201` token metadata plus `token`, the plaintext shown only in this response                                     |
-| `GET /v1/tokens`                                                                           | `{ tokens }` with `id`, `name`, `prefix`, `scope`, `createdAt`, `expiresAt`, `revokedAt`, `lastUsedAt`           |
-| `POST /v1/tokens/{id}/revoke`                                                              | The revoked token                                                                                                |
+| Route                                                                                       | Result                                                                                                           |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `POST /v1/campaigns` `{ slug, name, description? }`                                         | `201` Campaign                                                                                                   |
+| `GET /v1/campaigns?includeArchived=true`                                                    | `{ campaigns }`, newest first, active only unless `includeArchived`                                              |
+| `GET /v1/campaigns/{slug}`                                                                  | Campaign                                                                                                         |
+| `PATCH /v1/campaigns/{slug}` `{ name?, description? }`                                      | Campaign                                                                                                         |
+| `POST /v1/campaigns/{slug}/archive`                                                         | Campaign with `archivedAt`                                                                                       |
+| `GET /v1/campaigns/{slug}/clicks`                                                           | `{ campaign, total, links: [{ slug, platform, media, clicks, lastClickedAt, archivedAt }] }`                     |
+| `POST /v1/links` `{ slug?, campaign, platform, media, path = "/", language = "zh", note? }` | `201` Link with `shortUrl` and the full `target` URL; `409 campaign-archived` for an archived Campaign           |
+| `GET /v1/links?campaign=&includeArchived=true`                                              | `{ links }`, newest first                                                                                        |
+| `GET /v1/links/{slug}`                                                                      | Link                                                                                                             |
+| `PATCH /v1/links/{slug}` `{ platform?, media?, path?, language?, note? }`                   | Link                                                                                                             |
+| `POST /v1/links/{slug}/archive`                                                             | Link with `archivedAt`                                                                                           |
+| `GET /v1/links/{slug}/clicks?days=30`                                                       | `{ link, total, lastClickedAt, daily: [{ day, clicks }] }`, days with clicks in the last `days` (1–366) UTC days |
+| `POST /v1/tokens` `{ name, scope: "read" \| "write", expiresInDays = 90 \| null }`          | `201` token metadata plus `token`, the plaintext shown only in this response                                     |
+| `GET /v1/tokens`                                                                            | `{ tokens }` with `id`, `name`, `prefix`, `scope`, `createdAt`, `expiresAt`, `revokedAt`, `lastUsedAt`           |
+| `POST /v1/tokens/{id}/revoke`                                                               | The revoked token                                                                                                |
 
 ## Personal Access Tokens
 
@@ -85,18 +86,18 @@ The Worker serves a Streamable HTTP MCP server at `POST /mcp` ([#955](https://gi
 - **Auth.** `Authorization: Bearer <PAT>` with the same token check as `/v1`; a missing, unknown, expired or revoked token gets `401` with `WWW-Authenticate: Bearer`. The bootstrap secret does not work here.
 - **Tools.** Read tools work with a `read` or `write` token; the others need `write` and answer a `read` token with a tool error `{ "status": 403, "error": { "code": "insufficient-scope" } }`. Tools take the same zod schemas as `/v1` and call the same `src/operations.ts`, so validation and errors match the API (`{ status, error: { code } }` as a tool error).
 
-| Tool                                                                         | Scope | Same as                             |
-| ---------------------------------------------------------------------------- | ----- | ----------------------------------- |
-| `campaigns_list` `{ includeArchived? }`                                      | read  | `GET /v1/campaigns`                 |
-| `campaign_create` `{ slug, name, description? }`                             | write | `POST /v1/campaigns`                |
-| `campaign_update` `{ slug, name?, description? }`                            | write | `PATCH /v1/campaigns/{slug}`        |
-| `campaign_archive` `{ slug }`                                                | write | `POST /v1/campaigns/{slug}/archive` |
-| `campaign_clicks` `{ slug }`                                                 | read  | `GET /v1/campaigns/{slug}/clicks`   |
-| `links_list` `{ campaign?, includeArchived? }`                               | read  | `GET /v1/links`                     |
-| `link_create` `{ slug, campaign, platform, media, path?, language?, note? }` | write | `POST /v1/links`                    |
-| `link_update` `{ slug, platform?, media?, path?, language?, note? }`         | write | `PATCH /v1/links/{slug}`            |
-| `link_archive` `{ slug }`                                                    | write | `POST /v1/links/{slug}/archive`     |
-| `link_clicks` `{ slug, days? }`                                              | read  | `GET /v1/links/{slug}/clicks`       |
+| Tool                                                                          | Scope | Same as                             |
+| ----------------------------------------------------------------------------- | ----- | ----------------------------------- |
+| `campaigns_list` `{ includeArchived? }`                                       | read  | `GET /v1/campaigns`                 |
+| `campaign_create` `{ slug, name, description? }`                              | write | `POST /v1/campaigns`                |
+| `campaign_update` `{ slug, name?, description? }`                             | write | `PATCH /v1/campaigns/{slug}`        |
+| `campaign_archive` `{ slug }`                                                 | write | `POST /v1/campaigns/{slug}/archive` |
+| `campaign_clicks` `{ slug }`                                                  | read  | `GET /v1/campaigns/{slug}/clicks`   |
+| `links_list` `{ campaign?, includeArchived? }`                                | read  | `GET /v1/links`                     |
+| `link_create` `{ slug?, campaign, platform, media, path?, language?, note? }` | write | `POST /v1/links`                    |
+| `link_update` `{ slug, platform?, media?, path?, language?, note? }`          | write | `PATCH /v1/links/{slug}`            |
+| `link_archive` `{ slug }`                                                     | write | `POST /v1/links/{slug}/archive`     |
+| `link_clicks` `{ slug, days? }`                                               | read  | `GET /v1/links/{slug}/clicks`       |
 
 Link results carry `shortUrl` (`https://go.botharness.ai/<slug>`) and `target`, the site URL with the four UTMs. Add the server to Claude Code with a PAT from the admin page:
 

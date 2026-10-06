@@ -67,7 +67,7 @@ export async function archiveCampaign(store: Store, slug: string): Promise<Resul
 export async function createLink(
   store: Store,
   input: {
-    slug: string;
+    slug?: string | undefined;
     campaign: string;
     platform: string;
     media: string;
@@ -79,24 +79,42 @@ export async function createLink(
   const campaign = await store.campaign(input.campaign);
   if (!campaign) return fail('campaign-not-found', 404);
   if (campaign.archivedAt) return fail('campaign-archived', 409);
-  try {
-    await store.createLink(
-      {
-        slug: input.slug,
-        campaignId: campaign.id,
-        platform: input.platform,
-        media: input.media,
-        path: input.path,
-        language: input.language,
-        note: input.note ?? null,
-      },
-      now(),
-    );
-  } catch (err) {
-    if (isUniqueViolation(err)) return fail('link-slug-taken', 409);
-    throw err;
+  const candidates = input.slug ? [input.slug] : generatedSlugs(input.platform, input.media);
+  for (const slug of candidates) {
+    try {
+      await store.createLink(
+        {
+          slug,
+          campaignId: campaign.id,
+          platform: input.platform,
+          media: input.media,
+          path: input.path,
+          language: input.language,
+          note: input.note ?? null,
+        },
+        now(),
+      );
+    } catch (err) {
+      if (isUniqueViolation(err)) continue;
+      throw err;
+    }
+    return readLink(store, slug);
   }
-  return readLink(store, input.slug);
+  return fail('link-slug-taken', 409);
+}
+
+const GENERATED_ATTEMPTS = 100;
+
+function generatedSlugs(platform: string, media: string): string[] {
+  const base = `${platform}-${media}`
+    .replaceAll('_', '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 58)
+    .replace(/-$/, '');
+  const slugs = [base];
+  for (let n = 2; n <= GENERATED_ATTEMPTS; n += 1) slugs.push(`${base}-${n}`);
+  return slugs;
 }
 
 export async function readLink(store: Store, slug: string): Promise<Result<Link, 404>> {

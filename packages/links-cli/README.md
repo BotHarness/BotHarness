@@ -8,7 +8,7 @@ It is a thin client over the links Worker's `/v1` API, typed with the same zod s
 npm install -g @botharness/links
 bh-links login                      # paste the token at the prompt; or: export BH_LINKS_TOKEN=bhl_…
 bh-links campaigns create ph-launch --name "Product Hunt launch"
-bh-links links create ph-x-post --campaign ph-launch --platform x --media post --path /docs/overview/ --language en
+bh-links links create --campaign ph-launch --platform x --media post --path /docs/overview/ --language en
 bh-links list
 ```
 
@@ -19,22 +19,22 @@ ph-x-post  https://go.botharness.ai/ph-x-post  ph-launch  x         post   1
 
 ## Commands
 
-| Command                                                                                                                            | Result                                                                               |
-| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `bh-links list [--campaign <slug>] [--all]`                                                                                        | Links with slug, short URL, Campaign, platform, media, clicks; alias of `links list` |
-| `bh-links links get <slug>`                                                                                                        | One link with its target URL                                                         |
-| `bh-links links create <slug> --campaign <slug> --platform <label> --media <label> [--path /] [--language zh\|en] [--note <text>]` | The new link with its short URL and target URL                                       |
-| `bh-links links update <slug> [--platform] [--media] [--path] [--language] [--note]`                                               | The updated link; the slug and Campaign are fixed                                    |
-| `bh-links links archive <slug>`                                                                                                    | The archived link                                                                    |
-| `bh-links clicks <link> [--days 30]`                                                                                               | Total and daily (UTC) clicks                                                         |
-| `bh-links campaigns list [--all]`                                                                                                  | Campaigns                                                                            |
-| `bh-links campaigns get <slug>`                                                                                                    | One Campaign                                                                         |
-| `bh-links campaigns create <slug> --name <name> [--description <text>]`                                                            | The new Campaign                                                                     |
-| `bh-links campaigns update <slug> [--name] [--description]`                                                                        | The updated Campaign                                                                 |
-| `bh-links campaigns archive <slug>`                                                                                                | The archived Campaign                                                                |
-| `bh-links campaigns clicks <slug>`                                                                                                 | Clicks of the Campaign and each of its links                                         |
-| `bh-links login [--token <bhl_…>] [--url <url>]`                                                                                   | Checks the token against the API and saves it                                        |
-| `bh-links config`                                                                                                                  | The URL and where the token comes from                                               |
+| Command                                                                                                                              | Result                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `bh-links list [--campaign <slug>] [--all]`                                                                                          | Links with slug, short URL, Campaign, platform, media, clicks; alias of `links list` |
+| `bh-links links get <slug>`                                                                                                          | One link with its target URL                                                         |
+| `bh-links links create [<slug>] --campaign <slug> --platform <label> --media <label> [--path /] [--language zh\|en] [--note <text>]` | The new link with its short URL and target URL                                       |
+| `bh-links links update <slug> [--platform] [--media] [--path] [--language] [--note]`                                                 | The updated link; the slug and Campaign are fixed                                    |
+| `bh-links links archive <slug>`                                                                                                      | The archived link                                                                    |
+| `bh-links clicks <link> [--days 30]`                                                                                                 | Total and daily (UTC) clicks                                                         |
+| `bh-links campaigns list [--all]`                                                                                                    | Campaigns                                                                            |
+| `bh-links campaigns get <slug>`                                                                                                      | One Campaign                                                                         |
+| `bh-links campaigns create <slug> --name <name> [--description <text>]`                                                              | The new Campaign                                                                     |
+| `bh-links campaigns update <slug> [--name] [--description]`                                                                          | The updated Campaign                                                                 |
+| `bh-links campaigns archive <slug>`                                                                                                  | The archived Campaign                                                                |
+| `bh-links campaigns clicks <slug>`                                                                                                   | Clicks of the Campaign and each of its links                                         |
+| `bh-links login [--token <bhl_…>] [--url <url>]`                                                                                     | Checks the token against the API and saves it                                        |
+| `bh-links config`                                                                                                                    | The URL and where the token comes from                                               |
 
 - `--json` prints the API response instead of a table; `--all` includes archived entries.
 - An empty `--note ''` or `--description ''` clears the value.

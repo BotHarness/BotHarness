@@ -165,6 +165,27 @@ describe('admin pages', () => {
     expect(sqlite.prepare('SELECT COUNT(*) AS n FROM campaigns').get()).toEqual({ n: 0 });
   });
 
+  it('derives a campaign slug from its name and a link slug from platform and media', async () => {
+    const { post, page } = await signedIn();
+    const created = await post('/admin/campaigns', { slug: '', name: 'PH Launch 2026' });
+    expect(created.headers.get('location')).toBe(
+      '/admin/campaigns/ph-launch-2026?ok=Campaign+created.',
+    );
+    const link = await post('/admin/links', {
+      campaign: 'ph-launch-2026',
+      slug: '',
+      platform: 'x',
+      media: 'post',
+      path: '/',
+      language: 'zh',
+    });
+    expect(link.headers.get('location')).toContain(
+      'Created+https%3A%2F%2Fgo.botharness.ai%2Fx-post',
+    );
+    const detail = await (await page('/admin/campaigns/ph-launch-2026')).text();
+    expect(detail.indexOf('New link')).toBeLessThan(detail.indexOf('<h2>Links</h2>'));
+  });
+
   it('creates a campaign with two links, shows short URLs and click counts', async () => {
     const { post, page, request } = await signedIn();
     const created = await post('/admin/campaigns', { slug: 'ph-launch', name: 'PH launch' });

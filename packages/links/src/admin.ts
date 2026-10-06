@@ -72,6 +72,7 @@ a{color:var(--accent)}
 
 const SCRIPT = `document.addEventListener('click',function(e){var b=e.target.closest('[data-copy]');if(!b)return;navigator.clipboard.writeText(b.getAttribute('data-copy')).then(function(){var t=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=t},1200)})});
 document.querySelectorAll('dialog[data-modal]').forEach(function(d){if(d.showModal){d.close();d.showModal()}});
+document.querySelectorAll('form').forEach(function(f){var n=f.querySelector('[data-slug-source]'),t=f.querySelector('[data-slug-target]');if(!n||!t)return;t.addEventListener('input',function(){t.dataset.touched=t.value?'1':''});n.addEventListener('input',function(){if(!t.dataset.touched)t.value=n.value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,64).replace(/-+$/,'')})});
 document.addEventListener('submit',function(e){var m=e.target.getAttribute('data-confirm');if(m&&!confirm(m))e.preventDefault()});`;
 
 const date = (value: string | null) => (value ? value.slice(0, 10) : '—');
@@ -257,10 +258,14 @@ async function dashboard(c: AdminContext, created?: Token & { token: string }) {
       <section>
         <h2>New campaign</h2>
         <form class="grid" method="post" action="/admin/campaigns">
+          <label>Name<input name="name" required placeholder="PH Launch" data-slug-source /></label>
           <label
-            >Slug<input name="slug" required pattern="[a-z0-9-]+" placeholder="ph-launch"
+            >Slug (utm_campaign)<input
+              name="slug"
+              pattern="[a-z0-9-]+"
+              placeholder="from the name"
+              data-slug-target
           /></label>
-          <label>Name<input name="name" required placeholder="Product Hunt launch" /></label>
           <label>Description<input name="description" /></label>
           <button>Create campaign</button>
         </form>
@@ -392,6 +397,46 @@ async function campaignPage(c: AdminContext, slug: string) {
         </h1>
         ${campaign.description ? html`<p>${campaign.description}</p>` : ''}
         <p class="muted">${total} clicks across ${links.length} links.</p>
+        ${
+          archived
+            ? ''
+            : html`<section>
+                <h2>New link</h2>
+                ${datalists()}
+                <form class="grid" method="post" action="/admin/links">
+                  <input type="hidden" name="campaign" value="${campaign.slug}" />
+                  <label
+                    >Platform (utm_source)<input
+                      name="platform"
+                      list="platforms"
+                      required
+                      placeholder="x"
+                  /></label>
+                  <label
+                    >Media (utm_medium)<input name="media" list="media" required placeholder="post"
+                  /></label>
+                  <label>Path<input name="path" value="/" /></label>
+                  <label
+                    >Language<select name="language">
+                      ${options(['zh', 'en'], 'zh')}
+                    </select></label
+                  >
+                  <label>Note<input name="note" /></label>
+                  <label
+                    >Slug (utm_content)<input
+                      name="slug"
+                      pattern="[a-z0-9-]+"
+                      placeholder="auto: platform-media"
+                  /></label>
+                  <button>Create link</button>
+                </form>
+                <p class="small muted">
+                  Links open ${SHORT_ORIGIN.replace('https://', '')}/&lt;slug&gt;. Leave the slug
+                  empty to get &lt;platform&gt;-&lt;media&gt;, numbered when taken; en targets the
+                  same path under /en.
+                </p>
+              </section>`
+        }
         <section>
           <h2>Links</h2>
           <div class="table">
@@ -424,62 +469,36 @@ async function campaignPage(c: AdminContext, slug: string) {
           archived
             ? ''
             : html`<section>
-                  <h2>New link</h2>
-                  ${datalists()}
-                  <form class="grid" method="post" action="/admin/links">
-                    <input type="hidden" name="campaign" value="${campaign.slug}" />
-                    <label
-                      >Slug<input name="slug" required pattern="[a-z0-9-]+" placeholder="ph-x-post"
-                    /></label>
-                    <label
-                      >Platform (utm_source)<input
-                        name="platform"
-                        list="platforms"
-                        required
-                        placeholder="x"
-                    /></label>
-                    <label
-                      >Media (utm_medium)<input
-                        name="media"
-                        list="media"
-                        required
-                        placeholder="post"
-                    /></label>
-                    <label>Path<input name="path" value="/" /></label>
-                    <label
-                      >Language<select name="language">
-                        ${options(['zh', 'en'], 'zh')}
-                      </select></label
-                    >
-                    <label>Note<input name="note" /></label>
-                    <button>Create link</button>
-                  </form>
-                  <p class="small muted">
-                    Links open ${SHORT_ORIGIN.replace('https://', '')}/&lt;slug&gt;; en targets the
-                    same path under /en.
-                  </p>
-                </section>
-                <section>
-                  <h2>Campaign</h2>
-                  <form class="grid" method="post" action="/admin/campaigns/${campaign.slug}">
-                    <label>Name<input name="name" required value="${campaign.name}" /></label>
-                    <label
-                      >Description<input name="description" value="${campaign.description ?? ''}"
-                    /></label>
-                    <button>Save</button>
-                  </form>
-                  <form
-                    method="post"
-                    action="/admin/campaigns/${campaign.slug}/archive"
-                    data-confirm="Archive ${campaign.slug}? Its links will stop carrying UTMs."
-                    style="margin-top:12px"
-                  >
-                    <button class="danger">Archive campaign</button>
-                  </form>
-                </section>`
+                <h2>Campaign</h2>
+                <form class="grid" method="post" action="/admin/campaigns/${campaign.slug}">
+                  <label>Name<input name="name" required value="${campaign.name}" /></label>
+                  <label
+                    >Description<input name="description" value="${campaign.description ?? ''}"
+                  /></label>
+                  <button>Save</button>
+                </form>
+                <form
+                  method="post"
+                  action="/admin/campaigns/${campaign.slug}/archive"
+                  data-confirm="Archive ${campaign.slug}? Its links will stop carrying UTMs."
+                  style="margin-top:12px"
+                >
+                  <button class="danger">Archive campaign</button>
+                </form>
+              </section>`
         }`,
     ),
   );
+}
+
+function slugify(name: string) {
+  return name
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64)
+    .replace(/-+$/, '');
 }
 
 async function form(c: AdminContext): Promise<Record<string, string | undefined>> {
@@ -532,7 +551,11 @@ admin.get('/', async (c) => c.html(await dashboard(c)));
 admin.get('/campaigns/:slug', (c) => campaignPage(c, c.req.param('slug')));
 
 admin.post('/campaigns', async (c) => {
-  const parsed = CampaignCreateSchema.safeParse(await form(c));
+  const fields = await form(c);
+  const parsed = CampaignCreateSchema.safeParse({
+    ...fields,
+    slug: fields.slug ?? slugify(fields.name ?? ''),
+  });
   if (!parsed.success) return back(c, '/admin', { error: invalid(parsed.error.issues) });
   const result = await operations.createCampaign(c.var.store, parsed.data);
   if (!result.ok) return back(c, '/admin', { error: result.code });
