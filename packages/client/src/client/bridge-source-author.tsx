@@ -1,6 +1,10 @@
 import { useState, type ReactElement } from 'react';
 
-import { bridgeSourceLabel, externalPlatformLabel } from './bridge-source-label.js';
+import {
+  bridgeSourceLabel,
+  externalPlatformLabel,
+  externalSenderLabel,
+} from './bridge-source-label.js';
 import { Modal } from './modal.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ChannelMessage } from './store.js';
@@ -18,6 +22,7 @@ export function BridgeSourceDetails({
     [t('im.platformLabel'), externalPlatformLabel(origin.platform, t)],
     [t('im.conversationLabel'), origin.conversationName],
     [t('im.conversationId'), origin.conversationId],
+    ...(origin.senderName ? [[t('im.senderNameLabel'), origin.senderName]] : []),
     [t('im.senderLabel'), origin.senderId],
     [t('im.externalMessageId'), origin.messageId],
     [t('im.sourceEventId'), origin.sourceEventId],
@@ -44,16 +49,17 @@ export function BridgeSourceAuthor({
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const source = bridgeSourceLabel(origin, t);
+  const sender = externalSenderLabel(origin, t);
   return (
     <>
       <button
         type="button"
         className="bh-bubble-author bh-bridge-source-author"
-        aria-label={t('im.openOriginDetails', { source })}
+        aria-label={`${sender} · ${t('im.openOriginDetails', { source })}`}
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
       >
-        【{source}】
+        {sender} · 【{source}】
       </button>
       {open ? (
         <Modal

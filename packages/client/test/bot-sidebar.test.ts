@@ -136,6 +136,7 @@ function stubActions(): BridgeActions {
     messagingSource: vi.fn(async () => {
       throw new Error('unexpected source read');
     }),
+    pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: vi.fn(async () => ({ accounts: [], grants: [], intents: [] })),
     messagingTargets: vi.fn(async () => []),

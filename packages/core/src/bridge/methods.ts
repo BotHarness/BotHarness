@@ -1,3 +1,4 @@
+import { pairingReviewInput, type PairingRequest } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import {
   parseAllBotMention,
@@ -305,6 +306,7 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  pairingReview(payload: unknown): Promise<BridgeResult<{ pairing: PairingRequest }>>;
   channelBridges(payload: unknown): Promise<BridgeResult<ChannelBridgeSnapshot>>;
   channelBridge(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingIdentity(payload: unknown): Promise<BridgeResult<{ identity: MessagingIdentity }>>;
@@ -1009,6 +1011,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (!input.success) return Promise.resolve(invalidInput('Invalid external source'));
       return messagingCall(async (service) => ({
         source: service.inbound.read(input.data.slug, input.data.sourceEventId),
+      }));
+    },
+    pairingReview(payload) {
+      const input = z
+        .object({ slug: z.string().min(1), input: pairingReviewInput })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid pairing review'));
+      return messagingCall(async (service) => ({
+        pairing: service.pairing.review(input.data.slug, input.data.input),
       }));
     },
     messagingIdentity(payload) {

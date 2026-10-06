@@ -1,3 +1,4 @@
+import { PairingSettings } from './pairing-settings.js';
 import { externalPlatformLabel } from './bridge-source-label.js';
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
 import { Modal } from './modal.js';
@@ -26,6 +27,7 @@ export function MessagingProfile({
   slug: string;
   actions: Pick<
     BridgeActions,
+    | 'pairingReview'
     | 'messagingIdentity'
     | 'messagingGroupPolicy'
     | 'messagingThreadPolicy'
@@ -49,6 +51,7 @@ export function MessagingProfile({
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [pairingFailed, setPairingFailed] = useState(false);
   const generation = useRef(0);
   const mounted = useRef(false);
   const refreshRequest = useRef(0);
@@ -79,16 +82,23 @@ export function MessagingProfile({
       ++generation.current;
     };
   }, [actions, slug]);
-  const operate = async (operation: () => Promise<void>) => {
+  const operate = async (
+    operation: () => Promise<void>,
+    scope: 'bridge' | 'pairing' = 'bridge',
+  ) => {
     if (busy) return;
     const version = generation.current;
     setBusy(true);
     setFailed(false);
+    setPairingFailed(false);
     try {
       await operation();
       await refresh();
     } catch {
-      if (mounted.current && version === generation.current) setFailed(true);
+      if (mounted.current && version === generation.current) {
+        if (scope === 'pairing') setPairingFailed(true);
+        else setFailed(true);
+      }
     } finally {
       if (mounted.current && version === generation.current) setBusy(false);
     }
@@ -156,6 +166,19 @@ export function MessagingProfile({
         t={t}
         refresh={refresh}
         loadTargets={actions.messagingTargets}
+      />
+      <PairingSettings
+        requests={snapshot?.pairings ?? []}
+        receivers={snapshot?.pairingReceivers ?? []}
+        busy={busy}
+        failed={pairingFailed}
+        refresh={() => operate(async () => undefined, 'pairing')}
+        review={(input) =>
+          operate(async () => {
+            await actions.pairingReview(slug, input);
+          }, 'pairing')
+        }
+        t={t}
       />
       <ExternalIdentityTable
         snapshot={snapshot}

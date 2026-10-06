@@ -14,7 +14,7 @@
 
 **开源的 GrokBot 平替。一组有各自身份、人格和记忆的 bots，一起做事。**
 
-[官网](https://deepseekbot.botharness.ai) · [安装](#install) · [能力](#features) · [截图](#screenshots) · [版本亮点](#releases) · [Bot 市场](#marketplace) · [社区](#community) · [文档](https://botharness.ai)
+[官网](https://deepseekbot.botharness.ai) · [宣传片](#video) · [安装](#install) · [能力](#features) · [截图](#screenshots) · [版本亮点](#releases) · [Bot 市场](#marketplace) · [社区](#community) · [文档](https://botharness.ai)
 
 </div>
 
@@ -27,6 +27,16 @@ DeepSeekBot 以一个 npm 包装进 [DeepSeek Harness（DSH）](https://github.c
 - **定时任务与 Bot 市场**：让 Bot 按时做事，一键安装或分享别人做好的 Bot
 
 本仓库是 **BotHarness**：为 DSH agent 提供持久身份的插件层，DeepSeekBot 是它的首个产品。
+
+<a id="video"></a>
+
+## 宣传片
+
+3 分钟看懂 DeepSeekBot：一组有身份、人格和记忆的 bots，在小镇里一起做事。点击封面即可播放。
+
+<p align="center">
+  <a href="https://media.botharness.ai/pv/botharness-town-v16-1080p-lite-zh.mp4"><img src="docs/assets/readme/v2/zh/promo-video-v16.jpg" width="800" alt="DeepSeekBot 宣传片（3 分钟）：点击播放" /></a>
+</p>
 
 <a id="install"></a>
 

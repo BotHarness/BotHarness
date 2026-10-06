@@ -61,6 +61,53 @@ function faultAt(
 }
 
 describe('operational database owner', () => {
+  it('adds pairing after current Discord defaults without rewriting their immutable history', () => {
+    const dshHome = createTempRoot('botharness-pairing-migration-');
+    const priorPlan = defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation <= 58),
+    );
+    const prior = mountOperationalDatabase({ dshHome, schemaPlan: priorPlan });
+    expect(prior.generation).toBe(58);
+    attachOperationalModule(prior, 'pairing-migration-seed').transaction((database) => {
+      database
+        .prepare(
+          'INSERT INTO messaging_default_revisions (platform, revision, body) VALUES (?, ?, ?)',
+        )
+        .run('discord', 1, '{"preserved":true}');
+    });
+    prior.close();
+
+    const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    expect(upgraded.mode).toBe('ready');
+    expect(upgraded.generation).toBe(59);
+    const module = attachOperationalModule(upgraded, 'pairing-migration-check');
+    expect(
+      module.read((database) =>
+        database
+          .prepare(
+            'SELECT body FROM messaging_default_revisions WHERE platform = ? AND revision = ?',
+          )
+          .get('discord', 1),
+      ),
+    ).toEqual({ body: '{"preserved":true}' });
+    expect(
+      module.read((database) => database.prepare('SELECT * FROM messaging_pairings').all()),
+    ).toEqual([]);
+    expect(() =>
+      module.transaction((database) =>
+        database
+          .prepare('UPDATE messaging_default_revisions SET body = ? WHERE platform = ?')
+          .run('{}', 'discord'),
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        code: 'transaction-failed',
+        cause: expect.objectContaining({ message: expect.stringContaining('immutable') }),
+      }),
+    );
+    upgraded.close();
+  });
+
   it('preserves existing Assignment reports when upgrading to the latest schema', () => {
     const dshHome = createTempRoot('botharness-lifecycle-migration-');
     const priorPlan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1));
