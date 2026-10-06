@@ -62,3 +62,17 @@ claude mcp add --transport http botharness-links https://go.botharness.ai/mcp --
 ## Development
 
 Source lives in `packages/links-cli/src` of the BotHarness repository; `pnpm build` writes `dist/bh-links.mjs` and the workspace `pnpm test` runs the client against the Worker in process. To try it against a local Worker, start `pnpm dev` in `packages/links` and run `BH_LINKS_URL=http://127.0.0.1:8787 node packages/links-cli/dist/bh-links.mjs list`.
+
+## Release
+
+`@botharness/links` is versioned independently of DeepSeekBot and published by `.github/workflows/links-cli-release.yml`.
+
+1. Bump `version` in `packages/links-cli/package.json` (SemVer; a prerelease such as `0.2.0-rc.1` goes to the `next` dist-tag, anything else to `latest`) and merge it to `main`.
+2. Tag that commit on `main` and push the tag:
+
+   ```bash
+   git tag links-cli-v0.1.0 && git push origin links-cli-v0.1.0
+   ```
+
+3. The workflow checks that the tag is on `main` and matches the package version, runs `pnpm install --frozen-lockfile`, `pnpm build` and the links and CLI tests, then waits for approval in the `npm-release` environment.
+4. After approval it runs `pnpm --filter @botharness/links publish --provenance --access public`. It authenticates with npm trusted publishing (GitHub OIDC) when a Trusted Publisher for this workflow is configured on npmjs.com for `@botharness/links`, and otherwise with the `NPM_TOKEN` secret, the same fallback as the DeepSeekBot release.
