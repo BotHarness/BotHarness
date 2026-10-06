@@ -14,6 +14,7 @@ export interface MemoryGit {
   diff(): string;
   head(): string;
   commit(message: string): string;
+  commitPaths(paths: readonly string[], message: string): string;
   log(limit?: number): MemoryCommit[];
 
   activitySince(sinceIso: string): Array<{ at: string }>;
@@ -115,6 +116,13 @@ export function createMemoryGit(root: string): MemoryGit {
     },
     commit(message) {
       return commitIfChanges(root, message);
+    },
+    commitPaths(paths, message) {
+      run(root, ['add', '-A', '--', ...paths]);
+      const status = run(root, ['status', '--porcelain', '--', ...paths]);
+      if (status.trim().length === 0) return revParse(root);
+      run(root, ['commit', '--no-gpg-sign', '-m', message, '--', ...paths]);
+      return revParse(root);
     },
     log(limit = 10) {
       if (limit <= 0) return [];
