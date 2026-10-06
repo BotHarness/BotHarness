@@ -1,8 +1,11 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
+import type { Context } from 'hono';
 import { bearerAuth } from 'hono/bearer-auth';
 import { HTTPException } from 'hono/http-exception';
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { admin } from './admin.js';
 import type { AppEnv } from './env.js';
+import { createMcpServer } from './mcp.js';
 import * as operations from './operations.js';
 import { isPreviewer, sendLinkClicked, siteRoot, targetUrl } from './redirect.js';
 import {
@@ -83,38 +86,45 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-app.use(
-  '/v1/*',
+async function verifyBearer(
+  token: string,
+  c: Context<AppEnv>,
+  allowBootstrap: boolean,
+): Promise<boolean> {
+  const bootstrap = c.env.LINKS_BOOTSTRAP_TOKEN;
+  if (
+    allowBootstrap &&
+    bootstrap !== undefined &&
+    bootstrap.length >= MIN_BOOTSTRAP_LENGTH &&
+    (await sameSecret(token, bootstrap))
+  ) {
+    c.set('principal', { kind: 'bootstrap' });
+    return true;
+  }
+  if (!TOKEN_PATTERN.test(token)) return false;
+  const at = new Date();
+  const found = await c.var.store.activeToken(await hashToken(token), at.toISOString());
+  if (!found) return false;
+  c.set('principal', { kind: 'token', id: found.id, scope: found.scope });
+  c.executionCtx.waitUntil(
+    c.var.store.touchToken(
+      found.id,
+      at.toISOString(),
+      new Date(at.getTime() - TOUCH_INTERVAL_MS).toISOString(),
+    ),
+  );
+  return true;
+}
+
+const tokenAuth = (allowBootstrap: boolean) =>
   bearerAuth<AppEnv>({
     noAuthenticationHeader: { message: error('unauthorized') },
     invalidAuthenticationHeader: { message: error('unauthorized') },
     invalidToken: { message: error('unauthorized') },
-    verifyToken: async (token, c) => {
-      const bootstrap = c.env.LINKS_BOOTSTRAP_TOKEN;
-      if (
-        bootstrap !== undefined &&
-        bootstrap.length >= MIN_BOOTSTRAP_LENGTH &&
-        (await sameSecret(token, bootstrap))
-      ) {
-        c.set('principal', { kind: 'bootstrap' });
-        return true;
-      }
-      if (!TOKEN_PATTERN.test(token)) return false;
-      const at = new Date();
-      const found = await c.var.store.activeToken(await hashToken(token), at.toISOString());
-      if (!found) return false;
-      c.set('principal', { kind: 'token', id: found.id, scope: found.scope });
-      c.executionCtx.waitUntil(
-        c.var.store.touchToken(
-          found.id,
-          at.toISOString(),
-          new Date(at.getTime() - TOUCH_INTERVAL_MS).toISOString(),
-        ),
-      );
-      return true;
-    },
-  }),
-);
+    verifyToken: (token, c) => verifyBearer(token, c, allowBootstrap),
+  });
+
+app.use('/v1/*', tokenAuth(true));
 
 app.use('/v1/*', async (c, next) => {
   const principal = c.var.principal;
@@ -461,6 +471,22 @@ app.doc('/openapi.json', {
 });
 
 app.route('/admin', admin);
+
+app.use('/mcp', tokenAuth(false));
+
+app.all('/mcp', async (c) => {
+  if (c.req.method !== 'POST') {
+    return c.json(error('method-not-allowed'), 405, { allow: 'POST' });
+  }
+  const principal = c.var.principal;
+  const server = createMcpServer(
+    c.var.store,
+    principal.kind === 'token' ? principal.scope : 'read',
+  );
+  const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
+  await server.connect(transport);
+  return transport.handleRequest(c.req.raw);
+});
 
 app.get('/', (c) => c.redirect(siteRoot(), 302));
 
