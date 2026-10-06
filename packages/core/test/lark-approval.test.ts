@@ -114,7 +114,10 @@ async function fixture() {
   const owner = new ChannelToolApproval(core.channels, core.ownership);
   owners.push(owner);
   core.externalMessaging.approvals.attach(owner, core.channels);
-  const start = async (callId = 'call-1') => {
+  const start = async (
+    callId = 'call-1',
+    externalDecision: 'operation' | 'web-only' = 'operation',
+  ) => {
     const execution = {
       agent,
       name: 'bash',
@@ -122,7 +125,7 @@ async function fixture() {
       callId,
       token: Symbol('call'),
     } as ToolExecution;
-    owner.track(execution);
+    const untrack = owner.track(execution, externalDecision);
     const answer = owner.ask({ agent, toolName: 'bash', callId });
     await vi.waitFor(() =>
       expect(
@@ -134,6 +137,7 @@ async function fixture() {
     return {
       answer,
       execution,
+      untrack,
       delivery: core.externalMessaging.approvals
         .snapshot('ada')
         .deliveries.find((d) => d.callId === callId)!,
@@ -350,4 +354,39 @@ it('a pending native approval expires after 24 hours and old card clicks remain 
   } finally {
     vi.useRealTimers();
   }
+});
+
+it('one-call execution fences survive pre-execute untracking and still reject revocation or changed actual arguments', async () => {
+  const f = await fixture(),
+    pending = await f.start();
+  await vi.waitFor(() =>
+    expect(f.core.externalMessaging.approvals.snapshot('ada').deliveries[0]?.delivery).toBe('sent'),
+  );
+  await f.action(pending.delivery.id);
+  expect(await pending.answer).toBe('allowed-once');
+  const fence = f.owner.executionGuard(pending.execution.agent!, 'call-1')!;
+  pending.untrack?.();
+  expect(fence('bash', { command: 'pwd' })).toBe(true);
+  expect(fence('bash', { command: 'changed' })).toBe(false);
+  expect(fence('other', { command: 'pwd' })).toBe(false);
+  f.core.externalMessaging.pairing.review('ada', {
+    kind: 'revoke',
+    id: f.approved.id,
+    expectedRevision: 2,
+  });
+  expect(fence('bash', { command: 'pwd' })).toBe(false);
+});
+
+it('native Session-wide authorizations notify but remain Web-only', async () => {
+  const f = await fixture(),
+    pending = await f.start('session-authorization', 'web-only');
+  await vi.waitFor(() =>
+    expect(f.core.externalMessaging.approvals.snapshot('ada').deliveries[0]?.delivery).toBe('sent'),
+  );
+  expect(f.core.externalMessaging.approvals.snapshot('ada').deliveries[0]?.status).toBe(
+    'web-required',
+  );
+  expect(await f.action(pending.delivery.id)).toMatchObject({ status: 'refused' });
+  expect(await f.owner.decide('ada', pending.delivery.id, 'allowed-once')).toBe(true);
+  expect(await pending.answer).toBe('allowed-once');
 });

@@ -109,6 +109,7 @@ export interface MessagingApprovalCard {
   detail: string;
   status:
     | 'pending'
+    | 'web-required'
     | 'allowed-once'
     | 'rejected'
     | 'expired'

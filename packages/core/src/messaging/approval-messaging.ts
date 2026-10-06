@@ -48,7 +48,13 @@ export interface ApprovalDelivery {
 export interface ApprovalMessagingSnapshot {
   route?: ApprovalRoute;
   routeRevision: number;
-  destinations: { pairingId: string; name: string; accountName: string; ready: boolean }[];
+  destinations: {
+    pairingId: string;
+    name: string;
+    reference: string;
+    accountName: string;
+    ready: boolean;
+  }[];
   deliveries: ApprovalDelivery[];
 }
 export interface ApprovalMessaging {
@@ -182,6 +188,8 @@ export function createApprovalMessaging(options: {
   const render = (value: ApprovalDelivery): MessagingApprovalCard => {
     const notice = canonical(value);
     const labels: Record<MessagingApprovalCard['status'], string> = {
+      'web-required':
+        'Native session authorization; review in Web / 此请求授予原生会话权限，请在 Web 审核',
       pending: 'Awaiting an authorized decision / 等待授权用户处理',
       'allowed-once': 'Decision accepted; execution not yet confirmed / 已批准一次，执行结果待确认',
       rejected: 'Rejected; approval does not permit execution / 已拒绝，不允许执行',
@@ -237,8 +245,20 @@ export function createApprovalMessaging(options: {
       ),
     ]);
   };
+  const trace = (
+    initiator: string,
+    phase: string,
+    outcome: string,
+    durationMs: number,
+    reason = 'none',
+    attempt = 0,
+  ) =>
+    options.warn?.(
+      `approval-notification ${JSON.stringify({ initiator, phase, outcome, durationMs: Math.round(durationMs), reason, attempt })}`,
+    );
   const update = async (id: string): Promise<void> => {
     if (busy.has(id) || closed) return;
+    const startedAt = performance.now();
     const value = read(id);
     if (!value?.receipt || !safe(value)) return;
     busy.add(id);
@@ -259,6 +279,7 @@ export function createApprovalMessaging(options: {
       );
       const latest = read(id);
       if (latest) write({ ...latest, update: 'updated' });
+      trace('native-settlement', 'update', 'updated', performance.now() - startedAt);
     } catch (error) {
       const latest = read(id);
       if (latest)
@@ -270,12 +291,19 @@ export function createApprovalMessaging(options: {
               : 'unknown-outcome',
         });
     } finally {
+      trace(
+        'native-settlement',
+        'update-finish',
+        read(id)?.update ?? 'disposed',
+        performance.now() - startedAt,
+      );
       busy.delete(id);
       const latest = read(id);
       if (latest && latest.status !== value.status) void update(id);
     }
   };
   const send = async (id: string): Promise<ApprovalDelivery> => {
+    const startedAt = performance.now();
     const value = read(id);
     if (!value) throw new MessagingError('approval-delivery-unavailable');
     if (
@@ -339,8 +367,25 @@ export function createApprovalMessaging(options: {
         }, latest.attempts * 1000);
         timer.unref();
         timers.set(id, timer);
+        trace(
+          'native-approval',
+          'retry-scheduled',
+          'waiting',
+          performance.now() - startedAt,
+          latest.reason ?? 'known-unsent',
+          latest.attempts,
+        );
       }
     } finally {
+      const result = read(id);
+      trace(
+        value.status === 'test' ? 'authenticated-web' : 'native-approval',
+        'send-finish',
+        result?.delivery ?? 'disposed',
+        performance.now() - startedAt,
+        result?.reason ?? 'none',
+        result?.attempts ?? 0,
+      );
       busy.delete(id);
     }
     const latest = read(id) ?? value;
@@ -365,7 +410,7 @@ export function createApprovalMessaging(options: {
         expiresAt: notice.expiresAt,
         delivery: 'pending',
         attempts: 0,
-        status: 'pending',
+        status: notice.externalDecision === 'web-only' ? 'web-required' : 'pending',
         update: 'none',
       });
       queueMicrotask(
@@ -392,7 +437,7 @@ export function createApprovalMessaging(options: {
   if (options.recover !== false)
     database.transaction((db) => {
       db.prepare(
-        "UPDATE messaging_approval_deliveries SET body = json_set(body, '$.delivery', CASE WHEN json_extract(body, '$.delivery') = 'sending' THEN 'unknown-outcome' ELSE json_extract(body, '$.delivery') END, '$.status', CASE WHEN json_extract(body, '$.status') = 'pending' THEN 'expired' WHEN json_extract(body, '$.status') = 'allowed-once' THEN 'execution-unknown' ELSE json_extract(body, '$.status') END, '$.update', CASE WHEN json_extract(body, '$.update') = 'sending' THEN 'unknown-outcome' ELSE json_extract(body, '$.update') END)",
+        "UPDATE messaging_approval_deliveries SET body = json_set(body, '$.delivery', CASE WHEN json_extract(body, '$.delivery') = 'sending' THEN 'unknown-outcome' ELSE json_extract(body, '$.delivery') END, '$.status', CASE WHEN json_extract(body, '$.status') IN ('pending', 'web-required') THEN 'expired' WHEN json_extract(body, '$.status') = 'allowed-once' THEN 'execution-unknown' ELSE json_extract(body, '$.status') END, '$.update', CASE WHEN json_extract(body, '$.update') = 'sending' THEN 'unknown-outcome' ELSE json_extract(body, '$.update') END)",
       ).run();
     });
   const service: ApprovalMessaging = {
@@ -435,6 +480,7 @@ export function createApprovalMessaging(options: {
           return {
             pairingId: p.id,
             name: p.actorName ?? 'Name unavailable / 名称不可用',
+            reference: p.reference,
             accountName: p.accountName,
             ready,
           };
@@ -638,6 +684,7 @@ export function createApprovalMessaging(options: {
       }
     },
     close() {
+      trace('host-disposal', 'release', 'closed', 0, 'cancelled', timers.size);
       closed = true;
       detach?.();
       controller.abort();

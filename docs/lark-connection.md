@@ -357,3 +357,5 @@ This slice supports Lark private **Allow once** and **Reject** cards through a q
 This screenshot shows the running private-route entry point with no paired destination; it is not a real Lark delivery or execution result. Real platform qualification for this slice is recorded with the issue's evidence and Human QA.
 
 If delivery is **Unknown outcome**, check the DM before creating any new request: the sender does not automatically resend. Known-unsent failures can retry at most three times. Card updates may also remain unconfirmed; use Web for the canonical result. Revoking a pairing or changing the destination invalidates old controls. A Host restart expires old pending cards rather than replaying a paused tool. The current native approval still waits; the later Inbox continuation slice owns non-blocking behavior.
+
+Computer and Browser first-use authorization covers a native Session, so its notification has no approval buttons and requires Web review; it cannot be granted by an IM Allow once.

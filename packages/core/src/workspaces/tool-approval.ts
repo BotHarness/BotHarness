@@ -18,6 +18,7 @@ export interface ToolApprovalRequestCard {
   role: 'orchestrator' | 'assignment';
   cwd: string;
   input: string;
+  externalDecision?: 'operation' | 'web-only';
 }
 
 export interface ToolApprovalNotice extends ToolApprovalRequestCard {
@@ -100,7 +101,10 @@ export class ChannelToolApproval {
       scope ?? ((agent, owner) => JSON.stringify([owner.rootRole, agent.session.header.cwd]));
   }
 
-  track(execution: ToolExecution): (() => void) | undefined {
+  track(
+    execution: ToolExecution,
+    externalDecision: 'operation' | 'web-only' = 'operation',
+  ): (() => void) | undefined {
     const agent = execution.agent;
     if (agent === undefined) return undefined;
     const owner = this.#ownership.resolve(agent.session.id);
@@ -127,6 +131,7 @@ export class ChannelToolApproval {
       input,
       scopeKey,
       execution,
+      externalDecision,
     });
     return () => {
       if (this.#tracked.get(key)?.agent === agent) {
@@ -177,6 +182,7 @@ export class ChannelToolApproval {
         role: tracked.role,
         cwd: tracked.cwd,
         input: tracked.input,
+        externalDecision: tracked.externalDecision ?? 'operation',
       },
     };
     let resolve!: (outcome: ApprovalOutcome) => void;
@@ -220,24 +226,35 @@ export class ChannelToolApproval {
     }
   }
 
+  executionGuard(
+    agent: Agent,
+    callId: string,
+  ): ((name: string, args: unknown) => boolean) | undefined {
+    const tracked = this.#tracked.get(callKey(agent.session.id, callId));
+    if (!tracked || tracked.agent !== agent) return undefined;
+    return (name, args) => {
+      const owner = this.#ownership.resolve(agent.session.id);
+      return (
+        owner !== undefined &&
+        owner.botSlug === tracked.botSlug &&
+        this.#scope(agent, owner) === tracked.scopeKey &&
+        tracked.execution.name === tracked.toolName &&
+        tracked.execution.callId === tracked.callId &&
+        name === tracked.toolName &&
+        inputOf({ ...tracked.execution, arguments: args }) === tracked.input &&
+        tracked.authorized?.() !== false &&
+        (!tracked.automatic || this.#rules?.match(tracked) !== undefined)
+      );
+    };
+  }
+
   validAfterDecision(agent: Agent, callId: string): boolean {
     const tracked = this.#tracked.get(callKey(agent.session.id, callId));
-    if (tracked === undefined || tracked.agent !== agent) return false;
-    const owner = this.#ownership.resolve(agent.session.id);
-    if (
-      owner === undefined ||
-      owner.botSlug !== tracked.botSlug ||
-      this.#scope(agent, owner) !== tracked.scopeKey
-    )
-      return false;
-    if (
-      inputOf(tracked.execution) !== tracked.input ||
-      tracked.execution.name !== tracked.toolName ||
-      tracked.execution.callId !== tracked.callId ||
-      tracked.authorized?.() === false
-    )
-      return false;
-    return !tracked.automatic || this.#rules?.match(tracked) !== undefined;
+    return (
+      tracked !== undefined &&
+      this.executionGuard(agent, callId)?.(tracked.execution.name, tracked.execution.arguments) ===
+        true
+    );
   }
 
   cancelInvalid(): void {
@@ -308,7 +325,12 @@ export class ChannelToolApproval {
       Date.parse(pending.notice.expiresAt) <= Date.now()
     )
       return false;
-    if (external && (!['allowed-once', 'rejected'].includes(outcome) || !external.authorized()))
+    if (
+      external &&
+      (pending.notice.externalDecision === 'web-only' ||
+        !['allowed-once', 'rejected'].includes(outcome) ||
+        !external.authorized())
+    )
       return false;
     if (pending.signal?.aborted) {
       this.#settle(messageId, 'cancelled');

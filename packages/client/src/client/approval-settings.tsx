@@ -55,7 +55,7 @@ export function ApprovalSettings({
               value={destination.pairingId}
               disabled={!destination.ready}
             >
-              {destination.name} · {destination.accountName}
+              {destination.name} · {destination.accountName} · {destination.reference}
             </option>
           ))}
         </select>
