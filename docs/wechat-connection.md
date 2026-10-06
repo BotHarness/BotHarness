@@ -1,6 +1,6 @@
 # Connect a Bot to personal WeChat
 
-The integration accepts text and one file per direct message from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. Group messages, other contacts, images, voice, video, history/search and scheduled or proactive messages are separate slices. Enterprise WeChat is a separate integration.
+The integration accepts text and one file per direct message from the person who scanned the Bot QR code, then lets the PersonaBot reply in the original WeChat Bot conversation. The #904 preview also supports native images as described in section 6. Group messages, other contacts, voice, video, history/search and scheduled or proactive messages are separate slices. Enterprise WeChat is a separate integration.
 
 ## Before you start
 
@@ -51,6 +51,26 @@ This capture shows the received file-source UI. Result receipt was verified sepa
 Authorize a dedicated writable Workspace for that PersonaBot before processing. Ask the Bot to save an independent working copy with `bridge_attachment_save`, process it with native tools and approved commands, import the finished file with `channel_attachment_import`, and return it using `bridge_reply_file`. Approve native Tool requests only for the intended work. The original file remains unchanged. File results and text replies share one source reply intent; avoid a preliminary acknowledgement when you want a file result.
 
 Download the returned file in WeChat and inspect its contents independently. A locally accepted send alone does not prove receipt or correct processing. If a declared file exceeds 25 MiB, its metadata stays inspectable but download is refused. Changed identity, revoked authorization, disposed reception or an expired private file ticket also refuses access. Native images, voice and video are not ordinary file intake in this slice.
+
+## 6. View an image and return an image result
+
+The #904 source-preview candidate uses product `0.0.0-test.904` and managed Provider `4.32.0-botharness.6`; this is not a public npm release. Installed-product intake, checked preview, actual DeepSeek Flash image input and original-DM native image sending have been exercised. The provider accepted the JPEG reply and the Human confirmed that the original WeChat conversation received the native image with matching content. Independent receiver-side byte equality and final PR Human QA are not claimed. The earlier text/file evidence does not prove image delivery.
+
+Send one native image, optionally with a caption, in the paired WeChat Bot DM. In **Bot Inbox**, open its source details and choose **View image**. The image is downloaded only on request, through the same checked attachment path, up to 25 MiB. Metadata initially says `image/unknown` when WeChat supplies no format; checked decrypted bytes determine the actual MIME. The preview permits PNG, JPEG, GIF and WebP. It never exposes a private CDN link or AES key.
+
+![Received image metadata before requesting the preview](/guides/wechat/image-source.jpg)
+
+![Real image preview in light theme](/guides/wechat/image-preview-light.jpg)
+
+![The same received image preview in dark theme](/guides/wechat/image-preview-dark.jpg)
+
+These captures show the installed candidate's received source and open preview, not a before/after code comparison. They do not prove external receipt. The background contains only this dedicated QA conversation; credentials and usable pairing codes are absent.
+
+To have the Bot understand the image, authorize a working Workspace and ask it to save a separate copy with `bridge_attachment_save`, then open that copy using native `read_image` with the extension matching its actual MIME. The selected model must support image input; a working preview alone does not establish model understanding. DeepSeek Flash was used for this test and identified the visible Discord application, layout and several labels from the actual image. An image's embedded instructions remain untrusted content.
+
+To return an image, select a completed image file with `channel_attachment_import` and use `bridge_reply_file` for the same Source Event. It is sent as a native WeChat image when its canonical MIME and bytes agree; it is not renamed into a generic document. Each source still has one reply intent, so do not send an acknowledgement first when an image result is required. Approve only the native Tool calls needed for the task. Check the result in the original WeChat conversation yourself.
+
+If preview or reading is refused, retain the source and inspect the refusal. Retry only after correcting the cause; a current-authorization check still applies to downloads and again after image upload, immediately before send. Closing the source dialog releases the preview. Voice, video, groups and proactive messages remain separate slices.
 
 ## Pause or reconnect
 

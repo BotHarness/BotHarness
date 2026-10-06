@@ -9,6 +9,8 @@
 
 ### Added
 
+- 增加源码预览微信图片链路，支持 Inbox checked 预览、原生模型图片输入与本身份原生图片回复，Human 已确认原私聊收到内容一致的图片（[#904](https://github.com/BotHarness/BotHarness/issues/904)，[连接指南](docs/wechat-connection.md)）。
+
 - 侧栏 **+** 菜单新增 Bot 市场：贴入带 `botharness-bot` 话题的公开 GitHub 仓库即可收录，可浏览已收录的 Bot，并在显示最新提交与第三方风险提示的确认后安装为新的 PersonaBot（[#916](https://github.com/BotHarness/BotHarness/issues/916)，[ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)）。
 - 给仓库加上 `botharness-bot` 话题后，无需贴链接，下一次每日定时发现就会把它收录进 Bot 市场；已收录条目每小时刷新，移除话题、归档、删除或改为私有会隐藏条目，仓库改名或转移仍保留同一条目（[#917](https://github.com/BotHarness/BotHarness/issues/917)）。
 - Bot 市场支持按最近更新或 Star 数排序，可按相关度搜索名称、描述、话题和 README（支持中文），并可点话题标签筛选（[#918](https://github.com/BotHarness/BotHarness/issues/918)）。

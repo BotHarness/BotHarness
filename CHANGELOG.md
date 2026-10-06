@@ -9,6 +9,8 @@ Add the first Bot Marketplace, preserve definite IM reply refusals, and move Dee
 
 ### Added
 
+- Added a source-preview WeChat image path with checked Inbox preview, native model image input and own-identity native image replies, with the original-DM image receipt confirmed by the Human ([#904](https://github.com/BotHarness/BotHarness/issues/904), [connection guide](docs/wechat-connection.md)).
+
 - Added a Bot Marketplace to the sidebar **+** menu: paste a public GitHub repository carrying the `botharness-bot` topic to list it, browse listed Bots, and install one as a new PersonaBot after a confirmation that shows the latest commit and a third-party risk notice ([#916](https://github.com/BotHarness/BotHarness/issues/916), [ADR-0131](docs/adr/0131-bot-marketplace-starts-as-a-github-indexed-catalog.md)).
 - Repositories that add the `botharness-bot` topic now appear in the Bot Marketplace after the daily discovery without a paste, and listed entries refresh hourly; removing the topic, archiving, deleting or making a repository private hides it, and renames keep the same entry ([#917](https://github.com/BotHarness/BotHarness/issues/917)).
 - The Bot Marketplace can sort by recent update or stars, search names, descriptions, topics and READMEs (Chinese included) with relevance ranking, and filter by topic chips ([#918](https://github.com/BotHarness/BotHarness/issues/918)).
