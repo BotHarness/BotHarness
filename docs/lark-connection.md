@@ -359,3 +359,7 @@ This screenshot shows the running private-route entry point with no paired desti
 If delivery is **Unknown outcome**, check the DM before creating any new request: the sender does not automatically resend. Known-unsent failures can retry at most three times. Card updates may also remain unconfirmed; use Web for the canonical result. Revoking a pairing or changing the destination invalidates old controls. A Host restart expires old pending cards rather than replaying a paused tool. The current native approval still waits; the later Inbox continuation slice owns non-blocking behavior.
 
 Computer and Browser first-use authorization covers a native Session, so its notification has no approval buttons and requires Web review; it cannot be granted by an IM Allow once.
+
+![A reviewed test DM receives a native approval notification](/guides/lark/approvals/route-sent-dark.jpg)
+
+In the isolated 2026-10-07 test, the actual Lark platform accepted both the test card and a native tool approval card. The screenshot records **delivery accepted / decision pending**; no IM decision or tool execution is implied. The bounded test window then expired, the test pairing was revoked, and the production Discord/Lark receiver was restored. Allow once and Reject button qualification remains pending Human QA.
