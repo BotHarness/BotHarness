@@ -24,6 +24,7 @@ PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一�
 ### Documentation
 
 - GitHub 与 npm 的 README 补充定时任务、Bot 市场和更新提示，新增依据本 Ledger 整理的「版本亮点」，并换成高清截图表格，所有头像均为 BotPixel 像素头像（[#984](https://github.com/BotHarness/BotHarness/issues/984)）。
+- 记录隔离 Discord nearby 上下文候选的准确原生来源范围、五分钟窗口、稀疏 Human 文本最小条数与有界续页；真实模型稀疏续页、canonical 留存、原 thread 回复和临时权限恢复已独立验证，产品提升仍另行管理（[#981](https://github.com/BotHarness/BotHarness/issues/981)，[指南](docs/dev/guides/im-provider-integration.md)）。
 - 补全 Discord 上下文开发来源验收文档，提供真实模型续页、准确的已编辑来源拒绝、整页回滚及消息正文权限恢复证据（[#937](https://github.com/BotHarness/BotHarness/issues/937)，[verification](docs/dev/verification/discord-937-context-reads.md)）。
 
 ## [1.0.2] - 2026-10-06

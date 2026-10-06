@@ -1,0 +1,58 @@
+{
+  "case": "real-model-nearby-content-off",
+  "core": "74cb0678752c6e48aefd3450186a92a8c12df39e",
+  "provider": "5ae8bb3b1b0bb4067bf240e0dfb6fbe38d582c32",
+  "dsh": "0.2.0-rc.1",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-pro",
+    "reasoningEffort": "off"
+  },
+  "query": {
+    "scope": "nearby",
+    "beforeCount": 10,
+    "afterCount": 5,
+    "maxCharacters": 24000
+  },
+  "sourceEventId": "im-43b65df04c7080004c459845179a622ff61563b8948bc8aa71011d1e2c7a48a9",
+  "nativeSourceMessageId": "1556927953433268255",
+  "context": {
+    "callId": "call_00_OcKbNSzK4LMTW2OUZ0768833",
+    "isError": true,
+    "actualError": "Error: history-permission-denied"
+  },
+  "reply": {
+    "callId": "call_00_Go0fyd5pfxy4zADVzaX83639",
+    "state": "provider-accepted",
+    "nativeMessageId": "1556928008323858515",
+    "nativeThreadId": "1556622420222283798",
+    "nativeParentId": "1556616665385668620",
+    "reference": "1556927953433268255",
+    "text": "DISCORD-981-NEARBY-OFF:history-permission-denied"
+  },
+  "audit": {
+    "scope": "nearby",
+    "outcome": "refused",
+    "reason": "history-permission-denied",
+    "sourceEventIds": []
+  },
+  "canonicalDelta": {
+    "messaging_bindings": 0,
+    "messaging_grants": 0,
+    "source_events": 1,
+    "inbox_admissions": 1,
+    "messaging_outbox": 1,
+    "channel_placements": 0
+  },
+  "allPriorRowsUnchanged": {
+    "messaging_bindings": true,
+    "messaging_grants": true,
+    "source_events": true,
+    "inbox_admissions": true,
+    "messaging_outbox": true,
+    "channel_placements": true
+  },
+  "nativeAppFlags": 0,
+  "positiveNearbyAcceptance": "pending-action-time-message-content-authorization",
+  "productProviderPromotion": false
+}
