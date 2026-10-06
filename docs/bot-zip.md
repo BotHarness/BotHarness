@@ -46,7 +46,7 @@ Importing creates a new Bot and opens its DM:
 - A zip without Git history gives the new Bot's Memory a single initial commit.
 - A zip with Git history keeps every branch, tag and commit and checks out the branch the Bot was on when exported; changes that were uncommitted then are still uncommitted. You can see them in [Memory evolution](/docs/channel-sidebar/memory-evolution).
 
-![After importing with history, Memory evolution shows the original branches and commits](/guides/bot-zip/05-imported-history-zh.webp)
+![After importing with history, Memory evolution shows the original branches and commits](/guides/bot-zip/05-imported-history-en.webp)
 
 The imported Bot and the original are independent; later chats and memory on either side are not synced. Set up IM connections, Workspace grants and model settings again on the new Bot.
 
