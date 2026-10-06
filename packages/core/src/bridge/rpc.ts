@@ -16,6 +16,7 @@ import type {
   MarketplaceTopic,
 } from '../marketplace/client.js';
 import type { AltchaChallenge } from '../marketplace/altcha.js';
+import type { ReleaseInfo, ReleaseUpdate } from '../release/service.js';
 import type { OverviewMemory } from '../memory/overview.js';
 import type { OverviewUsage } from './methods.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
@@ -875,6 +876,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
   async marketplaceDetail(id: string): Promise<MarketplaceDetail> {
     return unwrapAsync(this.methods.marketplaceDetail({ id }));
   }
+
+  async releaseInfo(since?: string): Promise<ReleaseInfo> {
+    return unwrap(this.methods.releaseInfo(since === undefined ? {} : { since }));
+  }
+
+  async releaseUpdate(): Promise<ReleaseUpdate> {
+    return unwrapAsync(this.methods.releaseUpdate());
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -1001,6 +1010,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'marketplaceDetail',
   'marketplaceChallenge',
   'marketplaceReport',
+  'releaseInfo',
+  'releaseUpdate',
 ]);
 
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {

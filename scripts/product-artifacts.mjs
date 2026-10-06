@@ -238,6 +238,8 @@ export function packProduct({ repoRoot, outputDirectory, providerSource, version
     const manifest = JSON.parse(readFileSync(join(source, 'package.json'), 'utf8'));
     const { private: _private, devDependencies: _dev, scripts: _scripts, ...release } = manifest;
     for (const path of manifest.files) copyAvailable(source, target, [path]);
+    const ledgers = name === 'core' ? ['CHANGELOG.md', 'CHANGELOG.zh.md'] : [];
+    for (const ledger of ledgers) cpSync(join(repoRoot, ledger), join(target, ledger));
     cpSync(join(repoRoot, 'LICENSE'), join(target, 'LICENSE'));
     writeJson(join(target, 'package.json'), {
       ...release,
@@ -248,7 +250,7 @@ export function packProduct({ repoRoot, outputDirectory, providerSource, version
         url: 'git+https://github.com/BotHarness/BotHarness.git',
         directory: `packages/${name}`,
       },
-      files: [...release.files, 'LICENSE'],
+      files: [...release.files, ...ledgers, 'LICENSE'],
       publishConfig: { access: 'public' },
     });
     packageDirectories.push(target);

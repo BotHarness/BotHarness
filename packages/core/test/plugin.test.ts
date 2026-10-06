@@ -366,6 +366,8 @@ describe('plugin entry', () => {
       'marketplaceDetail',
       'marketplaceChallenge',
       'marketplaceReport',
+      'releaseInfo',
+      'releaseUpdate',
     ]);
   });
 

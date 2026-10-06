@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Preserve accurate context refusals when native history conflicts with retained evidence.
+Bot mode now tells you what changed and when a newer DeepSeekBot is available, and context reads keep accurate refusals when native history conflicts with retained evidence.
+
+### Added
+
+- Bot mode shows the changelog of the installed version after the first install and every release since the last one you saw after an update, and Bot settings show the installed version, check npm for a newer release with its notes and the update command, and link the website changelog ([#947](https://github.com/BotHarness/BotHarness/issues/947)).
 
 ### Fixed
 
