@@ -255,13 +255,11 @@ _图 5：这是已收件的真实话题消息。Source Event ID 是 BotHarness �
 
 **重启同一 Host 核对持久化。** 真实冷启动后仍保留原授权记录，能力仍只有 `answer`，接收器自动恢复就绪；没有重新创建或批准申请。
 
-![真实 Host 重启后保留原授权](/guides/lark/pairing/after-restart-approved-light.jpg)
+![真实 Host 重启后保留原授权](/guides/lark/pairing/after-restart-approved-dark.jpg)
 
 **再次申请前先撤销。** 点击 **撤销权限**后，真实记录变为 **已撤销**，能力清空，撤销按钮消失。
 
-![通过已登录 Web 撤销真实授权](/guides/lark/pairing/after-revoked-light.jpg)
-
-[查看同一撤销记录的深色截图](/guides/lark/pairing/after-revoked-dark.jpg)。
+![通过已登录 Web 撤销真实授权](/guides/lark/pairing/after-revoked-dark.jpg)
 
 **在同一个 Lark 私聊重新发送 `/pair`。** 新申请的编号不同，没有继承权限，批准按钮仍禁用；旧记录保持已撤销。需要再次授权时必须重新审核。本次演示没有批准新申请；这些配对命令在 Operational Database 中没有产生普通 IM Source Event 或 Inbox Admission。
 
@@ -271,7 +269,7 @@ _图 5：这是已收件的真实话题消息。Source Event ID 是 BotHarness �
 
 **验证结束后拒绝新申请。** 恢复生产服务后，本机继续关闭接收器；在已登录 Web 点击 **拒绝申请**，新记录变为 **已拒绝**。旧授权保持撤销，所有测试记录的能力均为空，没有遗留已授权或待审记录。
 
-![关闭本机接收后通过 Web 拒绝剩余测试申请](/guides/lark/pairing/after-rejected-light.jpg)
+![关闭本机接收后通过 Web 拒绝剩余测试申请](/guides/lark/pairing/after-rejected-dark.jpg)
 
 **审核窗口过期时**，批准控件消失。下面这条较早的真实申请未获批准便过期；截图时为让生产 Host 独占接收同一应用，本机接收器有意离线。
 

@@ -253,13 +253,11 @@ These captures come from a real Lark private message and the authenticated Web c
 
 **Restart the same Host to check persistence.** A cold restart retained the approved record and exactly the `answer` capability. The receiver automatically returned to ready. This check did not recreate or approve the request.
 
-![Approved authority retained after a real Host restart](/guides/lark/pairing/after-restart-approved-light.jpg)
+![Approved authority retained after a real Host restart](/guides/lark/pairing/after-restart-approved-dark.jpg)
 
 **Revoke before requesting access again.** Clicking **Revoke authority** changed the real record to **Revoked**, cleared its capabilities and removed the revoke control.
 
-![Real authority revoked through authenticated Web controls](/guides/lark/pairing/after-revoked-light.jpg)
-
-[View the same revoked record in dark mode](/guides/lark/pairing/after-revoked-dark.jpg).
+![Real authority revoked through authenticated Web controls](/guides/lark/pairing/after-revoked-dark.jpg)
 
 **Send a new `/pair` from the same Lark private conversation.** The new request has a different reference, no capabilities and a disabled approve button; the old request remains revoked. Review it explicitly if access is needed again. In this walkthrough it was left unapproved. The Operational Database recorded no ordinary IM Source Event or Inbox Admission for these pairing commands.
 
@@ -269,7 +267,7 @@ These captures come from a real Lark private message and the authenticated Web c
 
 **Reject the remaining test request after verification.** Production reception was restored while the local receiver stayed disabled. In authenticated Web, **Reject request** changed the fresh record to **Rejected**. The earlier grant stayed revoked; all test records have empty capabilities, with no approved or pending records left.
 
-![Remaining real test request rejected from Web with local reception disabled](/guides/lark/pairing/after-rejected-light.jpg)
+![Remaining real test request rejected from Web with local reception disabled](/guides/lark/pairing/after-rejected-dark.jpg)
 
 **If the review window expires**, approval controls disappear. This earlier real request expired without approval; its receiver was deliberately offline while production received the shared application.
 
