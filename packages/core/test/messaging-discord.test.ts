@@ -309,7 +309,11 @@ it.each([undefined, '555555555555555555'])(
           expect(run.inbox).toContain('ordinary message; no reply required');
           const source = core.attention
             .list({ botSlug: 'ada' })
-            .items.find((item) => item.sourceKind === 'bridge-message')!;
+            .items.find(
+              (item) =>
+                item.sourceKind === 'bridge-message' &&
+                run.externalMessaging!.read(item.id).event.messageId === second.messageId,
+            )!;
           expect(
             await run.externalMessaging!.reply(source.id, 'DISCORD-ORDINARY-OK'),
           ).toMatchObject({ state: 'provider-accepted' });
@@ -443,7 +447,7 @@ it.each([undefined, '555555555555555555'])(
     await idle();
     expect(runs).toBe(1);
     expect(replies).toHaveLength(1);
-    expect([first.reply, second.reply]).toContainEqual(replies[0]);
+    expect(replies).toEqual([second.reply]);
     expect(query("SELECT * FROM source_events WHERE source_kind = 'bridge-message'")).toHaveLength(
       2,
     );
