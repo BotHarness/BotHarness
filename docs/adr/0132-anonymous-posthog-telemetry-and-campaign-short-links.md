@@ -5,13 +5,14 @@ Date: 2026-10-06
 
 # Anonymous PostHog telemetry and campaign short links
 
-DeepSeekBot measures two things it cannot see today: how the plugin is used, and which marketing posts and videos bring people to the product site. Both go to one PostHog Cloud EU project. The plugin sends anonymous, default-on usage events from the Host; the product site sends named interaction events with consent-based cross-day identity; and a separate short-link Worker turns per-post Campaign Links into UTM parameters that PostHog already understands. Telemetry exists to improve the plugin and understand usage, collects nothing that identifies a person or their content, and the code doing it is open source in this repository and `BotHarness/deepseekbot-site`.
+DeepSeekBot measures two things it cannot see today: how the plugin is used, and which marketing posts and videos bring people to the product site. Both go to one PostHog Cloud US project. The plugin sends anonymous, default-on usage events from the Host; the product site sends named interaction events with consent-based cross-day identity; and a separate short-link Worker turns per-post Campaign Links into UTM parameters that PostHog already understands. Telemetry exists to improve the plugin and understand usage, collects nothing that identifies a person or their content, and the code doing it is open source in this repository and `BotHarness/deepseekbot-site`.
 
 ## Shared ingestion
 
-- **One project.** Plugin and site events share one PostHog Cloud EU project, distinguished by a `source` property (`plugin`, `site`, `links`). They are one product's funnel; PostHog's MCP connector reads both.
-- **First-party ingest proxy.** Clients never call PostHog domains directly. A small Hono Worker on `t.botharness.ai` forwards ingestion and the `posthog-js` assets to PostHog EU. This keeps the site and plugin working where PostHog hosts are slow or blocked (mainland China) and where ad blockers filter them, and lets us change the backend without shipping a plugin release.
-- **No stored IP.** The project discards client IP data. Country comes from the proxy (`cf.country`) as an event property. Whether the cookieless hash still receives the real IP before it is discarded is verified during implementation; if not, the proxy forwards it on the site path only.
+- **One project.** Plugin and site events share one PostHog Cloud US project (`DeepSeekBot`, in the organization that already holds the maintainers' other projects), distinguished by a `source` property (`plugin`, `site`, `links`). They are one product's funnel; PostHog's MCP connector reads both.
+- **First-party ingest proxy.** Clients never call PostHog domains directly. A small Hono Worker on `t.botharness.ai` forwards ingestion and the `posthog-js` assets to PostHog US. This keeps the site and plugin working where PostHog hosts are slow or blocked (mainland China) and where ad blockers filter them, and lets us change the backend without shipping a plugin release.
+- **No stored IP.** The proxy forwards the client address, which PostHog uses for GeoIP and the daily cookieless hash before discarding it ("Discard client IP data" is on). Cookieless events currently carry no country, because PostHog strips their address before GeoIP runs (PostHog issue 48660).
+- **Region.** US rather than EU (Vain, 2026-10-06): the data is anonymous with IPs discarded, and the maintainers' existing PostHog organization and its MCP connection are on US Cloud; an EU project would need a separate EU account.
 
 ## Plugin telemetry
 
