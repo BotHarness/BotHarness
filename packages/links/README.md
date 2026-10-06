@@ -114,22 +114,19 @@ Add `POSTHOG_HOST=http://127.0.0.1:<port>` to `.dev.vars` to capture events loca
 
 Production deployment is a separate, explicitly authorized step. With `wrangler login` on the botharness.ai account, from `packages/links`:
 
-```bash
-npx wrangler d1 create botharness-links
-```
+The D1 database `botharness-links` (APAC) was created on 2026-10-06 and its `database_id` is in `wrangler.jsonc`. To recreate it elsewhere, run `npx wrangler d1 create botharness-links` and put the printed `database_id` into `wrangler.jsonc`.
 
-1. Put the printed `database_id` into `wrangler.jsonc` (replacing the all-zero placeholder) and commit it.
-2. Apply the schema and deploy; the `routes` entry attaches the custom domain `go.botharness.ai` (the `botharness.ai` zone is on the same account):
+1. Apply the schema and deploy; the `routes` entry attaches the custom domain `go.botharness.ai` (the `botharness.ai` zone is on the same account):
 
    ```bash
    npx wrangler d1 migrations apply LINKS_DB --remote
    pnpm --filter @botharness/links run deploy
    ```
 
-3. Set the bootstrap secret and keep the generated value in the team password manager:
+2. Set the bootstrap secret and keep the generated value in the team password manager:
 
    ```bash
    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" | npx wrangler secret put LINKS_BOOTSTRAP_TOKEN
    ```
 
-4. Create the first `write` PAT with the bootstrap secret, then a Campaign and a link with the PAT, and open `https://go.botharness.ai/<slug>`. Check that the site's `$pageview` in PostHog carries the four UTMs and that `link_clicked` arrives with the site script blocked.
+3. Create the first `write` PAT with the bootstrap secret, then a Campaign and a link with the PAT, and open `https://go.botharness.ai/<slug>`. Check that the site's `$pageview` in PostHog carries the four UTMs and that `link_clicked` arrives with the site script blocked.

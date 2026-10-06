@@ -15,7 +15,7 @@
       "binding": "LINKS_DB",
       "database_name": "botharness-links",
       // replace with the id printed by `wrangler d1 create botharness-links`
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "964d230d-3c1f-480e-9552-24aeaa79e5b8",
       "migrations_dir": "migrations",
     },
   ],
