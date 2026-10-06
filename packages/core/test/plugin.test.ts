@@ -450,6 +450,7 @@ describe('plugin entry', () => {
       'computerAccessSet',
       'browserAccessSet',
       'browserProfileSet',
+      'standingLimitsSet',
       'botAvatarSet',
       'botAppearanceSet',
       'marketplaceList',
