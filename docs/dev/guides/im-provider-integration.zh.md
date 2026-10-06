@@ -108,7 +108,7 @@ Slack 后接入 Discord。其 Gateway 事件／intents、guild／channel／threa
 
 ## Discord 有界上下文候选 — 2026-10-06
 
-[#937](https://github.com/BotHarness/BotHarness/issues/937) 在独立开发 Provider 候选中增加显式、受校验的 `bridge_context` group／已有公开 thread Human 文本页。真实模型频道与 thread 读取／回复、原生 cursor 检查及恢复 Message Content 后的拒绝均已通过；最终模型续页与修复后冲突实测仍待完成，组合的 history/nearby/topic 行保持未取得资格。历史读取需要原生 App Message Content 正文可见性及 `VIEW_CHANNEL`／`READ_MESSAGE_HISTORY`，并继续检查原 Binding/Grant；不启用普通实时收件。已编辑的留存来源拒绝读取冲突，不覆盖证据。参见[准确检查点、截图和剩余验收](../verification/discord-937-context-reads.zh.md)；产品 Provider pin 不变。
+[#937](https://github.com/BotHarness/BotHarness/issues/937) 在独立开发 Provider 候选中增加显式、受校验的 `bridge_context` group／已有公开 thread Human 文本页。真实模型频道与 thread 读取／回复、原生 cursor 检查及恢复 Message Content 后的拒绝均已通过；重建 Profile 后的最终模型续页（13 + 5 条不重复 Human 消息）、精确原生编辑冲突及整页回滚也已通过，组合的 history/nearby/topic 行保持未取得资格。历史读取需要原生 App Message Content 正文可见性及 `VIEW_CHANNEL`／`READ_MESSAGE_HISTORY`，并继续检查原 Binding/Grant；不启用普通实时收件。已编辑的留存来源拒绝读取冲突，不覆盖证据。参见[最终验收、截图及不可变运行版本](../verification/discord-937-context-reads.zh.md)；产品 Provider pin 不变。
 
 ## 原生参考与权限检查
 
@@ -149,3 +149,9 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 本机安装文件候选固定 fork `8852e87f`，Provider 为 `4.32.0-botharness.5`。单个原生 type-4 文件及可选文字复用 canonical Source Event 与 Bot Inbox。保留精确十进制原生 ID 和平台元数据，MIME 缺失时保持通用类型。AES 密钥、CDN 票据与来源续接信息不能进入模型或 Client；私有来源票据须匹配当前账号、lease、路由及完整保留元数据。流式密文字节与解密后字节都限制为 25 MiB，传输只额外允许加密填充；超限声明仍可展示，但不能下载。
 
 结果文件单独导入既有 canonical 附件。此微信契约要求 `reply-file-fence-checked`：上传完成后、原生发送前再核对应用当前授权。撤销 Grant、身份／lease 替换或来源过期均拒绝发送；诚实记录客户端接受，结果不明不重试。本机安装产品和真实模型已回传 224 字节 ZIP，Human 从微信下载后独立验证内容完全一致，207 字节输入未变；撤销、无效媒体及实际下载上限另有聚焦回归覆盖。这不代表完整原生生命周期矩阵、远端历史、群、图片或主动发送已完成。
+
+## Discord nearby 开发切片 — #981
+
+下一个隔离 Provider 候选在来源的原生频道或准确公开 thread 中实现 `bridge_context(nearby)`：读取前后五分钟；消息稀疏时，补足所请求的前后 Human 文本最小条数（默认 10／5）。锚点独立于两侧计数；密集窗口需要有界续页，已耗尽的稀疏历史允许少于最小条数，不等待未来消息。签名 cursor 保留固定查询快照，每次成功续页续期 30 分钟；每次读取均检查当前权限和授权。
+
+[#981](https://github.com/BotHarness/BotHarness/issues/981) 跟踪自动化和真实模型资格验证。原生 nearby 正向验收尚待完成。产品 Provider pin 和 history／nearby／topic 组合行资格保持不变；不增加普通消息收件或 thread 订阅。

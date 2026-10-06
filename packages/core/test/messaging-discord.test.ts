@@ -17,7 +17,24 @@ afterEach(async () => {
 
 it.each([
   {
+    name: 'channel nearby context',
+    nearby: true,
+    threadId: undefined,
+    refusal: undefined,
+    state: 'provider-accepted',
+    reason: undefined,
+  },
+  {
+    name: 'thread nearby context',
+    nearby: true,
+    threadId: '555555555555555555',
+    refusal: undefined,
+    state: 'provider-accepted',
+    reason: undefined,
+  },
+  {
     name: 'channel reply',
+    nearby: false,
     threadId: undefined,
     refusal: undefined,
     state: 'provider-accepted',
@@ -25,6 +42,7 @@ it.each([
   },
   {
     name: 'thread reply',
+    nearby: false,
     threadId: '555555555555555555',
     refusal: undefined,
     state: 'provider-accepted',
@@ -32,6 +50,7 @@ it.each([
   },
   {
     name: 'deleted source',
+    nearby: false,
     threadId: undefined,
     refusal: 'source-not-found',
     state: 'failed',
@@ -39,6 +58,7 @@ it.each([
   },
   {
     name: 'thread permission refusal',
+    nearby: false,
     threadId: '555555555555555555',
     refusal: 'reply-permission-denied',
     state: 'failed',
@@ -46,6 +66,7 @@ it.each([
   },
   {
     name: 'unknown transport outcome',
+    nearby: false,
     threadId: undefined,
     refusal: 'reply-result-unknown',
     state: 'unknown-outcome',
@@ -53,7 +74,7 @@ it.each([
   },
 ])(
   'Discord canonical Inbox and own-identity reply preserve $name outcome',
-  async ({ threadId, refusal, state, reason }) => {
+  async ({ threadId, refusal, state, reason, nearby }) => {
     const fingerprint = 'd'.repeat(64);
     let consumer: Parameters<NonNullable<DshImOutboundService['consumeInbound']>>[1] | undefined;
     let runs = 0;
@@ -67,15 +88,18 @@ it.each([
       agents: {
         async runOrchestrator(run) {
           runs++;
-          const source = core.attention
+          const attentionSource = core.attention
             .list({ botSlug: 'ada' })
             .items.find((item) => item.sourceKind === 'bridge-message');
-          expect(source).toBeDefined();
-          const context = await run.externalMessaging!.context(source!.id, {
-            scope: threadId ? 'thread' : 'group',
+          expect(attentionSource).toBeDefined();
+          const context = await run.externalMessaging!.context(attentionSource!.id, {
+            scope: nearby ? 'nearby' : threadId ? 'thread' : 'group',
           });
-          expect(context.messages.map((message) => message.text)).toEqual(['cobalt-37']);
-          outcome = await run.externalMessaging!.reply(source!.id, 'DISCORD-QA-OK');
+          expect(context.messages.map((message) => message.text)).toEqual(
+            nearby ? [source.text, 'cobalt-37'] : ['cobalt-37'],
+          );
+          if (nearby) expect(context.window).toEqual({ start: 1000, end: 1601 });
+          outcome = await run.externalMessaging!.reply(attentionSource!.id, 'DISCORD-QA-OK');
         },
         async runAssignment() {},
         requestAssignment() {
@@ -131,10 +155,14 @@ it.each([
         expect(options.expectedFingerprint).toBe(fingerprint);
         expect(route).toEqual(source.reply);
         expect(query.limit).toBe(20);
+        if (nearby)
+          expect(query).toMatchObject({ scope: 'nearby', beforeCount: 10, afterCount: 5 });
         return {
           version: 1,
           scope: query.scope,
+          ...(nearby ? { window: { start: 1000, end: 1601 } } : {}),
           events: [
+            ...(nearby ? [source] : []),
             {
               ...source,
               eventId: 'history:qa:700000000000000000',
