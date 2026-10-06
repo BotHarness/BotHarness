@@ -105,6 +105,7 @@ export interface MessagingReceipt {
   version: 1;
   identityKind?: 'client-acknowledgement';
   messageId: string;
+  serverMessageId?: string;
   conversationId: string;
 }
 
@@ -182,6 +183,7 @@ export interface MessagingProvider {
     conversationId: string;
     text: string;
     signal: AbortSignal;
+    beforeSend?: () => boolean;
   }): Promise<{ accepted: true; receipt: MessagingReceipt }>;
   send(input: {
     accountRef: string;

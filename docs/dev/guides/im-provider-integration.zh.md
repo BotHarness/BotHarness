@@ -191,3 +191,11 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 `retained`／`retained-nearby` 沿用 `bridge_context`，明确返回 `coverage: retained-local-sources`，不修改远端 Provider history 契约。Keyset 分页固定首次 canonical 记录边界；进程内 opaque cursor 绑定 Bot、来源、Grant revision、身份指纹、范围与条数。每页重新核对自身身份、当前 Grant／lease 和 Provider 检查结果，在锚点 Source Event 记录有界读取审计，不创建新 Admission 或唤醒。记录／条数限制、过期／重启、字符预算恢复与本地覆盖缺口均应明确。它不是微信远端历史／搜索；原生引用变体以实际收件为证，合成回归不能证明当前客户端的线上字段形状。
 
 微信 #909 把已授权扫码者的**原生私聊**接入既有连接器多目标路由。收件为该授权私聊的消息，不虚构 @ 或话题。本地群聊沿用成员 Attention，私聊 Inbox 与明确的本地 DM 投递沿用 `human-dm`；原生会话类型与本地投递类型独立。共享来源可读不授予接收身份、私密续接或已校验附件读取权限，仍需逐平台真实 E2E。
+
+## 已授权微信纯外部报告（#910）
+
+协商 `receiptVersion: 1` 和 `postFenceVersion: 1`，以及账号能力 `proactive-receipt-checked`、`proactive-fence-checked`。已验证的扫码者私聊复用 canonical post／Outbox；既有独占 Consumer 仍独自拥有轮询和私有上下文，不增加 standalone Session、聊天存储、本地 DM 镜像或新定时系统。
+
+通过公开 Service 契约传递最终应用回调，在原生发送前检查 Provider Registration、账号指纹、启用 Binding／当前 Grant 和取消状态，并与账号切换串行化。只缓存真实扫码者上下文，绑定指纹及原生顺序，不进入公开状态。本地 30 天只限制存储，不承诺服务器有效期；缺失／本地过期在发送前拒绝，原生拒绝明确失败并提示新扫码者消息恢复，网络结果不明保持 unknown，不自动重试。
+
+实际返回的原生 `message_id` 以无损十进制 `serverMessageId` 保存，与标为 `client-acknowledgement` 的生成 ID 分开；二者都不是送达／已读证明。源码和压缩包资格验证须覆盖无新微信触发的唯一报告、Human 独立收件、canonical 后续消息、本地 DM 未变及拒绝／恢复。参见 [ADR-0138](../../adr/0138-wechat-external-reports-use-private-owner-context.md) 和[配图指南](../../wechat-connection.zh.md#12-发送纯外部主动文字报告)。

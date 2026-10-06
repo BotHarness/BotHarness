@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Qualified personal WeChat owner-DM text reports use the canonical external-only Outbox with current-authorization fences and actionable private-context refusal. Profile exposes explicit posting; client acknowledgement and any genuine native server message ID remain distinct, without claiming delivery/read receipts ([#910](https://github.com/BotHarness/BotHarness/issues/910), [guide](docs/wechat-connection.md)).
+
 - Personal WeChat paired-owner messages can use Channel connectors for explicit local DM/Group placement or Inbox-only reception, sharing one Source Event with independent member wake policy. Shared readers need their own identity and Grant to reply; native WeChat groups and threads remain unsupported ([#909](https://github.com/BotHarness/BotHarness/issues/909)).
 
 - Added a candidate Lark image preview in original Channel bubbles, preserving native text/image order, visible-only loading, enlargement and current Channel/source authorization; forwards the image opt-in through the account consumer boundary; stopping reception retains acquired images while unbind/revocation refuses the affected path ([#1021](https://github.com/BotHarness/BotHarness/issues/1021), [guide](docs/lark-connection.md)).

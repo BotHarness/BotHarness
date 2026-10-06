@@ -1726,6 +1726,21 @@ export function createOutboundMessaging(options: {
                       conversationId: conversationId!,
                       text,
                       signal: controller.signal,
+                      beforeSend: () => {
+                        try {
+                          active(botSlug);
+                          current(acceptedGrant.providerId, entry.token);
+                          enabledBinding(acceptedGrant.bindingId, acceptedIdentity);
+                          const latest = grant(botSlug, grantId);
+                          return (
+                            !controller.signal.aborted &&
+                            !latest.revokedAt &&
+                            latest.revision === acceptedGrant.revision
+                          );
+                        } catch {
+                          return false;
+                        }
+                      },
                     })
                 : entry.provider.send({
                     accountRef: acceptedGrant.accountRef,
