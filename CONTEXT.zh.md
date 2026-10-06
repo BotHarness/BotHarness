@@ -307,12 +307,16 @@ _避免使用_：Channel authority、database backup、live inbox
 _避免使用_：credential、Service Grant、automatic reconnect
 
 **Bot Marketplace**：
-harness 中打开、用于浏览、搜索和安装可分享 Bot 的 hosted catalog。第一阶段只列出 Indexed Repository；上传的 Bot 在后续阶段加入（ADR-0131）。
+harness 中打开、用于浏览、搜索和安装可分享 Bot 的 hosted catalog。只列出 Indexed Repository，没有账号，也没有上传的 Bot（ADR-0131、ADR-0135）。
 _避免使用_：store、hub、Soul registry
 
 **Indexed Repository**：
 带有 `botharness-bot` topic、被 Bot Marketplace 以引用方式列出并定期刷新的公开 GitHub 仓库。安装它即以其 Git URL 创建新的 PersonaBot；它不是 SoulSnapshot、Listing 或 Version。
 _避免使用_：submission、Listing、SoulSnapshot、mirror
+
+**Bot Zip**：
+单个 PersonaBot 的 Memory 文件打成的 `.zip`，附带 `.botharness/bot.json` 描述和头像，由 Human 导出后交给别人；导入时创建新的 PersonaBot。默认只含文件，只有整个 Bot 导出并勾选时才带 Git 历史。不含身份、Session、绑定或凭据（ADR-0135）。
+_避免使用_：PersonaBot Export、SoulSnapshot、backup
 
 **Soul registry**：
 历史术语（ADR-0019/0020）：原计划存储、版本化并提供 SoulSnapshot 的 hosted service，已由 Bot Marketplace（ADR-0131）取代。
