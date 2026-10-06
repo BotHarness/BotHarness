@@ -35,7 +35,7 @@ This repository is **BotHarness**, the plugin layer that gives DSH agents a pers
 DeepSeekBot in three minutes: a crew of bots with their own identity, persona and memory, working together in a small town. Click the poster to play.
 
 <p align="center">
-  <a href="https://media.botharness.ai/pv/botharness-town-v16-1080p-lite-en.mp4"><img src="docs/assets/readme/v2/en/promo-video-v16.jpg" width="800" alt="DeepSeekBot promo video (3 minutes): click to play" /></a>
+  <a href="https://media.botharness.ai/pv/botharness-town-v19-1080p-lite-en.mp4"><img src="docs/assets/readme/v2/en/promo-video-v16.jpg" width="800" alt="DeepSeekBot promo video (3 minutes): click to play" /></a>
 </p>
 
 <a id="install"></a>

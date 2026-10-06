@@ -35,7 +35,7 @@ DeepSeekBot 以一个 npm 包装进 [DeepSeek Harness（DSH）](https://github.c
 3 分钟看懂 DeepSeekBot：一组有身份、人格和记忆的 bots，在小镇里一起做事。点击封面即可播放。
 
 <p align="center">
-  <a href="https://media.botharness.ai/pv/botharness-town-v16-1080p-lite-zh.mp4"><img src="docs/assets/readme/v2/zh/promo-video-v16.jpg" width="800" alt="DeepSeekBot 宣传片（3 分钟）：点击播放" /></a>
+  <a href="https://media.botharness.ai/pv/botharness-town-v19-1080p-lite-zh.mp4"><img src="docs/assets/readme/v2/zh/promo-video-v16.jpg" width="800" alt="DeepSeekBot 宣传片（3 分钟）：点击播放" /></a>
 </p>
 
 <a id="install"></a>
