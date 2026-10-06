@@ -1,0 +1,270 @@
+{
+  "issue": 1016,
+  "implementationCommit": "4960b63cdc6e689c2dc803ba1192c47d446542c2",
+  "authorization": "Existing QA Bot, guild text channel and public thread only. Agent-operated real E2E authorized by Human; Message Content stayed OFF. Original policies and theme restored.",
+  "migration": {
+    "canonical": {
+      "messaging_bindings": {
+        "count": 1,
+        "sha256": "30023ba945eb40a6ef444c04a34e8e7ca51607c4ab53f4110f259738209cf267"
+      },
+      "messaging_grants": {
+        "count": 1,
+        "sha256": "46cb9b6eaf6d9150554740802c983d3bdb184cea5770317a89d64297a09ab7d6"
+      },
+      "source_events": {
+        "count": 31,
+        "sha256": "087d960dee35ba7b22b1863631be3dbb4d1f7a393b197924c5d3107cd6c10703"
+      },
+      "inbox_admissions": {
+        "count": 13,
+        "sha256": "5de02f071b82196dea1283bb6ee471efc03322b76f9d1e4fa3715e2028c1d0e2"
+      },
+      "messaging_outbox": {
+        "count": 9,
+        "sha256": "ad946fe23dd7b5e237b78e063c31631da2a5f8ee710404ff982ebc881f72f758"
+      },
+      "channel_placements": {
+        "count": 2,
+        "sha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+      }
+    },
+    "immutableRowsRetained": true,
+    "discord": {
+      "platform": "discord",
+      "collection": "mentions",
+      "wake": "digest",
+      "count": 5,
+      "intervalSeconds": 30,
+      "identityEnabled": true,
+      "revision": 0,
+      "changedAt": ""
+    }
+  },
+  "ui": {
+    "actualSaveAndReload": true,
+    "savedCount": 2,
+    "savedIntervalSeconds": 90,
+    "otherPlatformDirtyDraftPreserved": true,
+    "beforeImageSize": [
+      1230,
+      876
+    ],
+    "afterImageSize": [
+      1230,
+      820
+    ],
+    "note": "Actual browser captures. Each light/dark pair uses the same viewport and values; browser height changed between baseline and candidate."
+  },
+  "isolation": {
+    "otherPlatformsUnchanged": true,
+    "staleWriteRefused": true,
+    "currentRevision": 6,
+    "pausedMessageNotBackfilled": true
+  },
+  "group": {
+    "saved": {
+      "platform": "discord",
+      "collection": "mentions",
+      "wake": "silent",
+      "count": 2,
+      "intervalSeconds": 90,
+      "identityEnabled": true,
+      "revision": 2,
+      "changedAt": "2026-10-06T13:46:38.703Z"
+    },
+    "restored": {
+      "collection": "mentions",
+      "wake": "immediate",
+      "count": 5,
+      "intervalSeconds": 30,
+      "inheritance": "custom",
+      "revision": 7,
+      "changedAt": "2026-10-06T13:46:54.353Z",
+      "editor": {
+        "kind": "human"
+      },
+      "defaultRevision": 4
+    },
+    "liveInheritance": true,
+    "customPreserved": true
+  },
+  "paused": {
+    "native": {
+      "appFlags": 0,
+      "id": "1557026466758271026",
+      "mentions": [
+        "1556613973846007899"
+      ],
+      "content": "<@1556613973846007899> DISCORD-1016-PAUSED: synthetic paused-identity sentinel cedar-82. No reply requested."
+    },
+    "canonicalUnchanged": true,
+    "noBackfillAfterResume": true
+  },
+  "custom": {
+    "turn": 11,
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "off"
+    },
+    "native": {
+      "requestId": "1557026924637716744",
+      "replyId": "1557026976412340276",
+      "replyTo": "1557026924637716744",
+      "thread": "1556622420222283798",
+      "text": "DISCORD-1016-CUSTOM-OK:cedar-82",
+      "ownBot": true
+    },
+    "sourceEventId": "im-28df017e2fde76391381381c5b19d3ea8d6b2d4c73febff9e9f5ba001126b03e",
+    "defaultRevision": 5,
+    "receptionRevision": 7,
+    "admission": {
+      "reason": "group-mention",
+      "state": "handled",
+      "externalDefaultRevision": 5
+    },
+    "tools": [
+      {
+        "name": "bridge_read",
+        "callId": "call_00_9fSE8Yh7DNu49OBBxnZK8863",
+        "arguments": "{\"source_event_id\": \"im-28df017e2fde76391381381c5b19d3ea8d6b2d4c73febff9e9f5ba001126b03e\"}",
+        "succeeded": true
+      },
+      {
+        "name": "bridge_reply",
+        "callId": "call_00_J2tKiOfJzJcL7JCWEZLl2507",
+        "arguments": "{\"source_event_id\": \"im-28df017e2fde76391381381c5b19d3ea8d6b2d4c73febff9e9f5ba001126b03e\", \"text\": \"DISCORD-1016-CUSTOM-OK:cedar-82\"}",
+        "succeeded": true
+      }
+    ],
+    "delta": {
+      "messaging_bindings": 0,
+      "messaging_grants": 0,
+      "source_events": 1,
+      "inbox_admissions": 1,
+      "messaging_outbox": 1,
+      "channel_placements": 0
+    }
+  },
+  "inherited": {
+    "turn": 12,
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "off"
+    },
+    "native": {
+      "requestId": "1557027428151468144",
+      "replyId": "1557027468903456802",
+      "replyTo": "1557027428151468144",
+      "thread": "1556622420222283798",
+      "text": "DISCORD-1016-INHERITED-OK:cedar-82",
+      "ownBot": true
+    },
+    "sourceEventId": "im-cd19b8b93b4d515721fb60dd2c0f0a22ff037704a47232ee6abeab7d50ed5b9a",
+    "defaultRevision": 6,
+    "receptionRevision": 8,
+    "admission": {
+      "reason": "group-mention",
+      "state": "handled",
+      "externalDefaultRevision": 6
+    },
+    "tools": [
+      {
+        "name": "bridge_read",
+        "callId": "call_00_iezkUTa2y0hdHMlwrbMz9010",
+        "arguments": "{\"source_event_id\": \"im-cd19b8b93b4d515721fb60dd2c0f0a22ff037704a47232ee6abeab7d50ed5b9a\"}",
+        "succeeded": true
+      },
+      {
+        "name": "bridge_reply",
+        "callId": "call_00_n4cq6uThWTKpGC6iA8F29521",
+        "arguments": "{\"source_event_id\": \"im-cd19b8b93b4d515721fb60dd2c0f0a22ff037704a47232ee6abeab7d50ed5b9a\", \"text\": \"DISCORD-1016-INHERITED-OK:cedar-82\"}",
+        "succeeded": true
+      }
+    ],
+    "delta": {
+      "messaging_bindings": 0,
+      "messaging_grants": 0,
+      "source_events": 1,
+      "inbox_admissions": 1,
+      "messaging_outbox": 1,
+      "channel_placements": 0
+    }
+  },
+  "restoration": {
+    "canonical": {
+      "messaging_bindings": {
+        "count": 1,
+        "sha256": "5a7c642991d8f9f62978c3f011c3c57e8ae85479f23e7ca47580bc1f6d25cff9"
+      },
+      "messaging_grants": {
+        "count": 1,
+        "sha256": "ef6feb59a5c02782552b219f5699c2c833a342b6d73155c7025ffc99528e668f"
+      },
+      "source_events": {
+        "count": 33,
+        "sha256": "afab21ee5f14fb70262034cd0df9e14bf0de4dec7dee24cbbde5d3a6709329e8"
+      },
+      "inbox_admissions": {
+        "count": 15,
+        "sha256": "2441dd61d17acade97b2b314e765b2a2cd7134b704f49037b77ce82e38d037f0"
+      },
+      "messaging_outbox": {
+        "count": 11,
+        "sha256": "ec04e15eeeecc105e0130d5eae4102d09314f14f993a1ac2114f79c01f5783e2"
+      },
+      "channel_placements": {
+        "count": 2,
+        "sha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+      }
+    },
+    "messageContent": false,
+    "identityCustom": true,
+    "groupCustom": true,
+    "priorImmutableRowsPreserved": true,
+    "canPost": false
+  },
+  "coldBoot": {
+    "scopeRetained": true,
+    "canonicalUnchanged": true,
+    "workspaceWrite": false,
+    "defaults": {
+      "platform": "discord",
+      "collection": "mentions",
+      "wake": "digest",
+      "count": 5,
+      "intervalSeconds": 30,
+      "identityEnabled": true,
+      "revision": 9,
+      "changedAt": "2026-10-06T13:55:37.502Z"
+    },
+    "identity": {
+      "available": "available",
+      "inheritance": "custom"
+    },
+    "ordinaryDelivery": "unverified"
+  },
+  "workspaceWrite": false,
+  "runtime": {
+    "core": "4960b63cdc6e689c2dc803ba1192c47d446542c2",
+    "provider": "345b63f75ad8acc5b7e42eaab5a4eefdbffed683",
+    "artifactSha256": "b5fa453a9b2b6e544cb1d20f20b64415728b1e2333440b1f9ca00e796aa9024e",
+    "pid": 47755,
+    "api": {
+      "status": 200,
+      "ok": true
+    }
+  },
+  "validation": {
+    "focusedTests": 24,
+    "fullTests": 2895,
+    "skippedTests": 9,
+    "lint": true,
+    "format": true,
+    "typecheck": true,
+    "build": true,
+    "changelog": true
+  }
+}
