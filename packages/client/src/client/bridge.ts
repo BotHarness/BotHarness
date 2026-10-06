@@ -1374,6 +1374,63 @@ export async function createPersonaBot(
   return bot;
 }
 
+function botZipUrl(path: string, params: Record<string, string>): string {
+  const url = new URL(`./api/botharness/${path}`, document.baseURI);
+  url.search = new URLSearchParams(params).toString();
+  return url.href;
+}
+
+async function botZipError(response: Response): Promise<BridgeCallError> {
+  let code = response.status === 413 ? 'too-large' : 'unavailable';
+  let message = `Bot zip request failed (${response.status})`;
+  try {
+    const error = asRecord(asRecord(await response.json())?.['error']);
+    if (typeof error?.['code'] === 'string') code = error['code'];
+    if (typeof error?.['message'] === 'string') message = error['message'];
+  } catch {}
+  return new BridgeCallError(code, message);
+}
+
+function attachmentFileName(header: string | null, fallback: string): string {
+  const encoded = /filename\*=UTF-8''([^;]+)/iu.exec(header ?? '')?.[1];
+  if (encoded !== undefined) {
+    try {
+      return decodeURIComponent(encoded);
+    } catch {}
+  }
+  return fallback;
+}
+
+export async function importBotZip(file: File, signal?: AbortSignal): Promise<BotSummary> {
+  const response = await fetch(botZipUrl('bot-zip/import', { name: file.name }), {
+    method: 'POST',
+    headers: { 'content-type': 'application/zip' },
+    body: file,
+    credentials: 'same-origin',
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  const bot = parseBotSummary(asRecord(await response.json())?.['bot']);
+  if (bot === undefined) throw new Error('invalid Bot zip import response');
+  return bot;
+}
+
+export async function downloadBotZip(
+  slug: string,
+  fallbackName: string,
+  signal?: AbortSignal,
+): Promise<{ blob: Blob; name: string }> {
+  const response = await fetch(botZipUrl('bot-zip', { slug }), {
+    credentials: 'same-origin',
+    ...(signal === undefined ? {} : { signal }),
+  });
+  if (!response.ok) throw await botZipError(response);
+  return {
+    blob: await response.blob(),
+    name: attachmentFileName(response.headers.get('content-disposition'), `${fallbackName}.zip`),
+  };
+}
+
 export async function loadMarketplacePage(
   call: BridgeCall,
   query: MarketplaceQuery = {},
