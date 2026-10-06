@@ -148,6 +148,40 @@ The #908 live test received an item-ID-only quote: WeChat supplied neither the q
 
 ![Human-confirmed reply in the original quoted-message conversation](/guides/wechat/native-quote-reply.png)
 
+## 11. Share a private source through a local Channel
+
+The #909 installed-product test used `0.0.0-test.909.2` with the unchanged Provider `4.32.0-botharness.10`. One paired-owner conversation delivered the same canonical Source Event to a local shared Group and the receiving Bot's separate Inbox. The Human confirmed all four original-WeChat replies.
+
+Keep the receiving PersonaBot's WeChat identity and paired-owner DM authorization. Create a local Group with this Bot and its collaborators. In its Profile, choose **Channel connectors → Add connector**, select the authorized paired-owner conversation, name the connector and save. The fixed condition is **Paired-owner DM messages**: there are no mention or topic controls. A local Group is not a native WeChat group.
+
+![WeChat-specific connector configuration, light theme](/guides/wechat/channel-connector-config-light.jpg)
+
+![The same private-source configuration, dark theme](/guides/wechat/channel-connector-config-dark.jpg)
+
+Each Group member chooses its own Channel message policy: process each message, harvest by count/time, or receive silently. In the live test, the receiver processed its Inbox immediately while a collaborator waited for two shared messages. The collaborator used `bridge_read` to inspect both real sources and replied locally with `channel_send`. That Bot had no WeChat identity or Grant. Reading shared text does not lend the receiver's external identity: external replies, context and attachment access still require the acting Bot's own valid binding and Grant.
+
+![Shared reader waiting after the first message; the second message triggers harvest](/guides/wechat/routing-inbox-pending-dark.jpg)
+
+![Three native messages in the shared Channel and the reader's actual Source Event acknowledgements, light theme](/guides/wechat/routing-shared-light.jpg)
+
+![The same shared-source history, dark theme](/guides/wechat/routing-shared-dark.jpg)
+
+The receiver can retain a separate Inbox-only path governed by its private-message policy. Inbox-only adds no Human DM history; only an explicit local DM destination displays the source there. Local DM routing, duplicate input, connector deletion and receiver departure are regression-tested; this live run qualified the shared Group plus Inbox-only combination.
+
+Switch-off preserves history and stops future placements for this route while other enabled destinations continue. In the live test, the paused message reached only the receiver's Inbox and was answered in WeChat. Resume plus a same-Profile restart preserved message IDs and settings without backfilling that message. A new postrestart message reached the shared Channel and was processed by the reader's changed **Every message** policy. Delete keeps accepted history; receiver departure stops new routing there. Identity, target authorization and connector switches have separate scopes.
+
+![Member policies and enabled connector after restart](/guides/wechat/routing-profile-light.jpg)
+
+![Paused shared connector; the independent Inbox-only route continues](/guides/wechat/routing-paused-dark.jpg)
+
+This short sampled browser recording shows the real connector switch and saved status changes; native WeChat receipt is established by the live messages and Human confirmations above.
+
+<video controls preload="none" playsInline poster="/guides/wechat/routing-profile-light.jpg" style={{width: '100%', maxHeight: '640px'}}>
+<source src="/guides/wechat/routing-switch-demo.mp4" type="video/mp4" />
+</video>
+
+[Download the connector-switch recording](/guides/wechat/routing-switch-demo.mp4)
+
 ## Pause or reconnect
 
 Disable DM intake to stop future receipt while retaining configuration and history. Revoke the target authorization or unbind the identity to remove its authority. Re-pairing changes the identity fingerprint and requires explicit reauthorization; stale source continuations must not be reused. Restart with the same Profile to retain local pairing, canonical source records and Outbox outcomes.

@@ -125,8 +125,8 @@ it.each<{ voice?: MessagingVoice }>([
     await core.externalMessaging.inbound.setEnabled('ada', grant.id, true);
     const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
     expect(await core.externalMessaging.channelBridges(dm.id)).toMatchObject({
-      bridges: [],
-      sources: [],
+      bridges: [expect.objectContaining({ delivery: 'inbox', collection: 'all' })],
+      sources: [expect.objectContaining({ platform: 'weixin' })],
     });
     await expect(
       core.externalMessaging.inbound.channelBridge(dm.id, {

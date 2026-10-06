@@ -3537,7 +3537,7 @@ export async function readMessagingSource(
           path &&
           strings(path, ['routeId', 'grantId', 'reason', 'mode']) &&
           (path['channelId'] === null || typeof path['channelId'] === 'string') &&
-          ['group-mention', 'group-ordinary'].includes(String(path['reason'])) &&
+          ['group-mention', 'group-ordinary', 'human-dm'].includes(String(path['reason'])) &&
           ['all', 'immediate', 'digest', 'mentions', 'silent', 'context', 'conditional'].includes(
             String(path['mode']),
           ) &&

@@ -717,24 +717,27 @@ export const zh = {
   'bridge.save': '保存频道连接器',
   'bridge.empty': '尚未接入外部信息。',
   'bridge.source': '来源',
-  'bridge.conversation': '外部群',
+  'bridge.conversation': '外部会话',
   'bridge.condition': '接收条件',
   'bridge.account': '接收身份',
   'bridge.state': '状态',
   'bridge.enabled': '启用',
   'bridge.actions': '操作',
   'bridge.name': '连接器名称',
+  'bridge.ownerDM': '扫码绑定者私聊消息',
+  'bridge.wechatDMHint':
+    '仅接收已授权的扫码绑定者私聊。微信没有子话题；投递到本地群不代表支持微信群。',
   'bridge.mentions': '仅收 @ 接收身份',
   'bridge.all': '所有普通文字消息',
   'bridge.enableFor': '启用频道连接器：{name}',
   'bridge.editFor': '编辑频道连接器：{name}',
   'bridge.deleteFor': '删除频道连接器：{name}',
   'bridge.enableDraft': '接收新消息',
-  'bridge.authorizedSource': '已授权的外部群',
+  'bridge.authorizedSource': '已授权的外部会话',
   'bridge.noSources':
-    '暂无可添加来源。请先在成员 Bot 的 Profile 中绑定外部身份并明确授权测试群。同一来源可接入多个目标，各路径独立管理。',
+    '暂无可添加来源。请先在成员 Bot 的 Profile 中绑定外部身份并明确授权外部会话。同一来源可接入多个目标，各路径独立管理。',
   'bridge.addHint':
-    '只使用已授权的群。添加后，新消息进入当前频道，之前的 Inbox 历史保留；不会新增外部账号或群授权。',
+    '只使用已授权的会话。添加后，新消息进入当前频道，之前的 Inbox 历史保留；不会新增外部账号或会话授权。',
   'bridge.receiver': '接收身份：{name}。这不授予其他成员以该身份发言的权限。',
   'bridge.target': '本地目标：{name}',
   'bridge.providerHint':
@@ -746,7 +749,7 @@ export const zh = {
   'bridge.retainHint':
     '保留成员 Bot 的外部身份、独立发送授权、已接收消息和记录的策略。以后接入需要明确添加。',
   'bridge.wakeHint': '频道连接器决定收什么；每个成员 Bot 的 Attention／唤醒策略决定何时处理。',
-  'bridge.failed': '未能完成操作。请刷新核对身份、群授权与连接状态后重试。',
+  'bridge.failed': '未能完成操作。请刷新核对身份、会话授权与连接状态后重试。',
   'bridge.stale': '配置已在另一处更改。请关闭窗口、刷新后重新编辑；输入已保留。',
   'bridge.state.off': '已暂停',
   'bridge.state.receiving': '正在收件',
@@ -2704,24 +2707,27 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.save': 'Save Bridge',
   'bridge.empty': 'No external sources connected.',
   'bridge.source': 'Source',
-  'bridge.conversation': 'External group',
+  'bridge.conversation': 'External conversation',
   'bridge.condition': 'Conditions',
   'bridge.account': 'Receiving identity',
   'bridge.state': 'State',
   'bridge.enabled': 'Enabled',
   'bridge.actions': 'Actions',
   'bridge.name': 'Bridge name',
+  'bridge.ownerDM': 'Paired-owner DM messages',
+  'bridge.wechatDMHint':
+    'Receives only the authorized paired-owner DM. WeChat has no topics here; delivery to a local Group does not enable native WeChat groups.',
   'bridge.mentions': 'Only mentions of the receiving identity',
   'bridge.all': 'All ordinary text messages',
   'bridge.enableFor': 'Enable Bridge: {name}',
   'bridge.editFor': 'Edit Bridge: {name}',
   'bridge.deleteFor': 'Delete Bridge: {name}',
   'bridge.enableDraft': 'Receive new messages',
-  'bridge.authorizedSource': 'Authorized external group',
+  'bridge.authorizedSource': 'Authorized external conversation',
   'bridge.noSources':
-    'No source available. Bind a member Bot’s external identity and explicitly authorize a group in its Profile first. The same source can be connected to multiple independently managed targets.',
+    'No source available. Bind a member Bot’s external identity and explicitly authorize a conversation in its Profile first. The same source can be connected to multiple independently managed targets.',
   'bridge.addHint':
-    'Uses an existing authorized group only. Future messages enter this Channel; earlier Inbox history stays. No new external account or group authorization is created.',
+    'Uses an existing authorized conversation only. Future messages enter this Channel; earlier Inbox history stays. No new external account or conversation authorization is created.',
   'bridge.receiver':
     'Receiving identity: {name}. Other members do not gain permission to speak as this identity.',
   'bridge.target': 'Local target: {name}',
@@ -2736,7 +2742,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bridge.wakeHint':
     'Bridge decides what to collect; each member Bot’s Attention and wake policy decides when to process it.',
   'bridge.failed':
-    'Operation could not complete. Refresh and check identity, group authorization and connection before retrying.',
+    'Operation could not complete. Refresh and check identity, conversation authorization and connection before retrying.',
   'bridge.stale':
     'Configuration changed elsewhere. Close, refresh and reopen to edit; your input is retained.',
   'bridge.state.off': 'Paused',

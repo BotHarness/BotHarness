@@ -502,7 +502,7 @@ export function createInboundMessaging(options: {
             event.conversation.id !== value.receiveScope!.conversationId
           )
             return { accepted: true };
-          if (event.conversation.kind === 'dm') {
+          if (event.conversation.kind === 'dm' && !latest.bridgeRoutes) {
             if (latest.receiveTargetChannelId || latest.channelBridge || latest.bridgeRoutes)
               throw new MessagingError('capability-unavailable');
             const id = transaction(
@@ -534,7 +534,7 @@ export function createInboundMessaging(options: {
               });
             return { accepted: true };
           }
-          if (!event.mentionedAccount) {
+          if (event.conversation.kind === 'group' && !event.mentionedAccount) {
             lease.ordinaryVerified = true;
             if (ordinaryThreadReply(event))
               lease.ordinaryThreads.set(event.reply.threadId!, event.reply.rootId!);
@@ -572,6 +572,7 @@ export function createInboundMessaging(options: {
                   )
                     return false;
                   if (
+                    event.conversation.kind === 'group' &&
                     !event.mentionedAccount &&
                     (thread?.mode === 'exclude' ||
                       (thread?.mode !== 'follow' &&
@@ -612,8 +613,11 @@ export function createInboundMessaging(options: {
                       value.botSlug,
                     );
                     if (commit) placed.push(commit);
-                    if (!event.mentionedAccount) {
-                      const channel = bridgeChannel(db, route.channelId, value.botSlug);
+                    const channel = bridgeChannel(db, route.channelId, value.botSlug);
+                    if (
+                      !event.mentionedAccount &&
+                      !(event.conversation.kind === 'dm' && channel.type === 'dm')
+                    ) {
                       for (const slug of admitBridgeMembers(
                         db,
                         id,
@@ -633,23 +637,33 @@ export function createInboundMessaging(options: {
                       continue;
                     }
                   }
-                  const reason = event.mentionedAccount ? 'group-mention' : 'group-ordinary';
+                  const reason =
+                    event.conversation.kind === 'dm'
+                      ? 'human-dm'
+                      : event.mentionedAccount
+                        ? 'group-mention'
+                        : 'group-ordinary';
                   const policy = options.sourcePolicy.resolveIn(db, value.botSlug, reason);
                   const ordinary =
                     thread?.mode === 'follow' && thread.wake ? thread.wake : reception;
-                  const wake = event.mentionedAccount
-                    ? policy.wake
-                    : thread?.wake || reception.inheritance === 'custom' || !policy.overrideActive
-                      ? ordinary.wake
-                      : policy.wake;
+                  const wake =
+                    event.conversation.kind === 'dm' || event.mentionedAccount
+                      ? policy.wake
+                      : thread?.wake || reception.inheritance === 'custom' || !policy.overrideActive
+                        ? ordinary.wake
+                        : policy.wake;
                   const count =
-                    reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
-                      ? (policy.digestCount ?? ordinary.count)
-                      : ordinary.count;
+                    event.conversation.kind === 'dm'
+                      ? (policy.digestCount ?? 1)
+                      : reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
+                        ? (policy.digestCount ?? ordinary.count)
+                        : ordinary.count;
                   const seconds =
-                    reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
-                      ? (policy.digestIntervalSeconds ?? ordinary.intervalSeconds)
-                      : ordinary.intervalSeconds;
+                    event.conversation.kind === 'dm'
+                      ? (policy.digestIntervalSeconds ?? 30)
+                      : reception.inheritance !== 'custom' && !thread?.wake && policy.overrideActive
+                        ? (policy.digestIntervalSeconds ?? ordinary.intervalSeconds)
+                        : ordinary.intervalSeconds;
                   db.prepare(`INSERT OR IGNORE INTO inbox_admissions (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
                   wake_policy_revision, wake_mode, wake_count, wake_interval_ms, external_thread_policy_revision, external_default_revision)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
@@ -1021,7 +1035,11 @@ export function createInboundMessaging(options: {
       }
       return undefined;
     });
-    if (!channelId || retained.event.conversation.kind !== 'group')
+    if (
+      !channelId ||
+      (retained.event.conversation.kind !== 'group' &&
+        !(retained.platform === 'weixin' && retained.event.conversation.kind === 'dm'))
+    )
       throw new MessagingError('source-unavailable');
     const { contextReads: _reads, receptionPaths: _paths, ...shared } = retained;
     return { ...shared, body: row.body, localChannelId: channelId };
@@ -1270,7 +1288,14 @@ export function createInboundMessaging(options: {
     async channelBridge(channelId, rawInput) {
       const input = channelBridgeInput.parse(rawInput);
       const value = grant(input.grantId);
-      if (value.platform === 'weixin' || value.receiveScope?.kind === 'dm')
+      const privateSource = value.platform === 'weixin';
+      if (value.receiveScope?.kind === 'dm' && !privateSource)
+        throw new MessagingError('capability-unavailable');
+      if (
+        privateSource &&
+        input.kind !== 'delete' &&
+        (input.collection !== 'all' || input.collectionInheritance === 'inherit')
+      )
         throw new MessagingError('capability-unavailable');
       const channel = database.read((db) => bridgeChannel(db, channelId, value.botSlug, true));
       const target = input.delivery === 'inbox' ? null : channelId;
@@ -1309,10 +1334,12 @@ export function createInboundMessaging(options: {
           inspected.account.fingerprint !== value.fingerprint ||
           inspected.target.ref !== value.targetRef ||
           inspected.target.digest !== value.targetDigest ||
-          !inspected.target.receiveScope
+          !inspected.target.receiveScope ||
+          (privateSource && inspected.target.receiveScope.kind !== 'dm')
         )
           throw new MessagingError('rebind-required');
         if (
+          !privateSource &&
           input.collectionInheritance !== 'inherit' &&
           input.collection === 'all' &&
           !leases.get(value.id)?.ordinaryVerified
