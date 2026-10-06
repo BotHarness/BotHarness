@@ -7,8 +7,8 @@
 - Our cookies never reach PostHog and PostHog cannot set cookies on our domain. The client address is passed as `X-Forwarded-For` for country lookup and the cookieless daily hash; the PostHog project discards it ("Discard client IP data").
 
 ```bash
-pnpm --filter @botharness/ingest dev     # local
-pnpm --filter @botharness/ingest deploy  # needs wrangler login on the botharness.ai account
+pnpm --filter @botharness/ingest dev         # local
+pnpm --filter @botharness/ingest run deploy  # needs wrangler login on the botharness.ai account
 ```
 
 In the PostHog project, also enable cookieless server hash mode, which the site's `cookieless_mode: 'on_reject'` requires.
