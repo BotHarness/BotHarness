@@ -2,6 +2,8 @@
 
 打开 **Bot 私聊 → Channel sidebar → 记忆文件**。文件树属于这个 PersonaBot 的 Memory Repository，不是某个任务的工作目录。新 Bot 可能只有初始化文件；你或 Bot 保存主题文件后，才会出现相应内容。
 
+根目录的 `SOUL.md` 和 `MEMORY.md` 固定排在最上面，带 **常驻** 标签和字数用量：它们会在每个新 Session 开始时放进 system prompt。用途、上限和生效时间见 [Bot 灵魂与核心记忆](/zh/docs/soul-and-core-memory)。
+
 ## 读取文件
 
 1. 展开 **记忆文件**，再展开文件所在的文件夹。
