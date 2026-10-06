@@ -492,6 +492,10 @@ _避免使用_：message、retry attempt、delivery notification
 一种需要 Human resolution 的 Outbox state：provider request 已经开始，但在完成所有可用 reconciliation 后仍无法证明成功或失败；PersonaBot 不能自行安全 retry，也不能宣称成功。
 _避免使用_：failure、timeout、retryable error、success
 
+**Bot Schedule**：
+「定时任务」。由 PersonaBot 拥有的持久 Host rule，在计划时刻把一条 `schedule` Source Event admit 进它的 Bot Inbox。Human 与 PersonaBot 都可以管理；Human 锁定后 PersonaBot 只能查看。它挂在 PersonaBot 上，绝不绑定某个 Session。
+_避免使用_：cron job、DSH Schedule、timer、heartbeat、scheduled Assignment
+
 **Wake Policy**：
 确定性的 Host policy，决定已 admit 的 event 是立即 wake PersonaBot、并入 digest，还是不触发 automatic wake。
 _避免使用_：model decision、delivery mechanism、scheduler
