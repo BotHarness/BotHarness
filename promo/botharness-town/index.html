@@ -3163,7 +3163,8 @@ function buildHook() {
     return { g, art, strL, strR, w, h };
   };
   hk.signs = {
-    title: sign(268, 50, (ctx, W, H) => { centered(ctx, T('hook1'), W / 2, 36, 40, W - 40); centered(ctx, T('hook2'), W / 2, 76, 26, W - 60, '#7a3b4a'); }),
+    // the product name first, then what it is
+    title: sign(268, 60, (ctx, W, H) => { centered(ctx, 'DeepSeekBot', W / 2, 30, 42, W - 40); centered(ctx, T('hook1'), W / 2, 70, 24, W - 50, INK); centered(ctx, T('hook2'), W / 2, 95, 18, W - 60, '#7a3b4a'); }),
   };
   for (const k of ['hookMem', 'hookIm', 'hookGroup', 'hookMorph']) hk.signs[k] = sign(236, 24, (ctx, W, H) => centered(ctx, T(k), W / 2, H / 2 + 2, 24, W - 36));
   hk.bubbles = { at: talkTex('@NOVA'), ok: talkTex('OK!'), dots: talkTex('...') };
@@ -3174,7 +3175,7 @@ function buildHook() {
   hk.logo = groupPlane(hookHud, logoTex, 42);
   hk.title = groupPlane(hookHud, { tex: titleText.material.map }, 43, 0.5, 1);
   hk.sub = groupPlane(hookHud, canvasTex(640, 40, (ctx) => {
-    const t = `${T('hook1')} · ${T('hook2')}`;
+    const t = `DeepSeekBot · ${T('hook1')} · ${T('hook2')}`;
     const px = Math.min(22, Math.floor((600 / measureCJK(t, 22)) * 22));
     crispText(ctx, t, Math.round(320 - measureCJK(t, px) / 2), 20, px, '#fff2a0', 110);
   }), 44, 0.5, 1);
