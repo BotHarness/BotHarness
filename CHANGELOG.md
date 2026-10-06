@@ -5,10 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-WeChat original voice can be prepared for playback, and Discord defaults can be saved independently and inherited by Profile settings.
+WeChat original voice can be prepared for playback, native video can be played and returned through a checked media path, and Discord defaults can be saved independently and inherited by Profile settings.
 
 ### Added
 
+- Added a checked personal WeChat video path with on-demand source playback/download and own-identity native video replies, preserving private routing and current authorization; browser playback and tool access remain distinct from video-model understanding ([#907](https://github.com/BotHarness/BotHarness/issues/907), [guide](docs/wechat-connection.md)).
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
 - Discord now has independent external-platform defaults for group intake, ordinary wake thresholds and inherited identity availability. Profile custom choices remain independent; restoring inheritance uses the current Discord defaults. Existing Lark/Slack history and overrides are preserved on upgrade. ([#1016](https://github.com/BotHarness/BotHarness/issues/1016))
 

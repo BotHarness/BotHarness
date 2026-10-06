@@ -783,6 +783,12 @@ export const zh = {
   'im.voiceAudioPrepare': '准备播放',
   'im.voiceAudioRetry': '重新准备音频',
   'im.voiceAudioPreparing': '正在准备音频…',
+  'im.videoPlayer': '外部视频',
+  'im.videoLoading': '正在读取视频…',
+  'im.videoPrepare': '加载视频',
+  'im.videoRetry': '重试播放',
+  'im.videoHint': '按需读取原视频；能否播放取决于浏览器的编码支持，不代表模型能理解视频。',
+  'im.videoUnavailable': '视频暂不能播放，可下载原件；请检查权限、文件格式或浏览器编码支持。',
   'im.voiceAudioPlayer': '微信语音播放器',
   'im.voiceAudioHint': '支持的 SILK 语音转换为 24 kHz WAV，仅用于播放或处理，不进行语音识别。',
   'im.voiceAudioUnavailable':
@@ -2681,6 +2687,14 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.voiceAudioPrepare': 'Prepare playback',
   'im.voiceAudioRetry': 'Prepare audio again',
   'im.voiceAudioPreparing': 'Preparing audio…',
+  'im.videoPlayer': 'External video',
+  'im.videoLoading': 'Loading video…',
+  'im.videoPrepare': 'Load video',
+  'im.videoRetry': 'Retry playback',
+  'im.videoHint':
+    'Loads the original on demand. Playback depends on browser codecs and does not imply model video understanding.',
+  'im.videoUnavailable':
+    'Video playback is unavailable. Download the original and check authorization, format or browser codecs.',
   'im.voiceAudioPlayer': 'WeChat voice player',
   'im.voiceAudioHint':
     'Supported SILK is converted to 24 kHz WAV for playback or processing, without speech recognition.',
