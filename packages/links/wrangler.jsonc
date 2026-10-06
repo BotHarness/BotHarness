@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // campaign short links on go.botharness.ai (ADR-0132)
+  "name": "botharness-links",
+  "account_id": "332e72d480d7cb3e60ee671d3ca0cad0",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-17",
+  "routes": [{ "pattern": "go.botharness.ai", "custom_domain": true }],
+  "vars": {
+    "POSTHOG_HOST": "https://us.i.posthog.com",
+    "POSTHOG_KEY": "phc_CxrCyBuRHVSs996eyHXAeyJbyE8rJXgREbEYsfxUkR3J",
+  },
+  "d1_databases": [
+    {
+      "binding": "LINKS_DB",
+      "database_name": "botharness-links",
+      // replace with the id printed by `wrangler d1 create botharness-links`
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+}
