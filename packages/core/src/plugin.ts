@@ -59,6 +59,7 @@ import {
 } from './runtime/bot-runtime.js';
 import { createBotAttentionQuery, type BotAttentionQuery } from './runtime/attention.js';
 import { createBotSourcePolicyStore, type BotSourcePolicyStore } from './runtime/source-policy.js';
+import { createBotScheduleStore, type BotScheduleStore } from './schedules/bot-schedules.js';
 import {
   createHumanAttentionQuery,
   createHumanAttentionDecisions,
@@ -201,6 +202,7 @@ export interface BotHarnessCore {
   runtime: BotRuntime;
   attention: BotAttentionQuery;
   sourcePolicy: BotSourcePolicyStore;
+  schedules: BotScheduleStore;
   humanAttention: HumanAttentionQuery;
   humanAttentionDecisions: HumanAttentionDecisions;
   grants: WorkspaceGrantStore;
@@ -504,6 +506,16 @@ export function createCore(
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   if (operationalDatabase.mode === 'ready') runtime.reconcileMemoryChangesOnStartup?.();
+  const schedules = createBotScheduleStore({
+    database: attachOperationalModule(operationalDatabase, 'bot-schedules'),
+    isBotActive: (slug) => {
+      const bot = registry.get(slug);
+      return operationalDatabase.mode === 'ready' && bot !== undefined && bot.paused !== true;
+    },
+    onAdmitted: (slug) => runtime?.admitScheduleFiring?.(slug),
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
+  if (operationalDatabase.mode === 'ready') schedules.start();
   return {
     rootDir,
     operationalDatabase,
@@ -539,6 +551,7 @@ export function createCore(
     channels,
     attention,
     sourcePolicy,
+    schedules,
     humanAttention,
     humanAttentionDecisions,
     attachments,
@@ -652,6 +665,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     return () => controller.abort();
   }, 'botharness: retained attachment migration');
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
+  ctx.effect(() => () => core.schedules.close(), 'botharness: bot schedules');
   ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
   ctx.provide('botharness', core);
   ctx.effect(() => () => core.externalMessaging.close(), 'botharness: external messaging');
@@ -920,6 +934,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       runtime: core.runtime,
       attention: core.attention,
       sourcePolicy: core.sourcePolicy,
+      schedules: core.schedules,
       humanAttention: core.humanAttention,
       humanAttentionDecisions: core.humanAttentionDecisions,
       grants: core.grants,

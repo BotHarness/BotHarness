@@ -5,7 +5,11 @@
 
 ## [Unreleased]
 
-1.0.2 之后暂无变更。
+PersonaBot 可在 Channel 侧栏设置定时任务。
+
+### Added
+
+- PersonaBot 新增定时任务（Bot Schedule）：Channel 侧栏的「定时任务」分区可新建、编辑、暂停和删除按分钟、按小时或每天执行的任务；每次触发进入 Bot 收件箱并唤醒 Orchestrator，每个任务可查看最近 20 次触发及处理它的会话（[#960](https://github.com/BotHarness/BotHarness/issues/960)，[ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)）。
 
 ## [1.0.2] - 2026-10-06
 

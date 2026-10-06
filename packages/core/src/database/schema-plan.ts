@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import type { DatabaseSync } from 'node:sqlite';
 
 import { defineSchemaPlan, type SchemaMigration } from './schema.js';
 
@@ -1465,6 +1466,73 @@ const ROSTER_ARRANGEMENT_MIGRATION: SchemaMigration = {
   },
 };
 
+function rebuildWithKind(
+  database: DatabaseSync,
+  table: 'source_events' | 'inbox_admissions',
+  lastKind: string,
+): void {
+  const row = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .get(table) as { sql: string } | undefined;
+  const marker = `'${lastKind}'))`;
+  if (row === undefined || row.sql.split(marker).length !== 2)
+    throw new Error(`Cannot extend the ${table} kind check`);
+  const indexes = (
+    database
+      .prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ? AND sql IS NOT NULL",
+      )
+      .all(table) as Array<{ sql: string }>
+  ).map((index) => index.sql);
+  const next = row.sql
+    .replace(marker, `'${lastKind}', 'schedule'))`)
+    .replace(/^CREATE TABLE\s+"?\w+"?/u, `CREATE TABLE ${table}_next`);
+  database.exec(next);
+  database.exec(`INSERT INTO ${table}_next SELECT * FROM ${table};
+    DROP TABLE ${table};
+    ALTER TABLE ${table}_next RENAME TO ${table};`);
+  for (const index of indexes) database.exec(index);
+}
+
+const BOT_SCHEDULE_MIGRATION: SchemaMigration = {
+  generation: 57,
+  module: 'bot-schedules',
+  description: 'Own PersonaBot Schedules and admit their firings into the Bot Inbox',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    rebuildWithKind(database, 'source_events', 'bridge-message');
+    rebuildWithKind(database, 'inbox_admissions', 'memory-change');
+    database.exec(`
+      CREATE TABLE bot_schedules (
+        schedule_id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        record_json TEXT NOT NULL CHECK (json_valid(record_json)),
+        enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+        creator TEXT NOT NULL CHECK (creator IN ('human', 'personabot')),
+        locked INTEGER NOT NULL DEFAULT 0 CHECK (locked IN (0, 1)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX bot_schedules_bot ON bot_schedules (bot_slug, created_at);
+      CREATE TABLE bot_schedule_firings (
+        firing_id TEXT PRIMARY KEY,
+        schedule_id TEXT NOT NULL,
+        bot_slug TEXT NOT NULL,
+        trigger TEXT NOT NULL CHECK (trigger IN ('planned', 'manual')),
+        occurrence_at TEXT NOT NULL,
+        fired_at TEXT NOT NULL,
+        source_event_id TEXT,
+        coalesced INTEGER NOT NULL DEFAULT 0 CHECK (coalesced IN (0, 1)),
+        skipped_reason TEXT,
+        session_id TEXT
+      );
+      CREATE INDEX bot_schedule_firings_schedule
+        ON bot_schedule_firings (schedule_id, fired_at);
+      CREATE INDEX bot_schedule_firings_event ON bot_schedule_firings (source_event_id);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1521,4 +1589,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   MODEL_PRESET_STORAGE_MIGRATION,
   PERSONA_BOT_REGISTRY_MIGRATION,
   ROSTER_ARRANGEMENT_MIGRATION,
+  BOT_SCHEDULE_MIGRATION,
 ]);

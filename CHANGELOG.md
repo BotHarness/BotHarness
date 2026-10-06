@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Nothing yet since 1.0.2.
+PersonaBots can run recurring Bot Schedules from the Channel sidebar.
+
+### Added
+
+- PersonaBots gain Bot Schedules: the Channel sidebar's Schedules section lets the Human create, edit, pause and delete minute, hourly or daily tasks; each firing lands in the Bot Inbox and wakes the Orchestrator, and every schedule shows its last 20 firings with links to the handling session ([#960](https://github.com/BotHarness/BotHarness/issues/960), [ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)).
 
 ## [1.0.2] - 2026-10-06
 

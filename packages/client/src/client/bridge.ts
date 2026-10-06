@@ -23,6 +23,12 @@ import type {
   MessagingIdentityInput,
 } from '../../../core/src/messaging/identity.js';
 import type { OverviewMemory } from '../../../core/src/memory/overview.js';
+import type {
+  BotSchedule,
+  BotScheduleChange,
+  BotScheduleFiring,
+  BotScheduleInput,
+} from '../../../core/src/schedules/bot-schedules.js';
 import {
   parseMarketplaceDetail,
   parseMarketplacePage,
@@ -350,6 +356,97 @@ export async function loadBotSourcePolicies(
       throw new Error('invalid Bot source policy');
     return policy as unknown as BotSourcePolicyView;
   });
+}
+
+export type {
+  BotSchedule as BotScheduleView,
+  BotScheduleChange,
+  BotScheduleFiring as BotScheduleFiringView,
+  BotScheduleInput,
+  BotScheduleTrigger,
+} from '../../../core/src/schedules/bot-schedules.js';
+
+function isScheduleTrigger(value: unknown): boolean {
+  const trigger = asRecord(value);
+  return (
+    (trigger?.['kind'] === 'every' && Number.isSafeInteger(trigger['everySeconds'])) ||
+    (trigger?.['kind'] === 'daily' &&
+      typeof trigger['time'] === 'string' &&
+      typeof trigger['timeZone'] === 'string')
+  );
+}
+
+function parseScheduleFiring(value: unknown): BotScheduleFiring {
+  const firing = asRecord(value);
+  if (
+    typeof firing?.['id'] !== 'string' ||
+    typeof firing['scheduleId'] !== 'string' ||
+    !['planned', 'manual'].includes(String(firing['trigger'])) ||
+    typeof firing['occurrenceAt'] !== 'string' ||
+    typeof firing['firedAt'] !== 'string' ||
+    !['pending', 'observed', 'handled', 'coalesced', 'skipped'].includes(String(firing['state']))
+  )
+    throw new Error('invalid Bot Schedule firing');
+  return firing as unknown as BotScheduleFiring;
+}
+
+function parseSchedule(value: unknown): BotSchedule {
+  const schedule = asRecord(value);
+  if (
+    typeof schedule?.['id'] !== 'string' ||
+    typeof schedule['botSlug'] !== 'string' ||
+    typeof schedule['title'] !== 'string' ||
+    typeof schedule['prompt'] !== 'string' ||
+    !isScheduleTrigger(schedule['trigger']) ||
+    typeof schedule['enabled'] !== 'boolean' ||
+    !['human', 'personabot'].includes(String(schedule['creator'])) ||
+    typeof schedule['locked'] !== 'boolean' ||
+    (schedule['nextRunAt'] !== undefined && typeof schedule['nextRunAt'] !== 'string')
+  )
+    throw new Error('invalid Bot Schedule');
+  if (schedule['lastFiring'] !== undefined) parseScheduleFiring(schedule['lastFiring']);
+  return schedule as unknown as BotSchedule;
+}
+
+export async function loadBotSchedules(call: BridgeCall, slug: string): Promise<BotSchedule[]> {
+  const raw = asRecord(await unwrap(call, 'scheduleList', { slug }))?.['schedules'];
+  if (!Array.isArray(raw)) throw new Error('invalid Bot Schedules');
+  return raw.map(parseSchedule);
+}
+
+export async function createBotSchedule(
+  call: BridgeCall,
+  slug: string,
+  input: BotScheduleInput,
+): Promise<BotSchedule> {
+  return parseSchedule(
+    asRecord(await unwrap(call, 'scheduleCreate', { slug, input }))?.['schedule'],
+  );
+}
+
+export async function updateBotSchedule(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+  change: BotScheduleChange,
+): Promise<BotSchedule> {
+  return parseSchedule(
+    asRecord(await unwrap(call, 'scheduleUpdate', { slug, id, change }))?.['schedule'],
+  );
+}
+
+export async function deleteBotSchedule(call: BridgeCall, slug: string, id: string): Promise<void> {
+  await unwrap(call, 'scheduleDelete', { slug, id });
+}
+
+export async function loadBotScheduleHistory(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+): Promise<BotScheduleFiring[]> {
+  const raw = asRecord(await unwrap(call, 'scheduleHistory', { slug, id }))?.['firings'];
+  if (!Array.isArray(raw)) throw new Error('invalid Bot Schedule history');
+  return raw.map(parseScheduleFiring);
 }
 
 export async function setBotSourcePolicy(

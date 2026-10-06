@@ -138,6 +138,11 @@ import {
   type ModelRouteView,
   type AssignmentModelOptionView,
   loadBotSourcePolicies,
+  loadBotSchedules,
+  createBotSchedule,
+  updateBotSchedule,
+  deleteBotSchedule,
+  loadBotScheduleHistory,
   type BotSourcePolicyEdit,
   setBotSourcePolicy,
   resetBotSourcePolicy,
@@ -175,6 +180,10 @@ import {
   type ProfileActivity,
   type GroupProfileActivity,
   type BotSourcePolicyView,
+  type BotScheduleView,
+  type BotScheduleChange,
+  type BotScheduleFiringView,
+  type BotScheduleInput,
   type CreatePersonaBotInput,
   type RosterBatchInput,
 } from './bridge.js';
@@ -386,6 +395,11 @@ export interface BridgeActions {
   channelActivityToday(): Promise<ChannelActivityToday>;
   groupProfileActivity(channelId: string): Promise<GroupProfileActivity>;
   botSourcePolicies(slug: string): Promise<BotSourcePolicyView[]>;
+  botSchedules(slug: string): Promise<BotScheduleView[]>;
+  createBotSchedule(slug: string, input: BotScheduleInput): Promise<BotScheduleView>;
+  updateBotSchedule(slug: string, id: string, change: BotScheduleChange): Promise<BotScheduleView>;
+  deleteBotSchedule(slug: string, id: string): Promise<void>;
+  botScheduleHistory(slug: string, id: string): Promise<BotScheduleFiringView[]>;
   setBotSourcePolicy(slug: string, edit: BotSourcePolicyEdit): Promise<void>;
   resetBotSourcePolicy(
     slug: string,
@@ -1697,6 +1711,11 @@ export function createActions(
     messagingSend: (slug, grantId, requestId, text) =>
       sendMessaging(call, slug, grantId, requestId, text),
     botSourcePolicies: (slug) => loadBotSourcePolicies(call, slug),
+    botSchedules: (slug) => loadBotSchedules(call, slug),
+    createBotSchedule: (slug, input) => createBotSchedule(call, slug, input),
+    updateBotSchedule: (slug, id, change) => updateBotSchedule(call, slug, id, change),
+    deleteBotSchedule: (slug, id) => deleteBotSchedule(call, slug, id),
+    botScheduleHistory: (slug, id) => loadBotScheduleHistory(call, slug, id),
     setBotSourcePolicy: (slug, edit) => setBotSourcePolicy(call, slug, edit),
     resetBotSourcePolicy: (slug, sourceClass) => resetBotSourcePolicy(call, slug, sourceClass),
     memoryWorkingChanges: (channelId) => loadMemoryWorkingChanges(call, channelId),

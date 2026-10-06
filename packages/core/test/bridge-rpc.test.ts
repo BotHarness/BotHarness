@@ -200,6 +200,11 @@ describe('bridge typert service', () => {
       'marketplaceReport',
       'releaseInfo',
       'releaseUpdate',
+      'scheduleList',
+      'scheduleCreate',
+      'scheduleUpdate',
+      'scheduleDelete',
+      'scheduleHistory',
     ]);
   });
 
@@ -241,6 +246,11 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.marketplaceReport)).toEqual(['id', 'altcha', 'reason']);
     expect(parameterNames(service.releaseInfo)).toEqual(['since']);
     expect(parameterNames(service.releaseUpdate)).toEqual([]);
+    expect(parameterNames(service.scheduleList)).toEqual(['slug']);
+    expect(parameterNames(service.scheduleCreate)).toEqual(['slug', 'input']);
+    expect(parameterNames(service.scheduleUpdate)).toEqual(['slug', 'id', 'change']);
+    expect(parameterNames(service.scheduleDelete)).toEqual(['slug', 'id']);
+    expect(parameterNames(service.scheduleHistory)).toEqual(['slug', 'id']);
     expect(parameterNames(service.messagingDefaults)).toEqual(['platform']);
     expect(parameterNames(service.channels)).toEqual([]);
     expect(parameterNames(service.channelDm)).toEqual(['slug', 'displayName']);

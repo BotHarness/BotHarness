@@ -1088,7 +1088,7 @@ export function createMemoryAcceptance(options: {
             .prepare('SELECT 1 FROM inbox_admissions WHERE source_event_id = ? AND bot_slug = ?')
             .get(input.sourceEventId, input.botSlug),
         )) ||
-      (!['human-message', 'assignment-report', 'assignment-lifecycle'].includes(
+      (!['human-message', 'assignment-report', 'assignment-lifecycle', 'schedule'].includes(
         source?.source_kind ?? '',
       ) &&
         !(
