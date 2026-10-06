@@ -58,12 +58,20 @@ button.danger{background:transparent;border-color:var(--danger);color:var(--dang
 .secret{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;flex:1 1 320px;font-size:14px}
 .short{white-space:nowrap}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.command{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.command .secret,.command code{flex:1;min-width:0;border:0;padding:0;background:transparent;overflow-x:auto;white-space:nowrap}
+.command .prompt{color:var(--ok);user-select:none}
+dialog{width:min(560px,calc(100vw - 32px));border:1px solid var(--line);border-radius:12px;padding:20px;background:var(--panel);color:var(--text)}
+dialog::backdrop{background:rgb(0 0 0 / .45)}
+dialog h2{margin-bottom:6px}dialog h3{font-size:14px;margin:16px 0 6px}dialog p{margin:0 0 10px}
+dialog .actions{display:flex;justify-content:flex-end;margin-top:18px}
 details summary{cursor:pointer;color:var(--accent)}
 details form{margin-top:8px}
 a{color:var(--accent)}
 `;
 
 const SCRIPT = `document.addEventListener('click',function(e){var b=e.target.closest('[data-copy]');if(!b)return;navigator.clipboard.writeText(b.getAttribute('data-copy')).then(function(){var t=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=t},1200)})});
+document.querySelectorAll('dialog[data-modal]').forEach(function(d){if(d.showModal){d.close();d.showModal()}});
 document.addEventListener('submit',function(e){var m=e.target.getAttribute('data-confirm');if(m&&!confirm(m))e.preventDefault()});`;
 
 const date = (value: string | null) => (value ? value.slice(0, 10) : '—');
@@ -191,21 +199,28 @@ async function dashboard(c: AdminContext, created?: Token & { token: string }) {
     created ? 'Token created' : 'Campaigns',
     html`${
         created
-          ? html`<section>
-              <h2>Token “${created.name}” created</h2>
-              <p>
-                Copy it now. It is shown only once; only its hash is stored. Use it as
-                <code>Authorization: Bearer &lt;token&gt;</code>.
+          ? html`<dialog open data-modal aria-labelledby="token-title">
+              <h2 id="token-title">Token “${created.name}” created</h2>
+              <p class="muted small">
+                Scope ${created.scope}, expires
+                ${created.expiresAt ? date(created.expiresAt) : 'never'}. Copy it now: it is
+                shown only once and only its hash is stored.
               </p>
-              <div class="row">
+              <div class="command">
                 <input class="secret" readonly value="${created.token}" aria-label="New token" />
                 ${copyButton(created.token)}
               </div>
+              <h3>Save it for bh-links</h3>
               <p class="small muted">
-                Scope ${created.scope}, expires
-                ${created.expiresAt ? date(created.expiresAt) : 'never'}.
+                Run this and paste the token at the prompt. It is checked against the API and
+                saved to <code>~/.config/botharness/links.json</code> with mode 0600.
               </p>
-            </section>`
+              <div class="command">
+                <code><span class="prompt">$ </span>bh-links login</code>
+                ${copyButton('bh-links login')}
+              </div>
+              <form method="dialog" class="actions"><button>Done</button></form>
+            </dialog>`
           : ''
       }
       <section>

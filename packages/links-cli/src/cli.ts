@@ -42,7 +42,7 @@ Usage:
   bh-links campaigns update <slug> [--name <name>] [--description <text>]
   bh-links campaigns archive <slug>
   bh-links campaigns clicks <slug>
-  bh-links login [--token <bhl_…>] [--url <url>]    token from stdin when --token is omitted
+  bh-links login [--token <bhl_…>] [--url <url>]    token from stdin, or a hidden prompt, when --token is omitted
   bh-links config
 
 Options:

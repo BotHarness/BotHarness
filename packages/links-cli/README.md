@@ -6,7 +6,7 @@ It is a thin client over the links Worker's `/v1` API, typed with the same zod s
 
 ```bash
 npm install -g @botharness/links
-bh-links login --token bhl_…        # or: export BH_LINKS_TOKEN=bhl_…
+bh-links login                      # paste the token at the prompt; or: export BH_LINKS_TOKEN=bhl_…
 bh-links campaigns create ph-launch --name "Product Hunt launch"
 bh-links links create ph-x-post --campaign ph-launch --platform x --media post --path /docs/overview/ --language en
 bh-links list
@@ -49,7 +49,7 @@ ph-x-post  https://go.botharness.ai/ph-x-post  ph-launch  x         post   1
 | `~/.config/botharness/links.json` | `token`          | `url`                      |
 | Default                           | none             | `https://go.botharness.ai` |
 
-The environment wins over the file. `bh-links login` writes the file with mode `0600` (under `$XDG_CONFIG_HOME` when set); without `--token` it reads the token from stdin, which keeps it out of shell history: `pbpaste | bh-links login`. A token is a Personal Access Token (`bhl_…`) from the admin page at `go.botharness.ai/admin`; `read` tokens can list and read clicks, `write` tokens can also create, update and archive. `bh-links` never prints a token, only its 12-character prefix.
+The environment wins over the file. `bh-links login` writes the file with mode `0600` (under `$XDG_CONFIG_HOME` when set); without `--token` it asks for the token at a hidden prompt (or reads it from stdin when piped: `pbpaste | bh-links login`), which keeps it out of shell history. A token is a Personal Access Token (`bhl_…`) from the admin page at `go.botharness.ai/admin`; `read` tokens can list and read clicks, `write` tokens can also create, update and archive. `bh-links` never prints a token, only its 12-character prefix.
 
 ## MCP
 
