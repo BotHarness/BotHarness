@@ -28,7 +28,13 @@ function source(
       messageId: `message-${senderId}`,
       actor: { kind: 'user', id: senderId, ...(name === undefined ? {} : { name }) },
       conversation: { kind: 'group', id: 'conversation' },
-      mentions: [],
+      mentions: [
+        {
+          id: 'native-bot',
+          key: platform === 'discord' ? '<@native-bot>' : '@_user_1',
+          name: 'QA Bot',
+        },
+      ],
       mentionedAccount: true,
       at: '2026-10-06T15:00:00Z',
       reply: {
@@ -53,7 +59,21 @@ it.each(platforms)(
       senderId: retained.event.actor.id,
       messageId: retained.event.messageId,
       threadId: 'thread',
+      mentions: retained.event.mentions,
     });
+    expect(message.mentions).toBeUndefined();
+    expect(message.bridgeOrigin?.mentions).not.toBe(retained.event.mentions);
+    for (const mentions of [
+      null,
+      [null],
+      [{ id: '', key: 'key' }],
+      [{ id: 'id', key: '' }],
+      [{ id: 'id', key: 'key', name: 42 }],
+    ]) {
+      expect(
+        isChannelMessage({ ...message, bridgeOrigin: { ...message.bridgeOrigin, mentions } }),
+      ).toBe(false);
+    }
     expect(isChannelMessage(message)).toBe(true);
     expect(JSON.stringify(retained)).toBe(original);
     expect(projectBridgeMessage(JSON.parse(original), retained.body)).toEqual(message);

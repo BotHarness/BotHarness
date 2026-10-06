@@ -221,6 +221,7 @@ export interface ChannelMessage {
     messageId: string;
     senderId: string;
     senderName?: string;
+    mentions?: { id: string; key: string; name?: string }[];
     threadId?: string;
   };
   external?: ChannelMessageExternal;
@@ -706,6 +707,22 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     if (
       origin['senderName'] !== undefined &&
       (typeof origin['senderName'] !== 'string' || origin['senderName'].trim().length === 0)
+    )
+      return false;
+    const nativeMentions = origin['mentions'];
+    if (
+      nativeMentions !== undefined &&
+      (!Array.isArray(nativeMentions) ||
+        !nativeMentions.every(
+          (mention) =>
+            typeof mention === 'object' &&
+            mention !== null &&
+            typeof mention.id === 'string' &&
+            mention.id.length > 0 &&
+            typeof mention.key === 'string' &&
+            mention.key.length > 0 &&
+            (mention.name === undefined || typeof mention.name === 'string'),
+        ))
     )
       return false;
     if (

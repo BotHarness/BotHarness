@@ -1,3 +1,4 @@
+import { ExternalMessageText } from './external-message-text.js';
 import { externalPlatformLabel, externalSenderLabel } from './bridge-source-label.js';
 import type { ReactElement, ReactNode } from 'react';
 import { Tag } from '@deepseek-ai/dsh-client-ui-primitives';
@@ -25,24 +26,6 @@ interface MessageView {
   text: string;
   mentions?: readonly Mention[];
   voice?: ExternalSource['event']['voice'];
-}
-
-function messageText(text: string, mentions: readonly Mention[]): ReactNode {
-  const named = mentions.filter((mention) => mention.key && mention.name);
-  if (!named.length) return text;
-  const keys = named
-    .map((mention) => mention.key.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'))
-    .sort((a, b) => b.length - a.length);
-  return text.split(new RegExp(`(${keys.join('|')})(?![\\w])`, 'gu')).map((part, index) => {
-    const mention = named.find((entry) => entry.key === part);
-    return mention ? (
-      <span className="bh-external-mention" title={mention.id} key={index}>
-        @{mention.name}
-      </span>
-    ) : (
-      part
-    );
-  });
 }
 
 function MessageCard({
@@ -98,11 +81,12 @@ function MessageCard({
         ) : null}
         <div className="bh-external-message-text">
           {media}
-          {media && message.text.trim() === '[Image]'
-            ? null
-            : message.voice?.transcript === 'unavailable'
-              ? t('im.voiceTranscriptUnavailableHint')
-              : messageText(message.text, message.mentions ?? [])}
+          {media && message.text.trim() === '[Image]' ? null : message.voice?.transcript ===
+            'unavailable' ? (
+            t('im.voiceTranscriptUnavailableHint')
+          ) : (
+            <ExternalMessageText text={message.text} mentions={message.mentions ?? []} />
+          )}
         </div>
         <details className="bh-external-details">
           <summary>{t('im.messageDetails')}</summary>

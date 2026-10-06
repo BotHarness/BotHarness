@@ -14,7 +14,7 @@
 
 ### Fixed
 
-- 共享频道消息现在显示已保存的外部发送人名称，已有 Discord 历史也会更新显示；来源详情单独保留发送人 ID，无名称的消息仍使用 ID 作为回退值（[#1061](https://github.com/BotHarness/BotHarness/issues/1061)）。
+- 共享频道消息现在显示已保存的外部发送人名称，已有 Discord 历史也会更新显示；气泡复用 Lark 收件箱的渲染方式，将已保存名称的原生 @ 提及显示为标签；原文和 ID 保持不变，未知名称保留原始文本（[#1061](https://github.com/BotHarness/BotHarness/issues/1061)）。
 
 ## [1.1.0] - 2026-10-06
 

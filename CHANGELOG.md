@@ -14,7 +14,7 @@ WeChat original voice can be prepared for playback, and Discord defaults can be 
 
 ### Fixed
 
-- Shared Channel messages now show the external sender’s retained name, including existing Discord history; source details keep the sender ID separately, and unnamed events retain the ID fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
+- Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ## [1.1.0] - 2026-10-06
 

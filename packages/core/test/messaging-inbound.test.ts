@@ -2494,7 +2494,12 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
           id: sourceId,
           body: 'Share this Inbox fact',
           author: { kind: 'bridged', source: 'Alex' },
-          bridgeOrigin: { sourceEventId: sourceId, senderId: 'ou-human', messageId: 'om-1' },
+          bridgeOrigin: {
+            sourceEventId: sourceId,
+            senderId: 'ou-human',
+            messageId: 'om-1',
+            mentions: [{ id: 'ou-bot', key: '@_user_1', name: 'QA Bot' }],
+          },
         });
         expect(run.externalMessaging!.read(sourceId).event.actor.name).toBe('Alex');
         await expect(async () =>
@@ -2509,6 +2514,7 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
   await fx.receive(
     event({
       text: 'Share this Inbox fact',
+      mentions: [{ id: 'ou-bot', key: '@_user_1', name: 'QA Bot' }],
       actor: { kind: 'user', id: 'ou-human', name: 'Alex' },
       at: new Date().toISOString(),
     }),
@@ -2574,6 +2580,10 @@ it('shares an own-Inbox source through the owning Orchestrator, preserves one ow
   expect(fx.core.externalMessaging.inbound.share('ada', sourceId, channelId).alreadyShared).toBe(
     true,
   );
+  expect(
+    fx.core.channels.readMessages(channelId).find((message) => message.id === sourceId)
+      ?.bridgeOrigin?.mentions,
+  ).toEqual([{ id: 'ou-bot', key: '@_user_1', name: 'QA Bot' }]);
   expect(
     fx.core.channels.readMessages(channelId).filter((message) => message.id === sourceId),
   ).toHaveLength(1);

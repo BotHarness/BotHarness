@@ -77,6 +77,9 @@ export function projectBridgeMessage(source: ExternalSource, body: string): Chan
       messageId: source.event.messageId,
       senderId: source.event.actor.id,
       ...(senderName ? { senderName } : {}),
+      ...(source.event.mentions.length
+        ? { mentions: source.event.mentions.map((mention) => ({ ...mention })) }
+        : {}),
       ...(source.event.reply.threadId ? { threadId: source.event.reply.threadId } : {}),
     },
   };
