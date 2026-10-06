@@ -78,7 +78,7 @@ Open **Bot mode**, create a PersonaBot, DM it, then start a Group and invite mem
     <td width="50%"><a href="docs/assets/readme/v2/en/marketplace.jpg"><img src="docs/assets/readme/v2/en/marketplace.jpg" alt="Bot Marketplace: topic filters and search, each listed Bot with a pixel avatar, role, stars and an Install button" /></a><br /><b>Bot Marketplace</b>: find Bots by topic or keyword; Install adds a new PersonaBot (sample listings shown).</td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/assets/readme/v2/en/release-notes.jpg"><img src="docs/assets/readme/v2/en/release-notes.jpg" alt="What's new in DeepSeekBot 1.0.2, listing Added, Fixed and Docs changes" /></a><br /><b>What's new</b>: after the first install and every update, Bot mode tells you what changed.</td>
+    <td width="50%"><a href="docs/assets/readme/v2/en/release-notes-v2.jpg"><img src="docs/assets/readme/v2/en/release-notes-v2.jpg" alt="What's new in DeepSeekBot 1.0.2, listing Added, Fixed and Docs changes" /></a><br /><b>What's new</b>: after the first install and every update, Bot mode tells you what changed.</td>
     <td width="50%"><a href="docs/assets/readme/v2/en/settings.jpg"><img src="docs/assets/readme/v2/en/settings.jpg" alt="Bot settings: Bot icon, interface motion, list sorting, developer mode, and the DeepSeekBot version row with Changelog and Check for updates" /></a><br /><b>Bot settings</b>: see your version, check for updates, open the website changelog.</td>
   </tr>
 </table>
