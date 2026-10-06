@@ -26,6 +26,8 @@ interface MessageView {
   mentions?: readonly Mention[];
   voice?: ExternalSource['event']['voice'];
   video?: ExternalSource['event']['video'];
+  quote?: ExternalSource['quote'];
+  nativeQuote?: ExternalSource['event']['quote'];
 }
 
 function messageText(text: string, mentions: readonly Mention[]): ReactNode {
@@ -96,6 +98,52 @@ function MessageCard({
               </span>
             )}
           </div>
+        ) : null}
+        {message.nativeQuote ? (
+          <blockquote className="bh-external-quote">
+            <Tag tone={message.quote?.kind === 'unavailable' ? 'warning' : 'info'}>
+              {t(
+                message.quote?.kind === 'native'
+                  ? 'im.quoteNative'
+                  : message.quote?.kind === 'retained'
+                    ? 'im.quoteRetained'
+                    : 'im.quoteUnavailable',
+              )}
+            </Tag>
+            {message.quote?.text ? <p>{message.quote.text}</p> : null}
+            {message.nativeQuote.summary ? (
+              <p className="bh-external-context-hint">
+                {t('im.quoteSummary', { text: message.nativeQuote.summary })}
+              </p>
+            ) : null}
+            {message.nativeQuote.partial ? (
+              <p className="bh-external-context-hint">{t('im.quotePartial')}</p>
+            ) : null}
+            {message.nativeQuote.attachmentKind ? (
+              <p>{t('im.quoteAttachment', { kind: message.nativeQuote.attachmentKind })}</p>
+            ) : null}
+            {message.quote?.kind === 'unavailable' ? <p>{t('im.quoteUnavailableHint')}</p> : null}
+            <details className="bh-external-details">
+              <summary>{t('im.quoteDetails')}</summary>
+              <div className="bh-external-detail-body">
+                {message.nativeQuote.serverMessageId ? (
+                  <p>{t('im.quoteServerId', { id: message.nativeQuote.serverMessageId })}</p>
+                ) : null}
+                {message.nativeQuote.itemId ? (
+                  <p>{t('im.quoteItemId', { id: message.nativeQuote.itemId })}</p>
+                ) : null}
+                {message.quote?.sourceEventId ? (
+                  <p>Source Event: {message.quote.sourceEventId}</p>
+                ) : null}
+                {message.quote?.intentId ? (
+                  <p>
+                    {t('im.outboxId')}: {message.quote.intentId}
+                  </p>
+                ) : null}
+                {message.quote?.reason ? <p>{message.quote.reason}</p> : null}
+              </div>
+            </details>
+          </blockquote>
         ) : null}
         <div className="bh-external-message-text">
           {media}
@@ -270,6 +318,8 @@ export function ExternalSourceContent({
             at: source.at,
             text: source.body,
             mentions: source.event.mentions,
+            ...(source.quote ? { quote: source.quote } : {}),
+            ...(source.event.quote ? { nativeQuote: source.event.quote } : {}),
             ...(source.event.voice ? { voice: source.event.voice } : {}),
             ...(source.event.video ? { video: source.event.video } : {}),
           }}
@@ -281,7 +331,13 @@ export function ExternalSourceContent({
       {source.contextReads?.length ? (
         <section aria-label={t('im.contextTitle')} className="bh-external-context">
           <h3>{t('im.contextTitle')}</h3>
-          <p className="bh-external-context-hint">{t('im.contextExplanation')}</p>
+          <p className="bh-external-context-hint">
+            {t(
+              source.contextReads.at(-1)?.coverage === 'retained-local-sources'
+                ? 'im.contextRetainedExplanation'
+                : 'im.contextExplanation',
+            )}
+          </p>
           {source.contextReads.map((read, index) =>
             read.outcome === 'refused' || read.incomplete ? (
               <p className="bh-external-notice" key={`${read.at}:${index}`}>

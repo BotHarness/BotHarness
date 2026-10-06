@@ -5,9 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-WeChat original voice can be prepared for playback, native video can be played and returned through a checked media path, and Discord defaults can be saved independently and inherited by Profile settings.
+WeChat original voice can be prepared for playback, native quotes and retained local context can be read, native video can be played and returned through a checked media path, and Discord defaults can be saved independently and inherited by Profile settings.
 
 ### Added
+
+- PersonaBots can read native WeChat quoted text or resolve a missing quote from currently authorized retained private-conversation records; source details distinguish native, retained and unavailable content, and bounded local context reads support cursor continuation without claiming remote WeChat history ([#908](https://github.com/BotHarness/BotHarness/issues/908), [guide](docs/wechat-connection.md)).
 
 - Added a checked personal WeChat video path with on-demand source playback/download and own-identity native video replies, preserving private routing and current authorization; browser playback and tool access remain distinct from video-model understanding ([#907](https://github.com/BotHarness/BotHarness/issues/907), [guide](docs/wechat-connection.md)).
 - Added original WeChat voice download and explicit playback preparation for supported SILK audio, with a separately saved WAV working copy, bounded decoding and current-source authorization; speech recognition and native voice replies remain separate capabilities ([#906](https://github.com/BotHarness/BotHarness/issues/906), [guide](docs/wechat-connection.md)).
