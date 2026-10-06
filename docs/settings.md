@@ -91,6 +91,7 @@ After creation, open **View details**:
 - **Activity overview**: pins select cards in the Profile popover. Token usage time range, model/provider grouping, filters, and custom dates change the statistics view, not the model. Unavailable usage is unknown rather than zero.
 - **Model preset**: see [Model setup](/docs/model-setup) for every field, template revision, and independent snapshot.
 - **Persona / memory files**: use Memory files in the right sidebar to inspect files and their available edit/preview actions. The Profile does not repeat every creation field as an editing form.
+- **Standing memory limits**: character limits for `SOUL.md` and `MEMORY.md`, applied from the next Session; see [Bot Soul and Core Memory](/docs/soul-and-core-memory).
 
 ## Bot attention policy and local Groups
 

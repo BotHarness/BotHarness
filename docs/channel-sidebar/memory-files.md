@@ -2,6 +2,8 @@
 
 Open a **Bot DM → Channel sidebar → Memory files**. The tree belongs to this PersonaBot’s Memory Repository, not the folder used by an Assignment. A new Bot can have only initialization files; useful topic files appear as you or the Bot save them.
 
+`SOUL.md` and `MEMORY.md` at the root are pinned at the top with a **Standing** badge and their character usage: both go into the system prompt at the start of every new Session. See [Bot Soul and Core Memory](/docs/soul-and-core-memory) for what they are for, their limits, and when edits apply.
+
 ## Read a file
 
 1. Expand **Memory files** and any folder containing the file.
