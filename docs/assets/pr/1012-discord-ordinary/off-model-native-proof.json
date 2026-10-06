@@ -1,0 +1,92 @@
+{
+  "issue": 1012,
+  "status": "OFF and mention control verified; positive ordinary E2E pending action-time native permission authorization",
+  "runtime": {
+    "core": "43363e7daf8f5d2de43dc7dfd09597afc3f82ab9",
+    "provider": "345b63f75ad8acc5b7e42eaab5a4eefdbffed683",
+    "artifactSha256": "b5fa453a9b2b6e544cb1d20f20b64415728b1e2333440b1f9ca00e796aa9024e",
+    "api": {
+      "status": 200,
+      "ok": true
+    }
+  },
+  "nativeAppFlags": 0,
+  "coldRestartCanonicalUnchanged": true,
+  "ordinaryOFF": {
+    "messageId": "1556972727410368583",
+    "authorId": "552307579322236939",
+    "channelId": "1556622420222283798",
+    "nativeContentBytes": 0,
+    "mentionCount": 0,
+    "canonicalUnchanged": {
+      "messaging_bindings": true,
+      "messaging_grants": true,
+      "source_events": true,
+      "inbox_admissions": true,
+      "messaging_outbox": true,
+      "channel_placements": true
+    },
+    "ordinaryDelivery": "unverified"
+  },
+  "mentionControl": {
+    "messageId": "1556972906637041685",
+    "replyMessageId": "1556972958201806899",
+    "originalThreadId": "1556622420222283798",
+    "text": "DISCORD-1012-OFF-MENTION-OK:violet-53",
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "off"
+    },
+    "turn": 9,
+    "tools": [
+      {
+        "name": "bridge_read",
+        "isError": false,
+        "sourceEventId": "im-ddb7fea29a7409c42d25038757453a8e581ea1c8c4c1179779ec0424283dbc9c",
+        "state": null,
+        "receipt": null
+      },
+      {
+        "name": "bridge_reply",
+        "isError": false,
+        "sourceEventId": "im-ddb7fea29a7409c42d25038757453a8e581ea1c8c4c1179779ec0424283dbc9c",
+        "state": "provider-accepted",
+        "receipt": {
+          "version": 1,
+          "messageId": "1556972958201806899",
+          "conversationId": "1556616665385668620"
+        },
+        "intentId": "8b4393e8-405b-4ea9-b891-f87a421aaab6"
+      }
+    ],
+    "canonicalDelta": {
+      "messaging_bindings": 0,
+      "messaging_grants": 0,
+      "source_events": 1,
+      "inbox_admissions": 1,
+      "messaging_outbox": 1,
+      "channel_placements": 0
+    },
+    "priorRowsPreserved": {
+      "messaging_bindings": true,
+      "messaging_grants": true,
+      "source_events": true,
+      "inbox_admissions": true,
+      "messaging_outbox": true,
+      "channel_placements": true
+    }
+  },
+  "verification": {
+    "providerTestsPassed": 3612,
+    "hostFocusedTestsPassed": 110,
+    "providerBuildAndPackage": "passed",
+    "hostLintFormatTypesBuild": "passed"
+  },
+  "cleanup": {
+    "nativeMessageContent": "OFF",
+    "collection": "mentions",
+    "wake": "immediate",
+    "workspaceWrite": "revoked; unchanged"
+  }
+}
