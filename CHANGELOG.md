@@ -18,6 +18,7 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 ### Changed
 
 - The Channel sidebar's Sessions, Bot Inbox and Workspace Grants sections now use the same card rows as Schedules, with an icon, status chips and a meta line on every row; a Bot Inbox item from a Bot Schedule now opens that schedule ([#972](https://github.com/BotHarness/BotHarness/issues/972)).
+- The Bot Profile avatar area is now one Avatar section with two side-by-side choices, Design a pixel avatar and Upload an image, and marks the one in use; the duplicate Change avatar button is gone and the divider under the profile header has whitespace around it ([#985](https://github.com/BotHarness/BotHarness/issues/985)).
 
 ### Documentation
 

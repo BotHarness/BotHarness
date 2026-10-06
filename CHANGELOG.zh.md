@@ -18,6 +18,7 @@ PersonaBot 可设置并自行管理定时任务，Channel 侧栏各分区统一�
 ### Changed
 
 - Channel 侧栏的会话、Bot 收件箱和工作区授权改用与定时任务相同的卡片行：每行带图标、状态 chip 和说明行；来自定时任务的收件箱条目现在可以点开对应的定时任务（[#972](https://github.com/BotHarness/BotHarness/issues/972)）。
+- Bot Profile 的头像区合并为一个「头像」分区，并排提供「设计像素头像」和「上传图片」两种方式，并标出正在使用的那种；去掉了重复的「更换头像」按钮，顶部分隔线上下留出空白（[#985](https://github.com/BotHarness/BotHarness/issues/985)）。
 
 ### Documentation
 

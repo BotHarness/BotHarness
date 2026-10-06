@@ -22,7 +22,10 @@ import {
   LINE_SWATCHES,
   seededLineRecipe,
 } from '../../../core/src/bots/avatar-line.js';
+import { Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+
 import { PersonaBotAvatar, PersonaBotStatusBadges, normalizePersonaBotActivity } from './avatar.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import type { BotSummary } from './store.js';
 import type { BotHarnessTranslate } from './locale.js';
 
@@ -143,11 +146,17 @@ export function AvatarAppearanceEditor({
   bot,
   channelId,
   onSave,
+  onUpload,
+  onRemoveImage,
+  imageBusy = false,
   t,
 }: {
   bot: BotSummary;
   channelId: string;
   onSave(channelId: string, recipe: AvatarRecipe): Promise<boolean>;
+  onUpload?: (() => void) | undefined;
+  onRemoveImage?: (() => void) | undefined;
+  imageBusy?: boolean | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   const [drafts, setDrafts] = useState<Partial<Record<AvatarFamily, AvatarRecipe>>>();
@@ -195,191 +204,259 @@ export function AvatarAppearanceEditor({
   const set = (key: string, value: string | number) => {
     if (draft) update(withPart(draft, key, value));
   };
+  const current = bot.avatar !== undefined && bot.appearance === undefined ? 'image' : 'design';
+  const inUse = <Tag tone="success">{t('profile.avatar.current')}</Tag>;
   return (
-    <section className="bh-avatar-editor" aria-label={t('profile.avatar.design')}>
-      <div className="bh-avatar-editor-preview" data-avatar-preview>
-        <PersonaBotAvatar
-          personaBotId={bot.slug}
-          name={bot.displayName}
-          src={bot.avatar}
-          appearance={
-            recipe ? { recipe, revision: bot.appearance?.revision ?? '0'.repeat(64) } : undefined
-          }
-          size={160}
-          state={state}
-          activity={bot.activity}
-          attention={bot.attention}
-          indicator={false}
-          t={t}
-        />
-      </div>
-      <div className="bh-avatar-editor-controls">
-        <h3 className="bh-avatar-editor-title">
-          <span>{t('profile.avatar.design')}</span>
-          <PersonaBotStatusBadges state={state} attention={bot.attention} />
-        </h3>
-        <p>{t('profile.avatar.designDescription')}</p>
-        {bot.appearanceUnsupported && !draft ? (
-          <p className="bh-avatar-unsupported" data-avatar-unsupported role="note">
-            {t('profile.avatar.unsupported')}
-          </p>
-        ) : null}
-        {draft && fields ? (
-          <fieldset disabled={busy} className="bh-avatar-editor-fields">
-            <div
-              className="bh-avatar-families"
-              role="radiogroup"
-              aria-label={t('profile.avatar.family')}
-            >
-              {AVATAR_FAMILIES.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  data-avatar-family={value}
-                  aria-checked={family === value}
-                  onClick={() => choose(value)}
-                >
-                  {t(`profile.avatar.family.${value}`)}
-                </button>
-              ))}
-            </div>
-            <div className="bh-avatar-categories">
-              <div role="tablist" aria-label={t('profile.avatar.parts')}>
-                {spec.categories.map((key) => (
+    <section
+      className="bh-profile-section bh-avatar-section"
+      aria-label={t('profile.avatar.section')}
+    >
+      <h2 className="bh-profile-section-title">{t('profile.avatar.section')}</h2>
+      <div className="bh-avatar-editor">
+        <div className="bh-avatar-editor-preview" data-avatar-preview>
+          <PersonaBotAvatar
+            personaBotId={bot.slug}
+            name={bot.displayName}
+            src={bot.avatar}
+            appearance={
+              recipe ? { recipe, revision: bot.appearance?.revision ?? '0'.repeat(64) } : undefined
+            }
+            size={160}
+            state={state}
+            activity={bot.activity}
+            attention={bot.attention}
+            indicator={false}
+            t={t}
+          />
+        </div>
+        <div className="bh-avatar-editor-controls">
+          {draft ? (
+            <>
+              <h3 className="bh-avatar-editor-title">
+                <span>{t('profile.avatar.designTitle')}</span>
+                <PersonaBotStatusBadges state={state} attention={bot.attention} />
+              </h3>
+              <p>{t('profile.avatar.designDescription')}</p>
+            </>
+          ) : (
+            <>
+              {bot.appearanceUnsupported ? (
+                <p className="bh-avatar-unsupported" data-avatar-unsupported role="note">
+                  {t('profile.avatar.unsupported')}
+                </p>
+              ) : null}
+              <SidebarCardList className="bh-avatar-methods" label={t('profile.avatar.section')}>
+                <SidebarCardRow
+                  icon="palette"
+                  title={t('profile.avatar.designTitle')}
+                  chips={current === 'design' ? inUse : undefined}
+                  meta={t('profile.avatar.designDescription')}
+                  state={current === 'design' ? 'current' : undefined}
+                  detail={
+                    <div className="bh-profile-avatar-actions">
+                      <button
+                        data-avatar-edit
+                        type="button"
+                        className="bh-profile-action"
+                        disabled={bot.appearanceUnsupported === true}
+                        onClick={start}
+                      >
+                        {t('profile.avatar.design')}
+                      </button>
+                    </div>
+                  }
+                />
+                {onUpload === undefined ? null : (
+                  <SidebarCardRow
+                    icon="image-up"
+                    title={t('profile.avatar.uploadTitle')}
+                    chips={current === 'image' ? inUse : undefined}
+                    meta={t('profile.avatar.uploadDescription')}
+                    state={current === 'image' ? 'current' : undefined}
+                    detail={
+                      <div className="bh-profile-avatar-actions">
+                        <button
+                          data-avatar-upload
+                          type="button"
+                          className="bh-profile-action"
+                          disabled={imageBusy}
+                          onClick={onUpload}
+                        >
+                          {t('profile.avatar.upload')}
+                        </button>
+                        {bot.avatar === undefined || onRemoveImage === undefined ? null : (
+                          <button
+                            data-avatar-remove
+                            type="button"
+                            className="bh-profile-action"
+                            disabled={imageBusy}
+                            onClick={onRemoveImage}
+                          >
+                            {t('profile.avatar.remove')}
+                          </button>
+                        )}
+                      </div>
+                    }
+                  />
+                )}
+              </SidebarCardList>
+            </>
+          )}
+          {draft && fields ? (
+            <fieldset disabled={busy} className="bh-avatar-editor-fields">
+              <div
+                className="bh-avatar-families"
+                role="radiogroup"
+                aria-label={t('profile.avatar.family')}
+              >
+                {AVATAR_FAMILIES.map((value) => (
                   <button
-                    key={key}
+                    key={value}
                     type="button"
-                    role="tab"
-                    id={`bh-avatar-tab-${key}`}
-                    data-avatar-category={key}
-                    aria-selected={category === key}
-                    aria-controls="bh-avatar-panel"
-                    tabIndex={category === key ? 0 : -1}
-                    onClick={() => setCategory(key)}
-                    onKeyDown={(event) => {
-                      const step =
-                        event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
-                      if (!step) return;
-                      event.preventDefault();
-                      const list = spec.categories;
-                      const next = list[(list.indexOf(key) + step + list.length) % list.length]!;
-                      setCategory(next);
-                      event.currentTarget.parentElement
-                        ?.querySelector<HTMLButtonElement>(`[data-avatar-category="${next}"]`)
-                        ?.focus();
-                    }}
+                    role="radio"
+                    data-avatar-family={value}
+                    aria-checked={family === value}
+                    onClick={() => choose(value)}
                   >
-                    {t(`profile.avatar.${key}` as Key)}
+                    {t(`profile.avatar.family.${value}`)}
                   </button>
                 ))}
               </div>
-              <button
-                type="button"
-                data-avatar-shuffle
-                className="bh-avatar-shuffle"
-                onClick={() => update(shuffled(draft))}
-              >
-                {t('profile.avatar.shuffle')}
-              </button>
-            </div>
-            {category === 'colors' ? (
-              <div
-                className="bh-avatar-colors"
-                role="tabpanel"
-                id="bh-avatar-panel"
-                aria-labelledby="bh-avatar-tab-colors"
-              >
-                {spec.colors.map((key) => (
-                  <div key={key} className="bh-avatar-color-row">
-                    <span>{t(`profile.avatar.${key}` as Key)}</span>
-                    {spec.swatches[key]!.map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        className="bh-avatar-swatch"
-                        data-avatar-option={`${key}:${value}`}
-                        aria-pressed={fields[key] === value}
-                        aria-label={`${t(`profile.avatar.${key}` as Key)} ${value}`}
-                        style={{ background: value }}
-                        onClick={() => set(key, value)}
+              <div className="bh-avatar-categories">
+                <div role="tablist" aria-label={t('profile.avatar.parts')}>
+                  {spec.categories.map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      id={`bh-avatar-tab-${key}`}
+                      data-avatar-category={key}
+                      aria-selected={category === key}
+                      aria-controls="bh-avatar-panel"
+                      tabIndex={category === key ? 0 : -1}
+                      onClick={() => setCategory(key)}
+                      onKeyDown={(event) => {
+                        const step =
+                          event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+                        if (!step) return;
+                        event.preventDefault();
+                        const list = spec.categories;
+                        const next = list[(list.indexOf(key) + step + list.length) % list.length]!;
+                        setCategory(next);
+                        event.currentTarget.parentElement
+                          ?.querySelector<HTMLButtonElement>(`[data-avatar-category="${next}"]`)
+                          ?.focus();
+                      }}
+                    >
+                      {t(`profile.avatar.${key}` as Key)}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  data-avatar-shuffle
+                  className="bh-avatar-shuffle"
+                  onClick={() => update(shuffled(draft))}
+                >
+                  {t('profile.avatar.shuffle')}
+                </button>
+              </div>
+              {category === 'colors' ? (
+                <div
+                  className="bh-avatar-colors"
+                  role="tabpanel"
+                  id="bh-avatar-panel"
+                  aria-labelledby="bh-avatar-tab-colors"
+                >
+                  {spec.colors.map((key) => (
+                    <div key={key} className="bh-avatar-color-row">
+                      <span>{t(`profile.avatar.${key}` as Key)}</span>
+                      {spec.swatches[key]!.map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className="bh-avatar-swatch"
+                          data-avatar-option={`${key}:${value}`}
+                          aria-pressed={fields[key] === value}
+                          aria-label={`${t(`profile.avatar.${key}` as Key)} ${value}`}
+                          style={{ background: value }}
+                          onClick={() => set(key, value)}
+                        />
+                      ))}
+                      <input
+                        name={key}
+                        type="color"
+                        aria-label={t(`profile.avatar.${key}` as Key)}
+                        value={String(fields[key])}
+                        onChange={(event) => set(key, event.currentTarget.value)}
                       />
-                    ))}
-                    <input
-                      name={key}
-                      type="color"
-                      aria-label={t(`profile.avatar.${key}` as Key)}
-                      value={String(fields[key])}
-                      onChange={(event) => set(key, event.currentTarget.value)}
+                    </div>
+                  ))}
+                </div>
+              ) : category === 'presets' ? (
+                <div
+                  className="bh-avatar-options"
+                  role="tabpanel"
+                  id="bh-avatar-panel"
+                  aria-labelledby="bh-avatar-tab-presets"
+                >
+                  {spec.presets.map((preset, index) => (
+                    <OptionTile
+                      key={index}
+                      id={`preset:${index}`}
+                      recipe={preset}
+                      selected={JSON.stringify(preset) === JSON.stringify(draft)}
+                      label={`${t('profile.avatar.presets')} ${index + 1}`}
+                      onSelect={() => update({ ...preset })}
                     />
-                  </div>
-                ))}
-              </div>
-            ) : category === 'presets' ? (
-              <div
-                className="bh-avatar-options"
-                role="tabpanel"
-                id="bh-avatar-panel"
-                aria-labelledby="bh-avatar-tab-presets"
-              >
-                {spec.presets.map((preset, index) => (
-                  <OptionTile
-                    key={index}
-                    id={`preset:${index}`}
-                    recipe={preset}
-                    selected={JSON.stringify(preset) === JSON.stringify(draft)}
-                    label={`${t('profile.avatar.presets')} ${index + 1}`}
-                    onSelect={() => update({ ...preset })}
-                  />
-                ))}
-              </div>
-            ) : category === 'shape' ? (
-              <div
-                className="bh-avatar-ranges"
-                role="tabpanel"
-                id="bh-avatar-panel"
-                aria-labelledby="bh-avatar-tab-shape"
-              >
-                {Object.entries(spec.ranges).map(([key, [min, max]]) => (
-                  <label key={key}>
-                    <span>{t(`profile.avatar.${key}` as Key)}</span>
-                    <input
-                      type="range"
-                      name={key}
-                      min={min}
-                      max={max}
-                      step={1}
-                      value={Number(fields[key])}
-                      onChange={(event) => set(key, Number(event.currentTarget.value))}
+                  ))}
+                </div>
+              ) : category === 'shape' ? (
+                <div
+                  className="bh-avatar-ranges"
+                  role="tabpanel"
+                  id="bh-avatar-panel"
+                  aria-labelledby="bh-avatar-tab-shape"
+                >
+                  {Object.entries(spec.ranges).map(([key, [min, max]]) => (
+                    <label key={key}>
+                      <span>{t(`profile.avatar.${key}` as Key)}</span>
+                      <input
+                        type="range"
+                        name={key}
+                        min={min}
+                        max={max}
+                        step={1}
+                        value={Number(fields[key])}
+                        onChange={(event) => set(key, Number(event.currentTarget.value))}
+                      />
+                      <output>{fields[key]}</output>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  className="bh-avatar-options"
+                  role="tabpanel"
+                  id="bh-avatar-panel"
+                  aria-labelledby={`bh-avatar-tab-${category}`}
+                >
+                  {(spec.parts[category] ?? []).map((value) => (
+                    <OptionTile
+                      key={value}
+                      id={`${category}:${value}`}
+                      recipe={withPart(draft, category, value)}
+                      selected={fields[category] === value}
+                      label={t(spec.option(category, value))}
+                      onSelect={() => set(category, value)}
                     />
-                    <output>{fields[key]}</output>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <div
-                className="bh-avatar-options"
-                role="tabpanel"
-                id="bh-avatar-panel"
-                aria-labelledby={`bh-avatar-tab-${category}`}
-              >
-                {(spec.parts[category] ?? []).map((value) => (
-                  <OptionTile
-                    key={value}
-                    id={`${category}:${value}`}
-                    recipe={withPart(draft, category, value)}
-                    selected={fields[category] === value}
-                    label={t(spec.option(category, value))}
-                    onSelect={() => set(category, value)}
-                  />
-                ))}
-              </div>
-            )}
-          </fieldset>
-        ) : null}
-        <div className="bh-profile-avatar-actions">
+                  ))}
+                </div>
+              )}
+            </fieldset>
+          ) : null}
           {draft ? (
-            <>
+            <div className="bh-profile-avatar-actions">
               <button
                 data-avatar-save
                 type="button"
@@ -401,24 +478,14 @@ export function AvatarAppearanceEditor({
               >
                 {t('common.cancel')}
               </button>
-            </>
-          ) : (
-            <button
-              data-avatar-edit
-              type="button"
-              className="bh-profile-action"
-              disabled={bot.appearanceUnsupported === true}
-              onClick={start}
-            >
-              {t('profile.avatar.design')}
-            </button>
-          )}
+            </div>
+          ) : null}
+          {failed ? (
+            <p role="alert" className="bh-error">
+              {t('profile.avatar.failed')}
+            </p>
+          ) : null}
         </div>
-        {failed ? (
-          <p role="alert" className="bh-error">
-            {t('profile.avatar.failed')}
-          </p>
-        ) : null}
       </div>
     </section>
   );
