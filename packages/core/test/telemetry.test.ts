@@ -9,6 +9,7 @@ import {
   fetchTelemetrySender,
   INSTALL_ID_FILE,
   installedDshVersion,
+  readInstallId,
   pluginStartedProperties,
   TELEMETRY_API_KEY,
   TELEMETRY_ENDPOINT,
@@ -82,7 +83,14 @@ describe('telemetry service', () => {
     await telemetry.flush();
     await telemetry.close();
 
-    expect(telemetry.status()).toEqual({ enabled: false });
+    expect(telemetry.status()).toEqual({
+      enabled: false,
+      preference: true,
+      lockedBy: decision.enabled ? undefined : decision.reason,
+    });
+    expect(telemetry.setPreference(true).enabled).toBe(false);
+    telemetry.capture('second', {});
+    await telemetry.flush();
     expect(send).not.toHaveBeenCalled();
     expect(() => readFileSync(join(dir, INSTALL_ID_FILE))).toThrow();
   });
@@ -208,6 +216,126 @@ describe('telemetry service', () => {
   });
 });
 
+describe('telemetry preference', () => {
+  it('never sends after the Human turns it off and keeps it off across restarts', async () => {
+    const dir = dataDir();
+    const { send } = recordingSender();
+    const telemetry = createTelemetryService({ decision: { enabled: true }, dataDir: dir, send });
+    telemetry.capture('plugin_started', STARTED);
+    const installId = readInstallId(dir);
+
+    expect(telemetry.setPreference(false)).toEqual({ enabled: false, preference: false });
+    expect(telemetry.enabled).toBe(false);
+    telemetry.capture('second', {});
+    await telemetry.flush();
+    await telemetry.close();
+    expect(send).not.toHaveBeenCalled();
+    expect(JSON.parse(readFileSync(join(dir, INSTALL_ID_FILE), 'utf8'))).toEqual({
+      installId,
+      enabled: false,
+    });
+
+    const restarted = recordingSender();
+    const next = createTelemetryService({
+      decision: { enabled: true },
+      dataDir: dir,
+      send: restarted.send,
+    });
+    expect(next.status()).toEqual({ enabled: false, preference: false });
+    next.capture('plugin_started', STARTED);
+    await next.close();
+    expect(restarted.send).not.toHaveBeenCalled();
+  });
+
+  it('drops queued events when turned off before the batch is sent', async () => {
+    vi.useFakeTimers();
+    try {
+      const { send } = recordingSender();
+      const telemetry = createTelemetryService({
+        decision: { enabled: true },
+        dataDir: dataDir(),
+        send,
+        flushDelayMs: 1_000,
+      });
+      telemetry.capture('plugin_started', STARTED);
+      telemetry.setPreference(false);
+      telemetry.setPreference(true);
+      await vi.advanceTimersByTimeAsync(5_000);
+      await telemetry.flush();
+      expect(send).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not carry a failed batch once turned off mid-send', async () => {
+    const dir = dataDir();
+    let reject: (error: Error) => void = () => undefined;
+    const send = vi.fn<TelemetrySender>(
+      () =>
+        new Promise<void>((_, fail) => {
+          reject = fail;
+        }),
+    );
+    const telemetry = createTelemetryService({ decision: { enabled: true }, dataDir: dir, send });
+    telemetry.capture('plugin_started', STARTED);
+    const flushing = telemetry.flush();
+    telemetry.setPreference(false);
+    reject(new Error('offline'));
+    await flushing;
+    telemetry.setPreference(true);
+    await telemetry.flush();
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it('resumes without a restart and creates the Install ID when it was missing', async () => {
+    const dir = dataDir();
+    writeFileSync(join(dir, INSTALL_ID_FILE), JSON.stringify({ enabled: false }));
+    const { send, batches } = recordingSender();
+    const telemetry = createTelemetryService({
+      decision: { enabled: true },
+      dataDir: dir,
+      send,
+      createId: () => '00000000-0000-4000-8000-000000000002',
+    });
+    telemetry.capture('plugin_started', STARTED);
+
+    expect(telemetry.setPreference(true)).toEqual({ enabled: true, preference: true });
+    expect(JSON.parse(readFileSync(join(dir, INSTALL_ID_FILE), 'utf8'))).toEqual({
+      installId: '00000000-0000-4000-8000-000000000002',
+    });
+    telemetry.capture('feature_used', {});
+    await telemetry.flush();
+    expect(batches.flatMap((batch) => batch.batch.map((event) => event.event))).toEqual([
+      'feature_used',
+    ]);
+    expect(batches[0]!.batch[0]!.distinct_id).toBe('00000000-0000-4000-8000-000000000002');
+  });
+
+  it('reports the stored preference while config or env lock it off', () => {
+    const dir = dataDir();
+    writeFileSync(join(dir, INSTALL_ID_FILE), JSON.stringify({ enabled: false }));
+    const telemetry = createTelemetryService({
+      decision: telemetryDecision(true, { DO_NOT_TRACK: '1' }),
+      dataDir: dir,
+      send: recordingSender().send,
+    });
+    expect(telemetry.status()).toEqual({
+      enabled: false,
+      preference: false,
+      lockedBy: 'DO_NOT_TRACK',
+    });
+    expect(telemetry.setPreference(true)).toEqual({
+      enabled: false,
+      preference: false,
+      lockedBy: 'DO_NOT_TRACK',
+    });
+    expect(JSON.parse(readFileSync(join(dir, INSTALL_ID_FILE), 'utf8'))).toEqual({
+      enabled: false,
+    });
+  });
+});
+
 describe('fetchTelemetrySender', () => {
   it('posts the batch as JSON to the first-party proxy', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response('{}', { status: 200 }));
@@ -244,13 +372,61 @@ describe('installedDshVersion', () => {
 describe('telemetryStatus bridge method', () => {
   it('reports the Host decision to the Client', () => {
     const methods = createBridgeMethods({
-      telemetry: { status: () => ({ enabled: true }) },
+      telemetry: { status: () => ({ enabled: true, preference: true }) },
     } as unknown as Parameters<typeof createBridgeMethods>[0]);
-    expect(methods.telemetryStatus()).toEqual({ ok: true, value: { enabled: true } });
+    expect(methods.telemetryStatus()).toEqual({
+      ok: true,
+      value: { enabled: true, preference: true },
+    });
   });
 
   it('reports disabled when the Host has no telemetry', () => {
     const methods = createBridgeMethods({} as unknown as Parameters<typeof createBridgeMethods>[0]);
-    expect(methods.telemetryStatus()).toEqual({ ok: true, value: { enabled: false } });
+    expect(methods.telemetryStatus()).toEqual({
+      ok: true,
+      value: { enabled: false, preference: false },
+    });
+    expect(methods.telemetrySet({ enabled: false })).toMatchObject({
+      ok: false,
+      error: { code: 'telemetry-unavailable' },
+    });
+  });
+
+  it('applies the Human choice through telemetrySet', () => {
+    const telemetry = createTelemetryService({
+      decision: { enabled: true },
+      dataDir: dataDir(),
+      send: recordingSender().send,
+    });
+    const methods = createBridgeMethods({ telemetry } as unknown as Parameters<
+      typeof createBridgeMethods
+    >[0]);
+    expect(methods.telemetrySet({})).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(methods.telemetrySet({ enabled: false })).toEqual({
+      ok: true,
+      value: { enabled: false, preference: false },
+    });
+    expect(methods.telemetryStatus()).toEqual({
+      ok: true,
+      value: { enabled: false, preference: false },
+    });
+  });
+
+  it('reports a persistence failure while keeping it off for this run', () => {
+    const dir = dataDir();
+    const telemetry = createTelemetryService({
+      decision: { enabled: true },
+      dataDir: join(dir, INSTALL_ID_FILE, 'nested'),
+      send: recordingSender().send,
+    });
+    writeFileSync(join(dir, INSTALL_ID_FILE), '{}');
+    const methods = createBridgeMethods({ telemetry } as unknown as Parameters<
+      typeof createBridgeMethods
+    >[0]);
+    expect(methods.telemetrySet({ enabled: false })).toMatchObject({
+      ok: false,
+      error: { code: 'telemetry-persist-failed' },
+    });
+    expect(telemetry.enabled).toBe(false);
   });
 });

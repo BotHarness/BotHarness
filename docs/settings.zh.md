@@ -64,6 +64,7 @@
 | 自动接受入群邀请    | 开                                                 | 自动加入受邀群聊，不唤醒 Bot；关闭后由受邀 Bot 决定是否加入。指 BotHarness 群邀请，不会配置 IM 连接。 |
 | Assignment 并发上限 | 3；整数 1–32                                       | 输入后点「保存」。所有 Bot 共用的同时执行任务上限，不限制历史会话；降低上限不会中止正在执行的任务。   |
 | 我的默认名字        | 留空，显示 Human；最长 128 字符                    | 填写后点「保存名字」，用于聊天、提及及 Bot 上下文。点「恢复默认」或保存空值恢复 Human。               |
+| 匿名使用统计        | 开                                                 | 切换即保存，立即生效、无需重启；被插件配置或环境变量关闭时锁定为关。见[匿名使用统计](#匿名使用统计)。 |
 
 下方「外部平台默认行为」属于 IM 收件与身份设置，参见 [Lark / 飞书](/zh/docs/lark-connection) 和 [Slack](/zh/docs/slack-connection)。
 
@@ -139,7 +140,7 @@ Profile 向下展开 **提醒策略**，在对应来源行点击修改，选择�
 
 ## 匿名使用统计
 
-DeepSeekBot 默认由 DSH 后台发送匿名使用统计；首次打开 Bot 模式时会弹出一次说明。事件包含插件版本、DSH 版本、操作系统和架构，只关联一个保存在 `$DSH_HOME/botharness/telemetry.json` 的随机安装 ID；名称、Persona 或 Memory 内容、对话、文件路径、凭据和 IP 地址从不发送。要关闭，在 BotHarness core 插件上设置 `telemetry: false`（见下方高级参数），或用 `DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0` 启动 DSH。详见[隐私说明](https://deepseekbot.botharness.ai/privacy)和[源码](https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry)。
+DeepSeekBot 默认由 DSH 后台发送匿名使用统计；首次打开 Bot 模式时会弹出一次说明。事件包含插件版本、DSH 版本、操作系统和架构，只关联一个保存在 `$DSH_HOME/botharness/telemetry.json` 的随机安装 ID；名称、Persona 或 Memory 内容、对话、文件路径、凭据和 IP 地址从不发送。要关闭，打开 **Bot 设置**，关掉 **匿名使用统计** 开关即可：立即生效、无需重启，尚未发送的事件会被丢弃，选择保存在同一个 `telemetry.json` 里，重启后仍然有效；重新打开同样无需重启。部署方也可以在 BotHarness core 插件上设置 `telemetry: false`（见下方高级参数），或用 `DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0` 启动 DSH 强制关闭，此时开关显示为关闭且不可操作，并注明是哪项设置关闭了它。详见[隐私说明](https://deepseekbot.botharness.ai/privacy)和[源码](https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry)。
 
 ## 高级参数与可选能力
 

@@ -160,6 +160,25 @@ describe('TelemetryNotice', () => {
     vi.unstubAllGlobals();
   });
 
+  it('leads the opt-out with the Bot settings switch and opens Bot settings from the notice', async () => {
+    const storage = memoryStorage();
+    const openSettings = vi.fn();
+    const controller = new TelemetryNoticeController(bridge(true), storage, openSettings);
+    const view = await render(createElement(TelemetryNotice, { controller, t }));
+    const optOut = view.host.querySelector('[data-telemetry-row="opt-out"] dd');
+    expect(optOut?.textContent?.startsWith('在「Bot 设置 → 匿名使用统计」中随时关闭')).toBe(true);
+    expect(optOut?.textContent).toContain('telemetry: false');
+    await act(async () => {
+      [...view.host.querySelectorAll('button')]
+        .find((button) => button.textContent === '打开 Bot 设置')
+        ?.click();
+    });
+    expect(openSettings).toHaveBeenCalledOnce();
+    expect(view.host.querySelector('[role="dialog"]')).toBeNull();
+    expect(storage.values.get(TELEMETRY_NOTICE_SEEN_KEY)).toBe('1');
+    view.unmount();
+  });
+
   it('links the English privacy page from the English locale', () => {
     expect(en['telemetry.notice.privacyUrl']).toBe('https://deepseekbot.botharness.ai/en/privacy');
   });

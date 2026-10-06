@@ -52,10 +52,12 @@ export function TelemetryNoticeBody({ t }: { t: BotHarnessTranslate }): ReactEle
 export function TelemetryNoticeDialog({
   open: visible,
   onClose,
+  onOpenSettings,
   t,
 }: {
   open: boolean;
   onClose: () => void;
+  onOpenSettings?: (() => void) | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   return (
@@ -84,6 +86,11 @@ export function TelemetryNoticeDialog({
           >
             {t('telemetry.notice.privacy')}
           </Button>
+          {onOpenSettings === undefined ? null : (
+            <Button variant="outline" onClick={onOpenSettings} data-telemetry-open-settings>
+              {t('telemetry.notice.settings')}
+            </Button>
+          )}
           <Button variant="primary" onClick={onClose}>
             {t('telemetry.notice.done')}
           </Button>
@@ -120,6 +127,13 @@ export function TelemetryNotice({
         onClose={() => {
           controller.dismiss();
         }}
+        onOpenSettings={
+          controller.canOpenSettings
+            ? () => {
+                controller.openSettings();
+              }
+            : undefined
+        }
         t={t}
       />
     </>

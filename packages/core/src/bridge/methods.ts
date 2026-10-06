@@ -427,6 +427,7 @@ export interface BridgeMethods {
   releaseInfo(payload: unknown): BridgeResult<ReleaseInfo>;
   releaseUpdate(): Promise<BridgeResult<ReleaseUpdate>>;
   telemetryStatus(): BridgeResult<TelemetryStatus>;
+  telemetrySet(payload: unknown): BridgeResult<TelemetryStatus>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
   scheduleCreate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
   scheduleUpdate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
@@ -467,7 +468,7 @@ export interface BridgeMethodsDeps {
   createBotId?: () => string;
   marketplace?: MarketplaceClient;
   release?: ReleaseService;
-  telemetry?: { status(): TelemetryStatus };
+  telemetry?: { status(): TelemetryStatus; setPreference(enabled: boolean): TelemetryStatus };
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -512,6 +513,13 @@ function releaseUnavailable(): BridgeResult<never> {
   return {
     ok: false,
     error: { code: 'release-unavailable', message: 'Release information is unavailable' },
+  };
+}
+
+function telemetryUnavailable(): BridgeResult<never> {
+  return {
+    ok: false,
+    error: { code: 'telemetry-unavailable', message: 'Usage statistics are unavailable' },
   };
 }
 
@@ -1493,7 +1501,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return { ok: true, value: await deps.release.update() };
     },
     telemetryStatus() {
-      return { ok: true, value: deps.telemetry?.status() ?? { enabled: false } };
+      return {
+        ok: true,
+        value: deps.telemetry?.status() ?? { enabled: false, preference: false },
+      };
+    },
+    telemetrySet(payload) {
+      const enabled = asObject(payload)['enabled'];
+      if (typeof enabled !== 'boolean') return invalidInput('enabled is required');
+      if (deps.telemetry === undefined) return telemetryUnavailable();
+      try {
+        return { ok: true, value: deps.telemetry.setPreference(enabled) };
+      } catch {
+        return {
+          ok: false,
+          error: {
+            code: 'telemetry-persist-failed',
+            message: 'The usage statistics choice could not be saved',
+          },
+        };
+      }
     },
     marketplaceDetail(payload) {
       const id = asObject(payload)['id'];

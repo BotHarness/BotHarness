@@ -29,17 +29,20 @@ export interface TelemetryBatch {
 
 export type TelemetrySender = (batch: TelemetryBatch) => Promise<void>;
 
-export type TelemetryDecision =
-  | { enabled: true }
-  | { enabled: false; reason: 'config' | 'DO_NOT_TRACK' | 'BOTHARNESS_TELEMETRY' };
+export type TelemetryLock = 'config' | 'DO_NOT_TRACK' | 'BOTHARNESS_TELEMETRY';
+
+export type TelemetryDecision = { enabled: true } | { enabled: false; reason: TelemetryLock };
 
 export interface TelemetryStatus {
   enabled: boolean;
+  preference: boolean;
+  lockedBy?: TelemetryLock;
 }
 
 export interface TelemetryService {
   readonly enabled: boolean;
   status(): TelemetryStatus;
+  setPreference(enabled: boolean): TelemetryStatus;
   capture(event: string, properties?: Record<string, TelemetryValue>): void;
   flush(): Promise<void>;
   close(): Promise<void>;
@@ -81,32 +84,57 @@ export function telemetryDecision(
   return { enabled: true };
 }
 
-export function readInstallId(dataDir: string): string | undefined {
+interface TelemetryFile {
+  installId?: string;
+  enabled?: false;
+}
+
+function readTelemetryFile(dataDir: string): TelemetryFile {
   try {
     const parsed: unknown = JSON.parse(readFileSync(join(dataDir, INSTALL_ID_FILE), 'utf8'));
-    const id =
-      typeof parsed === 'object' && parsed !== null
-        ? (parsed as Record<string, unknown>)['installId']
-        : undefined;
-    return typeof id === 'string' && UUID.test(id) ? id : undefined;
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    const record = parsed as Record<string, unknown>;
+    const id = record['installId'];
+    return {
+      ...(typeof id === 'string' && UUID.test(id) ? { installId: id } : {}),
+      ...(record['enabled'] === false ? { enabled: false } : {}),
+    };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
+function writeTelemetryFile(dataDir: string, file: TelemetryFile): void {
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(join(dataDir, INSTALL_ID_FILE), `${JSON.stringify(file)}\n`, { mode: 0o600 });
+}
+
+export function readInstallId(dataDir: string): string | undefined {
+  return readTelemetryFile(dataDir).installId;
+}
+
+export function readTelemetryPreference(dataDir: string): boolean {
+  return readTelemetryFile(dataDir).enabled !== false;
+}
+
 export function ensureInstallId(dataDir: string, createId: () => string = randomUUID): string {
-  const existing = readInstallId(dataDir);
-  if (existing !== undefined) return existing;
+  const file = readTelemetryFile(dataDir);
+  if (file.installId !== undefined) return file.installId;
   const id = createId();
   try {
-    mkdirSync(dataDir, { recursive: true });
-    writeFileSync(join(dataDir, INSTALL_ID_FILE), `${JSON.stringify({ installId: id })}\n`, {
-      mode: 0o600,
-    });
+    writeTelemetryFile(dataDir, { ...file, installId: id });
   } catch {
     return id;
   }
   return id;
+}
+
+export function writeTelemetryPreference(dataDir: string, enabled: boolean): void {
+  const { installId } = readTelemetryFile(dataDir);
+  writeTelemetryFile(dataDir, {
+    ...(installId === undefined ? {} : { installId }),
+    ...(enabled ? {} : { enabled: false }),
+  });
 }
 
 export function telemetryVersion(value: string | undefined): string {
@@ -160,7 +188,9 @@ interface Pending {
 }
 
 export function createTelemetryService(options: TelemetryServiceOptions): TelemetryService {
-  const enabled = options.decision.enabled;
+  const lockedBy = options.decision.enabled ? undefined : options.decision.reason;
+  let preference = readTelemetryPreference(options.dataDir);
+  let enabled = lockedBy === undefined && preference;
   const send = options.send ?? fetchTelemetrySender();
   const now = options.now ?? (() => new Date());
   const flushDelayMs = options.flushDelayMs ?? FLUSH_DELAY_MS;
@@ -195,19 +225,25 @@ export function createTelemetryService(options: TelemetryServiceOptions): Teleme
       const carried = pending
         .filter((entry) => !entry.retried)
         .map((entry) => ({ event: entry.event, retried: true }));
-      queue = [...carried, ...queue].slice(-MAX_QUEUE);
+      queue = enabled ? [...carried, ...queue].slice(-MAX_QUEUE) : [];
       options.log?.(
         `telemetry phase=send-failed events=${pending.length} carried=${carried.length} dropped=${pending.length - carried.length}`,
       );
     }
   };
 
+  const cancelTimer = (): void => {
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    timer = undefined;
+  };
+
+  const status = (): TelemetryStatus =>
+    lockedBy === undefined ? { enabled, preference } : { enabled, preference, lockedBy };
+
   const flush = async (): Promise<void> => {
     if (!enabled) return;
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      timer = undefined;
-    }
+    cancelTimer();
     while (inflight !== undefined) await inflight;
     inflight = deliver().finally(() => {
       inflight = undefined;
@@ -216,8 +252,26 @@ export function createTelemetryService(options: TelemetryServiceOptions): Teleme
   };
 
   return {
-    enabled,
-    status: () => ({ enabled }),
+    get enabled() {
+      return enabled;
+    },
+    status,
+    setPreference(next) {
+      if (lockedBy !== undefined) return status();
+      preference = next;
+      enabled = next;
+      if (!next) {
+        cancelTimer();
+        const dropped = queue.length;
+        queue = [];
+        options.log?.(`telemetry phase=disabled reason=preference dropped=${dropped}`);
+      } else {
+        options.log?.('telemetry phase=enabled reason=preference');
+      }
+      writeTelemetryPreference(options.dataDir, next);
+      if (next) installId = ensureInstallId(options.dataDir, options.createId);
+      return status();
+    },
     capture(event, properties = {}) {
       if (!enabled || closed) return;
       try {

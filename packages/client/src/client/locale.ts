@@ -1721,7 +1721,8 @@ export const zh = {
     '了解哪些功能真正被使用，决定接下来改进什么。数据只由 DSH 后台发送，不经浏览器。',
   'telemetry.notice.optOut.label': '如何关闭',
   'telemetry.notice.optOut':
-    '在 BotHarness core 插件配置中设置 `telemetry: false`，或设置环境变量 `DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0`，然后重启 DSH。',
+    '在「Bot 设置 → 匿名使用统计」中随时关闭，立即生效、无需重启。也可在 BotHarness core 插件配置中设置 `telemetry: false`，或设置环境变量 `DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0`。',
+  'telemetry.notice.settings': '打开 Bot 设置',
   'telemetry.notice.privacy': '隐私说明',
   'telemetry.notice.privacyUrl': 'https://deepseekbot.botharness.ai/privacy',
   'telemetry.notice.source': '查看源码',
@@ -1729,6 +1730,13 @@ export const zh = {
     'https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry',
   'telemetry.notice.done': '知道了',
   'telemetry.notice.close': '关闭',
+  'telemetry.row.title': '匿名使用统计',
+  'telemetry.row.description': '发送插件版本、系统和功能使用次数等匿名数据，帮助改进 DeepSeekBot。',
+  'telemetry.row.privacy': '隐私说明',
+  'telemetry.row.lockedConfig': '已由 core 插件配置 telemetry: false 关闭，需在插件配置中修改。',
+  'telemetry.row.lockedDoNotTrack': '已由环境变量 DO_NOT_TRACK=1 关闭。',
+  'telemetry.row.lockedEnv': '已由环境变量 BOTHARNESS_TELEMETRY=0 关闭。',
+  'telemetry.row.error': '保存失败，请重试。',
 } as const satisfies Record<string, string>;
 
 export type BotHarnessKey = keyof typeof zh;
@@ -3537,7 +3545,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
     'To learn which features are actually used and decide what to improve next. Only the DSH Host sends data, never the browser.',
   'telemetry.notice.optOut.label': 'Turn off',
   'telemetry.notice.optOut':
-    'Set `telemetry: false` in the BotHarness core plugin config, or set the environment variable `DO_NOT_TRACK=1` or `BOTHARNESS_TELEMETRY=0`, then restart DSH.',
+    'Switch it off any time in Bot settings → Anonymous usage statistics; it takes effect at once, without a restart. You can also set `telemetry: false` in the BotHarness core plugin config, or the environment variable `DO_NOT_TRACK=1` or `BOTHARNESS_TELEMETRY=0`.',
+  'telemetry.notice.settings': 'Open Bot settings',
   'telemetry.notice.privacy': 'Privacy',
   'telemetry.notice.privacyUrl': 'https://deepseekbot.botharness.ai/en/privacy',
   'telemetry.notice.source': 'View source',
@@ -3545,6 +3554,15 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
     'https://github.com/BotHarness/BotHarness/tree/main/packages/core/src/telemetry',
   'telemetry.notice.done': 'Got it',
   'telemetry.notice.close': 'Close',
+  'telemetry.row.title': 'Anonymous usage statistics',
+  'telemetry.row.description':
+    'Send anonymous data such as plugin version, system and feature usage counts to help improve DeepSeekBot.',
+  'telemetry.row.privacy': 'Privacy',
+  'telemetry.row.lockedConfig':
+    'Turned off by telemetry: false in the core plugin config; change it there.',
+  'telemetry.row.lockedDoNotTrack': 'Turned off by the environment variable DO_NOT_TRACK=1.',
+  'telemetry.row.lockedEnv': 'Turned off by the environment variable BOTHARNESS_TELEMETRY=0.',
+  'telemetry.row.error': 'Could not save. Try again.',
 } satisfies Record<BotHarnessKey, string>;
 
 export type BotHarnessTranslate = TranslateNS<typeof LOCALE_NS>;

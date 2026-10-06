@@ -896,6 +896,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.telemetryStatus());
   }
 
+  telemetrySet(enabled: boolean): TelemetryStatus {
+    return unwrap(this.methods.telemetrySet({ enabled }));
+  }
+
   scheduleList(slug: string): { schedules: BotSchedule[] } {
     return unwrap(this.methods.scheduleList({ slug }));
   }
@@ -1044,6 +1048,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'releaseInfo',
   'releaseUpdate',
   'telemetryStatus',
+  'telemetrySet',
   'scheduleList',
   'scheduleCreate',
   'scheduleUpdate',

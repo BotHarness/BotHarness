@@ -22,11 +22,13 @@ export class TelemetryNoticeController {
 
   private readonly call: BridgeCall;
   private readonly storage: ConfigStorage | undefined;
+  private readonly settings: (() => void) | undefined;
   private started: Promise<void> | undefined;
 
-  constructor(call: BridgeCall, storage: ConfigStorage | undefined) {
+  constructor(call: BridgeCall, storage: ConfigStorage | undefined, openSettings?: () => void) {
     this.call = call;
     this.storage = storage;
+    this.settings = openSettings;
     this.source = createSnapshotStore<TelemetryNoticeSnapshot>({ open: false });
   }
 
@@ -47,6 +49,15 @@ export class TelemetryNoticeController {
     this.source.update((draft) => {
       draft.open = false;
     });
+  }
+
+  get canOpenSettings(): boolean {
+    return this.settings !== undefined;
+  }
+
+  openSettings(): void {
+    this.dismiss();
+    this.settings?.();
   }
 
   private async check(after: Promise<unknown> | undefined): Promise<void> {

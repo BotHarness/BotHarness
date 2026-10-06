@@ -137,6 +137,32 @@ describe('plugin entry', () => {
     }
   });
 
+  it('keeps a Human preference saved in Bot settings off across a Host restart', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchImpl);
+    try {
+      vi.stubEnv('DO_NOT_TRACK', '');
+      vi.stubEnv('BOTHARNESS_TELEMETRY', '');
+      const dir = join(process.env['DSH_HOME']!, 'botharness');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'telemetry.json'), JSON.stringify({ enabled: false }));
+      const { ctx } = createStubContext();
+      apply(ctx, { enabled: true });
+      const bridge = ctx.get('botharnessBridge') as unknown as {
+        telemetryStatus(): { enabled: boolean; preference: boolean };
+      };
+      expect(bridge.telemetryStatus()).toEqual({ enabled: false, preference: false });
+      await ctx.fiber.dispose();
+      expect(fetchImpl).not.toHaveBeenCalledWith(
+        'https://t.botharness.ai/batch/',
+        expect.anything(),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('provides the core without model-visible memory tools', () => {
     const { ctx, stubs } = createStubContext();
 
@@ -422,6 +448,7 @@ describe('plugin entry', () => {
       'releaseInfo',
       'releaseUpdate',
       'telemetryStatus',
+      'telemetrySet',
       'scheduleList',
       'scheduleCreate',
       'scheduleUpdate',

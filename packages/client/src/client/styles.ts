@@ -4967,6 +4967,9 @@ button.bh-bot-nav > svg {
 }
 .bh-assignment-limit-controls > :first-child { width: 76px; }
 .bh-assignment-limit-error { color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
+.bh-telemetry-row .bh-settings-row-desc a { color: var(--dsw-alias-state-business-primary); text-decoration: none; }
+.bh-telemetry-row .bh-settings-row-desc a:hover { text-decoration: underline; }
+.bh-telemetry-row-error { color: var(--dsw-alias-state-error-primary); font-size: 12px; line-height: 18px; }
 .bh-settings-selector {
   display: inline-flex;
   align-items: center;

@@ -584,10 +584,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     dataDir: join(dshHome, 'botharness'),
     log: (message) => ctx.logger.info(message),
   });
+  const telemetryState = telemetry.status();
   ctx.logger.info(
-    telemetryChoice.enabled
+    telemetryState.enabled
       ? 'telemetry phase=enabled'
-      : `telemetry phase=disabled reason=${telemetryChoice.reason}`,
+      : `telemetry phase=disabled reason=${telemetryState.lockedBy ?? 'preference'}`,
   );
   ctx.effect(() => () => void telemetry.close(), 'botharness: telemetry');
   telemetry.capture(
