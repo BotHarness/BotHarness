@@ -1,22 +1,15 @@
 name: npm prerelease preparation
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Exact version to prepare (no publication); stable goes to latest, alpha/beta/rc to next
-        required: true
-        default: 1.0.0
   pull_request:
     paths:
       - .github/workflows/npm-prerelease-*.yml
+      - .github/workflows/npm-release.yml
       - scripts/npm-prerelease.mjs
-      - scripts/npm-prerelease-recovery.mjs
       - scripts/product-artifacts.mjs
       - scripts/dev-im-provider.mjs
       - scripts/product-provider/**
       - scripts/test/npm-prerelease.test.mjs
-      - scripts/test/npm-prerelease-recovery.test.mjs
 
 permissions:
   contents: read
@@ -30,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      RELEASE_VERSION: ${{ inputs.version || format('0.1.0-alpha.1-preview.{0}.{1}', github.event.number, github.run_id) }}
+      RELEASE_VERSION: ${{ format('0.1.0-alpha.1-preview.{0}.{1}', github.event.number, github.run_id) }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -55,11 +48,8 @@ jobs:
           persist-credentials: false
       - run: npm ci --ignore-scripts --prefix .release-provider
       - name: Prepare and dry-run the exact package set
-        env:
-          PREPARATION_EVENT: ${{ github.event_name }}
         run: |
           node scripts/npm-prerelease.mjs prepare --version "$RELEASE_VERSION" --provider-source .release-provider --output "$RUNNER_TEMP/npm-prerelease"
-          node -e 'const plan=require(process.env.RUNNER_TEMP+"/npm-prerelease/release-plan.json"); if(process.env.PREPARATION_EVENT==="workflow_dispatch" && plan.sourceDirty) throw new Error("Manual main preparation requires a clean source checkout")'
           node -e 'const fs=require("fs"); const crypto=require("crypto"); const p=process.env.RUNNER_TEMP+"/npm-prerelease/release-plan.json"; fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,"Reviewed plan SHA-256: `"+crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex")+"`\n\n```json\n"+fs.readFileSync(p)+"\n```\n")'
       - uses: actions/upload-artifact@v4
         with:

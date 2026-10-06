@@ -291,9 +291,11 @@ async function main() {
     if (/^npm_config_.*(auth|token|password)/i.test(key)) delete env[key];
   delete env.NPM_TOKEN;
   delete env.NODE_AUTH_TOKEN;
+  const token = process.env.NPM_TOKEN;
   if (mode === 'publish') {
-    if (!process.env.NPM_TOKEN) throw new Error('NPM_TOKEN is required for publication');
-    env['npm_config_//registry.npmjs.org/:_authToken'] = process.env.NPM_TOKEN;
+    if (token) env['npm_config_//registry.npmjs.org/:_authToken'] = token;
+    else if (!process.env.ACTIONS_ID_TOKEN_REQUEST_URL)
+      throw new Error('Publication needs npm trusted publishing (GitHub OIDC) or NPM_TOKEN');
   }
   const npm = (args) => {
     const result = spawnSync('npm', [...args, ...npmConfig], {
@@ -310,7 +312,7 @@ async function main() {
     return result.stdout;
   };
   for (const { artifact } of release.packages) {
-    if (mode === 'publish' && existing.has(artifact.name)) {
+    if (existing.has(artifact.name)) {
       console.log(`Verified already published bytes: ${artifact.name}@${artifact.version}`);
       continue;
     }
@@ -337,6 +339,12 @@ async function main() {
   if (mode === 'publish' && release.plan.distTag === 'latest') {
     for (const { artifact } of release.packages) {
       if (artifact.version !== release.plan.productVersion) continue;
+      if (!token) {
+        console.log(
+          `next not moved without NPM_TOKEN; run: npm dist-tag add ${artifact.name}@${artifact.version} next`,
+        );
+        continue;
+      }
       npm(['dist-tag', 'add', `${artifact.name}@${artifact.version}`, 'next']);
       console.log(`Moved next to ${artifact.name}@${artifact.version}`);
     }
