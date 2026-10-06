@@ -239,11 +239,45 @@ _图 5：这是已收件的真实话题消息。Source Event ID 是 BotHarness �
 
 审核通过的授权在 Host 重启后保留，范围仅限 **当前 Bot**，不包含其他 Bot、审批人管理、VPS、DSH API 或工作区权限。10 分钟过期时间针对待审申请，已批准授权不受这个计时器影响。普通聊天接收与管理授权分别配置。
 
+### #1027：真实配对操作记录
+
+以下截图来自真实 Lark 私聊和源码预览的已登录 Web 操作，使用 DSH `0.2.0-rc.1` 与兼容的固定 Provider。在明确授权的短暂停机窗口中，本机隔离测试 Host 独占现有应用；验证后已恢复生产 Host 及两个 IM 连接。完整申请人 ID 保持折叠。
+
+**刷新并核对申请。** 第一条真实申请没有默认勾选的能力，**批准所选能力**按钮禁用。接收账号已就绪；Lark 未提供申请人的显示名称，页面明确说明。
+
+![真实 Lark 申请等待 Web 审核，默认没有能力](/guides/lark/pairing/after-pending-light.jpg)
+
+**只选择需要授予的能力。** 本例只勾选 **回答正式提问**。Web 批准后显示 **已授权**、这项能力与 **撤销权限**按钮。能力选项记录授权范围；当前配对预览还没有交付从 IM 回答正式提问的交互控件。
+
+![通过真实 Web 操作只授予回答能力](/guides/lark/pairing/after-approved-light.jpg)
+
+[查看同一已授权记录的深色截图](/guides/lark/pairing/after-approved-dark.jpg)。
+
+**重启同一 Host 核对持久化。** 真实冷启动后仍保留原授权记录，能力仍只有 `answer`，接收器自动恢复就绪；没有重新创建或批准申请。
+
+![真实 Host 重启后保留原授权](/guides/lark/pairing/after-restart-approved-light.jpg)
+
+**再次申请前先撤销。** 点击 **撤销权限**后，真实记录变为 **已撤销**，能力清空，撤销按钮消失。
+
+![通过已登录 Web 撤销真实授权](/guides/lark/pairing/after-revoked-light.jpg)
+
+[查看同一撤销记录的深色截图](/guides/lark/pairing/after-revoked-dark.jpg)。
+
+**在同一个 Lark 私聊重新发送 `/pair`。** 新申请的编号不同，没有继承权限，批准按钮仍禁用；旧记录保持已撤销。需要再次授权时必须重新审核。本次演示没有批准新申请；这些配对命令在 Operational Database 中没有产生普通 IM Source Event 或 Inbox Admission。
+
+![撤销后真实重新申请，没有继承权限](/guides/lark/pairing/after-repair-dark.jpg)
+
+[查看恢复服务时的浅色截图](/guides/lark/pairing/after-repair-light.jpg)：自动测试窗口结束后，本机 Web 显示连接中断提示和最后观察到的申请状态；这张截图不能证明接收器仍在线。
+
+**验证结束后拒绝新申请。** 恢复生产服务后，本机继续关闭接收器；在已登录 Web 点击 **拒绝申请**，新记录变为 **已拒绝**。旧授权保持撤销，所有测试记录的能力均为空，没有遗留已授权或待审记录。
+
+![关闭本机接收后通过 Web 拒绝剩余测试申请](/guides/lark/pairing/after-rejected-light.jpg)
+
+**审核窗口过期时**，批准控件消失。下面这条较早的真实申请未获批准便过期；截图时为让生产 Host 独占接收同一应用，本机接收器有意离线。
+
 ![已登录 Web Profile 中的真实 Lark 过期配对申请](/guides/lark/pairing/after-expired-light.jpg)
 
-_这是本机 QA 的真实截图：来自真实 Lark 私聊的申请已超过审核时间，完整申请人 ID 保持折叠。此时为让生产 Host 独占同一应用，本机接收器有意离线。过期申请没有批准按钮；本图不证明已完成授权或可从 IM 执行审批。_
-
-[查看同一状态的深色截图](/guides/lark/pairing/after-expired-dark.jpg)。
+[查看同一过期状态的深色截图](/guides/lark/pairing/after-expired-dark.jpg)。
 
 看不到申请时，检查私聊权限、应用发布、事件订阅、身份和配对接收状态。重新连接身份会重试接收器配置。此处使用的固定 Provider 会由后台监督器自动重连，单次断开应用不能保持测试独占。真实 QA 应使用专用测试应用，或在明确授权的服务停机窗口中完成，随后恢复生产 Host；不要让两个 Host 争用同一应用。
 

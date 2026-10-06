@@ -237,11 +237,45 @@ This source-preview slice adds **pairing**, the prerequisite for IM management. 
 
 An approved grant survives a Host restart and covers **this Bot only**. It grants no other-Bot, approver-management, VPS, DSH API or workspace access. The 10-minute timer applies to pending requests, not approved grants. Ordinary chatting and management authority are separate settings.
 
+### Real pairing walkthrough: #1027
+
+These captures come from a real Lark private message and the authenticated Web controls on the source preview, using DSH `0.2.0-rc.1` and the qualified Provider. The shared production application was exclusively received by the isolated test Host during an authorized service outage; the production Host and both IM connections were restored afterward. Full applicant IDs remain collapsed.
+
+**Refresh the incoming request.** The first genuine request has no selected capabilities, and **Approve selected capabilities** is disabled. The receiving account is ready; Lark did not supply an applicant display name, so the page states that explicitly.
+
+![Real Lark request awaiting Web review, with no default capabilities](/guides/lark/pairing/after-pending-light.jpg)
+
+**Select only the capability you intend to grant.** This example selected **Answer formal questions**. After Web approval, the record shows **Authorized** with that one capability and a **Revoke authority** control. Selecting a capability records authority; this pairing preview does not yet provide an IM question-answer control.
+
+![Actual Web approval of only the answer capability](/guides/lark/pairing/after-approved-light.jpg)
+
+[View the same approved record in dark mode](/guides/lark/pairing/after-approved-dark.jpg).
+
+**Restart the same Host to check persistence.** A cold restart retained the approved record and exactly the `answer` capability. The receiver automatically returned to ready. This check did not recreate or approve the request.
+
+![Approved authority retained after a real Host restart](/guides/lark/pairing/after-restart-approved-light.jpg)
+
+**Revoke before requesting access again.** Clicking **Revoke authority** changed the real record to **Revoked**, cleared its capabilities and removed the revoke control.
+
+![Real authority revoked through authenticated Web controls](/guides/lark/pairing/after-revoked-light.jpg)
+
+[View the same revoked record in dark mode](/guides/lark/pairing/after-revoked-dark.jpg).
+
+**Send a new `/pair` from the same Lark private conversation.** The new request has a different reference, no capabilities and a disabled approve button; the old request remains revoked. Review it explicitly if access is needed again. In this walkthrough it was left unapproved. The Operational Database recorded no ordinary IM Source Event or Inbox Admission for these pairing commands.
+
+![Fresh real request after revocation, with no inherited authority](/guides/lark/pairing/after-repair-dark.jpg)
+
+[View the light-mode restoration capture](/guides/lark/pairing/after-repair-light.jpg): after the automatic test window ended, the local Web page showed a disconnected-state notice and its last observed request. That capture does not prove the receiver remains online.
+
+**Reject the remaining test request after verification.** Production reception was restored while the local receiver stayed disabled. In authenticated Web, **Reject request** changed the fresh record to **Rejected**. The earlier grant stayed revoked; all test records have empty capabilities, with no approved or pending records left.
+
+![Remaining real test request rejected from Web with local reception disabled](/guides/lark/pairing/after-rejected-light.jpg)
+
+**If the review window expires**, approval controls disappear. This earlier real request expired without approval; its receiver was deliberately offline while production received the shared application.
+
 ![Real expired Lark pairing request in the authenticated Web Profile](/guides/lark/pairing/after-expired-light.jpg)
 
-_This actual local QA capture shows a request from a real Lark DM after its review window expired. The full applicant ID remains collapsed. The receiver is deliberately offline while the production Host receives the shared application. Expired requests have no approval controls; this screenshot does not demonstrate a completed grant or a live IM approval action._
-
-[View the same state in dark mode](/guides/lark/pairing/after-expired-dark.jpg).
+[View the same expired state in dark mode](/guides/lark/pairing/after-expired-dark.jpg).
 
 If no request appears, check the private-message scope, publication, subscription, identity and receiver status. Reconnecting the identity retries receiver setup. With the qualified Provider used here, disconnecting an application is temporary because its supervisor can reconnect it. For exclusive QA, use a dedicated test application or an explicitly authorized service outage, then restore the production Host. Never leave two Hosts competing for one application.
 
