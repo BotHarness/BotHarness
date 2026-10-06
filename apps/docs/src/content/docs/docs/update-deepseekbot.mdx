@@ -56,17 +56,17 @@ If there is no **Update now** button, or the one-click update fails, run this in
 dsh plugin --profile web add deepseekbot@<version>
 ```
 
-Replace `<version>` with the version to install, for example `deepseekbot@1.0.3`. The update card in Settings shows the full command ready to copy. Then restart DSH: for the web app, press Ctrl+C in its terminal and run `dsh web` again; for the desktop app, quit it completely and open it again.
+Replace `<version>` with the version to install, for example `deepseekbot@1.0.3`. The update card in Settings shows the full command ready to copy. Then restart DSH: for the web app, press Ctrl+C in its terminal and run the same `dsh web` command again, keeping any options you started it with, such as `--port`; for the desktop app, quit it completely and open it again.
 
 The DSH Plugins page cannot upgrade an installed plugin yet. To update the desktop app by hand, use the same command with `web` replaced by the desktop profile name: the folder name under `profiles/` in the DSH data directory (`~/.dsh` by default).
 
 ## Troubleshooting
 
-| Message                                             | What to do                                                                                                                             |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Could not download the new version from npm         | Check your network and retry. DeepSeekBot tries the npm registry first and falls back to npmmirror. If it still fails, update by hand. |
-| The new version does not support this DSH version   | Update DSH first, then DeepSeekBot.                                                                                                    |
-| The install needs dependency build scripts approved | Approve them on the DSH Plugins page, or update by hand.                                                                               |
-| The update failed                                   | The card shows the error and the path to the full log. Send us the log, and update by hand in the meantime.                            |
-| DSH could not restart itself                        | Restart by hand as the card shows: Ctrl+C in the terminal, then run `dsh web` again.                                                   |
-| The page does not come back after a restart         | Reload the page. If it asks you to sign in, open the newest sign-in link in the terminal.                                              |
+| Message                                             | What to do                                                                                                                                                                   |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Could not download the new version from npm         | Check your network and retry. DeepSeekBot tries the npm registry first and falls back to npmmirror. If it still fails, update by hand.                                       |
+| The new version does not support this DSH version   | Update DSH first, then DeepSeekBot.                                                                                                                                          |
+| The install needs dependency build scripts approved | Approve them on the DSH Plugins page, or update by hand.                                                                                                                     |
+| The update failed                                   | The card shows the error and the path to the full log. Before you send us the log, check it for API keys, tokens or other secrets and remove them. Update by hand meanwhile. |
+| DSH could not restart itself                        | Restart by hand as the card shows: Ctrl+C in the terminal, then run the same `dsh web` command again with its original options.                                              |
+| The page does not come back after a restart         | Reload the page. If it asks you to sign in, open the newest sign-in link in the terminal.                                                                                    |
