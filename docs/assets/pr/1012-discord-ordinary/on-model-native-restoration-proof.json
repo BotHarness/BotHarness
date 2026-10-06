@@ -1,0 +1,400 @@
+{
+  "issue": "https://github.com/BotHarness/BotHarness/issues/1012",
+  "qualification": "real browser + native Bot API + canonical Host + actual model; existing public thread only",
+  "runtime": {
+    "core": "f6033ae09316a32cc7dbc848a62b962c7ac8081e",
+    "provider": "345b63f75ad8acc5b7e42eaab5a4eefdbffed683",
+    "artifactSha256": "b5fa453a9b2b6e544cb1d20f20b64415728b1e2333440b1f9ca00e796aa9024e"
+  },
+  "nativeScope": {
+    "app": "1556613973846007899",
+    "guilds": ["1556616664202739732", "1556770476922118266"],
+    "authorizedHostParent": "1556616665385668620",
+    "existingPublicThread": "1556622420222283798"
+  },
+  "probe": {
+    "nativeId": "1557003285976580237",
+    "mentions": 0,
+    "ordinaryDelivery": "verified",
+    "collection": "mentions",
+    "canonicalUnchanged": true
+  },
+  "countHarvest": {
+    "policy": {
+      "collection": "all",
+      "wake": "digest",
+      "count": 2,
+      "intervalSeconds": 300,
+      "inheritance": "custom",
+      "revision": 2,
+      "changedAt": "2026-10-06T12:16:47.604Z",
+      "editor": {
+        "kind": "human"
+      },
+      "defaultRevision": 0
+    },
+    "firstDelta": {
+      "messaging_bindings": 0,
+      "messaging_grants": 0,
+      "source_events": 1,
+      "inbox_admissions": 1,
+      "messaging_outbox": 0,
+      "channel_placements": 0
+    },
+    "firstItemDidNotStartTurn": true,
+    "firstAdmissionState": "pending",
+    "totalDelta": {
+      "messaging_bindings": 0,
+      "messaging_grants": 0,
+      "source_events": 2,
+      "inbox_admissions": 2,
+      "messaging_outbox": 1,
+      "channel_placements": 0
+    },
+    "priorRowsPreserved": {
+      "messaging_bindings": true,
+      "messaging_grants": true,
+      "source_events": true,
+      "inbox_admissions": true,
+      "messaging_outbox": true,
+      "channel_placements": true
+    },
+    "sourceIds": [
+      "im-70eb6eb1c1bd9f2545b76da6b9b8f3de018cea474b00e0b4a645fcdb74a1a9e0",
+      "im-fcb7aab33e1593ae9ecc585dda9dd6dbc7d261b8c2ba5e166f99f96723d44fc3"
+    ],
+    "admissions": [
+      {
+        "sourceEventId": "im-70eb6eb1c1bd9f2545b76da6b9b8f3de018cea474b00e0b4a645fcdb74a1a9e0",
+        "reason": "group-ordinary",
+        "attemptState": "handled",
+        "handledAt": "2026-10-06T12:17:32.476Z",
+        "wakeCount": 2,
+        "wakeMode": "digest"
+      },
+      {
+        "sourceEventId": "im-fcb7aab33e1593ae9ecc585dda9dd6dbc7d261b8c2ba5e166f99f96723d44fc3",
+        "reason": "group-ordinary",
+        "attemptState": "handled",
+        "handledAt": "2026-10-06T12:17:32.476Z",
+        "wakeCount": 2,
+        "wakeMode": "digest"
+      }
+    ],
+    "outbox": [
+      {
+        "id": "9fc29e7f-f2fc-421f-9161-19161b8467c7",
+        "state": "provider-accepted",
+        "sourceEventId": "im-70eb6eb1c1bd9f2545b76da6b9b8f3de018cea474b00e0b4a645fcdb74a1a9e0"
+      }
+    ],
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "off"
+    },
+    "tools": [
+      {
+        "turn": 10,
+        "step": 1,
+        "callId": "call_00_GTTLrnM37Aq4y3dXxqqA7874",
+        "name": "bridge_read",
+        "arguments": {
+          "source_event_id": "im-fcb7aab33e1593ae9ecc585dda9dd6dbc7d261b8c2ba5e166f99f96723d44fc3"
+        },
+        "isError": false,
+        "result": {
+          "id": "im-fcb7aab33e1593ae9ecc585dda9dd6dbc7d261b8c2ba5e166f99f96723d44fc3",
+          "body": "DISCORD-1012-DIGEST-A: synthetic ordinary Human text amber-67, value=11. Wait for the second item; no reply to this item.",
+          "nativeMessageId": "1557003724285677769",
+          "mentions": [],
+          "mentionedAccount": false,
+          "route": {
+            "messageId": "1557003724285677769",
+            "conversationId": "1556616665385668620",
+            "actorId": "552307579322236939",
+            "threadId": "1556622420222283798"
+          }
+        }
+      },
+      {
+        "turn": 10,
+        "step": 1,
+        "callId": "call_01_89di8lLpZhcDgfsVzSFf7971",
+        "name": "bridge_read",
+        "arguments": {
+          "source_event_id": "im-70eb6eb1c1bd9f2545b76da6b9b8f3de018cea474b00e0b4a645fcdb74a1a9e0"
+        },
+        "isError": false,
+        "result": {
+          "id": "im-70eb6eb1c1bd9f2545b76da6b9b8f3de018cea474b00e0b4a645fcdb74a1a9e0",
+          "body": "DISCORD-1012-DIGEST-B-QA: synthetic ordinary Human text amber-67, value=19. This is the second item of the two-item harvest. Use bridge_read on BOTH fresh DIGEST-A and THIS DIGEST-B source exactly once each. From their actual bodies compute 11+19, then bridge_reply ONCE to THIS DIGEST-B source exactly DISCORD-1012-ORDINARY-OK:amber-67:count=2:sum=30. Do not reply to A. No mentions, history, file, DM, bridge_post, shell or new thread. Stop if a Tool fails; do not invent success or resend.",
+          "nativeMessageId": "1557003828136644659",
+          "mentions": [],
+          "mentionedAccount": false,
+          "route": {
+            "messageId": "1557003828136644659",
+            "conversationId": "1556616665385668620",
+            "actorId": "552307579322236939",
+            "threadId": "1556622420222283798"
+          }
+        }
+      },
+      {
+        "turn": 10,
+        "step": 2,
+        "callId": "call_00_7qiT2FbxNAyruGFRMdnZ1685",
+        "name": "bridge_reply",
+        "arguments": {
+          "source_event_id": "im-70eb6eb1c1bd9f2545b76da6b9b8f3de018cea474b00e0b4a645fcdb74a1a9e0",
+          "text": "DISCORD-1012-ORDINARY-OK:amber-67:count=2:sum=30"
+        },
+        "isError": false,
+        "result": {
+          "id": "9fc29e7f-f2fc-421f-9161-19161b8467c7",
+          "sourceEventId": "im-70eb6eb1c1bd9f2545b76da6b9b8f3de018cea474b00e0b4a645fcdb74a1a9e0",
+          "text": "DISCORD-1012-ORDINARY-OK:amber-67:count=2:sum=30",
+          "state": "provider-accepted",
+          "route": {
+            "messageId": "1557003828136644659",
+            "conversationId": "1556616665385668620",
+            "actorId": "552307579322236939",
+            "threadId": "1556622420222283798"
+          },
+          "receipt": {
+            "version": 1,
+            "messageId": "1557003870335537264",
+            "conversationId": "1556616665385668620"
+          }
+        }
+      }
+    ],
+    "turnEvents": [
+      {
+        "type": "turn/start",
+        "at": 1791289042013,
+        "turn": 10
+      },
+      {
+        "type": "step/start",
+        "at": 1791289042076,
+        "turn": 10,
+        "step": 1
+      },
+      {
+        "type": "assistant/message",
+        "at": 1791289044401,
+        "turn": 10,
+        "step": 1
+      },
+      {
+        "type": "tool/call",
+        "at": 1791289044407,
+        "turn": 10,
+        "step": 1
+      },
+      {
+        "type": "tool/result",
+        "at": 1791289044422,
+        "turn": 10,
+        "step": 1
+      },
+      {
+        "type": "tool/call",
+        "at": 1791289044423,
+        "turn": 10,
+        "step": 1
+      },
+      {
+        "type": "tool/result",
+        "at": 1791289044428,
+        "turn": 10,
+        "step": 1
+      },
+      {
+        "type": "step/end",
+        "at": 1791289044429,
+        "turn": 10,
+        "step": 1
+      },
+      {
+        "type": "step/start",
+        "at": 1791289044441,
+        "turn": 10,
+        "step": 2
+      },
+      {
+        "type": "assistant/message",
+        "at": 1791289046991,
+        "turn": 10,
+        "step": 2
+      },
+      {
+        "type": "tool/call",
+        "at": 1791289046996,
+        "turn": 10,
+        "step": 2
+      },
+      {
+        "type": "tool/result",
+        "at": 1791289050557,
+        "turn": 10,
+        "step": 2
+      },
+      {
+        "type": "step/end",
+        "at": 1791289050560,
+        "turn": 10,
+        "step": 2
+      },
+      {
+        "type": "step/start",
+        "at": 1791289050581,
+        "turn": 10,
+        "step": 3
+      },
+      {
+        "type": "assistant/message",
+        "at": 1791289052437,
+        "turn": 10,
+        "step": 3
+      },
+      {
+        "type": "step/end",
+        "at": 1791289052443,
+        "turn": 10,
+        "step": 3
+      },
+      {
+        "type": "turn/end",
+        "at": 1791289052473,
+        "turn": 10
+      }
+    ]
+  },
+  "nativeReply": {
+    "id": "1557003870335537264",
+    "authorId": "1556613973846007899",
+    "channelId": "1556622420222283798",
+    "reference": {
+      "type": 0,
+      "channel_id": "1556622420222283798",
+      "message_id": "1557003828136644659",
+      "guild_id": "1556616664202739732"
+    },
+    "content": "DISCORD-1012-ORDINARY-OK:amber-67:count=2:sum=30",
+    "ownBotReplyCount": 1
+  },
+  "restore": {
+    "flags": 0,
+    "flags_new": "0",
+    "originalPreferences": {
+      "collection": "mentions",
+      "wake": "immediate",
+      "count": 5,
+      "intervalSeconds": 30,
+      "inheritance": "custom"
+    },
+    "restoredPreferences": {
+      "collection": "mentions",
+      "wake": "immediate",
+      "count": 5,
+      "intervalSeconds": 30,
+      "inheritance": "custom"
+    },
+    "policyRevisions": {
+      "before": 1,
+      "temporary": 2,
+      "restored": 3
+    },
+    "ordinaryDelivery": "unverified",
+    "workspaceWrite": false,
+    "coldBootCanonicalUnchanged": true,
+    "sentinel": {
+      "id": "1557004336759046236",
+      "mentions": 0,
+      "botReadableContentBytes": 0,
+      "canonicalUnchanged": true
+    }
+  },
+  "canonical": {
+    "before": {
+      "messaging_bindings": {
+        "count": 1,
+        "sha256": "30023ba945eb40a6ef444c04a34e8e7ca51607c4ab53f4110f259738209cf267"
+      },
+      "messaging_grants": {
+        "count": 1,
+        "sha256": "46cb9b6eaf6d9150554740802c983d3bdb184cea5770317a89d64297a09ab7d6"
+      },
+      "source_events": {
+        "count": 29,
+        "sha256": "3b08946eca50c19630a08b05426aef918f4100469e6bb9a6cde618aceabdfbdb"
+      },
+      "inbox_admissions": {
+        "count": 11,
+        "sha256": "95cf75cdbf36de1f294c818f86f3d3b9d11c80de24e737992bd314d91761aaa1"
+      },
+      "messaging_outbox": {
+        "count": 8,
+        "sha256": "fc0de6fe088e9cf74452a9aaca982f6967b091b616951ccfadd74b37d0b5ad2e"
+      },
+      "channel_placements": {
+        "count": 2,
+        "sha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+      }
+    },
+    "accepted": {
+      "messaging_bindings": {
+        "count": 1,
+        "sha256": "30023ba945eb40a6ef444c04a34e8e7ca51607c4ab53f4110f259738209cf267"
+      },
+      "messaging_grants": {
+        "count": 1,
+        "sha256": "46cb9b6eaf6d9150554740802c983d3bdb184cea5770317a89d64297a09ab7d6"
+      },
+      "source_events": {
+        "count": 31,
+        "sha256": "087d960dee35ba7b22b1863631be3dbb4d1f7a393b197924c5d3107cd6c10703"
+      },
+      "inbox_admissions": {
+        "count": 13,
+        "sha256": "5de02f071b82196dea1283bb6ee471efc03322b76f9d1e4fa3715e2028c1d0e2"
+      },
+      "messaging_outbox": {
+        "count": 9,
+        "sha256": "ad946fe23dd7b5e237b78e063c31631da2a5f8ee710404ff982ebc881f72f758"
+      },
+      "channel_placements": {
+        "count": 2,
+        "sha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+      }
+    },
+    "restored": {
+      "messaging_bindings": {
+        "count": 1,
+        "sha256": "30023ba945eb40a6ef444c04a34e8e7ca51607c4ab53f4110f259738209cf267"
+      },
+      "messaging_grants": {
+        "count": 1,
+        "sha256": "46cb9b6eaf6d9150554740802c983d3bdb184cea5770317a89d64297a09ab7d6"
+      },
+      "source_events": {
+        "count": 31,
+        "sha256": "087d960dee35ba7b22b1863631be3dbb4d1f7a393b197924c5d3107cd6c10703"
+      },
+      "inbox_admissions": {
+        "count": 13,
+        "sha256": "5de02f071b82196dea1283bb6ee471efc03322b76f9d1e4fa3715e2028c1d0e2"
+      },
+      "messaging_outbox": {
+        "count": 9,
+        "sha256": "ad946fe23dd7b5e237b78e063c31631da2a5f8ee710404ff982ebc881f72f758"
+      },
+      "channel_placements": {
+        "count": 2,
+        "sha256": "01dc3e5a0ba49fd5e614479a076e383a1cd4c9299ef729d466e1be9180a97b73"
+      }
+    }
+  }
+}
