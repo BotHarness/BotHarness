@@ -91,3 +91,48 @@ it('labels an unretained quote and local coverage without promoting the title or
   expect(host.querySelector('.bh-external-quote')?.textContent).toContain('display summary');
   expect(host.querySelector('.bh-external-quote')?.textContent).not.toContain('actual original');
 });
+
+it('shows the latest page status and the WeChat sender label while retaining earlier pagination evidence', async () => {
+  const read = {
+    at: source.at,
+    sessionId: 'session',
+    scope: 'retained' as const,
+    coverage: 'retained-local-sources' as const,
+    outcome: 'read' as const,
+    sourceEventIds: ['im-original'],
+    omitted: 0,
+  };
+  await act(async () =>
+    root.render(
+      createElement(ExternalSourceContent, {
+        source: {
+          ...source,
+          contextReads: [
+            { ...read, incomplete: true },
+            { ...read, incomplete: false },
+          ],
+          contextMessages: [
+            {
+              sourceEventId: 'im-original',
+              messageId: 'native-original',
+              senderId: 'private-native-user-id',
+              at: source.at,
+              text: 'original body',
+            },
+          ],
+        },
+        t: zhTranslate,
+      }),
+    ),
+  );
+  expect(host.querySelector('.bh-external-context > .bh-external-notice')).toBeNull();
+  expect(host.querySelector('.bh-external-audit')?.textContent).toContain(
+    zhTranslate('im.contextIncomplete', { count: '0' }),
+  );
+  expect(host.querySelector('.bh-external-context-messages strong')?.textContent).toBe(
+    zhTranslate('im.weixinUser'),
+  );
+  expect(
+    host.querySelector('.bh-external-context-messages .bh-external-detail-body')?.textContent,
+  ).toContain('private-native-user-id');
+});

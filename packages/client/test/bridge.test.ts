@@ -2344,3 +2344,42 @@ it('admits only a bounded safe Tool summary into Overview and rejects malformed 
   row.state = 'idle';
   await expect(loadActivityOverview(call)).rejects.toThrow('Invalid Overview activity');
 });
+
+it('reads retained WeChat context audits through the actual Client bridge before rendering', async () => {
+  const read = (source: unknown) =>
+    readMessagingSource(bridgeCall({ messagingSource: () => ({ source }) }), 'ada', 'im-source');
+  const source = {
+    ...EXTERNAL_SOURCE,
+    platform: 'weixin',
+    event: { ...EXTERNAL_SOURCE.event, channel: 'weixin' },
+    quote: { kind: 'unavailable', reason: 'no-server-message-id' },
+    contextReads: ['retained', 'retained-nearby'].map((scope) => ({
+      at: EXTERNAL_SOURCE.at,
+      sessionId: 'session',
+      scope,
+      outcome: 'read',
+      sourceEventIds: ['original'],
+      omitted: 0,
+      incomplete: false,
+      coverage: 'retained-local-sources',
+    })),
+    contextMessages: [
+      {
+        sourceEventId: 'original',
+        messageId: '9007199254740993',
+        senderId: 'owner',
+        at: EXTERNAL_SOURCE.at,
+        text: 'actual local original',
+      },
+    ],
+  };
+  await expect(read(source)).resolves.toEqual(source);
+  for (const patch of [
+    { scope: 'invented-history' },
+    { coverage: 'remote-wechat-history' },
+    { sourceEventIds: [42] },
+  ])
+    await expect(
+      read({ ...source, contextReads: [{ ...source.contextReads[0], ...patch }] }),
+    ).rejects.toMatchObject({ code: 'invalid-response' });
+});

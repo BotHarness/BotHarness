@@ -217,6 +217,7 @@ export function ExternalSourceContent({
 }): ReactElement {
   const platform = externalPlatformLabel(source.platform, t);
   const hasThread = Boolean(source.event.reply.threadId ?? source.event.reply.rootId);
+  const latestRead = source.contextReads?.at(-1);
   const messages = [...(source.contextMessages ?? [])].sort((a, b) => a.at.localeCompare(b.at));
   return (
     <div className="bh-external-source-content">
@@ -338,15 +339,13 @@ export function ExternalSourceContent({
                 : 'im.contextExplanation',
             )}
           </p>
-          {source.contextReads.map((read, index) =>
-            read.outcome === 'refused' || read.incomplete ? (
-              <p className="bh-external-notice" key={`${read.at}:${index}`}>
-                {read.outcome === 'refused'
-                  ? t('im.contextRefused', { reason: read.reason ?? 'history-unavailable' })
-                  : t('im.contextIncomplete', { count: String(read.omitted) })}
-              </p>
-            ) : null,
-          )}
+          {latestRead && (latestRead.outcome === 'refused' || latestRead.incomplete) ? (
+            <p className="bh-external-notice">
+              {latestRead.outcome === 'refused'
+                ? t('im.contextRefused', { reason: latestRead.reason ?? 'history-unavailable' })
+                : t('im.contextIncomplete', { count: String(latestRead.omitted) })}
+            </p>
+          ) : null}
           <details className="bh-external-details bh-external-audit">
             <summary>{t('im.readDetails', { count: String(source.contextReads.length) })}</summary>
             <div className="bh-external-detail-body">
@@ -358,6 +357,9 @@ export function ExternalSourceContent({
                       ? t('im.contextRefused', { reason: read.reason ?? 'history-unavailable' })
                       : t('im.contextCount', { count: String(read.sourceEventIds.length) })}
                   </p>
+                  {read.outcome === 'read' && read.incomplete ? (
+                    <p>{t('im.contextIncomplete', { count: String(read.omitted) })}</p>
+                  ) : null}
                   <p>{read.sourceEventIds.join(', ')}</p>
                 </div>
               ))}
@@ -365,7 +367,14 @@ export function ExternalSourceContent({
           </details>
           <div className="bh-external-context-messages">
             {messages.map((message) => (
-              <MessageCard key={message.sourceEventId} message={message} t={t} />
+              <MessageCard
+                key={message.sourceEventId}
+                message={{
+                  ...message,
+                  senderLabel: externalSenderLabel({ ...message, platform: source.platform }, t),
+                }}
+                t={t}
+              />
             ))}
           </div>
         </section>

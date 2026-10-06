@@ -138,6 +138,14 @@ Bot 可在已有可写工作区授权下，用 `bridge_attachment_save` 的 `rep
 
 微信发送回执仍是客户端确认，不能拿它解析只带服务器消息 ID 的 Bot 回复引用。微信附带的真实引用正文仍可显示；没有正文或可核对的真实服务器 ID 时，引用保持不可用。
 
+#908 的真实验收收到仅含条目 ID 的引用：微信没有提供引用正文或服务器消息 ID，BotHarness 明确保留“引用内容不可用”。Bot 通过两页本地保留上下文和一次附近查询读到原始 canonical Source Event，再向同一授权私聊发送 `BH908-QUOTE-OK 紫色风铃42`。Provider 已接受发送，接收方确认仍待补充。嵌入正文和服务器 ID 解析的其他形态有回归覆盖，不声称已完成这些客户端形态的真实验收。
+
+![真实条目 ID 引用明确显示不可用，浅色主题](/guides/wechat/quote-after-light.jpg)
+
+![同一来源与引用状态，深色主题](/guides/wechat/quote-after-dark.jpg)
+
+![读取记录与含测试暗号的本地保留原消息](/guides/wechat/quote-context-light.jpg)
+
 ## 暂停与重新连接
 
 关闭私聊收件会停止后续接收，并保留配置及历史。撤销目标授权或解绑身份会移除相应权限。重新扫码后身份指纹变化，需要明确重新授权；旧消息的续接能力不能跨身份复用。重启时沿用同一个 Profile，保留本地配对、canonical 来源与 Outbox 结果。

@@ -3443,7 +3443,13 @@ export async function readMessagingSource(
         const read = asRecord(value);
         return (
           strings(read, ['at', 'sessionId', 'scope', 'outcome']) &&
-          ['group', 'nearby', 'thread'].includes(String(read?.['scope'])) &&
+          ['group', 'nearby', 'thread', 'retained', 'retained-nearby'].includes(
+            String(read?.['scope']),
+          ) &&
+          (read?.['coverage'] === undefined ||
+            ['remote-provider-page', 'retained-local-sources'].includes(
+              String(read['coverage']),
+            )) &&
           ['read', 'refused'].includes(String(read?.['outcome'])) &&
           typeof read?.['incomplete'] === 'boolean' &&
           Number.isInteger(read?.['omitted']) &&
