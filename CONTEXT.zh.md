@@ -711,3 +711,21 @@ _避免使用_：whitelist、permissions、ACL
 **Credential reference**：
 指向由 DSH credentials service 保存的 Feishu App Secret 的引用；secret 本身永远不会进入 config、repo 或 log。
 _避免使用_：secret、API key、token
+
+### 遥测与推广活动
+
+**Telemetry（遥测）**：
+Host 发送到项目分析服务的匿名产品使用事件，默认开启，可用插件配置 `telemetry: false`、`DO_NOT_TRACK=1` 或 `BOTHARNESS_TELEMETRY=0` 关闭。从不包含名称、Memory、对话内容、路径或 IP 地址（ADR-0132）。
+_避免_：追踪、分析 SDK、崩溃上报器
+
+**Install ID（安装 ID）**：
+插件安装首次启动时随机生成、附在其 Telemetry 上的标识。它标识一次安装而不是某个 Human，也从不与官网访客关联。
+_避免_：用户 ID、设备 ID、机器 ID
+
+**Campaign（推广活动）**：
+一次宣发（例如一次发布），把为它创建的 Campaign Link 归为一组；其 slug 即 `utm_campaign`。
+_避免_：广告、促销
+
+**Campaign Link（推广短链）**：
+`go.botharness.ai` 上对应 Campaign 中某一条帖子或视频的短链，带有平台和媒体类型；访问时重定向到官网并附上 UTM 参数，同时计入点击。
+_避免_：短网址、UTM 链接、邀请链接
