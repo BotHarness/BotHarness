@@ -5,7 +5,11 @@
 
 ## [Unreleased]
 
-1.1.0 之后暂无变更。
+Discord 默认值支持独立保存，并由 Profile 设置继承。
+
+### Added
+
+- Discord 支持独立的外部平台默认设置，涵盖群收件、普通消息唤醒阈值与继承身份的启停。Profile 自定义选项保持独立，恢复继承使用当前 Discord 默认值；升级保留已有 Lark/Slack 历史和覆盖项（[#1016](https://github.com/BotHarness/BotHarness/issues/1016)）。
 
 ## [1.1.0] - 2026-10-06
 

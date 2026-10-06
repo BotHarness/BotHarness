@@ -5,7 +5,11 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Nothing yet since 1.1.0.
+Discord defaults can now be saved independently and inherited by Profile settings.
+
+### Added
+
+- Discord now has independent external-platform defaults for group intake, ordinary wake thresholds and inherited identity availability. Profile custom choices remain independent; restoring inheritance uses the current Discord defaults. Existing Lark/Slack history and overrides are preserved on upgrade. ([#1016](https://github.com/BotHarness/BotHarness/issues/1016))
 
 ## [1.1.0] - 2026-10-06
 
