@@ -5,11 +5,12 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-PersonaBots can run recurring Bot Schedules from the Channel sidebar.
+PersonaBots can run recurring Bot Schedules from the Channel sidebar, and each Bot's Memory keeps a `.botharness/bot.json` profile for the Bot Marketplace.
 
 ### Added
 
 - PersonaBots gain Bot Schedules: the Channel sidebar's Schedules section lets the Human create, edit, pause and delete minute, hourly or daily tasks; each firing lands in the Bot Inbox and wakes the Orchestrator, and every schedule shows its last 20 firings with links to the handling session ([#960](https://github.com/BotHarness/BotHarness/issues/960), [ADR-0133](docs/adr/0133-bot-schedules-wake-the-orchestrator-through-the-bot-inbox.md)).
+- DeepSeekBot now writes `.botharness/bot.json` into each Bot's Memory when the Bot is created, and updates it when its name, roles or avatar change. Existing Bots get the file on the next start. A shared Bot therefore shows the same name, roles and avatar in the Bot Marketplace as in the sidebar ([#966](https://github.com/BotHarness/BotHarness/issues/966), [guide](docs/share-bot.md)).
 
 ## [1.0.2] - 2026-10-06
 
@@ -18,8 +19,6 @@ Bot mode shows what changed after an install or update and checks npm for newer 
 ### Added
 
 - Bot mode shows the changelog of the installed version after the first install and every release since the last one you saw after an update, and Bot settings show the installed version, check npm for a newer release with its notes and the update command, and link the website changelog ([#947](https://github.com/BotHarness/BotHarness/issues/947)).
-
-- DeepSeekBot now writes `.botharness/bot.json` into each Bot's Memory when the Bot is created, and updates it when its name, roles or avatar change. Existing Bots get the file on the next start. A shared Bot therefore shows the same name, roles and avatar in the Bot Marketplace as in the sidebar ([#966](https://github.com/BotHarness/BotHarness/issues/966), [guide](docs/share-bot.md)).
 
 ### Fixed
 
