@@ -30,4 +30,6 @@ This tree shows the current checked-out working tree, including uncommitted cont
 | Binary or oversized file  | The reader does not provide a text preview; use file actions or ask the Bot to inspect it with its tools.  |
 | Loading or update failure | Check the displayed error and use **Retry**; a previous preview may remain visible while the update fails. |
 
+To pack these files into a zip for someone else or another computer, see [Export and import a Bot](/docs/bot-zip).
+
 Next: [Memory evolution](/docs/channel-sidebar/memory-evolution). [All sidebar features](/docs/channel-sidebar).

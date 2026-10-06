@@ -134,7 +134,7 @@ PersonaBot 的 Memory 是一个普通 Git 工作树。笔记、人格、代码�
 
 [Bot 市场](https://market.botharness.ai) 收录公开 GitHub 仓库里分享的 Bot。在 Bot 模式的消息列表点 **+ → Bot 市场**，按话题或关键词浏览，点「安装」后会先显示来源仓库和最新提交，提醒这是第三方内容；确认后它的 Memory 仓库被克隆成你的一个新 PersonaBot。也可以把仓库地址贴进去，立即收录。
 
-想分享自己的 Bot：先检查它的 Memory 里没有不该公开的内容，再按 [分享 Bot 教程](docs/share-bot.zh.md) 让 Bot 自己发布到 GitHub，加上 `botharness-bot` 话题即可上架。DeepSeekBot 会在每个 Bot 的 Memory 里自动维护 `.botharness/bot.json`（名称、岗位、头像），所以市场里显示的和你侧栏里的一致。
+想分享自己的 Bot：先检查它的 Memory 里没有不该公开的内容，再按 [分享 Bot 教程](docs/share-bot.zh.md) 让 Bot 自己发布到 GitHub，加上 `botharness-bot` 话题即可上架。DeepSeekBot 会在每个 Bot 的 Memory 里自动维护 `.botharness/bot.json`（名称、岗位、头像），所以市场里显示的和你侧栏里的一致。不想公开的话，也可以在 Bot 资料页导出 zip 直接发给对方，见 [导出与导入 Bot](docs/bot-zip.zh.md)。
 
 <a id="updates"></a>
 

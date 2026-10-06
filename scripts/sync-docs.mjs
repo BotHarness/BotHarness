@@ -359,6 +359,21 @@ export const PAGES = [
     },
   },
   {
+    slug: 'docs/bot-zip',
+    order: 26,
+    en: {
+      source: 'docs/bot-zip.md',
+      title: 'Export and import a Bot',
+      description:
+        'Pack a Bot into a zip, choose its files and Git history, and import it as a new Bot.',
+    },
+    zh: {
+      source: 'docs/bot-zip.zh.md',
+      title: '导出与导入 Bot',
+      description: '把 Bot 打包成 zip，选择文件和 Git 历史，再导入成一个新的 Bot。',
+    },
+  },
+  {
     slug: 'docs/share-bot',
     order: 26,
     en: {
