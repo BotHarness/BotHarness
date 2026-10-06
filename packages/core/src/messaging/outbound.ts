@@ -202,6 +202,12 @@ export interface OutboundMessaging {
     attachmentId: string;
     signal: AbortSignal;
   }): Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>;
+  channelMediaTarget(input: {
+    channelId: string;
+    sourceEventId: string;
+    attachmentId: string;
+    signal: AbortSignal;
+  }): Promise<{ path: string; relativePath: string; kind: 'file' }>;
   prepareAudio(
     botSlug: string,
     sourceEventId: string,
@@ -744,6 +750,10 @@ export function createOutboundMessaging(options: {
     readChannelMedia(input) {
       if (!channelMedia) throw new MessagingError('capability-unavailable');
       return channelMedia(input);
+    },
+    channelMediaTarget(input) {
+      if (!channelMedia) throw new MessagingError('capability-unavailable');
+      return channelMedia.target(input);
     },
     async acquireFile(botSlug, sourceEventId, attachmentId, signal) {
       if (options.attachments === undefined || !inbound.available(botSlug, sourceEventId))

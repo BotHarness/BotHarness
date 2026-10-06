@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Added candidate Lark file cards with explicit original download, cancel/retry and existing safe open-with fallback, while preserving current Channel/source authorization and unknown metadata ([#1022](https://github.com/BotHarness/BotHarness/issues/1022), [guide](docs/lark-connection.md)).
+
 - Added a candidate Lark image preview in original Channel bubbles, preserving native text/image order, visible-only loading, enlargement and current Channel/source authorization; forwards the image opt-in through the account consumer boundary; stopping reception retains acquired images while unbind/revocation refuses the affected path ([#1021](https://github.com/BotHarness/BotHarness/issues/1021), [guide](docs/lark-connection.md)).
 - PersonaBots can read native WeChat quoted text or resolve a missing quote from currently authorized retained private-conversation records; source details distinguish native, retained and unavailable content, and bounded local context reads support cursor continuation without claiming remote WeChat history ([#908](https://github.com/BotHarness/BotHarness/issues/908), [guide](docs/wechat-connection.md)).
 

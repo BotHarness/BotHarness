@@ -394,6 +394,7 @@ export interface BridgeMethods {
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
   sessionOwner(payload: unknown): BridgeResult<{ owner: OwnedSessionBot | null }>;
+  channelMediaTarget(payload: unknown): Promise<BridgeResult<{ target: MemoryFileTarget }>>;
   messageAttachmentTarget(payload: unknown): BridgeResult<{ target: MemoryFileTarget }>;
   memoryFileTarget(payload: unknown): BridgeResult<{ target: MemoryFileTarget }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
@@ -2947,6 +2948,35 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         if (error instanceof WorkspaceGrantError) {
           return { ok: false, error: { code: error.code, message: error.message } };
         }
+        throw error;
+      }
+    },
+    async channelMediaTarget(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const sourceEventId = asNonBlank(source, 'sourceEventId');
+      const attachmentId = asNonBlank(source, 'attachmentId');
+      if (!channelId || !sourceEventId || !attachmentId)
+        return invalidInput('Channel media selectors are required');
+      try {
+        if (!deps.externalMessaging) throw new MessagingError('capability-unavailable');
+        return {
+          ok: true,
+          value: {
+            target: await deps.externalMessaging.channelMediaTarget({
+              channelId,
+              sourceEventId,
+              attachmentId,
+              signal: AbortSignal.timeout(30_000),
+            }),
+          },
+        };
+      } catch (error) {
+        if (error instanceof MessagingError || error instanceof ChannelAttachmentError)
+          return {
+            ok: false,
+            error: { code: 'unavailable', message: 'Media source is currently unavailable' },
+          };
         throw error;
       }
     },
