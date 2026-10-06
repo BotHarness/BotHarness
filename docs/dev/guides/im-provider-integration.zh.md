@@ -110,6 +110,10 @@ Slack 后接入 Discord。其 Gateway 事件／intents、guild／channel／threa
 
 [#937](https://github.com/BotHarness/BotHarness/issues/937) 在独立开发 Provider 候选中增加显式、受校验的 `bridge_context` group／已有公开 thread Human 文本页。真实模型频道与 thread 读取／回复、原生 cursor 检查及恢复 Message Content 后的拒绝均已通过；重建 Profile 后的最终模型续页（13 + 5 条不重复 Human 消息）、精确原生编辑冲突及整页回滚也已通过，组合的 history/nearby/topic 行保持未取得资格。历史读取需要原生 App Message Content 正文可见性及 `VIEW_CHANNEL`／`READ_MESSAGE_HISTORY`，并继续检查原 Binding/Grant；不启用普通实时收件。已编辑的留存来源拒绝读取冲突，不覆盖证据。参见[最终验收、截图及不可变运行版本](../verification/discord-937-context-reads.zh.md)；产品 Provider pin 不变。
 
+## Discord 原文件候选 — 2026-10-06
+
+[#1002](https://github.com/BotHarness/BotHarness/issues/1002) 在独立开发 Provider 中增加一个直接提及的托管文件与经过校验的原位置结果回复。安全元信息明确 opt-in；重新查询原消息刷新私有 CDN 签名地址，下载和唯一一次不自动重试的 multipart 回复保留身份、原生权限、lease 与 Host 授权校验。输入／输出上限 20 MiB。既有 canonical 保存、原生文件处理、导入及 Bridge Tool 流程继续拥有数据。自动化与真实模型保存／读取／写入／导入／原 thread 文件回复均通过；独立验证 41 字节输入／输出、原件不变、canonical 增量、临时写权限撤销与稳定冷重启。见[候选范围与当前检查](../verification/discord-1002-source-files.zh.md)。产品 Provider pin 和能力表不变。
+
 ## 原生参考与权限检查
 
 新增能力时重新检查官方契约：[Slack message.channels](https://docs.slack.dev/reference/events/message.channels/)、[Slack 历史与话题](https://docs.slack.dev/messaging/retrieving-messages/)、[Discord Gateway](https://docs.discord.com/developers/events/gateway) 和 [Discord threads](https://docs.discord.com/developers/topics/threads)。这些描述原生行为，实际开放范围仍由更窄的 BotHarness checked Provider 契约控制。
