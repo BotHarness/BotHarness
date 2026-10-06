@@ -142,6 +142,7 @@ describe('plugin entry', () => {
         'persona_bots',
         'sessions',
         'source',
+        'window_hours',
       ]);
       expect(JSON.stringify(body)).not.toContain(home);
     } finally {

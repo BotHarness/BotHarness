@@ -21,11 +21,15 @@ function count(value: unknown): number {
   return Number.isFinite(number) && number > 0 ? Math.trunc(number) : 0;
 }
 
-export function dailyUsageProperties(counts: DailyUsageCounts): Record<string, TelemetryValue> {
+export function dailyUsageProperties(
+  counts: DailyUsageCounts,
+  windowMs: number,
+): Record<string, TelemetryValue> {
   return {
     persona_bots: count(counts.personaBots),
     sessions: count(counts.sessions),
     messages: count(counts.messages),
+    window_hours: count(Math.round(windowMs / (60 * 60 * 1000))),
   };
 }
 
@@ -74,7 +78,10 @@ export function startDailyUsage(options: {
           ? last
           : new Date(at.getTime() - DAILY_USAGE_PERIOD_MS);
       if (last === since && at.getTime() - since.getTime() < DAILY_USAGE_PERIOD_MS) return;
-      options.telemetry.capture('daily_usage', dailyUsageProperties(options.counts(since, at)));
+      options.telemetry.capture(
+        'daily_usage',
+        dailyUsageProperties(options.counts(since, at), at.getTime() - since.getTime()),
+      );
       writeDailyUsageAt(options.dataDir, at);
     } catch {
       options.log?.('telemetry phase=daily-usage-skipped');

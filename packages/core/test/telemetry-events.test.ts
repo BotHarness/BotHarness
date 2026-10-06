@@ -426,9 +426,14 @@ describe('daily_usage', () => {
       const events = await r.events();
       expect(events.map((event) => event.event)).toEqual(['daily_usage', 'daily_usage']);
       expect(keys(events[0])).toEqual(
-        [...BASE_KEYS, 'messages', 'persona_bots', 'sessions'].sort(),
+        [...BASE_KEYS, 'messages', 'persona_bots', 'sessions', 'window_hours'].sort(),
       );
-      expect(events[0]!.properties).toMatchObject({ persona_bots: 3, sessions: 4, messages: 25 });
+      expect(events[0]!.properties).toMatchObject({
+        persona_bots: 3,
+        sessions: 4,
+        messages: 25,
+        window_hours: 24,
+      });
       expect(JSON.parse(readFileSync(join(r.dataDir, INSTALL_ID_FILE), 'utf8'))).toEqual({
         installId: events[0]!.distinct_id,
         dailyUsageAt: '2026-10-07T08:00:00.000Z',
@@ -440,10 +445,16 @@ describe('daily_usage', () => {
   });
 
   it('keeps counts as non-negative integers', () => {
-    expect(dailyUsageProperties({ personaBots: -1, sessions: 2.7, messages: Number.NaN })).toEqual({
+    expect(
+      dailyUsageProperties(
+        { personaBots: -1, sessions: 2.7, messages: Number.NaN },
+        37.6 * 3_600_000,
+      ),
+    ).toEqual({
       persona_bots: 0,
       sessions: 2,
       messages: 0,
+      window_hours: 38,
     });
   });
 
@@ -461,6 +472,7 @@ describe('daily_usage', () => {
 
 describe('$exception', () => {
   const HOME = '/Users/someone';
+  const OWN = { home: HOME, ownRoots: [`${HOME}/src/BotHarness/packages/core`] };
 
   function failure(): Error {
     const error = new TypeError(`cannot read ${PERSONA} from ${HOME}/notes/secret.md`);
@@ -476,8 +488,8 @@ describe('$exception', () => {
     return error;
   }
 
-  it('sanitizes to the error type and a home-free stack without the message', () => {
-    const exception = sanitizeException(failure(), 'onuncaughtexception', HOME);
+  it('sanitizes to the error type and a path-free stack without the message', () => {
+    const exception = sanitizeException(failure(), 'onuncaughtexception', OWN)!;
     expect(Object.keys(exception).sort()).toEqual(['mechanism', 'stacktrace', 'type']);
     expect(exception.type).toBe('TypeError');
     expect(exception.mechanism).toEqual({ type: 'onuncaughtexception', handled: false });
@@ -492,15 +504,26 @@ describe('$exception', () => {
     expect(frames[4]).toEqual({
       platform: 'node:javascript',
       function: 'readMemory',
-      filename: '~/.dsh/profile/node_modules/@botharness/core/dist/index.mjs',
-      abs_path: '~/.dsh/profile/node_modules/@botharness/core/dist/index.mjs',
+      filename: '@botharness/core/dist/index.mjs',
+      abs_path: '@botharness/core/dist/index.mjs',
       lineno: 10,
       colno: 5,
       in_app: true,
     });
-    expect(frames[2]!.filename).toBe('file://~/.dsh/plugins/other/lib/index.js');
-    expect(frames[0]!.filename).toBe('~\\dsh\\node_modules\\dep\\index.js');
-    expect(frames[0]!.in_app).toBe(false);
+    expect(frames.map((frame) => frame.filename)).toEqual([
+      'dep/index.js',
+      'node:internal/process/task_queues',
+      'index.js',
+      'index 0',
+      '@botharness/core/dist/index.mjs',
+    ]);
+    expect(frames.map((frame) => frame.in_app)).toEqual([false, false, false, false, true]);
+    for (const frame of frames) {
+      expect(frame.filename).not.toContain('~');
+      expect(frame.filename).not.toContain(HOME);
+      expect(frame.filename).not.toMatch(/node_modules|\\|^\/|^[A-Za-z]:[\\/]/u);
+      expect(frame.abs_path).toBe(frame.filename);
+    }
     const serialized = JSON.stringify(exception);
     for (const forbidden of [PERSONA, DISPLAY_NAME, 'someone', 'secret.md', 'cannot read']) {
       expect(serialized).not.toContain(forbidden);
@@ -510,13 +533,35 @@ describe('$exception', () => {
   it('never trusts an arbitrary error name or a non-Error reason', () => {
     const error = new Error('boom');
     error.name = `${PERSONA} /Users/someone`;
-    expect(sanitizeException(error, 'onuncaughtexception', HOME).type).toBe('Error');
-    expect(sanitizeException(PERSONA, 'onunhandledrejection', HOME)).toEqual({
-      type: 'NonError',
-      mechanism: { type: 'onunhandledrejection', handled: false },
-      stacktrace: { type: 'raw', frames: [] },
-    });
+    error.stack = `${error.name}: boom\n    at run (${HOME}/src/BotHarness/packages/core/dist/index.mjs:1:1)`;
+    const own = sanitizeException(error, 'onuncaughtexception', OWN)!;
+    expect(own.type).toBe('Error');
+    expect(own.stacktrace.frames.map((frame) => [frame.filename, frame.in_app])).toEqual([
+      ['index.mjs', true],
+    ]);
+    expect(sanitizeException(PERSONA, 'onunhandledrejection', OWN)).toBeUndefined();
     expect(scrubHomePaths('/home/alice/x and /Users/bob/y', '/root')).toBe('~/x and ~/y');
+  });
+
+  it('drops errors without a BotHarness frame before anything is written', () => {
+    const dataDir = tempDir();
+    const foreign = new Error('other plugin failed');
+    foreign.stack = [
+      'Error: other plugin failed',
+      `    at handler (${HOME}/.dsh/node_modules/other-plugin/lib/index.js:1:1)`,
+      `    at run (${HOME}/src/BotHarness-fork/packages/core/dist/index.mjs:2:2)`,
+      '    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)',
+    ].join('\n');
+    expect(sanitizeException(foreign, 'onuncaughtexception', OWN)).toBeUndefined();
+    const proc = new EventEmitter();
+    const uninstall = installExceptionCapture({
+      dataDir,
+      proc: proc as unknown as ExceptionCaptureProcess,
+      ...OWN,
+    });
+    proc.emit('uncaughtExceptionMonitor', foreign, 'uncaughtException');
+    uninstall();
+    expect(existsSync(join(dataDir, PENDING_EXCEPTIONS_FILE))).toBe(false);
   });
 
   it('records unhandled errors synchronously and sends them as $exception on the next start', async () => {
@@ -527,7 +572,7 @@ describe('$exception', () => {
     const uninstall = installExceptionCapture({
       dataDir: r.dataDir,
       proc: proc as unknown as ExceptionCaptureProcess,
-      home: HOME,
+      ...OWN,
       now: () => new Date('2026-10-06T09:00:00.000Z'),
     });
     expect(proc.listeners('unhandledRejection')[1]).toBe(hostRejection);
@@ -578,14 +623,14 @@ describe('$exception', () => {
     installExceptionCapture({
       dataDir: r.dataDir,
       proc: proc as unknown as ExceptionCaptureProcess,
-      home: HOME,
+      ...OWN,
     })();
     writeFileSync(
       join(r.dataDir, PENDING_EXCEPTIONS_FILE),
       JSON.stringify([
         {
           at: '2026-10-06T09:00:00.000Z',
-          exception: sanitizeException(failure(), 'onuncaughtexception', HOME),
+          exception: sanitizeException(failure(), 'onuncaughtexception', OWN),
         },
       ]),
     );

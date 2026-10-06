@@ -1,7 +1,7 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import type { TelemetryExceptionEntry, TelemetryService, TelemetryStackFrame } from './service.js';
 
@@ -80,38 +80,81 @@ function stackLines(error: unknown): string[] {
   return frames.slice(0, MAX_FRAMES);
 }
 
-function parseFrame(line: string, home: string): TelemetryStackFrame {
+export function pluginRoot(start: string = dirname(fileURLToPath(import.meta.url))): string {
+  let directory = start;
+  while (!existsSync(join(directory, 'package.json'))) {
+    const parent = dirname(directory);
+    if (parent === directory) return start;
+    directory = parent;
+  }
+  return directory;
+}
+
+function normalizedPath(location: string): string {
+  let path = location;
+  if (path.startsWith('file:')) {
+    try {
+      path = fileURLToPath(path);
+    } catch {
+      path = path.slice('file:'.length);
+    }
+  }
+  return path.replace(/\\/gu, '/');
+}
+
+function packagePath(path: string): string | undefined {
+  const index = path.lastIndexOf('node_modules/');
+  return index === -1 ? undefined : path.slice(index + 'node_modules/'.length);
+}
+
+function belongsToBotHarness(path: string, ownRoots: readonly string[]): boolean {
+  const relative = packagePath(path);
+  if (relative !== undefined)
+    return relative.startsWith('@botharness/') || relative.startsWith('deepseekbot/');
+  return ownRoots.some((root) => {
+    const prefix = `${root.replace(/\\/gu, '/').replace(/\/+$/u, '')}/`;
+    return prefix.length > 1 && path.startsWith(prefix);
+  });
+}
+
+function reducedFilename(path: string, home: string): string {
+  if (path.startsWith('node:')) return scrubHomePaths(path, home);
+  const relative = packagePath(path);
+  if (relative !== undefined) return scrubHomePaths(relative, home);
+  const base = path.includes('/') ? path.slice(path.lastIndexOf('/') + 1) : path;
+  return scrubHomePaths(base, home);
+}
+
+function parseFrame(line: string, home: string, ownRoots: readonly string[]): TelemetryStackFrame {
   const named = FRAME_WITH_FUNCTION.exec(line);
   const fn = named?.[1] ?? '<anonymous>';
   const location = named?.[2] ?? FRAME_LOCATION.exec(line)?.[1] ?? '';
   const position = LOCATION.exec(location);
-  const filename = scrubHomePaths(position?.[1] ?? location, home);
+  const path = normalizedPath(position?.[1] ?? location);
+  const filename = reducedFilename(path, home);
   return {
     platform: 'node:javascript',
     function: scrubHomePaths(fn, home),
     filename,
     abs_path: filename,
     ...(position === null ? {} : { lineno: Number(position[2]), colno: Number(position[3]) }),
-    in_app:
-      !filename.startsWith('node:') &&
-      !/node_modules[\\/](?!@botharness[\\/]|deepseekbot[\\/])/u.test(filename),
+    in_app: belongsToBotHarness(path, ownRoots),
   };
 }
 
 export function sanitizeException(
   error: unknown,
   mechanism: Mechanism,
-  home: string = homedir(),
-): TelemetryExceptionEntry {
+  options: { home?: string; ownRoots?: readonly string[] } = {},
+): TelemetryExceptionEntry | undefined {
+  const home = options.home ?? homedir();
+  const ownRoots = options.ownRoots ?? [pluginRoot()];
+  const frames = stackLines(error).map((line) => parseFrame(line, home, ownRoots));
+  if (!frames.some((frame) => frame.in_app)) return undefined;
   return {
     type: exceptionType(error),
     mechanism: { type: mechanism, handled: false },
-    stacktrace: {
-      type: 'raw',
-      frames: stackLines(error)
-        .map((line) => parseFrame(line, home))
-        .reverse(),
-    },
+    stacktrace: { type: 'raw', frames: frames.reverse() },
   };
 }
 
@@ -178,17 +221,19 @@ export function installExceptionCapture(options: {
   dataDir: string;
   proc?: ExceptionCaptureProcess;
   home?: string;
+  ownRoots?: readonly string[];
   now?: () => Date;
 }): () => void {
   const proc = options.proc ?? process;
   const now = options.now ?? (() => new Date());
+  const sanitize = {
+    ...(options.home === undefined ? {} : { home: options.home }),
+    ownRoots: options.ownRoots ?? [pluginRoot()],
+  };
   const record = (error: unknown, mechanism: Mechanism): void => {
     try {
-      recordPendingException(
-        options.dataDir,
-        sanitizeException(error, mechanism, options.home),
-        now(),
-      );
+      const exception = sanitizeException(error, mechanism, sanitize);
+      if (exception !== undefined) recordPendingException(options.dataDir, exception, now());
     } catch {
       return;
     }
