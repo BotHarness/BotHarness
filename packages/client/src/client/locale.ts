@@ -1398,7 +1398,8 @@ export const zh = {
   'memory.repairDone': '已恢复。备份位置：',
   'memory.empty': '还没有记忆文件',
   'standing.badge': '常驻',
-  'standing.usage': '{percent}% · {chars}/{limit}',
+  'standing.usage': '{chars}/{limit}',
+  'standing.usageTitle': '已用 {percent}%：{chars}/{limit} 字符',
   'standing.soulTitle': 'Soul：每个新 Session 开始时都会放进 system prompt，代表 Bot 是谁。',
   'standing.coreMemoryTitle':
     'Core Memory：每个新 Session 开始时都会放进 system prompt，让 Bot 一开始就知道自己记得什么。',
@@ -3243,7 +3244,8 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'memory.repairDone': 'Restored. Backup location:',
   'memory.empty': 'No memory files yet',
   'standing.badge': 'Standing',
-  'standing.usage': '{percent}% · {chars}/{limit}',
+  'standing.usage': '{chars}/{limit}',
+  'standing.usageTitle': '{percent}% used: {chars}/{limit} chars',
   'standing.soulTitle':
     'Soul: part of the system prompt at the start of every new Session; it says who the Bot is.',
   'standing.coreMemoryTitle':

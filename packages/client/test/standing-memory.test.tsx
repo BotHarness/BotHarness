@@ -86,9 +86,12 @@ describe('Standing memory', () => {
       'notes.md',
     ]);
     expect(rows[0]?.textContent).toContain('常驻');
-    expect(rows[0]?.textContent).toContain('37% · 1,860/5,000');
+    expect(rows[0]?.textContent).toContain('1,860/5,000');
+    expect(rows[0]?.querySelector('.bh-memory-standing-usage')?.getAttribute('title')).toBe(
+      '已用 37%：1,860/5,000 字符',
+    );
     expect(rows[1]?.querySelector('.bh-memory-standing-over')?.textContent).toContain(
-      '120% · 3,600/3,000',
+      '3,600/3,000',
     );
     expect(rows[2]?.querySelector('.bh-memory-standing')).toBeNull();
   });

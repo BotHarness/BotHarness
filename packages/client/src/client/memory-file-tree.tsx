@@ -33,18 +33,19 @@ function StandingBadge({
   t: BotHarnessTranslate;
 }): ReactElement {
   const over = usage.chars > usage.limit;
+  const counts = {
+    percent: Math.round((usage.chars / usage.limit) * 100),
+    chars: usage.chars.toLocaleString('en-US'),
+    limit: usage.limit.toLocaleString('en-US'),
+  };
   return (
     <span
       className={over ? 'bh-memory-standing bh-memory-standing-over' : 'bh-memory-standing'}
       title={t(usage.role === 'soul' ? 'standing.soulTitle' : 'standing.coreMemoryTitle')}
     >
       <Tag tone="neutral">{t('standing.badge')}</Tag>
-      <span className="bh-memory-standing-usage">
-        {t('standing.usage', {
-          percent: Math.round((usage.chars / usage.limit) * 100),
-          chars: usage.chars.toLocaleString('en-US'),
-          limit: usage.limit.toLocaleString('en-US'),
-        })}
+      <span className="bh-memory-standing-usage" title={t('standing.usageTitle', counts)}>
+        {t('standing.usage', counts)}
       </span>
     </span>
   );
