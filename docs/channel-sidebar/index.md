@@ -22,6 +22,7 @@ These pages use DSH **0.2.0-rc.1** and the public **deepseekbot** package. First
 | [Sessions](/docs/channel-sidebar/sessions)                 | Open this Bot’s Orchestrator and Assignment Sessions in DSH.                 |
 | [Bot Inbox](/docs/channel-sidebar/bot-inbox)               | Inspect source messages and Assignment reports that the Bot has received.    |
 | [Workspace Grants](/docs/channel-sidebar/workspaces)       | Review and explicitly authorize the Host folders available to this Bot.      |
+| [Schedules](/docs/channel-sidebar/schedules)               | Wake this Bot on a cadence, run a schedule now, and lock it from Bot edits.  |
 
 | In a local group                                             | What you can do                                                         |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------- |

@@ -6148,6 +6148,16 @@ button.bh-card-main:disabled {cursor:default;}
 .bh-card-action:focus-visible {outline:2px solid var(--dsw-alias-label-primary);outline-offset:-2px;}
 .bh-card-action:disabled {cursor:default;}
 .bh-schedule-lock-toggle:not([data-locked]) {opacity:.55;}
+.bh-schedule-weekdays {display:flex;gap:4px;flex-wrap:wrap;}
+.bh-schedule-weekday {flex:1;min-width:40px;padding:6px 0;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer;}
+.bh-schedule-weekday:hover {background:var(--dsw-alias-interactive-bg-hover);}
+.bh-schedule-weekday[aria-pressed="true"] {border-color:var(--dsw-alias-label-primary);background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base);}
+.bh-schedule-weekday:focus-visible {outline:2px solid var(--dsw-alias-label-primary);outline-offset:1px;}
+.bh-schedule-cron input, input.bh-schedule-cron {font-family:var(--dsw-font-family-mono, monospace);}
+.bh-schedule-field small {font-size:12px;}
+.bh-schedule-preview {display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover);font-size:12px;}
+.bh-schedule-preview-label {color:var(--dsw-alias-label-secondary);}
+.bh-schedule-preview ol {display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-primary);}
 .bh-schedule-lock-toggle[data-locked] {color:var(--dsw-alias-label-primary);}
 .bh-schedule-lock {display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;}
 .bh-schedule-lock .bh-card-title {white-space:normal;}

@@ -143,6 +143,8 @@ import {
   updateBotSchedule,
   deleteBotSchedule,
   loadBotScheduleHistory,
+  runBotScheduleNow,
+  previewBotSchedule,
   type BotSourcePolicyEdit,
   setBotSourcePolicy,
   resetBotSourcePolicy,
@@ -184,6 +186,7 @@ import {
   type BotScheduleChange,
   type BotScheduleFiringView,
   type BotScheduleInput,
+  type BotScheduleTrigger,
   type CreatePersonaBotInput,
   type RosterBatchInput,
 } from './bridge.js';
@@ -400,6 +403,8 @@ export interface BridgeActions {
   updateBotSchedule(slug: string, id: string, change: BotScheduleChange): Promise<BotScheduleView>;
   deleteBotSchedule(slug: string, id: string): Promise<void>;
   botScheduleHistory(slug: string, id: string): Promise<BotScheduleFiringView[]>;
+  runBotScheduleNow(slug: string, id: string): Promise<BotScheduleFiringView>;
+  botSchedulePreview(trigger: BotScheduleTrigger): Promise<string[]>;
   setBotSourcePolicy(slug: string, edit: BotSourcePolicyEdit): Promise<void>;
   resetBotSourcePolicy(
     slug: string,
@@ -1716,6 +1721,8 @@ export function createActions(
     updateBotSchedule: (slug, id, change) => updateBotSchedule(call, slug, id, change),
     deleteBotSchedule: (slug, id) => deleteBotSchedule(call, slug, id),
     botScheduleHistory: (slug, id) => loadBotScheduleHistory(call, slug, id),
+    runBotScheduleNow: (slug, id) => runBotScheduleNow(call, slug, id),
+    botSchedulePreview: (trigger) => previewBotSchedule(call, trigger),
     setBotSourcePolicy: (slug, edit) => setBotSourcePolicy(call, slug, edit),
     resetBotSourcePolicy: (slug, sourceClass) => resetBotSourcePolicy(call, slug, sourceClass),
     memoryWorkingChanges: (channelId) => loadMemoryWorkingChanges(call, channelId),

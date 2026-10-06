@@ -2359,25 +2359,57 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       const scheduleTriggerArgs = {
         every_minutes: {
           type: 'integer',
-          description:
-            'Repeat every N minutes (1 or more; 60 = hourly, 120 = every two hours). Use this or daily_time, not both.',
+          description: 'Repeat every N minutes (1 or more; 60 = hourly, 1440 = every 24 hours).',
         },
         daily_time: {
           type: 'string',
-          description: 'Run once a day at this local time, HH:MM (24-hour).',
+          description:
+            'Local time HH:MM (24-hour). Alone it repeats every day; with weekdays it repeats on those days each week.',
+        },
+        weekdays: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'ISO weekdays for a weekly schedule, Monday 1 through Sunday 7. Needs daily_time.',
+        },
+        once_at: {
+          type: 'string',
+          description:
+            'Run once at this local date and time, YYYY-MM-DD HH:MM; the schedule turns itself off after it fires.',
+        },
+        cron: {
+          type: 'string',
+          description:
+            'Five-field cron expression (minute hour day-of-month month day-of-week), for example "0 9 * * 1-5". Use only when the other forms cannot express the cadence.',
         },
         time_zone: {
           type: 'string',
           description:
-            "IANA time zone for daily_time, for example Asia/Shanghai. Defaults to the Host's time zone.",
+            "IANA time zone for daily_time, once_at or cron, for example Asia/Shanghai. Defaults to the Host's time zone.",
         },
       } as const;
       const scheduleTriggerOf = (
-        args: { every_minutes?: number; daily_time?: string; time_zone?: string },
+        args: {
+          every_minutes?: number;
+          daily_time?: string;
+          weekdays?: number[];
+          once_at?: string;
+          cron?: string;
+          time_zone?: string;
+        },
         required: boolean,
       ): BotScheduleTrigger | undefined => {
-        if (args.every_minutes !== undefined && args.daily_time !== undefined)
-          throw new BotScheduleError('invalid-input', 'Pass every_minutes or daily_time, not both');
+        const given = [args.every_minutes, args.daily_time, args.once_at, args.cron].filter(
+          (value) => value !== undefined,
+        ).length;
+        if (given > 1)
+          throw new BotScheduleError(
+            'invalid-input',
+            'Pass only one of every_minutes, daily_time, once_at or cron',
+          );
+        if (args.weekdays !== undefined && args.daily_time === undefined)
+          throw new BotScheduleError('invalid-input', 'weekdays needs daily_time');
+        const timeZone = args.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
         if (args.every_minutes !== undefined) {
           if (!Number.isInteger(args.every_minutes) || args.every_minutes < 1)
             throw new BotScheduleError(
@@ -2387,15 +2419,26 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           return { kind: 'every', everySeconds: args.every_minutes * 60 };
         }
         if (args.daily_time !== undefined)
-          return {
-            kind: 'daily',
-            time: args.daily_time,
-            timeZone: args.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-          };
+          return args.weekdays === undefined
+            ? { kind: 'daily', time: args.daily_time, timeZone }
+            : { kind: 'weekly', time: args.daily_time, timeZone, weekdays: args.weekdays };
+        if (args.once_at !== undefined) {
+          const match = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})$/u.exec(args.once_at.trim());
+          if (match === null)
+            throw new BotScheduleError('invalid-input', 'once_at must look like YYYY-MM-DD HH:MM');
+          return { kind: 'once', date: match[1]!, time: match[2]!, timeZone };
+        }
+        if (args.cron !== undefined) return { kind: 'cron', expression: args.cron, timeZone };
         if (args.time_zone !== undefined)
-          throw new BotScheduleError('invalid-input', 'time_zone needs daily_time');
+          throw new BotScheduleError(
+            'invalid-input',
+            'time_zone needs daily_time, once_at or cron',
+          );
         if (required)
-          throw new BotScheduleError('invalid-input', 'Pass every_minutes or daily_time');
+          throw new BotScheduleError(
+            'invalid-input',
+            'Pass one of every_minutes, daily_time, once_at or cron',
+          );
         return undefined;
       };
       registerTool(
@@ -2419,7 +2462,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       registerTool(
         defineTool({
           name: 'bot_schedule_create',
-          description: `Create a recurring Bot Schedule for this PersonaBot. Each firing arrives in your Bot Inbox as a due scheduled task and wakes you; the Human sees it in the Channel sidebar marked as created by you. Use this, never a reminder in your own head, when the Human asks you to do something every N minutes/hours or every day. Fails with limit-reached when ${BOT_SCHEDULE_ENABLED_LIMIT} schedules are already enabled.`,
+          description: `Create a recurring Bot Schedule for this PersonaBot. Each firing arrives in your Bot Inbox as a due scheduled task and wakes you; the Human sees it in the Channel sidebar marked as created by you. Use this, never a reminder in your own head, when the Human asks you to do something every N minutes/hours or every day. Pass exactly one cadence: every_minutes, daily_time (plus weekdays for weekly), once_at, or cron. Fails with limit-reached when ${BOT_SCHEDULE_ENABLED_LIMIT} schedules are already enabled.`,
           parameters: {
             title: {
               type: 'string',
@@ -2444,7 +2487,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             return scheduleResult(() => {
               const trigger = scheduleTriggerOf(args, true);
               if (trigger === undefined)
-                throw new BotScheduleError('invalid-input', 'Pass every_minutes or daily_time');
+                throw new BotScheduleError(
+                  'invalid-input',
+                  'Pass one of every_minutes, daily_time, once_at or cron',
+                );
               return schedules.create({
                 title: args.title,
                 prompt: args.prompt,
@@ -2459,7 +2505,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'bot_schedule_update',
           description:
-            'Change one of your Bot Schedules: title, prompt, cadence (every_minutes or daily_time) or enabled (false pauses it). Pass only the fields to change. Works on Human-created schedules too unless the Human locked it; a locked schedule returns error code locked, so tell the Human instead of retrying.',
+            'Change one of your Bot Schedules: title, prompt, cadence (every_minutes, daily_time with optional weekdays, once_at or cron) or enabled (false pauses it). Pass only the fields to change. Works on Human-created schedules too unless the Human locked it; a locked schedule returns error code locked, so tell the Human instead of retrying.',
           parameters: {
             id: {
               type: 'string',

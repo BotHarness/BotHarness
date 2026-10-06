@@ -56,6 +56,12 @@ const glyphs: Record<string, readonly [string, Record<string, string | number>][
     ['rect', { width: '18', height: '11', x: '3', y: '11', rx: '2', ry: '2' }],
     ['path', { d: 'M7 11V7a5 5 0 0 1 10 0v4' }],
   ],
+  play: [
+    [
+      'path',
+      { d: 'M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z' },
+    ],
+  ],
   'lock-open': [
     ['rect', { width: '18', height: '11', x: '3', y: '11', rx: '2', ry: '2' }],
     ['path', { d: 'M7 11V7a5 5 0 0 1 9.9-1' }],
