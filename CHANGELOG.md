@@ -20,6 +20,7 @@ PersonaBots can run recurring Bot Schedules and manage them themselves, the Chan
 
 - The Channel sidebar's Sessions, Bot Inbox and Workspace Grants sections now use the same card rows as Schedules, with an icon, status chips and a meta line on every row; a Bot Inbox item from a Bot Schedule now opens that schedule ([#972](https://github.com/BotHarness/BotHarness/issues/972)).
 - The Bot Profile avatar area is now one Avatar section with two side-by-side choices, Design a pixel avatar and Upload an image, and marks the one in use; the duplicate Change avatar button is gone and the divider under the profile header has whitespace around it ([#985](https://github.com/BotHarness/BotHarness/issues/985)).
+- A PersonaBot's persona file is now `SOUL.md`, its Soul, and every Session also starts with its Core Memory, `MEMORY.md`, so a new conversation already knows what the Bot remembers. Both are frozen for the Session with a character usage header (5,000 and 3,000 by default), new Bots get a short `MEMORY.md` template, and an existing `PERSONA.md` is renamed to `SOUL.md` on the next start ([#988](https://github.com/BotHarness/BotHarness/issues/988), [ADR-0134](docs/adr/0134-soul-and-core-memory-are-session-frozen-system-prompt-files.md)).
 
 ### Documentation
 

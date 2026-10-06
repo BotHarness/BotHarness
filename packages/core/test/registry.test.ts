@@ -143,7 +143,7 @@ describe('createPersonaBotRegistry', () => {
     expect(avatarSvg(restored!.appearance!.recipe as typeof recipe)).toBe(avatarSvg(recipe));
   });
 
-  it('clones Git history into Memory, preserves HEAD, and leaves no Bot after failure', async () => {
+  it('clones Git history into Memory, renames its PERSONA.md on top of HEAD, and leaves no Bot after failure', async () => {
     const root = createRoot();
     const source = join(root, 'source');
     mkdirSync(source);
@@ -194,11 +194,12 @@ describe('createPersonaBotRegistry', () => {
     expect(readFileSync(join(root, 'bots', 'imported', 'memory', 'notes.txt'), 'utf8')).toBe(
       'Imported memory\n',
     );
+    const imported = join(root, 'bots', 'imported', 'memory');
     expect(
-      execFileSync('git', ['-C', join(root, 'bots', 'imported', 'memory'), 'rev-parse', 'HEAD'], {
-        encoding: 'utf8',
-      }).trim(),
+      execFileSync('git', ['-C', imported, 'rev-parse', 'HEAD~1'], { encoding: 'utf8' }).trim(),
     ).toBe(originalHead);
+    expect(readFileSync(join(imported, 'SOUL.md'), 'utf8')).toBe('# Imported persona\n');
+    expect(existsSync(join(imported, 'PERSONA.md'))).toBe(false);
   });
   it('persists the owning record without writing bot.json and reads it back through a fresh instance', () => {
     const root = createRoot();
@@ -245,7 +246,7 @@ describe('createPersonaBotRegistry', () => {
     registry.create({ slug: 'research', displayName: '研究助手' });
 
     expect(existsSync(join(root, 'research', 'memory'))).toBe(true);
-    expect(existsSync(join(root, 'research', 'memory', 'PERSONA.md'))).toBe(false);
+    expect(existsSync(join(root, 'research', 'memory', 'SOUL.md'))).toBe(false);
     expect(registry.memoryDirFor('research')).toBe(join(root, 'research', 'memory'));
   });
 
@@ -265,13 +266,14 @@ describe('createPersonaBotRegistry', () => {
     expect(existsSync(join(root, 'broken'))).toBe(false);
   });
 
-  it('writes the provided persona body and never overwrites an existing PERSONA.md', () => {
+  it('writes the provided persona body as SOUL.md and never overwrites an existing PERSONA.md', () => {
     const root = createRoot();
     const registry = createTestRegistry({ rootDir: root });
     registry.create({ slug: 'ada', displayName: 'Ada', persona: '# Ada\n\nBe kind.\n' });
-    expect(readFileSync(join(root, 'ada', 'memory', 'PERSONA.md'), 'utf8')).toBe(
+    expect(readFileSync(join(root, 'ada', 'memory', 'SOUL.md'), 'utf8')).toBe(
       '# Ada\n\nBe kind.\n',
     );
+    expect(readFileSync(join(root, 'ada', 'memory', 'MEMORY.md'), 'utf8')).toContain('Core Memory');
 
     mkdirSync(join(root, 'broken', 'memory'), { recursive: true });
     writeFileSync(join(root, 'broken', 'bot.json'), '{ not json');
@@ -282,6 +284,7 @@ describe('createPersonaBotRegistry', () => {
     expect(readFileSync(join(root, 'broken', 'memory', 'PERSONA.md'), 'utf8')).toBe(
       '# Handwritten\n',
     );
+    expect(existsSync(join(root, 'broken', 'memory', 'SOUL.md'))).toBe(false);
   });
 
   it('puts an explicitly provided Persona beside a custom memory dir', () => {
@@ -294,7 +297,7 @@ describe('createPersonaBotRegistry', () => {
       memoryDir: custom,
       persona: '# Ada\n',
     });
-    expect(readFileSync(join(custom, 'PERSONA.md'), 'utf8')).toBe('# Ada\n');
+    expect(readFileSync(join(custom, 'SOUL.md'), 'utf8')).toBe('# Ada\n');
   });
 
   it('rejects duplicate slugs', () => {
