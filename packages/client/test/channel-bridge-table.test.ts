@@ -122,3 +122,77 @@ it('Bridge Switch failures refresh committed state and stale edits preserve the 
     container.remove();
   }
 });
+
+it('WeChat DM connector edits expose only supported paired-owner intake', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const snapshot: ChannelBridgeSnapshot = {
+    channelId: 'group',
+    sources: [],
+    bridges: [
+      {
+        grantId: 'wechat',
+        grantRevision: 2,
+        botSlug: 'ada',
+        platform: 'weixin',
+        accountName: 'WeChat QA',
+        conversationName: 'Paired owner',
+        ordinaryDelivery: 'unverified',
+        name: 'Owner intake',
+        enabled: true,
+        collection: 'all',
+        collectionInheritance: 'custom',
+        revision: 1,
+        availability: 'available',
+        reception: 'receiving',
+      },
+    ],
+  };
+  const actions = {
+    channelBridges: vi.fn(async () => snapshot),
+    channelBridge: vi.fn(async () => {}),
+  };
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        createElement(ChannelBridgeTable, {
+          channelId: 'group',
+          channelName: 'Shared work',
+          botNames: new Map([['ada', 'Ada']]),
+          actions,
+          t: zhTranslate,
+        }),
+      ),
+    );
+    expect(container.textContent).toContain('扫码绑定者私聊消息');
+    expect(container.textContent).not.toContain(zhTranslate('bridge.unverified'));
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="编辑频道连接器：Owner intake"]')!
+        .click(),
+    );
+    const dialog = container.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain(zhTranslate('bridge.wechatDMHint'));
+    expect(dialog.querySelector('option[value="mentions"]')).toBeNull();
+    expect(dialog.querySelector('option[value="inherit"]')).toBeNull();
+    const save = [...dialog.querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent === zhTranslate('bridge.save'),
+    )!;
+    await act(async () => save.click());
+    expect(actions.channelBridge).toHaveBeenLastCalledWith('group', {
+      kind: 'update',
+      grantId: 'wechat',
+      expectedGrantRevision: 2,
+      expectedRevision: 1,
+      name: 'Owner intake',
+      enabled: true,
+      collection: 'all',
+      collectionInheritance: 'custom',
+    });
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});

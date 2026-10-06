@@ -40,6 +40,7 @@ export function ChannelBridgeTable({
   const refreshRequest = useRef(0);
   const generation = useRef(0);
   const source = mode === 'add' ? snapshot?.sources.find((s) => s.grantId === sourceId) : selected;
+  const privateSource = source?.platform === 'weixin';
   const alreadyConnected =
     mode === 'add' &&
     snapshot?.bridges.some(
@@ -137,8 +138,16 @@ export function ChannelBridgeTable({
               expectedRevision: selected.revision,
               name,
               enabled,
-              collection: collection === 'inherit' ? selected.collection : collection,
-              collectionInheritance: collection === 'inherit' ? 'inherit' : 'custom',
+              collection: privateSource
+                ? 'all'
+                : collection === 'inherit'
+                  ? selected.collection
+                  : collection,
+              collectionInheritance: privateSource
+                ? 'custom'
+                : collection === 'inherit'
+                  ? 'inherit'
+                  : 'custom',
               ...(selected.defaultRevision !== undefined
                 ? { expectedDefaultRevision: selected.defaultRevision }
                 : {}),
@@ -148,8 +157,16 @@ export function ChannelBridgeTable({
               ...base,
               name,
               enabled,
-              collection: collection === 'inherit' ? 'mentions' : collection,
-              collectionInheritance: collection === 'inherit' ? 'inherit' : 'custom',
+              collection: privateSource
+                ? 'all'
+                : collection === 'inherit'
+                  ? 'mentions'
+                  : collection,
+              collectionInheritance: privateSource
+                ? 'custom'
+                : collection === 'inherit'
+                  ? 'inherit'
+                  : 'custom',
               ...(source.defaultRevision !== undefined
                 ? { expectedDefaultRevision: source.defaultRevision }
                 : {}),
@@ -222,18 +239,28 @@ export function ChannelBridgeTable({
                   </th>
                   <td>{row.conversationName}</td>
                   <td>
-                    {t(row.collection === 'all' ? 'bridge.all' : 'bridge.mentions')}
-                    <span className="bh-bridge-secondary">
-                      {t(
-                        row.collectionInheritance === 'inherit'
-                          ? 'defaults.inherited'
-                          : 'defaults.custom',
-                      )}
-                      {row.collectionInheritance === 'inherit'
-                        ? ` · v${row.defaultRevision ?? 0}`
-                        : ''}
-                    </span>
-                    {row.collection === 'all' && row.ordinaryDelivery !== 'verified' ? (
+                    {t(
+                      row.platform === 'weixin'
+                        ? 'bridge.ownerDM'
+                        : row.collection === 'all'
+                          ? 'bridge.all'
+                          : 'bridge.mentions',
+                    )}
+                    {row.platform !== 'weixin' ? (
+                      <span className="bh-bridge-secondary">
+                        {t(
+                          row.collectionInheritance === 'inherit'
+                            ? 'defaults.inherited'
+                            : 'defaults.custom',
+                        )}
+                        {row.collectionInheritance === 'inherit'
+                          ? ` · v${row.defaultRevision ?? 0}`
+                          : ''}
+                      </span>
+                    ) : null}
+                    {row.platform !== 'weixin' &&
+                    row.collection === 'all' &&
+                    row.ordinaryDelivery !== 'verified' ? (
                       <span className="bh-bridge-secondary">{t('bridge.unverified')}</span>
                     ) : null}
                   </td>
@@ -390,34 +417,41 @@ export function ChannelBridgeTable({
             </label>
             <label className="bh-im-field">
               <span>{t('bridge.condition')}</span>
-              <select
-                value={collection}
-                disabled={busy}
-                onChange={(e) =>
-                  setCollection(
-                    e.target.value === 'inherit'
-                      ? 'inherit'
-                      : e.target.value === 'all'
-                        ? 'all'
-                        : 'mentions',
-                  )
-                }
-              >
-                <option value="inherit">{t('defaults.inherited')}</option>
-                <option value="mentions">{t('bridge.mentions')}</option>
-                <option value="all" disabled={source?.ordinaryDelivery !== 'verified'}>
-                  {t('bridge.all')}
-                </option>
-              </select>
+              {privateSource ? (
+                <p>{t('bridge.ownerDM')}</p>
+              ) : (
+                <select
+                  value={collection}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setCollection(
+                      e.target.value === 'inherit'
+                        ? 'inherit'
+                        : e.target.value === 'all'
+                          ? 'all'
+                          : 'mentions',
+                    )
+                  }
+                >
+                  <option value="inherit">{t('defaults.inherited')}</option>
+                  <option value="mentions">{t('bridge.mentions')}</option>
+                  <option value="all" disabled={source?.ordinaryDelivery !== 'verified'}>
+                    {t('bridge.all')}
+                  </option>
+                </select>
+              )}
             </label>
-            {source?.ordinaryDelivery !== 'verified' ? <p>{t('bridge.unverified')}</p> : null}
+            {privateSource ? <p>{t('bridge.wechatDMHint')}</p> : null}
+            {!privateSource && source?.ordinaryDelivery !== 'verified' ? (
+              <p>{t('bridge.unverified')}</p>
+            ) : null}
             <Switch
               checked={enabled}
               disabled={busy}
               label={t('bridge.enableDraft')}
               onChange={setEnabled}
             />
-            <p>{t('bridge.providerHint')}</p>
+            {!privateSource ? <p>{t('bridge.providerHint')}</p> : null}
           </>
         )}
         <Button

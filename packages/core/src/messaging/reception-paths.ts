@@ -12,7 +12,7 @@ export interface ReceptionPath {
   channelId: string | null;
   routeRevision: number;
   intakeAfter?: string;
-  reason: 'group-mention' | 'group-ordinary';
+  reason: 'group-mention' | 'group-ordinary' | 'human-dm';
   mode: 'all' | 'mentions' | 'digest' | 'silent' | 'context' | 'immediate' | 'conditional';
   count: number;
   intervalMs: number;
@@ -159,9 +159,13 @@ export function pendingReceptionPaths(
     const immediate =
       path.mode === 'all' ||
       path.mode === 'immediate' ||
-      (path.reason === 'group-mention' && path.mode !== 'silent' && path.mode !== 'context');
+      (path.reason === 'group-mention' && path.mode !== 'silent' && path.mode !== 'context') ||
+      (path.reason === 'human-dm' &&
+        path.mode !== 'silent' &&
+        path.mode !== 'context' &&
+        path.mode !== 'digest');
     const first = candidates[0]!;
-    if (path.mode === 'digest' && path.reason === 'group-ordinary')
+    if (path.mode === 'digest' && path.reason !== 'group-mention')
       digests.push({
         first_at: first.created_at,
         wake_count: path.count,

@@ -187,3 +187,5 @@ Bot 显式调用 `bridge_post`，使用自己的已授权 Grant 和稳定 reques
 正文缺失时，只由 Messaging 解析：同一当前账号指纹／私聊的可读 canonical Source Event，或带真实服务器回执的已接受 Outbox。不能用 Provider standalone Session 历史、时间就近猜测、客户端确认、摘要或条目 ID 替代。Client／模型区分原生正文、本地解析与不可用；不可用不能证明远端已删除，引用也不是 Thread。
 
 `retained`／`retained-nearby` 沿用 `bridge_context`，明确返回 `coverage: retained-local-sources`，不修改远端 Provider history 契约。Keyset 分页固定首次 canonical 记录边界；进程内 opaque cursor 绑定 Bot、来源、Grant revision、身份指纹、范围与条数。每页重新核对自身身份、当前 Grant／lease 和 Provider 检查结果，在锚点 Source Event 记录有界读取审计，不创建新 Admission 或唤醒。记录／条数限制、过期／重启、字符预算恢复与本地覆盖缺口均应明确。它不是微信远端历史／搜索；原生引用变体以实际收件为证，合成回归不能证明当前客户端的线上字段形状。
+
+微信 #909 把已授权扫码者的**原生私聊**接入既有连接器多目标路由。收件为该授权私聊的消息，不虚构 @ 或话题。本地群聊沿用成员 Attention，私聊 Inbox 与明确的本地 DM 投递沿用 `human-dm`；原生会话类型与本地投递类型独立。共享来源可读不授予接收身份、私密续接或已校验附件读取权限，仍需逐平台真实 E2E。

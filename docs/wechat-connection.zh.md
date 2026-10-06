@@ -148,6 +148,40 @@ Bot 可在已有可写工作区授权下，用 `bridge_attachment_save` 的 `rep
 
 ![Human 确认收到原引用会话中的回复](/guides/wechat/native-quote-reply.png)
 
+## 11. 将私聊来源接入本地共享频道
+
+#909 安装版验收使用产品 `0.0.0-test.909.2` 和未变更的 Provider `4.32.0-botharness.10`。同一个扫码者私聊将同一 canonical Source Event 投递到本地共享群聊和接收 Bot 独立的 Inbox。Human 已确认四次原微信私聊回复均收到。
+
+保留接收 PersonaBot 的微信身份及扫码者私聊授权。创建本地群聊，加入此 Bot 和需要看来源的协作 Bot。在群聊 Profile 选择**频道连接器 → 添加频道连接器**，选择已授权的扫码者私聊、填写名称并保存。接收条件固定为**扫码绑定者私聊消息**，不提供 @ 或话题控件。本地群聊不代表原生微信群。
+
+![微信专属连接器配置，浅色主题](/guides/wechat/channel-connector-config-light.jpg)
+
+![同一私聊来源配置，深色主题](/guides/wechat/channel-connector-config-dark.jpg)
+
+各群成员独立选择频道消息策略：每条处理、按条数／时间汇总或静默收件。真实验收中，接收 Bot 即时处理 Inbox；协作 Bot 等到两条共享消息后才汇总。协作 Bot 用 `bridge_read` 核对两个真实来源，再用 `channel_send` 在本地频道回复。此 Bot 没有微信身份或授权。读取共享正文不代表能借用接收账号：外部回复、上下文和附件访问仍需执行 Bot 自己有效的身份及授权。
+
+![第一条消息后共享阅读 Bot 等待；第二条才触发汇总](/guides/wechat/routing-inbox-pending-dark.jpg)
+
+![共享频道中的三条原生消息及阅读 Bot 对实际 Source Event 的确认，浅色主题](/guides/wechat/routing-shared-light.jpg)
+
+![同一共享来源历史，深色主题](/guides/wechat/routing-shared-dark.jpg)
+
+接收 Bot 可保留独立的 Inbox-only 路径，使用私聊策略。Inbox-only 不占用 Human DM 历史，只有明确选择本地 DM 目标，来源才在那里显示。本地 DM 投递、重复输入、删除连接器和接收 Bot 退出频道有回归覆盖；本轮真实验收验证的是共享群聊加 Inbox-only 的组合。
+
+关闭一个连接器保留历史，停止该路由的新投递；其他启用目标继续收件。真实验收中，暂停期间的消息只进入接收 Bot 的 Inbox，并在微信原私聊回复。恢复连接器并沿用同一 Profile 重启后，消息 ID 和配置保持不变，没有补投这条消息。重启后的新消息进入共享频道，协作 Bot 按调整后的**每条消息**策略处理。删除连接器保留历史；接收 Bot 退出频道后停止新投递。身份、目标授权和连接器启停各自影响不同范围。
+
+![重启后的独立成员策略与已启用连接器](/guides/wechat/routing-profile-light.jpg)
+
+![共享连接器暂停，独立 Inbox-only 路径继续收件](/guides/wechat/routing-paused-dark.jpg)
+
+以下浏览器采样录屏呈现真实连接器开关和保存后的状态变化；原生微信送达由上面的真实消息与 Human 确认佐证。
+
+<video controls preload="none" playsInline poster="/guides/wechat/routing-profile-light.jpg" style={{width: '100%', maxHeight: '640px'}}>
+<source src="/guides/wechat/routing-switch-demo.mp4" type="video/mp4" />
+</video>
+
+[下载连接器开关录屏](/guides/wechat/routing-switch-demo.mp4)
+
 ## 暂停与重新连接
 
 关闭私聊收件会停止后续接收，并保留配置及历史。撤销目标授权或解绑身份会移除相应权限。重新扫码后身份指纹变化，需要明确重新授权；旧消息的续接能力不能跨身份复用。重启时沿用同一个 Profile，保留本地配对、canonical 来源与 Outbox 结果。

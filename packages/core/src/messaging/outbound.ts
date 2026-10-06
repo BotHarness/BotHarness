@@ -497,7 +497,8 @@ export function createOutboundMessaging(options: {
         owner.botSlug === botSlug ||
         owner.providerId !== value.providerId ||
         source.platform !== value.platform ||
-        source.event.conversation.kind !== 'group' ||
+        (source.event.conversation.kind !== 'group' &&
+          !(source.platform === 'weixin' && source.event.conversation.kind === 'dm')) ||
         !source.localChannelId
       )
         throw new MessagingError('source-unavailable');
@@ -1063,7 +1064,7 @@ export function createOutboundMessaging(options: {
       const grants = snapshots.flatMap((snapshot, index) =>
         current.members.includes(channel.members[index]!)
           ? snapshot.grants.filter(
-              (grant) => grant.platform !== 'weixin' && grant.receiveScope?.kind !== 'dm',
+              (grant) => grant.platform === 'weixin' || grant.receiveScope?.kind !== 'dm',
             )
           : [],
       );

@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Personal WeChat paired-owner messages can use Channel connectors for explicit local DM/Group placement or Inbox-only reception, sharing one Source Event with independent member wake policy. Shared readers need their own identity and Grant to reply; native WeChat groups and threads remain unsupported ([#909](https://github.com/BotHarness/BotHarness/issues/909)).
+
 - Added a candidate Lark image preview in original Channel bubbles, preserving native text/image order, visible-only loading, enlargement and current Channel/source authorization; forwards the image opt-in through the account consumer boundary; stopping reception retains acquired images while unbind/revocation refuses the affected path ([#1021](https://github.com/BotHarness/BotHarness/issues/1021), [guide](docs/lark-connection.md)).
 - PersonaBots can read native WeChat quoted text or resolve a missing quote from currently authorized retained private-conversation records; source details distinguish native, retained and unavailable content, and bounded local context reads support cursor continuation without claiming remote WeChat history ([#908](https://github.com/BotHarness/BotHarness/issues/908), [guide](docs/wechat-connection.md)).
 
