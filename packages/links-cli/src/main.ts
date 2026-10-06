@@ -1,6 +1,5 @@
 import { run } from './cli.js';
 
-// read piped input, or prompt without echo when stdin is a terminal
 async function readStdin(): Promise<string> {
   if (process.stdin.isTTY) return promptHidden('Paste the token (bhl_…): ');
   const chunks: Buffer[] = [];
