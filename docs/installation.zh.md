@@ -60,11 +60,15 @@ _本次验证从网页 DM 发送消息，在安装并冷启动后的产品中收
 
 Bot 的记忆是一个 Git 仓库，所以运行 DSH 的电脑需要 Git 2.28 或更新版本。没有 Git 或版本太旧时，Bot 模式会在名册顶部提示，并在 Git 可用之前禁用创建和导入 Bot。
 
+最快的办法是点提示里的 **安装 Git**。它会把一个便携版 Git（约 65 MB）下载到 DeepSeek Harness 的数据目录，用固定的校验值核对后立即启用。不需要管理员权限，也不会改动电脑上已有的 Git。DeepSeekBot 先从 `media.botharness.ai` 下载，失败时再从 GitHub 下载。可用的系统 Git 永远优先，所以之后你自己装了 Git，下次启动 DeepSeek Harness 就会改用它。
+
+也可以自己安装 Git：
+
 - **macOS**：在终端运行 `xcode-select --install` 并按提示安装，或用 Homebrew 安装（`brew install git`）。
 - **Windows**：安装 [Git for Windows](https://git-scm.com/download/win)，选项保持默认即可。
 - **Linux**：用发行版的包管理器安装 `git`，例如 `sudo apt install git`。Ubuntu 20.04 自带的是 Git 2.25，需要更新版本时可以用 [git-core PPA](https://launchpad.net/~git-core/+archive/ubuntu/ppa)。
 
-装好后重启 DeepSeek Harness，在 Bot 模式里点 **重新检测**。
+自己装好后重启 DeepSeek Harness，在 Bot 模式里点 **重新检测**。
 
 ## 其他导入方式
 

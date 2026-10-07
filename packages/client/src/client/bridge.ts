@@ -1680,9 +1680,19 @@ export function parseTelemetryStatus(value: unknown): TelemetryStatus {
 
 export type GitUnavailableReason = 'missing' | 'unrunnable' | 'too-old';
 
-export type GitAvailability =
-  | { available: true; version: string }
-  | { available: false; reason: GitUnavailableReason; version?: string };
+export type GitInstallFailure = 'unsupported' | 'network' | 'checksum' | 'unpack' | 'unrunnable';
+
+export type GitInstallState =
+  | { phase: 'idle' }
+  | { phase: 'downloading'; received: number; total?: number }
+  | { phase: 'verifying' }
+  | { phase: 'unpacking' }
+  | { phase: 'failed'; reason: GitInstallFailure; detail?: string };
+
+export type GitAvailability = (
+  | { available: true; version: string; source: 'system' | 'managed' }
+  | { available: false; reason: GitUnavailableReason; version?: string }
+) & { installable: boolean; install: GitInstallState };
 
 const GIT_UNAVAILABLE_REASONS: readonly GitUnavailableReason[] = [
   'missing',
@@ -1690,13 +1700,54 @@ const GIT_UNAVAILABLE_REASONS: readonly GitUnavailableReason[] = [
   'too-old',
 ];
 
+const GIT_INSTALL_FAILURES: readonly GitInstallFailure[] = [
+  'unsupported',
+  'network',
+  'checksum',
+  'unpack',
+  'unrunnable',
+];
+
+function parseGitInstall(value: unknown): GitInstallState {
+  const item = asRecord(value);
+  const phase = item?.['phase'];
+  if (phase === 'downloading') {
+    const received = typeof item?.['received'] === 'number' ? item['received'] : 0;
+    const total = typeof item?.['total'] === 'number' ? item['total'] : undefined;
+    return { phase, received, ...(total === undefined ? {} : { total }) };
+  }
+  if (phase === 'verifying' || phase === 'unpacking') return { phase };
+  if (phase === 'failed') {
+    const reason = GIT_INSTALL_FAILURES.find((candidate) => candidate === item?.['reason']);
+    const detail = typeof item?.['detail'] === 'string' ? item['detail'] : undefined;
+    return {
+      phase,
+      reason: reason ?? 'unpack',
+      ...(detail === undefined ? {} : { detail }),
+    };
+  }
+  return { phase: 'idle' };
+}
+
+export function gitInstalling(git: GitAvailability | undefined): boolean {
+  const phase = git?.install.phase;
+  return phase === 'downloading' || phase === 'verifying' || phase === 'unpacking';
+}
+
 export function parseGitAvailability(value: unknown): GitAvailability {
   const item = asRecord(value);
   const version = typeof item?.['version'] === 'string' ? item['version'] : undefined;
-  if (item?.['available'] === true && version !== undefined) return { available: true, version };
+  const extra = {
+    installable: item?.['installable'] === true,
+    install: parseGitInstall(item?.['install']),
+  };
+  if (item?.['available'] === true && version !== undefined) {
+    const source = item['source'] === 'managed' ? 'managed' : 'system';
+    return { available: true, version, source, ...extra };
+  }
   const reason = GIT_UNAVAILABLE_REASONS.find((candidate) => candidate === item?.['reason']);
   if (item?.['available'] !== false || reason === undefined) throw new Error('invalid Git status');
-  return { available: false, reason, ...(version === undefined ? {} : { version }) };
+  return { available: false, reason, ...(version === undefined ? {} : { version }), ...extra };
 }
 
 export async function loadGitAvailability(
@@ -1704,6 +1755,10 @@ export async function loadGitAvailability(
   signal?: AbortSignal,
 ): Promise<GitAvailability> {
   return parseGitAvailability(await unwrap(call, 'gitStatus', {}, signal));
+}
+
+export async function startGitInstall(call: BridgeCall): Promise<GitAvailability> {
+  return parseGitAvailability(await unwrap(call, 'gitInstall', {}));
 }
 
 export async function loadTelemetryStatus(

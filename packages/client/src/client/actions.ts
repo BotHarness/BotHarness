@@ -1,8 +1,10 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
 import {
+  gitInstalling,
   loadGitAvailability,
   reviewPairing,
+  startGitInstall,
   setApprovalRoute,
   testApprovalRoute,
   retryApprovalNotification,
@@ -238,6 +240,8 @@ import {
   type NativeHostFiles,
 } from './host-file-actions.js';
 
+const GIT_INSTALL_POLL_MS = 500;
+
 export interface HostDirectoryListing {
   path: string;
   home: string;
@@ -314,6 +318,7 @@ export interface BridgeActions {
   load(signal?: AbortSignal): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
   refreshGit(signal?: AbortSignal): Promise<void>;
+  installGit(): Promise<void>;
   openBot(slug: string, view?: 'profile'): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
   openActivityCenter(view?: ActivityCenterTab): Promise<void>;
@@ -638,12 +643,39 @@ export function createActions(
       : undefined;
   };
 
+  let followingGitInstall = false;
+  const followGitInstall = async (): Promise<void> => {
+    if (followingGitInstall) return;
+    followingGitInstall = true;
+    try {
+      while (gitInstalling(clientStore.getSnapshot().git)) {
+        await new Promise((resolve) => setTimeout(resolve, GIT_INSTALL_POLL_MS));
+        clientStore.setGit(await loadGitAvailability(call));
+      }
+    } catch (error) {
+      console.warn('botharness: Git install status check failed', error);
+    } finally {
+      followingGitInstall = false;
+    }
+  };
+
   const refreshGit = async (signal?: AbortSignal): Promise<void> => {
     try {
       const git = await loadGitAvailability(call, signal);
-      if (signal?.aborted !== true) clientStore.setGit(git);
+      if (signal?.aborted === true) return;
+      clientStore.setGit(git);
+      if (gitInstalling(git)) void followGitInstall();
     } catch (error) {
       if (signal?.aborted !== true) console.warn('botharness: Git status check failed', error);
+    }
+  };
+
+  const installGit = async (): Promise<void> => {
+    try {
+      clientStore.setGit(await startGitInstall(call));
+      await followGitInstall();
+    } catch (error) {
+      console.warn('botharness: Git install failed to start', error);
     }
   };
 
@@ -1102,6 +1134,7 @@ export function createActions(
     },
     refreshRoster,
     refreshGit,
+    installGit,
     async openBot(slug, view) {
       const snapshot = clientStore.getSnapshot();
       const bot = snapshot.bots.find((candidate) => candidate.slug === slug);

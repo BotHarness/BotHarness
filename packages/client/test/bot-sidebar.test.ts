@@ -102,6 +102,8 @@ const DM_CHANNEL: ChannelSummary = {
   updatedAt: AT,
 };
 
+const NO_INSTALL = { installable: false, install: { phase: 'idle' as const } };
+
 function stubActions(): BridgeActions {
   return {
     allBotPreview: vi.fn(async () => {
@@ -196,6 +198,7 @@ function stubActions(): BridgeActions {
     load: vi.fn(async () => undefined),
     refreshRoster: vi.fn(async () => undefined),
     refreshGit: vi.fn(async () => undefined),
+    installGit: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
     refreshBotInbox: vi.fn(async () => undefined),
     openActivityCenter: vi.fn(async () => undefined),
@@ -479,7 +482,7 @@ beforeEach(() => {
   store.select(undefined);
   store.setConfig(config());
   store.setRoster([], []);
-  store.setGit({ available: true, version: '2.47.1' });
+  store.setGit({ available: true, version: '2.47.1', source: 'system', ...NO_INSTALL });
   setRoster();
   prefs = {
     motionPreference: 'system',
@@ -864,7 +867,7 @@ describe('bot sidebar rows', () => {
   });
 
   it('blocks PersonaBot creation and explains why while Host Git is unusable', () => {
-    store.setGit({ available: false, reason: 'too-old', version: '2.20.1' });
+    store.setGit({ available: false, reason: 'too-old', version: '2.20.1', ...NO_INSTALL });
     const markup = renderSidebar();
     const submenu = menuWithItem('bot').items[0]?.['submenu'] as Array<Record<string, unknown>>;
 
@@ -881,10 +884,53 @@ describe('bot sidebar rows', () => {
   });
 
   it('names a missing Git and a Git that cannot run differently', () => {
-    store.setGit({ available: false, reason: 'missing' });
+    store.setGit({ available: false, reason: 'missing', ...NO_INSTALL });
     expect(renderSidebar()).toContain('这台电脑上没有找到 Git。');
-    store.setGit({ available: false, reason: 'unrunnable' });
+    store.setGit({ available: false, reason: 'unrunnable', ...NO_INSTALL });
     expect(renderSidebar()).toContain('macOS 需要先安装命令行开发者工具');
+  });
+
+  it('offers a one-step Managed Git install and shows its progress and failures', () => {
+    store.setGit({
+      available: false,
+      reason: 'missing',
+      installable: true,
+      install: { phase: 'idle' },
+    });
+    let markup = renderSidebar();
+    expect(markup).toContain('data-git-install="idle"');
+    expect(markup).toMatch(/<button[^>]*>安装 Git<\/button>/);
+    expect(markup).toContain('不需要管理员权限');
+    expect(markup).toContain('重新检测');
+
+    store.setGit({
+      available: false,
+      reason: 'missing',
+      installable: true,
+      install: { phase: 'downloading', received: 12 * 1024 * 1024, total: 62 * 1024 * 1024 },
+    });
+    markup = renderSidebar();
+    expect(markup).toContain('正在下载 Git… 12.0 / 62.0 MB');
+    expect(markup).toMatch(/<progress[^>]*max="65011712"/);
+    expect(markup).toMatch(/<button disabled="">正在安装…<\/button>/);
+    expect(markup).not.toContain('重新检测');
+
+    store.setGit({
+      available: false,
+      reason: 'missing',
+      installable: true,
+      install: { phase: 'failed', reason: 'network', detail: 'ENOTFOUND' },
+    });
+    markup = renderSidebar();
+    expect(markup).toContain('下载失败，请检查网络后重试。');
+    expect(markup).toMatch(/<button[^>]*>重试安装<\/button>/);
+  });
+
+  it('leaves out the install button where no pinned build exists', () => {
+    store.setGit({ available: false, reason: 'missing', ...NO_INSTALL });
+    const markup = renderSidebar();
+    expect(markup).not.toContain('安装 Git</button>');
+    expect(markup).toContain('安装或升级后重启 DeepSeek Harness');
   });
 
   it('shows no Git notice once Host Git is usable', () => {

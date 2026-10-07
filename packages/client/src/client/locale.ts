@@ -1336,6 +1336,20 @@ export const zh = {
   'git.unavailable.guide': '安装说明',
   'git.unavailable.guideUrl': 'https://botharness.ai/zh/docs/installation/#git',
   'git.unavailable.recheck': '重新检测',
+  'git.install.hint':
+    '点「安装 Git」一键安装（约 65 MB，装在 DeepSeek Harness 数据目录里，不需要管理员权限）。也可以自己安装后点重新检测。',
+  'git.install.button': '安装 Git',
+  'git.install.installing': '正在安装…',
+  'git.install.retry': '重试安装',
+  'git.install.downloading': '正在下载 Git… {received} / {total} MB',
+  'git.install.downloadingUnknown': '正在下载 Git… {received} MB',
+  'git.install.verifying': '正在校验下载的文件…',
+  'git.install.unpacking': '正在解压…',
+  'git.install.failed.network': '下载失败，请检查网络后重试。',
+  'git.install.failed.checksum': '下载的文件校验不通过，已丢弃。请重试。',
+  'git.install.failed.unpack': '解压失败，请重试。',
+  'git.install.failed.unrunnable': '安装好的 Git 无法运行，请按安装说明手动安装。',
+  'git.install.failed.unsupported': '这台电脑的系统暂不支持一键安装，请按安装说明手动安装。',
   'profile.avatar.unsupported':
     '这个头像使用的版本当前不可用，暂时显示保存时的静态图片，无法编辑或播放角色动画。原始设置已保留，版本恢复后会自动还原。',
   'profile.avatar.bangs': '刘海',
@@ -3418,6 +3432,23 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'git.unavailable.guide': 'How to install',
   'git.unavailable.guideUrl': 'https://botharness.ai/docs/installation/#git',
   'git.unavailable.recheck': 'Check again',
+  'git.install.hint':
+    'Click Install Git to set it up in one step (about 65 MB, stored in the DeepSeek Harness data folder, no admin rights needed). Or install it yourself and click Check again.',
+  'git.install.button': 'Install Git',
+  'git.install.installing': 'Installing…',
+  'git.install.retry': 'Retry install',
+  'git.install.downloading': 'Downloading Git… {received} / {total} MB',
+  'git.install.downloadingUnknown': 'Downloading Git… {received} MB',
+  'git.install.verifying': 'Verifying the download…',
+  'git.install.unpacking': 'Unpacking…',
+  'git.install.failed.network': 'Download failed. Check your network and try again.',
+  'git.install.failed.checksum':
+    'The download did not pass verification and was discarded. Try again.',
+  'git.install.failed.unpack': 'Unpacking failed. Try again.',
+  'git.install.failed.unrunnable':
+    'The installed Git cannot run. Follow the install guide to install Git yourself.',
+  'git.install.failed.unsupported':
+    'One-step install is not available for this system. Follow the install guide to install Git yourself.',
   'profile.avatar.unsupported':
     'This Avatar uses a version that is not available right now, so its saved still image is shown and editing and character animation are paused. The original design is kept and returns when the version is available again.',
   'profile.avatar.bangs': 'Bangs',

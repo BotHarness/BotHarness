@@ -152,7 +152,8 @@ import type {
   BotAttentionState,
 } from '../runtime/attention.js';
 import type { BotSourcePolicy, BotSourcePolicyStore } from '../runtime/source-policy.js';
-import { probeGit, type GitAvailability } from '../memory/git-probe.js';
+import { probeGit } from '../memory/git-probe.js';
+import type { GitService, GitStatus } from '../memory/managed-git.js';
 import {
   BotScheduleError,
   type BotSchedule,
@@ -459,7 +460,8 @@ export interface BridgeMethods {
   releaseInstall(payload: unknown): Promise<BridgeResult<ReleaseInstall>>;
   releaseRestart(payload: unknown): Promise<BridgeResult<ReleaseRestart>>;
   telemetryStatus(): BridgeResult<TelemetryStatus>;
-  gitStatus(): BridgeResult<GitAvailability>;
+  gitStatus(): BridgeResult<GitStatus>;
+  gitInstall(): BridgeResult<GitStatus>;
   telemetrySet(payload: unknown): BridgeResult<TelemetryStatus>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
   scheduleCreate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
@@ -508,7 +510,14 @@ export interface BridgeMethodsDeps {
     setPreference(enabled: boolean): TelemetryStatus;
     capture?: TelemetryCapture;
   };
-  gitProbe?: () => GitAvailability;
+  git?: Pick<GitService, 'status' | 'install'>;
+}
+
+function unmanagedGitStatus(): GitStatus {
+  const git = probeGit();
+  return git.available
+    ? { ...git, source: 'system', installable: false, install: { phase: 'idle' } }
+    : { ...git, installable: false, install: { phase: 'idle' } };
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -1630,7 +1639,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       };
     },
     gitStatus() {
-      return { ok: true, value: (deps.gitProbe ?? probeGit)() };
+      return { ok: true, value: deps.git?.status() ?? unmanagedGitStatus() };
+    },
+    gitInstall() {
+      return { ok: true, value: deps.git?.install() ?? unmanagedGitStatus() };
     },
     telemetrySet(payload) {
       const enabled = asObject(payload)['enabled'];

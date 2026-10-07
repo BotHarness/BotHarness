@@ -210,6 +210,7 @@ describe('bridge typert service', () => {
       'telemetryStatus',
       'telemetrySet',
       'gitStatus',
+      'gitInstall',
       'scheduleList',
       'scheduleCreate',
       'scheduleUpdate',

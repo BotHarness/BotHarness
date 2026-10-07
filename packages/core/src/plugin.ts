@@ -34,6 +34,7 @@ import {
   installedRelease,
   type ReleaseInstaller,
 } from './release/service.js';
+import { createGitService } from './memory/managed-git.js';
 import { createProcessRestarter, type ReleaseRestarter } from './release/restart.js';
 import {
   createTelemetryService,
@@ -635,6 +636,13 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       () => installExceptionCapture({ dataDir: telemetryDir, enabled: () => telemetry.enabled }),
       'botharness: telemetry exceptions',
     );
+  const git = createGitService({ dshHome, log: (message) => ctx.logger.info(message) });
+  const resolvedGit = git.resolve();
+  ctx.logger.info(
+    resolvedGit.available
+      ? `git phase=resolved source=${resolvedGit.source} version=${resolvedGit.version}`
+      : `git phase=resolved unavailable=${resolvedGit.reason}`,
+  );
   let publishDraft: (event: ChannelDraftEvent) => void = () => undefined;
   const modelCatalog = createModelCatalog(ctx.llm);
   const modelReadiness = createModelRouteReadiness(
@@ -1076,6 +1084,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       restarter: () => releaseRestarter.current,
     }),
     telemetry,
+    git,
     developerMode: {
       set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
     },
