@@ -120,7 +120,7 @@ export const zh = {
   'setup.step.verify': '验证 @话题收件和原话题回复',
   'setup.hint.account': '在「设置 → IM机器人 → 飞书」选择正确平台，使用应用凭据绑定并连接。',
   'setup.hint.target': '在账号的投递设置中选择测试群，确认原生 Chat ID；测试后保存目标。',
-  'setup.hint.identity': '点击绑定身份，选择已连接的账号。每个平台一个身份；其他 Bot 不能借用它。',
+  'setup.hint.identity': '点击「绑定应用」，选择已连接的飞书应用。一个应用只属于一个 Bot。',
   'setup.hint.grant':
     '在侧栏「外部连接器」打开「授权外部会话」，选择已绑定账号和保存目标，再明确绑定并授权此目标。保持 Inbox-only 和只收 @。',
   'setup.hint.verify':
@@ -807,9 +807,22 @@ export const zh = {
     '此来源的各投递路径在「外部连接器」中分别管理；接收身份和每位 Bot 的唤醒设置各自独立。',
   'identity.title': '外部身份',
   'identity.summary': '这个 Bot 在外部平台以谁的身份行动；与信息来源分开管理。',
-  'identity.bind': '绑定身份',
-  'identity.empty': '尚未绑定外部身份。绑定身份不会创建外部连接器或镜像 DM。',
-  'identity.emptyShort': '还没有绑定外部身份',
+  'identity.bind': '绑定应用',
+  'identity.empty': '尚未绑定应用。绑定后，私聊和 @ 这个应用的消息会进入这个 Bot 的收件箱。',
+  'identity.emptyShort': '还没有绑定应用',
+  'identity.app': '应用',
+  'identity.conversationCount': '{count} 个会话',
+  'identity.conversations': '会话',
+  'identity.conversationsEmpty': '还没有会话。私聊这个应用，或在群里 @ 它，会话就会出现在这里。',
+  'identity.kind.dm': '私聊',
+  'identity.kind.group': '群聊',
+  'identity.lastMessage': '最近消息 {time}',
+  'identity.ready': '已就绪：发给 {app} 的私聊和群里 @ 它的消息，现在会进入这个 Bot 的收件箱。',
+  'identity.connecting': '正在连接 {app}…',
+  'identity.offline': '{app} 暂时收不到消息。请在 IM 设置中检查它的连接状态。',
+  'identity.done': '完成',
+  'identity.boundOther':
+    '已绑定 {app}。这个平台的会话目前仍在「外部连接器」中授权；私聊和 @ 直达收件箱会在后续版本开放。',
   'identity.platform': '平台',
   'identity.name': '身份名称',
   'identity.status': '状态',
@@ -824,9 +837,9 @@ export const zh = {
   'identity.unbind': '解绑',
   'identity.unbindFor': '解绑身份：{name}',
   'identity.displayName': '本地显示名称',
-  'identity.providerHint':
-    '选择 dsh-im 中已配置并认证的应用 Bot 身份。凭据由 dsh-im 管理；Human 登录不等于 Bot 绑定。',
-  'identity.bindHint': '仅绑定身份，不授权新的群或会话，也不开启收件。',
+  'identity.providerHint': '选择一个已在 IM 设置中连接的应用。应用凭据仍由 IM 插件管理。',
+  'identity.bindHint':
+    '飞书应用绑定后，私聊它和在群里 @ 它的消息会直接进入这个 Bot 的收件箱，Bot 在原会话回复，不需要保存目标或授权会话。',
   'identity.reconnectHint':
     '重新验证同一账号与已有授权范围后启用。账号已变更时，需要明确解绑并重新绑定。',
   'identity.impact': '将使此 Bot 的 {count} 个已有授权失效：',
@@ -2188,7 +2201,7 @@ export const en = {
   'setup.hint.target':
     'In account delivery settings, choose the test group and check its native Chat ID; test and save the target.',
   'setup.hint.identity':
-    'Click Bind identity and choose the connected account. One identity per platform; other Bots cannot borrow it.',
+    'Click Bind app and choose the connected Lark app. An app belongs to one Bot only.',
   'setup.hint.grant':
     'In the sidebar’s External connectors, open Authorize a conversation, choose the bound account and saved target, then explicitly authorize. Keep Inbox-only and mentions-only.',
   'setup.hint.verify':
@@ -2908,10 +2921,25 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.title': 'External identities',
   'identity.summary':
     'Who this Bot acts as on external platforms; managed separately from sources.',
-  'identity.bind': 'Bind identity',
+  'identity.bind': 'Bind app',
   'identity.empty':
-    'No external identity bound. Binding does not create a connector or mirror DM history.',
-  'identity.emptyShort': 'No identity bound yet',
+    'No app bound yet. Once bound, DMs and @mentions to the app reach this Bot’s Inbox.',
+  'identity.emptyShort': 'No app bound yet',
+  'identity.app': 'App',
+  'identity.conversationCount': '{count} conversation(s)',
+  'identity.conversations': 'Conversations',
+  'identity.conversationsEmpty':
+    'No conversations yet. DM the app or @mention it in a group and the conversation shows up here.',
+  'identity.kind.dm': 'DM',
+  'identity.kind.group': 'Group',
+  'identity.lastMessage': 'Last message {time}',
+  'identity.ready': 'Ready: DMs and @mentions to {app} now reach this Bot’s Inbox.',
+  'identity.connecting': 'Connecting {app}…',
+  'identity.offline':
+    '{app} can’t receive messages right now. Check its connection in IM settings.',
+  'identity.done': 'Done',
+  'identity.boundOther':
+    '{app} is bound. On this platform, conversations are still authorized under External connectors for now; DMs and @mentions going straight to the Inbox come in a later release.',
   'identity.platform': 'Platform',
   'identity.name': 'Identity',
   'identity.status': 'Status',
@@ -2927,8 +2955,9 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.unbindFor': 'Unbind identity: {name}',
   'identity.displayName': 'Local display name',
   'identity.providerHint':
-    'Select an authenticated app Bot configured in dsh-im. Credentials stay with dsh-im; Human sign-in is not a Bot binding.',
-  'identity.bindHint': 'Bind only; no new conversation authorization or listener is created.',
+    'Choose an app already connected in IM settings. The IM plugin keeps its credentials.',
+  'identity.bindHint':
+    'Once a Lark app is bound, DMs to it and @mentions of it in groups go straight to this Bot’s Inbox, and the Bot replies in place. No saved targets or conversation authorization needed.',
   'identity.reconnectHint':
     'Revalidate this same account and existing authorized scopes before enabling. A changed account requires explicit unbind and rebind.',
   'identity.impact': 'This will invalidate {count} existing authorizations for this Bot:',

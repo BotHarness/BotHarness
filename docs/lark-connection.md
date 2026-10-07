@@ -14,7 +14,9 @@ This guide starts with **Lark international, an application bot, a test group an
 | External identity         | Bot DM → Channel sidebar → External identities                      | Choose who this Bot speaks as externally                    |
 | External connector        | Bot DM → External connectors, or a Group Channel's detailed Profile | Choose which external group and messages enter this Channel |
 
-**Binding an identity still requires explicit group authorization.** It does not receive every group automatically, and an external connector does not lend that identity to other Bots.
+**Once the app is bound, DMs and @mentions just work.** Under External identities, click **+ Bind app** and pick this Lark app. DMs to it and @mentions of it in groups it belongs to then go straight to this Bot’s Inbox, and the Bot replies in place, with no saved delivery target, conversation authorization or reception switch. See [External identities](/docs/channel-sidebar/external-identities).
+
+Saved targets and group authorization in sections 3 and 4 below still apply when you want unmentioned group messages, a local Channel for the group, or proactive posts from the Bot. An external connector does not lend the app to other Bots.
 
 This guide combines actual setup controls with a Profile that completed real Lark connection. Configured captures come from the #823 qualified product (`0.0.0-test.823.6` / Provider `4.32.0-botharness.2`), using the dedicated “BotHarness IM QA #78” group. Empty forms show where to enter values; they are not proof of connection. No App Secret appears in the media. Use the browser image menu to view the original size.
 
@@ -161,7 +163,7 @@ In **Bot mode**, open the intended Bot DM and use the **Channel sidebar** on the
 
 _Walkthrough: 1 Bind identity → 2 Authorize the specific group → 3 Optionally connect a Channel. This is an AI-assisted annotated composite of the screenshots, showing an unconnected demonstration account; the original UI screenshots remain below for comparison._
 
-1. Under **External identities → + Bind identity**, select the connected application in **IM account** and save.
+1. Under **External identities → + Bind app**, select the connected application under **App** and click **Bind app**. Once it shows **Ready**, DMs and @mentions already reach the Inbox; continue with the authorization steps below only for unmentioned messages, a Channel or proactive sends.
 2. Under **External connectors**, click **Authorize a conversation**. In the **Conversation authorization** dialog, select that IM account and the saved **send target**.
 3. Click **Bind and authorize this target**. Check the group, account and local intake destination.
 4. For the first test, retain **This Bot's Inbox only** and **mentions only**. This needs no additional local group and does not add messages to the Bot DM history.

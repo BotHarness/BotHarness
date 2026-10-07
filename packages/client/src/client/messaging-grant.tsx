@@ -52,7 +52,9 @@ export function MessagingGrantRow({
   const account = snapshot?.accounts.find(
     (item) => `${item.providerId}:${item.ref}` === accountKey,
   );
-  const grant = snapshot?.grants.find((item) => item.revokedAt === undefined);
+  const grant = snapshot?.grants.find(
+    (item) => item.revokedAt === undefined && item.origin !== 'implicit',
+  );
   const operate = async (operation: () => Promise<void>) => {
     if (busy) return;
     const version = generation.current;

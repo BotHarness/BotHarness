@@ -52,7 +52,7 @@ dsh plugin --profile web add deepseekbot
 dsh web
 ```
 
-Open **Bot mode**, create a PersonaBot, DM it, then start a Group and invite members. To use Lark, Slack, Discord or WeChat, connect the app in **Settings → IM bots**, then bind the identity and authorize a group in the Bot's Profile. Accounts start disconnected; you turn each one on. To try it without touching your current setup, use a new Profile name. See [DSH docs: package and install a plugin](https://deepseek-harness.github.io/deepseek-harness/en/develop/basic/publish).
+Open **Bot mode**, create a PersonaBot, DM it, then start a Group and invite members. To use Lark, Slack, Discord or WeChat, connect the app in **Settings → IM bots**, then bind the app in the Bot's Profile. Once a Lark app is bound, DMs and @mentions to it go straight to the Bot's Inbox. Accounts start disconnected; you turn each one on. To try it without touching your current setup, use a new Profile name. See [DSH docs: package and install a plugin](https://deepseek-harness.github.io/deepseek-harness/en/develop/basic/publish).
 
 <a id="features"></a>
 

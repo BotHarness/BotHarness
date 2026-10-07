@@ -342,6 +342,59 @@ export function createInboundMessaging(options: {
     }
     return id;
   };
+  const admitDirect = (db: DatabaseSync, value: MessagingGrant, event: MessagingInboundEvent) => {
+    const sourceEventId = persistSource(db, value, event);
+    const policy = options.sourcePolicy.resolveIn(db, value.botSlug, 'human-dm');
+    db.prepare(`INSERT OR IGNORE INTO inbox_admissions
+    (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
+     wake_policy_revision, wake_mode) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+      sourceEventId,
+      value.botSlug,
+      'human-dm',
+      policy.revision,
+      policy.wake,
+      policy.revision,
+      policy.wake === 'immediate' ? 'all' : policy.wake,
+    );
+    return sourceEventId;
+  };
+  const admitMention = (db: DatabaseSync, value: MessagingGrant, event: MessagingInboundEvent) => {
+    const reception = groupReceptionPolicy(db, value.id);
+    const thread = event.reply.threadId
+      ? threadReceptionPolicy(db, value.id, event.reply.threadId)
+      : undefined;
+    const sourceEventId = persistSource(db, value, event);
+    const policy = options.sourcePolicy.resolveIn(db, value.botSlug, 'group-mention');
+    db.prepare(`INSERT OR IGNORE INTO inbox_admissions
+    (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
+     wake_policy_revision, wake_mode, external_thread_policy_revision, external_default_revision)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      sourceEventId,
+      value.botSlug,
+      'group-mention',
+      policy.revision,
+      policy.wake,
+      reception.revision,
+      policy.wake === 'immediate' ? 'all' : policy.wake,
+      thread?.revision ?? null,
+      reception.defaultRevision ?? null,
+    );
+    return sourceEventId;
+  };
+  const conversationEntries = (
+    db: DatabaseSync,
+    bindingId: string,
+    conversation: MessagingInboundEvent['conversation'],
+  ) =>
+    (
+      db
+        .prepare(
+          `SELECT body FROM messaging_grants WHERE binding_id = ? AND revoked_at IS NULL
+          AND json_extract(body, '$.receiveScope.kind') = ?
+          AND json_extract(body, '$.receiveScope.conversationId') = ?`,
+        )
+        .all(bindingId, conversation.kind, conversation.id) as { body: string }[]
+    ).map((row) => JSON.parse(row.body) as MessagingGrant);
   const grant = (id: string): MessagingGrant => {
     const row = database.read((db) =>
       db.prepare('SELECT body FROM messaging_grants WHERE id = ?').get(id),
@@ -422,6 +475,22 @@ export function createInboundMessaging(options: {
     ) as { bot_slug: string }[];
     options.onShared?.(pending.map((row) => row.bot_slug));
   };
+  const inspectGrant = async (provider: MessagingProvider, value: MessagingGrant) => {
+    if (value.origin !== 'implicit') return provider.inspect(value.accountRef, value.targetRef);
+    if (!provider.inspectAccount || !value.receiveScope)
+      throw new MessagingError('capability-unavailable');
+    const account = await provider.inspectAccount(value.accountRef);
+    if (!account.connected) throw new MessagingError('provider-unavailable');
+    return {
+      account,
+      target: {
+        ref: value.targetRef,
+        name: value.targetName,
+        digest: value.targetDigest,
+        receiveScope: value.receiveScope,
+      },
+    };
+  };
   const start = async (value: MessagingGrant, attempt = 0, replyOnly = false) => {
     stop(value.id);
     const entry = providers.get(value.providerId);
@@ -448,7 +517,7 @@ export function createInboundMessaging(options: {
     receptionChanged();
     const startedAt = Date.now();
     try {
-      const inspected = await entry.provider.inspect(value.accountRef, value.targetRef);
+      const inspected = await inspectGrant(entry.provider, value);
       if (
         inspected.account.fingerprint !== value.fingerprint ||
         inspected.target.digest !== value.targetDigest ||
@@ -518,20 +587,7 @@ export function createInboundMessaging(options: {
                 lease.controller.signal.throwIfAborted();
                 if (latest.receiveAfter && Date.parse(event.at) < Date.parse(latest.receiveAfter))
                   return undefined;
-                const sourceEventId = persistSource(db, latest, event);
-                const policy = options.sourcePolicy.resolveIn(db, latest.botSlug, 'human-dm');
-                db.prepare(`INSERT OR IGNORE INTO inbox_admissions
-                (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode,
-                 wake_policy_revision, wake_mode) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
-                  sourceEventId,
-                  latest.botSlug,
-                  'human-dm',
-                  policy.revision,
-                  policy.wake,
-                  policy.revision,
-                  policy.wake === 'immediate' ? 'all' : policy.wake,
-                );
-                return sourceEventId;
+                return admitDirect(db, latest, event);
               },
               ['source-event', 'bot-inbox'],
             );
@@ -1081,6 +1137,92 @@ export function createInboundMessaging(options: {
       }),
     );
   };
+  const defaultTraffic = async (
+    id: string,
+    lease: { controller: AbortController; token: object },
+    event: MessagingInboundEvent,
+    signal: AbortSignal,
+  ): Promise<{ accepted: true }> => {
+    signal.throwIfAborted();
+    lease.controller.signal.throwIfAborted();
+    const identity = database.read((db) => readMessagingIdentity(db, id));
+    const entry = providers.get(identity.providerId);
+    if (
+      closed ||
+      controls.get(id) !== lease ||
+      entry?.token !== lease.token ||
+      !identity.enabled ||
+      identity.revokedAt ||
+      options.bindingAvailable?.(id) === false ||
+      !options.isBotActive(identity.botSlug)
+    )
+      throw new MessagingError('consumer-unavailable');
+    if (event.fingerprint !== identity.fingerprint || event.botId !== identity.accountRef)
+      throw new MessagingError('untrusted-source');
+    if (event.conversation.kind === 'group' && !event.mentionedAccount) return { accepted: true };
+    const admitted = transaction(
+      (db) => {
+        signal.throwIfAborted();
+        lease.controller.signal.throwIfAborted();
+        const entries = conversationEntries(db, id, event.conversation);
+        if (entries.some((item) => item.origin !== 'implicit')) return undefined;
+        let value: MessagingGrant | undefined = entries[0];
+        let created = false;
+        if (value === undefined) {
+          if (readMessagingIdentity(db, id).newConversations !== 'auto') return undefined;
+          value = {
+            id: randomUUID(),
+            bindingId: id,
+            botSlug: identity.botSlug,
+            providerId: identity.providerId,
+            accountRef: identity.accountRef,
+            accountName: identity.name,
+            fingerprint: identity.fingerprint,
+            platform: identity.platform,
+            targetRef: '',
+            targetName:
+              event.conversation.kind === 'dm'
+                ? event.actor.name || event.actor.id
+                : event.conversation.id,
+            targetDigest: '',
+            revision: 1,
+            createdAt: new Date().toISOString(),
+            receiveScope: { kind: event.conversation.kind, conversationId: event.conversation.id },
+            origin: 'implicit',
+          };
+          db.prepare(
+            'INSERT INTO messaging_grants (id, binding_id, bot_slug, revision, created_at, body) VALUES (?, ?, ?, ?, ?, ?)',
+          ).run(value.id, id, value.botSlug, 1, value.createdAt, JSON.stringify(value));
+          if (event.conversation.kind === 'group') initializeGroupReceptionPolicy(db, value.id);
+          created = true;
+        }
+        const existing = db
+          .prepare('SELECT 1 FROM inbox_admissions WHERE source_event_id = ?')
+          .get(sourceId(value, event));
+        if (existing) return { value, created, sourceEventId: undefined };
+        const sourceEventId =
+          event.conversation.kind === 'dm'
+            ? admitDirect(db, value, event)
+            : admitMention(db, value, event);
+        return { value, created, sourceEventId };
+      },
+      ['grants', 'source-event', 'bot-inbox'],
+    );
+    if (!admitted) return { accepted: true };
+    const { value, created, sourceEventId } = admitted;
+    if (created || !leases.has(value.id)) void start(value);
+    if (created) receptionChanged();
+    if (sourceEventId !== undefined)
+      setImmediate(() => {
+        if (closed) return;
+        try {
+          if (valid(grant(value.id))) options.onAdmitted(value.botSlug, sourceEventId);
+        } catch {
+          options.warn?.('messaging-default-traffic-wake-failed');
+        }
+      });
+    return { accepted: true };
+  };
   const startControl = async (id: string, attempt = 0) => {
     if (!options.pairing || closed) return;
     const identity = database.read((db) => readMessagingIdentity(db, id));
@@ -1117,7 +1259,7 @@ export function createInboundMessaging(options: {
             accountRef: identity.accountRef,
             fingerprint: identity.fingerprint,
             signal: controller.signal,
-            onEvent: async () => ({ accepted: true }),
+            onEvent: (event, signal) => defaultTraffic(id, lease, event, signal),
           }),
         );
         if (controller.signal.aborted || controls.get(id) !== lease) lease.dispose();
@@ -1440,6 +1582,7 @@ export function createInboundMessaging(options: {
     },
     async setEnabled(botSlug, id, enabled) {
       const value = grant(id);
+      if (value.origin === 'implicit') throw new MessagingError('capability-unavailable');
       if (
         value.botSlug !== botSlug ||
         value.revokedAt ||

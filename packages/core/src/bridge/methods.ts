@@ -1116,6 +1116,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 enabled: z.boolean(),
                 inheritEnabled: z.boolean().optional(),
                 expectedDefaultRevision: z.number().int().min(0).optional(),
+                newConversations: z.enum(['auto', 'ask']).optional(),
               })
               .strict(),
             z

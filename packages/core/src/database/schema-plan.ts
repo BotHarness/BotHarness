@@ -1594,6 +1594,25 @@ const APPROVAL_MESSAGING_MIGRATION: SchemaMigration = {
   },
 };
 
+const BOUND_APP_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 61,
+  module: 'messaging',
+  description:
+    'Admit default traffic through a bound app with implicit conversation entries and a per-binding new-conversation mode',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN new_conversations TEXT NOT NULL DEFAULT 'auto'
+        CHECK (new_conversations IN ('auto', 'ask'));
+      UPDATE messaging_grants SET body = json_set(body, '$.origin', 'explicit');
+      CREATE UNIQUE INDEX messaging_grants_implicit_conversation ON messaging_grants(
+        binding_id,
+        json_extract(body, '$.receiveScope.kind'),
+        json_extract(body, '$.receiveScope.conversationId')
+      ) WHERE revoked_at IS NULL AND json_extract(body, '$.origin') = 'implicit';
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1654,4 +1673,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   DISCORD_PLATFORM_DEFAULTS_MIGRATION,
   BOT_PAIRING_MIGRATION,
   APPROVAL_MESSAGING_MIGRATION,
+  BOUND_APP_ADMISSION_MIGRATION,
 ]);
