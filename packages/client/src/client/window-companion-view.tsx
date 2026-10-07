@@ -10,10 +10,27 @@ import { PersonaBotAvatar, personaBotPresentationSummary } from './avatar.js';
 import { attentionCount } from './activity-attention.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { BotHarnessTranslate } from './locale.js';
-import type { WindowCompanion } from './window-companion.js';
+import type { CompanionBot } from '../../../core/src/companions/feed.js';
+import type { CompanionViewState, WindowCompanion } from './window-companion.js';
 import { CompanionMotion } from './companion-motion.js';
 import type { CompanionBubbles, BubblePlacement } from './companion-bubbles.js';
+import { isAvatarAppearance } from '../../../core/src/bots/avatar-appearance.js';
 import { companionMessageIdentity } from '../../../core/src/companions/sources.js';
+
+function avatarLimitation(
+  bot: CompanionBot | undefined,
+): 'imageOnly' | 'rigUnavailable' | undefined {
+  if (bot?.appearance && !isAvatarAppearance(bot.appearance)) return 'rigUnavailable';
+  if (bot?.avatar && !bot.appearance) return 'imageOnly';
+  return;
+}
+const statusVisible = (state: CompanionViewState): boolean =>
+  Boolean(
+    state.selection?.activity ||
+    state.bot?.paused ||
+    avatarLimitation(state.bot) ||
+    state.sync !== 'live',
+  );
 
 export interface WindowCompanionViewProps {
   companion: WindowCompanion;
@@ -43,6 +60,7 @@ export function WindowCompanionView({
   const [bubble, setBubble] = useState<BubblePlacement | undefined>(undefined);
   const bubbleOffset = bubble?.offset ?? 0;
   const root = useRef<HTMLDivElement | null>(null);
+  const character = useRef<HTMLButtonElement | null>(null);
   const pointer = useRef<
     | {
         id: number;
@@ -96,6 +114,7 @@ export function WindowCompanionView({
       let previous = performance.now();
       let elapsed = 0;
       let measured = false;
+      let visible = true;
       const measure = () => {
         const width = node.getBoundingClientRect().width;
         const next = measured
@@ -117,7 +136,7 @@ export function WindowCompanionView({
         previous = now;
         const reduced = reducedMotion();
         const state = latest.current;
-        if (!document.hidden) {
+        if (!document.hidden && visible) {
           elapsed += milliseconds;
           if (elapsed >= 50) {
             companion.advance(elapsed, reduced);
@@ -135,7 +154,7 @@ export function WindowCompanionView({
           const previousPoint = motion.point;
           const next = motion.advance(milliseconds, reduced, walking, direction.current);
           if (state.selection) {
-            if (state.selection.activity || state.sync !== 'live' || state.cards.length) {
+            if (statusVisible(state) || state.cards.length) {
               const placement = bubbles?.place(
                 state.selection.botId,
                 next.x,
@@ -164,21 +183,39 @@ export function WindowCompanionView({
           if (next !== previousPoint) setPoint(next);
           if (previousPoint.phase !== 'rest' && next.phase === 'rest') persistPosition();
         }
-        if (!document.hidden) frame = requestAnimationFrame(tick);
+        if (!document.hidden && visible) frame = requestAnimationFrame(tick);
       };
       const visibility = () => {
         cancelAnimationFrame(frame);
         frame = 0;
         previous = performance.now();
         elapsed = 0;
-        if (!document.hidden) frame = requestAnimationFrame(tick);
+        if (!document.hidden && visible) frame = requestAnimationFrame(tick);
       };
+      const observer =
+        typeof IntersectionObserver === 'undefined'
+          ? undefined
+          : new IntersectionObserver((entries) => {
+              visible = entries.some((entry) => entry.isIntersecting);
+              visibility();
+            });
+      const target = node.querySelector('.bh-companion');
+      if (target) observer?.observe(target);
+      const policy = new MutationObserver(() => {
+        if (reducedMotion()) setPoint(motion.advance(0, true, false, direction.current));
+      });
+      policy.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-botharness-motion'],
+      });
       measure();
       visibility();
       window.addEventListener('resize', measure);
       document.addEventListener('visibilitychange', visibility);
       return () => {
         cancelAnimationFrame(frame);
+        observer?.disconnect();
+        policy.disconnect();
         window.removeEventListener('resize', measure);
         document.removeEventListener('visibilitychange', visibility);
         if (exit.current !== undefined) clearTimeout(exit.current);
@@ -192,7 +229,9 @@ export function WindowCompanionView({
   );
   if (!view.selection || !view.bot) return null;
   const { selection, bot, activity } = view;
-  const state = activity?.state ?? 'idle';
+  const state = bot.paused ? 'idle' : (activity?.state ?? 'idle');
+  const limitationKey = avatarLimitation(bot);
+  const limitation = limitationKey ? t(`companion.${limitationKey}`) : undefined;
   const attention = activity?.attention;
   const items: MenuEntry[] = [
     {
@@ -232,10 +271,18 @@ export function WindowCompanionView({
         className="bh-companion"
         aria-label={t('companion.label', { name: bot.name })}
         data-reading={view.reading}
+        data-static={bot.paused}
         data-sync={view.sync}
         data-motion={point.phase}
         data-bot={bot.slug}
         style={{ left: point.x, bottom: point.y, zIndex: view.reading ? 10 : 1 }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && menu) {
+            event.preventDefault();
+            setMenu(false);
+            character.current?.focus();
+          }
+        }}
         onContextMenu={(event) => {
           event.preventDefault();
           enter();
@@ -248,7 +295,7 @@ export function WindowCompanionView({
           if (!event.currentTarget.contains(event.relatedTarget)) leave();
         }}
       >
-        {selection.activity || view.sync !== 'live' ? (
+        {statusVisible(view) ? (
           <div
             className="bh-companion-activity"
             style={{ left: bubbleLeft, bottom: 134 + bubbleOffset }}
@@ -259,6 +306,7 @@ export function WindowCompanionView({
               : bot.paused
                 ? t('companion.archived')
                 : personaBotPresentationSummary(state, activity?.activity, undefined, t)}
+            {limitation ? ` · ${limitation}` : null}
           </div>
         ) : null}
         {view.cards.length ? (
@@ -339,7 +387,22 @@ export function WindowCompanionView({
                     <button
                       type="button"
                       aria-label={t('companion.dismiss')}
-                      onClick={() => companion.dismiss(card.messageId, card.channelId)}
+                      onClick={(event) => {
+                        if (document.activeElement === event.currentTarget) {
+                          const controls = [
+                            ...root.current!.querySelectorAll<HTMLButtonElement>(
+                              '.bh-companion-card header > button',
+                            ),
+                          ];
+                          const current = controls.indexOf(event.currentTarget);
+                          (
+                            controls[current + 1] ??
+                            controls[current - 1] ??
+                            character.current
+                          )?.focus();
+                        }
+                        companion.dismiss(card.messageId, card.channelId);
+                      }}
                     >
                       <IconCloseFillRegular size={14} />
                     </button>
@@ -388,6 +451,13 @@ export function WindowCompanionView({
             }
             onSelect={(id) => {
               if (id === 'remove') {
+                const pin = [
+                  ...document.querySelectorAll<HTMLButtonElement>('[data-companion-pin]'),
+                ].find((item) => item.dataset['companionPin'] === bot.slug);
+                const next = [
+                  ...document.querySelectorAll<HTMLButtonElement>('.bh-companion-character'),
+                ].find((item) => item !== character.current);
+                (pin ?? next)?.focus();
                 if (onRemove) onRemove(bot.slug);
                 else companion.remove();
               }
@@ -417,6 +487,7 @@ export function WindowCompanionView({
         <button
           type="button"
           className="bh-companion-character"
+          ref={character}
           style={{
             transform: `rotate(${point.tilt}deg) scale(${1 + point.squash}, ${1 - point.squash})`,
           }}
@@ -425,6 +496,11 @@ export function WindowCompanionView({
             if (!pointer.current?.moved) openDm(bot.slug);
           }}
           onKeyDown={(event) => {
+            if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+              event.preventDefault();
+              enter();
+              setMenu(true);
+            }
             if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
               event.preventDefault();
               setPoint(motion.move(motion.point.x + (event.key === 'ArrowLeft' ? -24 : 24)));
@@ -490,6 +566,7 @@ export function WindowCompanionView({
             activity={activity?.activity}
             surface="companion"
             indicator={false}
+            still={bot.paused}
             t={t}
           />
         </button>

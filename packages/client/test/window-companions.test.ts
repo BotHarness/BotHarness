@@ -438,3 +438,84 @@ it('restores only Profile preferences and rejects superseded selection baselines
   ).toBe(true);
   restored.dispose();
 });
+
+it('removes a confirmed deleted identity across pages and fences old acknowledgements and playback', async () => {
+  const events = new EventTarget();
+  const updates: { revision: number }[] = [];
+  const close = vi.fn();
+  const owner = new WindowCompanions({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({
+      addEventListener: events.addEventListener.bind(events),
+      close,
+    }),
+    update: async (value) => {
+      updates.push(value);
+    },
+  });
+  const snapshot = (revision: number, removedBotIds: string[], name = 'companion/activity') =>
+    events.dispatchEvent(
+      new MessageEvent(name, {
+        data: JSON.stringify({
+          profileId: 'qa',
+          consumerId: 'live',
+          selectionRevision: revision,
+          removedBotIds,
+          bots: ['ada', 'grace'].map((slug) => ({ slug, name: slug, paused: false })),
+          activity: { generation: 'host', revision, bots: [] },
+        }),
+      }),
+    );
+  try {
+    await owner.start();
+    owner.select('ada');
+    owner.select('grace');
+    await Promise.resolve();
+    snapshot(0, [], 'companion/baseline');
+    await vi.waitFor(() => expect(updates).toHaveLength(1));
+    snapshot(updates[0]!.revision, [], 'companion/selection');
+    events.dispatchEvent(
+      new MessageEvent('companion/message', {
+        data: JSON.stringify({
+          generation: 'host',
+          botId: 'ada',
+          channelId: 'dm',
+          channelName: 'Ada',
+          messageId: 'visible',
+          body: 'visible',
+        }),
+      }),
+    );
+    expect(owner.get('ada')!.getSnapshot().cards).toHaveLength(1);
+    snapshot(updates[0]!.revision - 1, ['ada']);
+    expect(owner.get('ada')).toBeDefined();
+    const removedChild = owner.get('ada')!;
+    snapshot(updates[0]!.revision, ['ada']);
+    expect(owner.get('ada')).toBeUndefined();
+    events.dispatchEvent(
+      new MessageEvent('companion/message', {
+        data: JSON.stringify({
+          generation: 'host',
+          botId: 'ada',
+          channelId: 'dm',
+          channelName: 'Ada',
+          messageId: 'late',
+          body: 'late',
+        }),
+      }),
+    );
+    expect(removedChild.getSnapshot()).toMatchObject({
+      cards: [],
+      pending: 0,
+      reading: false,
+      selection: undefined,
+      bot: undefined,
+    });
+    expect(owner.get('grace')).toBeDefined();
+    expect(close).not.toHaveBeenCalled();
+    owner.remove('grace');
+    expect(close).toHaveBeenCalledOnce();
+  } finally {
+    owner.dispose();
+  }
+});

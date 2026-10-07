@@ -51,6 +51,7 @@ export interface PersonaBotAvatarProps {
   t?: BotHarnessTranslate | undefined;
   className?: string | undefined;
   surface?: 'portrait' | 'companion' | undefined;
+  still?: boolean | undefined;
 }
 
 export interface PersonaBotFacepileItem {
@@ -341,6 +342,7 @@ export function PersonaBotAvatar({
   indicator = true,
   className,
   surface = 'portrait',
+  still = false,
   t = zhTranslate,
 }: PersonaBotAvatarProps): ReactElement {
   const resolvedEffect =
@@ -353,7 +355,7 @@ export function PersonaBotAvatar({
     [seeded, name, personaBotId],
   );
   const mediaKind = composed ? 'composed' : seeded ? 'seeded' : 'image';
-  const active = state === 'thinking' || state === 'working';
+  const active = !still && (state === 'thinking' || state === 'working');
   const classes = ['bh-persona-avatar', className].filter(Boolean).join(' ');
 
   return (
@@ -381,6 +383,7 @@ export function PersonaBotAvatar({
             attention?.approvalCount ?? 0,
           )}
           surface={surface}
+          still={still}
         />
       ) : (
         <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />

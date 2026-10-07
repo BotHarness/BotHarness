@@ -559,3 +559,108 @@ it('keeps an Avatar scrolled out of view still across updates and resumes motion
     node.remove();
   }
 });
+
+it('keeps archived companions still while retaining truthful outer labels and unknown-version image snapshots', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const animate = vi.fn(() => ({ cancel: vi.fn(), finished: Promise.resolve() }));
+  const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
+  Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate });
+  const node = document.createElement('div');
+  const root = createRoot(node);
+  const props = {
+    personaBotId: 'ada',
+    name: 'Ada',
+    size: 96,
+    surface: 'companion' as const,
+    appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
+    state: 'idle' as const,
+    still: true,
+  };
+  try {
+    await act(() => root.render(createElement(PersonaBotAvatar, props)));
+    expect(animate).not.toHaveBeenCalled();
+    await act(() =>
+      root.render(
+        createElement(PersonaBotAvatar, {
+          ...props,
+          src: '/snapshot?v=revision',
+          appearance: {
+            revision: 'b'.repeat(64),
+            recipe: {
+              family: 'illustrated',
+              schemaVersion: 999,
+              assetVersion: 999,
+              rigVersion: 999,
+            },
+          },
+        }),
+      ),
+    );
+    expect(node.querySelector('img')?.getAttribute('src')).toBe('/snapshot?v=revision');
+    expect(node.querySelector('svg')).toBeNull();
+    expect(animate).not.toHaveBeenCalled();
+  } finally {
+    await act(() => root.unmount());
+    if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
+    else Reflect.deleteProperty(Element.prototype, 'animate');
+  }
+});
+
+it('fences resolved obsolete animations when motion policy changes before their completion', async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  const jobs: { resolve(): void; cancel: ReturnType<typeof vi.fn>; looping: boolean }[] = [];
+  const previous = Object.getOwnPropertyDescriptor(Element.prototype, 'animate');
+  Object.defineProperty(Element.prototype, 'animate', {
+    configurable: true,
+    value: (_frames: Keyframe[], options: KeyframeAnimationOptions) => {
+      let resolve = () => {};
+      const finished = new Promise<void>((done) => {
+        resolve = done;
+      });
+      const job = { resolve, cancel: vi.fn(), looping: options.iterations === Infinity };
+      jobs.push(job);
+      return { finished, cancel: job.cancel };
+    },
+  });
+  const node = document.createElement('div');
+  const root = createRoot(node);
+  try {
+    await act(() =>
+      root.render(
+        createElement(PersonaBotAvatar, {
+          personaBotId: 'ada',
+          name: 'Ada',
+          size: 96,
+          appearance: { recipe: DEFAULT_ILLUSTRATED_RECIPE, revision: 'a'.repeat(64) },
+        }),
+      ),
+    );
+    expect(jobs).toHaveLength(2);
+    await act(() => {
+      document.documentElement.dataset['botharnessMotion'] = 'reduce';
+    });
+    await act(() => {
+      document.documentElement.dataset['botharnessMotion'] = 'full';
+    });
+    expect(jobs).toHaveLength(4);
+    await act(async () => {
+      jobs[0]!.resolve();
+      jobs[1]!.resolve();
+    });
+    expect(jobs.some((job) => job.looping)).toBe(false);
+    await act(async () => {
+      jobs[2]!.resolve();
+      jobs[3]!.resolve();
+    });
+    expect(jobs.filter((job) => job.looping)).toHaveLength(2);
+    await act(() => root.unmount());
+    expect(
+      jobs.filter((job) => job.looping).every((job) => job.cancel.mock.calls.length === 1),
+    ).toBe(true);
+  } finally {
+    await act(() => root.unmount());
+    delete document.documentElement.dataset['botharnessMotion'];
+    if (previous) Object.defineProperty(Element.prototype, 'animate', previous);
+    else Reflect.deleteProperty(Element.prototype, 'animate');
+  }
+});

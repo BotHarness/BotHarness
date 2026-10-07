@@ -85,7 +85,11 @@ export class CompanionMotion {
     walking: boolean,
     direction: number,
   ): CompanionPoint {
-    if (this.point.phase === 'drag') return this.point;
+    if (this.point.phase === 'drag') {
+      if (reduced && (this.point.tilt || this.point.squash))
+        return (this.point = { ...this.point, tilt: 0, squash: 0 });
+      return this.point;
+    }
     if (reduced) {
       if (this.point.phase !== 'rest')
         return this.measure(this.point.width, this.height + 120, this.position());

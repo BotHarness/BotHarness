@@ -289,3 +289,97 @@ it('reveals whole emoji and combining graphemes and clips previews on a complete
   message('preview', 'a'.repeat(1999) + '👩‍💻');
   expect(owner.getSnapshot().cards[1]!.body).toBe('a'.repeat(1999));
 });
+
+it('clears playback and reading on archive and refuses queued archived speech', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const snapshot = (paused: boolean, name = 'companion/activity') =>
+    events.dispatchEvent(
+      new MessageEvent(name, {
+        data: JSON.stringify({
+          profileId: 'qa',
+          bot: { slug: 'ada', name: 'Ada', paused },
+          activity: { generation: 'host', revision: 1, bots: [{ slug: 'ada', state: 'working' }] },
+        }),
+      }),
+    );
+  const message = (messageId: string) =>
+    events.dispatchEvent(
+      new MessageEvent('companion/message', {
+        data: JSON.stringify({
+          generation: 'host',
+          botId: 'ada',
+          channelId: 'dm',
+          channelName: 'Ada',
+          messageId,
+          body: messageId,
+        }),
+      }),
+    );
+  snapshot(false, 'companion/baseline');
+  message('visible');
+  owner.reading(true);
+  message('pending');
+  snapshot(true);
+  message('late-archived');
+  expect(owner.getSnapshot()).toMatchObject({
+    cards: [],
+    pending: 0,
+    reading: false,
+    bot: { paused: true },
+  });
+  snapshot(false);
+  message('new');
+  expect(owner.getSnapshot().cards.map((card) => card.messageId)).toEqual(['new']);
+});
+
+it('resets playback after a coalesced archive-reactivation transition without closing focused controls repeatedly', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({
+      addEventListener: events.addEventListener.bind(events),
+      close() {},
+    }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const snapshot = (lifecycle: string, paused = false) =>
+    events.dispatchEvent(
+      new MessageEvent('companion/baseline', {
+        data: JSON.stringify({
+          profileId: 'qa',
+          recovered: true,
+          bot: { slug: 'ada', name: 'Ada', paused, lifecycle },
+          activity: { generation: 'host', revision: 1, bots: [] },
+        }),
+      }),
+    );
+  snapshot('active-a');
+  events.dispatchEvent(
+    new MessageEvent('companion/message', {
+      data: JSON.stringify({
+        generation: 'host',
+        botId: 'ada',
+        channelId: 'dm',
+        channelName: 'Ada',
+        messageId: 'old',
+        body: 'old',
+      }),
+    }),
+  );
+  owner.reading(true);
+  snapshot('active-b');
+  expect(owner.getSnapshot()).toMatchObject({ cards: [], pending: 0, reading: false });
+  snapshot('archived', true);
+  owner.reading(true);
+  snapshot('archived', true);
+  expect(owner.getSnapshot().reading).toBe(true);
+});

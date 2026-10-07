@@ -32,6 +32,8 @@ export const zh = {
   'companion.attention': '查看待处理事项',
   'companion.stale': '同步中断 · 等待重新连接',
   'companion.archived': '已归档',
+  'companion.imageOnly': '静态图片，仅支持整体移动',
+  'companion.rigUnavailable': '此版本无法播放形象动作，使用保存的快照',
   'approvalIm.title': 'Lark 审批通知',
   'approvalIm.hint':
     '选择已配对且获准处理审批的私聊用户。每个工具审批请求都会自动发到此处；普通聊天接收另行配置。',
@@ -2165,6 +2167,8 @@ export const en = {
   'companion.attention': 'Open Human attention',
   'companion.stale': 'Synchronization interrupted · reconnecting',
   'companion.archived': 'Archived',
+  'companion.imageOnly': 'Static image; whole-object movement only',
+  'companion.rigUnavailable': 'Avatar animation unavailable in this version; using saved snapshot',
   'approvalIm.title': 'Lark approval notifications',
   'approvalIm.hint':
     'Choose a paired private user authorized to handle approvals. Each tool approval goes here automatically; ordinary conversation reception is configured separately.',

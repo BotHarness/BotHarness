@@ -9,6 +9,8 @@
 
 ### Added
 
+- 窗口伙伴独立于 Bot 模式跟随归档和删除，保留图片及未知版本快照回退，并支持键盘阅读与操作；动态效果偏好变化立即归位，离屏呈现和旧动画停止，不重播旧消息 ([#1142](https://github.com/BotHarness/DeepSeekBot/issues/1142)).
+
 - 窗口伙伴在同一 Host 的短暂断线后，有界恢复尚未播放且仍符合范围的回复，保留阅读进度；页面隐藏时暂停呈现。重新开启来源只播放后续消息，首次钉选及 Client／Host 重启不重播历史（[#1141](https://github.com/BotHarness/DeepSeekBot/issues/1141)）。
 
 - 窗口伙伴可以独立开启群聊消息，按每个 Bot 选择仅自己的私聊、共同会话或该 Bot 的全部会话；Bot–Bot 私聊标明双方参与者，所有气泡标明原 Channel 并遵守其现有读取权限。切换来源或范围只移除不再符合条件的卡片，保留仍可见的阅读和排队消息，新开启来源只播放后续已提交的 Bot 正文，不改变已读位置（[#1140](https://github.com/BotHarness/DeepSeekBot/issues/1140)）。
