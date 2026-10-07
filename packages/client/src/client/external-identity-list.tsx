@@ -28,7 +28,7 @@ export function ExternalIdentityList({
   t: BotHarnessTranslate;
   mutate(input: MessagingIdentityInput): Promise<void>;
 }): ReactElement {
-  const [mode, setMode] = useState<'bind' | 'edit' | 'reconnect' | 'unbind'>();
+  const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
   const [selected, setSelected] = useState<MessagingIdentityView>();
   const [accountKey, setAccountKey] = useState('');
   const [name, setName] = useState('');
@@ -38,7 +38,14 @@ export function ExternalIdentityList({
   const identities = snapshot?.identities ?? [];
   const accounts = snapshot?.accounts ?? [];
   const selectedAccount = accounts.find((a) => a.providerId + ':' + a.ref === accountKey);
+  const bound = identities.find(
+    (i) => selectedAccount && i.providerId + ':' + i.accountRef === accountKey,
+  );
   const platform = (value: string) => externalPlatformLabel(value, t);
+  const conversations = (row: MessagingIdentityView) =>
+    (snapshot?.grants ?? []).filter(
+      (g) => g.bindingId === row.id && !g.revokedAt && g.receiveScope !== undefined,
+    );
   const open = (next: typeof mode, row?: MessagingIdentityView) => {
     setError('');
     setMode(next);
@@ -81,7 +88,8 @@ export function ExternalIdentityList({
         accountRef: selectedAccount.ref,
         fingerprint: selectedAccount.fingerprint,
       });
-    } else if (selected && mode && mode !== 'bind') {
+      setMode('bound');
+    } else if (selected && mode && mode !== 'bind' && mode !== 'bound') {
       await mutate(
         mode === 'edit'
           ? {
@@ -112,9 +120,9 @@ export function ExternalIdentityList({
             key={row.id}
             icon="id-card"
             title={row.name}
-            meta={`${platform(row.platform)} · ${t(
-              row.enabledInheritance === 'inherit' ? 'defaults.inherited' : 'defaults.custom',
-            )}`}
+            meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
+              count: conversations(row).length,
+            })}`}
             chips={<Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>}
             muted={!row.enabled}
             hint={t('identity.editFor', { name: row.name })}
@@ -159,7 +167,7 @@ export function ExternalIdentityList({
         open={mode !== undefined}
         onClose={close}
         title={t(
-          mode === 'bind'
+          mode === 'bind' || mode === 'bound'
             ? 'identity.bind'
             : mode === 'unbind'
               ? 'identity.unbind'
@@ -191,33 +199,39 @@ export function ExternalIdentityList({
                 </Button>
                 <span className="bh-modal-footer-gap" />
               </>
-            ) : (
+            ) : mode === 'bound' ? null : (
               <Button variant="outline" disabled={busy} onClick={close}>
                 {t('common.cancel')}
               </Button>
             )}
-            <Button
-              variant="primary"
-              className={mode === 'unbind' ? 'bh-im-danger' : undefined}
-              disabled={
-                busy ||
-                (mode === 'bind' && (!selectedAccount || !selectedAccount.connected)) ||
-                (mode === 'edit' && !name.trim())
-              }
-              onClick={() => void operate(save, true)}
-            >
-              {t(
-                busy
-                  ? 'identity.pending'
-                  : mode === 'unbind'
-                    ? 'identity.confirmUnbind'
-                    : mode === 'bind'
-                      ? 'identity.bind'
-                      : mode === 'reconnect'
-                        ? 'identity.reconnect'
-                        : 'identity.save',
-              )}
-            </Button>
+            {mode === 'bound' ? (
+              <Button variant="primary" onClick={close}>
+                {t('identity.done')}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                className={mode === 'unbind' ? 'bh-im-danger' : undefined}
+                disabled={
+                  busy ||
+                  (mode === 'bind' && (!selectedAccount || !selectedAccount.connected)) ||
+                  (mode === 'edit' && !name.trim())
+                }
+                onClick={() => void operate(save, mode !== 'bind')}
+              >
+                {t(
+                  busy
+                    ? 'identity.pending'
+                    : mode === 'unbind'
+                      ? 'identity.confirmUnbind'
+                      : mode === 'bind'
+                        ? 'identity.bind'
+                        : mode === 'reconnect'
+                          ? 'identity.reconnect'
+                          : 'identity.save',
+                )}
+              </Button>
+            )}
           </div>
         }
       >
@@ -231,10 +245,10 @@ export function ExternalIdentityList({
             <>
               <p>{t('identity.providerHint')}</p>
               <label className="bh-im-field">
-                <span>{t('im.account')}</span>
+                <span>{t('identity.app')}</span>
                 <Combobox
-                  label={t('im.account')}
-                  toggleLabel={t('im.account')}
+                  label={t('identity.app')}
+                  toggleLabel={t('identity.app')}
                   placeholder={t('im.select')}
                   emptyLabel={t('im.setup')}
                   disabled={busy}
@@ -251,6 +265,24 @@ export function ExternalIdentityList({
               </label>
               {!accounts.length ? <p>{t('im.setup')}</p> : null}
               <p className="bh-muted">{t('identity.bindHint')}</p>
+            </>
+          ) : mode === 'bound' && selectedAccount ? (
+            <>
+              <p className="bh-sidebar-modal-subject">
+                {platform(selectedAccount.platform)} · {selectedAccount.name}
+              </p>
+              <p role="status">
+                {t(
+                  selectedAccount.platform !== 'feishu'
+                    ? 'identity.boundOther'
+                    : bound?.reception === 'receiving'
+                      ? 'identity.ready'
+                      : bound?.reception === 'connecting' || bound === undefined
+                        ? 'identity.connecting'
+                        : 'identity.offline',
+                  { app: selectedAccount.name },
+                )}
+              </p>
             </>
           ) : selected ? (
             <>
@@ -291,6 +323,38 @@ export function ExternalIdentityList({
                     />
                   </div>
                 </>
+              ) : null}
+              {mode === 'edit' ? (
+                <div className="bh-im-field">
+                  <span className="bh-im-heading">{t('identity.conversations')}</span>
+                  {conversations(selected).length ? (
+                    <SidebarCardList label={t('identity.conversations')}>
+                      {conversations(selected).map((entry) => (
+                        <SidebarCardRow
+                          key={entry.id}
+                          icon={entry.receiveScope?.kind === 'dm' ? 'user' : 'users'}
+                          title={entry.targetName || entry.receiveScope!.conversationId}
+                          meta={[
+                            t(
+                              entry.receiveScope?.kind === 'dm'
+                                ? 'identity.kind.dm'
+                                : 'identity.kind.group',
+                            ),
+                            ...(entry.lastMessageAt
+                              ? [
+                                  t('identity.lastMessage', {
+                                    time: new Date(entry.lastMessageAt).toLocaleString(),
+                                  }),
+                                ]
+                              : []),
+                          ].join(' · ')}
+                        />
+                      ))}
+                    </SidebarCardList>
+                  ) : (
+                    <p className="bh-muted">{t('identity.conversationsEmpty')}</p>
+                  )}
+                </div>
               ) : null}
               {mode === 'reconnect' ? <p>{t('identity.reconnectHint')}</p> : null}
               {mode === 'unbind' ? (

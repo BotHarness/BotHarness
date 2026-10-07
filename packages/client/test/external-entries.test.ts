@@ -85,6 +85,7 @@ const snapshot: MessagingSnapshot = {
       revision: 1,
       createdAt: '2026-10-07T00:00:00Z',
       availability: 'available',
+      newConversations: 'auto',
       grantCount: 0,
       scopes: [],
     },

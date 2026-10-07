@@ -21,6 +21,7 @@ it('does not trust a reply from another account, group or disabled identity', ()
     fingerprint: 'a',
     enabled: true,
     availability: 'available' as const,
+    newConversations: 'auto' as const,
     revision: 1,
     createdAt: 'now',
     grantCount: 1,

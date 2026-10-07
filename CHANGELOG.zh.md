@@ -9,6 +9,8 @@
 
 ### Added
 
+- 绑定飞书应用就能收发：外部身份里的 **绑定身份** 改为 **绑定应用**，绑定后私聊这个应用、或在群里 @ 它，消息直接进入这个 Bot 的收件箱，Bot 在原会话回复，不需要保存投递目标、授权会话或打开收件开关。第一条消息会自动记下会话，应用行显示会话数，点开可查看只读会话列表；绑定后弹窗显示真实的接收状态。`/pair` 仍由配对处理，已有授权的行为不变，所有已绑定应用升级后都默认自动接收新会话（[#1108](https://github.com/BotHarness/BotHarness/issues/1108)，[ADR-0142](docs/adr/0142-a-bound-app-admits-its-direct-messages-and-mentions.md)，[外部身份教程](docs/channel-sidebar/external-identities.md)）。
+
 - 经 Web 审核的 Lark 用户可按名称选择管理私聊，接收工具审批并点击「允许一次／拒绝」；回调复核实际点击者和准确的原生调用，Profile 分开展示通知投递、决定接受及原生执行结果。确定未发送的重试有上限，未知投递及重启后的旧卡片不能授权执行（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)、[ADR-0141](docs/adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)）。
 
 - AX 隔离 Profile 可在一次隐藏输入设置后复用本机 OpenCode Go 凭证和内置默认模型，保留各 Profile 的独立配置；经核验的 DSH 0.2.0 RC1 适配器补齐真实 Go 回复要求的实际 Session 请求头（[#1079](https://github.com/BotHarness/BotHarness/issues/1079), [指南](docs/agents/ax-model.md)）。

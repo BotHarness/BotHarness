@@ -111,6 +111,7 @@ export interface MessagingGrant {
   receptionInheritance?: 'inherit' | 'custom';
   channelBridge?: ChannelBridgeConfiguration;
   bridgeRoutes?: ChannelBridgeRoute[];
+  origin?: 'explicit' | 'implicit';
   revokedAt?: string;
   suspendedReason?: 'rebind-required';
 }
@@ -182,6 +183,7 @@ export interface MessagingSnapshot {
     reception: ReturnType<InboundMessaging['status']>;
     canReceive?: boolean;
     canPost?: boolean;
+    lastMessageAt?: string;
     groupPolicy?: GroupReceptionPolicy;
     threadPolicies?: ThreadReceptionView[];
     ordinaryDelivery?: 'verified' | 'unverified';
@@ -439,6 +441,20 @@ export function createOutboundMessaging(options: {
       ['grants'],
     );
   };
+  const inspectImplicit = async (registered: MessagingProvider, value: MessagingGrant) => {
+    if (!registered.inspectAccount || !value.receiveScope)
+      throw new MessagingError('capability-unavailable');
+    const account = await bounded(registered.inspectAccount(value.accountRef));
+    return {
+      account,
+      target: {
+        ref: value.targetRef,
+        name: value.targetName,
+        digest: value.targetDigest,
+        receiveScope: value.receiveScope,
+      },
+    };
+  };
   const check = async (value: MessagingGrant) => {
     active(value.botSlug);
     if (value.revokedAt !== undefined) throw new MessagingError('grant-revoked');
@@ -447,7 +463,10 @@ export function createOutboundMessaging(options: {
     const entry = provider(value.providerId);
     let inspected;
     try {
-      inspected = await bounded(entry.provider.inspect(value.accountRef, value.targetRef));
+      inspected =
+        value.origin === 'implicit'
+          ? await inspectImplicit(entry.provider, value)
+          : await bounded(entry.provider.inspect(value.accountRef, value.targetRef));
     } catch (error) {
       current(value.providerId, entry.token);
       if (error instanceof MessagingError && error.code === 'rebind-required') suspend(value);
@@ -674,6 +693,7 @@ export function createOutboundMessaging(options: {
         if (account.platform !== value.platform) throw new MessagingError('rebind-required');
         for (const row of scopes) {
           const g = JSON.parse(row.body) as MessagingGrant;
+          if (g.origin === 'implicit') continue;
           const entry = provider(g.providerId);
           const checked = await bounded(entry.provider.inspect(g.accountRef, g.targetRef));
           current(g.providerId, entry.token);
@@ -712,7 +732,7 @@ export function createOutboundMessaging(options: {
             throw new MessagingError('identity-stale');
           const at = now();
           db.prepare(
-            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ? WHERE id = ?',
+            'UPDATE messaging_bindings SET revision = revision + 1, enabled = ?, display_name = ?, revoked_at = ?, enabled_inherited = ?, new_conversations = ? WHERE id = ?',
           ).run(
             enabled ? 1 : 0,
             input.kind === 'update' ? input.name.trim() : latest.name,
@@ -724,6 +744,9 @@ export function createOutboundMessaging(options: {
               : latest.enabledInheritance === 'inherit'
                 ? 1
                 : 0,
+            input.kind === 'update'
+              ? (input.newConversations ?? latest.newConversations)
+              : latest.newConversations,
             value.id,
           );
           if (input.kind === 'unbind') {
@@ -1018,17 +1041,19 @@ export function createOutboundMessaging(options: {
         )
           continue;
         sourceForReply(botSlug, sourceEventId, value);
-        const registered = provider(value.providerId);
-        const targets = await bounded(registered.provider.targets(value.accountRef));
-        current(value.providerId, registered.token);
-        if (
-          !targets.some(
-            (target) =>
-              target.ref === value.targetRef &&
-              target.receiveScope?.conversationId === source.event.conversation.id,
+        if (value.origin !== 'implicit') {
+          const registered = provider(value.providerId);
+          const targets = await bounded(registered.provider.targets(value.accountRef));
+          current(value.providerId, registered.token);
+          if (
+            !targets.some(
+              (target) =>
+                target.ref === value.targetRef &&
+                target.receiveScope?.conversationId === source.event.conversation.id,
+            )
           )
-        )
-          continue;
+            continue;
+        }
         const entry = await check(value);
         if (entry.inspected.target.receiveScope?.conversationId === source.event.conversation.id)
           matches.push(value);
@@ -1063,7 +1088,7 @@ export function createOutboundMessaging(options: {
     },
     async post(botSlug, grantId, requestId, text) {
       const value = grant(botSlug, grantId);
-      if (provider(value.providerId).provider.post === undefined)
+      if (value.origin === 'implicit' || provider(value.providerId).provider.post === undefined)
         throw new MessagingError('capability-unavailable');
       return service.send(botSlug, grantId, requestId, text, undefined, undefined, true);
     },
@@ -1171,6 +1196,16 @@ export function createOutboundMessaging(options: {
           return {
             ...latest,
             availability,
+            ...(latest.platform === 'feishu'
+              ? {
+                  reception:
+                    availability === 'available'
+                      ? inbound.pairingReception(id)
+                      : availability === 'paused'
+                        ? ('off' as const)
+                        : ('unavailable' as const),
+                }
+              : {}),
             grantCount: scopes.length,
             scopes: scopes.map((g) => g.targetName),
           };
@@ -1186,6 +1221,7 @@ export function createOutboundMessaging(options: {
             try {
               const checked = await check(value);
               canPost =
+                value.origin !== 'implicit' &&
                 checked.provider.post !== undefined &&
                 checked.inspected.target.receiveScope !== undefined;
               canReceive =
@@ -1199,8 +1235,21 @@ export function createOutboundMessaging(options: {
             }
           }
           const current = grant(botSlug, value.id);
+          const lastMessageAt =
+            current.origin === 'implicit'
+              ? (
+                  database.read((db) =>
+                    db
+                      .prepare(
+                        "SELECT max(created_at) AS at FROM source_events WHERE source_kind = 'bridge-message' AND json_extract(payload_json, '$.external.grantId') = ?",
+                      )
+                      .get(current.id),
+                  ) as { at: string | null }
+                ).at
+              : null;
           return {
             ...current,
+            ...(lastMessageAt ? { lastMessageAt } : {}),
             availability,
             reception: inbound.status(value.id),
             canReceive,
@@ -1297,15 +1346,7 @@ export function createOutboundMessaging(options: {
         approvals: approvals.snapshot(botSlug),
         pairingReceivers: identities
           .filter((i) => i.platform === 'feishu' && !i.revokedAt)
-          .map((i) => ({
-            name: i.name,
-            status:
-              i.availability === 'available'
-                ? inbound.pairingReception(i.id)
-                : i.availability === 'paused'
-                  ? 'off'
-                  : 'unavailable',
-          })),
+          .map((i) => ({ name: i.name, status: i.reception ?? 'unavailable' })),
         grants,
         channelTargets,
         intents,
@@ -1381,6 +1422,7 @@ export function createOutboundMessaging(options: {
             targetName: inspected.target.name,
             revision: 1,
             createdAt: at,
+            origin: 'explicit',
           };
           if (!reusable)
             db.prepare(
@@ -1483,6 +1525,8 @@ export function createOutboundMessaging(options: {
           ? undefined
           : sourceForReply(botSlug, sourceEventId, acceptedGrant);
       if (file && source?.grantId !== grantId) throw new MessagingError('capability-unavailable');
+      if (acceptedGrant.origin === 'implicit' && source === undefined)
+        throw new MessagingError('capability-unavailable');
       const acceptedEntry = await check(acceptedGrant);
       const acceptedIdentity = acceptedEntry.identityRevision;
       const replyRoute =
