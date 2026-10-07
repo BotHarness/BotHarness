@@ -68,6 +68,8 @@ These are native DSH settings. Initial values below were observed in a clean RC1
 | My default name               | Empty → Human; maximum 128 characters                   | Save name for chat, mentions, and Bot context. Restore default or save empty to return to Human.                                                                          |
 | Anonymous usage statistics    | On                                                      | Switch saves immediately and applies without a restart; locked off when config or environment disables it. See [Anonymous usage statistics](#anonymous-usage-statistics). |
 
+**IM apps** lists every connected IM app with its platform, connection state and the Bot it is bound to. Click a Bot name to open its DM. Apps no Bot uses show **Not bound**. **Manage app credentials** opens **Settings → IM bots**, where app credentials live. The list refreshes on its own after any Bot binds or unbinds an app.
+
 The lower “External platform defaults” area belongs to IM intake/identity settings; see [Lark / Feishu](/docs/lark-connection), [Slack](/docs/slack-connection), and Discord. Each platform has independent defaults and revisions. Profile identities and group intake policies can inherit these values or retain custom choices; restoring inheritance uses the current platform defaults. Discord ordinary intake still requires Message Content Intent and verified delivery; changing defaults does not grant either.
 
 ## Create a Bot and edit its Profile

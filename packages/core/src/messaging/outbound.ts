@@ -172,6 +172,12 @@ export interface OutboxIntent {
   reason?: string;
 }
 
+export type MessagingApp = MessagingAccount & {
+  providerId: string;
+  boundBotSlug?: string;
+  bindingId?: string;
+};
+
 export interface MessagingSnapshot {
   approvals?: ApprovalMessagingSnapshot;
   setup?: {
@@ -192,7 +198,7 @@ export interface MessagingSnapshot {
   pairings?: PairingRequest[];
   pairingReceivers?: { name: string; status: 'off' | 'connecting' | 'receiving' | 'unavailable' }[];
   channelTargets?: { id: string; name: string }[];
-  accounts: (MessagingAccount & { providerId: string })[];
+  accounts: MessagingApp[];
   grants: (MessagingGrant & {
     availability: 'available' | 'unavailable' | 'rebind-required';
     reception: ReturnType<InboundMessaging['status']>;
@@ -241,6 +247,7 @@ export interface OutboundMessaging {
   ): Promise<OutboxIntent>;
   register(provider: MessagingProvider): () => void;
   snapshot(botSlug: string): Promise<MessagingSnapshot>;
+  apps(): Promise<MessagingApp[]>;
   channelBridges(channelId: string): Promise<ChannelBridgeSnapshot>;
   targets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   authorize(input: {
@@ -669,15 +676,9 @@ export function createOutboundMessaging(options: {
             current(input.providerId, account.token);
             const prior = db
               .prepare(
-                'SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND ((provider_id = ? AND (account_ref = ? OR fingerprint = ?)) OR (bot_slug = ? AND platform = ?))',
+                'SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND provider_id = ? AND (account_ref = ? OR fingerprint = ?)',
               )
-              .get(
-                input.providerId,
-                input.accountRef,
-                input.fingerprint,
-                botSlug,
-                account.platform,
-              );
+              .get(input.providerId, input.accountRef, input.fingerprint);
             if (prior) throw new MessagingError('binding-conflict');
             const id = randomUUID();
             db.prepare(
@@ -1185,7 +1186,7 @@ export function createOutboundMessaging(options: {
           .map(source),
       };
     },
-    async snapshot(botSlug) {
+    async apps() {
       const accounts = (
         await Promise.allSettled(
           [...providers.values()].map(async (entry) =>
@@ -1196,6 +1197,30 @@ export function createOutboundMessaging(options: {
           ),
         )
       ).flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+      const bindings = database.read((db) =>
+        db
+          .prepare(
+            'SELECT id, bot_slug, provider_id, account_ref, fingerprint FROM messaging_bindings WHERE revoked_at IS NULL',
+          )
+          .all(),
+      ) as {
+        id: string;
+        bot_slug: string;
+        provider_id: string;
+        account_ref: string;
+        fingerprint: string;
+      }[];
+      return accounts.map((account) => {
+        const bound = bindings.find(
+          (b) =>
+            b.provider_id === account.providerId &&
+            (b.account_ref === account.ref || b.fingerprint === account.fingerprint),
+        );
+        return bound ? { ...account, boundBotSlug: bound.bot_slug, bindingId: bound.id } : account;
+      });
+    },
+    async snapshot(botSlug) {
+      const accounts = await service.apps();
       const rows = database.read((db) =>
         db
           .prepare('SELECT body FROM messaging_grants WHERE bot_slug = ? ORDER BY created_at DESC')
@@ -1423,16 +1448,9 @@ export function createOutboundMessaging(options: {
           active(input.botSlug);
           const existing = db
             .prepare(
-              'SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND ((provider_id = ? AND account_ref = ?) OR (provider_id = ? AND fingerprint = ?) OR (bot_slug = ? AND platform = ?))',
+              'SELECT id FROM messaging_bindings WHERE revoked_at IS NULL AND provider_id = ? AND (account_ref = ? OR fingerprint = ?)',
             )
-            .get(
-              input.providerId,
-              input.accountRef,
-              input.providerId,
-              input.fingerprint,
-              input.botSlug,
-              inspected.account.platform,
-            );
+            .get(input.providerId, input.accountRef, input.fingerprint);
           let reusable: MessagingIdentity | undefined;
           if (existing !== undefined) {
             reusable = readMessagingIdentity(db, (existing as { id: string }).id);

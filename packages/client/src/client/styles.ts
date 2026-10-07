@@ -2561,6 +2561,12 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-conversation-reason { font-size: 12px; color: var(--dsw-alias-state-warning-primary, var(--dsw-alias-label-secondary)); }
 .bh-conversation-confirm { display: grid; gap: 8px; }
 .bh-conversation-confirm p { margin: 0; }
+.bh-im-apps { display: grid; gap: 8px; }
+.bh-im-apps p { margin: 0; }
+.bh-im-apps-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bh-im-apps-table th { text-align: left; font-weight: 500; color: var(--dsw-alias-label-secondary); padding: 4px 8px 4px 0; }
+.bh-im-apps-table td .bh-im-apps-bot { margin-left: -8px; }
+.bh-im-apps-table td { padding: 6px 8px 6px 0; border-top: 1px solid var(--dsw-alias-border-l2); }
 .bh-modal-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; justify-content: flex-end; }
 .bh-modal-footer > button { white-space: nowrap; }
 .bh-modal-footer-gap { flex: 1; }

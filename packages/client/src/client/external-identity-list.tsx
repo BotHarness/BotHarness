@@ -127,40 +127,46 @@ export function ExternalIdentityList({
         </p>
       ) : null}
       <SidebarCardList label={t('identity.title')}>
-        {identities.map((row) => (
-          <SidebarCardRow
-            key={row.id}
-            icon="id-card"
-            title={row.name}
-            meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
-              count: conversations(row).length,
-            })}`}
-            chips={<Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>}
-            muted={!row.enabled}
-            hint={t('identity.editFor', { name: row.name })}
-            dialog
-            disabled={busy}
-            onClick={() => open('edit', row)}
-            trailing={
-              <Switch
-                label={t('identity.enableFor', { name: row.name })}
-                checked={row.enabled}
-                disabled={busy}
-                onChange={(enabled) =>
-                  void operate(() =>
-                    mutate({
-                      kind: 'update',
-                      id: row.id,
-                      expectedRevision: row.revision,
-                      name: row.name,
-                      enabled,
-                    }),
-                  )
-                }
-              />
-            }
-          />
-        ))}
+        {[...identities]
+          .sort(
+            (a, b) =>
+              platform(a.platform).localeCompare(platform(b.platform)) ||
+              a.createdAt.localeCompare(b.createdAt),
+          )
+          .map((row) => (
+            <SidebarCardRow
+              key={row.id}
+              icon="id-card"
+              title={row.name}
+              meta={`${platform(row.platform)} · ${t('identity.conversationCount', {
+                count: conversations(row).length,
+              })}`}
+              chips={<Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>}
+              muted={!row.enabled}
+              hint={t('identity.editFor', { name: row.name })}
+              dialog
+              disabled={busy}
+              onClick={() => open('edit', row)}
+              trailing={
+                <Switch
+                  label={t('identity.enableFor', { name: row.name })}
+                  checked={row.enabled}
+                  disabled={busy}
+                  onChange={(enabled) =>
+                    void operate(() =>
+                      mutate({
+                        kind: 'update',
+                        id: row.id,
+                        expectedRevision: row.revision,
+                        name: row.name,
+                        enabled,
+                      }),
+                    )
+                  }
+                />
+              }
+            />
+          ))}
         <SidebarCardRow
           anchor="lark-bind"
           icon="plus"
@@ -266,13 +272,14 @@ export function ExternalIdentityList({
                   disabled={busy}
                   value={accountKey}
                   onSelect={setAccountKey}
-                  options={accounts.map((account) => ({
-                    value: account.providerId + ':' + account.ref,
-                    label: account.name,
-                    hint: platform(account.platform),
-                    disabled:
-                      !account.connected || identities.some((i) => i.platform === account.platform),
-                  }))}
+                  options={accounts
+                    .filter((account) => account.boundBotSlug === undefined)
+                    .map((account) => ({
+                      value: account.providerId + ':' + account.ref,
+                      label: account.name,
+                      hint: platform(account.platform),
+                      disabled: !account.connected,
+                    }))}
                 />
               </label>
               {!accounts.length ? <p>{t('im.setup')}</p> : null}

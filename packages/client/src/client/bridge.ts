@@ -50,6 +50,7 @@ import type { UsageOverviewPeriod } from '../../../core/src/usage/overview.js';
 import type { ChannelActivityToday } from '../../../core/src/channels/activity-today.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
+import type { MessagingApp } from '../../../core/src/messaging/outbound.js';
 import type { ActivityOverview } from '../../../core/src/bridge/methods.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type { HumanAssignmentContext } from '../../../core/src/runtime/assignment-human-context.js';
@@ -3562,6 +3563,12 @@ function validLarkSetupSnapshot(value: unknown): boolean {
       );
     })
   );
+}
+export async function loadMessagingApps(call: BridgeCall): Promise<MessagingApp[]> {
+  const record = asRecord(await unwrap(call, 'messagingApps', {}));
+  if (!record || !Array.isArray(record['apps']))
+    throw new BridgeCallError('invalid-response', 'Invalid apps');
+  return record['apps'] as MessagingApp[];
 }
 export async function loadMessagingTargets(
   call: BridgeCall,

@@ -91,6 +91,7 @@ describe('bridge typert service', () => {
       'pairingReview',
       'messagingSnapshot',
       'messagingTargets',
+      'messagingApps',
       'messagingAuthorize',
       'messagingRevoke',
       'messagingConversation',
