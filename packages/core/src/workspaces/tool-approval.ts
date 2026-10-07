@@ -1,3 +1,5 @@
+import type { ToolApprovalActor } from './tool-approval-actor.js';
+export type { ToolApprovalActor } from './tool-approval-actor.js';
 import { randomUUID } from 'node:crypto';
 
 import type { Agent } from '@deepseek-ai/dsh-agent';
@@ -16,10 +18,18 @@ export interface ToolApprovalRequestCard {
   role: 'orchestrator' | 'assignment';
   cwd: string;
   input: string;
+  externalDecision?: 'operation' | 'web-only';
+}
+
+export interface ToolApprovalNotice extends ToolApprovalRequestCard {
+  botSlug: string;
+  messageId: string;
+  expiresAt: string;
 }
 
 export interface ToolApprovalDecision {
   requestMessageId: string;
+  actor?: ToolApprovalActor;
   outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected';
 }
 
@@ -28,6 +38,8 @@ type TrackedCall = ToolApprovalRequestCard & {
   agent: Agent;
   scopeKey: string;
   automatic?: boolean;
+  execution: ToolExecution;
+  authorized?: () => boolean;
 };
 type Pending = {
   botSlug: string;
@@ -39,6 +51,8 @@ type Pending = {
   abort(): void;
   deciding: boolean;
   committed: boolean;
+  notice: ToolApprovalNotice;
+  timer: ReturnType<typeof setTimeout>;
 };
 
 const MAX_APPROVAL_INPUT = 16_000;
@@ -65,6 +79,9 @@ export class ChannelToolApproval {
   readonly #scope: (agent: Agent, owner: SessionOwnershipRecord) => string | undefined;
   readonly #tracked = new Map<string, TrackedCall>();
   readonly #pending = new Map<string, Pending>();
+  readonly #listeners = new Set<
+    (notice: ToolApprovalNotice, status: 'pending' | ApprovalOutcome) => void
+  >();
   readonly #attention:
     | { changed(slug: string, count: number): void; warn(message: string): void }
     | undefined;
@@ -84,7 +101,10 @@ export class ChannelToolApproval {
       scope ?? ((agent, owner) => JSON.stringify([owner.rootRole, agent.session.header.cwd]));
   }
 
-  track(execution: ToolExecution): (() => void) | undefined {
+  track(
+    execution: ToolExecution,
+    externalDecision: 'operation' | 'web-only' = 'operation',
+  ): (() => void) | undefined {
     const agent = execution.agent;
     if (agent === undefined) return undefined;
     const owner = this.#ownership.resolve(agent.session.id);
@@ -110,6 +130,8 @@ export class ChannelToolApproval {
       cwd,
       input,
       scopeKey,
+      execution,
+      externalDecision,
     });
     return () => {
       if (this.#tracked.get(key)?.agent === agent) {
@@ -136,7 +158,11 @@ export class ChannelToolApproval {
     }
     if (request.signal?.aborted) return 'cancelled';
     const owner = this.#ownership.resolve(request.agent.session.id);
-    if (owner === undefined || this.#scope(request.agent, owner) !== tracked.scopeKey)
+    if (
+      owner === undefined ||
+      owner.botSlug !== tracked.botSlug ||
+      this.#scope(request.agent, owner) !== tracked.scopeKey
+    )
       return 'unavailable';
     if (this.#rules?.match(tracked) !== undefined) {
       tracked.automatic = true;
@@ -156,6 +182,7 @@ export class ChannelToolApproval {
         role: tracked.role,
         cwd: tracked.cwd,
         input: tracked.input,
+        externalDecision: tracked.externalDecision ?? 'operation',
       },
     };
     let resolve!: (outcome: ApprovalOutcome) => void;
@@ -172,7 +199,15 @@ export class ChannelToolApproval {
       abort: () => this.#settle(message.id, 'cancelled'),
       deciding: false,
       committed: false,
+      notice: {
+        ...message.toolApprovalRequest!,
+        botSlug: tracked.botSlug,
+        messageId: message.id,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      },
+      timer: setTimeout(() => this.#settle(message.id, 'cancelled'), 24 * 60 * 60 * 1000),
     };
+    pending.timer.unref();
     this.#pending.set(message.id, pending);
     request.signal?.addEventListener('abort', pending.abort, { once: true });
     try {
@@ -181,6 +216,7 @@ export class ChannelToolApproval {
       if (this.#pending.get(message.id) === pending) {
         pending.committed = true;
         this.#publishAttention(pending.botSlug);
+        this.#publishNotice(pending, 'pending');
       }
       return await answer;
     } catch {
@@ -190,12 +226,35 @@ export class ChannelToolApproval {
     }
   }
 
+  executionGuard(
+    agent: Agent,
+    callId: string,
+  ): ((name: string, args: unknown) => boolean) | undefined {
+    const tracked = this.#tracked.get(callKey(agent.session.id, callId));
+    if (!tracked || tracked.agent !== agent) return undefined;
+    return (name, args) => {
+      const owner = this.#ownership.resolve(agent.session.id);
+      return (
+        owner !== undefined &&
+        owner.botSlug === tracked.botSlug &&
+        this.#scope(agent, owner) === tracked.scopeKey &&
+        tracked.execution.name === tracked.toolName &&
+        tracked.execution.callId === tracked.callId &&
+        name === tracked.toolName &&
+        inputOf({ ...tracked.execution, arguments: args }) === tracked.input &&
+        tracked.authorized?.() !== false &&
+        (!tracked.automatic || this.#rules?.match(tracked) !== undefined)
+      );
+    };
+  }
+
   validAfterDecision(agent: Agent, callId: string): boolean {
     const tracked = this.#tracked.get(callKey(agent.session.id, callId));
-    if (tracked === undefined || tracked.agent !== agent) return false;
-    const owner = this.#ownership.resolve(agent.session.id);
-    if (owner === undefined || this.#scope(agent, owner) !== tracked.scopeKey) return false;
-    return !tracked.automatic || this.#rules?.match(tracked) !== undefined;
+    return (
+      tracked !== undefined &&
+      this.executionGuard(agent, callId)?.(tracked.execution.name, tracked.execution.arguments) ===
+        true
+    );
   }
 
   cancelInvalid(): void {
@@ -205,11 +264,36 @@ export class ChannelToolApproval {
       if (
         tracked === undefined ||
         owner === undefined ||
+        owner.botSlug !== tracked.botSlug ||
         this.#scope(tracked.agent, owner) !== tracked.scopeKey
       ) {
         this.#settle(messageId, 'unavailable');
       }
     }
+  }
+
+  subscribe(
+    listener: (notice: ToolApprovalNotice, status: 'pending' | ApprovalOutcome) => void,
+  ): () => void {
+    this.#listeners.add(listener);
+    return () => {
+      this.#listeners.delete(listener);
+    };
+  }
+
+  pending(botSlug: string, messageId: string): ToolApprovalNotice | undefined {
+    this.cancelInvalid();
+    const pending = this.#pending.get(messageId);
+    if (
+      !pending ||
+      !pending.committed ||
+      pending.botSlug !== botSlug ||
+      pending.deciding ||
+      pending.signal?.aborted ||
+      Date.parse(pending.notice.expiresAt) <= Date.now()
+    )
+      return undefined;
+    return { ...pending.notice };
   }
 
   activeMessageIds(): string[] {
@@ -230,9 +314,24 @@ export class ChannelToolApproval {
     botSlug: string,
     messageId: string,
     outcome: ToolApprovalDecision['outcome'],
+    external?: { actor: ToolApprovalActor; authorized(): boolean },
   ): Promise<boolean> {
     const pending = this.#pending.get(messageId);
-    if (pending === undefined || pending.botSlug !== botSlug || pending.deciding) return false;
+    if (
+      pending === undefined ||
+      pending.botSlug !== botSlug ||
+      pending.deciding ||
+      !pending.committed ||
+      Date.parse(pending.notice.expiresAt) <= Date.now()
+    )
+      return false;
+    if (
+      external &&
+      (pending.notice.externalDecision === 'web-only' ||
+        !['allowed-once', 'rejected'].includes(outcome) ||
+        !external.authorized())
+    )
+      return false;
     if (pending.signal?.aborted) {
       this.#settle(messageId, 'cancelled');
       return false;
@@ -240,9 +339,20 @@ export class ChannelToolApproval {
     pending.deciding = true;
     try {
       const tracked = this.#tracked.get(callKey(pending.sessionId, pending.callId));
-      if (tracked === undefined || tracked.botSlug !== botSlug) return false;
+      if (
+        tracked === undefined ||
+        tracked.botSlug !== botSlug ||
+        inputOf(tracked.execution) !== tracked.input ||
+        tracked.execution.name !== tracked.toolName ||
+        tracked.execution.callId !== tracked.callId
+      )
+        return false;
       const owner = this.#ownership.resolve(tracked.sessionId);
-      if (owner === undefined || this.#scope(tracked.agent, owner) !== tracked.scopeKey) {
+      if (
+        owner === undefined ||
+        owner.botSlug !== tracked.botSlug ||
+        this.#scope(tracked.agent, owner) !== tracked.scopeKey
+      ) {
         this.#settle(messageId, 'unavailable');
         return false;
       }
@@ -275,7 +385,11 @@ export class ChannelToolApproval {
               ? '已批准这一次工具调用'
               : '已保存自动批准规则并批准这一次调用',
         replyTo: messageId,
-        toolApprovalDecision: { requestMessageId: messageId, outcome },
+        toolApprovalDecision: {
+          requestMessageId: messageId,
+          outcome,
+          ...(external ? { actor: external.actor } : {}),
+        },
       };
       if ((await this.#channels.appendMessage(pending.channelId, decision)) === undefined) {
         if (rule !== undefined) this.#rules?.revoke(botSlug, rule.id);
@@ -283,6 +397,11 @@ export class ChannelToolApproval {
       }
       if (rule !== undefined) this.#rules?.activate(botSlug, rule.id);
       if (this.#pending.get(messageId) !== pending || pending.signal?.aborted) return false;
+      if (external && !external.authorized()) {
+        this.#settle(messageId, 'unavailable');
+        return false;
+      }
+      if (external && outcome === 'allowed-once') tracked.authorized = external.authorized;
       this.#settle(messageId, outcome === 'rejected' ? 'rejected' : 'allowed-once');
       return true;
     } finally {
@@ -293,6 +412,16 @@ export class ChannelToolApproval {
   close(): void {
     for (const id of this.#pending.keys()) this.#settle(id, 'cancelled');
     this.#tracked.clear();
+  }
+
+  #publishNotice(pending: Pending, status: 'pending' | ApprovalOutcome): void {
+    for (const listener of this.#listeners) {
+      try {
+        listener({ ...pending.notice }, status);
+      } catch {
+        this.#attention?.warn('tool-approval-notice-publication-failed');
+      }
+    }
   }
 
   #publishAttention(slug: string): void {
@@ -311,6 +440,8 @@ export class ChannelToolApproval {
     const pending = this.#pending.get(messageId);
     if (pending === undefined) return;
     this.#pending.delete(messageId);
+    clearTimeout(pending.timer);
+    if (pending.committed) this.#publishNotice(pending, outcome);
     if (pending.committed) this.#publishAttention(pending.botSlug);
     pending.signal?.removeEventListener('abort', pending.abort);
     pending.resolve(outcome);

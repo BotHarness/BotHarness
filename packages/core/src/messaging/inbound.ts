@@ -182,6 +182,11 @@ export interface InboundMessaging {
 }
 
 export function createInboundMessaging(options: {
+  onApprovalAction?(
+    providerId: string,
+    event: import('./provider.js').MessagingApprovalAction,
+    signal: AbortSignal,
+  ): Promise<import('./provider.js').MessagingApprovalAck>;
   database: OperationalDatabaseModulePort;
   pairing?: BotPairing;
   bindingAvailable?(id: string): boolean;
@@ -1255,8 +1260,12 @@ export function createInboundMessaging(options: {
         token,
         ...(provider.consume
           ? {
-              consume: fanoutMessagingConsumer(provider.consume.bind(provider), (event, signal) =>
-                controlIntake(provider, event, signal),
+              consume: fanoutMessagingConsumer(
+                provider.consume.bind(provider),
+                (event, signal) => controlIntake(provider, event, signal),
+                options.onApprovalAction
+                  ? (event, signal) => options.onApprovalAction!(provider.id, event, signal)
+                  : undefined,
               ),
             }
           : {}),
