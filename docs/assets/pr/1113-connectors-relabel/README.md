@@ -4,10 +4,10 @@ Captured from a real DSH 0.2.0-rc.1 instance with the QA fake IM provider and th
 
 ## Sync a group into a Channel from its conversation row
 
-|     | Light                   | Dark                   |
-| --- | ----------------------- | ---------------------- |
-| zh  | ![](sync-zh-light.webp) | ![](sync-zh-dark.webp) |
-| en  | ![](sync-en-light.webp) | ![](sync-en-dark.webp) |
+|     | Light                      | Dark                      |
+| --- | -------------------------- | ------------------------- |
+| zh  | ![](sync-v2-zh-light.webp) | ![](sync-v2-zh-dark.webp) |
+| en  | ![](sync-v2-en-light.webp) | ![](sync-v2-en-dark.webp) |
 
 ## External connectors: syncs plus the advanced send target
 
@@ -18,7 +18,7 @@ Captured from a real DSH 0.2.0-rc.1 instance with the QA fake IM provider and th
 
 ## Lark setup guide: three steps
 
-|     | Light                    | Dark                    |
-| --- | ------------------------ | ----------------------- |
-| zh  | ![](guide-zh-light.webp) | ![](guide-zh-dark.webp) |
-| en  | ![](guide-en-light.webp) | ![](guide-en-dark.webp) |
+|     | Light                       | Dark                       |
+| --- | --------------------------- | -------------------------- |
+| zh  | ![](guide-v2-zh-light.webp) | ![](guide-v2-zh-dark.webp) |
+| en  | ![](guide-v2-en-light.webp) | ![](guide-v2-en-dark.webp) |

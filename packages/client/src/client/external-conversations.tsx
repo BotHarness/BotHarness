@@ -7,6 +7,7 @@ import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js'
 import type { BotHarnessTranslate } from './locale.js';
 import { Combobox } from './combobox.js';
 import { GroupReceptionSettings } from './messaging-grant.js';
+import { MessagingHelp } from './messaging-help.js';
 import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 
 type Grant = MessagingSnapshot['grants'][number];
@@ -61,6 +62,14 @@ export function ExternalConversations({
       {label}
     </Button>
   );
+  const actions = (label: string, buttons: ReactNode, panel?: ReactNode): ReactNode => (
+    <>
+      <div className="bh-conversation-actions" role="group" aria-label={label}>
+        {buttons}
+      </div>
+      {panel}
+    </>
+  );
   const confirmBlock = (key: string, name: string, block: () => void): ReactNode =>
     confirm === key ? (
       <div
@@ -95,6 +104,14 @@ export function ExternalConversations({
   const syncDetail = (grant: Grant): ReactNode =>
     syncing === grant.id && sync ? (
       <div className="bh-conversation-sync">
+        <span className="bh-conversation-sync-title">
+          {t('conversation.syncTarget')}
+          <MessagingHelp
+            title={t('conversation.syncTarget')}
+            text={t('conversation.syncHint')}
+            t={t}
+          />
+        </span>
         <Combobox
           label={t('conversation.syncTarget')}
           toggleLabel={t('conversation.syncTarget')}
@@ -109,7 +126,6 @@ export function ExternalConversations({
             disabled: (grant.bridgeRoutes ?? []).some((route) => route.channelId === c.id),
           }))}
         />
-        <p className="bh-muted">{t('conversation.syncHint')}</p>
         <div className="bh-modal-footer">
           <Button size="sm" variant="outline" disabled={busy} onClick={() => setSyncing(undefined)}>
             {t('common.cancel')}
@@ -132,7 +148,7 @@ export function ExternalConversations({
   const entryRow = (grant: Grant) => {
     const scope = grant.receiveScope!;
     const name = grant.targetName || scope.conversationId;
-    const detail =
+    const panel =
       syncDetail(grant) ??
       confirmBlock(
         grant.id,
@@ -164,7 +180,8 @@ export function ExternalConversations({
             : []),
         ].join(' · ')}
         muted={grant.muted}
-        trailing={
+        detail={actions(
+          name,
           <>
             {small(
               t(grant.muted ? 'conversation.unmute' : 'conversation.mute'),
@@ -202,9 +219,9 @@ export function ExternalConversations({
                 )
               : null}
             {small(t('conversation.block'), () => setConfirm(grant.id), true)}
-          </>
-        }
-        detail={detail}
+          </>,
+          panel,
+        )}
       />
     );
   };
@@ -224,7 +241,8 @@ export function ExternalConversations({
           kind(held.conversation.kind),
           t('conversation.seen', { count: held.count, time: time(held.lastSeenAt) }),
         ].join(' · ')}
-        trailing={
+        detail={actions(
+          held.name,
           <>
             {small(
               t('conversation.allow'),
@@ -238,18 +256,18 @@ export function ExternalConversations({
                 }),
             )}
             {small(t('conversation.block'), () => setConfirm(key), true)}
-          </>
-        }
-        detail={confirmBlock(
-          key,
-          held.name,
-          () =>
-            void change({
-              kind: 'block-held',
-              bindingId: identity.id,
-              conversation: held.conversation,
-              expectedRevision: held.revision,
-            }),
+          </>,
+          confirmBlock(
+            key,
+            held.name,
+            () =>
+              void change({
+                kind: 'block-held',
+                bindingId: identity.id,
+                conversation: held.conversation,
+                expectedRevision: held.revision,
+              }),
+          ),
         )}
       />
     );
@@ -264,16 +282,19 @@ export function ExternalConversations({
         t('conversation.blockedAt', { time: time(block.blockedAt) }),
       ].join(' · ')}
       muted
-      trailing={small(
-        t('conversation.allowAgain'),
-        () =>
-          void change({
-            kind: 'allow',
-            bindingId: identity.id,
-            conversation: block.conversation,
-            from: 'blocked',
-            expectedRevision: block.revision,
-          }),
+      detail={actions(
+        block.name || block.conversation.id,
+        small(
+          t('conversation.allowAgain'),
+          () =>
+            void change({
+              kind: 'allow',
+              bindingId: identity.id,
+              conversation: block.conversation,
+              from: 'blocked',
+              expectedRevision: block.revision,
+            }),
+        ),
       )}
     />
   );
@@ -283,7 +304,9 @@ export function ExternalConversations({
         <span className="bh-conversation-group-title">
           {label} <small>{rows.length}</small>
         </span>
-        <SidebarCardList label={label}>{rows}</SidebarCardList>
+        <SidebarCardList label={label} className="bh-conversation-list">
+          {rows}
+        </SidebarCardList>
       </section>
     ) : null;
   if (!entries.length && !waiting.length && !blocked.length)

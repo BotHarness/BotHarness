@@ -79,8 +79,8 @@ export const zh = {
     '[BH-LARK-SETUP] 请在本话题使用 bridge_reply 只回复 LARK-SETUP-OK。不要另发群主线消息，也不要创建 Assignment。',
   'setup.title': '连接 Lark / 飞书',
   'setup.open': '配置引导',
-  'setup.summary':
-    '连接应用、绑定到 Bot，然后发一条消息验证，三步完成。点击步骤只会定位对应控件，不会发送消息，也不会直接标记完成。',
+  'setup.summary': '连接应用、绑定到 Bot，再发一条消息验证。',
+  'setup.locateHint': '「定位」只会高亮对应控件，不会发送消息，也不会直接标记完成。',
   'setup.platform': '应用平台',
   'setup.lark': 'Lark（国际版）',
   'setup.feishu': '飞书',
@@ -99,7 +99,7 @@ export const zh = {
   'setup.providerMissing': '尚未确认兼容的接收 Provider。请检查产品安装和 Provider 状态，再刷新。',
   'setup.done': '已确认',
   'setup.pending': '待确认',
-  'setup.locate': '定位现有控件',
+  'setup.locate': '定位',
   'setup.verifyHint':
     '在机器人所在群的话题中 @ 它，发送以下测试文字。不 @ 它的消息默认不会进入收件箱。外部平台的已读圆圈不能证明已收件。',
   'setup.received': '已记录真实话题收件',
@@ -2191,8 +2191,9 @@ export const en = {
     '[BH-LARK-SETUP] Use bridge_reply to reply only LARK-SETUP-OK in this topic. Do not send to the group mainline or create an Assignment.',
   'setup.title': 'Connect Lark / Feishu',
   'setup.open': 'Setup guide',
-  'setup.summary':
-    'Connect the app, bind it to this Bot, then send one message to verify. Clicking a step only locates its control; it never sends anything or marks the step done.',
+  'setup.summary': 'Connect the app, bind it to this Bot, then send one message to verify.',
+  'setup.locateHint':
+    'Locate only highlights the control; it never sends anything or marks the step done.',
   'setup.platform': 'Application platform',
   'setup.lark': 'Lark (international)',
   'setup.feishu': 'Feishu',
@@ -2213,7 +2214,7 @@ export const en = {
     'A compatible receive Provider is not confirmed. Check the product installation and Provider, then refresh.',
   'setup.done': 'Confirmed',
   'setup.pending': 'Not confirmed',
-  'setup.locate': 'Locate existing controls',
+  'setup.locate': 'Locate',
   'setup.verifyHint':
     'In a topic of a group the Bot is in, @mention it with the test text below. Messages that don’t @mention it stay out of the Inbox by default. Read circles on the platform don’t prove receipt.',
   'setup.received': 'Real topic receipt recorded',

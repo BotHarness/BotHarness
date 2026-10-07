@@ -2559,6 +2559,13 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-conversation-group-title { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-secondary); }
 .bh-conversation-group-title small { font-weight: 400; margin-left: 2px; }
 .bh-conversation-reason { font-size: 12px; color: var(--dsw-alias-state-warning-primary, var(--dsw-alias-label-secondary)); }
+.bh-conversation-list .bh-card-main { padding-block: 7px 2px; }
+.bh-conversation-list .bh-card-body { gap: 2px; }
+.bh-conversation-list .bh-card-detail { display: grid; gap: 6px; padding-bottom: 6px; }
+.bh-conversation-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-left: -8px; }
+.bh-conversation-sync { display: grid; gap: 6px; }
+.bh-conversation-sync-title { display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 500; }
+.bh-conversation-sync .bh-modal-footer { gap: 6px; }
 .bh-conversation-confirm { display: grid; gap: 8px; }
 .bh-conversation-confirm p { margin: 0; }
 .bh-im-apps { display: grid; gap: 8px; }

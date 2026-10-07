@@ -10,6 +10,7 @@ import { useMountedResource } from './mounted-resource.js';
 import { highlightLarkSetup } from './lark-setup-tour.js';
 import { larkSetupState, LARK_SETUP_STEPS, type LarkSetupStep } from './lark-setup-state.js';
 import { openImSettings } from './bot-settings-open.js';
+import { MessagingHelp } from './messaging-help.js';
 
 export function LarkSetupGuide({
   snapshot,
@@ -143,22 +144,49 @@ export function LarkSetupGuide({
         className="bh-lark-setup-modal"
       >
         <div ref={progressMount} className="bh-lark-setup-body">
-          <p>{t('setup.summary')}</p>
-          <label className="bh-im-field">
-            <span>{t('setup.platform')}</span>
-            <Combobox
-              searchable={false}
-              label={t('setup.platform')}
-              toggleLabel={t('setup.platform')}
-              value={platform}
-              onSelect={(value) => setPlatform(value === 'feishu' ? 'feishu' : 'lark')}
-              options={[
-                { value: 'lark', label: t('setup.lark') },
-                { value: 'feishu', label: t('setup.feishu') },
-              ]}
+          <div className="bh-lark-setup-intro">
+            <p>{t('setup.summary')}</p>
+            <MessagingHelp
+              title={t('setup.title')}
+              text={`${t('setup.locateHint')} ${t('setup.resume')}`}
+              t={t}
             />
-          </label>
-          <p>
+          </div>
+          <div className="bh-lark-setup-fields">
+            <label className="bh-im-field">
+              <span>{t('setup.platform')}</span>
+              <Combobox
+                searchable={false}
+                label={t('setup.platform')}
+                toggleLabel={t('setup.platform')}
+                value={platform}
+                onSelect={(value) => setPlatform(value === 'feishu' ? 'feishu' : 'lark')}
+                options={[
+                  { value: 'lark', label: t('setup.lark') },
+                  { value: 'feishu', label: t('setup.feishu') },
+                ]}
+              />
+            </label>
+            <label className="bh-im-field">
+              <span>{t('im.account')}</span>
+              <Combobox
+                label={t('im.account')}
+                toggleLabel={t('im.account')}
+                placeholder={t('im.select')}
+                emptyLabel={t('im.setup')}
+                value={accountKey}
+                onSelect={setAccountKey}
+                options={(snapshot?.accounts ?? [])
+                  .filter((a) => a.platform === 'feishu')
+                  .map((a) => ({
+                    value: `${a.providerId}:${a.ref}`,
+                    label: a.name,
+                    ...(a.connected ? {} : { hint: t('im.unavailable') }),
+                  }))}
+              />
+            </label>
+          </div>
+          <p className="bh-lark-setup-links">
             <a
               href={
                 platform === 'lark'
@@ -170,7 +198,6 @@ export function LarkSetupGuide({
             >
               {t('setup.console')}
             </a>
-            {' · '}
             <a href={t('setup.guideUrl')} target="_blank" rel="noreferrer">
               {t('setup.guide')}
             </a>
@@ -190,24 +217,6 @@ export function LarkSetupGuide({
               loading="lazy"
             />
           </details>
-          <label className="bh-im-field">
-            <span>{t('im.account')}</span>
-            <Combobox
-              label={t('im.account')}
-              toggleLabel={t('im.account')}
-              placeholder={t('im.select')}
-              emptyLabel={t('im.setup')}
-              value={accountKey}
-              onSelect={setAccountKey}
-              options={(snapshot?.accounts ?? [])
-                .filter((a) => a.platform === 'feishu')
-                .map((a) => ({
-                  value: `${a.providerId}:${a.ref}`,
-                  label: a.name,
-                  ...(a.connected ? {} : { hint: t('im.unavailable') }),
-                }))}
-            />
-          </label>
           {busy || !snapshot ? (
             <p role="status">{t('setup.checking')}</p>
           ) : !failed && !state.providerReady ? (
@@ -221,45 +230,56 @@ export function LarkSetupGuide({
                   : step === 'bind'
                     ? !!state.identity
                     : state.complete;
+              const hint =
+                step === 'verify'
+                  ? `${t('setup.hint.verify')} ${t('setup.verifyHint')}`
+                  : step === 'bind'
+                    ? `${t('setup.hint.bind')} ${t('setup.optional')}`
+                    : t(`setup.hint.${step}`);
               return (
-                <li key={step}>
-                  <div>
-                    <strong>{t(`setup.step.${step}`)}</strong>
+                <li key={step} data-done={done}>
+                  <div className="bh-lark-setup-step">
+                    <span className="bh-lark-setup-step-title">
+                      <strong>{t(`setup.step.${step}`)}</strong>
+                      <MessagingHelp title={t(`setup.step.${step}`)} text={hint} t={t} />
+                    </span>
                     <Tag tone="neutral">{t(done ? 'setup.done' : 'setup.pending')}</Tag>
+                    <Button size="sm" variant="ghost" onClick={() => locate(step)}>
+                      {t('setup.locate')}
+                    </Button>
                   </div>
-                  <p>{t(`setup.hint.${step}`)}</p>
-                  <Button size="sm" variant="primary" onClick={() => locate(step)}>
-                    {t('setup.locate')}
-                  </Button>
+                  {step === 'verify' ? (
+                    <>
+                      <pre>{t('setup.test')}</pre>
+                      {state.receipt ? (
+                        <p role="status">
+                          {t('setup.received')} · <code>{state.receipt.sourceEventId}</code>
+                          <br />
+                          {t(
+                            state.receipt.echoObserved
+                              ? 'setup.echo'
+                              : state.receipt.replyState === 'provider-accepted'
+                                ? 'setup.accepted'
+                                : 'setup.awaiting',
+                          )}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : null}
                 </li>
               );
             })}
           </ol>
-          <p>{t('setup.verifyHint')}</p>
-          <pre>{t('setup.test')}</pre>
-          {state.receipt ? (
-            <p role="status">
-              {t('setup.received')} · <code>{state.receipt.sourceEventId}</code>
-              <br />
-              {t(
-                state.receipt.echoObserved
-                  ? 'setup.echo'
-                  : state.receipt.replyState === 'provider-accepted'
-                    ? 'setup.accepted'
-                    : 'setup.awaiting',
-              )}
-            </p>
-          ) : null}
-          <p>{t('setup.optional')}</p>
           {failed ? (
             <p role="alert" className="bh-error">
               {t('setup.failed')}
             </p>
           ) : null}
-          <Button size="sm" variant="primary" disabled={busy} onClick={() => void check()}>
-            {t(busy ? 'setup.checking' : 'setup.refresh')}
-          </Button>
-          <p>{t('setup.resume')}</p>
+          <div className="bh-modal-footer">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void check()}>
+              {t(busy ? 'setup.checking' : 'setup.refresh')}
+            </Button>
+          </div>
         </div>
       </Modal>
     </>

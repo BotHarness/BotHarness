@@ -13,6 +13,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
   }: PropsWithChildren<{ onClick?: MouseEventHandler<HTMLButtonElement>; disabled?: boolean }>) =>
     createElement('button', { onClick, disabled }, children),
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
+  Tooltip: ({ children }: PropsWithChildren) => children,
+  IconInfoOutlineRegular: () => null,
   Modal: ({ open, children, title }: PropsWithChildren<{ open: boolean; title: string }>) =>
     open ? createElement('div', { role: 'dialog', 'aria-label': title }, children) : null,
 }));
