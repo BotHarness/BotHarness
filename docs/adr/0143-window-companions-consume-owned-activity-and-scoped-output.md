@@ -19,6 +19,8 @@ First selection and Client/Host restart establish a Host-consistent future-messa
 
 ## Presentation and lifecycle
 
+Supported pixel companions omit the Avatar tile/backplate and square frame background so the bust has a transparent character silhouette. This is a rendering-surface choice: preserve the saved recipe and ordinary roster Avatar presentation. Keep independent attention labels/badges and a usable transparent hit area. Static-image or missing-rig snapshots preserve their supplied alpha/appearance; this decision does not promise automatic raster cutout.
+
 Deepen an independent Client companion owner around preferences, qualified consumption, generation/baseline reconciliation, card capacity and disposal, while composing the existing Avatar module. Use the verified official RC shell overlay Slot; current Bot-mode-gated Activity consumption must become available to the independent companion consumer. Do not infer a new desktop-window interface or rewrite the shared Avatar appearance protocol.
 
 Each Bot has its own stack, defaults to 3 collapsed layers and at most 20 unexpired retained cards, and types committed messages concurrently. Hover/focus expands a stable list, stops roaming and expiry, continues visible typing and counts new arrivals without displacing current cards. Human attention remains independent of playback and opens its owning surface. No automatic +N companion fold or selection cap is imposed; Humans drag, pause walking or remove companions, with basic bounds and bubble avoidance.

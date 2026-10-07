@@ -458,7 +458,7 @@ Tool detail Capability 默认拒绝所有 Consumer。部署 Human 在 `botharnes
 
 ### 5.3 · 窗口伙伴（已接受设计，待实现）
 
-[ADR-0143](../adr/0143-window-companions-consume-owned-activity-and-scoped-output.md) 与 [规格 #1135](https://github.com/BotHarness/BotHarness/issues/1135) 记录 Q1–Q23 共识。Human 主动从 Bot 行右键或 Channel header 的具体 Bot 入口选择“显示为窗口伙伴”，与 Channel 置顶独立；通过官方 RC 的 shell overlay Slot 跨 Harness 页面显示既有半身 Avatar。Client companion owner 持有当前 Client × DSH Profile 的选择、每 Bot 来源/范围/漫游偏好，以及所有伙伴共享的卡片层数/保留数量设置；不更改 Registry 的身份/外观、Memory 或 Channel pin。底部漫游、拖拽、受窗口边界约束的位置和锚定像素气泡属于呈现层，逐帧姿态不跨 RPC。
+[ADR-0143](../adr/0143-window-companions-consume-owned-activity-and-scoped-output.md) 与 [规格 #1135](https://github.com/BotHarness/BotHarness/issues/1135) 记录 Q1–Q23 共识。Human 主动从 Bot 行右键或 Channel header 的具体 Bot 入口选择“显示为窗口伙伴”，与 Channel 置顶独立；通过官方 RC 的 shell overlay Slot 跨 Harness 页面显示既有半身 Avatar。Client companion owner 持有当前 Client × DSH Profile 的选择、每 Bot 来源/范围/漫游偏好，以及所有伙伴共享的卡片层数/保留数量设置；不更改 Registry 的身份/外观、Memory 或 Channel pin。伙伴像素视图省略画布底色与方形头像框背景，呈现透明人物轮廓；既有侧栏头像与保存配方不变，透明区域仍保留可用 hit area 和独立 attention。图片/缺失 rig 快照不自动抠图。底部漫游、拖拽、受窗口边界约束的位置和锚定像素气泡属于呈现层，逐帧姿态不跨 RPC。
 
 消费路径为 owning Registry/Activity Projection/canonical Channel → 认证 Typert/API Gateway 与有界 live/query adapter → 独立 companion Client owner → 既有 Avatar 与卡片。当前 Activity Client 退出 Bot mode 会关闭消费，当前 SSE 只有单 Channel 输出流；伙伴的独立生命周期和按 Bot 跨 Channel 输出合同是待实现工作，不由现有页面组件顺便提供。Host 内其他 Plugin 继续查询同一 Activity Service 并消费 application-defined Cordis 通知；不存在伙伴 UI 到 Activity authority 的反向写入。
 

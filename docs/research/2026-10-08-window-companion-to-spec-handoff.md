@@ -2,7 +2,7 @@
 
 Date: 2026-10-08. Status: complete design synthesis; runtime implementation is not delivered.
 
-The Human confirmed the complete Q1–Q23 design and the default shared-Channel visibility, then authorized this documentation commit/PR and to-spec publication. The canonical implementation specification is [#1135](https://github.com/BotHarness/BotHarness/issues/1135), labelled ready-for-agent. [#1132](https://github.com/BotHarness/BotHarness/issues/1132) tracks this documentation handoff only. No follow-on implementation claim, milestone or Project was inferred.
+The Human confirmed the complete Q1–Q23 design and the default shared-Channel visibility, then clarified that the pixel companion surface omits its Avatar background to reveal a transparent bust silhouette; then authorized this documentation commit/PR and to-spec publication. The canonical implementation specification is [#1135](https://github.com/BotHarness/BotHarness/issues/1135), labelled ready-for-agent. [#1132](https://github.com/BotHarness/BotHarness/issues/1132) tracks this documentation handoff only. No follow-on implementation claim, milestone or Project was inferred.
 
 ## Authorities
 

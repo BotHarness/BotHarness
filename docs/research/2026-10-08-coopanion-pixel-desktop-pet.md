@@ -410,3 +410,9 @@ Human 回复“23 没问题，可以完成后 commit PR，然后 to-spec”，�
 - 范围缩小时立即移除不合格卡片；新启用来源或新合格 Channel 从当前基线开始，不补播历史。这是已确认“关闭清理、重新开启未来内容”与“重启不重播”规则的同一应用，不新增旧消息补播策略。
 - 独立桌面窗口及 DSH fork 的安装、签名和更新负担保留为研究记录，不进入当前窗口内目标。
 - 文档 worktree 更新至 main `4a2fc156715d2d37ee48daf02c7d39cae5adf039`。再次核对共享 Activity 查询、单 Channel SSE 与独立 committed-output 通知；原调研的固定提交事实保持其时间范围，新增读取合同、baseline/cursor 与具体 Slot 注册仍需实现时对当前源码和真实 Host 验证。
+
+### 11.9 设计审阅补充：伙伴显示人物轮廓，不显示头像底色
+
+Human 在规格发布后的设计稿审阅指出：Bot 模式原有头像有背景，窗口伙伴应不显示这块背景，才能呈现人的轮廓。此反馈已接受并同步到 HTML、ADR、架构与规格。伙伴对支持的像素 rig 隐去画布 tile/头像框底板，不改保存的 Avatar Appearance，不改变普通侧栏头像呈现；透明区域仍有可用命中区域，独立 attention 继续可见。上传图片或缺失 rig 的静态快照保留其原透明度/外观，不把此项扩展为自动抠图。
+
+源码确认：当前 BotPixel 把独立 `tile` 与 `body/head` 分开，SVG 合成时先加入 tile；现有公开 options 只有 turns 与 classPrefix，还没有正式 transparent 参数。本 HTML 只在可信、固定版本的生成 SVG 中省略那张独立底板，证明轮廓外观可行；生产改动应在共享 Avatar/owning BotPixel 层选择明确的 surface 合同，不依赖全局 CSS 或对任意 SVG 做字符串处理。[SVG 合成](https://github.com/BotHarness/BotPixel/blob/df53fc8665eac2aa794dfdd8d4d03b7dd48eb92d/packages/avatar/src/svg.ts#L10-L50)、[分离 tile 与 body/head](https://github.com/BotHarness/BotPixel/blob/df53fc8665eac2aa794dfdd8d4d03b7dd48eb92d/packages/avatar/src/figure.ts#L898-L925)
