@@ -14,4 +14,4 @@ Every catalog route is pickable, including DeepSeek official with no API key.
 
 ## After: a provider whose key failed on a real turn is listed last and cannot be picked; the menu has a solid background that stays put while it scrolls
 
-![After, routes needing an API key are disabled](after-needs-key-v2.png)
+![After, routes needing an API key are disabled](after-keyless.png)
