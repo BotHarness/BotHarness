@@ -60,11 +60,15 @@ The initial installation has no IM accounts connected. After the local DM works,
 
 Bot mode needs Git 2.28 or newer on the computer that runs DSH, because each Bot's memory is a Git repository. When Git is missing or too old, Bot mode says so at the top of the roster and turns off creating and importing Bots until Git works.
 
+The quickest fix is the **Install Git** button in that notice. It downloads a portable Git (about 65 MB) into the DeepSeek Harness data folder, checks it against a pinned checksum, and starts using it right away. It needs no admin rights and does not change the Git installed on your computer. DeepSeekBot downloads it from `media.botharness.ai` first and from GitHub if that fails. A usable system Git always takes priority, so installing Git yourself later replaces it on the next DeepSeek Harness start.
+
+To install Git yourself instead:
+
 - **macOS**: run `xcode-select --install` in Terminal and follow the prompt, or install Git with Homebrew (`brew install git`).
 - **Windows**: install [Git for Windows](https://git-scm.com/download/win) with the default options.
 - **Linux**: install the `git` package with your distribution's package manager, for example `sudo apt install git`. Ubuntu 20.04 ships Git 2.25; use the [git-core PPA](https://launchpad.net/~git-core/+archive/ubuntu/ppa) for a newer one.
 
-Then restart DeepSeek Harness and click **Check again** in Bot mode.
+After installing it yourself, restart DeepSeek Harness and click **Check again** in Bot mode.
 
 ## Other installation methods
 

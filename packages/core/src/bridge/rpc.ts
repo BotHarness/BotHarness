@@ -87,7 +87,7 @@ import type {
   MemoryWorkingKind,
   MemoryRepairEvent,
 } from '../memory/accepted.js';
-import type { GitAvailability } from '../memory/git-probe.js';
+import type { GitStatus } from '../memory/managed-git.js';
 import type { MemoryRecoveryCheckpoint } from '../memory/recovery.js';
 import type { WorkspaceGrant } from '../workspaces/grants.js';
 import type { ToolApprovalRule } from '../workspaces/tool-approval-rules.js';
@@ -919,8 +919,12 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.telemetryStatus());
   }
 
-  gitStatus(): GitAvailability {
+  gitStatus(): GitStatus {
     return unwrap(this.methods.gitStatus());
+  }
+
+  gitInstall(): GitStatus {
+    return unwrap(this.methods.gitInstall());
   }
 
   telemetrySet(enabled: boolean): TelemetryStatus {
@@ -1089,6 +1093,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'telemetryStatus',
   'telemetrySet',
   'gitStatus',
+  'gitInstall',
   'scheduleList',
   'scheduleCreate',
   'scheduleUpdate',
