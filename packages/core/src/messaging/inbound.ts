@@ -297,6 +297,8 @@ export function createInboundMessaging(options: {
         ]),
       )
       .digest('hex');
+  const ingestName = (ingest: ConversationIngest, event: MessagingInboundEvent) =>
+    event.conversation.name || ingest.conversation.name;
   const persistSource = (
     db: DatabaseSync,
     value: MessagingGrant | { ingest: ConversationIngest; botSlug: string },
@@ -351,7 +353,7 @@ export function createInboundMessaging(options: {
               at: event.at,
               platform: event.channel,
               accountName: value.ingest.accountName,
-              conversationName: value.ingest.conversation.name,
+              conversationName: ingestName(value.ingest, event),
               event: evidence,
               grantId: '',
               grantRevision: 0,
@@ -1188,6 +1190,27 @@ export function createInboundMessaging(options: {
       }),
     );
   };
+  const renameEntries = (
+    db: DatabaseSync,
+    entries: MessagingGrant[],
+    event: MessagingInboundEvent,
+  ): MessagingGrant[] => {
+    const name = event.conversation.kind === 'group' ? event.conversation.name : event.actor.name;
+    if (!name) return entries;
+    return entries.map((item) => {
+      if (
+        item.targetName === name ||
+        (event.conversation.kind === 'dm' && item.origin !== 'implicit')
+      )
+        return item;
+      const renamed = { ...item, targetName: name };
+      db.prepare('UPDATE messaging_grants SET body = ? WHERE id = ?').run(
+        JSON.stringify(renamed),
+        item.id,
+      );
+      return renamed;
+    });
+  };
   const placeIngests = (identity: MessagingIdentity, event: MessagingInboundEvent) => {
     if (event.conversation.kind !== 'group') return;
     const current = (db: DatabaseSync) =>
@@ -1232,7 +1255,11 @@ export function createInboundMessaging(options: {
             options.isBotActive,
           ))
             members.add(slug);
-          writeIngest(db, { ...ingest, lastMessageAt: event.at });
+          writeIngest(db, {
+            ...ingest,
+            conversation: { ...ingest.conversation, name: ingestName(ingest, event) },
+            lastMessageAt: event.at,
+          });
         }
       },
       ['source-event', 'channel', 'bot-inbox'],
@@ -1304,7 +1331,7 @@ export function createInboundMessaging(options: {
       (db) => {
         signal.throwIfAborted();
         lease.controller.signal.throwIfAborted();
-        const entries = conversationEntries(db, id, event.conversation);
+        const entries = renameEntries(db, conversationEntries(db, id, event.conversation), event);
         if (entries.some((item) => item.origin !== 'implicit')) return undefined;
         let value: MessagingGrant | undefined = entries[0];
         let created = false;
