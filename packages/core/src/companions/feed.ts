@@ -62,6 +62,7 @@ type OutputReference = Pick<PersonaBotOutputCommitted, 'botId' | 'messageId' | '
   epoch?: number;
 };
 interface RecoveryState {
+  capacity: number;
   selections: Map<string, CompanionSubscription>;
   messages: Map<string, OutputReference[]>;
   checkpoints: Map<string, number>;
@@ -190,14 +191,20 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
           ? previous
           : undefined;
       if (retained && previous === undefined) retained.take();
-      let selected = new Map<string, CompanionSubscription & { bot: CompanionBot }>();
-      const checkpoints = new Map<string, number>();
+      let selected = new Map<string, CompanionSubscription & { bot: CompanionBot }>(
+        [...(recovery?.selections ?? [])].flatMap(([id, selection]) => {
+          const bot = source.bot(id);
+          return bot ? [[id, { ...selection, bot }] as const] : [];
+        }),
+      );
+      const checkpoints = new Map(recovery?.checkpoints);
+      let awaitingSelection = recovery !== undefined;
       if (!multiplexed && bot && botId) selected.set(botId, { botId, dm, group, visibility, bot });
       const initialCheckpoint = source.checkpoint?.();
       if (!multiplexed && botId && initialCheckpoint !== undefined)
         for (const kind of companionSources)
           checkpoints.set(`${botId}\0${kind}`, initialCheckpoint);
-      let capacity = 20;
+      let capacity = recovery?.capacity ?? 20;
       let selectionRevision = 0;
       let finish: (() => void) | undefined;
       let flush: (() => void) | undefined;
@@ -206,7 +213,7 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
           let ended = false;
           let deadline = Number.POSITIVE_INFINITY;
           let expiry: ReturnType<typeof setTimeout> | undefined;
-          const journal = new Map<string, OutputReference[]>();
+          const journal = new Map(recovery?.messages);
           let pendingActivity: string | undefined;
           let pendingSelection: string | undefined;
           const messages = new Map<string, OutputReference[]>();
@@ -348,36 +355,19 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
                     queue.filter((item) => project(item) !== undefined).slice(-capacity),
                   );
               }
-              for (const [id, queue] of journal)
-                journal.set(
-                  id,
-                  queue.filter((item) => project(item) !== undefined).slice(-capacity),
-                );
+              for (const [id, queue] of journal) {
+                const qualified = queue
+                  .filter((item) => project(item) !== undefined)
+                  .slice(-capacity);
+                if (qualified.length) journal.set(id, qualified);
+                else journal.delete(id);
+              }
               const value = frame('companion/selection', snapshot());
               if ((controller.desiredSize ?? 0) > 0) write(value);
               else pendingSelection = value;
-              if (recovery) {
-                for (const [id, queue] of recovery.messages) {
-                  const current = selected.get(id);
-                  if (!current) continue;
-                  for (const item of queue.slice(-capacity)) {
-                    const value = project(item);
-                    if (!value) continue;
-                    const next = messages.get(id) ?? [];
-                    next.push(item);
-                    messages.set(id, next.slice(-capacity));
-                    const history = journal.get(id) ?? [];
-                    if (
-                      !history.some(
-                        (prior) =>
-                          prior.channelId === item.channelId && prior.messageId === item.messageId,
-                      )
-                    )
-                      history.push(item);
-                    journal.set(id, history.slice(-capacity));
-                  }
-                }
-                recovery.messages.clear();
+              if (awaitingSelection) {
+                awaitingSelection = false;
+                for (const [id, queue] of journal) if (queue.length) messages.set(id, [...queue]);
                 flush?.();
               }
             },
@@ -394,19 +384,27 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
                 epoch: value.source ? (selected.get(event.botId)?.epochs?.[value.source] ?? 0) : 0,
               };
               if (
-                !history.some(
+                history.some(
                   (item) =>
                     item.messageId === event.messageId && item.channelId === event.channelId,
                 )
               )
-                history.push(reference);
+                return;
+              history.push(reference);
               journal.set(event.botId, history.slice(-capacity));
-              if (ended) return;
+              if (ended || awaitingSelection) return;
               const text = frame('companion/message', value);
               if ((controller.desiredSize ?? 0) > 0) write(text);
               else {
                 const queue = messages.get(event.botId) ?? [];
-                queue.push(reference);
+                if (
+                  !queue.some(
+                    (item) =>
+                      item.messageId === reference.messageId &&
+                      item.channelId === reference.channelId,
+                  )
+                )
+                  queue.push(reference);
                 if (queue.length > capacity) queue.shift();
                 messages.set(event.botId, queue);
               }
@@ -472,6 +470,7 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
               available: () => performance.now() < deadline,
               take() {
                 const state = {
+                  capacity,
                   selections: new Map(selected),
                   messages: new Map([...journal].map(([id, queue]) => [id, [...queue]])),
                   checkpoints: new Map(checkpoints),

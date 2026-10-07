@@ -350,3 +350,149 @@ it('recovers bounded canonical new output in the same Host without crossing the 
     core.operationalDatabase.close();
   }
 });
+
+it('retains output throughout repeated reconnect handshakes before the latest selection acknowledgement', async () => {
+  let position = 0;
+  const feed = createCompanionFeed({
+    profileId: 'qa',
+    bot: (slug) => ({ slug, name: slug, paused: false }),
+    activity: () => ({ generation: 'host', revision: 0, bots: [] }),
+    onActivity: () => () => {},
+    checkpoint: () => position,
+    observeOutput: (channelId, id) => ({
+      position: Number(id),
+      channel: { id: channelId, type: 'dm', botSlug: 'ada', name: 'Ada', members: ['ada'] },
+      message: { id, author: { kind: 'bot', slug: 'ada' }, body: id },
+      humanParticipant: true,
+      canRead: true,
+    }),
+  });
+  const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
+  const open = (resume?: string) => {
+    const reader = feed
+      .open(
+        new Request('http://localhost/api/botharness/companion?subscribe=1', {
+          headers: resume ? { 'Last-Event-ID': resume } : {},
+        }),
+      )
+      .body!.getReader();
+    readers.push(reader);
+    return reader;
+  };
+  const read = async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+    const text = new TextDecoder().decode((await reader.read()).value);
+    return JSON.parse(/data: ([^\n]+)/u.exec(text)![1]!);
+  };
+  const select = (consumerId: string) =>
+    feed.update(
+      new Request('http://localhost/api/botharness/companion', {
+        method: 'POST',
+        body: JSON.stringify({
+          consumerId,
+          capacity: 3,
+          revision: 1,
+          selections: [
+            {
+              botId: 'ada',
+              dm: true,
+              epochs: { 'own-dm': 0, 'bot-dm': 0, 'shared-group': 0, 'bot-group': 0 },
+            },
+          ],
+        }),
+      }),
+    );
+  const publish = () => {
+    position++;
+    feed.publish({
+      version: 1,
+      botId: 'ada',
+      sessionId: 'ada',
+      channelId: 'dm',
+      messageId: String(position),
+      channelRevision: position,
+      at: '2026-10-08T00:00:00Z',
+      content: { body: 'signal', format: 'text' },
+      correlation: {},
+    });
+  };
+  try {
+    const first = open();
+    const baseline = await read(first);
+    await select(baseline.consumerId);
+    await read(first);
+    await first.cancel();
+    publish();
+    const second = open(baseline.consumerId);
+    const handshake = await read(second);
+    publish();
+    await second.cancel();
+    const third = open(handshake.consumerId);
+    const resumed = await read(third);
+    expect(resumed.recovered).toBe(true);
+    publish();
+    await select(resumed.consumerId);
+    await read(third);
+    expect(
+      [await read(third), await read(third), await read(third)].map((value) => value.body),
+    ).toEqual(['1', '2', '3']);
+  } finally {
+    for (const reader of readers) await reader.cancel();
+    feed.close();
+  }
+});
+
+it('counts unique canonical references when retaining a slow consumer queue', async () => {
+  const feed = createCompanionFeed({
+    profileId: 'qa',
+    bot: (slug) => ({ slug, name: slug, paused: false }),
+    activity: () => ({ generation: 'host', revision: 0, bots: [] }),
+    onActivity: () => () => {},
+    observeOutput: (channelId, id) => ({
+      channel: { id: channelId, type: 'dm', botSlug: 'ada', name: 'Ada', members: ['ada'] },
+      message: { id, author: { kind: 'bot', slug: 'ada' }, body: id },
+      humanParticipant: true,
+      canRead: true,
+    }),
+  });
+  const reader = feed
+    .open(new Request('http://localhost/api/botharness/companion?subscribe=1'))
+    .body!.getReader();
+  const read = async () => {
+    const text = new TextDecoder().decode((await reader.read()).value);
+    return JSON.parse(/data: ([^\n]+)/u.exec(text)![1]!);
+  };
+  try {
+    const baseline = await read();
+    await feed.update(
+      new Request('http://localhost/api/botharness/companion', {
+        method: 'POST',
+        body: JSON.stringify({
+          consumerId: baseline.consumerId,
+          capacity: 2,
+          selections: [{ botId: 'ada', dm: true }],
+        }),
+      }),
+    );
+    await read();
+    for (const messageId of ['1', '2', '3', '3', '3'])
+      feed.publish({
+        version: 1,
+        botId: 'ada',
+        sessionId: 'ada',
+        channelId: 'dm',
+        messageId,
+        channelRevision: Number(messageId),
+        at: '2026-10-08T00:00:00Z',
+        content: { body: 'signal', format: 'text' },
+        correlation: {},
+      });
+    expect([await read(), await read(), await read()].map((value) => value.body)).toEqual([
+      '1',
+      '2',
+      '3',
+    ]);
+  } finally {
+    await reader.cancel();
+    feed.close();
+  }
+});
