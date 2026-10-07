@@ -339,6 +339,8 @@ describe('plugin entry', () => {
       'messagingDefaultsSet',
       'channelBridges',
       'channelBridge',
+      'channelIngests',
+      'channelIngest',
       'messagingChannelTarget',
       'messagingReceive',
       'messagingGroupPolicy',

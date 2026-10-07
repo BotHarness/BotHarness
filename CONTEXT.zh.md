@@ -436,8 +436,8 @@ _避免使用_：default folder、inbox、fixed bottom bucket
 从 external source（如 IM 会话，未来还有 webhook）到某个显式 Channel 或 PersonaBot Inbox target 的已配置连接；它承载 inbound delivery 并暴露 outbound capability，但不会成为 Actor。对于 IM 会话，它列在「外部连接器 / External connector」中；PersonaBot 自己的外部身份是另一回事。
 _避免使用_：integration、adapter、裸用 connector
 
-**Conversation ingest（外部会话接入）**：
-由 Channel 持有的单向连接：把某个外部会话的每条消息作为 Source Event 放进该 Channel，成员 Bot 默认只获得「仅作上下文」的 Admission，除非它的唤醒策略另有设置。它列在「外部连接器」中，显示为外部会话；它不给任何 Bot 回复或其他权限。在 slice 9 合并之前，Bridge 指 Bot 持有的路由，Conversation ingest 指 Channel 持有的接入。
+**Conversation ingest**：
+外部会话接入。由 Channel 持有的单向连接：把某个外部会话的每条消息作为 Source Event 放进该 Channel，成员 Bot 默认只获得「仅作上下文」的 Admission，除非它的唤醒策略另有设置。它列在「外部连接器」中，显示为外部会话；它不给任何 Bot 回复或其他权限。在 slice 9 合并之前，Bridge 指 Bot 持有的路由，Conversation ingest 指 Channel 持有的接入。
 _避免使用_：sync、mirror、用 Bridge 指代这条记录
 
 **App**：
