@@ -21,7 +21,7 @@
 
 ### Documentation
 
-- 在 [DSH 调试指南](.agents/skills/dsh-dev/references/debugging-playbook.md)记录原生 Windows 候选安装与审批核验，包括隔离 Profile 的包管理器版本锁定及真实 Shell 退出证据；运行行为不变（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
+- 在 [DSH 调试指南](.agents/skills/dsh-dev/references/debugging-playbook.md)记录原生 Windows 候选安装与审批核验，包括 AppData 物理路径、隔离 Profile 的包管理器版本锁定及真实 Shell 退出证据；运行行为不变（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
 
 ## [1.1.0] - 2026-10-06
 

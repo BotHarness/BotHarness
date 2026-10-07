@@ -21,7 +21,7 @@ WeChat original voice can be prepared for playback, native video can be played a
 
 ### Documentation
 
-- Documented native Windows candidate installation and approval verification, including isolated Profile package-manager pins and actual Shell exit evidence, in the [DSH debugging playbook](.agents/skills/dsh-dev/references/debugging-playbook.md); runtime behavior is unchanged ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
+- Documented native Windows candidate installation and approval verification, including physical AppData paths, isolated Profile package-manager pins and actual Shell exit evidence, in the [DSH debugging playbook](.agents/skills/dsh-dev/references/debugging-playbook.md); runtime behavior is unchanged ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
 
 ## [1.1.0] - 2026-10-06
 

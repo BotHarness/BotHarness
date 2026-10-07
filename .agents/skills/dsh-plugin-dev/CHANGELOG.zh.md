@@ -9,7 +9,7 @@ artifact；DSH 版本与上游 revision 记录这些内容是基于什么版本�
 
 ### Documentation
 
-- 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录 Windows 隔离 Profile 的包管理器资格核验及原生 Shell 结果检查，通过 DSH 0.2.0 RC1 核验；平台词汇与 Skill 行为不变（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
+- 在[调试指南](../dsh-dev/references/debugging-playbook.md)记录 Windows AppData 物理路径、隔离 Profile 的包管理器资格核验及原生 Shell 结果检查，通过 DSH 0.2.0 RC1 核验；平台词汇与 Skill 行为不变（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)）。
 
 - 在[本地开发指南](../dsh-dev/SKILL.md)记录应用角色文件修改与已持久化 QA Session 中冻结指令的区别，通过 DSH 0.2.0 RC1 的真实模型事件核验；平台词汇与 Skill 行为不变（[#905](https://github.com/BotHarness/BotHarness/issues/905)）。
 
