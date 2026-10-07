@@ -165,7 +165,11 @@ export function MessagingGrantRow({
         title={report ? t('im.reportTitle') : t('im.title')}
         {...(report ? {} : { description: t('im.summary') })}
         closeLabel={t('common.close')}
-        className={report ? 'bh-sidebar-modal bh-external-source-modal' : 'bh-sidebar-modal bh-im-grant-modal'}
+        className={
+          report
+            ? 'bh-sidebar-modal bh-external-source-modal'
+            : 'bh-sidebar-modal bh-im-grant-modal'
+        }
         footer={
           <div className="bh-modal-footer">
             {report ? (
