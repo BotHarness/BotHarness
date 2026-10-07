@@ -198,7 +198,17 @@ Bot 可在已有可写工作区授权下，用 `bridge_attachment_save` 的 `rep
 
 ![真实已接受报告，分开显示原生与客户端 ID](/guides/wechat/proactive-after-receipt-light.jpg)
 
-#910 最终界面候选使用本机压缩包产品 `0.0.0-test.910.1`、托管 Provider `4.32.0-botharness.12`、fork `4f4f0a6282580bb59968eb90571778eb7e37ee73` 及 DSH `0.2.0-rc.1`。Human 在新电脑扫码后，真实上下文缺失被拒绝，新扫码者收件恢复了主动投递。Human 已确认微信收到 `BH910-PROACTIVE-OWNER-0632`，随后 `910 FOLLOWUP 蓝色灯塔63` 进入同一 canonical Inbox；Profile 投递前后本地 DM 未变。此前压缩包 `0.0.0-test.910` 使用真实模型投递 `BH910-MODEL-POST-0640`，Provider 接受与独立 Human 实际收件均已确认。最终界面重拍与重启保留两条报告及 Inbox。本次确实返回服务器 ID，不承诺每次响应都返回。原生截图证据、PR 最终 Human QA、公开发布与部署仍是独立动作。
+#910 最终界面候选使用本机压缩包产品 `0.0.0-test.910.1`、托管 Provider `4.32.0-botharness.12`、fork `4f4f0a6282580bb59968eb90571778eb7e37ee73` 及 DSH `0.2.0-rc.1`。Human 在新电脑扫码后，真实上下文缺失被拒绝，新扫码者收件恢复了主动投递。Human 已确认微信收到 `BH910-PROACTIVE-OWNER-0632`，随后 `910 FOLLOWUP 蓝色灯塔63` 进入同一 canonical Inbox；Profile 投递前后本地 DM 未变。此前压缩包 `0.0.0-test.910` 使用真实模型投递 `BH910-MODEL-POST-0640`，Provider 接受与独立 Human 实际收件均已确认。最终界面重拍与重启保留两条报告及 Inbox。本次确实返回服务器 ID，不承诺每次响应都返回。Human 已提供显示两条报告与后续回复的原生截图；它证明本次收件，不代表已读回执。公开发布与部署仍是独立动作。
+
+![Human 提供的原生微信截图，显示两条主动报告与后续回复](/guides/wechat/native-proactive-reports.png)
+
+![后续回复的 canonical 来源、原生消息 ID 和 Source Event ID，亮色主题](/guides/wechat/proactive-followup-source-light.jpg)
+
+![同一 canonical 后续回复来源，深色主题](/guides/wechat/proactive-followup-source-dark.jpg)
+
+![安装态模型报告收据，区分服务器消息 ID 与客户端确认，亮色主题](/guides/wechat/proactive-model-receipt-light.jpg)
+
+![同一安装态模型报告收据，深色主题](/guides/wechat/proactive-model-receipt-dark.jpg)
 
 录屏展示真实 Profile 输入、发送、Outbox 落定及回执检查。它证明浏览器操作；微信收件由 Human 独立核对。
 

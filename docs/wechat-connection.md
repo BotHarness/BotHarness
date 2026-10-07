@@ -198,7 +198,17 @@ Open **Recent sends** to inspect report content and outcome. **Platform accepted
 
 ![A real accepted report, with separate native and client IDs](/guides/wechat/proactive-after-receipt-light.jpg)
 
-The #910 final UI candidate is locally packed product `0.0.0-test.910.1` / managed Provider `4.32.0-botharness.12`, fork `4f4f0a6282580bb59968eb90571778eb7e37ee73` on DSH `0.2.0-rc.1`. A fresh-computer Human pairing produced a real missing-context refusal; fresh owner intake restored posting. The Human confirmed `BH910-PROACTIVE-OWNER-0632` in WeChat, and `910 FOLLOWUP 蓝色灯塔63` entered the same canonical Inbox. Profile posting left local DM history unchanged. The preceding packed build `0.0.0-test.910` used a real model to post `BH910-MODEL-POST-0640`; Provider acceptance and independent Human receipt are both confirmed. Final UI recapture and restart preserved both reports and the Inbox. Observed server IDs do not promise every response supplies one. Native screenshot evidence, final PR Human QA, public release and deployment remain separate.
+The #910 final UI candidate is locally packed product `0.0.0-test.910.1` / managed Provider `4.32.0-botharness.12`, fork `4f4f0a6282580bb59968eb90571778eb7e37ee73` on DSH `0.2.0-rc.1`. A fresh-computer Human pairing produced a real missing-context refusal; fresh owner intake restored posting. The Human confirmed `BH910-PROACTIVE-OWNER-0632` in WeChat, and `910 FOLLOWUP 蓝色灯塔63` entered the same canonical Inbox. Profile posting left local DM history unchanged. The preceding packed build `0.0.0-test.910` used a real model to post `BH910-MODEL-POST-0640`; Provider acceptance and independent Human receipt are both confirmed. Final UI recapture and restart preserved both reports and the Inbox. Observed server IDs do not promise every response supplies one. The Human supplied a native screenshot showing both reports and the follow-up; it is delivery evidence, not a read receipt. Public release and deployment remain separate.
+
+![Human-provided native WeChat screenshot showing both reports and the follow-up](/guides/wechat/native-proactive-reports.png)
+
+![The follow-up's canonical source, native message ID and Source Event ID, light theme](/guides/wechat/proactive-followup-source-light.jpg)
+
+![The same canonical follow-up source in dark theme](/guides/wechat/proactive-followup-source-dark.jpg)
+
+![Installed-model report receipt, with separate server ID and client acknowledgement, light theme](/guides/wechat/proactive-model-receipt-light.jpg)
+
+![The same installed-model receipt in dark theme](/guides/wechat/proactive-model-receipt-dark.jpg)
 
 The recording shows real Profile input, send, Outbox settlement and receipt inspection. It proves browser behavior; recipient receipt comes from the independent Human check.
 
