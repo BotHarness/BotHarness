@@ -53,7 +53,12 @@ function mention(id: string, mentioned = true): MessagingInboundEvent {
   });
 }
 
-async function fixture() {
+type Platform = 'feishu' | 'slack' | 'discord' | 'weixin';
+
+async function fixture(
+  platform: Platform = 'feishu',
+  targets: Awaited<ReturnType<DshImOutboundService['listTargets']>> = [],
+) {
   const home = createTempRoot('botharness-default-traffic-');
   const runs: OrchestratorAgentRun[] = [];
   const agents: BotAgentAdapter = {
@@ -76,15 +81,26 @@ async function fixture() {
   const replies: { route: MessagingReplyRoute; text: string }[] = [];
   const service: DshImOutboundService = {
     contractVersion: 1,
-    listBots: async () => [{ botId: 'lark-app', channel: 'feishu' }],
-    listTargets: async () => [],
+    replyContextVersion: 1,
+    replyReceiptVersion: 1,
+    replyFenceVersion: 1,
+    listBots: async () => [{ botId: 'lark-app', channel: platform }],
+    listTargets: async () => targets,
     describeBot: async (botId) => ({
       version: 1,
-      channel: 'feishu',
+      channel: platform,
       botId,
       account: { fingerprint, name: 'Support Lark app' },
       connected: true,
-      capabilities: ['proactive-text-checked', 'exclusive-text-consumer', 'reply-text-checked'],
+      capabilities: [
+        'proactive-text-checked',
+        'exclusive-text-consumer',
+        'ordinary-text-consumer',
+        'reply-text-checked',
+        'reply-context-checked',
+        'reply-receipt-checked',
+        'reply-fence-checked',
+      ],
     }),
     sendChecked: async () => ({ sent: true as const }),
     consumeInbound: async (_id, input) => {
@@ -94,14 +110,22 @@ async function fixture() {
         --subscriptions;
       };
     },
+    qualifyReplyChecked: async (_botId, route) => route,
     replyChecked: async (_botId, route, text, options) => {
       if (options.beforeSend && !options.beforeSend())
         throw Object.assign(new Error('stale-route'), { code: 'stale-route' });
       replies.push({ route, text });
-      return { sent: true };
+      return {
+        sent: true,
+        receipt: {
+          version: 1,
+          messageId: 'reply-' + route.messageId,
+          conversationId: route.conversationId,
+        },
+      };
     },
   };
-  const register = () => core.externalMessaging.register(createDshImProvider(service)!);
+  const register = () => core.externalMessaging.register(createDshImProvider(service, platform)!);
   let dispose = register();
   const settle = async () => {
     for (let i = 0; i < 4; i++) await tick();
@@ -110,7 +134,7 @@ async function fixture() {
   };
   const identity = await core.externalMessaging.identity('ada', {
     kind: 'bind',
-    providerId: 'dsh-im/feishu',
+    providerId: `dsh-im/${platform}`,
     accountRef: 'lark-app',
     fingerprint,
   });
@@ -131,7 +155,10 @@ async function fixture() {
     },
     async receive(event: MessagingInboundEvent) {
       if (!consumer) throw new Error('Not subscribed');
-      const result = await consumer.onEvent(event, { signal: consumer.signal });
+      const result = await consumer.onEvent(
+        { ...event, channel: platform },
+        { signal: consumer.signal },
+      );
       await settle();
       return result;
     },
@@ -300,4 +327,74 @@ it('stops admission on pause and invalidates entries on unbind', async () => {
   await expect(
     fx.core.externalMessaging.reply('ada', fx.sourceId('om-2'), 'too late'),
   ).rejects.toThrow();
+});
+
+it.each(['slack', 'discord'] as const)(
+  'a bound %s app admits DMs and mentions and replies in place',
+  async (platform) => {
+    const fx = await fixture(platform);
+    expect((await fx.core.externalMessaging.snapshot('ada')).identities?.[0]).toMatchObject({
+      reception: 'receiving',
+    });
+    await fx.receive(dm('1'));
+    await fx.receive(mention('quiet', false));
+    await fx.receive(mention('ask'));
+    expect(fx.entries()).toEqual([
+      { origin: 'implicit', kind: 'dm', conversation: 'oc_owner', revoked_at: null },
+      { origin: 'implicit', kind: 'group', conversation: 'oc_team', revoked_at: null },
+    ]);
+    expect(fx.admissions()).toEqual([
+      { reason: 'human-dm', messageId: 'om-1' },
+      { reason: 'group-mention', messageId: 'om-ask' },
+    ]);
+    await fx.core.externalMessaging.reply('ada', fx.sourceId('om-1'), 'DM answer');
+    await fx.core.externalMessaging.reply('ada', fx.sourceId('om-ask'), 'Topic answer');
+    await fx.settle();
+    expect(fx.replies.map((item) => item.route)).toEqual([
+      { messageId: 'om-1', conversationId: 'oc_owner', actorId: 'ou_owner' },
+      expect.objectContaining({ conversationId: 'oc_team', threadId: 'omt-topic' }),
+    ]);
+  },
+);
+
+it('a bound WeChat app admits only its paired owner DM', async () => {
+  const fx = await fixture('weixin', [
+    { targetId: 'owner', name: 'QR paired owner', kind: 'user', route: { toUserId: 'oc_owner' } },
+  ]);
+  await fx.receive(
+    dm('stranger', {
+      conversation: { kind: 'dm', id: 'oc_stranger' },
+      reply: { messageId: 'om-stranger', conversationId: 'oc_stranger', actorId: 'ou_owner' },
+    }),
+  );
+  await fx.receive(mention('group'));
+  expect(fx.entries()).toEqual([]);
+  await fx.receive(dm('1'));
+  expect(fx.entries()).toEqual([
+    { origin: 'implicit', kind: 'dm', conversation: 'oc_owner', revoked_at: null },
+  ]);
+  expect(fx.admissions()).toEqual([{ reason: 'human-dm', messageId: 'om-1' }]);
+  await fx.core.externalMessaging.reply('ada', fx.sourceId('om-1'), 'Hi owner');
+  await fx.settle();
+  expect(fx.replies).toHaveLength(1);
+});
+
+it('a recorded group follows the platform default: collecting all text admits unmentioned messages', async () => {
+  const fx = await fixture();
+  await fx.receive(mention('ask'));
+  await fx.receive(mention('quiet', false));
+  expect(fx.admissions()).toHaveLength(1);
+  const defaults = fx.core.externalMessaging.defaults('feishu');
+  const { revision, changedAt: _at, ...preferences } = defaults;
+  await fx.core.externalMessaging.setDefaults({
+    ...preferences,
+    expectedRevision: revision,
+    collection: 'all',
+  });
+  await fx.settle();
+  await fx.receive(mention('chatter', false));
+  expect(fx.admissions()).toEqual([
+    { reason: 'group-mention', messageId: 'om-ask' },
+    { reason: 'group-ordinary', messageId: 'om-chatter' },
+  ]);
 });

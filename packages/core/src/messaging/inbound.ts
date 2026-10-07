@@ -1160,6 +1160,17 @@ export function createInboundMessaging(options: {
     if (event.fingerprint !== identity.fingerprint || event.botId !== identity.accountRef)
       throw new MessagingError('untrusted-source');
     if (event.conversation.kind === 'group' && !event.mentionedAccount) return { accepted: true };
+    if (
+      identity.platform === 'weixin' &&
+      (event.conversation.kind !== 'dm' ||
+        !(await bounded(entry.provider.targets(identity.accountRef))).some(
+          (target) =>
+            target.receiveScope?.kind === 'dm' &&
+            target.receiveScope.conversationId === event.conversation.id,
+        ))
+    )
+      return { accepted: true };
+    signal.throwIfAborted();
     const admitted = transaction(
       (db) => {
         signal.throwIfAborted();
@@ -1226,13 +1237,7 @@ export function createInboundMessaging(options: {
   const startControl = async (id: string, attempt = 0) => {
     if (!options.pairing || closed) return;
     const identity = database.read((db) => readMessagingIdentity(db, id));
-    if (
-      identity.platform !== 'feishu' ||
-      !identity.enabled ||
-      identity.revokedAt ||
-      !options.isBotActive(identity.botSlug)
-    )
-      return;
+    if (!identity.enabled || identity.revokedAt || !options.isBotActive(identity.botSlug)) return;
     const entry = providers.get(identity.providerId);
     if (!entry?.consume || !entry.provider.reply || !entry.provider.inspectAccount) return;
     const prior = controls.get(id);
@@ -2309,12 +2314,7 @@ export function createInboundMessaging(options: {
     },
     pairingReception(bindingId) {
       const identity = database.read((db) => readMessagingIdentity(db, bindingId));
-      if (
-        identity.platform !== 'feishu' ||
-        !identity.enabled ||
-        identity.revokedAt ||
-        !options.isBotActive(identity.botSlug)
-      )
+      if (!identity.enabled || identity.revokedAt || !options.isBotActive(identity.botSlug))
         return 'off';
       const lease = controls.get(bindingId);
       if (!lease || lease.controller.signal.aborted) return 'unavailable';

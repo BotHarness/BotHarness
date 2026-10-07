@@ -2,9 +2,9 @@
 
 Open **Bot DM → Channel sidebar → External identities**. It lists the external apps bound to this Bot (Lark / Feishu, Slack, Discord, WeChat and so on). An app belongs to exactly one Bot; other Bots cannot borrow it.
 
-**Binding a Lark app is enough.** Once bound, DMs to the app and @mentions of it in groups it belongs to go straight to this Bot’s Inbox, and the Bot replies in the same conversation. You don’t need a saved delivery target, a conversation authorization or a reception switch. Who can reach the app is decided on the Lark Open Platform: availability scope, group membership and app permissions.
+**Binding an app is enough.** Once bound, DMs to the app and @mentions of it in groups it belongs to go straight to this Bot’s Inbox, and the Bot replies in the same conversation. You don’t need a saved delivery target, a conversation authorization or a reception switch. Who can reach the app is decided by each platform's settings, such as Lark's availability scope, group membership and app permissions, or Discord's channel permissions.
 
-Slack, Discord and WeChat still need each conversation authorized under [External connectors](/docs/channel-sidebar/external-connectors) for now. Their DMs and @mentions going straight to the Inbox come in a later release.
+The same goes for Slack and Discord: DM the app or @mention it in a channel it belongs to. Personal WeChat only receives DMs from the person who scanned it; other contacts and WeChat groups stay out of the Inbox.
 
 ![The External identities entry with one row per bound app](/guides/channel-sidebar/18-external-identities-zh.webp)
 

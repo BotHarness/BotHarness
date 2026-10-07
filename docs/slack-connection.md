@@ -88,11 +88,11 @@ _The connected account is the actual #868 installed-product result, not a filled
 
 ## 4. Bind the PersonaBot and authorize a channel
 
-Open the PersonaBot's DM and, in the **Channel sidebar** on the right, expand **External identities** (外部身份). Select **+ Bind identity** (绑定身份), choose the connected Slack application account and save. One Bot can bind identities on several platforms, with one identity per platform.
+Open the PersonaBot's DM and, in the **Channel sidebar** on the right, expand **External identities** (外部身份). Select **+ Bind app** (绑定应用), choose the connected Slack app and click **Bind app**. Once the dialog shows **Ready**, DMs to the app and @mentions of it in channels it belongs to go straight to this Bot's Inbox, and the Bot replies in the same thread. The authorization steps below are only needed for unmentioned channel messages, a local Channel or proactive posts. See [External identities](/docs/channel-sidebar/external-identities).
 
 ![Bind identity dialog selecting an authenticated IM account](/guides/slack/08-bind.webp)
 
-_This form binds an identity only. It does not authorize another channel or turn on intake. Screenshots in this section show the earlier Profile layout; these settings now live in the sidebar's External identities / External connectors entries._
+_Screenshots in this section show the earlier Profile layout; these settings now live in the sidebar's External identities / External connectors entries._
 
 ![Actual bound Slack identity with status, enabled switch, edit and unbind actions](/guides/slack/09-identity.webp)
 
