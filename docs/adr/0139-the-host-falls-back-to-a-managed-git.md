@@ -16,7 +16,7 @@ Every Memory Repository operation (Bot creation, Import from GitHub, Bot Zip imp
 - **Pinned and verified.** Each deepseekbot release pins one Managed Git version and its SHA-256 per platform. Downloads try BotHarness's own mirror (`media.botharness.ai`) first, then the GitHub release, and are rejected unless the checksum matches. When a deepseekbot upgrade pins a new version, it is downloaded on next use.
 - **Visible to Sessions.** When the Managed Git is in use, the Host prepends its directory to the DSH process PATH, so an Orchestrator Session that runs `git` in its Shell gets the same Git as BotHarness.
 - **Settings show the resolved Git.** Settings show the Git version in use and whether it is system or managed, for diagnosis.
-- **HTTPS for imports.** The Managed Git may not include `ssh` on every platform. An SSH import URL that fails under the Managed Git asks the Human to use the HTTPS URL instead; BotHarness does not bundle SSH.
+- **SSH imports fall back to HTTPS.** When cloning an SSH import URL (`git@host:owner/repo(.git)` or `ssh://git@host/owner/repo` without a custom port) fails, the Host converts it to `https://host/owner/repo.git`, retries once, and tells the Human it switched; the new Bot's remote is then the HTTPS URL. This works with system or Managed Git; BotHarness does not bundle SSH. If the HTTPS retry also fails (for example a private repository that only had SSH keys), the Human sees the original SSH error.
 
 ## Considered Options
 
