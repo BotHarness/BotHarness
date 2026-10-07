@@ -503,8 +503,8 @@ A PersonaBot-owned durable Host rule that admits a `schedule` Source Event into 
 _Avoid_: cron job, DSH Schedule, timer, heartbeat, scheduled Assignment
 
 **Wake Policy**:
-The deterministic Host policy that decides whether an admitted event wakes a PersonaBot now, joins a digest, or causes no automatic wake.
-_Avoid_: model decision, delivery mechanism, scheduler
+The deterministic Host policy that decides whether an admitted event wakes a PersonaBot now, joins a digest, or causes no automatic wake. The UI calls it 唤醒策略 / Wake policy; it never notifies the Human.
+_Avoid_: model decision, delivery mechanism, scheduler, 提醒策略, attention policy, notification
 
 **Delivery Policy**:
 The Host policy that maps a Wake Policy decision and Orchestrator liveness to a safe-step steer, the next harvest, or no wake.
@@ -687,11 +687,11 @@ One registered, collapsible item of a Channel sidebar: a stable id, label, order
 _Avoid_: widget, card, tab, destination, Channel section
 
 **PersonaBot Profile**:
-The per-PersonaBot surface for identity and activity: the Display name and Avatar, token usage and activity charts derived from its owned Sessions, and its Memory commit activity. It appears compactly as a Profile popover from the PersonaBot's avatar in a DM header, and expands into a Profile view in the Channel body.
-_Avoid_: account, dashboard, bot page, profile (bare)
+The per-PersonaBot surface for its shareable identity and its read-only activity: the identity travels with the Bot when it is shared (Display name, Avatar, Bot description), and the activity is token usage derived from its owned Sessions, event activity from its Bot Inbox Admissions, and Memory commit activity. Operational configuration such as its Model Plan, Wake Policy, external identities, Bridges and approvals is never part of it; that lives in the Channel sidebar. It appears compactly as a Profile popover from the PersonaBot's avatar in a DM header, and expands into a Profile view in the Channel body.
+_Avoid_: account, dashboard, bot page, profile (bare), settings page
 
 **Group Profile**:
-The per-Group Channel surface for activity from committed Channel messages. It shows message counts by day and by author, distinguishing Human and PersonaBot authors. The Group header opens its popover and expanded Channel-body view; DM Channels have only their PersonaBot Profile.
+The per-Group Channel surface for the Group's name and avatar and its activity from committed Channel messages. It shows message counts by day and by author, distinguishing Human and PersonaBot authors; Group configuration such as member Wake Policy and Bridges lives in the Channel sidebar. The Group header opens its popover and expanded Channel-body view; DM Channels have only their PersonaBot Profile.
 _Avoid_: PersonaBot token usage, Group management sidebar, DM Channel Profile
 
 **Profile popover**:
