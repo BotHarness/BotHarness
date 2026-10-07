@@ -1,6 +1,6 @@
 import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { PairingRequest, PairingReviewInput } from '../../../core/src/messaging/pairing.js';
-import { reviewPairing } from './bridge.js';
+import { loadGitAvailability, reviewPairing } from './bridge.js';
 import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
 import type {
   MarketplaceDetail,
@@ -304,6 +304,7 @@ export interface BridgeActions {
   memoryDirectory(slug: string): Promise<string | undefined>;
   load(signal?: AbortSignal): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
+  refreshGit(signal?: AbortSignal): Promise<void>;
   openBot(slug: string, view?: 'profile'): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
   openActivityCenter(view?: ActivityCenterTab): Promise<void>;
@@ -626,6 +627,15 @@ export function createActions(
     return channel?.id === selection.channelId && channel.type === 'dm'
       ? channel.botSlug
       : undefined;
+  };
+
+  const refreshGit = async (signal?: AbortSignal): Promise<void> => {
+    try {
+      const git = await loadGitAvailability(call, signal);
+      if (signal?.aborted !== true) clientStore.setGit(git);
+    } catch (error) {
+      if (signal?.aborted !== true) console.warn('botharness: Git status check failed', error);
+    }
   };
 
   const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
@@ -1066,6 +1076,7 @@ export function createActions(
       ),
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
+      void refreshGit(signal);
       try {
         const [bots, channels] = await Promise.all([
           loadBots(call, signal),
@@ -1081,6 +1092,7 @@ export function createActions(
       await refreshRoster(signal);
     },
     refreshRoster,
+    refreshGit,
     async openBot(slug, view) {
       const snapshot = clientStore.getSnapshot();
       const bot = snapshot.bots.find((candidate) => candidate.slug === slug);

@@ -559,7 +559,8 @@ export const zh = {
   'bot.create.error.identity': '系统未能分配唯一身份，请重试。',
   'bot.create.error.invalid': '请检查 Bot 名称、岗位或简介。',
   'bot.create.error.connection': '无法连接 Host，请稍后重试。',
-  'bot.create.error.gitMissing': '请安装 Git，并确保它在 PATH 中；重启 DeepSeek Harness 后再试。',
+  'bot.create.error.gitMissing':
+    '请安装 Git 2.28 或更新版本，并确保它在 PATH 中；重启 DeepSeek Harness 后再试。',
   'bot.create.error.gitUrl': '请输入有效的 HTTPS 或 SSH 仓库地址。',
   'bot.create.error.clone': '克隆失败。请检查仓库地址、网络和 Host 的 Git 凭证。',
   'bot.create.error.cloneTimeout': '克隆超时。请检查网络或改用较小的仓库重试。',
@@ -1285,6 +1286,14 @@ export const zh = {
   'profile.avatar.shape': '五官布局',
   'profile.avatar.spacing': '间距',
   'roster.activityStale': '活动同步已中断，头像显示的是最后一次观察到的状态，正在重新连接…',
+  'git.unavailable.title': '需要 Git 才能创建 Bot',
+  'git.unavailable.missing': '这台电脑上没有找到 Git。',
+  'git.unavailable.unrunnable': '找到了 Git，但它无法运行。macOS 需要先安装命令行开发者工具。',
+  'git.unavailable.tooOld': 'Git {version} 版本太旧，需要 2.28 或更新版本。',
+  'git.unavailable.hint': '安装或升级后重启 DeepSeek Harness，就能创建和导入 Bot。',
+  'git.unavailable.guide': '安装说明',
+  'git.unavailable.guideUrl': 'https://botharness.ai/zh/docs/installation/#git',
+  'git.unavailable.recheck': '重新检测',
   'profile.avatar.unsupported':
     '这个头像使用的版本当前不可用，暂时显示保存时的静态图片，无法编辑或播放角色动画。原始设置已保留，版本恢复后会自动还原。',
   'profile.avatar.bangs': '刘海',
@@ -2551,7 +2560,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bot.create.error.invalid': 'Check the Bot name, roles, or description.',
   'bot.create.error.connection': 'Cannot reach the Host; try again later.',
   'bot.create.error.gitMissing':
-    'Install Git and make it available on PATH, then restart DeepSeek Harness and retry.',
+    'Install Git 2.28 or newer and make it available on PATH, then restart DeepSeek Harness and retry.',
   'bot.create.error.gitUrl': 'Enter a valid HTTPS or SSH repository URL.',
   'bot.create.error.clone':
     'Clone failed. Check the URL, network, and Git credentials on the Host.',
@@ -3313,6 +3322,16 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'profile.avatar.spacing': 'Spacing',
   'roster.activityStale':
     'Activity sync is interrupted. Avatars show the last observed state while reconnecting…',
+  'git.unavailable.title': 'Bot mode needs Git',
+  'git.unavailable.missing': 'Git was not found on this computer.',
+  'git.unavailable.unrunnable':
+    'Git was found but cannot run. On macOS, install the Command Line Developer Tools first.',
+  'git.unavailable.tooOld': 'Git {version} is too old; 2.28 or newer is required.',
+  'git.unavailable.hint':
+    'After installing or upgrading, restart DeepSeek Harness to create and import Bots.',
+  'git.unavailable.guide': 'How to install',
+  'git.unavailable.guideUrl': 'https://botharness.ai/docs/installation/#git',
+  'git.unavailable.recheck': 'Check again',
   'profile.avatar.unsupported':
     'This Avatar uses a version that is not available right now, so its saved still image is shown and editing and character animation are paused. The original design is kept and returns when the version is available again.',
   'profile.avatar.bangs': 'Bangs',

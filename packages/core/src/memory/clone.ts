@@ -1,6 +1,8 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
+import { probeGit, type GitAvailability } from './git-probe.js';
+
 const execFileAsync = promisify(execFile);
 const MAX_GIT_URL_LENGTH = 2_048;
 export const MEMORY_CLONE_TIMEOUT_MS = 120_000;
@@ -46,19 +48,12 @@ export async function cloneMemoryRepository(input: {
   url: string;
   destination: string;
   timeoutMs?: number;
+  probe?: () => GitAvailability;
 }): Promise<MemoryCloneResult> {
   const url = parseMemoryGitUrl(input.url);
   if (url === undefined) return { ok: false, code: 'invalid-git-url' };
 
-  try {
-    await execFileAsync('git', ['--version'], { timeout: 5_000, windowsHide: true });
-  } catch (error) {
-    return {
-      ok: false,
-      code:
-        (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'git-not-found' : 'git-clone-failed',
-    };
-  }
+  if (!(input.probe ?? probeGit)().available) return { ok: false, code: 'git-not-found' };
 
   try {
     await execFileAsync('git', ['clone', '--quiet', '--', url, input.destination], {

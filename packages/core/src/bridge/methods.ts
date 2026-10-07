@@ -152,6 +152,7 @@ import type {
   BotAttentionState,
 } from '../runtime/attention.js';
 import type { BotSourcePolicy, BotSourcePolicyStore } from '../runtime/source-policy.js';
+import { probeGit, type GitAvailability } from '../memory/git-probe.js';
 import {
   BotScheduleError,
   type BotSchedule,
@@ -447,6 +448,7 @@ export interface BridgeMethods {
   releaseInstall(payload: unknown): Promise<BridgeResult<ReleaseInstall>>;
   releaseRestart(payload: unknown): Promise<BridgeResult<ReleaseRestart>>;
   telemetryStatus(): BridgeResult<TelemetryStatus>;
+  gitStatus(): BridgeResult<GitAvailability>;
   telemetrySet(payload: unknown): BridgeResult<TelemetryStatus>;
   scheduleList(payload: unknown): BridgeResult<{ schedules: BotSchedule[] }>;
   scheduleCreate(payload: unknown): BridgeResult<{ schedule: BotSchedule }>;
@@ -495,6 +497,7 @@ export interface BridgeMethodsDeps {
     setPreference(enabled: boolean): TelemetryStatus;
     capture?: TelemetryCapture;
   };
+  gitProbe?: () => GitAvailability;
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -1572,6 +1575,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ok: true,
         value: deps.telemetry?.status() ?? { enabled: false, preference: false },
       };
+    },
+    gitStatus() {
+      return { ok: true, value: (deps.gitProbe ?? probeGit)() };
     },
     telemetrySet(payload) {
       const enabled = asObject(payload)['enabled'];
