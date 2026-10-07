@@ -119,7 +119,7 @@ it('enables Group playback from the native menu and explains why a Bot-only sour
       (item) => item.textContent === '群聊 · Design room',
     )!;
     await act(() => shared.click());
-    expect(openChannel).toHaveBeenCalledExactlyOnceWith('design');
+    expect(openChannel).toHaveBeenCalledExactlyOnceWith('design', 'group');
     await menu('Bot 加入的所有会话');
     expect(new URL(paths.at(-1)!, 'http://localhost').searchParams.get('visibility')).toBe(
       'all-bot',
@@ -147,8 +147,10 @@ it('enables Group playback from the native menu and explains why a Bot-only sour
     )!;
     expect(botDmSource.disabled).toBe(false);
     expect(node.textContent).toContain('Ada ↔ Grace');
-    await act(() => botDmSource.click());
-    expect(openChannel).toHaveBeenLastCalledWith('bot-dm');
+    openChannel.mockRejectedValueOnce(new Error('Permission changed'));
+    await act(async () => botDmSource.click());
+    expect(openChannel).toHaveBeenLastCalledWith('bot-dm', 'bots');
+    expect(node.textContent).toContain('当前无法读取原会话，仍可查看消息来源。');
     await act(() =>
       events.dispatchEvent(
         new MessageEvent('companion/message', {
@@ -174,7 +176,10 @@ it('enables Group playback from the native menu and explains why a Bot-only sour
     await act(() => privateSource.click());
     expect(openChannel).toHaveBeenCalledTimes(2);
     await menu('播放私聊消息');
-    expect(node.querySelectorAll('.bh-companion-card')).toHaveLength(0);
+    expect(companion.getSnapshot().cards.map((card) => card.messageId)).toEqual([
+      'group',
+      'private-group',
+    ]);
     expect(companion.getSnapshot().activity?.state).toBe('thinking');
   } finally {
     await act(() => root.unmount());

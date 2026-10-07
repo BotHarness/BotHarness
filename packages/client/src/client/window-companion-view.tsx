@@ -18,7 +18,7 @@ export interface WindowCompanionViewProps {
   companion: WindowCompanion;
   openDm(botId: string): void;
   openAttention(): void;
-  openChannel(channelId: string): void;
+  openChannel(channelId: string, messageId: string): void | Promise<void>;
   t: BotHarnessTranslate;
   onRemove?(botId: string): void;
   bubbles?: CompanionBubbles | undefined;
@@ -60,6 +60,7 @@ export function WindowCompanionView({
   const exit = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clickReset = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [menu, setMenu] = useState(false);
+  const [unavailable, setUnavailable] = useState<ReadonlySet<string>>(() => new Set());
   const menuOpen = useRef(false);
   menuOpen.current = menu;
   const reducedMotion = (): boolean =>
@@ -269,7 +270,9 @@ export function WindowCompanionView({
               const layer = cards.length - index - 1;
               const context = [
                 card.source === 'bot-dm' ? card.participants?.join(' ↔ ') : '',
-                card.canOpen === false ? t('companion.sourceUnavailable') : '',
+                card.canOpen === false || unavailable.has(card.messageId)
+                  ? t('companion.sourceUnavailable')
+                  : '',
               ]
                 .filter(Boolean)
                 .join(' · ');
@@ -297,8 +300,19 @@ export function WindowCompanionView({
                         title={
                           card.canOpen === false ? t('companion.sourceUnavailable') : undefined
                         }
-                        onClick={() => {
-                          if (card.canOpen !== false) openChannel(card.channelId);
+                        onClick={async () => {
+                          if (card.canOpen === false) return;
+                          try {
+                            await openChannel(card.channelId, card.messageId);
+                            setUnavailable(
+                              (prior) => new Set([...prior].filter((id) => id !== card.messageId)),
+                            );
+                          } catch {
+                            setUnavailable(
+                              (prior) =>
+                                new Set([...prior, card.messageId].slice(-view.capacity.retention)),
+                            );
+                          }
                         }}
                       >
                         {t(

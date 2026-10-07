@@ -191,9 +191,9 @@ export function apply(ctx: ClientContext): void {
             ctx.layout.selectPanel(PANEL_ID);
             void actions.openBot(botId);
           },
-          openChannel: (channelId: string) => {
+          openChannel: async (channelId: string, messageId: string) => {
+            await actions.openChannelAtMessage(channelId, messageId);
             ctx.layout.selectPanel(PANEL_ID);
-            void actions.openChannel(channelId);
           },
           openAttention: () => {
             ctx.layout.selectPanel(PANEL_ID);

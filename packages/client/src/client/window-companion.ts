@@ -63,6 +63,21 @@ function decode(event: Event): Record<string, unknown> | undefined {
   }
 }
 
+function eligible(
+  source: unknown,
+  selection: CompanionSelection,
+): source is NonNullable<CompanionMessage['source']> {
+  return (
+    (source === 'own-dm' ||
+      source === 'bot-dm' ||
+      source === 'shared-group' ||
+      source === 'bot-group') &&
+    (source === 'own-dm' || source === 'bot-dm' ? selection.dm : selection.group) &&
+    (selection.visibility !== 'own-dm' || source === 'own-dm') &&
+    (selection.visibility !== 'shared' || (source !== 'bot-dm' && source !== 'bot-group'))
+  );
+}
+
 export class WindowCompanion {
   private state: CompanionViewState = {
     ready: false,
@@ -76,6 +91,7 @@ export class WindowCompanion {
   private stream: CompanionStream | undefined;
   private profileId: string | undefined;
   private generation: string | undefined;
+  private preservedGeneration: string | undefined;
   private pendingCards: CompanionCard[] = [];
   private seen: string[] = [];
   private disposed = false;
@@ -169,7 +185,7 @@ export class WindowCompanion {
       (change.group !== undefined && change.group !== selected.group) ||
       (change.visibility !== undefined && change.visibility !== selected.visibility)
     )
-      this.connect();
+      this.connect(true);
   }
   setCapacity(capacity: { layers: number; retention: number }): void {
     this.pendingCards = this.pendingCards.slice(-capacity.retention);
@@ -244,13 +260,27 @@ export class WindowCompanion {
     this.stream?.close();
     this.stream = undefined;
     this.generation = undefined;
+    this.preservedGeneration = undefined;
     this.seen = [];
     this.pendingCards = [];
   }
-  private connect(): void {
-    this.disconnect();
-    this.update({ cards: [], pending: 0, sync: 'connecting' });
+  private connect(preserve = false): void {
+    const previousGeneration = this.generation ?? this.preservedGeneration;
     const selection = this.state.selection;
+    const cards =
+      preserve && selection
+        ? this.state.cards.filter((card) => eligible(card.source ?? 'own-dm', selection))
+        : [];
+    const pending =
+      preserve && selection
+        ? this.pendingCards.filter((card) => eligible(card.source ?? 'own-dm', selection))
+        : [];
+    const seen = preserve ? this.seen : [];
+    this.disconnect();
+    this.preservedGeneration = preserve ? previousGeneration : undefined;
+    this.pendingCards = pending;
+    this.seen = seen;
+    this.update({ cards, pending: pending.length, sync: 'connecting' });
     if (!selection || this.disposed) return;
     let stream: CompanionStream;
     try {
@@ -279,11 +309,15 @@ export class WindowCompanion {
         isAvatarAppearance(bot['appearance']) || isRetainedAvatarAppearance(bot['appearance'])
           ? bot['appearance']
           : undefined;
-      if (baseline || (this.generation !== undefined && this.generation !== activity.generation)) {
+      if (
+        (baseline && this.preservedGeneration !== activity.generation) ||
+        (this.generation !== undefined && this.generation !== activity.generation)
+      ) {
         this.seen = [];
         this.pendingCards = [];
         this.update({ cards: [], pending: 0 });
       }
+      this.preservedGeneration = undefined;
       this.generation = activity.generation;
       this.deps.onActivity?.(activity);
       this.update({
@@ -305,17 +339,7 @@ export class WindowCompanion {
       const value = decode(event);
       const current = this.state.selection;
       const source = value?.['source'] ?? 'own-dm';
-      if (
-        !current ||
-        (source !== 'own-dm' &&
-          source !== 'bot-dm' &&
-          source !== 'shared-group' &&
-          source !== 'bot-group') ||
-        (source === 'own-dm' || source === 'bot-dm' ? !current.dm : !current.group) ||
-        (current.visibility === 'own-dm' && source !== 'own-dm') ||
-        (current.visibility === 'shared' && (source === 'bot-dm' || source === 'bot-group'))
-      )
-        return;
+      if (!current || !eligible(source, current)) return;
       if (
         value?.['generation'] !== this.generation ||
         value['botId'] !== selection.botId ||

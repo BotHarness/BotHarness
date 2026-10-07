@@ -319,6 +319,47 @@ describe('bridge parsers', () => {
 });
 
 describe('bridge actions', () => {
+  it('opens a newly observed source from the owner roster and refuses lost read permission before selection', async () => {
+    const fresh = { ...GROUP, id: 'new-source' };
+    let readable = true;
+    const { clientStore, actions } = setup({
+      channels: () => ({ channels: [fresh] }),
+      channelTimeline: ({ channelId, direction, around }) => {
+        expect({ channelId, direction, around }).toEqual({
+          channelId: 'new-source',
+          direction: 'around',
+          around: 'reply',
+        });
+        if (!readable) throw new Error('Source permission revoked');
+        return {
+          revision: 1,
+          page: {
+            entries: [],
+            olderCursor: null,
+            newerCursor: null,
+            hasOlder: false,
+            hasNewer: false,
+          },
+        };
+      },
+    });
+    expect(clientStore.getSnapshot().channels).toEqual([]);
+    await actions.openChannelAtMessage('new-source', 'reply');
+    expect(clientStore.getSnapshot().conversation).toMatchObject({
+      status: 'ready',
+      channel: { id: 'new-source' },
+      focusMessageId: 'reply',
+    });
+    clientStore.select(undefined);
+    readable = false;
+    await expect(actions.openChannelAtMessage('new-source', 'reply')).rejects.toThrow(
+      'Source permission revoked',
+    );
+    expect(clientStore.getSnapshot().selection).toBeUndefined();
+    await expect(actions.openChannelAtMessage('deleted', 'reply')).rejects.toThrow(
+      'Source Channel is no longer available',
+    );
+  });
   it('keeps All Bots intent out of failed local echoes and preserves the stale-preview error for composer recovery', async () => {
     const preview = { revision: 'fresh', recipients: [{ botSlug: 'ada', label: 'Ada' }] };
     const { clientStore, actions } = setup({

@@ -259,6 +259,7 @@ it('observes only the selected Bot in a Group without the Human while preserving
     await commit(group.id, 'Selected Bot summary');
     await receive();
     expect(companion.getSnapshot().cards).toMatchObject([
+      { messageId: 'owned-sentinel', source: 'own-dm' },
       {
         body: 'Selected Bot summary',
         source: 'bot-group',
@@ -270,6 +271,7 @@ it('observes only the selected Bot in a Group without the Human while preserving
     await commit(own.id, 'next-owned-sentinel');
     await receive();
     expect(companion.getSnapshot().cards.map((card) => card.messageId)).toEqual([
+      'owned-sentinel',
       'Selected Bot summary',
       'next-owned-sentinel',
     ]);
@@ -410,10 +412,11 @@ it('keeps Bot-to-Bot DM outside shared scope and uses its canonical author and b
     expect(companion.getSnapshot().cards.map((card) => card.messageId)).toEqual(['visible-own']);
     companion.configure({ visibility: 'all-bot' });
     await receive();
-    expect(companion.getSnapshot().cards).toEqual([]);
+    expect(companion.getSnapshot().cards.map((card) => card.messageId)).toEqual(['visible-own']);
     await commit(bots.id, 'Canonical Bot reply');
     await receive();
     expect(companion.getSnapshot().cards).toMatchObject([
+      { messageId: 'visible-own', source: 'own-dm' },
       {
         body: 'Canonical Bot reply',
         source: 'bot-dm',
@@ -436,6 +439,7 @@ it('keeps Bot-to-Bot DM outside shared scope and uses its canonical author and b
     await commit(own.id, 'next-own');
     await receive();
     expect(companion.getSnapshot().cards.map((card) => card.body)).toEqual([
+      'visible-own',
       'Canonical Bot reply',
       'next-own',
     ]);
