@@ -338,7 +338,9 @@ export interface BridgeMethods {
   messagingConversation(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingSend(payload: unknown): Promise<BridgeResult<{ intent: OutboxIntent }>>;
 
-  modelCatalog(payload: unknown): Promise<BridgeResult<{ models: ModelCatalogEntry[] }>>;
+  modelCatalog(
+    payload: unknown,
+  ): Promise<BridgeResult<{ models: ModelCatalogEntry[]; default?: ModelRoute }>>;
   modelPresets(payload: unknown): BridgeResult<{ presets: ModelPreset[] }>;
   modelPresetCreate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
   modelPresetUpdate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
@@ -1278,7 +1280,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     async modelCatalog() {
       if (deps.modelCatalog === undefined) return unavailable();
       try {
-        return { ok: true, value: { models: await deps.modelCatalog.list() } };
+        const models = await deps.modelCatalog.list();
+        const defaultRoute = deps.modelCatalog.defaultRoute?.();
+        return {
+          ok: true,
+          value: {
+            models,
+            ...(defaultRoute === undefined ? {} : { default: defaultRoute }),
+          },
+        };
       } catch (error) {
         return invalidInput(error instanceof Error ? error.message : String(error));
       }

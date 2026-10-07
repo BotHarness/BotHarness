@@ -51,6 +51,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - **Bind app** no longer hides apps the IM plugin can't serve yet. A Discord app whose plugin lacks checked sending now shows greyed out with **update the IM plugin to bind this app**, instead of silently missing from the list ([#1123](https://github.com/BotHarness/BotHarness/issues/1123)).
 - **Bind app** no longer lists apps already bound to the same Bot; they are already shown under External identities ([#1127](https://github.com/BotHarness/BotHarness/issues/1127)).
 
+- The Model dialog no longer offers routes that cannot run: once a real turn fails because a provider has no API key or an invalid one, that provider's models are listed last as **needs an API key** or **API key invalid** and cannot be picked or saved, until DSH credentials, settings or adapters change. A Bot without a Model Plan now starts the dialog on DSH's default model instead of the first catalog entry ([#1124](https://github.com/BotHarness/BotHarness/issues/1124)).
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation

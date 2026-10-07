@@ -141,6 +141,8 @@ export interface DshBotAgentAdapterOptions {
   onOrchestratorFileSetup?: (agentCtx: Context, agent: Agent) => Promise<() => Promise<void>>;
 
   onAgentSetup?: (agentCtx: Context, agent: Agent, info: BotAgentSetupInfo) => void;
+
+  observeTurnFailure?: (provider: string, code: string) => void;
 }
 
 export interface BotAgentSetupInfo {
@@ -207,6 +209,7 @@ function requireCompletedTurn(
   fromSeq: SessionLogOffset,
   cancelledTurn?: AssignmentAgentRun['cancelledTurn'],
   failedTurn?: AssignmentAgentRun['failedTurn'],
+  observeFailure?: (code: string) => void,
 ): { turn: number; endSeq: number } {
   const turnEnd = handle.agent.session
     .snapshotEvents(fromSeq)
@@ -220,6 +223,7 @@ function requireCompletedTurn(
     cancelledTurn?.({ turn: turnEnd.data.turn, endSeq: turnEnd.seq });
   if (reason.kind === 'error') {
     failedTurn?.({ turn: turnEnd.data.turn, endSeq: turnEnd.seq });
+    observeFailure?.(reason.error.code);
     const routeNeedsRepair =
       [
         'MISSING_CREDENTIAL',
@@ -245,6 +249,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #defaultModel: DshDefaultModelHost;
   readonly #resolveModelPlan: ((botSlug: string) => PersonaBotModelPlan | undefined) | undefined;
   readonly #prepareModelRoute: DshBotAgentAdapterOptions['prepareModelRoute'];
+  readonly #observeTurnFailure: DshBotAgentAdapterOptions['observeTurnFailure'];
   readonly #hasSession: DshBotAgentAdapterOptions['hasSession'];
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #defaultAgentPreset: string | undefined;
@@ -276,6 +281,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#defaultModel = options.defaultModel;
     this.#resolveModelPlan = options.resolveModelPlan;
     this.#prepareModelRoute = options.prepareModelRoute;
+    this.#observeTurnFailure = options.observeTurnFailure;
     this.#hasSession = options.hasSession;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
@@ -330,7 +336,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         }),
       );
       await handle.agent.whenIdle();
-      requireCompletedTurn(handle, fromSeq);
+      const provider = selection?.current?.provider;
+      requireCompletedTurn(handle, fromSeq, undefined, undefined, (code) => {
+        if (provider !== undefined) this.#observeTurnFailure?.(provider, code);
+      });
     } finally {
       this.#drafts.end(run.sessionId);
       if (this.#runs.get(run.sessionId) === entry) this.#runs.delete(run.sessionId);
@@ -424,7 +433,16 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       accepted?.();
       await handle.agent.whenIdle();
       if (this.#stopping.has(run.sessionId)) return;
-      const completion = requireCompletedTurn(handle, fromSeq, run.cancelledTurn, run.failedTurn);
+      const provider = this.#assignmentSelections.get(run.sessionId)?.current?.provider;
+      const completion = requireCompletedTurn(
+        handle,
+        fromSeq,
+        run.cancelledTurn,
+        run.failedTurn,
+        (code) => {
+          if (provider !== undefined) this.#observeTurnFailure?.(provider, code);
+        },
+      );
       run.completedTurn?.(completion);
       if (run.resume === true) return;
       if (!entry.reported) {
