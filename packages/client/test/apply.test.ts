@@ -145,9 +145,16 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false, wit
 describe('client apply', () => {
   it('registers the bot-mode entry, the main panel, and the mode shadows', () => {
     store.setMode('dsh');
-    const specs: Spec[] = [];
+    const registrations: Spec[] = [];
     const disposed: Spec[] = [];
-    apply(createScoped(specs, disposed) as never);
+    apply(createScoped(registrations, disposed) as never);
+    expect(registrations[0]).toMatchObject({
+      name: 'shell.overlay',
+      id: 'botharness-window-companion',
+      locale: 'botharness',
+      inject: expect.any(Function),
+    });
+    const specs = registrations.slice(1);
 
     expect(specs.map((spec) => spec.name)).toEqual([
       'sidebar.panellist',
@@ -184,6 +191,7 @@ describe('client apply', () => {
     });
 
     store.setMode('bot');
+    specs.splice(0, specs.length, ...registrations.slice(1));
     expect(specs.map((spec) => spec.name)).toEqual([
       'sidebar.panellist',
       'main',
@@ -202,6 +210,7 @@ describe('client apply', () => {
 
     store.setMode('dsh');
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
+    expect(disposed).not.toContain(registrations[0]);
   });
 
   it('registers the BotHarness settings section only while configForms is served', () => {
