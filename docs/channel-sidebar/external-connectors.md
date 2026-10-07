@@ -16,6 +16,10 @@ Open **Bot DM → Channel sidebar → External connectors**. An external connect
 
 ## Authorize a conversation
 
+The three steps: bind an identity under [External identities](/docs/channel-sidebar/external-identities) (who the Bot speaks as), authorize a specific external conversation (which group or DM it may send to and receive from), then optionally add a connector (where its messages land).
+
+The conversations you can pick come from the platform side: grant the app its permissions in the platform console, add the bot to the group, then save a **Destination** in the account's delivery settings under **Settings → IM Bots**. A message arriving from a conversation does **not** create an authorization; messages from an unauthorized conversation stay out of the Bot Inbox even when they @ the bot. Authorization is only made here, by hand, and can be changed or revoked later.
+
 1. Click **Authorize a conversation**.
 2. Choose the bound **IM account** and the saved **Destination**, then click **Bind and authorize destination**. Check the group, account and local receive target.
 3. In the same dialog you can set the **Local receive target**, collection and wake for the group, Thread following, send a message to the target and inspect **Recent sends**.
