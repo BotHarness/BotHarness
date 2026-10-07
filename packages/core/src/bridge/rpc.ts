@@ -314,6 +314,24 @@ export class BotharnessBridgeService extends TypertRemoteService {
     );
   }
 
+  modelPlanSet(
+    slug: string,
+    expectedRevision: number,
+    orchestrator: ModelRoute,
+    assignmentDefault: ModelRoute,
+    assignmentModels: AssignmentModelOption[],
+  ): Promise<{ plan: PersonaBotModelPlan }> {
+    return unwrapAsync(
+      this.methods.modelPlanSet({
+        slug,
+        expectedRevision,
+        orchestrator,
+        assignmentDefault,
+        assignmentModels,
+      }),
+    );
+  }
+
   list(query?: string): { bots: PersonaBotSummary[] } {
     return unwrap(this.methods.list({ query }));
   }
@@ -981,6 +999,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'modelPlan',
   'modelPlanCustomize',
   'modelPlanAssignmentsSet',
+  'modelPlanSet',
   'list',
   'activitySnapshot',
   'get',

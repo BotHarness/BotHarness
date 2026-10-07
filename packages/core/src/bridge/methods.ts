@@ -332,6 +332,7 @@ export interface BridgeMethods {
   modelPlan(payload: unknown): Promise<BridgeResult<ModelPlanState>>;
   modelPlanCustomize(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   modelPlanAssignmentsSet(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
+  modelPlanSet(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
   activitySnapshot(payload: unknown): BridgeResult<PersonaBotActivitySnapshot>;
   get(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
@@ -1358,6 +1359,46 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             : invalidInput('Bot Model Plan changed; reopen Profile before saving');
         if (result.record.modelPlan === undefined)
           return invalidInput('Apply a Model Preset first');
+        return { ok: true, value: { plan: result.record.modelPlan } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
+    },
+    async modelPlanSet(payload) {
+      if (deps.modelCatalog === undefined) return unavailable();
+      const source = asObject(payload);
+      const slug = source['slug'];
+      const orchestrator = source['orchestrator'];
+      const assignmentDefault = source['assignmentDefault'];
+      const assignmentModels = source['assignmentModels'];
+      const expectedRevision = source['expectedRevision'];
+      if (
+        typeof slug !== 'string' ||
+        !isModelRoute(orchestrator) ||
+        !isModelRoute(assignmentDefault) ||
+        !Array.isArray(assignmentModels) ||
+        !assignmentModels.every(isAssignmentModelOption) ||
+        typeof expectedRevision !== 'number' ||
+        !Number.isSafeInteger(expectedRevision)
+      )
+        return invalidInput(
+          'A Bot, expected revision, and valid Orchestrator and Assignment choices are required',
+        );
+      const bot = deps.registry.get(slug);
+      if (bot === undefined) return unknownBot(slug);
+      try {
+        await deps.modelCatalog.validate(orchestrator);
+        await validateAssignmentCatalog(assignmentDefault, assignmentModels);
+        const result = deps.registry.setModelPlan(
+          slug,
+          { orchestrator, assignmentDefault, assignmentModels },
+          expectedRevision,
+        );
+        if (!result.ok)
+          return result.reason === 'not-found'
+            ? unknownBot(slug)
+            : invalidInput('Bot Model Plan changed; reopen it before saving');
+        if (result.record.modelPlan === undefined) return unknownBot(slug);
         return { ok: true, value: { plan: result.record.modelPlan } };
       } catch (error) {
         return invalidInput(error instanceof Error ? error.message : String(error));

@@ -6,7 +6,7 @@ This guide installs the public npm package **`deepseekbot`**, verified with **DS
 
 ## 1. Open Plugins
 
-Start DSH and open its Web interface. If DSH is not installed yet, follow the [official DSH getting-started documentation](https://deepseek-harness.github.io/deepseek-harness/). Follow [API and Bot model setup](/docs/model-setup) to configure a provider first; apply a model preset in the Bot Profile after creating the Bot.
+Start DSH and open its Web interface. If DSH is not installed yet, follow the [official DSH getting-started documentation](https://deepseek-harness.github.io/deepseek-harness/). Follow [API and Bot model setup](/docs/model-setup) to configure a provider first; after creating the Bot, choose its models under **Model** in the DM's Channel sidebar.
 
 Click **Plugins (插件)** in the left sidebar, then **Add plugin (添加插件)**.
 
@@ -44,7 +44,7 @@ Click **Bot mode (Bot 模式)**, then **Create your first PersonaBot (创建第�
 
 ![Create PersonaBot dialog with a tutorial Bot name](/guides/install/06-create-bot-zh.webp)
 
-Open the new Bot's DM and click its header name/avatar → **View details → Model preset**. Choose Orchestrator and Assignment models, then **Create and apply**. See [API and Bot models](/docs/model-setup) for all fields. Return to the DM and send a short greeting. A reply verifies that your model is usable as well as the plugin being enabled. Model credentials are configured in DSH; npm installation does not provide them.
+Open the new Bot's DM, expand **Model** in the Channel sidebar on the right and click **Main model**. Choose the main model and task model, then **Save**. See [API and Bot models](/docs/model-setup) for all fields. Return to the DM and send a short greeting. A reply verifies that your model is usable as well as the plugin being enabled. Model credentials are configured in DSH; npm installation does not provide them.
 
 ![A real model reply in the freshly installed product after a cold restart](/guides/install/07-local-reply-zh.webp)
 

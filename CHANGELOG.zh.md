@@ -30,7 +30,7 @@
 
 ### Changed
 
-- Bot 的模型和唤醒策略从 Profile 移到私聊 Channel sidebar 的两个新分区 **模型** 与 **唤醒策略**：收起时标题右侧显示当前值，每项设置一行，点击打开弹窗修改，并可像其他分区一样排序或隐藏。**提醒策略** 改名为 **唤醒策略**（[#1084](https://github.com/BotHarness/BotHarness/issues/1084)，[模型教程](docs/channel-sidebar/model.md)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)）。
+- Bot 的模型和唤醒策略从 Profile 移到私聊 Channel sidebar 的两个新分区 **模型** 与 **唤醒策略**：收起时标题右侧显示当前值，每项设置一行，点击打开弹窗修改，并可像其他分区一样排序或隐藏。模型弹窗改为 **主模型** 与 **执行模型** 两项，可输入过滤选择模型并选思考强度；不建预设也能直接保存，已有预设仍可用来填入，**另存为预设** 可把当前设置留作复用。**提醒策略** 改名为 **唤醒策略**（[#1084](https://github.com/BotHarness/BotHarness/issues/1084)，[模型教程](docs/channel-sidebar/model.md)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)）。
 
 ### Fixed
 

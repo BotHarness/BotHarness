@@ -1,9 +1,10 @@
 import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
-import { Button, IconInfoOutlineRegular, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, IconInfoOutlineRegular, Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type { BotSourcePolicyEdit, BotSourcePolicyView } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
+import { Combobox } from './combobox.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
@@ -167,48 +168,54 @@ function SourcePolicyEditModal({
       <div ref={mount} className="bh-wake-policy-edit">
         <span className="bh-wake-policy-edit-source">{sourceName(policy, t)}</span>
         {immediate ? (
-          <select
-            className="bh-profile-policy-select"
-            aria-label={t('sourcePolicy.immediateEditTitle')}
+          <Combobox
+            searchable={false}
+            label={t('sourcePolicy.immediateEditTitle')}
+            toggleLabel={t('sourcePolicy.immediateEditTitle')}
             value={deliveryDraft}
             disabled={busy}
-            onChange={(event) => setDeliveryDraft(event.target.value === 'turn' ? 'turn' : 'steer')}
-          >
-            <option value="steer">{t('sourcePolicy.deliverySteerOption')}</option>
-            <option value="turn">{t('sourcePolicy.deliveryTurnOption')}</option>
-          </select>
+            options={[
+              { value: 'steer', label: t('sourcePolicy.deliverySteerOption') },
+              { value: 'turn', label: t('sourcePolicy.deliveryTurnOption') },
+            ]}
+            onSelect={(value) => setDeliveryDraft(value === 'turn' ? 'turn' : 'steer')}
+          />
         ) : (
-          <select
-            className="bh-profile-policy-select"
-            aria-label={t(
+          <Combobox
+            searchable={false}
+            label={t(
+              sourceClass === 'group-ordinary'
+                ? 'sourcePolicy.groupEditTitle'
+                : 'sourcePolicy.editTitle',
+            )}
+            toggleLabel={t(
               sourceClass === 'group-ordinary'
                 ? 'sourcePolicy.groupEditTitle'
                 : 'sourcePolicy.editTitle',
             )}
             value={wakeDraft}
             disabled={busy}
-            onChange={(event) => setWakeDraft(event.target.value as BotSourcePolicyView['wake'])}
-          >
-            {sourceClass === 'assignment-report' ? (
-              <>
-                <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
-                <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
-              </>
-            ) : (
-              <>
-                <option value="immediate">{t('sourcePolicy.groupAllOption')}</option>
-                <option value="digest">{t('sourcePolicy.groupDigestOption')}</option>
-                <option value="mentions">{t('sourcePolicy.groupMentionsOption')}</option>
-                <option value="silent">{t('sourcePolicy.groupSilentOption')}</option>
-              </>
-            )}
-          </select>
+            options={
+              sourceClass === 'assignment-report'
+                ? [
+                    { value: 'conditional', label: t('sourcePolicy.conditionalOption') },
+                    { value: 'immediate', label: t('sourcePolicy.immediateOption') },
+                  ]
+                : [
+                    { value: 'immediate', label: t('sourcePolicy.groupAllOption') },
+                    { value: 'digest', label: t('sourcePolicy.groupDigestOption') },
+                    { value: 'mentions', label: t('sourcePolicy.groupMentionsOption') },
+                    { value: 'silent', label: t('sourcePolicy.groupSilentOption') },
+                  ]
+            }
+            onSelect={(value) => setWakeDraft(value as BotSourcePolicyView['wake'])}
+          />
         )}
         {sourceClass === 'group-ordinary' && wakeDraft === 'digest' && (
           <div className="bh-profile-policy-digest">
             <label>
               {t('sourcePolicy.digestCount')}
-              <input
+              <Input
                 type="number"
                 min={1}
                 max={100}
@@ -219,7 +226,7 @@ function SourcePolicyEditModal({
             </label>
             <label>
               {t('sourcePolicy.digestInterval')}
-              <input
+              <Input
                 type="number"
                 min={1}
                 max={3600}

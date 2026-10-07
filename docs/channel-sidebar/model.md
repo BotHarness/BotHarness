@@ -1,24 +1,29 @@
 # Model
 
-Open **Bot DM → Channel sidebar → Model**. The entry shows the model this Bot uses. The collapsed header shows the Orchestrator `model · effort`, so you can check it without expanding.
+Open **Bot DM → Channel sidebar → Model**. Two cards show the models this Bot uses. The collapsed header shows the main model's `model · effort`, so you can check it without expanding.
 
-![The Model entry in a Bot DM with the Orchestrator and Assignment default rows](/guides/channel-sidebar/14-model-zh.webp)
+![The Model entry in a Bot DM with the main model and task model cards](/guides/channel-sidebar/14-model-zh.webp)
 
-## Read the rows
+## Read the cards
 
-| Row                      | What it shows                                                                                                        |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| Orchestrator model       | The preset name (or **Custom snapshot**), its revision, and `provider / model · effort` for everyday chat.           |
-| Assignment default model | The model new task Sessions use when no other model is chosen.                                                       |
-| Quick preset switch      | Pick a saved preset, then click **Switch** to apply it to this Bot. Choosing a dropdown entry alone changes nothing. |
+| Card       | What it shows                                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| Main model | The `model · effort` that chats with you and hands out tasks. A preset name tag appears when it came from one. |
+| Task model | The model delegated tasks use by default. **+N allowed** appears when tasks may pick other models too.         |
 
-## Edit the model
+## Change the models
 
-Click either row to open the **Model preset** dialog. It has the same controls the Profile used to have: create a preset, edit the selected preset, customize only this Bot's Orchestrator, and choose the Assignment models and efforts this Bot may use.
+Click either card to open the **Model** dialog:
 
-![The Model preset dialog opened from the sidebar](/guides/channel-sidebar/15-model-dialog-zh.webp)
+![The Model dialog opened from the sidebar](/guides/channel-sidebar/15-model-dialog-zh.webp)
 
-[API and Bot model setup](/docs/model-setup) explains every field, preset revisions and independent snapshots. A saved change applies to later turns; an Assignment keeps the model it was created with.
+1. Type in **Main model** or **Task model** to filter the list, then pick a model. When the model supports reasoning effort, choose **Default** or a level below it.
+2. To let tasks pick other models, add them under **Allowed task models** and tick the efforts they may use.
+3. Click **Save**. The change applies to later turns; a task keeps the model it was created with.
+
+Presets are optional. When you have saved presets, **Fill from a preset** at the top fills the dialog; changing anything afterwards unlinks it. To reuse the current settings later, click **Save as preset**, name it and save; this Bot then uses the new preset.
+
+[API and Bot model setup](/docs/model-setup) explains each field and the provider setup.
 
 ## Hide or move the entry
 

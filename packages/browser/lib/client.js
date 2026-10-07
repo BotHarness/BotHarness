@@ -1343,29 +1343,61 @@ window.__ModuleLoader__.load({
 			"entry.error": "Browser action failed"
 		};
 		//#endregion
-		//#region packages/browser/src/client/profile-combobox.tsx
-		function ProfileCombobox({ value, profiles, disabled, invalid, errorId, onSelect, t }) {
+		//#region packages/client/src/client/combobox.tsx
+		const COMBOBOX_CSS = `
+.bh-combobox { position: relative; flex: 1; min-width: 0; }
+.bh-combobox-input { display: flex; padding-right: 26px; }
+.bh-combobox input { width: 100%; text-overflow: ellipsis; }
+.bh-combobox input[readonly] { cursor: pointer; }
+.bh-combobox-toggle {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 6px; padding: 0;
+  color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer;
+}
+.bh-combobox-toggle:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.bh-combobox-toggle:disabled { opacity: 0.5; cursor: default; }
+.bh-combobox-list {
+  position: fixed; z-index: 1100; padding: 4px; box-sizing: border-box;
+  max-height: 260px; overflow-y: auto;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+.bh-combobox-list > button {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 34px; padding: 6px 8px;
+  border: 0; border-radius: 6px; background: transparent;
+  color: var(--dsw-alias-label-primary); text-align: left; font: inherit; font-size: 13px; line-height: 20px; cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.bh-combobox-list > button[aria-selected="true"] { font-weight: 600; }
+.bh-combobox-list > button:hover, .bh-combobox-list > button[data-active] {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-combobox-hint { flex: none; color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 400; }
+.bh-combobox-empty { padding: 6px 8px; color: var(--dsw-alias-label-secondary); font-size: 13px; }
+`;
+		function Combobox({ value, options, onSelect, label, toggleLabel, disabled = false, invalid = false, errorId, placeholder, emptyLabel, fallbackValue, createLabel, searchable = true, className }) {
 			const root = (0, react.useRef)(null);
 			const panel = (0, react.useRef)(null);
 			const listId = (0, react.useId)();
 			const [open, setOpen] = (0, react.useState)(false);
 			const [query, setQuery] = (0, react.useState)(void 0);
 			const [active, setActive] = (0, react.useState)(void 0);
-			const names = [.../* @__PURE__ */ new Set([
-				"default",
-				...profiles,
-				value === "" ? "default" : value
-			])];
+			const current = value === "" && fallbackValue !== void 0 ? fallbackValue : value;
+			const display = options.find((option) => option.value === current)?.label ?? current;
 			const trimmed = query?.trim() ?? "";
-			const options = names.filter((name) => name.toLowerCase().includes(trimmed.toLowerCase())).map((name) => ({
-				name,
-				label: name
-			}));
-			if (trimmed !== "" && !names.includes(trimmed)) options.push({
-				name: trimmed,
-				label: t("entry.profile.create", { name: trimmed })
-			});
-			const highlighted = options.findIndex((option) => option.name === active);
+			const needle = trimmed.toLowerCase();
+			const matches = options.filter((option) => [
+				option.label,
+				option.value,
+				option.hint ?? ""
+			].some((text) => text.toLowerCase().includes(needle)));
+			const shown = createLabel !== void 0 && trimmed !== "" && !options.some((option) => option.value === trimmed) ? [...matches, {
+				value: trimmed,
+				label: createLabel(trimmed)
+			}] : matches;
+			const highlighted = shown.findIndex((option) => option.value === active);
 			const position = (0, _deepseek_ai_dsh_client_ui_primitives.useAnchoredPosition)({
 				open,
 				anchorRef: root,
@@ -1379,46 +1411,63 @@ window.__ModuleLoader__.load({
 				setQuery(void 0);
 				setActive(void 0);
 			};
-			const select = (name) => {
+			const select = (next) => {
 				dismiss();
-				onSelect(name);
+				onSelect(next);
+			};
+			const typedChoice = () => {
+				if (query === void 0) return current === "" ? void 0 : current;
+				if (trimmed === "") return fallbackValue;
+				if (createLabel !== void 0) return trimmed;
+				return (matches.find((option) => option.value.toLowerCase() === needle || option.label.toLowerCase() === needle) ?? matches[0])?.value;
 			};
 			const onKeyDown = (event) => {
 				if (event.nativeEvent.isComposing) return;
 				if (event.key === "Escape") {
+					if (!open) return;
 					event.preventDefault();
+					event.stopPropagation();
 					dismiss();
 				} else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
 					event.preventDefault();
 					setOpen(true);
+					if (shown.length === 0) return;
 					const offset = event.key === "ArrowDown" ? 1 : -1;
-					const index = highlighted < 0 ? offset === 1 ? 0 : options.length - 1 : (highlighted + offset + options.length) % options.length;
-					setActive(options[index]?.name);
+					const index = highlighted < 0 ? offset === 1 ? 0 : shown.length - 1 : (highlighted + offset + shown.length) % shown.length;
+					setActive(shown[index]?.value);
 					document.getElementById(`${listId}-${index}`)?.scrollIntoView?.({ block: "nearest" });
 				} else if (event.key === "Enter" && open) {
 					event.preventDefault();
-					const choice = options[highlighted]?.name ?? (query === void 0 ? value === "" ? "default" : value : trimmed || "default");
-					select(choice);
+					const choice = shown[highlighted]?.value ?? typedChoice();
+					if (choice === void 0) dismiss();
+					else select(choice);
 				}
 			};
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-				className: "bh-browser-profile-combobox",
+				className: className === void 0 ? "bh-combobox" : `bh-combobox ${className}`,
 				ref: root,
 				children: [
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Input, {
-						className: "bh-browser-profile-input",
+						className: "bh-combobox-input",
 						role: "combobox",
-						"aria-label": t("entry.profile.label"),
+						"aria-label": label,
 						"aria-expanded": open,
 						"aria-autocomplete": "list",
 						"aria-controls": open ? listId : void 0,
 						"aria-activedescendant": open && highlighted >= 0 ? `${listId}-${highlighted}` : void 0,
 						"aria-invalid": invalid,
 						"aria-describedby": invalid ? errorId : void 0,
-						value: query ?? (value === "" ? "default" : value),
+						value: query ?? display,
+						placeholder,
 						disabled,
 						autoComplete: "off",
-						onFocus: () => setOpen(true),
+						readOnly: !searchable,
+						"data-searchable": searchable || void 0,
+						onFocus: (event) => {
+							if (searchable) event.currentTarget.select();
+							setOpen(true);
+						},
+						onClick: () => setOpen(true),
 						onChange: (event) => {
 							setQuery(event.target.value);
 							setActive(void 0);
@@ -1428,9 +1477,9 @@ window.__ModuleLoader__.load({
 						onKeyDown
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-						className: "bh-browser-profile-toggle",
+						className: "bh-combobox-toggle",
 						type: "button",
-						"aria-label": t("entry.profile.choose"),
+						"aria-label": toggleLabel,
 						disabled,
 						tabIndex: -1,
 						onPointerDown: (event) => event.preventDefault(),
@@ -1443,32 +1492,63 @@ window.__ModuleLoader__.load({
 						},
 						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, { size: 16 })
 					}),
-					open && !disabled ? (0, react_dom.createPortal)(/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.MenuSurface, {
+					open && !disabled ? (0, react_dom.createPortal)(/* @__PURE__ */ (0, react_jsx_runtime.jsxs)(_deepseek_ai_dsh_client_ui_primitives.MenuSurface, {
 						compact: true,
 						ref: panel,
 						id: listId,
 						role: "listbox",
-						"aria-label": t("entry.profile.label"),
-						className: "bh-browser-profiles",
+						"aria-label": label,
+						className: "bh-combobox-list",
 						style: {
 							...position,
 							width: root.current?.getBoundingClientRect().width ?? 200,
 							visibility: position === null ? "hidden" : void 0
 						},
-						children: options.map((option, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						children: [shown.length === 0 && emptyLabel !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							className: "bh-combobox-empty",
+							children: emptyLabel
+						}) : null, shown.map((option, index) => /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("button", {
 							id: `${listId}-${index}`,
 							type: "button",
 							role: "option",
-							"aria-selected": option.name === (value === "" ? "default" : value),
+							"aria-selected": option.value === current,
 							"data-active": index === highlighted || void 0,
 							tabIndex: -1,
 							onPointerDown: (event) => event.preventDefault(),
-							onMouseEnter: () => setActive(option.name),
-							onClick: () => select(option.name),
-							children: option.label
-						}, option.name))
+							onMouseEnter: () => setActive(option.value),
+							onClick: () => select(option.value),
+							children: [option.label, option.hint === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								className: "bh-combobox-hint",
+								children: option.hint
+							})]
+						}, option.value))]
 					}), document.body) : null
 				]
+			});
+		}
+		//#endregion
+		//#region packages/browser/src/client/profile-combobox.tsx
+		function ProfileCombobox({ value, profiles, disabled, invalid, errorId, onSelect, t }) {
+			const names = [.../* @__PURE__ */ new Set([
+				"default",
+				...profiles,
+				value === "" ? "default" : value
+			])];
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Combobox, {
+				className: "bh-browser-profile-combobox",
+				value,
+				options: names.map((name) => ({
+					value: name,
+					label: name
+				})),
+				onSelect,
+				label: t("entry.profile.label"),
+				toggleLabel: t("entry.profile.choose"),
+				disabled,
+				invalid,
+				errorId,
+				fallbackValue: "default",
+				createLabel: (name) => t("entry.profile.create", { name })
 			});
 		}
 		//#endregion
@@ -1922,7 +2002,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region packages/browser/src/client/styles.ts
-		const styles = `
+		const styles = COMBOBOX_CSS + `
 .bh-browser-access-control { position: relative; display: flex; align-items: center; }
 .bh-browser-borrow { display: grid; gap: 8px; font-size: 12.5px; }
 .bh-browser-borrow-title, .bh-browser-daily-install { color: var(--bh-browser-label); text-underline-offset: 3px; }
@@ -1951,32 +2031,6 @@ window.__ModuleLoader__.load({
   --bh-browser-radius: var(--dsw-radius-md);
 }
 /* @bh-browser-aliases:end */
-.bh-browser-profile-combobox { position: relative; flex: 1; min-width: 0; }
-.bh-browser-profile-input { display: flex; padding-right: 26px; }
-.bh-browser-profile-combobox input { width: 100%; }
-.bh-browser-profile-toggle {
-  position: absolute; right: 4px; top: 4px; width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  border: 0; border-radius: var(--bh-browser-radius); padding: 0;
-  color: var(--bh-browser-label); background: transparent; cursor: pointer;
-}
-.bh-browser-profile-toggle:hover { background: var(--bh-browser-hover); }
-.bh-browser-profile-toggle:disabled { opacity: 0.5; cursor: default; }
-.bh-browser-profiles {
-  position: fixed; z-index: 1100; padding: 4px; box-sizing: border-box;
-  max-height: 240px; overflow-y: auto;
-  --dsw-elevation-stroke-color: var(--bh-browser-stroke);
-  box-shadow: var(--bh-browser-elevation);
-}
-.bh-browser-profiles > button {
-  display: block; width: 100%; min-height: 34px; padding: 6px 8px;
-  border: 0; border-radius: var(--bh-browser-radius); background: transparent;
-  color: var(--bh-browser-label); text-align: left; font: inherit; font-size: 13px; line-height: 20px; cursor: pointer;
-  overflow-wrap: anywhere;
-}
-.bh-browser-profiles > button:hover, .bh-browser-profiles > button[data-active] {
-  background: var(--bh-browser-hover);
-}
 .bh-browser-local { display: grid; gap: 8px; font-size: 12.5px; }
 .bh-browser-card-detail { display: grid; gap: 8px; justify-items: start; font-size: 12px; }
 .bh-browser-card-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; color: var(--bh-browser-secondary); }

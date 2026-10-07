@@ -3,12 +3,19 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
   Switch: () => null,
   Modal: () => null,
-  Input: () => null,
+  Input: (props: import('react').InputHTMLAttributes<HTMLInputElement>) =>
+    createElement('span', null, createElement('input', props)),
+  MenuSurface: (await import('react')).forwardRef<
+    HTMLDivElement,
+    import('react').HTMLAttributes<HTMLDivElement> & { compact?: boolean }
+  >(({ compact: _compact, ...props }, ref) => createElement('div', { ...props, ref })),
+  useAnchoredPosition: () => ({ top: 0, left: 0 }),
+  useDismissOnOutsidePointer: () => undefined,
   IconChevronDownOutlineRegular: () => null,
   IconChevronLeftOutlineRegular: () => null,
   IconChevronRightOutlineRegular: () => null,

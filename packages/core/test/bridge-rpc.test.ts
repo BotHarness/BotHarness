@@ -99,6 +99,7 @@ describe('bridge typert service', () => {
       'modelPlan',
       'modelPlanCustomize',
       'modelPlanAssignmentsSet',
+      'modelPlanSet',
       'list',
       'activitySnapshot',
       'get',

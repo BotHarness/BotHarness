@@ -42,3 +42,20 @@ After: both sections are gone.
 | --- | ------------------------------------------------------ | ---------------------------------------------------- |
 | zh  | ![after-profile zh light](after-profile-zh-light.webp) | ![after-profile zh dark](after-profile-zh-dark.webp) |
 | en  | ![after-profile en light](after-profile-en-light.webp) | ![after-profile en dark](after-profile-en-dark.webp) |
+
+## Round 2: main / task model pickers (Vain's review)
+
+Captured the same way after the Model dialog was reworked: the sidebar shows **主模型 / Main model** and **执行模型 / Task model** cards, the dialog uses a searchable combobox per model with a segmented reasoning effort, presets are optional (**从预设填入 / Fill from a preset**, **另存为预设 / Save as preset**), and the Wake policy dialog's selects use the same combobox.
+
+|                   | Light                                                      | Dark                                                     |
+| ----------------- | ---------------------------------------------------------- | -------------------------------------------------------- |
+| Sidebar zh        | ![v2 sidebar zh light](v2-sidebar-zh-light.webp)           | ![v2 sidebar zh dark](v2-sidebar-zh-dark.webp)           |
+| Sidebar en        | ![v2 sidebar en light](v2-sidebar-en-light.webp)           | ![v2 sidebar en dark](v2-sidebar-en-dark.webp)           |
+| Model dialog zh   | ![v2 model dialog zh light](v2-model-dialog-zh-light.webp) | ![v2 model dialog zh dark](v2-model-dialog-zh-dark.webp) |
+| Model dialog en   | ![v2 model dialog en light](v2-model-dialog-en-light.webp) | ![v2 model dialog en dark](v2-model-dialog-en-dark.webp) |
+| Filtering zh      | ![v2 combobox zh light](v2-model-combobox-zh-light.webp)   | ![v2 combobox zh dark](v2-model-combobox-zh-dark.webp)   |
+| Filtering en      | ![v2 combobox en light](v2-model-combobox-en-light.webp)   | ![v2 combobox en dark](v2-model-combobox-en-dark.webp)   |
+| Save as preset zh | ![v2 save as zh light](v2-model-saveas-zh-light.webp)      | ![v2 save as zh dark](v2-model-saveas-zh-dark.webp)      |
+| Save as preset en | ![v2 save as en light](v2-model-saveas-en-light.webp)      | ![v2 save as en dark](v2-model-saveas-en-dark.webp)      |
+| Wake policy zh    | ![v2 wake zh light](v2-wake-combobox-zh-light.webp)        | ![v2 wake zh dark](v2-wake-combobox-zh-dark.webp)        |
+| Wake policy en    | ![v2 wake en light](v2-wake-combobox-en-light.webp)        | ![v2 wake en dark](v2-wake-combobox-en-dark.webp)        |

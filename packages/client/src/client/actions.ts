@@ -139,6 +139,7 @@ import {
   applyModelPreset,
   customizeModelPlan,
   setModelPlanAssignments,
+  setModelPlan,
   setStandingLimits,
   type ModelCatalogEntryView,
   type ModelPresetView,
@@ -280,6 +281,7 @@ export interface BridgeActions {
     name: string,
     orchestrator: ModelRouteView,
     assignmentDefault: ModelRouteView,
+    assignmentModels?: AssignmentModelOptionView[],
   ): Promise<ModelPresetView>;
   updateModelPreset(
     id: string,
@@ -294,6 +296,13 @@ export interface BridgeActions {
   setModelPlanAssignments(
     slug: string,
     expectedRevision: number,
+    assignmentDefault: ModelRouteView,
+    assignmentModels: AssignmentModelOptionView[],
+  ): Promise<ModelPlanView>;
+  setModelPlan(
+    slug: string,
+    expectedRevision: number,
+    orchestrator: ModelRouteView,
     assignmentDefault: ModelRouteView,
     assignmentModels: AssignmentModelOptionView[],
   ): Promise<ModelPlanView>;
@@ -1011,8 +1020,8 @@ export function createActions(
     modelPresets: () => loadModelPresets(call),
     modelPlan: (slug) => loadModelPlan(call, slug),
     modelPlanState: (slug) => loadModelPlanState(call, slug),
-    createModelPreset: (name, orchestrator, assignmentDefault) =>
-      createModelPreset(call, name, orchestrator, assignmentDefault),
+    createModelPreset: (name, orchestrator, assignmentDefault, assignmentModels) =>
+      createModelPreset(call, name, orchestrator, assignmentDefault, assignmentModels),
     updateModelPreset: (id, expectedRevision, name, orchestrator, assignmentDefault) =>
       updateModelPreset(call, id, expectedRevision, name, orchestrator, assignmentDefault),
     applyModelPreset: (slug, presetId) => applyModelPreset(call, slug, presetId),
@@ -1020,6 +1029,8 @@ export function createActions(
     setStandingLimits: (slug, limits) => setStandingLimits(call, slug, limits),
     setModelPlanAssignments: (slug, expectedRevision, assignmentDefault, assignmentModels) =>
       setModelPlanAssignments(call, slug, expectedRevision, assignmentDefault, assignmentModels),
+    setModelPlan: (slug, expectedRevision, orchestrator, assignmentDefault, assignmentModels) =>
+      setModelPlan(call, slug, expectedRevision, orchestrator, assignmentDefault, assignmentModels),
     listHostFolders(path, signal) {
       if (folderAccess?.listDirectory === undefined)
         throw new Error('DSH folder browser is unavailable');

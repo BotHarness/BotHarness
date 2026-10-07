@@ -30,7 +30,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Changed
 
-- A Bot's model and wake policy moved from its Profile to two new entries in the DM's Channel sidebar, **Model** and **Wake policy**. Each shows its current value in the collapsed header, lists one row per setting, and opens a dialog to edit; both can be reordered or hidden like other entries. **Attention policy** is now called **Wake policy** ([#1084](https://github.com/BotHarness/BotHarness/issues/1084), [Model guide](docs/channel-sidebar/model.md), [Wake policy guide](docs/channel-sidebar/wake-policy.md)).
+- A Bot's model and wake policy moved from its Profile to two new entries in the DM's Channel sidebar, **Model** and **Wake policy**. Each shows its current value in the collapsed header, lists one row per setting, and opens a dialog to edit; both can be reordered or hidden like other entries. The Model dialog now lists a **Main model** and a **Task model**, each picked from a searchable list with its reasoning effort; models can be set without any preset, a saved preset can still fill the dialog, and **Save as preset** keeps the current settings for reuse. **Attention policy** is now called **Wake policy** ([#1084](https://github.com/BotHarness/BotHarness/issues/1084), [Model guide](docs/channel-sidebar/model.md), [Wake policy guide](docs/channel-sidebar/wake-policy.md)).
 
 ### Fixed
 
