@@ -2,6 +2,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { commitMemoryRepositorySeed, createMemoryGit, initializeMemoryGit } from './git.js';
+import { probeGit, type GitAvailability } from './git-probe.js';
 
 export type MemoryRepositoryFailureCode =
   | 'mkdir-failed'
@@ -25,7 +26,10 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function ensureMemoryRepository(options: { memoryDir: string }): MemoryRepositoryResult {
+export function ensureMemoryRepository(options: {
+  memoryDir: string;
+  probe?: () => GitAvailability;
+}): MemoryRepositoryResult {
   const memoryDir = options.memoryDir;
   try {
     mkdirSync(memoryDir, { recursive: true });
@@ -37,11 +41,14 @@ export function ensureMemoryRepository(options: { memoryDir: string }): MemoryRe
   try {
     created = initializeMemoryGit(memoryDir).created;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (
+      (error as NodeJS.ErrnoException).code === 'ENOENT' ||
+      !(options.probe ?? probeGit)().available
+    ) {
       return {
         ok: false,
         code: 'git-not-found',
-        message: 'Git executable is not available on PATH',
+        message: 'A usable Git (2.28 or newer) is not available on PATH',
       };
     }
     return { ok: false, code: 'git-init-failed', message: messageOf(error) };

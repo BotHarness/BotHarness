@@ -16,7 +16,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const icon = (name: string) => (props: { className?: string }) =>
     createElement('span', { 'data-icon': name, className: props.className });
   return {
-    Button: (props: { children?: ReactNode }) => createElement('button', null, props.children),
+    Button: (props: { children?: ReactNode; disabled?: boolean }) =>
+      createElement('button', { disabled: props.disabled }, props.children),
     IconAgentPresetOutlineRegular: icon('IconAgentPresetOutlineRegular'),
     IconCheckOutlineRegular: icon('IconCheckOutlineRegular'),
     IconChevronDownOutlineRegular: icon('IconChevronDownOutlineRegular'),
@@ -191,6 +192,7 @@ function stubActions(): BridgeActions {
     memoryDirectory: vi.fn(async () => undefined),
     load: vi.fn(async () => undefined),
     refreshRoster: vi.fn(async () => undefined),
+    refreshGit: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
     refreshBotInbox: vi.fn(async () => undefined),
     openActivityCenter: vi.fn(async () => undefined),
@@ -474,6 +476,7 @@ beforeEach(() => {
   store.select(undefined);
   store.setConfig(config());
   store.setRoster([], []);
+  store.setGit({ available: true, version: '2.47.1' });
   setRoster();
   prefs = {
     motionPreference: 'system',
@@ -855,6 +858,38 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('创建第一个 PersonaBot');
     expect(markup).toContain('散装渠道');
     expect(markup).toContain('placeholder="搜索 Bot 或频道"');
+  });
+
+  it('blocks PersonaBot creation and explains why while Host Git is unusable', () => {
+    store.setGit({ available: false, reason: 'too-old', version: '2.20.1' });
+    const markup = renderSidebar();
+    const submenu = menuWithItem('bot').items[0]?.['submenu'] as Array<Record<string, unknown>>;
+
+    expect(markup).toContain('data-git-unavailable="too-old"');
+    expect(markup).toContain('需要 Git 才能创建 Bot');
+    expect(markup).toContain('Git 2.20.1 版本太旧，需要 2.28 或更新版本。');
+    expect(markup).toContain('href="https://botharness.ai/zh/docs/installation/#git"');
+    expect(markup).toMatch(/<button disabled="">创建第一个 PersonaBot<\/button>/);
+    expect(submenu.map((item) => [item['id'], item['disabled']])).toEqual([
+      ['bot:empty', true],
+      ['bot:git', true],
+      ['bot:zip', true],
+    ]);
+  });
+
+  it('names a missing Git and a Git that cannot run differently', () => {
+    store.setGit({ available: false, reason: 'missing' });
+    expect(renderSidebar()).toContain('这台电脑上没有找到 Git。');
+    store.setGit({ available: false, reason: 'unrunnable' });
+    expect(renderSidebar()).toContain('macOS 需要先安装命令行开发者工具');
+  });
+
+  it('shows no Git notice once Host Git is usable', () => {
+    const markup = renderSidebar();
+    const submenu = menuWithItem('bot').items[0]?.['submenu'] as Array<Record<string, unknown>>;
+
+    expect(markup).not.toContain('data-git-unavailable');
+    expect(submenu.every((item) => item['disabled'] === false)).toBe(true);
   });
 
   it('sorts the pinned grid independently and offers a pinned sort menu', () => {

@@ -559,7 +559,8 @@ export const zh = {
   'bot.create.error.identity': '系统未能分配唯一身份，请重试。',
   'bot.create.error.invalid': '请检查 Bot 名称、岗位或简介。',
   'bot.create.error.connection': '无法连接 Host，请稍后重试。',
-  'bot.create.error.gitMissing': '请安装 Git，并确保它在 PATH 中；重启 DeepSeek Harness 后再试。',
+  'bot.create.error.gitMissing':
+    '请安装 Git 2.28 或更新版本，并确保它在 PATH 中；重启 DeepSeek Harness 后再试。',
   'bot.create.error.gitUrl': '请输入有效的 HTTPS 或 SSH 仓库地址。',
   'bot.create.error.clone': '克隆失败。请检查仓库地址、网络和 Host 的 Git 凭证。',
   'bot.create.error.cloneTimeout': '克隆超时。请检查网络或改用较小的仓库重试。',
@@ -903,6 +904,11 @@ export const zh = {
   'im.dmLabel': '私聊',
   'im.weixinUser': '微信用户',
   'im.weixinReplyOnly': '支持回复已收取的微信私聊文字和文件；主动发送尚未开放。',
+  'im.weixinProactive':
+    '可向已授权的扫码绑定者私聊主动发送文字。需要有效的私聊上下文；仅发送到微信，不加入本地私聊记录。平台接受不代表真实送达或已读。',
+  'im.weixinContextRequired':
+    '微信私聊上下文缺失或发送被拒绝。请在原微信私聊发送一条新消息，核对授权和收取状态，再明确发起新的投递；不会自动重试。',
+  'im.clientAcknowledgement': '客户端确认 ID（不代表送达或已读）',
   'im.receivedAs': '接收身份：{name}',
   'im.readDetails': '读取记录 · {count} 次',
   'im.sourceError': '无法读取已保存的外部消息',
@@ -924,7 +930,7 @@ export const zh = {
   'im.inspectReply': '查看回复到 {name} 的消息',
   'im.threadId': '话题 ID',
   'im.sentAs': '发送身份：{name}',
-  'im.externalOnly': '仅发送到外部平台，未加入本地频道历史。平台接受不代表对方已读。',
+  'im.externalOnly': '仅向外部平台投递，未加入本地频道历史。平台接受不证明对方收到或已读。',
   'im.echoConfirmed': '已核对平台自身消息回传。',
   'im.outboxId': '发送记录 ID',
   'im.externalMessageId': '外部消息 ID',
@@ -1285,6 +1291,14 @@ export const zh = {
   'profile.avatar.shape': '五官布局',
   'profile.avatar.spacing': '间距',
   'roster.activityStale': '活动同步已中断，头像显示的是最后一次观察到的状态，正在重新连接…',
+  'git.unavailable.title': '需要 Git 才能创建 Bot',
+  'git.unavailable.missing': '这台电脑上没有找到 Git。',
+  'git.unavailable.unrunnable': '找到了 Git，但它无法运行。macOS 需要先安装命令行开发者工具。',
+  'git.unavailable.tooOld': 'Git {version} 版本太旧，需要 2.28 或更新版本。',
+  'git.unavailable.hint': '安装或升级后重启 DeepSeek Harness，就能创建和导入 Bot。',
+  'git.unavailable.guide': '安装说明',
+  'git.unavailable.guideUrl': 'https://botharness.ai/zh/docs/installation/#git',
+  'git.unavailable.recheck': '重新检测',
   'profile.avatar.unsupported':
     '这个头像使用的版本当前不可用，暂时显示保存时的静态图片，无法编辑或播放角色动画。原始设置已保留，版本恢复后会自动还原。',
   'profile.avatar.bangs': '刘海',
@@ -2551,7 +2565,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bot.create.error.invalid': 'Check the Bot name, roles, or description.',
   'bot.create.error.connection': 'Cannot reach the Host; try again later.',
   'bot.create.error.gitMissing':
-    'Install Git and make it available on PATH, then restart DeepSeek Harness and retry.',
+    'Install Git 2.28 or newer and make it available on PATH, then restart DeepSeek Harness and retry.',
   'bot.create.error.gitUrl': 'Enter a valid HTTPS or SSH repository URL.',
   'bot.create.error.clone':
     'Clone failed. Check the URL, network, and Git credentials on the Host.',
@@ -2918,6 +2932,11 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.weixinUser': 'WeChat user',
   'im.weixinReplyOnly':
     'Replies to received WeChat DM text and files are supported; proactive sending is not available yet.',
+  'im.weixinProactive':
+    'Post text to the explicitly authorized QR-paired owner DM using valid private context. Delivery is WeChat-only, with no local DM mirror. Provider acceptance does not prove delivery or reading.',
+  'im.weixinContextRequired':
+    'Private WeChat context is missing or the send was rejected. Send a fresh message in the original WeChat DM, check authorization and reception, then explicitly start a new delivery. There is no automatic retry.',
+  'im.clientAcknowledgement': 'Client acknowledgement ID (not delivery or reading proof)',
   'im.receivedAs': 'Received as {name}',
   'im.readDetails': 'Read history · {count} reads',
   'im.sourceError': 'Unable to read the retained external message',
@@ -2940,7 +2959,7 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'im.threadId': 'Topic ID',
   'im.sentAs': 'Sent as {name}',
   'im.externalOnly':
-    'Sent only to the external platform, without local Channel history. Platform acceptance does not mean the recipient has read it.',
+    'Posted only to the external platform, without local Channel history. Platform acceptance does not prove recipient delivery or reading.',
   'im.echoConfirmed': 'Platform own-message echo verified.',
   'im.outboxId': 'Outbox intent ID',
   'im.externalMessageId': 'External message ID',
@@ -3313,6 +3332,16 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'profile.avatar.spacing': 'Spacing',
   'roster.activityStale':
     'Activity sync is interrupted. Avatars show the last observed state while reconnecting…',
+  'git.unavailable.title': 'Bot mode needs Git',
+  'git.unavailable.missing': 'Git was not found on this computer.',
+  'git.unavailable.unrunnable':
+    'Git was found but cannot run. On macOS, install the Command Line Developer Tools first.',
+  'git.unavailable.tooOld': 'Git {version} is too old; 2.28 or newer is required.',
+  'git.unavailable.hint':
+    'After installing or upgrading, restart DeepSeek Harness to create and import Bots.',
+  'git.unavailable.guide': 'How to install',
+  'git.unavailable.guideUrl': 'https://botharness.ai/docs/installation/#git',
+  'git.unavailable.recheck': 'Check again',
   'profile.avatar.unsupported':
     'This Avatar uses a version that is not available right now, so its saved still image is shown and editing and character animation are paused. The original design is kept and returns when the version is available again.',
   'profile.avatar.bangs': 'Bangs',

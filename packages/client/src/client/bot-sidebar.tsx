@@ -74,6 +74,7 @@ import type { BotHarnessTranslate } from './locale.js';
 import { personaBotActivity } from './persona-activity.js';
 import { CreatePersonaBotModal } from './persona-bot-create.js';
 import { ImportBotZipModal } from './bot-zip.js';
+import { GitUnavailableNotice, gitReady } from './git-unavailable-notice.js';
 import { MarketplaceModal } from './marketplace.js';
 import {
   defaultStorage,
@@ -1554,6 +1555,13 @@ export function BotSidebar({
           {t('roster.activityStale')}
         </div>
       ) : null}
+      <GitUnavailableNotice
+        git={state.git}
+        onRecheck={() => {
+          void actions.refreshGit();
+        }}
+        t={t}
+      />
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
           {t('roster.messages')}
@@ -1665,7 +1673,7 @@ export function BotSidebar({
                 </button>
               </Tooltip>
             }
-            items={menuItems(t)}
+            items={menuItems(t, gitReady(state.git))}
             onSelect={selectMenu}
             onClose={() => {
               setMenuOpen(false);
@@ -1686,6 +1694,7 @@ export function BotSidebar({
           <Button
             variant="outline"
             size="sm"
+            disabled={!gitReady(state.git)}
             onClick={() => setCreateRequest({ kind: 'bot', source: 'empty' })}
           >
             {t('roster.empty.create')}
@@ -2187,7 +2196,7 @@ export function BotSidebar({
                           <IconPlusOutlineRegular />
                         </button>
                       }
-                      items={sectionCreateMenuItems(t)}
+                      items={sectionCreateMenuItems(t, gitReady(state.git))}
                       onSelect={(id) => {
                         setSectionCreateMenuId(undefined);
                         const source = botCreateSource(id);
@@ -2629,16 +2638,17 @@ function botCreateSource(id: string): 'empty' | 'git' | 'zip' | undefined {
   return undefined;
 }
 
-function menuItems(t: BotHarnessTranslate): MenuEntry[] {
+function menuItems(t: BotHarnessTranslate, gitAvailable: boolean): MenuEntry[] {
+  const disabled = !gitAvailable;
   return [
     {
       id: 'bot',
       label: t('roster.menu.createBot'),
       icon: <IconAgentPresetOutlineRegular size={16} />,
       submenu: [
-        { id: 'bot:empty', label: t('roster.menu.createBot.empty') },
-        { id: 'bot:git', label: t('roster.menu.createBot.git') },
-        { id: 'bot:zip', label: t('roster.menu.createBot.zip') },
+        { id: 'bot:empty', label: t('roster.menu.createBot.empty'), disabled },
+        { id: 'bot:git', label: t('roster.menu.createBot.git'), disabled },
+        { id: 'bot:zip', label: t('roster.menu.createBot.zip'), disabled },
       ],
     },
     {
@@ -2659,6 +2669,6 @@ function menuItems(t: BotHarnessTranslate): MenuEntry[] {
   ];
 }
 
-function sectionCreateMenuItems(t: BotHarnessTranslate): MenuEntry[] {
-  return menuItems(t).filter((item) => item.id === 'bot' || item.id === 'channel');
+function sectionCreateMenuItems(t: BotHarnessTranslate, gitAvailable: boolean): MenuEntry[] {
+  return menuItems(t, gitAvailable).filter((item) => item.id === 'bot' || item.id === 'channel');
 }

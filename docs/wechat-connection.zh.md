@@ -1,6 +1,6 @@
 # 连接个人微信 Bot
 
-接入支持扫码者在微信 Bot 私聊发送文字或单个文件，消息进入 PersonaBot 的 Inbox，由 Bot 使用自己的绑定身份回复原微信私聊。#904 预览另外支持第 6 节说明的原生图片。第 7 节说明微信平台语音转写，第 8 节说明 #906 原始音频候选。第 9 节说明 #907 原生视频候选。群消息、其他联系人、历史／搜索以及定时或主动消息属于独立切片。企业微信是另一种接入方式。
+接入支持扫码者在微信 Bot 私聊发送文字或单个文件，消息进入 PersonaBot 的 Inbox，由 Bot 使用自己的绑定身份回复原微信私聊。#904 预览另外支持第 6 节说明的原生图片。第 7 节说明微信平台语音转写，第 8 节说明 #906 原始音频候选。第 9 节说明 #907 原生视频候选。第 12 节增加显式授权的纯外部主动文字报告。群消息、其他联系人、远端历史／搜索及定时任务 UI 仍属于独立切片。企业微信是另一种接入方式。
 
 ## 开始前
 
@@ -136,7 +136,7 @@ Bot 可在已有可写工作区授权下，用 `bridge_attachment_save` 的 `rep
 
 每页最多 20 条，同时遵守 JSON 字符预算（1,000–24,000，默认 12,000）。用相同来源、范围与条数参数跟随 `nextCursor` 续页。cursor 固定首次读取的记录边界，不会把后来新消息塞入续页；30 分钟后或 Host 重启后失效。Grant／身份改变或撤销会拒绝继续读取；若单条超出预算，`requiredCharacters` 提示所需预算。读取不产生新收件、唤醒、订阅、本地 DM 或外部发送；来源面板展示 Bot 的读取记录和最近一页。
 
-微信发送回执仍是客户端确认，不能拿它解析只带服务器消息 ID 的 Bot 回复引用。微信附带的真实引用正文仍可显示；没有正文或可核对的真实服务器 ID 时，引用保持不可用。
+微信回复回执仍是客户端确认，不能拿它解析只带服务器消息 ID 的 Bot 回复引用。微信附带的真实引用正文仍可显示；没有正文或可核对的真实服务器 ID 时，引用保持不可用。第 12 节另行保留主动报告实际返回的服务器消息 ID。
 
 #908 的真实验收收到仅含条目 ID 的引用：微信没有提供引用正文或服务器消息 ID，BotHarness 明确保留“引用内容不可用”。Bot 通过两页本地保留上下文和一次附近查询读到原始 canonical Source Event，再向同一授权私聊发送 `BH908-QUOTE-OK 紫色风铃42`。Provider 已接受发送，Human 已确认收到并提供原生微信截图。嵌入正文和服务器 ID 解析的其他形态有回归覆盖，不声称已完成这些客户端形态的真实验收。
 
@@ -181,6 +181,42 @@ Bot 可在已有可写工作区授权下，用 `bridge_attachment_save` 的 `rep
 </video>
 
 [下载连接器开关录屏](/guides/wechat/routing-switch-demo.mp4)
+
+## 12. 发送纯外部主动文字报告
+
+保留 PersonaBot 自己启用的微信身份，并显式授权其扫码者私聊。在 Profile 展开**频道桥接与授权**，已资格验证的 Provider 会显示**消息 → 发送消息**。输入唯一报告并明确发送，报告进入 canonical Outbox，只投递微信，不插入本地 Human DM，也不产生新的 Inbox 收件。Bot 可通过 `bridge_targets`、`bridge_post` 和 `bridge_outbox` 使用同一能力；本片不新增定时系统。
+
+![已授权扫码者私聊的主动文字控件，浅色主题](/guides/wechat/proactive-after-light.jpg)
+
+![同一真实 Profile，深色主题](/guides/wechat/proactive-after-dark.jpg)
+
+扫码者需要先在原微信会话发消息，且该 Bot 的已授权接收正在运行。私有上下文留在 Provider 内部，不通过虚构心跳续期；本地保留上限不承诺服务器有效期。缺失上下文或原生拒绝会明确失败并提示恢复：检查身份、目标授权和接收，在同一个私聊发新消息，然后明确请求一条新报告。重新扫码需要重新授权，不能借用另一个联系人作为恢复捷径。
+
+![真实上下文缺失拒绝及新消息恢复提示](/guides/wechat/proactive-after-context-light.jpg)
+
+打开**最近发送**核对完整报告及结果。**平台已接受**不等于微信收到或已读。**来源详情**分开显示客户端确认 ID 和确实返回的原生服务器消息 ID；未返回时保持不可用。结果不明应沿用同一 request ID 查询，不能盲目重发。撤销授权、停用或更换身份会拒绝新发送，旧 Outbox 仍可查看。
+
+![真实已接受报告，分开显示原生与客户端 ID](/guides/wechat/proactive-after-receipt-light.jpg)
+
+#910 最终界面候选使用本机压缩包产品 `0.0.0-test.910.1`、托管 Provider `4.32.0-botharness.12`、fork `4f4f0a6282580bb59968eb90571778eb7e37ee73` 及 DSH `0.2.0-rc.1`。Human 在新电脑扫码后，真实上下文缺失被拒绝，新扫码者收件恢复了主动投递。Human 已确认微信收到 `BH910-PROACTIVE-OWNER-0632`，随后 `910 FOLLOWUP 蓝色灯塔63` 进入同一 canonical Inbox；Profile 投递前后本地 DM 未变。此前压缩包 `0.0.0-test.910` 使用真实模型投递 `BH910-MODEL-POST-0640`，Provider 接受与独立 Human 实际收件均已确认。最终界面重拍与重启保留两条报告及 Inbox。本次确实返回服务器 ID，不承诺每次响应都返回。Human 已提供显示两条报告与后续回复的原生截图；它证明本次收件，不代表已读回执。公开发布与部署仍是独立动作。
+
+![Human 提供的原生微信截图，显示两条主动报告与后续回复](/guides/wechat/native-proactive-reports.png)
+
+![后续回复的 canonical 来源、原生消息 ID 和 Source Event ID，亮色主题](/guides/wechat/proactive-followup-source-light.jpg)
+
+![同一 canonical 后续回复来源，深色主题](/guides/wechat/proactive-followup-source-dark.jpg)
+
+![安装态模型报告收据，区分服务器消息 ID 与客户端确认，亮色主题](/guides/wechat/proactive-model-receipt-light.jpg)
+
+![同一安装态模型报告收据，深色主题](/guides/wechat/proactive-model-receipt-dark.jpg)
+
+录屏展示真实 Profile 输入、发送、Outbox 落定及回执检查。它证明浏览器操作；微信收件由 Human 独立核对。
+
+<video controls preload="none" playsInline poster="/guides/wechat/proactive-after-light.jpg" style={{width: '100%', maxHeight: '640px'}}>
+<source src="/guides/wechat/proactive-send-demo.mp4" type="video/mp4" />
+</video>
+
+[下载主动投递录屏](/guides/wechat/proactive-send-demo.mp4)
 
 ## 暂停与重新连接
 

@@ -25,6 +25,7 @@ export interface DshImOutboundService {
   replyReceiptVersion?: 1;
   replyFenceVersion?: 1;
   receiptVersion?: 1;
+  postFenceVersion?: 1;
   echoVersion?: 1;
   readSourceFile?(
     botId: string,
@@ -97,6 +98,7 @@ export interface DshImOutboundService {
       signal: AbortSignal;
       format: 'plain';
       receipt?: true;
+      beforeSend?: () => boolean;
     },
   ): Promise<{ sent: true; receipt?: MessagingReceipt }>;
 }
@@ -264,6 +266,9 @@ function providerFailure(error: unknown): MessagingProviderError {
     'consumer-unavailable',
     'file-upload-failed',
     'file-provider-rejected',
+    'private-context-unavailable',
+    'private-context-rejected',
+    'send-permission-denied',
   ].includes(code);
   return new MessagingProviderError(
     definite ? code : 'provider-result-unknown',
@@ -816,7 +821,10 @@ export function createDshImProvider(
           },
         }
       : {}),
-    ...((platform === 'feishu' || platform === 'slack') && host.receiptVersion === 1
+    ...((platform === 'feishu' ||
+      platform === 'slack' ||
+      (platform === 'weixin' && host.postFenceVersion === 1)) &&
+    host.receiptVersion === 1
       ? {
           async post(input: Parameters<NonNullable<MessagingProvider['post']>>[0]) {
             input.signal.throwIfAborted();
@@ -825,6 +833,8 @@ export function createDshImProvider(
               throw new MessagingProviderError('account-changed', 'not-started');
             if (!info.capabilities.includes('proactive-receipt-checked'))
               throw new MessagingProviderError('capability-unavailable', 'not-started');
+            if (platform === 'weixin' && !info.capabilities.includes('proactive-fence-checked'))
+              throw new MessagingProviderError('capability-unavailable', 'not-started');
             try {
               const result = await host.sendChecked(input.accountRef, input.targetRef, input.text, {
                 expectedFingerprint: input.fingerprint,
@@ -832,6 +842,7 @@ export function createDshImProvider(
                 signal: input.signal,
                 format: 'plain',
                 receipt: true,
+                ...(host.postFenceVersion === 1 ? { beforeSend: input.beforeSend } : {}),
               });
               const receipt = result.receipt;
               if (
@@ -840,7 +851,13 @@ export function createDshImProvider(
                 typeof receipt.messageId !== 'string' ||
                 !receipt.messageId ||
                 receipt.messageId.length > 512 ||
-                receipt.conversationId !== input.conversationId
+                receipt.conversationId !== input.conversationId ||
+                (platform === 'weixin'
+                  ? receipt.identityKind !== 'client-acknowledgement' ||
+                    (receipt.serverMessageId !== undefined &&
+                      (typeof receipt.serverMessageId !== 'string' ||
+                        !/^\d{1,512}$/.test(receipt.serverMessageId)))
+                  : receipt.identityKind !== undefined)
               )
                 throw new MessagingProviderError('provider-result-unknown', 'unknown');
               return {
@@ -849,6 +866,10 @@ export function createDshImProvider(
                   version: 1 as const,
                   messageId: receipt.messageId,
                   conversationId: receipt.conversationId,
+                  ...(receipt.identityKind ? { identityKind: receipt.identityKind } : {}),
+                  ...(platform === 'weixin' && receipt.serverMessageId
+                    ? { serverMessageId: receipt.serverMessageId }
+                    : {}),
                 },
               };
             } catch (error) {
