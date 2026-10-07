@@ -29,6 +29,13 @@ import {
 } from '../models/presets.js';
 import { MemoryAcceptError } from '../memory/accepted.js';
 import {
+  withInlineMentions,
+  mentionPeople,
+  withMentionNames,
+  withoutMentionMarkup,
+} from '../messaging/mention-text.js';
+import type { MessagingInboundEvent } from '../messaging/provider.js';
+import {
   BOT_SCHEDULE_ENABLED_LIMIT,
   BotScheduleError,
   type BotScheduleTrigger,
@@ -41,6 +48,15 @@ import type {
   BotAgentAdapter,
   OrchestratorAgentRun,
 } from './bot-runtime.js';
+
+function withContextMentionNames<
+  T extends { text: string; mentions?: MessagingInboundEvent['mentions'] },
+>(messages: T[]): T[] {
+  return messages.map((message) => ({
+    ...message,
+    text: withMentionNames(message.text, message.mentions),
+  }));
+}
 
 function groupCommandResult(
   channel: { id: string; name: string },
@@ -1123,7 +1139,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging?.post)
               throw new Error('bridge_post: unavailable');
             return JSON.stringify(
-              await active.run.externalMessaging.post(args.grant_id, args.request_id, args.text),
+              await active.run.externalMessaging.post(
+                args.grant_id,
+                args.request_id,
+                withoutMentionMarkup(args.text),
+              ),
             );
           },
         }),
@@ -1172,7 +1192,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
               throw new Error('bridge_read: unavailable');
-            return JSON.stringify(active.run.externalMessaging.read(args.source_event_id));
+            const source = active.run.externalMessaging.read(args.source_event_id);
+            return JSON.stringify({
+              ...source,
+              body: withMentionNames(source.body, source.event.mentions),
+              ...(source.contextMessages === undefined
+                ? {}
+                : { contextMessages: withContextMentionNames(source.contextMessages) }),
+            });
           },
         }),
       );
@@ -1381,21 +1408,23 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
               throw new Error('bridge_context: unavailable');
-            return JSON.stringify(
-              await active.run.externalMessaging.context(
-                args.source_event_id,
-                {
-                  scope: args.scope,
-                  ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-                  ...(args.before_count === undefined ? {} : { beforeCount: args.before_count }),
-                  ...(args.after_count === undefined ? {} : { afterCount: args.after_count }),
-                  ...(args.max_characters === undefined
-                    ? {}
-                    : { maxCharacters: args.max_characters }),
-                },
-                context.signal,
-              ),
+            const result = await active.run.externalMessaging.context(
+              args.source_event_id,
+              {
+                scope: args.scope,
+                ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
+                ...(args.before_count === undefined ? {} : { beforeCount: args.before_count }),
+                ...(args.after_count === undefined ? {} : { afterCount: args.after_count }),
+                ...(args.max_characters === undefined
+                  ? {}
+                  : { maxCharacters: args.max_characters }),
+              },
+              context.signal,
             );
+            return JSON.stringify({
+              ...result,
+              messages: withContextMentionNames(result.messages),
+            });
           },
         }),
       );
@@ -1500,7 +1529,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             text: {
               type: 'string',
               required: true,
-              description: 'Plain text reply, at most 4000 characters.',
+              description:
+                'Plain text reply, at most 4000 characters. To @ the sender or someone the source mentioned, write <@ID> anywhere in the text with their id from the source people list (Lark, Slack and Discord); any other id is sent as plain text.',
             },
           },
           output: {
@@ -1511,9 +1541,19 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
               throw new Error('bridge_reply: unavailable');
-            return JSON.stringify(
-              await active.run.externalMessaging.reply(args.source_event_id, args.text),
-            );
+            const messaging = active.run.externalMessaging;
+            const source = /<@!?[A-Za-z0-9_-]+>/u.test(args.text)
+              ? messaging.read(args.source_event_id)
+              : undefined;
+            const text =
+              source === undefined
+                ? withoutMentionMarkup(args.text)
+                : withInlineMentions(
+                    source.platform,
+                    args.text,
+                    mentionPeople(source.event.actor, source.event.mentions),
+                  );
+            return JSON.stringify(await messaging.reply(args.source_event_id, text));
           },
         }),
       );
