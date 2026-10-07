@@ -34,7 +34,7 @@
 - 较早 Provider 全套曾出现 Dingtalk 时间断言失败；原始 parent 与候选的该文件单跑均为 104/104，最终全套通过。原因未证实，不能宣称已定位。
 - BotHarness 较早基线全套：**3,012 passed，9 skipped**。这是整合最新 main 和新增两项 Assignment 测试之前的结果，不能当作最终提交的全套结果。
 - 当前 main 整合后的相关检查：**83 passed**（微信处理生命周期、真实 runtime Assignment overlap/acceptance、数据库迁移、产品固定版本、Lark 审批）；typecheck、format、lint、build 通过。
-- 源码候选已打包。本次最终重新打包版本为 `0.0.0-test.911.3`；此前 `.911.2` 在 WSL 独立未配对 Profile 的认证 `botharness/list` / `releaseInfo` 启动验证通过，**这不是原生微信 E2E**。最终版本的启动结果以本票 GitHub 交接评论为准。
+- 本次最终候选 `0.0.0-test.911.3` 在全新 WSL 未配对隔离 Profile 启动，认证 `botharness/list` 返回 HTTP 200 / 成功 envelope；umbrella、Core、UI 的实际安装版本均为 `.911.3`，Provider 为 `.13`。此前 `.911.2` 也通过认证 `list` / `releaseInfo` 验证，但已被最终候选取代。**这些启动检查不是原生微信 E2E。**
 - **没有 #911 真实原生输入状态截图或录像，没有 Human #911 验收，没有合并/部署授权。** 二轴代码审查和 PR Lens 渲染也尚未完成。
 
 本次阻塞：WSL Host 的端口和认证接口在本机探测正常，但 Codex 浏览器访问失败（自动导航曾被阻止，Human 打开后得到 `ERR_HTTP_RESPONSE_CODE_FAILURE`）。浏览器不通的原因未定位，不能据此宣称防火墙、代理或 Host 已坏。按 Human 指示迁到 Windows，不继续反复访问旧链接。
@@ -66,6 +66,6 @@ node scripts/dev-instance.mjs --home tmp/911-qa-windows --port 31910 --product-a
 
 迁移是 forward-only。旧 `.911.1` / `.911.2` smoke Profile 曾使用本票早期的 generation-60 微信偏好布局；main 现在的 generation 60 属于 Lark 审批。**不要将这些旧候选 Profile 当作新版本升级源**，使用新的 Windows 隔离 Profile。既有正常 main Profile 如需升级，先通过既有备份机制保存；不要修改 migration history 或迁移摘要绕过恢复检查。
 
-WSL 仍保留 #910 已配对基线和未配对 smoke 实例，只有本机有启动 PID、登录 URL、cookie 与模型凭据。它们未交付到 GitHub，也不构成 Windows 环境。需要关闭时只核对并停止对应 QA home/port 的准确 PID，不使用宽泛进程匹配。当前会话没有改变或解绑 Human 的微信。
+交接前已逐一核对准确 PID 的命令与 QA home，停止本任务 WSL 的 #910 基线及两个未配对 smoke Host；31910 / 31911 / 31912 均已不监听，避免 Windows 新配对与旧 Consumer 同时运行。只保留本机 Profile 文件、启动摘要、cookie 与凭据，没有删除配对或解绑微信。这些私有文件未交付到 GitHub；旧登录链接已经失效，Windows 须使用自己的新启动链接。
 
 Provider 上游贡献在原生资格验证后再评估；上游合并不是 BotHarness release 前提。始终保持一票一 PR、不接 WeCom、微信原生操作由 Human 完成、每票交付后等待 Human QA。
