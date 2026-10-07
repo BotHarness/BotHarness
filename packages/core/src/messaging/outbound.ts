@@ -379,7 +379,9 @@ export function createOutboundMessaging(options: {
     const account = await bounded(
       entry.provider.inspectAccount
         ? entry.provider.inspectAccount(value.accountRef)
-        : entry.provider.accounts().then((rows) => rows.find((r) => r.ref === value.accountRef)),
+        : entry.provider
+            .accounts()
+            .then((rows) => rows.find((r) => r.ref === value.accountRef && !r.unsupported)),
     );
     current(value.providerId, entry.token);
     if (!account || account.ref !== value.accountRef || account.fingerprint !== value.fingerprint)

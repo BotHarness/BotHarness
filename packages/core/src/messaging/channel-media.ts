@@ -142,7 +142,9 @@ export function createChannelMediaAccess(options: {
       ? entry.provider.inspectAccount(value.accountRef)
       : entry.provider
           .accounts()
-          .then((accounts) => accounts.find((item) => item.ref === value.accountRef));
+          .then((accounts) =>
+            accounts.find((item) => item.ref === value.accountRef && !item.unsupported),
+          );
     const account = await abortable(inspect, signal);
     validate();
     if (

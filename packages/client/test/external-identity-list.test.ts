@@ -252,7 +252,7 @@ it('Bind app shows real readiness after the commit and the app row lists its con
   }
 });
 
-it('Bind app lists every app, disables the ones a Bot uses with its owner, and offers a second app of a bound platform', async () => {
+it('Bind app lists every app, disables the ones a Bot uses with its owner or the Provider cannot serve, and offers a second app of a bound platform', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const app = (ref: string, boundBotSlug?: string) => ({
     providerId: 'dsh-im/feishu',
@@ -264,7 +264,12 @@ it('Bind app lists every app, disables the ones a Bot uses with its owner, and o
     ...(boundBotSlug ? { boundBotSlug } : {}),
   });
   const snapshot: MessagingSnapshot = {
-    accounts: [app('mine', 'ada'), app('theirs', 'bea'), app('free')],
+    accounts: [
+      app('mine', 'ada'),
+      app('theirs', 'bea'),
+      { ...app('old'), unsupported: 'checked-send' as const },
+      app('free'),
+    ],
     identities: [
       {
         id: 'binding',
@@ -311,6 +316,7 @@ it('Bind app lists every app, disables the ones a Bot uses with its owner, and o
     expect(options.map((o) => [o.dataset.value, o.disabled, o.textContent])).toEqual([
       ['dsh-im/feishu:free', false, expect.stringContaining('App free')],
       ['dsh-im/feishu:mine', true, expect.stringContaining('已绑定到这个 Bot')],
+      ['dsh-im/feishu:old', true, expect.stringContaining('需要更新 IM 插件')],
       ['dsh-im/feishu:theirs', true, expect.stringContaining('已被 Bea 使用')],
     ]);
   } finally {

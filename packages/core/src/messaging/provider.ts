@@ -4,6 +4,7 @@ export interface MessagingAccount {
   name: string;
   fingerprint: string;
   connected: boolean;
+  unsupported?: 'checked-send';
 }
 
 export interface MessagingTarget {
