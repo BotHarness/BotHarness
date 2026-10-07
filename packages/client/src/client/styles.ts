@@ -2553,6 +2553,14 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   .bh-im-grant-body .bh-im-group-policy { grid-template-columns: minmax(0,1fr); }
 }
 .bh-im-danger-outline.bh-im-danger-outline { color: var(--dsw-alias-state-error-primary); }
+.bh-im-danger-text.bh-im-danger-text { color: var(--dsw-alias-state-error-primary); }
+.bh-conversation-group { display: grid; gap: 4px; }
+.bh-conversation-group + .bh-conversation-group { margin-top: 8px; }
+.bh-conversation-group-title { font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-secondary); }
+.bh-conversation-group-title small { font-weight: 400; margin-left: 2px; }
+.bh-conversation-reason { font-size: 12px; color: var(--dsw-alias-state-warning-primary, var(--dsw-alias-label-secondary)); }
+.bh-conversation-confirm { display: grid; gap: 8px; }
+.bh-conversation-confirm p { margin: 0; }
 .bh-modal-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; justify-content: flex-end; }
 .bh-modal-footer > button { white-space: nowrap; }
 .bh-modal-footer-gap { flex: 1; }

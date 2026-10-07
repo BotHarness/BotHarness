@@ -38,6 +38,7 @@ import {
 } from './last-view.js';
 import { defaultStorage, type ConfigStorage } from './roster-config.js';
 import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
+import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
 import { publishWorkspaceGrantChange } from './workspace-grant-events.js';
 import type { ExternalSource } from '../../../core/src/messaging/inbound.js';
 import type {
@@ -51,6 +52,7 @@ import {
   manageChannelBridge,
   loadMessagingSnapshot,
   manageMessagingIdentity,
+  manageMessagingConversation,
   loadMessagingTargets,
   authorizeMessaging,
   revokeMessaging,
@@ -269,6 +271,7 @@ export interface BridgeActions {
   approvalRetry(slug: string, id: string): Promise<void>;
   pairingReview(slug: string, input: PairingReviewInput): Promise<PairingRequest>;
   messagingIdentity(slug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
+  messagingConversation(slug: string, input: MessagingConversationInput): Promise<void>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
   messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
   messagingAuthorize(input: {
@@ -1807,6 +1810,7 @@ export function createActions(
     approvalRetry: (slug, id) => retryApprovalNotification(call, slug, id),
     pairingReview: (slug, input) => reviewPairing(call, slug, input),
     messagingIdentity: (slug, input) => manageMessagingIdentity(call, slug, input),
+    messagingConversation: (slug, input) => manageMessagingConversation(call, slug, input),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
     messagingTargets: (providerId, accountRef) =>
       loadMessagingTargets(call, providerId, accountRef),

@@ -7,6 +7,9 @@ import type {
   MessagingIdentityView,
 } from '../../../core/src/messaging/identity.js';
 import { Combobox } from './combobox.js';
+import { ExternalConversations } from './external-conversations.js';
+import type { MessagingConversationInput } from '../../../core/src/messaging/conversations.js';
+import type { GroupReceptionInput } from '../../../core/src/messaging/group-policy.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { MessagingHelp } from './messaging-help.js';
@@ -23,16 +26,21 @@ export function ExternalIdentityList({
   snapshot,
   t,
   mutate,
+  conversation,
+  rules,
 }: {
   snapshot: MessagingSnapshot | undefined;
   t: BotHarnessTranslate;
   mutate(input: MessagingIdentityInput): Promise<void>;
+  conversation(input: MessagingConversationInput): Promise<void>;
+  rules(grantId: string, input: GroupReceptionInput): Promise<void>;
 }): ReactElement {
   const [mode, setMode] = useState<'bind' | 'bound' | 'edit' | 'reconnect' | 'unbind'>();
   const [selected, setSelected] = useState<MessagingIdentityView>();
   const [accountKey, setAccountKey] = useState('');
   const [name, setName] = useState('');
   const [inheritEnabled, setInheritEnabled] = useState(false);
+  const [newConversations, setNewConversations] = useState<'auto' | 'ask'>('auto');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const identities = snapshot?.identities ?? [];
@@ -52,6 +60,7 @@ export function ExternalIdentityList({
     setSelected(row);
     setName(row?.name ?? '');
     setInheritEnabled(row?.enabledInheritance === 'inherit');
+    setNewConversations(row?.newConversations ?? 'auto');
     setAccountKey('');
   };
   const close = () => {
@@ -71,9 +80,11 @@ export function ExternalIdentityList({
           : '';
       setError(
         t(
-          code === 'identity-stale' || code === 'identity-changed'
+          code === 'identity-stale' || code === 'identity-changed' || code === 'conversation-stale'
             ? 'identity.stale'
-            : 'identity.failed',
+            : code === 'conversation-limit'
+              ? 'conversation.limit'
+              : 'identity.failed',
         ),
       );
     } finally {
@@ -99,6 +110,7 @@ export function ExternalIdentityList({
               name,
               enabled: selected.enabled,
               inheritEnabled,
+              newConversations,
               ...(selected.defaultRevision !== undefined
                 ? { expectedDefaultRevision: selected.defaultRevision }
                 : {}),
@@ -322,38 +334,43 @@ export function ExternalIdentityList({
                       ]}
                     />
                   </div>
+                  {selected.platform === 'weixin' ? null : (
+                    <div className="bh-im-field">
+                      <span className="bh-im-heading">
+                        <span>{t('identity.newConversations')}</span>
+                        <MessagingHelp
+                          title={t('identity.newConversations')}
+                          text={t('identity.newConversationsHint')}
+                          t={t}
+                        />
+                      </span>
+                      <Combobox
+                        searchable={false}
+                        label={t('identity.newConversations')}
+                        toggleLabel={t('identity.newConversations')}
+                        value={newConversations}
+                        disabled={busy}
+                        onSelect={(value) => setNewConversations(value === 'ask' ? 'ask' : 'auto')}
+                        options={[
+                          { value: 'auto', label: t('identity.newConversations.auto') },
+                          { value: 'ask', label: t('identity.newConversations.ask') },
+                        ]}
+                      />
+                    </div>
+                  )}
                 </>
               ) : null}
               {mode === 'edit' ? (
                 <div className="bh-im-field">
                   <span className="bh-im-heading">{t('identity.conversations')}</span>
-                  {conversations(selected).length ? (
-                    <SidebarCardList label={t('identity.conversations')}>
-                      {conversations(selected).map((entry) => (
-                        <SidebarCardRow
-                          key={entry.id}
-                          icon={entry.receiveScope?.kind === 'dm' ? 'user' : 'users'}
-                          title={entry.targetName || entry.receiveScope!.conversationId}
-                          meta={[
-                            t(
-                              entry.receiveScope?.kind === 'dm'
-                                ? 'identity.kind.dm'
-                                : 'identity.kind.group',
-                            ),
-                            ...(entry.lastMessageAt
-                              ? [
-                                  t('identity.lastMessage', {
-                                    time: new Date(entry.lastMessageAt).toLocaleString(),
-                                  }),
-                                ]
-                              : []),
-                          ].join(' · ')}
-                        />
-                      ))}
-                    </SidebarCardList>
-                  ) : (
-                    <p className="bh-muted">{t('identity.conversationsEmpty')}</p>
-                  )}
+                  <ExternalConversations
+                    identity={selected}
+                    snapshot={snapshot}
+                    busy={busy}
+                    t={t}
+                    change={(input) => operate(() => conversation(input))}
+                    rules={(grantId, input) => operate(() => rules(grantId, input))}
+                  />
                 </div>
               ) : null}
               {mode === 'reconnect' ? <p>{t('identity.reconnectHint')}</p> : null}

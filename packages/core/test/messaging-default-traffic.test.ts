@@ -398,3 +398,191 @@ it('a recorded group follows the platform default: collecting all text admits un
     { reason: 'group-ordinary', messageId: 'om-chatter' },
   ]);
 });
+
+async function grantFor(fx: Awaited<ReturnType<typeof fixture>>, conversation: string) {
+  const snapshot = await fx.core.externalMessaging.snapshot('ada');
+  return snapshot.grants.find(
+    (grant) => !grant.revokedAt && grant.receiveScope?.conversationId === conversation,
+  )!;
+}
+
+it('blocking an entry stops admission and survives restart and rebind; allowing again admits only new messages', async () => {
+  const fx = await fixture();
+  await fx.receive(mention('ask'));
+  const grant = await grantFor(fx, 'oc_team');
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'block',
+    grantId: grant.id,
+    expectedRevision: grant.revision,
+  });
+  await fx.settle();
+  await fx.receive(mention('after-block'));
+  expect(fx.admissions()).toEqual([{ reason: 'group-mention', messageId: 'om-ask' }]);
+  await fx.restart();
+  await fx.receive(mention('after-restart'));
+  expect(fx.admissions()).toHaveLength(1);
+  const snapshot = await fx.core.externalMessaging.snapshot('ada');
+  expect(snapshot.blockedConversations).toEqual([
+    expect.objectContaining({
+      conversation: { kind: 'group', id: 'oc_team' },
+      bindingId: snapshot.identities![0]!.id,
+      revision: 1,
+    }),
+  ]);
+  const identity = snapshot.identities![0]!;
+  await fx.core.externalMessaging.identity('ada', {
+    kind: 'unbind',
+    id: identity.id,
+    expectedRevision: identity.revision,
+  });
+  await fx.settle();
+  const rebound = await fx.core.externalMessaging.identity('ada', {
+    kind: 'bind',
+    providerId: 'dsh-im/feishu',
+    accountRef: 'lark-app',
+    fingerprint,
+  });
+  await fx.settle();
+  await fx.receive(mention('after-rebind'));
+  expect(fx.admissions()).toHaveLength(1);
+  const blocked = (await fx.core.externalMessaging.snapshot('ada')).blockedConversations![0]!;
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'allow',
+    bindingId: rebound.id,
+    conversation: blocked.conversation,
+    from: 'blocked',
+    expectedRevision: blocked.revision,
+  });
+  await fx.settle();
+  expect((await fx.core.externalMessaging.snapshot('ada')).blockedConversations).toEqual([]);
+  await fx.receive(mention('allowed'));
+  expect(
+    fx
+      .admissions()
+      .map((row) => (row as { messageId: string }).messageId)
+      .sort(),
+  ).toEqual(['om-allowed', 'om-ask']);
+});
+
+it('a stale revision is refused and blocking revokes the old reply route', async () => {
+  const fx = await fixture();
+  await fx.receive(dm('1'));
+  const grant = await grantFor(fx, 'oc_owner');
+  await expect(
+    fx.core.externalMessaging.conversation('ada', {
+      kind: 'block',
+      grantId: grant.id,
+      expectedRevision: grant.revision + 5,
+    }),
+  ).rejects.toMatchObject({ code: 'conversation-stale' });
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'block',
+    grantId: grant.id,
+    expectedRevision: grant.revision,
+  });
+  await fx.settle();
+  await expect(
+    fx.core.externalMessaging.reply('ada', fx.sourceId('om-1'), 'too late'),
+  ).rejects.toThrow();
+  expect(fx.replies).toEqual([]);
+});
+
+it('a muted entry is admitted silently without a run and can still be answered', async () => {
+  const fx = await fixture();
+  await fx.receive(mention('ask'));
+  expect(fx.runs).toHaveLength(1);
+  const grant = await grantFor(fx, 'oc_team');
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'mute',
+    grantId: grant.id,
+    expectedRevision: grant.preferenceRevision ?? 0,
+    muted: true,
+  });
+  await fx.settle();
+  expect(await grantFor(fx, 'oc_team')).toMatchObject({ muted: true, revision: grant.revision });
+  await fx.receive(mention('muted'));
+  expect(fx.runs).toHaveLength(1);
+  expect(
+    fx.query(
+      "SELECT a.wake_mode FROM inbox_admissions a JOIN source_events e USING(source_event_id) WHERE json_extract(e.payload_json, '$.external.event.messageId') = 'om-muted'",
+    ),
+  ).toEqual([{ wake_mode: 'silent' }]);
+  await fx.core.externalMessaging.reply('ada', fx.sourceId('om-muted'), 'Seen');
+  await fx.settle();
+  expect(fx.replies.map((item) => item.text)).toEqual(['Seen']);
+  const muted = await grantFor(fx, 'oc_team');
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'mute',
+    grantId: muted.id,
+    expectedRevision: muted.preferenceRevision ?? 0,
+    muted: false,
+  });
+  await fx.settle();
+  await fx.receive(mention('loud'));
+  expect(fx.runs).toHaveLength(2);
+});
+
+it('ask mode holds a new conversation without a Source Event until it is allowed', async () => {
+  const fx = await fixture();
+  await fx.update({ newConversations: 'ask' });
+  await fx.receive(mention('first'));
+  await fx.receive(mention('second'));
+  expect(fx.query('SELECT count(*) AS n FROM source_events')).toEqual([{ n: 0 }]);
+  const snapshot = await fx.core.externalMessaging.snapshot('ada');
+  expect(snapshot.heldConversations).toEqual([
+    expect.objectContaining({
+      conversation: { kind: 'group', id: 'oc_team' },
+      reason: 'ask',
+      count: 2,
+    }),
+  ]);
+  const held = snapshot.heldConversations![0]!;
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'allow',
+    bindingId: held.bindingId,
+    conversation: held.conversation,
+    from: 'held',
+    expectedRevision: held.revision,
+  });
+  await fx.settle();
+  expect((await fx.core.externalMessaging.snapshot('ada')).heldConversations).toEqual([]);
+  expect(fx.admissions()).toEqual([]);
+  await fx.receive(mention('third'));
+  expect(fx.admissions()).toEqual([{ reason: 'group-mention', messageId: 'om-third' }]);
+});
+
+it('blocking a held conversation keeps it out of the Inbox', async () => {
+  const fx = await fixture();
+  await fx.update({ newConversations: 'ask' });
+  await fx.receive(dm('1'));
+  const held = (await fx.core.externalMessaging.snapshot('ada')).heldConversations![0]!;
+  await fx.core.externalMessaging.conversation('ada', {
+    kind: 'block-held',
+    bindingId: held.bindingId,
+    conversation: held.conversation,
+    expectedRevision: held.revision,
+  });
+  await fx.update({ newConversations: 'auto' });
+  await fx.receive(dm('2'));
+  const snapshot = await fx.core.externalMessaging.snapshot('ada');
+  expect(snapshot.heldConversations).toEqual([]);
+  expect(snapshot.blockedConversations).toEqual([
+    expect.objectContaining({ conversation: { kind: 'dm', id: 'oc_owner' }, name: 'Owner' }),
+  ]);
+  expect(fx.admissions()).toEqual([]);
+});
+
+it('holds new conversations past the hourly limit instead of creating entries', async () => {
+  const fx = await fixture();
+  for (let i = 0; i < 21; i++)
+    await fx.receive(
+      dm(`n${i}`, {
+        conversation: { kind: 'dm', id: `oc_${i}` },
+        reply: { messageId: `om-n${i}`, conversationId: `oc_${i}`, actorId: 'ou_owner' },
+      }),
+    );
+  expect(fx.entries()).toHaveLength(20);
+  expect((await fx.core.externalMessaging.snapshot('ada')).heldConversations).toEqual([
+    expect.objectContaining({ conversation: { kind: 'dm', id: 'oc_20' }, reason: 'hourly-limit' }),
+  ]);
+});

@@ -335,6 +335,7 @@ export interface BridgeMethods {
   messagingTargets(payload: unknown): Promise<BridgeResult<{ targets: MessagingTarget[] }>>;
   messagingAuthorize(payload: unknown): Promise<BridgeResult<{ grant: MessagingGrant }>>;
   messagingRevoke(payload: unknown): Promise<BridgeResult<{ revoked: true }>>;
+  messagingConversation(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   messagingSend(payload: unknown): Promise<BridgeResult<{ intent: OutboxIntent }>>;
 
   modelCatalog(payload: unknown): Promise<BridgeResult<{ models: ModelCatalogEntry[] }>>;
@@ -1198,6 +1199,57 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return messagingCall(async (service) => {
         service.revoke(input.data.slug, input.data.grantId);
         return { revoked: true as const };
+      });
+    },
+    messagingConversation(payload) {
+      const conversation = z
+        .object({ kind: z.enum(['dm', 'group']), id: z.string().min(1).max(512) })
+        .strict();
+      const revision = z.number().int().min(0);
+      const input = z
+        .object({
+          slug: z.string().min(1),
+          input: z.discriminatedUnion('kind', [
+            z
+              .object({
+                kind: z.literal('mute'),
+                grantId: z.string().uuid(),
+                expectedRevision: revision,
+                muted: z.boolean(),
+              })
+              .strict(),
+            z
+              .object({
+                kind: z.literal('block'),
+                grantId: z.string().uuid(),
+                expectedRevision: revision,
+              })
+              .strict(),
+            z
+              .object({
+                kind: z.literal('block-held'),
+                bindingId: z.string().uuid(),
+                conversation,
+                expectedRevision: revision,
+              })
+              .strict(),
+            z
+              .object({
+                kind: z.literal('allow'),
+                bindingId: z.string().uuid(),
+                conversation,
+                from: z.enum(['held', 'blocked']),
+                expectedRevision: revision,
+              })
+              .strict(),
+          ]),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid conversation change'));
+      return messagingCall(async (service) => {
+        await service.conversation(input.data.slug, input.data.input);
+        return { updated: true as const };
       });
     },
     messagingSend(payload) {

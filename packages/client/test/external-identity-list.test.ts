@@ -82,6 +82,8 @@ it('failed Switch writes retain the committed preference; stale Modal edits reta
           snapshot,
           t: zhTranslate,
           mutate,
+          conversation: vi.fn(),
+          rules: vi.fn(),
         }),
       ),
     );
@@ -120,6 +122,7 @@ it('failed Switch writes retain the committed preference; stale Modal edits reta
       expectedRevision: 7,
       name: 'Retained edit',
       inheritEnabled: false,
+      newConversations: 'auto',
       enabled: true,
     });
   } finally {
@@ -128,7 +131,7 @@ it('failed Switch writes retain the committed preference; stale Modal edits reta
   }
 });
 
-it('Bind app shows real readiness after the commit and the app row lists its conversations read-only', async () => {
+it('Bind app shows real readiness after the commit and the app row lists its conversations with their actions', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const account = {
     providerId: 'dsh-im/feishu',
@@ -184,7 +187,15 @@ it('Bind app shows real readiness after the commit and the app row lists its con
   document.body.append(container);
   const root = createRoot(container);
   const render = () =>
-    root.render(createElement(ExternalIdentityList, { snapshot, t: zhTranslate, mutate }));
+    root.render(
+      createElement(ExternalIdentityList, {
+        snapshot,
+        t: zhTranslate,
+        mutate,
+        conversation: vi.fn(),
+        rules: vi.fn(),
+      }),
+    );
   const mutate = vi.fn(async () => {
     snapshot = {
       ...snapshot,
@@ -227,11 +238,14 @@ it('Bind app shows real readiness after the commit and the app row lists its con
     expect(container.textContent).toContain('飞书 · 1 个会话');
     const edit = container.querySelector<HTMLButtonElement>('[title="编辑身份：Support app"]')!;
     await act(async () => edit.click());
-    const list = container.querySelector('[role="dialog"] [aria-label="会话"]')!;
+    const list = container.querySelector('[role="dialog"] section[aria-label="活跃"]')!;
     expect(list.textContent).toContain('Owner');
     expect(list.textContent).toContain('私聊');
     expect(list.textContent).toContain('最近消息');
-    expect(list.querySelector('button')).toBeNull();
+    expect([...list.querySelectorAll('button')].map((b) => b.textContent)).toEqual([
+      '静音',
+      '屏蔽',
+    ]);
   } finally {
     await act(async () => root.unmount());
     container.remove();

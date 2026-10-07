@@ -1613,6 +1613,61 @@ const BOUND_APP_ADMISSION_MIGRATION: SchemaMigration = {
   },
 };
 
+const CONVERSATION_LIST_MIGRATION: SchemaMigration = {
+  generation: 62,
+  module: 'messaging',
+  description:
+    'Keep durable conversation blocks per Bot and app fingerprint, and held conversations waiting for a decision',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE messaging_conversation_blocks (
+        bot_slug TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        conversation_kind TEXT NOT NULL CHECK (conversation_kind IN ('dm', 'group')),
+        conversation_id TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        body TEXT NOT NULL CHECK (json_valid(body)),
+        PRIMARY KEY (bot_slug, fingerprint, conversation_kind, conversation_id)
+      );
+      CREATE TABLE messaging_held_conversations (
+        binding_id TEXT NOT NULL,
+        conversation_kind TEXT NOT NULL CHECK (conversation_kind IN ('dm', 'group')),
+        conversation_id TEXT NOT NULL,
+        last_seen_at TEXT NOT NULL,
+        body TEXT NOT NULL CHECK (json_valid(body)),
+        PRIMARY KEY (binding_id, conversation_kind, conversation_id)
+      );
+      CREATE INDEX messaging_held_conversations_seen
+        ON messaging_held_conversations(binding_id, last_seen_at);
+      INSERT OR IGNORE INTO messaging_conversation_blocks
+        (bot_slug, fingerprint, conversation_kind, conversation_id, revision, body)
+      SELECT g.bot_slug, json_extract(g.body, '$.fingerprint'),
+             json_extract(g.body, '$.receiveScope.kind'),
+             json_extract(g.body, '$.receiveScope.conversationId'), 1,
+             json_object(
+               'botSlug', g.bot_slug,
+               'fingerprint', json_extract(g.body, '$.fingerprint'),
+               'conversation', json_object(
+                 'kind', json_extract(g.body, '$.receiveScope.kind'),
+                 'id', json_extract(g.body, '$.receiveScope.conversationId')),
+               'name', json_extract(g.body, '$.targetName'),
+               'blockedAt', g.revoked_at,
+               'revision', 1)
+        FROM messaging_grants g
+       WHERE g.revoked_at IS NOT NULL
+         AND json_extract(g.body, '$.origin') = 'explicit'
+         AND json_extract(g.body, '$.receiveScope.kind') IN ('dm', 'group')
+         AND NOT EXISTS (
+           SELECT 1 FROM messaging_grants a
+            WHERE a.revoked_at IS NULL AND a.bot_slug = g.bot_slug
+              AND json_extract(a.body, '$.fingerprint') = json_extract(g.body, '$.fingerprint')
+              AND json_extract(a.body, '$.receiveScope.kind') = json_extract(g.body, '$.receiveScope.kind')
+              AND json_extract(a.body, '$.receiveScope.conversationId') =
+                  json_extract(g.body, '$.receiveScope.conversationId'));
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1674,4 +1729,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOT_PAIRING_MIGRATION,
   APPROVAL_MESSAGING_MIGRATION,
   BOUND_APP_ADMISSION_MIGRATION,
+  CONVERSATION_LIST_MIGRATION,
 ]);

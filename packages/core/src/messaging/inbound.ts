@@ -1,3 +1,4 @@
+import { admissionBound, conversationName, hold, readBlock, removeHeld } from './conversations.js';
 import type { BotPairing } from './pairing.js';
 import { readMessagingIdentity } from './identity.js';
 import {
@@ -178,6 +179,7 @@ export interface InboundMessaging {
   pairingReception(bindingId: string): 'off' | 'connecting' | 'receiving' | 'unavailable';
   reconcileBinding(bindingId: string): Promise<void>;
   revoke(grantId: string): void;
+  startEntry(grantId: string): void;
   close(): void;
 }
 
@@ -352,9 +354,9 @@ export function createInboundMessaging(options: {
       value.botSlug,
       'human-dm',
       policy.revision,
-      policy.wake,
+      value.muted ? 'silent' : policy.wake,
       policy.revision,
-      policy.wake === 'immediate' ? 'all' : policy.wake,
+      value.muted ? 'silent' : policy.wake === 'immediate' ? 'all' : policy.wake,
     );
     return sourceEventId;
   };
@@ -373,9 +375,9 @@ export function createInboundMessaging(options: {
       value.botSlug,
       'group-mention',
       policy.revision,
-      policy.wake,
+      value.muted ? 'silent' : policy.wake,
       reception.revision,
-      policy.wake === 'immediate' ? 'all' : policy.wake,
+      value.muted ? 'silent' : policy.wake === 'immediate' ? 'all' : policy.wake,
       thread?.revision ?? null,
       reception.defaultRevision ?? null,
     );
@@ -1180,7 +1182,17 @@ export function createInboundMessaging(options: {
         let value: MessagingGrant | undefined = entries[0];
         let created = false;
         if (value === undefined) {
-          if (readMessagingIdentity(db, id).newConversations !== 'auto') return undefined;
+          if (readBlock(db, identity.botSlug, identity.fingerprint, event.conversation))
+            return undefined;
+          const reason =
+            readMessagingIdentity(db, id).newConversations !== 'auto'
+              ? ('ask' as const)
+              : admissionBound(db, id, new Date());
+          if (reason !== undefined) {
+            hold(db, id, event, reason, new Date().toISOString());
+            return { held: true as const };
+          }
+          removeHeld(db, id, event.conversation);
           value = {
             id: randomUUID(),
             bindingId: id,
@@ -1191,10 +1203,7 @@ export function createInboundMessaging(options: {
             fingerprint: identity.fingerprint,
             platform: identity.platform,
             targetRef: '',
-            targetName:
-              event.conversation.kind === 'dm'
-                ? event.actor.name || event.actor.id
-                : event.conversation.id,
+            targetName: conversationName(event),
             targetDigest: '',
             revision: 1,
             createdAt: new Date().toISOString(),
@@ -1220,10 +1229,14 @@ export function createInboundMessaging(options: {
       ['grants', 'source-event', 'bot-inbox'],
     );
     if (!admitted) return { accepted: true };
+    if ('held' in admitted) {
+      receptionChanged();
+      return { accepted: true };
+    }
     const { value, created, sourceEventId } = admitted;
     if (created || !leases.has(value.id)) void start(value);
     if (created) receptionChanged();
-    if (sourceEventId !== undefined)
+    if (sourceEventId !== undefined && !value.muted)
       setImmediate(() => {
         if (closed) return;
         try {
@@ -2331,6 +2344,11 @@ export function createInboundMessaging(options: {
       await Promise.all(values.filter((v) => !v.revokedAt).map((value) => start(value)));
     },
     revoke: stop,
+    startEntry(grantId) {
+      const value = grant(grantId);
+      if (value.revokedAt === undefined && !closed) void start(value);
+      receptionChanged();
+    },
     close() {
       closed = true;
       for (const id of new Set([...controls.keys(), ...controlRetries.keys()]))
