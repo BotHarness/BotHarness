@@ -9,6 +9,8 @@
 
 ### Added
 
+- 已配对且具有「回答」能力的 Lark 用户可通过私聊表单或明确的单问题编号回答原生 Human 提问；Web 与 IM 共用原提问者，只接受一次答案，结果不确定时必须显式核对而不重放答案（[#1031](https://github.com/BotHarness/BotHarness/issues/1031)，[指南](docs/lark-connection.md#answer-native-questions-in-the-management-dm)）。
+
 - 经 Web 审核的 Lark 用户可按名称选择管理私聊，接收工具审批并点击「允许一次／拒绝」；回调复核实际点击者和准确的原生调用，Profile 分开展示通知投递、决定接受及原生执行结果。确定未发送的重试有上限，未知投递及重启后的旧卡片不能授权执行（[#1029](https://github.com/BotHarness/BotHarness/issues/1029)、[ADR-0141](docs/adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)）。
 
 - AX 隔离 Profile 可在一次隐藏输入设置后复用本机 OpenCode Go 凭证和内置默认模型，保留各 Profile 的独立配置；经核验的 DSH 0.2.0 RC1 适配器补齐真实 Go 回复要求的实际 Session 请求头（[#1079](https://github.com/BotHarness/BotHarness/issues/1079), [指南](docs/agents/ax-model.md)）。

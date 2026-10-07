@@ -819,6 +819,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     (slug, count) => core.states.setQuestionCount(slug, count),
   );
   ctx.effect(() => () => userQuestions.close(), 'botharness: Channel user questions');
+  ctx.effect(
+    () => core.externalMessaging.questions.attach(userQuestions, core.channels),
+    'botharness: checked IM question answers',
+  );
   ctx.on(
     'user-questions/request',
     async (request, next) => (await userQuestions.ask(request)) ?? next(),

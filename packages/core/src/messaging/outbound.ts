@@ -3,6 +3,11 @@ import {
   type ApprovalMessaging,
   type ApprovalMessagingSnapshot,
 } from './approval-messaging.js';
+import {
+  createQuestionMessaging,
+  type QuestionDelivery,
+  type QuestionMessaging,
+} from './question-messaging.js';
 import { createBotPairing, type BotPairing, type PairingRequest } from './pairing.js';
 import {
   assertMessagingIdentity,
@@ -157,6 +162,7 @@ export interface OutboxIntent {
 }
 
 export interface MessagingSnapshot {
+  questions?: QuestionDelivery[];
   approvals?: ApprovalMessagingSnapshot;
   setup?: {
     providerReady: boolean;
@@ -190,6 +196,7 @@ export interface MessagingSnapshot {
 }
 
 export interface OutboundMessaging {
+  questions: QuestionMessaging;
   approvals: ApprovalMessaging;
   pairing: BotPairing;
   inbound: InboundMessaging;
@@ -478,7 +485,18 @@ export function createOutboundMessaging(options: {
     isBotActive: options.isBotActive,
     ...(options.warn ? { warn: options.warn } : {}),
   });
+  const questions = createQuestionMessaging({
+    database,
+    pairing,
+    approvals,
+    provider: (id) => provider(id).provider,
+    isBotActive: options.isBotActive,
+    ...(options.recover === undefined ? {} : { recover: options.recover }),
+    ...(options.warn ? { warn: options.warn } : {}),
+  });
   const inbound = createInboundMessaging({
+    onQuestionAction: (providerId, event, signal) => questions.action(providerId, event, signal),
+    onQuestionText: (providerId, event, signal) => questions.text(providerId, event, signal),
     onApprovalAction: (providerId, event, signal) => approvals.action(providerId, event, signal),
     pairing,
     database,
@@ -571,6 +589,7 @@ export function createOutboundMessaging(options: {
       })
     : undefined;
   const service: OutboundMessaging = {
+    questions,
     approvals,
     inbound,
     pairing,
@@ -1054,6 +1073,7 @@ export function createOutboundMessaging(options: {
         }
       providers.set(value.id, { provider: value, token });
       const disposeInbound = inbound.register(value);
+      questions.refresh();
       return () => {
         disposeInbound();
         if (providers.get(value.id)?.token === token) providers.delete(value.id);
@@ -1295,6 +1315,7 @@ export function createOutboundMessaging(options: {
         identities,
         pairings: pairing.list(botSlug),
         approvals: approvals.snapshot(botSlug),
+        questions: questions.snapshot(botSlug),
         pairingReceivers: identities
           .filter((i) => i.platform === 'feishu' && !i.revokedAt)
           .map((i) => ({
@@ -1817,6 +1838,7 @@ export function createOutboundMessaging(options: {
     close() {
       closed = true;
       approvals.close();
+      questions.close();
       inbound.close();
       providers.clear();
       for (const attempt of inFlight.values()) attempt.controller.abort();

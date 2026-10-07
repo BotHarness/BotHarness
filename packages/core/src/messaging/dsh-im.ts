@@ -10,6 +10,7 @@ import type {
   MessagingHistoryPage,
   MessagingApprovalCard,
   MessagingApprovalAck,
+  MessagingQuestionCard,
 } from './provider.js';
 import { MessagingError, MessagingProviderError, type MessagingProvider } from './provider.js';
 
@@ -22,6 +23,18 @@ interface DshImTarget {
 
 export interface DshImOutboundService {
   contractVersion: 1;
+  questionCardVersion?: 1;
+  questionCardChecked?(
+    botId: string,
+    route: MessagingReplyRoute | MessagingReceipt,
+    card: MessagingQuestionCard,
+    options: {
+      expectedFingerprint: string;
+      signal: AbortSignal;
+      beforeSend(): boolean;
+      update?: boolean;
+    },
+  ): Promise<{ sent?: true; updated?: true; receipt?: MessagingReceipt }>;
   approvalCardVersion?: 1;
   approvalCardChecked?(
     botId: string,
@@ -385,6 +398,55 @@ export function createDshImProvider(
       return { account: current, target };
     },
     ...(platform === 'feishu' &&
+    host.questionCardVersion === 1 &&
+    typeof host.questionCardChecked === 'function'
+      ? {
+          async questionCard(input: Parameters<NonNullable<MessagingProvider['questionCard']>>[0]) {
+            input.signal.throwIfAborted();
+            const info = await host.describeBot(input.accountRef);
+            if (info.account.fingerprint !== input.fingerprint)
+              throw new MessagingError('rebind-required');
+            if (
+              !info.connected ||
+              ![
+                'question-card-checked',
+                'question-card-update-checked',
+                'question-action-consumer',
+              ].every((cap) => info.capabilities.includes(cap))
+            )
+              throw new MessagingProviderError('capability-unavailable', 'not-started');
+            try {
+              const result = await host.questionCardChecked!(
+                input.accountRef,
+                input.route,
+                input.card,
+                {
+                  expectedFingerprint: input.fingerprint,
+                  signal: input.signal,
+                  beforeSend: input.beforeSend,
+                  ...(input.update ? { update: true } : {}),
+                },
+              );
+              if (input.update) {
+                if (result.updated !== true)
+                  throw new MessagingProviderError('provider-result-unknown', 'unknown');
+                return { updated: true as const };
+              }
+              if (
+                result.sent !== true ||
+                result.receipt?.version !== 1 ||
+                !result.receipt.messageId ||
+                result.receipt.conversationId !== input.route.conversationId
+              )
+                throw new MessagingProviderError('provider-result-unknown', 'unknown');
+              return { sent: true as const, receipt: result.receipt };
+            } catch (error) {
+              throw providerFailure(error);
+            }
+          },
+        }
+      : {}),
+    ...(platform === 'feishu' &&
     host.approvalCardVersion === 1 &&
     typeof host.approvalCardChecked === 'function'
       ? {
@@ -569,7 +631,19 @@ export function createDshImProvider(
                           conversationId: identifier,
                           messageId: identifier,
                           requestId: z.string().uuid(),
-                          action: z.enum(['allowed-once', 'rejected']),
+                          action: z.enum(['allowed-once', 'rejected', 'answer']),
+                          values: z
+                            .array(
+                              z
+                                .object({
+                                  selected: z.array(z.number().int().min(0).max(99)).max(100),
+                                  custom: z.string().min(1).max(2000).optional(),
+                                })
+                                .strict(),
+                            )
+                            .min(1)
+                            .max(3)
+                            .optional(),
                         })
                         .strict()
                         .parse(raw);
@@ -579,7 +653,28 @@ export function createDshImProvider(
                         event.fingerprint !== input.fingerprint
                       )
                         throw new MessagingError('untrusted-source');
-                      return input.onAction!(event, context.signal);
+                      if (event.action === 'answer') {
+                        if (
+                          !event.values ||
+                          host.questionCardVersion !== 1 ||
+                          !info.capabilities.includes('question-action-consumer')
+                        )
+                          throw new MessagingError('untrusted-source');
+                        return input.onAction!(
+                          {
+                            ...event,
+                            action: 'answer',
+                            values: event.values.map(({ selected, custom }) => ({
+                              selected,
+                              ...(custom === undefined ? {} : { custom }),
+                            })),
+                          },
+                          context.signal,
+                        );
+                      }
+                      if (event.values !== undefined) throw new MessagingError('untrusted-source');
+                      const { values: _, ...approval } = event;
+                      return input.onAction!({ ...approval, action: event.action }, context.signal);
                     },
                   }
                 : {}),

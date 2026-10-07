@@ -247,9 +247,11 @@ PersonaBot Profile 的 IM 连接经现有 Typert/API Gateway 选择账号和已�
 
 首次能力只能由认证 Web Human 显式勾选并按当前申请 revision 审核；定位码不能兑换权限，首位申请者不会自动成为管理员。能力仅覆盖当前 Bot 的批准、拒绝、回答及保存规则资格，不扩展 VPS、原生 DSH API、其他 Bot 或审批人管理。每次使用重查当前 Binding、Bot、真实 actor、能力和状态；暂停期间不可用，永久撤销后重新配对必须重新审核。该切片交付配对与 Web 审核，IM 审批／提问控件仍由后续切片接入原生权威。参数、恢复及审计边界见 [ADR-0136](../adr/0136-lark-pairing-is-reviewed-bot-scoped-operational-authority.md)。
 
-### Lark 私聊审批（ADR-0141）
+### Lark 私聊审批与原生提问（ADR-0141）
 
 [#1029](https://github.com/BotHarness/BotHarness/issues/1029) 将已提交的工具审批发往 Web 显式选择的已配对管理私聊；通知路由及回执由 Messaging owner 在现有 Operational Database generation 60 保存，完整请求／决定仍归 canonical Channel 与 native Session。通知、决定接受、原生执行结果和卡片更新分别投影。现有独占 Consumer fanout 单独处理官方 SDK 卡片操作，不建立普通 Source Event、Inbox 或 Memory。公开的受检查 Provider capability 负责原始私聊／实际发送人、自己的卡片回执和平台写入前 fence；Host 校验实际点击者的当前 Bot／Binding／fingerprint／配对能力与 revision、目的地、request↔receipt、完整操作及原生执行者。允许一次／拒绝重入现有工具审批 broker，Web 与 IM 共用一位胜出者，执行前再次核验撤权与完整参数。回调确认不等于批准，批准不等于成功执行；重启使旧卡片失效，未知发送结果不重发。该切片不保存规则、不处理群审批／原生问题，也不释放 native wait。见 [ADR-0141](../adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)。
+
+[#1031](https://github.com/BotHarness/BotHarness/issues/1031) 另以 `answer` 能力与固定 question namespace 接入同一管理私聊。原生 `user-questions/request` 的 application-defined owner 仍为 `ChannelUserQuestions`：仅发布已提交请求，IM 回调校验真实 SDK actor、当前路由／配对、原卡片回执与原始选项，再以同步 commit fence 复核实时 owner 和能力。Web／IM 只能写入一次 canonical Channel 回答并恢复同一 native wait；答案文字不能产生工具批准。Generation 61 的 `messaging_question_deliveries` 只保存请求 hash、路由／回执及投递／提交／更新结果，不建立第二份问题或答案权威。只有明确编号或引用原单问题卡片的文字进入回答控制路径；歧义必须显式选择，普通澄清保持原来源。结果不确定时，认证 `questionRetry` 核对原 owner 与已有 canonical 回答，不重放答案；重启只更新失效投影，不恢复旧 Promise。该切片仍使用原生等待；真实 Lark 表单／回调需独立真人窗口核验。
 
 ### Bot 之间的 Channel 协作（ADR-0065）
 

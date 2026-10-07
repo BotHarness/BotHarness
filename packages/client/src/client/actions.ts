@@ -8,6 +8,7 @@ import {
   setApprovalRoute,
   testApprovalRoute,
   retryApprovalNotification,
+  retryQuestionNotification,
 } from './bridge.js';
 import type { GroupMemberWakePolicy } from '../../../core/src/channels/channel.js';
 import type {
@@ -265,6 +266,7 @@ export interface BridgeActions {
   approvalRoute(slug: string, pairingId: string | null, expectedRevision: number): Promise<void>;
   approvalTest(slug: string): Promise<void>;
   approvalRetry(slug: string, id: string): Promise<void>;
+  questionRetry(slug: string, id: string): Promise<void>;
   pairingReview(slug: string, input: PairingReviewInput): Promise<PairingRequest>;
   messagingIdentity(slug: string, input: MessagingIdentityInput): Promise<MessagingIdentity>;
   messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
@@ -1792,6 +1794,7 @@ export function createActions(
       setApprovalRoute(call, slug, pairingId, expectedRevision),
     approvalTest: (slug) => testApprovalRoute(call, slug),
     approvalRetry: (slug, id) => retryApprovalNotification(call, slug, id),
+    questionRetry: (slug, id) => retryQuestionNotification(call, slug, id),
     pairingReview: (slug, input) => reviewPairing(call, slug, input),
     messagingIdentity: (slug, input) => manageMessagingIdentity(call, slug, input),
     messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),

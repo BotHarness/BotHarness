@@ -61,6 +61,51 @@ function faultAt(
 }
 
 describe('operational database owner', () => {
+  it('adds question delivery projection after approval routes without rewriting existing authority', () => {
+    const dshHome = createTempRoot('botharness-question-migration-');
+    const priorPlan = defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation <= 60),
+    );
+    const prior = mountOperationalDatabase({ dshHome, schemaPlan: priorPlan });
+    attachOperationalModule(prior, 'question-migration-seed').transaction((database) => {
+      database
+        .prepare('INSERT INTO messaging_approval_routes(bot_slug, revision, body) VALUES(?, ?, ?)')
+        .run('ada', 2, '{"preserved":true}');
+      database
+        .prepare(
+          'INSERT INTO messaging_default_revisions(platform, revision, body) VALUES(?, ?, ?)',
+        )
+        .run('discord', 1, '{"preserved":true}');
+    });
+    prior.close();
+    const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    try {
+      expect(upgraded.generation).toBe(61);
+      const module = attachOperationalModule(upgraded, 'question-migration-check');
+      expect(
+        module.read((database) =>
+          database.prepare('SELECT * FROM messaging_question_deliveries').all(),
+        ),
+      ).toEqual([]);
+      expect(
+        module.read((database) =>
+          database
+            .prepare('SELECT revision, body FROM messaging_approval_routes WHERE bot_slug = ?')
+            .get('ada'),
+        ),
+      ).toEqual({ revision: 2, body: '{"preserved":true}' });
+      expect(
+        module.read((database) =>
+          database
+            .prepare('SELECT body FROM messaging_default_revisions WHERE platform = ?')
+            .get('discord'),
+        ),
+      ).toEqual({ body: '{"preserved":true}' });
+    } finally {
+      upgraded.close();
+    }
+  });
+
   it('adds pairing after current Discord defaults without rewriting their immutable history', () => {
     const dshHome = createTempRoot('botharness-pairing-migration-');
     const priorPlan = defineSchemaPlan(

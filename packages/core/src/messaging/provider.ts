@@ -153,6 +153,29 @@ export interface MessagingApprovalAck {
   status: 'queued' | 'refused';
 }
 
+export interface MessagingQuestionCard {
+  requestId: string;
+  reference: string;
+  questions: import('@deepseek-ai/dsh-user-questions/types').AskUserQuestionItem[];
+  status: 'pending' | 'answered' | 'cancelled' | 'expired' | 'web-required';
+  detail: string;
+}
+
+export interface MessagingQuestionAction {
+  version: 1;
+  channel: 'feishu';
+  botId: string;
+  fingerprint: string;
+  actorId: string;
+  conversationId: string;
+  messageId: string;
+  requestId: string;
+  action: 'answer';
+  values: { selected: number[]; custom?: string }[];
+}
+
+export type MessagingCardAction = MessagingApprovalAction | MessagingQuestionAction;
+
 export interface MessagingProvider {
   id: string;
   accounts(): Promise<MessagingAccount[]>;
@@ -171,13 +194,22 @@ export interface MessagingProvider {
     signal: AbortSignal;
     onEvent(event: MessagingInboundEvent, signal: AbortSignal): Promise<{ accepted: true }>;
     onEcho?(event: MessagingOwnEcho, signal: AbortSignal): Promise<{ accepted: true }>;
-    onAction?(event: MessagingApprovalAction, signal: AbortSignal): Promise<MessagingApprovalAck>;
+    onAction?(event: MessagingCardAction, signal: AbortSignal): Promise<MessagingApprovalAck>;
   }): Promise<() => void>;
   approvalCard?(input: {
     accountRef: string;
     fingerprint: string;
     route: MessagingReplyRoute | MessagingReceipt;
     card: MessagingApprovalCard;
+    signal: AbortSignal;
+    beforeSend(): boolean;
+    update?: boolean;
+  }): Promise<{ sent?: true; updated?: true; receipt?: MessagingReceipt }>;
+  questionCard?(input: {
+    accountRef: string;
+    fingerprint: string;
+    route: MessagingReplyRoute | MessagingReceipt;
+    card: MessagingQuestionCard;
     signal: AbortSignal;
     beforeSend(): boolean;
     update?: boolean;

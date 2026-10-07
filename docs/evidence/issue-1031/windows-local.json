@@ -1,0 +1,72 @@
+{
+  "issue": 1031,
+  "date": "2026-10-07",
+  "environment": {
+    "os": "native Windows",
+    "node": "24.21.0",
+    "dsh": "0.2.0-rc.1",
+    "baseline": "009e020becc360763a8506fa1d95024b847e9c72"
+  },
+  "provider": {
+    "source": "8f1c67b65ee6d112e068babe945037f5ddea54a6",
+    "pr": "https://github.com/DoodleBears/dsh-im/pull/14",
+    "runtimeFiles": 400,
+    "runtimeSha256": "b9c66ec730b5755fd406aba05fa58c1643b596904aba64639c2839f35c0fab0f",
+    "packageSha256": "89e5f1a5f7a31a33927d07870338dfebd50ab2ad0d65cde08ad81d0ce55af4c1"
+  },
+  "checks": {
+    "focusedBotHarness": {
+      "uniqueFiles": 10,
+      "uniqueTestsPassed": 194
+    },
+    "checkedProvider": {
+      "testsPassed": 791,
+      "existingPlatformSkips": 5,
+      "failures": 0
+    },
+    "lint": true,
+    "format": true,
+    "typecheck": true,
+    "build": true,
+    "fullRepositorySuitesClaimedGreen": false
+  },
+  "nativeWeb": {
+    "questionCount": 2,
+    "canonicalResolutionCount": 1,
+    "selectedOption": "Main",
+    "customAnswer": "Remember the Windows question tracer",
+    "questionToolCalls": 1,
+    "nativeAnswerError": false,
+    "originalSessionContinued": true,
+    "turnEnded": true
+  },
+  "receiverProtection": {
+    "exercisedWhileImDisabled": true,
+    "typedUtcTimestampValidated": true,
+    "exactQaHostStopped": true,
+    "disabledStatePersisted": true,
+    "candidateRestartAuthenticated": true
+  },
+  "realLarkQuestionsQualified": false,
+  "productionOutageStarted": false,
+  "sourceSha256": {
+    "packages/core/src/channels/user-questions.ts": "fd5617d92b1ec0ab771c2ab2fc748d5868e620b12657053e05720088a134224b",
+    "packages/core/src/messaging/question-messaging.ts": "095ec5f79237c07543bbe730a98018cf8c99fd0d860d7ee8f5452a20738a5178",
+    "packages/core/src/messaging/dsh-im.ts": "60059fe5e1ae9a9ec9bfc9a31813a41d71fdf39afbe14a4742b4cdd99cd20c79",
+    "packages/client/src/client/question-notifications.tsx": "f1d5ad47b7aec124e663f10db5431ed682a5339d0b179e93a54b951231da82e6"
+  },
+  "screenshotState": {
+    "viewport": "1440x960",
+    "locale": "zh",
+    "themes": ["light", "dark"],
+    "managementRoute": null,
+    "imBindings": 0,
+    "olderQaSidebarHistoryDiffers": true
+  },
+  "limitations": [
+    "Real Lark form submission, SDK callback and final card review require a fresh Human-authorized exclusive window.",
+    "The broader Windows suites have pre-existing cleanup/updater/POSIX failures; focused results do not claim full-suite success.",
+    "Question notification metadata is schema generation 61; an older schema-60 binary is not a safe database downgrade.",
+    "Native waits remain blocking; no Inbox continuation qualification is claimed."
+  ]
+}
