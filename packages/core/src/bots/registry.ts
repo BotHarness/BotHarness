@@ -109,6 +109,15 @@ export interface PersonaBotRegistry {
     assignmentModels: AssignmentModelOption[],
     expectedRevision: number,
   ): UpdatePersonaBotResult;
+  setModelPlan(
+    slug: string,
+    routes: {
+      orchestrator: ModelRoute;
+      assignmentDefault: ModelRoute;
+      assignmentModels: AssignmentModelOption[];
+    },
+    expectedRevision: number,
+  ): UpdatePersonaBotResult;
 }
 
 function isMissing(error: unknown): boolean {
@@ -692,6 +701,27 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         })),
         appliedAt: now().toISOString(),
       };
+      write(record);
+      return { ok: true, record };
+    },
+    setModelPlan(slug, routes, expectedRevision) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      const revision = record.modelPlan?.revision ?? 0;
+      if (revision !== expectedRevision) return { ok: false, reason: 'invalid-input' };
+      record.modelPlan = {
+        revision: revision + 1,
+        sourcePresetId: '',
+        sourcePresetName: '',
+        orchestrator: { ...routes.orchestrator },
+        assignmentDefault: { ...routes.assignmentDefault },
+        assignmentModels: routes.assignmentModels.map((option) => ({
+          ...option,
+          allowedEfforts: [...option.allowedEfforts],
+        })),
+        appliedAt: now().toISOString(),
+      };
+      delete record.model;
       write(record);
       return { ok: true, record };
     },

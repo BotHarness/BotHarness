@@ -362,6 +362,7 @@ describe('plugin entry', () => {
       'modelPlan',
       'modelPlanCustomize',
       'modelPlanAssignmentsSet',
+      'modelPlanSet',
       'list',
       'activitySnapshot',
       'get',

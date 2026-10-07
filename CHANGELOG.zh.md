@@ -31,6 +31,10 @@
 - Bot 模式现在可以帮你安装 Git：Host 上的 Git 不可用时，点 **安装 Git** 会把固定版本的便携版 Git 下载到 DeepSeek Harness 数据目录（先从 `media.botharness.ai`，失败再从 GitHub），校验 SHA-256 后立即启用，不用重启，也不需要管理员权限；Orchestrator 的 Shell 也会用同一个 Git。每次启动时仍优先使用可用的系统 Git（[#1097](https://github.com/BotHarness/BotHarness/issues/1097)，[Git 一节](docs/installation.md#git)）。
 - 从 SSH 地址导入 Bot 现在会自动改用 HTTPS：克隆 `git@host:owner/repo` 或 `ssh://git@host/owner/repo` 失败时，Host 会用对应的 HTTPS 地址重试一次并告诉你已经切换，之后这个 Bot 通过 HTTPS 同步；HTTPS 也失败时显示原来的 SSH 错误。DeepSeekBot 设置新增 **Git** 一行，显示正在使用的 Git 版本以及是系统 Git 还是托管 Git（[#1098](https://github.com/BotHarness/BotHarness/issues/1098)，[Git 一节](docs/installation.md#git)）。
 
+### Changed
+
+- Bot 的模型和唤醒策略从 Profile 移到私聊 Channel sidebar 的两个新分区 **模型** 与 **唤醒策略**：收起时标题右侧显示当前值，每项设置一行，点击打开弹窗修改，并可像其他分区一样排序或隐藏。模型弹窗改为 **主模型** 与 **执行模型** 两项，可输入过滤选择模型并选思考强度；不建预设也能直接保存，已有预设仍可用来填入，**另存为预设** 可把当前设置留作复用。**提醒策略** 改名为 **唤醒策略**（[#1084](https://github.com/BotHarness/BotHarness/issues/1084)，[模型教程](docs/channel-sidebar/model.md)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)）。
+
 ### Fixed
 
 - 共享频道消息现在显示已保存的外部发送人名称，已有 Discord 历史也会更新显示；气泡复用 Lark 收件箱的渲染方式，将已保存名称的原生 @ 提及显示为标签；原文和 ID 保持不变，未知名称保留原始文本（[#1061](https://github.com/BotHarness/BotHarness/issues/1061)）。

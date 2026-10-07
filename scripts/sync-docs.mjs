@@ -214,8 +214,37 @@ export const PAGES = [
     },
   },
   {
-    slug: 'docs/channel-sidebar/groups',
+    slug: 'docs/channel-sidebar/model',
     order: 7,
+    en: {
+      source: 'docs/channel-sidebar/model.md',
+      title: 'Model',
+      description: 'Check and change the model a Bot uses for chat and new Assignments.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/model.zh.md',
+      title: '模型',
+      description: '查看并修改 Bot 日常对话与新任务使用的模型。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/wake-policy',
+    order: 8,
+    en: {
+      source: 'docs/channel-sidebar/wake-policy.md',
+      title: 'Wake policy',
+      description:
+        'Choose, per message source, whether a Bot wakes right away, after a digest or not at all.',
+    },
+    zh: {
+      source: 'docs/channel-sidebar/wake-policy.zh.md',
+      title: '唤醒策略',
+      description: '按消息来源设置 Bot 立即唤醒、汇总后唤醒或只记录。',
+    },
+  },
+  {
+    slug: 'docs/channel-sidebar/groups',
+    order: 9,
     en: {
       source: 'docs/channel-sidebar/groups.md',
       title: 'Members and group management',
@@ -230,7 +259,7 @@ export const PAGES = [
   },
   {
     slug: 'docs/channel-sidebar/display',
-    order: 8,
+    order: 10,
     en: {
       source: 'docs/channel-sidebar/display.md',
       title: 'Display and layout',

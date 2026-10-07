@@ -1,9 +1,11 @@
 import { LARK_SETUP_CSS } from './lark-setup-styles.js';
+import { COMBOBOX_CSS } from './combobox.js';
 import { keyframesFor } from '@botharness/botui-core';
 import { DEEPSEEKBOT_TRANSPARENT_DATA_URI } from './bot-icon-assets.js';
 
 export const CSS =
   LARK_SETUP_CSS +
+  COMBOBOX_CSS +
   `
 .bh-root {
   /* @bh-brand-aliases:start — thin BotHarness brand map onto DSH semantic
@@ -2613,8 +2615,8 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-im-field select,
 .bh-im-field textarea,
 .bh-im-field input,
-.bh-profile-policy-select,
-.bh-profile-policy-digest input {
+.bh-profile-policy-select {
+  box-sizing: border-box;
   width: 100%;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 8px;
@@ -2632,94 +2634,9 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-profile-policy-digest label {
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 6px;
   font-size: 13px;
-}
-.bh-model-preset-effective,
-.bh-model-preset-form,
-.bh-model-preset-custom,
-.bh-model-preset-assignment {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  font-size: 13px;
-}
-.bh-model-preset-effective {
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
-}
-.bh-model-preset-form label,
-.bh-model-preset-custom label,
-.bh-model-preset-assignment > label,
-.bh-model-preset-quick label {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 0;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-}
-.bh-model-preset-quick {
-  display: flex;
-  align-items: end;
-  gap: 10px;
-  padding: 0 0 12px;
-}
-.bh-model-preset-quick label {
-  flex: 1;
-}
-.bh-model-preset-quick select {
-  width: 100%;
-}
-.bh-model-preset-edit-preset {
-  display: flex;
-  justify-content: flex-end;
-}
-.bh-model-preset-form {
-  padding-top: 12px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
-}
-.bh-model-preset-form > button,
-.bh-model-preset-custom > button {
-  align-self: flex-start;
-}
-.bh-model-preset-custom,
-.bh-model-preset-assignment {
-  padding-top: 12px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
-}
-.bh-model-preset-assignment > button {
-  align-self: flex-start;
-}
-.bh-model-preset-assignment-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
-}
-.bh-model-preset-assignment-row > label,
-.bh-model-preset-assignment-efforts > label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--dsw-alias-label-primary);
-}
-.bh-model-preset-assignment-efforts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  padding-left: 24px;
-  font-size: 12px;
-}
-.bh-model-preset-assignment-efforts > label:last-child {
-  flex-basis: 100%;
-}
-.bh-model-preset-assignment-efforts select {
-  max-width: 220px;
 }
 .bh-profile-card-total {
   font-size: 15px;
@@ -4200,6 +4117,127 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
 .bh-channel-sidebar-entry-badge {
   flex: none;
   display: inline-flex;
+}
+.bh-channel-sidebar-entry-badge:has(.bh-channel-sidebar-summary) {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 55%;
+}
+.bh-channel-sidebar-summary {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+.bh-channel-sidebar-summary,
+.bh-channel-sidebar-summary * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-model-entry,
+.bh-wake-policy-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-model-preset-editor,
+.bh-wake-policy-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.bh-model-preset-editor {
+  gap: 18px;
+  max-height: min(64vh, 640px);
+  overflow-y: auto;
+  padding: 2px 4px 2px 0;
+}
+.bh-model-picker,
+.bh-model-allowed,
+.bh-model-preset-source {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-model-picker-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.bh-model-picker-heading > span {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-model-picker-effort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-model-preset-source {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-model-allowed {
+  padding-top: 14px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-model-allowed-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+}
+.bh-model-allowed-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+.bh-model-allowed-provider {
+  flex: 1;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-model-allowed-efforts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12px;
+}
+.bh-model-save-preset {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bh-model-save-preset > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.bh-model-editor-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.bh-model-editor-footer-gap {
+  flex: 1;
+}
+.bh-wake-policy-edit-source {
+  font-size: 13px;
+  font-weight: 500;
 }
 .bh-channel-sidebar-entry-body {
   padding: 2px 12px 10px;

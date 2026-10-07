@@ -1,5 +1,11 @@
-import { useCallback, useRef, useState, type ReactElement } from 'react';
-import { Button, IconChevronRightOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
+import { useCallback, useId, useRef, useState, type ReactElement } from 'react';
+import {
+  Button,
+  Checkbox,
+  Input,
+  SegmentedControl,
+  Tag,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type {
@@ -11,26 +17,143 @@ import type {
   ModelRouteView,
 } from './bridge.js';
 import { errorMessage } from './bridge.js';
+import { Combobox, type ComboboxOption } from './combobox.js';
 import type { BotHarnessTranslate } from './locale.js';
+import { Modal } from './modal.js';
+import { rememberModelPlan } from './model-plan-store.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 
-function routeLabel(route: ModelRouteView, defaultLabel: string): string {
-  return `${route.provider} / ${route.model} · ${route.reasoningEffort ?? defaultLabel}`;
+export function routeLabel(route: ModelRouteView, defaultLabel: string): string {
+  return `${route.model} · ${route.reasoningEffort ?? defaultLabel}`;
 }
 
 const modelKey = (route: Pick<ModelRouteView, 'provider' | 'model'>): string =>
   JSON.stringify([route.provider, route.model]);
 
-function assignmentDraftOf(plan: ModelPlanView): AssignmentModelOptionView[] {
+function routeOfKey(key: string, effort: string): ModelRouteView {
+  const [provider, model] = JSON.parse(key) as [string, string];
+  return { provider, model, ...(effort === '' ? {} : { reasoningEffort: effort }) };
+}
+
+interface ModelChoice {
+  key: string;
+  effort: string;
+}
+
+interface ModelDraft {
+  orchestrator: ModelChoice;
+  assignment: ModelChoice;
+  allowed: AssignmentModelOptionView[];
+  presetId: string;
+}
+
+function allowedOf(
+  assignmentDefault: ModelRouteView,
+  assignmentModels: readonly AssignmentModelOptionView[] | undefined,
+): AssignmentModelOptionView[] {
   return (
-    plan.assignmentModels ?? [
+    assignmentModels ?? [
       {
-        provider: plan.assignmentDefault.provider,
-        model: plan.assignmentDefault.model,
-        allowedEfforts: [plan.assignmentDefault.reasoningEffort ?? ''],
-        defaultEffort: plan.assignmentDefault.reasoningEffort ?? '',
+        provider: assignmentDefault.provider,
+        model: assignmentDefault.model,
+        allowedEfforts: [assignmentDefault.reasoningEffort ?? ''],
+        defaultEffort: assignmentDefault.reasoningEffort ?? '',
       },
     ]
   ).map((option) => ({ ...option, allowedEfforts: [...option.allowedEfforts] }));
+}
+
+function draftOf(
+  source: Pick<ModelPlanView, 'orchestrator' | 'assignmentDefault' | 'assignmentModels'>,
+  presetId: string,
+): ModelDraft {
+  return {
+    orchestrator: {
+      key: modelKey(source.orchestrator),
+      effort: source.orchestrator.reasoningEffort ?? '',
+    },
+    assignment: {
+      key: modelKey(source.assignmentDefault),
+      effort: source.assignmentDefault.reasoningEffort ?? '',
+    },
+    allowed: allowedOf(source.assignmentDefault, source.assignmentModels),
+    presetId,
+  };
+}
+
+function finalAllowed(draft: ModelDraft): AssignmentModelOptionView[] {
+  const effort = draft.assignment.effort;
+  const others = draft.allowed.filter((option) => modelKey(option) !== draft.assignment.key);
+  const existing = draft.allowed.find((option) => modelKey(option) === draft.assignment.key);
+  const route = routeOfKey(draft.assignment.key, effort);
+  const allowedEfforts = existing?.allowedEfforts.includes(effort)
+    ? existing.allowedEfforts
+    : [...(existing?.allowedEfforts ?? []), effort];
+  return [
+    { provider: route.provider, model: route.model, allowedEfforts, defaultEffort: effort },
+    ...others,
+  ];
+}
+
+function ModelPicker({
+  title,
+  hint,
+  choice,
+  catalog,
+  options,
+  onChange,
+  disabled,
+  t,
+}: {
+  title: string;
+  hint: string;
+  choice: ModelChoice;
+  catalog: readonly ModelCatalogEntryView[];
+  options: readonly ComboboxOption[];
+  onChange: (choice: ModelChoice) => void;
+  disabled: boolean;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const id = useId();
+  const entry = catalog.find((item) => modelKey(item) === choice.key);
+  const efforts = [
+    { value: '', label: t('modelPreset.providerDefault') },
+    ...(entry?.efforts ?? []).map((effort) => ({ value: effort.id, label: effort.name })),
+  ];
+  return (
+    <div className="bh-model-picker">
+      <div className="bh-model-picker-heading">
+        <strong>{title}</strong>
+        <span>{hint}</span>
+      </div>
+      <Combobox
+        value={entry === undefined ? '' : choice.key}
+        options={options}
+        onSelect={(key) => onChange({ key, effort: '' })}
+        label={title}
+        toggleLabel={t('modelPreset.showModels')}
+        placeholder={
+          entry === undefined ? t('modelPreset.routeUnavailable') : t('modelPreset.chooseModel')
+        }
+        emptyLabel={t('modelPreset.noMatch')}
+        disabled={disabled}
+        invalid={entry === undefined}
+      />
+      {entry !== undefined && efforts.length > 1 && (
+        <div className="bh-model-picker-effort">
+          <span>{t('modelPreset.effort')}</span>
+          <SegmentedControl
+            id={id}
+            value={efforts.some((effort) => effort.value === choice.effort) ? choice.effort : ''}
+            options={efforts}
+            onChange={(effort) => onChange({ ...choice, effort })}
+            label={`${title} · ${t('modelPreset.effort')}`}
+            disabled={disabled}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ModelPresetProfile({
@@ -48,49 +171,30 @@ export function ModelPresetProfile({
   const [repair, setRepair] = useState<ModelPlanStateView['repair']>();
   const [planLoadError, setPlanLoadError] = useState(false);
   const planRequest = useRef(0);
-  const [selectedPreset, setSelectedPreset] = useState('');
-  const [editingPresetId, setEditingPresetId] = useState('');
-  const [editingPresetRevision, setEditingPresetRevision] = useState<number>();
-  const [name, setName] = useState('');
-  const [orchestratorIndex, setOrchestratorIndex] = useState(0);
-  const [orchestratorEffort, setOrchestratorEffort] = useState('');
-  const [assignmentIndex, setAssignmentIndex] = useState(0);
-  const [assignmentEffort, setAssignmentEffort] = useState('');
-  const [customIndex, setCustomIndex] = useState(-1);
-  const [customEffort, setCustomEffort] = useState('');
-  const [assignmentModels, setAssignmentModels] = useState<AssignmentModelOptionView[]>([]);
-  const [defaultAssignmentKey, setDefaultAssignmentKey] = useState('');
+  const [draft, setDraft] = useState<ModelDraft>();
+  const [presetName, setPresetName] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const [notice, setNotice] = useState<string>();
+  const [editorOpen, setEditorOpen] = useState(false);
 
-  const routeIndex = (models: ModelCatalogEntryView[], route: ModelRouteView): number =>
-    models.findIndex((entry) => entry.provider === route.provider && entry.model === route.model);
-
-  const setCustomDraft = (models: ModelCatalogEntryView[], route: ModelRouteView): void => {
-    setCustomIndex(routeIndex(models, route));
-    setCustomEffort(route.reasoningEffort ?? '');
+  const acceptPlan = (current: ModelPlanView | undefined): void => {
+    rememberModelPlan(slug, current);
+    setPlan((previous) =>
+      (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
+    );
   };
 
   const loadPlanOnMount = useCallback(
     (element: HTMLElement | null): void => {
       const request = ++planRequest.current;
       if (element === null) return;
-      void Promise.all([actions.modelPlanState(slug), actions.modelPresets()]).then(
-        ([state, saved]) => {
+      void actions.modelPlanState(slug).then(
+        (state) => {
           if (planRequest.current !== request) return;
-          const current = state.plan;
+          rememberModelPlan(slug, state.plan);
           setRepair(state.repair);
           setPlan((previous) =>
-            (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
-          );
-          if (current !== undefined) {
-            setAssignmentModels(assignmentDraftOf(current));
-            setDefaultAssignmentKey(modelKey(current.assignmentDefault));
-          }
-          setPresets(saved);
-          setSelectedPreset(
-            saved.find((preset) => preset.id === current?.sourcePresetId)?.id ?? '',
+            (previous?.revision ?? 0) > (state.plan?.revision ?? 0) ? previous : state.plan,
           );
         },
         () => {
@@ -112,110 +216,104 @@ export function ModelPresetProfile({
       ]);
       if (planRequest.current !== request) return;
       const current = state.plan;
+      acceptPlan(current);
       setRepair(state.repair);
       setCatalog(models);
       setPresets(saved);
-      setSelectedPreset(
-        saved.find((preset) => preset.id === current?.sourcePresetId)?.id ??
-          saved.find((preset) => preset.id === selectedPreset)?.id ??
-          '',
-      );
-      if (current !== undefined) setCustomDraft(models, current.orchestrator);
-      if (current !== undefined) {
-        setAssignmentModels(assignmentDraftOf(current));
-        setDefaultAssignmentKey(modelKey(current.assignmentDefault));
-      }
-      setPlan((previous) =>
-        (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
-      );
+      setDraft((previous) => {
+        if (previous !== undefined) return previous;
+        if (current !== undefined) return draftOf(current, current.sourcePresetId);
+        const first = models[0];
+        if (first === undefined) return undefined;
+        const route = { provider: first.provider, model: first.model };
+        return draftOf({ orchestrator: route, assignmentDefault: route }, '');
+      });
       setPlanLoadError(false);
     } catch (failure) {
       if (planRequest.current === request) setError(errorMessage(failure));
     }
   };
 
-  const selectedOrchestrator = catalog?.[orchestratorIndex];
-  const selectedAssignment = catalog?.[assignmentIndex];
-  const selectedCustom = catalog?.[customIndex];
   const hasPlanError = planLoadError && plan === undefined;
-  const planLabel = plan?.sourcePresetId === '' ? t('modelPreset.custom') : plan?.sourcePresetName;
-  const routeOf = (entry: ModelCatalogEntryView, effort: string): ModelRouteView => ({
-    provider: entry.provider,
-    model: entry.model,
-    ...(effort === '' ? {} : { reasoningEffort: effort }),
-  });
+  const presetLabel =
+    plan === undefined || plan.sourcePresetId === '' ? undefined : plan.sourcePresetName;
+  const extraAllowed = plan === undefined ? 0 : (plan.assignmentModels?.length ?? 1) - 1;
 
-  const createAndApply = async (): Promise<void> => {
-    if (
-      busy ||
-      selectedOrchestrator === undefined ||
-      selectedAssignment === undefined ||
-      (editingPresetId !== '' && editingPresetRevision === undefined)
-    )
-      return;
+  const summary =
+    repair !== undefined
+      ? t('modelPreset.repairNeeded')
+      : hasPlanError
+        ? t('modelPreset.loadFailed')
+        : plan === undefined
+          ? t('modelPreset.noPlan')
+          : routeLabel(plan.orchestrator, t('modelPreset.providerDefault'));
+
+  const openEditor = (): void => {
+    setDraft(undefined);
+    setPresetName(undefined);
+    setError(undefined);
+    setEditorOpen(true);
+    void load();
+  };
+
+  const edit = (change: Partial<ModelDraft>): void =>
+    setDraft((current) =>
+      current === undefined ? current : { ...current, ...change, presetId: '' },
+    );
+
+  const inCatalog = (key: string): boolean =>
+    catalog?.some((entry) => modelKey(entry) === key) === true;
+  const canSave =
+    draft !== undefined &&
+    inCatalog(draft.orchestrator.key) &&
+    inCatalog(draft.assignment.key) &&
+    !busy;
+
+  const finish = (applied: ModelPlanView): void => {
+    planRequest.current += 1;
+    rememberModelPlan(slug, applied);
+    setPlan(applied);
+    setRepair(undefined);
+    setEditorOpen(false);
+  };
+
+  const save = async (): Promise<void> => {
+    if (!canSave || draft === undefined) return;
     setBusy(true);
     setError(undefined);
-    setNotice(undefined);
     try {
-      if (editingPresetId !== '') {
-        if (editingPresetRevision === undefined) return;
-        const updated = await actions.updateModelPreset(
-          editingPresetId,
-          editingPresetRevision,
-          name,
-          routeOf(selectedOrchestrator, orchestratorEffort),
-          routeOf(selectedAssignment, assignmentEffort),
-        );
-        setPresets((current) =>
-          current.map((preset) => (preset.id === updated.id ? updated : preset)),
-        );
-        setEditingPresetId('');
-        setEditingPresetRevision(undefined);
-        setName('');
-        setNotice(t('modelPreset.futureOnly'));
-        return;
-      }
+      const applied =
+        draft.presetId !== '' && presets.some((preset) => preset.id === draft.presetId)
+          ? await actions.applyModelPreset(slug, draft.presetId)
+          : await actions.setModelPlan(
+              slug,
+              plan?.revision ?? 0,
+              routeOfKey(draft.orchestrator.key, draft.orchestrator.effort),
+              routeOfKey(draft.assignment.key, draft.assignment.effort),
+              finalAllowed(draft),
+            );
+      finish(applied);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveAsPreset = async (): Promise<void> => {
+    const name = presetName?.trim() ?? '';
+    if (!canSave || draft === undefined || name === '') return;
+    setBusy(true);
+    setError(undefined);
+    try {
       const preset = await actions.createModelPreset(
         name,
-        routeOf(selectedOrchestrator, orchestratorEffort),
-        routeOf(selectedAssignment, assignmentEffort),
+        routeOfKey(draft.orchestrator.key, draft.orchestrator.effort),
+        routeOfKey(draft.assignment.key, draft.assignment.effort),
+        finalAllowed(draft),
       );
       setPresets((current) => [...current, preset]);
-      setSelectedPreset(preset.id);
-      setName('');
-      const applied = await actions.applyModelPreset(slug, preset.id);
-      planRequest.current += 1;
-      setPlan(applied);
-      setRepair(undefined);
-      if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
-      setAssignmentModels(assignmentDraftOf(applied));
-      setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
-    } catch (failure) {
-      const message = errorMessage(failure);
-      setError(message);
-      if (editingPresetId !== '' && message.includes('Model Preset changed;')) {
-        const fresh = await actions.modelPresets().catch(() => undefined);
-        if (fresh !== undefined) setPresets(fresh);
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const applySelected = async (): Promise<void> => {
-    if (busy || selectedPreset === '') return;
-    setBusy(true);
-    setError(undefined);
-    setNotice(undefined);
-    try {
-      const applied = await actions.applyModelPreset(slug, selectedPreset);
-      planRequest.current += 1;
-      setPlan(applied);
-      setRepair(undefined);
-      if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
-      else void load();
-      setAssignmentModels(assignmentDraftOf(applied));
-      setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
+      finish(await actions.applyModelPreset(slug, preset.id));
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -223,464 +321,20 @@ export function ModelPresetProfile({
     }
   };
 
-  const editSelected = (): void => {
-    const preset = presets.find((item) => item.id === selectedPreset);
-    if (preset === undefined || catalog === undefined) return;
-    const orchestrator = routeIndex(catalog, preset.orchestrator);
-    const assignment = routeIndex(catalog, preset.assignmentDefault);
-    if (orchestrator < 0 || assignment < 0) {
-      setError(t('modelPreset.routeUnavailable'));
-      return;
-    }
-    setEditingPresetId(preset.id);
-    setEditingPresetRevision(preset.revision);
-    setName(preset.name);
-    setOrchestratorIndex(orchestrator);
-    setOrchestratorEffort(preset.orchestrator.reasoningEffort ?? '');
-    setAssignmentIndex(assignment);
-    setAssignmentEffort(preset.assignmentDefault.reasoningEffort ?? '');
-    setError(undefined);
-    setNotice(undefined);
-  };
+  const modelOptions: ComboboxOption[] = (catalog ?? []).map((entry) => ({
+    value: modelKey(entry),
+    label: entry.modelName,
+    hint: entry.providerName,
+  }));
+  const presetOptions: ComboboxOption[] = presets.map((preset) => ({
+    value: preset.id,
+    label: preset.name,
+    hint: routeLabel(preset.orchestrator, t('modelPreset.providerDefault')),
+  }));
+  const currentPreset = presets.find((preset) => preset.id === draft?.presetId);
 
-  const refreshRepair = async (): Promise<void> => {
-    const request = planRequest.current;
-    const state = await actions.modelPlanState(slug);
-    if (planRequest.current === request) setRepair(state.repair);
-  };
-
-  const customize = async (): Promise<void> => {
-    if (busy || selectedCustom === undefined || plan === undefined) return;
-    setBusy(true);
-    setError(undefined);
-    setNotice(undefined);
-    try {
-      const applied = await actions.customizeModelPlan(slug, routeOf(selectedCustom, customEffort));
-      planRequest.current += 1;
-      setPlan(applied);
-      setSelectedPreset('');
-      await refreshRepair();
-    } catch (failure) {
-      setError(errorMessage(failure));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const saveAssignmentModels = async (): Promise<void> => {
-    if (busy || plan === undefined) return;
-    const chosen = assignmentModels.find((option) => modelKey(option) === defaultAssignmentKey);
-    if (chosen === undefined) return;
-    const assignmentDefault: ModelRouteView = {
-      provider: chosen.provider,
-      model: chosen.model,
-      ...(chosen.defaultEffort === '' ? {} : { reasoningEffort: chosen.defaultEffort }),
-    };
-    setBusy(true);
-    setError(undefined);
-    setNotice(undefined);
-    try {
-      const applied = await actions.setModelPlanAssignments(
-        slug,
-        plan.revision,
-        assignmentDefault,
-        assignmentModels,
-      );
-      planRequest.current += 1;
-      setPlan(applied);
-      setSelectedPreset('');
-      setAssignmentModels(assignmentDraftOf(applied));
-      setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
-      await refreshRepair();
-    } catch (failure) {
-      setError(errorMessage(failure));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <section
-      ref={loadPlanOnMount}
-      className="bh-profile-section bh-profile-policy-section"
-      aria-label={t('modelPreset.title')}
-    >
-      {presets.length > 0 && (
-        <div className="bh-model-preset-quick">
-          <label>
-            {t('modelPreset.quickSwitch')}
-            <select
-              className="bh-profile-policy-select"
-              value={selectedPreset}
-              onChange={(event) => setSelectedPreset(event.target.value)}
-            >
-              <option value="" disabled>
-                {t('modelPreset.choosePreset')}
-              </option>
-              {presets.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.name} · {t('modelPreset.revision', { revision: preset.revision })}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Button
-            variant="outline"
-            disabled={busy || selectedPreset === ''}
-            onClick={() => void applySelected()}
-          >
-            {t('modelPreset.switch')}
-          </Button>
-        </div>
-      )}
-      <details
-        className="bh-profile-policy-details"
-        onToggle={(event) => {
-          if (event.currentTarget.open) void load();
-        }}
-      >
-        <summary className="bh-profile-policy-summary">
-          <span className="bh-profile-policy-summary-text">
-            <strong>{t('modelPreset.title')}</strong>
-            <span>
-              {repair !== undefined
-                ? t('modelPreset.repairNeeded')
-                : hasPlanError
-                  ? t('modelPreset.loadFailed')
-                  : plan === undefined
-                    ? t('modelPreset.noPlan')
-                    : `${planLabel} · ${routeLabel(plan.orchestrator, t('modelPreset.providerDefault'))} · ${t('modelPreset.revision', { revision: plan.revision })}`}
-            </span>
-          </span>
-          <IconChevronRightOutlineRegular />
-        </summary>
-        <div className="bh-profile-cards">
-          <div className="bh-profile-card">
-            {plan === undefined ? null : (
-              <div className="bh-model-preset-effective">
-                <strong>{t('modelPreset.effective')}</strong>
-                <span>
-                  {t('modelPreset.orchestrator')}:{' '}
-                  {routeLabel(plan.orchestrator, t('modelPreset.providerDefault'))}
-                </span>
-                <span>
-                  {t('modelPreset.assignment')}:{' '}
-                  {routeLabel(plan.assignmentDefault, t('modelPreset.providerDefault'))}
-                </span>
-                <span>
-                  {t('modelPreset.assignmentAllowed')}:{' '}
-                  {assignmentDraftOf(plan)
-                    .map(
-                      (option) =>
-                        `${option.provider} / ${option.model} (${option.allowedEfforts.map((effort) => effort || t('modelPreset.providerDefault')).join(', ')})`,
-                    )
-                    .join(' · ')}
-                </span>
-              </div>
-            )}
-            {catalog === undefined ? (
-              <span className="bh-note">{t('modelPreset.loading')}</span>
-            ) : catalog.length === 0 ? (
-              <span className="bh-note">{t('modelPreset.emptyCatalog')}</span>
-            ) : (
-              <>
-                {presets.length > 0 && (
-                  <div className="bh-model-preset-edit-preset">
-                    <Button
-                      variant="outline"
-                      disabled={busy || selectedPreset === ''}
-                      onClick={editSelected}
-                    >
-                      {t('modelPreset.editSelected')}
-                    </Button>
-                  </div>
-                )}
-                <div className="bh-model-preset-form">
-                  <strong>
-                    {editingPresetId === '' ? t('modelPreset.create') : t('modelPreset.edit')}
-                  </strong>
-                  <label>
-                    {t('modelPreset.name')}
-                    <input
-                      className="bh-profile-policy-select"
-                      value={name}
-                      maxLength={100}
-                      onChange={(event) => setName(event.target.value)}
-                    />
-                  </label>
-                  <label>
-                    {t('modelPreset.orchestrator')}
-                    <select
-                      className="bh-profile-policy-select"
-                      value={orchestratorIndex}
-                      onChange={(event) => {
-                        setOrchestratorIndex(Number(event.target.value));
-                        setOrchestratorEffort('');
-                      }}
-                    >
-                      {catalog.map((entry, index) => (
-                        <option key={`${entry.provider}/${entry.model}`} value={index}>
-                          {entry.providerName} / {entry.modelName}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    {t('modelPreset.effort')}
-                    <select
-                      className="bh-profile-policy-select"
-                      value={orchestratorEffort}
-                      onChange={(event) => setOrchestratorEffort(event.target.value)}
-                    >
-                      <option value="">{t('modelPreset.providerDefault')}</option>
-                      {selectedOrchestrator?.efforts.map((effort) => (
-                        <option key={effort.id} value={effort.id}>
-                          {effort.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    {t('modelPreset.assignment')}
-                    <select
-                      className="bh-profile-policy-select"
-                      value={assignmentIndex}
-                      onChange={(event) => {
-                        setAssignmentIndex(Number(event.target.value));
-                        setAssignmentEffort('');
-                      }}
-                    >
-                      {catalog.map((entry, index) => (
-                        <option key={`${entry.provider}/${entry.model}`} value={index}>
-                          {entry.providerName} / {entry.modelName}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    {t('modelPreset.effort')}
-                    <select
-                      className="bh-profile-policy-select"
-                      value={assignmentEffort}
-                      onChange={(event) => setAssignmentEffort(event.target.value)}
-                    >
-                      <option value="">{t('modelPreset.providerDefault')}</option>
-                      {selectedAssignment?.efforts.map((effort) => (
-                        <option key={effort.id} value={effort.id}>
-                          {effort.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <Button
-                    variant="outline"
-                    disabled={busy || name.trim() === ''}
-                    onClick={() => void createAndApply()}
-                  >
-                    {editingPresetId === ''
-                      ? t('modelPreset.createApply')
-                      : t('modelPreset.saveTemplate')}
-                  </Button>
-                  {editingPresetId !== '' && (
-                    <Button
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => {
-                        setEditingPresetId('');
-                        setEditingPresetRevision(undefined);
-                        setName('');
-                      }}
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                  )}
-                </div>
-                {plan !== undefined && (
-                  <div className="bh-model-preset-custom">
-                    <strong>{t('modelPreset.customize')}</strong>
-                    <span className="bh-note">{t('modelPreset.customizeHint')}</span>
-                    <label>
-                      {t('modelPreset.orchestrator')}
-                      <select
-                        className="bh-profile-policy-select"
-                        value={customIndex}
-                        onChange={(event) => {
-                          setCustomIndex(Number(event.target.value));
-                          setCustomEffort('');
-                        }}
-                      >
-                        {customIndex < 0 && (
-                          <option value={-1}>{t('modelPreset.routeUnavailable')}</option>
-                        )}
-                        {catalog.map((entry, index) => (
-                          <option key={`${entry.provider}/${entry.model}`} value={index}>
-                            {entry.providerName} / {entry.modelName}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      {t('modelPreset.effort')}
-                      <select
-                        className="bh-profile-policy-select"
-                        value={customEffort}
-                        onChange={(event) => setCustomEffort(event.target.value)}
-                      >
-                        <option value="">{t('modelPreset.providerDefault')}</option>
-                        {selectedCustom?.efforts.map((effort) => (
-                          <option key={effort.id} value={effort.id}>
-                            {effort.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <Button
-                      variant="outline"
-                      disabled={busy || selectedCustom === undefined}
-                      onClick={() => void customize()}
-                    >
-                      {t('modelPreset.saveCustom')}
-                    </Button>
-                  </div>
-                )}
-                {plan !== undefined && (
-                  <div className="bh-model-preset-assignment">
-                    <strong>{t('modelPreset.assignmentAllowed')}</strong>
-                    <span className="bh-note">{t('modelPreset.assignmentHint')}</span>
-                    {catalog.map((entry) => {
-                      const key = modelKey(entry);
-                      const option = assignmentModels.find((item) => modelKey(item) === key);
-                      return (
-                        <div key={key} className="bh-model-preset-assignment-row">
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={option !== undefined}
-                              onChange={(event) => {
-                                const next = event.target.checked
-                                  ? [
-                                      ...assignmentModels,
-                                      {
-                                        provider: entry.provider,
-                                        model: entry.model,
-                                        allowedEfforts: [
-                                          entry.defaultEffort ?? entry.efforts[0]?.id ?? '',
-                                        ],
-                                        defaultEffort:
-                                          entry.defaultEffort ?? entry.efforts[0]?.id ?? '',
-                                      },
-                                    ]
-                                  : assignmentModels.filter((item) => modelKey(item) !== key);
-                                setAssignmentModels(next);
-                                if (!next.some((item) => modelKey(item) === defaultAssignmentKey))
-                                  setDefaultAssignmentKey(
-                                    next[0] === undefined ? '' : modelKey(next[0]),
-                                  );
-                              }}
-                            />
-                            {entry.providerName} / {entry.modelName}
-                          </label>
-                          {option !== undefined && (
-                            <div className="bh-model-preset-assignment-efforts">
-                              <span>{t('modelPreset.allowedEfforts')}</span>
-                              {[
-                                { id: '', name: t('modelPreset.providerDefault') },
-                                ...entry.efforts,
-                              ].map((effort) => (
-                                <label key={effort.id}>
-                                  <input
-                                    type="checkbox"
-                                    checked={option.allowedEfforts.includes(effort.id)}
-                                    disabled={
-                                      option.allowedEfforts.length === 1 &&
-                                      option.allowedEfforts.includes(effort.id)
-                                    }
-                                    onChange={(event) => {
-                                      const allowedEfforts = event.target.checked
-                                        ? [...option.allowedEfforts, effort.id]
-                                        : option.allowedEfforts.filter((id) => id !== effort.id);
-                                      if (allowedEfforts.length === 0) return;
-                                      setAssignmentModels((current) =>
-                                        current.map((item) =>
-                                          modelKey(item) === key
-                                            ? {
-                                                ...item,
-                                                allowedEfforts,
-                                                defaultEffort: allowedEfforts.includes(
-                                                  item.defaultEffort,
-                                                )
-                                                  ? item.defaultEffort
-                                                  : allowedEfforts[0]!,
-                                              }
-                                            : item,
-                                        ),
-                                      );
-                                    }}
-                                  />
-                                  {effort.name}
-                                </label>
-                              ))}
-                              <label>
-                                {t('modelPreset.defaultEffort')}
-                                <select
-                                  className="bh-profile-policy-select"
-                                  value={option.defaultEffort}
-                                  onChange={(event) =>
-                                    setAssignmentModels((current) =>
-                                      current.map((item) =>
-                                        modelKey(item) === key
-                                          ? { ...item, defaultEffort: event.target.value }
-                                          : item,
-                                      ),
-                                    )
-                                  }
-                                >
-                                  {option.allowedEfforts.map((effort) => (
-                                    <option key={effort} value={effort}>
-                                      {entry.efforts.find((candidate) => candidate.id === effort)
-                                        ?.name ?? t('modelPreset.providerDefault')}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <label>
-                      {t('modelPreset.assignment')}
-                      <select
-                        className="bh-profile-policy-select"
-                        value={defaultAssignmentKey}
-                        onChange={(event) => setDefaultAssignmentKey(event.target.value)}
-                      >
-                        {assignmentModels.length === 0 && (
-                          <option value="">{t('modelPreset.chooseAssignment')}</option>
-                        )}
-                        {assignmentModels.map((option) => (
-                          <option key={modelKey(option)} value={modelKey(option)}>
-                            {option.provider} / {option.model}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <Button
-                      variant="outline"
-                      disabled={
-                        busy || assignmentModels.length === 0 || defaultAssignmentKey === ''
-                      }
-                      onClick={() => void saveAssignmentModels()}
-                    >
-                      {t('modelPreset.saveAssignment')}
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </details>
+  const messages = (
+    <>
       {repair !== undefined && (
         <span className="bh-profile-error" role="alert">
           {repair.code === 'legacy-ambiguous'
@@ -690,7 +344,6 @@ export function ModelPresetProfile({
               : t('modelPreset.routeRepair')}
         </span>
       )}
-      {notice !== undefined && <span className="bh-note">{notice}</span>}
       {error !== undefined && (
         <span className="bh-profile-error" role="alert">
           {error}
@@ -701,6 +354,265 @@ export function ModelPresetProfile({
           {t('modelPreset.loadFailed')}
         </span>
       )}
-    </section>
+    </>
+  );
+
+  const allowedEditor =
+    draft === undefined || catalog === undefined ? null : (
+      <div className="bh-model-allowed">
+        <div className="bh-model-picker-heading">
+          <strong>{t('modelPreset.allowedTitle')}</strong>
+          <span>{t('modelPreset.allowedHint')}</span>
+        </div>
+        {draft.allowed
+          .filter((option) => modelKey(option) !== draft.assignment.key)
+          .map((option) => {
+            const key = modelKey(option);
+            const entry = catalog.find((item) => modelKey(item) === key);
+            const name = entry?.modelName ?? option.model;
+            return (
+              <div key={key} className="bh-model-allowed-row">
+                <div className="bh-model-allowed-name">
+                  <span>{name}</span>
+                  <span className="bh-model-allowed-provider">
+                    {entry?.providerName ?? option.provider}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    aria-label={t('modelPreset.removeAllowed', { model: name })}
+                    onClick={() =>
+                      edit({ allowed: draft.allowed.filter((item) => modelKey(item) !== key) })
+                    }
+                  >
+                    ×
+                  </Button>
+                </div>
+                <div
+                  className="bh-model-allowed-efforts"
+                  aria-label={t('modelPreset.allowedEfforts')}
+                >
+                  {[
+                    { id: '', name: t('modelPreset.providerDefault') },
+                    ...(entry?.efforts ?? []),
+                  ].map((effort) => (
+                    <Checkbox
+                      key={effort.id}
+                      label={effort.name}
+                      checked={option.allowedEfforts.includes(effort.id)}
+                      disabled={
+                        busy ||
+                        (option.allowedEfforts.length === 1 &&
+                          option.allowedEfforts.includes(effort.id))
+                      }
+                      onChange={(checked) => {
+                        const allowedEfforts = checked
+                          ? [...option.allowedEfforts, effort.id]
+                          : option.allowedEfforts.filter((id) => id !== effort.id);
+                        if (allowedEfforts.length === 0) return;
+                        edit({
+                          allowed: draft.allowed.map((item) =>
+                            modelKey(item) === key
+                              ? {
+                                  ...item,
+                                  allowedEfforts,
+                                  defaultEffort: allowedEfforts.includes(item.defaultEffort)
+                                    ? item.defaultEffort
+                                    : allowedEfforts[0]!,
+                                }
+                              : item,
+                          ),
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        <Combobox
+          value=""
+          options={modelOptions.filter(
+            (option) => !draft.allowed.some((item) => modelKey(item) === option.value),
+          )}
+          onSelect={(key) => {
+            const entry = catalog.find((item) => modelKey(item) === key);
+            if (entry === undefined) return;
+            const effort = entry.defaultEffort ?? '';
+            edit({
+              allowed: [
+                ...draft.allowed,
+                {
+                  provider: entry.provider,
+                  model: entry.model,
+                  allowedEfforts: [effort],
+                  defaultEffort: effort,
+                },
+              ],
+            });
+          }}
+          label={t('modelPreset.addAllowed')}
+          toggleLabel={t('modelPreset.showModels')}
+          placeholder={t('modelPreset.addAllowed')}
+          emptyLabel={t('modelPreset.noMatch')}
+          disabled={busy}
+        />
+      </div>
+    );
+
+  return (
+    <div
+      ref={loadPlanOnMount}
+      className="bh-model-entry"
+      role="region"
+      aria-label={t('modelPreset.title')}
+    >
+      <SidebarCardList label={t('modelPreset.title')}>
+        <SidebarCardRow
+          icon="bot"
+          title={t('modelPreset.orchestrator')}
+          chips={presetLabel === undefined ? undefined : <Tag tone="neutral">{presetLabel}</Tag>}
+          meta={summary}
+          onClick={openEditor}
+          dialog
+        />
+        {plan === undefined ? null : (
+          <SidebarCardRow
+            icon="list-checks"
+            title={t('modelPreset.assignment')}
+            chips={
+              extraAllowed > 0 ? (
+                <Tag tone="quiet">{t('modelPreset.moreAllowed', { count: extraAllowed })}</Tag>
+              ) : undefined
+            }
+            meta={routeLabel(plan.assignmentDefault, t('modelPreset.providerDefault'))}
+            onClick={openEditor}
+            dialog
+          />
+        )}
+      </SidebarCardList>
+      {editorOpen ? null : messages}
+      {editorOpen && (
+        <Modal
+          open
+          onClose={() => setEditorOpen(false)}
+          closeLabel={t('common.close')}
+          title={t('modelPreset.title')}
+          footer={
+            <div className="bh-model-editor-footer">
+              <Button
+                variant="ghost"
+                disabled={!canSave || presetName !== undefined}
+                onClick={() => setPresetName('')}
+              >
+                {t('modelPreset.saveAs')}
+              </Button>
+              <span className="bh-model-editor-footer-gap" />
+              <Button variant="outline" disabled={busy} onClick={() => setEditorOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button variant="primary" disabled={!canSave} onClick={() => void save()}>
+                {t('modelPreset.save')}
+              </Button>
+            </div>
+          }
+        >
+          <div className="bh-model-preset-editor">
+            {catalog === undefined ? (
+              <span className="bh-note">{t('modelPreset.loading')}</span>
+            ) : catalog.length === 0 || draft === undefined ? (
+              <span className="bh-note">{t('modelPreset.emptyCatalog')}</span>
+            ) : (
+              <>
+                {presets.length > 0 && (
+                  <div className="bh-model-preset-source">
+                    <Combobox
+                      value={draft.presetId}
+                      options={presetOptions}
+                      onSelect={(id) => {
+                        const preset = presets.find((item) => item.id === id);
+                        if (preset !== undefined) setDraft(draftOf(preset, preset.id));
+                      }}
+                      label={t('modelPreset.fromPreset')}
+                      toggleLabel={t('modelPreset.showPresets')}
+                      placeholder={t('modelPreset.fromPreset')}
+                      emptyLabel={t('modelPreset.noMatch')}
+                      disabled={busy}
+                    />
+                    <span className="bh-note">
+                      {currentPreset === undefined
+                        ? t('modelPreset.noPreset')
+                        : t('modelPreset.usingPreset', { name: currentPreset.name })}
+                    </span>
+                  </div>
+                )}
+                <ModelPicker
+                  title={t('modelPreset.orchestrator')}
+                  hint={t('modelPreset.orchestratorHint')}
+                  choice={draft.orchestrator}
+                  catalog={catalog}
+                  options={modelOptions}
+                  onChange={(orchestrator) => edit({ orchestrator })}
+                  disabled={busy}
+                  t={t}
+                />
+                <ModelPicker
+                  title={t('modelPreset.assignment')}
+                  hint={t('modelPreset.assignmentHint')}
+                  choice={draft.assignment}
+                  catalog={catalog}
+                  options={modelOptions}
+                  onChange={(assignment) =>
+                    edit({
+                      assignment,
+                      allowed:
+                        assignment.key === draft.assignment.key
+                          ? draft.allowed
+                          : draft.allowed.filter(
+                              (option) => modelKey(option) !== draft.assignment.key,
+                            ),
+                    })
+                  }
+                  disabled={busy}
+                  t={t}
+                />
+                {allowedEditor}
+                {presetName !== undefined && (
+                  <div className="bh-model-save-preset">
+                    <Input
+                      aria-label={t('modelPreset.name')}
+                      placeholder={t('modelPreset.name')}
+                      value={presetName}
+                      maxLength={100}
+                      autoFocus
+                      onChange={(event) => setPresetName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' && !event.nativeEvent.isComposing)
+                          void saveAsPreset();
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      disabled={!canSave || presetName.trim() === ''}
+                      onClick={() => void saveAsPreset()}
+                    >
+                      {t('modelPreset.savePreset')}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => setPresetName(undefined)}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+            {messages}
+          </div>
+        </Modal>
+      )}
+    </div>
   );
 }

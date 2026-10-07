@@ -206,9 +206,15 @@ export async function createModelPreset(
   name: string,
   orchestrator: ModelRouteView,
   assignmentDefault: ModelRouteView,
+  assignmentModels?: AssignmentModelOptionView[],
 ): Promise<ModelPresetView> {
   const value = asRecord(
-    await unwrap(call, 'modelPresetCreate', { name, orchestrator, assignmentDefault }),
+    await unwrap(call, 'modelPresetCreate', {
+      name,
+      orchestrator,
+      assignmentDefault,
+      ...(assignmentModels === undefined ? {} : { assignmentModels }),
+    }),
   );
   if (asRecord(value?.['preset']) === undefined) throw new Error('Invalid Model Preset result');
   return value!['preset'] as ModelPresetView;
@@ -4032,4 +4038,25 @@ export async function loadOverviewMemory(
   )
     throw new Error('invalid Overview Memory');
   return value as unknown as OverviewMemory;
+}
+
+export async function setModelPlan(
+  call: BridgeCall,
+  slug: string,
+  expectedRevision: number,
+  orchestrator: ModelRouteView,
+  assignmentDefault: ModelRouteView,
+  assignmentModels: AssignmentModelOptionView[],
+): Promise<ModelPlanView> {
+  const value = asRecord(
+    await unwrap(call, 'modelPlanSet', {
+      slug,
+      expectedRevision,
+      orchestrator,
+      assignmentDefault,
+      assignmentModels,
+    }),
+  );
+  if (asRecord(value?.['plan']) === undefined) throw new Error('Invalid Model Plan result');
+  return value!['plan'] as ModelPlanView;
 }

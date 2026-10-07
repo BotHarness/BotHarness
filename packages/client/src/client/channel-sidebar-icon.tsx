@@ -33,6 +33,33 @@ const glyphs: Record<string, readonly [string, Record<string, string | number>][
     ['path', { d: 'M6.38 18.7 4 21' }],
     ['path', { d: 'M17.64 18.67 20 21' }],
   ],
+  'bell-ring': [
+    ['path', { d: 'M10.268 21a2 2 0 0 0 3.464 0' }],
+    ['path', { d: 'M22 8c0-2.3-.8-4.3-2-6' }],
+    [
+      'path',
+      {
+        d: 'M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326',
+      },
+    ],
+    ['path', { d: 'M4 2C2.8 3.7 2 5.7 2 8' }],
+  ],
+  cpu: [
+    ['path', { d: 'M12 20v2' }],
+    ['path', { d: 'M12 2v2' }],
+    ['path', { d: 'M17 20v2' }],
+    ['path', { d: 'M17 2v2' }],
+    ['path', { d: 'M2 12h2' }],
+    ['path', { d: 'M2 17h2' }],
+    ['path', { d: 'M2 7h2' }],
+    ['path', { d: 'M20 12h2' }],
+    ['path', { d: 'M20 17h2' }],
+    ['path', { d: 'M20 7h2' }],
+    ['path', { d: 'M7 20v2' }],
+    ['path', { d: 'M7 2v2' }],
+    ['rect', { x: '4', y: '4', width: '16', height: '16', rx: '2' }],
+    ['rect', { x: '8', y: '8', width: '8', height: '8', rx: '1' }],
+  ],
   user: [
     ['path', { d: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2' }],
     ['circle', { cx: '12', cy: '7', r: '4' }],

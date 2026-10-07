@@ -3,12 +3,19 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
   Button: ({ children, ...props }: { children: ReactNode }) =>
     createElement('button', props, children),
   Switch: () => null,
   Modal: () => null,
-  Input: () => null,
+  Input: (props: import('react').InputHTMLAttributes<HTMLInputElement>) =>
+    createElement('span', null, createElement('input', props)),
+  MenuSurface: (await import('react')).forwardRef<
+    HTMLDivElement,
+    import('react').HTMLAttributes<HTMLDivElement> & { compact?: boolean }
+  >(({ compact: _compact, ...props }, ref) => createElement('div', { ...props, ref })),
+  useAnchoredPosition: () => ({ top: 0, left: 0 }),
+  useDismissOnOutsidePointer: () => undefined,
   IconChevronDownOutlineRegular: () => null,
   IconChevronLeftOutlineRegular: () => null,
   IconChevronRightOutlineRegular: () => null,
@@ -47,7 +54,8 @@ import { MemoryFileView } from '../src/client/memory-current-view.js';
 import { GroupAvatarCropModal } from '../src/client/group-avatar-crop.js';
 import { PersonaBotAvatarCropModal } from '../src/client/personabot-avatar-crop.js';
 import { ProfileView } from '../src/client/personabot-profile.js';
-import { SourcePolicyTable } from '../src/client/source-policy-table.js';
+import { SourcePolicyDetails } from '../src/client/source-policy.js';
+import { WakePolicyBadge, WakePolicyEntry } from '../src/client/wake-policy-entry.js';
 import { createProfileCardBuiltins } from '../src/client/profile-cards-builtins.js';
 import type { ProfileCardRegistry, ProfileCardViewProps } from '../src/client/profile-cards.js';
 import { useMountedResource } from '../src/client/mounted-resource.js';
@@ -237,50 +245,31 @@ describe('mounted request ownership', () => {
       overrideActive: false,
       recentWakeCount: 0,
     });
-    const bot = (slug: string): BotSummary => ({
-      slug,
-      displayName: slug,
-      roles: [],
-      aggregateState: 'idle',
-      workspaces: [],
-      createdAt: '2026-09-25T00:00:00.000Z',
-    });
-    const channel = (slug: string): ChannelSummary => ({
-      id: 'dm-' + slug,
-      type: 'dm',
-      name: slug,
-      members: [slug],
-      botSlug: slug,
-      createdAt: '2026-09-25T00:00:00.000Z',
-      updatedAt: '2026-09-25T00:00:00.000Z',
-    });
     const actions = {
       botSourcePolicies: vi.fn(async () => [policy()]),
       setBotSourcePolicy: vi.fn(() => save.promise),
-      modelPlan: vi.fn(async () => undefined),
-      modelPlanState: vi.fn(async () => ({})),
-      modelPresets: vi.fn(async () => []),
     } as unknown as BridgeActions;
     const render = (slug: string) =>
-      createElement(ProfileView, {
-        bot: bot(slug),
-        channel: channel(slug),
-        activity: undefined,
-        cards: { list: () => [] } as unknown as ProfileCardRegistry,
-        pinned: [],
+      createElement(WakePolicyEntry, {
+        scope: 'personabot' as const,
+        channelId: 'dm-' + slug,
+        botSlug: slug,
         actions,
         t: zhTranslate,
-        onTogglePin: () => {},
-        onClose: () => {},
       });
-    const edit = () => host.querySelector<HTMLButtonElement>('.bh-source-policy-row button');
+    const edit = () =>
+      host.querySelector<HTMLButtonElement>('.bh-wake-policy-entry button.bh-card-main');
     const saveButton = () =>
-      [...host.querySelectorAll<HTMLButtonElement>('button')].find(
+      [...document.querySelectorAll<HTMLButtonElement>('button')].find(
         (button) => button.textContent === zhTranslate('profile.save'),
       );
     await act(async () => root.render(render('ada')));
     await act(async () => edit()?.click());
     await act(async () => saveButton()?.click());
+    expect(actions.setBotSourcePolicy).toHaveBeenCalledWith('ada', {
+      sourceClass: 'assignment-report',
+      wake: 'conditional',
+    });
     expect(saveButton()?.disabled).toBe(true);
     await act(async () => root.render(render('bea')));
     await act(async () => edit()?.click());
@@ -291,6 +280,72 @@ describe('mounted request ownership', () => {
     await act(async () => save.resolve());
     expect(saveButton()).toBeDefined();
     expect(saveButton()?.disabled).toBe(false);
+  });
+
+  it('edits ordinary Group digest from the Wake policy entry and updates its header summary', async () => {
+    let ordinary: BotSourcePolicyView = {
+      sourceClass: 'group-ordinary',
+      admission: 'admit',
+      wake: 'digest',
+      delivery: 'steer',
+      digestCount: 5,
+      digestIntervalSeconds: 30,
+      revision: 1,
+      lastActor: { kind: 'built-in' },
+      changedAt: '2026-10-07T00:00:00.000Z',
+      overrideActive: false,
+      recentWakeCount: 2,
+    };
+    const actions = {
+      botSourcePolicies: vi.fn(async () => [ordinary]),
+      setBotSourcePolicy: vi.fn(async (_slug: string, edit: Partial<BotSourcePolicyView>) => {
+        ordinary = { ...ordinary, ...edit, revision: 2, overrideActive: true };
+      }),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-cora',
+      botSlug: 'cora',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () =>
+      root.render(
+        createElement(
+          'div',
+          null,
+          createElement(WakePolicyBadge, props),
+          createElement(WakePolicyEntry, props),
+        ),
+      ),
+    );
+    expect(host.querySelector('.bh-channel-sidebar-summary')?.textContent).toBe(
+      '群聊 · 汇总 · 5 条 / 30 秒',
+    );
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('.bh-wake-policy-entry button.bh-card-main')?.click(),
+    );
+    const count = host.querySelector<HTMLInputElement>('.bh-profile-policy-digest input')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(count, '8');
+      count.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent === zhTranslate('profile.save'))
+        ?.click(),
+    );
+    expect(actions.setBotSourcePolicy).toHaveBeenCalledWith('cora', {
+      sourceClass: 'group-ordinary',
+      wake: 'digest',
+      digestCount: 8,
+      digestIntervalSeconds: 30,
+    });
+    expect(host.querySelector('.bh-wake-policy-edit')).toBeNull();
+    expect(host.querySelector('.bh-wake-policy-entry')?.textContent).toContain('已修改');
+    expect(host.querySelector('.bh-channel-sidebar-summary')?.textContent).toBe(
+      '群聊 · 汇总 · 8 条 / 30 秒',
+    );
   });
 
   it.each<BotSourcePolicyView['lastActor']>([
@@ -312,19 +367,14 @@ describe('mounted request ownership', () => {
     };
     await act(async () =>
       root.render(
-        createElement(SourcePolicyTable, {
-          policies: [policy],
+        createElement(SourcePolicyDetails, {
+          policy,
           t: zhTranslate,
-          onEdit: () => {},
+          onClose: () => {},
         }),
       ),
     );
-    await act(async () =>
-      host
-        .querySelector<HTMLButtonElement>('.bh-source-policy-actions button[aria-label^="查看"]')
-        ?.click(),
-    );
-    const audit = host.querySelector('.bh-source-policy-audit');
+    const audit = document.querySelector('.bh-source-policy-audit');
     expect(audit).not.toBeNull();
     expect(audit?.textContent?.includes('已恢复')).toBe(
       lastActor.kind === 'human' || lastActor.kind === 'bot',
