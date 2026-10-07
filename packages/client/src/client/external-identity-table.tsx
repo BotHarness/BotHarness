@@ -27,6 +27,7 @@ export function ExternalIdentityTable({
   const [accountKey, setAccountKey] = useState('');
   const [name, setName] = useState('');
   const [inheritEnabled, setInheritEnabled] = useState(false);
+  const [typingEnabled, setTypingEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const identities = snapshot?.identities ?? [];
@@ -39,6 +40,7 @@ export function ExternalIdentityTable({
     setSelected(row);
     setName(row?.name ?? '');
     setInheritEnabled(row?.enabledInheritance === 'inherit');
+    setTypingEnabled(row?.typingEnabled !== false);
     setAccountKey('');
   };
   const operate = async (operation: () => Promise<void>, close = false) => {
@@ -82,6 +84,7 @@ export function ExternalIdentityTable({
               name,
               enabled: selected.enabled,
               inheritEnabled,
+              ...(selected.platform === 'weixin' ? { typingEnabled } : {}),
               ...(selected.defaultRevision !== undefined
                 ? { expectedDefaultRevision: selected.defaultRevision }
                 : {}),
@@ -155,6 +158,25 @@ export function ExternalIdentityTable({
                       )[row.availability],
                     )}
                   </Tag>
+                  {row.platform === 'weixin' ? (
+                    <span className="bh-bridge-secondary">
+                      {t(
+                        !row.typing?.supported
+                          ? 'identity.typing.unavailable'
+                          : !row.typingEnabled
+                            ? 'identity.typing.off'
+                            : row.typing.phase === 'cleanup-unconfirmed'
+                              ? 'identity.typing.cleanup'
+                              : row.typing.phase === 'unavailable'
+                                ? 'identity.typing.refused'
+                                : row.typing.phase === 'accepted'
+                                  ? 'identity.typing.accepted'
+                                  : row.typing.phase === 'requesting'
+                                    ? 'identity.typing.requesting'
+                                    : 'identity.typing.ready',
+                      )}
+                    </span>
+                  ) : null}
                 </td>
                 <td>
                   <Switch
@@ -309,6 +331,20 @@ export function ExternalIdentityTable({
               </div>
             ) : null}
             {mode === 'reconnect' ? <p>{t('identity.reconnectHint')}</p> : null}
+            {mode === 'edit' && selected.platform === 'weixin' ? (
+              <div className="bh-im-field">
+                <Switch
+                  label={t('identity.typing.label')}
+                  checked={typingEnabled}
+                  disabled={busy}
+                  onChange={setTypingEnabled}
+                />
+                <span className="bh-bridge-secondary">{t('identity.typing.hint')}</span>
+                {!selected.typing?.supported ? (
+                  <span className="bh-bridge-secondary">{t('identity.typing.unavailable')}</span>
+                ) : null}
+              </div>
+            ) : null}
             {mode === 'unbind' ? (
               <>
                 <p>{t('identity.impact', { count: selected.grantCount })}</p>

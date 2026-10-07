@@ -1111,6 +1111,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
                 name: z.string().trim().min(1).max(120),
                 enabled: z.boolean(),
                 inheritEnabled: z.boolean().optional(),
+                typingEnabled: z.boolean().optional(),
                 expectedDefaultRevision: z.number().int().min(0).optional(),
               })
               .strict(),

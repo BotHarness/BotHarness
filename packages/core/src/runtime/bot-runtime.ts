@@ -18,6 +18,7 @@ import {
 } from '../attachments/file-operations.js';
 import { authorizedPathRoot } from '../workspaces/grant-native-tools.js';
 import type { OutboxIntent, OutboundMessaging } from '../messaging/outbound.js';
+import type { MessagingProcessing } from '../messaging/typing.js';
 import type {
   ExternalSource,
   ExternalContextQuery,
@@ -864,6 +865,8 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
+  readonly #typingTurns = new Map<string, MessagingProcessing>();
+  readonly #typingAssignments = new Map<string, MessagingProcessing>();
   readonly #activeMemoryEvents = new Map<
     string,
     { eventIds: string[]; preserveObservation: boolean }
@@ -1118,6 +1121,7 @@ class BotRuntimeImplementation implements BotRuntime {
         return;
       }
       if (delivered) {
+        this.#typingTurns.get(botSlug)?.add(included);
         for (const row of context?.rows ?? [])
           this.#observeAdmission(row.source_event_id, botSlug, context!.channelId, row.message_id);
         const settled = active.then(
@@ -2542,6 +2546,13 @@ class BotRuntimeImplementation implements BotRuntime {
     if (this.#closed) return;
     this.#closed = true;
     this.#waitLifetime.abort(new Error('Bot Runtime closed'));
+    await Promise.allSettled(
+      [...this.#typingTurns.values(), ...this.#typingAssignments.values()].map((processing) =>
+        processing.stop(),
+      ),
+    );
+    this.#typingTurns.clear();
+    this.#typingAssignments.clear();
     for (const timer of this.#digestTimers.values()) clearTimeout(timer);
     this.#digestTimers.clear();
     for (const timer of this.#groupAdmissionRetries.values()) clearTimeout(timer);
@@ -2650,6 +2661,13 @@ class BotRuntimeImplementation implements BotRuntime {
     wakeEventIds: readonly string[] = [sourceEventId],
   ): Promise<void> {
     const readAdmissions = new Set<string>();
+    const typingSources = [sourceEventId, ...inboxUnits.map((unit) => unit.sourceEventId)];
+    for (const unit of inboxUnits) {
+      if (!unit.assignmentSessionId) continue;
+      const origin = this.#assignmentRow(bot.slug, unit.assignmentSessionId)?.source_event_id;
+      if (origin) typingSources.push(origin);
+    }
+    let processing: MessagingProcessing | undefined;
     const memorySource = this.#database.read((db) =>
       db
         .prepare(`
@@ -2724,6 +2742,8 @@ class BotRuntimeImplementation implements BotRuntime {
           eventIds: memoryEventIds,
           preserveObservation: false,
         });
+      processing = this.#externalMessaging?.beginProcessing(bot.slug, typingSources);
+      if (processing) this.#typingTurns.set(bot.slug, processing);
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
         resume: orchestrator.resume,
@@ -3018,6 +3038,8 @@ class BotRuntimeImplementation implements BotRuntime {
         );
       throw error;
     } finally {
+      await processing?.stop();
+      if (this.#typingTurns.get(bot.slug) === processing) this.#typingTurns.delete(bot.slug);
       if (observeMemory) this.#activeMemoryEvents.delete(bot.slug);
       this.#originalAttachments.clear(orchestrator.sessionId);
     }
@@ -4695,7 +4717,7 @@ class BotRuntimeImplementation implements BotRuntime {
       void delivery.done.catch(() => undefined);
       this.#trackAssignmentRun(
         input.sessionId,
-        async () => {
+        async (beginProcessing) => {
           try {
             await delivery.accepted;
           } catch (error) {
@@ -4706,6 +4728,7 @@ class BotRuntimeImplementation implements BotRuntime {
           this.#assignmentAcceptances.delete(input.sessionId);
           accepted = true;
           settleAcceptance();
+          beginProcessing();
           await delivery.done;
         },
         () => ({
@@ -4714,6 +4737,7 @@ class BotRuntimeImplementation implements BotRuntime {
             ? { answerTo: row.open_ask_source_event_id }
             : {}),
         }),
+        true,
       );
     } else {
       settleAcceptance();
@@ -4750,6 +4774,7 @@ class BotRuntimeImplementation implements BotRuntime {
         ['assignments'],
       );
     }
+    await this.#typingAssignments.get(sessionId)?.stop();
     await this.#agents.stopAssignment(sessionId);
     await this.#assignmentRuns.get(sessionId);
     const at = this.#now().toISOString();
@@ -4818,17 +4843,33 @@ class BotRuntimeImplementation implements BotRuntime {
 
   #trackAssignmentRun(
     sessionId: string,
-    task: () => Promise<void>,
+    task: (beginProcessing: () => void) => Promise<void>,
     failure: () => { activity: 'idle' | 'error'; answerTo?: string } = () => ({
       activity: 'error',
     }),
+    awaitAcceptance = false,
   ): void {
     let tracked: Promise<void> | undefined;
     const run = (async () => {
-      if (this.#assignmentRow(undefined, sessionId) === undefined) return;
+      const assignment = this.#assignmentRow(undefined, sessionId);
+      if (assignment === undefined) return;
+      let processing: MessagingProcessing | undefined;
+      const beginProcessing = () => {
+        if (
+          processing ||
+          this.#closed ||
+          this.#assignmentRow(undefined, sessionId)?.stop_state !== 'running'
+        )
+          return;
+        processing = this.#externalMessaging?.beginProcessing(assignment.bot_slug, [
+          assignment.source_event_id,
+        ]);
+        if (processing) this.#typingAssignments.set(sessionId, processing);
+      };
       this.#setActivity(sessionId, 'working');
       try {
-        await task();
+        if (!awaitAcceptance) beginProcessing();
+        await task(beginProcessing);
         if (this.#assignmentRuns.get(sessionId) !== tracked) return;
         if (this.#assignmentRow(undefined, sessionId)?.activity === 'error') return;
         this.#setActivity(sessionId, 'idle');
@@ -4852,6 +4893,10 @@ class BotRuntimeImplementation implements BotRuntime {
             });
           }
         }
+      } finally {
+        await processing?.stop();
+        if (this.#typingAssignments.get(sessionId) === processing)
+          this.#typingAssignments.delete(sessionId);
       }
     })();
     tracked = run.then(

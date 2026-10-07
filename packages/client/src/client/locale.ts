@@ -820,6 +820,16 @@ export const zh = {
   'identity.unbind': '解绑',
   'identity.unbindFor': '解绑身份：{name}',
   'identity.displayName': '本地显示名称',
+  'identity.typing.label': '微信原生输入状态',
+  'identity.typing.hint':
+    '只在处理这个微信私聊的消息时请求输入状态；处理结束、停止或授权失效后清理。接口接受请求不代表微信客户端已显示。',
+  'identity.typing.unavailable': '输入状态不可用：当前 Provider 未提供受检能力',
+  'identity.typing.off': '输入状态已关闭',
+  'identity.typing.ready': '输入状态已开启，等待处理私聊',
+  'identity.typing.requesting': '正在请求输入状态',
+  'identity.typing.accepted': '输入状态请求已接受；客户端显示待核实',
+  'identity.typing.cleanup': '输入状态清理未确认',
+  'identity.typing.refused': '输入状态请求未成功',
   'identity.providerHint':
     '选择 dsh-im 中已配置并认证的应用 Bot 身份。凭据由 dsh-im 管理；Human 登录不等于 Bot 绑定。',
   'identity.bindHint': '仅绑定身份，不授权新的群或会话，也不开启收件。',
@@ -2890,6 +2900,16 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'identity.unbind': 'Unbind',
   'identity.unbindFor': 'Unbind identity: {name}',
   'identity.displayName': 'Local display name',
+  'identity.typing.label': 'Native WeChat typing status',
+  'identity.typing.hint':
+    'Requested only while processing messages from this WeChat DM; cleared on completion, stop, or loss of authorization. API acceptance does not prove that the WeChat client displays it.',
+  'identity.typing.unavailable': 'Typing unavailable: this Provider lacks the checked capability',
+  'identity.typing.off': 'Typing status is off',
+  'identity.typing.ready': 'Typing is enabled, waiting for DM processing',
+  'identity.typing.requesting': 'Requesting typing status',
+  'identity.typing.accepted': 'Typing request accepted; client display unverified',
+  'identity.typing.cleanup': 'Typing cleanup is unconfirmed',
+  'identity.typing.refused': 'Typing request did not succeed',
   'identity.providerHint':
     'Select an authenticated app Bot configured in dsh-im. Credentials stay with dsh-im; Human sign-in is not a Bot binding.',
   'identity.bindHint': 'Bind only; no new conversation authorization or listener is created.',

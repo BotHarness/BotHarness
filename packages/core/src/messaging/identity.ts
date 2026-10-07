@@ -11,6 +11,7 @@ export interface MessagingIdentity {
   fingerprint: string;
   name: string;
   enabled: boolean;
+  typingEnabled?: boolean;
   enabledInheritance?: 'inherit' | 'custom';
   defaultRevision?: number;
   revision: number;
@@ -25,6 +26,7 @@ export type MessagingIdentityInput =
       expectedRevision: number;
       name: string;
       enabled: boolean;
+      typingEnabled?: boolean | undefined;
       inheritEnabled?: boolean | undefined;
       expectedDefaultRevision?: number | undefined;
     }
@@ -34,6 +36,11 @@ export type MessagingIdentityView = MessagingIdentity & {
   availability: 'available' | 'paused' | 'unavailable' | 'rebind-required';
   grantCount: number;
   scopes: string[];
+  typing?: {
+    supported: boolean;
+    phase: 'idle' | 'requesting' | 'accepted' | 'cleanup-unconfirmed' | 'unavailable';
+    reason?: string;
+  };
 };
 interface BindingRow {
   id: string;
@@ -45,6 +52,7 @@ interface BindingRow {
   display_name: string;
   enabled: number;
   enabled_inherited: number;
+  typing_enabled: number;
   revision: number;
   created_at: string;
   revoked_at: string | null;
@@ -67,6 +75,7 @@ export function readMessagingIdentity(db: DatabaseSync, id: string): MessagingId
         ? messagingDefaults(db, r.platform).identityEnabled
         : r.enabled === 1,
     enabledInheritance: r.enabled_inherited === 1 ? 'inherit' : 'custom',
+    ...(r.platform === 'weixin' ? { typingEnabled: r.typing_enabled === 1 } : {}),
     defaultRevision: messagingDefaults(db, r.platform).revision,
     revision: r.revision,
     createdAt: r.created_at,

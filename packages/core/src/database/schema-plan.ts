@@ -1594,6 +1594,18 @@ const APPROVAL_MESSAGING_MIGRATION: SchemaMigration = {
   },
 };
 
+const MESSAGING_TYPING_MIGRATION: SchemaMigration = {
+  generation: 61,
+  module: 'messaging',
+  description: 'Persist identity-local native typing preference without persisting tickets',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN typing_enabled INTEGER NOT NULL DEFAULT 1
+        CHECK (typing_enabled IN (0, 1));
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1654,4 +1666,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   DISCORD_PLATFORM_DEFAULTS_MIGRATION,
   BOT_PAIRING_MIGRATION,
   APPROVAL_MESSAGING_MIGRATION,
+  MESSAGING_TYPING_MIGRATION,
 ]);
