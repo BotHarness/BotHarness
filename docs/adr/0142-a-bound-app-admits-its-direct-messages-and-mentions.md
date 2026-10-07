@@ -19,8 +19,9 @@ Default traffic is limited to what the Provider has qualified for that platform.
 
 1. Deterministic control intake: `/pair`, approval card actions ([ADR-0141](0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)).
 2. The conversation's existing entry, if one is active, with its saved collection, routes and policies.
-3. Default traffic, subject to the Binding's new-conversation mode and bounds.
-4. Anything else is acknowledged without admission.
+3. A durable block for the conversation (see Revocation sticks): the message is acknowledged without admission.
+4. Default traffic, subject to the Binding's new-conversation mode and bounds.
+5. Anything else is acknowledged without admission.
 
 No message creates more than one canonical Source Event per account, conversation and message, and no second listener or Provider Session is introduced. Admission, deduplication, acknowledgement after commit, the receive-after boundary and restart recovery stay with [ADR-0106](0106-exclusive-im-intake-commits-bot-inbox-before-acknowledgement.md).
 
