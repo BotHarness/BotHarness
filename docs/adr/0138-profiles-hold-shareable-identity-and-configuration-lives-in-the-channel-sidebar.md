@@ -9,7 +9,7 @@ The PersonaBot Profile view had grown into a settings page. Below the name and a
 
 ## Decision
 
-- **Profile = shareable identity + activity.** A PersonaBot Profile shows Display name, Avatar, Profile Banner, Tags and Bio, then token usage, event activity (Bot Inbox Admissions) and Memory commit activity. A Group Profile shows the Group's name, avatar and message activity. Neither has editable configuration beyond its identity fields.
+- **Profile = shareable identity + activity.** A PersonaBot Profile shows Display name, Avatar, Profile Banner, Bot Tags and Bot Bio, then token usage, event activity (Bot Inbox Admissions) and Memory commit activity. A Group Profile shows the Group's name, avatar and message activity. Neither has editable configuration beyond its identity fields.
 - **The identity is what `bot.json` carries.** `.botharness/bot.json` gains `bio` and `banner`, and writes `tags` in place of `roles`; readers, including the Marketplace Worker, still accept `roles`. A banner is always also written as an image file under `.botharness/`, so a reader that does not know the generator can show it.
 - **Configuration moves to the Channel sidebar** as separate collapsible entries the Human can reorder or hide like any other: in a PersonaBot DM, Model (the Model Plan), Wake policy, External identities, External connectors and, later, Approvals; in a Group, Wake policy and External connectors. Standing memory limits become one row of the Memory files entry. Wide tables become card rows that open a modal to edit.
 - **Export stays a share action.** Bot Zip export is the Profile's share button and the App Sidebar context-menu item, not a settings section.
@@ -24,5 +24,5 @@ The PersonaBot Profile view had grown into a settings page. Below the name and a
 
 ## Consequences
 
-- `CONTEXT.md` renames Role badge to **Tag** and Bot description to **Bio**, adds **Profile Banner**, **Approver** and **Approval destination**, and says the UI calls a Bridge an External connector and a Wake Policy 唤醒策略 / Wake policy.
+- `CONTEXT.md` renames Role badge to **Bot Tag** and Bot description to **Bot Bio**, adds **Profile Banner**, **Approver** and **Approval destination**, and says the UI calls a Bridge an External connector and a Wake Policy 唤醒策略 / Wake policy.
 - UI copy stops showing internal terms such as Human, PersonaBot and Source Event; that sweep is tracked separately from the layout work.

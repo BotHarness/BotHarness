@@ -30,13 +30,13 @@ _避免使用_：Bot slug、display name、handle、username
 PersonaBot 面向人的名称，也是 `@` 选择器显示的主要标签。名称可以重复；被选中的 mention token 会保留 PersonaBot ID。
 _避免使用_：identifier、slug、username
 
-**Tag**：
-显示在 PersonaBot 名称旁的零个或多个标签，例如岗位或专长。Tag 只做描述，不授予权限，也不用于识别 PersonaBot；分享 PersonaBot 时会随之带走。
-_避免使用_：role badge（历史用词）、职位、permission role、category
+**Bot Tag**：
+显示在 PersonaBot 名称旁的零个或多个标签，例如岗位或专长。Bot Tag 只做描述，不授予权限，也不用于识别 PersonaBot；分享 PersonaBot 时会随之带走。
+_避免使用_：role badge（历史用词）、裸用 tag、职位、permission role、category
 
-**Bio**：
+**Bot Bio**：
 由 Human 可选填写、最多 160 字的自我介绍，说明 PersonaBot 是谁、负责什么或擅长什么；分享 PersonaBot 时会随之带走。
-_避免使用_：Bot description（历史用词）、Soul、Tag、system prompt
+_避免使用_：Bot description（历史用词）、裸用 bio、Soul、Bot Tag、system prompt
 
 **Profile Banner**：
 PersonaBot Profile 头部、位于 Avatar 后方的宽幅头图。它要么是以 scene 与 seed 的 recipe 保存的生成像素场景（PersonaBot 创建时按 Display name 播种），要么是 Human 上传的图片；分享时随 PersonaBot 带走。Group 没有 Profile Banner。
@@ -689,7 +689,7 @@ Channel sidebar 中一个已注册、可折叠的 item，具有稳定 id、label
 _避免使用_：widget、card、tab、destination、Channel section
 
 **PersonaBot Profile**：
-单个 PersonaBot 可分享的身份与只读活动 surface：身份会在分享 PersonaBot 时随之带走（Display name、Avatar、Profile Banner、Tag、Bio）；活动包括由其 owned Session 派生的 token 用量、来自 Bot Inbox Admission 的事件活跃度，以及 Memory commit 活跃度。Model Plan、Wake Policy、外部身份、Bridge、审批等运行配置不属于它，而在 Channel sidebar 中。它以 Profile popover 的紧凑形态出现在 DM header 的头像旁，并展开为 Channel body 中的 Profile view。
+单个 PersonaBot 可分享的身份与只读活动 surface：身份会在分享 PersonaBot 时随之带走（Display name、Avatar、Profile Banner、Bot Tag、Bot Bio）；活动包括由其 owned Session 派生的 token 用量、来自 Bot Inbox Admission 的事件活跃度，以及 Memory commit 活跃度。Model Plan、Wake Policy、外部身份、Bridge、审批等运行配置不属于它，而在 Channel sidebar 中。它以 Profile popover 的紧凑形态出现在 DM header 的头像旁，并展开为 Channel body 中的 Profile view。
 _避免使用_：account、dashboard、bot page、裸用 profile、settings page
 
 **Group Profile**：
