@@ -256,6 +256,10 @@ _避免使用_：knowledge base、vector store、RAG、database、context
 PersonaBot 拥有的普通 Git 仓库，在创建 PersonaBot 时自动生成，并作为其 Orchestrator Session 的 working directory。分支、合并与文件历史由 Git 管理；archive、export、restore 和 purge 仍是显式操作。
 _避免使用_：optional attachment、Session memory、generated index、project Workspace
 
+**Managed Git**：
+「托管 Git」。Host 没有可用的系统 Git 时，BotHarness 应 Human 的请求装进 Profile 的便携 Git；此后 Host 的所有 Memory Repository 操作都用它，并让 Session 也能使用它。
+_避免使用_：bundled Git、内置 Git、嵌入式 Git
+
 **Core Memory**：
 「Bot 核心记忆」。PersonaBot 常驻的记忆，保存在 Memory Repository 根目录的 `MEMORY.md`：以一条一行的索引为主，告诉它自己记得什么，外加少量关键事实。它与 Soul 来自同一份冻结快照并注入每个 Session 的 system prompt，受 Human 为每个 PersonaBot 设置的字符上限约束；具体怎么组织，由 Human 与 PersonaBot 在沟通中沉淀。
 _避免使用_：memory tree、pinned memory、generated index、USER.md

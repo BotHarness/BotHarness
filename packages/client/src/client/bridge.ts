@@ -1673,6 +1673,34 @@ export function parseTelemetryStatus(value: unknown): TelemetryStatus {
   };
 }
 
+export type GitUnavailableReason = 'missing' | 'unrunnable' | 'too-old';
+
+export type GitAvailability =
+  | { available: true; version: string }
+  | { available: false; reason: GitUnavailableReason; version?: string };
+
+const GIT_UNAVAILABLE_REASONS: readonly GitUnavailableReason[] = [
+  'missing',
+  'unrunnable',
+  'too-old',
+];
+
+export function parseGitAvailability(value: unknown): GitAvailability {
+  const item = asRecord(value);
+  const version = typeof item?.['version'] === 'string' ? item['version'] : undefined;
+  if (item?.['available'] === true && version !== undefined) return { available: true, version };
+  const reason = GIT_UNAVAILABLE_REASONS.find((candidate) => candidate === item?.['reason']);
+  if (item?.['available'] !== false || reason === undefined) throw new Error('invalid Git status');
+  return { available: false, reason, ...(version === undefined ? {} : { version }) };
+}
+
+export async function loadGitAvailability(
+  call: BridgeCall,
+  signal?: AbortSignal,
+): Promise<GitAvailability> {
+  return parseGitAvailability(await unwrap(call, 'gitStatus', {}, signal));
+}
+
 export async function loadTelemetryStatus(
   call: BridgeCall,
   signal?: AbortSignal,

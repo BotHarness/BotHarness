@@ -258,6 +258,10 @@ _Avoid_: knowledge base, vector store, RAG, database, context
 A PersonaBot-owned ordinary Git repository, created automatically with the PersonaBot and used as its Orchestrator Session's working directory. Git controls branches, merges, and file history; archive, export, restore, and purge remain explicit PersonaBot operations.
 _Avoid_: optional attachment, Session memory, generated index, project Workspace
 
+**Managed Git**:
+A portable Git that BotHarness installs into the Profile, at the Human's request, when the Host has no usable system Git. The Host then uses it for every Memory Repository operation and exposes it to Sessions.
+_Avoid_: bundled Git, embedded Git, built-in Git
+
 **Core Memory**:
 A PersonaBot's always-present memory, kept in the root `MEMORY.md` of its Memory Repository: mostly a one-line-per-entry index of what it remembers, plus a few key facts. It enters each Session's system prompt from the same frozen snapshot as the Soul, within a Human-set per-PersonaBot character limit; how it is organized emerges between the Human and the PersonaBot.
 _Avoid_: memory tree, pinned memory, generated index, USER.md

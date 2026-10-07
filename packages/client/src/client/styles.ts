@@ -782,6 +782,32 @@ html[data-botharness-activity='stale'] .bh-avatar-indicator {
   color: var(--dsw-alias-label-secondary);
   background: var(--bh-hover);
 }
+.bh-git-unavailable {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 2px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--bh-hover);
+}
+.bh-git-unavailable-title {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 600;
+}
+.bh-git-unavailable-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.bh-git-unavailable-actions a {
+  color: var(--dsw-alias-state-business-primary);
+}
 .bh-row-status {
   margin-left: 4px;
 }
