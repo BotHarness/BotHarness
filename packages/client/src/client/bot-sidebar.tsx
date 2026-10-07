@@ -34,6 +34,7 @@ import {
   type BotModeSortMode,
 } from '../bot-mode-settings.js';
 import type { BridgeActions } from './actions.js';
+import type { WindowCompanion } from './window-companion.js';
 import {
   PersonaBotAvatar,
   PersonaBotStatusBadges,
@@ -292,6 +293,7 @@ export function createBotPanelEntry(
 }
 
 interface SidebarProps {
+  companion?: WindowCompanion | undefined;
   wide: boolean;
   actions: BridgeActions;
   useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
@@ -741,6 +743,7 @@ type FlatBlockView =
   | { kind: 'loose'; channels: ChannelSummary[] };
 
 export function BotSidebar({
+  companion,
   wide,
   actions,
   useBotModePrefs,
@@ -2395,6 +2398,22 @@ export function BotSidebar({
           currentSectionId={sectionOfChannel(channelMenu.channelId)}
           pinned={channelMenu.pinnedView === true}
           t={t}
+          companionAction={(() => {
+            const botId = state.channels.find(
+              (channel) => channel.id === channelMenu.channelId,
+            )?.botSlug;
+            if (botId === undefined || companion === undefined || !companion.getSnapshot().ready)
+              return undefined;
+            const selected = companion.getSnapshot().selection?.botId === botId;
+            return {
+              label: t(selected ? 'companion.remove' : 'companion.show'),
+              run: () => {
+                if (selected) companion.remove();
+                else companion.select(botId);
+                setChannelMenu(undefined);
+              },
+            };
+          })()}
           onSetPinned={(channelId, pinned) => {
             void actions.setChannelPinned(channelId, pinned);
             setChannelMenu(undefined);
@@ -2547,6 +2566,7 @@ export function BulkChannelMenu({
 }
 
 export function ChannelMoveMenu({
+  companionAction,
   menu,
   sections,
   currentSectionId,
@@ -2559,6 +2579,7 @@ export function ChannelMoveMenu({
   onPick,
   onClose,
 }: {
+  companionAction?: { label: string; run(): void } | undefined;
   menu: ChannelMenuRequest;
   sections: readonly RosterSection[];
   currentSectionId: string | undefined;
@@ -2592,6 +2613,7 @@ export function ChannelMoveMenu({
     { id: 'hide', label: t('hidden.action') },
   ];
   const items: readonly MenuEntry[] = [
+    ...(companionAction === undefined ? [] : [{ id: 'companion', label: companionAction.label }]),
     ...pinItems,
     { type: 'separator', id: 'pin-separator' },
     ...channelMoveMenuItems(t, sections, currentSectionId),
@@ -2610,6 +2632,10 @@ export function ChannelMoveMenu({
         getAnchorRect={() => proxy.current?.getBoundingClientRect() ?? null}
         items={items}
         onSelect={(id) => {
+          if (id === 'companion') {
+            companionAction?.run();
+            return;
+          }
           if (id === 'pin' || id === 'unpin') {
             onSetPinned?.(menu.channelId, id === 'pin');
             return;

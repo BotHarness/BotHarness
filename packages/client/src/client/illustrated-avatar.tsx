@@ -147,17 +147,19 @@ export function IllustratedAvatar({
   effect,
   size,
   symbol,
+  surface = 'portrait',
 }: {
   recipe: AvatarRecipe;
   state: PersonaBotActivityState;
   effect: PersonaBotActivityEffect;
   size: number;
   symbol?: PixelSymbol | undefined;
+  surface?: 'portrait' | 'companion' | undefined;
 }): ReactElement {
   const turning = state === 'thinking' && size > 64;
   const markup = useMemo(
-    () => avatarSvg(recipe, turning ? { turns: AVATAR_TURNS } : {}),
-    [recipe, turning],
+    () => avatarSvg(recipe, { surface, ...(turning ? { turns: AVATAR_TURNS } : {}) }),
+    [recipe, turning, surface],
   );
   const line = useRef<LineShown>({ velocity: 0, since: 0 });
   const pixel = useRef<PixelShown>({ since: 0 });

@@ -57,7 +57,7 @@ import {
 import { createMessageAttachmentFiles } from '../attachments/message-files.js';
 import { attachmentIntent } from '../attachments/ref.js';
 import type { AttachmentStore } from '../attachments/store.js';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 import { z } from 'zod';
 
@@ -70,7 +70,7 @@ import {
   type ChannelRecord,
   type ChannelReference,
 } from '../channels/channel.js';
-import { BOT_AVATAR_PATH } from '../bots/avatar-http.js';
+import { botAvatarUrl } from '../bots/avatar-http.js';
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
@@ -759,19 +759,6 @@ function createFailure(
         },
       };
   }
-}
-
-const avatarUrlCache = new Map<string, string>();
-
-function botAvatarUrl(slug: string, avatar: string): string {
-  const key = `${slug}\u0000${avatar}`;
-  const cached = avatarUrlCache.get(key);
-  if (cached !== undefined) return cached;
-  const version = createHash('sha256').update(avatar).digest('hex').slice(0, 16);
-  const url = `${BOT_AVATAR_PATH}?slug=${encodeURIComponent(slug)}&v=${version}`;
-  if (avatarUrlCache.size > 256) avatarUrlCache.clear();
-  avatarUrlCache.set(key, url);
-  return url;
 }
 
 function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): PersonaBotSummary {

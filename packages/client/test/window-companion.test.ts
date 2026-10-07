@@ -1,0 +1,197 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { WindowCompanion } from '../src/client/window-companion.js';
+
+const controllers: WindowCompanion[] = [];
+afterEach(() => {
+  for (const owner of controllers.splice(0)) owner.dispose();
+});
+
+it('checks a closed stream against a fresh Registry result and preserves pins on lookup failure or replacement', async () => {
+  const streams: EventTarget[] = [];
+  let result = async (): Promise<boolean> => {
+    throw new Error('Registry unavailable');
+  };
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    exists: () => result(),
+    source: () => {
+      const events = new EventTarget();
+      streams.push(events);
+      return {
+        readyState: 2,
+        addEventListener: events.addEventListener.bind(events),
+        close() {},
+      };
+    },
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  streams[0]!.dispatchEvent(new Event('error'));
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(owner.getSnapshot().selection?.botId).toBe('ada');
+  expect(owner.getSnapshot().sync).toBe('stale');
+  let resolve: ((exists: boolean) => void) | undefined;
+  result = () =>
+    new Promise((done) => {
+      resolve = done;
+    });
+  streams[0]!.dispatchEvent(new Event('error'));
+  owner.select('grace');
+  resolve!(false);
+  await Promise.resolve();
+  expect(owner.getSnapshot().selection?.botId).toBe('grace');
+  result = async () => false;
+  streams[1]!.dispatchEvent(new Event('error'));
+  await Promise.resolve();
+  expect(owner.getSnapshot().selection).toBeUndefined();
+});
+
+it('restores selection per Profile without old cards, consumes outside Bot mode, and closes when removed', async () => {
+  const saved = new Map<string, string>();
+  const streams: { target: EventTarget; close: ReturnType<typeof vi.fn> }[] = [];
+  const create = (profileId = 'profile-a') => {
+    const owner = new WindowCompanion({
+      storage: {
+        getItem: (key) => saved.get(key) ?? null,
+        setItem: (key, value) => {
+          saved.set(key, value);
+        },
+      },
+      context: async () => ({ profileId }),
+      source: () => {
+        const stream = { target: new EventTarget(), close: vi.fn() };
+        streams.push(stream);
+        return {
+          addEventListener: stream.target.addEventListener.bind(stream.target),
+          close: stream.close,
+        };
+      },
+    });
+    controllers.push(owner);
+    return owner;
+  };
+  const send = (type: string, data: unknown) =>
+    streams.at(-1)!.target.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(data) }));
+  const baseline = {
+    profileId: 'profile-a',
+    bot: { slug: 'ada', name: 'Ada', paused: false },
+    activity: { generation: 'host-a', revision: 0, bots: [{ slug: 'ada', state: 'working' }] },
+  };
+  const owner = create();
+  await owner.start();
+  owner.select('ada');
+  send('companion/baseline', baseline);
+  expect(owner.getSnapshot().sync).toBe('live');
+  send('companion/message', {
+    generation: 'host-a',
+    botId: 'ada',
+    messageId: 'one',
+    channelId: 'dm',
+    channelName: 'Ada',
+    body: 'hello',
+  });
+  expect(owner.getSnapshot().cards).toHaveLength(1);
+  owner.dispose();
+  expect(streams[0]!.close).toHaveBeenCalledOnce();
+  const restored = create();
+  await restored.start();
+  expect(restored.getSnapshot().selection?.botId).toBe('ada');
+  expect(restored.getSnapshot().cards).toHaveLength(0);
+  send('companion/baseline', baseline);
+  restored.remove();
+  expect(streams[1]!.close).toHaveBeenCalledOnce();
+  const otherProfile = create('profile-b');
+  await otherProfile.start();
+  expect(otherProfile.getSnapshot().selection).toBeUndefined();
+});
+
+it('bounds parallel cards at twenty, freezes reading order, continues typing and merges arrivals on leave', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'profile-a' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const send = (type: string, data: unknown) =>
+    events.dispatchEvent(new MessageEvent(type, { data: JSON.stringify(data) }));
+  send('companion/baseline', {
+    profileId: 'profile-a',
+    bot: { slug: 'ada', name: 'Ada', paused: false },
+    activity: { generation: 'host-a', revision: 0, bots: [{ slug: 'ada', state: 'idle' }] },
+  });
+  const reply = (id: number) =>
+    send('companion/message', {
+      generation: 'host-a',
+      botId: 'ada',
+      messageId: `m${id}`,
+      channelId: 'dm',
+      channelName: 'Ada',
+      body: 'Hello from Ada',
+    });
+  reply(1);
+  reply(2);
+  owner.reading(true);
+  reply(3);
+  owner.advance(500);
+  expect(owner.getSnapshot().cards.map((card) => card.messageId)).toEqual(['m1', 'm2']);
+  expect(owner.getSnapshot().cards.every((card) => card.shown > 0)).toBe(true);
+  expect(owner.getSnapshot().pending).toBe(1);
+  owner.reading(false);
+  expect(owner.getSnapshot().cards.map((card) => card.messageId)).toEqual(['m1', 'm2', 'm3']);
+  for (let id = 4; id <= 50; id++) reply(id);
+  expect(owner.getSnapshot().cards).toHaveLength(20);
+  expect(owner.getSnapshot().cards[0]!.messageId).toBe('m31');
+  owner.reading(true);
+  for (let id = 51; id <= 80; id++) reply(id);
+  expect(owner.getSnapshot().cards[0]!.messageId).toBe('m31');
+  expect(owner.getSnapshot().pending).toBe(20);
+  owner.reading(false);
+  expect(owner.getSnapshot().cards[0]!.messageId).toBe('m61');
+  owner.advance(10000);
+  owner.reading(true);
+  owner.advance(30000);
+  expect(owner.getSnapshot().cards).toHaveLength(20);
+  owner.reading(false);
+  owner.advance(30000);
+  expect(owner.getSnapshot().cards).toHaveLength(0);
+});
+
+it('reveals whole emoji and combining graphemes and clips previews on a complete boundary', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const send = (name: string, data: unknown) =>
+    events.dispatchEvent(new MessageEvent(name, { data: JSON.stringify(data) }));
+  send('companion/baseline', {
+    profileId: 'qa',
+    bot: { slug: 'ada', name: 'Ada', paused: false },
+    activity: { generation: 'h', revision: 0, bots: [{ slug: 'ada', state: 'idle' }] },
+  });
+  const message = (messageId: string, body: string) =>
+    send('companion/message', {
+      generation: 'h',
+      botId: 'ada',
+      messageId,
+      channelId: 'dm',
+      channelName: 'Ada',
+      body,
+    });
+  message('emoji', '👩‍💻é🇨🇳');
+  owner.advance(35);
+  let card = owner.getSnapshot().cards[0]!;
+  expect(card.body.slice(0, card.shown)).toBe('👩‍💻');
+  owner.advance(35);
+  card = owner.getSnapshot().cards[0]!;
+  expect(card.body.slice(0, card.shown)).toBe('👩‍💻é');
+  message('preview', 'a'.repeat(1999) + '👩‍💻');
+  expect(owner.getSnapshot().cards[1]!.body).toBe('a'.repeat(1999));
+});
