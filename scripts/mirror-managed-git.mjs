@@ -26,11 +26,15 @@ async function download(url) {
   return Buffer.from(await response.arrayBuffer());
 }
 
+function mirrorUrl(name) {
+  return verifyOnly ? `${mirror}/${name}` : `${mirror}/${name}?check=${Date.now()}`;
+}
+
 const work = mkdtempSync(join(tmpdir(), 'botharness-managed-git-'));
 let failed = 0;
 try {
   for (const [platform, asset] of Object.entries(pins.assets)) {
-    const mirrored = await download(`${mirror}/${asset.name}`).catch(() => undefined);
+    const mirrored = await download(mirrorUrl(asset.name)).catch(() => undefined);
     if (mirrored !== undefined && sha256(mirrored) === asset.sha256) {
       console.log(`ok       ${platform} ${asset.name}`);
       continue;
@@ -71,7 +75,7 @@ try {
       },
     );
     rmSync(file);
-    const uploaded = await download(`${mirror}/${asset.name}`);
+    const uploaded = await download(mirrorUrl(asset.name));
     if (sha256(uploaded) !== asset.sha256)
       throw new Error(`${asset.name}: mirror checksum mismatch`);
     console.log(`uploaded ${platform} ${asset.name}`);
