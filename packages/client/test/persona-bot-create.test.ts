@@ -269,6 +269,12 @@ describe('editable creation starting points', () => {
         expect(host.textContent).toContain('已改用 HTTPS 导入');
         expect(notice.textContent).toContain('git@github.com:owner/repo.git');
         expect(notice.textContent).toContain('https://github.com/owner/repo.git');
+        expect(notice.querySelectorAll('pre')).toHaveLength(2);
+        const caption = notice.querySelector('[data-https-fallback-reason="auth"]')!;
+        expect(caption.textContent).toContain('服务器拒绝了 SSH 登录');
+        expect(caption.textContent).toContain(
+          'Git 输出：git@github.com: Permission denied (publickey).',
+        );
         await act(async () =>
           [...host.querySelectorAll('button')].find((b) => b.textContent === '完成')!.click(),
         );
@@ -282,6 +288,8 @@ describe('editable creation starting points', () => {
         httpsFallback: {
           from: 'git@github.com:owner/repo.git',
           to: 'https://github.com/owner/repo.git',
+          reason: 'auth',
+          detail: 'git@github.com: Permission denied (publickey).',
         },
       },
     );

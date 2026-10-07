@@ -62,14 +62,27 @@ describe('Import from GitHub result', () => {
     const bot = { slug: 'ada', displayName: 'Ada', status: 'active', roles: [] };
     const call = vi.fn<BridgeCall>(async () => ({
       ok: true,
-      value: { bot, httpsFallback: { from: 'git@h:o/r.git', to: 'https://h/o/r.git' } },
+      value: {
+        bot,
+        httpsFallback: {
+          from: 'git@h:o/r.git',
+          to: 'https://h/o/r.git',
+          reason: 'auth',
+          detail: 'Permission denied (publickey).',
+        },
+      },
     }));
     const created = await createPersonaBot(call, {
       displayName: 'Ada',
       roles: [],
       gitUrl: 'git@h:o/r.git',
     });
-    expect(created.httpsFallback).toEqual({ from: 'git@h:o/r.git', to: 'https://h/o/r.git' });
+    expect(created.httpsFallback).toEqual({
+      from: 'git@h:o/r.git',
+      to: 'https://h/o/r.git',
+      reason: 'auth',
+      detail: 'Permission denied (publickey).',
+    });
     expect(call).toHaveBeenCalledWith(
       'createFromGit',
       { displayName: 'Ada', roles: [], gitUrl: 'git@h:o/r.git' },

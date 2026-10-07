@@ -1410,18 +1410,40 @@ export async function loadBots(call: BridgeCall, signal?: AbortSignal): Promise<
   return parseBotSummaries(await unwrap(call, 'list', {}, signal));
 }
 
+export type SshFailureReason =
+  | 'auth'
+  | 'host-key'
+  | 'unreachable'
+  | 'ssh-missing'
+  | 'timeout'
+  | 'other';
+
+const SSH_FAILURE_REASONS: readonly SshFailureReason[] = [
+  'auth',
+  'host-key',
+  'unreachable',
+  'ssh-missing',
+  'timeout',
+  'other',
+];
+
 export interface HttpsFallback {
   from: string;
   to: string;
+  reason: SshFailureReason;
+  detail?: string;
 }
 
 export type CreatedBot = BotSummary & { httpsFallback?: HttpsFallback };
 
 function parseHttpsFallback(value: unknown): HttpsFallback | undefined {
   const item = asRecord(value);
-  return typeof item?.['from'] === 'string' && typeof item['to'] === 'string'
-    ? { from: item['from'], to: item['to'] }
-    : undefined;
+  if (typeof item?.['from'] !== 'string' || typeof item['to'] !== 'string') return undefined;
+  const reason = SSH_FAILURE_REASONS.find((known) => known === item['reason']) ?? 'other';
+  const detail = item['detail'];
+  return typeof detail === 'string' && detail.length > 0
+    ? { from: item['from'], to: item['to'], reason, detail }
+    : { from: item['from'], to: item['to'], reason };
 }
 
 export async function createPersonaBot(

@@ -1,3 +1,4 @@
+import type { HttpsFallback } from '../memory/clone.js';
 import { pairingReviewInput, type PairingRequest } from '../messaging/pairing.js';
 import type { GroupMemberWakePolicy } from '../channels/channel.js';
 import {
@@ -350,7 +351,7 @@ export interface BridgeMethods {
   create(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   createFromGit(
     payload: unknown,
-  ): Promise<BridgeResult<{ bot: PersonaBotDetail; httpsFallback?: { from: string; to: string } }>>;
+  ): Promise<BridgeResult<{ bot: PersonaBotDetail; httpsFallback?: HttpsFallback }>>;
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   pause(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;

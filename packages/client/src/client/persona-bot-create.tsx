@@ -147,7 +147,7 @@ export function CreatePersonaBotModal({
   };
 
   if (fallback?.httpsFallback !== undefined) {
-    const { from, to } = fallback.httpsFallback;
+    const { from, to, reason, detail } = fallback.httpsFallback;
     const done = (): void => {
       void actions.openCreatedBot(fallback, sectionId).finally(onCreated);
     };
@@ -165,9 +165,21 @@ export function CreatePersonaBotModal({
       >
         <div className="bh-personabot-form" data-https-fallback>
           <span>{t('bot.create.httpsFallback.body')}</span>
-          <code className="bh-https-fallback-url">{from}</code>
+          <pre className="bh-https-fallback-code">
+            <code>{from}</code>
+          </pre>
+          <span className="bh-https-fallback-caption" data-https-fallback-reason={reason}>
+            {t(`bot.create.httpsFallback.reason.${reason}`)}
+            {detail === undefined ? null : (
+              <span className="bh-https-fallback-detail">
+                {t('bot.create.httpsFallback.detail', { detail })}
+              </span>
+            )}
+          </span>
           <span>{t('bot.create.httpsFallback.now')}</span>
-          <code className="bh-https-fallback-url">{to}</code>
+          <pre className="bh-https-fallback-code">
+            <code>{to}</code>
+          </pre>
         </div>
       </Modal>
     );

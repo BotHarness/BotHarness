@@ -1342,6 +1342,15 @@ export const zh = {
   'bot.create.httpsFallback.now':
     '已自动改用对应的 HTTPS 地址导入成功，之后这个 Bot 会通过它同步：',
   'bot.create.httpsFallback.done': '完成',
+  'bot.create.httpsFallback.reason.auth':
+    '原因：服务器拒绝了 SSH 登录。这台电脑上没有可用的 SSH 密钥，或密钥没有添加到你的 GitHub 账号。',
+  'bot.create.httpsFallback.reason.host-key': '原因：这台电脑还没有信任这个服务器的 SSH 主机密钥。',
+  'bot.create.httpsFallback.reason.unreachable':
+    '原因：连不上服务器的 SSH 端口（22），可能被网络或防火墙拦截。',
+  'bot.create.httpsFallback.reason.ssh-missing': '原因：这台电脑上没有安装 SSH 客户端。',
+  'bot.create.httpsFallback.reason.timeout': '原因：SSH 连接超时。',
+  'bot.create.httpsFallback.reason.other': '原因：SSH 克隆失败。',
+  'bot.create.httpsFallback.detail': 'Git 输出：{detail}',
   'git.unavailable.title': '需要 Git 才能创建 Bot',
   'git.unavailable.missing': '这台电脑上没有找到 Git。',
   'git.unavailable.unrunnable': '找到了 Git，但它无法运行。macOS 需要先安装命令行开发者工具。',
@@ -3450,6 +3459,17 @@ My relationship with the Human, established lore and topics to avoid: [fill in].
   'bot.create.httpsFallback.now':
     'The matching HTTPS address worked instead, and this Bot will sync through it from now on:',
   'bot.create.httpsFallback.done': 'Done',
+  'bot.create.httpsFallback.reason.auth':
+    'Why: the server rejected the SSH login. This computer has no usable SSH key, or the key is not added to your GitHub account.',
+  'bot.create.httpsFallback.reason.host-key':
+    "Why: this computer doesn't trust the server's SSH host key yet.",
+  'bot.create.httpsFallback.reason.unreachable':
+    "Why: the server's SSH port (22) could not be reached; the network or a firewall may block it.",
+  'bot.create.httpsFallback.reason.ssh-missing':
+    'Why: no SSH client is installed on this computer.',
+  'bot.create.httpsFallback.reason.timeout': 'Why: the SSH connection timed out.',
+  'bot.create.httpsFallback.reason.other': 'Why: the SSH clone failed.',
+  'bot.create.httpsFallback.detail': 'Git said: {detail}',
   'git.unavailable.title': 'Bot mode needs Git',
   'git.unavailable.missing': 'Git was not found on this computer.',
   'git.unavailable.unrunnable':

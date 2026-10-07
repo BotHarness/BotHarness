@@ -14,9 +14,19 @@ export type MemoryCloneFailureCode =
   | 'git-clone-failed'
   | 'git-clone-timeout';
 
+export type SshFailureReason =
+  | 'auth'
+  | 'host-key'
+  | 'unreachable'
+  | 'ssh-missing'
+  | 'timeout'
+  | 'other';
+
 export interface HttpsFallback {
   from: string;
   to: string;
+  reason: SshFailureReason;
+  detail?: string;
 }
 
 export type MemoryCloneResult =
@@ -79,6 +89,29 @@ function cloneFailure(error: unknown): MemoryCloneFailureCode {
   return failure.killed || failure.code === 'ETIMEDOUT' ? 'git-clone-timeout' : 'git-clone-failed';
 }
 
+const SSH_FAILURES: [RegExp, SshFailureReason][] = [
+  [/ssh: (?:command )?not found|cannot run ssh|'ssh' is not recognized/iu, 'ssh-missing'],
+  [/permission denied|publickey|authentication failed/iu, 'auth'],
+  [/host key verification failed|remote host identification has changed/iu, 'host-key'],
+  [
+    /could not resolve hostname|connection refused|connection timed out|network is unreachable|no route to host|connection closed|connection reset|port 22/iu,
+    'unreachable',
+  ],
+];
+
+function sshFailure(error: unknown): Pick<HttpsFallback, 'reason' | 'detail'> {
+  const failure = error as { killed?: boolean; code?: unknown; stderr?: unknown };
+  if (failure.killed || failure.code === 'ETIMEDOUT') return { reason: 'timeout' };
+  const lines = (typeof failure.stderr === 'string' ? failure.stderr : '')
+    .split(/\r?\n/u)
+    .map((line) => line.replace(/^(fatal|error):\s*/iu, '').trim())
+    .filter((line) => line.length > 0);
+  const match = lines.find((line) => SSH_FAILURES.some(([pattern]) => pattern.test(line)));
+  const detail = (match ?? lines[0])?.slice(0, 200);
+  const reason = match === undefined ? 'other' : SSH_FAILURES.find(([p]) => p.test(match))![1];
+  return detail === undefined ? { reason } : { reason, detail };
+}
+
 function gitClone(url: string, destination: string, timeoutMs: number) {
   return execFileAsync('git', ['clone', '--quiet', '--', url, destination], {
     timeout: timeoutMs,
@@ -115,7 +148,7 @@ export async function cloneMemoryRepository(input: {
     rmSync(input.destination, { recursive: true, force: true });
     try {
       await gitClone(https, input.destination, timeoutMs);
-      return { ok: true, httpsFallback: { from: url, to: https } };
+      return { ok: true, httpsFallback: { from: url, to: https, ...sshFailure(error) } };
     } catch {
       rmSync(input.destination, { recursive: true, force: true });
       return { ok: false, code };

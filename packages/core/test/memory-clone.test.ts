@@ -87,7 +87,7 @@ describe('SSH import fallback to HTTPS', () => {
   });
 
   describe.skipIf(process.platform === 'win32')('with a Host Git that cannot use SSH', () => {
-    function fakeGit(root: string, httpsWorks: boolean): string {
+    function fakeGit(root: string, httpsWorks: boolean, sshError: string): string {
       const bin = join(root, 'bin');
       mkdirSync(bin);
       const log = join(root, 'calls.log');
@@ -99,7 +99,7 @@ describe('SSH import fallback to HTTPS', () => {
           `echo "$4" >> '${log}'`,
           'case "$4" in',
           `  https://*) ${httpsWorks ? 'mkdir -p "$5/.git"; exit 0' : 'exit 128'} ;;`,
-          '  *) echo "Permission denied (publickey)." >&2; exit 128 ;;',
+          `  *) printf '%s\\n' '${sshError}' 'fatal: Could not read from remote repository.' >&2; exit 128 ;;`,
           'esac',
           '',
         ].join('\n'),
@@ -108,11 +108,15 @@ describe('SSH import fallback to HTTPS', () => {
       return bin;
     }
 
-    async function cloneWith(httpsWorks: boolean, url: string) {
+    async function cloneWith(
+      httpsWorks: boolean,
+      url: string,
+      sshError = 'git@github.com: Permission denied (publickey).',
+    ) {
       const root = mkdtempSync(join(tmpdir(), 'botharness-ssh-fallback-'));
       const originalPath = process.env['PATH'];
       try {
-        process.env['PATH'] = `${fakeGit(root, httpsWorks)}:${originalPath ?? ''}`;
+        process.env['PATH'] = `${fakeGit(root, httpsWorks, sshError)}:${originalPath ?? ''}`;
         const destination = join(root, 'memory');
         mkdirSync(destination);
         const result = await cloneMemoryRepository({ url, destination });
@@ -125,6 +129,29 @@ describe('SSH import fallback to HTTPS', () => {
       }
     }
 
+    it('names an unreachable SSH port as the reason for the switch', async () => {
+      const { result } = await cloneWith(
+        true,
+        'git@github.com:owner/repo.git',
+        'ssh: connect to host github.com port 22: Connection timed out',
+      );
+      expect(result).toMatchObject({
+        httpsFallback: {
+          reason: 'unreachable',
+          detail: 'ssh: connect to host github.com port 22: Connection timed out',
+        },
+      });
+    });
+
+    it('names a missing SSH client as the reason for the switch', async () => {
+      const { result } = await cloneWith(
+        true,
+        'git@github.com:owner/repo.git',
+        'ssh -oBatchMode=yes: 1: ssh: not found',
+      );
+      expect(result).toMatchObject({ httpsFallback: { reason: 'ssh-missing' } });
+    });
+
     it('retries once over HTTPS and reports the switch', async () => {
       expect(await cloneWith(true, 'git@github.com:owner/repo.git')).toEqual({
         result: {
@@ -132,6 +159,8 @@ describe('SSH import fallback to HTTPS', () => {
           httpsFallback: {
             from: 'git@github.com:owner/repo.git',
             to: 'https://github.com/owner/repo.git',
+            reason: 'auth',
+            detail: 'git@github.com: Permission denied (publickey).',
           },
         },
         calls: ['git@github.com:owner/repo.git', 'https://github.com/owner/repo.git'],
