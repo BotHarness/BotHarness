@@ -23,6 +23,8 @@
 | [Bot 收件箱](/zh/docs/channel-sidebar/bot-inbox)      | 检查 Bot 收到的来源消息与任务报告。                           |
 | [工作区授权](/zh/docs/channel-sidebar/workspaces)     | 查看并明确授权这个 Bot 可以使用的 Host 文件夹。               |
 | [定时任务](/zh/docs/channel-sidebar/schedules)        | 按频率唤醒这个 Bot、立即运行某个任务，并锁定以防 Bot 修改。   |
+| [模型](/zh/docs/channel-sidebar/model)                | 查看并修改这个 Bot 日常对话与新任务使用的模型。               |
+| [唤醒策略](/zh/docs/channel-sidebar/wake-policy)      | 按来源设置这个 Bot 立即唤醒、汇总后唤醒或只记录。             |
 
 | 本地群聊中的项目                                | 可以做什么                                     |
 | ----------------------------------------------- | ---------------------------------------------- |

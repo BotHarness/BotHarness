@@ -30,11 +30,11 @@ Open **Settings → Models** at the bottom left. Edit an existing provider, or c
 
 The catalog provider's **Custom settings** override its API URL and model list. With no catalog entries, DSH says the selector will show no models. Bot model presets also need an available catalog entry. Saving the provider alone does not finish Bot model selection.
 
-## 2. Open the target Bot's Profile
+## 2. Open the target Bot's Model entry
 
-Close Settings, enter **Bot mode**, and open the Bot's DM. Click its **name/avatar in the chat header → View details**, then scroll to and expand **Model preset**.
+Close Settings, enter **Bot mode**, and open the Bot's DM. In the Channel sidebar on the right, expand **Model** and click the **Orchestrator model** row to open the **Model preset** dialog. See [Model](/docs/channel-sidebar/model) for what each row shows.
 
-![Open PersonaBot Profile from the chat header, then choose View details](/guides/settings/model-profile-entry-zh.webp)
+![The Model entry in the Bot DM's Channel sidebar](/guides/channel-sidebar/14-model-zh.webp)
 
 This page configures one Bot. Global **Bot settings** contain appearance, sorting, and concurrency options. DSH **Agent presets** choose tools and working style; they are separate from Bot model presets.
 
@@ -73,11 +73,11 @@ Task model selection is fixed when the task is created. Changing a default does 
 
 ## 5. Verify the actual model
 
-Return to chat and send a short message. After a reply, check the Profile's **Token usage**, grouped by model or provider. For a specific conversation, open its DSH Session from **Sessions** in the right sidebar and inspect the model selector and next-turn usage record.
+Return to chat and send a short message. After a reply, check **Token usage** in the Bot's Profile (chat header name/avatar → View details), grouped by model or provider. For a specific conversation, open its DSH Session from **Sessions** in the right sidebar and inspect the model selector and next-turn usage record.
 
 ![Actual Session model selector and reply after applying the preset](/guides/settings/model-session-verification-zh.webp)
 
-The Profile snapshot and an open Session's model selection are separate visible states. For resumed sessions, check the model used by the next turn after saving; a saved label alone is not request verification. Inspect running tasks in their own sessions.
+The Bot's model snapshot and an open Session's model selection are separate visible states. For resumed sessions, check the model used by the next turn after saving; a saved label alone is not request verification. Inspect running tasks in their own sessions.
 
 | Symptom                                     | Check                                                                                                                           |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |

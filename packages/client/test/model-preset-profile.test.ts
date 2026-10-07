@@ -13,7 +13,21 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     onClick?: () => void;
     disabled?: boolean;
   }) => createElement('button', { onClick, disabled }, children),
-  IconChevronRightOutlineRegular: () => null,
+  Tag: ({ children }: { children: ReactNode }) => createElement('span', null, children),
+  Modal: ({
+    open,
+    title,
+    description,
+    children,
+  }: {
+    open: boolean;
+    title: string;
+    description?: string;
+    children?: ReactNode;
+  }) =>
+    open
+      ? createElement('div', { role: 'dialog', 'aria-label': title }, description, children)
+      : null,
 }));
 
 import type { BridgeActions } from '../src/client/actions.js';
@@ -26,6 +40,16 @@ function translate(key: string, params?: Record<string, unknown>): string {
     text = text.replace(`{${name}}`, String(value));
   return text;
 }
+
+const summary = (container: HTMLElement): string =>
+  container.querySelector('.bh-model-entry .bh-card-list')?.textContent ?? '';
+
+const openEditor = async (container: HTMLElement): Promise<void> => {
+  await act(async () => {
+    container.querySelector<HTMLButtonElement>('.bh-model-entry button.bh-card-main')?.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+};
 
 describe('Model Preset Profile', () => {
   it.each([false, true])(
@@ -72,11 +96,7 @@ describe('Model Preset Profile', () => {
         await act(async () =>
           root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
         );
-        const details = container.querySelector<HTMLDetailsElement>('details')!;
-        await act(async () => {
-          details.open = true;
-          details.dispatchEvent(new Event('toggle'));
-        });
+        await openEditor(container);
         const before = modelPlanState.mock.calls.length;
         const save = Array.from(container.querySelectorAll('button')).find(
           (button) => button.textContent === 'Save Assignment model choices',
@@ -87,9 +107,7 @@ describe('Model Preset Profile', () => {
           resolved ? '' : 'The current model cannot run',
         );
         if (resolved) expect(container.querySelector('[role="alert"]')).toBeNull();
-        expect(container.querySelector('summary')?.textContent).toContain(
-          resolved ? 'Revision 2' : 'Select an available model',
-        );
+        expect(summary(container)).toContain(resolved ? 'Revision 2' : 'Select an available model');
       } finally {
         await act(async () => root.unmount());
         container.remove();
@@ -116,10 +134,8 @@ describe('Model Preset Profile', () => {
       await act(async () =>
         root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
       );
-      expect(container.querySelector('details')?.open).toBe(false);
-      expect(container.querySelector('summary')?.textContent).toContain(
-        'Select an available model',
-      );
+      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      expect(summary(container)).toContain('Select an available model');
       expect(container.querySelector('[role="alert"]')?.textContent).toContain(
         'shared-model matches multiple providers',
       );
@@ -185,11 +201,7 @@ describe('Model Preset Profile', () => {
       await act(async () =>
         root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
       );
-      const details = container.querySelector<HTMLDetailsElement>('details')!;
-      await act(async () => {
-        details.open = true;
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      });
+      await openEditor(container);
       expect(planReads).toBe(2);
 
       const quick = container.querySelector<HTMLSelectElement>('.bh-model-preset-quick select')!;
@@ -201,14 +213,14 @@ describe('Model Preset Profile', () => {
         (button) => button.textContent === 'Switch',
       )!;
       await act(async () => switchButton.click());
-      expect(container.querySelector('summary')?.textContent).toContain('Economy');
+      expect(summary(container)).toContain('Economy');
 
       await act(async () => finishStaleLoad(originalPlan));
       expect(quick.value).toBe('low');
       expect(
         container.querySelectorAll<HTMLSelectElement>('.bh-model-preset-custom select')[1]?.value,
       ).toBe('low');
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 2');
+      expect(summary(container)).toContain('Revision 2');
     } finally {
       await act(async () => root.unmount());
       container.remove();
@@ -343,7 +355,7 @@ describe('Model Preset Profile', () => {
         root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
       );
       expect(container.querySelector('.bh-model-preset-quick')).not.toBeNull();
-      expect(container.querySelector('summary')?.textContent).toContain('High');
+      expect(summary(container)).toContain('High');
       const quick = container.querySelector<HTMLSelectElement>('.bh-model-preset-quick select')!;
       await act(async () => {
         quick.value = 'low';
@@ -351,20 +363,16 @@ describe('Model Preset Profile', () => {
       });
       await act(async () => button('Switch').click());
       expect(applyModelPreset).toHaveBeenCalledWith('ada', 'low');
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 2');
+      expect(summary(container)).toContain('Revision 2');
 
-      const details = container.querySelector<HTMLDetailsElement>('details')!;
-      await act(async () => {
-        details.open = true;
-        details.dispatchEvent(new Event('toggle'));
-      });
+      await openEditor(container);
       await act(async () => button('Edit selected preset').click());
       expect(container.querySelector<HTMLInputElement>('.bh-model-preset-form input')?.value).toBe(
         'Economy',
       );
       await act(async () => button('Save preset revision').click());
       expect(updateModelPreset).toHaveBeenCalledWith('low', 1, 'Economy', low, assignment);
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 2');
+      expect(summary(container)).toContain('Revision 2');
       expect(container.textContent).toContain('existing Bot snapshots are unchanged');
 
       await act(async () => button('Edit selected preset').click());
@@ -382,13 +390,13 @@ describe('Model Preset Profile', () => {
         finishRefresh = resolve;
       });
       modelPlan.mockImplementationOnce(async () => pendingRefresh);
-      await act(async () => details.dispatchEvent(new Event('toggle')));
+      await openEditor(container);
       expect(container.querySelector('.bh-model-preset-custom')).not.toBeNull();
       await act(async () => button('Save custom snapshot').click());
       await act(async () => finishRefresh(beforeCustom));
       expect(customizeModelPlan).toHaveBeenCalledWith('ada', low);
-      expect(container.querySelector('summary')?.textContent).toContain('Custom snapshot');
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 3');
+      expect(summary(container)).toContain('Custom snapshot');
+      expect(summary(container)).toContain('Revision 3');
       expect(quick.value).toBe('');
       expect(quick.selectedOptions[0]?.textContent).toBe('Choose a preset to switch to');
       expect(button('Switch').disabled).toBe(true);
@@ -417,7 +425,7 @@ describe('Model Preset Profile', () => {
           },
         ]),
       );
-      expect(container.querySelector('summary')?.textContent).toContain('Revision 4');
+      expect(summary(container)).toContain('Revision 4');
     } finally {
       await act(async () => root.unmount());
       container.remove();

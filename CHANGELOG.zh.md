@@ -26,6 +26,10 @@
 - 新增[导出与导入 Bot](docs/bot-zip.md)教程：zip 里有什么、导出时选择文件和 Git 历史、从 zip 导入，以及分享前和导入前的安全提醒；「分享 Bot」和「记忆文件」教程链接到它（[#1065](https://github.com/BotHarness/BotHarness/issues/1065)）。
 - Bot 模式会在创建 Bot 之前检查 Host 上的 Git。没有 Git、Git 无法运行（例如 macOS 未安装命令行工具时的占位程序）或版本低于 2.28 时，名册顶部会说明原因并链接到安装教程新增的 [Git 一节](docs/installation.md#git)，在「重新检测」找到可用的 Git 之前禁用创建和导入 Bot；创建时仍遇到不可用的 Git，会报告为缺少 Git，而不是笼统的记忆错误（[#1096](https://github.com/BotHarness/BotHarness/issues/1096)，[ADR-0139](docs/adr/0139-the-host-falls-back-to-a-managed-git.md)）。
 
+### Changed
+
+- Bot 的模型和唤醒策略从 Profile 移到私聊 Channel sidebar 的两个新分区 **模型** 与 **唤醒策略**：收起时标题右侧显示当前值，每项设置一行，点击打开弹窗修改，并可像其他分区一样排序或隐藏。**提醒策略** 改名为 **唤醒策略**（[#1084](https://github.com/BotHarness/BotHarness/issues/1084)，[模型教程](docs/channel-sidebar/model.md)，[唤醒策略教程](docs/channel-sidebar/wake-policy.md)）。
+
 ### Fixed
 
 - 共享频道消息现在显示已保存的外部发送人名称，已有 Discord 历史也会更新显示；气泡复用 Lark 收件箱的渲染方式，将已保存名称的原生 @ 提及显示为标签；原文和 ID 保持不变，未知名称保留原始文本（[#1061](https://github.com/BotHarness/BotHarness/issues/1061)）。

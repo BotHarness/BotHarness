@@ -26,6 +26,10 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 - Added the [Export and import a Bot](docs/bot-zip.md) guide: what a Bot zip holds, choosing files and Git history on export, importing a zip, and the safety reminders before sharing and importing; the Share a Bot and Memory files guides link to it ([#1065](https://github.com/BotHarness/BotHarness/issues/1065)).
 - Bot mode now checks the Host's Git before you create a Bot. When Git is missing, cannot run (such as the macOS Command Line Tools stub) or is older than 2.28, the roster explains why, links to the new [Git section](docs/installation.md#git) of the installation guide, and turns off creating and importing Bots until **Check again** finds a usable Git; Bot creation that still meets an unusable Git reports it as missing Git instead of a generic memory error ([#1096](https://github.com/BotHarness/BotHarness/issues/1096), [ADR-0139](docs/adr/0139-the-host-falls-back-to-a-managed-git.md)).
 
+### Changed
+
+- A Bot's model and wake policy moved from its Profile to two new entries in the DM's Channel sidebar, **Model** and **Wake policy**. Each shows its current value in the collapsed header, lists one row per setting, and opens a dialog to edit; both can be reordered or hidden like other entries. **Attention policy** is now called **Wake policy** ([#1084](https://github.com/BotHarness/BotHarness/issues/1084), [Model guide](docs/channel-sidebar/model.md), [Wake policy guide](docs/channel-sidebar/wake-policy.md)).
+
 ### Fixed
 
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).

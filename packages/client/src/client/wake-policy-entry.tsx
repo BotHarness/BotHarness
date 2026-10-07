@@ -1,0 +1,375 @@
+import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { Button, IconInfoOutlineRegular, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+
+import type { BridgeActions } from './actions.js';
+import type { BotSourcePolicyEdit, BotSourcePolicyView } from './bridge.js';
+import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
+import { LoadingSkeleton } from './loading-skeleton.js';
+import type { BotHarnessTranslate } from './locale.js';
+import { Modal } from './modal.js';
+import { useMountedResource } from './mounted-resource.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
+import { editable, rule, SourcePolicyDetails, sourceName } from './source-policy.js';
+
+const policiesBySlug = new Map<string, readonly BotSourcePolicyView[]>();
+const policyListeners = new Set<() => void>();
+
+function rememberPolicies(slug: string, policies: readonly BotSourcePolicyView[]): void {
+  policiesBySlug.set(slug, policies);
+  for (const listener of policyListeners) listener();
+}
+
+function subscribePolicies(listener: () => void): () => void {
+  policyListeners.add(listener);
+  return () => policyListeners.delete(listener);
+}
+
+const SOURCE_ICON: Record<BotSourcePolicyView['sourceClass'], string> = {
+  'human-dm': 'user',
+  'bot-dm': 'bot',
+  'group-mention': 'users',
+  'group-ordinary': 'messages-square',
+  'group-invite': 'users',
+  'group-join-request': 'users',
+  'group-join-decision': 'users',
+  'assignment-report': 'list-checks',
+  'assignment-lifecycle': 'list-checks',
+};
+
+function SourcePolicyEditModal({
+  slug,
+  policy,
+  actions,
+  t,
+  onClose,
+  onSaved,
+}: {
+  slug: string;
+  policy: BotSourcePolicyView & { sourceClass: BotSourcePolicyEdit['sourceClass'] };
+  actions: Pick<BridgeActions, 'botSourcePolicies' | 'setBotSourcePolicy' | 'resetBotSourcePolicy'>;
+  t: BotHarnessTranslate;
+  onClose(): void;
+  onSaved(policies: BotSourcePolicyView[]): void;
+}): ReactElement {
+  const sourceClass = policy.sourceClass;
+  const [wakeDraft, setWakeDraft] = useState<BotSourcePolicyView['wake']>(policy.wake);
+  const [deliveryDraft, setDeliveryDraft] = useState<'steer' | 'turn'>(policy.delivery);
+  const [digestCountDraft, setDigestCountDraft] = useState(policy.digestCount ?? 5);
+  const [digestIntervalDraft, setDigestIntervalDraft] = useState(
+    policy.digestIntervalSeconds ?? 30,
+  );
+  const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const generation = useRef(0);
+  const mount = useMountedResource<HTMLDivElement>(() => {
+    const current = ++generation.current;
+    return () => {
+      if (generation.current === current) ++generation.current;
+    };
+  }, [slug, sourceClass]);
+
+  const change = async (reset: boolean): Promise<void> => {
+    if (busy) return;
+    if (
+      !reset &&
+      sourceClass === 'group-ordinary' &&
+      (!Number.isSafeInteger(digestCountDraft) ||
+        digestCountDraft < 1 ||
+        digestCountDraft > 100 ||
+        !Number.isSafeInteger(digestIntervalDraft) ||
+        digestIntervalDraft < 1 ||
+        digestIntervalDraft > 3600)
+    ) {
+      setSaveError(true);
+      return;
+    }
+    setBusy(true);
+    setSaveError(false);
+    const version = generation.current;
+    const current = (): boolean => generation.current === version;
+    try {
+      if (reset) await actions.resetBotSourcePolicy(slug, sourceClass);
+      else if (sourceClass === 'assignment-report') {
+        if (wakeDraft !== 'conditional' && wakeDraft !== 'immediate')
+          throw new Error('Invalid Assignment report wake');
+        await actions.setBotSourcePolicy(slug, {
+          sourceClass: 'assignment-report',
+          wake: wakeDraft,
+        });
+      } else if (
+        sourceClass === 'human-dm' ||
+        sourceClass === 'bot-dm' ||
+        sourceClass === 'group-mention'
+      ) {
+        await actions.setBotSourcePolicy(slug, {
+          sourceClass,
+          wake: 'immediate',
+          delivery: deliveryDraft,
+        });
+      } else {
+        if (
+          wakeDraft !== 'immediate' &&
+          wakeDraft !== 'digest' &&
+          wakeDraft !== 'mentions' &&
+          wakeDraft !== 'silent'
+        )
+          throw new Error('Invalid ordinary Group wake');
+        await actions.setBotSourcePolicy(slug, {
+          sourceClass: 'group-ordinary',
+          wake: wakeDraft,
+          digestCount: digestCountDraft,
+          digestIntervalSeconds: digestIntervalDraft,
+        });
+      }
+      if (!current()) return;
+      const policies = await actions.botSourcePolicies(slug);
+      if (!current()) return;
+      onSaved(policies);
+    } catch {
+      if (current()) setSaveError(true);
+    } finally {
+      if (current()) setBusy(false);
+    }
+  };
+
+  const immediate =
+    sourceClass === 'human-dm' || sourceClass === 'bot-dm' || sourceClass === 'group-mention';
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      closeLabel={t('common.close')}
+      title={t(
+        sourceClass === 'group-ordinary'
+          ? 'sourcePolicy.groupEditTitle'
+          : sourceClass === 'assignment-report'
+            ? 'sourcePolicy.editTitle'
+            : 'sourcePolicy.immediateEditTitle',
+      )}
+      description={t(
+        sourceClass === 'group-ordinary'
+          ? 'sourcePolicy.groupEditDescription'
+          : sourceClass === 'assignment-report'
+            ? 'sourcePolicy.editDescription'
+            : 'sourcePolicy.immediateEditDescription',
+      )}
+      footer={
+        <>
+          <Button variant="outline" disabled={busy} onClick={() => void change(true)}>
+            {t('sourcePolicy.reset')}
+          </Button>
+          <Button variant="primary" disabled={busy} onClick={() => void change(false)}>
+            {t('profile.save')}
+          </Button>
+        </>
+      }
+    >
+      <div ref={mount} className="bh-wake-policy-edit">
+        <span className="bh-wake-policy-edit-source">{sourceName(policy, t)}</span>
+        {immediate ? (
+          <select
+            className="bh-profile-policy-select"
+            aria-label={t('sourcePolicy.immediateEditTitle')}
+            value={deliveryDraft}
+            disabled={busy}
+            onChange={(event) => setDeliveryDraft(event.target.value === 'turn' ? 'turn' : 'steer')}
+          >
+            <option value="steer">{t('sourcePolicy.deliverySteerOption')}</option>
+            <option value="turn">{t('sourcePolicy.deliveryTurnOption')}</option>
+          </select>
+        ) : (
+          <select
+            className="bh-profile-policy-select"
+            aria-label={t(
+              sourceClass === 'group-ordinary'
+                ? 'sourcePolicy.groupEditTitle'
+                : 'sourcePolicy.editTitle',
+            )}
+            value={wakeDraft}
+            disabled={busy}
+            onChange={(event) => setWakeDraft(event.target.value as BotSourcePolicyView['wake'])}
+          >
+            {sourceClass === 'assignment-report' ? (
+              <>
+                <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
+                <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
+              </>
+            ) : (
+              <>
+                <option value="immediate">{t('sourcePolicy.groupAllOption')}</option>
+                <option value="digest">{t('sourcePolicy.groupDigestOption')}</option>
+                <option value="mentions">{t('sourcePolicy.groupMentionsOption')}</option>
+                <option value="silent">{t('sourcePolicy.groupSilentOption')}</option>
+              </>
+            )}
+          </select>
+        )}
+        {sourceClass === 'group-ordinary' && wakeDraft === 'digest' && (
+          <div className="bh-profile-policy-digest">
+            <label>
+              {t('sourcePolicy.digestCount')}
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={digestCountDraft}
+                disabled={busy}
+                onChange={(event) => setDigestCountDraft(Number(event.target.value))}
+              />
+            </label>
+            <label>
+              {t('sourcePolicy.digestInterval')}
+              <input
+                type="number"
+                min={1}
+                max={3600}
+                value={digestIntervalDraft}
+                disabled={busy}
+                onChange={(event) => setDigestIntervalDraft(Number(event.target.value))}
+              />
+            </label>
+          </div>
+        )}
+        {saveError && (
+          <div className="bh-modal-error" role="alert">
+            {t('sourcePolicy.saveFailed')}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+export function WakePolicyEntry({
+  botSlug,
+  actions,
+  t,
+  refreshRevision,
+}: ChannelSidebarEntryProps): ReactElement {
+  const [policies, setPolicies] = useState<readonly BotSourcePolicyView[]>();
+  const [loadError, setLoadError] = useState(false);
+  const [editingClass, setEditingClass] = useState<BotSourcePolicyView['sourceClass']>();
+  const [detailsClass, setDetailsClass] = useState<BotSourcePolicyView['sourceClass']>();
+  const mount = useMountedResource<HTMLDivElement>(() => {
+    let active = true;
+    setEditingClass(undefined);
+    setDetailsClass(undefined);
+    setLoadError(false);
+    setPolicies(botSlug === undefined ? undefined : policiesBySlug.get(botSlug));
+    if (botSlug === undefined) return;
+    void actions.botSourcePolicies(botSlug).then(
+      (value) => {
+        if (!active) return;
+        rememberPolicies(botSlug, value);
+        setPolicies(value);
+      },
+      () => {
+        if (active) setLoadError(true);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [actions, botSlug, refreshRevision]);
+  const editing = policies?.find((policy) => policy.sourceClass === editingClass);
+  const details = policies?.find((policy) => policy.sourceClass === detailsClass);
+  return (
+    <div ref={mount} className="bh-wake-policy-entry">
+      {loadError ? (
+        <div className="bh-error" role="alert">
+          {t('sourcePolicy.error')}
+        </div>
+      ) : policies === undefined ? (
+        <LoadingSkeleton kind="sidebar" label={t('sourcePolicy.loading')} />
+      ) : (
+        <SidebarCardList label={t('sourcePolicy.defaults')}>
+          {policies.map((policy) => {
+            const name = sourceName(policy, t);
+            const canEdit = editable(policy);
+            return (
+              <SidebarCardRow
+                key={policy.sourceClass}
+                icon={SOURCE_ICON[policy.sourceClass]}
+                title={name}
+                meta={
+                  canEdit
+                    ? rule(policy, t, true)
+                    : `${rule(policy, t, true)} · ${t('sourcePolicy.readOnly')}`
+                }
+                chips={
+                  canEdit && policy.overrideActive ? (
+                    <Tag tone="info">{t('sourcePolicy.customized')}</Tag>
+                  ) : undefined
+                }
+                muted={!canEdit}
+                hint={canEdit ? t('sourcePolicy.editFor', { source: name }) : undefined}
+                dialog
+                onClick={() =>
+                  canEdit
+                    ? setEditingClass(policy.sourceClass)
+                    : setDetailsClass(policy.sourceClass)
+                }
+                trailing={
+                  <button
+                    type="button"
+                    className="bh-icon-btn bh-source-policy-action"
+                    aria-label={t('sourcePolicy.detailsFor', { source: name })}
+                    title={t('sourcePolicy.detailsFor', { source: name })}
+                    onClick={() => setDetailsClass(policy.sourceClass)}
+                  >
+                    <IconInfoOutlineRegular size={14} />
+                  </button>
+                }
+              />
+            );
+          })}
+        </SidebarCardList>
+      )}
+      {editing !== undefined && botSlug !== undefined && editable(editing) && (
+        <SourcePolicyEditModal
+          key={`${botSlug}:${editing.sourceClass}`}
+          slug={botSlug}
+          policy={editing}
+          actions={actions}
+          t={t}
+          onClose={() => setEditingClass(undefined)}
+          onSaved={(value) => {
+            rememberPolicies(botSlug, value);
+            setPolicies(value);
+            setEditingClass(undefined);
+          }}
+        />
+      )}
+      {details !== undefined && (
+        <SourcePolicyDetails policy={details} t={t} onClose={() => setDetailsClass(undefined)} />
+      )}
+    </div>
+  );
+}
+
+export function WakePolicyBadge({ botSlug, actions, t }: ChannelSidebarEntryProps): ReactElement {
+  const snapshot = (): readonly BotSourcePolicyView[] | undefined =>
+    botSlug === undefined ? undefined : policiesBySlug.get(botSlug);
+  const policies = useSyncExternalStore(subscribePolicies, snapshot, snapshot);
+  const mount = useMountedResource<HTMLSpanElement>(() => {
+    if (botSlug === undefined || policiesBySlug.has(botSlug)) return;
+    let active = true;
+    void actions.botSourcePolicies(botSlug).then(
+      (value) => {
+        if (active) rememberPolicies(botSlug, value);
+      },
+      () => {},
+    );
+    return () => {
+      active = false;
+    };
+  }, [actions, botSlug]);
+  const ordinary = policies?.find((policy) => policy.sourceClass === 'group-ordinary');
+  return (
+    <span ref={mount} className="bh-channel-sidebar-summary">
+      {ordinary === undefined ? null : (
+        <Tag tone="neutral">{t('sourcePolicy.badge', { rule: rule(ordinary, t, true) })}</Tag>
+      )}
+    </span>
+  );
+}

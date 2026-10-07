@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type ReactElement } from 'react';
-import { Button, IconChevronRightOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type {
@@ -12,6 +12,9 @@ import type {
 } from './bridge.js';
 import { errorMessage } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
+import { Modal } from './modal.js';
+import { rememberModelPlan } from './model-plan-store.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 
 function routeLabel(route: ModelRouteView, defaultLabel: string): string {
   return `${route.provider} / ${route.model} · ${route.reasoningEffort ?? defaultLabel}`;
@@ -63,6 +66,7 @@ export function ModelPresetProfile({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const routeIndex = (models: ModelCatalogEntryView[], route: ModelRouteView): number =>
     models.findIndex((entry) => entry.provider === route.provider && entry.model === route.model);
@@ -80,6 +84,7 @@ export function ModelPresetProfile({
         ([state, saved]) => {
           if (planRequest.current !== request) return;
           const current = state.plan;
+          rememberModelPlan(slug, current);
           setRepair(state.repair);
           setPlan((previous) =>
             (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
@@ -112,6 +117,7 @@ export function ModelPresetProfile({
       ]);
       if (planRequest.current !== request) return;
       const current = state.plan;
+      rememberModelPlan(slug, current);
       setRepair(state.repair);
       setCatalog(models);
       setPresets(saved);
@@ -186,6 +192,7 @@ export function ModelPresetProfile({
       const applied = await actions.applyModelPreset(slug, preset.id);
       planRequest.current += 1;
       setPlan(applied);
+      rememberModelPlan(slug, applied);
       setRepair(undefined);
       if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
       setAssignmentModels(assignmentDraftOf(applied));
@@ -211,6 +218,7 @@ export function ModelPresetProfile({
       const applied = await actions.applyModelPreset(slug, selectedPreset);
       planRequest.current += 1;
       setPlan(applied);
+      rememberModelPlan(slug, applied);
       setRepair(undefined);
       if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
       else void load();
@@ -258,6 +266,7 @@ export function ModelPresetProfile({
       const applied = await actions.customizeModelPlan(slug, routeOf(selectedCustom, customEffort));
       planRequest.current += 1;
       setPlan(applied);
+      rememberModelPlan(slug, applied);
       setSelectedPreset('');
       await refreshRepair();
     } catch (failure) {
@@ -288,6 +297,7 @@ export function ModelPresetProfile({
       );
       planRequest.current += 1;
       setPlan(applied);
+      rememberModelPlan(slug, applied);
       setSelectedPreset('');
       setAssignmentModels(assignmentDraftOf(applied));
       setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
@@ -299,12 +309,76 @@ export function ModelPresetProfile({
     }
   };
 
+  const summary =
+    repair !== undefined
+      ? t('modelPreset.repairNeeded')
+      : hasPlanError
+        ? t('modelPreset.loadFailed')
+        : plan === undefined
+          ? t('modelPreset.noPlan')
+          : routeLabel(plan.orchestrator, t('modelPreset.providerDefault'));
+  const openEditor = (): void => {
+    setEditorOpen(true);
+    void load();
+  };
+  const messages = (
+    <>
+      {repair !== undefined && (
+        <span className="bh-profile-error" role="alert">
+          {repair.code === 'legacy-ambiguous'
+            ? t('modelPreset.legacyAmbiguous', { model: repair.legacyModel ?? '' })
+            : repair.code === 'legacy-missing'
+              ? t('modelPreset.legacyMissing', { model: repair.legacyModel ?? '' })
+              : t('modelPreset.routeRepair')}
+        </span>
+      )}
+      {notice !== undefined && <span className="bh-note">{notice}</span>}
+      {error !== undefined && (
+        <span className="bh-profile-error" role="alert">
+          {error}
+        </span>
+      )}
+      {hasPlanError && (
+        <span className="bh-profile-error" role="alert">
+          {t('modelPreset.loadFailed')}
+        </span>
+      )}
+    </>
+  );
+
   return (
-    <section
+    <div
       ref={loadPlanOnMount}
-      className="bh-profile-section bh-profile-policy-section"
+      className="bh-model-entry"
+      role="region"
       aria-label={t('modelPreset.title')}
     >
+      <SidebarCardList label={t('modelPreset.title')}>
+        <SidebarCardRow
+          icon="bot"
+          title={t('modelPreset.orchestrator')}
+          chips={
+            plan === undefined ? undefined : (
+              <>
+                <Tag tone="neutral">{planLabel}</Tag>
+                <Tag tone="quiet">{t('modelPreset.revision', { revision: plan.revision })}</Tag>
+              </>
+            )
+          }
+          meta={summary}
+          onClick={openEditor}
+          dialog
+        />
+        {plan === undefined ? null : (
+          <SidebarCardRow
+            icon="list-checks"
+            title={t('modelPreset.assignment')}
+            meta={routeLabel(plan.assignmentDefault, t('modelPreset.providerDefault'))}
+            onClick={openEditor}
+            dialog
+          />
+        )}
+      </SidebarCardList>
       {presets.length > 0 && (
         <div className="bh-model-preset-quick">
           <label>
@@ -333,29 +407,16 @@ export function ModelPresetProfile({
           </Button>
         </div>
       )}
-      <details
-        className="bh-profile-policy-details"
-        onToggle={(event) => {
-          if (event.currentTarget.open) void load();
-        }}
-      >
-        <summary className="bh-profile-policy-summary">
-          <span className="bh-profile-policy-summary-text">
-            <strong>{t('modelPreset.title')}</strong>
-            <span>
-              {repair !== undefined
-                ? t('modelPreset.repairNeeded')
-                : hasPlanError
-                  ? t('modelPreset.loadFailed')
-                  : plan === undefined
-                    ? t('modelPreset.noPlan')
-                    : `${planLabel} · ${routeLabel(plan.orchestrator, t('modelPreset.providerDefault'))} · ${t('modelPreset.revision', { revision: plan.revision })}`}
-            </span>
-          </span>
-          <IconChevronRightOutlineRegular />
-        </summary>
-        <div className="bh-profile-cards">
-          <div className="bh-profile-card">
+      {editorOpen ? null : messages}
+      {editorOpen && (
+        <Modal
+          open
+          onClose={() => setEditorOpen(false)}
+          closeLabel={t('common.close')}
+          title={t('modelPreset.title')}
+          description={summary}
+        >
+          <div className="bh-model-preset-editor">
             {plan === undefined ? null : (
               <div className="bh-model-preset-effective">
                 <strong>{t('modelPreset.effective')}</strong>
@@ -678,29 +739,10 @@ export function ModelPresetProfile({
                 )}
               </>
             )}
+            {messages}
           </div>
-        </div>
-      </details>
-      {repair !== undefined && (
-        <span className="bh-profile-error" role="alert">
-          {repair.code === 'legacy-ambiguous'
-            ? t('modelPreset.legacyAmbiguous', { model: repair.legacyModel ?? '' })
-            : repair.code === 'legacy-missing'
-              ? t('modelPreset.legacyMissing', { model: repair.legacyModel ?? '' })
-              : t('modelPreset.routeRepair')}
-        </span>
+        </Modal>
       )}
-      {notice !== undefined && <span className="bh-note">{notice}</span>}
-      {error !== undefined && (
-        <span className="bh-profile-error" role="alert">
-          {error}
-        </span>
-      )}
-      {hasPlanError && (
-        <span className="bh-profile-error" role="alert">
-          {t('modelPreset.loadFailed')}
-        </span>
-      )}
-    </section>
+    </div>
   );
 }

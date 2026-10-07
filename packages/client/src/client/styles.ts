@@ -2574,6 +2574,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-im-field input,
 .bh-profile-policy-select,
 .bh-profile-policy-digest input {
+  box-sizing: border-box;
   width: 100%;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 8px;
@@ -2591,6 +2592,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-profile-policy-digest label {
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 6px;
   font-size: 13px;
 }
@@ -4159,6 +4161,49 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
 .bh-channel-sidebar-entry-badge {
   flex: none;
   display: inline-flex;
+}
+.bh-channel-sidebar-entry-badge:has(.bh-channel-sidebar-summary) {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 55%;
+}
+.bh-channel-sidebar-summary {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+.bh-channel-sidebar-summary,
+.bh-channel-sidebar-summary * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-model-entry,
+.bh-wake-policy-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-model-entry .bh-model-preset-quick {
+  padding: 0;
+}
+.bh-model-preset-editor,
+.bh-wake-policy-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.bh-model-preset-editor {
+  max-height: min(64vh, 640px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.bh-wake-policy-edit-source {
+  font-size: 13px;
+  font-weight: 500;
 }
 .bh-channel-sidebar-entry-body {
   padding: 2px 12px 10px;

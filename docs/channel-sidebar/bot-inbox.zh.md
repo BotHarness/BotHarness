@@ -28,7 +28,7 @@
 
 ## 收件箱没有动静时
 
-没有记录时，入口可能不显示；如果被隐藏，可从[显示与布局](/zh/docs/channel-sidebar/display)恢复。消息已到达但没有唤醒 Bot 时，按[设置指南](/zh/docs/settings)检查来源提醒策略；收件、唤醒策略和模型成功处理要分别核对。
+没有记录时，入口可能不显示；如果被隐藏，可从[显示与布局](/zh/docs/channel-sidebar/display)恢复。消息已到达但没有唤醒 Bot 时，按[唤醒策略](/zh/docs/channel-sidebar/wake-policy)检查来源规则；收件、唤醒策略和模型成功处理要分别核对。
 
 需要你回答或批准工具时，使用真实操作卡片或 **活动中心**。Bot 收件箱侧栏不能替代 Human 批准。外部连接仍按 [Lark](/zh/docs/lark-connection)、[Slack](/zh/docs/slack-connection)教程配置。
 

@@ -10,7 +10,8 @@ This guide covers non-IM settings in the public **deepseekbot** package on DSH *
 | API providers and model catalogs                              | Settings → Models; see [Model setup](/docs/model-setup).                    |
 | Native Agent tools and working style                          | Settings → Agent presets.                                                   |
 | Bot icon, motion, sorting, concurrency, your name             | Bot settings beside Bot mode, or Settings → Bot settings.                   |
-| One Bot's name, avatar, models, attention                     | Its DM header name/avatar → View details.                                   |
+| One Bot's name and avatar                                     | Its DM header name/avatar → View details.                                   |
+| One Bot's models and wake policy                              | Model and Wake policy in the right sidebar of its DM.                       |
 | Right sidebar layout and session views                        | Gear at the top of Channel sidebar.                                         |
 | One Bot's work folders and task permissions                   | Workspace grants in the right sidebar.                                      |
 | An existing DSH Session's model and permissions               | Open it from Sessions in the right sidebar and inspect its native controls. |
@@ -31,7 +32,7 @@ These are native DSH settings. Initial values below were observed in a clean RC1
 | Performance and usage                                | Concise / detailed; initially detailed                               | Detail level for performance and token information.                                                                                                               |
 | Code working tools                                   | On/off; initially on                                                 | Shows traces, current-turn code changes, and Agent preset switching in new conversations.                                                                         |
 | Keyboard shortcuts                                   | Edit shortcuts                                                       | View and edit bindings; follow conflict hints, save, or restore defaults.                                                                                         |
-| Send behavior while busy                             | Initially queue; can select steer                                    | Enter / Send behavior while an Agent runs. Cmd/Ctrl+Enter uses the alternative. Separate from a Bot's source attention policy.                                    |
+| Send behavior while busy                             | Initially queue; can select steer                                    | Enter / Send behavior while an Agent runs. Cmd/Ctrl+Enter uses the alternative. Separate from a Bot's wake policy.                                                |
 | Upload Session Log when using the official model API | On/off; native initial value was on                                  | Whether session logs are uploaded through the official API to improve models and products; choose your preference.                                                |
 | Open configuration file                              | Button                                                               | Native entry to the current Profile configuration. Use the relevant forms for everyday changes.                                                                   |
 
@@ -89,22 +90,12 @@ After creation, open **View details**:
 - **Change avatar**: choose PNG, JPEG, or WebP; adjust the crop and save. An uploaded avatar can be removed.
 - **Design avatar**: choose illustrated/line style, presets, parts, shape sliders, and colors. Save applies the preview; cancel discards the draft. An uploaded image takes display precedence.
 - **Activity overview**: pins select cards in the Profile popover. Token usage time range, model/provider grouping, filters, and custom dates change the statistics view, not the model. Unavailable usage is unknown rather than zero.
-- **Model preset**: see [Model setup](/docs/model-setup) for every field, template revision, and independent snapshot.
 - **Persona / memory files**: use Memory files in the right sidebar to inspect files and their available edit/preview actions. The Profile does not repeat every creation field as an editing form.
 - **Standing memory limits**: character limits for `SOUL.md` and `MEMORY.md`, applied from the next Session; see [Bot Soul and Core Memory](/docs/soul-and-core-memory).
 
-## Bot attention policy and local Groups
+## Bot wake policy and local Groups
 
-Expand **Attention policy** in the Profile. Edit the relevant source row and Save; Restore default removes its override. Read-only rows expose details, revision, actor, and recent wake counts.
-
-![Assignment report attention editor and application scope](/guides/settings/settings-attention-zh.webp)
-
-| Source / field                                                   | Options and effect                                                                                                                                           |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Human DM, Bot DM, Group mention                                  | Immediate wake; choose “Fold into the running turn” (default) or “Queue as its own turn” for arrival during an active turn.                                  |
-| Ordinary Group messages                                          | Immediate / digest / direct mentions / silent recording. Initial digest: 5 messages / 30 seconds. Count integer 1–100; interval integer 1–3600 seconds.      |
-| Assignment reports                                               | Default wake by state/reply request, or wake on every report. Applies to reports entering the Inbox afterward; already queued reports retain their revision. |
-| Group invitations, join requests/decisions, Assignment lifecycle | Read-only in this table; Details is not an edit action.                                                                                                      |
+A Bot's **Wake policy** now lives in the Channel sidebar of its DM. Open **Bot DM → Channel sidebar → Wake policy**, click a source row, choose the rule and Save; Restore default removes that source's change. [Wake policy](/docs/channel-sidebar/wake-policy) lists every source, option and limit.
 
 Local Groups allow an ordinary-message override for each Bot under **Group header → View details**. Inherit uses that Bot's default; edits/restoring inheritance are scoped to that Group. Group member controls manage invitations, join requests, and membership. These policies do not change API providers, models, or workspace permissions.
 

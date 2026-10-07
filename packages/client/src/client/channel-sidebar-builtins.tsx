@@ -14,6 +14,10 @@ import {
 
 import type { BotModePrefs } from './bot-mode-prefs.js';
 import { WorkspaceGrantsEntry } from './workspace-grants-entry.js';
+import { ModelPresetProfile } from './model-preset-profile.js';
+import { modelPlanOf, rememberModelPlan, subscribeModelPlans } from './model-plan-store.js';
+import { useMountedResource } from './mounted-resource.js';
+import { WakePolicyBadge, WakePolicyEntry } from './wake-policy-entry.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { formatRelativeTime } from './labels.js';
@@ -771,6 +775,44 @@ function BotInboxBadge(): ReactElement {
   );
 }
 
+function ModelEntry({ botSlug, actions, t }: ChannelSidebarEntryProps): ReactElement {
+  if (botSlug === undefined) return <></>;
+  return <ModelPresetProfile key={botSlug} slug={botSlug} actions={actions} t={t} />;
+}
+
+function ModelBadge({ botSlug, actions }: ChannelSidebarEntryProps): ReactElement {
+  const plan = useSyncExternalStore(
+    subscribeModelPlans,
+    () => modelPlanOf(botSlug),
+    () => modelPlanOf(botSlug),
+  );
+  const mount = useMountedResource<HTMLSpanElement>(() => {
+    if (botSlug === undefined || modelPlanOf(botSlug) !== undefined) return;
+    let active = true;
+    void actions.modelPlanState(botSlug).then(
+      (state) => {
+        if (active) rememberModelPlan(botSlug, state.plan);
+      },
+      () => {},
+    );
+    return () => {
+      active = false;
+    };
+  }, [actions, botSlug]);
+  const route = plan?.orchestrator;
+  return (
+    <span ref={mount} className="bh-channel-sidebar-summary">
+      {route === undefined ? null : (
+        <Tag tone="neutral">
+          {route.reasoningEffort === undefined
+            ? route.model
+            : `${route.model} · ${route.reasoningEffort}`}
+        </Tag>
+      )}
+    </span>
+  );
+}
+
 export function createChannelSidebarBuiltins(
   t: BotHarnessTranslate,
   prefs?: BotModePrefs,
@@ -849,6 +891,24 @@ export function createChannelSidebarBuiltins(
       order: 20,
       scope: 'personabot',
       component: WorkspaceGrantsWithPrefs,
+    },
+    {
+      id: 'model',
+      icon: 'cpu',
+      label: t('entry.model'),
+      order: 25,
+      scope: 'personabot',
+      component: ModelEntry,
+      badge: ModelBadge,
+    },
+    {
+      id: 'wake-policy',
+      icon: 'bell-ring',
+      label: t('entry.wakePolicy'),
+      order: 26,
+      scope: 'personabot',
+      component: WakePolicyEntry,
+      badge: WakePolicyBadge,
     },
     {
       id: 'members',
