@@ -96,6 +96,11 @@ it('drags inside the shell, lands on the floor without opening DM, persists keyb
     );
     await act(() => character.click());
     expect(openDm).toHaveBeenCalledExactlyOnceWith('ada');
+    await act(() => {
+      owner.configure({ activity: false });
+      events.dispatchEvent(new Event('error'));
+    });
+    expect(surface.textContent).toContain('同步中断');
     expect(frames.size).toBeGreaterThan(0);
     await act(() => root.unmount());
     expect(frames.size).toBe(0);

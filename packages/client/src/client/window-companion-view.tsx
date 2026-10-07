@@ -160,7 +160,7 @@ export function WindowCompanionView({
           if (!event.currentTarget.contains(event.relatedTarget)) leave();
         }}
       >
-        {selection.activity ? (
+        {selection.activity || view.sync !== 'live' ? (
           <div className="bh-companion-activity" style={{ left: bubbleLeft }} role="status">
             {view.sync !== 'live'
               ? t('companion.stale')

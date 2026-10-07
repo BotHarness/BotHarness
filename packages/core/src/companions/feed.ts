@@ -1,5 +1,6 @@
 import type { AvatarAppearance, RetainedAvatarAppearance } from '../bots/avatar-appearance.js';
 import type { ChannelRecord } from '../channels/channel.js';
+import { messagePreview } from '../channels/message-preview.js';
 import type { PersonaBotOutputCommitted } from '../channels/output.js';
 import type { PersonaBotActivitySnapshot } from '../state/bot-state.js';
 
@@ -100,7 +101,7 @@ export function createCompanionFeed(source: FeedSource): CompanionFeed {
                 messageId: event.messageId,
                 channelId: channel.id,
                 channelName: channel.name,
-                body: event.content.body.slice(0, 2000),
+                body: messagePreview(event.content.body),
               };
               const text = frame('companion/message', value);
               if ((controller.desiredSize ?? 0) > 0) write(text);

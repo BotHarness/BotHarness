@@ -685,4 +685,4 @@ Slack external-only reports (#863) use the same canonical Outbox as Lark: an exp
 
 应用定义的 Window Companion owner 跟随 Client Plugin 生命周期，位于 Bot 模式页面之外，通过官方 `shell.overlay` Slot 渲染。本地偏好按 Client origin 与原生 `profileContext.dir` 的不透明哈希隔离，消息卡片不落盘。受认证的 Connection Fetch `/api/botharness/companion` 提供 Profile 上下文及只处理未来消息的 SSE 基线；消费者在同一 Host turn 同步注册并读取快照，再投影 Registry 形象、现有全 Bot Activity 和拥有者已提交的 Human–Bot DM 输出。Channel store 与 Session ownership 保持权威；草稿和历史查询不进入首个 feed。
 
-选中伙伴时，这个 feed 同时供给现有 Client Activity store，替代其独立 Activity SSE。慢消费者合并 Activity，并最多保留二十条待发送消息；Client 的已保留和待读卡片总计最多二十张，收起时显示三层，悬浮或聚焦时冻结顺序和过期，已有文字继续播放。移除伙伴释放消费。透明半身使用 PixelFigure 公共 body/head 结构，仅伙伴 surface 去掉底板，普通头像配方与背景保持原样。多伙伴设置、更广可见范围、有界离线恢复和生命周期扩展按规格 [#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135) 继续交付。
+选中伙伴时，这个 feed 同时供给现有 Client Activity store，替代其独立 Activity SSE。慢消费者合并 Activity，并最多保留二十条待发送消息；Client 最多保留二十张卡片；稳定阅读时另外有界保留最多二十条新到达消息，离开时合并并裁到最新二十张。阅读过程中最多四十条卡片记录，不挤掉正在阅读的卡片。收起时显示三层，悬浮或聚焦时冻结顺序和过期，已有文字按完整字素继续播放。移除伙伴释放消费。透明半身使用 PixelFigure 公共 body/head 结构，仅伙伴 surface 去掉底板，普通头像配方与背景保持原样。多伙伴设置、更广可见范围、有界离线恢复和生命周期扩展按规格 [#1135](https://github.com/BotHarness/DeepSeekBot/issues/1135) 继续交付。

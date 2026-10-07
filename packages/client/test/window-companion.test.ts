@@ -103,6 +103,12 @@ it('bounds parallel cards at twenty, freezes reading order, continues typing and
   for (let id = 4; id <= 50; id++) reply(id);
   expect(owner.getSnapshot().cards).toHaveLength(20);
   expect(owner.getSnapshot().cards[0]!.messageId).toBe('m31');
+  owner.reading(true);
+  for (let id = 51; id <= 80; id++) reply(id);
+  expect(owner.getSnapshot().cards[0]!.messageId).toBe('m31');
+  expect(owner.getSnapshot().pending).toBe(20);
+  owner.reading(false);
+  expect(owner.getSnapshot().cards[0]!.messageId).toBe('m61');
   owner.advance(10000);
   owner.reading(true);
   owner.advance(30000);
@@ -110,4 +116,40 @@ it('bounds parallel cards at twenty, freezes reading order, continues typing and
   owner.reading(false);
   owner.advance(30000);
   expect(owner.getSnapshot().cards).toHaveLength(0);
+});
+
+it('reveals whole emoji and combining graphemes and clips previews on a complete boundary', async () => {
+  const events = new EventTarget();
+  const owner = new WindowCompanion({
+    context: async () => ({ profileId: 'qa' }),
+    source: () => ({ addEventListener: events.addEventListener.bind(events), close() {} }),
+  });
+  controllers.push(owner);
+  await owner.start();
+  owner.select('ada');
+  const send = (name: string, data: unknown) =>
+    events.dispatchEvent(new MessageEvent(name, { data: JSON.stringify(data) }));
+  send('companion/baseline', {
+    profileId: 'qa',
+    bot: { slug: 'ada', name: 'Ada', paused: false },
+    activity: { generation: 'h', revision: 0, bots: [{ slug: 'ada', state: 'idle' }] },
+  });
+  const message = (messageId: string, body: string) =>
+    send('companion/message', {
+      generation: 'h',
+      botId: 'ada',
+      messageId,
+      channelId: 'dm',
+      channelName: 'Ada',
+      body,
+    });
+  message('emoji', '👩‍💻é🇨🇳');
+  owner.advance(35);
+  let card = owner.getSnapshot().cards[0]!;
+  expect(card.body.slice(0, card.shown)).toBe('👩‍💻');
+  owner.advance(35);
+  card = owner.getSnapshot().cards[0]!;
+  expect(card.body.slice(0, card.shown)).toBe('👩‍💻é');
+  message('preview', 'a'.repeat(1999) + '👩‍💻');
+  expect(owner.getSnapshot().cards[1]!.body).toBe('a'.repeat(1999));
 });

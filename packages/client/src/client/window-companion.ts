@@ -1,5 +1,9 @@
 import type { CompanionBot, CompanionMessage } from '../../../core/src/companions/feed.js';
 import {
+  messagePreview,
+  messageGraphemeBoundaries,
+} from '../../../core/src/channels/message-preview.js';
+import {
   isAvatarAppearance,
   isRetainedAvatarAppearance,
 } from '../../../core/src/bots/avatar-appearance.js';
@@ -17,6 +21,7 @@ export interface CompanionSelection {
   position: number;
 }
 export interface CompanionCard extends CompanionMessage {
+  boundaries: readonly number[];
   shown: number;
   remaining: number;
 }
@@ -174,7 +179,12 @@ export class WindowCompanion {
       if (card.shown < card.body.length) {
         const shown = reduced
           ? card.body.length
-          : Math.min(card.body.length, card.shown + Math.max(1, Math.floor(elapsed / 35)));
+          : card.boundaries[
+              Math.min(
+                card.boundaries.length - 1,
+                card.boundaries.indexOf(card.shown) + Math.max(1, Math.floor(elapsed / 35)),
+              )
+            ]!;
         return [
           {
             ...card,
@@ -187,8 +197,13 @@ export class WindowCompanion {
         ];
       }
       const remaining = card.remaining - (this.state.reading ? 0 : elapsed);
-      return remaining > 0 ? [{ ...card, remaining }] : [];
+      return remaining > 0 ? [remaining === card.remaining ? card : { ...card, remaining }] : [];
     });
+    if (
+      cards.length === this.state.cards.length &&
+      cards.every((card, index) => card === this.state.cards[index])
+    )
+      return;
     this.update({ cards });
   }
   dismiss(messageId: string): void {
@@ -283,22 +298,21 @@ export class WindowCompanion {
         return;
       this.seen.push(value['messageId']);
       if (this.seen.length > 80) this.seen.shift();
+      const body = messagePreview(value['body']);
       const card: CompanionCard = {
         generation: this.generation,
         botId: selection.botId,
         messageId: value['messageId'],
         channelId: value['channelId'],
         channelName: value['channelName'],
-        body: value['body'].slice(0, 2000),
+        body,
+        boundaries: messageGraphemeBoundaries(body),
         shown: 0,
         remaining: 0,
       };
       if (this.state.reading) {
-        const capacity = 20 - this.state.cards.length;
-        if (capacity > 0) {
-          this.pendingCards.push(card);
-          this.pendingCards = this.pendingCards.slice(-capacity);
-        }
+        this.pendingCards.push(card);
+        this.pendingCards = this.pendingCards.slice(-20);
         this.update({ pending: this.pendingCards.length });
       } else this.update({ cards: [...this.state.cards, card].slice(-20) });
     });
