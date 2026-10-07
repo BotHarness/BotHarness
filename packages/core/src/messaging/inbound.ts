@@ -366,7 +366,9 @@ export function createInboundMessaging(options: {
               at: event.at,
               platform: event.channel,
               accountName: value.accountName,
-              conversationName: value.targetName,
+              conversationName:
+                (event.conversation.kind === 'group' && event.conversation.name) ||
+                value.targetName,
               event: evidence,
               grantId: value.id,
               grantRevision: value.revision,
