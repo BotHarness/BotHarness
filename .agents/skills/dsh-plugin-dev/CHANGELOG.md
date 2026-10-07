@@ -10,7 +10,7 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 ### Documentation
 
-- Recorded Windows physical AppData paths, isolated Profile package-manager qualification and native Shell result checks in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), verified with DSH 0.2.0 RC1; platform vocabulary and Skill behavior remain unchanged ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
+- Recorded Windows physical AppData paths, isolated Profile package-manager qualification, native Shell result checks and process timestamp guards in the [debugging playbook](../dsh-dev/references/debugging-playbook.md), verified with DSH 0.2.0 RC1; platform vocabulary and Skill behavior remain unchanged ([#1029](https://github.com/BotHarness/BotHarness/issues/1029)).
 
 - Recorded the distinction between edited application role files and frozen instructions in a persisted QA Session in the [local development guide](../dsh-dev/SKILL.md), verified from real DSH 0.2.0 RC1 model events; platform vocabulary and Skill behavior remain unchanged ([#905](https://github.com/BotHarness/BotHarness/issues/905)).
 

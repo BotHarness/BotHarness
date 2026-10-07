@@ -364,7 +364,7 @@ Computer／Browser 的首次授权覆盖原生会话，因此通知不提供审�
 
 ![已审核的测试私聊收到原生工具审批通知](/guides/lark/approvals/route-sent-dark.jpg)
 
-2026-10-07 的隔离测试中，真实 Lark 平台接受了测试卡片和原生工具审批卡片。截图记录的是**投递已接受、决定仍待处理**，并不代表 IM 已批准或工具已执行。限定窗口随后到期，测试配对已撤销，生产 Discord/Lark 接收已恢复。允许一次与拒绝按钮仍待真人验证。
+2026-10-07 较早的隔离测试中，真实 Lark 平台接受了测试卡片和原生工具审批卡片。这张历史截图记录的是**投递已接受、决定仍待处理**，不展示 IM 决定或工具执行。之后获准的原生 Windows 窗口核验了 BotHarness 源码 `8936777b` 与 checked Provider 源码 `1422b07f`：Human 在 Lark 点击「允许一次」，原生 Node 打印调用准确执行一次并成功；另一张卡片点击「拒绝」，返回原生拒绝错误，没有替代调用。Human 确认两张最终卡片分别显示「已执行」和「已拒绝」。先关闭路由、撤销 QA 配对、解绑身份并停止本机接收，再在十分钟上限内恢复生产。Human 随后确认生产 Lark 与 Discord 均可正常回复。准确源码的证据与恢复检查见 [#1029](https://github.com/BotHarness/BotHarness/issues/1029)；此核验不会修改已发布 Provider 的锁定版本或部署功能。
 
 ![真实恢复状态：自动通知已关闭，旧请求已失效](/guides/lark/approvals/recovery-dark.jpg)
 
