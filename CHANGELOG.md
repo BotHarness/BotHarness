@@ -48,6 +48,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
+- **Bind app** no longer hides apps the IM plugin can't serve yet. A Discord app whose plugin lacks checked sending now shows greyed out with **update the IM plugin to bind this app**, instead of silently missing from the list ([#1123](https://github.com/BotHarness/BotHarness/issues/1123)).
+
 - Shared Channel messages now show the external sender’s retained name, including existing Discord history; bubbles render retained native @ names as chips using the Lark Inbox renderer, while original text and IDs stay intact and unavailable names keep the literal fallback ([#1061](https://github.com/BotHarness/BotHarness/issues/1061)).
 
 ### Documentation

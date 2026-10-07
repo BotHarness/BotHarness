@@ -307,7 +307,7 @@ export function createDshImProvider(
   )
     return undefined;
   const host = service as DshImOutboundService;
-  const account = async (ref: string) => {
+  const describe = async (ref: string) => {
     let info;
     try {
       info = await host.describeBot(ref);
@@ -322,8 +322,7 @@ export function createDshImProvider(
       info.version !== 1 ||
       info.botId !== ref ||
       info.channel !== platform ||
-      !/^[a-f0-9]{64}$/.test(info.account?.fingerprint ?? '') ||
-      !info.capabilities.includes('proactive-text-checked')
+      !/^[a-f0-9]{64}$/.test(info.account?.fingerprint ?? '')
     )
       throw new MessagingError('provider-incompatible');
     return {
@@ -332,7 +331,15 @@ export function createDshImProvider(
       name: info.account.name ?? ref,
       fingerprint: info.account.fingerprint,
       connected: info.connected,
+      ...(info.capabilities.includes('proactive-text-checked')
+        ? {}
+        : { unsupported: 'checked-send' as const }),
     };
+  };
+  const account = async (ref: string) => {
+    const value = await describe(ref);
+    if (value.unsupported) throw new MessagingError('provider-incompatible');
+    return value;
   };
   const targets = async (ref: string) =>
     (await host.listTargets(ref)).map((target) => ({
@@ -373,7 +380,7 @@ export function createDshImProvider(
     id: `dsh-im/${platform}`,
     async accounts() {
       const bots = (await host.listBots()).filter((bot) => bot.channel === platform);
-      const result = await Promise.allSettled(bots.map((bot) => account(bot.botId)));
+      const result = await Promise.allSettled(bots.map((bot) => describe(bot.botId)));
       return result.flatMap((item) => (item.status === 'fulfilled' ? [item.value] : []));
     },
     targets,
