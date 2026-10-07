@@ -28,7 +28,12 @@ import {
   type PersonaBotModelPlan,
 } from '../models/presets.js';
 import { MemoryAcceptError } from '../memory/accepted.js';
-import { mentionMarkup, mentionPeople, withMentionNames } from '../messaging/mention-text.js';
+import {
+  mentionMarkup,
+  mentionPeople,
+  withMentionNames,
+  withoutMentionMarkup,
+} from '../messaging/mention-text.js';
 import type { MessagingInboundEvent } from '../messaging/provider.js';
 import {
   BOT_SCHEDULE_ENABLED_LIMIT,
@@ -1116,7 +1121,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging?.post)
               throw new Error('bridge_post: unavailable');
             return JSON.stringify(
-              await active.run.externalMessaging.post(args.grant_id, args.request_id, args.text),
+              await active.run.externalMessaging.post(
+                args.grant_id,
+                args.request_id,
+                withoutMentionMarkup(args.text),
+              ),
             );
           },
         }),
@@ -1508,7 +1517,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               type: 'array',
               items: { type: 'string' },
               description:
-                'Optional platform user ids to @ at the start of the reply, taken from the source people list (its sender or someone it mentioned). Lark, Slack and Discord only.',
+                'Optional platform user ids to @ at the start of the reply, taken from the source people list (its sender or someone it mentioned). Lark only for now; Slack and Discord refuse it.',
             },
           },
           output: {
@@ -1520,7 +1529,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator' || !active.run.externalMessaging)
               throw new Error('bridge_reply: unavailable');
             const ids = args.mention_user_ids ?? [];
-            let text = args.text;
+            let text = withoutMentionMarkup(args.text);
             if (ids.length > 0) {
               const source = active.run.externalMessaging.read(args.source_event_id);
               const people = mentionPeople(source.event.actor, source.event.mentions);

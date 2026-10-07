@@ -48,7 +48,7 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Fixed
 
-- Bots now read IM mentions as names instead of platform placeholders: Lark `@_user_1` and Slack `<@U…>` reach the model as `@Name` (or `@id` when the platform gave no name), and each external message lists its sender and mentioned people with their platform IDs. `bridge_reply` takes `mention_user_ids` to @ the sender or anyone mentioned in that message on Lark, Slack and Discord ([#1126](https://github.com/BotHarness/BotHarness/issues/1126)).
+- Bots now read IM mentions as names instead of platform placeholders: Lark `@_user_1` and Slack `<@U…>` reach the model as `@Name` (or `@id` when the platform gave no name), and each external message lists its sender and mentioned people with their platform IDs. `bridge_reply` takes `mention_user_ids` to @ the sender or anyone mentioned in that message on Lark (Slack and Discord need a provider update), and mention tags the model writes itself are sent as plain text ([#1126](https://github.com/BotHarness/BotHarness/issues/1126)).
 - **Bind app** no longer hides apps the IM plugin can't serve yet. A Discord app whose plugin lacks checked sending now shows greyed out with **update the IM plugin to bind this app**, instead of silently missing from the list ([#1123](https://github.com/BotHarness/BotHarness/issues/1123)).
 - **Bind app** no longer lists apps already bound to the same Bot; they are already shown under External identities ([#1127](https://github.com/BotHarness/BotHarness/issues/1127)).
 

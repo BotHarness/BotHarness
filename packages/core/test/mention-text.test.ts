@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { mentionMarkup, mentionPeople, withMentionNames } from '../src/messaging/mention-text.js';
+import {
+  mentionMarkup,
+  mentionPeople,
+  withMentionNames,
+  withoutMentionMarkup,
+} from '../src/messaging/mention-text.js';
 
 describe('mention text for the model', () => {
   it('replaces provider placeholders with names, falling back to the platform id', () => {
@@ -31,9 +36,17 @@ describe('mention text for the model', () => {
 
   it('writes platform mention markup and refuses unsupported platforms', () => {
     expect(mentionMarkup('feishu', 'ou_123', 'Ada <x>')).toBe('<at user_id="ou_123">Ada x</at>');
-    expect(mentionMarkup('slack', 'U123')).toBe('<@U123>');
-    expect(mentionMarkup('discord', '1234567890')).toBe('<@1234567890>');
+    expect(() => mentionMarkup('slack', 'U123')).toThrow('not supported on slack');
     expect(() => mentionMarkup('weixin', 'wxid')).toThrow('not supported on weixin');
-    expect(() => mentionMarkup('slack', 'U1> <!channel')).toThrow('Invalid platform user id');
+    expect(() => mentionMarkup('feishu', 'ou"><at user_id="all')).toThrow(
+      'Invalid platform user id',
+    );
+  });
+
+  it('turns mention markup written by the model into plain text', () => {
+    expect(
+      withoutMentionMarkup('hi <at user_id="all">所有人</at> and <AT user_id="ou_1"></at>!'),
+    ).toBe('hi @所有人 and @someone!');
+    expect(withoutMentionMarkup('broken <at user_id="all"> tag')).toBe('broken  tag');
   });
 });

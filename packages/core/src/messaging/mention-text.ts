@@ -35,10 +35,15 @@ export function mentionPeople(
   return [...people.values()];
 }
 
+export function withoutMentionMarkup(text: string): string {
+  return text
+    .replace(/<at\b[^>]*>(.*?)<\/at>/gisu, (_tag, name: string) => `@${name.trim() || 'someone'}`)
+    .replace(/<\/?at\b[^>]*>/giu, '');
+}
+
 export function mentionMarkup(platform: string, id: string, name?: string): string {
   if (!/^[A-Za-z0-9_-]{1,128}$/u.test(id)) throw new Error(`Invalid platform user id ${id}`);
   if (platform === 'feishu' || platform === 'lark')
     return `<at user_id="${id}">${(name ?? '').replace(/[<>&"]/gu, '')}</at>`;
-  if (platform === 'slack' || platform === 'discord') return `<@${id}>`;
   throw new Error(`Mentions are not supported on ${platform}`);
 }
