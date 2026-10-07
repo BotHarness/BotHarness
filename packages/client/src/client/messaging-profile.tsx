@@ -1,4 +1,5 @@
 import { ApprovalSettings } from './approval-settings.js';
+import { QuestionNotifications } from './question-notifications.js';
 import { PairingSettings } from './pairing-settings.js';
 import { externalPlatformLabel } from './bridge-source-label.js';
 import { subscribeMessagingDefaults } from './messaging-defaults-live.js';
@@ -32,6 +33,7 @@ export function MessagingProfile({
     | 'approvalRoute'
     | 'approvalTest'
     | 'approvalRetry'
+    | 'questionRetry'
     | 'pairingReview'
     | 'messagingIdentity'
     | 'messagingGroupPolicy'
@@ -200,6 +202,13 @@ export function MessagingProfile({
         test={() => operate(() => actions.approvalTest(slug), 'approval')}
         retry={(id) => operate(() => actions.approvalRetry(slug, id), 'approval')}
         refresh={() => operate(async () => undefined, 'approval')}
+        openSession={actions.openSession}
+      />
+      <QuestionNotifications
+        deliveries={snapshot?.questions ?? []}
+        busy={busy}
+        t={t}
+        repair={(id) => operate(() => actions.questionRetry(slug, id), 'approval')}
         openSession={actions.openSession}
       />
       <ExternalIdentityTable

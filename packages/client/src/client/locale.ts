@@ -3,13 +3,28 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 export const LOCALE_NS = 'botharness';
 
 export const zh = {
-  'approvalIm.title': 'Lark 审批通知',
+  'questionIm.title': 'Lark 提问通知',
+  'questionIm.hint':
+    '同一管理私聊可回答原生提问，需要单独授予“回答”能力。原会话接收答案后才会显示已回答。',
+  'questionIm.empty': '暂无提问通知。',
+  'questionIm.reconcile': '核对原提问',
+  'questionIm.repair': '修复通知',
+  'questionIm.status.pending': '原提问等待回答',
+  'questionIm.status.answered': '已回答',
+  'questionIm.status.cancelled': '已取消',
+  'questionIm.status.expired': '已失效',
+  'questionIm.submission.none': '尚未提交答案',
+  'questionIm.submission.submitting': '正在提交答案',
+  'questionIm.submission.accepted': '原会话已接受答案',
+  'questionIm.submission.refused': '答案未被接受，原提问继续等待',
+  'questionIm.submission.unknown-outcome': '答案结果未确认；核对后再继续，系统不会重放答案。',
+  'approvalIm.title': 'Lark 管理通知',
   'approvalIm.hint':
-    '选择已配对且获准处理审批的私聊用户。每个工具审批请求都会自动发到此处；普通聊天接收另行配置。',
+    '选择已配对的管理私聊。审批和提问分别按批准、拒绝与回答能力发送；普通聊天接收另行配置。',
   'approvalIm.refresh': '刷新通知',
   'approvalIm.destination': '管理私聊',
   'approvalIm.off': '关闭自动通知',
-  'approvalIm.empty': '先在私聊发起 /pair，再在 Web 授予批准或拒绝能力。',
+  'approvalIm.empty': '先在私聊发起 /pair，再在 Web 授予批准、拒绝或回答能力。',
   'approvalIm.save': '保存目的地',
   'approvalIm.test': '发送测试卡片',
   'approvalIm.once':
@@ -2049,13 +2064,30 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
 }
 
 export const en = {
-  'approvalIm.title': 'Lark approval notifications',
+  'questionIm.title': 'Lark question notifications',
+  'questionIm.hint':
+    'The same management DM can answer native questions with a separate answer capability. Answered appears only after the original session accepts the answer.',
+  'questionIm.empty': 'No question notifications yet.',
+  'questionIm.reconcile': 'Check original question',
+  'questionIm.repair': 'Repair notification',
+  'questionIm.status.pending': 'Original question awaits an answer',
+  'questionIm.status.answered': 'Answered',
+  'questionIm.status.cancelled': 'Cancelled',
+  'questionIm.status.expired': 'Expired',
+  'questionIm.submission.none': 'No answer submitted',
+  'questionIm.submission.submitting': 'Submitting answer',
+  'questionIm.submission.accepted': 'Original session accepted the answer',
+  'questionIm.submission.refused': 'Answer not accepted; original question still waits',
+  'questionIm.submission.unknown-outcome':
+    'Answer unconfirmed; check before continuing. The answer will not be replayed.',
+  'approvalIm.title': 'Lark management notifications',
   'approvalIm.hint':
-    'Choose a paired private user authorized to handle approvals. Each tool approval goes here automatically; ordinary conversation reception is configured separately.',
+    'Choose a paired management DM. Approvals and questions use their separate approve, reject and answer capabilities; ordinary conversation reception is configured separately.',
   'approvalIm.refresh': 'Refresh notifications',
   'approvalIm.destination': 'Management DM',
   'approvalIm.off': 'Automatic notifications off',
-  'approvalIm.empty': 'Send /pair in the Bot DM, then grant approve or reject capability in Web.',
+  'approvalIm.empty':
+    'Send /pair in the Bot DM, then grant approve, reject or answer capability in Web.',
   'approvalIm.save': 'Save destination',
   'approvalIm.test': 'Send test card',
   'approvalIm.once':

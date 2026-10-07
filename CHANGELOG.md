@@ -9,6 +9,8 @@ WeChat original voice can be prepared for playback, native quotes and retained l
 
 ### Added
 
+- Paired Lark users with **Answer** capability can answer native Human questions through a DM form or an explicit single-question reference; Web and IM share the original owner and one accepted answer, with uncertain submission requiring explicit reconciliation rather than replay ([#1031](https://github.com/BotHarness/BotHarness/issues/1031), [guide](docs/lark-connection.md#answer-native-questions-in-the-management-dm)).
+
 - A reviewed Lark operator can receive tool approvals in a named management DM and use **Allow once** or **Reject**; callbacks recheck the actual actor and exact native call, while the Profile distinguishes delivery, accepted decision and native execution result. Known-unsent retries are bounded; uncertain delivery and old cards after restart cannot authorize execution ([#1029](https://github.com/BotHarness/BotHarness/issues/1029), [ADR-0141](docs/adr/0141-lark-private-approvals-rejoin-the-native-owner-through-checked-controls.md)).
 
 - AX isolated Profiles can reuse a machine-local OpenCode Go credential and native default model after one hidden-input setup, preserving independent Profile configuration; the qualified DSH 0.2.0 RC1 adapter supplies the actual Session header required for real Go replies ([#1079](https://github.com/BotHarness/BotHarness/issues/1079), [guide](docs/agents/ax-model.md)).

@@ -182,6 +182,16 @@ export interface InboundMessaging {
 }
 
 export function createInboundMessaging(options: {
+  onQuestionAction?(
+    providerId: string,
+    event: import('./provider.js').MessagingQuestionAction,
+    signal: AbortSignal,
+  ): Promise<import('./provider.js').MessagingApprovalAck>;
+  onQuestionText?(
+    providerId: string,
+    event: MessagingInboundEvent,
+    signal: AbortSignal,
+  ): Promise<boolean>;
   onApprovalAction?(
     providerId: string,
     event: import('./provider.js').MessagingApprovalAction,
@@ -1170,6 +1180,7 @@ export function createInboundMessaging(options: {
     event: MessagingInboundEvent,
     signal: AbortSignal,
   ) => {
+    if (await options.onQuestionText?.(provider.id, event, signal)) return true;
     if (
       !options.pairing ||
       provider.id !== 'dsh-im/feishu' ||
@@ -1263,8 +1274,13 @@ export function createInboundMessaging(options: {
               consume: fanoutMessagingConsumer(
                 provider.consume.bind(provider),
                 (event, signal) => controlIntake(provider, event, signal),
-                options.onApprovalAction
-                  ? (event, signal) => options.onApprovalAction!(provider.id, event, signal)
+                options.onApprovalAction || options.onQuestionAction
+                  ? (event, signal) =>
+                      event.action === 'answer'
+                        ? (options.onQuestionAction?.(provider.id, event, signal) ??
+                          Promise.resolve({ accepted: true, status: 'refused' }))
+                        : (options.onApprovalAction?.(provider.id, event, signal) ??
+                          Promise.resolve({ accepted: true, status: 'refused' }))
                   : undefined,
               ),
             }

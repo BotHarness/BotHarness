@@ -344,11 +344,11 @@ _Close/reopen and same-Profile restart retained configuration/history; select th
 
 ## Handle tool approvals in a management DM
 
-This slice supports Lark private **Allow once** and **Reject** cards through a qualified Provider. Group approvals, native question forms, saved automatic rules and non-blocking native waits are separate slices. The released dsh-im package number alone does not imply card capability; an unavailable Provider remains unavailable.
+This slice supports Lark private **Allow once** and **Reject** cards through a qualified Provider. Native question forms use the separate Answer capability described below. Group approvals, saved automatic rules and non-blocking native waits are separate slices. The released dsh-im package number alone does not imply card capability; an unavailable Provider remains unavailable.
 
 1. Enable the app's **Events & callbacks → Callback configuration → Long connection** and add `card.action.trigger`, then publish the version. Retain the existing message read/send scopes and add `im:chat:read` so the sender can verify a private conversation. A maintainer must authorize these app changes.
 2. Send `/pair` in the Bot's Lark DM. In the authenticated Web Profile, inspect the real applicant/account and explicitly grant **Approve** and/or **Reject**. Pairing does not create ordinary DM intake or grant VPS/API access.
-3. In **Lark approval notifications**, choose that person's name and receiving account, then **Save destination**. Select **Send test card**; it has no approval buttons and grants nothing.
+3. In **Lark management notifications**, choose that person's name and receiving account, then **Save destination**. Select **Send test card**; it has no approval buttons and grants nothing.
 4. A subsequent native tool approval sends its complete operation to that management DM, with **Allow once** and **Reject**. Check the proposed operation before deciding. A truncated card asks you to inspect the complete operation in Web. The card's acknowledgement only confirms receipt of your click; the final native decision and result are separate.
 5. Refresh notifications in the Profile and use **Open native session and complete operation** to inspect the actual native result. **Decision accepted** is not proof that a tool ran. Rejected, revoked, expired, duplicate or mismatched actions cannot approve a new call.
 
@@ -367,6 +367,30 @@ In the earlier isolated 2026-10-07 test, the actual Lark platform accepted both 
 ![Actual recovery: notifications off and the old request expired](/guides/lark/approvals/recovery-dark.jpg)
 
 [Light theme recovery screenshot](/guides/lark/approvals/recovery-light.jpg). After the test authority was revoked and the local Host restarted with its IM Provider disabled, the destination is **Off**, the old request is **Expired**, and the local identity is unavailable. This screen does not prove production availability; production Discord/Lark connections were verified separately after restoration. Do not use the old card for a new test.
+
+## Answer native questions in the management DM
+
+The #1031 candidate adds a separate checked question-card contract. A Provider qualified for approval cards alone cannot claim question support. This candidate does not change the published Provider pin or enable a second receiver.
+
+1. Send `/pair` in the Bot's Lark DM and explicitly grant **Answer** in authenticated Web. Approve/Reject and Answer are independent. Select this pairing in **Lark management notifications**; ordinary DM reception remains separately configured.
+2. When this Bot's original Orchestrator asks a native Human question, its committed request appears in Web and in the configured private DM. Choose an offered option or enter a custom answer for every question, then select **Submit answers**. Each Lark form input supports up to 1000 characters. For a single-choice question, clear the choice before submitting a custom answer. A multi-select question may include choices and a custom answer together.
+3. A single question can also receive a plain-text reply to its original card, or `/answer <12-character reference> <answer>`. Without an exact reference or original-card reply, ordinary clarification stays ordinary conversation. Several open questions, a multi-question request, malformed commands or a reference that contradicts the quoted card require explicit selection; the system does not guess.
+4. The click acknowledgement means queued, not answered. The original native owner rechecks the actual actor, Answer capability, current account/route, original receipt, offered values and live Session at commit. Web and Lark can accept only one canonical answer. Answer text never creates tool approval or an automatic rule.
+5. In **Lark question notifications**, inspect native status separately from delivery and answer submission. **Check original question** reconciles an uncertain submission against the same live native owner and existing canonical answer; it never replays the submitted text. A failed attempt leaves the original question available in Web. Uncertain card sends are not resent. Known-unsent notification or update failures can be repaired explicitly, with at most three sends.
+
+Cancelling the native question updates its original card when the checked route remains available. Restart expires a pending native owner and refuses old controls rather than restoring a Promise from a notification row. Card update failure does not change the canonical answer; inspect Web and the native Session. This slice continues to use a native wait and does not claim non-blocking Inbox continuation.
+
+Qualification is source-specific: focused native-owner/checked-Provider tests and a native Windows Web/model run are local evidence. The Lark form, actual SDK callback and final card state still require a new authorized, exclusive receiver window and Human operation. The completed #1029 approval window does not qualify #1031 questions. Production Lark and Discord remain on their restored receiver until that window is approved.
+
+The first authorized #1031 platform window verified a fresh pairing and **Answer only**, then Lark rejected the form before card creation with error `11310`: the original 2000-character input setting exceeded its 1000-character maximum. No answer was accepted; the unknown delivery was not replayed. QA authority was revoked, its identity unbound and receiver stopped before restoring production within ten minutes. The candidate now renders and validates form inputs at 1000 characters; real form submission and final card qualification still await a new window.
+
+![The candidate's real native Profile shows separate question notifications, with reception disabled](/guides/lark/questions/after-light.png)
+
+[Dark theme](/guides/lark/questions/after-dark.png). The matched [light baseline](/guides/lark/questions/before-light.png) and [dark baseline](/guides/lark/questions/before-dark.png) use the merged #1029 source, the same QA Bot name, locale and 1440 × 960 viewport. Both Profiles have no management route or IM binding; older QA entries in the candidate's sidebar are incidental history. These are local setup screenshots, not Lark delivery evidence.
+
+![The original native question owner accepts an option and custom text in the Windows Web run](/guides/lark/questions/native-question-answered-light.png)
+
+[Pending native question](/guides/lark/questions/native-question-pending-light.png) · [Answered in dark theme](/guides/lark/questions/native-question-answered-dark.png). One canonical answer resolved the original native tool, and that Session continued to a completed turn. The native Web form is the pre-existing answer surface; these screenshots do not claim real Lark form qualification.
 
 ## Images in Channel history
 

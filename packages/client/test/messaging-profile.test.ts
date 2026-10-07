@@ -74,6 +74,7 @@ it('WeChat Profile exposes only qualified proactive sending and separates client
     approvalRoute: vi.fn(),
     approvalTest: vi.fn(),
     approvalRetry: vi.fn(),
+    questionRetry: vi.fn(),
     pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingGroupPolicy: vi.fn(),
@@ -181,6 +182,7 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     | 'approvalRoute'
     | 'approvalTest'
     | 'approvalRetry'
+    | 'questionRetry'
     | 'pairingReview'
     | 'messagingIdentity'
     | 'messagingSnapshot'
@@ -197,6 +199,7 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     approvalRoute: vi.fn(async () => {}),
     approvalTest: vi.fn(async () => {}),
     approvalRetry: vi.fn(async () => {}),
+    questionRetry: vi.fn(async () => {}),
     pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
@@ -338,6 +341,7 @@ it('changes group intake only after the Human toggles it and can stop it when th
     approvalRoute: vi.fn(async () => {}),
     approvalTest: vi.fn(async () => {}),
     approvalRetry: vi.fn(async () => {}),
+    questionRetry: vi.fn(async () => {}),
     pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
@@ -443,6 +447,7 @@ it.each(['test', 'slack'])(
       approvalRoute: vi.fn(async () => {}),
       approvalTest: vi.fn(async () => {}),
       approvalRetry: vi.fn(async () => {}),
+      questionRetry: vi.fn(async () => {}),
       pairingReview: vi.fn(),
       messagingIdentity: vi.fn(),
       messagingSnapshot: async (): Promise<MessagingSnapshot> => ({
@@ -571,6 +576,7 @@ it('keeps native Thread management available after a grant migrates to Channel B
     approvalRoute: vi.fn(async () => {}),
     approvalTest: vi.fn(async () => {}),
     approvalRetry: vi.fn(async () => {}),
+    questionRetry: vi.fn(async () => {}),
     pairingReview: vi.fn(),
     messagingIdentity: vi.fn(),
     messagingSnapshot: async () => snapshot,
@@ -697,6 +703,7 @@ it.each(['report', 'reply'] as const)(
       approvalRoute: vi.fn(async () => {}),
       approvalTest: vi.fn(async () => {}),
       approvalRetry: vi.fn(async () => {}),
+      questionRetry: vi.fn(async () => {}),
       pairingReview: vi.fn(),
       messagingIdentity: vi.fn(),
       messagingGroupPolicy: vi.fn(),
@@ -814,6 +821,7 @@ it('shows a rejected pairing review beside its controls and clears it after a su
     approvalRoute: vi.fn(async () => {}),
     approvalTest: vi.fn(async () => {}),
     approvalRetry: vi.fn(async () => {}),
+    questionRetry: vi.fn(async () => {}),
     pairingReview: vi.fn(async () => {
       throw new Error('pairing-stale');
     }),

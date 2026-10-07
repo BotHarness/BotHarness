@@ -3479,6 +3479,13 @@ export async function setApprovalRoute(
 export async function testApprovalRoute(call: BridgeCall, slug: string): Promise<void> {
   await unwrap(call, 'approvalTest', { slug });
 }
+export async function retryQuestionNotification(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+): Promise<void> {
+  await unwrap(call, 'questionRetry', { slug, id });
+}
 export async function retryApprovalNotification(
   call: BridgeCall,
   slug: string,

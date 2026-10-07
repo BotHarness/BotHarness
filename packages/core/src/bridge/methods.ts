@@ -309,6 +309,7 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  questionRetry(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   approvalRoute(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
   approvalTest(
     payload: unknown,
@@ -1073,6 +1074,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return messagingCall(async (service) => ({
         delivery: await service.approvals.test(input.data.slug),
       }));
+    },
+    questionRetry(payload) {
+      const input = z
+        .object({ slug: z.string().min(1), id: z.string().uuid() })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid question notification'));
+      return messagingCall(async (service) => {
+        await service.questions.retry(input.data.slug, input.data.id);
+        return { updated: true as const };
+      });
     },
     approvalRetry(payload) {
       const input = z

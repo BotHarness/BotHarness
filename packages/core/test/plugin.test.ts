@@ -291,6 +291,7 @@ describe('plugin entry', () => {
       expect(core?.registry).toBeDefined();
       expect(core?.memory).toBeDefined();
       expect(core?.channels).toBeDefined();
+      expect(() => core?.externalMessaging.questions.refresh()).not.toThrow();
       expect(() =>
         core?.ownership.claim({
           sessionId: 'session-1',
@@ -348,6 +349,7 @@ describe('plugin entry', () => {
       'approvalRoute',
       'approvalTest',
       'approvalRetry',
+      'questionRetry',
       'pairingReview',
       'messagingSnapshot',
       'messagingTargets',
