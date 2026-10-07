@@ -1,0 +1,313 @@
+import { externalPlatformLabel } from './bridge-source-label.js';
+import { useState, type ReactElement } from 'react';
+import { Button, Input, Switch, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
+import type {
+  MessagingIdentityInput,
+  MessagingIdentityView,
+} from '../../../core/src/messaging/identity.js';
+import { Combobox } from './combobox.js';
+import type { BotHarnessTranslate } from './locale.js';
+import { Modal } from './modal.js';
+import { MessagingHelp } from './messaging-help.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
+
+const AVAILABILITY = {
+  available: 'identity.state.available',
+  paused: 'identity.state.paused',
+  unavailable: 'identity.state.unavailable',
+  'rebind-required': 'identity.state.rebind-required',
+} as const;
+
+export function ExternalIdentityList({
+  snapshot,
+  t,
+  mutate,
+}: {
+  snapshot: MessagingSnapshot | undefined;
+  t: BotHarnessTranslate;
+  mutate(input: MessagingIdentityInput): Promise<void>;
+}): ReactElement {
+  const [mode, setMode] = useState<'bind' | 'edit' | 'reconnect' | 'unbind'>();
+  const [selected, setSelected] = useState<MessagingIdentityView>();
+  const [accountKey, setAccountKey] = useState('');
+  const [name, setName] = useState('');
+  const [inheritEnabled, setInheritEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const identities = snapshot?.identities ?? [];
+  const accounts = snapshot?.accounts ?? [];
+  const selectedAccount = accounts.find((a) => a.providerId + ':' + a.ref === accountKey);
+  const platform = (value: string) => externalPlatformLabel(value, t);
+  const open = (next: typeof mode, row?: MessagingIdentityView) => {
+    setError('');
+    setMode(next);
+    setSelected(row);
+    setName(row?.name ?? '');
+    setInheritEnabled(row?.enabledInheritance === 'inherit');
+    setAccountKey('');
+  };
+  const close = () => {
+    if (!busy) setMode(undefined);
+  };
+  const operate = async (operation: () => Promise<void>, done = false) => {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await operation();
+      if (done) setMode(undefined);
+    } catch (error) {
+      const code =
+        error instanceof Error && 'code' in error && typeof error.code === 'string'
+          ? error.code
+          : '';
+      setError(
+        t(
+          code === 'identity-stale' || code === 'identity-changed'
+            ? 'identity.stale'
+            : 'identity.failed',
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  const save = async () => {
+    if (mode === 'bind' && selectedAccount) {
+      await mutate({
+        kind: 'bind',
+        providerId: selectedAccount.providerId,
+        accountRef: selectedAccount.ref,
+        fingerprint: selectedAccount.fingerprint,
+      });
+    } else if (selected && mode && mode !== 'bind') {
+      await mutate(
+        mode === 'edit'
+          ? {
+              kind: 'update',
+              id: selected.id,
+              expectedRevision: selected.revision,
+              name,
+              enabled: selected.enabled,
+              inheritEnabled,
+              ...(selected.defaultRevision !== undefined
+                ? { expectedDefaultRevision: selected.defaultRevision }
+                : {}),
+            }
+          : { kind: mode, id: selected.id, expectedRevision: selected.revision },
+      );
+    }
+  };
+  return (
+    <>
+      {error && !mode ? (
+        <p role="alert" className="bh-error">
+          {error}
+        </p>
+      ) : null}
+      <SidebarCardList label={t('identity.title')}>
+        {identities.map((row) => (
+          <SidebarCardRow
+            key={row.id}
+            icon="id-card"
+            title={row.name}
+            meta={`${platform(row.platform)} · ${t(
+              row.enabledInheritance === 'inherit' ? 'defaults.inherited' : 'defaults.custom',
+            )}`}
+            chips={<Tag tone="neutral">{t(AVAILABILITY[row.availability])}</Tag>}
+            muted={!row.enabled}
+            hint={t('identity.editFor', { name: row.name })}
+            dialog
+            disabled={busy}
+            onClick={() => open('edit', row)}
+            trailing={
+              <Switch
+                label={t('identity.enableFor', { name: row.name })}
+                checked={row.enabled}
+                disabled={busy}
+                onChange={(enabled) =>
+                  void operate(() =>
+                    mutate({
+                      kind: 'update',
+                      id: row.id,
+                      expectedRevision: row.revision,
+                      name: row.name,
+                      enabled,
+                    }),
+                  )
+                }
+              />
+            }
+          />
+        ))}
+        <SidebarCardRow
+          anchor="lark-bind"
+          icon="plus"
+          title={t('identity.bind')}
+          meta={
+            !snapshot ? t('im.loading') : identities.length ? undefined : t('identity.emptyShort')
+          }
+          muted
+          dialog
+          disabled={busy || !snapshot}
+          onClick={() => open('bind')}
+        />
+      </SidebarCardList>
+      <Modal
+        className="bh-sidebar-modal"
+        open={mode !== undefined}
+        onClose={close}
+        title={t(
+          mode === 'bind'
+            ? 'identity.bind'
+            : mode === 'unbind'
+              ? 'identity.unbind'
+              : mode === 'reconnect'
+                ? 'identity.reconnect'
+                : 'identity.editTitle',
+        )}
+        closeLabel={t('common.close')}
+        footer={
+          <div className="bh-modal-footer">
+            {mode === 'edit' ? (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  aria-label={selected && t('identity.reconnectFor', { name: selected.name })}
+                  onClick={() => setMode('reconnect')}
+                >
+                  {t('identity.reconnect')}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="bh-im-danger-outline"
+                  disabled={busy}
+                  aria-label={selected && t('identity.unbindFor', { name: selected.name })}
+                  onClick={() => setMode('unbind')}
+                >
+                  {t('identity.unbind')}
+                </Button>
+                <span className="bh-modal-footer-gap" />
+              </>
+            ) : (
+              <Button variant="outline" disabled={busy} onClick={close}>
+                {t('common.cancel')}
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              className={mode === 'unbind' ? 'bh-im-danger' : undefined}
+              disabled={
+                busy ||
+                (mode === 'bind' && (!selectedAccount || !selectedAccount.connected)) ||
+                (mode === 'edit' && !name.trim())
+              }
+              onClick={() => void operate(save, true)}
+            >
+              {t(
+                busy
+                  ? 'identity.pending'
+                  : mode === 'unbind'
+                    ? 'identity.confirmUnbind'
+                    : mode === 'bind'
+                      ? 'identity.bind'
+                      : mode === 'reconnect'
+                        ? 'identity.reconnect'
+                        : 'identity.save',
+              )}
+            </Button>
+          </div>
+        }
+      >
+        <div className="bh-sidebar-modal-form">
+          {error ? (
+            <p role="alert" className="bh-error">
+              {error}
+            </p>
+          ) : null}
+          {mode === 'bind' ? (
+            <>
+              <p>{t('identity.providerHint')}</p>
+              <label className="bh-im-field">
+                <span>{t('im.account')}</span>
+                <Combobox
+                  label={t('im.account')}
+                  toggleLabel={t('im.account')}
+                  placeholder={t('im.select')}
+                  emptyLabel={t('im.setup')}
+                  disabled={busy}
+                  value={accountKey}
+                  onSelect={setAccountKey}
+                  options={accounts.map((account) => ({
+                    value: account.providerId + ':' + account.ref,
+                    label: account.name,
+                    hint: platform(account.platform),
+                    disabled:
+                      !account.connected || identities.some((i) => i.platform === account.platform),
+                  }))}
+                />
+              </label>
+              {!accounts.length ? <p>{t('im.setup')}</p> : null}
+              <p className="bh-muted">{t('identity.bindHint')}</p>
+            </>
+          ) : selected ? (
+            <>
+              <p className="bh-sidebar-modal-subject">
+                {platform(selected.platform)} · {selected.name}
+              </p>
+              {mode === 'edit' ? (
+                <>
+                  <label className="bh-im-field">
+                    <span>{t('identity.displayName')}</span>
+                    <Input
+                      value={name}
+                      disabled={busy}
+                      maxLength={120}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </label>
+                  <div className="bh-im-field">
+                    <span className="bh-im-heading">
+                      <span>{t('defaults.identity')}</span>
+                      <MessagingHelp
+                        title={t('defaults.identity')}
+                        text={t('defaults.restoreHint')}
+                        t={t}
+                      />
+                    </span>
+                    <Combobox
+                      searchable={false}
+                      label={t('defaults.identityOrigin')}
+                      toggleLabel={t('defaults.identityOrigin')}
+                      value={inheritEnabled ? 'inherit' : 'custom'}
+                      disabled={busy}
+                      onSelect={(value) => setInheritEnabled(value === 'inherit')}
+                      options={[
+                        { value: 'inherit', label: t('defaults.inherited') },
+                        { value: 'custom', label: t('defaults.custom') },
+                      ]}
+                    />
+                  </div>
+                </>
+              ) : null}
+              {mode === 'reconnect' ? <p>{t('identity.reconnectHint')}</p> : null}
+              {mode === 'unbind' ? (
+                <>
+                  <p>{t('identity.impact', { count: selected.grantCount })}</p>
+                  <ul>
+                    {selected.scopes.map((scope, index) => (
+                      <li key={index}>{scope}</li>
+                    ))}
+                  </ul>
+                  <p>{t('identity.unbindHint')}</p>
+                </>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      </Modal>
+    </>
+  );
+}

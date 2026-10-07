@@ -91,7 +91,8 @@ After creation, open **View details**:
 - **Design avatar**: choose illustrated/line style, presets, parts, shape sliders, and colors. Save applies the preview; cancel discards the draft. An uploaded image takes display precedence.
 - **Activity overview**: pins select cards in the Profile popover. Token usage time range, model/provider grouping, filters, and custom dates change the statistics view, not the model. Unavailable usage is unknown rather than zero.
 - **Persona / memory files**: use Memory files in the right sidebar to inspect files and their available edit/preview actions. The Profile does not repeat every creation field as an editing form.
-- **Standing memory limits**: character limits for `SOUL.md` and `MEMORY.md`, applied from the next Session; see [Bot Soul and Core Memory](/docs/soul-and-core-memory).
+- **Standing memory limits** now live in the Channel sidebar: **Bot DM → Memory files → Standing memory limits** sets the character limits for `SOUL.md` and `MEMORY.md`, applied from the next Session; see [Bot Soul and Core Memory](/docs/soul-and-core-memory).
+- **External identities and connectors** also moved out of the Profile, into the Bot DM's Channel sidebar: see [External identities](/docs/channel-sidebar/external-identities) and [External connectors](/docs/channel-sidebar/external-connectors).
 
 ## Bot wake policy and local Groups
 

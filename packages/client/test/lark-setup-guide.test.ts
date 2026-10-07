@@ -5,7 +5,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { MessagingSnapshot } from '../../core/src/messaging/outbound.js';
 import type { MessagingTarget } from '../../core/src/messaging/provider.js';
 
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./primitive-mocks.js')).comboboxPrimitives(),
   Button: ({
     children,
     onClick,
@@ -19,6 +20,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 
 import { LarkSetupGuide } from '../src/client/lark-setup-guide.js';
 import { zhTranslate } from '../src/client/locale.js';
+import { chooseOption } from './primitive-mocks.js';
 
 let root: Root;
 let container: HTMLDivElement;
@@ -59,11 +61,7 @@ const target: MessagingTarget = {
 };
 
 async function choose(key: string) {
-  const account = container.querySelectorAll('select')[1]!;
-  await act(async () => {
-    account.value = key;
-    account.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+  await chooseOption(zhTranslate('im.account'), key);
 }
 
 it('recognizes a saved group target independently and returns it to unconfirmed on disconnection', async () => {
@@ -75,15 +73,11 @@ it('recognizes a saved group target independently and returns it to unconfirmed 
       createElement(LarkSetupGuide, { snapshot: current, t: zhTranslate, refresh, loadTargets }),
     );
   await act(async () => render());
-  await act(async () => container.querySelector('button')!.click());
+  await act(async () => container.querySelector<HTMLButtonElement>('.bh-card-main')!.click());
   await choose('dsh-im/feishu:one');
   expect(loadTargets).toHaveBeenCalledWith('dsh-im/feishu', 'one');
   expect(container.querySelectorAll('.bh-lark-setup-steps li')[1]?.textContent).toContain('待确认');
-  await act(async () => {
-    const group = container.querySelectorAll('select')[2]!;
-    group.value = 'qa';
-    group.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+  await chooseOption(zhTranslate('im.target'), 'qa');
   expect(container.querySelectorAll('.bh-lark-setup-steps li')[1]?.textContent).toContain('已确认');
   expect(container.querySelectorAll('.bh-lark-setup-steps li')[2]?.textContent).toContain('待确认');
   expect(container.querySelectorAll('.bh-lark-setup-steps li')[4]?.textContent).toContain('待确认');
@@ -110,7 +104,7 @@ it('ignores a delayed target response after a different account is selected', as
       }),
     ),
   );
-  await act(async () => container.querySelector('button')!.click());
+  await act(async () => container.querySelector<HTMLButtonElement>('.bh-card-main')!.click());
   await choose('dsh-im/feishu:one');
   await choose('dsh-im/feishu:two');
   await act(async () => resolveOne([target]));

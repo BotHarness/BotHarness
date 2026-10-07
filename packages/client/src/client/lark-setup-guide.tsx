@@ -1,5 +1,8 @@
 import { useRef, useState, type ReactElement } from 'react';
 import { Button, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Combobox } from './combobox.js';
+import { revealSidebarAnchor } from './sidebar-anchor.js';
+import { SidebarCardList, SidebarCardRow } from './sidebar-card.js';
 import type { MessagingSnapshot } from '../../../core/src/messaging/outbound.js';
 import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -32,7 +35,7 @@ export function LarkSetupGuide({
   }>();
   const targetRequest = useRef(0);
   const stopTour = useRef<() => void>();
-  const root = useRef<HTMLElement | null>(null);
+  const root = useRef<HTMLUListElement | null>(null);
   const alive = useRef(false);
   const refreshing = useRef(false);
   const refreshRef = useRef(refresh);
@@ -74,7 +77,7 @@ export function LarkSetupGuide({
     }, 3000);
     return () => clearInterval(timer);
   }, []);
-  const mount = useMountedResource<HTMLElement>((node) => {
+  const mount = useMountedResource<HTMLUListElement>((node) => {
     root.current = node;
     alive.current = true;
     return () => {
@@ -128,49 +131,46 @@ export function LarkSetupGuide({
       stopTour.current = cancel;
       return;
     }
-    const profile = root.current?.parentElement;
-    const element =
-      step === 'identity'
-        ? profile?.querySelector('[data-bh-lark-bind]')
-        : profile?.querySelector(
-            step === 'grant' ? '[data-bh-lark-grant]' : '[data-bh-lark-guide]',
-          );
-    if (element) {
-      if (step === 'grant') element.querySelector('details')?.setAttribute('open', '');
-      stopTour.current = highlightLarkSetup(
-        element,
-        t(`setup.step.${step}`),
-        t(`setup.hint.${step}`),
-        t('common.close'),
-      );
-    } else setFailed(true);
+    const fail = () => {
+      if (alive.current) setFailed(true);
+    };
+    const anchor =
+      step === 'identity' ? 'lark-bind' : step === 'grant' ? 'lark-grant' : 'lark-guide';
+    let tour: (() => void) | undefined;
+    const cancel = revealSidebarAnchor(
+      doc,
+      step === 'grant' ? 'external-connectors' : 'external-identities',
+      anchor,
+      (element) => {
+        tour = highlightLarkSetup(
+          element,
+          t(`setup.step.${step}`),
+          t(`setup.hint.${step}`),
+          t('common.close'),
+        );
+        stopTour.current = tour;
+      },
+      fail,
+    );
+    if (tour === undefined) stopTour.current = cancel;
   };
   return (
-    <section
-      ref={mount}
-      className="bh-profile-section bh-lark-setup"
-      aria-label={t('setup.title')}
-      data-bh-lark-guide
-    >
-      <header className="bh-identity-header">
-        <strong>{t('setup.title')}</strong>
-        <Button
-          size="sm"
-          variant="primary"
+    <>
+      <SidebarCardList listRef={mount} label={t('setup.title')}>
+        <SidebarCardRow
+          anchor="lark-guide"
+          icon="compass"
+          title={t('setup.title')}
+          meta={failed && !open ? t('setup.failed') : t('setup.open')}
+          state={failed && !open ? 'error' : undefined}
+          dialog
           onClick={() => {
             stopTour.current?.();
             setOpen(true);
             void check();
           }}
-        >
-          {t('setup.open')}
-        </Button>
-      </header>
-      {failed && !open ? (
-        <p role="alert" className="bh-error">
-          {t('setup.failed')}
-        </p>
-      ) : null}
+        />
+      </SidebarCardList>
       <Modal
         open={open}
         onClose={() => setOpen(false)}
@@ -182,13 +182,17 @@ export function LarkSetupGuide({
           <p>{t('setup.summary')}</p>
           <label className="bh-im-field">
             <span>{t('setup.platform')}</span>
-            <select
+            <Combobox
+              searchable={false}
+              label={t('setup.platform')}
+              toggleLabel={t('setup.platform')}
               value={platform}
-              onChange={(e) => setPlatform(e.target.value === 'feishu' ? 'feishu' : 'lark')}
-            >
-              <option value="lark">{t('setup.lark')}</option>
-              <option value="feishu">{t('setup.feishu')}</option>
-            </select>
+              onSelect={(value) => setPlatform(value === 'feishu' ? 'feishu' : 'lark')}
+              options={[
+                { value: 'lark', label: t('setup.lark') },
+                { value: 'feishu', label: t('setup.feishu') },
+              ]}
+            />
           </label>
           <p>
             <a
@@ -224,10 +228,13 @@ export function LarkSetupGuide({
           </details>
           <label className="bh-im-field">
             <span>{t('im.account')}</span>
-            <select
+            <Combobox
+              label={t('im.account')}
+              toggleLabel={t('im.account')}
+              placeholder={t('im.select')}
+              emptyLabel={t('im.setup')}
               value={accountKey}
-              onChange={(e) => {
-                const key = e.target.value;
+              onSelect={(key) => {
                 setAccountKey(key);
                 setTargetRef('');
                 setTargetRows(undefined);
@@ -235,31 +242,26 @@ export function LarkSetupGuide({
                   if (alive.current) setFailed(true);
                 });
               }}
-            >
-              <option value="">{t('im.select')}</option>
-              {snapshot?.accounts
+              options={(snapshot?.accounts ?? [])
                 .filter((a) => a.platform === 'feishu')
-                .map((a) => (
-                  <option key={`${a.providerId}:${a.ref}`} value={`${a.providerId}:${a.ref}`}>
-                    {a.name}
-                    {a.connected ? '' : ` · ${t('im.unavailable')}`}
-                  </option>
-                ))}
-            </select>
+                .map((a) => ({
+                  value: `${a.providerId}:${a.ref}`,
+                  label: a.name,
+                  ...(a.connected ? {} : { hint: t('im.unavailable') }),
+                }))}
+            />
           </label>
           <label className="bh-im-field">
             <span>{t('im.target')}</span>
-            <select
+            <Combobox
+              label={t('im.target')}
+              toggleLabel={t('im.target')}
+              placeholder={t('im.select')}
+              emptyLabel={t('bridge.noSources')}
               value={selectedTarget?.ref ?? ''}
-              onChange={(e) => setTargetRef(e.target.value)}
-            >
-              <option value="">{t('im.select')}</option>
-              {targets.map((target) => (
-                <option key={target.ref} value={target.ref}>
-                  {target.name}
-                </option>
-              ))}
-            </select>
+              onSelect={setTargetRef}
+              options={targets.map((target) => ({ value: target.ref, label: target.name }))}
+            />
           </label>
           {busy || !snapshot ? (
             <p role="status">{t('setup.checking')}</p>
@@ -319,6 +321,6 @@ export function LarkSetupGuide({
           <p>{t('setup.resume')}</p>
         </div>
       </Modal>
-    </section>
+    </>
   );
 }

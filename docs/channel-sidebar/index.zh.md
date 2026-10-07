@@ -15,16 +15,18 @@
 
 ## 按功能查看教程
 
-| Bot 私聊中的项目                                      | 可以做什么                                                    |
-| ----------------------------------------------------- | ------------------------------------------------------------- |
-| [记忆文件](/zh/docs/channel-sidebar/memory-files)     | 浏览当前仓库文件树，在中间区域读取文件。                      |
-| [记忆演化](/zh/docs/channel-sidebar/memory-evolution) | 查看未提交改动、Git 历史、分支与恢复检查点。                  |
-| [会话](/zh/docs/channel-sidebar/sessions)             | 在 DSH 中打开这个 Bot 的 Orchestrator 与 Assignment Session。 |
-| [Bot 收件箱](/zh/docs/channel-sidebar/bot-inbox)      | 检查 Bot 收到的来源消息与任务报告。                           |
-| [工作区授权](/zh/docs/channel-sidebar/workspaces)     | 查看并明确授权这个 Bot 可以使用的 Host 文件夹。               |
-| [定时任务](/zh/docs/channel-sidebar/schedules)        | 按频率唤醒这个 Bot、立即运行某个任务，并锁定以防 Bot 修改。   |
-| [模型](/zh/docs/channel-sidebar/model)                | 查看并修改这个 Bot 日常对话与新任务使用的模型。               |
-| [唤醒策略](/zh/docs/channel-sidebar/wake-policy)      | 按来源设置这个 Bot 立即唤醒、汇总后唤醒或只记录。             |
+| Bot 私聊中的项目                                           | 可以做什么                                                                    |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [记忆文件](/zh/docs/channel-sidebar/memory-files)          | 浏览当前仓库文件树，在中间区域读取文件。                                      |
+| [记忆演化](/zh/docs/channel-sidebar/memory-evolution)      | 查看未提交改动、Git 历史、分支与恢复检查点。                                  |
+| [会话](/zh/docs/channel-sidebar/sessions)                  | 在 DSH 中打开这个 Bot 的 Orchestrator 与 Assignment Session。                 |
+| [Bot 收件箱](/zh/docs/channel-sidebar/bot-inbox)           | 检查 Bot 收到的来源消息与任务报告。                                           |
+| [工作区授权](/zh/docs/channel-sidebar/workspaces)          | 查看并明确授权这个 Bot 可以使用的 Host 文件夹。                               |
+| [定时任务](/zh/docs/channel-sidebar/schedules)             | 按频率唤醒这个 Bot、立即运行某个任务，并锁定以防 Bot 修改。                   |
+| [模型](/zh/docs/channel-sidebar/model)                     | 查看并修改这个 Bot 日常对话与新任务使用的模型。                               |
+| [唤醒策略](/zh/docs/channel-sidebar/wake-policy)           | 按来源设置这个 Bot 立即唤醒、汇总后唤醒或只记录。                             |
+| [外部身份](/zh/docs/channel-sidebar/external-identities)   | 绑定这个 Bot 在 Lark / 飞书、Slack、微信的发言身份；IM 管理员配对与审批通知。 |
+| [外部连接器](/zh/docs/channel-sidebar/external-connectors) | 授权外部会话，选择哪些消息进入本私聊或 Bot 收件箱。                           |
 
 | 本地群聊中的项目                                | 可以做什么                                     |
 | ----------------------------------------------- | ---------------------------------------------- |
@@ -36,4 +38,4 @@
 
 Bot 专属项目不出现在群聊中；群管理不出现在 Bot 私聊中。Bot 收件箱在已有记录或正在加载、发生错误时显示。你也可能在 **编辑侧边栏** 中隐藏过某个项目。
 
-可选插件可以增加其他项目。公共 npm 包不包含 Browser、Computer 包，所以没有对应入口是正常情况。安装并启用这些包后，分别按[分享浏览器标签页](/zh/docs/daily-browser)或 [Computer 导出与迁移](/zh/docs/computer-export)核对前提和操作。IM 连接另有独立的配置流程。
+可选插件可以增加其他项目。公共 npm 包不包含 Browser、Computer 包，所以没有对应入口是正常情况。安装并启用这些包后，分别按[分享浏览器标签页](/zh/docs/daily-browser)或 [Computer 导出与迁移](/zh/docs/computer-export)核对前提和操作。IM 应用连接另有独立的配置流程；连接后，由「外部身份」和「外部连接器」管理这个 Bot 如何使用它。

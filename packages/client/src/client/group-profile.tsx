@@ -7,7 +7,7 @@ import {
 } from './avatar.js';
 import { bridgeSourceLabel } from './bridge-source-label.js';
 import { GroupWakePolicyTable } from './group-wake-policy-table.js';
-import { ChannelBridgeTable } from './channel-bridge-table.js';
+import { ChannelBridgeList } from './channel-bridge-list.js';
 import type { BridgeActions } from './actions.js';
 import type { ReactElement } from 'react';
 
@@ -301,7 +301,7 @@ export function GroupProfileView({
         actions={actions}
         t={t}
       />
-      <ChannelBridgeTable
+      <ChannelBridgeList
         key={channel.id}
         channelId={channel.id}
         channelName={channel.name}

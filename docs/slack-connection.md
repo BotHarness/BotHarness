@@ -4,11 +4,11 @@ Connect a PersonaBot to a **public Slack channel**: configure an application, co
 
 ## Understand the three settings
 
-| Setting                   | Location                    | Purpose                                                              |
-| ------------------------- | --------------------------- | -------------------------------------------------------------------- |
-| IM application connection | Settings → IM bots → Slack  | Connect this Host to a Slack application bot                         |
-| External identity         | PersonaBot detailed Profile | Choose the identity this Bot uses to speak externally                |
-| Channel connector         | Channel detailed Profile    | Choose which external messages enter this local Channel or Bot Inbox |
+| Setting                   | Location                                                            | Purpose                                                              |
+| ------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| IM application connection | Settings → IM bots → Slack                                          | Connect this Host to a Slack application bot                         |
+| External identity         | Bot DM → Channel sidebar → External identities                      | Choose the identity this Bot uses to speak externally                |
+| External connector        | Bot DM → External connectors, or a Group Channel's detailed Profile | Choose which external messages enter this local Channel or Bot Inbox |
 
 Connecting an app does not authorize every Slack channel. Binding an identity does not mirror messages into a local DM. Each Bot replies with its own bound, authorized identity.
 
@@ -88,21 +88,21 @@ _The connected account is the actual #868 installed-product result, not a filled
 
 ## 4. Bind the PersonaBot and authorize a channel
 
-Open the PersonaBot's **detailed Profile → External identities** (外部身份). Select **Bind identity** (绑定身份), choose the connected Slack application account and save. One Bot can bind identities on several platforms, with one identity per platform.
+Open the PersonaBot's DM and, in the **Channel sidebar** on the right, expand **External identities** (外部身份). Select **+ Bind identity** (绑定身份), choose the connected Slack application account and save. One Bot can bind identities on several platforms, with one identity per platform.
 
 ![Bind identity dialog selecting an authenticated IM account](/guides/slack/08-bind.webp)
 
-_This form binds an identity only. It does not authorize another channel or turn on intake._
+_This form binds an identity only. It does not authorize another channel or turn on intake. Screenshots in this section show the earlier Profile layout; these settings now live in the sidebar's External identities / External connectors entries._
 
 ![Actual bound Slack identity with status, enabled switch, edit and unbind actions](/guides/slack/09-identity.webp)
 
-Next expand **Channel connectors and authorization** (频道连接器与授权), choose the bound account and the external public channel from the selectors, and authorize it. If it is missing, first check app installation and channel membership, then refresh.
+Next expand **External connectors** (外部连接器) and click **Authorize a conversation** (授权外部会话). In the **Conversation authorization** dialog, choose the bound account and the external public channel from the selectors, and authorize it. If it is missing, first check app installation and channel membership, then refresh.
 
 ![Actual authorized Slack channel and its topic policy controls](/guides/slack/13-authorized.webp)
 
 _The retained QA account is bound to this explicitly authorized channel. Topic following is managed separately._
 
-Use the **Channel connectors** table to manage that source's delivery route. Keep the initial condition **mentions only** and the destination **Bot Inbox only**. Inspect the enabled switch and runtime status; they are distinct from the identity's enabled switch.
+Use the connector rows under **External connectors** to manage that source's delivery route. Keep the initial condition **mentions only** and the destination **Bot Inbox only**. Inspect the enabled switch and runtime status; they are distinct from the identity's enabled switch.
 
 ## 5. Verify a mention and same-thread reply
 
@@ -129,19 +129,19 @@ Also send one plain, unmentioned message. With mentions-only intake and no expli
 | Bot Inbox only                     | External sources enter the Bot's Inbox without occupying local DM history                            |
 | Explicit local DM or Group Channel | External sources appear in that Channel's history; each member Bot has its own Attention/wake policy |
 
-For a shared Channel, add the participating Bots, open its detailed Profile and choose **Add Channel connector** (添加频道连接器). Select an already authorized Slack source, give the connector a recognizable name, choose its intake condition and save. The dialog identifies the local destination. It does not create an app or grant new external access.
+For a shared Channel, add the participating Bots, open its detailed Profile and choose **Add connector** (添加外部连接器). In a Bot DM, use the sidebar's **External connectors → + Add connector** instead. Select an already authorized Slack source, give the connector a recognizable name, choose its intake condition and save. The dialog identifies the local destination. It does not create an app or grant new external access.
 
-![Actual shared Channel connector dialog using an already authorized Slack group](/guides/slack/12-connector.webp)
+![Actual shared Channel external connector dialog using an already authorized Slack group](/guides/slack/12-connector.webp)
 
 _This #845 capture demonstrates shared-Channel configuration. Local discussions stay local; a Bot must explicitly choose an external source and use its own authorized identity to reply._
 
-The connector switch pauses new intake while keeping its configuration and history. Deleting a connector does not delete earlier messages. Disabling an external identity and disabling a connector are separate actions.
+The external connector's switch pauses new intake while keeping its configuration and history. Deleting a connector does not delete earlier messages. Disabling an external identity and disabling a connector are separate actions.
 
 ### Ordinary messages, harvest and topic following
 
 Start with @mentions. To collect ordinary text, first enable `channels:history` and `message.channels`, install the changed permissions, then send a plain test message in the authorized channel and refresh. BotHarness requires observed ordinary-message delivery before offering all-message intake or topic following.
 
-In Profile, choose custom **all messages** intake only for the intended source. Select count/time harvest (for example, 5 messages or 30 seconds), or safely queued immediate wake. For shared Channels, each member Bot chooses when to process those messages through its own Attention settings. Intake, waking and whether to reply are separate decisions.
+In the group intake settings of **External connectors → Authorize a conversation**, choose custom **all messages** intake only for the intended source. Select count/time harvest (for example, 5 messages or 30 seconds), or safely queued immediate wake. For shared Channels, each member Bot chooses when to process those messages through its own Attention settings. Intake, waking and whether to reply are separate decisions.
 
 A Bot may explicitly follow or leave one native Slack topic within its authorization. Human can inspect or override this in **Topic following** (话题跟进). Unmentioned replies in a followed topic can enter; unrelated topics keep their own rules. A Bot can also request bounded channel, nearby or thread context with continuation, without importing the history as new Inbox messages.
 

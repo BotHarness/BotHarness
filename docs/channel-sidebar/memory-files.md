@@ -4,6 +4,12 @@ Open a **Bot DM → Channel sidebar → Memory files**. The tree belongs to this
 
 `SOUL.md` and `MEMORY.md` at the root are pinned at the top with a **Standing** badge and their character usage: both go into the system prompt at the start of every new Session. See [Bot Soul and Core Memory](/docs/soul-and-core-memory) for what they are for, their limits, and when edits apply.
 
+## Standing memory limits
+
+Below the file tree, the **Standing memory limits** row shows the current limits, for example `SOUL.md 5,000 · MEMORY.md 3,000`, with a **Customized** chip after a change. Click it to set both character limits, then **Save limits**; **Restore defaults** returns to 5,000 and 3,000. New limits apply from the next Session.
+
+![The Standing memory limits row and dialog](/guides/channel-sidebar/23-standing-limits-zh.webp)
+
 ## Read a file
 
 1. Expand **Memory files** and any folder containing the file.

@@ -1,4 +1,5 @@
-import { useId, useState, type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
+import { Combobox } from './combobox.js';
 import { Button, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { ApprovalMessagingSnapshot } from '../../../core/src/messaging/approval-messaging.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -24,12 +25,10 @@ export function ApprovalSettings({
   openSession(sessionId: string): void;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const id = useId();
   const [selected, setSelected] = useState(snapshot?.route?.pairingId ?? '');
   return (
     <section className="bh-im-pairing" aria-label={t('approvalIm.title')}>
       <div className="bh-im-actions">
-        <strong>{t('approvalIm.title')}</strong>
         <Button size="sm" variant="toolbar" disabled={busy} onClick={() => void refresh()}>
           {t('approvalIm.refresh')}
         </Button>
@@ -40,26 +39,27 @@ export function ApprovalSettings({
           {t('approvalIm.error')}
         </p>
       ) : null}
-      <label className="bh-im-field" htmlFor={id}>
+      <div className="bh-im-field">
         <span>{t('approvalIm.destination')}</span>
-        <select
-          id={id}
+        <Combobox
+          searchable={false}
+          label={t('approvalIm.destination')}
+          toggleLabel={t('approvalIm.destination')}
           value={selected}
+          fallbackValue=""
           disabled={busy || !snapshot}
-          onChange={(event) => setSelected(event.target.value)}
-        >
-          <option value="">{t('approvalIm.off')}</option>
-          {snapshot?.destinations.map((destination) => (
-            <option
-              key={destination.pairingId}
-              value={destination.pairingId}
-              disabled={!destination.ready}
-            >
-              {destination.name} · {destination.accountName} · {destination.reference}
-            </option>
-          ))}
-        </select>
-      </label>
+          onSelect={setSelected}
+          options={[
+            { value: '', label: t('approvalIm.off') },
+            ...(snapshot?.destinations ?? []).map((destination) => ({
+              value: destination.pairingId,
+              label: destination.name,
+              hint: `${destination.accountName} · ${destination.reference}`,
+              disabled: !destination.ready,
+            })),
+          ]}
+        />
+      </div>
       {snapshot?.destinations.length === 0 ? (
         <p className="bh-muted">{t('approvalIm.empty')}</p>
       ) : null}

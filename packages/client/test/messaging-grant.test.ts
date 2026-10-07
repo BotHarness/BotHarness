@@ -1,11 +1,18 @@
 // @vitest-environment jsdom
-import { act, createElement, type ButtonHTMLAttributes, type PropsWithChildren } from 'react';
-import { createRoot } from 'react-dom/client';
+import {
+  act,
+  createElement,
+  type ButtonHTMLAttributes,
+  type PropsWithChildren,
+  type ReactNode,
+} from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import type { MessagingGrant, MessagingSnapshot } from '../../core/src/messaging/outbound.js';
 import type { BridgeActions } from '../src/client/actions.js';
 
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./primitive-mocks.js')).comboboxPrimitives(),
   Button: (props: ButtonHTMLAttributes<HTMLButtonElement>) => createElement('button', props),
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
   IconChevronRightOutlineRegular: () => null,
@@ -13,19 +20,64 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Tooltip: ({ children, label }: PropsWithChildren<{ label: string }>) =>
     createElement('span', { title: label }, children),
   Switch: () => null,
-  Modal: ({ open, children, onClose }: PropsWithChildren<{ open: boolean; onClose(): void }>) =>
+  Checkbox: ({
+    checked,
+    label,
+    onChange,
+  }: {
+    checked: boolean;
+    label: string;
+    onChange(value: boolean): void;
+  }) =>
+    createElement(
+      'label',
+      null,
+      createElement('input', {
+        type: 'checkbox',
+        checked,
+        onChange: (event: { target: { checked: boolean } }) => onChange(event.target.checked),
+      }),
+      label,
+    ),
+  Modal: ({
+    open,
+    children,
+    footer,
+    onClose,
+  }: PropsWithChildren<{ open: boolean; footer?: ReactNode; onClose(): void }>) =>
     open
       ? createElement(
           'div',
           { role: 'dialog' },
           children,
+          footer,
           createElement('button', { onClick: onClose }, 'Close'),
         )
       : null,
 }));
 
-import { MessagingProfile } from '../src/client/messaging-profile.js';
+import { MessagingGrantRow } from '../src/client/messaging-grant.js';
+import { ExternalIdentitiesEntry } from '../src/client/external-entries.js';
+import { chooseOption, combobox, comboboxOption, openCombobox } from './primitive-mocks.js';
 import { zhTranslate } from '../src/client/locale.js';
+
+async function renderGrant(
+  root: Root,
+  actions: Parameters<typeof MessagingGrantRow>[0]['actions'],
+) {
+  await act(async () =>
+    root.render(
+      createElement(
+        'ul',
+        null,
+        createElement(MessagingGrantRow, { slug: 'ada', actions, t: zhTranslate }),
+      ),
+    ),
+  );
+  await act(async () =>
+    document.querySelector<HTMLButtonElement>('[data-anchor="lark-grant"] .bh-card-main')!.click(),
+  );
+}
 
 it('WeChat Profile exposes only qualified proactive sending and separates client acknowledgement from native identity', async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -94,9 +146,7 @@ it('WeChat Profile exposes only qualified proactive sending and separates client
   document.body.append(host);
   const root = createRoot(host);
   try {
-    await act(async () =>
-      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
-    );
+    await renderGrant(root, actions);
     expect(host.querySelector('textarea')).toBeNull();
     qualified = true;
     await act(async () =>
@@ -215,18 +265,9 @@ it('requires explicit target authorization and an explicit send; unknown outcome
     if (!node) throw new Error(`missing button ${label}`);
     return node;
   };
-  const select = async (label: string, value: string) => {
-    const node = container.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`);
-    if (!node) throw new Error(`missing selector ${label}`);
-    await act(async () => {
-      node.value = value;
-      node.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-  };
+  const select = (label: string, value: string) => chooseOption(label, value);
   try {
-    await act(async () =>
-      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
-    );
+    await renderGrant(root, actions);
     expect(messagingAuthorize).not.toHaveBeenCalled();
     expect(messagingSend).not.toHaveBeenCalled();
     expect(button(zhTranslate('im.authorize')).disabled).toBe(true);
@@ -356,21 +397,15 @@ it('changes group intake only after the Human toggles it and can stop it when th
     return element;
   };
   try {
-    await act(async () =>
-      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
-    );
+    await renderGrant(root, actions);
     await act(async () => button('im.refresh').click());
     expect(messagingReceive).not.toHaveBeenCalled();
     expect(messagingChannelTarget).not.toHaveBeenCalled();
-    const selector = container.querySelector<HTMLSelectElement>(
-      `select[aria-label="${zhTranslate('im.localTarget')}"]`,
-    )!;
-    expect(selector.value).toBe('');
-    expect(selector.options.length).toBe(2);
-    await act(async () => {
-      selector.value = 'shared-work';
-      selector.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    const selector = combobox(zhTranslate('im.localTarget'));
+    expect(selector.value).toBe(zhTranslate('im.inboxTarget'));
+    await openCombobox(zhTranslate('im.localTarget'));
+    expect(document.querySelectorAll('[role="option"]').length).toBe(2);
+    await act(async () => comboboxOption('shared-work')!.click());
     expect(messagingChannelTarget.mock.calls).toEqual([['ada', grant.id, 'shared-work']]);
     expect(
       container.querySelector(
@@ -379,10 +414,7 @@ it('changes group intake only after the Human toggles it and can stop it when th
     ).toBe(zhTranslate('im.channelTargetHint'));
     expect(messagingReceive).not.toHaveBeenCalled();
     expect(messagingSend).not.toHaveBeenCalled();
-    await act(async () => {
-      selector.value = '';
-      selector.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await chooseOption(zhTranslate('im.localTarget'), '');
     expect(messagingChannelTarget.mock.calls).toEqual([
       ['ada', grant.id, 'shared-work'],
       ['ada', grant.id, null],
@@ -474,33 +506,17 @@ it.each(['test', 'slack'])(
         (item) => item.textContent === zhTranslate(key),
       )!;
     try {
-      await act(async () =>
-        root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
-      );
+      await renderGrant(root, actions);
       await act(async () => button('im.refresh').click());
-      const collection = container.querySelector<HTMLSelectElement>(
-        `select[aria-label="${zhTranslate('im.collection')}"]`,
-      )!;
-      expect(collection.querySelector<HTMLOptionElement>('option[value="all"]')?.disabled).toBe(
-        true,
-      );
+      await openCombobox(zhTranslate('im.collection'));
+      expect(comboboxOption('all')?.disabled).toBe(true);
       expect(container.textContent).toContain(zhTranslate('im.ordinaryUnverified'));
       verified = true;
       await act(async () => button('im.refresh').click());
-      expect(collection.querySelector<HTMLOptionElement>('option[value="all"]')?.disabled).toBe(
-        false,
-      );
-      await act(async () => {
-        collection.value = 'all';
-        collection.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-      const wake = container.querySelector<HTMLSelectElement>(
-        `select[aria-label="${zhTranslate('im.ordinaryWake')}"]`,
-      )!;
-      await act(async () => {
-        wake.value = 'immediate';
-        wake.dispatchEvent(new Event('change', { bubbles: true }));
-      });
+      await openCombobox(zhTranslate('im.collection'));
+      expect(comboboxOption('all')?.disabled).toBe(false);
+      await act(async () => comboboxOption('all')!.click());
+      await chooseOption(zhTranslate('im.ordinaryWake'), 'immediate');
       expect(messagingGroupPolicy).not.toHaveBeenCalled();
       await act(async () => button('im.policySave').click());
       expect(messagingGroupPolicy).toHaveBeenCalledExactlyOnceWith('ada', grant.id, {
@@ -582,9 +598,7 @@ it('keeps native Thread management available after a grant migrates to Channel B
   document.body.append(container);
   const root = createRoot(container);
   try {
-    await act(async () =>
-      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
-    );
+    await renderGrant(root, actions);
     expect(container.textContent).toContain(zhTranslate('bridge.managed'));
     expect(container.querySelector('table')?.textContent).toContain('Native Slack topic');
     const manage = [...container.querySelectorAll('button')].find(
@@ -592,12 +606,7 @@ it('keeps native Thread management available after a grant migrates to Channel B
     );
     if (!manage) throw new Error('missing Thread management');
     await act(async () => manage.click());
-    const mode = container.querySelector<HTMLSelectElement>('[role="dialog"] select');
-    if (!mode) throw new Error('missing Thread policy');
-    await act(async () => {
-      mode.value = 'exclude';
-      mode.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await chooseOption(zhTranslate('im.threadParticipation'), 'exclude');
     const submit = [...container.querySelectorAll('button')].find(
       (button) => button.textContent === zhTranslate('im.threadSave'),
     );
@@ -650,7 +659,6 @@ it('shows per-Thread state, refuses unverified follow and saves the exact Human 
     [...container.querySelectorAll('button')].find(
       (button) => button.textContent === zhTranslate('im.threadManage'),
     )!;
-  const mode = () => container.querySelector<HTMLSelectElement>('[role="dialog"] select')!;
   const submit = () =>
     [...container.querySelectorAll('button')].find(
       (button) => button.textContent === zhTranslate('im.threadSave'),
@@ -659,19 +667,13 @@ it('shows per-Thread state, refuses unverified follow and saves the exact Human 
     await act(async () => render());
     expect(container.querySelector('table')?.textContent).toContain('Test Thread message');
     await act(async () => manage().click());
-    await act(async () => {
-      mode().value = 'follow';
-      mode().dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await chooseOption(zhTranslate('im.threadParticipation'), 'follow');
     expect(submit().disabled).toBe(true);
     expect(container.textContent).toContain(zhTranslate('im.threadUnverified'));
     verified = true;
     await act(async () => render());
     await act(async () => manage().click());
-    await act(async () => {
-      mode().value = 'follow';
-      mode().dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await chooseOption(zhTranslate('im.threadParticipation'), 'follow');
     expect(submit().disabled).toBe(false);
     await act(async () => submit().click());
     expect(save).toHaveBeenCalledExactlyOnceWith('source-one', {
@@ -752,10 +754,8 @@ it.each(['report', 'reply'] as const)(
     document.body.append(container);
     const root = createRoot(container);
     try {
-      await act(async () =>
-        root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
-      );
-      expect(container.querySelector('[role="dialog"]')).toBeNull();
+      await renderGrant(root, actions);
+      expect(container.textContent).not.toContain(zhTranslate('im.externalOnly'));
       const inspect = container.querySelector<HTMLButtonElement>(
         `button[aria-label="${zhTranslate(kind === 'reply' ? 'im.inspectReply' : 'im.inspectReport', { name: 'QA group' })}"]`,
       );
@@ -776,6 +776,14 @@ it.each(['report', 'reply'] as const)(
         (node) => node.textContent === 'Close',
       );
       await act(async () => close?.click());
+      expect(container.querySelector('[role="dialog"]')?.textContent).not.toContain(
+        zhTranslate('im.externalOnly'),
+      );
+      await act(async () =>
+        [...container.querySelectorAll('button')]
+          .find((node) => node.textContent === 'Close')
+          ?.click(),
+      );
       expect(container.querySelector('[role="dialog"]')).toBeNull();
       expect(messagingSend).not.toHaveBeenCalled();
     } finally {
@@ -833,7 +841,20 @@ it('shows a rejected pairing review beside its controls and clears it after a su
   const root = createRoot(host);
   try {
     await act(async () =>
-      root.render(createElement(MessagingProfile, { slug: 'ada', actions, t: zhTranslate })),
+      root.render(
+        createElement(ExternalIdentitiesEntry, {
+          scope: 'personabot',
+          channelId: 'dm',
+          botSlug: 'ada',
+          actions: actions as unknown as BridgeActions,
+          t: zhTranslate,
+        }),
+      ),
+    );
+    await act(async () =>
+      [...host.querySelectorAll<HTMLButtonElement>('.bh-card-main')]
+        .find((item) => item.textContent?.includes(zhTranslate('pairing.title')))!
+        .click(),
     );
     const pairing = host.querySelector('.bh-im-pairing')!;
     const button = (key: 'pairing.approve' | 'pairing.refresh') =>
@@ -850,7 +871,6 @@ it('shows a rejected pairing review beside its controls and clears it after a su
     });
     expect(pairing.querySelector('[role="alert"]')?.textContent).toBe(zhTranslate('pairing.error'));
     expect(pairing.closest('details')).toBeNull();
-    expect(host.querySelector('[data-bh-lark-grant] [role="alert"]')).toBeNull();
     expect(button('pairing.approve').disabled).toBe(false);
     await act(async () => button('pairing.refresh').click());
     expect(pairing.querySelector('[role="alert"]')).toBeNull();

@@ -1,8 +1,10 @@
 import { useId, useState, type ReactElement } from 'react';
-import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import { errorMessage } from './bridge.js';
+import { Modal } from './modal.js';
+import { SidebarCardRow } from './sidebar-card.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotSummary, StandingLimitsView } from './store.js';
 
@@ -74,37 +76,46 @@ function LimitField({
   );
 }
 
-export function StandingLimitsProfile({
+export function StandingLimitsRow({
   bot,
   actions,
   t,
 }: {
   bot: BotSummary;
-  actions: BridgeActions;
+  actions: Pick<BridgeActions, 'setStandingLimits'>;
   t: BotHarnessTranslate;
 }): ReactElement {
   const [saved, setSaved] = useState<StandingLimitsView>(
     bot.standingLimits ?? DEFAULT_STANDING_LIMITS,
   );
+  const [open, setOpen] = useState(false);
   const [soul, setSoul] = useState(String(saved.soul));
   const [coreMemory, setCoreMemory] = useState(String(saved.coreMemory));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const [notice, setNotice] = useState(false);
 
   const soulLimit = parseLimit(soul);
   const coreMemoryLimit = parseLimit(coreMemory);
   const valid = soulLimit !== undefined && coreMemoryLimit !== undefined;
   const changed = valid && (soulLimit !== saved.soul || coreMemoryLimit !== saved.coreMemory);
+  const customized =
+    saved.soul !== DEFAULT_STANDING_LIMITS.soul ||
+    saved.coreMemory !== DEFAULT_STANDING_LIMITS.coreMemory;
 
   const edit = (setter: (value: string) => void) => (value: string) => {
     setter(value);
     setError(undefined);
-    setNotice(false);
+  };
+
+  const start = (): void => {
+    setSoul(String(saved.soul));
+    setCoreMemory(String(saved.coreMemory));
+    setError(undefined);
+    setOpen(true);
   };
 
   const submit = async (): Promise<void> => {
-    if (!valid) return;
+    if (!valid || busy) return;
     setBusy(true);
     setError(undefined);
     try {
@@ -112,11 +123,8 @@ export function StandingLimitsProfile({
         soul: soulLimit,
         coreMemory: coreMemoryLimit,
       });
-      const next = updated.standingLimits ?? { soul: soulLimit, coreMemory: coreMemoryLimit };
-      setSaved(next);
-      setSoul(String(next.soul));
-      setCoreMemory(String(next.coreMemory));
-      setNotice(true);
+      setSaved(updated.standingLimits ?? { soul: soulLimit, coreMemory: coreMemoryLimit });
+      setOpen(false);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -125,70 +133,93 @@ export function StandingLimitsProfile({
   };
 
   return (
-    <section
-      className="bh-profile-section bh-profile-policy-section bh-standing-limits"
-      aria-label={t('standingLimits.title')}
-    >
-      <h2 className="bh-profile-section-title">{t('standingLimits.title')}</h2>
-      <p className="bh-settings-row-desc">{t('standingLimits.description')}</p>
-      <form
-        className="bh-standing-limits-form"
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
+    <>
+      <SidebarCardRow
+        icon="ruler"
+        title={t('standingLimits.title')}
+        meta={t('standingLimits.summary', {
+          soul: formatCount(saved.soul),
+          coreMemory: formatCount(saved.coreMemory),
+        })}
+        chips={customized ? <Tag tone="info">{t('standingLimits.customized')}</Tag> : undefined}
+        hint={t('standingLimits.edit')}
+        dialog
+        onClick={start}
+      />
+      <Modal
+        className="bh-sidebar-modal"
+        open={open}
+        onClose={() => {
+          if (!busy) setOpen(false);
         }}
+        title={t('standingLimits.title')}
+        description={t('standingLimits.description')}
+        closeLabel={t('common.close')}
+        footer={
+          <div className="bh-modal-footer">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                busy ||
+                (soul === String(DEFAULT_STANDING_LIMITS.soul) &&
+                  coreMemory === String(DEFAULT_STANDING_LIMITS.coreMemory))
+              }
+              onClick={() => {
+                edit(setSoul)(String(DEFAULT_STANDING_LIMITS.soul));
+                setCoreMemory(String(DEFAULT_STANDING_LIMITS.coreMemory));
+              }}
+            >
+              {t('standingLimits.reset')}
+            </Button>
+            <span className="bh-modal-footer-gap" />
+            <Button variant="outline" disabled={busy} onClick={() => setOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={busy || !changed}
+              onClick={() => void submit()}
+            >
+              {t(busy ? 'standingLimits.saving' : 'standingLimits.save')}
+            </Button>
+          </div>
+        }
       >
-        <LimitField
-          label={t('standingLimits.soul')}
-          file="SOUL.md"
-          value={soul}
-          disabled={busy}
-          invalid={soulLimit === undefined}
-          onChange={edit(setSoul)}
-          t={t}
-        />
-        <LimitField
-          label={t('standingLimits.coreMemory')}
-          file="MEMORY.md"
-          value={coreMemory}
-          disabled={busy}
-          invalid={coreMemoryLimit === undefined}
-          onChange={edit(setCoreMemory)}
-          t={t}
-        />
-        <div className="bh-standing-limits-actions">
-          <Button type="submit" size="sm" variant="primary" disabled={busy || !changed}>
-            {t(busy ? 'standingLimits.saving' : 'standingLimits.save')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={
-              busy ||
-              (soul === String(DEFAULT_STANDING_LIMITS.soul) &&
-                coreMemory === String(DEFAULT_STANDING_LIMITS.coreMemory))
-            }
-            onClick={() => {
-              edit(setSoul)(String(DEFAULT_STANDING_LIMITS.soul));
-              setCoreMemory(String(DEFAULT_STANDING_LIMITS.coreMemory));
-            }}
-          >
-            {t('standingLimits.reset')}
-          </Button>
-          {notice && (
-            <span className="bh-settings-row-desc" role="status">
-              {t('standingLimits.saved')}
-            </span>
-          )}
+        <form
+          className="bh-standing-limits-form"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (changed) void submit();
+          }}
+        >
+          <LimitField
+            label={t('standingLimits.soul')}
+            file="SOUL.md"
+            value={soul}
+            disabled={busy}
+            invalid={soulLimit === undefined}
+            onChange={edit(setSoul)}
+            t={t}
+          />
+          <LimitField
+            label={t('standingLimits.coreMemory')}
+            file="MEMORY.md"
+            value={coreMemory}
+            disabled={busy}
+            invalid={coreMemoryLimit === undefined}
+            onChange={edit(setCoreMemory)}
+            t={t}
+          />
           {error && (
             <span className="bh-assignment-limit-error" role="alert">
               {error}
             </span>
           )}
-        </div>
-      </form>
-    </section>
+        </form>
+      </Modal>
+    </>
   );
 }

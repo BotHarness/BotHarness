@@ -6,6 +6,9 @@ import { useMountedResource } from './mounted-resource.js';
 import { cachedMemory } from './memory-read-cache.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import { MemoryLoadFeedback } from './memory-load-feedback.js';
+import { useClientState } from './bot-sidebar.js';
+import { SidebarCardList } from './sidebar-card.js';
+import { StandingLimitsRow } from './standing-limits.js';
 
 export function MemoryFilesEntry(props: ChannelSidebarEntryProps): ReactElement {
   return <MemoryFilesForScope key={cachedMemory(props.actions, props.channelId).key} {...props} />;
@@ -21,6 +24,7 @@ function MemoryFilesForScope({
   t,
 }: ChannelSidebarEntryProps): ReactElement {
   const cache = cachedMemory(actions, channelId);
+  const bot = useClientState().bots.find((item) => item.slug === botSlug);
   const [snapshot, setSnapshot] = useState<MemorySnapshot | undefined>(cache.snapshot);
   const [error, setError] = useState<string | undefined>(cache.snapshotError);
   const [pending, setPending] = useState(false);
@@ -98,6 +102,11 @@ function MemoryFilesForScope({
           onSelect={onMemoryFileSelect}
           t={t}
         />
+      )}
+      {bot === undefined ? null : (
+        <SidebarCardList className="bh-memory-limits" label={t('standingLimits.title')}>
+          <StandingLimitsRow key={bot.slug} bot={bot} actions={actions} t={t} />
+        </SidebarCardList>
       )}
     </div>
   );

@@ -19,6 +19,7 @@ import { modelPlanOf, rememberModelPlan, subscribeModelPlans } from './model-pla
 import type { ModelPlanStateView } from './bridge.js';
 import { useMountedResource } from './mounted-resource.js';
 import { WakePolicyBadge, WakePolicyEntry } from './wake-policy-entry.js';
+import { ExternalConnectorsEntry, ExternalIdentitiesEntry } from './external-entries.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { formatRelativeTime } from './labels.js';
@@ -910,6 +911,22 @@ export function createChannelSidebarBuiltins(
       scope: 'personabot',
       component: WakePolicyEntry,
       badge: WakePolicyBadge,
+    },
+    {
+      id: 'external-identities',
+      icon: 'id-card',
+      label: t('entry.externalIdentities'),
+      order: 27,
+      scope: 'personabot',
+      component: ExternalIdentitiesEntry,
+    },
+    {
+      id: 'external-connectors',
+      icon: 'plug',
+      label: t('entry.externalConnectors'),
+      order: 28,
+      scope: 'personabot',
+      component: ExternalConnectorsEntry,
     },
     {
       id: 'members',

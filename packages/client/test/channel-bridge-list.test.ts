@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
-import { act, createElement, type ButtonHTMLAttributes, type PropsWithChildren } from 'react';
+import {
+  act,
+  createElement,
+  type ButtonHTMLAttributes,
+  type PropsWithChildren,
+  type ReactNode,
+} from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => ({
+  ...(await import('./primitive-mocks.js')).comboboxPrimitives(),
   Button: (props: ButtonHTMLAttributes<HTMLButtonElement>) => createElement('button', props),
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
   Switch: ({
@@ -23,10 +30,16 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
       disabled,
       onClick: () => onChange(!checked),
     }),
-  Modal: ({ open, children, title }: PropsWithChildren<{ open: boolean; title: string }>) =>
-    open ? createElement('div', { role: 'dialog', 'aria-label': title }, children) : null,
+  Modal: ({
+    open,
+    children,
+    title,
+    footer,
+  }: PropsWithChildren<{ open: boolean; title: string; footer?: ReactNode }>) =>
+    open ? createElement('div', { role: 'dialog', 'aria-label': title }, children, footer) : null,
 }));
-import { ChannelBridgeTable } from '../src/client/channel-bridge-table.js';
+import { ChannelBridgeList } from '../src/client/channel-bridge-list.js';
+import { comboboxOption, openCombobox } from './primitive-mocks.js';
 import { zhTranslate } from '../src/client/locale.js';
 import type { ChannelBridgeSnapshot } from '../../core/src/messaging/channel-bridge.js';
 it('Bridge Switch failures refresh committed state and stale edits preserve the draft with exact authority revisions', async () => {
@@ -64,7 +77,7 @@ it('Bridge Switch failures refresh committed state and stale edits preserve the 
   try {
     await act(async () =>
       root.render(
-        createElement(ChannelBridgeTable, {
+        createElement(ChannelBridgeList, {
           channelId: 'group',
           channelName: 'Shared work',
           botNames: new Map([['ada', 'Ada']]),
@@ -86,9 +99,7 @@ it('Bridge Switch failures refresh committed state and stale edits preserve the 
       enabled: false,
       collection: 'mentions',
     });
-    const edit = container.querySelector<HTMLButtonElement>(
-      '[aria-label="编辑频道连接器：QA intake"]',
-    )!;
+    const edit = container.querySelector<HTMLButtonElement>('[title="编辑外部连接器：QA intake"]')!;
     await act(async () => edit.click());
     const input = container.querySelector<HTMLInputElement>('input')!;
     await act(async () => {
@@ -106,7 +117,8 @@ it('Bridge Switch failures refresh committed state and stale edits preserve the 
     expect(container.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain(
       '配置已',
     );
-    expect(container.querySelector<HTMLOptionElement>('option[value="all"]')?.disabled).toBe(true);
+    await openCombobox(zhTranslate('bridge.condition'));
+    expect(comboboxOption('all')?.disabled).toBe(true);
     expect(actions.channelBridge).toHaveBeenLastCalledWith('group', {
       kind: 'update',
       grantId: 'grant',
@@ -157,7 +169,7 @@ it('WeChat DM connector edits expose only supported paired-owner intake', async 
   try {
     await act(async () =>
       root.render(
-        createElement(ChannelBridgeTable, {
+        createElement(ChannelBridgeList, {
           channelId: 'group',
           channelName: 'Shared work',
           botNames: new Map([['ada', 'Ada']]),
@@ -169,14 +181,13 @@ it('WeChat DM connector edits expose only supported paired-owner intake', async 
     expect(container.textContent).toContain('扫码绑定者私聊消息');
     expect(container.textContent).not.toContain(zhTranslate('bridge.unverified'));
     await act(async () =>
-      container
-        .querySelector<HTMLButtonElement>('[aria-label="编辑频道连接器：Owner intake"]')!
-        .click(),
+      container.querySelector<HTMLButtonElement>('[title="编辑外部连接器：Owner intake"]')!.click(),
     );
     const dialog = container.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain(zhTranslate('bridge.wechatDMHint'));
-    expect(dialog.querySelector('option[value="mentions"]')).toBeNull();
-    expect(dialog.querySelector('option[value="inherit"]')).toBeNull();
+    expect(
+      dialog.querySelector(`input[aria-label="${zhTranslate('bridge.condition')}"]`),
+    ).toBeNull();
     const save = [...dialog.querySelectorAll<HTMLButtonElement>('button')].find(
       (b) => b.textContent === zhTranslate('bridge.save'),
     )!;

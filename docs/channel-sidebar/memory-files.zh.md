@@ -4,6 +4,12 @@
 
 根目录的 `SOUL.md` 和 `MEMORY.md` 固定排在最上面，带 **常驻** 标签和字数用量：它们会在每个新 Session 开始时放进 system prompt。用途、上限和生效时间见 [Bot 灵魂与核心记忆](/zh/docs/soul-and-core-memory)。
 
+## 常驻记忆上限
+
+文件树下方的 **常驻记忆上限** 行显示当前上限，例如 `SOUL.md 5,000 · MEMORY.md 3,000`；改过后带 **已修改** 标签。点击后分别设置两个字符上限，再点 **保存上限**；**恢复默认** 改回 5,000 和 3,000。新上限从下一个 Session 生效。
+
+![常驻记忆上限行与弹窗](/guides/channel-sidebar/23-standing-limits-zh.webp)
+
 ## 读取文件
 
 1. 展开 **记忆文件**，再展开文件所在的文件夹。

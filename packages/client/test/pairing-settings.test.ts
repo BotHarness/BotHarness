@@ -10,6 +10,28 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   }: ButtonHTMLAttributes<HTMLButtonElement> & { size?: string; variant?: string }) =>
     createElement('button', props),
   Tag: ({ children }: PropsWithChildren) => createElement('span', null, children),
+  Checkbox: ({
+    checked,
+    label,
+    disabled,
+    onChange,
+  }: {
+    checked: boolean;
+    label: string;
+    disabled?: boolean;
+    onChange(value: boolean): void;
+  }) =>
+    createElement(
+      'label',
+      null,
+      createElement('input', {
+        type: 'checkbox',
+        checked,
+        disabled,
+        onChange: (event: { target: { checked: boolean } }) => onChange(event.target.checked),
+      }),
+      label,
+    ),
 }));
 import { PairingSettings } from '../src/client/pairing-settings.js';
 import { zhTranslate } from '../src/client/locale.js';
