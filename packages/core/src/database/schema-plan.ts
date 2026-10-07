@@ -1594,6 +1594,19 @@ const APPROVAL_MESSAGING_MIGRATION: SchemaMigration = {
   },
 };
 
+const NEW_CONVERSATION_DEFAULT_MIGRATION: SchemaMigration = {
+  generation: 64,
+  module: 'messaging',
+  description: 'Let a bound app inherit the platform default new-conversation mode',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE messaging_bindings ADD COLUMN new_conversations_inherited INTEGER NOT NULL DEFAULT 1
+        CHECK (new_conversations_inherited IN (0, 1));
+      UPDATE messaging_bindings SET new_conversations_inherited = 0 WHERE new_conversations = 'ask';
+    `);
+  },
+};
+
 const BOUND_APP_ADMISSION_MIGRATION: SchemaMigration = {
   generation: 61,
   module: 'messaging',
@@ -1741,4 +1754,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOUND_APP_ADMISSION_MIGRATION,
   CONVERSATION_LIST_MIGRATION,
   SEVERAL_APPS_MIGRATION,
+  NEW_CONVERSATION_DEFAULT_MIGRATION,
 ]);
