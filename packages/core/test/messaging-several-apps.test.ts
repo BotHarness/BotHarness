@@ -183,14 +183,11 @@ it('an app bound to one Bot is listed with its owner and refused to another Bot'
       (await fx.core.externalMessaging.apps()).map((app) => [app.ref, app.boundBotSlug ?? null]),
     );
   expect(await owners()).toEqual({ 'lark-a': 'ada', 'lark-b': null, 'lark-c': null });
-  expect(await fx.methods.messagingApps({})).toMatchObject({
-    ok: true,
-    value: {
-      apps: expect.arrayContaining([
-        expect.objectContaining({ ref: 'lark-a', boundBotSlug: 'ada', bindingId: ada.id }),
-      ]),
-    },
-  });
+  expect((await fx.core.externalMessaging.snapshot('bea')).accounts).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ ref: 'lark-a', boundBotSlug: 'ada', bindingId: ada.id }),
+    ]),
+  );
   await fx.core.externalMessaging.identity('ada', {
     kind: 'unbind',
     id: ada.id,

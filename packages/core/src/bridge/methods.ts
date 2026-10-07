@@ -26,7 +26,6 @@ import { groupReceptionInput } from '../messaging/group-policy.js';
 import type { ExternalSource } from '../messaging/inbound.js';
 import type {
   OutboundMessaging,
-  MessagingApp,
   MessagingSnapshot,
   MessagingGrant,
   OutboxIntent,
@@ -334,7 +333,6 @@ export interface BridgeMethods {
   messagingDefaultsSet(payload: unknown): Promise<BridgeResult<MessagingDefaults>>;
   messagingSnapshot(payload: unknown): Promise<BridgeResult<MessagingSnapshot>>;
   messagingTargets(payload: unknown): Promise<BridgeResult<{ targets: MessagingTarget[] }>>;
-  messagingApps(payload: unknown): Promise<BridgeResult<{ apps: MessagingApp[] }>>;
   messagingAuthorize(payload: unknown): Promise<BridgeResult<{ grant: MessagingGrant }>>;
   messagingRevoke(payload: unknown): Promise<BridgeResult<{ revoked: true }>>;
   messagingConversation(payload: unknown): Promise<BridgeResult<{ updated: true }>>;
@@ -1176,9 +1174,6 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return messagingCall(async (service) => ({
         targets: await service.targets(input.data.providerId, input.data.accountRef),
       }));
-    },
-    messagingApps() {
-      return messagingCall(async (service) => ({ apps: await service.apps() }));
     },
     messagingAuthorize(payload) {
       const input = z

@@ -22,7 +22,7 @@ The same goes for Slack and Discord: DM the app or @mention it in a channel it b
 
 1. First connect the app under **Settings → IM Bots**, following the guide for your platform.
 2. Click **+ Bind app**.
-3. Choose the connected app under **App**. The dropdown is searchable: type to filter. Apps already bound to another Bot are not listed; **Settings → Bot settings → IM apps** shows which Bot uses each app.
+3. Choose the connected app under **App**. The dropdown is searchable: type to filter. Every connected app is listed: apps a Bot already uses are greyed out and say which Bot (or **already bound to this Bot**), and disconnected apps say **not connected**. **Manage app credentials** opens **Settings → IM bots**.
 4. Click **Bind app**. The dialog then shows the real receiving state:
    - **Ready**: DMs and @mentions to the app now reach this Bot’s Inbox.
    - **Connecting**: the app is still opening its receiver. Wait a moment.

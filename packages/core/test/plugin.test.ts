@@ -351,7 +351,6 @@ describe('plugin entry', () => {
       'pairingReview',
       'messagingSnapshot',
       'messagingTargets',
-      'messagingApps',
       'messagingAuthorize',
       'messagingRevoke',
       'messagingConversation',
